@@ -8,6 +8,7 @@ import {
   EventLogPort,
   IdPort,
   LogPort,
+  ProcessPort,
   toThreadId,
   type LogEntry,
   type ThreadId,
@@ -15,18 +16,26 @@ import {
 
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { recorder } from '../../channel/__tests__/signals'
+import { LocalProcessPort } from '../../execution/local-process'
 import { HookChain } from '../../hooks/registry'
 import { registerShells } from '../../shells/register-shells'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 import { RandomIds, SystemClock } from '../../store'
 import { JsonlEventLog } from '../../store/sessions/event-log'
 import { registryFor } from '../../store/sessions/registry'
+import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import {
   createIsolatedContainer,
   portToken,
   type DependencyContainer,
 } from '../injection'
-import { DeltaChannelToken, HookChainToken, WorkspaceRoot } from '../tokens'
+import {
+  AtlasHomeToken,
+  DeltaChannelToken,
+  HookChainToken,
+  SessionRegistryToken,
+  WorkspaceRoot,
+} from '../tokens'
 
 const THREAD = toThreadId('thread-with-shell')
 const OTHER = toThreadId('thread-elsewhere')
@@ -58,6 +67,9 @@ async function openHarness(args: { withChannel: boolean; operational?: LogPort }
   if (args.operational !== undefined) {
     container.register(portToken(LogPort), { useValue: args.operational })
   }
+  container.register(AtlasHomeToken, { useValue: home })
+  container.register(SessionRegistryToken, { useValue: registryFor({ home }) })
+  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
   container.register(portToken(EventLogPort), {
     useFactory: (resolver) =>
       new JsonlEventLog(
@@ -82,6 +94,13 @@ async function openHarness(args: { withChannel: boolean; operational?: LogPort }
   }
 
   const log = container.resolve(portToken(EventLogPort))
+  await new JsonlThreadStore(
+    home,
+    registryFor({ home }),
+    container.resolve(portToken(ClockPort)),
+    container.resolve(portToken(IdPort)),
+    log,
+  ).create({ id: THREAD })
   opened.push({ container, dirs: [home, root] })
   return { shells, log, seen, channel }
 }
@@ -98,12 +117,17 @@ describe('a background shell ending while its thread is idle', () => {
   it('appends the ending durably and publishes events-appended to the owning thread', async () => {
     const { shells, log, seen } = await openHarness({ withChannel: true })
 
-    const started = shells.start({
+    const started = await shells.start({
       threadId: THREAD,
       command: 'echo publication',
       description: 'Prove publication',
     })
     if (!started.ok) throw new Error(started.reason)
+
+    expect(started.snapshot.shellId).toMatch(/^shell_[0-9a-f]{32}$/)
+    const startedEvents = await log.readOwn({ threadId: THREAD })
+    expect(startedEvents.map((event) => event.type)).toEqual(['background-shell-started'])
+    expect(seen).toEqual([{ type: 'events-appended' }])
 
     await untilDurable({ log })
 
@@ -111,7 +135,8 @@ describe('a background shell ending while its thread is idle', () => {
     const endings = events.filter((event) => event.type === 'background-shell-ended')
     expect(endings).toHaveLength(1)
     expect(endings[0]?.seq).toBeGreaterThan(0)
-    expect(seen).toEqual([{ type: 'events-appended' }])
+    expect(endings[0]).toMatchObject({ shellId: started.snapshot.shellId })
+    expect(seen).toEqual([{ type: 'events-appended' }, { type: 'events-appended' }])
   })
 
   it('publishes nothing to a thread the ending does not belong to', async () => {
@@ -121,7 +146,7 @@ describe('a background shell ending while its thread is idle', () => {
     const other = recorder()
     channel.subscribe({ threadId: OTHER, listener: other.listener })
 
-    const started = shells.start({
+    const started = await shells.start({
       threadId: THREAD,
       command: 'echo isolated',
       description: 'Prove isolation',
@@ -152,7 +177,7 @@ describe('a background shell ending while its thread is idle', () => {
       },
     })
 
-    const started = shells.start({
+    const started = await shells.start({
       threadId: THREAD,
       command: 'echo resilient',
       description: 'Prove listener isolation',
@@ -163,7 +188,7 @@ describe('a background shell ending while its thread is idle', () => {
 
     const events = await log.readOwn({ threadId: THREAD })
     expect(events.some((event) => event.type === 'background-shell-ended')).toBe(true)
-    expect(seen).toEqual([{ type: 'events-appended' }])
+    expect(seen).toEqual([{ type: 'events-appended' }, { type: 'events-appended' }])
     expect(
       entries.some(
         (entry) => entry.source === 'shells.publication' && entry.error === 'listener exploded',
@@ -174,7 +199,7 @@ describe('a background shell ending while its thread is idle', () => {
   it('still records the ending durably when no channel is registered', async () => {
     const { shells, log, seen } = await openHarness({ withChannel: false })
 
-    const started = shells.start({
+    const started = await shells.start({
       threadId: THREAD,
       command: 'echo channelless',
       description: 'Prove channel-less endings still land',

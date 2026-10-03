@@ -10,6 +10,7 @@ import { HookChain } from '../../hooks/registry'
 import { SleepPrevention } from '../../power/sleep-prevention'
 import { BunShellRegistry } from '../shell-registry'
 import { job, settle } from './shell-registry-fixture'
+import { registryRuntimeLauncher } from './registry-runtime-fixture'
 
 class FixedClock implements ClockPort {
   now(): string {
@@ -45,23 +46,23 @@ afterEach(async () => {
 
 function openWithPrevention(prevention: SleepPrevention): BunShellRegistry {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'atlas-shells-power-')))
-  const registry = new BunShellRegistry(
+  const registry = new BunShellRegistry({
     root,
-    new FixedClock(),
-    () => new HookChain({}),
-    undefined,
-    prevention,
-  )
+    clock: new FixedClock(),
+    hooks: () => new HookChain({}),
+    sleepPrevention: prevention,
+    launcher: registryRuntimeLauncher({ root }),
+  })
   opened.push({ registry, root })
   return registry
 }
 
-describe('a background shell holds a sleep assertion', () => {
+describe('a background shell holds a sleep assertion', async () => {
   it('holds while the shell runs and releases when it exits', async () => {
     const prevention = countingPrevention()
     const registry = openWithPrevention(prevention)
 
-    const started = registry.start(job({ command: 'printf done' }))
+    const started = await registry.start(job({ command: 'printf done; sleep 0.3' }))
     if (!started.ok) throw new Error(`shell failed to start: ${started.reason}`)
     expect(prevention.held).toBe(1)
 
@@ -73,8 +74,8 @@ describe('a background shell holds a sleep assertion', () => {
     const prevention = countingPrevention()
     const registry = openWithPrevention(prevention)
 
-    const first = registry.start(job({ command: 'sleep 30' }))
-    const second = registry.start(job({ command: 'sleep 30' }))
+    const first = await registry.start(job({ command: 'sleep 30' }))
+    const second = await registry.start(job({ command: 'sleep 30' }))
     expect(first.ok && second.ok).toBe(true)
     expect(prevention.held).toBe(2)
   })
@@ -83,7 +84,7 @@ describe('a background shell holds a sleep assertion', () => {
     const prevention = countingPrevention()
     const registry = openWithPrevention(prevention)
 
-    const started = registry.start(job({ command: 'sleep 30' }))
+    const started = await registry.start(job({ command: 'sleep 30' }))
     if (!started.ok) throw new Error(`shell failed to start: ${'reason' in started ? started.reason : JSON.stringify(started)}`)
     expect(prevention.held).toBe(1)
 

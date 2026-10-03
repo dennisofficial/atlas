@@ -8,9 +8,10 @@ import type { EGrantScope, GrantOffer } from '../policy/classifier/grant'
 import type { EClassifierMode, ETriage } from '../policy/classifier/triage'
 import type { EJudgment, EVerdictFault } from '../policy/classifier/verdict'
 import type { EServiceStatus } from '../services/status'
-import type { EKilledBy, EShellStatus } from '../shells/status'
+import type { EKilledBy } from '../shells/status'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
+import type { BackgroundShellEventBody } from './shell-body'
 
 export enum ECompactionAnchor {
   Prefix = 'prefix',
@@ -131,55 +132,7 @@ export type EventBody =
       mergeable: boolean | null
       recordedAt: string
     }
-  | {
-      type: 'background-shell-started'
-      shellId: string
-      command: string
-      description?: string | undefined
-      bootId?: string | undefined
-    }
-  | {
-      type: 'background-shell-ended'
-      shellId: string
-      command: string
-      description?: string | undefined
-      bootId?: string | undefined
-      status: EShellStatus
-      killedBy?: EKilledBy | undefined
-      exitCode?: number | undefined
-      output: string
-      droppedCharacters: number
-      remainingCharacters: number
-    }
-  | {
-      type: 'background-shell-awaiting-input'
-      shellId: string
-      command: string
-      description?: string | undefined
-      output: string
-      droppedCharacters: number
-      remainingCharacters: number
-    }
-  | {
-      type: 'background-shell-matched'
-      shellId: string
-      command: string
-      description?: string | undefined
-      pattern: string
-      lines: string
-      matchCount: number
-      watchDisarmed?: boolean | undefined
-    }
-  | {
-      type: 'background-shell-still-running'
-      shellId: string
-      command: string
-      description?: string | undefined
-      runningForMs: number
-      silentForMs: number
-      checkInMs: number
-      tail: string
-    }
+  | BackgroundShellEventBody
   | {
       type: 'service-started'
       serviceId: string

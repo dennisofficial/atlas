@@ -1,18 +1,7 @@
-import {
-  EShellStatus,
-  toEventId,
-  toRunId,
-  toThreadId,
-  type Event,
-} from '@dltech/atlas-core'
+import { toEventId, toRunId, toThreadId, type Event, type ThreadId } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EKilledBy,
-  toShellId,
-  type ShellRegistryPort,
-  type ShellSnapshot,
-} from '@dltech/atlas-harness'
+import type { LostShell, ShellRegistryPort } from '@dltech/atlas-harness'
 
 import { EOpenMode } from '../config'
 import { openConversation, type OpenOutcome, type OpenedConversation } from '../open-conversation'
@@ -47,100 +36,43 @@ const said = (text: string): Event => ({
   at: '2026-08-24T00:00:00.000Z',
 })
 
-const shellStarted = (args: {
-  shellId: string
-  command: string
-  seq: number
-  bootId?: string | undefined
-}): Event => ({
-  type: 'background-shell-started',
-  shellId: args.shellId,
-  command: args.command,
-  bootId: args.bootId,
-  id: toEventId(`start-${args.seq}`),
-  seq: args.seq,
-  threadId: YESTERDAY,
-  runId: toRunId('r1'),
-  depth: 0,
-  at: '2026-08-24T00:00:00.000Z',
-})
+const LOST = [{ shellId: 'bash_1', command: 'bun run build', description: undefined }]
 
-const liveShell = (args: {
-  shellId: string
-  threadId?: Parameters<typeof toThreadId>[0]
-  ended?: boolean
-}): ShellSnapshot => ({
-  shellId: toShellId(args.shellId),
-  threadId: toThreadId(args.threadId ?? YESTERDAY),
-  command: 'bun run build',
-  description: '',
-  status: args.ended === true ? EShellStatus.Exited : EShellStatus.Running,
-  startedAt: '2026-08-24T00:00:00.000Z',
-  lastOutputAt: '2026-08-24T00:00:00.000Z',
-  endedAt: args.ended === true ? '2026-08-24T00:01:00.000Z' : undefined,
-  totalCharacters: 0,
-  awaitingInput: false,
-})
-
-const shellsHolding = (snapshots: readonly ShellSnapshot[]): ShellRegistryPort => {
-  const listed = [...snapshots]
-  return {
-    listEverywhere: () => listed,
+const reconcilingShells = (lost: readonly LostShell[]): { shells: ShellRegistryPort; asked: ThreadId[] } => {
+  const asked: ThreadId[] = []
+  const shells = {
+    reconcile: async ({ threadId }: { threadId: ThreadId }) => {
+      asked.push(threadId)
+      return lost
+    },
   } as unknown as ShellRegistryPort
+  return { shells, asked }
 }
 
-describe('first reopen does not settle shells this process still owns', () => {
-  it('leaves this boot’s undated-looking open start alone while the live registry holds the shell', async () => {
-    const log = fakeEventLog([
-      said('is my build still running'),
-      shellStarted({ shellId: 'bash_1', command: 'bun run build', seq: 2 }),
-    ])
-
-    const outcome = await openConversation({
+describe('reopening a conversation hands its shells to the registry to reconcile', () => {
+  const reopen = (shells: ShellRegistryPort) =>
+    openConversation({
       threads: fakeThreadStore({ existing: [YESTERDAY] }),
-      log,
+      log: fakeEventLog([said('is my build still running')]),
       ledger: fakeLedger(),
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
       effects: () => undefined,
-      shells: shellsHolding([liveShell({ shellId: 'bash_1' })]),
+      shells,
       open: { mode: EOpenMode.Continue },
     })
 
-    expect(opened(outcome).lostShells).toEqual([])
-    expect(
-      log.peek({ threadId: YESTERDAY }).filter((event) => event.type === 'background-shell-ended'),
-    ).toHaveLength(0)
+  it('asks the registry about the reopened thread and reports what it lost', async () => {
+    const { shells, asked } = reconcilingShells(LOST)
+
+    expect(opened(await reopen(shells)).lostShells).toEqual(LOST)
+    expect(asked).toEqual([YESTERDAY])
   })
 
-  it('still settles the shell once nothing live vouches for it', async () => {
-    const log = fakeEventLog([
-      said('is my build still running'),
-      shellStarted({ shellId: 'bash_1', command: 'bun run build', seq: 2 }),
-    ])
+  it('reports nothing when the registry lost nothing', async () => {
+    const { shells } = reconcilingShells([])
 
-    const outcome = await openConversation({
-      threads: fakeThreadStore({ existing: [YESTERDAY] }),
-      log,
-      ledger: fakeLedger(),
-      agents: fakeAgentRegistry(),
-      ids: fakeIds(),
-      workspace: HERE,
-      effects: () => undefined,
-      shells: shellsHolding([liveShell({ shellId: 'bash_1', ended: true })]),
-      open: { mode: EOpenMode.Continue },
-    })
-
-    expect(opened(outcome).lostShells).toEqual([
-      { shellId: 'bash_1', command: 'bun run build', description: undefined },
-    ])
-    const written = log
-      .peek({ threadId: YESTERDAY })
-      .filter((event) => event.type === 'background-shell-ended')
-    expect(written).toHaveLength(1)
-    const ending = written[0]
-    if (ending?.type !== 'background-shell-ended') throw new Error('expected a synthetic ending')
-    expect(ending.killedBy).toBe(EKilledBy.Unrecorded)
+    expect(opened(await reopen(shells)).lostShells).toEqual([])
   })
 })

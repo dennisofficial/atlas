@@ -1,4 +1,4 @@
-import { EAgentStatus, type EventLogPort, type IdPort } from '@dltech/atlas-core'
+import { EAgentStatus, EShellStatus, type EventLogPort, type IdPort } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
 import { MessageIntake, noticeSources, operatorSource } from '../intake'
@@ -37,7 +37,15 @@ export function bindIntake<Command>(args: {
     recordTeardownEndings: async () => {
       intake.suspend()
       unsubscribeRoster()
+      const keepsSandbox = shells.listEverywhere().some((shell) => shell.status === EShellStatus.Running)
       const prepareAgents = agents.prepareNotifications?.bind(agents)
+      const shellEndings: TeardownSource = {
+        closeAll: () => shells.detachAll(),
+        threadsAwaitingNotice: () => shells.threadsAwaitingNotice(),
+        threadsWithPendingInput: () => shells.threadsWithPendingInput?.() ?? shells.threadsAwaitingNotice(),
+        prepareNotifications: shells.prepareNotifications?.bind(shells),
+        drainNotifications: (request) => shells.drainNotifications(request),
+      }
       const agentEndings: TeardownSource = {
         closeAll: () => agents.closeAll(),
         threadsAwaitingNotice: () => agents.threadsAwaitingNotice(),
@@ -46,7 +54,13 @@ export function bindIntake<Command>(args: {
         drainNotifications: (request) => agents.drainNotifications(request).drafts,
       }
       try {
-        await teardownSession({ sources: [shells, agentEndings, services], log, ids, intake, stopSandbox: args.stopSandbox })
+        await teardownSession({
+          sources: [shellEndings, agentEndings, services],
+          log,
+          ids,
+          intake,
+          stopSandbox: keepsSandbox ? async () => false : args.stopSandbox,
+        })
       } finally {
         intake.dispose()
       }

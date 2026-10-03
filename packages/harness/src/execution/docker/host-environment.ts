@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -99,16 +99,20 @@ const imageFieldsOf = (
   }
 }
 
+const SESSIONS_SUBTREE = 'sessions'
+
 // The atlas-home root itself must never become reachable by widening this list. Mounting only
-// these named subtrees is what keeps auth.json, the vault key and the session logs out of the
-// container — credentials never enter the sandbox. The subtrees mount read-write: a container
-// session is the same agent with the same capabilities, so it saves memories and installs
-// skills exactly as it would on the host.
+// these named subtrees is what keeps auth.json and the vault key out of the container — credentials
+// never enter the sandbox. The subtrees mount read-write: a container session is the same agent
+// with the same capabilities, so it saves memories and installs skills exactly as it would on the
+// host. sessions mounts so a detached shell supervisor in the container works in the same session
+// folder the host Atlas reattaches from.
 export const ATLAS_HOME_MOUNTED_SUBTREES = [
   'memory',
   'skills',
   'agents',
   'projects',
+  'sessions',
   'services',
   'bin',
 ] as const
@@ -125,6 +129,7 @@ export function mountedAtlasHomeSubtrees(args: {
       home: homedir(),
       tempDir: tmpdir(),
     })
+  mkdirSync(join(atlasHome, SESSIONS_SUBTREE), { recursive: true })
   const covered = [args.worktree, ...(args.declared ?? []).map((mount) => mount.path)]
 
   return ATLAS_HOME_MOUNTED_SUBTREES.map((name) => ({

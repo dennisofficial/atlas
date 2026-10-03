@@ -1,7 +1,7 @@
-import { EKilledBy, EServiceStatus, EShellStatus, type ThreadId } from '@dltech/atlas-core'
+import { EKilledBy, EServiceStatus, type ThreadId } from '@dltech/atlas-core'
 
+import type { ThreadStorePort } from '../../store/thread-store'
 import { KILL_SETTLE_MS, type ShellRegistryPort } from '../../shells/shell-registry'
-import type { ShellSnapshot } from '../../shells/background-shell'
 import { STOP_SETTLE_MS, type ServiceRegistryPort } from '../../services/service-registry'
 import type { StoppedLocally } from './transition-notice'
 
@@ -10,28 +10,31 @@ const labelOf = (one: { command: string; description?: string | undefined }): st
   return described.length === 0 ? one.command : described
 }
 
-/**
- * Nothing local survives a lift: the shells and services were processes on this machine, and the
- * conversation is about to continue on another one. What they were is kept so the move can be
- * narrated rather than silently swallowing them.
- */
+const familyOf = async (args: {
+  root: ThreadId
+  threads: Pick<ThreadStorePort, 'spawned'>
+}): Promise<readonly ThreadId[]> => {
+  const family = [args.root]
+  for (const threadId of family) {
+    for (const child of await args.threads.spawned({ threadId })) {
+      if (!family.includes(child.id)) family.push(child.id)
+    }
+  }
+  return family
+}
+
 export async function stopLocalWork(args: {
   threadId: ThreadId
   shells: ShellRegistryPort
   services: ServiceRegistryPort
+  threads: Pick<ThreadStorePort, 'spawned'>
 }): Promise<StoppedLocally> {
-  const running: readonly ShellSnapshot[] = args.shells
-    .list({ threadId: args.threadId })
-    .filter((shell) => shell.status === EShellStatus.Running)
-
-  for (const shell of running) {
-    args.shells.kill({
-      shellId: shell.shellId,
-      by: EKilledBy.ContainerSwitch,
-      threadId: args.threadId,
-    })
-  }
-  const shellEndings = args.shells.awaitEndings({ threadId: args.threadId, ms: KILL_SETTLE_MS })
+  const family = await familyOf({ root: args.threadId, threads: args.threads })
+  const shellEndings = args.shells.stopOwners({
+    threadIds: family,
+    by: EKilledBy.ContainerSwitch,
+    ms: KILL_SETTLE_MS,
+  })
 
   const services = args.services
     .list()
@@ -45,14 +48,15 @@ export async function stopLocalWork(args: {
     })
   const serviceEndings = args.services.awaitEndings({ ms: STOP_SETTLE_MS })
 
-  await Promise.all([shellEndings, serviceEndings])
+  const [running] = await Promise.all([shellEndings, serviceEndings])
 
   return {
     shells: running.map(labelOf),
     services,
-    drainNotices: () => [
-      ...args.shells.drainNotifications({ threadId: args.threadId }),
-      ...args.services.drainNotifications({ threadId: args.threadId }),
-    ],
+    drainNotices: () =>
+      family.flatMap((threadId) => [
+        ...args.shells.drainNotifications({ threadId }),
+        ...args.services.drainNotifications({ threadId }),
+      ]),
   }
 }

@@ -58,6 +58,8 @@ export const shellSnapshotWireSchema = z.object({
   endedAt: z.string().optional(),
   totalCharacters: z.number().int().nonnegative(),
   awaitingInput: z.boolean(),
+  inputSupported: z.boolean().optional(),
+  outputPath: z.string().optional(),
   exposure: portExposureSchema.optional(),
 })
 

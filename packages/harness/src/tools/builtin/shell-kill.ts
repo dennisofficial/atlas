@@ -8,7 +8,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../../container/injection'
 import {
   EKilledBy,
   EShellStatus,
@@ -45,6 +44,7 @@ function renderEnding(args: { snapshot: ShellSnapshot; delta: ShellDelta }): str
   }
 
   sections.push(delta.text.trimEnd() === '' ? 'It printed nothing.' : delta.text.trimEnd())
+  if (snapshot.outputPath !== undefined) sections.push(`Full output: ${snapshot.outputPath}. Use Read or Grep for history.`)
 
   if (delta.remainingCharacters > 0) {
     sections.push(
@@ -70,7 +70,7 @@ export class ShellKillTool extends SchemaTool<typeof inputSchema> {
     input,
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const killed = this.shells.kill({ shellId: input.shellId, by: EKilledBy.Model, threadId })
+    const killed = await this.shells.kill({ shellId: input.shellId, by: EKilledBy.Model, threadId })
     if (!killed.ok) return killed
 
     const { snapshot } = killed
@@ -114,6 +114,7 @@ export class ShellKillTool extends SchemaTool<typeof inputSchema> {
         status: ending.snapshot.status,
         exitCode: ending.snapshot.exitCode,
         text: ending.delta.text,
+        outputPath: ending.snapshot.outputPath,
         droppedCharacters: ending.delta.droppedCharacters,
         remainingCharacters: ending.delta.remainingCharacters,
       },

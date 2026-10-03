@@ -14,6 +14,7 @@ import {
   createHarnessContainer,
   createSettingsService,
   MemorySettingsStore,
+  ThreadStorePort,
   type DockerEngine,
 } from '@dltech/atlas-harness'
 
@@ -111,6 +112,7 @@ const freshDirectory = async (containerJson?: string): Promise<string> => {
 
 const bindAt = async (args: { cwd: string; engine: DockerEngine }) => {
   const container = createHarnessContainer()
+  await container.resolve(portToken(ThreadStorePort)).create({ id: THREAD })
   const bound = await bindSandbox({
     container,
     engine: args.engine,
@@ -189,7 +191,7 @@ describe('SandboxControl.prepareWorkspace', () => {
 
     await sandbox.prepareWorkspace({ cwd: tree, threadId: THREAD })
 
-    expect(mounts).toEqual([SHARED])
+    expect(mounts).toEqual([SHARED, join(boot, 'no-atlas-home-here', 'sessions')])
     const after = containerStatus.current()
     expect(after.image).toBe('custom/tree-image:1')
     expect(after.label).toBe('tree-image:1')
@@ -288,7 +290,7 @@ describe('SandboxControl.prepareWorkspace', () => {
 
       await sandbox.prepareWorkspace({ cwd: tree, threadId: THREAD })
 
-      expect(mounts).toEqual([SHARED])
+      expect(mounts).toEqual([SHARED, join(repo, 'no-atlas-home-here', 'sessions')])
       expect(containerStatus.current().image).toBe('custom/nested:2')
     })
 

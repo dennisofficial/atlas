@@ -38,19 +38,19 @@ describe('a background shell watch match in the transcript', () => {
 
   it('reads as progress on a running job, not as an ending', () => {
     expect(onlyMatchedEntry(log([shellMatched()])).text).toBe(
-      'Background shell "Run full TUI suite" matched 1 line and is still running',
+      'Background shell "Run full TUI suite" matched 1 line',
     )
   })
 
   it('counts more than one match in the plural', () => {
     expect(onlyMatchedEntry(log([shellMatched({ matchCount: 7 })])).text).toBe(
-      'Background shell "Run full TUI suite" matched 7 lines and is still running',
+      'Background shell "Run full TUI suite" matched 7 lines',
     )
   })
 
   it('falls back to the command when the shell was never named', () => {
     expect(onlyMatchedEntry(log([shellMatched({ description: undefined })])).text).toBe(
-      'Background shell `bun test` matched 1 line and is still running',
+      'Background shell `bun test` matched 1 line',
     )
   })
 
@@ -58,7 +58,7 @@ describe('a background shell watch match in the transcript', () => {
     const text = onlyMatchedEntry(log([shellMatched({ watchDisarmed: true })])).text
 
     expect(text).toBe(
-      'Background shell "Run full TUI suite" matched 1 line and is still running, but stopped watching',
+      'Background shell "Run full TUI suite" matched 1 line, but stopped watching',
     )
   })
 

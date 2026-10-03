@@ -1,8 +1,17 @@
-import type { EventDraft, EventType } from './body'
-import type { Event, EventOfType } from './envelope'
+import type { EventDraft } from './body'
+import type { Event } from './envelope'
 import type { CallId, RunId, ThreadId } from './ids'
+import {
+  isShellNotice,
+  occurrenceOfNotice,
+  recordOf,
+  shellOccurrences,
+  startDetailsOf,
+  stringOf,
+  type StartDetails,
+} from './rewind-shell-occurrences'
 
-export type ShellNoticeType = Extract<EventType, `background-shell-${string}`>
+export type { ShellNoticeType } from './rewind-shell-occurrences'
 
 export type RewindCut =
   | {
@@ -37,50 +46,20 @@ export type RewindPlan = {
   reappend: readonly RewoundNotice[]
 }
 
-const isShellNotice = (event: Event): event is EventOfType<Exclude<ShellNoticeType, 'background-shell-started'>> =>
-  event.type.startsWith('background-shell-') && event.type !== 'background-shell-started'
-
 const isNotice = (event: Event): boolean =>
   isShellNotice(event) ||
   event.type === 'service-ended' ||
   event.type === 'agent-ended' ||
   event.type === 'location-changed'
 
-const recordOf = (input: unknown): Record<string, unknown> | undefined =>
-  typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : undefined
-
-const stringOf = (record: Record<string, unknown> | undefined, key: string): string | undefined => {
-  const value = record?.[key]
-  return typeof value === 'string' ? value : undefined
-}
-
-const runsInBackground = (input: unknown): boolean => recordOf(input)?.runInBackground === true
-
 const isServiceStart = (event: Event): boolean =>
   event.type === 'tool-called' && event.name === 'service_start'
-
-type StartDetails = { command: string | undefined; description: string | undefined }
-
-const startDetailsOf = (input: unknown): StartDetails => ({
-  command: stringOf(recordOf(input), 'command'),
-  description: stringOf(recordOf(input), 'description'),
-})
 
 const toNotice = (event: Event): RewoundNotice => {
   const { id, seq, threadId, runId, parentRunId, depth, at, ...draft } = event
   return { runId, draft }
 }
 
-/**
- * A rewind owns only what it removes: a creation is cut when its start sits above the cut, and a
- * start the log no longer holds — summarised away, or inherited — means keep. That is also why a
- * shell_output read above the cut condemns nothing: only a runInBackground call paired with the
- * result carrying the shellId is a start, and only a service_start call paired with the result
- * carrying the serviceId is a service creation.
- *
- * Notices above the cut survive exactly when their source survives: they are re-appended above
- * the new head rather than deleted with the rows around them.
- */
 export function rewindPlan({
   events,
   toSeq,
@@ -89,41 +68,45 @@ export function rewindPlan({
   toSeq: number
 }): RewindPlan {
   const above = events.filter((event) => event.seq > toSeq)
+  const occurrences = shellOccurrences(events)
 
   const cuts: RewindCut[] = []
   const cutAgentIds = new Set<ThreadId>()
   for (const event of above) {
-    if (event.type !== 'agent-spawned' && event.type !== 'agent-restarted') continue
-    cutAgentIds.add(event.agentId)
+    if (event.type === 'agent-spawned' || event.type === 'agent-restarted') {
+      cutAgentIds.add(event.agentId)
+      cuts.push({
+        kind: 'agent',
+        seq: event.seq,
+        agentId: event.agentId,
+        agentType: event.agentType,
+        intent: event.intent,
+      })
+    }
+  }
+
+  for (const occurrence of occurrences) {
+    if (occurrence.seq <= toSeq) continue
     cuts.push({
-      kind: 'agent',
-      seq: event.seq,
-      agentId: event.agentId,
-      agentType: event.agentType,
-      intent: event.intent,
+      kind: 'shell',
+      seq: occurrence.cutSeq,
+      shellId: occurrence.shellId,
+      command: occurrence.command,
+      description: occurrence.description,
     })
   }
 
-  const shellStarts = new Map<CallId, StartDetails>()
   const serviceStarts = new Map<CallId, StartDetails>()
   for (const event of above) {
-    if (event.type !== 'tool-called') continue
-    if (runsInBackground(event.input)) shellStarts.set(event.callId, startDetailsOf(event.input))
-    if (isServiceStart(event)) serviceStarts.set(event.callId, startDetailsOf(event.input))
+    if (event.type === 'tool-called' && isServiceStart(event)) {
+      serviceStarts.set(event.callId, startDetailsOf(event.input))
+    }
   }
 
-  const cutShellIds = new Set<string>()
   const cutServiceIds = new Set<string>()
   for (const event of above) {
     if (event.type !== 'tool-result') continue
     const output = recordOf(event.output)
-
-    const shellStart = shellStarts.get(event.callId)
-    const shellId = shellStart === undefined ? undefined : stringOf(output, 'shellId')
-    if (shellStart !== undefined && shellId !== undefined) {
-      cutShellIds.add(shellId)
-      cuts.push({ kind: 'shell', seq: event.seq, shellId, ...shellStart })
-    }
 
     const serviceStart = serviceStarts.get(event.callId)
     const serviceId = serviceStart === undefined ? undefined : stringOf(output, 'serviceId')
@@ -135,7 +118,10 @@ export function rewindPlan({
 
   const survives = (event: Event): boolean => {
     if (event.type === 'location-changed') return true
-    if (isShellNotice(event)) return !cutShellIds.has(event.shellId)
+    if (isShellNotice(event)) {
+      const occurrence = occurrenceOfNotice({ occurrences, notice: event })
+      return occurrence === undefined || occurrence.seq <= toSeq
+    }
     if (event.type === 'service-ended') return !cutServiceIds.has(event.serviceId)
     if (event.type === 'agent-ended') return !cutAgentIds.has(event.agentId)
     return false

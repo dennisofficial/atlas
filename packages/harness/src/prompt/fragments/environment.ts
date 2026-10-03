@@ -34,3 +34,16 @@ export class ExecutionLocationFragment extends PromptFragment {
     ].join(' ')
   }
 }
+
+export class SessionPathsFragment extends PromptFragment {
+  readonly id = 'environment.session-paths'
+
+  text(): string {
+    return [
+      'Every command you run sees ATLAS_SESSION_DIR, the directory shared by this conversation and its sub-agents and teammates,',
+      'and ATLAS_THREAD_DIR, a directory private to your own thread.',
+      'Keep scratch files for this work under ATLAS_THREAD_DIR rather than the repository.',
+      'Use these variables in Bash commands or file-tool paths; Atlas resolves them for the calling thread.',
+    ].join(' ')
+  }
+}

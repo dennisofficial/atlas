@@ -40,6 +40,7 @@ export function WorkspaceTranscript(props: {
   >
   cloudHealth: CloudHealth | null
   cloudSession: CloudSession | null
+  reconnectingSince: number | null
   onRetryAttach: () => void
   sends: number
   background: BackgroundWork
@@ -100,6 +101,7 @@ export function WorkspaceTranscript(props: {
           }
           disconnected={connection === EChannelConnection.Closed}
           stale={cloudHealth?.stale === true}
+          reconnectingSince={props.reconnectingSince}
           {...(connection === EChannelConnection.Closed
             ? { onReconnect: () => (cloudSession === null ? props.onRetryAttach() : cloudSession.reconnect()) }
             : {})}

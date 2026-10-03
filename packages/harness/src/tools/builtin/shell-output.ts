@@ -9,7 +9,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../../container/injection'
 import { EShellStatus, type ShellDelta, type ShellSnapshot } from '../../shells/background-shell'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 
@@ -36,10 +35,13 @@ function renderModelText(args: { snapshot: ShellSnapshot; delta: ShellDelta }): 
     : `Shell ${snapshot.shellId} ${shellEnding(snapshot)}.`
 
   const sections = [heading]
+  if (snapshot.outputPath !== undefined) {
+    sections.push(`Full output: ${snapshot.outputPath}. Use Read or Grep on the file for history.`)
+  }
 
   if (snapshot.awaitingInput) {
     sections.push(
-      'Its last line looks like a prompt waiting on input, and its stdin is closed, so nothing can answer it.',
+      'Its last line looks like a prompt waiting on input. Use shell_input to answer a durable shell, including a newline when the program reads a line.',
     )
   }
 
@@ -61,7 +63,9 @@ function renderModelText(args: { snapshot: ShellSnapshot; delta: ShellDelta }): 
 
   if (delta.remainingCharacters > 0) {
     sections.push(
-      `[${delta.remainingCharacters} more characters are waiting — call shell_output again for the rest.]`,
+      snapshot.outputPath === undefined
+        ? `[${delta.remainingCharacters} more characters are waiting — call shell_output again for the rest.]`
+        : `[More output remains. Read or Grep ${snapshot.outputPath} to inspect it without repeatedly draining this tool.]`,
     )
   }
 
@@ -85,7 +89,7 @@ export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
     input,
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const read = this.shells.read({ shellId: input.shellId, threadId })
+    const read = await this.shells.read({ shellId: input.shellId, threadId })
     if (!read.ok) return read
 
     return {
@@ -96,6 +100,7 @@ export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
         status: read.snapshot.status,
         exitCode: read.snapshot.exitCode,
         awaitingInput: read.snapshot.awaitingInput,
+        outputPath: read.snapshot.outputPath,
         text: read.delta.text,
         droppedCharacters: read.delta.droppedCharacters,
         remainingCharacters: read.delta.remainingCharacters,

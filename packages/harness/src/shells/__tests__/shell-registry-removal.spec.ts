@@ -50,12 +50,12 @@ const gatedBy = (gate: { entered: () => void; hold: Promise<void> }): HookChainS
 
 afterEach(closeRegistries)
 
-const startOrThrow = (
+const startOrThrow = async (
   registry: Parameters<typeof settle>[0]['registry'],
   command: string,
   threadId = THREAD,
-): ShellId => {
-  const started = registry.start(job({ command, threadId }))
+): Promise<ShellId> => {
+  const started = await registry.start(job({ command, threadId }))
   if (!started.ok) throw new Error(started.reason)
   return started.snapshot.shellId
 }
@@ -64,25 +64,25 @@ for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
 
   describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('removing the shells a rewind cut', () => {
+    describe('removing the shells a rewind cut', async () => {
       it('kills a running shell, process tree included, and forgets it', async () => {
         const { registry, root } = openRegistry({ adapter })
         const witness = join(root, 'survivor.txt')
-        const shellId = startOrThrow(registry, `(sleep 2; echo alive > ${witness}) & wait`)
+        const shellId = await startOrThrow(registry, `(sleep 2; echo alive > ${witness}) & wait`)
 
-        registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
+        await registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
 
         expect(registry.list({ threadId: THREAD })).toEqual([])
-        expect(registry.read({ shellId, threadId: THREAD }).ok).toBe(false)
+        expect((await registry.read({ shellId, threadId: THREAD })).ok).toBe(false)
         await Bun.sleep(2_400)
         expect(await Bun.file(witness).exists()).toBe(false)
       }, 15_000)
 
       it('announces nothing for a shell it removed — the rewound thread never started it', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const shellId = startOrThrow(registry, 'sleep 60')
+        const shellId = await startOrThrow(registry, 'sleep 60')
 
-        registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
+        await registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
         await Bun.sleep(500)
 
         expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
@@ -92,12 +92,12 @@ for (const adapter of shellAdapters) {
 
       it('records the endings of the survivors and nothing further for the removed shell', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const cut = startOrThrow(registry, 'echo cut')
-        const kept = startOrThrow(registry, 'echo kept')
+        const cut = await startOrThrow(registry, 'echo cut')
+        const kept = await startOrThrow(registry, 'echo kept')
         await settle({ registry, shellId: cut })
         await settle({ registry, shellId: kept })
 
-        registry.removeShells({ threadId: THREAD, shellIds: [cut], by: EKilledBy.Rewind })
+        await registry.removeShells({ threadId: THREAD, shellIds: [cut], by: EKilledBy.Rewind })
 
         // The cut shell's settle continuation may still be running; the survivor's ending lands
         // regardless, and removal queues nothing for the cut one.
@@ -114,10 +114,10 @@ for (const adapter of shellAdapters) {
 
       it('leaves shells of other threads alone, even asked by id', async () => {
         const { registry } = openRegistry({ adapter })
-        const own = startOrThrow(registry, 'sleep 60')
-        const foreign = startOrThrow(registry, 'sleep 60', ELSEWHERE)
+        const own = await startOrThrow(registry, 'sleep 60')
+        const foreign = await startOrThrow(registry, 'sleep 60', ELSEWHERE)
 
-        registry.removeShells({ threadId: THREAD, shellIds: [own, foreign], by: EKilledBy.Rewind })
+        await registry.removeShells({ threadId: THREAD, shellIds: [own, foreign], by: EKilledBy.Rewind })
 
         expect(registry.list({ threadId: THREAD })).toEqual([])
         expect(registry.list({ threadId: ELSEWHERE }).map((shell) => shell.shellId)).toEqual([
@@ -125,12 +125,12 @@ for (const adapter of shellAdapters) {
         ])
       })
 
-      it('bumps the registry version so subscribed sidebars refresh', () => {
+      it('bumps the registry version so subscribed sidebars refresh', async () => {
         const { registry } = openRegistry({ adapter })
-        const shellId = startOrThrow(registry, 'sleep 60')
+        const shellId = await startOrThrow(registry, 'sleep 60')
         const before = registry.version()
 
-        registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
+        await registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
 
         expect(registry.version()).toBeGreaterThan(before)
       })
@@ -145,10 +145,10 @@ for (const adapter of shellAdapters) {
           release = resolve
         })
         const { registry, log } = openRegistry({ adapter, hooks: gatedBy({ entered, hold }) })
-        const shellId = startOrThrow(registry, 'echo done')
+        const shellId = await startOrThrow(registry, 'echo done')
 
         await hookEntered
-        registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
+        await registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
         release()
         await Bun.sleep(300)
 
@@ -157,17 +157,16 @@ for (const adapter of shellAdapters) {
         expect(log?.appended.filter((draft) => draft.type === 'background-shell-ended')).toEqual([])
       })
 
-      it('closeAll still waits out the SIGKILL grace for a shell a rewind killed', async () => {
+      it('rewind waits for the process group to stop before forgetting the shell', async () => {
         const { registry, root } = openRegistry({ adapter })
         const witness = join(root, 'outlived.txt')
-        const shellId = startOrThrow(registry, `trap '' TERM; (sleep 30; echo alive > ${witness}) & wait`)
+        const shellId = await startOrThrow(registry, `trap '' TERM; (sleep 30; echo alive > ${witness}) & wait`)
         await Bun.sleep(300)
 
-        registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
-
         const startedAt = Date.now()
-        await registry.closeAll()
+        await registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
         const elapsed = Date.now() - startedAt
+        await registry.closeAll()
 
         expect(elapsed).toBeGreaterThan(SIGKILL_GRACE_MS - 1_000)
         await Bun.sleep(1_000)

@@ -201,9 +201,8 @@ describe('store-originated transcript changes', () => {
 })
 
 describe('answerRequest', () => {
-  it('answers an op it has no handler for with a protocol refusal, never a publish-workspace reply', async () => {
+  it('answers an op it has no handler for with a protocol refusal', async () => {
     const { answerRequest } = await import('../requests')
-    let publishes = 0
 
     const reply = await answerRequest({
       frame: {
@@ -213,36 +212,9 @@ describe('answerRequest', () => {
         params: {},
       },
       files: { list: async () => [] },
-      publish: async () => {
-        publishes += 1
-        return null
-      },
     })
 
     expect(reply.ok).toBe(false)
     expect(JSON.stringify(reply.data)).toContain('unknown request op')
-    expect(publishes).toBe(0)
-  })
-
-  it('routes publish-workspace to the publisher, and only publish-workspace', async () => {
-    const { answerRequest } = await import('../requests')
-    let publishes = 0
-
-    const reply = await answerRequest({
-      frame: {
-        kind: EClientFrame.Request,
-        id: 'pub-1',
-        op: EClientRequest.PublishWorkspace,
-        params: {},
-      },
-      files: { list: async () => [] },
-      publish: async () => {
-        publishes += 1
-        return null
-      },
-    })
-
-    expect(reply.ok).toBe(true)
-    expect(publishes).toBe(1)
   })
 })

@@ -7,6 +7,7 @@ import {
   ClockPort,
   EventLogPort,
   IdPort,
+  ProcessPort,
   stampDrafts,
   toCallId,
   toEventId,
@@ -17,10 +18,20 @@ import {
 } from '@dltech/atlas-core'
 
 import { createIsolatedContainer, portToken, type DependencyContainer } from '../../container/injection'
-import { DeltaChannelToken, HookChainToken, WorkspaceRoot } from '../../container/tokens'
+import {
+  AtlasHomeToken,
+  DeltaChannelToken,
+  HookChainToken,
+  SessionRegistryToken,
+  WorkspaceRoot,
+} from '../../container/tokens'
+import { LocalProcessPort } from '../../execution/local-process'
 import { HookChain } from '../../hooks/registry'
 import { registerShells } from '../../shells/register-shells'
 import { ShellRegistryPort } from '../../shells/shell-registry'
+import { JsonlEventLog } from '../../store/sessions/event-log'
+import { registryFor } from '../../store/sessions/registry'
+import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import { createDeltaChannel } from '../delta-channel'
 import { recorder } from './signals'
 
@@ -47,7 +58,7 @@ class StubIds extends IdPort {
   }
 }
 
-const opened: { container: DependencyContainer; root: string }[] = []
+const opened: { container: DependencyContainer; root: string; home: string }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -55,6 +66,7 @@ afterEach(async () => {
       await entry.container.resolve(portToken(ShellRegistryPort)).closeAll()
     }
     rmSync(entry.root, { recursive: true, force: true })
+    rmSync(entry.home, { recursive: true, force: true })
   }
 })
 
@@ -97,34 +109,49 @@ function fakeLog(): EventLogPort & { readonly appended: { threadId: ThreadId; dr
   }
 }
 
-function openContainer(): {
+async function openContainer(): Promise<{
   container: DependencyContainer
   log: ReturnType<typeof fakeLog>
-} {
+}> {
   const root = mkdtempSync(join(tmpdir(), 'atlas-shell-publishing-'))
+  const home = mkdtempSync(join(tmpdir(), 'atlas-shell-publishing-home-'))
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: root })
   container.register(portToken(ClockPort), { useClass: FixedClock })
   const log = fakeLog()
   container.register(portToken(EventLogPort), { useValue: log })
   container.register(portToken(IdPort), { useClass: StubIds })
+  container.register(AtlasHomeToken, { useValue: home })
+  container.register(SessionRegistryToken, { useValue: registryFor({ home }) })
+  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
+  const clock = new FixedClock()
+  const ids = new StubIds()
+  await new JsonlThreadStore(
+    home,
+    registryFor({ home }),
+    clock,
+    ids,
+    new JsonlEventLog(home, registryFor({ home }), clock, ids),
+  ).create({ id: THREAD })
 
   registerShells({ container })
   container.register(HookChainToken, { useValue: new HookChain({}) })
 
-  opened.push({ container, root })
+  opened.push({ container, root, home })
   return { container, log }
 }
 
-const untilAppended = async (log: ReturnType<typeof fakeLog>): Promise<void> => {
-  for (let attempt = 0; attempt < 200 && log.appended.length === 0; attempt += 1) {
+const untilEnded = async (log: ReturnType<typeof fakeLog>): Promise<void> => {
+  const ended = () =>
+    log.appended.some((call) => call.drafts.some((draft) => draft.type === 'background-shell-ended'))
+  for (let attempt = 0; attempt < 200 && !ended(); attempt += 1) {
     await Bun.sleep(25)
   }
 }
 
 describe('registerShells with a channel resolved after the registry', () => {
   it('publishes events-appended to the owning thread when an idle shell ends', async () => {
-    const { container, log } = openContainer()
+    const { container, log } = await openContainer()
     const shells = container.resolve(portToken(ShellRegistryPort))
 
     const channel = createDeltaChannel()
@@ -132,18 +159,25 @@ describe('registerShells with a channel resolved after the registry', () => {
     const { seen, listener } = recorder()
     channel.subscribe({ threadId: THREAD, listener })
 
-    const started = shells.start({
+    const started = await shells.start({
       threadId: THREAD,
       command: 'echo wired',
       description: 'Prove the wiring',
     })
     if (!started.ok) throw new Error(started.reason)
 
-    await untilAppended(log)
-
+    expect(started.snapshot.shellId).toMatch(/^shell_[0-9a-f]{32}$/)
     expect(log.appended.flatMap((call) => call.drafts.map((draft) => draft.type))).toEqual([
-      'background-shell-ended',
+      'background-shell-started',
     ])
     expect(seen).toEqual([{ type: 'events-appended' }])
+
+    await untilEnded(log)
+
+    expect(log.appended.flatMap((call) => call.drafts.map((draft) => draft.type))).toEqual([
+      'background-shell-started',
+      'background-shell-ended',
+    ])
+    expect(seen).toEqual([{ type: 'events-appended' }, { type: 'events-appended' }])
   })
 })

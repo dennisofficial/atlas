@@ -35,7 +35,7 @@ const GOING_AWAY = 1001
 const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
 
 export function createSessionHandlers(args: SessionHandlersArgs): SessionHandlers {
-  const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
+  const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
   const agents = args.agents
@@ -62,7 +62,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     threadId,
     driver,
     files,
-    publish,
     log,
     snapshot,
     send: (sent) => {

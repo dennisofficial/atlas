@@ -11,13 +11,17 @@ import { sessionDirectory } from '@dltech/atlas-harness'
 import { statMemoryDirectory } from '@dltech/atlas-harness'
 
 /**
- * The descend's transcript transfer: the whole session directory the sandbox served from, tarred
- * the way the lift shipped it up. An empty directory answers null — the descend reads that as the
- * cloud holding nothing and refuses rather than wiping the local copy.
+ * The descend's transcript transfer: the session directory the sandbox served from, tarred the way
+ * the lift shipped it up. Only the descend reads it, and a move cannot carry a live shell, so the
+ * whole family's shells end before the tar is built; the build itself refuses a shell with no
+ * terminal status. An empty directory answers null — the descend reads that as the cloud holding
+ * nothing and refuses rather than wiping the local copy.
  */
 export async function serveSessionArchive(args: {
   threadId: ThreadId
+  endFamilyShells?: (() => Promise<void>) | undefined
 }): Promise<Uint8Array | null> {
+  await args.endFamilyShells?.()
   const archive = await buildSessionArchive({
     sessionDir: sessionDirectory({ home: atlasDirectory(), sessionId: args.threadId }),
   })

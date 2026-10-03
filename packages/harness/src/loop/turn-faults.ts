@@ -26,7 +26,7 @@ export const faultReport = (faults: readonly ExchangeFault[]): string =>
 
 export const emptyStepReport = (reason?: EFinishReason): string => {
   const base =
-    'the model returned an empty reply — no text, no tool calls — and did it again after a nudge, so the provider is dropping the reply rather than the model choosing to stop. Resuming will likely hit the same wall until the context changes; a very large image or tool result is the usual suspect.'
+    'the model returned an empty reply — no text, no tool calls — and did it again after a silent retry of the identical request and then a nudge, so the provider is dropping the reply rather than the model choosing to stop. Resuming will likely hit the same wall until the context changes; a very large image or tool result is the usual suspect.'
   if (reason === undefined || reason === EFinishReason.Stop) return base
   return `${base} The provider's finish reason was "${reason}".`
 }

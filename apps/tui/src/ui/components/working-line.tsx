@@ -29,6 +29,8 @@ export function WorkingLine(props: {
   retry?: RetryWait | null | undefined
   onReconnect?: (() => void) | undefined
   lastSeenAt?: number | null | undefined
+  /** When the reconnect began, held above this mount. See `WaitingLine`'s `since`. */
+  since?: number | null | undefined
 }): React.ReactNode {
   const { retry } = props
   const onReconnect = props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined
@@ -68,12 +70,13 @@ export function WorkingLine(props: {
   }
 
   if (verb === EWorkingVerb.Reconnecting) {
+    const since = props.since ?? null
+    const label = since === null
+      ? `Reconnecting for ${formatElapsed(props.elapsedMs)}`
+      : (): string => `Reconnecting for ${formatElapsed(Math.max(0, Date.now() - since))}`
     return (
       <box flexDirection="column">
-        <ShimmerLine
-          label={`Reconnecting for ${formatElapsed(props.elapsedMs)}`}
-          base={theme.warn}
-        />
+        <ShimmerLine label={label} base={theme.warn} />
       </box>
     )
   }

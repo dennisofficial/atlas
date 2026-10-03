@@ -65,7 +65,7 @@ export type ServeFamily = {
 export type ServeRewind = {
   target: {
     removeChildren(args: { threadId: ThreadId; agentIds: readonly ThreadId[] }): Promise<void>
-    removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void
+    removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): Promise<void> | void
     removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   }
   /**

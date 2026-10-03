@@ -257,7 +257,6 @@ export function fakeCloudChannel(
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
-      if (given.op === EClientRequest.PublishWorkspace) return null
       if (given.op === EClientRequest.PrepareWorkspaceArchive) return { path: ARCHIVE_EXPORT_PATH, manifest: ARCHIVE_MANIFEST }
       if (given.op === EClientRequest.ActivateSession) return { activated: true }
       if (given.op === EClientRequest.TakeBackPending) {

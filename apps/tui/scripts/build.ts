@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 
+import { writeSupervisorBundle } from '../../../packages/harness/src/shells/supervisor-bundle'
 import { probeSourceState, repoRootOf, sourceStampOf } from '../src/build/stamp'
 import { stageVendoredRipgrep } from './stage-ripgrep'
 
@@ -41,6 +42,7 @@ if (version !== undefined && version !== '') {
 const repoRoot = new URL('../../../', import.meta.url).pathname
 const staged = await stageVendoredRipgrep({ repoRoot, target: arg('--target') })
 define.ATLAS_VENDORED_RG_VERSION = JSON.stringify(staged.version)
+await writeSupervisorBundle()
 
 const OPENTUI_PLATFORM_PACKAGES = [
   '@opentui/core-darwin-arm64',

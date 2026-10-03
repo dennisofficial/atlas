@@ -19,10 +19,6 @@ import {
 } from '../ui/shells-model'
 import type { AtlasApp } from './compose'
 
-/**
- * The scrollback a reader can walk back through, well short of the 400k the registry retains: every
- * poll that finds new output re-wraps this whole tail.
- */
 const PEEKED_CHARACTERS = 64_000
 
 const KILL_KEYS = new Set(['k', 'x'])
@@ -69,12 +65,6 @@ const keptIfSame = (
   latest: readonly ShellSnapshot[],
 ): readonly ShellSnapshot[] => (sameShells(current, latest) ? current : latest)
 
-/**
- * The registry publishes every change — structurally on start and exit, throttled for output — so
- * the lists re-read when there is something to show and never on a timer. `read` still re-runs on
- * its own change: switching conversations re-scopes the list at once rather than after the next
- * activity. The snapshot comparison keeps the tree still when an event changed nothing visible.
- */
 function useShellSnapshots(args: {
   shells: AtlasApp['shells']
   read: () => ShellLists
@@ -100,17 +90,6 @@ function useShellSnapshots(args: {
   return lists
 }
 
-/**
- * The sidebar lists only what is still running; a finished shell leaves the panel at once and
- * stays reachable through /shells. The tick exists for the live readouts alone, so it runs while
- * a shell is running and stops with the last of them.
- */
-/**
- * The scoped list is what a conversation may see and act on; the unscoped one exists for the exit
- * guard alone, because quitting kills every shell in the process whoever started it. The counts
- * follow the same split: `running` answers what the footer pill opens, `runningEverywhere` what
- * quitting kills.
- */
 export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId }): ShellsControl {
   const read = useCallback(
     (): ShellLists => ({
@@ -138,7 +117,16 @@ export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId
       setOutput('')
       return
     }
-    setOutput(app.shells.peek({ shellId: openId, characters: PEEKED_CHARACTERS, threadId }) ?? '')
+    let active = true
+    void Promise.resolve(app.shells.peek({ shellId: openId, characters: PEEKED_CHARACTERS, threadId })).then(
+      (text) => {
+        if (active) setOutput((current) => current === (text ?? '') ? current : (text ?? ''))
+      },
+      () => {
+        if (active) setOutput((current) => current === '' ? current : '')
+      },
+    )
+    return () => { active = false }
   }, [app, openId, printed, threadId])
 
   const handleOpen = useCallback(

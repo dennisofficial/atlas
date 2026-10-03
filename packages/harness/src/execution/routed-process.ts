@@ -40,6 +40,16 @@ export class RoutedProcessPort implements ProcessPort {
     return this.dockerFor().spawn({ ...args, env: withoutNodeEnv(args.env) })
   }
 
+  async launchDetached(args: SpawnCommand): Promise<void> {
+    const docker = this.locationOf(args.threadId) === EExecutionLocation.Docker
+    const port = docker ? this.dockerFor() : this.local
+    if (port.launchDetached === undefined) {
+      throw new Error('the port this thread runs on cannot launch detached processes')
+    }
+
+    await port.launchDetached(docker ? { ...args, env: withoutNodeEnv(args.env) } : args)
+  }
+
   which(args: { command: string; threadId?: ThreadId | undefined }): string | null {
     return this.portFor(args.threadId).which(args)
   }

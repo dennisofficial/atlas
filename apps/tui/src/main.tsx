@@ -1,4 +1,4 @@
-import { logFieldsOf } from '@dltech/atlas-harness'
+import { logFieldsOf, runSupervisorCli } from '@dltech/atlas-harness'
 
 import { bootAtlas } from './composition/boot'
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from './composition/boot-failure'
@@ -36,6 +36,10 @@ const boot = (): void => {
 }
 
 if (import.meta.main) {
+  if (process.argv[2] === '--shell-supervise') {
+    await runSupervisorCli({ argv: process.argv.slice(3) })
+    process.exit(0)
+  }
   if (process.argv.slice(2).includes('--version')) {
     process.stdout.write(`atlas ${versionLabel()}\n`)
   } else {

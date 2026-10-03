@@ -8,7 +8,6 @@ import type { ClientFrame, EClientFrame, RestoreTranscriptParams, ServeFrame } f
 import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
-import type { WorkspacePublisher } from './publish-workspace'
 import type { TranscriptReaders } from './requests'
 import type { ServeAgentSteer, ServeRoster, ServeRewind } from './serve-app'
 import type { ServeLog } from './serve-log'
@@ -43,7 +42,6 @@ export type SessionHandlersArgs = {
   liveStepId: () => StepId | null
   driver: ServeTurnDriver
   files: Pick<FileBrowser, 'list'>
-  publish: WorkspacePublisher
   refusal: () => string | null
   admissionClosed?: (() => boolean) | undefined
   checkpoint?: (() => RuntimeCheckpoint | null) | undefined

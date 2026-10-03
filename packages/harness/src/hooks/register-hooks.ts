@@ -18,7 +18,7 @@ import {
   resolveIfPossible,
   type DependencyContainer,
 } from '../container/injection'
-import { SkillSuggestionEnabledToken, WorkspaceRoot } from '../container/tokens'
+import { SessionRegistryToken, SkillSuggestionEnabledToken, WorkspaceRoot } from '../container/tokens'
 import { FileReadStatePort } from '../files/read-state'
 import { SkillRegistryPort } from '../skills/port'
 import { InvalidateFactsHook } from './invalidate-facts'
@@ -30,6 +30,7 @@ import { ResolveProjectPathsHook } from './resolve-project-paths'
 import { ServiceShapeHook } from './service-shape-hook'
 import { RecordFileStateHook } from './record-file-state'
 import { SkillSuggestionHook } from './skill-suggestion'
+import { threadEnvironmentFrom } from './thread-environment'
 import { TrackWorktreeHook } from './track-worktree'
 
 export function registerBuiltinHooks({ container }: { container: DependencyContainer }): void {
@@ -38,8 +39,12 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
   })
 
   container.register(portToken(BeforeToolHook), {
-    useFactory: (resolver) =>
-      new ResolveProjectPathsHook(resolver.resolveAll(portToken(ToolDefinition))),
+    useFactory: (resolver) => {
+      const sessions = resolveIfPossible({ container: resolver, token: SessionRegistryToken })
+      return new ResolveProjectPathsHook(resolver.resolveAll(portToken(ToolDefinition)), {
+        threadEnvironment: sessions === undefined ? undefined : threadEnvironmentFrom({ sessions }),
+      })
+    },
   })
   container.register(portToken(BeforeToolHook), {
     useFactory: (resolver) =>

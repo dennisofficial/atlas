@@ -20,6 +20,22 @@ import { BashTool } from '../builtin/bash'
 import { GlobTool } from '../builtin/glob'
 import { GrepTool } from '../builtin/grep'
 import { ToolRegistry } from '../registry'
+import { ThreadStorePort } from '../../store/thread-store'
+import { ShellRegistryPort } from '../../shells/shell-registry'
+import { ATLAS_HOME_ENV } from '@dltech/atlas-core'
+
+const scratchHome = mkdtempSync(join(tmpdir(), 'atlas-tool-container-home-'))
+const previousHome = process.env[ATLAS_HOME_ENV]
+
+beforeAll(() => {
+  process.env[ATLAS_HOME_ENV] = scratchHome
+})
+
+afterAll(() => {
+  if (previousHome === undefined) delete process.env[ATLAS_HOME_ENV]
+  else process.env[ATLAS_HOME_ENV] = previousHome
+  rmSync(scratchHome, { recursive: true, force: true })
+})
 
 const BUILTIN_NAMES = [
   'read',
@@ -32,6 +48,7 @@ const BUILTIN_NAMES = [
   'shell_list',
   'shell_output',
   'shell_kill',
+  'shell_input',
   'service_start',
   'service_stop',
   'service_list',
@@ -54,11 +71,12 @@ const BUILTIN_NAMES = [
   'web_search',
 ]
 
-function containerRootedAt(root: string): DependencyContainer {
+async function containerRootedAt(root: string): Promise<DependencyContainer> {
   const container = createHarnessContainer()
   container.register(WorkspaceRoot, { useValue: root })
   container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
   container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
+  await container.resolve(portToken(ThreadStorePort)).create({ id: toThreadId('thread-1') })
   return container
 }
 
@@ -89,7 +107,7 @@ describe('the builtin tools resolved from the container', () => {
   beforeAll(async () => {
     root = mkdtempSync(join(tmpdir(), 'atlas-tool-container-'))
     await Bun.write(join(root, 'kept.ts'), 'export const kept = true\n')
-    container = containerRootedAt(root)
+    container = await containerRootedAt(root)
   })
 
   afterAll(() => rmSync(root, { recursive: true, force: true }))
@@ -135,8 +153,8 @@ describe('tool registration across containers', () => {
     await Bun.write(join(first, 'only-in-first.ts'), '\n')
 
     try {
-      const globIn = (root: string): Promise<ToolOutcome> =>
-        invoke(toolNamed({ container: containerRootedAt(root), name: 'glob' }), { pattern: '*.ts' }, root)
+      const globIn = async (root: string): Promise<ToolOutcome> =>
+        invoke(toolNamed({ container: await containerRootedAt(root), name: 'glob' }), { pattern: '*.ts' }, root)
 
       const found = await globIn(first)
       const empty = await globIn(second)
@@ -159,7 +177,7 @@ describe('tool registration across containers', () => {
 describe('the background shell registry the tools share', () => {
   it('hands bash, shell_output and shell_kill the same registry, so a shell one starts the others can see', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-shared-shells-'))
-    const container = containerRootedAt(root)
+    const container = await containerRootedAt(root)
 
     try {
       const started = await invoke(
@@ -185,7 +203,7 @@ describe('the background shell registry the tools share', () => {
   it('gives each container its own registry rather than sharing one process-wide', async () => {
     const first = mkdtempSync(join(tmpdir(), 'atlas-shells-first-'))
     const second = mkdtempSync(join(tmpdir(), 'atlas-shells-second-'))
-    const containers = [containerRootedAt(first), containerRootedAt(second)] as const
+    const containers = [await containerRootedAt(first), await containerRootedAt(second)] as const
 
     try {
       const started = await invoke(
@@ -207,9 +225,9 @@ describe('the background shell registry the tools share', () => {
     }
   })
 
-  it('kills what it started when the container is torn down', async () => {
+  it('detaches shells when the container is disposed, and still permits an explicit stop', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-shells-teardown-'))
-    const container = containerRootedAt(root)
+    const container = await containerRootedAt(root)
     const witness = join(root, 'zombie.txt')
 
     try {
@@ -220,10 +238,12 @@ describe('the background shell registry the tools share', () => {
       })
       await Bun.sleep(150)
 
+      const shells = container.resolve(portToken(ShellRegistryPort))
       await disposeAll({ container })
       await Bun.sleep(2200)
 
-      expect(await Bun.file(witness).exists()).toBe(false)
+      expect(await Bun.file(witness).exists()).toBe(true)
+      await shells.closeAll()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

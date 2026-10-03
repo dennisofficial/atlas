@@ -20,11 +20,11 @@ for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
 
   describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('keeping shells scoped to the thread that started them', () => {
-      it('lists only the shells the asking thread started', () => {
+    describe('keeping shells scoped to the thread that started them', async () => {
+      it('lists only the shells the asking thread started', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const mine = registry.start(job({ command: 'sleep 30' }))
-        const theirs = registry.start(job({ command: 'sleep 30', threadId: ELSEWHERE }))
+        const mine = await registry.start(job({ command: 'sleep 30' }))
+        const theirs = await registry.start(job({ command: 'sleep 30', threadId: ELSEWHERE }))
         if (!mine.ok || !theirs.ok) throw new Error('both shells should have started')
 
         expect(registry.list({ threadId: THREAD }).map((entry) => entry.shellId)).toEqual([
@@ -38,26 +38,26 @@ for (const adapter of shellAdapters) {
 
       it('refuses to read, peek at, or kill a shell another thread started', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const theirs = registry.start(job({ command: 'echo private', threadId: ELSEWHERE }))
+        const theirs = await registry.start(job({ command: 'echo private', threadId: ELSEWHERE }))
         if (!theirs.ok) throw new Error(theirs.reason)
         await settle({ registry, shellId: theirs.snapshot.shellId, threadId: ELSEWHERE })
 
-        expect(registry.read({ shellId: theirs.snapshot.shellId, threadId: THREAD }).ok).toBe(false)
+        expect((await registry.read({ shellId: theirs.snapshot.shellId, threadId: THREAD })).ok).toBe(false)
         expect(
-          registry.peek({ shellId: theirs.snapshot.shellId, characters: 100, threadId: THREAD }),
+          await registry.peek({ shellId: theirs.snapshot.shellId, characters: 100, threadId: THREAD }),
         ).toBeUndefined()
         expect(
           registry.kill({ shellId: theirs.snapshot.shellId, by: EKilledBy.Model, threadId: THREAD })
             .ok,
         ).toBe(false)
-        expect(registry.read({ shellId: theirs.snapshot.shellId, threadId: ELSEWHERE }).ok).toBe(
+        expect((await registry.read({ shellId: theirs.snapshot.shellId, threadId: ELSEWHERE })).ok).toBe(
           true,
         )
       })
 
       it('announces an ending only to the thread that started the shell', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const theirs = registry.start(job({ command: 'echo elsewhere', threadId: ELSEWHERE }))
+        const theirs = await registry.start(job({ command: 'echo elsewhere', threadId: ELSEWHERE }))
         if (!theirs.ok) throw new Error(theirs.reason)
         await settle({ registry, shellId: theirs.snapshot.shellId, threadId: ELSEWHERE })
         await recorded({ log, threadId: ELSEWHERE })

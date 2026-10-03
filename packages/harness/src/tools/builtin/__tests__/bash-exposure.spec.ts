@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -7,17 +7,21 @@ import { join } from 'node:path'
 import { toThreadId, type ProcessPort, type ToolOutcome } from '@dltech/atlas-core'
 
 import { LocalFileSystemPort } from '../../../execution/local-filesystem'
-import { HookChain } from '../../../hooks/registry'
-import { BunShellRegistry } from '../../../shells/shell-registry'
-import { SystemClock } from '../../../store'
 import { BashTool } from '../bash'
-
-const noHooks = () => new HookChain({})
+import { discardSuites, openRuntimeRegistry, type RuntimeSuite } from './runtime-launcher'
 
 let root = ''
+let suite: RuntimeSuite
+const suites: RuntimeSuite[] = []
 
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'atlas-bash-exposure-'))
+  suite = await openRuntimeRegistry({ root })
+  suites.push(suite)
+})
+
+afterAll(async () => {
+  await discardSuites(suites)
 })
 
 const invokeWith = (tool: BashTool, input: Record<string, unknown>): Promise<ToolOutcome> =>
@@ -30,7 +34,7 @@ const invokeWith = (tool: BashTool, input: Record<string, unknown>): Promise<Too
   })
 
 const invoke = (input: Record<string, unknown>): Promise<ToolOutcome> =>
-  invokeWith(new BashTool(new BunShellRegistry(root, new SystemClock(), noHooks)), input)
+  invokeWith(new BashTool(suite.shells), input)
 
 describe('exposing a port from a background shell', () => {
   it('refuses exposePort without runInBackground, the way watch is refused', async () => {
@@ -38,7 +42,7 @@ describe('exposing a port from a background shell', () => {
 
     expect(outcome.ok).toBe(false)
     expect(!outcome.ok && outcome.reason).toContain('runInBackground')
-  })
+  }, 30_000)
 
   it('starts an exposed background shell with the mapping in the output and the URL in modelText', async () => {
     const outcome = await invoke({ command: 'sleep 30', runInBackground: true, exposePort: 3000 })
@@ -48,7 +52,7 @@ describe('exposing a port from a background shell', () => {
       exposure: { containerPort: 3000, hostPort: 3000, url: 'http://localhost:3000' },
     })
     expect(outcome.modelText).toContain('http://localhost:3000')
-  })
+  }, 30_000)
 
   it('refuses when the execution port cannot publish ports, before anything starts', async () => {
     const bare: ProcessPort = {
@@ -57,11 +61,7 @@ describe('exposing a port from a background shell', () => {
       },
       which: () => null,
     }
-    const tool = new BashTool(
-      new BunShellRegistry(root, new SystemClock(), noHooks),
-      new LocalFileSystemPort(),
-      bare,
-    )
+    const tool = new BashTool(suite.shells, new LocalFileSystemPort(), bare)
 
     const outcome = await invokeWith(tool, {
       command: 'sleep 30',
@@ -71,5 +71,5 @@ describe('exposing a port from a background shell', () => {
 
     expect(outcome.ok).toBe(false)
     expect(!outcome.ok && outcome.reason).toContain('publish')
-  })
+  }, 30_000)
 })

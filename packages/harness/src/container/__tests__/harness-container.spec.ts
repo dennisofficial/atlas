@@ -4,7 +4,8 @@ import { AccountStorePort, ClockPort, CredentialPort, EventLogPort, FileSystemPo
 
 import type { KeychainReader } from '../../credentials/keychain-reader'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
-import { LoginEnvProcessPort } from '../../execution/login-env-process'
+import { SessionEnvironmentProcessPort } from '../../execution/session-environment'
+import { sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { RefreshingCredentialPort } from '../../credentials/refreshing-credential-port'
 import { NullTelemetry } from '../../telemetry/null-telemetry'
@@ -82,8 +83,35 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(TelemetryPort))).toBeInstanceOf(NullTelemetry)
   })
 
-  it('resolves the process port to the login-resolving local adapter', () => {
-    expect(harness.resolve(portToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
+  it('resolves the process port to the session-scoped local adapter', () => {
+    expect(harness.resolve(portToken(ProcessPort))).toBeInstanceOf(SessionEnvironmentProcessPort)
+  })
+
+  it('runs real commands with shared session and distinct thread directory scoping', async () => {
+    const threads = harness.resolve(portToken(ThreadStorePort))
+    const main = await threads.create({})
+    const child = await threads.create({ agent: { spawnedBy: main.id, type: 'explore' } })
+    const processes = harness.resolve(portToken(ProcessPort))
+    const sessionDir = sessionDirectory({ home: temporary.home, sessionId: main.id })
+
+    for (const thread of [main, child]) {
+      const handle = processes.spawn({
+        cmd: ['/bin/sh', '-c', 'printf "%s\\n%s\\n" "$ATLAS_SESSION_DIR" "$ATLAS_THREAD_DIR"'],
+        cwd: temporary.home,
+        threadId: thread.id,
+      })
+      const [output, errors, exitCode] = await Promise.all([
+        new Response(handle.stdout).text(),
+        new Response(handle.stderr).text(),
+        handle.exited,
+      ])
+      expect(errors).toBe('')
+      expect(exitCode).toBe(0)
+      expect(output.trim().split('\n')).toEqual([
+        sessionDir,
+        threadDataDirectory({ sessionDir, threadId: thread.id }),
+      ])
+    }
   })
 
   it('resolves the filesystem port to the local adapter', () => {

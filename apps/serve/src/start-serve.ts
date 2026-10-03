@@ -9,7 +9,6 @@ import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type Sign
 import { startServeIdleStop } from './idle-stop'
 import { hydrateCloudPlacement } from './placement-hydration'
 import { EWorkspaceState, workspaceRefusalOf } from './materialize-workspace'
-import type { WorkspacePublisher } from './publish-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
 import { runtimeWork } from './runtime-work'
@@ -147,12 +146,6 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     },
   })
 
-  const publishWorkspace: WorkspacePublisher =
-    args.publishWorkspace ??
-    (async () => {
-      throw new Error('this serve transfers workspaces as archives; publish-workspace is retired')
-    })
-
   const handlers = createSessionHandlers({
     threadId,
     buffer,
@@ -160,7 +153,6 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     liveStepId: () => liveStepId(),
     driver,
     files: app.files,
-    publish: publishWorkspace,
     admissionClosed: () => admission.closed,
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),

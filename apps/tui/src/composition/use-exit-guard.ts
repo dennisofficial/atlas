@@ -17,9 +17,12 @@ export type ExitGuardControl = {
   handleKey: (key: KeyEvent) => void
 }
 
-export function useExitGuard(args: { onExit: () => void }): ExitGuardControl {
+export function useExitGuard(args: {
+  onKeepShells: () => void
+  onExit: () => void
+}): ExitGuardControl {
   const [state, setState] = useState<ExitGuardState | null>(null)
-  const { onExit } = args
+  const { onKeepShells, onExit } = args
 
   const handleOpen = useCallback(() => setState(openExitGuard()), [])
 
@@ -28,9 +31,10 @@ export function useExitGuard(args: { onExit: () => void }): ExitGuardControl {
   const handlePick = useCallback(
     (choice: EExitChoice) => {
       setState(null)
+      if (choice === EExitChoice.KeepShells) onKeepShells()
       if (choice === EExitChoice.StopAndExit) onExit()
     },
-    [onExit],
+    [onExit, onKeepShells],
   )
 
   const handleKey = useCallback(

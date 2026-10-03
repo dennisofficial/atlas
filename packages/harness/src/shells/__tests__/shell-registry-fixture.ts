@@ -13,20 +13,12 @@ import {
 
 import { RandomIds } from '../../store/ids'
 
-import { DockerProcessPort } from '../../execution/docker/docker-process'
-import { liveDockerOptedIn } from '../../execution/docker/__tests__/live-docker'
-import { DockerEngine } from '../../execution/docker/engine'
-import {
-  DEFAULT_DOCKER_SOCKET,
-  DEFAULT_SANDBOX_IMAGE,
-  worktreeLabel,
-  type SandboxConfig,
-} from '../../execution/docker/sandbox'
-import { LocalProcessPort } from '../../execution/local-process'
 import { HookChain, type HookChainSource } from '../../hooks/registry'
 import { EShellStatus } from '../background-shell'
+import type { ShellLauncherPort } from '../port'
 import { BunShellRegistry, type ShellRegistryPort } from '../shell-registry'
 import { RecordingLog, RecordingOperations } from './shell-registry-log'
+import { registryRuntimeLauncher } from './registry-runtime-fixture'
 
 export { endedInLog, RecordingLog, RecordingOperations } from './shell-registry-log'
 
@@ -83,65 +75,21 @@ export function matchedDraft(draft: EventDraft | undefined): MatchedDraft {
   return draft
 }
 
-type StillRunningDraft = Omit<
-  EventOfType<'background-shell-still-running'>,
-  keyof { id: 0; seq: 0; threadId: 0; runId: 0; depth: 0; at: 0 }
->
-
-export function stillRunningDraft(draft: EventDraft | undefined): StillRunningDraft {
-  if (draft?.type !== 'background-shell-still-running') {
-    throw new Error(
-      `expected a background-shell-still-running draft, got ${draft?.type ?? 'nothing'}`,
-    )
-  }
-  return draft
-}
-
-const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
-const DOCKER_PREFIX = 'atlas-dev-shells'
-const dockerEngine = new DockerEngine({ socketPath: SOCKET })
-
 export type ShellAdapter = {
   name: string
   available: boolean
-  processes(args: { root: string }): ProcessPort
+  launcher(args: { root: string }): ShellLauncherPort
   sweep(args: { root: string }): Promise<void>
 }
-
-const dockerSandbox = (root: string): SandboxConfig => ({
-  image: DEFAULT_SANDBOX_IMAGE,
-  worktree: root,
-  session: `shell-registry-${root}`,
-  uid: process.getuid?.() ?? 501,
-  gid: process.getgid?.() ?? 20,
-  home: '/Users/operator',
-  limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
-  dockerSocket: SOCKET,
-  labelPrefix: DOCKER_PREFIX,
-})
 
 export const localShellAdapter: ShellAdapter = {
   name: 'local',
   available: true,
-  processes: () => new LocalProcessPort(),
+  launcher: registryRuntimeLauncher,
   sweep: async () => {},
 }
 
-export const dockerShellAdapter: ShellAdapter = {
-  name: 'docker',
-  available: liveDockerOptedIn() && existsSync(SOCKET),
-  processes: ({ root }) =>
-    new DockerProcessPort({ engine: dockerEngine, sandbox: dockerSandbox(root) }),
-  sweep: async ({ root }) => {
-    const stale = await dockerEngine.listContainers({
-      labels: { [worktreeLabel(DOCKER_PREFIX)]: root },
-      all: true,
-    })
-    for (const container of stale) await dockerEngine.removeContainer({ id: container.id })
-  },
-}
-
-export const shellAdapters: readonly ShellAdapter[] = [localShellAdapter, dockerShellAdapter]
+export const shellAdapters: readonly ShellAdapter[] = [localShellAdapter]
 
 const opened: { registry: ShellRegistryPort; root: string; adapter: ShellAdapter }[] = []
 
@@ -175,17 +123,15 @@ export function openRegistry({
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'atlas-shells-')))
   const clock = new SteppableClock()
   const log = givenLog === null ? undefined : (givenLog ?? new RecordingLog())
-  const registry = new BunShellRegistry(
+  const registry = new BunShellRegistry({
     root,
     clock,
-    hooks ?? noHooks,
-    adapter.processes({ root }),
-    undefined,
+    hooks: hooks ?? noHooks,
+    launcher: adapter.launcher({ root }),
     log,
-    log === undefined ? undefined : new RandomIds(),
-    undefined,
+    ids: log === undefined ? undefined : new RandomIds(),
     operations,
-  )
+  })
   opened.push({ registry, root, adapter })
   return { registry, clock, root, log }
 }
@@ -218,6 +164,26 @@ export const job = ({ command, threadId = THREAD }: { command: string; threadId?
   command,
 })
 
+export async function recordedDraft({
+  log,
+  threadId = THREAD,
+  type,
+  count = 1,
+}: {
+  log: RecordingLog | undefined
+  threadId?: ThreadId
+  type: string
+  count?: number
+}): Promise<void> {
+  if (log === undefined) throw new Error('the registry was opened without a log')
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    const events = await log.read({ threadId })
+    if (events.filter((event) => event.type === type).length >= count) return
+    await Bun.sleep(25)
+  }
+  throw new Error(`no ${type} ever reached the log for ${threadId}`)
+}
+
 export async function settle({
   registry,
   shellId,
@@ -247,7 +213,7 @@ export async function printed({
   threadId?: ThreadId
 }): Promise<void> {
   for (let attempt = 0; attempt < 400; attempt += 1) {
-    if (registry.peek({ shellId, characters: 2000, threadId })?.includes(text)) return
+    if ((await registry.peek({ shellId, characters: 2000, threadId }))?.includes(text)) return
     await Bun.sleep(25)
   }
   throw new Error(`background shell ${shellId} never printed ${JSON.stringify(text)}`)

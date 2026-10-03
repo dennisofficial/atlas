@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
 import { stageVendoredRipgrep } from '../../../scripts/stage-ripgrep'
+import { writeSupervisorBundle } from '../../../../../packages/harness/src/shells/supervisor-bundle'
 
 const runCapturing = async (args: {
   command: readonly string[]
@@ -32,6 +33,7 @@ describe('vendored ripgrep in a compiled binary', () => {
     const binary = join(mkdtempSync(join(tmpdir(), 'atlas-vendored-rg-')), 'probe')
 
     await stageVendoredRipgrep({ repoRoot, target: undefined })
+    await writeSupervisorBundle()
 
     const built = await runCapturing({
       cwd: tuiRoot,

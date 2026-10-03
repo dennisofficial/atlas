@@ -13,8 +13,6 @@ import {
   waitsBySleeping,
   waitsByWatching,
   type DeclaredPathField,
-  type EventLogPort,
-  type IdPort,
   type PortExposure,
   type ThreadId,
   type ToolOutcome,
@@ -31,13 +29,11 @@ import {
   terminatorFor,
   type ShellOutput,
 } from '../../shells/shell-process'
-import { bootId } from '../../shells/boot'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 import { MAXIMUM_OUTPUT_CHARACTERS, mergeStreams, renderModelText } from './bash-output'
 import {
   bashDescription,
   ceilingClause,
-  checkInClause,
   exposureClause,
   exposureNeedsBackground,
   exposureUnsupported,
@@ -58,7 +54,7 @@ const inputSchema = z.strictObject({
   description: z.string().min(1),
   runInBackground: z.boolean().optional(),
   watch: z.string().min(1).optional(),
-  checkInMs: z.number().int().positive().optional(),
+  outputLimitBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
   exposePort: z.number().int().min(1).max(65_535).optional(),
 })
 
@@ -66,11 +62,6 @@ const description = bashDescription({
   defaultTimeoutMs: DEFAULT_TIMEOUT_MS,
   maximumTimeoutMs: MAXIMUM_TIMEOUT_MS,
 })
-
-type ShellStartRecording = {
-  log: Pick<EventLogPort, 'append'>
-  ids: Pick<IdPort, 'nextRunId'>
-}
 
 export class BashTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'bash'
@@ -90,7 +81,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     private readonly shells: ShellRegistryPort,
     private readonly files: FileSystemPort = new LocalFileSystemPort(),
     private readonly processes: ProcessPort = new LocalProcessPort(),
-    private readonly recording?: ShellStartRecording | undefined,
   ) {
     super()
   }
@@ -110,21 +100,20 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     })
   }
 
-  private startInBackground(args: {
+  private async startInBackground(args: {
     threadId: ThreadId
     command: string
     description: string
     cwd: string
     watch?: string | undefined
     timeoutMs?: number | undefined
-    checkInMs?: number | undefined
+    outputLimitBytes?: number | undefined
     exposure?: PortExposure | undefined
-  }): ToolOutcome {
-    const started = this.shells.start(args)
+  }): Promise<ToolOutcome> {
+    const started = await this.shells.start(args)
     if (!started.ok) return started
 
     const { shellId } = started.snapshot
-    this.recordStart({ shellId, args })
 
     return {
       ok: true,
@@ -134,55 +123,32 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         shellId,
         status: started.snapshot.status,
         pid: started.snapshot.pid,
-        ...(args.checkInMs === undefined ? {} : { checkInMs: args.checkInMs }),
+        outputPath: started.snapshot.outputPath,
         ...(args.watch === undefined ? {} : { watch: args.watch }),
         ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
+        outputLimitBytes: args.outputLimitBytes ?? 5 * 1024 ** 3,
         ...(args.exposure === undefined ? {} : { exposure: args.exposure }),
       },
       modelText: [
         `Started in the background as shell ${shellId}, and it outlives this turn.`,
         'It outlives an interrupt too: stopping a turn stops the turn, not the shell, so nothing here needed nohup,',
-        'setsid, a detached subprocess or a sentinel file - only shell_kill and the end of the session stop it.',
-        'Its ending will be delivered to you with everything it printed, whether or not a turn is running then,',
-        'and so will a prompt it stops on, since its stdin is closed and no ending would ever follow.',
+        'setsid, a detached subprocess or a sentinel file. Its supervisor preserves output, input, and exit status across Atlas restarts.',
+        'Quitting detaches by default; shell_kill, a confirmed stop, and execution-location moves stop the command.',
+        'Its ending will be delivered with a bounded output excerpt and the full output file path.',
+        'A prompt can be answered with shell_input; interactive terminal programs still require a terminal, not this pipe.',
+        ...(started.snapshot.outputPath === undefined ? [] : [
+          `Output is being written to: ${started.snapshot.outputPath}. Use Read or Grep on that file for full history.`,
+        ]),
         'A kill you asked for still lands that way: shell_kill waits for the death and hands you everything the shell printed as its result,',
         'and the ending is written to the durable log and announced like every other, so you can be told the same death twice - once as the tool result, once as the ending.',
         ...watchClause({ watch: args.watch }),
         ...ceilingClause({ timeoutMs: args.timeoutMs }),
-        ...checkInClause({ checkInMs: args.checkInMs }),
         ...exposureClause({ exposure: args.exposure }),
         'So do not wait on it: no sleeping, no polling, no idle loop, and no do-nothing command to pass the time - a tick only spins the turn. Take up other work, or end the turn and be woken.',
-        `Use shell_output({ shellId: "${shellId}" }) only for a shell that will not end on its own, such as a dev server`,
-        `whose startup log you need, and shell_kill({ shellId: "${shellId}" }) to stop it.`,
+        `Use shell_output({ shellId: "${shellId}" }) for unread output, shell_input to send input, and shell_kill to stop it.`,
+        'ATLAS_SESSION_DIR and ATLAS_THREAD_DIR locate this agent’s session and thread data; ATLAS_SHELL_DIR locates this shell’s spool.',
       ].join(' '),
     }
-  }
-
-  /**
-   * The start is written the moment the registry hands back an id rather than waiting for a later
-   * drain: a shell that starts and then the process crashes before the next turn must still leave
-   * its start behind, or the reconciler on the next open has nothing to pair. Fire-and-forget — a
-   * shell already running must never wait on, or die with, its own record.
-   */
-  private recordStart(args: { shellId: string; args: { threadId: ThreadId; command: string; description: string } }): void {
-    if (this.recording === undefined) return
-    const { log, ids } = this.recording
-    const { shellId } = args
-    void log
-      .append({
-        threadId: args.args.threadId,
-        runId: ids.nextRunId(),
-        drafts: [
-          {
-            type: 'background-shell-started',
-            shellId,
-            command: args.args.command,
-            description: args.args.description,
-            bootId,
-          },
-        ],
-      })
-      .catch(() => undefined)
   }
 
   protected override async run({
@@ -205,12 +171,8 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
-    if (input.checkInMs !== undefined && input.runInBackground !== true) {
-      return {
-        ok: false,
-        reason:
-          'checkInMs paces the check-ins of a shell that outlives the call, so it needs runInBackground: true; a foreground command is already bounded by timeoutMs and hands you its ending when it returns',
-      }
+    if (input.outputLimitBytes !== undefined && input.runInBackground !== true) {
+      return { ok: false, reason: 'outputLimitBytes is the durable background command’s kernel file-size cap; use runInBackground to configure it' }
     }
 
     if (input.exposePort !== undefined && input.runInBackground !== true) {
@@ -245,7 +207,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         cwd,
         watch: input.watch,
         timeoutMs,
-        checkInMs: input.checkInMs,
+        outputLimitBytes: input.outputLimitBytes,
         exposure: exposure.exposure,
       })
     }
