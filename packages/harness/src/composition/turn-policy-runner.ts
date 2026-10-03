@@ -3,9 +3,14 @@ import {
   contextPressure,
   EAutoCompact,
   ENoticeTone,
+  emptyTurnBlocked,
+  emptyTurnRefusal,
+  noContentStreak,
   NOTICE_MS,
   NOTICE_WARN_MS,
+  rowsOwnedBy,
   type EventLogPort,
+  type IdPort,
   type ModelPort,
   type NoticePort,
   type ThreadId,
@@ -58,9 +63,10 @@ export function createTurnPolicyRunner(args: {
   usage: UsageTracker
   atPercent: () => number
   notice: NoticePort
+  ids: IdPort
   readClock: () => number
 }): TurnRunner & TurnPolicy {
-  const { inner, log, threads, agents, machinery, model, summarise, usage, atPercent, notice, readClock } =
+  const { inner, log, threads, agents, machinery, model, summarise, usage, atPercent, notice, ids, readClock } =
     args
 
   let state: TurnPolicyState = { type: 'idle' }
@@ -68,6 +74,7 @@ export function createTurnPolicyRunner(args: {
   let compaction: AbortController | null = null
   let suppression = ESuppress.None
   let takenBack: PendingSaid | null = null
+  const acknowledgedStreaks = new Set<ThreadId>()
 
   const emit = (next: TurnPolicyState): void => {
     state = next
@@ -139,8 +146,35 @@ export function createTurnPolicyRunner(args: {
     takenBack = undone.said
   }
 
+  /**
+   * A main session whose last EMPTY_STEP_STREAK_LIMIT turns all ended on the no-content
+   * placeholder is being fed into a broken model: every turn "completes" and silently buys the
+   * retry chain. The first attempt past the limit is refused with the refusal surfaced to the
+   * operator; re-sending acknowledges it and buys exactly one more turn. The armed flag lives in
+   * process memory only, so a restart re-arms the guard from the ledger alone — the refused turn
+   * never opens, so nothing to recover is lost.
+   */
+  const refuseIfBlocked = async ({ threadId }: { threadId: ThreadId }): Promise<TurnOutcome | undefined> => {
+    const owned = rowsOwnedBy({ events: await log.read({ threadId }), threadId })
+    if (!emptyTurnBlocked(owned)) {
+      acknowledgedStreaks.delete(threadId)
+      return undefined
+    }
+    if (acknowledgedStreaks.delete(threadId)) return undefined
+
+    acknowledgedStreaks.add(threadId)
+    warn({ key: 'no-content-blocked', text: emptyTurnRefusal() })
+    return {
+      status: ETurnStatus.Failed,
+      runId: ids.nextRunId(),
+      message: emptyTurnRefusal(),
+      cause: { noContentStreak: noContentStreak(owned) },
+    }
+  }
+
   return {
-    say: ({ threadId, text, images, files, context, signal, pause }) =>
+    say: async ({ threadId, text, images, files, context, signal, pause }) =>
+      (await refuseIfBlocked({ threadId })) ??
       inner.say({
         threadId,
         text,
@@ -150,13 +184,15 @@ export function createTurnPolicyRunner(args: {
         ...(signal === undefined ? {} : { signal }),
         ...(pause === undefined ? {} : { pause }),
       }),
-    runTurn: ({ threadId, signal, pause }) =>
+    runTurn: async ({ threadId, signal, pause }) =>
+      (await refuseIfBlocked({ threadId })) ??
       inner.runTurn({
         threadId,
         ...(signal === undefined ? {} : { signal }),
         ...(pause === undefined ? {} : { pause }),
       }),
-    resume: ({ threadId, signal, pause }) =>
+    resume: async ({ threadId, signal, pause }) =>
+      (await refuseIfBlocked({ threadId })) ??
       inner.resume({
         threadId,
         ...(signal === undefined ? {} : { signal }),

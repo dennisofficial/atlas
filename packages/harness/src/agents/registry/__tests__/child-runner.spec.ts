@@ -4,8 +4,11 @@ import { z } from 'zod'
 
 import {
   defaultPipeline,
+  EAgentStatus,
+  EAssistantPlaceholder,
   EMPTY_PROMPT,
   EToolEffect,
+  NO_CONTENT_TEXT,
   PromptFragment,
   type PromptModel,
   type ThreadId,
@@ -179,6 +182,26 @@ describe('a child taking its first step', () => {
     const [draft] = spawned.supervisor.drainNotifications({ threadId: spawned.parent }).drafts
     expect(draft?.type === 'agent-ended' ? draft.prose : '').toBe('four call sites')
     expect(draft?.type === 'agent-ended' ? draft.turns : 0).toBe(1)
+  })
+})
+
+describe('a child whose model keeps dropping its replies', () => {
+  it('ends finished with the <no content> body after the retry chain, not failed', async () => {
+    const spawned = await spawn({
+      script: [{}, {}, {}],
+      agentType: agentTypeNamed({ name: 'explore' }),
+    })
+
+    const [draft] = spawned.supervisor.drainNotifications({ threadId: spawned.parent }).drafts
+    expect(draft?.type === 'agent-ended' ? draft.status : undefined).toBe(EAgentStatus.Finished)
+    expect(draft?.type === 'agent-ended' ? draft.prose : '').toBe(NO_CONTENT_TEXT)
+
+    const events = await spawned.harness.log.read({ threadId: spawned.agentId })
+    const said = events.at(-1)
+    expect(said?.type).toBe('assistant-said')
+    expect(said?.type === 'assistant-said' ? said.placeholder : undefined).toBe(
+      EAssistantPlaceholder.NoContent,
+    )
   })
 })
 

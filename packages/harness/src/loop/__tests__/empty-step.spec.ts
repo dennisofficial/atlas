@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EFinishReason } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EFinishReason } from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
@@ -49,17 +49,34 @@ describe('a model step that comes back empty', () => {
     expect(events.map((event) => event.type)).toEqual(['user-said', 'nudge', 'assistant-said'])
   })
 
-  it('fails the turn naming the empty replies when the model stays silent after the retry and nudge', async () => {
+  it('ends the turn with the <no content> placeholder when the model stays silent past the retry and nudge', async () => {
     const { harness, model } = await open([{}, {}, {}, { text: 'unreachable' }])
     const thread = await harness.threads.create({})
 
     const outcome = await harness.runner.say({ threadId: thread.id, text: 'what changed?' })
 
-    expect(outcome.status).toBe(ETurnStatus.Failed)
-    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(/empty reply/)
+    expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(model.doStreamCalls).toHaveLength(3)
     const events = await harness.log.read({ threadId: thread.id })
-    expect(events.map((event) => event.type)).toEqual(['user-said', 'nudge'])
+    expect(events.map((event) => event.type)).toEqual(['user-said', 'nudge', 'assistant-said'])
+    const said = events.at(-1)
+    expect(said?.type !== 'assistant-said' ? undefined : said.placeholder).toBe(EAssistantPlaceholder.NoContent)
+  })
+
+  it('records every spent retry in the cost ledger even when the turn ends with no content', async () => {
+    const { harness, model } = await open([{}, {}, {}, { text: 'unreachable' }])
+    const thread = await harness.threads.create({})
+
+    const outcome = await harness.runner.say({ threadId: thread.id, text: 'what changed?' })
+
+    expect(outcome.status).toBe(ETurnStatus.Completed)
+    expect(model.doStreamCalls).toHaveLength(3)
+    const rows = await harness.ledger.forThread({ threadId: thread.id })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.status).toBe(ETurnStatus.Completed)
+    expect(rows[0]?.steps).toBe(3)
+    expect(rows[0]?.inputTokens).toBe(model.doStreamCalls.length)
+    expect(rows[0]?.outputTokens).toBe(model.doStreamCalls.length)
   })
 
   it('treats whitespace-only text as silence rather than as an answer', async () => {

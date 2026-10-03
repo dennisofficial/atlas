@@ -14,6 +14,7 @@ import { EServiceStatus } from '../services/status'
 import { EKilledBy, EShellStatus } from '../shells/status'
 import { ETldrStatus } from '../tldr/status'
 import {
+  EAssistantPlaceholder,
   ECompactionAnchor,
   EDecision,
   EMessageOrigin,
@@ -106,6 +107,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     type: z.literal('assistant-said'),
     parts: z.array(assistantPartSchema),
     interrupted: z.boolean().optional(),
+    placeholder: z.enum(EAssistantPlaceholder).optional(),
   }),
   // Zod 4 requires a z.unknown() key to be present, where Zod 3 inferred it optional. A tool call or
   // result whose input or output is undefined loses the key to JSON.stringify, so both must say .optional()

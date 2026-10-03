@@ -1,8 +1,11 @@
 import {
   EFinishReason,
+  EMPTY_STEP_STREAK_LIMIT,
+  noContentDraft,
   toRunId,
   toThreadId,
   type Event,
+  type EventDraft,
   type ModelPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -17,6 +20,7 @@ import { createTurnPolicyRunner } from '../turn-policy-runner'
 import { createUsageTracker } from '../usage-tracker'
 import { recordingNotices } from './fakes'
 import {
+  CountingIds,
   UnstaffedAgents,
   UnstaffedServices,
   UnstaffedShells,
@@ -81,6 +85,7 @@ const policyWith = (args: {
     usage,
     atPercent: () => args.atPercent ?? 90,
     notice: notices.port,
+    ids: new CountingIds('policy'),
     readClock: () => 1000,
   })
 
