@@ -7,7 +7,7 @@ import { LostChildren } from '../ui/components/lost-children'
 import { Screen } from '../ui/components/screen'
 import { Shortcuts } from '../ui/components/shortcuts'
 import { SelectionSurface } from '../ui/selection/selection-surface'
-import { usePress } from '../ui/hooks/use-press'
+import { EPressIntent, usePress } from '../ui/hooks/use-press'
 import type { AtlasApp } from './compose'
 import { EChromePanel } from './workspace-panels'
 
@@ -37,7 +37,7 @@ export function WorkspaceView(props: {
   pane?: React.ReactNode
   onPaneFocus?: () => void
 }): React.ReactNode {
-  const press = usePress()
+  const press = usePress({ intent: EPressIntent.Focus })
   return (
     <Screen {...(props.header === null ? {} : { header: props.header })}>
       <SelectionSurface>
