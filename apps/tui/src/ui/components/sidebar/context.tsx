@@ -1,44 +1,69 @@
-import React from 'react'
-import type { DirectoryEntry } from '@dltech/atlas-core'
+import React, { useRef } from 'react'
+import type { BoxRenderable } from '@opentui/core'
 
+import type { ContextTreeLevels, ContextTreeRow } from '../../context-tree-model'
 import { useClickRegion } from '../../hooks/use-click-region'
+import { useContextTreeReveal } from '../../hooks/use-context-tree-reveal'
 import { glyph, theme } from '../../theme'
-import { Row, Section } from './row'
+import { Row } from './row'
 
-function ContextRow(props: { label: string; directory: boolean; cells: number; onOpen: () => void }) {
-  const region = useClickRegion(props.onOpen)
+function ContextRow(props: {
+  row: ContextTreeRow
+  level: ContextTreeLevels
+  cells: number
+  cursor: boolean
+  focused: boolean
+  opened: boolean
+  onActivate: (path: string) => void
+}): React.ReactNode {
+  const { row } = props
+  const region = useClickRegion(() => props.onActivate(row.path))
+  const depth = Math.min(row.depth, Math.max(0, Math.floor((props.cells - 10) / 2)))
+  const prefix = `${'  '.repeat(depth)}${row.depth > depth ? '…' : ''}${row.isDirectory ? (row.expanded ? '▾' : '▸') : ' '} `
+  const level = props.level.get(row.path)
+  const status = !row.isDirectory || !row.expanded ? undefined :
+    level?.error ? 'unavailable' : level === undefined ? 'reading…' : level.entries.length === 0 ? 'empty' : undefined
+  const selected = props.cursor || props.opened
   return (
-    <box flexShrink={0} {...region.handlers} backgroundColor={region.wash.bg ?? theme.panelBg}>
-      <Row label={props.label} labelFg={theme.hover} cells={props.cells}
-        mark={{ text: props.directory ? glyph.file : glyph.document, fg: theme.hint }} />
+    <box flexShrink={0} {...region.handlers} backgroundColor={region.wash.bg ?? (selected ? theme.userBg : theme.panelBg)}>
+      <Row label={row.name} labelFg={props.cursor && props.focused ? theme.court.external : theme.hover} cells={props.cells}
+        mark={{ text: `${prefix}${row.isDirectory ? glyph.file : glyph.document}`, fg: props.cursor && props.focused ? theme.court.external : theme.hint }}
+        {...(status === undefined ? {} : { value: [{ text: status, fg: level?.error ? theme.warn : theme.hint }] })} />
     </box>
   )
 }
 
 export type ContextSectionProps = {
-  entries: readonly DirectoryEntry[]
+  rows: readonly ContextTreeRow[]
+  levels: ContextTreeLevels
+  cursor: string | null
+  opened: string | null
+  focused: boolean
   loading: boolean
   cells: number
-  directory?: string
-  error?: string | null
-  onUp?: () => void
-  onOpen: (name: string) => void
+  onFocus: () => void
+  onActivate: (path: string) => void
 }
 
 export function ContextSection(props: ContextSectionProps): React.ReactNode {
+  const root = useRef<BoxRenderable | null>(null)
+  const header = useClickRegion(props.onFocus)
+  useContextTreeReveal({ root, rows: props.rows, cursor: props.cursor, focused: props.focused })
+  const error = props.levels.get('')?.error
   return (
-    <Section label={props.directory ? `Context / ${props.directory}` : 'Context'} count={`${props.entries.length}`}>
-      {!props.directory || props.onUp === undefined ? null : (
-        <ContextRow label=".. / back" directory cells={props.cells} onOpen={props.onUp} />
-      )}
-      {props.error ? <text fg={theme.warn} width={props.cells}>{props.error}</text> : null}
-      {props.entries.length === 0 ? <text fg={theme.hint} width={props.cells}>
+    <box ref={root} flexDirection="column" flexShrink={0}>
+      <box {...header.handlers} backgroundColor={header.wash.bg ?? theme.panelBg}>
+        <text fg={props.focused ? theme.court.external : theme.meta}>CONTEXT  <span fg={theme.hint}>{props.rows.length}</span></text>
+      </box>
+      {error ? <text fg={theme.warn} width={props.cells}>{error}</text> : null}
+      {props.rows.length === 0 ? <text fg={theme.hint} width={props.cells}>
         {props.loading ? 'Reading context…' : 'No context files yet'}
       </text> : null}
-      {props.entries.map((entry) => (
-        <ContextRow key={entry.name} label={entry.isDirectory ? `${entry.name}/` : entry.name}
-          directory={entry.isDirectory} cells={props.cells} onOpen={() => props.onOpen(entry.name)} />
+      {props.rows.map((row) => (
+        <ContextRow key={row.path} row={row} level={props.levels} cells={props.cells}
+          cursor={props.cursor === row.path} focused={props.focused} opened={props.opened === row.path} onActivate={props.onActivate} />
       ))}
-    </Section>
+      {props.focused ? <text fg={theme.hint} width={props.cells} wrapMode="none">↑↓ move · ←→ folders · enter open</text> : null}
+    </box>
   )
 }
