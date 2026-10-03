@@ -5,7 +5,6 @@ import {
   parseRef,
   refKey,
   textValueOf,
-  toggleValueOf,
   type ModelPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -100,11 +99,6 @@ export function childModelSource(args: ChildModelDeps): (request: {
       card,
       hooks: args.hooks(),
       ...(args.wake === undefined ? {} : { wake: args.wake }),
-      inputCapWorkaround: () =>
-        toggleValueOf({
-          resolution: args.settings.snapshot().resolution,
-          id: ESettingId.MultimodalCapWorkaround,
-        }),
     }))
     return port
   }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EEffort, ESettingId, toThreadId } from '@dltech/atlas-core'
+import { EEffort, toThreadId } from '@dltech/atlas-core'
 
 import { HookChain } from '../../hooks/registry'
 import { childModelSource } from '../child-model'
@@ -17,7 +17,6 @@ import {
   keyOf,
   pinSubagent,
   pinType,
-  recordingAdapter,
 } from './child-model-fixtures'
 
 afterEach(cleanupHomes)
@@ -55,29 +54,6 @@ describe('childModelSource', () => {
 
     expect(first.identity).toEqual({ id: 'anthropic', modelId: CLAUDE.modelId })
     expect(second.identity).toEqual({ id: 'openai', modelId: GPT.modelId })
-  })
-
-  it('caps a kimi child at the deployed wall only while the workaround is on', async () => {
-    const KIMI = { providerId: 'inference', modelId: 'kimi-k3' }
-    const build = (workaroundOn: boolean) =>
-      childModelFixture({
-        parentRef: KIMI,
-        extraAdapters: [recordingAdapter({ ref: KIMI, texts: ['one'], card: { contextWindow: 1_048_576 } })],
-      }).then((fixture) => {
-        if (!workaroundOn) return fixture
-        const written = fixture.settings.set({
-          id: ESettingId.MultimodalCapWorkaround,
-          value: true,
-        })
-        if (!written.ok) throw new Error('the workaround toggle did not land')
-        return fixture
-      })
-
-    const off = await build(false)
-    const on = await build(true)
-
-    expect((await off.spawn()).traits?.().contextWindow).toBe(1_048_576)
-    expect((await on.spawn()).traits?.().contextWindow).toBe(245_000)
   })
 
   it('a type pin outranks the global pin, which outranks the parent', async () => {

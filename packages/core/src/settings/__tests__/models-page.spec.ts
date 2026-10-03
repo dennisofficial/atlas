@@ -13,7 +13,6 @@ describe('the models settings page', () => {
       ESettingPage.General,
       ESettingPage.Models,
       ESettingPage.Appearance,
-      ESettingPage.Experimental,
       ESettingPage.Cloud,
     ])
   })

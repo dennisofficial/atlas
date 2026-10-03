@@ -37,22 +37,6 @@ const looksLikeDroppedConnection = (message: string): boolean => {
   return DROPPED_CONNECTION.some((needle) => lowered.includes(needle))
 }
 
-// SGLang rejects oversized requests with text like "Multimodal prompt is too long after expanding
-// multimodal tokens ... 250000 >= 249994" — any image in the request (even a small one) routes it
-// into this multimodal branch, and the identical retry can land on a replica with a bigger pool.
-const PROMPT_TOO_LONG: readonly RegExp[] = [
-  /prompt is too long/i,
-  /too many tokens/i,
-  /context[ _-]?(length|window).{0,20}(exceed|too long)/i,
-  /too long after expanding multimodal tokens.*>= ?\d+/i,
-]
-
-const looksLikePromptTooLong = (message: string): boolean =>
-  PROMPT_TOO_LONG.some((pattern) => pattern.test(message))
-
-const messageFromCause = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
-
 export function modelFailureOf(error: unknown): ModelFailure | null {
   if (error instanceof StreamStallError) return DROPPED
 
@@ -60,11 +44,9 @@ export function modelFailureOf(error: unknown): ModelFailure | null {
 
   if (APICallError.isInstance(error)) {
     const retryAfterMs = retryAfterMsOf(error.responseHeaders)
-    const promptTooLong = looksLikePromptTooLong(error.message)
     return {
       ...(error.statusCode === undefined ? {} : { status: error.statusCode }),
       ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
-      ...(promptTooLong ? { promptTooLong: true } : {}),
     }
   }
 

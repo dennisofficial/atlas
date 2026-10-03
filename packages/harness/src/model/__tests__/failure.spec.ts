@@ -134,24 +134,4 @@ describe('reading a model failure off whatever the provider threw', () => {
   it('refuses a plain string', () => {
     expect(modelFailureOf('something went wrong')).toBeNull()
   })
-
-  it.each([
-    'Multimodal prompt is too long after expanding multimodal tokens with size 25000. len(req.origin_input_ids_unpadded)=250000 => 250000 >= 249994',
-    'BadRequestError: maximum context length is exceeded, you requested 300000 tokens',
-    'prompt is too long: 250001 tokens > 250000 maximum',
-    'Request contains more tokens than this model supports: too many tokens in the prompt.',
-  ])('flags %p as a prompt the provider rejected for length', (message) => {
-    const error = new APICallError({
-      message,
-      url: 'https://api.inference.net/v1/chat/completions',
-      requestBodyValues: {},
-      statusCode: 400,
-    })
-
-    expect(modelFailureOf(error)).toEqual({ status: 400, promptTooLong: true })
-  })
-
-  it('does not flag a 400 that is about something else', () => {
-    expect(modelFailureOf(apiError({ statusCode: 400 }))).toEqual({ status: 400 })
-  })
 })

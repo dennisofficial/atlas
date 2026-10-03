@@ -88,7 +88,6 @@ import {
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   ModelCardSourceToken,
-  MultimodalCapWorkaroundToken,
   SecretsStoreToken,
   SessionRegistryToken,
   AtlasHomeToken,
@@ -342,9 +341,6 @@ export function createHarnessContainer(): DependencyContainer {
         tape,
         ...(resolver.isRegistered(WakeSignalToken, true)
           ? { wake: resolver.resolve(WakeSignalToken) }
-          : {}),
-        ...(resolver.isRegistered(MultimodalCapWorkaroundToken, true)
-          ? { inputCapWorkaround: resolver.resolve(MultimodalCapWorkaroundToken) }
           : {}),
       })
     },
