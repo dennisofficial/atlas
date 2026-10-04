@@ -4,7 +4,7 @@ import type { LanguageModelV4CallOptions } from '@ai-sdk/provider'
 
 // The version we present to Anthropic's subscription endpoints, matching the latest
 // @anthropic-ai/claude-code release on npm. The usage endpoint's user-agent shares it.
-export const CLAUDE_CODE_VERSION = '2.1.288'
+export const CLAUDE_CODE_VERSION = '2.1.289'
 const ATLAS_ENTRYPOINT = 'atlas'
 const CLAUDE_CODE_FINGERPRINT_INDICES = [4, 7, 20] as const
 const CLAUDE_CODE_FINGERPRINT_SALT = '59cf53e54c78'
