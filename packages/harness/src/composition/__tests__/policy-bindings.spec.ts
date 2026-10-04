@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { createIsolatedContainer } from '../../container/injection'
-import { ClassifierPolicyToken } from '../../container/tokens'
+import { ClassifierPolicyToken, GrillingCeremonyEnabledToken } from '../../container/tokens'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { bindSettingsPolicy } from '../policy-bindings'
@@ -50,5 +50,30 @@ describe('classifier mode binding', () => {
   it('honours an explicit mode either way', async () => {
     const policy = await policyOver({ [ESettingId.ClassifierMode]: EClassifierMode.Nudge })
     expect(policy.mode).toBe(EClassifierMode.Nudge)
+  })
+})
+
+describe('grilling ceremony binding', () => {
+  const grillingOver = async (values: Record<string, string>): Promise<boolean> => {
+    const container = createIsolatedContainer()
+    await bindSettingsPolicy({
+      container,
+      settings: createSettingsService({
+        definitions: ATLAS_SETTINGS,
+        user: new MemorySettingsStore({ document: { values } }),
+      }),
+      workspace: { workspace: process.cwd(), repo: null },
+      credentials: alwaysAuthorised(),
+      cwd: process.cwd(),
+    })
+    return container.resolve(GrillingCeremonyEnabledToken)()
+  }
+
+  it('defaults off', async () => {
+    expect(await grillingOver({})).toBe(false)
+  })
+
+  it('follows the toggle', async () => {
+    expect(await grillingOver({ [ESettingId.GrillingCeremony]: 'true' })).toBe(true)
   })
 })

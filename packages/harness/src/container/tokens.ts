@@ -114,3 +114,7 @@ export const ClassifierPolicyToken: InjectionToken<() => ClassifierPolicy> = Sym
 export const SkillSuggestionEnabledToken: InjectionToken<() => boolean> = Symbol(
   'atlas.SkillSuggestionEnabled',
 )
+
+export const GrillingCeremonyEnabledToken: InjectionToken<() => boolean> = Symbol(
+  'atlas.GrillingCeremonyEnabled',
+)

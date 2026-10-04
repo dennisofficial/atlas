@@ -10,6 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { createIsolatedContainer, portToken, resolveSet } from '../../container/injection'
+import { GrillingCeremonyEnabledToken } from '../../container/tokens'
 import { ExecutionLocationToken } from '../../composition/execution-location-state'
 import { SkillRegistryPort } from '../../skills/port'
 import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
@@ -25,6 +26,7 @@ const CONTEXT: PromptContext = {
 
 const registered = () => {
   const container = createIsolatedContainer()
+  container.register(GrillingCeremonyEnabledToken, { useValue: () => false })
   registerBuiltinPromptFragments({ container })
   container.register(portToken(SkillRegistryPort), {
     useValue: new FakeSkillRegistry({ skills: [] }),
@@ -108,6 +110,7 @@ describe('the builtin prompt', () => {
     expect(prompt.skipped).toEqual([
       { id: 'skills.listing', reason: ESkipReason.Empty },
       { id: 'models.answer-in-text', reason: ESkipReason.Condition },
+      { id: 'plan.grilling-ceremony', reason: ESkipReason.Empty },
     ])
   })
 })
