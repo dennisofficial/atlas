@@ -6,7 +6,7 @@ import type { DirectWorkspace } from './direct-workspace'
 import { driveTranscriptArchiveFetcher } from './drive-bootstrap'
 import { hydrateCloudPlacement } from './placement-hydration'
 import { restoreTranscript } from './restore-transcript'
-import { adoptChildrenInBackground } from './serve-background'
+import { adoptChildrenNow } from './serve-background'
 import type { ServeApp } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { transcriptBootstrapReceipt } from './transcript-bootstrap'
@@ -67,7 +67,7 @@ export function createTranscriptRestorer(args: {
         })
       }
       if (!args.dormant()) {
-        adoptChildrenInBackground({
+        await adoptChildrenNow({
           app,
           threadId,
           log,

@@ -70,7 +70,9 @@ export function createTurnCommands(args: {
   }
 
   if (frame.kind === EClientFrame.Pause) {
-    driver.beginRelocation()
+    void driver.beginRelocation().catch((error: unknown) => {
+      send({ socket, frame: { kind: EServeFrame.Error, message: messageOf(error, 'the session could not pause for the workspace handoff') } })
+    })
     return
   }
 

@@ -32,7 +32,6 @@ export type {
 const POLICY_VIOLATION = 1008
 const GOING_AWAY = 1001
 
-/** A serve without registries (a spec fake) has nothing to report — an empty roster, not an error. */
 const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
 
 /** A serve without the github plugin (a spec fake) has nothing to report — empty, not an error. */
@@ -91,7 +90,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     return current === null ? {} : { checkpoint: current }
   }
 
-  /** The alias lives exactly as long as the step it renames, and only for the socket that reloaded. */
   const forSocket = (args: { socket: SessionSocket; frame: ServeFrame }): ServeFrame => {
     const alias = args.socket.data.alias
     if (alias === null) return args.frame
@@ -107,11 +105,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     args.socket.close(POLICY_VIOLATION, args.reason)
   }
 
-  /**
-   * A cursor the buffer still holds resumes exactly; anything else — one that fell out, or a
-   * process that restarted with an empty buffer — is told to re-read the durable log, so a gap can
-   * never be silent. The in-flight step rides on top, since its deltas have no events behind them.
-   */
   const greet = (args: { socket: SessionSocket; hello: HelloFrame }): void => {
     const { socket, hello } = args
     const cursor = hello.channelCursor
@@ -308,5 +301,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
 
     clients: () => attached.size,
     settling: () => router.state.restoring !== null || mutations.active(),
+    whenSettled: async () => { await router.state.restoring; await mutations.whenSettled() },
   }
 }

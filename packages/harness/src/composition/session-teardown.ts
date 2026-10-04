@@ -1,5 +1,6 @@
 import type { EventDraft, EventLogPort, IdPort, ThreadId } from '@dltech/atlas-core'
 import type { InputBatch, MessageIntake } from '../intake'
+import { flushThreadInput } from './flush-session-input'
 
 export type TeardownSource = {
   closeAll(): Promise<void>
@@ -23,15 +24,16 @@ export async function teardownSession(args: {
   try {
     await Promise.all(args.sources.map((source) => attempt(() => source.closeAll())))
     const intake = args.intake
-    const delivery: readonly TeardownSource[] = intake === undefined ? args.sources : [{
-      closeAll: async () => undefined,
-      threadsAwaitingNotice: () => intake.threadsWithPendingInput(),
-      drainNotifications: () => [],
-    }]
+    if (intake !== undefined) {
+      for (const threadId of intake.threadsWithPendingInput()) {
+        await attempt(() => flushThreadInput({ intake, log: args.log, ids: args.ids, threadId }))
+      }
+    }
+    const delivery: readonly TeardownSource[] = intake === undefined ? args.sources : []
     for (const source of delivery) {
       for (const threadId of source.threadsWithPendingInput?.() ?? source.threadsAwaitingNotice()) {
         await attempt(async () => {
-          const prepared = intake === undefined ? source.prepareNotifications?.({ threadId }) : await intake.prepare({ threadId })
+          const prepared = source.prepareNotifications?.({ threadId })
           try {
             const drafts = prepared?.drafts ?? source.drainNotifications({ threadId })
             if (drafts.length > 0) await args.log.append({ threadId, runId: args.ids.nextRunId(), drafts })

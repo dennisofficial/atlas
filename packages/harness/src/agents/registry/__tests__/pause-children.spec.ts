@@ -111,6 +111,94 @@ const snapshotOf = (entry: Opened, agentId: ThreadId) =>
   entry.supervisor.list({ threadId: entry.parent }).find((one) => one.agentId === agentId)
 
 describe('pausing a stepping child', () => {
+  it('finds a descendant spawned while an ancestor is reaching its seam', async () => {
+    const entry = await openSupervisor()
+    opened.push(entry)
+    const child = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
+    const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
+    await Bun.sleep(1)
+    const descendant = await spawn({ entry, threadId: child, agentType: 'explore' })
+    entry.runners.started[1]?.fail(new Error('late descendant failed'))
+    entry.runners.started[0]?.settle(relocationPaused())
+    await expect(pausing).rejects.toThrow(`child ${descendant} is failed`)
+    const events = await entry.harness.log.readOwn({ threadId: child })
+    expect(events.some((event) => event.type === 'agent-ended' && event.agentId === descendant && event.status === EAgentStatus.Failed)).toBe(true)
+  })
+
+  it('pauses descendants and persists each outcome in the actual parent log', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const child = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
+    const grandchild = await spawn({ entry, threadId: child, agentType: 'explore' })
+    const paused = await entry.supervisor.pauseChildren({ threadId: entry.parent })
+    expect(paused).toEqual(expect.arrayContaining([child, grandchild]))
+    expect(paused).toHaveLength(2)
+    for (const [owner, agentId] of [[entry.parent, child], [child, grandchild]] as const) {
+      const events = await entry.harness.log.readOwn({ threadId: owner })
+      expect(events.filter((event) => event.type === 'agent-ended' && event.agentId === agentId))
+        .toEqual([expect.objectContaining({ status: EAgentStatus.Paused, killedBy: undefined })])
+    }
+  })
+
+  it('rejects a failed child only after its siblings stop writing', async () => {
+    const entry = await openSupervisor()
+    opened.push(entry)
+    const first = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
+    await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
+    const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
+    let ended = false
+    void pausing.then(() => { ended = true }, () => { ended = true })
+    entry.runners.started[0]?.fail(new Error('child model failed'))
+    await Bun.sleep(1)
+    expect(ended).toBe(false)
+    entry.runners.started[1]?.settle(relocationPaused())
+    await expect(pausing).rejects.toThrow(`child ${first} is failed`)
+    const events = await entry.harness.log.readOwn({ threadId: entry.parent })
+    expect(events.some((event) => event.type === 'agent-ended' && event.agentId === first && event.status === EAgentStatus.Failed)).toBe(true)
+  })
+
+  it('preserves a drained terminal ending when its append fails so the frozen retry can persist it', async () => {
+    const entry = await openSupervisor()
+    opened.push(entry)
+    const child = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
+    const append = entry.harness.log.append.bind(entry.harness.log)
+    let fail = true
+    entry.harness.log.append = async (args) => {
+      if (fail && args.drafts.some((draft) => draft.type === 'agent-ended')) {
+        fail = false
+        throw new Error('ending storage unavailable')
+      }
+      return append(args)
+    }
+    const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
+    entry.runners.started[0]?.settle(finished())
+    await expect(pausing).rejects.toThrow('ending storage unavailable')
+    await entry.supervisor.pauseChildren({ threadId: entry.parent })
+    const events = await entry.harness.log.readOwn({ threadId: entry.parent })
+    expect(events.filter((event) => event.type === 'agent-ended' && event.agentId === child))
+      .toEqual([expect.objectContaining({ status: EAgentStatus.Finished })])
+  })
+
+  it('returns already-paused descendants after a failed persistence attempt', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const child = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
+    const append = entry.harness.log.append.bind(entry.harness.log)
+    let fail = true
+    entry.harness.log.append = async (args) => {
+      if (fail && args.drafts.some((draft) => draft.type === 'agent-ended')) {
+        fail = false
+        throw new Error('pause storage unavailable')
+      }
+      return append(args)
+    }
+    await expect(entry.supervisor.pauseChildren({ threadId: entry.parent })).rejects.toThrow('pause storage unavailable')
+    expect(await entry.supervisor.pauseChildren({ threadId: entry.parent })).toEqual([child])
+    const events = await entry.harness.log.readOwn({ threadId: entry.parent })
+    expect(events.filter((event) => event.type === 'agent-ended' && event.agentId === child))
+      .toEqual([expect.objectContaining({ status: EAgentStatus.Paused })])
+  })
+
   it('waits for the halt at the seam without attributing a stop', async () => {
     const entry = await open()
     opened.push(entry)

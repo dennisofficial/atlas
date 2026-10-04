@@ -9,7 +9,8 @@ import type { WorkspaceRestoration } from '../../workspace/transfer/restore'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { awaitPause, transferMemoryDown, transferTranscriptDown } from './descend-transfer'
+import { transferMemoryDown, transferTranscriptDown } from './descend-transfer'
+import { prepareRelocation } from './prepare-relocation'
 import { adoptTransferredChildren, activateTransferredChildren } from './adopt-transferred-children'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
@@ -70,11 +71,12 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       needs: [],
       run: async () => {
         if (args.midTurn) progress(ELiftStep.Interrupting)
-        const paused = awaitPause({ channel, deadlineMs: args.pauseDeadlineMs ?? PAUSE_DEADLINE_MS })
         args.run.pauseRequested = true
-        channel.pause()
-        const settled = await paused
-        if (!settled) throw new Error('the remote loops would not pause in time — nothing moved')
+        await prepareRelocation({
+          pause: () => channel.pause(),
+          onTurnEnded: (listener) => channel.onTurnEnded(listener),
+          deadlineMs: args.pauseDeadlineMs ?? PAUSE_DEADLINE_MS,
+        })
         args.run.pauseLanded = true
       },
     },

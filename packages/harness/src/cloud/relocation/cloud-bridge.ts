@@ -30,12 +30,8 @@ export type CloudSandbox = {
   created: boolean
   /** The drive the sandbox mounted; the driver always sets it, fakes may omit it. */
   driveName?: string | undefined
-  /**
-   * Set when the resume-time drift probe found the sandbox's serve outdated but kept it because a
-   * client is attached — the version it still carries, so the surface can warn that the pinned
-   * serve is pending the next cold boot.
-   */
-  outdatedServe?: string | undefined
+  /** The serve version the wake's rotation replaced, when build drift drove the recreate. */
+  rotatedFrom?: string | undefined
   /** The wire protocol the sandbox's old serve spoke when this wake rotated it onto the pinned image. */
   rotatedProtocol?: number | undefined
 }

@@ -228,7 +228,7 @@ export function createLocalCloudBridge(args: {
       state: placement.state,
       created: placement.created,
       driveName: placement.driveName,
-      ...(placement.outdatedServe === undefined ? {} : { outdatedServe: placement.outdatedServe }),
+      ...(placement.rotatedFrom === undefined ? {} : { rotatedFrom: placement.rotatedFrom }),
       ...(placement.rotatedProtocol === undefined ? {} : { rotatedProtocol: placement.rotatedProtocol }),
     }
   }

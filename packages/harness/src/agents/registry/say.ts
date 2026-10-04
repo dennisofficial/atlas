@@ -38,7 +38,14 @@ type SaidArgs = {
   files?: readonly SaidFile[] | undefined
 }
 
-async function deliver({
+function deliver(args: Parameters<typeof deliverAdmitted>[0]): Promise<AgentOutcome> {
+  return args.channels.steps.admit({
+    threadId: args.child?.spawnedBy ?? args.args.threadId,
+    start: () => deliverAdmitted(args),
+  })
+}
+
+async function deliverAdmitted({
   args,
   via,
   child,

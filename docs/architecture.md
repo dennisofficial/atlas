@@ -1378,9 +1378,21 @@ that client cannot interrupt the sandbox's turn, children, shells, or services. 
 actual sandbox destruction still stops sandbox processes. Explicit stop
 and rewind remain execution controls, never consequences of transport recovery.
 
-Runtime upgrades preserve running work even when no clients are attached. An absent socket or a
-failed health probe is not proof of idleness. A healthy outdated runtime continues until a safe
-cold boot; an unreachable runtime is reported rather than killed merely to repair an attachment.
+Runtime upgrades are a harness-owned recreation ceremony, not a drift warning. An outdated
+runtime is prepared at the same confirmed family-pause seam used by descend: parent commits and
+the current model/tool step finish, every descendant pauses or genuinely completes, and their
+outcomes persist before preparation is acknowledged. The process-stop machinery is also shared
+with descend. Queued inputs and endings are appended before a final checkpoint and preparation
+receipt are written to the thread's existing drive. Only then may the client destroy the sandbox,
+wait for drive detachment, mount that drive into the replacement image, and attach. Progress is
+projected by the TUI; pause, persistence, and recovery belong to the harness and serve.
+
+An absent socket, a timeout, an unsupported preparation endpoint, or failed persistence is never
+permission to destroy a live sandbox. The client checks the preparation capability before asking
+an older serve to drain, and verifies a saved receipt naming the current provider session before
+deletion. A lost HTTP reply can be repaired by reading that receipt. A stopped provider session
+can be replaced without executing its old runtime. Build-version drift and protocol mismatch use
+this same ceremony; the protocol check is independent of release-version pinning.
 
 Parking requires five continuous minutes without outstanding work: turns, children, shells,
 services, queued intake, and durable settlement all prevent it. Admission closes before the final
@@ -1391,7 +1403,11 @@ Sandbox lifecycle, client connection, and transcript freshness are independent f
 inspection does not wake a sandbox. Transport loss marks the client projection stale, not the
 agent failed. Reconnection clears staleness only after authoritative history has been applied.
 
-Operational metadata lives outside conversation history and is never used to resume the loop.
+Operational metadata lives outside conversation history and never stores loop position. A
+recreation intent records only whether automatic continuation is owed. The replacement reads it
+before autonomous child adoption or intake wakes, resumes the parent and children from their
+authoritative logs, and retains that intent until a real terminal outcome is durable. An intent
+still being prepared is distinct from the sealed receipt that permits source destruction.
 Serve persists a versioned checkpoint on the drive, identifying its runtime, provider session,
 and transcript identity. Progress and finalized idle parking are distinct reports. An optional
 API mirror stores reports without controlling execution or making successful publication a

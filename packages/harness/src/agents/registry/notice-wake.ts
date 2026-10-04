@@ -29,7 +29,15 @@ export class NoticeWake {
     this.deps = args.deps
   }
 
-  async wake({ agentId }: { agentId: ThreadId }): Promise<AgentOutcome> {
+  wake(args: { agentId: ThreadId }): Promise<AgentOutcome> {
+    const child = this.roster.find(args.agentId)
+    return this.steps.admit({
+      threadId: child?.spawnedBy ?? args.agentId,
+      start: () => this.wakeAdmitted(args),
+    })
+  }
+
+  private async wakeAdmitted({ agentId }: { agentId: ThreadId }): Promise<AgentOutcome> {
     const child = this.roster.find(agentId)
     if (child === undefined) {
       return { ok: false, reason: unknownAgent({ agentId, known: this.roster.listEverywhere() }) }

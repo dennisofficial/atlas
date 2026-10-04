@@ -15,14 +15,35 @@ export function createServeWorkspaceSession(args: {
   app: ServeApp
   capture?: WorkspaceCapturer | undefined
   dormant: boolean
+  deferStartChildren?: boolean | undefined
+  resumeChildren?: readonly ThreadId[] | undefined
   log: ServeLog
   settling: { count: number }
   note: () => void
 }) {
   const { app, threadId, log, settling, note } = args
-  const startChildren = async (): Promise<void> => {
-    settleLostShellsInBackground({ app, threadId, log, settling, note })
-    await adoptChildrenNow({ app, threadId, log, settling, note })
+  const adoptingApp = {
+    ...app,
+    adoptChildren: (given: { threadId: ThreadId }) => app.adoptChildren({
+      ...given, ...(args.resumeChildren === undefined ? {} : { resumeChildren: args.resumeChildren }),
+    }),
+  }
+  let starting = Promise.resolve()
+  let pendingStart: Promise<void> | null = null
+  const startChildren = (): Promise<void> => {
+    if (pendingStart !== null) return pendingStart
+    starting = Promise.allSettled([
+      settleLostShellsInBackground({ app, threadId, log, settling, note }),
+      adoptChildrenNow({ app: adoptingApp, threadId, log, settling, note }),
+    ]).then((results) => {
+      const failed = results.find((result) => result.status === 'rejected')
+      if (failed?.status === 'rejected') throw failed.reason
+    })
+    const captured = starting
+    pendingStart = captured
+    const finished = (): void => { if (pendingStart === captured) pendingStart = null }
+    void captured.then(finished, finished)
+    return captured
   }
   const session = createWorkspaceSession({
     direct: args.direct,
@@ -34,10 +55,10 @@ export function createServeWorkspaceSession(args: {
     dormant: args.dormant,
     startChildren,
   })
-  if (!session.dormant()) {
+  if (!session.dormant() && args.deferStartChildren !== true) {
     void startChildren().catch((error: unknown) => {
       log({ event: EServeEvent.ChildAdoptionFailed, reason: error instanceof Error ? error.message : String(error) })
     })
   }
-  return session
+  return { ...session, startChildren, whenStarted: () => starting }
 }

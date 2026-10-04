@@ -31,7 +31,7 @@ export function bindRuntimeCheckpoint(args: {
   const finalize = async (final: { phase: ERuntimePhase; label: string }): Promise<void> => {
     finalized = true
     await pending
-    await capture(final.phase)
+    if (held?.phase !== final.phase) await capture(final.phase)
     if (held?.phase !== final.phase) throw new Error(`this runtime has no final ${final.label} checkpoint`)
     await args.capture.flush({ timeoutMs: 1_000 })
   }

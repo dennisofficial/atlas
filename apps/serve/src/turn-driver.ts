@@ -1,8 +1,5 @@
 import { saidBody, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
-
-import { PauseSignal } from '@dltech/atlas-harness'
-import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
-import type { MessageIntake } from '@dltech/atlas-harness'
+import { PauseSignal, ETurnStatus, type TurnOutcome, type MessageIntake } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 
@@ -11,18 +8,21 @@ export type TurnRunOptions = {
   onlyIfIdle?: boolean | undefined
 }
 
+type Said = {
+  text: string
+  images?: readonly SaidImage[] | undefined
+  files?: readonly SaidFile[] | undefined
+  context?: readonly EventDraft[] | undefined
+}
+
 export type ServeTurnDriver = {
-  say: (args: {
-    text: string
-    images?: readonly SaidImage[] | undefined
-    files?: readonly SaidFile[] | undefined
-    context?: readonly EventDraft[] | undefined
-  }) => Promise<void>
+  say: (args: Said) => Promise<void>
   run: (options?: TurnRunOptions) => void
   sayOrRun: () => boolean
   interrupt: () => void
   pause: () => void
-  beginRelocation: () => void
+  beginRelocation: () => Promise<void>
+  relocationResumable: () => boolean
   resume: () => void
   running: () => boolean
   busy: () => boolean
@@ -49,62 +49,45 @@ export function createTurnDriver(args: {
   const { app, threadId } = args
   const intake = app.intake ?? null
   const pending = app.pending ?? null
-
   let abort: AbortController | null = null
   let pause: PauseSignal | null = null
   let again = false
-  let committing = false
+  let committing: Promise<void> | null = null
   let turning: Promise<void> | null = null
   let outcomePending = false
   let relocationFrozen = false
   let relocationSettling: Promise<void> | null = null
+  let relocationResuming: Promise<void> | null = null
+  let relocationGeneration = 0
+  let relocationConfirmed = false
+  let relocationCommitIntent = false
+  let lastOutcome: TurnOutcome | null = null
+  let turnFailure: Error | null = null
   let resumeRelocation = false
 
   const writeDrafts = async (drafts: readonly EventDraft[]): Promise<void> => {
     const runId = app.ids.nextRunId()
     const existing = await app.threads.find({ threadId })
-
     if (existing !== undefined) {
       await app.log.append({ threadId, runId, drafts })
       return
     }
-
     await app.threads.createWithFirstEvents({
-      threadId,
-      drafts,
-      runId,
-      workspace: app.workspace.workspace,
-      repo: app.workspace.repo,
+      threadId, drafts, runId, workspace: app.workspace.workspace, repo: app.workspace.repo,
     })
   }
 
-  const commitShared = async (shared: MessageIntake, said: {
-    text: string
-    images?: readonly SaidImage[] | undefined
-    files?: readonly SaidFile[] | undefined
-    context?: readonly EventDraft[] | undefined
-  }): Promise<void> => {
-    shared.submit({
-      threadId,
-      text: said.text,
-      ...(said.images === undefined ? {} : { images: said.images }),
-      ...(said.files === undefined ? {} : { files: said.files }),
-      ...(said.context === undefined ? {} : { context: said.context }),
-    })
-    await shared.commit({ threadId, append: writeDrafts })
-  }
-
-  const commit = async (said: {
-    text: string
-    images?: readonly SaidImage[] | undefined
-    files?: readonly SaidFile[] | undefined
-    context?: readonly EventDraft[] | undefined
-  }): Promise<void> => {
+  const commit = async (said: Said): Promise<void> => {
     if (intake !== null) {
-      await commitShared(intake, said)
+      intake.submit({
+        threadId, text: said.text,
+        ...(said.images === undefined ? {} : { images: said.images }),
+        ...(said.files === undefined ? {} : { files: said.files }),
+        ...(said.context === undefined ? {} : { context: said.context }),
+      })
+      await intake.commit({ threadId, append: writeDrafts })
       return
     }
-
     await writeDrafts([
       ...(said.context ?? []),
       saidBody({ text: said.text, images: said.images, files: said.files }),
@@ -112,23 +95,18 @@ export function createTurnDriver(args: {
   }
 
   const finishOutcome = async (outcome: TurnOutcome): Promise<void> => {
-    if (outcome.status === ETurnStatus.RelocationPaused && relocationFrozen) {
-      const settling = app.family?.pauseChildren({ threadId }) ?? Promise.resolve()
-      relocationSettling = settling
-      try {
-        await settling
-      } finally {
-        if (relocationSettling === settling) relocationSettling = null
-      }
+    if (!relocationConfirmed) lastOutcome = outcome
+    if (outcome.status !== ETurnStatus.RelocationPaused || !relocationFrozen || relocationConfirmed) {
+      args.onOutcome(outcome)
     }
-    args.onOutcome(outcome)
     outcomePending = false
-    await app.turnPolicy?.onOutcome({ threadId, outcome })
+    if (!relocationConfirmed) await app.turnPolicy?.onOutcome({ threadId, outcome })
   }
 
   const runUntilQuiet = async (initial: { resume: boolean }): Promise<void> => {
     args.onTurnStarted()
     let resumeThisTurn = initial.resume
+    turnFailure = null
     try {
       do {
         again = false
@@ -144,9 +122,10 @@ export function createTurnDriver(args: {
           ? await app.runner.resume({ threadId, signal: controller.signal, pause })
           : await app.runner.runTurn({ threadId, signal: controller.signal, pause })
         await finishOutcome(outcome)
-      } while (again)
+      } while (again && !relocationFrozen)
     } catch (error) {
-      await app.turnPolicy?.onCrashed({ threadId })
+      turnFailure = error instanceof Error ? error : new Error(messageOf(error))
+      await app.turnPolicy?.onCrashed({ threadId }).catch(() => undefined)
       args.onFailure(messageOf(error))
     } finally {
       outcomePending = false
@@ -161,11 +140,10 @@ export function createTurnDriver(args: {
   const run = (options?: TurnRunOptions): void => {
     const refused = args.refusal?.()
     if (refused !== undefined) throw new Error(refused)
-
-    if (options?.onlyIfIdle === true && (turning !== null || committing)) {
+    if (options?.onlyIfIdle === true && (turning !== null || committing !== null)) {
       throw new Error('a turn is already running — wait for it to finish before asking for another')
     }
-    if (committing || relocationSettling !== null || relocationFrozen) return
+    if (committing !== null || relocationSettling !== null || relocationFrozen) return
     if (turning !== null) {
       again = true
       return
@@ -178,38 +156,38 @@ export function createTurnDriver(args: {
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
       if (relocationFrozen) throw new Error('the session is paused for a workspace handoff')
-
-      if (intake !== null && pending !== null) {
-        if (turning !== null || committing) {
-          pending.forThread({ threadId }).enqueue({
-            text: said.text,
-            ...(said.images === undefined ? {} : { images: said.images }),
-            ...(said.files === undefined ? {} : { files: said.files }),
-            ...(said.context === undefined ? {} : { context: said.context }),
-          })
-          intake.changed()
-          return
-        }
-        committing = true
-        try {
-          await commitShared(intake, said)
-        } finally {
-          committing = false
-        }
-        turning = runUntilQuiet({ resume: false })
+      if (intake !== null && pending !== null && (turning !== null || committing !== null)) {
+        pending.forThread({ threadId }).enqueue({
+          text: said.text,
+          ...(said.images === undefined ? {} : { images: said.images }),
+          ...(said.files === undefined ? {} : { files: said.files }),
+          ...(said.context === undefined ? {} : { context: said.context }),
+        })
+        intake.changed()
         return
       }
-
-      await commit(said)
+      const writing = commit(said)
+      const active = committing === null ? writing : Promise.allSettled([committing, writing]).then((results) => {
+        const failed = results.find((result) => result.status === 'rejected')
+        if (failed?.status === 'rejected') throw failed.reason
+      })
+      committing = active
+      try {
+        await active
+      } finally {
+        if (committing === active) committing = null
+      }
+      if (relocationFrozen) {
+        relocationCommitIntent = true
+        return
+      }
       if (turning !== null) {
         again = true
         return
       }
       turning = runUntilQuiet({ resume: false })
     },
-
     run,
-
     sayOrRun() {
       try {
         run()
@@ -219,77 +197,97 @@ export function createTurnDriver(args: {
         return false
       }
     },
-
     interrupt() {
       again = false
-      relocationFrozen = false
       abort?.abort()
     },
-
     pause() {
       pause?.pause()
     },
-
     beginRelocation() {
+      if (relocationSettling !== null) return relocationSettling
+      relocationGeneration += 1
       relocationFrozen = true
+      again = false
       pause?.pause()
-      if (turning !== null || committing || relocationSettling !== null) return
-      relocationSettling = (async () => {
+      const activeCommit = committing
+      const activeTurn = turning
+      const activeResume = relocationResuming
+      const preparing = (async () => {
+        await activeResume
+        relocationConfirmed = false
+        relocationFrozen = true
+        pause?.pause()
+        await app.family?.freeze?.({ threadId })
+        await activeCommit
+        await activeTurn
+        if (activeTurn !== null && turnFailure !== null) throw turnFailure
+        if (activeTurn !== null && lastOutcome !== null && lastOutcome.status !== ETurnStatus.Completed &&
+          lastOutcome.status !== ETurnStatus.Idle && lastOutcome.status !== ETurnStatus.RelocationPaused) {
+          throw new Error(lastOutcome.status === ETurnStatus.Failed
+            ? lastOutcome.message : `the parent turn ${lastOutcome.status} instead of pausing`)
+        }
         await app.family?.pauseChildren({ threadId })
-        args.onOutcome({ status: ETurnStatus.RelocationPaused, runId: app.ids.nextRunId() })
-      })().catch((error: unknown) => {
+        relocationConfirmed = true
+        await finishOutcome(lastOutcome?.status === ETurnStatus.RelocationPaused
+          ? lastOutcome : { status: ETurnStatus.RelocationPaused, runId: app.ids.nextRunId() })
+      })()
+      relocationSettling = preparing
+      void preparing.catch((error: unknown) => {
+        if (relocationSettling === preparing) {
+          relocationSettling = null
+          relocationConfirmed = false
+        }
         args.onFailure(messageOf(error))
-      }).finally(() => {
-        relocationSettling = null
+      })
+      return preparing
+    },
+    relocationResumable: () => relocationCommitIntent || lastOutcome?.status === ETurnStatus.RelocationPaused,
+    resume() {
+      if (!relocationFrozen || committing !== null || relocationResuming !== null) return
+      const generation = ++relocationGeneration
+      const preparation = relocationSettling
+      relocationSettling = null
+      relocationConfirmed = false
+      const resumeFamily = async (): Promise<void> => {
+        await preparation
+        await app.family?.resumeChildren?.({ threadId })
+        if (generation !== relocationGeneration) return
+        relocationConfirmed = false
+        relocationFrozen = false
+        pause?.resume()
+        if (!handle.relocationResumable()) {
+          intake?.changed()
+          return
+        }
+        resumeRelocation = lastOutcome?.status === ETurnStatus.RelocationPaused
+        relocationCommitIntent = false
+        run()
+      }
+      const resuming = resumeFamily()
+      relocationResuming = resuming
+      void resuming.then(() => {
+        if (relocationResuming === resuming) relocationResuming = null
+      }, (error: unknown) => {
+        if (relocationResuming === resuming) relocationResuming = null
+        args.onFailure(messageOf(error))
       })
     },
-
-    resume() {
-      if (committing) return
-      if (relocationSettling !== null) {
-        void relocationSettling.then(() => handle.resume()).catch((error: unknown) => args.onFailure(messageOf(error)))
-        return
-      }
-      if (pause !== null && pause.paused) {
-        pause.resume()
-        relocationFrozen = false
-        void app.family?.resumeChildren?.({ threadId }).catch((error: unknown) => args.onFailure(messageOf(error)))
-        return
-      }
-      if (!relocationFrozen) return
-      if (turning !== null) {
-        relocationFrozen = false
-        resumeRelocation = true
-        again = true
-        void app.family?.resumeChildren?.({ threadId }).catch((error: unknown) => args.onFailure(messageOf(error)))
-        return
-      }
-      relocationFrozen = false
-      resumeRelocation = true
-      void app.family?.resumeChildren?.({ threadId }).catch((error: unknown) => args.onFailure(messageOf(error)))
-      run()
-    },
-
-    attach(shared: MessageIntake) {
+    attach(shared) {
       return shared.register({
         threadId,
         driver: {
-          blocked: () => turning !== null || committing || relocationFrozen,
+          blocked: () => turning !== null || committing !== null || relocationFrozen,
           wake: () => {
             handle.sayOrRun()
-          },
+          }
         },
       })
     },
-
     running: () => turning !== null,
-
-    busy: () => turning !== null || committing,
-
-    outcomePending: () => outcomePending,
-
-    settled: () => Promise.all([turning, relocationSettling]).then(() => undefined),
+    busy: () => turning !== null || committing !== null,
+    outcomePending: () => outcomePending || (relocationSettling !== null && !relocationConfirmed),
+    settled: () => Promise.allSettled([committing, turning, relocationSettling, relocationResuming]).then(() => undefined),
   }
-
   return handle
 }

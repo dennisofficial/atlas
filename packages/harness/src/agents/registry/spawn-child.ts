@@ -51,7 +51,16 @@ export class ChildSpawner {
     this.deps = args.deps
   }
 
-  async spawn({
+  spawn(args: {
+    threadId: ThreadId
+    agentType: string
+    brief: string
+    intent: string
+  }): Promise<AgentOutcome> {
+    return this.steps.admit({ threadId: args.threadId, start: () => this.spawnAdmitted(args) })
+  }
+
+  private async spawnAdmitted({
     threadId,
     agentType,
     brief,

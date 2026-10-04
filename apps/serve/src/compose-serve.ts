@@ -27,8 +27,7 @@ import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake
 import { EPortableStateBoot, installPortableState } from './portable-state'
 import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
 import { ServeProcessPort } from './serve-process'
-import { rotationEndingsFor } from './rotation-endings'
-import { workspaceHooksFor } from './workspace-hooks'
+import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
 import { serveMemoryArchive, serveSessionArchive } from './serve-session-archive'
 
 export const SERVE_COMMAND = 'serve'
@@ -171,7 +170,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ids: app.ids,
   })
 
-  let pausedChildren: readonly ThreadId[] = []
+  const pausedChildren = new Set<ThreadId>()
   let releaseFamily: (() => void) | undefined
 
   return {
@@ -190,9 +189,9 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     sessionArchive: () => serveSessionArchive({ threadId: args.threadId, endFamilyShells: workspaceHooks.endFamilyShells }),
     memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity: args.identity ?? null }),
-    adoptChildren: async ({ threadId }) => {
+    adoptChildren: async ({ threadId, resumeChildren }) => {
       await adoptTransferredChildren({ agents: app.agents, threadId })
-      return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId })
+      return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId, resumeChildren })
     },
     recordLostShells: ({ threadId }) => app.shells.reconcile({ threadId }),
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
@@ -203,12 +202,26 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       },
       pauseChildren: async ({ threadId }) => {
         releaseFamily ??= await holdFamilyIntake({ threadId, threads: app.surface.threads, intake: app.intake })
-        pausedChildren = await app.agents.pauseChildren({ threadId })
+        try {
+          for (const child of await app.agents.pauseChildren({ threadId })) pausedChildren.add(child)
+        } finally {
+          const family = await familyThreadIdsOf({ root: threadId, threads: app.surface.threads })
+          for (const child of app.agents.listEverywhere()) {
+            if (family.has(child.spawnedBy) && child.status === EAgentStatus.Paused) pausedChildren.add(child.agentId)
+          }
+        }
       },
-      resumeChildren: async ({ threadId }) => {
-        const children = pausedChildren
-        pausedChildren = []
-        for (const agentId of children) await app.agents.resume({ agentId, threadId })
+      resumeChildren: async () => {
+        const roster = app.agents.listEverywhere()
+        for (const agentId of pausedChildren) {
+          const child = roster.find((entry) => entry.agentId === agentId)
+          if (child === undefined) throw new Error(`paused child ${agentId} is missing from the family roster`)
+          if (child.status === EAgentStatus.Paused) {
+            const resumed = await app.agents.resume({ agentId, threadId: child.spawnedBy })
+            if (!resumed.ok) throw new Error(resumed.reason)
+          }
+          pausedChildren.delete(agentId)
+        }
         releaseFamily?.()
         releaseFamily = undefined
       },
@@ -221,14 +234,15 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
     executionLocation: app.executionLocation,
-    endProcesses: rotationEndingsFor({
+    endProcesses: ({ killedBy }) => stopWorkspaceProcessesFor({
+      killedBy,
       root: args.threadId,
       shells: app.shells,
       services: app.services,
       log: app.surface.log,
       threads: app.surface.threads,
       ids: app.ids,
-    }),
+    })(),
     ...workspaceHooks,
     ...(app.surface.prStates === undefined ? {} : { prStates: app.surface.prStates }),
     roster: {
