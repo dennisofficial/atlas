@@ -72,6 +72,27 @@ describe('agentEndedDraft prose', () => {
     agentEndedDraft(state)
     expect(state.lastText).toHaveLength(LAST_TEXT_TAIL_CHARACTERS)
   })
+
+  it('carries the failure cause when the step recorded one', () => {
+    const state = child()
+    state.status = EAgentStatus.Failed
+    state.failureCause = 'provider inference.net returned 402: credit exhausted'
+
+    const draft = agentEndedDraft(state)
+    expect(draft.type).toBe('agent-ended')
+    expect(draft.type === 'agent-ended' ? draft.failureCause : undefined).toBe(
+      'provider inference.net returned 402: credit exhausted',
+    )
+  })
+
+  it('omits the failure cause on a clean ending', () => {
+    const state = child()
+    state.status = EAgentStatus.Finished
+
+    const draft = agentEndedDraft(state)
+    expect(draft.type).toBe('agent-ended')
+    expect(draft.type === 'agent-ended' ? draft.failureCause : 'present').toBeUndefined()
+  })
 })
 
 describe('recoveredChild lastText', () => {

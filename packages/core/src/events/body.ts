@@ -195,6 +195,7 @@ export type EventBody =
       status: EAgentStatus
       killedBy?: EKilledBy | undefined
       prose: string
+      failureCause?: string | undefined
       turns: number
       toolCalls: number
     }

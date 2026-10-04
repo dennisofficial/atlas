@@ -58,9 +58,14 @@ const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
 
 const watchableEvents = (): Event[] => {
   const drafts: EventDraft[] = [{ type: 'user-said', text: 'ship it' }]
+  const speeches = [
+    'Read the deploy logs to see what shipped',
+    'The health endpoint answers 200; now checking the database migration',
+    'Migration applied cleanly; drafting the release notes next',
+  ]
   for (let ordinal = 1; ordinal <= 3; ordinal += 1) {
     drafts.push(
-      { type: 'assistant-said', parts: [{ type: 'text', text: `verifying (${ordinal})` }] },
+      { type: 'assistant-said', parts: [{ type: 'text', text: speeches[ordinal - 1] ?? '' }] },
       {
         type: 'tool-called',
         callId: toCallId(`call-${ordinal}`),
@@ -146,6 +151,57 @@ describe('jevLoopWatch', () => {
       verdict: ELoopWatch.Unreachable,
       fault: 'the decision model gave no loop probability',
     })
+  })
+
+  it('catches a speech echo even when the decision model cannot answer', async () => {
+    const echoing = (): Event[] => {
+      const drafts: EventDraft[] = [{ type: 'user-said', text: 'wire the emitter' }]
+      for (let ordinal = 1; ordinal <= 3; ordinal += 1) {
+        drafts.push(
+          {
+            type: 'assistant-said',
+            parts: [
+              {
+                type: 'text',
+                text: "I'm in the right worktree. Now let me check how composeHarness exposes plugin ports so I can reach the github bridge",
+              },
+            ],
+          },
+          {
+            type: 'tool-called',
+            callId: toCallId(`call-${ordinal}`),
+            name: 'read',
+            input: { path: 'compose.ts', offset: ordinal * 60 },
+            ordinal: 0,
+          },
+          {
+            type: 'tool-result',
+            callId: toCallId(`call-${ordinal}`),
+            name: 'read',
+            output: { exitCode: 0 },
+            modelText: `line ${ordinal * 60}`,
+          },
+        )
+      }
+      return eventsFrom(drafts)
+    }
+
+    const down = jevLoopWatch({
+      decisions: new FakeDecisions({ ok: false, fault: 'answered 502' }),
+      enabled: () => true,
+    })
+    const low = jevLoopWatch({
+      decisions: new FakeDecisions(looping(0.21)),
+      enabled: () => true,
+    })
+
+    const downVerdict = await down({ events: echoing(), signal: SIGNAL })
+    expect(downVerdict.verdict).toBe(ELoopWatch.Looping)
+    expect(downVerdict.loopStartSeq).toBe(2)
+
+    const lowVerdict = await low({ events: echoing(), signal: SIGNAL })
+    expect(lowVerdict.verdict).toBe(ELoopWatch.Looping)
+    expect(lowVerdict.noul).toBe(0.21)
   })
 })
 

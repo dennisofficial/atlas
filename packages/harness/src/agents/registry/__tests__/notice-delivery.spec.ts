@@ -7,7 +7,7 @@ import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, fakeRunners, finished, type FakeRunners } from './fixtures'
+import { agentTypeNamed, failed, fakeRunners, finished, type FakeRunners } from './fixtures'
 
 const EXPLORE = agentTypeNamed({ name: 'explore' })
 const TEAMMATE = agentTypeNamed({ name: TEAMMATE_AGENT_TYPE })
@@ -108,6 +108,20 @@ describe('when a finished child counts as delivered', () => {
 
     expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(1)
     expect(deliveryOf({ supervisor, threadId: parent, agentId })).toBeUndefined()
+  })
+
+  it('hands the parent the provider error a failed child died on', async () => {
+    const { runners, supervisor, parent } = await open()
+    await spawnUnder({ supervisor, threadId: parent })
+
+    runners.started[0]?.settle(failed('provider inference.net returned 402: credit exhausted'))
+    await settle()
+
+    const drafts = supervisor.drainNotifications({ threadId: parent })
+    const ending = drafts.drafts.find((draft) => draft.type === 'agent-ended')
+    expect(ending?.type).toBe('agent-ended')
+    if (ending?.type !== 'agent-ended') return
+    expect(ending.failureCause).toBe('provider inference.net returned 402: credit exhausted')
   })
 
   it('stamps the child when its parent drains the notice', async () => {

@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { PauseSignal } from '../../loop/pause-signal'
-import type { TurnOutcome } from '../../loop/turn-outcome'
+import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
@@ -153,7 +153,9 @@ export class ChildSteps {
         return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
       }
       if (signal.aborted) return EAgentStatus.Stopped
-      return statusOf(await step({ runner, signal, pause }))
+      const outcome = await step({ runner, signal, pause })
+      if (outcome.status === ETurnStatus.Failed) child.failureCause = outcome.message
+      return statusOf(outcome)
     } catch {
       return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
     }
