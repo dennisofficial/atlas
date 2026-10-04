@@ -204,8 +204,8 @@ describe('the container command', () => {
       const moving = await mounted.frame()
 
       expect(moving).toContain('MOVING INTO A DOCKER CONTAINER')
-      expect(moving).toContain('✓ handing the conversation over')
       expect(moving).toContain('stopping services, moving sub-agents')
+      expect(moving).toContain('handing the conversation over')
 
       await mounted.typeText('typed over the move')
       expect(mounted.draftText()).toBe('')

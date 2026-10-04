@@ -2,18 +2,21 @@ import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
-import { ELocalMoveStep, WAKE_HEADING, WAKE_PLAN } from '../container-move'
+import { WAKE_HEADING } from '../container-move'
 import { messageOf } from '../error-text'
 import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
-import { ELiftStep } from '@dltech/atlas-harness'
 
 export type { CaptureContext }
 
 const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
-const WAKE_OUTDATED_SERVE_NOTICE_KEY = 'wake-outdated-serve'
 
 export const ROTATE_HEADING = 'UPDATING THE CLOUD SANDBOX'
+
+const WAKE_ROWS = [
+  { id: 'waiting', text: 'waiting for the sandbox', nodeIds: ['waiting'] },
+  { id: 'attaching', text: 'attaching and verifying the conversation', nodeIds: ['attaching'] },
+] as const
 
 /**
  * Re-attaching to a thread's sandbox: the claim mints a fresh token and git credential, and the
@@ -28,16 +31,15 @@ export async function wakeSandbox(args: {
   captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
-  args.move?.handleBegin({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, heading: WAKE_HEADING })
-  args.move?.handleAdvance(ELiftStep.Starting)
+  args.move?.handleBegin({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, heading: WAKE_HEADING })
 
   const woken = await args.bridge.sandboxes.create({
     threadId: args.threadId,
     workspace: null,
     onRotationStarted: () => {
       args.move?.handleExpand({
-        insertBefore: ELiftStep.Attaching,
-        step: ELocalMoveStep.Rotating,
+        insertBefore: 'attaching',
+        row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
         heading: ROTATE_HEADING,
       })
     },
@@ -56,16 +58,7 @@ export async function wakeSandbox(args: {
     },
   })
 
-  if (woken.outdatedServe !== undefined) {
-    notify({
-      key: WAKE_OUTDATED_SERVE_NOTICE_KEY,
-      text: `this session's sandbox still runs serve ${woken.outdatedServe} — a client was attached, so the pinned update waits for the sandbox's next cold boot`,
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-    })
-  }
-
-  args.move?.handleAdvance(ELiftStep.Attaching)
+  args.move?.handleRowActive('attaching')
   return { url: woken.url, token: woken.token, created: woken.created }
 }
 

@@ -14,6 +14,7 @@ export enum EKilledBy {
   ContainerSwitch = 'container-switch',
   Rotation = 'rotation',
   LostContact = 'lost-contact',
+  IdlePark = 'idle-park',
   Unrecorded = 'unrecorded',
 }
 
@@ -38,6 +39,7 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   if (killedBy === EKilledBy.Rotation) return 'was killed because the sandbox was being replaced'
   if (killedBy === EKilledBy.LostContact) return 'was killed because atlas lost contact with it'
+  if (killedBy === EKilledBy.IdlePark) return 'was stopped because the sandbox parked after sitting idle'
   return 'was killed'
 }
 

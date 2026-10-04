@@ -50,11 +50,8 @@ export type SandboxPlacement = {
    * The bridge hands it to the attach so the channel and the sandbox agree without a control plane.
    */
   token: string
-  /**
-   * Set when the drift probe found the sandbox's serve outdated but kept it because a client is
-   * attached — the version it carries, so the operator can be told the pinned one is pending.
-   */
-  outdatedServe?: string | undefined
+  /** The serve version the rotation replaced, set when build drift drove the recreate. */
+  rotatedFrom?: string | undefined
   /** The wire protocol the sandbox's old serve spoke, set when the sandbox was rotated onto the pinned image. */
   rotatedProtocol?: number | undefined
 }

@@ -75,10 +75,28 @@ describe('serveIdleDue', () => {
     ).toBe(false)
   })
 
-  it('never fires while a service is running, however long the quiet', () => {
+  it('never fires while a service is running with a client attached, however long the quiet', () => {
     expect(
-      serveIdleDue({ ...due, runningServices: 1, now: due.lastActivityAt + 24 * 60 * 60_000 }),
+      serveIdleDue({
+        ...due,
+        runningServices: 1,
+        clientsAttached: 1,
+        now: due.lastActivityAt + 24 * 60 * 60_000,
+      }),
     ).toBe(false)
+  })
+
+  it('fires on a detached service only once the service window has passed', () => {
+    const serviceOnly = { ...due, runningServices: 1, clientsAttached: 0, serviceIdleMinutes: 30 }
+    expect(serveIdleDue({ ...serviceOnly, now: due.lastActivityAt + 30 * 60_000 })).toBe(true)
+    expect(serveIdleDue({ ...serviceOnly, now: due.lastActivityAt + 30 * 60_000 - 1 })).toBe(false)
+    expect(serveIdleDue({ ...serviceOnly, now: due.lastActivityAt + 5 * 60_000 })).toBe(false)
+  })
+
+  it('fires on a silent sandbox at the short window even with a client attached', () => {
+    expect(
+      serveIdleDue({ ...due, clientsAttached: 1, now: due.lastActivityAt + 5 * 60_000 }),
+    ).toBe(true)
   })
 
   it('never fires while input is queued, however long the quiet', () => {

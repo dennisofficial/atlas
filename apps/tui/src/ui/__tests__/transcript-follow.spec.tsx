@@ -1,4 +1,4 @@
-import { parseColor, type CapturedFrame, type RGBA } from '@opentui/core'
+import { parseColor, type CapturedFrame, type CapturedSpan, type RGBA } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
@@ -45,8 +45,16 @@ async function wheelUp(args: {
     await args.setup.mockMouse.scroll(20, 5, 'up')
 }
 
-const pillColour = (frame: CapturedFrame, row: number): RGBA | undefined =>
-  frame.lines[row]?.spans.find((span) => span.text.includes(JUMP))?.fg
+const pillSpan = (frame: CapturedFrame, row: number): CapturedSpan | undefined =>
+  frame.lines[row]?.spans.find((span) => span.text.includes(JUMP))
+
+const matchesPill = (frame: CapturedFrame, row: number, ground: string): boolean => {
+  const span = pillSpan(frame, row)
+  return (
+    span?.fg.equals(parseColor(theme.overlayBg)) === true &&
+    span?.bg.equals(parseColor(ground)) === true
+  )
+}
 
 async function hover(args: {
   setup: {
@@ -151,13 +159,13 @@ describe('the transcript follows the newest output', () => {
       const column = lines[row]?.indexOf('⌄') ?? -1
       expect(column).toBeGreaterThanOrEqual(0)
 
-      expect(pillColour(setup.captureSpans(), row)?.equals(parseColor(theme.hover))).toBe(true)
+      expect(matchesPill(setup.captureSpans(), row, theme.hover)).toBe(true)
 
       await hover({ setup, x: column, y: row })
-      expect(pillColour(setup.captureSpans(), row)?.equals(parseColor(theme.bright))).toBe(true)
+      expect(matchesPill(setup.captureSpans(), row, theme.bright)).toBe(true)
 
       await hover({ setup, x: 1, y: 1 })
-      expect(pillColour(setup.captureSpans(), row)?.equals(parseColor(theme.hover))).toBe(true)
+      expect(matchesPill(setup.captureSpans(), row, theme.hover)).toBe(true)
     } finally {
       await teardown(setup)
     }

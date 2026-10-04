@@ -35,6 +35,13 @@ export type RetryDeps = {
   jitter?: (() => number) | undefined
   clockJumps?: ClockJumpDetector | undefined
   log?: ((entry: { attempt: number; maxAttempts: number; reason: string; willRetry: boolean; error: unknown }) => void) | undefined
+  /**
+   * Fired once, when a retryable fault has spent its whole budget. Returning true means the model
+   * has been switched to a fallback worth one more attempt; that attempt runs against the new
+   * model without consuming the spent budget, since the attempts belonged to the model that died.
+   * Returning false (or leaving it unset) settles the failure as before.
+   */
+  onGiveUp?: (() => boolean) | undefined
 }
 
 export function sleepUnlessAborted(args: { ms: number; signal: AbortSignal }): Promise<void> {
@@ -160,6 +167,11 @@ export async function takeModelStepWithRetry(args: {
 
       const decision = planRetry({ failure, attempts, policy, jitter: jitter() })
       if (!decision.retry) {
+        if (args.retry?.onGiveUp?.() === true) {
+          args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: retryReasonOf(failure) ?? 'non-retryable', willRetry: true, error: attempt.cause })
+          attempts = 0
+          continue
+        }
         args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: retryReasonOf(failure) ?? 'non-retryable', willRetry: false, error: attempt.cause })
         return settled()
       }

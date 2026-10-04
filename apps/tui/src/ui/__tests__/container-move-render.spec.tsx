@@ -3,29 +3,51 @@ import React from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 
-import { ELiftStep } from '@dltech/atlas-harness'
 import {
-  advanceMove,
+  activateMoveRow,
   beginMove,
-  ELocalMoveStep,
   expandMove,
   failMove,
+  settleMoveNode,
+  startMoveNode,
   type ContainerMove,
 } from '../../composition/container-move'
 import { ROTATE_HEADING } from '../../composition/cloud/cloud-runner'
-import { WAKE_HEADING, WAKE_PLAN } from '../../composition/container-move'
+import { WAKE_HEADING } from '../../composition/container-move'
 import { ContainerMoveOverlay } from '../components/container-move'
 import { frameOf, mount } from './transcript-fixture'
 
 const STARTED_AT = 10_000
 
-const cloudMove = (over: { advanceTo?: ELiftStep; fail?: string } = {}): ContainerMove => {
-  const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT })
-  const advanced =
-    over.advanceTo === undefined
-      ? begun
-      : advanceMove({ move: begun, step: over.advanceTo, now: STARTED_AT + 4_000 })
-  return over.fail === undefined ? advanced : failMove({ move: advanced, reason: over.fail })
+const LIFT_ROWS = [
+  { id: 'pauseLoops', text: 'closing what is running here', nodeIds: ['pauseLoops'] },
+  {
+    id: 'captureWorkspace',
+    text: 'packing the uncommitted work, transferring the conversation',
+    nodeIds: ['captureWorkspace', 'archiveSession'],
+  },
+  { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
+  { id: 'restore', text: 'attaching and verifying the conversation', nodeIds: ['restore', 'attach'] },
+  { id: 'flipOwnership', text: 'handing the conversation over', nodeIds: ['flipOwnership'] },
+] as const
+
+const WAKE_ROWS = [
+  { id: 'waiting', text: 'waiting for the sandbox', nodeIds: ['waiting'] },
+  { id: 'attaching', text: 'attaching and verifying the conversation', nodeIds: ['attaching'] },
+] as const
+
+const cloudMove = (over: { settleThrough?: number; fail?: string } = {}): ContainerMove => {
+  let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: LIFT_ROWS })
+  const through = over.settleThrough ?? 0
+  const order = ['pauseLoops', 'captureWorkspace', 'archiveSession', 'provision', 'restore', 'attach', 'flipOwnership']
+  for (const nodeId of order.slice(0, through)) {
+    move = settleMoveNode({ move, nodeId, now: STARTED_AT + 1_000 })
+  }
+  const nextPending = move.rows.find((row) => row.mark === 'pending')
+  if (nextPending !== undefined) {
+    move = startMoveNode({ move, nodeId: nextPending.nodeIds[0] ?? nextPending.id, now: STARTED_AT + 4_000 })
+  }
+  return over.fail === undefined ? move : failMove({ move, reason: over.fail })
 }
 
 const overlay = (args: { move: ContainerMove; now?: number }) => (
@@ -38,11 +60,10 @@ const overlay = (args: { move: ContainerMove; now?: number }) => (
 )
 
 describe('a move while it runs', () => {
-  it('names where the conversation is going and lists every step', async () => {
+  it('names where the conversation is going and lists every row', async () => {
     const frame = await frameOf(overlay({ move: cloudMove() }), 80)
 
     expect(frame).toContain('MOVING TO THE CLOUD')
-    expect(frame).toContain('transferring the conversation')
     expect(frame).toContain('handing the conversation over')
     expect(frame).toContain('closing what is running here')
     expect(frame).toContain('packing the uncommitted work')
@@ -50,15 +71,15 @@ describe('a move while it runs', () => {
     expect(frame).toContain('attaching and verifying the conversation')
   })
 
-  it('ticks the step it is on so a long wait reads as work', async () => {
-    const frame = await frameOf(overlay({ move: cloudMove({ advanceTo: ELiftStep.Starting }) }), 80)
+  it('ticks the row it is on so a long wait reads as work', async () => {
+    const frame = await frameOf(overlay({ move: cloudMove({ settleThrough: 3 }) }), 80)
 
     expect(frame).toContain('waiting for the sandbox (8s)')
   })
 
-  it('never counts backwards when the clock lags the step', async () => {
+  it('never counts backwards when the clock lags the row', async () => {
     const frame = await frameOf(
-      overlay({ move: cloudMove({ advanceTo: ELiftStep.Starting }), now: STARTED_AT }),
+      overlay({ move: cloudMove({ settleThrough: 3 }), now: STARTED_AT }),
       80,
     )
 
@@ -66,11 +87,10 @@ describe('a move while it runs', () => {
     expect(frame).not.toContain('(-')
   })
 
-  it('checks off the steps it finished and dims the ones still coming', async () => {
-    const frame = await frameOf(overlay({ move: cloudMove({ advanceTo: ELiftStep.Starting }) }), 80)
+  it('checks off the rows it finished and dims the ones still coming', async () => {
+    const frame = await frameOf(overlay({ move: cloudMove({ settleThrough: 3 }) }), 80)
 
-    expect(frame).toContain('✓ transferring the conversation')
-    expect(frame).toContain('✓ packing the uncommitted work')
+    expect(frame).toContain('✓ packing the uncommitted work, transferring the conversation')
     expect(frame).toContain('· attaching and verifying the conversation')
   })
 
@@ -101,15 +121,15 @@ describe('a wake that rotates the sandbox first', () => {
   const rotatingMove = (): ContainerMove => {
     const begun = beginMove({
       target: EExecutionLocation.Cloud,
-      plan: WAKE_PLAN,
+      rows: WAKE_ROWS,
       heading: WAKE_HEADING,
       now: STARTED_AT,
     })
-    const waiting = advanceMove({ move: begun, step: ELiftStep.Starting, now: STARTED_AT + 1_000 })
+    const waiting = activateMoveRow({ move: begun, id: 'waiting', now: STARTED_AT + 1_000 })
     return expandMove({
       move: waiting,
-      insertBefore: ELiftStep.Attaching,
-      step: ELocalMoveStep.Rotating,
+      insertBefore: 'attaching',
+      row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
       heading: ROTATE_HEADING,
       now: STARTED_AT + 4_000,
     })
@@ -131,9 +151,9 @@ describe('a wake that rotates the sandbox first', () => {
   })
 
   it('advances past the rotation once the sandbox answers again', async () => {
-    const attached = advanceMove({
+    const attached = activateMoveRow({
       move: rotatingMove(),
-      step: ELiftStep.Attaching,
+      id: 'attaching',
       now: STARTED_AT + 9_000,
     })
     const frame = await frameOf(overlay({ move: attached }), 80)
@@ -142,36 +162,34 @@ describe('a wake that rotates the sandbox first', () => {
     expect(frame).toContain('attaching and verifying the conversation (3s)')
   })
 
-  it('leaves the plan alone when asked to insert before a step it does not hold', async () => {
-    const begun = beginMove({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, now: STARTED_AT })
+  it('leaves the rows alone when asked to insert before one it does not hold', async () => {
+    const begun = beginMove({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, now: STARTED_AT })
     const expanded = expandMove({
       move: begun,
-      insertBefore: ELiftStep.Flipping,
-      step: ELocalMoveStep.Rotating,
+      insertBefore: 'flipOwnership',
+      row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
       now: STARTED_AT + 1_000,
     })
 
-    expect(expanded.steps.map((step) => step.id)).toEqual([...WAKE_PLAN])
+    expect(expanded.rows.map((row) => row.id)).toEqual(['waiting', 'attaching'])
   })
 
-  it('never inserts the same step twice', async () => {
+  it('never inserts the same row twice', async () => {
     const twice = expandMove({
       move: rotatingMove(),
-      insertBefore: ELiftStep.Attaching,
-      step: ELocalMoveStep.Rotating,
+      insertBefore: 'attaching',
+      row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
       now: STARTED_AT + 6_000,
     })
 
-    expect(
-      twice.steps.filter((step) => step.id === ELocalMoveStep.Rotating),
-    ).toHaveLength(1)
+    expect(twice.rows.filter((row) => row.id === 'rotating')).toHaveLength(1)
   })
 })
 
 describe('a move that did not finish', () => {
-  it('crosses out the step it died on and says why', async () => {
+  it('crosses out the row it died on and says why', async () => {
     const frame = await frameOf(
-      overlay({ move: cloudMove({ advanceTo: ELiftStep.Starting, fail: 'no capacity in iad1' }) }),
+      overlay({ move: cloudMove({ settleThrough: 3, fail: 'no capacity in iad1' }) }),
       80,
     )
 
@@ -181,7 +199,7 @@ describe('a move that did not finish', () => {
 
   it('offers a way back to the conversation', async () => {
     const frame = await frameOf(
-      overlay({ move: cloudMove({ advanceTo: ELiftStep.Starting, fail: 'no capacity in iad1' }) }),
+      overlay({ move: cloudMove({ settleThrough: 3, fail: 'no capacity in iad1' }) }),
       80,
     )
 
@@ -190,7 +208,7 @@ describe('a move that did not finish', () => {
 
   it('stops ticking once it has settled', async () => {
     const frame = await frameOf(
-      overlay({ move: cloudMove({ advanceTo: ELiftStep.Starting, fail: 'no capacity in iad1' }) }),
+      overlay({ move: cloudMove({ settleThrough: 3, fail: 'no capacity in iad1' }) }),
       80,
     )
 

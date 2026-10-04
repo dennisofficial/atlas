@@ -27,6 +27,7 @@ export type ChildState = {
   lastTool: string | undefined
   lastText: string
   lastFullText: string
+  failureCause: string | undefined
   startedAt: string
   steppingSince: string | undefined
   endedAt: string | undefined
@@ -80,6 +81,7 @@ export function freshChild({
     lastTool: undefined,
     lastText: '',
     lastFullText: '',
+    failureCause: undefined,
     startedAt: at,
     steppingSince: undefined,
     endedAt: undefined,
@@ -114,6 +116,7 @@ export function recoveredChild({
     lastTool: undefined,
     lastText: boundedTail(agent.prose),
     lastFullText: agent.prose,
+    failureCause: agent.failureCause,
     startedAt: agent.spawnedAt ?? at,
     steppingSince: undefined,
     endedAt: agent.endedAt,
@@ -143,6 +146,7 @@ export function reviseFromTransfer({
   child.lastTool = undefined
   child.lastText = boundedTail(agent.prose)
   child.lastFullText = agent.prose
+  child.failureCause = agent.failureCause
   child.startedAt = agent.spawnedAt ?? child.startedAt
   child.steppingSince = undefined
   child.endedAt = agent.endedAt
@@ -163,6 +167,7 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
     turns: child.turns,
     toolCalls: child.toolCalls,
     lastTool: child.lastTool,
+    ...(child.failureCause === undefined ? {} : { failureCause: child.failureCause }),
     startedAt: child.startedAt,
     ...(child.steppingSince === undefined ? {} : { steppingSince: child.steppingSince }),
     endedAt: child.endedAt,
@@ -181,6 +186,7 @@ export function agentEndedDraft(child: ChildState): EventDraft {
     status: child.status,
     killedBy: attributedStop({ status: child.status, killedBy: child.killedBy }),
     prose: child.lastFullText,
+    ...(child.failureCause === undefined ? {} : { failureCause: child.failureCause }),
     turns: child.turns,
     toolCalls: child.toolCalls,
   }

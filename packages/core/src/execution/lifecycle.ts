@@ -23,16 +23,20 @@ export function serveIdleDue(args: {
   runningServices: number
   runningChildren?: number | undefined
   pendingInput?: boolean | undefined
+  clientsAttached?: number | undefined
   idleMinutes: number
+  serviceIdleMinutes?: number | undefined
   now: number
 }): boolean {
   if (args.turnRunning) return false
   if (args.childrenSettling) return false
   if ((args.runningChildren ?? 0) > 0) return false
   if (args.runningShells > 0) return false
-  if (args.runningServices > 0) return false
   if (args.pendingInput === true) return false
-  return args.now - args.lastActivityAt >= args.idleMinutes * 60_000
+  const quietMs = args.now - args.lastActivityAt
+  if (args.runningServices === 0) return quietMs >= args.idleMinutes * 60_000
+  if ((args.clientsAttached ?? 0) > 0) return false
+  return quietMs >= (args.serviceIdleMinutes ?? args.idleMinutes) * 60_000
 }
 
 export function staleSandboxes(args: {

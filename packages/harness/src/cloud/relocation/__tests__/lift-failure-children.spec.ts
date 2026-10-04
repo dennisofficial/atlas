@@ -65,7 +65,8 @@ describe('a lift that does not finish, with children in tow', () => {
     expect(lifted.step).toBe(ELiftStep.Interrupting)
     expect(lifted.detail).toContain('would not stop')
     expect(test.stops).toBe(0)
-    expect(test.placement.snapshot(CLOUD_THREAD)).toBeUndefined()
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
   })
 
   it('pauses the parent turn instead of interrupting it when the caller hands a pause over', async () => {
@@ -116,7 +117,7 @@ describe('a lift that does not finish, with children in tow', () => {
     const lifting = liftToCloud(test.args)
     await Bun.sleep(10)
     expect(test.stops).toBe(0)
-    expect(test.steps).toEqual([])
+    expect(test.doneNodes).toEqual([])
 
     release()
     const lifted = await lifting

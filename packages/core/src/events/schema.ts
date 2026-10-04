@@ -17,9 +17,9 @@ import {
   EAssistantPlaceholder,
   ECompactionAnchor,
   EDecision,
+  ELocationChangeCause,
   EMessageOrigin,
   EOperatorInputOutcome,
-  EPullRequestState,
   EWorktreeExit,
   type EventBody,
 } from './body'
@@ -185,6 +185,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     cwd: z.string().min(1).optional(),
     remoteUrl: z.string().min(1).nullable().optional(),
     branch: z.string().min(1).nullable().optional(),
+    cause: z.enum(ELocationChangeCause).optional(),
   }),
   z.object({
     type: z.literal('operator-input-requested'),
@@ -211,19 +212,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     repo: z.string().min(1),
     branch: z.string().min(1),
   }),
-  z.object({
-    type: z.literal('pull-request-state'),
-    number: z.number().int().positive(),
-    url: z.string().min(1),
-    repo: z.string().min(1),
-    branch: z.string().min(1),
-    state: z.enum(EPullRequestState),
-    checksRunning: z.number().int().nonnegative(),
-    checksPassed: z.number().int().nonnegative(),
-    checksFailed: z.number().int().nonnegative(),
-    mergeable: z.boolean().nullable(),
-    recordedAt: z.string().min(1),
-  }),
+
   z.object({
     type: z.literal('background-shell-started'),
     shellId: z.string().min(1),
@@ -319,6 +308,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     intent: z.string(),
     status: z.enum(EAgentStatus),
     killedBy: z.enum(EKilledBy).optional(),
+    failureCause: z.string().optional(),
     prose: z.string(),
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),

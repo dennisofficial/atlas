@@ -9,9 +9,9 @@ import type { WorkspaceRestoration } from '../../workspace/transfer/restore'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { awaitPause, transferMemoryDown, transferTranscriptDown } from './descend-transfer'
+import { transferMemoryDown, transferTranscriptDown } from './descend-transfer'
+import { prepareRelocation } from './prepare-relocation'
 import { adoptTransferredChildren, activateTransferredChildren } from './adopt-transferred-children'
-import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
 import type { RelocationPlan } from './dag'
 import { restoreCloudWorkspace, type WorkspaceRestorer } from './descend-workspace'
@@ -19,9 +19,7 @@ import { recordWorkspaceArrival } from './workspace-arrival'
 import {
   DESCEND_DESTROY_NOTICE_KEY,
   descendDestroyRetry,
-  EDescendStep,
   type DescendLocalHome,
-  type DescendProgressStep,
   type DescendSurface,
   type DestroySleeper,
 } from './descend'
@@ -30,6 +28,19 @@ const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
 const PAUSE_DEADLINE_MS = 30_000
+
+export enum EDescendNode {
+  PauseRemoteLoops = 'pauseRemoteLoops',
+  ArchiveRemote = 'archiveRemote',
+  ArchiveMemory = 'archiveMemory',
+  ShipDown = 'shipDown',
+  ConfirmLocal = 'confirmLocal',
+  FlipHome = 'flipHome',
+  PrepareWorkspace = 'prepareWorkspace',
+  ReopenLocal = 'reopenLocal',
+  ActivateChildren = 'activateChildren',
+  DestroySandbox = 'destroySandbox',
+}
 
 export type DescendRun = {
   pauseLanded: boolean
@@ -48,7 +59,6 @@ export type DescendPlanArgs<Opened> = {
   localApp: DescendLocalHome
   surface: DescendSurface<Opened>
   notice: NoticePort
-  progress: (step: DescendProgressStep) => void
   pauseDeadlineMs?: number | undefined
   restoreWorkspace?: WorkspaceRestorer | undefined
   run: DescendRun
@@ -61,50 +71,51 @@ export type DescendPlanArgs<Opened> = {
 }
 
 export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPlan<undefined> {
-  const { threadId, target, channel, localApp, progress } = args
+  const { threadId, target, channel, localApp } = args
   const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: threadId })
 
   return [
     {
-      id: 'pauseRemoteLoops',
+      id: EDescendNode.PauseRemoteLoops,
       needs: [],
+      ...(args.midTurn ? { label: 'interrupting the turn at a clean break' } : {}),
       run: async () => {
-        if (args.midTurn) progress(ELiftStep.Interrupting)
-        const paused = awaitPause({ channel, deadlineMs: args.pauseDeadlineMs ?? PAUSE_DEADLINE_MS })
         args.run.pauseRequested = true
-        channel.pause()
-        const settled = await paused
-        if (!settled) throw new Error('the remote loops would not pause in time — nothing moved')
+        await prepareRelocation({
+          pause: () => channel.pause(),
+          onTurnEnded: (listener) => channel.onTurnEnded(listener),
+          deadlineMs: args.pauseDeadlineMs ?? PAUSE_DEADLINE_MS,
+        })
         args.run.pauseLanded = true
       },
     },
     {
-      id: 'archiveRemote',
-      needs: ['pauseRemoteLoops'],
+      id: EDescendNode.ArchiveRemote,
+      needs: [EDescendNode.PauseRemoteLoops],
+      label: 'pulling the conversation down',
       run: async () => {
         await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
         await localApp.log.refresh({ threadId })
       },
     },
     {
-      id: 'archiveMemory',
-      needs: ['archiveRemote'],
+      id: EDescendNode.ArchiveMemory,
+      needs: [EDescendNode.ArchiveRemote],
       run: async () => {
         await transferMemoryDown({ channel, repoRoot: localApp.workspace.workspace })
       },
     },
     {
-      id: 'shipDown',
-      needs: ['archiveMemory'],
+      id: EDescendNode.ShipDown,
+      needs: [EDescendNode.ArchiveMemory],
       run: async () => {
-        progress(EDescendStep.Transferring)
         await (args.afterTranscriptLanded ?? (async () => undefined))()
         await adoptTransferredChildren({ agents: localApp.agents, threadId })
       },
     },
     {
-      id: 'confirmLocal',
-      needs: ['shipDown'],
+      id: EDescendNode.ConfirmLocal,
+      needs: [EDescendNode.ShipDown],
       run: async () => {
         const entries = await readdir(sessionDir).catch((error: unknown) => {
           args.logPort?.warn({
@@ -122,11 +133,11 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       },
     },
     {
-      id: 'flipHome',
-      needs: ['reopenLocal'],
+      id: EDescendNode.FlipHome,
+      needs: [EDescendNode.ReopenLocal],
       commit: true,
+      label: 'handing the conversation home',
       run: async () => {
-        progress(EDescendStep.Flipping)
         if (args.transaction === undefined) {
           await localApp.threads.chooseExecutionLocation({ threadId, location: target })
         } else {
@@ -135,8 +146,9 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       },
     },
     {
-      id: 'prepareWorkspace',
-      needs: ['confirmLocal'],
+      id: EDescendNode.PrepareWorkspace,
+      needs: [EDescendNode.ConfirmLocal],
+      label: 'restoring the workspace',
       run: async () => {
         args.run.restoration = await restoreCloudWorkspace({
           threadId,
@@ -159,10 +171,10 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       },
     },
     {
-      id: 'reopenLocal',
-      needs: ['prepareWorkspace'],
+      id: EDescendNode.ReopenLocal,
+      needs: [EDescendNode.PrepareWorkspace],
+      label: 'reopening the conversation locally',
       run: async () => {
-        progress(EDescendStep.Relocating)
         if (args.run.restored !== undefined) {
           await recordWorkspaceArrival({
             threadId,
@@ -180,16 +192,16 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       },
     },
     {
-      id: 'activateChildren',
-      needs: ['flipHome'],
+      id: EDescendNode.ActivateChildren,
+      needs: [EDescendNode.FlipHome],
       run: async () => {
         await flipChildrenBack({ threadId, localThreads: localApp.threads, agents: localApp.agents, location: target })
         await activateTransferredChildren({ agents: localApp.agents, log: localApp.log, threadId })
       },
     },
     {
-      id: 'destroySandbox',
-      needs: ['activateChildren'],
+      id: EDescendNode.DestroySandbox,
+      needs: [EDescendNode.ActivateChildren],
       run: async () => {
         void destroySandboxWithRetry(args).catch((error: unknown) => {
           args.logPort?.warn({

@@ -4,7 +4,8 @@ import { EExecutionLocation } from '@dltech/atlas-core'
 import { CloudError, EShellStatus } from '@dltech/atlas-harness'
 
 import { useAtlasHome } from './descend-fixture'
-import { ELiftStep, liftToCloud } from '../lift'
+import { liftToCloud } from '../lift'
+import { ELiftNode } from '../lift-plan'
 import { CLOUD_NOTICE_KEY } from '../transition-notice'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { harness } from './lift-fixture'
@@ -21,16 +22,28 @@ describe('lifting a conversation into the cloud', () => {
     expect(lifted.ok).toBe(true)
     expect(test.bridge.trail).toEqual(['put-transcript', 'sandbox', 'confirm-landed', 'attach'])
     expect(test.bridge.transcriptPuts).toHaveLength(1)
-    expect(test.steps).toEqual([
-      ELiftStep.Stopping,
-      ELiftStep.Capturing,
-      ELiftStep.Transferring,
-      ELiftStep.Starting,
-      ELiftStep.UploadingContext,
-      ELiftStep.Starting,
-      ELiftStep.Attaching,
-      ELiftStep.Flipping,
+    expect(test.waves.map((wave) => wave.label)).toEqual([
+      'closing what is running here',
+      'packing the uncommitted work, transferring the conversation',
+      'waiting for the sandbox',
+      'attaching and verifying the conversation',
+      'handing the conversation over',
     ])
+    expect(test.doneNodes.indexOf(ELiftNode.InterruptTurn)).toBeLessThan(
+      test.doneNodes.indexOf(ELiftNode.PauseLoops),
+    )
+    expect(test.doneNodes.indexOf(ELiftNode.PauseLoops)).toBeLessThan(
+      test.doneNodes.indexOf(ELiftNode.ArchiveSession),
+    )
+    expect(test.doneNodes.indexOf(ELiftNode.ArchiveSession)).toBeLessThan(
+      test.doneNodes.indexOf(ELiftNode.Provision),
+    )
+    expect(test.doneNodes.indexOf(ELiftNode.Provision)).toBeLessThan(
+      test.doneNodes.indexOf(ELiftNode.Restore),
+    )
+    expect(test.doneNodes.indexOf(ELiftNode.Restore)).toBeLessThan(
+      test.doneNodes.indexOf(ELiftNode.FlipOwnership),
+    )
   })
 
   it('records the thread as a cloud thread on the local side', async () => {

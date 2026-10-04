@@ -114,10 +114,8 @@ describe('the github plugin as the loader sees it', () => {
       `${EHookPhase.AfterTurn}:turn-ended`,
       `${EHookPhase.AfterTurn}:follow-checkout`,
       `${EHookPhase.AfterTurn}:record-pull-request`,
-      `${EHookPhase.AfterTurn}:record-pull-request-state`,
       `${EHookPhase.OnThreadOpen}:thread-opened`,
       `${EHookPhase.OnThreadOpen}:forget-thread-links`,
-      `${EHookPhase.OnThreadOpen}:forget-thread-states`,
       `${EHookPhase.AfterTool}:follow-worktree`,
       `${EHookPhase.AfterTool}:refresh-pull-request`,
       `${EHookPhase.AfterShell}:refresh-pull-request-after-shell`,
@@ -126,7 +124,6 @@ describe('the github plugin as the loader sees it', () => {
     expect(contribution.surfaces ?? []).toEqual([])
     expect((contribution.projections ?? []).map((projection) => projection.id)).toEqual([
       'pull-requests',
-      'pull-request-states',
       'cloud-checkout',
     ])
     expect((contribution.ports ?? []).map((binding) => binding.token)).toEqual([

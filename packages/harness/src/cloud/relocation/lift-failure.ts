@@ -51,10 +51,12 @@ export function liftFailureOfRun(args: {
   if (ctx.contextError !== undefined) {
     return liftFailureOf({ error: ctx.contextError, step: ELiftStep.UploadingContext, fallback: ELiftFault.Context, stopped: ctx.stopped })
   }
-  const step = run.failed === ELiftNode.CaptureWorkspace
-    ? ELiftStep.Capturing
-    : run.failed === ELiftNode.Restore || run.failed === ELiftNode.Attach || run.failed === ELiftNode.ResumePaused
-      ? ELiftStep.Attaching
-      : run.failed === ELiftNode.ArchiveSession ? ELiftStep.Transferring : ELiftStep.Starting
+  const step = run.failed === ELiftNode.InterruptTurn
+    ? ELiftStep.Interrupting
+    : run.failed === ELiftNode.CaptureWorkspace
+      ? ELiftStep.Capturing
+      : run.failed === ELiftNode.Restore || run.failed === ELiftNode.Attach || run.failed === ELiftNode.ResumePaused
+        ? ELiftStep.Attaching
+        : run.failed === ELiftNode.ArchiveSession ? ELiftStep.Transferring : ELiftStep.Starting
   return liftFailureOf({ error: run.error, step, fallback: run.failed === ELiftNode.CaptureWorkspace ? ELiftFault.Transfer : ELiftFault.Sandbox, stopped: ctx.stopped })
 }

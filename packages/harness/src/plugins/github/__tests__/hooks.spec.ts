@@ -51,6 +51,7 @@ const countingService = (): Counted => {
     stopTracking: () => undefined,
     watch: () => undefined,
     current: () => null,
+    states: () => [],
     refresh: async () => undefined,
     dispose: () => undefined,
     expectChecks: () => {

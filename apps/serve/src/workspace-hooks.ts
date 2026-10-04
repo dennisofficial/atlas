@@ -1,6 +1,7 @@
 import {
   EKilledBy,
   EServiceStatus,
+  type EventDraft,
   type EventLogPort,
   type IdPort,
   type ThreadId,
@@ -46,7 +47,10 @@ export function endFamilyShellsFor(args: {
   }
 }
 
+const pendingProcessEndings = new WeakMap<object, Map<ThreadId, readonly EventDraft[]>>()
+
 export function stopWorkspaceProcessesFor(args: {
+  killedBy?: EKilledBy | undefined
   root: ThreadId
   shells: Pick<ShellRegistryPort, 'stopOwners' | 'drainNotifications'>
   services: Pick<ServiceRegistryPort, 'list' | 'stop' | 'awaitEndings' | 'drainNotifications'>
@@ -55,16 +59,20 @@ export function stopWorkspaceProcessesFor(args: {
   ids: Pick<IdPort, 'nextRunId'>
 }): () => Promise<void> {
   const { shells, services } = args
+  const killedBy = args.killedBy ?? EKilledBy.ContainerSwitch
+  const pending = pendingProcessEndings.get(shells) ?? new Map<ThreadId, readonly EventDraft[]>()
+  pendingProcessEndings.set(shells, pending)
   return async () => {
     const family = await familyThreadIdsOf({ root: args.root, threads: args.threads })
     const shellEndings = shells.stopOwners({
       threadIds: [...family],
-      by: EKilledBy.ContainerSwitch,
+      by: killedBy,
       ms: KILL_SETTLE_MS,
     })
     for (const service of services.list()) {
       if (service.status === EServiceStatus.Running) {
-        services.stop({ serviceId: service.serviceId, by: EKilledBy.ContainerSwitch })
+        const stopped = services.stop({ serviceId: service.serviceId, by: killedBy })
+        if (!stopped.ok) throw new Error(stopped.reason)
       }
     }
     const [, stragglers] = await Promise.all([shellEndings, services.awaitEndings({ ms: STOP_SETTLE_MS })])
@@ -72,11 +80,14 @@ export function stopWorkspaceProcessesFor(args: {
     if (stillRunning > 0 || stragglers > 0) throw new Error(STILL_WRITING)
     for (const threadId of family) {
       const drafts = [
+        ...(pending.get(threadId) ?? []),
         ...shells.drainNotifications({ threadId }),
         ...services.drainNotifications({ threadId }),
       ]
       if (drafts.length === 0) continue
+      pending.set(threadId, drafts)
       await args.log.append({ threadId, runId: args.ids.nextRunId(), drafts })
+      pending.delete(threadId)
     }
   }
 }

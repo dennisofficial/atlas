@@ -26,6 +26,7 @@ export type SidebarSubagent = SubagentReadout & {
   context?: ChildContext | undefined
   selected: boolean
   activity?: CrewActivity | undefined
+  failureReason: string | null
 }
 
 /** What a child still has running: its own shells and its own children, nothing deeper. */
@@ -215,6 +216,8 @@ export function subagentRows(args: {
       context: snapshot.context,
       selected: snapshot.agentId === args.viewing,
       activity,
+      failureReason:
+        snapshot.status === EAgentStatus.Failed ? (snapshot.failureCause ?? null) : null,
     }
   })
 }

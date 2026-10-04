@@ -82,6 +82,13 @@ export const interrupted = (): TurnOutcome => ({
   committed: true,
 })
 
+export const failed = (message: string): TurnOutcome => ({
+  status: ETurnStatus.Failed,
+  runId: toRunId('run_fake'),
+  message,
+  cause: new Error(message),
+})
+
 export const paused = (): TurnOutcome => ({
   status: ETurnStatus.Paused,
   runId: toRunId('run_fake'),

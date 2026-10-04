@@ -97,8 +97,13 @@ describe('the app you can actually open', () => {
       mounted.pressEnter()
 
       const first = await mounted.nextFrame()
-      expect(first).toContain('Thinking for')
+      expect(first).toMatch(/(?:Working|Thinking) for/)
       expect(first).toContain('esc to interrupt')
+      const thinking = await until({
+        holds: async () => (await mounted.frame()).includes('Thinking for'),
+        within: 20_000,
+      })
+      expect(thinking).toBe(true)
     } finally {
       await mounted.done()
     }

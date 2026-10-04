@@ -78,7 +78,8 @@ try {
     stopLocal: async () => ({ shells: [], services: [], drainNotices: () => [] }),
     capture: captureWorkspaceMetadata, captureGpg: async () => null,
     captureContext: async () => undefined,
-    onProgress: (step) => console.log(JSON.stringify({ phase: 'lift', step })),
+    onBegin: ({ waves }) => console.log(JSON.stringify({ phase: 'lift-plan', waves: waves.map((wave) => wave.label) })),
+    onNodeDone: (nodeId) => console.log(JSON.stringify({ phase: 'lift', node: nodeId })),
     open: async ({ attachment }) => {
       channel = attachment.channel
       const events = await attachment.stores.log.readOwn({ threadId: fixture.threadId })
@@ -130,7 +131,8 @@ subprocess.run(["git","-C",str(repo),"worktree","add","-b","cloud-created",str(n
     bridge, channel, localApp: fixture.local, placement: fixture.placement,
     surface: {
       notice: { notify: (post) => console.log(JSON.stringify({ phase: 'notice', text: post.text })) },
-      onProgress: (step) => console.log(JSON.stringify({ phase: 'descend', step })),
+      onBegin: ({ waves }) => console.log(JSON.stringify({ phase: 'descend-plan', waves: waves.map((wave) => wave.label) })),
+      onNodeDone: (nodeId) => console.log(JSON.stringify({ phase: 'descend', node: nodeId })),
       openLocal: async (home) => ({ cwd: home.workspace.workspace }),
     },
   })

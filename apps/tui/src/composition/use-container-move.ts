@@ -5,25 +5,35 @@ import type { EExecutionLocation } from '@dltech/atlas-core'
 
 import { createAwakeClock } from './awake-clock'
 import {
-  advanceMove,
+  activateMoveRow,
   beginMove,
   expandMove,
   failMove,
+  relabelMoveRow,
+  settleMoveNode,
+  startMoveNode,
   type ContainerMove,
-  type MoveStepId,
 } from './container-move'
 import { useTickingNow } from './use-turn-clock'
+
+export type MoveRowSeed = { id: string; text: string; nodeIds: readonly string[] }
 
 export type ContainerMoveControl = {
   move: ContainerMove | null
   now: number
   handleBegin: (args: {
     target: EExecutionLocation
-    plan?: readonly MoveStepId[] | undefined
+    rows: readonly MoveRowSeed[]
     heading?: string | undefined
   }) => void
-  handleAdvance: (step: MoveStepId) => void
-  handleExpand: (args: { insertBefore: MoveStepId; step: MoveStepId; heading?: string | undefined }) => void
+  /** A DAG node started — its row turns active. */
+  handleNodeStart: (nodeId: string) => void
+  /** A DAG node settled — its row completes once every node behind it has. */
+  handleNodeDone: (nodeId: string) => void
+  /** Jumps to a row, completing everything before it — for hand-listed moves with no completion signal. */
+  handleRowActive: (id: string) => void
+  handleRowLabel: (args: { nodeId: string; text: string }) => void
+  handleExpand: (args: { insertBefore: string; row: MoveRowSeed; heading?: string | undefined }) => void
   handleSettle: () => void
   handleFail: (reason: string) => void
   handleDismiss: () => void
@@ -31,10 +41,10 @@ export type ContainerMoveControl = {
 }
 
 /**
- * Timestamps each step as it becomes active, so a live round-trip can report per-stage latency
- * without the move overlay persisting anything. Inert unless the caller reads the log.
+ * Timestamps each row transition, so a live round-trip can report per-stage latency without the
+ * move overlay persisting anything. Inert unless the caller reads the log.
  */
-export type MoveStepTiming = { step: MoveStepId; at: number }
+export type MoveStepTiming = { step: string; at: number }
 
 export function useContainerMove(args?: {
   onStep?: ((timing: MoveStepTiming) => void) | undefined
@@ -44,43 +54,66 @@ export function useContainerMove(args?: {
   const now = useTickingNow({ ticking: move !== null && move.failure === null, clock })
 
   const handleBegin = useCallback(
-    (args: {
+    (beginArgs: {
       target: EExecutionLocation
-      plan?: readonly MoveStepId[] | undefined
+      rows: readonly MoveRowSeed[]
       heading?: string | undefined
     }) => {
       setMove(
         (current) =>
           current ??
           beginMove({
-            target: args.target,
+            target: beginArgs.target,
             now: clock.read(),
-            ...(args.plan === undefined ? {} : { plan: args.plan }),
-            ...(args.heading === undefined ? {} : { heading: args.heading }),
+            rows: beginArgs.rows,
+            ...(beginArgs.heading === undefined ? {} : { heading: beginArgs.heading }),
           }),
       )
     },
     [clock],
   )
 
-  const handleAdvance = useCallback(
-    (step: MoveStepId) => {
+  const handleNodeStart = useCallback(
+    (nodeId: string) => {
       const at = clock.read()
-      setMove((current) => (current === null ? null : advanceMove({ move: current, step, now: at })))
-      args?.onStep?.({ step, at })
+      setMove((current) => (current === null ? null : startMoveNode({ move: current, nodeId, now: at })))
+    },
+    [clock],
+  )
+
+  const handleNodeDone = useCallback(
+    (nodeId: string) => {
+      const at = clock.read()
+      setMove((current) => (current === null ? null : settleMoveNode({ move: current, nodeId, now: at })))
+      args?.onStep?.({ step: nodeId, at })
     },
     [clock, args],
   )
 
+  const handleRowActive = useCallback(
+    (id: string) => {
+      const at = clock.read()
+      setMove((current) => (current === null ? null : activateMoveRow({ move: current, id, now: at })))
+      args?.onStep?.({ step: id, at })
+    },
+    [clock, args],
+  )
+
+  const handleRowLabel = useCallback((labelArgs: { nodeId: string; text: string }) => {
+    setMove((current) =>
+      current === null ? null : relabelMoveRow({ move: current, nodeId: labelArgs.nodeId, text: labelArgs.text }),
+    )
+  }, [])
+
   const handleExpand = useCallback(
-    (expandArgs: { insertBefore: MoveStepId; step: MoveStepId; heading?: string | undefined }) => {
+    (expandArgs: { insertBefore: string; row: MoveRowSeed; heading?: string | undefined }) => {
       setMove((current) =>
         current === null
           ? null
           : expandMove({
               move: current,
               insertBefore: expandArgs.insertBefore,
-              step: expandArgs.step,
+              row: expandArgs.row,
               ...(expandArgs.heading === undefined ? {} : { heading: expandArgs.heading }),
               now: clock.read(),
             }),
@@ -111,13 +144,16 @@ export function useContainerMove(args?: {
       move,
       now,
       handleBegin,
-      handleAdvance,
+      handleNodeStart,
+      handleNodeDone,
+      handleRowActive,
+      handleRowLabel,
       handleExpand,
       handleSettle,
       handleFail,
       handleDismiss,
       handleKey,
     }),
-    [move, now, handleBegin, handleAdvance, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
+    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
   )
 }

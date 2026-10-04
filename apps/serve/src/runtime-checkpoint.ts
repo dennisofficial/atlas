@@ -182,7 +182,7 @@ export function createRuntimeCheckpointCapture(
       })
       throw error
     }
-    if (args.phase === ERuntimePhase.Parked) sealed = true
+    if (args.phase === ERuntimePhase.Parked || args.phase === ERuntimePhase.Rotating) sealed = true
     mirrorNow(checkpoint)
     return checkpoint
   }

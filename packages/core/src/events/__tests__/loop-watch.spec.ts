@@ -12,6 +12,7 @@ import {
   loopWatchCutNoticeDraft,
   loopWatchNudgeDraft,
   loopWatchState,
+  speechRepeatStart,
   LOOP_WATCH_CUT_SAME_ANCHOR_MAX,
   LOOP_WATCH_MUTE_CADENCE,
   LOOP_WATCH_WINDOW,
@@ -374,5 +375,46 @@ describe('loopWatchCutNoticeDraft', () => {
     if (draft.type !== 'nudge') return
     expect(draft.text).toContain('cut 9 steps')
     expect(draft.text).toContain('Do not resume the pattern')
+  })
+})
+
+describe('speechRepeatStart', () => {
+  const echoRound = (ordinal: number, path: string): EventDraft[] => [
+    said(`I'm in the right worktree. Now let me check how composeHarness exposes plugin ports so I can reach the github bridge`),
+    called({ callId: `call-${ordinal}`, name: 'read', input: { path, offset: ordinal * 60 } }),
+    resulted({ callId: `call-${ordinal}`, modelText: `line ${ordinal}` }),
+  ]
+
+  it('points at the first of three consecutive speeches echoing the same intent over different reads', () => {
+    const events = eventsFrom([
+      heard('wire the emitter'),
+      ...echoRound(1, 'compose.ts'),
+      ...echoRound(2, 'compose.ts'),
+      ...echoRound(3, 'compose.ts'),
+    ])
+
+    expect(speechRepeatStart({ events })).toBe(2)
+  })
+
+  it('stays silent when each round says something new', () => {
+    const events = eventsFrom([
+      heard('wire the emitter'),
+      ...round(1, 'Read the wire contract'),
+      ...round(2, 'The contract names ListPrStates; checking the emitter seam'),
+      ...round(3, 'The emitter needs a states enumeration; checking the service'),
+    ])
+
+    expect(speechRepeatStart({ events })).toBeUndefined()
+  })
+
+  it('stays silent when a steering event breaks the run', () => {
+    const events = eventsFrom([
+      ...echoRound(1, 'compose.ts'),
+      ...echoRound(2, 'compose.ts'),
+      heard('stop re-reading, just write it'),
+      ...echoRound(3, 'compose.ts'),
+    ])
+
+    expect(speechRepeatStart({ events })).toBeUndefined()
   })
 })

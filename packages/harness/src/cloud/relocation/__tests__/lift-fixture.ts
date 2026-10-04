@@ -24,7 +24,8 @@ import {
   type FakeThreadStore,
 } from './fake-backend'
 import type { LiftAgentsPort } from '../lift-children'
-import { ELiftStep, type LiftArgs } from '../lift'
+import type { LiftArgs } from '../lift'
+import type { RelocationWave } from '../waves'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge, type FakeBridge } from './fixture'
 
 const AT = '2026-09-16T12:00:00.000Z'
@@ -121,7 +122,8 @@ export type Harness = {
   localThreads: FakeThreadStore
   localLog: FakeEventLog
   placement: PlacementController
-  readonly steps: readonly ELiftStep[]
+  readonly waves: readonly RelocationWave[]
+  readonly doneNodes: readonly string[]
   readonly stops: number
   readonly interrupts: number
   readonly settleWaits: number
@@ -152,7 +154,8 @@ export const harness = (
   const localThreads = fakeThreadStore({ log: localLog, existing: [CLOUD_THREAD] })
   const placement = new PlacementController(EExecutionLocation.Host)
   placement.bind({ threads: localThreads, workspace: '/work', repo: '/work' })
-  const steps: ELiftStep[] = []
+  let waves: RelocationWave[] = []
+  const doneNodes: string[] = []
   let stops = 0
   let interrupts = 0
   let settleWaits = 0
@@ -198,7 +201,10 @@ export const harness = (
     },
     capture: async () => CLEAN_WORKSPACE,
     captureWorkspaceArchive: async () => undefined,
-    onProgress: (step) => steps.push(step),
+    onBegin: ({ waves: w }) => {
+      waves = [...w]
+    },
+    onNodeDone: (id) => doneNodes.push(id),
     captureContext: async () => undefined,
     ...over,
   }
@@ -209,7 +215,12 @@ export const harness = (
     localThreads,
     localLog,
     placement,
-    steps,
+    get waves() {
+      return waves
+    },
+    get doneNodes() {
+      return doneNodes
+    },
     get stops() {
       return stops
     },

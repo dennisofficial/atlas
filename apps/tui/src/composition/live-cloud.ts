@@ -1,6 +1,7 @@
 import {
   ATLAS_TELEMETRY_IDENTITY_ENV,
   EExecutionLocation,
+  ELocationChangeCause,
   ESettingId,
   ESettingsLayer,
   parseRef,
@@ -153,6 +154,21 @@ export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
     findThread: ({ threadId }) => app.threads.find({ threadId }),
     flipToHost: ({ threadId }) =>
       app.threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Host }),
+    recordExpired: ({ threadId }) =>
+      app.log
+        .append({
+          threadId,
+          runId: app.ids.nextRunId(),
+          drafts: [
+            {
+              type: 'location-changed',
+              from: EExecutionLocation.Cloud,
+              to: EExecutionLocation.Host,
+              cause: ELocationChangeCause.SandboxExpired,
+            },
+          ],
+        })
+        .then(() => undefined),
     notify: (text) => notice.notify({ text, tone: ENoticeTone.Warn }),
     ...liveReaperListFailureMark(),
   }).catch((failure: unknown) =>

@@ -4,7 +4,7 @@ import {
   EStepMark,
   moveHeading,
   type ContainerMove,
-  type MoveStep,
+  type MoveRow,
 } from '../../composition/container-move'
 import { wrapWords } from '../text-flow'
 import { formatElapsed, theme } from '../theme'
@@ -22,33 +22,33 @@ import { Spans, type Span } from './spans'
 
 const NARROWEST = 24
 
-const stepSpans = (step: MoveStep): readonly Span[] => {
-  if (step.mark === EStepMark.Done) {
+const rowSpans = (row: MoveRow): readonly Span[] => {
+  if (row.mark === EStepMark.Done) {
     return [
       { text: '✓ ', fg: theme.ok },
-      { text: step.text, fg: theme.dim },
+      { text: row.text, fg: theme.dim },
     ]
   }
-  if (step.mark === EStepMark.Failed) {
+  if (row.mark === EStepMark.Failed) {
     return [
       { text: '✗ ', fg: theme.error },
-      { text: step.text, fg: theme.error },
+      { text: row.text, fg: theme.error },
     ]
   }
 
   return [
     { text: '· ', fg: theme.dim },
-    { text: step.text, fg: theme.dim },
+    { text: row.text, fg: theme.dim },
   ]
 }
 
-function StepLine(props: { step: MoveStep; elapsedMs: number }): React.ReactNode {
-  const { step } = props
+function RowLine(props: { row: MoveRow; elapsedMs: number }): React.ReactNode {
+  const { row } = props
 
-  if (step.mark === EStepMark.Active) {
+  if (row.mark === EStepMark.Active) {
     return (
       <DrawerLine>
-        <ShimmerLine label={`${step.text} (${formatElapsed(Math.max(0, props.elapsedMs))})`} />
+        <ShimmerLine label={`${row.text} (${formatElapsed(Math.max(0, props.elapsedMs))})`} />
       </DrawerLine>
     )
   }
@@ -56,7 +56,7 @@ function StepLine(props: { step: MoveStep; elapsedMs: number }): React.ReactNode
   return (
     <DrawerLine>
       <text>
-        <Spans spans={stepSpans(step)} />
+        <Spans spans={rowSpans(row)} />
       </text>
     </DrawerLine>
   )
@@ -75,8 +75,8 @@ export function ContainerMoveOverlay(props: {
   return (
     <BottomDrawer overlay>
       <DrawerHeading label={move.heading ?? moveHeading(move.target)} />
-      {move.steps.map((step) => (
-        <StepLine key={step.id} step={step} elapsedMs={props.now - move.activeSince} />
+      {move.rows.map((row) => (
+        <RowLine key={row.id} row={row} elapsedMs={props.now - move.activeSince} />
       ))}
       {move.failure === null ? null : (
         <>

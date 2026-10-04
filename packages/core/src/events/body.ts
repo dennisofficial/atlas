@@ -28,6 +28,10 @@ export enum EWorktreeExit {
   Remove = 'remove',
 }
 
+export enum ELocationChangeCause {
+  SandboxExpired = 'sandbox-expired',
+}
+
 export enum EOperatorInputOutcome {
   Delivered = 'delivered',
   Undelivered = 'undelivered',
@@ -125,6 +129,7 @@ export type EventBody =
       cwd?: string | undefined
       remoteUrl?: string | null | undefined
       branch?: string | null | undefined
+      cause?: ELocationChangeCause | undefined
     }
   | {
       type: 'operator-input-requested'
@@ -146,19 +151,6 @@ export type EventBody =
       url: string
       repo: string
       branch: string
-    }
-  | {
-      type: 'pull-request-state'
-      number: number
-      url: string
-      repo: string
-      branch: string
-      state: EPullRequestState
-      checksRunning: number
-      checksPassed: number
-      checksFailed: number
-      mergeable: boolean | null
-      recordedAt: string
     }
   | BackgroundShellEventBody
   | {
@@ -195,6 +187,7 @@ export type EventBody =
       status: EAgentStatus
       killedBy?: EKilledBy | undefined
       prose: string
+      failureCause?: string | undefined
       turns: number
       toolCalls: number
     }
@@ -265,7 +258,6 @@ export const SURVIVES_SUMMARY: readonly EventType[] = [
   'permission-granted',
   'permission-revoked',
   'pull-request-linked',
-  'pull-request-state',
 ]
 
 export const survivesSummary = (type: EventType): boolean => SURVIVES_SUMMARY.includes(type)

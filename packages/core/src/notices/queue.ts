@@ -1,4 +1,4 @@
-import { ENoticePosition, type Notice, type NoticeDraft } from './notice'
+import { ENoticePosition, readingFloorMs, type Notice, type NoticeDraft } from './notice'
 
 export const NOTICE_STACK_LIMIT = 3
 
@@ -8,9 +8,14 @@ export function postNotice(args: {
   issuedAtMs: number
   limit?: number
 }): readonly Notice[] {
+  const ttlMs =
+    args.draft.ttlMs === null
+      ? null
+      : Math.max(args.draft.ttlMs, readingFloorMs({ text: args.draft.text }))
   const notice: Notice = {
     position: ENoticePosition.Tray,
     ...args.draft,
+    ttlMs,
     issuedAtMs: args.issuedAtMs,
   }
   const limit = args.limit ?? NOTICE_STACK_LIMIT

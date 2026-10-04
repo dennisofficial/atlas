@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import type { LinkedPullRequest, PullRequestState } from '@dltech/atlas-core'
+import type { LinkedPullRequest } from '@dltech/atlas-core'
+import { EPullRequestState } from '@dltech/atlas-core'
 import {
   checkoutKey,
   EChecksState,
   EPullRequestLookup,
+  NO_PULL_REQUEST_READING,
   probeCheckout,
   pullRequestBadge,
   pullRequestEntries,
   type PullRequest,
   type PullRequestBadge,
   type PullRequestEntry,
+  type PullRequestPort,
   type PullRequestReading,
   type PullRequestService,
+  type RemotePrStateReader,
   type RepositoryCheckout,
 } from '@dltech/atlas-harness'
+import type { PrStateWire } from '@dltech/atlas-wire'
 
 import { useShimmerClock } from '../../ui/hooks/use-shimmer-clock'
 import type { SidebarRowSplit } from '../../ui/sidebar-section'
@@ -50,7 +55,7 @@ const foundPullRequest = (entry: PullRequestEntry) =>
     ? entry.reading.pullRequest
     : null
 
-const checksOf = (state: PullRequestState): PullRequest['checks'] => {
+const wireChecksOf = (state: PrStateWire): PullRequest['checks'] => {
   if (state.checksFailed > 0) return EChecksState.Failing
   if (state.checksRunning > 0) return EChecksState.Running
   if (state.checksPassed > 0) return EChecksState.Passing
@@ -58,36 +63,30 @@ const checksOf = (state: PullRequestState): PullRequest['checks'] => {
 }
 
 /**
- * The session log's last-known state for one PR, as a reading the tile can render before the
- * live source (gh poll or SSE) has answered. The live answer always wins — this only fills the
- * gap where the service still has nothing `Found` to show.
+ * A cloud thread's live state arrives over the channel as a wire record, not a service reading. The
+ * tile renders it the same way — only the source differs.
  */
-const recordedReading = (
-  recorded: readonly PullRequestState[],
-  key: string,
-): PullRequestReading | null => {
-  const state = recorded.find((entry) => `${entry.repo}#${entry.number}` === key)
-  if (state === undefined) return null
-
-  return {
-    lookup: EPullRequestLookup.Found,
-    pullRequest: {
-      number: state.number,
-      title: '',
-      url: state.url,
-      state: state.state,
-      checks: checksOf(state),
-      tally: { running: state.checksRunning, passed: state.checksPassed, failed: state.checksFailed },
-    },
-  }
+const wireStateOf = (state: PrStateWire['state']): PullRequest['state'] => {
+  if (state === 'open') return EPullRequestState.Open
+  if (state === 'draft') return EPullRequestState.Draft
+  if (state === 'merged') return EPullRequestState.Merged
+  return EPullRequestState.Closed
 }
 
-const withRecordedFallback = (
-  live: PullRequestReading,
-  recorded: readonly PullRequestState[],
-  key: string,
-): PullRequestReading =>
-  live.lookup === EPullRequestLookup.Found ? live : (recordedReading(recorded, key) ?? live)
+const wireReading = (state: PrStateWire): PullRequestReading => ({
+  lookup: EPullRequestLookup.Found,
+  pullRequest: {
+    number: state.number,
+    title: '',
+    url: state.url,
+    state: wireStateOf(state.state),
+    checks: wireChecksOf(state),
+    tally: { running: state.checksRunning, passed: state.checksPassed, failed: state.checksFailed },
+  },
+})
+
+const repoStringOf = (checkout: RepositoryCheckout): string =>
+  `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}`
 
 const rowOf = (args: {
   entry: PullRequestEntry
@@ -129,23 +128,51 @@ export function usePullRequest(args: {
   projectDirectory: string
   working: boolean
   linked: readonly LinkedPullRequest[]
-  recorded?: readonly PullRequestState[]
   cloud: RepositoryCheckout | null
+  /** The channel-fed reader for a cloud thread's live states; absent for local threads. */
+  remote?: RemotePrStateReader | null
+  /** The badge cache behind the muted fallback when a cloud serve is unreachable. */
+  badges?: PullRequestPort | null
   onOpen: (url: string) => void
   probe?: CheckoutProbe
 }): PullRequestControl {
-  const { service, projectDirectory, working, linked, recorded = [], cloud, onOpen } = args
+  const { service, projectDirectory, working, linked, cloud, onOpen } = args
+  const remote = args.remote ?? null
+  const badges = args.badges ?? null
   const askGit = args.probe ?? probeCheckout
   const [checkout, setCheckout] = useState<RepositoryCheckout | null>(null)
+  const [remoteStates, setRemoteStates] = useState<readonly PrStateWire[]>([])
 
   const version = useSyncExternalStore(service.subscribe, service.version)
 
+  // A cloud thread renders the serve's live set, pushed over the channel; the local service never
+  // tracks it. When the serve is unreachable the badge cache fills the gap with the muted
+  // last-known reading.
   useEffect(() => {
-    if (cloud === null) return
+    if (cloud === null || remote === null) return
+
+    setCheckout((current) => (sameCheckout(current, cloud) ? current : cloud))
+    let owned = true
+    const apply = (states: readonly PrStateWire[]) => {
+      if (owned) setRemoteStates(states)
+    }
+    void remote.states().then(apply)
+    return remote.onChange(() => {
+      void remote.states().then(apply)
+    })
+  }, [cloud, remote])
+
+  useEffect(() => {
+    if (cloud !== null) return
+    setRemoteStates([])
+  }, [cloud])
+
+  useEffect(() => {
+    if (cloud === null || remote !== null) return
 
     setCheckout((current) => (sameCheckout(current, cloud) ? current : cloud))
     service.track({ checkout: cloud })
-  }, [cloud, service])
+  }, [cloud, remote, service])
 
   const probe = useCallback(
     async (owned: () => boolean): Promise<void> => {
@@ -189,16 +216,35 @@ export function usePullRequest(args: {
   }, [probe, working])
 
   const entries = useMemo(() => {
-    const reading =
-      checkout === null
-        ? null
-        : withRecordedFallback(service.snapshot({ key: checkoutKey(checkout) }), recorded, checkoutKey(checkout))
+    // A cloud thread with a live serve renders the pushed set; a parked or reaped serve leaves the
+    // badge cache's muted last-known reading in its place. Local threads read the local service as
+    // they always have.
+    if (cloud !== null && remote !== null) {
+      const repo = repoStringOf(cloud)
+      const fromWire = (key: string): PullRequestReading => {
+        const state = remoteStates.find((entry) => `${entry.repo}#${entry.number}` === key)
+        if (state !== undefined) return wireReading(state)
+        return badges?.peekBadge({ kind: 'linked', repo, number: Number(key.split('#').pop()) }) ?? NO_PULL_REQUEST_READING
+      }
+      const trackedState = remoteStates.find((entry) => entry.repo === repo && entry.branch === cloud.branch)
+      const currentReading =
+        trackedState !== undefined
+          ? wireReading(trackedState)
+          : (badges?.peekBadge({ kind: 'checkout', checkout: cloud }) ?? NO_PULL_REQUEST_READING)
+      return pullRequestEntries({
+        linked,
+        read: fromWire,
+        current: checkout === null ? null : { checkout: cloud, reading: currentReading },
+      })
+    }
+
+    const reading = checkout === null ? null : service.snapshot({ key: checkoutKey(checkout) })
     return pullRequestEntries({
       linked,
-      read: (key) => withRecordedFallback(service.snapshot({ key }), recorded, key),
+      read: (key) => service.snapshot({ key }),
       current: checkout === null || reading === null ? null : { checkout, reading },
     })
-  }, [checkout, linked, recorded, service, version])
+  }, [checkout, linked, service, version, cloud, remote, remoteStates, badges])
 
   const anyRunning = entries.some((entry) => {
     const pullRequest = foundPullRequest(entry)

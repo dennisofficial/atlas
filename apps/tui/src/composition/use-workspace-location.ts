@@ -8,7 +8,6 @@ import { isShellRunning } from '../ui/shells-model'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { liftRefusal } from './cloud/lift-plan'
 import { EContainerAsk } from './commands'
-import { ELocalMoveStep } from './container-move'
 import {
   currentLocationNotice,
   movedLocationNotice,
@@ -110,13 +109,19 @@ export function useWorkspaceLocation(args: {
         return true
       }
 
-      containerMove.handleBegin({ target })
+      containerMove.handleBegin({
+        target,
+        rows: [
+          { id: 'stopping', text: 'stopping services, moving sub-agents', nodeIds: ['stopping'] },
+          { id: 'flipping', text: 'handing the conversation over', nodeIds: ['flipping'] },
+        ],
+      })
+      containerMove.handleRowActive('stopping')
       const threadId = conversation.threadId
       const from = execution.location
 
-      containerMove.handleAdvance(ELocalMoveStep.Relocating)
       void props.app
-        .moveTools({ threadId, target, onProgress: () => containerMove.handleAdvance(ELocalMoveStep.Flipping) })
+        .moveTools({ threadId, target, onProgress: () => containerMove.handleRowActive('flipping') })
         .then((moved) => {
           if (!moved.ok) {
             const reason = moveFailedNotice({ target, from, detail: moved.reason })

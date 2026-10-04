@@ -17,7 +17,7 @@ import { SelectableModelToken } from '@dltech/atlas-harness'
 import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
 import { composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
-import { portToken } from '@dltech/atlas-harness'
+import { portToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
@@ -25,15 +25,19 @@ import { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
 import { EPortableStateBoot, installPortableState } from './portable-state'
-import type { ServeApp, ServeCompose, ServeModelBridge } from './serve-app'
+import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
 import { ServeProcessPort } from './serve-process'
-import { rotationEndingsFor } from './rotation-endings'
-import { workspaceHooksFor } from './workspace-hooks'
+import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
 import { serveMemoryArchive, serveSessionArchive } from './serve-session-archive'
 
 export const SERVE_COMMAND = 'serve'
 
-type ServeStores = { log: EventLogPort; threads: ThreadStorePort; modelBridge: ServeModelBridge }
+type ServeStores = {
+  log: EventLogPort
+  threads: ThreadStorePort
+  modelBridge: ServeModelBridge
+  prStates?: ServePrStates | undefined
+}
 
 const given = (value: string | undefined): string | undefined =>
   value === undefined || value.trim().length === 0 ? undefined : value.trim()
@@ -111,6 +115,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         const log = container.resolve(portToken(EventLogPort))
         const threads = container.resolve(portToken(ThreadStorePort))
         const model = container.resolve(SelectableModelToken)
+        const prStates = container.isRegistered(portToken(GithubUiBridgePort), true)
+          ? {
+              snapshot: () => container.resolve(portToken(GithubUiBridgePort)).service.states(),
+              subscribe: (listener: () => void) =>
+                container.resolve(portToken(GithubUiBridgePort)).service.subscribe(listener),
+            }
+          : undefined
         const modelBridge: ServeModelBridge = {
           effort: () => model.choice().effort,
           select: (next) => {
@@ -139,7 +150,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           }),
         })
 
-        return { log, threads, modelBridge }
+        return { log, threads, modelBridge, ...(prStates === undefined ? {} : { prStates }) }
       },
     },
   })
@@ -159,7 +170,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ids: app.ids,
   })
 
-  let pausedChildren: readonly ThreadId[] = []
+  const pausedChildren = new Set<ThreadId>()
   let releaseFamily: (() => void) | undefined
 
   return {
@@ -178,12 +189,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     sessionArchive: () => serveSessionArchive({ threadId: args.threadId, endFamilyShells: workspaceHooks.endFamilyShells }),
     memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity: args.identity ?? null }),
-    adoptChildren: async ({ threadId }) => {
+    adoptChildren: async ({ threadId, resumeChildren }) => {
       await adoptTransferredChildren({ agents: app.agents, threadId })
-      return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId })
+      return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId, resumeChildren })
     },
     recordLostShells: ({ threadId }) => app.shells.reconcile({ threadId }),
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
+    recordLostAgents: ({ threadId }) => app.agents.recordLostAgents({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     family: {
       freeze: async ({ threadId }) => {
@@ -191,12 +203,26 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       },
       pauseChildren: async ({ threadId }) => {
         releaseFamily ??= await holdFamilyIntake({ threadId, threads: app.surface.threads, intake: app.intake })
-        pausedChildren = await app.agents.pauseChildren({ threadId })
+        try {
+          for (const child of await app.agents.pauseChildren({ threadId })) pausedChildren.add(child)
+        } finally {
+          const family = await familyThreadIdsOf({ root: threadId, threads: app.surface.threads })
+          for (const child of app.agents.listEverywhere()) {
+            if (family.has(child.spawnedBy) && child.status === EAgentStatus.Paused) pausedChildren.add(child.agentId)
+          }
+        }
       },
-      resumeChildren: async ({ threadId }) => {
-        const children = pausedChildren
-        pausedChildren = []
-        for (const agentId of children) await app.agents.resume({ agentId, threadId })
+      resumeChildren: async () => {
+        const roster = app.agents.listEverywhere()
+        for (const agentId of pausedChildren) {
+          const child = roster.find((entry) => entry.agentId === agentId)
+          if (child === undefined) throw new Error(`paused child ${agentId} is missing from the family roster`)
+          if (child.status === EAgentStatus.Paused) {
+            const resumed = await app.agents.resume({ agentId, threadId: child.spawnedBy })
+            if (!resumed.ok) throw new Error(resumed.reason)
+          }
+          pausedChildren.delete(agentId)
+        }
         releaseFamily?.()
         releaseFamily = undefined
       },
@@ -209,15 +235,17 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
     executionLocation: app.executionLocation,
-    endProcesses: rotationEndingsFor({
+    endProcesses: ({ killedBy }) => stopWorkspaceProcessesFor({
+      killedBy,
       root: args.threadId,
       shells: app.shells,
       services: app.services,
       log: app.surface.log,
       threads: app.surface.threads,
       ids: app.ids,
-    }),
+    })(),
     ...workspaceHooks,
+    ...(app.surface.prStates === undefined ? {} : { prStates: app.surface.prStates }),
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

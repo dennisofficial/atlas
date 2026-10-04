@@ -8,10 +8,10 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type { UserSettingsTarget } from './apply-user-settings'
-import type { RosterWire } from '@dltech/atlas-wire'
+import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
-import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController } from '@dltech/atlas-harness'
+import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController, RecoveredAgents } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
@@ -41,6 +41,17 @@ export type ServeWakeNotices = {
  */
 export type ServeRoster = {
   snapshot: () => RosterWire
+  subscribe: (listener: () => void) => () => void
+}
+
+/**
+ * The github plugin's live pull request readings narrowed to what the socket serves a watching
+ * client, mirroring the roster: a point-in-time snapshot of every currently-Found reading, and a
+ * subscription that fires on any reading change. The socket broadcasts the new set on every fire,
+ * so a steady SSE check stream must be diffed before broadcast — see the emitter that consumes it.
+ */
+export type ServePrStates = {
+  snapshot: () => readonly PrStateWire[]
   subscribe: (listener: () => void) => () => void
 }
 
@@ -111,13 +122,19 @@ export type ServeApp = {
   /** The shared message intake driving this serve's idle wake; absent in fakes. */
   intake?: MessageIntake | undefined
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
-  adoptChildren: (args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>
+  adoptChildren: (args: { threadId: ThreadId; resumeChildren?: readonly ThreadId[] | undefined }) => Promise<readonly ThreadId[]>
   /**
    * Settles the shells the last process lost — a start with no ending behind it gets a synthetic
    * unrecorded ending so the next open reads it off the transcript. Absent in a fake without a log.
    */
   recordLostShells?: ((args: { threadId: ThreadId }) => Promise<readonly LostShell[]>) | undefined
   recordLostServices?: ((args: { threadId: ThreadId }) => Promise<readonly LostService[]>) | undefined
+  /**
+   * Settles the agents the last process lost — a spawn with no ending behind it gets a synthetic
+   * unrecorded ending so the roster stops reporting it as a live or stopped child. Runs in the
+   * sandbox because a cloud thread never reaches the TUI's open-time settlement. Absent in fakes.
+   */
+  recordLostAgents?: ((args: { threadId: ThreadId }) => Promise<RecoveredAgents>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   /** Tars the served session directory for the descend's transcript transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
@@ -160,6 +177,12 @@ export type ServeApp = {
   wakeNotices?: ServeWakeNotices | undefined
   /** Absent in a fake without registries: the client is answered an empty roster instead. */
   roster?: ServeRoster | undefined
+  /**
+   * The github plugin's live pull request readings narrowed to what the socket serves: a point-in
+   * time snapshot, and a subscription that fires on any reading change. Absent where no plugin is
+   * composed — the client falls back to its own badge cache.
+   */
+  prStates?: ServePrStates | undefined
   /** Absent in a fake without registries: a descend pause halts the parent's turn only. */
   family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */

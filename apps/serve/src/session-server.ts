@@ -70,7 +70,14 @@ export function startSessionServer(args: {
       if (pathname === DRAIN_PATH) {
         const reason = await reasonedPost({ request, token })
         if (reason instanceof Response) return reason
-        return Response.json(await args.drain({ reason }))
+        try {
+          return Response.json(await args.drain({ reason }))
+        } catch (failure) {
+          return Response.json({
+            ok: false,
+            message: failure instanceof Error ? failure.message : String(failure),
+          }, { status: 503 })
+        }
       }
 
       if (pathname !== SESSION_PATH) return new Response('not found', { status: 404 })

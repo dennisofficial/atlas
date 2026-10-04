@@ -9,6 +9,7 @@ import {
   loopWatchNudgeDraft,
   loopWatchWindow,
   renderLoopWatchSteps,
+  speechRepeatStart,
   type DecisionAnswer,
   type DecisionPort,
   type Event,
@@ -78,18 +79,36 @@ export function jevLoopWatch(args: {
       questions: jevLoopQuestions({ steps }),
       signal,
     })
-    if (!outcome.ok) return { verdict: ELoopWatch.Unreachable, fault: outcome.fault }
+
+    const echoStart = speechRepeatStart({ events })
+
+    if (!outcome.ok) {
+      if (echoStart !== undefined) {
+        return { verdict: ELoopWatch.Looping, loopStartSeq: echoStart, fault: outcome.fault }
+      }
+      return { verdict: ELoopWatch.Unreachable, fault: outcome.fault }
+    }
 
     const noul = outcome.answers[JEV_LOOP_KEY]?.noul
     if (noul === undefined) {
+      if (echoStart !== undefined) {
+        return {
+          verdict: ELoopWatch.Looping,
+          loopStartSeq: echoStart,
+          fault: 'the decision model gave no loop probability',
+        }
+      }
       return { verdict: ELoopWatch.Unreachable, fault: 'the decision model gave no loop probability' }
     }
 
-    if (noul < JEV_LOOP_THRESHOLD) return { verdict: ELoopWatch.Clear, noul }
+    if (noul < JEV_LOOP_THRESHOLD) {
+      if (echoStart === undefined) return { verdict: ELoopWatch.Clear, noul }
+      return { verdict: ELoopWatch.Looping, loopStartSeq: echoStart, noul }
+    }
 
     return {
       verdict: ELoopWatch.Looping,
-      loopStartSeq: loopStartOf({ answers: outcome.answers, steps }),
+      loopStartSeq: loopStartOf({ answers: outcome.answers, steps }) ?? echoStart,
       noul,
     }
   }

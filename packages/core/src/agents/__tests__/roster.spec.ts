@@ -56,6 +56,24 @@ const ended = ({
   toolCalls: 7,
 })
 
+const failed = ({
+  agentId = CHILD,
+  failureCause,
+}: {
+  agentId?: ReturnType<typeof toThreadId>
+  failureCause?: string
+} = {}): EventDraft => ({
+  type: 'agent-ended',
+  agentId,
+  agentType: 'explore',
+  intent: 'find the callers',
+  status: EAgentStatus.Failed,
+  ...(failureCause === undefined ? {} : { failureCause }),
+  prose: 'four callers',
+  turns: 3,
+  toolCalls: 7,
+})
+
 const restarted = (agentId = CHILD): EventDraft => ({
   type: 'agent-restarted',
   agentId,
@@ -92,8 +110,29 @@ describe('the roster a parent rebuilds from its own log', () => {
     expect(roster[0]?.spawnedAt).toBeDefined()
   })
 
-  it('leaves a blocked ending blocked: the approval it waits on is still in the child log', () => {
+  it('carries the failure cause a failed ending recorded, so a rebuild still knows why', () => {
     const roster = agentRoster({
+      events: [
+        rowOf(spawned()),
+        rowOf(failed({ failureCause: 'provider inference.net returned 402: credit exhausted' })),
+      ],
+      threadId: PARENT,
+    })
+
+    expect(roster[0]?.status).toBe(EAgentStatus.Failed)
+    expect(roster[0]?.failureCause).toBe('provider inference.net returned 402: credit exhausted')
+  })
+
+  it('leaves a failed ending without a recorded cause without one', () => {
+    const roster = agentRoster({
+      events: [rowOf(spawned()), rowOf(failed())],
+      threadId: PARENT,
+    })
+
+    expect(roster[0]?.failureCause).toBeUndefined()
+  })
+
+  it('leaves a blocked ending blocked: the approval it waits on is still in the child log', () => {    const roster = agentRoster({
       events: [rowOf(spawned()), rowOf(ended({ status: EAgentStatus.Blocked }))],
       threadId: PARENT,
     })

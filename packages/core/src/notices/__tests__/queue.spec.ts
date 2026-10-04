@@ -60,6 +60,33 @@ describe('postNotice', () => {
 
     expect(notices.map((notice) => notice.key)).toEqual(['b', 'c', 'd'])
   })
+
+  it('stretches a short ttl to the reading floor when the text is long', () => {
+    const text = 'x'.repeat(120)
+    const notices = post([], { key: 'long', text, ttlMs: 2000 })
+
+    expect(notices[0]?.ttlMs).toBe(6000)
+  })
+
+  it('keeps the caller ttl when it already exceeds the reading floor', () => {
+    const notices = post([], { key: 'short', text: 'ok', ttlMs: 5000 })
+
+    expect(notices[0]?.ttlMs).toBe(5000)
+  })
+
+  it('caps the reading floor so a wall of text does not stand forever', () => {
+    const text = 'x'.repeat(1000)
+    const notices = post([], { key: 'wall', text, ttlMs: 2000 })
+
+    expect(notices[0]?.ttlMs).toBe(20000)
+  })
+
+  it('never stretches a sticky notice', () => {
+    const text = 'x'.repeat(500)
+    const notices = post([], { key: 'sticky', text, ttlMs: null })
+
+    expect(notices[0]?.ttlMs).toBeNull()
+  })
 })
 
 describe('expireNotices', () => {

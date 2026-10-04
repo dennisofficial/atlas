@@ -177,8 +177,8 @@ const composed = async (): Promise<{
     service: bridge.service,
     facts: bridge.facts,
     links: bridge.links,
-    states: bridge.states,
     cloudCheckout: bridge.cloudCheckout,
+    badges: bridge.badges,
     openUrl: () => undefined,
   })
 

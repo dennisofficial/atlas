@@ -413,6 +413,7 @@ export function fakeCloudChannel(
         rosters.delete(listener)
       }
     },
+    onPrStates: () => () => undefined,
     onThreadRenamed: (listener) => {
       threadRenames.add(listener)
       return () => {
@@ -784,7 +785,8 @@ export function fakeBridge(
     sandboxes: {
       create: async ({ threadId, workspace, gpgKey, transcript, captureContext, onRotationStarted }) => {
         const sandbox = args.sandbox ?? RUNNING
-        if (sandbox.rotatedProtocol !== undefined) onRotationStarted?.()
+        if (sandbox.rotatedProtocol !== undefined || sandbox.rotatedFrom !== undefined)
+          onRotationStarted?.()
         // The real create stages the transcript archive next to the serve binary before launch,
         // so the bootstrap untars it into the session directory the sandbox serves from.
         if (transcript !== undefined) await stageTranscript({ threadId, archive: transcript })

@@ -23,18 +23,10 @@ import { probeWorkspace } from '../../workspace/probe'
 import { releaseWorktree } from '../../workspace/worktree-lock'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { retrySleep, type RetryPolicy } from '../retry-policy'
-import { ELiftStep } from './lift'
 import { runRelocation } from './dag'
+import { relocationWaves, type RelocationWave } from './waves'
 import { descendPlan, type DescendRun } from './descend-plan'
 import { relocationMessageOf } from './transition-notice'
-
-export enum EDescendStep {
-  Transferring = 'transferring',
-  Flipping = 'flipping',
-  Relocating = 'relocating',
-}
-
-export type DescendProgressStep = ELiftStep.Interrupting | EDescendStep
 
 export const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
@@ -59,8 +51,9 @@ export type DescendLocalHome = {
 
 export type DescendSurface<Opened> = {
   notice: NoticePort
-  onBegin?: ((args: { plan: readonly DescendProgressStep[] }) => void) | undefined
-  onProgress?: ((step: DescendProgressStep) => void) | undefined
+  onBegin?: ((args: { waves: readonly RelocationWave[] }) => void) | undefined
+  onNodeStart?: ((nodeId: string) => void) | undefined
+  onNodeDone?: ((nodeId: string) => void) | undefined
   protect?: (() => () => void) | undefined
   openLocal: (home: DescendLocalHome, threadId: ThreadId) => Promise<Opened>
   prepareRuntime?: ((args: { opened: Opened; home: DescendLocalHome }) => RuntimeBinding<SessionRuntime>) | undefined
@@ -96,46 +89,43 @@ async function runDescend<Opened>(
 ): Promise<Opened> {
   const { threadId, target, bridge, channel, localApp, surface } = args
   const notice = surface.notice ?? nullNotice
-  const progress = (step: DescendProgressStep): void => surface.onProgress?.(step)
-
-  surface.onBegin?.({
-    plan: args.midTurn
-      ? [ELiftStep.Interrupting, EDescendStep.Transferring, EDescendStep.Flipping, EDescendStep.Relocating]
-      : [EDescendStep.Transferring, EDescendStep.Flipping, EDescendStep.Relocating],
-  })
-  const release = surface.protect === undefined ? NO_PROTECTION : surface.protect()
 
   let opened: Opened | undefined
-  const recovery = await preserveDescendSource({ threadId })
   const run: DescendRun = { pauseLanded: false, pauseRequested: false, restored: undefined, restoration: undefined, home: localApp }
+  const plan = descendPlan<Opened>({
+    threadId,
+    target,
+    midTurn: args.midTurn,
+    bridge,
+    channel,
+    localApp,
+    surface,
+    notice,
+    pauseDeadlineMs: args.pauseDeadlineMs,
+    restoreWorkspace: args.restoreWorkspace,
+    run,
+    setOpened: (value) => {
+      opened = value
+      if (transaction !== undefined && 'prepareRuntime' in transaction) {
+        transaction.prepareRuntime(surface.prepareRuntime?.({ opened: value, home: run.home }))
+      }
+    },
+    logPort: args.logPort,
+    transaction,
+    afterTranscriptLanded: args.afterTranscriptLanded,
+    sourceRecord: args.placement === undefined ? undefined : ('placement' in args.placement ? args.placement.placement : args.placement).snapshot(threadId),
+    destroySleep: args.destroySleep ?? retrySleep,
+  })
+
+  surface.onBegin?.({ waves: relocationWaves(plan) })
+  const release = surface.protect === undefined ? NO_PROTECTION : surface.protect()
+
+  const recovery = await preserveDescendSource({ threadId })
   const result = await runRelocation({
-    plan: descendPlan<Opened>({
-      threadId,
-      target,
-      midTurn: args.midTurn,
-      bridge,
-      channel,
-      localApp,
-      surface,
-      notice,
-      progress,
-      pauseDeadlineMs: args.pauseDeadlineMs,
-      restoreWorkspace: args.restoreWorkspace,
-      run,
-      setOpened: (value) => {
-        opened = value
-        if (transaction !== undefined && 'prepareRuntime' in transaction) {
-          transaction.prepareRuntime(surface.prepareRuntime?.({ opened: value, home: run.home }))
-        }
-      },
-      logPort: args.logPort,
-      transaction,
-      afterTranscriptLanded: args.afterTranscriptLanded,
-      sourceRecord: args.placement === undefined ? undefined : ('placement' in args.placement ? args.placement.placement : args.placement).snapshot(threadId),
-      destroySleep: args.destroySleep ?? retrySleep,
-    }),
+    plan,
     ctx: undefined,
-    onStep: () => undefined,
+    onStep: (id) => surface.onNodeStart?.(id),
+    onDone: (id) => surface.onNodeDone?.(id),
     isCommitted: transaction?.committed,
     log:
       args.logPort === undefined

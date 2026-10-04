@@ -7,7 +7,6 @@ import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-s
 import type { ContainerMoveControl } from '../../use-container-move'
 import { createCloudRunner } from '../cloud-runner'
 import { ECloudSandboxState } from '@dltech/atlas-harness'
-import { ELiftStep } from '@dltech/atlas-harness'
 import { CLOUD_THREAD, fakeBridge, fakeCloudChannel } from './fixture'
 
 beforeEach(() => {
@@ -22,9 +21,12 @@ const fakeMove = (): FakeMove => {
     move: null,
     now: 0,
     handleBegin: (args) => calls.push(`begin:${args.target}`),
-    handleAdvance: (step) => calls.push(`advance:${step}`),
+    handleNodeStart: (nodeId) => calls.push(`start:${nodeId}`),
+    handleNodeDone: (nodeId) => calls.push(`done:${nodeId}`),
+    handleRowActive: (id) => calls.push(`active:${id}`),
+    handleRowLabel: (args) => calls.push(`label:${args.nodeId}:${args.text}`),
     handleExpand: (args) =>
-      calls.push(`expand:${args.step}:${args.heading ?? ''}`),
+      calls.push(`expand:${args.row.id}:${args.heading ?? ''}`),
     handleSettle: () => calls.push('settle'),
     handleFail: (reason) => calls.push(`fail:${reason}`),
     handleDismiss: () => calls.push('dismiss'),
@@ -69,8 +71,7 @@ describe('waking a cloud runner whose channel is not open', () => {
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `advance:${ELiftStep.Starting}`,
-      `advance:${ELiftStep.Attaching}`,
+      'active:attaching',
       'settle',
     ])
 
@@ -156,27 +157,31 @@ describe('waking a cloud runner whose channel is not open', () => {
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-3') })
   })
 
-  it('warns when the wake resumes a sandbox whose outdated serve survived an attached client', async () => {
+  it('expands the drawer with a rotation step when the wake rotates a build-drifted sandbox', async () => {
     const bridge = fakeBridge({
-      sandbox: { ...RESUMED, outdatedServe: '1.19.1' },
+      sandbox: { ...RESUMED, rotatedFrom: '1.19.1' },
     })
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    const move = fakeMove()
     const runner = createCloudRunner({
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      move,
       captureContext: async () => undefined,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
 
+    expect(move.calls).toEqual([
+      `begin:${EExecutionLocation.Cloud}`,
+      `expand:rotating:UPDATING THE CLOUD SANDBOX`,
+      'active:attaching',
+      'settle',
+    ])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
-    const notice = currentNotices().find((entry) => entry.key === 'wake-outdated-serve')
-    expect(notice).toBeDefined()
-    expect(notice?.tone).toBe(ENoticeTone.Warn)
-    expect(notice?.text).toContain('1.19.1')
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
@@ -202,9 +207,8 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `advance:${ELiftStep.Starting}`,
       `expand:rotating:UPDATING THE CLOUD SANDBOX`,
-      `advance:${ELiftStep.Attaching}`,
+      'active:attaching',
       'settle',
     ])
 
@@ -229,7 +233,6 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `advance:${ELiftStep.Starting}`,
       'fail:no capacity in iad1',
     ])
     expect(channel.woken).toEqual([])

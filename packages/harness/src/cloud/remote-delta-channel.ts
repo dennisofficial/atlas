@@ -7,6 +7,7 @@ import type { TurnOutcome } from '../loop/turn-outcome'
 import {
   runtimeCheckpointSchema,
   type PendingEntryWire,
+  type PrStateWire,
   type RosterWire,
   type RuntimeCheckpoint,
 } from '@dltech/atlas-wire'
@@ -106,6 +107,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onReady(listener: (ready: ChannelReady) => void): Unsubscribe
   onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
   onRoster(listener: (roster: RosterWire) => void): Unsubscribe
+  onPrStates(listener: (states: readonly PrStateWire[]) => void): Unsubscribe
   pendingEntries(): readonly PendingEntryWire[]
   onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): Unsubscribe
   onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
@@ -219,6 +221,7 @@ export function createRemoteDeltaChannel(args: {
   const reloads = registryOf<ChannelReload>()
   const readies = registryOf<ChannelReady>()
   const rosters = registryOf<RosterWire>()
+  const prStates = registryOf<readonly PrStateWire[]>()
   const pendingChanges = registryOf<readonly PendingEntryWire[]>()
   const threadRenames = registryOf<ThreadRenamedFrame>()
   const threadModelChanges = registryOf<ThreadModelChangedFrame>()
@@ -487,6 +490,10 @@ export function createRemoteDeltaChannel(args: {
     }
     if (frame.kind === EServeFrame.Roster) {
       rosters.emit(frame.roster)
+      return
+    }
+    if (frame.kind === EServeFrame.PrStates) {
+      prStates.emit(frame.states)
       return
     }
     if (frame.kind === EServeFrame.ThreadRenamed) {
@@ -786,6 +793,7 @@ export function createRemoteDeltaChannel(args: {
     onInterruptAck: (listener) => interruptAcks.add(listener),
 
     onRoster: (listener) => rosters.add(listener),
+    onPrStates: (listener) => prStates.add(listener),
 
     pendingEntries: () => heldPending,
 

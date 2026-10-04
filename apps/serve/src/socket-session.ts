@@ -1,4 +1,4 @@
-import { rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { prStatesWireSchema, rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import {
   CHANNEL_PROTOCOL_VERSION,
@@ -32,12 +32,15 @@ export type {
 const POLICY_VIOLATION = 1008
 const GOING_AWAY = 1001
 
-/** A serve without registries (a spec fake) has nothing to report — an empty roster, not an error. */
 const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
+
+/** A serve without the github plugin (a spec fake) has nothing to report — empty, not an error. */
+const EMPTY_PR_STATES: NonNullable<SessionHandlersArgs['prStates']>['snapshot'] = () => []
 
 export function createSessionHandlers(args: SessionHandlersArgs): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
+  const prStatesSnapshot = args.prStates?.snapshot ?? EMPTY_PR_STATES
   const rewind = args.rewind
   const { agents, operatorInput } = args
   const pending = args.pending
@@ -65,6 +68,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     files,
     log,
     snapshot,
+    prStates: prStatesSnapshot,
     send: (sent) => {
       mutations.observe(sent.frame)
       send(sent)
@@ -86,7 +90,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     return current === null ? {} : { checkpoint: current }
   }
 
-  /** The alias lives exactly as long as the step it renames, and only for the socket that reloaded. */
   const forSocket = (args: { socket: SessionSocket; frame: ServeFrame }): ServeFrame => {
     const alias = args.socket.data.alias
     if (alias === null) return args.frame
@@ -287,6 +290,12 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       for (const socket of attached) socket.send(encoded)
     },
 
+    broadcastPrStates() {
+      const frame: ServeFrame = { kind: EServeFrame.PrStates, states: prStatesWireSchema.parse({ states: prStatesSnapshot() }).states }
+      const encoded = encodeFrame(frame)
+      for (const socket of attached) socket.send(encoded)
+    },
+
     /**
      * A clean close, never terminate(): terminate is what leaves a client staring at a bare 1006
      * until Vercel's edge notices the socket is dead, up to 340s later.
@@ -309,5 +318,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
 
     clients: () => attached.size,
     settling: () => router.state.restoring !== null || mutations.active(),
+    whenSettled: async () => { await router.state.restoring; await mutations.whenSettled() },
   }
 }
