@@ -111,7 +111,7 @@ const snapshotOf = (entry: Opened, agentId: ThreadId) =>
   entry.supervisor.list({ threadId: entry.parent }).find((one) => one.agentId === agentId)
 
 describe('pausing a stepping child', () => {
-  it('finds a descendant spawned while an ancestor is reaching its seam', async () => {
+  it('relocates a descendant that failed while an ancestor was reaching its seam — its ending is logged, not a blocker', async () => {
     const entry = await openSupervisor()
     opened.push(entry)
     const child = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
@@ -120,7 +120,8 @@ describe('pausing a stepping child', () => {
     const descendant = await spawn({ entry, threadId: child, agentType: 'explore' })
     entry.runners.started[1]?.fail(new Error('late descendant failed'))
     entry.runners.started[0]?.settle(relocationPaused())
-    await expect(pausing).rejects.toThrow(`child ${descendant} is failed`)
+    const paused = await pausing
+    expect(paused).toEqual([child])
     const events = await entry.harness.log.readOwn({ threadId: child })
     expect(events.some((event) => event.type === 'agent-ended' && event.agentId === descendant && event.status === EAgentStatus.Failed)).toBe(true)
   })
@@ -140,11 +141,11 @@ describe('pausing a stepping child', () => {
     }
   })
 
-  it('rejects a failed child only after its siblings stop writing', async () => {
+  it('pauses past a failed child only after its siblings stop writing', async () => {
     const entry = await openSupervisor()
     opened.push(entry)
     const first = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
-    await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
+    const sibling = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
     const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
     let ended = false
     void pausing.then(() => { ended = true }, () => { ended = true })
@@ -152,7 +153,9 @@ describe('pausing a stepping child', () => {
     await Bun.sleep(1)
     expect(ended).toBe(false)
     entry.runners.started[1]?.settle(relocationPaused())
-    await expect(pausing).rejects.toThrow(`child ${first} is failed`)
+    const paused = await pausing
+    expect(ended).toBe(true)
+    expect(paused).toEqual([sibling])
     const events = await entry.harness.log.readOwn({ threadId: entry.parent })
     expect(events.some((event) => event.type === 'agent-ended' && event.agentId === first && event.status === EAgentStatus.Failed)).toBe(true)
   })

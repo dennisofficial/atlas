@@ -139,7 +139,7 @@ export async function pauseThreadChildren({
   if (steps.admitting({ threadIds: [...family] })) {
     return pauseThreadChildren({ threadId, caller, roster, steps, recovery, deps, delivery })
   }
-  const unsafe = children.find((child) => child.status === EAgentStatus.Failed || isStepping(child) ||
+  const unsafe = children.find((child) => isStepping(child) ||
     (stepping.includes(child) && child.status !== EAgentStatus.Paused && child.status !== EAgentStatus.Finished))
   if (unsafe !== undefined) throw new Error(`child ${unsafe.agentId} is ${unsafe.status} instead of paused or completed`)
   return children.filter((child) => child.status === EAgentStatus.Paused)
