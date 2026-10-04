@@ -53,7 +53,7 @@ it('waits for an accepted restore before confirming family pause or persisting t
     haltIdle: noop, whenMutationsSettled: handlers.whenSettled,
     checkpoint, close: async () => undefined, exit: noop, log: noop,
   })
-  const socket = { data: { helloed: true, alias: null }, send: () => 0 } as unknown as SessionSocket
+  const socket = { data: { helloed: true, alias: null, greeting: 0, greeted: true, held: [] }, send: () => 0 } as unknown as SessionSocket
   try {
     handlers.message({ socket, message: encodeFrame({ kind: EClientFrame.Request, id: 'restore', op: EClientRequest.RestoreTranscript, params: {} }) })
     await entered.promise

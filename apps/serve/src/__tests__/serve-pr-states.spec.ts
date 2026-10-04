@@ -34,7 +34,7 @@ const untouchedDriver = (): ServeTurnDriver =>
 const freshSocket = (): { socket: SessionSocket; sent: string[] } => {
   const sent: string[] = []
   const socket = {
-    data: { helloed: false, alias: null },
+    data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [] },
     send: (payload: string) => {
       sent.push(payload)
     },
@@ -44,11 +44,15 @@ const freshSocket = (): { socket: SessionSocket; sent: string[] } => {
   return { socket, sent }
 }
 
-const hello = (socket: SessionSocket, handlers: ReturnType<typeof handlersFor>): void => {
+// The greet reads the transcript head off the wire's async store, so the socket is greeted a
+// microtask after the hello — awaiting it lets the Request that follows land on a greeted socket.
+const hello = async (socket: SessionSocket, handlers: ReturnType<typeof handlersFor>): Promise<void> => {
   handlers.message({
     socket,
     message: encodeFrame({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 }),
   })
+  await Promise.resolve()
+  await Promise.resolve()
 }
 
 const handlersFor = (args?: { prStates?: ServePrStates }) =>
@@ -70,10 +74,10 @@ const scriptedPrStates = (snapshot: readonly PrStateWire[]): ServePrStates => ({
 })
 
 describe('the serve channel pull request states', () => {
-  it('answers list-pr-states with the plugin snapshot', () => {
+  it('answers list-pr-states with the plugin snapshot', async () => {
     const handlers = handlersFor({ prStates: scriptedPrStates([aState()]) })
     const { socket, sent } = freshSocket()
-    hello(socket, handlers)
+    await hello(socket, handlers)
     sent.length = 0
 
     handlers.message({
@@ -89,10 +93,10 @@ describe('the serve channel pull request states', () => {
     expect(reply.data.states[0]?.number).toBe(1024)
   })
 
-  it('answers an empty set when no github plugin is composed', () => {
+  it('answers an empty set when no github plugin is composed', async () => {
     const handlers = handlersFor()
     const { socket, sent } = freshSocket()
-    hello(socket, handlers)
+    await hello(socket, handlers)
     sent.length = 0
 
     handlers.message({
@@ -105,10 +109,10 @@ describe('the serve channel pull request states', () => {
     expect(reply.data.states).toEqual([])
   })
 
-  it('broadcasts the current set to attached clients', () => {
+  it('broadcasts the current set to attached clients', async () => {
     const handlers = handlersFor({ prStates: scriptedPrStates([aState({ number: 2048 })]) })
     const { socket, sent } = freshSocket()
-    hello(socket, handlers)
+    await hello(socket, handlers)
     sent.length = 0
 
     handlers.broadcastPrStates()

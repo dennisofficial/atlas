@@ -25,6 +25,7 @@ const sessionOn = (
     appliedSnapshot?:
       | (() => { identity: { head: number; count: number; digest: string }; appliedAt: number } | null)
       | undefined
+    subscribeApplied?: boolean | undefined
   } = {},
 ) => {
   // An attach only happens once the channel has answered its Hello, so the session reads Open —
@@ -35,6 +36,7 @@ const sessionOn = (
       : { connection: args.connection }),
   })
   const reloads: CloudReload[] = []
+  const appliedListeners = new Set<() => void>()
   const session = createCloudSession({
     channel,
     sandboxes: {
@@ -49,9 +51,22 @@ const sessionOn = (
       reloads.push(reload)
     },
     ...(args.appliedSnapshot === undefined ? {} : { appliedSnapshot: args.appliedSnapshot }),
+    ...(args.subscribeApplied === true
+      ? {
+          subscribeApplied: (listener: () => void) => {
+            appliedListeners.add(listener)
+            return () => {
+              appliedListeners.delete(listener)
+            }
+          },
+        }
+      : {}),
   })
+  const applied = (): void => {
+    for (const listener of [...appliedListeners]) listener()
+  }
 
-  return { channel, session, reloads }
+  return { channel, session, reloads, applied }
 }
 
 describe('what the operator is told about the socket', () => {
@@ -511,6 +526,137 @@ describe('the sandbox lifecycle and transcript freshness', () => {
     await settled()
 
     expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+  })
+})
+
+describe("freshness rides the serve's currency vouch", () => {
+  const vouchingReady = { turnInFlight: false, transcriptCurrent: true }
+
+  it('undims an open socket the moment a ready vouches currency, no reload required', () => {
+    const { channel, session } = sessionOn({
+      connection: { state: EChannelConnection.Connecting, detail: null },
+    })
+    expect(session.health().stale).toBe(true)
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    expect(session.health().stale).toBe(true)
+
+    channel.ready(vouchingReady)
+
+    expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('never dims through a deliberate re-attach once the log was vouched current', () => {
+    const { channel, session } = sessionOn({
+      connection: { state: EChannelConnection.Open, detail: null },
+    })
+    channel.ready(vouchingReady)
+    expect(session.health().stale).toBe(false)
+
+    // A wake re-attach closes the socket on purpose; the log is no less correct for it.
+    channel.moveTo({ state: EChannelConnection.Connecting, detail: null })
+    expect(session.health().stale).toBe(false)
+    channel.moveTo({ state: EChannelConnection.Waking, detail: null })
+    expect(session.health().stale).toBe(false)
+
+    // The fresh socket re-vouches at greet and the session stays undimmed throughout.
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.ready(vouchingReady)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('holds the dim through a deliberate re-attach that has not yet re-vouched', () => {
+    const { channel, session } = sessionOn({
+      connection: { state: EChannelConnection.Connecting, detail: null },
+    })
+    expect(session.health().stale).toBe(true)
+
+    // Still connecting, nothing vouched yet: the transcript stays dimmed until the ready lands.
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    expect(session.health().stale).toBe(true)
+
+    channel.ready(vouchingReady)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('drops the vouch on an unclean disconnect and re-earns it on the reconnect', () => {
+    const { channel, session } = sessionOn({
+      connection: { state: EChannelConnection.Open, detail: null },
+    })
+    channel.ready(vouchingReady)
+    expect(session.health().stale).toBe(false)
+
+    // The socket dropped out from under the session: the serve may have appended meanwhile.
+    channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+    expect(session.health().stale).toBe(true)
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    expect(session.health().stale).toBe(true)
+
+    channel.ready(vouchingReady)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('keeps an old serve (no vouch field) on reload-driven freshness', async () => {
+    const { channel, session } = sessionOn({
+      connection: { state: EChannelConnection.Open, detail: null },
+    })
+    // A ready from a serve built before the field: no transcriptCurrent, so no undim.
+    channel.ready({ turnInFlight: false })
+    expect(session.health().stale).toBe(true)
+
+    // The reload landing is what proves currency, exactly as before the vouch existed.
+    channel.reload({ sinceEventSeq: 0 })
+    await settled()
+    expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('keeps an old serve (no vouch field) on the applied tick when nothing reloads', () => {
+    const { channel, session, applied } = sessionOn({
+      connection: { state: EChannelConnection.Open, detail: null },
+      appliedSnapshot: () => ({
+        identity: { head: 7, count: 7, digest: 'a'.repeat(64) },
+        appliedAt: Date.parse('2026-10-01T09:41:00.000Z'),
+      }),
+      subscribeApplied: true,
+    })
+    // A ready from a serve built before the field: no transcriptCurrent, so no undim.
+    channel.ready({ turnInFlight: false })
+    expect(session.health().stale).toBe(true)
+
+    // The view applying live deltas on the open socket proves currency, as before the vouch.
+    applied()
+
+    expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('a negative vouch does not undim the socket', () => {
+    const { channel, session } = sessionOn({
+      connection: { state: EChannelConnection.Open, detail: null },
+    })
+    channel.ready({ turnInFlight: false, transcriptCurrent: false })
+
+    expect(session.health().freshness).toBe(ECloudFreshness.Unknown)
+    expect(session.health().stale).toBe(true)
+  })
+
+  it('a reload demanded after the vouch re-dims until the resync lands', async () => {
+    const { channel, session, reloads } = sessionOn({
+      connection: { state: EChannelConnection.Open, detail: null },
+    })
+    channel.ready(vouchingReady)
+    expect(session.health().stale).toBe(false)
+
+    // A signal gap after the vouch means the log no longer reflects the wire: dim again.
+    channel.reload({ sinceEventSeq: 4 })
+    expect(session.health().stale).toBe(true)
+    await settled()
+
+    expect(reloads).toEqual([{ sinceEventSeq: 4 }])
     expect(session.health().stale).toBe(false)
   })
 })

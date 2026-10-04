@@ -125,7 +125,7 @@ describe('a set-thread-model op against a supervised agent', () => {
       },
       threadId,
       transcript: {
-        log: { read: async () => [], readOwn: async () => [] },
+        log: { read: async () => [], readOwn: async () => [], head: async () => 0 },
         threads: {
           find: async () => ({
             id: threadId,

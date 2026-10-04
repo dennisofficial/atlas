@@ -42,7 +42,7 @@ describe('cloud model retarget ownership', () => {
         },
         threadId: ROOT,
         transcript: {
-          log: { read: async () => [], readOwn: async () => [] },
+          log: { read: async () => [], readOwn: async () => [], head: async () => 0 },
           threads: {
             find: async ({ threadId }) => rows.get(threadId),
             spawned: async () => [],

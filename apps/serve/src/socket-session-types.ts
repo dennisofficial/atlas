@@ -18,7 +18,13 @@ import type { answerWorkspaceTransfer } from './workspace-ops'
 
 type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate'>
 
-export type SocketState = { helloed: boolean; alias: StepAlias | null }
+export type SocketState = {
+  helloed: boolean
+  alias: StepAlias | null
+  greeting: number
+  greeted: boolean
+  held: ClientFrame[]
+}
 
 export type SessionSocket = ServerWebSocket<SocketState>
 

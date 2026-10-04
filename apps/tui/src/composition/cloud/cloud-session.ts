@@ -22,6 +22,12 @@ import {
 
 import { parkedFreshnessOf } from './parked-resume'
 
+const DELIBERATE_REATTACH = new Set<EChannelConnection>([
+  EChannelConnection.Connecting,
+  EChannelConnection.Reattaching,
+  EChannelConnection.Waking,
+])
+
 export type CloudHealth = {
   connection: CloudConnection
   sandbox: ECloudSandboxLifecycle
@@ -69,7 +75,13 @@ export function createCloudSession(args: {
   let status: CloudSandboxStatus | null = null
   let checkpoint: RuntimeCheckpoint | null = channel.checkpoint?.() ?? null
   let failure: string | null = null
-  let synced = connection.state === EChannelConnection.Open && args.appliedSnapshot?.() != null
+  // The serve vouched, at the latest Ready, that the log's head is the hello's lastEventSeq.
+  let vouched = false
+  // The latest Ready carried the transcriptCurrent field at all — a serve built before it does
+  // not, and keeps the pre-vouch freshness semantics.
+  let vouchOffered = false
+  // The log has fallen behind what the socket has since reported: a reload is in flight or due.
+  let dirty = false
   let connectionEpoch = 0
   let inspectionEpoch = 0
   let reloadEpoch = 0
@@ -95,10 +107,16 @@ export function createCloudSession(args: {
       checkpoint !== null && checkpoint.phase === ERuntimePhase.Parked ? checkpoint : null
     const lifecycle =
       parked === undefined && announced === null ? sandbox : ECloudSandboxLifecycle.Parked
+    // A deliberate re-attach (wake, /restart) that has not yet re-vouched holds the freshness the
+    // log already earned — closing the socket on purpose does not make the log less correct. The
+    // hold reads as parked+synced to the mute rule: a known-whole log whose transport is briefly
+    // away on the client's own say-so.
+    const holding =
+      vouched && !dirty && announced === null && DELIBERATE_REATTACH.has(connection.state)
     const freshness = parked !== undefined
       ? parkedFreshnessOf(parked)
-      : connection.state === EChannelConnection.Open
-      ? synced ? ECloudFreshness.Synced : ECloudFreshness.Unknown
+      : holding || (connection.state === EChannelConnection.Open && vouched && !dirty)
+      ? ECloudFreshness.Synced
       : announced !== null
       ? parkedFreshnessOf(
           parkedResumeOf({ record: { checkpoint: announced, applied: applied?.identity ?? null } }),
@@ -112,7 +130,11 @@ export function createCloudSession(args: {
         })
     return {
       connection, sandbox, freshness,
-      stale: isTranscriptMuted({ lifecycle, socketOpen: connection.state === EChannelConnection.Open, freshness }),
+      stale: isTranscriptMuted({
+        lifecycle: holding ? ECloudSandboxLifecycle.Parked : lifecycle,
+        socketOpen: connection.state === EChannelConnection.Open,
+        freshness,
+      }),
       lastSeenAt: applied?.appliedAt ?? null,
       failure,
     }
@@ -191,7 +213,8 @@ export function createCloudSession(args: {
     let retryScheduled = false
     void args.onReload(reload).then(() => {
       if (closed || attachment !== connectionEpoch || request !== reloadEpoch) return
-      synced = true
+      vouched = true
+      dirty = false
       sync()
     }).catch(() => {
       // A resync can fail before it lands — the lift's binding is still committing when the
@@ -212,13 +235,16 @@ export function createCloudSession(args: {
     connection = next
     connectionEpoch += 1
     inspectionEpoch += 1
-    synced = false
-    clearParkTimer()
-    clearRetryTimer()
     if (next.state === EChannelConnection.Open) {
       everOpen = true
       sandbox = ECloudSandboxLifecycle.Running
+    } else if (!DELIBERATE_REATTACH.has(next.state)) {
+      // The socket dropped out from under the session (Reconnecting/Closed/Parked): the serve may
+      // have appended while no wire carried it, so the last vouch no longer holds.
+      vouched = false
     }
+    clearParkTimer()
+    clearRetryTimer()
     sync()
     flushReload()
     if (next.state === EChannelConnection.Closed) inspect()
@@ -228,7 +254,7 @@ export function createCloudSession(args: {
     }
   })
   const unsubscribeReload = channel.onReload((reload) => {
-    synced = false
+    dirty = true
     reloadEpoch += 1
     if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq) pendingReload = reload
     sync()
@@ -256,10 +282,20 @@ export function createCloudSession(args: {
   const unsubscribeApplied = args.subscribeApplied?.(() => {
     if (closed) return
     if (!resyncing && pendingReload === null && connection.state === EChannelConnection.Open) {
-      synced = args.appliedSnapshot?.() != null
+      dirty = false
+      if (!vouchOffered) vouched = args.appliedSnapshot?.() != null
     }
     sync()
   }) ?? (() => undefined)
+  const unsubscribeReady = channel.onReady((ready) => {
+    if (closed) return
+    vouchOffered = ready.transcriptCurrent !== undefined
+    if (ready.transcriptCurrent === true) {
+      vouched = true
+      dirty = false
+    }
+    sync()
+  })
   if (connection.state === EChannelConnection.Closed || connection.state === EChannelConnection.Parked) inspect()
 
   return {
@@ -282,6 +318,7 @@ export function createCloudSession(args: {
       unsubscribeTurnEnded()
       unsubscribeCheckpoint()
       unsubscribeApplied()
+      unsubscribeReady()
       args.onClose?.()
       listeners.clear()
       channel.close()

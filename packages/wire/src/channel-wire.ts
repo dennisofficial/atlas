@@ -258,6 +258,13 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
      * which reproduces the old fail-fast behaviour against an old serve rather than hanging.
      */
     turnInFlight: z.boolean().optional(),
+    /**
+     * Absent on a serve built before this field existed; a client treats that as "no vouch" and
+     * falls back to reload-driven transcript freshness. When true, the serve vouches the client's
+     * durable log is whole: its head equals the hello's lastEventSeq, so nothing was missed
+     * across the attach.
+     */
+    transcriptCurrent: z.boolean().optional(),
     checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional(),
   }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),

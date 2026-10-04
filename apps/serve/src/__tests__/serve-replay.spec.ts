@@ -33,6 +33,7 @@ describe('startServe', () => {
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
       turnInFlight: false,
+      transcriptCurrent: false,
     })
     expect(seqsOf(client.frames)).toEqual([1, 2])
   })
@@ -53,6 +54,7 @@ describe('startServe', () => {
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
       turnInFlight: false,
+      transcriptCurrent: false,
     })
     expect(seqsOf(client.frames)).toEqual([0, 1, 2])
   })
