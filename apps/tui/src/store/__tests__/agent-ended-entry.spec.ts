@@ -93,7 +93,7 @@ describe('a sub-agent ending in the transcript', () => {
     )
 
     expect(entry.text).toBe(
-      'Sub-agent audit the credential failed after 3 turns and 12 tool calls — provider inference.net returned 402: credit exhausted',
+      'Sub-agent audit the credential failed — provider inference.net returned 402: credit exhausted',
     )
     expect(entry.failed).toBe(true)
   })

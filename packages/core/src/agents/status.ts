@@ -56,7 +56,8 @@ function outcome(ending: AgentEnding): string {
 }
 
 export function agentEnding(ending: AgentEnding): string {
-  const told = `${outcome(ending)} ${effort(ending)}`
-  if (ending.status !== EAgentStatus.Failed || ending.failureCause === undefined) return told
-  return `${told} — ${ending.failureCause}`
+  if (ending.status === EAgentStatus.Failed && ending.failureCause !== undefined) {
+    return `failed — ${ending.failureCause}`
+  }
+  return `${outcome(ending)} ${effort(ending)}`
 }

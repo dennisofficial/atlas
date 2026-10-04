@@ -15,7 +15,7 @@ import { usePress } from '../../hooks/use-press'
 import { MARK_OF, NAME_INK_OF, STATE_INK_OF } from '../../subagent-ink'
 import { glyph, theme } from '../../theme'
 import { Spans, type Span } from '../spans'
-import { justifySpans } from './cells'
+import { justifySpans, truncateCells } from './cells'
 import { Row, Section } from './row'
 
 const IDLE = 'idle'
@@ -69,14 +69,20 @@ const valueFor = (subagent: SidebarSubagent) => [
 /**
  * The one line a settled child can spend beyond its title: why it failed, when it failed. A
  * bare "failed" in a panel this narrow answers nothing the operator is asking, and the reason
- * the loop recorded is the difference between respawning the child and fixing the cause.
+ * the loop recorded is the difference between respawning the child and fixing the cause. It is
+ * one line and one line only — a provider error runs long, so it is folded to a single line and
+ * clipped to the row's width rather than letting the reason take over the panel.
  */
-function FailureLine(props: { subagent: SidebarSubagent }): React.ReactNode {
-  if (props.subagent.failureReason === null || props.subagent.failureReason === undefined) return null
+function FailureLine(props: { subagent: SidebarSubagent; cells: number }): React.ReactNode {
+  const reason = props.subagent.failureReason
+  if (reason === null || reason === undefined) return null
+
+  const oneLine = reason.replace(/\s+/g, ' ').trim()
+  const text = truncateCells({ text: `${TITLE_INDENT}${oneLine}`, cells: props.cells })
 
   return (
     <text>
-      <Spans spans={[{ text: `${TITLE_INDENT}${props.subagent.failureReason}`, fg: theme.warn }]} />
+      <Spans spans={[{ text, fg: theme.warn }]} />
     </text>
   )
 }
@@ -154,7 +160,7 @@ function CrewRows(props: {
             value={valueFor(subagent)}
           />
           <FiguresLine subagent={subagent} cells={props.cells} />
-          <FailureLine subagent={subagent} />
+          <FailureLine subagent={subagent} cells={props.cells} />
           <ActivityLine subagent={subagent} />
         </box>
       ))}

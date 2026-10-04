@@ -201,6 +201,26 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
     expect(frame).toContain('provider inference.net returned 402')
   })
 
+  it('clips a long cause to the row rather than letting it wrap the panel', async () => {
+    const lines = await rowsOf({
+      subagents: [
+        row({
+          id: 's1',
+          status: EAgentStatus.Failed,
+          endedAt: '2026-01-01T00:01:00.000Z',
+          state: 'failed',
+          failureReason:
+            'provider inference.net returned 402: credit exhausted after a very long and detailed explanation that will not fit',
+        }),
+      ],
+      cells: WIDTH,
+    })
+
+    const reasonLines = lines.filter((line) => line.includes('402'))
+    expect(reasonLines).toHaveLength(1)
+    expect(reasonLines[0]).toContain('…')
+  })
+
   it('spends no line on a cause a failed child never recorded', async () => {
     const lines = await rowsOf({
       subagents: [

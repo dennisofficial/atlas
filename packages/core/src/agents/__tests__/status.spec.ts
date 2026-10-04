@@ -29,9 +29,7 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
           failureCause: 'provider inference.net returned 402: credit exhausted',
         }),
       ),
-    ).toBe(
-      'failed after 4 turns and 11 tool calls — provider inference.net returned 402: credit exhausted',
-    )
+    ).toBe('failed — provider inference.net returned 402: credit exhausted')
   })
 
   it('keeps a clean finish free of a cause', () => {
