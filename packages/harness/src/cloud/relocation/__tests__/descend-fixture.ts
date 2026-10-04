@@ -29,10 +29,10 @@ import { buildSessionArchive } from '../../session-archive'
 import {
   descendFromCloud,
   type DescendLocalHome,
-  type DescendProgressStep,
   type DestroySleeper,
   type WorkspaceRestorer,
 } from '../descend'
+import type { RelocationWave } from '../waves'
 import { CLOUD_THREAD, fakeBridge, type FakeBridge, type FakeCloudChannel } from './fixture'
 import { fakeRestorer } from './workspace-fixture'
 
@@ -55,14 +55,14 @@ export type OpenedLocal = { threadId: ThreadId; resumeOnArrival?: boolean | unde
 
 export type Surface = {
   readonly notices: { readonly posts: readonly NoticePost[] }
-  readonly begun: readonly DescendProgressStep[][]
-  readonly steps: readonly DescendProgressStep[]
+  readonly begun: readonly RelocationWave[][]
+  readonly doneNodes: readonly string[]
   readonly protects: number
   readonly released: number
   readonly surface: {
     notice: { notify: (post: NoticePost) => void }
-    onBegin: (args: { plan: readonly DescendProgressStep[] }) => void
-    onProgress: (step: DescendProgressStep) => void
+    onBegin: (args: { waves: readonly RelocationWave[] }) => void
+    onNodeDone: (nodeId: string) => void
     protect: () => () => void
     openLocal: (home: DescendLocalHome, threadId: ThreadId) => Promise<OpenedLocal>
   }
@@ -70,8 +70,8 @@ export type Surface = {
 
 export const fakeSurface = (args: { protect?: boolean } = {}): Surface => {
   const posts: NoticePost[] = []
-  const begun: DescendProgressStep[][] = []
-  const steps: DescendProgressStep[] = []
+  const begun: RelocationWave[][] = []
+  const doneNodes: string[] = []
   let protects = 0
   let released = 0
 
@@ -84,8 +84,8 @@ export const fakeSurface = (args: { protect?: boolean } = {}): Surface => {
     get begun() {
       return begun
     },
-    get steps() {
-      return steps
+    get doneNodes() {
+      return doneNodes
     },
     get protects() {
       return protects
@@ -99,11 +99,11 @@ export const fakeSurface = (args: { protect?: boolean } = {}): Surface => {
           posts.push(post)
         },
       },
-      onBegin: ({ plan }) => {
-        begun.push([...plan])
+      onBegin: ({ waves }) => {
+        begun.push([...waves])
       },
-      onProgress: (step) => {
-        steps.push(step)
+      onNodeDone: (nodeId) => {
+        doneNodes.push(nodeId)
       },
       protect: () => {
         if (args.protect === false) return () => undefined

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, ENoticeTone, toRunId } from '@dltech/atlas-core'
 
-import { EDescendStep } from '../descend'
+import { EDescendNode } from '../descend-plan'
 import { fakeAgentSnapshot } from './fake-agents'
 import { CHILD, cloudArchiveOf, descend, fakeSurface, useDescendHome } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
@@ -30,11 +30,12 @@ describe('bringing a cloud conversation home', () => {
     )
     expect(opened.threadId).toBe(CLOUD_THREAD)
     expect(opened.resumeOnArrival).toBeUndefined()
-    expect(surface.steps).toEqual([
-      EDescendStep.Transferring,
-      EDescendStep.Relocating,
-      EDescendStep.Flipping,
-    ])
+    expect(surface.doneNodes).toContain(EDescendNode.ArchiveRemote)
+    expect(surface.doneNodes).toContain(EDescendNode.ReopenLocal)
+    expect(surface.doneNodes).toContain(EDescendNode.FlipHome)
+    expect(surface.doneNodes.indexOf(EDescendNode.ReopenLocal)).toBeLessThan(
+      surface.doneNodes.indexOf(EDescendNode.FlipHome),
+    )
     expect(surface.protects).toBe(1)
     expect(surface.released).toBe(1)
   })

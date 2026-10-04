@@ -8,7 +8,7 @@ import { FOOTER_SELECTION, harness } from './lift-fixture'
 
 describe('stamping the live model selection into the lifted transcript', () => {
   it('runs the stamp before the archive that reads the meta it writes', () => {
-    const plan = liftPlan()
+    const plan = liftPlan({ midTurn: false })
     const order = plan.map((node) => node.id)
     expect(order.indexOf(ELiftNode.StampModel)).toBeLessThan(order.indexOf(ELiftNode.ArchiveSession))
     expect(plan.find((node) => node.id === ELiftNode.ArchiveSession)?.needs).toContain(

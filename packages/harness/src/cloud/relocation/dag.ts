@@ -7,6 +7,8 @@ export type RelocationNode<Ctx> = {
   needs: readonly string[]
   run: (ctx: Ctx) => Promise<void>
   commit?: boolean
+  /** Operator-facing text. Nodes without one do invisible work and never reach a progress surface. */
+  label?: string
 }
 
 export type RelocationPlan<Ctx> = readonly RelocationNode<Ctx>[]
@@ -45,6 +47,7 @@ export async function runRelocation<Ctx>(args: {
   plan: RelocationPlan<Ctx>
   ctx: Ctx
   onStep?: (id: string) => void
+  onDone?: (id: string) => void
   isCommitted?: (() => boolean) | undefined
   /** When present, a failed node lands in the durable log before the run reports it. */
   log?: { port: LogPort; source: string; threadId: ThreadId } | undefined
@@ -100,6 +103,7 @@ export async function runRelocation<Ctx>(args: {
         .then(() => {
           done.add(node.id)
           if (node.commit === true) committed = true
+          args.onDone?.(node.id)
         })
         .catch((error: unknown) => {
           failure ??= { failed: node.id, error }
