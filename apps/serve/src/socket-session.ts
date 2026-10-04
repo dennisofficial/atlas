@@ -110,30 +110,19 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
    * process that restarted with an empty buffer — is told to re-read the durable log, so a gap can
    * never be silent. The in-flight step rides on top, since its deltas have no events behind them.
    */
-  const greet = async (args: { socket: SessionSocket; hello: HelloFrame }): Promise<void> => {
-    const { socket, hello } = args
+  const greetRest = (args: { socket: SessionSocket; hello: HelloFrame; head: number | null; resumed: boolean }): void => {
+    const { socket, hello, head, resumed } = args
     const cursor = hello.channelCursor
-    const resumed = cursor !== null && buffer.holds(cursor)
 
-    if (!resumed) {
-      send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: hello.lastEventSeq } })
+    const ready: ServeFrame = {
+      kind: EServeFrame.Ready,
+      seq: buffer.nextSeq(),
+      protocol: CHANNEL_PROTOCOL_VERSION,
+      turnInFlight: driver.outcomePending(),
+      ...(head === null ? {} : { transcriptCurrent: head === hello.lastEventSeq }),
+      ...checkpointField(),
     }
-
-    const head =
-      transcript === undefined ? null : await transcript.log.head({ threadId }).catch(() => null)
-    if (!live.has(socket)) return
-
-    send({
-      socket,
-      frame: {
-        kind: EServeFrame.Ready,
-        seq: buffer.nextSeq(),
-        protocol: CHANNEL_PROTOCOL_VERSION,
-        turnInFlight: driver.outcomePending(),
-        ...(head === null ? {} : { transcriptCurrent: head === hello.lastEventSeq }),
-        ...checkpointField(),
-      },
-    })
+    send({ socket, frame: ready })
 
     const blocked = refusal()
     if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
@@ -167,6 +156,34 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       backfilled: backfill.length,
       clients: attached.size,
     })
+  }
+
+  const greet = (args: { socket: SessionSocket; hello: HelloFrame }): void => {
+    const { socket, hello } = args
+    const cursor = hello.channelCursor
+    const resumed = cursor !== null && buffer.holds(cursor)
+
+    if (!resumed) {
+      send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: hello.lastEventSeq } })
+    }
+
+    // A serve with no transcript store (a spec fake) has nothing to vouch on, so the greet stays
+    // synchronous; only a real store read suspends for the head.
+    if (transcript === undefined) {
+      greetRest({ socket, hello, head: null, resumed })
+      return
+    }
+
+    void transcript.log.head({ threadId }).then(
+      (head) => {
+        if (!live.has(socket)) return
+        greetRest({ socket, hello, head, resumed })
+      },
+      () => {
+        if (!live.has(socket)) return
+        greetRest({ socket, hello, head: null, resumed })
+      },
+    )
   }
 
   const refuseDeferred = (args: { socket: SessionSocket; frame: ClientFrame; message: string }): void => {
