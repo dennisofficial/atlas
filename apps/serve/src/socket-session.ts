@@ -107,7 +107,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
    * process that restarted with an empty buffer — is told to re-read the durable log, so a gap can
    * never be silent. The in-flight step rides on top, since its deltas have no events behind them.
    */
-  const greet = (args: { socket: SessionSocket; hello: HelloFrame }): void => {
+  const greet = async (args: { socket: SessionSocket; hello: HelloFrame }): Promise<void> => {
     const { socket, hello } = args
     const cursor = hello.channelCursor
     const resumed = cursor !== null && buffer.holds(cursor)
@@ -116,6 +116,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: hello.lastEventSeq } })
     }
 
+    const head =
+      transcript === undefined ? null : await transcript.log.head({ threadId }).catch(() => null)
+    if (!live.has(socket)) return
+
     send({
       socket,
       frame: {
@@ -123,6 +127,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
         turnInFlight: driver.outcomePending(),
+        ...(head === null ? {} : { transcriptCurrent: head === hello.lastEventSeq }),
         ...checkpointField(),
       },
     })
@@ -149,8 +154,9 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     for (const frame of backfill) send({ socket, frame: forSocket({ socket, frame }) })
     if (operatorInput !== undefined) send({ socket, frame: operatorInputSnapshot({ operatorInput, threadId, seq: buffer.nextSeq() }) })
 
-    socket.data.helloed = true
     attached.add(socket)
+    socket.data.greeted = true
+    for (const frame of socket.data.held.splice(0)) drive({ socket, frame })
     log({
       event: EServeEvent.ClientAttached,
       resumed,
@@ -243,12 +249,18 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
           refuse({ socket, reason })
           return
         }
-        greet({ socket, hello: frame })
+        socket.data.helloed = true
+        void greet({ socket, hello: frame })
         return
       }
 
       if (!socket.data.helloed) {
         refuse({ socket, reason: 'the first frame must be hello' })
+        return
+      }
+
+      if (!socket.data.greeted) {
+        socket.data.held.push(frame)
         return
       }
 

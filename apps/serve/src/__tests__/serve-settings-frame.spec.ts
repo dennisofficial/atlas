@@ -51,7 +51,7 @@ const attachedSocket = (): { socket: SessionSocket; sent: string[]; closed: () =
   const sent: string[] = []
   let closed = false
   const socket = {
-    data: { helloed: true, alias: null },
+    data: { helloed: true, alias: null, greeting: 0, greeted: true, held: [] },
     send: (payload: string) => {
       sent.push(payload)
     },

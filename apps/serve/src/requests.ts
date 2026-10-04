@@ -80,7 +80,7 @@ export async function answerRequest(args: {
 }
 
 export type TranscriptReaders = {
-  log: Pick<EventLogPort, 'read' | 'readOwn'>
+  log: Pick<EventLogPort, 'read' | 'readOwn' | 'head'>
   threads: Pick<ThreadStorePort, 'find' | 'spawned' | 'rename' | 'chooseModel'>
   ledger: Pick<TurnLedgerPort, 'forThreadTree'>
 }

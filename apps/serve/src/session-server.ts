@@ -84,7 +84,7 @@ export function startSessionServer(args: {
       }
 
       const upgraded = server.upgrade(request, {
-        data: { helloed: false, alias: null },
+        data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [] },
         headers: { 'Sec-WebSocket-Protocol': CHANNEL_SUBPROTOCOL },
       })
 
