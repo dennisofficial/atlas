@@ -121,6 +121,64 @@ describe('retrying a model step that failed for a reason worth retrying', () => 
     expect(model.steps).toBe(POLICY.maxAttempts)
   })
 
+  it('hands the spent model to onGiveUp, and retries once more when a fallback answers', async () => {
+    const model = new ScriptedModel(['fail', 'fail', 'fail', 'fail', 'fail'])
+    const controller = new AbortController()
+    const givenUp: unknown[] = []
+
+    const stepped = await takeModelStepWithRetry({
+      model,
+      tools: [],
+      onChunk: undefined,
+      assembled: ASSEMBLED,
+      signal: controller.signal,
+      retry: {
+        policy: POLICY,
+        sleep: async () => {},
+        jitter: () => 1,
+        onGiveUp: () => {
+          givenUp.push(model.steps)
+          model.step = async () => {
+            model.steps += 1
+            return REPLIED
+          }
+          return true
+        },
+      },
+    })
+
+    expect(stepped.ok).toBe(true)
+    expect(givenUp).toEqual([POLICY.maxAttempts])
+    expect(model.steps).toBe(POLICY.maxAttempts + 1)
+  })
+
+  it('settles the failure when onGiveUp finds no fallback to try', async () => {
+    const model = new ScriptedModel(['fail', 'fail', 'fail', 'fail', 'fail'])
+    const controller = new AbortController()
+    const givenUp: unknown[] = []
+
+    const stepped = await takeModelStepWithRetry({
+      model,
+      tools: [],
+      onChunk: undefined,
+      assembled: ASSEMBLED,
+      signal: controller.signal,
+      retry: {
+        policy: POLICY,
+        sleep: async () => {},
+        jitter: () => 1,
+        onGiveUp: () => {
+          givenUp.push(model.steps)
+          return false
+        },
+      },
+    })
+
+    expect(stepped.ok).toBe(false)
+    expect(givenUp).toEqual([POLICY.maxAttempts])
+    expect(model.steps).toBe(POLICY.maxAttempts)
+  })
+
   it('logs each retry as will-retry and the give-up as not-retrying', async () => {
     const { logged, run } = harness({ outcomes: ['fail', 'fail', 'fail', 'fail', 'fail'] })
 

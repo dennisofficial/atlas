@@ -239,6 +239,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     threads,
     hooks: () => container.resolve(HookChainToken),
     settings: args.settings,
+    notice,
     ...(args.wake === undefined ? {} : { wake: args.wake }),
   }
   const modelFor = childModelSource(childModels)

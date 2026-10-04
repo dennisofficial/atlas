@@ -36,6 +36,14 @@ const OVERLOADED = 529
 
 const FIRST_SERVER_ERROR = 500
 
+// 401 unauthenticated, 402 payment/credit, 403 forbidden: each is a dead credential, so retrying
+// the same key answers nothing. These are the statuses that route a child to its parent's model
+// instead of into the retry loop.
+const AUTH_FAILURE_STATUSES: ReadonlySet<number> = new Set([401, 402, 403])
+
+export const isAuthFailure = (failure: ModelFailure): boolean =>
+  failure.status !== undefined && AUTH_FAILURE_STATUSES.has(failure.status)
+
 const NOTHING_LEFT_TO_TRY: RetryDecision = { retry: false }
 
 export function retryReasonOf(failure: ModelFailure): ERetryReason | null {

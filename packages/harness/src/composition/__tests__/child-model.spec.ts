@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
+import { APICallError } from '@ai-sdk/provider'
 import { EEffort, toThreadId } from '@dltech/atlas-core'
 
 import { HookChain } from '../../hooks/registry'
@@ -224,5 +225,36 @@ describe('childModelSelection', () => {
     expect(child.identity).toEqual({ id: 'anthropic', modelId: CLAUDE.modelId })
     expect(await askModel(child)).toBe('one')
     expect(await fixture.savedModel(threadId)).toEqual(chosen)
+  })
+
+  describe('a child whose own credential is dead', () => {
+    const deadKey = new APICallError({
+      message: 'the provider rejected the credential',
+      url: 'https://api.openai.com/v1/responses',
+      requestBodyValues: {},
+      statusCode: 401,
+    })
+
+    it('falls back to the session model and answers from it', async () => {
+      const fixture = await childModelFixture({
+        openaiSteps: [{ error: deadKey }],
+        settings: { 'agents.subagentModel': keyOf(GPT) },
+      })
+      const child = await fixture.spawn()
+
+      expect(child.identity).toEqual({ id: 'openai', modelId: GPT.modelId })
+      expect(await askModel(child)).toBe('one')
+      expect(child.identity).toEqual({ id: 'anthropic', modelId: CLAUDE.modelId })
+    })
+
+    it('has nowhere to fall when the child already runs the session model', async () => {
+      const fixture = await childModelFixture({
+        anthropicSteps: [{ error: deadKey }],
+      })
+      const child = await fixture.spawn()
+
+      expect(child.identity).toEqual({ id: 'anthropic', modelId: CLAUDE.modelId })
+      await expect(askModel(child)).rejects.toThrow()
+    })
   })
 })
