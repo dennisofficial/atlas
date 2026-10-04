@@ -17,6 +17,10 @@ export function useResumeOnOpen(args: {
 
   useEffect(() => {
     if (moving) return
+    // A thread reopened while its sandbox still drives the turn (the log ends mid-turn by design
+    // there) only looks resumable from the transcript; firing a resume into it earns a refusal
+    // from serve's idle guard, which surfaces as a warning for a turn that never stopped.
+    if (turnDriver.turnInFlight()) return
     if (resumeOnArrival.current) {
       resumeOnArrival.current = false
       resumeAtLaunch.current = false
