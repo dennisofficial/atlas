@@ -14,7 +14,8 @@ import type { GpgKeyMaterial } from '../../workspace/gpg-material'
 import type { CaptureContext } from '../context-archive-policy'
 import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { runRelocation } from './dag'
-import { liftErrorDetail, liftFailureOf, liftFailureOfRun, liftSettledBeforeDeadline } from './lift-failure'
+import { relocationWaves, type RelocationWave } from './waves'
+import { liftErrorDetail, liftFailureOf, liftFailureOfRun } from './lift-failure'
 import { resumeStoppedChildren, type LiftAgentsPort } from './lift-children'
 import { ELiftNode, liftPlan, type LiftCtx } from './lift-plan'
 import { NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
@@ -28,14 +29,11 @@ export { ELiftNode, liftPlan } from './lift-plan'
 
 export enum ELiftStep {
   Interrupting = 'interrupting',
-  Stopping = 'stopping',
   Transferring = 'transferring',
-  Flipping = 'flipping',
   Capturing = 'capturing',
   Starting = 'starting',
   UploadingContext = 'uploading-context',
   Attaching = 'attaching',
-  Resuming = 'resuming',
 }
 
 export enum ELiftFault {
@@ -101,31 +99,25 @@ export type LiftArgs = {
   captureGpg?: ((args: { cwd: string }) => Promise<GpgKeyMaterial | null>) | undefined
   /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. The lift has no notice port of its own, so the caller supplies the notice-bound capture. */
   captureContext: CaptureContext
-  onProgress: (step: ELiftStep) => void
+  /** The stages the move will pass through, computed from the relocation DAG before anything runs. */
+  onBegin?: ((args: { waves: readonly RelocationWave[] }) => void) | undefined
+  /** A relocation node started — turns its wave active on the surface. */
+  onNodeStart?: ((nodeId: string) => void) | undefined
+  /** A relocation node settled successfully — drives its wave's completion on the surface. */
+  onNodeDone?: ((nodeId: string) => void) | undefined
+  /** Relabels one node's wave mid-flight — the sandbox wait flips to its context-upload text. */
+  onWaveLabel?: ((nodeId: string, label: string) => void) | undefined
   open?: ((args: { attachment: CloudAttachment; transaction: PlacementTransaction | OwnerTransaction<SessionRuntime>; restoredWorkspace?: RestoredWorkspace | undefined }) => Promise<void>) | undefined
 }
 
 export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
-  const { onProgress, threadId } = args
+  const { threadId } = args
 
   const from =
     (await args.localThreads.find({ threadId }))?.executionLocation ?? EExecutionLocation.Host
 
-  if (args.midTurn) {
-    onProgress(ELiftStep.Interrupting)
-    if (args.pause === undefined) args.interrupt()
-    else args.pause()
-  }
-
-  const settled = await liftSettledBeforeDeadline(args)
-  if (!settled) {
-    return liftFailureOf({
-      error: new Error('the turn would not stop in time — nothing moved'),
-      step: ELiftStep.Interrupting,
-      fallback: ELiftFault.Transfer,
-      stopped: NOTHING_WAS_STOPPED,
-    })
-  }
+  const plan = liftPlan({ midTurn: args.midTurn })
+  args.onBegin?.({ waves: relocationWaves(plan) })
 
   let failure: LiftFailure | undefined
   let lifted: LiftSuccess | undefined
@@ -138,7 +130,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
       work: async (transaction) => {
         const ctx: LiftCtx = {
           args,
-          onProgress,
+          onWaveLabel: args.onWaveLabel,
           logPort: args.logPort,
           transaction,
           from,
@@ -157,9 +149,10 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         }
 
         const run = await runRelocation({
-          plan: liftPlan(),
+          plan,
           ctx,
-          onStep: () => undefined,
+          onStep: (id) => args.onNodeStart?.(id),
+          onDone: (id) => args.onNodeDone?.(id),
           isCommitted: transaction.committed,
           log:
             args.logPort === undefined

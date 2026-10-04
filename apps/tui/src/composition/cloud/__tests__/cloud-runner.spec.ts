@@ -7,7 +7,6 @@ import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-s
 import type { ContainerMoveControl } from '../../use-container-move'
 import { createCloudRunner } from '../cloud-runner'
 import { ECloudSandboxState } from '@dltech/atlas-harness'
-import { ELiftStep } from '@dltech/atlas-harness'
 import { CLOUD_THREAD, fakeBridge, fakeCloudChannel } from './fixture'
 
 beforeEach(() => {
@@ -22,9 +21,12 @@ const fakeMove = (): FakeMove => {
     move: null,
     now: 0,
     handleBegin: (args) => calls.push(`begin:${args.target}`),
-    handleAdvance: (step) => calls.push(`advance:${step}`),
+    handleNodeStart: (nodeId) => calls.push(`start:${nodeId}`),
+    handleNodeDone: (nodeId) => calls.push(`done:${nodeId}`),
+    handleRowActive: (id) => calls.push(`active:${id}`),
+    handleRowLabel: (args) => calls.push(`label:${args.nodeId}:${args.text}`),
     handleExpand: (args) =>
-      calls.push(`expand:${args.step}:${args.heading ?? ''}`),
+      calls.push(`expand:${args.row.id}:${args.heading ?? ''}`),
     handleSettle: () => calls.push('settle'),
     handleFail: (reason) => calls.push(`fail:${reason}`),
     handleDismiss: () => calls.push('dismiss'),
@@ -69,8 +71,7 @@ describe('waking a cloud runner whose channel is not open', () => {
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `advance:${ELiftStep.Starting}`,
-      `advance:${ELiftStep.Attaching}`,
+      'active:attaching',
       'settle',
     ])
 
@@ -176,9 +177,8 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `advance:${ELiftStep.Starting}`,
       `expand:rotating:UPDATING THE CLOUD SANDBOX`,
-      `advance:${ELiftStep.Attaching}`,
+      'active:attaching',
       'settle',
     ])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
@@ -207,9 +207,8 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `advance:${ELiftStep.Starting}`,
       `expand:rotating:UPDATING THE CLOUD SANDBOX`,
-      `advance:${ELiftStep.Attaching}`,
+      'active:attaching',
       'settle',
     ])
 
@@ -234,7 +233,6 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `advance:${ELiftStep.Starting}`,
       'fail:no capacity in iad1',
     ])
     expect(channel.woken).toEqual([])

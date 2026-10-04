@@ -24,8 +24,10 @@ import { ELiftStep, type LiftArgs } from './lift'
 import { destroyLiftedWorktree } from './lift-destroy'
 import { liftedDraft, type StoppedLocally } from './transition-notice'
 import { captureLiftWorkspace, type LiftWorkspaceArchive } from './lift-workspace'
+import { liftSettledBeforeDeadline } from './lift-failure'
 
 export enum ELiftNode {
+  InterruptTurn = 'interruptTurn',
   CaptureWorkspace = 'captureWorkspace',
   CaptureGpg = 'captureGpg',
   PauseLoops = 'pauseLoops',
@@ -43,7 +45,7 @@ export enum ELiftNode {
 
 export type LiftCtx = {
   args: LiftArgs
-  onProgress: (step: ELiftStep) => void
+  onWaveLabel?: ((nodeId: string, label: string) => void) | undefined
   logPort?: LogPort | undefined
   transaction: PlacementTransaction | OwnerTransaction<SessionRuntime>
   from: EExecutionLocation
@@ -90,19 +92,32 @@ const appendRelocationNotice = async (ctx: LiftCtx): Promise<void> => {
     })
 }
 
-export const liftPlan = (): RelocationPlan<LiftCtx> => [
+export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> => [
+  {
+    id: ELiftNode.InterruptTurn,
+    needs: [],
+    ...(args.midTurn ? { label: 'interrupting the turn at a clean break' } : {}),
+    run: async (ctx: LiftCtx) => {
+      if (ctx.args.midTurn) {
+        if (ctx.args.pause === undefined) ctx.args.interrupt()
+        else ctx.args.pause()
+      }
+      const settled = await liftSettledBeforeDeadline(ctx.args)
+      if (!settled) throw new Error('the turn would not stop in time — nothing moved')
+    },
+  },
   {
     id: ELiftNode.CaptureWorkspace,
     needs: [ELiftNode.PauseLoops],
+    label: 'packing the uncommitted work',
     run: async (ctx) => {
-      ctx.onProgress(ELiftStep.Capturing)
       ctx.workspace = await ctx.args.capture({ cwd: ctx.args.cwd })
       ctx.workspaceArchive = await (ctx.args.captureWorkspaceArchive ?? captureLiftWorkspace)({ cwd: ctx.args.cwd })
     },
   },
   {
     id: ELiftNode.CaptureGpg,
-    needs: [],
+    needs: [ELiftNode.InterruptTurn],
     run: async (ctx) => {
       const capture = ctx.args.captureGpg ?? exportGpgMaterial
       const material = await capture({ cwd: ctx.args.cwd }).catch((error: unknown) => {
@@ -120,9 +135,9 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
   },
   {
     id: ELiftNode.PauseLoops,
-    needs: [],
+    needs: [ELiftNode.InterruptTurn],
+    label: 'closing what is running here',
     run: async (ctx) => {
-      ctx.onProgress(ELiftStep.Stopping)
       ctx.stopped = await ctx.args.stopLocal()
       ctx.pausedChildren = await ctx.args.agents.pauseChildren({ threadId: ctx.args.threadId })
       ctx.args.agents.forgetNotices({ threadId: ctx.args.threadId })
@@ -130,7 +145,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
   },
   {
     id: ELiftNode.StampModel,
-    needs: [],
+    needs: [ELiftNode.InterruptTurn],
     run: async (ctx) => {
       await ctx.args.localThreads.chooseModel({ threadId: ctx.args.threadId, model: ctx.args.model })
     },
@@ -138,8 +153,8 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
   {
     id: ELiftNode.ArchiveSession,
     needs: [ELiftNode.PauseLoops, ELiftNode.StampModel],
+    label: 'transferring the conversation',
     run: async (ctx) => {
-      ctx.onProgress(ELiftStep.Transferring)
       await ctx.args.localLog.refresh({ threadId: ctx.args.threadId })
       const family = [ctx.args.threadId]
       for (const threadId of family) {
@@ -160,8 +175,8 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
   {
     id: ELiftNode.Provision,
     needs: [ELiftNode.CaptureWorkspace, ELiftNode.CaptureGpg, ELiftNode.ArchiveSession],
+    label: 'waiting for the sandbox',
     run: async (ctx) => {
-      ctx.onProgress(ELiftStep.Starting)
       ctx.sandbox = await ctx.args.bridge.sandboxes.create({
         threadId: ctx.args.threadId,
         workspace: ctx.workspace,
@@ -170,7 +185,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
         ...(ctx.transcript === undefined ? {} : { transcript: ctx.transcript }),
         ...(ctx.gpgKey === undefined ? {} : { gpgKey: ctx.gpgKey }),
         captureContext: async (put) => {
-          ctx.onProgress(ELiftStep.UploadingContext)
+          ctx.onWaveLabel?.(ELiftNode.Provision, 'sending skills and memory to the sandbox')
           try {
             const archive = await ctx.args.captureContext()
             if (archive !== undefined) await put(archive)
@@ -178,7 +193,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
             ctx.contextError = error
             throw error
           } finally {
-            ctx.onProgress(ELiftStep.Starting)
+            ctx.onWaveLabel?.(ELiftNode.Provision, 'waiting for the sandbox')
           }
         },
       })
@@ -200,8 +215,8 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
   {
     id: ELiftNode.Restore,
     needs: [ELiftNode.ConfirmLanded],
+    label: 'attaching and verifying the conversation',
     run: async (ctx) => {
-      ctx.onProgress(ELiftStep.Attaching)
       const sandbox = ctx.sandbox
       if (sandbox === undefined) throw new Error('the lift attached without its sandbox')
       const attachment = ctx.args.bridge.attach({ threadId: ctx.args.threadId, url: sandbox.url, token: sandbox.token })
@@ -238,8 +253,8 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     id: ELiftNode.FlipOwnership,
     needs: [ELiftNode.Attach],
     commit: true,
+    label: 'handing the conversation over',
     run: async (ctx) => {
-      ctx.onProgress(ELiftStep.Flipping)
       await ctx.transaction.commit({
         harness: EHarnessPlacement.Cloud,
         driveName: ctx.sandbox?.driveName,
@@ -277,8 +292,8 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
   {
     id: ELiftNode.ResumePaused,
     needs: [ELiftNode.ActivateFamily],
+    ...(args.midTurn ? { label: 'resuming the turn in the cloud' } : {}),
     run: async (ctx) => {
-      if (ctx.args.midTurn) ctx.onProgress(ELiftStep.Resuming)
       await appendRelocationNotice(ctx)
     },
   },

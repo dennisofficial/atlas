@@ -1,10 +1,9 @@
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { descendFromCloud, EDescendStep, ELiftStep, type DescendSurface } from '@dltech/atlas-harness'
+import { descendFromCloud, type DescendSurface } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { EOpenMode } from './config'
 import { activateOpenedConversation } from './conversation-claim'
-import { descendPlanOf, ELocalMoveStep } from './container-move'
 import { moveFailedNotice } from './container-notices'
 import { messageOf } from './error-text'
 import { noticePortBinding } from './notice-binding'
@@ -32,14 +31,13 @@ export function startDescend(args: {
   const surface: DescendSurface<OpenedConversation> = {
     notice: noticePortBinding(),
     prepareRuntime: ({ opened, home }) => localBindingOf({ local: localApp, workspace: home.workspace, opened }),
-    onBegin: ({ plan }) => containerMove.handleBegin({ target, plan: descendPlanOf(plan) }),
-    onProgress: (step) => {
-      if (step === ELiftStep.Interrupting || step === EDescendStep.Transferring || step === EDescendStep.Flipping) {
-        containerMove.handleAdvance(step)
-        return
-      }
-      containerMove.handleAdvance(ELocalMoveStep.Relocating)
-    },
+    onBegin: ({ waves }) =>
+      containerMove.handleBegin({
+        target,
+        rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })),
+      }),
+    onNodeStart: (nodeId) => containerMove.handleNodeStart(nodeId),
+    onNodeDone: (nodeId) => containerMove.handleNodeDone(nodeId),
     openLocal: async (home, threadId) => {
       const outcome = await openConversation({
         preparing: true,

@@ -4,7 +4,8 @@ import { EAgentStatus, EExecutionLocation, toRunId } from '@dltech/atlas-core'
 
 import { useAtlasHome } from './descend-fixture'
 import { fakeAgentSnapshot } from './fake-agents'
-import { ELiftStep, liftToCloud } from '../lift'
+import { liftToCloud } from '../lift'
+import { ELiftNode } from '../lift-plan'
 import { CLOUD_THREAD } from './fixture'
 import { CHILD, SETTLED_CHILD, fakeLiftAgents, harness } from './lift-fixture'
 
@@ -25,8 +26,8 @@ describe('lifting the family along with the conversation', () => {
     expect(lifted.ok).toBe(true)
     expect(agents.pauseCalls).toBe(1)
     expect(agents.stopCalls).toBe(0)
-    expect(test.steps.indexOf(ELiftStep.Stopping)).toBeLessThan(
-      test.steps.indexOf(ELiftStep.Transferring),
+    expect(test.doneNodes.indexOf(ELiftNode.PauseLoops)).toBeLessThan(
+      test.doneNodes.indexOf(ELiftNode.ArchiveSession),
     )
   })
 
@@ -98,7 +99,10 @@ describe('a mid-turn lift', () => {
     expect(lifted.ok).toBe(true)
     expect(test.interrupts).toBe(1)
     expect(test.settleWaits).toBe(1)
-    expect(test.steps.slice(0, 2)).toEqual([ELiftStep.Interrupting, ELiftStep.Stopping])
+    expect(test.doneNodes[0]).toBe(ELiftNode.InterruptTurn)
+    expect(test.doneNodes.indexOf(ELiftNode.InterruptTurn)).toBeLessThan(
+      test.doneNodes.indexOf(ELiftNode.PauseLoops),
+    )
   })
 
   it('narrates resuming once attached and says the arrival should resume it', async () => {
@@ -108,7 +112,8 @@ describe('a mid-turn lift', () => {
     const lifted = await liftToCloud(test.args)
     if (!lifted.ok) throw new Error('expected the lift to succeed')
 
-    expect(test.steps.at(-1)).toBe(ELiftStep.Resuming)
+    expect(test.doneNodes.at(-1)).toBe(ELiftNode.DestroyLocalWorktree)
+    expect(test.waves.at(-1)?.label).toBe('resuming the turn in the cloud')
     expect(lifted.resumeOnArrival).toBe(true)
   })
 
@@ -119,8 +124,8 @@ describe('a mid-turn lift', () => {
     const lifted = await liftToCloud(test.args)
     if (!lifted.ok) throw new Error('expected the lift to succeed')
 
-    expect(test.steps).not.toContain(ELiftStep.Interrupting)
-    expect(test.steps).not.toContain(ELiftStep.Resuming)
+    expect(test.waves.some((wave) => wave.ids.includes(ELiftNode.InterruptTurn))).toBe(false)
+    expect(test.waves.some((wave) => wave.ids.includes(ELiftNode.ResumePaused))).toBe(false)
     expect(test.interrupts).toBe(0)
     expect(lifted.resumeOnArrival).toBe(false)
   })

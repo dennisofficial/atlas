@@ -16,7 +16,6 @@ import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from '@dltech/atlas-harness'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
 import { stopLocalWork } from '@dltech/atlas-harness'
-import { cloudLiftPlan } from './container-move'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
 import type { ContainerMoveControl } from './use-container-move'
@@ -75,7 +74,6 @@ export function useCloudLift(args: {
 
         const bridge = createBridge()
         const { move } = latest.current
-        move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
 
         const captureContext: CaptureContext = () =>
           latest.current.captureContext?.() ??
@@ -102,7 +100,14 @@ export function useCloudLift(args: {
           stopLocal: async () => stopLocalWork({ threadId, shells: app.shells, services: app.services, threads: app.threads }),
           capture: latest.current.capture,
           ...(latest.current.captureArchive === undefined ? {} : { captureWorkspaceArchive: latest.current.captureArchive }),
-          onProgress: (step) => move.handleAdvance(step),
+          onBegin: ({ waves }) =>
+            move.handleBegin({
+              target: EExecutionLocation.Cloud,
+              rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })),
+            }),
+          onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
+          onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
+          onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
           captureContext,
           open: async ({ attachment, transaction, restoredWorkspace }) => {
             const runner = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move })

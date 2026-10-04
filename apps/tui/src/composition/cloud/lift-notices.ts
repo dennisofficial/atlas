@@ -29,7 +29,7 @@ const stillHere = (failure: LiftFailure): string => {
   if (failure.step === ELiftStep.Attaching) {
     return 'this conversation moved to the cloud, but attaching to it failed — /container cloud again to reconnect'
   }
-  if (failure.step === ELiftStep.Transferring || failure.step === ELiftStep.Flipping) {
+  if (failure.step === ELiftStep.Transferring) {
     return 'nothing moved and this conversation still runs here'
   }
   return `this conversation still runs here${stoppedTail(failure)}`
