@@ -107,7 +107,7 @@ describe('a stream that goes silent without closing', () => {
 
 // A provider that accepts the request and never answers it: doStream itself never settles, the
 // way inference.net behaves when its queue is congested (diagnosed 2026-09-15 from live
-// harness.db turns whose first model call sat silent for 3-50 minutes).
+// session logs whose first model call sat silent for 3-50 minutes).
 const unansweringModel = (onAborted?: () => void): MockLanguageModelV4 =>
   new MockLanguageModelV4({
     doStream: ({ abortSignal }) =>

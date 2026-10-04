@@ -77,7 +77,6 @@
  "src/composition/__tests__/crash-report.spec.ts": 0.024,
  "src/composition/__tests__/credential-diagnosis.spec.ts": 0.267,
  "src/composition/__tests__/directory-move.spec.ts": 0.278,
- "src/composition/__tests__/export-legacy-db.spec.ts": 0.276,
  "src/composition/__tests__/fake-backend.spec.ts": 0.241,
  "src/composition/__tests__/global-bindings.spec.ts": 0.022,
  "src/composition/__tests__/heap-dump.spec.ts": 0.698,
