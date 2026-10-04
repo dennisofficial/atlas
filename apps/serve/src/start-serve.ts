@@ -163,6 +163,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     workspace: { prepare: session.prepare, apply: session.apply, activate: session.activate },
     log,
     roster: app.roster,
+    prStates: app.prStates,
     rewind: app.rewind,
     agents: app.agents,
     operatorInput: app.operatorInput,
@@ -193,6 +194,16 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     idleStop.note()
     captureRunning()
     handlers.broadcastRoster()
+  })
+  // A steady SSE check stream notifies once per frame; the set a client renders changes rarely, so
+  // only a content change crosses the socket.
+  let lastPrStatesJson = ''
+  const unsubscribePrStates = app.prStates?.subscribe(() => {
+    idleStop.note()
+    const next = JSON.stringify(app.prStates?.snapshot() ?? [])
+    if (next === lastPrStatesJson) return
+    lastPrStatesJson = next
+    handlers.broadcastPrStates()
   })
   const unsubscribePending = app.pending?.subscribe(note)
 
@@ -273,6 +284,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       detachIntake?.()
       unsubscribeWake?.()
       unsubscribeRoster?.()
+      unsubscribePrStates?.()
       unsubscribeThreads?.()
       unsubscribeContext()
       unsubscribePending?.()

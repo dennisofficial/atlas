@@ -22,6 +22,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { cloudRuntimeParts } from './cloud/cloud-app'
+import { publishPrStateReader } from './cloud/pr-state-reader-holder'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
@@ -112,28 +113,31 @@ export const localBindingOf = (args: {
   local: AtlasApp
   workspace: WorkspaceIdentity
   opened: OpenedConversation
-}): Binding => ({
-  kind: ERuntimeKind.Local,
-  cwd: args.workspace.workspace,
-  adapters: {
-    runner: args.local.runner,
-    channel: args.local.channel,
-    log: args.local.log,
-    threads: args.local.threads,
-    ledger: args.local.ledger,
-    intake: args.local.intake,
-    shells: args.local.shells,
-    agents: args.local.agents,
-    services: args.local.services,
-    rewindMachinery: undefined,
-    workspace: args.workspace,
-    attachment: {
-      kind: 'local',
-      opened: args.opened,
-      context: createSessionContextReader({ threadId: args.opened.threadId }),
+}): Binding => {
+  publishPrStateReader(null)
+  return {
+    kind: ERuntimeKind.Local,
+    cwd: args.workspace.workspace,
+    adapters: {
+      runner: args.local.runner,
+      channel: args.local.channel,
+      log: args.local.log,
+      threads: args.local.threads,
+      ledger: args.local.ledger,
+      intake: args.local.intake,
+      shells: args.local.shells,
+      agents: args.local.agents,
+      services: args.local.services,
+      rewindMachinery: undefined,
+      workspace: args.workspace,
+      attachment: {
+        kind: 'local',
+        opened: args.opened,
+        context: createSessionContextReader({ threadId: args.opened.threadId }),
+      },
     },
-  },
-})
+  }
+}
 
 const derived = new WeakMap<Binding, AtlasApp>()
 

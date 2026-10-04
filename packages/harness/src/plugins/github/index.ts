@@ -20,8 +20,7 @@ import { createPullRequestService, type PullRequestService } from './pull-reques
 import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
-import { createPullRequestStateProjection } from './state-projection'
-import { createPullRequestStates } from './states'
+
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
 
@@ -90,13 +89,11 @@ export default class GithubPlugin extends NativePlugin {
     service = createPullRequestService({ pullRequests: adapter })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const links = createPullRequestLinks({ service })
-    const states = createPullRequestStateProjection()
     const cloudCheckout = createCloudCheckout()
     const tracking = createCheckoutTracking({ service, facts, cloud: () => cloudCheckout.current() })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({ pullRequests: service })
     const transitions = createPullRequestTransitions({ service })
-    const recorded = createPullRequestStates({ service, recorded: () => states.current() })
 
     links.projection.subscribe(() => service.watch({ links: links.projection.current() }))
 
@@ -133,12 +130,6 @@ export default class GithubPlugin extends NativePlugin {
           run: links.recordFound,
         },
         {
-          phase: EHookPhase.AfterTurn,
-          name: 'record-pull-request-state',
-          order: OBSERVE,
-          run: recorded.recordChange,
-        },
-        {
           phase: EHookPhase.OnThreadOpen,
           name: 'thread-opened',
           order: OBSERVE,
@@ -149,12 +140,6 @@ export default class GithubPlugin extends NativePlugin {
           name: 'forget-thread-links',
           order: OBSERVE,
           run: links.forgetThread,
-        },
-        {
-          phase: EHookPhase.OnThreadOpen,
-          name: 'forget-thread-states',
-          order: OBSERVE,
-          run: recorded.forgetThread,
         },
         {
           phase: EHookPhase.AfterTool,
@@ -185,10 +170,10 @@ export default class GithubPlugin extends NativePlugin {
         { token: PullRequestPort, use: adapter },
         {
           token: GithubUiBridgePort,
-          use: { service, facts, links: links.projection, states, cloudCheckout },
+          use: { service, facts, links: links.projection, cloudCheckout, badges: adapter },
         },
       ],
-      projections: [links.projection, states, cloudCheckout],
+      projections: [links.projection, cloudCheckout],
       dispose: () => {
         if (raw instanceof SsePullRequestPort) raw.dispose()
         cached?.dispose()

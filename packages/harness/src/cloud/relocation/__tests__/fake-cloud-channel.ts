@@ -238,6 +238,7 @@ export function fakeCloudChannel(
         rosters.delete(listener)
       }
     },
+    onPrStates: () => () => undefined,
     onThreadRenamed: () => () => undefined,
     onThreadModelChanged: () => () => undefined,
     pendingEntries: () => [],

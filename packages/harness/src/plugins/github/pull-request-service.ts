@@ -1,4 +1,5 @@
 import type { LinkedPullRequest } from '@dltech/atlas-core'
+import type { PrStateWire } from '@dltech/atlas-wire'
 
 import {
   checkoutKey,
@@ -11,6 +12,7 @@ import {
   type RepositoryCheckout,
 } from './pure'
 import { createPullRequestReadings } from './pull-request-readings'
+import { pullRequestStatesWireOf, type TrackedReading } from './pull-request-state-wire'
 
 export const PULL_REQUEST_TICK_MS = 5_000
 
@@ -32,6 +34,8 @@ export type PullRequestService = {
   stopTracking: () => void
   watch: (args: { links: readonly LinkedPullRequest[] }) => void
   current: () => { checkout: RepositoryCheckout; reading: PullRequestReading } | null
+  /** Every currently-Found reading the service holds — the channel snapshot a serve broadcasts. */
+  states: () => readonly PrStateWire[]
   expectChecks: () => void
   recheck: () => void
   refresh: (args: { checkout: RepositoryCheckout; force?: boolean }) => Promise<void>
@@ -260,6 +264,20 @@ export function createPullRequestService(args: {
       if (tracked === null) return null
 
       return { checkout: tracked, reading: readings.snapshot({ key: checkoutKey(tracked) }) }
+    },
+    states: () => {
+      const readingsHeld: TrackedReading[] = []
+      if (tracked !== null) {
+        readingsHeld.push({
+          key: checkoutKey(tracked),
+          checkout: tracked,
+          reading: readings.snapshot({ key: checkoutKey(tracked) }),
+        })
+      }
+      for (const [key, link] of watched) {
+        readingsHeld.push({ key, link, reading: readings.snapshot({ key }) })
+      }
+      return pullRequestStatesWireOf(readingsHeld)
     },
     /**
      * No argument, because the caller cannot honestly name one: the after-tool phase carries the

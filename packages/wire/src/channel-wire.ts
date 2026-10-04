@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { prStatesWireSchema } from './pr-state-wire.js'
 import { rosterWireSchema } from './roster-wire.js'
 import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire.js'
 import { runtimeCheckpointSchema } from './runtime-checkpoint.js'
@@ -38,6 +39,7 @@ export enum EServeFrame {
   InterruptAcked = 'interrupt-acked',
   SendAcked = 'send-acked',
   Roster = 'roster',
+  PrStates = 'pr-states',
   Checkpoint = 'checkpoint',
   ThreadRenamed = 'thread-renamed',
   ThreadModelChanged = 'thread-model-changed',
@@ -71,6 +73,12 @@ export enum EClientRequest {
    * the client reads that as an empty roster rather than an error.
    */
   ListRoster = 'list-roster',
+  /**
+   * The current pull request states the sandbox's github plugin is holding, for a client whose
+   * tile reads them over the channel rather than subscribing to the API itself. A serve built
+   * before this op refuses the request, and the client falls back to its local badge cache.
+   */
+  ListPrStates = 'list-pr-states',
   /**
    * A confirmed rewind's cleanup: the sandbox destroys the named creations from its own registries
    * and stops the turn it is driving, so a mid-turn loop never acts on pre-rewind state. The
@@ -266,6 +274,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.SendAcked), sendId: sendIdWireSchema }),
   z.object({ kind: z.literal(EServeFrame.Roster), roster: rosterWireSchema }),
+  z.object({ kind: z.literal(EServeFrame.PrStates), states: prStatesWireSchema.shape.states }),
   z.object({
     kind: z.literal(EServeFrame.ThreadRenamed),
     threadId: threadIdWireSchema,

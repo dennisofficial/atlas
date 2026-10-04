@@ -19,7 +19,6 @@ import {
   EDecision,
   EMessageOrigin,
   EOperatorInputOutcome,
-  EPullRequestState,
   EWorktreeExit,
   type EventBody,
 } from './body'
@@ -211,19 +210,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     repo: z.string().min(1),
     branch: z.string().min(1),
   }),
-  z.object({
-    type: z.literal('pull-request-state'),
-    number: z.number().int().positive(),
-    url: z.string().min(1),
-    repo: z.string().min(1),
-    branch: z.string().min(1),
-    state: z.enum(EPullRequestState),
-    checksRunning: z.number().int().nonnegative(),
-    checksPassed: z.number().int().nonnegative(),
-    checksFailed: z.number().int().nonnegative(),
-    mergeable: z.boolean().nullable(),
-    recordedAt: z.string().min(1),
-  }),
+
   z.object({
     type: z.literal('background-shell-started'),
     shellId: z.string().min(1),

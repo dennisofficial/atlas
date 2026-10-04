@@ -413,6 +413,7 @@ export function fakeCloudChannel(
         rosters.delete(listener)
       }
     },
+    onPrStates: () => () => undefined,
     onThreadRenamed: (listener) => {
       threadRenames.add(listener)
       return () => {
