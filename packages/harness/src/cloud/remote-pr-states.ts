@@ -1,14 +1,15 @@
 import { prStatesWireSchema, type PrStateWire } from '@dltech/atlas-wire'
 
 import { EClientRequest } from './channel-wire'
-import { RemoteRequestFailed } from './remote-channel-upstream'
+import { RemoteRequestFailed, RemoteRequestLost } from './remote-channel-upstream'
 
 export const EMPTY_PR_STATES: readonly PrStateWire[] = Object.freeze([])
 
 /**
  * The read shape a cloud-attached surface renders: the channel's answer to a list-pr-states request
  * on attach, then the pushed set from then on. A serve older than the op refuses the request, and a
- * refused read is an empty one — the surface falls back to its local badge cache, never an error.
+ * socket drop can lose one in flight — both are an empty read, never an error: the surface falls
+ * back to its local badge cache, and the next pushed set or onReady re-answer heals it.
  */
 export type RemotePrStateReader = {
   states(): Promise<readonly PrStateWire[]>
@@ -65,6 +66,7 @@ export function createRemotePrStateReader(args: { channel: PrStateChannel }): Re
         return held
       } catch (error) {
         if (error instanceof RemoteRequestFailed) return held
+        if (error instanceof RemoteRequestLost) return held
         throw error
       }
     },
