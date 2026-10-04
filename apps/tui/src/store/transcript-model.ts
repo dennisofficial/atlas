@@ -1,4 +1,4 @@
-import type { EExecutionLocation, ETldrStatus, SaidImage } from '@dltech/atlas-core'
+import type { EExecutionLocation, ELocationChangeCause, ETldrStatus, SaidImage } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
 import { settled, type ToolRun } from './tool-runs'
@@ -199,6 +199,7 @@ export type LocationChangedEntry = {
   key: string
   text: string
   to: EExecutionLocation
+  cause?: ELocationChangeCause | undefined
 }
 
 export type OperatorInputEntry = {

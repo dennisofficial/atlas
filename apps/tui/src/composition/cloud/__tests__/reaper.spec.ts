@@ -71,6 +71,7 @@ const fixture = (given: Partial<Fixture>) => {
         findThread: async ({ threadId }: { threadId: ThreadId }) =>
           held.threads.get(threadId),
         flipToHost: async ({ threadId }) => record('flip', threadId),
+        recordExpired: async ({ threadId }) => record('expired-event', threadId),
         notify: (text) => {
           held.notices.push(text)
         },
@@ -88,7 +89,7 @@ const fixture = (given: Partial<Fixture>) => {
 }
 
 describe('reapExpiredCloudSandboxes', () => {
-  it('destroys an expired row, flips its cloud thread to host, and says what was lost', async () => {
+  it('destroys an expired row, flips its cloud thread to host, and marks the transcript without a notice', async () => {
     const given = fixture({
       rows: [EXPIRED],
       threads: new Map([[EXPIRED.threadId, { executionLocation: EExecutionLocation.Cloud }]]),
@@ -100,10 +101,9 @@ describe('reapExpiredCloudSandboxes', () => {
       { kind: `drive:${EXPIRED.name}`, threadId: EXPIRED.threadId },
       { kind: 'row', threadId: EXPIRED.threadId },
       { kind: 'flip', threadId: EXPIRED.threadId },
+      { kind: 'expired-event', threadId: EXPIRED.threadId },
     ])
-    expect(given.notices).toEqual([
-      `the cloud workspace for "${EXPIRED.threadId}" expired after 7 days idle — the sandbox, its drive, and any turns that ran in the cloud are gone; the conversation continues from the local transcript.`,
-    ])
+    expect(given.notices).toEqual([])
   })
 
   it('leaves a fresh row entirely alone', async () => {
@@ -132,8 +132,9 @@ describe('reapExpiredCloudSandboxes', () => {
       { kind: `drive:${other.name}`, threadId: other.threadId },
       { kind: 'row', threadId: other.threadId },
     ])
-    expect(given.notices.some((text) => text.includes(EXPIRED.threadId))).toBe(true)
-    expect(given.notices.some((text) => text.includes(other.threadId))).toBe(true)
+    expect(given.notices).toEqual([
+      `could not retire the expired cloud sandbox for "${EXPIRED.threadId}": vercel is down — it keeps billing until it is destroyed.`,
+    ])
   })
 
   it('does not flip a thread the local store has never heard of', async () => {
@@ -147,7 +148,7 @@ describe('reapExpiredCloudSandboxes', () => {
     ])
   })
 
-  it('does not flip a thread that already runs on the host', async () => {
+  it('does not flip or mark a thread that already runs on the host', async () => {
     const given = fixture({
       rows: [EXPIRED],
       threads: new Map([[EXPIRED.threadId, { executionLocation: EExecutionLocation.Host }]]),
@@ -156,6 +157,7 @@ describe('reapExpiredCloudSandboxes', () => {
     await given.run()
 
     expect(given.calls.some((call) => call.kind === 'flip')).toBe(false)
+    expect(given.calls.some((call) => call.kind === 'expired-event')).toBe(false)
   })
 
   it('notifies once and returns when the listing itself fails', async () => {

@@ -145,7 +145,7 @@ describe('the notice store', () => {
     notify({ key: 'gone', text: 'gone', ttlMs: 10 })
     notify({ key: 'staying', text: 'staying', ttlMs: 60_000 })
 
-    tickNotices({ nowMs: now + 20 })
+    tickNotices({ nowMs: now + 400 })
 
     expect(currentNotices().map((notice) => notice.key)).toEqual(['staying'])
     dismissNotice()
