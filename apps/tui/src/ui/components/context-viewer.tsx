@@ -11,6 +11,8 @@ import { MarkdownView } from '../markdown/markdown-view'
 
 const VIEWPORT_PAD = 2
 
+const LEFT_PAD = 2
+
 export const isMarkdownPath = (path: string): boolean => /\.(md|markdown)$/i.test(path)
 
 function ViewerBody(props: {
@@ -57,7 +59,7 @@ export function ContextViewer(props: {
   useEffect(() => () => { release.current?.() }, [])
 
   return (
-    <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
+    <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0} paddingLeft={LEFT_PAD}>
       <box flexDirection="row" flexShrink={0} paddingTop={1} paddingBottom={1}>
         <BackPill label="context" onBack={props.onDismiss} />
         <box flexGrow={1} flexShrink={1} justifyContent="flex-end" flexDirection="row">
@@ -66,7 +68,7 @@ export function ContextViewer(props: {
       </box>
       {props.loading ? <text fg={theme.hint}>Reading {props.path}…</text> : props.content === null ? null : (
         <scrollbox ref={attach} scrollX flexGrow={1} flexShrink={1} flexBasis={0} viewportCulling>
-          <ViewerBody content={props.content} path={props.path} viewport={Math.max(1, props.width - VIEWPORT_PAD)} window={window} />
+          <ViewerBody content={props.content} path={props.path} viewport={Math.max(1, props.width - LEFT_PAD - VIEWPORT_PAD)} window={window} />
         </scrollbox>
       )}
       <text fg={theme.hint} flexShrink={0}>↑↓ scroll · ←→ pan · pgup/pgdn page · esc to close</text>

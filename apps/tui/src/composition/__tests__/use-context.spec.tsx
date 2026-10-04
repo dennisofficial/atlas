@@ -130,16 +130,44 @@ describe('context browser with an inline tree', () => {
     } finally { await teardown(setup) }
   })
 
-  it('can select the same file repeatedly without getting stuck in a loading view', async () => {
+  it('keeps the cursor dark when a file is opened from outside the tree', async () => {
+    const { box, setup } = await probe(fixture().readers)
+    try {
+      await settle()
+      await activate({ box, path: 'notes' })
+      await activate({ box, path: 'notes/plan.md' })
+      expect(box.current?.tree.cursor).toBeNull()
+      expect(box.current?.tree.opened).toBe('notes/plan.md')
+      await act(async () => { box.current?.tree.handleFocus() })
+      expect(box.current?.tree.cursor).toBe('notes/plan.md')
+    } finally { await teardown(setup) }
+  })
+
+  it('activating the opened file closes the viewer instead of reloading it', async () => {
     const source = fixture()
     const { box, setup } = await probe(source.readers)
     try {
       await settle()
       await activate({ box, path: 'plan.md' })
+      expect(box.current?.viewer?.state).toBe(EContextView.Ready)
       source.update('reselected')
       await activate({ box, path: 'plan.md' })
-      expect(box.current?.viewer).toEqual({ state: EContextView.Ready, path: 'plan.md',
-        content: { type: 'text', content: 'plan.md: reselected', truncated: false } })
+      expect(box.current?.viewer).toBeNull()
+      expect(box.current?.tree.opened).toBeNull()
+      expect(box.current?.tree.focused).toBe(false)
+    } finally { await teardown(setup) }
+  })
+
+  it('opens another file from the tree while one is already open', async () => {
+    const source = fixture()
+    const { box, setup } = await probe(source.readers)
+    try {
+      await settle()
+      await activate({ box, path: 'notes' })
+      await activate({ box, path: 'plan.md' })
+      await activate({ box, path: 'notes/plan.md' })
+      expect(box.current?.viewer).toEqual({ state: EContextView.Ready, path: 'notes/plan.md',
+        content: { type: 'text', content: 'notes/plan.md: first', truncated: false } })
     } finally { await teardown(setup) }
   })
 

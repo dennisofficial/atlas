@@ -23,7 +23,7 @@ function ContextRow(props: {
   const level = props.level.get(row.path)
   const status = !row.isDirectory || !row.expanded ? undefined :
     level?.error ? 'unavailable' : level === undefined ? 'reading…' : level.entries.length === 0 ? 'empty' : undefined
-  const selected = props.cursor || props.opened
+  const selected = props.opened || (props.cursor && props.focused)
   return (
     <box flexShrink={0} {...region.handlers} backgroundColor={region.wash.bg ?? (selected ? theme.userBg : theme.panelBg)}>
       <Row label={row.name} labelFg={props.cursor && props.focused ? theme.court.external : theme.hover} cells={props.cells}
@@ -53,7 +53,7 @@ export function ContextSection(props: ContextSectionProps): React.ReactNode {
   return (
     <box ref={root} flexDirection="column" flexShrink={0}>
       <box {...header.handlers} backgroundColor={header.wash.bg ?? theme.panelBg}>
-        <text fg={props.focused ? theme.court.external : theme.meta}>CONTEXT  <span fg={theme.hint}>{props.rows.length}</span></text>
+        <text fg={theme.meta}>CONTEXT  <span fg={theme.hint}>{props.rows.length}</span></text>
       </box>
       {error ? <text fg={theme.warn} width={props.cells}>{error}</text> : null}
       {props.rows.length === 0 ? <text fg={theme.hint} width={props.cells}>

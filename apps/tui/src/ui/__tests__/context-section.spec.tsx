@@ -76,6 +76,25 @@ describe('context sidebar tree', () => {
     } finally { await teardown(setup) }
   })
 
+  it('draws the keyboard cursor only while the tree holds focus', async () => {
+    const setup = await mount(<ContextSection {...defaults} cursor="notes/plan.md" focused={false} />)
+    try {
+      await setup.flush()
+      const lines = setup.captureCharFrame().split('\n')
+      const row = lines.findIndex((line) => line.includes('plan.md'))
+      const cell = (lines[row] ?? '').indexOf('plan.md')
+      expect(backgroundAt({ setup, row, cell })?.equals(parseColor(theme.userBg))).toBe(false)
+    } finally { await teardown(setup) }
+    const active = await mount(<ContextSection {...defaults} cursor="notes/plan.md" focused />)
+    try {
+      await active.flush()
+      const lines = active.captureCharFrame().split('\n')
+      const row = lines.findIndex((line) => line.includes('plan.md'))
+      const cell = (lines[row] ?? '').indexOf('plan.md')
+      expect(backgroundAt({ setup: active, row, cell })?.equals(parseColor(theme.userBg))).toBe(true)
+    } finally { await teardown(active) }
+  })
+
   it('lets the heading claim keyboard focus', async () => {
     let focused = 0
     const setup = await mount(<ContextSection {...defaults} onFocus={() => { focused += 1 }} />)
