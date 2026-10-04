@@ -38,6 +38,8 @@ export const recorder = () => {
 
 export const harness = (options?: {
   lastEventSeq?: number | undefined
+  /** A deferred durable-head read, for the Promise path the production store drives. */
+  lastEventSeqAsync?: (() => Promise<number>) | undefined
   maxAttempts?: number | undefined
   maxReattachments?: number | undefined
   reattach?: (() => Promise<{ url: string; token: string }>) | undefined
@@ -54,7 +56,7 @@ export const harness = (options?: {
   const channel = createRemoteDeltaChannel({
     threadId: THREAD,
     ...(options?.unattached === true ? {} : { url: 'https://sandbox.test/', token: 'tok_session' }),
-    lastEventSeq: () => options?.lastEventSeq ?? 0,
+    lastEventSeq: options?.lastEventSeqAsync ?? (() => options?.lastEventSeq ?? 0),
     maxAttempts: options?.maxAttempts,
     maxReattachments: options?.maxReattachments,
     reattach: options?.reattach,
