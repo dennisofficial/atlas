@@ -107,6 +107,7 @@ const FED: SidebarModel = {
       state: "1m 4s",
       model: "Claude Haiku 4.5",
       selected: false,
+      failureReason: null,
     },
     {
       id: "s2",
@@ -117,6 +118,7 @@ const FED: SidebarModel = {
       state: "blocked · 12s",
       model: null,
       selected: false,
+      failureReason: null,
     },
   ],
   teammates: [

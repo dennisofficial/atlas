@@ -13,6 +13,7 @@ import {
 
 import {
   agentTypeNamed,
+  failed,
   fakeRunners,
   finished,
   interrupted,
@@ -259,6 +260,23 @@ describe('agent_list', () => {
     const outcome = await invoke({ tool: open_.list, threadId: open_.parent, input: {} })
 
     expect(outcome.ok && outcome.modelText).toContain('finished after 1 turn')
+  })
+
+  it('names the cause beside a failed child, where the parent reads why', async () => {
+    const open_ = await open()
+    await invoke({
+      tool: open_.spawn,
+      threadId: open_.parent,
+      input: { agentType: 'explore', intent: 'mine', brief: 'do mine' },
+    })
+
+    open_.runners.started[0]?.settle(failed('provider inference.net returned 402: credit exhausted'))
+    await settle()
+    const outcome = await invoke({ tool: open_.list, threadId: open_.parent, input: {} })
+
+    expect(outcome.ok && outcome.modelText).toContain(
+      'provider inference.net returned 402: credit exhausted',
+    )
   })
 
   it('says plainly that nothing has been started', async () => {

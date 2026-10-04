@@ -91,6 +91,7 @@ export const toAgentSnapshot = (wire: RosterWire['agents'][number]): AgentSnapsh
   intent: wire.intent,
   status: wire.status,
   ...(wire.killedBy === undefined ? {} : { killedBy: wire.killedBy }),
+  ...(wire.failureCause === undefined ? {} : { failureCause: wire.failureCause }),
   turns: wire.turns,
   toolCalls: wire.toolCalls,
   lastTool: wire.lastTool as string | undefined,

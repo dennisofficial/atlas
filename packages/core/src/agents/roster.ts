@@ -29,6 +29,7 @@ export type RosteredAgent = {
   toolCalls: number
   prose: string
   killedBy: EKilledBy | undefined
+  failureCause: string | undefined
   spawnedAt: string | undefined
   endedAt: string | undefined
 }
@@ -61,6 +62,7 @@ export function agentRoster({
         toolCalls: prior?.toolCalls ?? 0,
         prose: prior?.prose ?? '',
         killedBy: undefined,
+        failureCause: undefined,
         spawnedAt: prior?.spawnedAt ?? event.at,
         endedAt: undefined,
       })
@@ -78,6 +80,7 @@ export function agentRoster({
         toolCalls: previous?.toolCalls ?? 0,
         prose: previous?.prose ?? '',
         killedBy: undefined,
+        failureCause: undefined,
         spawnedAt: previous?.spawnedAt ?? event.at,
         endedAt: undefined,
       })
@@ -95,6 +98,7 @@ export function agentRoster({
       toolCalls: event.toolCalls,
       prose: event.prose,
       killedBy: event.killedBy,
+      failureCause: event.failureCause,
       spawnedAt: held.get(event.agentId)?.spawnedAt,
       endedAt: event.at,
     })

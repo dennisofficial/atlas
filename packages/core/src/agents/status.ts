@@ -14,6 +14,7 @@ export type AgentEnding = {
   turns: number
   toolCalls: number
   killedBy?: EKilledBy | undefined
+  failureCause?: string | undefined
 }
 
 export const countedNoun = ({ count, noun }: { count: number; noun: string }): string =>
@@ -55,5 +56,8 @@ function outcome(ending: AgentEnding): string {
 }
 
 export function agentEnding(ending: AgentEnding): string {
+  if (ending.status === EAgentStatus.Failed && ending.failureCause !== undefined) {
+    return `failed — ${ending.failureCause}`
+  }
   return `${outcome(ending)} ${effort(ending)}`
 }

@@ -12,6 +12,7 @@ export type AgentSnapshot = {
   intent: string
   status: EAgentStatus
   killedBy?: EKilledBy | undefined
+  failureCause?: string | undefined
   turns: number
   toolCalls: number
   lastTool: string | undefined

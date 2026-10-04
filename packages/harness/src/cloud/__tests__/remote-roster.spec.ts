@@ -205,4 +205,20 @@ describe('the roster filters', () => {
     expect(own[0]?.agentId as string).toBe('child-explore')
     expect(rosterAgents({ roster: SHELL_ROSTER, threadId: OTHER })).toHaveLength(1)
   })
+
+  it('carries the failure cause the wire reports onto the snapshot', () => {
+    const roster: RosterWire = {
+      ...SHELL_ROSTER,
+      agents: [
+        {
+          ...SHELL_ROSTER.agents[0]!,
+          status: EAgentStatus.Failed,
+          failureCause: 'provider inference.net returned 402: credit exhausted',
+        },
+      ],
+    }
+
+    const own = rosterAgents({ roster, threadId: THREAD })
+    expect(own[0]?.failureCause).toBe('provider inference.net returned 402: credit exhausted')
+  })
 })

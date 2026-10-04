@@ -306,6 +306,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     intent: z.string(),
     status: z.enum(EAgentStatus),
     killedBy: z.enum(EKilledBy).optional(),
+    failureCause: z.string().optional(),
     prose: z.string(),
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),

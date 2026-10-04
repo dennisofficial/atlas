@@ -82,6 +82,28 @@ describe('a sub-agent ending in the transcript', () => {
     expect(entry.failed).toBe(true)
   })
 
+  it('names the cause on the line when a failed child recorded one', () => {
+    const entry = onlyAgentEntry(
+      log([
+        agentEnded({
+          status: EAgentStatus.Failed,
+          failureCause: 'provider inference.net returned 402: credit exhausted',
+        }),
+      ]),
+    )
+
+    expect(entry.text).toBe(
+      'Sub-agent audit the credential failed — provider inference.net returned 402: credit exhausted',
+    )
+    expect(entry.failed).toBe(true)
+  })
+
+  it('omits the cause when a failed child recorded none', () => {
+    const entry = onlyAgentEntry(log([agentEnded({ status: EAgentStatus.Failed })]))
+
+    expect(entry.text).not.toContain('—')
+  })
+
   it('does not read a child the operator stopped as a failure', () => {
     const entry = onlyAgentEntry(log([agentEnded({ status: EAgentStatus.Stopped })]))
 
