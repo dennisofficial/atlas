@@ -46,6 +46,7 @@ export class SessionRegistry {
   private readonly handles = new Map<string, SessionHandle>()
   private readonly threadIndex = new Map<string, string>()
   private threadIndexBuilt = false
+  private readonly missedAfterBuild = new Set<string>()
   private readonly parentCache = new Map<string, ParentCacheEntry>()
   private parentGeneration = 0
 
@@ -88,8 +89,18 @@ export class SessionRegistry {
       await this.scanThreadIndex()
       const found = this.threadIndex.get(threadId)
       if (found !== undefined) return found
+      return undefined
     }
-    return undefined
+
+    // A transcript transfer can drop a thread's meta after the index was already built — a lifted
+    // teammate lands in its parent's session dir while this process holds a completed scan. Rescan
+    // once on a miss so the thread is found rather than reported absent to the resume path. A
+    // thread that has already missed once since the last invalidation is genuinely absent (a
+    // rewind-cut child, a mistyped id), so it does not rescan on every lookup.
+    if (this.missedAfterBuild.has(threadId)) return undefined
+    this.missedAfterBuild.add(threadId)
+    await this.scanThreadIndex()
+    return this.threadIndex.get(threadId)
   }
 
   async sessionDirFor({ threadId }: { threadId: ThreadId }): Promise<string> {
@@ -148,6 +159,7 @@ export class SessionRegistry {
       if (file.startsWith(`${sessionDir}/`)) this.parentCache.delete(file)
     }
     this.threadIndexBuilt = false
+    this.missedAfterBuild.clear()
   }
 
   async refreshThreadLog({
