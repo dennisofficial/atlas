@@ -41,7 +41,7 @@ const JUMP_WIDTH = JUMP_LABEL.length + 2
 export function JumpToBottom(props: { width: number; onJump: () => void }): React.ReactNode {
   const left = Math.max(0, Math.floor((props.width - TRANSCRIPT_INSET - JUMP_WIDTH) / 2))
   const { hovered, handlers } = useClickRegion(props.onJump)
-  const ground = hovered ? theme.hoverBg : theme.overlayBg
+  const ground = hovered ? theme.bright : theme.hover
 
   return (
     <box
@@ -55,7 +55,7 @@ export function JumpToBottom(props: { width: number; onJump: () => void }): Reac
       backgroundColor={ground}
       {...handlers}
     >
-      <text fg={hovered ? theme.bright : theme.hover} bg={ground}>
+      <text fg={theme.overlayBg} bg={ground}>
         {JUMP_LABEL}
       </text>
     </box>
