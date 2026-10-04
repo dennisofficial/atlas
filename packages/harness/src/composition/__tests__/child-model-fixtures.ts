@@ -65,7 +65,13 @@ export type RecordingAdapter = ProviderAdapter & {
   built: BuiltModel[]
 }
 
-function recordingAdapter(args: { ref: ModelRef; texts: readonly string[] }): RecordingAdapter {
+export type ScriptedAdapterStep = { text: string } | { error: unknown }
+
+function recordingAdapter(args: {
+  ref: ModelRef
+  texts: readonly string[]
+  steps?: readonly ScriptedAdapterStep[]
+}): RecordingAdapter {
   const built: BuiltModel[] = []
   return {
     id: args.ref.providerId,
@@ -74,7 +80,8 @@ function recordingAdapter(args: { ref: ModelRef; texts: readonly string[] }): Re
     cards: () => [cardFor(args.ref)],
     model: ({ effort }) => {
       const model = scriptedModel({
-        script: args.texts.map((text) => ({ text })),
+        script:
+          args.steps ?? args.texts.map((text) => ({ text })),
         provider: args.ref.providerId,
         modelId: args.ref.modelId,
       })
@@ -149,6 +156,8 @@ export async function childModelFixture(args?: {
   parentRef?: ModelRef
   parentEffort?: EffortValue
   settings?: Record<string, string>
+  anthropicSteps?: readonly ScriptedAdapterStep[]
+  openaiSteps?: readonly ScriptedAdapterStep[]
 }): Promise<ChildModelFixture> {
   const home = await mkdtemp(join(tmpdir(), 'atlas-child-model-'))
   homes.push(home)
@@ -161,8 +170,16 @@ export async function childModelFixture(args?: {
   const thread = await threads.create({ title: 'child-model spec' })
 
   const adapters = {
-    anthropic: recordingAdapter({ ref: CLAUDE, texts: ['one', 'two', 'three'] }),
-    openai: recordingAdapter({ ref: GPT, texts: ['one', 'two', 'three'] }),
+    anthropic: recordingAdapter({
+      ref: CLAUDE,
+      texts: ['one', 'two', 'three'],
+      ...(args?.anthropicSteps === undefined ? {} : { steps: args.anthropicSteps }),
+    }),
+    openai: recordingAdapter({
+      ref: GPT,
+      texts: ['one', 'two', 'three'],
+      ...(args?.openaiSteps === undefined ? {} : { steps: args.openaiSteps }),
+    }),
   }
   const models = recordingCatalogue([adapters.anthropic, adapters.openai])
 

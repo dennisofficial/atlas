@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   DEFAULT_RETRY_POLICY,
   ERetryReason,
+  isAuthFailure,
   planRetry,
   retryReasonOf,
   type RetryPolicy,
@@ -31,6 +32,26 @@ describe('naming why a model call is worth trying again', () => {
 
   it.each([400, 401, 403, 404, 413, 422])('refuses to retry %i, which will fail again', (status) => {
     expect(retryReasonOf({ status })).toBeNull()
+  })
+})
+
+describe('reading a failure that no retry will fix', () => {
+  it('reads 401, 402 and 403 as auth failures, since the credential is dead either way', () => {
+    expect(isAuthFailure({ status: 401 })).toBe(true)
+    expect(isAuthFailure({ status: 402 })).toBe(true)
+    expect(isAuthFailure({ status: 403 })).toBe(true)
+  })
+
+  it('reads a retryable failure as worth retrying rather than an auth switch', () => {
+    expect(isAuthFailure({ status: 429 })).toBe(false)
+    expect(isAuthFailure({ status: 529 })).toBe(false)
+    expect(isAuthFailure({ status: 500 })).toBe(false)
+    expect(isAuthFailure({})).toBe(false)
+  })
+
+  it('reads other client faults as not auth, since a 404 or 422 is the request, not the key', () => {
+    expect(isAuthFailure({ status: 404 })).toBe(false)
+    expect(isAuthFailure({ status: 422 })).toBe(false)
   })
 })
 
