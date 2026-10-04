@@ -42,6 +42,7 @@ export function createRequestRouter(args: {
   files: Pick<FileBrowser, 'list'>
   log: ServeLog
   snapshot: ServeRoster['snapshot']
+  prStates?: (() => readonly import('@dltech/atlas-wire').PrStateWire[]) | undefined
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
   rewind?: ServeRewind | undefined
   agents?: ServeAgentSteer | undefined
@@ -55,6 +56,7 @@ export function createRequestRouter(args: {
   workspace?: WorkspaceOps | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } = args
+  const prStates = args.prStates ?? (() => [])
   const context = args.context
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
@@ -66,6 +68,14 @@ export function createRequestRouter(args: {
     send({
       socket,
       frame: { kind: EServeFrame.Reply, replyTo: frame.id, ok: true, data: snapshot() },
+    })
+    return
+  }
+
+  if (frame.op === EClientRequest.ListPrStates) {
+    send({
+      socket,
+      frame: { kind: EServeFrame.Reply, replyTo: frame.id, ok: true, data: { states: prStates() } },
     })
     return
   }

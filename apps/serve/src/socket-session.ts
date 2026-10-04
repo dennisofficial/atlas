@@ -1,4 +1,4 @@
-import { rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { prStatesWireSchema, rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import {
   CHANNEL_PROTOCOL_VERSION,
@@ -35,9 +35,13 @@ const GOING_AWAY = 1001
 /** A serve without registries (a spec fake) has nothing to report — an empty roster, not an error. */
 const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
 
+/** A serve without the github plugin (a spec fake) has nothing to report — empty, not an error. */
+const EMPTY_PR_STATES: NonNullable<SessionHandlersArgs['prStates']>['snapshot'] = () => []
+
 export function createSessionHandlers(args: SessionHandlersArgs): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
+  const prStatesSnapshot = args.prStates?.snapshot ?? EMPTY_PR_STATES
   const rewind = args.rewind
   const { agents, operatorInput } = args
   const pending = args.pending
@@ -65,6 +69,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     files,
     log,
     snapshot,
+    prStates: prStatesSnapshot,
     send: (sent) => {
       mutations.observe(sent.frame)
       send(sent)
@@ -271,6 +276,12 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
 
     broadcastRoster() {
       const frame: ServeFrame = { kind: EServeFrame.Roster, roster: rosterWireSchema.parse(snapshot()) }
+      const encoded = encodeFrame(frame)
+      for (const socket of attached) socket.send(encoded)
+    },
+
+    broadcastPrStates() {
+      const frame: ServeFrame = { kind: EServeFrame.PrStates, states: prStatesWireSchema.parse({ states: prStatesSnapshot() }).states }
       const encoded = encodeFrame(frame)
       for (const socket of attached) socket.send(encoded)
     },

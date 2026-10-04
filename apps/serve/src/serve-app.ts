@@ -8,7 +8,7 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type { UserSettingsTarget } from './apply-user-settings'
-import type { RosterWire } from '@dltech/atlas-wire'
+import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
 import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController } from '@dltech/atlas-harness'
@@ -41,6 +41,17 @@ export type ServeWakeNotices = {
  */
 export type ServeRoster = {
   snapshot: () => RosterWire
+  subscribe: (listener: () => void) => () => void
+}
+
+/**
+ * The github plugin's live pull request readings narrowed to what the socket serves a watching
+ * client, mirroring the roster: a point-in-time snapshot of every currently-Found reading, and a
+ * subscription that fires on any reading change. The socket broadcasts the new set on every fire,
+ * so a steady SSE check stream must be diffed before broadcast — see the emitter that consumes it.
+ */
+export type ServePrStates = {
+  snapshot: () => readonly PrStateWire[]
   subscribe: (listener: () => void) => () => void
 }
 
@@ -160,6 +171,12 @@ export type ServeApp = {
   wakeNotices?: ServeWakeNotices | undefined
   /** Absent in a fake without registries: the client is answered an empty roster instead. */
   roster?: ServeRoster | undefined
+  /**
+   * The github plugin's live pull request readings narrowed to what the socket serves: a point-in
+   * time snapshot, and a subscription that fires on any reading change. Absent where no plugin is
+   * composed — the client falls back to its own badge cache.
+   */
+  prStates?: ServePrStates | undefined
   /** Absent in a fake without registries: a descend pause halts the parent's turn only. */
   family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */

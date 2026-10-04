@@ -8,7 +8,7 @@ import { EGrantScope } from '../../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../../policy/classifier/triage'
 import { EJudgment } from '../../policy/classifier/verdict'
 import { EKilledBy } from '../../shells/status'
-import { EDecision, EMessageOrigin, EPullRequestState, type EventDraft } from '../body'
+import { EDecision, EMessageOrigin, type EventDraft } from '../body'
 import type { EventEnvelope } from '../envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
 import { eventBodySchema, eventEnvelopeSchema } from '../schema'
@@ -31,32 +31,7 @@ const bodies: EventDraft[] = [
     to: EExecutionLocation.Cloud,
     cwd: '/workspace',
   },
-  {
-    type: 'pull-request-state',
-    number: 401,
-    url: 'https://github.com/dltech/atlas/pull/401',
-    repo: 'github.com/dltech/atlas',
-    branch: 'dennis/first',
-    state: EPullRequestState.Open,
-    checksRunning: 2,
-    checksPassed: 5,
-    checksFailed: 0,
-    mergeable: null,
-    recordedAt: '2026-09-28T12:00:00.000Z',
-  },
-  {
-    type: 'pull-request-state',
-    number: 412,
-    url: 'https://github.com/dltech/atlas/pull/412',
-    repo: 'github.com/dltech/atlas',
-    branch: 'dennis/second',
-    state: EPullRequestState.Merged,
-    checksRunning: 0,
-    checksPassed: 8,
-    checksFailed: 0,
-    mergeable: true,
-    recordedAt: '2026-09-28T12:05:00.000Z',
-  },
+
   {
     type: 'agent-spawned',
     agentId: toThreadId('thread-child-1'),
@@ -327,42 +302,6 @@ describe('eventBodySchema', () => {
 
     expect(parsed.success).toBe(true)
     expect(parsed.success && 'grantedBy' in parsed.data).toBe(false)
-  })
-
-  it('rejects a pull request state outside the enum', () => {
-    expect(() =>
-      eventBodySchema.parse({
-        type: 'pull-request-state',
-        number: 401,
-        url: 'https://github.com/dltech/atlas/pull/401',
-        repo: 'github.com/dltech/atlas',
-        branch: 'dennis/first',
-        state: 'rebased',
-        checksRunning: 0,
-        checksPassed: 5,
-        checksFailed: 0,
-        mergeable: null,
-        recordedAt: '2026-09-28T12:00:00.000Z',
-      }),
-    ).toThrow()
-  })
-
-  it('rejects a pull request state with a negative check tally', () => {
-    expect(() =>
-      eventBodySchema.parse({
-        type: 'pull-request-state',
-        number: 401,
-        url: 'https://github.com/dltech/atlas/pull/401',
-        repo: 'github.com/dltech/atlas',
-        branch: 'dennis/first',
-        state: EPullRequestState.Open,
-        checksRunning: -1,
-        checksPassed: 5,
-        checksFailed: 0,
-        mergeable: null,
-        recordedAt: '2026-09-28T12:00:00.000Z',
-      }),
-    ).toThrow()
   })
 
   it('rejects an approval answer with a decision outside the enum', () => {

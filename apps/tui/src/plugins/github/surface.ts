@@ -1,14 +1,16 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
-import type { LinkedPullRequest, PullRequestState } from '@dltech/atlas-core'
+import type { LinkedPullRequest } from '@dltech/atlas-core'
 import type {
   PluginProjection,
+  PullRequestPort,
   PullRequestService,
   RepositoryCheckout,
   SessionFacts,
   UrlOpener,
 } from '@dltech/atlas-harness'
 
+import { activePrStateReader } from '../../composition/cloud/pr-state-reader-holder'
 import { EFooterItemReach, type FooterItem } from '../../ui/footer-item'
 import type { ContributedSurface, PluginSurface } from '../surface'
 import { pullRequestChip, pullRequestFallbackChip } from './pull-request-pill'
@@ -45,18 +47,18 @@ export const pullRequestSurface = (args: {
   service: PullRequestService
   facts: SessionFacts
   links: PluginProjection<readonly LinkedPullRequest[]>
-  states: PluginProjection<readonly PullRequestState[]>
   cloudCheckout: PluginProjection<RepositoryCheckout | null>
+  /** The badge cache behind the muted fallback when a cloud serve is unreachable. */
+  badges: PullRequestPort
   openUrl: UrlOpener
 }): ContributedSurface => {
-  const { service, facts, links, states, cloudCheckout, openUrl } = args
+  const { service, facts, links, cloudCheckout, badges, openUrl } = args
 
   return {
     pluginId: 'github',
     use: (): PluginSurface => {
       useSyncExternalStore(facts.subscribe, facts.version)
       useSyncExternalStore(links.subscribe, links.version)
-      useSyncExternalStore(states.subscribe, states.version)
       useSyncExternalStore(cloudCheckout.subscribe, cloudCheckout.version)
 
       const linked = links.current()
@@ -65,8 +67,9 @@ export const pullRequestSurface = (args: {
         projectDirectory: facts.directory(),
         working: facts.working(),
         linked,
-        recorded: states.current(),
         cloud: cloudCheckout.current(),
+        remote: activePrStateReader(),
+        badges,
         onOpen: openUrl,
       })
 

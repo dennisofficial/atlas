@@ -1,5 +1,6 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
+  createRemotePrStateReader,
   createRemoteRosterReader,
   EClientRequest,
   LocalRewindMachinery,
@@ -9,6 +10,8 @@ import {
   type SessionRuntime,
   type TurnRunner,
 } from '@dltech/atlas-harness'
+
+import { publishPrStateReader } from './pr-state-reader-holder'
 
 import type { AtlasApp } from '../compose'
 import { noticePortBinding } from '../notice-binding'
@@ -31,6 +34,8 @@ export const cloudRuntimeParts = (args: {
   runner: TurnRunner
 }): CloudRuntimeParts => {
   const roster = createSharedRoster(createRemoteRosterReader({ channel: args.channel }))
+  const prStates = createRemotePrStateReader({ channel: args.channel })
+  publishPrStateReader(prStates)
   const shells = new RemoteShellRegistry(roster)
   const agents = new RemoteAgentRegistry(roster, args.channel)
   const services = new RemoteServiceRegistry(roster)

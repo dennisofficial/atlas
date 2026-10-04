@@ -147,19 +147,6 @@ export type EventBody =
       repo: string
       branch: string
     }
-  | {
-      type: 'pull-request-state'
-      number: number
-      url: string
-      repo: string
-      branch: string
-      state: EPullRequestState
-      checksRunning: number
-      checksPassed: number
-      checksFailed: number
-      mergeable: boolean | null
-      recordedAt: string
-    }
   | BackgroundShellEventBody
   | {
       type: 'service-started'
@@ -266,7 +253,6 @@ export const SURVIVES_SUMMARY: readonly EventType[] = [
   'permission-granted',
   'permission-revoked',
   'pull-request-linked',
-  'pull-request-state',
 ]
 
 export const survivesSummary = (type: EventType): boolean => SURVIVES_SUMMARY.includes(type)

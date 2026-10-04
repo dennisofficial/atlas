@@ -17,7 +17,7 @@ import { SelectableModelToken } from '@dltech/atlas-harness'
 import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
 import { composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
-import { portToken } from '@dltech/atlas-harness'
+import { portToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
@@ -25,7 +25,7 @@ import { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
 import { EPortableStateBoot, installPortableState } from './portable-state'
-import type { ServeApp, ServeCompose, ServeModelBridge } from './serve-app'
+import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
 import { ServeProcessPort } from './serve-process'
 import { rotationEndingsFor } from './rotation-endings'
 import { workspaceHooksFor } from './workspace-hooks'
@@ -33,7 +33,12 @@ import { serveMemoryArchive, serveSessionArchive } from './serve-session-archive
 
 export const SERVE_COMMAND = 'serve'
 
-type ServeStores = { log: EventLogPort; threads: ThreadStorePort; modelBridge: ServeModelBridge }
+type ServeStores = {
+  log: EventLogPort
+  threads: ThreadStorePort
+  modelBridge: ServeModelBridge
+  prStates?: ServePrStates | undefined
+}
 
 const given = (value: string | undefined): string | undefined =>
   value === undefined || value.trim().length === 0 ? undefined : value.trim()
@@ -111,6 +116,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         const log = container.resolve(portToken(EventLogPort))
         const threads = container.resolve(portToken(ThreadStorePort))
         const model = container.resolve(SelectableModelToken)
+        const prStates = container.isRegistered(portToken(GithubUiBridgePort), true)
+          ? {
+              snapshot: () => container.resolve(portToken(GithubUiBridgePort)).service.states(),
+              subscribe: (listener: () => void) =>
+                container.resolve(portToken(GithubUiBridgePort)).service.subscribe(listener),
+            }
+          : undefined
         const modelBridge: ServeModelBridge = {
           effort: () => model.choice().effort,
           select: (next) => {
@@ -139,7 +151,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           }),
         })
 
-        return { log, threads, modelBridge }
+        return { log, threads, modelBridge, ...(prStates === undefined ? {} : { prStates }) }
       },
     },
   })
@@ -218,6 +230,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       ids: app.ids,
     }),
     ...workspaceHooks,
+    ...(app.surface.prStates === undefined ? {} : { prStates: app.surface.prStates }),
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

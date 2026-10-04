@@ -10,7 +10,7 @@ import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atla
 import type { ContextReaders } from './context-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
-import type { ServeAgentSteer, ServeRoster, ServeRewind } from './serve-app'
+import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind } from './serve-app'
 import type { ServeLog } from './serve-log'
 import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
@@ -28,6 +28,7 @@ export type SessionHandlers = {
   close: (args: { socket: SessionSocket }) => void
   broadcast: (frame: ServeFrame) => void
   broadcastRoster: () => void
+  broadcastPrStates: () => void
   park: (args: { reason: string }) => void
   hangUp: () => void
   clients: () => number
@@ -50,6 +51,8 @@ export type SessionHandlersArgs = {
   log: ServeLog
   applyUserSettings?: ((content: string) => void) | undefined
   roster?: ServeRoster | undefined
+  /** The github plugin's live PR readings; absent in fakes, which answer empty. */
+  prStates?: ServePrStates | undefined
   rewind?: ServeRewind | undefined
   /** The sandbox's own agent registry, narrowed to the operator-steer ops; absent in fakes, which refuse them. */
   agents?: ServeAgentSteer | undefined

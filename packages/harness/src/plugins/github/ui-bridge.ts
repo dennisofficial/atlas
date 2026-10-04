@@ -1,8 +1,8 @@
-import type { LinkedPullRequest, PullRequestState } from '@dltech/atlas-core'
+import type { LinkedPullRequest } from '@dltech/atlas-core'
 
 import type { PluginProjection } from '../projection'
 import type { PullRequestService } from './pull-request-service'
-import type { RepositoryCheckout } from './pure'
+import type { PullRequestPort, RepositoryCheckout } from './pure'
 import type { SessionFacts } from './session'
 
 /**
@@ -17,6 +17,7 @@ export abstract class GithubUiBridgePort {
   abstract readonly service: PullRequestService
   abstract readonly facts: SessionFacts
   abstract readonly links: PluginProjection<readonly LinkedPullRequest[]>
-  abstract readonly states: PluginProjection<readonly PullRequestState[]>
   abstract readonly cloudCheckout: PluginProjection<RepositoryCheckout | null>
+  /** The cache-backed badge port, for the tile's muted fallback when a cloud serve is unreachable. */
+  abstract readonly badges: PullRequestPort
 }
