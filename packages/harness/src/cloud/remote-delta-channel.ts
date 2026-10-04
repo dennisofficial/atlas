@@ -171,7 +171,14 @@ export function createRemoteDeltaChannel(args: {
   /** Absent means deferred: start {@link EChannelConnection.Parked} and open nothing until `wake`. */
   url?: string | undefined
   token?: string | undefined
-  lastEventSeq?: (() => number) | undefined
+  /**
+   * The seq of the newest durable event the client holds for the thread, reported on the Hello so
+   * the serve can vouch the log is current. A number sends the Hello synchronously, exactly as
+   * before; a Promise (a durable store read) holds the wire until the head resolves so the Hello
+   * still leads. Absent means 0 — a client with no local source of truth can never be vouched
+   * current.
+   */
+  lastEventSeq?: (() => number | Promise<number>) | undefined
   socketFactory?: ChannelSocketFactory | undefined
   scheduleRetry?: ((retry: { delayMs: number; run: () => void }) => void) | undefined
   scheduleTimeout?: ((timeout: { delayMs: number; run: () => void }) => void) | undefined
@@ -307,7 +314,17 @@ export function createRemoteDeltaChannel(args: {
     })
   }
 
+  // Nothing may reach the socket before its Hello: the serve refuses any earlier frame. On the
+  // Promise path the head is still being read when the socket opens, so the rest of the wire
+  // (keepalive Pong, a queued send) queues behind the Hello and flushes in order once it lands.
+  let helloPending = false
+  let heldUntilHello: string[] = []
+
   const write = (data: string): boolean => {
+    if (helloPending) {
+      heldUntilHello.push(data)
+      return true
+    }
     const live = socket
     if (live === null) return false
     if (live.isOpen !== undefined && !live.isOpen()) return false
@@ -444,7 +461,9 @@ export function createRemoteDeltaChannel(args: {
       if (channelCursor !== null && frame.seq > channelCursor + 1) {
         channelCursor = null
         endStrandedStep()
-        reloads.emit({ sinceEventSeq: lastEventSeq() })
+        const head = lastEventSeq()
+        if (typeof head === 'number') reloads.emit({ sinceEventSeq: head })
+        else void Promise.resolve(head).then((seq) => reloads.emit({ sinceEventSeq: seq }))
         return
       }
       deliver(frame.signal)
@@ -512,15 +531,33 @@ export function createRemoteDeltaChannel(args: {
 
   const handleOpen = () => {
     startKeepalive()
-    write(
+    const head = lastEventSeq()
+    const hello = (seq: number): string =>
       encodeFrame({
         kind: EClientFrame.Hello,
         threadId: args.threadId,
         channelCursor,
-        lastEventSeq: lastEventSeq(),
+        lastEventSeq: seq,
         protocol: CHANNEL_PROTOCOL_VERSION,
-      }),
-    )
+      })
+
+    if (typeof head === 'number') {
+      write(hello(head))
+      return
+    }
+
+    // The durable head reads off the wire's thread, so the Hello must not block the open — but it
+    // still leads: everything else queues behind it until the read lands. A socket superseded
+    // mid-read drops its pending Hello rather than leaking it onto the next socket.
+    helloPending = true
+    heldUntilHello = []
+    const opening = generation
+    void Promise.resolve(head).then((seq) => {
+      if (abandoned || opening !== generation) return
+      helloPending = false
+      write(hello(seq))
+      for (const frame of heldUntilHello.splice(0)) write(frame)
+    })
   }
 
   const handleMessage = (data: string) => {

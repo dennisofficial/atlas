@@ -60,7 +60,12 @@ export function createLocalCloudBridge(args: {
   cloudUrl?: (() => string) | undefined
   readCheckpoint?: ((args: { threadId: ThreadId }) => Promise<RuntimeCheckpoint | null>) | undefined
   onDriverLog?: ((line: string) => void) | undefined
-  lastEventSeq?: (() => number) | undefined
+  /**
+   * The newest durable event seq the client holds for a thread, reported on the Hello so the serve
+   * can vouch the log is current. The truthful source is the local event store, so a Promise is
+   * honoured. Absent means the client can never be vouched current.
+   */
+  lastEventSeq?: ((args: { threadId: ThreadId }) => number | Promise<number>) | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
   settings?: SettingsService | undefined
 }): CloudBridge {
@@ -299,7 +304,9 @@ export function createLocalCloudBridge(args: {
         threadId,
         url,
         token,
-        ...(args.lastEventSeq === undefined ? {} : { lastEventSeq: args.lastEventSeq }),
+        ...(args.lastEventSeq === undefined
+          ? {}
+          : { lastEventSeq: () => args.lastEventSeq?.({ threadId }) ?? 0 }),
         reattach: () => reattachSandbox({ sandboxes: bridgeSandboxes, threadId }),
         lifecycleEscalation: lifecycleEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
         onFinished: () => unbindSettings?.(),
