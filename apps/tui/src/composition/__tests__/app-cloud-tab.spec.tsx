@@ -48,12 +48,13 @@ async function onCloudTab(app: FakeApp): Promise<Mounted> {
 
   setup.mockInput.pressKey('o', { ctrl: true })
   await landed(setup)
-  setup.mockInput.pressTab()
-  await landed(setup)
-  setup.mockInput.pressTab()
-  await landed(setup)
-  setup.mockInput.pressTab()
-  await landed(setup)
+
+  for (let tabs = 0; tabs < 8; tabs += 1) {
+    const frame = setup.captureCharFrame()
+    if (frame.includes('Vercel token') || frame.includes('ATLAS CLOUD')) break
+    setup.mockInput.pressTab()
+    await landed(setup)
+  }
   return setup
 }
 
