@@ -72,8 +72,8 @@ export type ChannelFailure = { message: string }
 
 export type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
-/** What the serve said about itself at greet — whether the turn it was running survived. */
-export type ChannelReady = { turnInFlight: boolean }
+/** What the serve said about itself at greet — whether the turn it was running survived, and whether it vouches the client's durable log is whole. */
+export type ChannelReady = { turnInFlight: boolean; transcriptCurrent?: boolean | undefined }
 
 /** The far side received the interrupt frame and aborted the turn it was driving. */
 export type InterruptAck = { turnInFlight: boolean }
@@ -430,7 +430,10 @@ export function createRemoteDeltaChannel(args: {
       // The serve sends the fresh pending snapshot right after Ready, so an empty list first
       // clears whatever copy a reconnecting client kept from before it detached.
       settlePending(NOTHING_PENDING)
-      readies.emit({ turnInFlight: frame.turnInFlight === true })
+      readies.emit({
+        turnInFlight: frame.turnInFlight === true,
+        transcriptCurrent: frame.transcriptCurrent,
+      })
       moveTo({ state: EChannelConnection.Open, detail: null })
       if (interruptPending && frame.turnInFlight === true) requestInterrupt()
       return
