@@ -31,6 +31,7 @@ describe('settingsModel', () => {
       'general',
       'models',
       'appearance',
+      'experimental',
       'cloud',
     ])
   })
@@ -66,7 +67,7 @@ describe('settingsModel', () => {
   })
 
   it('gathers the core cloud rows on the cloud page', () => {
-    const cloud = modelWith().pages[3]
+    const cloud = modelWith().pages.find((page) => page.page.id === ESettingPage.Cloud)
 
     expect(cloud?.page.id).toBe(ESettingPage.Cloud)
     expect(cloud?.groups.map((group) => [group.label, group.rows.length])).toEqual([
@@ -130,16 +131,17 @@ describe('moving around the page', () => {
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
+    const last = model.pages.length - 1
     const moved = movePage({ state: { pageIndex: 0, rowIndex: 1 }, model, delta: 1 })
 
     expect(moved).toEqual({ pageIndex: 1, rowIndex: 0 })
     expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 2, rowIndex: 0 })
-    expect(movePage({ state: { pageIndex: 3, rowIndex: 0 }, model, delta: 1 })).toEqual({
+    expect(movePage({ state: { pageIndex: last, rowIndex: 0 }, model, delta: 1 })).toEqual({
       pageIndex: 0,
       rowIndex: 0,
     })
     expect(movePage({ state: openSettings(), model, delta: -1 })).toEqual({
-      pageIndex: 3,
+      pageIndex: last,
       rowIndex: 0,
     })
   })
