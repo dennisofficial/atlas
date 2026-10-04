@@ -65,6 +65,9 @@ describe('serviceEnding', () => {
     expect(serviceEnding({ status: EServiceStatus.Killed, killedBy: EKilledBy.SessionEnd })).toBe(
       'was stopped because the session was closing',
     )
+    expect(serviceEnding({ status: EServiceStatus.Killed, killedBy: EKilledBy.IdlePark })).toBe(
+      'was stopped because the sandbox parked after sitting idle',
+    )
     expect(serviceEnding({ status: EServiceStatus.Killed })).toBe('was stopped')
   })
 })

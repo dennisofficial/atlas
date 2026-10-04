@@ -11,12 +11,14 @@ export type RuntimeWork = {
   servicesRunning: number
   pendingInput: boolean
   settlingWork: boolean
+  clientsAttached: number
 }
 
 export function runtimeWork(args: {
   app: ServeApp
   driver: ServeTurnDriver
   settling: number
+  clientsAttached?: (() => number) | undefined
 }): RuntimeWork {
   const { app, driver } = args
   const roster = app.roster?.snapshot()
@@ -28,9 +30,11 @@ export function runtimeWork(args: {
     servicesRunning: app.runningServices?.() ?? roster?.services.filter((service) => service.status === EServiceStatus.Running).length ?? 0,
     pendingInput: app.pendingInput?.() ?? ((app.intake?.threadsWithPendingInput().length ?? 0) > 0 || (app.pending?.waitingCount() ?? 0) > 0),
     settlingWork: args.settling > 0 || (app.settlingWork?.() ?? false) || (app.intake?.busy() ?? false),
+    clientsAttached: args.clientsAttached?.() ?? 0,
   }
 }
 
 export function runtimeHasWork(work: RuntimeWork): boolean {
-  return work.busy || work.childrenRunning > 0 || work.shellsRunning > 0 || work.servicesRunning > 0 || work.pendingInput || work.settlingWork
+  return work.busy || work.childrenRunning > 0 || work.shellsRunning > 0 || work.pendingInput || work.settlingWork ||
+    (work.servicesRunning > 0 && work.clientsAttached > 0)
 }

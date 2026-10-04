@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId } from '@dltech/atlas-core'
+import { EKilledBy, toThreadId, type EKilledBy as KilledBy } from '@dltech/atlas-core'
 
 import { createServeLifecycle } from '../serve-lifecycle'
 import type { RuntimeWork } from '../runtime-work'
@@ -11,15 +11,17 @@ const threadId = toThreadId('lifecycle-owner')
 
 const quiet = (): RuntimeWork => ({
   turnRunning: false, busy: false, childrenRunning: 0, shellsRunning: 0,
-  servicesRunning: 0, pendingInput: false, settlingWork: false,
+  servicesRunning: 0, pendingInput: false, settlingWork: false, clientsAttached: 0,
 })
 
 const fixture = (over: {
   work?: () => RuntimeWork
   stop?: (() => Promise<void>) | undefined
   finalize?: (() => Promise<void>) | undefined
+  endProcesses?: ((args: { killedBy: KilledBy }) => Promise<void>) | undefined
 } = {}) => {
   const app = fakeServeApp({ threadId, root: '/workspace', intake: true })
+  if (over.endProcesses !== undefined) app.endProcesses = over.endProcesses
   const driver = createTurnDriver({
     app, threadId, onTurnStarted: () => undefined, onTurnEnded: () => undefined,
     onOutcome: () => undefined, onFailure: () => undefined,
@@ -58,6 +60,7 @@ describe('sandbox lifecycle ownership', () => {
       stop: async () => { calls.push('provider-stop') },
     })
     const parking = test.lifecycle.park()
+    await Promise.resolve()
     expect(test.admission.closed).toBe(true)
     expect(calls).toEqual(['finalize'])
     expect(test.calls).not.toContain('parked')
@@ -69,7 +72,7 @@ describe('sandbox lifecycle ownership', () => {
     expect(test.calls.at(-1)).toBe('exit')
   })
 
-  for (const signal of ['busy', 'childrenRunning', 'shellsRunning', 'servicesRunning', 'pendingInput', 'settlingWork']) {
+  for (const signal of ['busy', 'childrenRunning', 'shellsRunning', 'pendingInput', 'settlingWork']) {
     it(`refuses final park when ${signal} became active after the idle check`, async () => {
       let stopped = false
       const test = fixture({
@@ -83,6 +86,31 @@ describe('sandbox lifecycle ownership', () => {
       test.app.intake?.dispose()
     })
   }
+
+  it('refuses final park when a service is running with a client still attached', async () => {
+    let stopped = false
+    const test = fixture({
+      work: () => ({ ...quiet(), servicesRunning: 1, clientsAttached: 1 }),
+      stop: async () => { stopped = true },
+    })
+    await test.lifecycle.park()
+    expect(stopped).toBe(false)
+    expect(test.admission.closed).toBe(false)
+    test.app.intake?.dispose()
+  })
+
+  it('parks with a service running once no client is attached, ending it first', async () => {
+    const order: string[] = []
+    const test = fixture({
+      work: () => ({ ...quiet(), servicesRunning: 1, clientsAttached: 0 }),
+      endProcesses: async () => { order.push('endings') },
+      finalize: async () => { order.push('finalize') },
+      stop: async () => { order.push('provider-stop') },
+    })
+    await test.lifecycle.park()
+    expect(order).toEqual(['endings', 'finalize', 'provider-stop'])
+    expect(test.calls).toContain('serve.park-finalized')
+  })
 
   it('never reopens admission after finalization even if all provider stop attempts fail', async () => {
     let attempts = 0
@@ -110,6 +138,20 @@ describe('sandbox lifecycle ownership', () => {
     expect(test.calls).not.toContain('parked')
     expect(test.admission.closed).toBe(true)
     test.app.intake?.dispose()
+  })
+
+  it('drains services with an idle-park ending before the park is finalized', async () => {
+    const endings: KilledBy[] = []
+    const order: string[] = []
+    const test = fixture({
+      endProcesses: async ({ killedBy }) => { endings.push(killedBy); order.push('endings') },
+      finalize: async () => { order.push('finalize') },
+      stop: async () => { order.push('provider-stop') },
+    })
+    await test.lifecycle.park()
+    expect(endings).toEqual([EKilledBy.IdlePark])
+    expect(order).toEqual(['endings', 'finalize', 'provider-stop'])
+    expect(test.calls).toContain('serve.park-finalized')
   })
 
   it('legacy idle exit closes without claiming finalized park', async () => {

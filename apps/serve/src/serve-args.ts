@@ -22,6 +22,7 @@ export type ServeArgs = {
   bufferSize?: number | undefined
   drainDeadlineMs?: number | undefined
   idleMinutes?: number | undefined
+  serviceIdleMinutes?: number | undefined
   idleTickMs?: number | undefined
   /** What an idle serve does after closing — injectable so a spec's process survives it. */
   exit?: ((code: number) => void) | undefined
