@@ -130,13 +130,12 @@ const protocolOf = (text: string | undefined): number => {
   return /^\d+$/.test(trimmed) ? Number(trimmed) : UNSTAMPED_PROTOCOL
 }
 
-export const EServeAge = {
-  Older: 'older',
-  Same: 'same',
-  Newer: 'newer',
-  Unknown: 'unknown',
-} as const
-export type EServeAge = (typeof EServeAge)[keyof typeof EServeAge]
+export enum EServeAge {
+  Older = 'older',
+  Same = 'same',
+  Newer = 'newer',
+  Unknown = 'unknown',
+}
 
 export const serveAgeOf = (args: { installed: string; pinned: string }): EServeAge => {
   const parse = (text: string): [number, number, number] | null => {
@@ -223,21 +222,18 @@ export async function probeSandboxForResume(args: {
   const installed = (versionLine ?? '').trim()
   const installedProtocol = protocolOf(protocolLine)
 
+  if (installedProtocol > CHANNEL_PROTOCOL_VERSION) {
+    throw new Error(`the sandbox speaks newer wire protocol ${installedProtocol} — update Atlas before attaching; nothing was destroyed`)
+  }
+
   const rotate = async (line: string): Promise<void> => {
     notifyRotationStarted({ onRotationStarted: args.onRotationStarted, log: args.log })
     args.log?.(line)
     const url = routedUrlOf(sandbox, args.servePort)
     if (url === undefined) {
-      args.log?.(`sandbox ${args.name} has no routed URL to drain through — deleting it without a drain`)
-    } else {
-      // A serve that predates /v1/drain answers 404, and one that already exited refuses the
-      // connection; neither can be drained, and rotation must still go on to the delete.
-      await (args.drain ?? drainServe)({ sandbox, url }).catch((failure: unknown) => {
-        args.log?.(
-          `sandbox ${args.name} did not drain cleanly (${failure instanceof Error ? failure.message : String(failure)}) — deleting it anyway`,
-        )
-      })
+      throw new Error(`sandbox ${args.name} has no preparation route — nothing was destroyed`)
     }
+    await (args.drain ?? drainServe)({ sandbox, url })
     await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
     const detached = await (args.waitForDriveDetached?.() ?? true)
     if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
@@ -250,8 +246,6 @@ export async function probeSandboxForResume(args: {
     return { probe: ESandboxProbe.RotationNeeded, outdatedProtocol: installedProtocol }
   }
 
-  // An unpinned build (dev/source, or an operator-set image) has no serve version to judge drift
-  // against; the protocol gate above is the only check that can run without one.
   if (pinned === undefined) return { probe: ESandboxProbe.Kept }
   if (installed === pinned) return { probe: ESandboxProbe.Kept }
 

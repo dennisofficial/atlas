@@ -47,17 +47,3 @@ export async function transferMemoryDown(args: {
     repoRoot: args.repoRoot,
   })
 }
-
-export const awaitPause = (args: { channel: CloudChannel; deadlineMs: number }): Promise<boolean> =>
-  new Promise((resolve) => {
-    const unsubscribe = args.channel.onTurnEnded((outcome) => {
-      if (outcome.status !== 'relocation-paused') return
-      clearTimeout(timer)
-      unsubscribe()
-      resolve(true)
-    })
-    const timer = setTimeout(() => {
-      unsubscribe()
-      resolve(false)
-    }, args.deadlineMs)
-  })

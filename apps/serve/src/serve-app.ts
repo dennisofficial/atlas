@@ -111,7 +111,7 @@ export type ServeApp = {
   /** The shared message intake driving this serve's idle wake; absent in fakes. */
   intake?: MessageIntake | undefined
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
-  adoptChildren: (args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>
+  adoptChildren: (args: { threadId: ThreadId; resumeChildren?: readonly ThreadId[] | undefined }) => Promise<readonly ThreadId[]>
   /**
    * Settles the shells the last process lost — a start with no ending behind it gets a synthetic
    * unrecorded ending so the next open reads it off the transcript. Absent in a fake without a log.

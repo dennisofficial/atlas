@@ -12,7 +12,9 @@ describe('an idle session relocation', () => {
     const order: string[] = []
     let release: () => void = () => undefined
     const paused = new Promise<void>((resolve) => { release = resolve })
-    app.family = { pauseChildren: async () => { order.push('pause children'); await paused } }
+    let markStarted = (): void => undefined
+    const started = new Promise<void>((resolve) => { markStarted = resolve })
+    app.family = { pauseChildren: async () => { order.push('pause children'); markStarted(); await paused } }
     const driver = createTurnDriver({
       app,
       threadId: toThreadId('brn_idle_relocation'),
@@ -22,11 +24,11 @@ describe('an idle session relocation', () => {
       onOutcome: (outcome) => { order.push(outcome.status) },
     })
 
-    driver.beginRelocation()
-    await Promise.resolve()
+    const preparation = driver.beginRelocation()
+    await started
     expect(order).toEqual(['pause children'])
     release()
-    await driver.settled()
+    await preparation
     expect(order).toEqual(['pause children', ETurnStatus.RelocationPaused])
   })
 })

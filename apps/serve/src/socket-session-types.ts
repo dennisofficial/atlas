@@ -32,6 +32,7 @@ export type SessionHandlers = {
   hangUp: () => void
   clients: () => number
   settling: () => boolean
+  whenSettled: () => Promise<void>
 }
 
 export type HelloFrame = Extract<ClientFrame, { kind: EClientFrame.Hello }>

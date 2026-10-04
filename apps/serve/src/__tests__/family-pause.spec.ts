@@ -55,7 +55,6 @@ const gate = (): { opened: Promise<void>; open: () => void } => {
   return { opened, open: () => release() }
 }
 
-/** Holds mid-turn until the relocation pause lands — the loop parked at its seam. */
 const pauseBlocksTurn: RunTurn = ({ pause }) =>
   new Promise<TurnOutcome>((resolve) => {
     const check = () => {
@@ -73,6 +72,19 @@ const relocationPaused = (frame: { kind: EServeFrame; outcome?: unknown }): bool
   (frame.outcome as { status: ETurnStatus }).status === ETurnStatus.RelocationPaused
 
 describe('pausing the whole family on a descend', () => {
+  it('answers a failed pause with a readable error instead of relocation proof', async () => {
+    const { handle } = await start({
+      family: { pauseChildren: async () => { throw new Error('child ending could not be persisted') } },
+    })
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello())
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    client.send({ kind: EClientFrame.Pause })
+    const error = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+    expect(error).toMatchObject({ kind: EServeFrame.Error, message: 'child ending could not be persisted' })
+    expect(client.frames.some(relocationPaused)).toBe(false)
+  })
+
   it('pauses the stepping children before the parent, so the archive never races a writer', async () => {
     const order: string[] = []
     const { handle } = await start({

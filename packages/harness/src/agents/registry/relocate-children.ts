@@ -10,13 +10,14 @@ import {
 } from '@dltech/atlas-core'
 
 import { isTeammateType } from '../types'
-import { isStepping, snapshotOf, type ChildState } from './child-state'
+import { agentEndedDraft, isStepping, type ChildState } from './child-state'
 import type { ChildSteps } from './child-steps'
 import type { NoticeDelivery } from './delivery'
-import { agentTypeNamed, type SupervisorDeps } from './deps'
-import type { AgentOutcome, RelocateChildrenArgs } from './port'
-import { alreadyStepping, retiredAgentType, terminalAgent, unknownAgent } from './reasons'
-import { recordRestart } from './record-restart'
+import type { SupervisorDeps } from './deps'
+import type { RelocateChildrenArgs } from './port'
+import { resumeChild } from './resume-child'
+
+export { resumeChild } from './resume-child'
 import type { ChildRecovery } from './recovery'
 import type { AgentRoster } from './roster'
 import { pauseChild, stopChild } from './stop-all'
@@ -30,22 +31,9 @@ export type Relocation = {
   delivery: NoticeDelivery
 }
 
-/**
- * ContainerSwitch is the one stopped state that is not terminal: the move itself put the child
- * there, and the whole point of the relocation is to pick it back up on the far side.
- */
-const isTerminal = (child: ChildState): boolean => {
-  if (child.status === EAgentStatus.Finished) return true
-  return (
-    child.status === EAgentStatus.Stopped &&
-    child.killedBy !== undefined &&
-    child.killedBy !== EKilledBy.ContainerSwitch
-  )
-}
-
 const isTerminalEnding = (draft: EventDraft): boolean =>
   draft.type === 'agent-ended' &&
-  (draft.status === EAgentStatus.Finished ||
+  (draft.status === EAgentStatus.Finished || draft.status === EAgentStatus.Failed ||
     (draft.status === EAgentStatus.Stopped &&
       draft.killedBy !== undefined &&
       draft.killedBy !== EKilledBy.ContainerSwitch))
@@ -63,11 +51,6 @@ export async function childDirectory({
   })
 }
 
-/**
- * The stop half of a relocation, on its own: a cloud lift needs to interrupt every stepping child
- * and wait for the interruption to land before it snapshots their logs, but must not touch their
- * location or resume them here — that happens once their transferred logs exist remotely.
- */
 export async function stopThreadChildren({
   threadId,
   by,
@@ -99,12 +82,6 @@ export async function stopThreadChildren({
   return stepping
 }
 
-/**
- * The pause half of a lift: every stepping child of the thread — subagents AND teammates, since
- * the whole session moves — is frozen at the loop's seam with its log intact, and the caller
- * returns only once each child's step has settled into that halt. Nothing is aborted and nothing
- * gets a killedBy, so the far side resumes each of them from its transferred log.
- */
 export async function pauseThreadChildren({
   threadId,
   caller,
@@ -119,27 +96,55 @@ export async function pauseThreadChildren({
 } & Pick<Relocation, 'roster' | 'steps' | 'recovery' | 'deps' | 'delivery'>): Promise<
   readonly ChildState[]
 > {
-  await recovery.hydrate({ threadId })
-
-  const stepping = relocatableChildren({ roster, threadId, skipTeammates: false }).filter(
-    (child) => child.agentId !== caller && isStepping(child),
-  )
+  const family = new Set<ThreadId>([threadId])
+  for (const owner of family) {
+    for (const child of roster.states()) if (child.spawnedBy === owner) family.add(child.agentId)
+  }
+  await steps.whenAdmitted({ threadIds: [...family] })
+  for (const owner of family) {
+    await recovery.hydrate({ threadId: owner })
+    for (const child of await deps.threads.spawned({ threadId: owner })) family.add(child.id)
+  }
+  await steps.whenAdmitted({ threadIds: [...family] })
+  const children = roster.states().filter((child) => family.has(child.spawnedBy) && child.agentId !== caller)
+  const stepping = children.filter(isStepping)
   for (const child of stepping) pauseChild({ child })
-
-  await steps
-    .whenSettled({ threadId, excluding: caller === undefined ? [] : [caller] })
-    .catch(() => undefined)
-
-  await flushPendingEndings({ threadId, deps, delivery })
-
-  return stepping
+  const settlements = await Promise.allSettled(children.map((child) => steps.whenSettled({
+    threadId: child.spawnedBy,
+    excluding: roster.states().filter((sibling) => sibling.agentId !== child.agentId).map((sibling) => sibling.agentId),
+  })))
+  for (const owner of family) {
+    await recovery.hydrate({ threadId: owner })
+    for (const child of await deps.threads.spawned({ threadId: owner })) family.add(child.id)
+  }
+  await steps.whenAdmitted({ threadIds: [...family] })
+  const rejected = settlements.find((result) => result.status === 'rejected')
+  if (rejected === undefined && roster.states().some((child) => family.has(child.spawnedBy) && child.agentId !== caller &&
+    (!children.includes(child) || (isStepping(child) && !child.pause.paused)))) {
+    return pauseThreadChildren({ threadId, caller, roster, steps, recovery, deps, delivery })
+  }
+  for (const owner of family) await flushPendingEndings({ threadId: owner, deps, delivery })
+  if (rejected?.status === 'rejected') throw rejected.reason
+  for (const child of children) {
+    if (child.status !== EAgentStatus.Paused && child.status !== EAgentStatus.Finished && child.status !== EAgentStatus.Failed) continue
+    const events = await deps.log.readOwn({ threadId: child.spawnedBy })
+    const latest = events.findLast((event) =>
+      (event.type === 'agent-ended' || event.type === 'agent-restarted') && event.agentId === child.agentId)
+    if (latest?.type !== 'agent-ended' || latest.status !== child.status) {
+      await deps.log.append({ threadId: child.spawnedBy, runId: deps.ids.nextRunId(), drafts: [agentEndedDraft(child)] })
+    }
+    delivery.drainEndings({ threadId: child.spawnedBy, where: (notice) =>
+      notice.draft.type === 'agent-ended' && notice.draft.agentId === child.agentId && notice.draft.status === EAgentStatus.Paused })
+  }
+  if (steps.admitting({ threadIds: [...family] })) {
+    return pauseThreadChildren({ threadId, caller, roster, steps, recovery, deps, delivery })
+  }
+  const unsafe = children.find((child) => child.status === EAgentStatus.Failed || isStepping(child) ||
+    (stepping.includes(child) && child.status !== EAgentStatus.Paused && child.status !== EAgentStatus.Finished))
+  if (unsafe !== undefined) throw new Error(`child ${unsafe.agentId} is ${unsafe.status} instead of paused or completed`)
+  return children.filter((child) => child.status === EAgentStatus.Paused)
 }
 
-/**
- * The local-flip half of a relocation, on its own: a cloud lift appends `location-changed` to
- * each child's *remote* log itself, so this only moves the local routing that decides where the
- * next step for that child runs.
- */
 export async function markThreadChildrenRelocated({
   threadId,
   location,
@@ -161,13 +166,8 @@ export async function markThreadChildrenRelocated({
   }
 }
 
-/**
- * An ending that no parent turn drained yet lives only in the notice queue, which a move does not
- * carry. Flushing the thread's pending terminal endings into its durable log first is what lets
- * the far side rebuild the same roster: a teammate the operator stopped arrives stopped, not
- * lost. Non-terminal notices — a relocation's own interruptions — stay queued so the parent
- * still hears them on its next turn.
- */
+const pendingEndings = new WeakMap<NoticeDelivery, Map<ThreadId, readonly EventDraft[]>>()
+
 export async function flushPendingEndings({
   threadId,
   deps,
@@ -175,9 +175,16 @@ export async function flushPendingEndings({
 }: {
   threadId: ThreadId
 } & Pick<Relocation, 'deps' | 'delivery'>): Promise<void> {
-  const drafts = delivery.drainEndings({ threadId, where: (notice) => isTerminalEnding(notice.draft) })
+  const pending = pendingEndings.get(delivery) ?? new Map<ThreadId, readonly EventDraft[]>()
+  pendingEndings.set(delivery, pending)
+  const drafts = [
+    ...(pending.get(threadId) ?? []),
+    ...delivery.drainEndings({ threadId, where: (notice) => isTerminalEnding(notice.draft) }),
+  ]
   if (drafts.length === 0) return
+  pending.set(threadId, drafts)
   await deps.log.append({ threadId, runId: deps.ids.nextRunId(), drafts })
+  pending.delete(threadId)
 }
 
 export async function relocateThreadChildren(
@@ -254,41 +261,4 @@ function relocatableChildren({
   return roster
     .states()
     .filter((child) => child.spawnedBy === threadId && !teammates.has(child.agentId))
-}
-
-export async function resumeChild(
-  args: { agentId: ThreadId; threadId: ThreadId; via?: EAgentRestart | undefined } & Pick<
-    Relocation,
-    'deps' | 'roster' | 'steps'
-  >,
-): Promise<AgentOutcome> {
-  const { agentId, threadId, deps, roster, steps } = args
-
-  const found = roster.find(agentId)
-  const child = found === undefined || found.spawnedBy !== threadId ? undefined : found
-  if (child === undefined) {
-    return { ok: false, reason: unknownAgent({ agentId, known: roster.list(threadId) }) }
-  }
-  if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
-  if (isTerminal(child)) return { ok: false, reason: terminalAgent({ agentId, status: child.status }) }
-
-  const agentType = agentTypeNamed({ agentTypes: deps.agentTypes, name: child.agentType })
-  if (agentType === undefined) {
-    return { ok: false, reason: retiredAgentType(child.agentType) }
-  }
-
-  child.projectDirectory ??= await childDirectory({ deps, threadId })
-  await recordRestart({
-    log: deps.log,
-    ids: deps.ids,
-    child,
-    via: args.via ?? EAgentRestart.Resume,
-  })
-  steps.take({
-    child,
-    agentType,
-    step: ({ runner, signal, pause }) => runner.resume({ threadId: agentId, signal, pause }),
-  })
-
-  return { ok: true, snapshot: snapshotOf(child) }
 }

@@ -52,25 +52,28 @@ export function settleLostShellsInBackground(args: {
   log: ServeLog
   settling: { count: number }
   note: () => void
-}): void {
+}): Promise<void> {
+  const work: Promise<void>[] = []
   const settleWith = <T>(args2: {
     recover: ((args: { threadId: ThreadId }) => Promise<readonly T[]>) | undefined
     detail: (settled: readonly T[]) => Record<string, unknown>
   }): void => {
     if (args2.recover === undefined) return
     args.settling.count += 1
-    void args2
+    const recovering = args2
       .recover({ threadId: args.threadId })
       .then((settled) => {
         if (settled.length > 0) args.log({ event: EServeEvent.LostShellsSettled, ...args2.detail(settled) })
       })
       .catch((error: unknown) => {
         args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
+        throw error
       })
       .finally(() => {
         args.settling.count -= 1
         args.note()
       })
+    work.push(recovering)
   }
 
   settleWith({
@@ -80,5 +83,9 @@ export function settleLostShellsInBackground(args: {
   settleWith({
     recover: args.app.recordLostServices,
     detail: (settled) => ({ serviceIds: settled.map((service) => service.serviceId) }),
+  })
+  return Promise.allSettled(work).then((results) => {
+    const failed = results.find((result) => result.status === 'rejected')
+    if (failed?.status === 'rejected') throw failed.reason
   })
 }

@@ -23,13 +23,13 @@ export const isReadOnlyFrame = (frame: ClientFrame): boolean =>
   (isTranscriptReadOp(frame.op) ||
     frame.op === EClientRequest.ListRoster ||
     frame.op === EClientRequest.ReadRuntimeCheckpoint ||
-    frame.op === EClientRequest.ReadSessionArchive ||
     frame.op === EClientRequest.ReadMemoryArchive ||
     frame.op === EClientRequest.ListContextFiles ||
     frame.op === EClientRequest.ReadContextFile)
 
 export function createMutationTracker(args: { changed?: (() => void) | undefined }) {
   const open = new Map<string, number>()
+  const waiters = new Set<() => void>()
   return {
     begin: (id: string): void => {
       open.set(id, (open.get(id) ?? 0) + 1)
@@ -41,6 +41,14 @@ export function createMutationTracker(args: { changed?: (() => void) | undefined
       if (count === 1) open.delete(frame.replyTo)
       else open.set(frame.replyTo, count - 1)
       args.changed?.()
+      if (open.size === 0) {
+        for (const release of waiters) release()
+        waiters.clear()
+      }
+    },
+    whenSettled: (): Promise<void> => {
+      if (open.size === 0) return Promise.resolve()
+      return new Promise((resolve) => { waiters.add(resolve) })
     },
     active: (): boolean => open.size > 0,
   }

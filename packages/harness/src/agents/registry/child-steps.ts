@@ -12,6 +12,7 @@ import type { TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
+import { ChildAdmissions } from './child-admissions'
 import type { HasLiveWork, IntakeChanged } from './deps'
 import {
   agentEndedDraft,
@@ -42,6 +43,9 @@ export class ChildSteps {
   private readonly onEnded: ((threadId: ThreadId) => void) | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
   private readonly settledListeners = new Set<() => void>()
+  private readonly admissions = new ChildAdmissions({
+    onSettled: () => { if (!this.settling()) this.announceSettled() },
+  })
 
   constructor(args: {
     runners: ChildRunnerSource
@@ -95,12 +99,24 @@ export class ChildSteps {
     void settled.finally(() => {
       forThread.delete(child.agentId)
       if (forThread.size === 0) this.inFlight.delete(child.spawnedBy)
-      if (this.inFlight.size === 0) this.announceSettled()
+      if (!this.settling()) this.announceSettled()
     })
   }
 
+  admit<T>(args: { threadId: ThreadId; start: () => Promise<T> }): Promise<T> {
+    return this.admissions.admit(args)
+  }
+
+  admitting(args: { threadIds: readonly ThreadId[] }): boolean {
+    return this.admissions.settling(args)
+  }
+
+  whenAdmitted(args: { threadIds: readonly ThreadId[] }): Promise<void> {
+    return this.admissions.whenSettled(args)
+  }
+
   settling(): boolean {
-    return this.inFlight.size > 0
+    return this.inFlight.size > 0 || this.admissions.settling()
   }
 
   onSettled(listener: () => void): () => void {
@@ -183,19 +199,12 @@ export class ChildSteps {
         draft: agentEndedDraft(child),
         generation: child.abort.signal,
       })
-      // A teammate parked between wakes holds its claim until the next wake claims nothing
-      // (claimOpenedWorktree fires at open, not resume); only a real ending hands it back.
       this.onEnded?.(child.agentId)
     }
 
     this.intake?.changed()
   }
 
-  /**
-   * A teammate that still owns live work is pausing between wakes, not ending: the pause is
-   * recorded but never queued, so nothing wakes or reaches the parent. One with nothing left
-   * that can wake it has gone silent for good, so its ending relays like a sub-agent's.
-   */
   private endingKind(child: ChildState): EAgentNotice | undefined {
     if (this.hasLiveWork?.(child.agentId) === true) return undefined
     return EAgentNotice.Ending
