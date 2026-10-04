@@ -37,6 +37,8 @@ export enum EServeEvent {
   ChildAdoptionFailed = 'serve.child-adoption-failed',
   LostShellsSettled = 'serve.lost-shells-settled',
   LostShellSettlementFailed = 'serve.lost-shell-settlement-failed',
+  LostAgentsSettled = 'serve.lost-agents-settled',
+  LostAgentSettlementFailed = 'serve.lost-agent-settlement-failed',
   PortableStateInstalled = 'serve.portable-state-installed',
   PortableStateFailed = 'serve.portable-state-failed',
   SettingsDropped = 'serve.settings-dropped',

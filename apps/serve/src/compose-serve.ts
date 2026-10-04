@@ -195,6 +195,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
     recordLostShells: ({ threadId }) => app.shells.reconcile({ threadId }),
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
+    recordLostAgents: ({ threadId }) => app.agents.recordLostAgents({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     family: {
       freeze: async ({ threadId }) => {

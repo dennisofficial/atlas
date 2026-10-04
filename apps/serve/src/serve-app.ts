@@ -11,7 +11,7 @@ import type { UserSettingsTarget } from './apply-user-settings'
 import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
-import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController } from '@dltech/atlas-harness'
+import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController, RecoveredAgents } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
@@ -129,6 +129,12 @@ export type ServeApp = {
    */
   recordLostShells?: ((args: { threadId: ThreadId }) => Promise<readonly LostShell[]>) | undefined
   recordLostServices?: ((args: { threadId: ThreadId }) => Promise<readonly LostService[]>) | undefined
+  /**
+   * Settles the agents the last process lost — a spawn with no ending behind it gets a synthetic
+   * unrecorded ending so the roster stops reporting it as a live or stopped child. Runs in the
+   * sandbox because a cloud thread never reaches the TUI's open-time settlement. Absent in fakes.
+   */
+  recordLostAgents?: ((args: { threadId: ThreadId }) => Promise<RecoveredAgents>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   /** Tars the served session directory for the descend's transcript transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
