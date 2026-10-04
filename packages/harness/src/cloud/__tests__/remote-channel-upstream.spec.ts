@@ -305,6 +305,27 @@ describe('a request riding the session socket', () => {
       expect(await answer).toEqual(['src/cloud'])
     })
 
+    it('re-drives a list-pr-states read in flight when the socket closes', async () => {
+      const { channel, drop, retries, receive, live } = readied()
+
+      const answer = channel.request({ op: EClientRequest.ListPrStates, params: {} })
+      const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
+      drop()
+
+      retries[0]?.run()
+      live().handlers.handleOpen()
+      receive({ kind: EServeFrame.Ready, seq: 9 })
+
+      const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+      expect(resent).toHaveLength(1)
+      expect(resent[0]).toMatchObject({ op: EClientRequest.ListPrStates })
+      const id = resent[0]?.kind === EClientFrame.Request ? resent[0].id : ''
+      expect(id).toBe(first?.kind === EClientFrame.Request ? first.id : '')
+
+      receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { states: [] } })
+      expect(await answer).toEqual({ states: [] })
+    })
+
     it('re-drives a read that was queued but never sent', async () => {
       const { channel, drop, retries, receive, live } = readied()
 
