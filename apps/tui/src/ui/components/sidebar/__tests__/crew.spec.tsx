@@ -19,6 +19,7 @@ const row = (over: Partial<SidebarSubagent> & { id: string }): SidebarSubagent =
   state: '1m 4s',
   model: null,
   selected: false,
+  failureReason: null,
   ...over,
 })
 
@@ -179,6 +180,42 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
 
     expect(frame).not.toContain('shell')
     expect(frame).not.toContain('agent')
+  })
+
+  it('names why a failed child failed on the figures line', async () => {
+    const frame = (
+      await rowsOf({
+        subagents: [
+          row({
+            id: 's1',
+            status: EAgentStatus.Failed,
+            endedAt: '2026-01-01T00:01:00.000Z',
+            state: 'failed',
+            failureReason: 'provider inference.net returned 402',
+          }),
+        ],
+        cells: WIDTH,
+      })
+    ).join('\n')
+
+    expect(frame).toContain('provider inference.net returned 402')
+  })
+
+  it('spends no line on a cause a failed child never recorded', async () => {
+    const lines = await rowsOf({
+      subagents: [
+        row({
+          id: 's1',
+          status: EAgentStatus.Failed,
+          endedAt: '2026-01-01T00:01:00.000Z',
+          state: 'failed',
+        }),
+      ],
+      cells: WIDTH,
+    })
+
+    expect(lines.join('\n')).toContain('failed')
+    expect(lines.filter((line) => line.trim() !== '')).toHaveLength(2)
   })
 
   it('treats a row with no agentType as a sub-agent rather than dropping it', async () => {

@@ -8,6 +8,7 @@ import {
   LAST_TEXT_TAIL_CHARACTERS,
   recordProgress,
   recoveredChild,
+  snapshotOf,
 } from '../child-state'
 import { said } from './fixtures'
 
@@ -95,6 +96,42 @@ describe('agentEndedDraft prose', () => {
   })
 })
 
+describe('snapshotOf failureCause', () => {
+  it('carries the failure cause so a watching surface can say why it failed', () => {
+    const state = child()
+    state.status = EAgentStatus.Failed
+    state.failureCause = 'provider inference.net returned 402: credit exhausted'
+
+    expect(snapshotOf(state).failureCause).toBe('provider inference.net returned 402: credit exhausted')
+  })
+
+  it('omits the cause when nothing recorded one', () => {
+    const state = child()
+    state.status = EAgentStatus.Finished
+
+    expect(snapshotOf(state).failureCause).toBeUndefined()
+  })
+
+  it('recovers the cause from the rostered ending, so a rebuilt child still says why', () => {
+    const agent: RosteredAgent = {
+      agentId: toThreadId('thread-child'),
+      agentType: 'explore',
+      intent: 'looking',
+      status: EAgentStatus.Failed,
+      turns: 3,
+      toolCalls: 7,
+      prose: 'some prose',
+      killedBy: undefined,
+      spawnedAt: '2026-01-01T00:00:00.000Z',
+      endedAt: '2026-01-01T00:01:00.000Z',
+      failureCause: 'provider inference.net returned 402: credit exhausted',
+    }
+
+    const state = recoveredChild({ agent, spawnedBy: toThreadId('thread-parent'), at: '2026-01-01T00:02:00.000Z' })
+    expect(snapshotOf(state).failureCause).toBe('provider inference.net returned 402: credit exhausted')
+  })
+})
+
 describe('recoveredChild lastText', () => {
   it('bounds prose recovered from an old unbounded ending', () => {
     const agent: RosteredAgent = {
@@ -106,6 +143,7 @@ describe('recoveredChild lastText', () => {
       toolCalls: 5,
       prose: beyondCap(),
       killedBy: undefined,
+      failureCause: undefined,
       spawnedAt: '2026-01-01T00:00:00.000Z',
       endedAt: '2026-01-01T00:01:00.000Z',
     }
@@ -130,6 +168,7 @@ describe('recoveredChild lastText', () => {
       toolCalls: 5,
       prose: beyondCap(),
       killedBy: undefined,
+      failureCause: undefined,
       spawnedAt: '2026-01-01T00:00:00.000Z',
       endedAt: '2026-01-01T00:01:00.000Z',
     }

@@ -83,6 +83,20 @@ describe('a child row is derived from the child', () => {
     expect(rows({ intent: 'vault\n  audit' })[0]?.name).toBe('vault audit')
   })
 
+  it('hands a failed row the cause the snapshot recorded', () => {
+    expect(
+      rows({
+        status: EAgentStatus.Failed,
+        endedAt: STARTED,
+        failureCause: 'provider inference.net returned 402: credit exhausted',
+      })[0]?.failureReason,
+    ).toBe('provider inference.net returned 402: credit exhausted')
+  })
+
+  it('hands a row no cause when the snapshot recorded none', () => {
+    expect(rows({ status: EAgentStatus.Failed, endedAt: STARTED })[0]?.failureReason).toBeNull()
+  })
+
   it('carries the reading the row renders rather than making the view assemble it', () => {
     expect(rows()[0]?.state).toBe('1m 4s')
   })
@@ -393,6 +407,7 @@ describe('grouping the crew into tiers', () => {
       state: '1m 4s',
       model: null,
       selected: false,
+      failureReason: null,
     }
 
     const tiers = crewTiersOf([untyped])

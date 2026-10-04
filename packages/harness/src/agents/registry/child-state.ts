@@ -116,7 +116,7 @@ export function recoveredChild({
     lastTool: undefined,
     lastText: boundedTail(agent.prose),
     lastFullText: agent.prose,
-    failureCause: undefined,
+    failureCause: agent.failureCause,
     startedAt: agent.spawnedAt ?? at,
     steppingSince: undefined,
     endedAt: agent.endedAt,
@@ -146,7 +146,7 @@ export function reviseFromTransfer({
   child.lastTool = undefined
   child.lastText = boundedTail(agent.prose)
   child.lastFullText = agent.prose
-  child.failureCause = undefined
+  child.failureCause = agent.failureCause
   child.startedAt = agent.spawnedAt ?? child.startedAt
   child.steppingSince = undefined
   child.endedAt = agent.endedAt
@@ -167,6 +167,7 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
     turns: child.turns,
     toolCalls: child.toolCalls,
     lastTool: child.lastTool,
+    ...(child.failureCause === undefined ? {} : { failureCause: child.failureCause }),
     startedAt: child.startedAt,
     ...(child.steppingSince === undefined ? {} : { steppingSince: child.steppingSince }),
     endedAt: child.endedAt,

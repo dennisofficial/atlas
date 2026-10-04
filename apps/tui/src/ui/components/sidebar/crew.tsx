@@ -67,6 +67,21 @@ const valueFor = (subagent: SidebarSubagent) => [
 ]
 
 /**
+ * The one line a settled child can spend beyond its title: why it failed, when it failed. A
+ * bare "failed" in a panel this narrow answers nothing the operator is asking, and the reason
+ * the loop recorded is the difference between respawning the child and fixing the cause.
+ */
+function FailureLine(props: { subagent: SidebarSubagent }): React.ReactNode {
+  if (props.subagent.failureReason === null || props.subagent.failureReason === undefined) return null
+
+  return (
+    <text>
+      <Spans spans={[{ text: `${TITLE_INDENT}${props.subagent.failureReason}`, fg: theme.warn }]} />
+    </text>
+  )
+}
+
+/**
  * A second line, and only when there is a reading to put on it — the same pair the footer gives
  * the main agent, with the child's own math: the model it runs, lined up under the title, and
  * what its own window holds on the right edge. Worth the row's height in every state — running,
@@ -139,6 +154,7 @@ function CrewRows(props: {
             value={valueFor(subagent)}
           />
           <FiguresLine subagent={subagent} cells={props.cells} />
+          <FailureLine subagent={subagent} />
           <ActivityLine subagent={subagent} />
         </box>
       ))}

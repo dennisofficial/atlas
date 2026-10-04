@@ -35,6 +35,7 @@ export function lineFor(snapshot: AgentSnapshot): string {
     status: snapshot.status,
     turns: snapshot.turns,
     toolCalls: snapshot.toolCalls,
+    failureCause: snapshot.failureCause,
   })
   const lastTool = snapshot.lastTool === undefined ? '' : `, last tool ${snapshot.lastTool}`
 

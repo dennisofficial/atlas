@@ -21,6 +21,25 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
     )
   })
 
+  it('names the cause a failed ending recorded, since failed alone answers nothing', () => {
+    expect(
+      agentEnding(
+        ending({
+          status: EAgentStatus.Failed,
+          failureCause: 'provider inference.net returned 402: credit exhausted',
+        }),
+      ),
+    ).toBe(
+      'failed after 4 turns and 11 tool calls — provider inference.net returned 402: credit exhausted',
+    )
+  })
+
+  it('keeps a clean finish free of a cause', () => {
+    expect(agentEnding(ending({ failureCause: undefined }))).toBe(
+      'finished after 4 turns and 11 tool calls',
+    )
+  })
+
   it('says a stopped agent was stopped, not that it finished', () => {
     expect(agentEnding(ending({ status: EAgentStatus.Stopped }))).toBe(
       'was stopped after 4 turns and 11 tool calls',
