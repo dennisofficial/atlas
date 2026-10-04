@@ -1,5 +1,5 @@
 import { agentLabel } from '../../agents/label'
-import { agentEnding, countedNoun } from '../../agents/status'
+import { agentEnding, countedNoun, EAgentStatus } from '../../agents/status'
 import { NO_CONTENT_TEXT } from '../../events/empty-step'
 import type { Event, EventOfType } from '../../events/envelope'
 import { EKilledBy } from '../../shells/status'
@@ -23,6 +23,13 @@ const LOST_AGENT =
 const RELOCATED =
   'This agent was not stopped: the conversation moved where it runs, and the agent is resuming there. It will report again when it actually ends.'
 
+const failedCauseAdvice = (event: Ending): readonly string[] => {
+  if (event.status !== EAgentStatus.Failed || event.failureCause === undefined) return []
+  return [
+    `It failed on this error, not on its work: ${event.failureCause} Respawning the same agent the same way usually fails the same way — fix the cause, switch models, or do that slice yourself.`,
+  ]
+}
+
 const NOT_YOUR_HISTORY =
   'None of their own steps are in your history and none are coming: what each one reports here is all of it.'
 
@@ -42,7 +49,7 @@ function advice(event: Ending): readonly string[] {
   }
   if (event.killedBy === EKilledBy.User) return [USER_STOPPED, ...noContentAdvice(event)]
   if (event.killedBy === EKilledBy.Unrecorded) return [LOST_AGENT, ...noContentAdvice(event)]
-  return noContentAdvice(event)
+  return [...failedCauseAdvice(event), ...noContentAdvice(event)]
 }
 
 function sectionOf(event: Ending): string {

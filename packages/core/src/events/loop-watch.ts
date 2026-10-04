@@ -9,6 +9,8 @@ export const LOOP_WATCH_CUT_ANCHOR_SLOP = 5
 export const LOOP_WATCH_CUT_SAME_ANCHOR_MAX = 2
 export const LOOP_WATCH_CUT_MAX_PER_TURN = 4
 export const LOOP_WATCH_MUTE_CADENCE = 25
+export const LOOP_WATCH_SPEECH_REPEAT_MIN = 3
+export const LOOP_WATCH_SPEECH_SIMILARITY = 0.8
 
 const SPEECH_CLIP = 300
 const INPUT_CLIP = 200
@@ -68,6 +70,53 @@ const lineOf = (event: Event): string | undefined => {
 }
 
 export type LoopWatchStep = { seq: number; line: string }
+
+const speechTokens = (text: string): ReadonlySet<string> =>
+  new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((token) => token.length > 2),
+  )
+
+const speechSimilarity = (a: ReadonlySet<string>, b: ReadonlySet<string>): number => {
+  if (a.size === 0 || b.size === 0) return 0
+  let shared = 0
+  for (const token of a) if (b.has(token)) shared += 1
+  return (2 * shared) / (a.size + b.size)
+}
+
+/**
+ * The syntactic blind spot the judge alone could not see: consecutive speeches that say the same
+ * thing in near-identical words while only the tool calls between them differ. A judge grading the
+ * whole window keeps scoring that pattern low because each round reads plausibly; a deterministic
+ * token-overlap check over consecutive speeches catches the echo directly. The repeat must span at
+ * least LOOP_WATCH_SPEECH_REPEAT_MIN speeches and reach LOOP_WATCH_SPEECH_SIMILARITY token overlap
+ * pairwise, with no steering event inside the run (the window the caller passes is already cut at
+ * the last one). Returns the seq of the first repeated speech so the caller can cut from there.
+ */
+export function speechRepeatStart({
+  events,
+}: {
+  events: readonly Event[]
+}): number | undefined {
+  const since = events.slice(lastSteeringIndex(events) + 1)
+  const speeches = since.filter(
+    (event): event is Event & { type: 'assistant-said' } =>
+      event.type === 'assistant-said' && speechOf(event).length > 0,
+  )
+  if (speeches.length < LOOP_WATCH_SPEECH_REPEAT_MIN) return undefined
+
+  const tail = speeches.slice(-LOOP_WATCH_SPEECH_REPEAT_MIN)
+  const tokenSets = tail.map((event) => speechTokens(speechOf(event)))
+  const first = tokenSets[0]
+  if (first === undefined) return undefined
+  const echoes = tokenSets.every(
+    (tokens) => speechSimilarity(first, tokens) >= LOOP_WATCH_SPEECH_SIMILARITY,
+  )
+  return echoes ? tail[0]?.seq : undefined
+}
 
 const lastSteeringIndex = (events: readonly Event[]): number =>
   events.findLastIndex((event) => event.type === 'user-said' || event.type === 'nudge')
