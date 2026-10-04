@@ -9,6 +9,7 @@ export enum EKilledBy {
   ContainerSwitch = 'container-switch',
   Rotation = 'rotation',
   LostContact = 'lost-contact',
+  IdlePark = 'idle-park',
   Unrecorded = 'unrecorded',
 }
 

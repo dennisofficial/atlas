@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { EKilledBy, type ThreadId } from '@dltech/atlas-core'
 
 import { withDeadline } from './drain-deadline'
 import type { RuntimeWork } from './runtime-work'
@@ -67,6 +67,7 @@ export function createServeLifecycle(args: {
       }
       args.haltIdle()
       args.log({ event: EServeEvent.IdleStop, threadId: args.threadId, work })
+      await args.app.endProcesses?.({ killedBy: EKilledBy.IdlePark })
       if (args.stopSandbox === undefined) {
         args.log({ event: EServeEvent.ParkUnfinalized, threadId: args.threadId, reason: 'provider-stop-unavailable' })
         await close('legacy-idle-exit')

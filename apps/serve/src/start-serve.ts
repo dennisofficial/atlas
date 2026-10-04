@@ -213,7 +213,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   liveStepId = bridge.liveStepId
   broadcast = handlers.broadcast
   const work = () => {
-    const activity = runtimeWork({ app, driver, settling: settling.count })
+    const activity = runtimeWork({ app, driver, settling: settling.count, clientsAttached: handlers.clients })
     return { ...activity, settlingWork: activity.settlingWork || handlers.settling() }
   }
 
@@ -299,7 +299,9 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     runningShells: () => work().shellsRunning,
     runningServices: () => work().servicesRunning,
     pendingInput: () => work().pendingInput,
+    clientsAttached: handlers.clients,
     idleMinutes: args.idleMinutes,
+    serviceIdleMinutes: args.serviceIdleMinutes,
     tickMs: args.idleTickMs,
     log: (line) => log({ event: EServeEvent.IdleCheckFailed, reason: line }),
     onDue: () => void lifecycle.park(),

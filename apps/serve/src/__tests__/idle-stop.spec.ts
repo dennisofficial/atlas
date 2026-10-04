@@ -9,6 +9,7 @@ type Probes = {
   runningShells: number
   runningServices: number
   pendingInput: boolean
+  clientsAttached: number
   probeFails: boolean
 }
 
@@ -20,6 +21,7 @@ const idleHarness = (probes: Partial<Probes>, tickMs = 60_000) => {
     runningShells: 0,
     runningServices: 0,
     pendingInput: false,
+    clientsAttached: 0,
     probeFails: false,
     ...probes,
   }
@@ -36,8 +38,10 @@ const idleHarness = (probes: Partial<Probes>, tickMs = 60_000) => {
     runningShells: () => live.runningShells,
     runningServices: () => live.runningServices,
     pendingInput: () => live.pendingInput,
+    clientsAttached: () => live.clientsAttached,
     onDue: () => due.push(now),
     idleMinutes: 5,
+    serviceIdleMinutes: 30,
     tickMs,
     now: () => now,
     log: (line) => logged.push(line),
@@ -151,11 +155,73 @@ describe('startServeIdleStop', () => {
     test.stop.halt()
   })
 
-  it('a running service never parks, and its stop still demands a full window', () => {
-    const test = idleHarness({ runningServices: 1 })
+  it('a service with a client attached never parks, however long it runs', () => {
+    const test = idleHarness({ runningServices: 1, clientsAttached: 1 })
 
     test.stop.check()
     test.advance(24 * 60 * 60_000)
+    test.stop.check()
+    expect(test.due).toHaveLength(0)
+    test.stop.halt()
+  })
+
+  it('a detached service parks only once the longer service window has passed', () => {
+    const test = idleHarness({ runningServices: 1, clientsAttached: 0 })
+
+    test.stop.check()
+    test.advance(5 * 60_000)
+    test.stop.check()
+    expect(test.due).toHaveLength(0)
+
+    test.advance(25 * 60_000 - 1)
+    test.stop.check()
+    expect(test.due).toHaveLength(0)
+
+    test.advance(1)
+    test.stop.check()
+    expect(test.due).toHaveLength(1)
+    test.stop.halt()
+  })
+
+  it('a client detaching starts the service window fresh from the detach', () => {
+    const test = idleHarness({ runningServices: 1, clientsAttached: 1 })
+
+    test.stop.check()
+    test.advance(20 * 60_000)
+    test.stop.check()
+    expect(test.due).toHaveLength(0)
+
+    test.live.clientsAttached = 0
+    test.stop.check()
+    test.advance(30 * 60_000 - 1)
+    test.stop.check()
+    expect(test.due).toHaveLength(0)
+
+    test.advance(1)
+    test.stop.check()
+    expect(test.due).toHaveLength(1)
+    test.stop.halt()
+  })
+
+  it('a silent sandbox parks at the short window even with a client attached', () => {
+    const test = idleHarness({ clientsAttached: 1 })
+
+    test.stop.check()
+    test.advance(5 * 60_000 - 1)
+    test.stop.check()
+    expect(test.due).toHaveLength(0)
+
+    test.advance(1)
+    test.stop.check()
+    expect(test.due).toHaveLength(1)
+    test.stop.halt()
+  })
+
+  it('a service stopping with a client attached still demands the full short window', () => {
+    const test = idleHarness({ runningServices: 1, clientsAttached: 1 })
+
+    test.stop.check()
+    test.advance(60 * 60_000)
     test.stop.check()
     expect(test.due).toHaveLength(0)
 
