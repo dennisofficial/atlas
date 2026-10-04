@@ -76,6 +76,7 @@ export function createCloudSession(args: {
   let pendingReload: CloudReload | null = null
   let resyncing = false
   let parkTimer: ReturnType<typeof setTimeout> | null = null
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
   let everOpen = connection.state === EChannelConnection.Open
 
   const CLOSED_DETAIL = {
@@ -156,6 +157,20 @@ export function createCloudSession(args: {
     if (parkTimer !== null) clearTimeout(parkTimer)
     parkTimer = null
   }
+  const clearRetryTimer = (): void => {
+    if (retryTimer !== null) clearTimeout(retryTimer)
+    retryTimer = null
+  }
+  const scheduleRetry = (): void => {
+    if (retryTimer !== null) return
+    const attachment = connectionEpoch
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      if (closed || attachment !== connectionEpoch) return
+      flushReload()
+    }, args.settleMs ?? 2_000)
+    retryTimer.unref?.()
+  }
   const inspectPark = (): void => {
     if (parkTimer !== null) return
     const attachment = connectionEpoch
@@ -173,13 +188,24 @@ export function createCloudSession(args: {
     const attachment = connectionEpoch
     const request = reloadEpoch
     resyncing = true
+    let retryScheduled = false
     void args.onReload(reload).then(() => {
       if (closed || attachment !== connectionEpoch || request !== reloadEpoch) return
       synced = true
       sync()
-    }).catch(() => undefined).finally(() => {
+    }).catch(() => {
+      // A resync can fail before it lands — the lift's binding is still committing when the
+      // serve's greeting reload arrives, so the TUI's handler rejects. Dropping the reload here
+      // would leave the open socket dimmed forever, so it goes back on the pending slot for a
+      // settle-timed retry — never an immediate re-flush, which would spin on a persistently
+      // rejecting handler.
+      if (closed || attachment !== connectionEpoch || request !== reloadEpoch) return
+      if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq) pendingReload = reload
+      scheduleRetry()
+      retryScheduled = true
+    }).finally(() => {
       resyncing = false
-      flushReload()
+      if (!retryScheduled) flushReload()
     })
   }
   const unsubscribeConnection = channel.onConnection((next) => {
@@ -188,6 +214,7 @@ export function createCloudSession(args: {
     inspectionEpoch += 1
     synced = false
     clearParkTimer()
+    clearRetryTimer()
     if (next.state === EChannelConnection.Open) {
       everOpen = true
       sandbox = ECloudSandboxLifecycle.Running
@@ -248,6 +275,7 @@ export function createCloudSession(args: {
       closed = true
       connectionEpoch += 1
       clearParkTimer()
+      clearRetryTimer()
       unsubscribeConnection()
       unsubscribeReload()
       unsubscribeError()
