@@ -28,13 +28,9 @@ export type SandboxReaper = {
   ttlMs?: number | undefined
 }
 
-const expiredNotice = (args: { threadId: string; days: number }): string =>
-  `the cloud workspace for "${args.threadId}" expired after ${args.days} days idle — the sandbox, its drive, and any turns that ran in the cloud are gone; the conversation continues from the local transcript.`
-
 const reapOne = async (args: {
   row: WireSandboxListEntry
   reaper: SandboxReaper
-  days: number
 }): Promise<void> => {
   const { row, reaper } = args
   try {
@@ -44,7 +40,6 @@ const reapOne = async (args: {
     if (thread?.executionLocation === EExecutionLocation.Cloud) {
       await reaper.flipToHost({ threadId: toThreadId(row.threadId) })
     }
-    reaper.notify(expiredNotice({ threadId: row.threadId, days: args.days }))
   } catch (failure) {
     reaper.notify(
       `could not retire the expired cloud sandbox for "${row.threadId}": ${messageOf(failure)} — it keeps billing until it is destroyed.`,
@@ -95,7 +90,6 @@ const clearListFailureMarkQuietly = async (reaper: SandboxReaper): Promise<void>
 export async function reapExpiredCloudSandboxes(reaper: SandboxReaper): Promise<void> {
   const now = reaper.now ?? Date.now()
   const ttlMs = reaper.ttlMs ?? SANDBOX_TTL_MS
-  const days = Math.round(ttlMs / (24 * 60 * 60 * 1000))
 
   let rows: WireSandboxListEntry[]
   try {
@@ -109,6 +103,6 @@ export async function reapExpiredCloudSandboxes(reaper: SandboxReaper): Promise<
   for (const row of rows) {
     const lastActivityAt = Date.parse(row.lastActivityAt)
     if (Number.isNaN(lastActivityAt) || now - lastActivityAt <= ttlMs) continue
-    await reapOne({ row, reaper, days })
+    await reapOne({ row, reaper })
   }
 }

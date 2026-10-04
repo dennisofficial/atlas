@@ -21,7 +21,7 @@ import { SIDEBAR_FOLD_BELOW, SIDEBAR_WIDTH } from '../ui/theme'
 
 const AUTO_COMPACT_AT_PERCENT = 90
 
-const NOTICE_SECONDS = 2
+const NOTICE_SECONDS = 4
 
 export type SettingsPreferences = {
   sidebarWidth: number

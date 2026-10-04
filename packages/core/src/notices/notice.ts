@@ -10,9 +10,17 @@ export enum ENoticePosition {
   Composer = 'composer',
 }
 
-export const NOTICE_MS = 2000
+export const NOTICE_MS = 4000
 
-export const NOTICE_WARN_MS = 6000
+export const NOTICE_WARN_MS = 8000
+
+export const NOTICE_MS_PER_CHAR = 50
+
+export const NOTICE_READING_CAP_MS = 20000
+
+export function readingFloorMs(args: { text: string }): number {
+  return Math.min(args.text.length * NOTICE_MS_PER_CHAR, NOTICE_READING_CAP_MS)
+}
 
 export type Notice = {
   readonly key: string

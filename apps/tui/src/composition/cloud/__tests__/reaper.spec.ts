@@ -88,7 +88,7 @@ const fixture = (given: Partial<Fixture>) => {
 }
 
 describe('reapExpiredCloudSandboxes', () => {
-  it('destroys an expired row, flips its cloud thread to host, and says what was lost', async () => {
+  it('destroys an expired row and flips its cloud thread to host without a notice', async () => {
     const given = fixture({
       rows: [EXPIRED],
       threads: new Map([[EXPIRED.threadId, { executionLocation: EExecutionLocation.Cloud }]]),
@@ -101,9 +101,7 @@ describe('reapExpiredCloudSandboxes', () => {
       { kind: 'row', threadId: EXPIRED.threadId },
       { kind: 'flip', threadId: EXPIRED.threadId },
     ])
-    expect(given.notices).toEqual([
-      `the cloud workspace for "${EXPIRED.threadId}" expired after 7 days idle — the sandbox, its drive, and any turns that ran in the cloud are gone; the conversation continues from the local transcript.`,
-    ])
+    expect(given.notices).toEqual([])
   })
 
   it('leaves a fresh row entirely alone', async () => {
@@ -132,8 +130,9 @@ describe('reapExpiredCloudSandboxes', () => {
       { kind: `drive:${other.name}`, threadId: other.threadId },
       { kind: 'row', threadId: other.threadId },
     ])
-    expect(given.notices.some((text) => text.includes(EXPIRED.threadId))).toBe(true)
-    expect(given.notices.some((text) => text.includes(other.threadId))).toBe(true)
+    expect(given.notices).toEqual([
+      `could not retire the expired cloud sandbox for "${EXPIRED.threadId}": vercel is down — it keeps billing until it is destroyed.`,
+    ])
   })
 
   it('does not flip a thread the local store has never heard of', async () => {
