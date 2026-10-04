@@ -248,7 +248,7 @@ function DerivedEntryView(props: {
       )
 
     case EEntryKind.LocationChanged:
-      return <LocationDivider width={props.width} location={entry.to} />
+      return <LocationDivider width={props.width} location={entry.to} cause={entry.cause} />
 
     default: {
       const unrendered: never = entry

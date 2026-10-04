@@ -17,6 +17,7 @@ import {
   EAssistantPlaceholder,
   ECompactionAnchor,
   EDecision,
+  ELocationChangeCause,
   EMessageOrigin,
   EOperatorInputOutcome,
   EWorktreeExit,
@@ -184,6 +185,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     cwd: z.string().min(1).optional(),
     remoteUrl: z.string().min(1).nullable().optional(),
     branch: z.string().min(1).nullable().optional(),
+    cause: z.enum(ELocationChangeCause).optional(),
   }),
   z.object({
     type: z.literal('operator-input-requested'),

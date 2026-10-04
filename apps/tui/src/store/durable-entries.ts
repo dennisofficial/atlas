@@ -1,4 +1,4 @@
-import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type ELocationChangeCause, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -140,7 +140,11 @@ function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
   return folded
 }
 
-const locationChangedEntry = (args: { key: string; to: EExecutionLocation }): TranscriptEntry => {
+const locationChangedEntry = (args: {
+  key: string
+  to: EExecutionLocation
+  cause?: ELocationChangeCause | undefined
+}): TranscriptEntry => {
   const text =
     args.to === EExecutionLocation.Docker
       ? 'docker container'
@@ -153,6 +157,7 @@ const locationChangedEntry = (args: { key: string; to: EExecutionLocation }): Tr
     key: args.key,
     text,
     to: args.to,
+    cause: args.cause,
   }
 }
 
@@ -359,7 +364,7 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'location-changed') {
-      return [locationChangedEntry({ key: event.id, to: event.to })]
+      return [locationChangedEntry({ key: event.id, to: event.to, cause: event.cause })]
     }
 
     if (event.type === 'operator-input-requested') {

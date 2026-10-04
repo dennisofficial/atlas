@@ -28,6 +28,10 @@ export enum EWorktreeExit {
   Remove = 'remove',
 }
 
+export enum ELocationChangeCause {
+  SandboxExpired = 'sandbox-expired',
+}
+
 export enum EOperatorInputOutcome {
   Delivered = 'delivered',
   Undelivered = 'undelivered',
@@ -125,6 +129,7 @@ export type EventBody =
       cwd?: string | undefined
       remoteUrl?: string | null | undefined
       branch?: string | null | undefined
+      cause?: ELocationChangeCause | undefined
     }
   | {
       type: 'operator-input-requested'

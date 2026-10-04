@@ -1,4 +1,4 @@
-import { EExecutionLocation, toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, ELocationChangeCause, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { WireSandboxListEntry } from '@dltech/atlas-harness'
 
 import { messageOf } from '../error-text'
@@ -20,6 +20,7 @@ export type SandboxReaper = {
   destroyDrive: (args: { name: string; threadId: string }) => Promise<void>
   findThread: (args: { threadId: ThreadId }) => Promise<ReapedThread | undefined>
   flipToHost: (args: { threadId: ThreadId }) => Promise<void>
+  recordExpired: (args: { threadId: ThreadId }) => Promise<void>
   notify: (text: string) => void
   readListFailureMark?: () => Promise<ReaperListFailureMark | null>
   writeListFailureMark?: (args: { mark: ReaperListFailureMark }) => Promise<void>
@@ -39,6 +40,7 @@ const reapOne = async (args: {
     const thread = await reaper.findThread({ threadId: toThreadId(row.threadId) })
     if (thread?.executionLocation === EExecutionLocation.Cloud) {
       await reaper.flipToHost({ threadId: toThreadId(row.threadId) })
+      await reaper.recordExpired({ threadId: toThreadId(row.threadId) })
     }
   } catch (failure) {
     reaper.notify(
