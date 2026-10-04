@@ -77,6 +77,9 @@ export function createCloudSession(args: {
   let failure: string | null = null
   // The serve vouched, at the latest Ready, that the log's head is the hello's lastEventSeq.
   let vouched = false
+  // The latest Ready carried the transcriptCurrent field at all — a serve built before it does
+  // not, and keeps the pre-vouch freshness semantics.
+  let vouchOffered = false
   // The log has fallen behind what the socket has since reported: a reload is in flight or due.
   let dirty = false
   let connectionEpoch = 0
@@ -280,11 +283,13 @@ export function createCloudSession(args: {
     if (closed) return
     if (!resyncing && pendingReload === null && connection.state === EChannelConnection.Open) {
       dirty = false
+      if (!vouchOffered) vouched = args.appliedSnapshot?.() != null
     }
     sync()
   }) ?? (() => undefined)
   const unsubscribeReady = channel.onReady((ready) => {
     if (closed) return
+    vouchOffered = ready.transcriptCurrent !== undefined
     if (ready.transcriptCurrent === true) {
       vouched = true
       dirty = false

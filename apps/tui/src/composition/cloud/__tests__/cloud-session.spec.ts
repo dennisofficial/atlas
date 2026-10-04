@@ -25,6 +25,7 @@ const sessionOn = (
     appliedSnapshot?:
       | (() => { identity: { head: number; count: number; digest: string }; appliedAt: number } | null)
       | undefined
+    subscribeApplied?: boolean | undefined
   } = {},
 ) => {
   // An attach only happens once the channel has answered its Hello, so the session reads Open —
@@ -35,6 +36,7 @@ const sessionOn = (
       : { connection: args.connection }),
   })
   const reloads: CloudReload[] = []
+  const appliedListeners = new Set<() => void>()
   const session = createCloudSession({
     channel,
     sandboxes: {
@@ -49,9 +51,22 @@ const sessionOn = (
       reloads.push(reload)
     },
     ...(args.appliedSnapshot === undefined ? {} : { appliedSnapshot: args.appliedSnapshot }),
+    ...(args.subscribeApplied === true
+      ? {
+          subscribeApplied: (listener: () => void) => {
+            appliedListeners.add(listener)
+            return () => {
+              appliedListeners.delete(listener)
+            }
+          },
+        }
+      : {}),
   })
+  const applied = (): void => {
+    for (const listener of [...appliedListeners]) listener()
+  }
 
-  return { channel, session, reloads }
+  return { channel, session, reloads, applied }
 }
 
 describe('what the operator is told about the socket', () => {
@@ -595,6 +610,26 @@ describe("freshness rides the serve's currency vouch", () => {
     // The reload landing is what proves currency, exactly as before the vouch existed.
     channel.reload({ sinceEventSeq: 0 })
     await settled()
+    expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('keeps an old serve (no vouch field) on the applied tick when nothing reloads', () => {
+    const { channel, session, applied } = sessionOn({
+      connection: { state: EChannelConnection.Open, detail: null },
+      appliedSnapshot: () => ({
+        identity: { head: 7, count: 7, digest: 'a'.repeat(64) },
+        appliedAt: Date.parse('2026-10-01T09:41:00.000Z'),
+      }),
+      subscribeApplied: true,
+    })
+    // A ready from a serve built before the field: no transcriptCurrent, so no undim.
+    channel.ready({ turnInFlight: false })
+    expect(session.health().stale).toBe(true)
+
+    // The view applying live deltas on the open socket proves currency, as before the vouch.
+    applied()
+
     expect(session.health().freshness).toBe(ECloudFreshness.Synced)
     expect(session.health().stale).toBe(false)
   })
