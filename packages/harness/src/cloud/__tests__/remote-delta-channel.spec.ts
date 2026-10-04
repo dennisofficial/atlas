@@ -130,6 +130,86 @@ describe('opening the session socket', () => {
 
     expect(channel.connection().state).toBe(EChannelConnection.Open)
   })
+})
+
+describe('a durable head that reads off the wire', () => {
+  const deferred = () => {
+    let release = (value: number): void => void value
+    const gate = new Promise<number>((resolve) => {
+      release = resolve
+    })
+    return { gate, release, getter: () => gate }
+  }
+
+  it('still sends the hello first, once the head resolves', async () => {
+    const { gate, release, getter } = deferred()
+    const { open, live } = harness({ lastEventSeqAsync: getter })
+
+    open()
+    // The head has not resolved, so nothing has reached the socket yet — not even the hello.
+    expect(live().sent).toEqual([])
+
+    release(31)
+    await gate
+    await Promise.resolve()
+
+    expect(live().sent[0]).toEqual({
+      kind: EClientFrame.Hello,
+      threadId: THREAD,
+      channelCursor: null,
+      lastEventSeq: 31,
+      protocol: CHANNEL_PROTOCOL_VERSION,
+    })
+  })
+
+  it('holds a keepalive pong behind the hello and flushes it after, in order', async () => {
+    const { gate, release, getter } = deferred()
+    const { open, ping, live } = harness({ lastEventSeqAsync: getter })
+
+    open()
+    // A pong written while the head is still reading queues behind the unresolved hello.
+    ping()
+    expect(live().sent).toEqual([])
+
+    release(7)
+    await gate
+    await Promise.resolve()
+
+    expect(live().sent.map((frame) => frame.kind)).toEqual([EClientFrame.Hello, EClientFrame.Pong])
+  })
+
+  it('drops a pending hello when the socket is superseded mid-read', async () => {
+    const first = deferred()
+    const second = deferred()
+    let read = 0
+    const { sockets, open, drop, retries } = harness({
+      lastEventSeqAsync: () => {
+        read += 1
+        return read === 1 ? first.gate : second.gate
+      },
+    })
+
+    open()
+    const original = sockets[0]
+    expect(original?.sent).toEqual([])
+
+    // The socket drops and a retry dials a fresh one before the first head read resolves. The stale
+    // read's hello must not leak onto the fresh socket when it finally lands.
+    drop()
+    retries[0]?.run()
+    const fresh = sockets.at(-1)
+    fresh?.handlers.handleOpen()
+
+    first.release(5)
+    second.release(9)
+    await first.gate
+    await second.gate
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(original?.sent.map((frame) => frame.kind)).not.toContain(EClientFrame.Hello)
+    expect(fresh?.sent[0]).toMatchObject({ kind: EClientFrame.Hello, lastEventSeq: 9 })
+  })
 
   it('refuses a serve on a newer wire protocol, legibly and without reconnecting', () => {
     const { channel, open, receive, live, retries } = harness()
