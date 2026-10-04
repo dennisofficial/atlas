@@ -114,6 +114,17 @@ describe('context sidebar tree', () => {
     finally { await teardown(empty) }
   })
 
+  it('shows a quiet unavailable note instead of the raw failure when the root cannot be read', async () => {
+    const failed: ContextTreeLevels = new Map([['', { entries: [], error: 'The list-context-files request was never answered' }]])
+    const setup = await mount(<ContextSection {...defaults} rows={[]} levels={failed} />)
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('Context unavailable')
+      expect(frame).not.toContain('The list-context-files request was never answered')
+    } finally { await teardown(setup) }
+  })
+
   it('scrolls the sidebar to keep a keyboard-selected row visible', async () => {
     const many: ContextTreeLevels = new Map([['', { entries: Array.from({ length: 25 }, (_, index) =>
       ({ name: `file${index}.md`, isDirectory: false })), error: null }]])

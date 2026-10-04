@@ -49,15 +49,14 @@ export function ContextSection(props: ContextSectionProps): React.ReactNode {
   const root = useRef<BoxRenderable | null>(null)
   const header = useClickRegion(props.onFocus)
   useContextTreeReveal({ root, rows: props.rows, cursor: props.cursor, focused: props.focused })
-  const error = props.levels.get('')?.error
+  const unreadable = props.levels.get('')?.error != null
   return (
     <box ref={root} flexDirection="column" flexShrink={0}>
       <box {...header.handlers} backgroundColor={header.wash.bg ?? theme.panelBg}>
         <text fg={theme.meta}>CONTEXT  <span fg={theme.hint}>{props.rows.length}</span></text>
       </box>
-      {error ? <text fg={theme.warn} width={props.cells}>{error}</text> : null}
       {props.rows.length === 0 ? <text fg={theme.hint} width={props.cells}>
-        {props.loading ? 'Reading context…' : 'No context files yet'}
+        {props.loading ? 'Reading context…' : unreadable ? 'Context unavailable' : 'No context files yet'}
       </text> : null}
       {props.rows.map((row) => (
         <ContextRow key={row.path} row={row} level={props.levels} cells={props.cells}
