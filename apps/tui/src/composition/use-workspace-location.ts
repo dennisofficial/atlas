@@ -116,6 +116,7 @@ export function useWorkspaceLocation(args: {
           { id: 'flipping', text: 'handing the conversation over', nodeIds: ['flipping'] },
         ],
       })
+      containerMove.handleRowActive('stopping')
       const threadId = conversation.threadId
       const from = execution.location
 
