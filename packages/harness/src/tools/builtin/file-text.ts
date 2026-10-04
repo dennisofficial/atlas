@@ -6,7 +6,7 @@ import { z } from 'zod'
 export const filePathSchema = z.string().min(1)
 
 export const pathEnvironmentNote =
-  'A path may reference environment variables such as $TMPDIR and may start with ~; both expand against the environment before resolution, and a variable that is not set is an error rather than a literal directory name.'
+  'A path may reference environment variables such as $TMPDIR and may start with ~; both expand against the environment before resolution, and a variable that is not set is an error rather than a literal directory name. Scratch files belong under $ATLAS_SESSION_DIR/scratch.'
 
 export type ToolPathResolution =
   | { ok: true; path: string; anchored: boolean }
