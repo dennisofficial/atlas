@@ -425,7 +425,7 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 262144,
+    "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.9,
       "outputPerMillion": 3
@@ -961,7 +961,7 @@
     },
     "label": "moonshotai/kimi-k3-fast",
     "api": "openai-completions",
-    "contextWindow": 1048576,
+    "contextWindow": 250000,
     "imageTier": "standard",
     "maxOutputTokens": 1048576,
     "cost": {
@@ -1106,7 +1106,7 @@
     "imageTier": "standard",
     "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 0.11,
+      "inputPerMillion": 0.1,
       "outputPerMillion": 0.28
     }
   }
