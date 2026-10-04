@@ -52,7 +52,7 @@ const NO_REPOSITORY =
   'The project files were transferred directly; this directory has no Git repository.'
 
 const CARRY_RULE =
-  'All worktrees, files, and Git staging state travel with the workspace. If a destination checkout changed independently, the incoming checkout gets a suffixed worktree name and the existing checkout stays untouched.'
+  'Only the worktree this session runs in travels, plus the main checkout it branched from — any other worktrees stay behind on the operator’s machine, unchanged. Git staging state travels with the carried worktrees. Remote-tracking refs are not carried, so a branch may report its upstream as gone until the next fetch; that does not mean the checkout is a fresh clone. If a destination checkout changed independently, the incoming checkout gets a suffixed worktree name and the existing checkout stays untouched.'
 
 const rebuiltSentence = (workspace: LiftedWorkspace | null): string => {
   if (workspace === null) return NO_REPOSITORY
@@ -61,7 +61,7 @@ const rebuiltSentence = (workspace: LiftedWorkspace | null): string => {
   const on = workspace.branch === null ? '' : ` on ${workspace.branch}`
   const from = workspace.remoteUrl === null ? '' : ` from ${workspace.remoteUrl}`
 
-  return `The workspace was transferred here${from}${on} at ${at}. Staged edits, unstaged edits, untracked files, and ignored files retain their original state; no user commit or content merge was required.`
+  return `The workspace was transferred here${from}${on} at ${at}. Staged edits, unstaged edits, and untracked files retain their original state; gitignored files (dependencies, build output, .env) were left behind unless listed in .atlas/.cloudinclude. No user commit or content merge was required.`
 }
 
 export const liftedProse = (args: {
