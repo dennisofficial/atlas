@@ -13,6 +13,7 @@ export function useContextTree(args: {
   revision: number
   opened: string | null
   onOpen: (path: string) => void
+  onClose: () => void
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [levels, setLevels] = useState<ContextTreeLevels>(new Map())
@@ -47,11 +48,13 @@ export function useContextTree(args: {
   const handleActivate = useCallback((path: string) => {
     const row = rows.find((entry) => entry.path === path)
     if (row === undefined) return
-    setSelected(path)
+    if (focused) setSelected(path)
     if (row.isDirectory) { setFocused(true); toggle(path); return }
+    if (path === args.opened) { args.onClose(); return }
     setFocused(false)
+    setSelected(null)
     args.onOpen(path)
-  }, [rows, toggle, args.onOpen])
+  }, [rows, focused, toggle, args.onOpen, args.onClose, args.opened])
 
   const handleKey = useCallback((key: Pick<KeyEvent, 'name'>) => {
     if (key.name === 'escape' || key.name === 'tab') { handleBlur(); return }

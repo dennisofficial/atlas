@@ -44,19 +44,19 @@ export function useContextBrowser(args: {
   }, [readers, path, revision])
 
   const handleFileOpen = useCallback((next: string) => {
-    if (path === next) setRevision((value) => value + 1)
-    else {
-      setPath(next)
-      setViewer({ state: EContextView.Loading, path: next })
-    }
+    setPath(next)
+    setViewer({ state: EContextView.Loading, path: next })
     args.onOpenFile?.()
-  }, [args.onOpenFile, path])
-  const tree = useContextTree({ readers, revision, opened: path, onOpen: handleFileOpen })
-  const handleDismiss = useCallback(() => {
+  }, [args.onOpenFile])
+  const handleFileClose = useCallback(() => {
     setPath(null)
     setViewer(null)
+  }, [])
+  const tree = useContextTree({ readers, revision, opened: path, onOpen: handleFileOpen, onClose: handleFileClose })
+  const handleDismiss = useCallback(() => {
+    handleFileClose()
     tree.handleBlur()
-  }, [tree.handleBlur])
+  }, [handleFileClose, tree.handleBlur])
   const attachScroll = useCallback((box: ScrollBoxRenderable | null) => { scroller.current = box }, [])
 
   const handleKey = useCallback((key: Pick<KeyEvent, 'name'> & Partial<Pick<KeyEvent, 'shift'>>) => {
