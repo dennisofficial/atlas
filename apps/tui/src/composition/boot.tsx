@@ -25,8 +25,7 @@ import { performRespawn, realRespawnPorts, wiresSelfRestart } from "./respawn";
 import { RESTART_EXIT_CODE, restartResumeHandle } from "./restart";
 import { launchLine, launchTitle, sessionIdentityLine } from "./session-identity";
 import { resumeHint, type ActiveConversation } from "@dltech/atlas-harness";
-import { atlasDirectory, createUrlOpener, loadSettings, logFieldsOf, createFileOpener, EEditor } from "@dltech/atlas-harness";
-import { exportLegacyDbRequestOf, runExportLegacyDb } from "./export-legacy-db";
+import { createUrlOpener, loadSettings, logFieldsOf, createFileOpener, EEditor } from "@dltech/atlas-harness";
 import { trackTerminalFocus } from "./terminal-focus";
 import { terminalTitleSequence } from "./terminal-title";
 import { readTerminalSize, settleTerminalSize } from "./terminal-size";
@@ -63,14 +62,6 @@ export async function bootAtlas(args: {
   const classify = classifyRequestOf({ argv: args.argv });
   if (classify !== undefined) {
     return await runClassify({ request: classify, cwd: config.cwd, env: args.env });
-  }
-
-  const exportLegacyDb = exportLegacyDbRequestOf({
-    argv: args.argv,
-    home: atlasDirectory(),
-  });
-  if (exportLegacyDb !== undefined) {
-    return await runExportLegacyDb({ request: exportLegacyDb });
   }
 
   process.stdout.write(

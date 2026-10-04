@@ -235,7 +235,7 @@ describe('mountedAtlasHomeSubtrees', () => {
       await mkdir(join(atlasHome, 'memory'))
       await mkdir(join(atlasHome, 'skills'))
       await writeFile(join(atlasHome, 'auth.json'), '{"secret":true}')
-      await writeFile(join(atlasHome, 'harness.db'), 'the event log')
+      await writeFile(join(atlasHome, 'settings.json'), '{"theme":"dark"}')
 
       expect(
         mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),

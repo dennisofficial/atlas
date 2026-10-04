@@ -132,7 +132,7 @@ describe('ensureBuiltImage', () => {
     await seed({
       'Dockerfile': 'FROM ghcr.io/example/atlas-sandbox:1.0.0\n',
       'auth.json': '{"token":"secret"}',
-      'harness.db': 'the event log',
+      'settings.json': '{"theme":"dark"}',
     })
     const { builder, builds } = fakeBuilder({})
 
@@ -146,7 +146,7 @@ describe('ensureBuiltImage', () => {
     expect(text).toContain('Dockerfile')
     expect(text).not.toContain('auth.json')
     expect(text).not.toContain('secret')
-    expect(text).not.toContain('harness.db')
+    expect(text).not.toContain('settings.json')
 
     await seed({ 'auth.json': '{"token":"rotated"}' })
     const after = await dockerfileImageReference({
