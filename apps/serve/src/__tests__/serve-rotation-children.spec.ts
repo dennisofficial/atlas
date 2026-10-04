@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { readdir } from 'node:fs/promises'
+import { join } from 'node:path'
 import { EAgentRestart, EAgentStatus } from '@dltech/atlas-core'
 import { persistSandboxRotationReceipt, readSandboxRotationState } from '@dltech/atlas-harness'
 
 import { rotationChildFixture } from './serve-rotation-child-fixture'
 import { childId, cleanupRotationFixtures, threadId } from './serve-rotation-fixture'
+import { scratchTranscriptStore } from './transcript-store-fixture'
 
 const eventually = async (predicate: () => boolean | Promise<boolean>): Promise<void> => {
   for (let attempt = 0; attempt < 2000; attempt += 1) {
@@ -19,6 +22,15 @@ const owedChildren = async (home: string) =>
 afterEach(cleanupRotationFixtures)
 
 describe('queued Finished-child continuation across serve boots', () => {
+  it('seeds the queued child transcript beside its metadata in the parent session', async () => {
+    const fixture = await rotationChildFixture()
+    expect(await readdir(join(fixture.home, 'sessions'))).toEqual([threadId])
+    const disk = scratchTranscriptStore({ prefix: 'rotation-verify', home: fixture.home })
+    const events = await disk.log.readOwn({ threadId: childId })
+    expect(events.filter((event) => event.type === 'user-said')).toHaveLength(2)
+    expect(events.at(-1)).toMatchObject({ type: 'user-said', text: 'queued child follow-up' })
+  })
+
   it('wakes the original Finished child without a client or duplicate message and retains its obligation until durable completion', async () => {
     const fixture = await rotationChildFixture()
     await persistSandboxRotationReceipt({ atlasHome: fixture.home, receipt: { ...fixture.receipt, resumeParent: true } })

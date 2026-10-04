@@ -29,19 +29,19 @@ export async function rotationChildFixture() {
   const threads = harness.threads
   await threads.create({ id: threadId, workspace: '/workspace' })
   await threads.create({ id: childId, workspace: '/workspace', agent: { spawnedBy: threadId, type: 'explore' } })
-  await fixture.store.log.append({ threadId, runId: ids.nextRunId(), drafts: [
+  await harness.log.append({ threadId, runId: ids.nextRunId(), drafts: [
     { type: 'agent-spawned', agentId: childId, agentType: 'explore', intent: 'finish child work', mode: EAgentStart.Fresh },
     { type: 'agent-ended', agentId: childId, agentType: 'explore', intent: 'finish child work', status: EAgentStatus.Finished,
       prose: 'first job complete', turns: 1, toolCalls: 0 },
   ] })
-  await fixture.store.log.append({ threadId: childId, runId: ids.nextRunId(), drafts: [
+  await harness.log.append({ threadId: childId, runId: ids.nextRunId(), drafts: [
     { type: 'user-said', text: 'first child job' },
     { type: 'assistant-said', parts: [{ type: 'text', text: 'first job complete' }] },
     { type: 'user-said', text: 'queued child follow-up' },
   ] })
   const checkpoint = await createRuntimeCheckpointCapture({
     threadId, atlasHome: fixture.home, env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
-    token, transcript: fixture.store.log, log: () => undefined,
+    token, transcript: harness.log, log: () => undefined,
   }).capture({ phase: ERuntimePhase.Rotating })
   if (checkpoint === null) throw new Error('the child fixture requires a rotation checkpoint')
   const receipt = { ...fixture.receipt, checkpoint, resumeParent: false, resumeChildren: [childId] }
