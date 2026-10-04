@@ -76,6 +76,44 @@ describe('probeSandboxForResume', () => {
     expect(lines.some((line) => line.includes('drive is still attached'))).toBe(true)
   })
 
+  it('still replaces when Vercel reports the stopped sandbox gone at delete time', async () => {
+    const sandbox = fakeSandbox({
+      installed: STALE,
+      status: 'stopped',
+      deleteFailure: new APIError(new Response(null, { status: 400 }), {
+        json: { error: { message: "Sandbox 'atlas-thread-x' not found for this project." } },
+      }),
+    })
+    const lines: string[] = []
+    let waits = 0
+
+    const result = await probeOf({
+      sandbox,
+      health: FULL_IDLE,
+      waitForDriveDetached: async () => {
+        waits += 1
+        return true
+      },
+      lines,
+    })
+
+    expect(result.probe).toBe(ESandboxProbe.Replaced)
+    expect(waits).toBe(1)
+    expect(lines.some((line) => line.includes('already gone'))).toBe(true)
+  })
+
+  it('propagates a delete failure that is not the sandbox disappearing', async () => {
+    const sandbox = fakeSandbox({
+      installed: STALE,
+      status: 'stopped',
+      deleteFailure: new APIError(new Response(null, { status: 500 }), {
+        json: { error: { message: 'internal error' } },
+      }),
+    })
+
+    await expect(probeOf({ sandbox })).rejects.toThrow('internal error')
+  })
+
   it('drains and replaces a stale sandbox whose runtime is running, however idle its health reads', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     const order: string[] = []

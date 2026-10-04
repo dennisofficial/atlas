@@ -552,3 +552,55 @@ describe('the sticky failure clearing on recovery', () => {
     expect(session.health().failure).toBeNull()
   })
 })
+
+describe('a reload that fails before it lands', () => {
+  const applied = { head: 4, count: 4, digest: 'e'.repeat(64) }
+
+  it('retries a reload whose resync rejected, so a lift-window failure cannot leave the open socket dimmed forever', async () => {
+    let attempts = 0
+    const failUntil = 1
+    const channel = fakeCloudChannel({ connection: { state: EChannelConnection.Connecting, detail: null } })
+    const session = createCloudSession({
+      channel,
+      sandboxes: {
+        create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
+        putContext: async () => undefined,
+        putTranscript: async () => undefined,
+        confirmLanded: async () => ({ landed: true }),
+        find: async () => undefined,
+        destroy: async () => undefined,
+      },
+      // The TUI's reload rejects while the lift's binding is still committing; only the second
+      // attempt, once the operator's view exists, succeeds.
+      onReload: async () => {
+        attempts += 1
+        if (attempts <= failUntil) throw new Error('the cloud attachment is no longer mounted')
+      },
+      appliedSnapshot: () => ({ identity: applied, appliedAt: 1000 }),
+      settleMs: 5,
+    })
+
+    // The serve demands a re-read the moment the socket opens; the first attempt lands in the
+    // lift window and rejects.
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.reload({ sinceEventSeq: 0 })
+    await settled()
+    await settled()
+
+    expect(attempts).toBe(1)
+    expect(session.health().stale).toBe(true)
+
+    // Once the lift settles the reload must be retried — not dropped — so synced flips and the
+    // transcript undims. Before the fix the rejection was swallowed and nothing ever retried.
+    const retried = await (async () => {
+      for (let i = 0; i < 40; i += 1) {
+        await settled()
+        if (attempts > failUntil) return true
+      }
+      return false
+    })()
+    expect(retried, 'the failed reload was dropped instead of retried').toBe(true)
+    expect(session.health().stale).toBe(false)
+    expect(session.health().connection.state).toBe(EChannelConnection.Open)
+  })
+})

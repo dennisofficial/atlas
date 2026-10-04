@@ -245,16 +245,19 @@ values, joined by `ATLAS_CONTEXT_DIR`, the session-shared `context/` folder unde
 directory for plans and working notes; a background command also has `ATLAS_SHELL_DIR`. This does
 not change `TMPDIR`.
 
-**Context files have a surface reader, not another agent tool.** The TUI's Context sidebar lists
-one directory level and opens a file in the transcript/composer pane, using the tool blocks' code
-rows, line-number gutter and syntax highlighting. The conversation stays mounted while hidden so
-returning preserves its draft and scroll state. The harness resolves the session root through the
-thread registry, including for teammates. Local readers use filesystem notifications; serve pushes
+**Context files have a surface reader, not another agent tool.** The TUI's Context sidebar is an
+inline tree: folders expand in place, children are indented, folders sort before files, and numeric
+names sort naturally. Only expanded, visible directory levels are read; refresh preserves expansion
+and selection. Clicking a folder toggles it; clicking a file opens the transcript/composer pane's
+viewer using the tool blocks' code rows, line-number gutter and syntax highlighting. The tree owns
+arrow/Enter navigation only while focused; Tab or clicking the pane returns focus to the viewer or
+composer. The conversation stays mounted while hidden so returning preserves its draft and scroll
+state. The harness resolves the session root through the thread registry, including for teammates. Local readers use filesystem notifications; serve pushes
 `context-changed` signals and answers `list-context-files`/`read-context-file` requests through the
 same reader. Reads stay inside `context/`, refuse binary files and files over 2 MiB, and return
 complete text rather than the mention browser's truncated preview. The viewer only mounts visible
-code rows plus an overscan window. The wire protocol is version 15; older sandboxes need the
-matching serve build.
+code rows plus an overscan window. Clients and sandboxes require matching session wire protocol
+versions.
 
 The default kernel file-size limit is 5 GiB and there is no rotation, so byte offsets stay valid.
 The limit applies to each regular file the command writes, not only its spool and not total disk use.

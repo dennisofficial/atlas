@@ -2,6 +2,11 @@ import type { MouseEvent } from '@opentui/core'
 import { useRenderer } from '@opentui/react'
 import { useRef } from 'react'
 
+export enum EPressIntent {
+  Activate = 'activate',
+  Focus = 'focus',
+}
+
 export type PressHandlers = {
   onMouseDown?: (event: MouseEvent) => void
   onMouseDrag?: (event: MouseEvent) => void
@@ -14,7 +19,8 @@ export type PressHandlers = {
  * path where no selection began. An anchor is stored relative to the renderable under the pointer,
  * so a reflow between press and release settles a drag the user never made.
  */
-export function usePress(): (onPress?: () => void) => PressHandlers {
+export function usePress(args: { intent?: EPressIntent } = {}): (onPress?: () => void) => PressHandlers {
+  const intent = args.intent ?? EPressIntent.Activate
   const renderer = useRenderer()
   const origin = useRef<{ x: number; y: number } | null>(null)
 
@@ -32,8 +38,10 @@ export function usePress(): (onPress?: () => void) => PressHandlers {
         const start = origin.current
         origin.current = null
         if (start === null || start.x !== event.x || start.y !== event.y) return
-        event.stopPropagation()
-        renderer.clearSelection()
+        if (intent === EPressIntent.Activate) {
+          event.stopPropagation()
+          renderer.clearSelection()
+        }
         onPress()
       },
     }

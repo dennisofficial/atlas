@@ -94,6 +94,15 @@ export function shellReadout(args: { shell: ShellSnapshot; now: number }): strin
   return elapsed === null ? state : `${state}${READOUT_SEPARATOR}${formatElapsed(elapsed)}`
 }
 
+export function shellSidebarReadout(args: { shell: ShellSnapshot; now: number }): string {
+  if (args.shell.awaitingInput) return AWAITING_INPUT_LABEL
+  if (isShellRunning(args.shell)) {
+    const elapsed = shellElapsedMs(args)
+    return elapsed === null ? '' : formatElapsed(elapsed)
+  }
+  return shellReadout(args)
+}
+
 export const shellCommandLabel = (command: string): string => command.replace(/\s+/g, ' ').trim()
 
 /**

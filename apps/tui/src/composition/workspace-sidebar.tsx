@@ -29,10 +29,13 @@ export function WorkspaceSidebar(props: {
   shells: Pick<ShellsControl, 'folded' | 'now' | 'fold' | 'handleOpen'>
   services: Pick<ServicesControl, 'folded' | 'now' | 'fold' | 'handleOpen'>
   agentView: Pick<AgentView, 'scopedTo' | 'backLabel' | 'handleBack' | 'handleSelect'>
-  contextBrowser: Pick<ContextControl, 'entries' | 'loading' | 'directory' | 'error' | 'handleUp' | 'handleOpen'>
+  contextBrowser: Pick<ContextControl, 'tree'>
   onRevokeGrant: Conversation['handleRevokeGrant']
 }): React.ReactNode {
   const { agentView, shells, services, naming, overlay, contextBrowser } = props
+  const tree = contextBrowser.tree
+  const context = { rows: tree.rows, levels: tree.levels, cursor: tree.cursor, opened: tree.opened,
+    focused: tree.focused, loading: tree.loading, onFocus: tree.handleFocus, onActivate: tree.handleActivate }
   const width = overlay
     ? floatingSidebarWidth({ width: props.width, sidebarWidth: props.sidebarWidth })
     : props.sidebarWidth
@@ -63,7 +66,7 @@ export function WorkspaceSidebar(props: {
         onOpenShell={shells.handleOpen}
         onOpenService={services.handleOpen}
         onSelectSubagent={agentView.handleSelect}
-        contextBrowser={contextBrowser}
+        context={context}
       />
     )
   }
@@ -87,12 +90,7 @@ export function WorkspaceSidebar(props: {
       onOpenShell={shells.handleOpen}
       onOpenService={services.handleOpen}
       onSelectSubagent={agentView.handleSelect}
-      contextEntries={contextBrowser.entries}
-      contextLoading={contextBrowser.loading}
-      contextDirectory={contextBrowser.directory}
-      contextError={contextBrowser.error}
-      onContextUp={contextBrowser.handleUp}
-      onOpenContext={contextBrowser.handleOpen}
+      context={context}
       onRevokeGrant={props.onRevokeGrant}
       {...(back === undefined ? {} : { back })}
     />

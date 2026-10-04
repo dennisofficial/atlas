@@ -211,7 +211,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   return (
     <WorkspaceView
       header={header}
-      contentWidth={layout.contentWidth}
+      contentWidth={layout.contentWidth} onPaneFocus={contextBrowser.handleViewerFocus}
       pane={contextBrowser.viewer === null ? null : <WorkspaceContextPane control={contextBrowser} width={layout.contentWidth} />}
       transcript={
         <WorkspaceTranscript
@@ -287,8 +287,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
             accounts, threads, agentsPicker, rewind }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
-          exitGuard={exitGuard}
-          containerGuard={containerGuard}
+          {...{ exitGuard, containerGuard }}
           compacting={conversation.compacting}
           containerMove={containerMove.move}
           containerMoveNow={containerMove.now}

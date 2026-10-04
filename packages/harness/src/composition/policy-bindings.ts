@@ -17,6 +17,7 @@ import {
 
 import {
   ClassifierPolicyToken,
+  GrillingCeremonyEnabledToken,
   SkillSuggestionEnabledToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -88,6 +89,14 @@ export async function bindSettingsPolicy(args: {
         textValueOf({ resolution, id: ESettingId.DecisionsUrl }).length > 0
       )
     },
+  })
+
+  container.register(GrillingCeremonyEnabledToken, {
+    useValue: () =>
+      toggleValueOf({
+        resolution: settings.snapshot().resolution,
+        id: ESettingId.GrillingCeremony,
+      }),
   })
 
   container.register(WebSearchBackendToken, {

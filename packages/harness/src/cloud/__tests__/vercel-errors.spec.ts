@@ -7,6 +7,7 @@ import {
   isDriveDeleteConflict,
   isImageOptimizeFailure,
   isImageOptimizeLag,
+  isSandboxMissing,
 } from '../vercel-errors'
 
 describe('isDriveAttachedConflict', () => {
@@ -68,6 +69,48 @@ describe('isDriveDeleteConflict', () => {
 
     expect(isDriveDeleteConflict(serverError)).toBe(false)
     expect(isDriveDeleteConflict(new Error('the drive is full'))).toBe(false)
+  })
+})
+
+describe('isSandboxMissing', () => {
+  it('classifies a plain 404', () => {
+    const failure = new APIError(new Response(null, { status: 404 }), {
+      message: 'sandbox not found',
+    })
+
+    expect(isSandboxMissing(failure)).toBe(true)
+  })
+
+  it('classifies a 410 whose snapshot is gone', () => {
+    const failure = new APIError(new Response(null, { status: 410 }), {
+      json: { error: { code: 'snapshot_not_found' } },
+    })
+
+    expect(isSandboxMissing(failure)).toBe(true)
+  })
+
+  it('classifies Vercel’s project-scoped not-found however it is reported', () => {
+    const apiFailure = new APIError(new Response(null, { status: 400 }), {
+      json: { error: { message: "Sandbox 'atlas-thread-x' not found for this project." } },
+    })
+
+    expect(isSandboxMissing(apiFailure)).toBe(true)
+    expect(
+      isSandboxMissing(new Error("Sandbox 'atlas-thread-x' not found for this project.")),
+    ).toBe(true)
+  })
+
+  it('passes over unrelated failures and a drive carrying the same phrasing', () => {
+    const serverError = new APIError(new Response(null, { status: 500 }), {
+      json: { error: { message: 'something else broke' } },
+    })
+    const driveFailure = new APIError(new Response(null, { status: 400 }), {
+      json: { error: { message: "Drive 'atlas-drive-x' not found for this project." } },
+    })
+
+    expect(isSandboxMissing(serverError)).toBe(false)
+    expect(isSandboxMissing(driveFailure)).toBe(false)
+    expect(isSandboxMissing(new Error('the quota is exhausted'))).toBe(false)
   })
 })
 

@@ -7,7 +7,6 @@ import { useAppearance } from "../hooks/use-appearance";
 import { collapseHome, compactPath } from "../paths";
 import { theme } from "../theme";
 import type { ServiceSnapshot, ShellSnapshot } from "@dltech/atlas-harness";
-import type { DirectoryEntry } from "@dltech/atlas-core";
 
 import type { SidebarModel } from "../../store";
 import type { SidebarCrewFold } from "../../store/subagent-row";
@@ -16,7 +15,7 @@ import { SIDEBAR_GUTTER, SIDEBAR_PADDING, sidebarCells } from "./sidebar/cells";
 import { ESidebarPlace } from "../sidebar-section";
 import { CloudSection } from "./sidebar/cloud";
 import { ContainerSection } from "./sidebar/container";
-import { ContextSection } from "./sidebar/context";
+import { ContextSection, type ContextSectionProps } from "./sidebar/context";
 import { ContributedSections } from "./sidebar/contributed";
 import { SubagentsSection, TeammatesSection } from "./sidebar/crew";
 import { GrantsSection } from "./sidebar/grants";
@@ -111,7 +110,6 @@ function DerivedSidebar(props: {
   version: string;
   repoName?: string | undefined;
   overlay?: boolean;
-  /** Set while the tile is scoped to a teammate, so the head reads in the agent accent. */
   accented?: boolean;
   shells?: readonly ShellSnapshot[];
   shellNow?: number;
@@ -121,17 +119,10 @@ function DerivedSidebar(props: {
   serviceFold?: SidebarCrewFold;
   onOpenShell?: (shellId: string) => void;
   onOpenService?: (serviceId: string) => void;
-  contextEntries?: readonly DirectoryEntry[];
-  contextLoading?: boolean;
-  contextDirectory?: string;
-  contextError?: string | null;
-  onContextUp?: () => void;
-  onOpenContext?: (name: string) => void;
+  context?: Omit<ContextSectionProps, 'cells'>;
   onSelectSubagent?: (agentId: string) => void;
   onRevokeGrant?: (grantId: string) => void;
-  /** The naming animation's state; set while a rename or first titling is in flight. */
   naming?: NamingState | null | undefined;
-  /** A way back to the session above, shown as a pill above the title while scoped to an agent. */
   back?: { label: string; onBack: () => void } | undefined;
 }): React.ReactNode {
   useAppearance();
@@ -185,17 +176,7 @@ function DerivedSidebar(props: {
               place={ESidebarPlace.Facts}
               cells={cells}
             />
-            {props.onOpenContext === undefined ? null : (
-              <ContextSection
-                entries={props.contextEntries ?? []}
-                loading={props.contextLoading ?? false}
-                cells={cells}
-                onOpen={props.onOpenContext}
-                directory={props.contextDirectory ?? ''}
-                error={props.contextError ?? null}
-                {...(props.onContextUp === undefined ? {} : { onUp: props.onContextUp })}
-              />
-            )}
+            {props.context === undefined ? null : <ContextSection {...props.context} cells={cells} />}
             <ShellsSection
               shells={props.shells ?? []}
               now={props.shellNow ?? Date.now()}

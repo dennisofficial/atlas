@@ -1,9 +1,12 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
 import { SkillRegistryPort } from '../skills/port'
+import { GrillingCeremonyEnabledToken } from '../container/tokens'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { DelegationFragment } from './fragments/agents'
+import { ContextFolderFragment } from './fragments/context-folder'
 import { ExecutionLocationFragment, SessionPathsFragment, TodayFragment } from './fragments/environment'
+import { GrillingCeremonyFragment } from './fragments/grilling'
 import { AtlasIdentityFragment } from './fragments/identity'
 import { AnswerInTextFragment } from './fragments/models'
 import { CiteFileAndLineFragment, OutputShapeFragment } from './fragments/output'
@@ -18,6 +21,7 @@ import {
 import { BackgroundShellsFragment } from './fragments/shells'
 import { SkillListingFragment } from './fragments/skills'
 import {
+  OperatorInputFragment,
   OperatorSeesImagesFragment,
   ParallelToolCallsFragment,
   PreferDedicatedToolsFragment,
@@ -40,9 +44,11 @@ export function registerBuiltinPromptFragments({
     TodayFragment,
     ExecutionLocationFragment,
     SessionPathsFragment,
+    ContextFolderFragment,
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,
     OperatorSeesImagesFragment,
+    OperatorInputFragment,
     BackgroundShellsFragment,
     DelegationFragment,
     DestructiveActionsFragment,
@@ -65,6 +71,15 @@ export function registerBuiltinPromptFragments({
     }
     container.register(portToken(PromptFragment), { useClass: fragment })
   }
+
+  container.register(portToken(PromptFragment), {
+    useFactory: (resolver) =>
+      new GrillingCeremonyFragment({
+        ...(resolver.isRegistered(GrillingCeremonyEnabledToken, true)
+          ? { enabled: resolver.resolve(GrillingCeremonyEnabledToken) }
+          : {}),
+      }),
+  })
 
   container.register(portToken(PromptRegistry), {
     useFactory: instanceCachingFactory(

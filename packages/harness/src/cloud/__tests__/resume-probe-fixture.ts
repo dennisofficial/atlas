@@ -23,6 +23,7 @@ export const fakeSandbox = (args: {
   protocol?: string
   status?: string
   routes?: number[]
+  deleteFailure?: Error
 }) => {
   const protocol = args.protocol ?? String(CHANNEL_PROTOCOL_VERSION)
   let deleted = false
@@ -40,6 +41,7 @@ export const fakeSandbox = (args: {
       return `https://sb-${port}.vercel.run`
     },
     delete: async () => {
+      if (args.deleteFailure !== undefined) throw args.deleteFailure
       deleted = true
     },
   }

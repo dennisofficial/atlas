@@ -47,6 +47,11 @@ export const fakeDriveSdk = (
 export const notFound = (): APIError<unknown> =>
   new APIError(new Response(null, { status: 404 }), { message: 'sandbox not found' })
 
+export const notFoundForProject = (): APIError<unknown> =>
+  new APIError(new Response(null, { status: 400 }), {
+    json: { error: { message: "Sandbox 'atlas-thread-x' not found for this project." } },
+  })
+
 export const alreadyAttachedError = (): APIError<unknown> =>
   new APIError(new Response(null, { status: 409 }), {
     json: {

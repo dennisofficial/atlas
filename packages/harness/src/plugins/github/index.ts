@@ -21,6 +21,7 @@ import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
 import { createPullRequestStateProjection } from './state-projection'
+import { createPullRequestStates } from './states'
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
 
@@ -95,6 +96,7 @@ export default class GithubPlugin extends NativePlugin {
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({ pullRequests: service })
     const transitions = createPullRequestTransitions({ service })
+    const recorded = createPullRequestStates({ service, recorded: () => states.current() })
 
     links.projection.subscribe(() => service.watch({ links: links.projection.current() }))
 
@@ -131,6 +133,12 @@ export default class GithubPlugin extends NativePlugin {
           run: links.recordFound,
         },
         {
+          phase: EHookPhase.AfterTurn,
+          name: 'record-pull-request-state',
+          order: OBSERVE,
+          run: recorded.recordChange,
+        },
+        {
           phase: EHookPhase.OnThreadOpen,
           name: 'thread-opened',
           order: OBSERVE,
@@ -141,6 +149,12 @@ export default class GithubPlugin extends NativePlugin {
           name: 'forget-thread-links',
           order: OBSERVE,
           run: links.forgetThread,
+        },
+        {
+          phase: EHookPhase.OnThreadOpen,
+          name: 'forget-thread-states',
+          order: OBSERVE,
+          run: recorded.forgetThread,
         },
         {
           phase: EHookPhase.AfterTool,

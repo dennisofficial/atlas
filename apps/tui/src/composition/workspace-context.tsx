@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import type { ThreadId } from '@dltech/atlas-core'
 import { createSessionContextReader, type ContextReader } from '@dltech/atlas-harness'
 
@@ -12,12 +12,7 @@ export function useWorkspaceContext(args: {
 }): ContextControl {
   const readers = useMemo(() => args.readers ?? createSessionContextReader({ threadId: args.threadId }),
     [args.readers, args.threadId])
-  const control = useContextBrowser({ readers })
-  const handleOpen = useCallback((name: string) => {
-    control.handleOpen(name)
-    if (control.entries.find((entry) => entry.name === name)?.isDirectory !== true) args.onClosePeek()
-  }, [control.handleOpen, control.entries, args.onClosePeek])
-  return { ...control, handleOpen }
+  return useContextBrowser({ readers, onOpenFile: args.onClosePeek })
 }
 
 export function WorkspaceContextPane(props: { control: ContextControl; width: number }): React.ReactNode {

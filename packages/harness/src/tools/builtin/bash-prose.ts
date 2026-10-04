@@ -23,6 +23,7 @@ export function bashDescription({
     'is saved in the owning thread’s session folder; the returned output path can be read or grepped.',
     'shell_input writes to a durable shell’s stdin. ATLAS_SESSION_DIR and ATLAS_THREAD_DIR name the',
     'owning session and thread data directories in each command. They are per-agent, not shared mutable state.',
+    'Scratch files, probes, and one-off downloads belong in $ATLAS_SESSION_DIR/scratch, never loose in the Atlas home directory.',
     'The output file does not rotate. A 5 GiB kernel file-size limit bounds regular-file writes for background commands.',
     'A server - a dev server, a database, anything that listens',
     'until stopped - belongs on service_start instead. A watch pattern delivers matching lines as',

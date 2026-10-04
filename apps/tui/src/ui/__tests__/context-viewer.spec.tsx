@@ -133,4 +133,72 @@ describe('the context viewer', () => {
       await teardown(setup)
     }
   })
+
+  it('pans sideways to the tail of a long line', async () => {
+    const held: { box: ScrollBoxRenderable | null } = { box: null }
+    const lead = 'const value = "'
+    const tail = 'REACHED"'
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="wide.ts"
+        loading={false}
+        content={{ type: 'text', content: `${lead}${'x'.repeat(120)}${tail}`, truncated: false }}
+        onDismiss={() => undefined}
+        attachScroll={(box) => { held.box = box }}
+      />,
+    )
+    try {
+      await setup.flush()
+      expect(setup.captureCharFrame()).toContain(lead)
+      expect(setup.captureCharFrame()).not.toContain(tail.trim())
+      await act(async () => { held.box?.scrollBy({ x: 200, y: 0 }) })
+      await setup.flush()
+      expect(setup.captureCharFrame()).toContain(tail.trim())
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('renders a markdown file as document, not as highlighted source', async () => {
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="notes.md"
+        loading={false}
+        content={{ type: 'text', content: '# Heading\n\nsome **bold** words', truncated: false }}
+        onDismiss={() => undefined}
+        attachScroll={() => undefined}
+      />,
+    )
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('bold')
+      expect(frame).not.toContain('**bold**')
+      expect(frame).not.toContain('# Heading')
+      expect(frame).toContain('Heading')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('keeps non-markdown files on the highlighted code path', async () => {
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="notes.ts"
+        loading={false}
+        content={{ type: 'text', content: 'const a = 1', truncated: false }}
+        onDismiss={() => undefined}
+        attachScroll={() => undefined}
+      />,
+    )
+    try {
+      await setup.flush()
+      expect(setup.captureCharFrame()).toContain('const a = 1')
+    } finally {
+      await teardown(setup)
+    }
+  })
 })

@@ -192,12 +192,22 @@ export async function probeSandboxForResume(args: {
     throw args.toFailure(failure)
   }
 
+  // A delete racing the provider's own teardown is the delete's desired end state, not a failure.
+  const deleteSandbox = async (victim: Sandbox): Promise<void> => {
+    try {
+      await victim.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
+    } catch (failure) {
+      if (!args.isMissing(failure)) throw args.toFailure(failure)
+      args.log?.(`sandbox ${args.name} was already gone when its delete ran — continuing`)
+    }
+  }
+
   const pinned = args.pinned
   const providerStatus = sandbox.status
   if (providerStatus === 'stopped') {
     if (pinned === undefined) return { probe: ESandboxProbe.Kept }
     args.log?.(`sandbox ${args.name} is confirmed stopped — recreating it from the pinned image without waking its old runtime`)
-    await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
+    await deleteSandbox(sandbox)
     const detached = await (args.waitForDriveDetached?.() ?? true)
     if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
     return { probe: ESandboxProbe.Replaced }
@@ -234,7 +244,7 @@ export async function probeSandboxForResume(args: {
       throw new Error(`sandbox ${args.name} has no preparation route — nothing was destroyed`)
     }
     await (args.drain ?? drainServe)({ sandbox, url })
-    await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
+    await deleteSandbox(sandbox)
     const detached = await (args.waitForDriveDetached?.() ?? true)
     if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
   }

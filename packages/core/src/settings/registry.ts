@@ -9,6 +9,7 @@ export const SETTING_PAGES: readonly SettingPage[] = [
   { id: ESettingPage.General, label: 'general' },
   { id: ESettingPage.Models, label: 'models' },
   { id: ESettingPage.Appearance, label: 'appearance' },
+  { id: ESettingPage.Experimental, label: 'experimental' },
   { id: ESettingPage.Cloud, label: 'cloud' },
 ]
 
@@ -58,6 +59,7 @@ export enum ESettingId {
   KeychainService = 'credentials.keychainService',
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
+  GrillingCeremony = 'experimental.grillingCeremony',
 }
 
 export const DEFAULT_WORKTREE_DIRECTORY = '.atlas/worktrees'
@@ -678,5 +680,16 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_KEYCHAIN_SERVICE',
     kind: ESettingKind.Text,
     fallback: '',
+  },
+  {
+    id: ESettingId.GrillingCeremony,
+    page: ESettingPage.Experimental,
+    group: 'Planning',
+    label: 'grilling ceremony',
+    description:
+      'With this on, a session plans feature-sized work by interviewing you first — walking the design tree one question at a time, recommending an answer with each, sharpening vague terminology, stress-testing edge cases, and checking your claims against the code, capturing every settled decision into the context folder as it goes. A localized fix with an obvious cause stays interview-free either way. Off by default while the ceremony proves itself.',
+    environmentVariable: 'ATLAS_EXPERIMENTAL_GRILLING_CEREMONY',
+    kind: ESettingKind.Toggle,
+    fallback: false,
   },
 ]
