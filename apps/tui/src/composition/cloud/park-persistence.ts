@@ -47,6 +47,8 @@ export function createParkPersistence(args: {
   waitUntilApplied: (identity: ThreadIdentity) => Promise<void>
   refreshLog: () => Promise<void>
   readLog: () => Promise<Parameters<typeof transcriptIdentityDigest>[0]>
+  /** Re-registers the sealed applied view so the dim authority reads the tail that parked the session; absent in fakes that never render. */
+  seal?: ((snapshot: CloudAppliedSnapshot) => void) | undefined
   /** A lifted session's mirror: awaited before the swap so the record is written over a file the checkpoint has provably reached. A non-mirrored log has nothing to converge. */
   converge?: (() => Promise<void>) | undefined
   appliedWaitMs?: number | undefined
@@ -90,6 +92,10 @@ export function createParkPersistence(args: {
       return null
     }
     await swap.seal()
+    // The swap is proof the applied view the checkpoint named is whole, so re-publish it: the
+    // refresh that would have registered it raced the socket's park, and the dim authority reads
+    // this slot for the parked tail.
+    args.seal?.(applied)
     return { head: readBack.head, count: readBack.count, digest: readBack.digest }
   }
 

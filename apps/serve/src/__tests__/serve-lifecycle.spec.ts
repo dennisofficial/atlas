@@ -188,6 +188,21 @@ describe('sandbox lifecycle ownership', () => {
     })
   })
 
+  it('publishes events-appended for the parked marker so attached clients refresh before the socket parks', async () => {
+    const test = fixture({
+      finalize: async () => undefined,
+      stop: async () => undefined,
+    })
+    const seen: string[] = []
+    const unsubscribe = test.app.channel.subscribe({
+      threadId,
+      listener: (signal) => { seen.push(signal.type) },
+    })
+    await test.lifecycle.park()
+    unsubscribe()
+    expect(seen).toContain('events-appended')
+  })
+
   it('still completes the park when the parked append rejects', async () => {
     let stopped = false
     const test = fixture({

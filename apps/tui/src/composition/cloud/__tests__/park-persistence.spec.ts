@@ -53,6 +53,7 @@ const rig = (args: {
   converge?: (() => Promise<void>) | undefined
 }) => {
   const written: ParkedTranscriptRecord[] = []
+  const sealed: CloudAppliedSnapshot[] = []
   let disk: readonly Event[] = args.onDisk ?? [eventAt(1)]
   const swaps: string[] = []
   const files: TranscriptFiles = {
@@ -79,10 +80,11 @@ const rig = (args: {
     waitUntilApplied: () => (args.waitFails === true ? Promise.reject(new Error('detached')) : Promise.resolve()),
     refreshLog: async () => undefined,
     readLog: async () => disk,
+    seal: (snapshot) => void sealed.push(snapshot),
     ...(args.converge === undefined ? {} : { converge: args.converge }),
     appliedWaitMs: 20,
   })
-  return { persistence, written, swaps, disk: () => disk }
+  return { persistence, written, swaps, sealed, disk: () => disk }
 }
 
 describe('persisting a park', () => {
@@ -94,6 +96,25 @@ describe('persisting a park', () => {
     expect(held.disk()).toEqual(EVENTS)
     expect(held.swaps).toEqual(['swap', 'seal'])
     expect(held.written).toEqual([{ checkpoint: checkpointFor(EVENTS), applied: identityOf(EVENTS) }])
+  })
+
+  it('re-publishes the sealed applied view so the dim authority reads the parked tail', async () => {
+    const held = rig({ applied: { identity: identityOf(EVENTS), appliedAt: 7, events: EVENTS } })
+
+    await held.persistence.persist(checkpointFor(EVENTS))
+
+    expect(held.sealed).toEqual([{ identity: identityOf(EVENTS), appliedAt: 7, events: EVENTS }])
+  })
+
+  it('publishes no seal when the read back fails the checkpoint', async () => {
+    const held = rig({
+      applied: { identity: identityOf(EVENTS), appliedAt: 1, events: EVENTS },
+      filed: [eventAt(1)],
+    })
+
+    await held.persistence.persist(checkpointFor(EVENTS))
+
+    expect(held.sealed).toEqual([])
   })
 
   it('records the park without an applied identity when the file read back does not match the checkpoint', async () => {
