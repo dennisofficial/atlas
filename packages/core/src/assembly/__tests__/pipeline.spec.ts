@@ -42,6 +42,7 @@ describe('defaultRules', () => {
       'messagesFromEvents',
       'agentEndingsBlock',
       'compactedHistory',
+      'corruptImagesDropped',
       'imagesInContext',
       'worktreeBlock',
     ])
@@ -104,6 +105,7 @@ describe('defaultPipeline', () => {
       'messagesFromEvents',
       'agentEndingsBlock',
       'compactedHistory',
+      'corruptImagesDropped',
       'imagesInContext',
       'worktreeBlock',
       'cacheBreakpoints',

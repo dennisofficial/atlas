@@ -169,6 +169,25 @@ describe('read on an image it cannot send', () => {
   })
 })
 
+describe('read on an image that is not a valid image', () => {
+  it('withholds the pixels, so a corrupt file cannot poison the history', async () => {
+    const corrupt = new Uint8Array([
+      0xff, 0xd8,
+      0xff, 0xdb, 0x00, 0x83,
+      ...Array.from({ length: 129 }, () => 0x06),
+      0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x50, 0x00, 0x78, 0x03,
+    ])
+    const path = join(root, 'corrupt.jpg')
+    await writeFile(path, corrupt)
+
+    const outcome = await settled(path)
+
+    expect(outcome.modelParts).toBeUndefined()
+    expect(outcome.modelText).toContain('not a valid image of its type')
+    expect(imageOutput(outcome.output)).toMatchObject({ mediaType: 'image/jpeg', inlined: false })
+  })
+})
+
 describe('read on a text file', () => {
   it('is unchanged', async () => {
     const outcome = await settled(paths.text)

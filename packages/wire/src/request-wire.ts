@@ -103,6 +103,11 @@ const directoryEntryWireSchema = z.object({ name: z.string(), isDirectory: z.boo
 
 export const contextFileContentWireSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), content: z.string(), truncated: z.boolean() }),
+  z.object({
+    type: z.literal('image'),
+    data: z.string(),
+    mediaType: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp']),
+  }),
   z.object({ type: z.literal('refused'), reason: z.string() }),
 ])
 export type ContextFileContentWire = z.infer<typeof contextFileContentWireSchema>

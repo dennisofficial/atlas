@@ -201,3 +201,47 @@ export function imageSize(args: { bytes: Uint8Array; mediaType: string }): Image
   if (args.mediaType === 'image/webp') return webpSize(args.bytes)
   return null
 }
+
+const JPEG_STOP_MARKERS = new Set([0xd8, 0x01, ...Array.from({ length: 8 }, (_u, i) => 0xd0 + i)])
+
+/**
+ * A JPEG is well-formed only if its marker walk stays in lockstep to the first scan. A segment
+ * whose length field points into the middle of other bytes desyncs the walk, and a decoder that
+ * re-syncs onto a coincidental SOF (as jpegSize's byte-skip does) is reading garbage a strict
+ * provider will reject. This walk refuses to re-sync: any length that does not land exactly on
+ * the next marker means the file is corrupt, and the picture must not be sent to a model.
+ */
+export function jpegWellFormed(bytes: Uint8Array): boolean {
+  if (bytes.byteLength < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return false
+
+  let offset = 2
+  while (offset + 1 < bytes.byteLength) {
+    if (bytes[offset] !== 0xff) return false
+    const marker = bytes[offset + 1] ?? 0
+    if (marker === 0xda) return true
+    if (marker === 0xd9) return false
+    if (JPEG_STOP_MARKERS.has(marker) || marker === 0x00) {
+      offset += 2
+      continue
+    }
+    if (marker === 0xff) {
+      offset += 1
+      continue
+    }
+    const segmentLength = readUint16BE(bytes, offset + 2)
+    if (segmentLength < 2) return false
+    offset += 2 + segmentLength
+  }
+  return false
+}
+
+/**
+ * Whether the bytes can be decoded as their claimed type, checked strictly enough that a corrupt
+ * file cannot be inlined into a model request. A corrupt image part poisons the whole history —
+ * every later turn re-sends it, and a provider that rejects it fails every later turn — so the
+ * answer here is the gate between "picture" and "text-only".
+ */
+export function decodesAsImage(args: { bytes: Uint8Array; mediaType: SupportedImageMediaType }): boolean {
+  if (args.mediaType === 'image/jpeg') return jpegWellFormed(args.bytes)
+  return imageSize({ bytes: args.bytes, mediaType: args.mediaType }) !== null
+}

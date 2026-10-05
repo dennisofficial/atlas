@@ -1,4 +1,5 @@
 import {
+  decodesAsImage,
   EImageDelivery,
   imageSize,
   planDelivery,
@@ -118,6 +119,16 @@ export async function readImage(args: {
   }
 
   const bytes = await args.files.readBytes({ path, threadId: args.threadId })
+
+  if (!decodesAsImage({ bytes, mediaType })) {
+    return textOnly({
+      path,
+      mediaType,
+      size,
+      byteLength,
+      because: 'the file is not a valid image of its type and a model would reject it',
+    })
+  }
 
   return inlined({ path, mediaType, size, byteLength, bytes })
 }

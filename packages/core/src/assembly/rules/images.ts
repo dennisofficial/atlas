@@ -1,4 +1,10 @@
-import { decodeBase64, imageSize } from '../../images/limits'
+import {
+  decodeBase64,
+  decodesAsImage,
+  imageSize,
+  SUPPORTED_IMAGE_MEDIA_TYPES,
+  type SupportedImageMediaType,
+} from '../../images/limits'
 import type { Message } from '../../message/message'
 import type { FilePart, ImagePart, TextPart, ToolResultPart } from '../../message/parts'
 import type { AssembledMessage } from '../assembled'
@@ -42,6 +48,22 @@ const withoutPixels = (part: ImagePart | FilePart): TextPart => ({
       ? `[image dropped from context: ${described(part)}]`
       : `[file dropped from context: ${describedFile(part)}]`,
 })
+
+const withoutCorruptPixels = (part: ImagePart): TextPart => ({
+  type: 'text',
+  text: `[image dropped from context: ${described(part)} · not a valid image of its type]`,
+})
+
+const asSupported = (mediaType: string): SupportedImageMediaType | null =>
+  (SUPPORTED_IMAGE_MEDIA_TYPES as readonly string[]).includes(mediaType)
+    ? (mediaType as SupportedImageMediaType)
+    : null
+
+const imageIsCorrupt = (part: ImagePart): boolean => {
+  const mediaType = asSupported(part.mediaType)
+  if (mediaType === null) return false
+  return !decodesAsImage({ bytes: decodeBase64(part.data), mediaType })
+}
 
 const imagesInParts = (parts: readonly VisualPart[]): number =>
   parts.reduce((count, part) => count + (part.type === 'image' || part.type === 'file' ? 1 : 0), 0)
@@ -141,6 +163,53 @@ export function imagesInContext({
         system: input.system,
         messages: input.messages.map((entry) => downgradedEntry({ entry, budget })),
       }
+    },
+  })
+}
+
+const corruptedParts = ({ parts }: { parts: readonly VisualPart[] }): readonly VisualPart[] | null => {
+  const mapped = parts.map((part) => (part.type === 'image' && imageIsCorrupt(part) ? withoutCorruptPixels(part) : part))
+  return mapped.every((part, index) => part === parts[index]) ? null : mapped
+}
+
+function corruptedResult({ part }: { part: ToolResultPart }): ToolResultPart {
+  if (part.output.type !== 'content') return part
+  const value = corruptedParts({ parts: part.output.value })
+  if (value === null) return part
+  return { ...part, output: { type: 'content', value } }
+}
+
+function corruptedMessage({ message }: { message: Message }): Message | null {
+  if (message.role === 'user') {
+    const content = corruptedParts({ parts: message.content })
+    return content === null ? null : { ...message, content }
+  }
+  if (message.role === 'tool') {
+    const content = message.content.map((part) => corruptedResult({ part }))
+    return content.every((part, index) => part === message.content[index]) ? null : { ...message, content }
+  }
+  return null
+}
+
+/**
+ * A corrupt image part poisons the whole history: every later turn re-sends it, and a provider
+ * whose decoder is stricter than ours rejects the request, so the session fails on every message
+ * after the read. Replacing the part with a description at assembly time keeps the event log
+ * untouched and lets the next turn through, which heals a session the corrupt image already
+ * bricked. readImage refuses to inline such a file in the first place, so this rule is the
+ * backstop for sessions written before that refusal existed.
+ */
+export function corruptImagesDropped(): Rule {
+  return defineRule({
+    name: 'corruptImagesDropped',
+    apply: (input) => {
+      const messages = input.messages.map((entry) => {
+        if (imagesInMessage(entry.message) === 0) return entry
+        const message = corruptedMessage({ message: entry.message })
+        return message === null ? entry : { ...entry, message }
+      })
+      if (messages.every((entry, index) => entry === input.messages[index])) return input
+      return { system: input.system, messages }
     },
   })
 }

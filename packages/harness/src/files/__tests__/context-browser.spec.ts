@@ -109,4 +109,33 @@ describe('ContextBrowser', () => {
     const browser = await fixture({ 'too-big.txt': 'x'.repeat(MAX_CONTEXT_FILE_BYTES + 1) })
     expect((await browser.load('too-big.txt')).type).toBe('refused')
   })
+
+  it('returns a PNG by its magic bytes, base64, never by its name', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'atlas-context-browser-'))
+    roots.push(root)
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
+    await writeFile(join(root, 'shot.txt'), png)
+    await writeFile(join(root, 'fake.png'), 'not an image')
+    const browser = new ContextBrowser({ root })
+
+    expect(await browser.load('shot.txt')).toEqual({
+      type: 'image',
+      data: png.toString('base64'),
+      mediaType: 'image/png',
+    })
+    expect((await browser.load('fake.png')).type).toBe('text')
+  })
+
+  it('sniffs jpeg, gif, and webp', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'atlas-context-browser-'))
+    roots.push(root)
+    await writeFile(join(root, 'a'), Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0]))
+    await writeFile(join(root, 'b'), Buffer.from('GIF89a0000', 'ascii'))
+    await writeFile(join(root, 'c'), Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP', 'ascii')]))
+    const browser = new ContextBrowser({ root })
+
+    expect(await browser.load('a')).toMatchObject({ mediaType: 'image/jpeg' })
+    expect(await browser.load('b')).toMatchObject({ mediaType: 'image/gif' })
+    expect(await browser.load('c')).toMatchObject({ mediaType: 'image/webp' })
+  })
 })

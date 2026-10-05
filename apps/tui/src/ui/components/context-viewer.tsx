@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ScrollBoxRenderable } from '@opentui/core'
+import { useRenderer } from '@opentui/react'
 import type { ContextFileContent } from '@dltech/atlas-harness'
 
 import { cellsOf } from '../hint-layout'
+import { viewerImageProtocol } from '../images/viewer-image'
 import { observeScroll } from '../scroll-signal'
 import { theme } from '../theme'
 import { BackPill } from './back-pill'
@@ -15,6 +17,26 @@ const LEFT_PAD = 2
 
 export const isMarkdownPath = (path: string): boolean => /\.(md|markdown)$/i.test(path)
 
+/**
+ * The blocks sampler writes past a renderable's box in xterm.js, so where no pixel protocol
+ * answers, the viewer says so instead of painting garbage over the cells around it.
+ */
+function ViewerImageBody(props: { bytes: Uint8Array; path: string }): React.ReactNode {
+  const renderer = useRenderer()
+  const protocol = viewerImageProtocol({
+    capabilities: renderer.capabilities,
+    hasResolution: renderer.resolution !== null,
+  })
+  if (protocol === 'blocks') {
+    return (
+      <text fg={theme.hint}>
+        {`${props.path} is an image, and this terminal cannot display one — open it in a terminal that speaks kitty or sixel graphics.`}
+      </text>
+    )
+  }
+  return <viewer-image source={props.bytes} protocol="auto" fit="fit" flexGrow={1} flexShrink={1} flexBasis={0} />
+}
+
 function ViewerBody(props: {
   content: ContextFileContent
   path: string
@@ -26,6 +48,7 @@ function ViewerBody(props: {
   const digits = useMemo(() => lines.reduce((max, line) => Math.max(max, String(line.number).length), 2), [lines])
   const widest = useMemo(() => lines.reduce((max, line) => Math.max(max, cellsOf(line.text)), 0), [lines])
   if (props.content.type === 'refused') return <text fg={theme.warn}>{props.content.reason}</text>
+  if (props.content.type !== 'text') return null
   if (isMarkdownPath(props.path)) {
     return <MarkdownView source={props.content.content} width={Math.max(1, props.viewport)} />
   }
@@ -41,6 +64,8 @@ export function ContextViewer(props: {
   onDismiss: () => void
   attachScroll: (box: ScrollBoxRenderable | null) => void
 }): React.ReactNode {
+  const image = props.content?.type === 'image' ? props.content.data : null
+  const imageBytes = useMemo(() => (image === null ? null : Buffer.from(image, 'base64')), [image])
   const [window, setWindow] = useState({ start: 0, end: 100 })
   const release = useRef<(() => void) | null>(null)
   const attach = useCallback((box: ScrollBoxRenderable | null) => {
@@ -66,11 +91,14 @@ export function ContextViewer(props: {
           <text fg={theme.hint} wrapMode="none" flexShrink={1}>{props.path}</text>
         </box>
       </box>
-      {props.loading ? <text fg={theme.hint}>Reading {props.path}…</text> : props.content === null ? null : (
-        <scrollbox ref={attach} scrollX flexGrow={1} flexShrink={1} flexBasis={0} viewportCulling>
-          <ViewerBody content={props.content} path={props.path} viewport={Math.max(1, props.width - LEFT_PAD - VIEWPORT_PAD)} window={window} />
-        </scrollbox>
-      )}
+      {props.loading ? <text fg={theme.hint}>Reading {props.path}…</text> : props.content === null ? null :
+        imageBytes !== null ? (
+          <ViewerImageBody bytes={imageBytes} path={props.path} />
+        ) : (
+          <scrollbox ref={attach} scrollX flexGrow={1} flexShrink={1} flexBasis={0} viewportCulling>
+            <ViewerBody content={props.content} path={props.path} viewport={Math.max(1, props.width - LEFT_PAD - VIEWPORT_PAD)} window={window} />
+          </scrollbox>
+        )}
       <text fg={theme.hint} flexShrink={0}>↑↓ scroll · ←→ pan · pgup/pgdn page · esc to close</text>
     </box>
   )

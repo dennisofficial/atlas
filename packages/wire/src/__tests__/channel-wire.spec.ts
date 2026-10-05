@@ -141,7 +141,7 @@ describe('the memory archive op', () => {
 
 describe('the protocol stamp', () => {
   it('speaks the version that includes context-folder ops and operator input', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(16)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(17)
   })
 })
 
