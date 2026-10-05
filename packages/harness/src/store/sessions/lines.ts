@@ -112,6 +112,22 @@ export function encodeEventLine({
   return JSON.stringify(line)
 }
 
+export function encodeEvent({ event }: { event: Event }): string {
+  const { id, seq, threadId, runId, parentRunId, depth, at, ...draft } = event
+  return encodeEventLine({
+    draft,
+    envelope: {
+      id,
+      seq,
+      threadId,
+      runId,
+      ...(parentRunId === undefined ? {} : { parentRunId }),
+      depth,
+      at,
+    },
+  })
+}
+
 export type ParsedLog = {
   events: Event[]
   unreadable: UnreadableRow[]

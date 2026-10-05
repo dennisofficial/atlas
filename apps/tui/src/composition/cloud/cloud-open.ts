@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import {
   EParkedResume,
+  MirroredEventLog,
   type CloudBridge,
   type CloudChannel,
   type CloudReload,
@@ -115,10 +116,12 @@ function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resum
 
 /**
  * Opening a thread that already lives in the cloud. When this machine holds a transcript worth
- * drawing, the conversation opens from it at once against a channel that has not dialled yet; the
- * park record decides whether that transcript is trusted (Synced: nothing wakes until the first
- * send) or drawn muted while the wake runs behind it (Behind or Unknown). With nothing local to
- * draw, or a half-finished move that settles on the live channel, the wake still comes first.
+ * drawing — with the mirror, that is any lifted session whose local file survived — the
+ * conversation opens from it at once against a channel that has not dialled yet; the park record
+ * decides whether that transcript is trusted (Synced: nothing wakes until the first send) or
+ * drawn muted while the wake runs behind it (Behind or Unknown — including a crash-park, which
+ * left no record at all). With nothing local to draw, or a half-finished move that settles on
+ * the live channel, the wake still comes first.
  */
 export async function openCloudThread(args: OpenArgs): Promise<Binding> {
   const { app, bridge, threadId, move } = args
@@ -130,6 +133,7 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
         ? await composeEager(args)
         : composeRenderFirst({ ...args, opened: renderable.opened, resume: renderable.resume })
     const { channel, stores } = composed
+    const mirrored = stores.log instanceof MirroredEventLog ? stores.log : undefined
 
     const runner = createCloudRunner({ ...wakeNarrationFor(args), channel, wake: composed.wake })
     const opened = await composed.openAgainst(runner)
@@ -142,7 +146,11 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
       appliedSnapshot: () => cloudReadinessOf(channel).applied(),
       subscribeApplied: (listener) => cloudReadinessOf(channel).subscribe(listener),
       parkedResume: composed.parkedResume,
-      onParked: parkHookFor({ app, channel }),
+      onParked: parkHookFor({
+        app,
+        channel,
+        ...(mirrored === undefined ? {} : { converge: () => mirrored.converge() }),
+      }),
       onClose: () => {
         cloudReadinessOf(channel).cancelWaiting()
         stopMirroring()

@@ -47,6 +47,8 @@ export function createParkPersistence(args: {
   waitUntilApplied: (identity: ThreadIdentity) => Promise<void>
   refreshLog: () => Promise<void>
   readLog: () => Promise<Parameters<typeof transcriptIdentityDigest>[0]>
+  /** A lifted session's mirror: awaited before the swap so the record is written over a file the checkpoint has provably reached. A non-mirrored log has nothing to converge. */
+  converge?: (() => Promise<void>) | undefined
   appliedWaitMs?: number | undefined
 }): ParkPersistence {
   let chain: Promise<void> = Promise.resolve()
@@ -92,6 +94,7 @@ export function createParkPersistence(args: {
   }
 
   const run = async (checkpoint: RuntimeCheckpoint): Promise<void> => {
+    await args.converge?.()
     const applied = await snapshotMatching(checkpoint).catch((error: unknown) => {
       notify({
         key: PARK_PERSIST_NOTICE_KEY,

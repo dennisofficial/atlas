@@ -159,6 +159,37 @@ describe('resuming a parked cloud thread', () => {
     }
   }, 60_000)
 
+  it('renders the local mirror immediately for a crash-parked session that left no park record', async () => {
+    const app = appFor()
+    const { threadId } = await parkedThread(app)
+    const bridge = bridgeFor()
+    const wakeGate = promiseGate()
+    const create = bridge.sandboxes.create
+    bridge.sandboxes.create = async (given) => {
+      await wakeGate.gate
+      return create(given)
+    }
+    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+
+    try {
+      const frame = await mounted.showing(LOCAL_TEXT)
+
+      expect(frame).toContain(LOCAL_TEXT)
+      expect(app.sessionOwner.snapshot().bound).toBe(true)
+      expect(bridge.created).toHaveLength(0)
+      expect(bridge.attached).toHaveLength(0)
+      expect(bridge.parkedAttaches).toEqual([threadId])
+      expect(healthOf(app)?.stale).toBe(true)
+      expect(mounted.mutedEntries()).toBeGreaterThan(0)
+
+      wakeGate.release()
+
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('persists the park record with the applied identity when the live session parks', async () => {
     const app = appFor()
     const { threadId, identity } = await parkedThread(app)

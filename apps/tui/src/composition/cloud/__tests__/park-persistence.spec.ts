@@ -44,9 +44,16 @@ const checkpointFor = (events: readonly Event[]): RuntimeCheckpoint => ({
   transcript: identityOf(events),
 })
 
-const rig = (args: { applied: CloudAppliedSnapshot | null; filed?: readonly Event[]; waitFails?: boolean }) => {
+const rig = (args: {
+  applied: CloudAppliedSnapshot | null
+  filed?: readonly Event[] | undefined
+  /** What the local file already holds; the default is a transcript only the checkpoint extends. */
+  onDisk?: readonly Event[] | undefined
+  waitFails?: boolean
+  converge?: (() => Promise<void>) | undefined
+}) => {
   const written: ParkedTranscriptRecord[] = []
-  let disk: readonly Event[] = [eventAt(1)]
+  let disk: readonly Event[] = args.onDisk ?? [eventAt(1)]
   const swaps: string[] = []
   const files: TranscriptFiles = {
     swap: async ({ events }) => {
@@ -72,6 +79,7 @@ const rig = (args: { applied: CloudAppliedSnapshot | null; filed?: readonly Even
     waitUntilApplied: () => (args.waitFails === true ? Promise.reject(new Error('detached')) : Promise.resolve()),
     refreshLog: async () => undefined,
     readLog: async () => disk,
+    ...(args.converge === undefined ? {} : { converge: args.converge }),
     appliedWaitMs: 20,
   })
   return { persistence, written, swaps, disk: () => disk }
@@ -117,6 +125,24 @@ describe('persisting a park', () => {
     await held.persistence.persist(checkpointFor(EVENTS))
 
     expect(held.written).toEqual([{ checkpoint: checkpointFor(EVENTS), applied: null }])
+  })
+
+  it('converges the mirror before the swap, so an already-converged file is swapped for identical bytes', async () => {
+    const trail: string[] = []
+    const held = rig({
+      applied: { identity: identityOf(EVENTS), appliedAt: 1, events: EVENTS },
+      onDisk: EVENTS,
+      converge: async () => {
+        trail.push('converge')
+      },
+    })
+
+    await held.persistence.persist(checkpointFor(EVENTS))
+
+    expect(trail).toEqual(['converge'])
+    expect(held.swaps).toEqual(['swap', 'seal'])
+    expect(held.disk()).toEqual(EVENTS)
+    expect(held.written).toEqual([{ checkpoint: checkpointFor(EVENTS), applied: identityOf(EVENTS) }])
   })
 
   it('warns instead of throwing when the record cannot be written', async () => {
