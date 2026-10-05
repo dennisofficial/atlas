@@ -377,4 +377,54 @@ describe('the git identity a lift left on its location change', () => {
 
     expect(liftedWorkspaceOf([lifted(), again])?.branch).toBe('dennis/other')
   })
+
+  it('follows a worktree entered after the lift', () => {
+    const events = [
+      lifted({ branch: 'main' }),
+      entered({ path: `${TREE}`, branch: 'dennis/eng-327' }),
+    ]
+
+    expect(liftedWorkspaceOf(events)).toEqual({
+      remoteUrl: 'git@github.com:comp-ai/atlas.git',
+      branch: 'dennis/eng-327',
+      cwd: TREE,
+    })
+  })
+
+  it('returns to the lift identity once the worktree is exited', () => {
+    const events = [
+      lifted({ branch: 'dennis/thing' }),
+      entered({ path: TREE, branch: 'dennis/eng-327' }),
+      exited({ path: TREE, action: EWorktreeExit.Keep, returnTo: '/workspace' }),
+    ]
+
+    expect(liftedWorkspaceOf(events)?.branch).toBe('dennis/thing')
+  })
+
+  it('answers the latest entry when worktrees come and go after the lift', () => {
+    const events = [
+      lifted({ branch: 'main' }),
+      entered({ path: TREE, branch: 'dennis/eng-327' }),
+      exited({ path: TREE, action: EWorktreeExit.Keep, returnTo: '/workspace' }),
+      entered({ path: OTHER, branch: 'dennis/eng-401' }),
+    ]
+
+    expect(liftedWorkspaceOf(events)?.branch).toBe('dennis/eng-401')
+  })
+
+  it('ignores worktree moves from before the lift', () => {
+    const events = [
+      entered({ path: TREE, branch: 'dennis/eng-327' }),
+      lifted({ branch: 'dennis/thing' }),
+    ]
+
+    expect(liftedWorkspaceOf(events)?.branch).toBe('dennis/thing')
+  })
+
+  it('stays null when the lift carried no identity, even inside a worktree', () => {
+    const legacy = event({ type: 'location-changed', from: 'host', to: 'cloud', cwd: '/workspace' })
+    const events = [legacy, entered({ path: TREE, branch: 'dennis/eng-327' })]
+
+    expect(liftedWorkspaceOf(events)).toBeNull()
+  })
 })

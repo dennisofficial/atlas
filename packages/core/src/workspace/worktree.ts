@@ -102,17 +102,37 @@ export type LiftedGitIdentity = {
 /**
  * The git identity a lift recorded on its `location-changed`, or null when the thread is local
  * (or was lifted before the identity rode the event). A later transition back to local clears it,
- * so only the latest move decides.
+ * so only the latest move decides. Worktree moves after the latest move to cloud override the
+ * recorded branch and directory — the sandbox's session usually enters a worktree after arrival,
+ * and the marker is a snapshot of the moment before that happened.
  */
 export function liftedWorkspaceOf(events: readonly Event[]): LiftedGitIdentity | null {
+  let anchor = -1
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index]
-    if (event?.type !== 'location-changed') continue
-    if (event.to !== EExecutionLocation.Cloud) return null
-    if (event.remoteUrl == null || event.branch == null) return null
+    if (events[index]?.type !== 'location-changed') continue
+    anchor = index
+    break
+  }
+  if (anchor === -1) return null
 
-    return { remoteUrl: event.remoteUrl, branch: event.branch, cwd: event.cwd }
+  const lift = events[anchor]
+  if (lift?.type !== 'location-changed') return null
+  if (lift.to !== EExecutionLocation.Cloud) return null
+  if (lift.remoteUrl == null || lift.branch == null) return null
+
+  let branch = lift.branch
+  let cwd = lift.cwd
+  for (const event of events.slice(anchor + 1)) {
+    if (event.type === 'worktree-entered') {
+      branch = event.branch
+      cwd = event.path
+      continue
+    }
+    if (event.type === 'worktree-exited') {
+      branch = lift.branch
+      cwd = event.returnTo ?? lift.cwd
+    }
   }
 
-  return null
+  return { remoteUrl: lift.remoteUrl, branch, cwd }
 }
