@@ -8,6 +8,7 @@ export enum ERetryReason {
 export type ModelFailure = {
   status?: number | undefined
   retryAfterMs?: number | undefined
+  retryable?: boolean | undefined
 }
 
 export type RetryPolicy = {
@@ -44,6 +45,8 @@ const AUTH_FAILURE_STATUSES: ReadonlySet<number> = new Set([401, 402, 403])
 export const isAuthFailure = (failure: ModelFailure): boolean =>
   failure.status !== undefined && AUTH_FAILURE_STATUSES.has(failure.status)
 
+const PERMANENT_CLIENT_STATUSES: ReadonlySet<number> = new Set([...AUTH_FAILURE_STATUSES, 404, 413, 422])
+
 const NOTHING_LEFT_TO_TRY: RetryDecision = { retry: false }
 
 export function retryReasonOf(failure: ModelFailure): ERetryReason | null {
@@ -52,7 +55,8 @@ export function retryReasonOf(failure: ModelFailure): ERetryReason | null {
   if (status === TOO_MANY_REQUESTS) return ERetryReason.RateLimited
   if (status === OVERLOADED) return ERetryReason.Overloaded
   if (status >= FIRST_SERVER_ERROR) return ERetryReason.ServerError
-  return null
+  if (PERMANENT_CLIENT_STATUSES.has(status)) return null
+  return failure.retryable === true ? ERetryReason.ServerError : null
 }
 
 function backoffMs(args: { attempts: number; policy: RetryPolicy; jitter: number }): number {

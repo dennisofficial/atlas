@@ -18,6 +18,7 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import { modelFailureDiagnosticsOf } from '../model/failure-diagnostics'
 import { logFieldsOf } from '../store/logs'
 import type { HookChain } from '../hooks/registry'
 import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
@@ -152,7 +153,13 @@ export class LoopTurnRunner extends TurnRunner {
                   ? `model step failed (attempt ${attempt}/${maxAttempts}, ${reason}) — retrying`
                   : `model step failed (attempt ${attempt}/${maxAttempts}, ${reason}) — not retrying`,
                 threadId,
-                data: { attempt, maxAttempts, reason, willRetry },
+                data: {
+                  attempt,
+                  maxAttempts,
+                  reason,
+                  willRetry,
+                  modelError: modelFailureDiagnosticsOf(error),
+                },
                 ...logFieldsOf({ error }),
               })
             },
