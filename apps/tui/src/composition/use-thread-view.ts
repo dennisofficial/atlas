@@ -23,7 +23,11 @@ import type { LogAccumulator } from "../store/log-accumulator";
 import type { TurnClock } from "../ui/turn-clock";
 import type { AtlasApp } from "./compose";
 import { createThreadPager, type ThreadIdentity } from "./thread-reads";
-import { createThreadViewRefresh } from "./thread-view-refresh";
+import {
+  cloudChannelOf,
+  createThreadViewRefresh,
+  driveThreadViewExternally,
+} from "./thread-view-refresh";
 import { usePlacementRepublish } from "./use-placement-republish";
 import {
   subscribeTranscriptViewport,
@@ -212,37 +216,42 @@ export function useThreadView(args: {
     void load.current().catch(() => undefined);
   }, [initial, threadId]);
 
+  useEffect(() => {
+    if (viewRefresh.drivesExternally()) return;
+
+    return app.channel.subscribe({
+      threadId,
+      listener: (signal) => {
+        if (signal.type === "chunk" && signal.chunk.type === "finish") {
+          const { usage } = signal.chunk;
+          if (usage !== undefined) onUsage?.(usage);
+        }
+
+        /**
+         * A step opening means the log already moved — something was appended to prompt it. Not
+         * everything that writes to a thread writes through the publishing log: the supervisor
+         * appends the operator's message to a child and then steps it, so without this the
+         * operator's own words would not appear until the child had finished answering them.
+         */
+        if (
+          signal.type === "step-started" ||
+          signal.type === "step-ended" ||
+          signal.type === "events-appended"
+        ) {
+          if (!viewRefresh.refreshable()) return;
+
+          // A refresh reads the thread's tail — over the wire for a cloud thread — so a failed
+          // read leaves the stale view standing rather than taking the process down with an
+          // unhandled rejection; the next signal retries.
+          void viewRefresh.refresh().catch(() => undefined);
+        }
+      },
+    });
+  }, [app.channel, onUsage, viewRefresh, threadId]);
+
   useEffect(
-    () =>
-      app.channel.subscribe({
-        threadId,
-        listener: (signal) => {
-          if (signal.type === "chunk" && signal.chunk.type === "finish") {
-            const { usage } = signal.chunk;
-            if (usage !== undefined) onUsage?.(usage);
-          }
-
-          /**
-           * A step opening means the log already moved — something was appended to prompt it. Not
-           * everything that writes to a thread writes through the publishing log: the supervisor
-           * appends the operator's message to a child and then steps it, so without this the
-           * operator's own words would not appear until the child had finished answering them.
-           */
-          if (
-            signal.type === "step-started" ||
-            signal.type === "step-ended" ||
-            signal.type === "events-appended"
-          ) {
-            if (!viewRefresh.refreshable()) return;
-
-            // A refresh reads the thread's tail — over the wire for a cloud thread — so a failed
-            // read leaves the stale view standing rather than taking the process down with an
-            // unhandled rejection; the next signal retries.
-            void viewRefresh.refresh().catch(() => undefined);
-          }
-        },
-      }),
-    [app.channel, onUsage, viewRefresh, threadId],
+    () => driveThreadViewExternally({ cloudChannel: cloudChannelOf(app), viewRefresh }),
+    [app, viewRefresh],
   );
 
   const pager = useMemo(

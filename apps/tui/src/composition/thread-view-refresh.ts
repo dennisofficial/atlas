@@ -8,7 +8,7 @@ import {
 } from "@dltech/atlas-harness";
 
 import type { ConversationStore } from "../store";
-import type { LogAccumulator, ToolEffects } from "../store/log-accumulator";
+import type { ToolEffects } from "../store/log-accumulator";
 import type { AtlasApp } from "./compose";
 import type { EThreadRows, ThreadSeed } from "./use-thread-view";
 import {
@@ -18,7 +18,6 @@ import {
   readThreadWindow,
   retainNewest,
   type ThreadIdentity,
-  type ThreadSnapshot,
 } from "./thread-reads";
 import { readThreadSpend } from "./thread-spend";
 import { cloudReadinessOf } from "./cloud/cloud-readiness";
@@ -32,41 +31,6 @@ export const sameIdentity = (args: {
   args.left.head === args.right.head &&
   args.left.count === args.right.count &&
   args.left.digest === args.right.digest;
-
-/**
- * A live durable refresh of a cloud transcript: one authoritative full snapshot replaces the
- * projection wholesale. Window merging is a local-log shortcut — on a cloud thread it cannot
- * hear a compaction's same-head rewrite, where the digest is the only durable signal that the
- * prefix changed, so identity equal means stand pat and anything else means reset. The register
- * lands after the store holds the snapshot, so a waiter on `waitUntilApplied` observes the
- * applied view, never the read that preceded it.
- */
-export async function refreshCloudThreadView(args: {
-  threadId: ThreadId;
-  channel: RemoteDeltaChannel;
-  readSnapshot: () => Promise<ThreadSnapshot>;
-  readSpend: () => Promise<{ turns: readonly TurnSpend[] }>;
-  readiness: CloudTranscriptReadiness;
-  heldIdentity: () => ThreadIdentity | undefined;
-  markApplied: (identity: ThreadIdentity) => void;
-  resetLog: (next: {
-    events: readonly Event[];
-    base: LogAccumulator;
-    turns: readonly TurnSpend[];
-  }) => void;
-  setEvents: (next: readonly Event[]) => void;
-}): Promise<void> {
-  const [snapshot, spent] = await Promise.all([args.readSnapshot(), args.readSpend()]);
-  if (sameIdentity({ left: snapshot.identity, right: args.heldIdentity() })) return;
-
-  const retained = retainNewest({ events: snapshot.events });
-  args.resetLog({ events: retained, base: snapshot.base, turns: spent.turns });
-  args.setEvents(retained);
-  args.markApplied(snapshot.identity);
-  args.readiness.registerApplied(snapshot.identity, Date.now(), snapshot.all);
-}
-
-type CloudTranscriptReadiness = ReturnType<typeof cloudReadinessOf>;
 
 /**
  * Signals pile up while a cloud read is over the wire. One refresh runs at a time and the
@@ -99,10 +63,41 @@ export function createCloudRefresh(args: {
   };
 }
 
+export const cloudChannelOf = (app: AtlasApp): RemoteDeltaChannel | null =>
+  app.runner instanceof RemoteTurnRunner && "connection" in app.channel
+    ? (app.channel as RemoteDeltaChannel)
+    : null;
+
+export const EXTERNAL_DRIVE_POLL_MS = 4000;
+
+export function driveThreadViewExternally(args: {
+  cloudChannel: RemoteDeltaChannel | null;
+  viewRefresh: ThreadViewRefresh;
+}): (() => void) | undefined {
+  if (!args.viewRefresh.drivesExternally()) return undefined;
+  if (args.cloudChannel === null) return undefined;
+
+  const unready = args.cloudChannel.onReady(() => {
+    void args.viewRefresh.refresh().catch(() => undefined);
+  });
+  const poll = setInterval(() => {
+    if (!args.viewRefresh.refreshable()) return;
+    void args.viewRefresh.refresh().catch(() => undefined);
+  }, EXTERNAL_DRIVE_POLL_MS);
+  poll.unref?.();
+
+  return () => {
+    unready();
+    clearInterval(poll);
+  };
+}
+
 export type ThreadViewRefresh = {
   refresh: () => Promise<void>;
   /** False while a cloud channel is Closed or Parked: a re-read then can never land, so signals stand down. */
   refreshable: () => boolean;
+  /** True when the channel never carries this thread's signals (cloud, non-root), so the view drives its own refreshes. */
+  drivesExternally: () => boolean;
   gapped: () => boolean;
   markGapped: (next: boolean) => void;
   /**
@@ -136,11 +131,13 @@ export function createThreadViewRefresh(args: {
   let lastHead: number | undefined;
   let heldIdentity = readSeed?.().identity;
 
-  const cloudChannel: RemoteDeltaChannel | null =
-    app.runner instanceof RemoteTurnRunner && "connection" in app.channel
-      ? (app.channel as RemoteDeltaChannel)
-      : null;
-  const readiness = cloudChannel === null ? null : cloudReadinessOf(cloudChannel);
+  const cloudChannel = cloudChannelOf(app);
+  // Readiness is one slot per channel, and that slot vouches for the root thread alone — a
+  // parked session's record and the dim authority both read it as the root's. A child view
+  // registering its own identity there would stand in the park's way, so children get none.
+  const ownsChannelReadiness =
+    cloudChannel !== null && threadId === cloudChannel.threadId;
+  const readiness = ownsChannelReadiness ? cloudReadinessOf(cloudChannel!) : null;
 
   const localRefresh = async (): Promise<void> => {
     const [window, spent] = await Promise.all([
@@ -174,34 +171,38 @@ export function createThreadViewRefresh(args: {
     setEvents(window.events);
   };
 
+  // A cloud thread reads one authoritative full snapshot and replaces the projection wholesale.
+  // Window merging is a local-log shortcut — it cannot hear a compaction's same-head rewrite,
+  // where the digest is the only durable signal that the prefix changed, so identity equal means
+  // stand pat and anything else means reset. The register lands after the store holds the
+  // snapshot, so a waiter on `waitUntilApplied` observes the applied view, never the read that
+  // preceded it.
   const refresh =
-    readiness === null || cloudChannel === null
+    cloudChannel === null
       ? localRefresh
       : createCloudRefresh({
-          run: () =>
-            refreshCloudThreadView({
-              threadId,
-              channel: cloudChannel,
-              readSnapshot: () =>
-                readThreadSnapshot({
-                  log: app.log,
-                  threadId,
-                  rows,
-                  effects,
-                  digest: transcriptIdentityDigest,
-                }),
-              readSpend: () => readThreadSpend({ ledger: app.ledger, threadId }),
-              readiness,
-              heldIdentity: () => heldIdentity,
-              markApplied: (identity) => {
-                heldIdentity = identity;
-              },
-              resetLog: (next) => {
-                tailGapped = false;
-                store.resetLog(next);
-              },
-              setEvents,
-            }),
+          run: async () => {
+            const [snapshot, spent] = await Promise.all([
+              readThreadSnapshot({
+                log: app.log,
+                threadId,
+                rows,
+                effects,
+                digest: transcriptIdentityDigest,
+              }),
+              readThreadSpend({ ledger: app.ledger, threadId }),
+            ]);
+            if (sameIdentity({ left: snapshot.identity, right: heldIdentity })) return;
+
+            const retained = retainNewest({ events: snapshot.events });
+            tailGapped = false;
+            store.resetLog({ events: retained, base: snapshot.base, turns: spent.turns });
+            setEvents(retained);
+            heldIdentity = snapshot.identity;
+            if (readiness !== null) {
+              readiness.registerApplied(snapshot.identity, Date.now(), snapshot.all);
+            }
+          },
         });
 
   return {
@@ -210,6 +211,8 @@ export function createThreadViewRefresh(args: {
       cloudChannel === null ||
       (cloudChannel.connection().state !== EChannelConnection.Closed &&
         cloudChannel.connection().state !== EChannelConnection.Parked),
+    drivesExternally: () =>
+      cloudChannel !== null && threadId !== cloudChannel.threadId,
     gapped: () => tailGapped,
     markGapped: (next) => {
       tailGapped = next;
