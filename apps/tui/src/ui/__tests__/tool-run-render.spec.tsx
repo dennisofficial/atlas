@@ -9,6 +9,7 @@ import { glyph } from '../theme'
 import { ToolRunBlock } from '../components/blocks/tool-run-block'
 import { teardown } from '../markdown/__tests__/harness'
 import { applyImageRows, SHIPPED_IMAGE_ROWS } from '../image-rows-store'
+import { encodePng } from '../images/__tests__/png-fixture'
 import { applyTranscriptRows } from '../viewport-rows-store'
 
 // The viewport and image-row stores are module-global and the app publishes into them; pin both so
@@ -34,9 +35,11 @@ const call = (args: {
   name: string
   input?: unknown
   output?: unknown
+  modelText?: string
   state?: ECallState
   note?: string
   liveOutput?: string
+  image?: ToolCall['image']
   attachments?: readonly ContextAttachment[]
 }): ToolCall => {
   ordinal += 1
@@ -45,15 +48,28 @@ const call = (args: {
     name: args.name,
     input: args.input ?? {},
     output: args.output,
-    modelText: '',
+    modelText: args.modelText ?? '',
     state: args.state ?? ECallState.Ok,
     note: args.note ?? null,
     at: null,
     settledAt: args.state === ECallState.Pending ? null : '2026-08-29T00:00:00.000Z',
     attachments: args.attachments ?? [],
     ...(args.liveOutput === undefined ? {} : { liveOutput: args.liveOutput }),
+    ...(args.image === undefined ? {} : { image: args.image }),
   }
 }
+
+/** A real 8×8 PNG, so a byte-sourced picture can actually decode and paint in the block sampler. */
+const PNG = ((): string => {
+  const rgba = new Uint8Array(8 * 8 * 4)
+  for (let pixel = 0; pixel < 8 * 8; pixel += 1) rgba.set([220, 20, 60, 255], pixel * 4)
+  return Buffer.from(
+    encodePng({ width: 8, height: 8, colourType: 6, bytesPerPixel: 4, samples: rgba }),
+  ).toString('base64')
+})()
+
+/** Any of the quadrant glyphs the block sampler paints with. */
+const painted = (frame: string): boolean => /[\u2580-\u259f]/.test(frame)
 
 const runOf = (calls: readonly ToolCall[]): ToolRun => ({
   key: 'tools:c1',
@@ -555,6 +571,82 @@ describe('a run of tool calls in the transcript', () => {
 
     const open = await frameOf(run, new Set([shot.callId]))
     expect(open).toContain('docs/shot.png \u00b7 1024\u00d7768 \u00b7 412 KB')
+  })
+
+  it('renders an inlined read from the bytes the log carries, not from the file', async () => {
+    const shot = call({
+      name: 'read',
+      input: { path: '/somewhere/inside/the/sandbox/shot.png' },
+      output: {
+        path: '/somewhere/inside/the/sandbox/shot.png',
+        mediaType: 'image/png',
+        byteLength: 412 * 1024,
+        width: 8,
+        height: 8,
+        inlined: true,
+      },
+      image: { data: PNG, mediaType: 'image/png' },
+    })
+    const run = runOf([shot])
+
+    const setup = await testRender(
+      <ToolRunBlock run={run} width={WIDTH} cwd={CWD} />,
+      { width: WIDTH, height: HEIGHT },
+    )
+    await setup.flush()
+    for (let pass = 0; pass < 10; pass += 1) {
+      await Bun.sleep(3)
+      await setup.flush()
+    }
+    const frame = setup.captureCharFrame()
+    await teardown(setup)
+
+    // The path does not exist on this machine, so a path-sourced image would paint nothing at all.
+    expect(frame).toContain('▾ /somewhere/inside/the/sandbox/shot.png')
+    expect(painted(frame)).toBe(true)
+  })
+
+  it('says why a text-only read never reached the model, in place of the picture', async () => {
+    const declined = call({
+      name: 'read',
+      input: { path: `${CWD}/docs/huge.png` },
+      output: {
+        path: `${CWD}/docs/huge.png`,
+        mediaType: 'image/png',
+        byteLength: 20 * 1024 * 1024,
+        width: 4000,
+        height: 3000,
+        inlined: false,
+      },
+      modelText:
+        '/repo/docs/huge.png — image/png, 4000×3000, 20.0 MB. It was not sent to you because 20.0 MB is too large to inline.',
+    })
+    const run = runOf([declined])
+
+    const frame = await frameOf(run)
+    expect(frame).toContain('▾ docs/huge.png · 4000×3000 · 20.0 MB')
+    expect(frame).toContain('Not sent to the model: 20.0 MB is too large to inline')
+    expect(painted(frame)).toBe(false)
+  })
+
+  it('falls back to the file where an inlined read kept no bytes', async () => {
+    const shot = call({
+      name: 'read',
+      input: { path: `${CWD}/docs/shot.png` },
+      output: {
+        path: `${CWD}/docs/shot.png`,
+        mediaType: 'image/png',
+        byteLength: 412 * 1024,
+        width: 8,
+        height: 8,
+        inlined: true,
+      },
+    })
+    const run = runOf([shot])
+
+    const frame = await frameOf(run)
+    expect(frame).toContain('▾ docs/shot.png · 8×8 · 412 KB')
+    expect(frame).not.toContain('Not sent to the model')
   })
 
   it('names the skill on its row and opens the skill body as a file block', async () => {

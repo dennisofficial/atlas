@@ -11,6 +11,8 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
+import { cacheReadImage } from './image-cache'
+
 export type ImageReadOutput = {
   path: string
   mediaType: SupportedImageMediaType
@@ -18,6 +20,7 @@ export type ImageReadOutput = {
   width?: number | undefined
   height?: number | undefined
   inlined: boolean
+  cachePath?: string | undefined
 }
 
 const KILOBYTE = 1024
@@ -45,6 +48,7 @@ const outputFor = (args: {
   size: ImageSize | null
   byteLength: number
   inlined: boolean
+  cachePath?: string | undefined
 }): ImageReadOutput => ({
   path: args.path,
   mediaType: args.mediaType,
@@ -52,6 +56,7 @@ const outputFor = (args: {
   width: args.size?.width,
   height: args.size?.height,
   inlined: args.inlined,
+  ...(args.cachePath !== undefined ? { cachePath: args.cachePath } : {}),
 })
 
 const textOnly = (args: {
@@ -72,6 +77,7 @@ const inlined = (args: {
   size: ImageSize | null
   byteLength: number
   bytes: Uint8Array
+  cachePath?: string | undefined
 }): ToolOutcome => {
   const summary = describe(args)
   const parts: readonly ModelPart[] = [
@@ -88,7 +94,7 @@ const inlined = (args: {
 
   return {
     ok: true,
-    output: outputFor({ ...args, inlined: true }),
+    output: outputFor({ ...args, inlined: true, ...(args.cachePath !== undefined ? { cachePath: args.cachePath } : {}) }),
     modelText: summary,
     modelParts: parts,
   }
@@ -101,6 +107,7 @@ export async function readImage(args: {
   head: Uint8Array
   files: AgentFileSystemPort
   threadId: ThreadId
+  sessionDirFor?: ((threadId: ThreadId) => Promise<string | undefined>) | undefined
 }): Promise<ToolOutcome> {
   const { path, mediaType, byteLength } = args
 
@@ -130,5 +137,25 @@ export async function readImage(args: {
     })
   }
 
-  return inlined({ path, mediaType, size, byteLength, bytes })
+  const sessionDir = await args.sessionDirFor?.(args.threadId)
+  const cached =
+    sessionDir === undefined
+      ? undefined
+      : await cacheReadImage({
+          sessionDir,
+          bytes,
+          mediaType,
+          sourcePath: path,
+          width: size?.width,
+          height: size?.height,
+        })
+
+  return inlined({
+    path,
+    mediaType,
+    size,
+    byteLength,
+    bytes,
+    ...(cached !== undefined ? { cachePath: cached.cachePath } : {}),
+  })
 }

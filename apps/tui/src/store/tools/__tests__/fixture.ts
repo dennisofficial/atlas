@@ -11,6 +11,7 @@ export function aCall(args: {
   modelText?: string
   state?: ECallState
   note?: string | null
+  image?: ToolCall['image']
 }): ToolCall {
   ordinal += 1
 
@@ -25,6 +26,7 @@ export function aCall(args: {
     at: null,
     settledAt: args.state === ECallState.Pending ? null : '2026-08-29T00:00:00.000Z',
     attachments: [],
+    ...(args.image === undefined ? {} : { image: args.image }),
   }
 }
 

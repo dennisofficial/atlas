@@ -119,3 +119,54 @@ describe('a call parked on an approval', () => {
     expect(call.state).toBe(ECallState.Ok)
   })
 })
+
+describe('a result that handed the model a picture', () => {
+  it('keeps the image bytes on the call, so the transcript need not touch the file', () => {
+    const events = log([
+      called({ n: 1, name: 'read', input: { path: '/repo/docs/shot.png' } }),
+      {
+        type: 'tool-result',
+        callId: callId(1),
+        name: 'read',
+        output: {
+          path: '/repo/docs/shot.png',
+          mediaType: 'image/png',
+          byteLength: 412 * 1024,
+          width: 8,
+          height: 8,
+          inlined: true,
+        },
+        modelText: '/repo/docs/shot.png — image/png, 8×8, 412 KB.',
+        modelParts: [
+          { type: 'text', text: '/repo/docs/shot.png — image/png, 8×8, 412 KB.' },
+          { type: 'image', data: 'aGVsbG8td29ybGQ=', mediaType: 'image/png', source: '/repo/docs/shot.png' },
+        ],
+      },
+    ])
+
+    const call = onlyCall(events)
+    expect(call.image).toEqual({ data: 'aGVsbG8td29ybGQ=', mediaType: 'image/png' })
+  })
+
+  it('carries no image when the result never inlined one', () => {
+    const events = log([
+      called({ n: 1, name: 'read', input: { path: '/repo/docs/huge.png' } }),
+      {
+        type: 'tool-result',
+        callId: callId(1),
+        name: 'read',
+        output: {
+          path: '/repo/docs/huge.png',
+          mediaType: 'image/png',
+          byteLength: 20 * 1024 * 1024,
+          inlined: false,
+        },
+        modelText:
+          '/repo/docs/huge.png — image/png, unknown dimensions, 20.0 MB. It was not sent to you because 20.0 MB is too large to inline.',
+      },
+    ])
+
+    expect(onlyCall(events).image).toBeUndefined()
+  })
+})
+

@@ -24,6 +24,11 @@ export type ToolCall = {
   input: unknown
   output: unknown
   modelText: string
+  /**
+   * The bytes of the image the model was handed, when the result inlined one. The transcript renders
+   * from these, not from the file's path — the file can live inside a sandbox, or be gone entirely.
+   */
+  image?: { data: string; mediaType: string } | undefined
   state: ECallState
   /** The error or denial reason, when there is one. */
   note: string | null
@@ -75,7 +80,14 @@ export const settled = (call: ToolCall): boolean => !OPEN.includes(call.state)
 export const succeeded = (call: ToolCall): boolean =>
   call.state === ECallState.Ok || OPEN.includes(call.state)
 
-type Settle = { at: string; state: ECallState; output: unknown; modelText: string; note: string | null }
+type Settle = {
+  at: string
+  state: ECallState
+  output: unknown
+  modelText: string
+  note: string | null
+  image: ToolCall['image']
+}
 
 function awaitingApprovalIn(events: readonly Event[]): ReadonlyMap<CallId, string> {
   const asked = new Map<CallId, string>()
@@ -99,6 +111,7 @@ function settlesOf(events: readonly Event[]): Map<CallId, Settle> {
         output: event.output,
         modelText: event.modelText ?? '',
         note: event.error?.message ?? null,
+        image: firstImageIn(event.modelParts),
       })
     }
 
@@ -109,11 +122,26 @@ function settlesOf(events: readonly Event[]): Map<CallId, Settle> {
         output: undefined,
         modelText: '',
         note: event.reason,
+        image: undefined,
       })
     }
   }
 
   return settles
+}
+
+/** The first picture part a result carried, if any — the read image itself. */
+function firstImageIn(
+  parts: EventOfType<'tool-result'>['modelParts'],
+): { data: string; mediaType: string } | undefined {
+  if (parts === undefined) return undefined
+
+  const part = parts.find(
+    (entry) => entry.type === 'image' && entry.data.length > 0 && entry.mediaType.length > 0,
+  )
+  if (part === undefined || part.type !== 'image') return undefined
+
+  return { data: part.data, mediaType: part.mediaType }
 }
 
 type CallSeed = { callId: CallId; name: string; input: unknown; at: string | null }
@@ -142,6 +170,7 @@ function callOf(args: {
     modelText: settle?.modelText ?? '',
     state: settle?.state ?? unsettled,
     note: settle?.note ?? awaiting ?? null,
+    image: settle?.image,
     at: seed.at,
     settledAt: settle?.at ?? null,
     attachments: args.attachments,

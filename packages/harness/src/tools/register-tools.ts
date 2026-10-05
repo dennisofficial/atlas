@@ -9,6 +9,7 @@ import {
   LogPort,
   ProcessPort,
   ToolDefinition,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -20,6 +21,7 @@ import {
   DeltaChannelToken,
   DockerEngineToken,
   SecretsStoreToken,
+  SessionRegistryToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
   WorkspaceRoot,
@@ -78,12 +80,19 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     resolver.resolve(portToken(ServiceRegistryPort))
   const agentRegistry = (resolver: DependencyContainer) =>
     resolver.resolve(AgentRegistrySourceToken)
+  const sessionDirFor = (resolver: DependencyContainer) => {
+    if (!resolver.isRegistered(SessionRegistryToken, true)) return undefined
+    const registry = resolver.resolve(SessionRegistryToken)
+    return async (threadId: ThreadId) =>
+      await registry.sessionDirFor({ threadId }).catch(() => undefined)
+  }
 
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new ReadTool({
         files: resolver.resolve(portToken(AgentFileSystemPort)),
         fileCapabilities: resolver.resolve(portToken(FileCapabilitiesPort)),
+        sessionDirFor: sessionDirFor(resolver),
       }),
   })
   container.register(portToken(ToolDefinition), {
