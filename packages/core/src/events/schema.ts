@@ -188,6 +188,15 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     cause: z.enum(ELocationChangeCause).optional(),
   }),
   z.object({
+    type: z.literal('parked'),
+    reason: z.string(),
+    turnRunning: z.boolean(),
+    childrenRunning: z.number().int().nonnegative(),
+    shellsRunning: z.number().int().nonnegative(),
+    servicesRunning: z.number().int().nonnegative(),
+    clientsAttached: z.number().int().nonnegative(),
+  }),
+  z.object({
     type: z.literal('operator-input-requested'),
     requestId: z.string().min(1),
     description: z.string(),

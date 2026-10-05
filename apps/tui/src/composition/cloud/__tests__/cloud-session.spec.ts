@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
-import { toRunId } from '@dltech/atlas-core'
+import { toEventId, toRunId, type Event, type EventOfType } from '@dltech/atlas-core'
 
 import {
   ECloudFreshness,
@@ -17,13 +17,33 @@ import { CLOUD_THREAD, fakeCloudChannel } from './fixture'
 
 const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
 
+const parkedEvent = (args: { seq: number; shellsRunning?: number }): EventOfType<'parked'> => ({
+  id: toEventId(`event-${args.seq}`),
+  seq: args.seq,
+  threadId: CLOUD_THREAD,
+  runId: toRunId('run-1'),
+  depth: 0,
+  at: '2026-10-01T00:00:00.000Z',
+  type: 'parked',
+  reason: 'idle',
+  turnRunning: false,
+  childrenRunning: 0,
+  shellsRunning: args.shellsRunning ?? 0,
+  servicesRunning: 0,
+  clientsAttached: 0,
+})
+
 const sessionOn = (
   args: {
     status?: CloudSandboxStatus | undefined
     statusRef?: { current: CloudSandboxStatus | undefined } | undefined
     connection?: ChannelConnection | undefined
     appliedSnapshot?:
-      | (() => { identity: { head: number; count: number; digest: string }; appliedAt: number } | null)
+      | (() => {
+          identity: { head: number; count: number; digest: string }
+          appliedAt: number
+          events?: readonly Event[] | undefined
+        } | null)
       | undefined
     subscribeApplied?: boolean | undefined
   } = {},
@@ -296,7 +316,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
     }
     const { channel, session } = sessionOn({
       statusRef,
-      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT }),
+      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT, events: [parkedEvent({ seq: 10 })] }),
     })
 
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
@@ -314,7 +334,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
     }
     const { channel, session } = sessionOn({
       statusRef,
-      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT }),
+      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT, events: [parkedEvent({ seq: 10 })] }),
     })
 
     channel.pushCheckpoint(checkpointOf())
@@ -331,7 +351,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
     const statusRef = { current: undefined as CloudSandboxStatus | undefined }
     const { channel, session } = sessionOn({
       statusRef,
-      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT }),
+      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT, events: [parkedEvent({ seq: 10 })] }),
     })
 
     channel.pushCheckpoint(checkpointOf())
@@ -368,7 +388,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
     }
     const { channel, session } = sessionOn({
       statusRef,
-      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT }),
+      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT, events: [parkedEvent({ seq: 10 })] }),
     })
 
     channel.pushCheckpoint(checkpointOf())
@@ -548,20 +568,21 @@ describe("freshness rides the serve's currency vouch", () => {
     expect(session.health().stale).toBe(false)
   })
 
-  it('never dims through a deliberate re-attach once the log was vouched current', () => {
+  it('dims through a deliberate re-attach until the fresh socket re-vouches', () => {
     const { channel, session } = sessionOn({
       connection: { state: EChannelConnection.Open, detail: null },
     })
     channel.ready(vouchingReady)
     expect(session.health().stale).toBe(false)
 
-    // A wake re-attach closes the socket on purpose; the log is no less correct for it.
+    // A wake re-attach closes the socket on purpose; the log ends in no parked marker, so the old
+    // vouch cannot prove the transcript across the deliberate close and the dim holds.
     channel.moveTo({ state: EChannelConnection.Connecting, detail: null })
-    expect(session.health().stale).toBe(false)
+    expect(session.health().stale).toBe(true)
     channel.moveTo({ state: EChannelConnection.Waking, detail: null })
-    expect(session.health().stale).toBe(false)
+    expect(session.health().stale).toBe(true)
 
-    // The fresh socket re-vouches at greet and the session stays undimmed throughout.
+    // The fresh socket re-vouches at greet and the dim clears.
     channel.moveTo({ state: EChannelConnection.Open, detail: null })
     channel.ready(vouchingReady)
     expect(session.health().stale).toBe(false)

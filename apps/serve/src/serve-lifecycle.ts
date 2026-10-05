@@ -68,6 +68,23 @@ export function createServeLifecycle(args: {
       args.haltIdle()
       args.log({ event: EServeEvent.IdleStop, threadId: args.threadId, work })
       await args.app.endProcesses?.({ killedBy: EKilledBy.IdlePark })
+      await args.app.log
+        .append({
+          threadId: args.threadId,
+          runId: args.app.ids.nextRunId(),
+          drafts: [
+            {
+              type: 'parked',
+              reason: 'idle',
+              turnRunning: work.turnRunning,
+              childrenRunning: work.childrenRunning,
+              shellsRunning: work.shellsRunning,
+              servicesRunning: work.servicesRunning,
+              clientsAttached: work.clientsAttached,
+            },
+          ],
+        })
+        .catch(() => undefined)
       if (args.stopSandbox === undefined) {
         args.log({ event: EServeEvent.ParkUnfinalized, threadId: args.threadId, reason: 'provider-stop-unavailable' })
         await close('legacy-idle-exit')

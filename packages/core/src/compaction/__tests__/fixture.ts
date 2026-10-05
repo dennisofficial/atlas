@@ -90,6 +90,16 @@ export const movedLocation = (args: {
   ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
 })
 
+export const parked = (reason: string): EventDraft => ({
+  type: 'parked',
+  reason,
+  turnRunning: false,
+  childrenRunning: 0,
+  shellsRunning: 0,
+  servicesRunning: 0,
+  clientsAttached: 0,
+})
+
 export const compactedRange = (args: {
   fromSeq: number
   throughSeq: number

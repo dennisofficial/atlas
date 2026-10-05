@@ -55,12 +55,12 @@ const healthOf = (app: FakeApp) => cloudAttachmentOf(app.sessionOwner.snapshot()
 const bridgeFor = (): FakeBridge => fakeBridge({ status: RUNNING })
 
 /**
- * The wake re-attach a `/restart` performs: the fresh socket greets and the serve — on the new
- * build — vouches the log is current. Nothing about the transcript changed while the client
- * reconnected, so it must never render dimmed.
+ * The wake re-attach a `/restart` performs: the socket closes on purpose and the thread was never
+ * parked, so the log ends in no parked marker and the old vouch cannot prove it — the transcript
+ * dims until the fresh socket greets and the serve vouches the log is current.
  */
 describe('a restarted running cloud thread', () => {
-  it('never dims the transcript once the serve vouches the log across the re-attach', async () => {
+  it('dims through the re-attach until the fresh socket re-vouches the log', async () => {
     const app = appFor()
     const threadId = await runningThread(app)
     const bridge = bridgeFor()
@@ -76,11 +76,11 @@ describe('a restarted running cloud thread', () => {
       expect(await until({ holds: async () => healthOf(app)?.stale === false, within: 10_000 })).toBe(true)
       expect(await until({ holds: async () => mounted.mutedEntries() === 0, within: 10_000 })).toBe(true)
 
-      // The `/restart` wake re-attach closes the socket on purpose; the vouched log is no less
-      // correct for it, so the transcript never dims.
+      // The `/restart` wake re-attach closes the socket on purpose; the log has no parked tail,
+      // so the closed-socket session cannot prove currency and the transcript dims.
       bridge.channel.moveTo({ state: EChannelConnection.Connecting, detail: null })
       await mounted.frame()
-      expect(healthOf(app)?.stale).toBe(false)
+      expect(healthOf(app)?.stale).toBe(true)
 
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
       bridge.channel.ready({ turnInFlight: false, transcriptCurrent: true })

@@ -11,6 +11,7 @@ import {
   eventsFrom,
   loaded,
   movedLocation,
+  parked,
   replied,
   resulted,
   resultedWith,
@@ -98,6 +99,14 @@ describe('transcriptOfRange', () => {
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
       "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host — the working directory is now /workspace",
+    )
+  })
+
+  it('renders a park as a one-line divider', () => {
+    const events = eventsFrom([said('hold on'), parked('idle'), replied('still here')])
+
+    expect(transcriptOfRange({ events, throughSeq: 3 })).toBe(
+      'Operator: hold on\nAtlas parked this session (idle)\nAtlas: still here',
     )
   })
 

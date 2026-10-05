@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import type { Event, ThreadId } from '@dltech/atlas-core'
 import {
   closedConnectionOf,
   cloudLifecycleOf,
@@ -59,6 +59,7 @@ export function createCloudSession(args: {
   appliedSnapshot?: (() => {
     identity: { head: number; count: number; digest: string }
     appliedAt: number
+    events?: readonly Event[] | undefined
   } | null) | undefined
   subscribeApplied?: ((listener: () => void) => () => void) | undefined
   parkedResume?: EParkedResume | undefined
@@ -134,6 +135,7 @@ export function createCloudSession(args: {
         lifecycle: holding ? ECloudSandboxLifecycle.Parked : lifecycle,
         socketOpen: connection.state === EChannelConnection.Open,
         freshness,
+        tailIsParked: applied?.events?.at(-1)?.type === 'parked',
       }),
       lastSeenAt: applied?.appliedAt ?? null,
       failure,

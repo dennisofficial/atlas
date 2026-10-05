@@ -165,6 +165,7 @@ describe('isTranscriptMuted', () => {
         lifecycle: ECloudSandboxLifecycle.Parked,
         socketOpen: true,
         freshness: ECloudFreshness.Synced,
+        tailIsParked: false,
       }),
     ).toBe(false)
   })
@@ -175,6 +176,7 @@ describe('isTranscriptMuted', () => {
         lifecycle: ECloudSandboxLifecycle.Running,
         socketOpen: true,
         freshness: ECloudFreshness.Behind,
+        tailIsParked: false,
       }),
     ).toBe(true)
   })
@@ -185,6 +187,7 @@ describe('isTranscriptMuted', () => {
         lifecycle: ECloudSandboxLifecycle.Running,
         socketOpen: true,
         freshness: ECloudFreshness.Unknown,
+        tailIsParked: false,
       }),
     ).toBe(true)
   })
@@ -196,37 +199,53 @@ describe('isTranscriptMuted', () => {
           lifecycle: ECloudSandboxLifecycle.Running,
           socketOpen: false,
           freshness,
+          tailIsParked: false,
         }),
       ).toBe(true)
     }
   })
 
-  it('unmutes only the proven case: parked with a synced transcript', () => {
+  it('unmutes a parked sandbox whose transcript tail is the parked marker', () => {
     expect(
       isTranscriptMuted({
         lifecycle: ECloudSandboxLifecycle.Parked,
         socketOpen: false,
         freshness: ECloudFreshness.Synced,
+        tailIsParked: true,
       }),
     ).toBe(false)
   })
 
-  it('mutes a parked sandbox whose checkpoint does not match what was applied', () => {
+  it('mutes a parked sandbox whose transcript tail is not the parked marker, even when synced', () => {
+    expect(
+      isTranscriptMuted({
+        lifecycle: ECloudSandboxLifecycle.Parked,
+        socketOpen: false,
+        freshness: ECloudFreshness.Synced,
+        tailIsParked: false,
+      }),
+    ).toBe(true)
+  })
+
+  it('mutes a parked sandbox whose transcript is unproven even when the tail carries the marker', () => {
     for (const freshness of [ECloudFreshness.Behind, ECloudFreshness.Unknown]) {
-      expect(
-        isTranscriptMuted({
-          lifecycle: ECloudSandboxLifecycle.Parked,
-          socketOpen: false,
-          freshness,
-        }),
-      ).toBe(true)
+      for (const tailIsParked of [false, true]) {
+        expect(
+          isTranscriptMuted({
+            lifecycle: ECloudSandboxLifecycle.Parked,
+            socketOpen: false,
+            freshness,
+            tailIsParked,
+          }),
+        ).toBe(true)
+      }
     }
   })
 
   it('mutes a stopped or unknown sandbox regardless', () => {
     for (const lifecycle of [ECloudSandboxLifecycle.Stopped, ECloudSandboxLifecycle.Unknown]) {
       expect(
-        isTranscriptMuted({ lifecycle, socketOpen: false, freshness: ECloudFreshness.Synced }),
+        isTranscriptMuted({ lifecycle, socketOpen: false, freshness: ECloudFreshness.Synced, tailIsParked: false }),
       ).toBe(true)
     }
   })

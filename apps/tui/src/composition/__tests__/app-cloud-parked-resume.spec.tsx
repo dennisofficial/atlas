@@ -41,9 +41,25 @@ const parkedThread = async (app: FakeApp): Promise<{ threadId: ThreadId; identit
     runId: toRunId('run-before-park'),
     drafts: [{ type: 'user-said', text: LOCAL_TEXT }],
   })
+  const parked = await app.log.append({
+    threadId: thread.id,
+    runId: toRunId('run-before-park'),
+    drafts: [
+      {
+        type: 'parked',
+        reason: 'idle',
+        turnRunning: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        clientsAttached: 0,
+      },
+    ],
+  })
+  const transcript = [...events, ...parked]
   return {
     threadId: thread.id,
-    identity: { head: events.at(-1)?.seq ?? 0, count: events.length, digest: transcriptIdentityDigest(events) },
+    identity: { head: transcript.at(-1)?.seq ?? 0, count: transcript.length, digest: transcriptIdentityDigest(transcript) },
   }
 }
 
