@@ -311,4 +311,40 @@ describe('TranscriptSyncer', () => {
       process.off('unhandledRejection', onRejection)
     }
   })
+
+  it('queues a sync while parked without issuing a request, and drains it on the wake', async () => {
+    const { channel, remote, threadId, localTexts, syncer } = await rig({ localTexts: ['one'] })
+    remote.push(
+      remoteEvent({ threadId, seq: 2, text: 'two' }),
+      remoteEvent({ threadId, seq: 3, text: 'three' }),
+    )
+
+    channel.receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+    channel.live().handlers.handleClose()
+
+    channel.receive({ kind: EServeFrame.Signal, seq: 3, signal: { type: 'events-appended' } })
+    syncer.kick()
+    // Long enough that a request issued against the parked wire would have resolved or rejected.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(await localTexts()).toEqual(['one'])
+
+    channel.live().handlers.handleOpen()
+    channel.receive({ kind: EServeFrame.Ready, seq: 2 })
+    await settled(async () => (await localTexts()).length === 3)
+
+    expect(await localTexts()).toEqual(['one', 'two', 'three'])
+  })
+
+  it('converge resolves at once while parked rather than waiting on a wake', async () => {
+    const { channel, remote, threadId, localTexts, syncer } = await rig({ localTexts: ['one'] })
+    remote.push(remoteEvent({ threadId, seq: 2, text: 'two' }))
+
+    channel.receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+    channel.live().handlers.handleClose()
+
+    await syncer.converge()
+
+    expect(await localTexts()).toEqual(['one'])
+  })
 })

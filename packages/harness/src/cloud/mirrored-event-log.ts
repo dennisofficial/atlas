@@ -16,7 +16,10 @@ export class MirroredEventLog extends EventLogPort {
   private readonly syncer: TranscriptSyncer
 
   constructor(args: {
-    channel: Pick<RemoteDeltaChannel, 'subscribe' | 'onReload' | 'onReady' | 'request'>
+    channel: Pick<
+      RemoteDeltaChannel,
+      'subscribe' | 'onReload' | 'onReady' | 'request' | 'connection' | 'onConnection'
+    >
     localLog: MirrorLocalLog
     writer: MirrorWriter
     threadId: ThreadId

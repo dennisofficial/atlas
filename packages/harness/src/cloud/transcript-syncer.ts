@@ -8,7 +8,12 @@ import {
 import type { ChannelListener } from '../channel/delta-channel'
 import { EClientRequest, transcriptIdentityReplySchema } from './channel-wire'
 import type { MirrorWriter } from './mirror-writer'
-import type { ChannelReload, RemoteDeltaChannel } from './remote-delta-channel'
+import {
+  EChannelConnection,
+  type ChannelConnection,
+  type ChannelReload,
+  type RemoteDeltaChannel,
+} from './remote-delta-channel'
 
 export type MirrorLocalLog = {
   read(args: { threadId: ThreadId; fromSeq?: number | undefined; upTo?: number | undefined }): Promise<Event[]>
@@ -21,7 +26,10 @@ export type MirrorRemoteLog = {
   read(args: { threadId: ThreadId; fromSeq?: number | undefined; upTo?: number | undefined }): Promise<Event[]>
 }
 
-type SyncChannel = Pick<RemoteDeltaChannel, 'subscribe' | 'onReload' | 'request'>
+type SyncChannel = Pick<
+  RemoteDeltaChannel,
+  'subscribe' | 'onReload' | 'request' | 'connection' | 'onConnection'
+>
 
 export class TranscriptSyncer {
   private readonly args: {
@@ -34,6 +42,7 @@ export class TranscriptSyncer {
   }
   private running = false
   private pending: 'tail' | 'verify' | null = null
+  private connection: ChannelConnection
   private readonly settled = new Set<() => void>()
 
   constructor(args: {
@@ -45,11 +54,13 @@ export class TranscriptSyncer {
     onSyncFailed?: ((failure: unknown) => void) | undefined
   }) {
     this.args = args
+    this.connection = args.channel.connection()
     args.channel.subscribe({
       threadId: args.threadId,
       listener: this.handleChannelSignal,
     })
     args.channel.onReload(this.handleReload)
+    args.channel.onConnection(this.handleConnection)
   }
 
   kick(): void {
@@ -59,10 +70,12 @@ export class TranscriptSyncer {
   /**
    * The park checkpoint waits on this: it resolves once every sync queued so far has landed on
    * disk, so the parked record vouches for what the local file provably holds rather than what
-   * the last read happened to answer with.
+   * the last read happened to answer with. A parked channel has nothing to converge against —
+   * it resolves at once and the record falls back to the safety-net digest read-back.
    */
   converge(): Promise<void> {
     this.enqueue({ mode: 'verify' })
+    if (this.connection.state !== EChannelConnection.Open) return Promise.resolve()
     if (!this.running && this.pending === null) return Promise.resolve()
     return new Promise((resolve) => {
       this.settled.add(resolve)
@@ -77,6 +90,16 @@ export class TranscriptSyncer {
     this.enqueue({ mode: 'verify' })
   }
 
+  private readonly handleConnection = (connection: ChannelConnection): void => {
+    const wasOpen = this.connection.state === EChannelConnection.Open
+    this.connection = connection
+    if (connection.state !== EChannelConnection.Open || wasOpen) return
+    if (this.pending !== null && !this.running) {
+      this.running = true
+      void this.drain()
+    }
+  }
+
   private enqueue(args: { mode: 'tail' | 'verify' }): void {
     if (this.pending !== 'verify') this.pending = args.mode
     if (this.running) return
@@ -87,6 +110,9 @@ export class TranscriptSyncer {
   private async drain(): Promise<void> {
     try {
       for (;;) {
+        // A parked sandbox never answers, and nothing wakes it while the operator is away —
+        // queued work waits for the connection to come back open rather than issue into it.
+        if (this.connection.state !== EChannelConnection.Open) return
         const next = this.pending
         if (next === null) return
         this.pending = null
