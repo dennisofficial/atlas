@@ -30,6 +30,7 @@ export class TranscriptSyncer {
     local: MirrorLocalLog
     writer: MirrorWriter
     threadId: ThreadId
+    onSyncFailed?: ((failure: unknown) => void) | undefined
   }
   private running = false
   private pending: 'tail' | 'verify' | null = null
@@ -41,6 +42,7 @@ export class TranscriptSyncer {
     local: MirrorLocalLog
     writer: MirrorWriter
     threadId: ThreadId
+    onSyncFailed?: ((failure: unknown) => void) | undefined
   }) {
     this.args = args
     args.channel.subscribe({
@@ -88,11 +90,21 @@ export class TranscriptSyncer {
         const next = this.pending
         if (next === null) return
         this.pending = null
-        if (next === 'verify') {
-          await this.verify()
-          continue
+        try {
+          if (next === 'verify') {
+            await this.verify()
+            continue
+          }
+          await this.tailSync()
+        } catch (error) {
+          // The mirror is best-effort: a parked or dropped wire rejects the read, and a writer can
+          // fail on its own disk. Neither may crash the drain into an unhandled rejection — the
+          // sync and anything queued behind it are dropped, reported once, and the next signal
+          // re-queues fresh work against the live wire.
+          this.pending = null
+          this.args.onSyncFailed?.(error)
+          return
         }
-        await this.tailSync()
       }
     } finally {
       // A sync can die with the socket (park kills the wire mid-flight); whoever parked on

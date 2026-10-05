@@ -13,6 +13,7 @@ import { EServeFrame } from '@dltech/atlas-wire'
 
 import { EClientRequest } from '../channel-wire'
 import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
+import { RemoteRequestLost } from '../remote-channel-upstream'
 import { TranscriptSyncer } from '../transcript-syncer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import { readied, THREAD } from './remote-channel-fixture'
@@ -72,7 +73,7 @@ const settled = async (probe: () => Promise<boolean>): Promise<void> => {
 const rig = async (args: {
   localTexts: readonly string[]
   transcriptCurrent?: boolean
-  writer?: MirrorWriter | undefined
+  writer?: ((real: MirrorWriter) => MirrorWriter) | undefined
 }) => {
   const fixture = await open()
   const threadId = THREAD
@@ -114,6 +115,8 @@ const rig = async (args: {
     throw new Error(`unexpected op ${String(requestArgs.op)}`)
   }
 
+  const failures: unknown[] = []
+  const realWriter = mirrorWriter({ home: () => fixture.home })
   const syncer = new TranscriptSyncer({
     channel: { ...channel.channel, request },
     remote: {
@@ -121,8 +124,9 @@ const rig = async (args: {
         remote.filter((event) => event.seq > (readArgs.fromSeq ?? 0)),
     },
     local: fixture.log,
-    writer: args.writer ?? mirrorWriter({ home: () => fixture.home }),
+    writer: args.writer === undefined ? realWriter : args.writer(realWriter),
     threadId,
+    onSyncFailed: (failure) => failures.push(failure),
   })
 
   const localTexts = async (): Promise<string[]> =>
@@ -130,7 +134,7 @@ const rig = async (args: {
       event.type === 'user-said' ? event.text : event.type,
     )
 
-  return { fixture, channel, remote, threadId, localTexts, syncer }
+  return { fixture, channel, remote, threadId, localTexts, syncer, failures }
 }
 
 describe('TranscriptSyncer', () => {
@@ -167,13 +171,12 @@ describe('TranscriptSyncer', () => {
 
   it('a digest-in-sync verify writes nothing', async () => {
     const writes: string[] = []
-    const writer: MirrorWriter = {
-      appendDelta: async () => void writes.push('appendDelta'),
-      rewriteFrom: async () => void writes.push('rewriteFrom'),
-    }
     const { fixture, channel, remote, threadId } = await rig({
       localTexts: ['one', 'two'],
-      writer,
+      writer: () => ({
+        appendDelta: async () => void writes.push('appendDelta'),
+        rewriteFrom: async () => void writes.push('rewriteFrom'),
+      }),
     })
     for (const event of await fixture.log.readOwn({ threadId })) remote.push(event)
 
@@ -197,5 +200,115 @@ describe('TranscriptSyncer', () => {
     await syncer.converge()
 
     expect(await localTexts()).toEqual(['one', 'two', 'three'])
+  })
+
+  it('a verify lost to a parked wire stays quiet, and the next kick re-runs it', async () => {
+    const fixture = await open()
+    const threadId = THREAD
+    await fixture.threads.create({ id: threadId })
+    for (const text of ['one', 'two']) {
+      await fixture.log.append({ threadId, runId: toRunId('local-run'), drafts: [{ type: 'user-said', text }] })
+    }
+
+    const remote: Event[] = await fixture.log.readOwn({ threadId })
+    remote.push(remoteEvent({ threadId, seq: 3, text: 'three' }))
+
+    let parked = true
+    const channel = readied({ lastEventSeqAsync: async () => fixture.log.head({ threadId }) })
+    const request = async (requestArgs: { op: EClientRequest; params: unknown }): Promise<unknown> => {
+      if (parked) {
+        throw new RemoteRequestLost({ op: requestArgs.op, reason: 'the sandbox is parked (idle)' })
+      }
+      const params = requestArgs.params as { fromSeq?: number; upTo?: number }
+      if (requestArgs.op === EClientRequest.ReadTranscriptIdentity) {
+        const upTo = params.upTo ?? Number.MAX_SAFE_INTEGER
+        const prefix = remote.filter((event) => event.seq <= upTo)
+        return { count: prefix.length, digest: transcriptIdentityDigest(prefix) }
+      }
+      if (requestArgs.op === EClientRequest.ReadEvents) {
+        const fromSeq = params.fromSeq ?? 0
+        return { events: remote.filter((event) => event.seq > fromSeq).map(wireOf) }
+      }
+      throw new Error(`unexpected op ${String(requestArgs.op)}`)
+    }
+
+    const syncer = new TranscriptSyncer({
+      channel: { ...channel.channel, request },
+      remote: {
+        read: async (readArgs: { threadId: ThreadId; fromSeq?: number }) =>
+          remote.filter((event) => event.seq > (readArgs.fromSeq ?? 0)),
+      },
+      local: fixture.log,
+      writer: mirrorWriter({ home: () => fixture.home }),
+      threadId,
+    })
+    const localTexts = async (): Promise<string[]> =>
+      (await fixture.log.readOwn({ threadId })).map((event) =>
+        event.type === 'user-said' ? event.text : event.type,
+      )
+
+    const rejections: unknown[] = []
+    const onRejection = (reason: unknown) => rejections.push(reason)
+    process.on('unhandledRejection', onRejection)
+    try {
+      channel.receive({ kind: EServeFrame.Reload, sinceEventSeq: 2 })
+      await syncer.converge()
+
+      expect(await localTexts()).toEqual(['one', 'two'])
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(rejections).toEqual([])
+
+      parked = false
+      syncer.kick()
+      await syncer.converge()
+
+      expect(await localTexts()).toEqual(['one', 'two', 'three'])
+    } finally {
+      process.off('unhandledRejection', onRejection)
+    }
+  })
+
+  it('a writer failure reports through onSyncFailed once, stays quiet, and the next kick retries', async () => {
+    let rewrites = 0
+    let diskFull = true
+    const { fixture, channel, remote, threadId, localTexts, syncer, failures } = await rig({
+      localTexts: ['stale-one', 'stale-two'],
+      writer: (real) => ({
+        appendDelta: real.appendDelta,
+        rewriteFrom: async (rewriteArgs) => {
+          rewrites += 1
+          if (diskFull) throw new Error('disk full')
+          await real.rewriteFrom(rewriteArgs)
+        },
+      }),
+    })
+    remote.push(
+      remoteEvent({ threadId, seq: 1, text: 'one' }),
+      remoteEvent({ threadId, seq: 2, text: 'two' }),
+    )
+
+    const rejections: unknown[] = []
+    const onRejection = (reason: unknown) => rejections.push(reason)
+    process.on('unhandledRejection', onRejection)
+    try {
+      channel.receive({ kind: EServeFrame.Reload, sinceEventSeq: 2 })
+      await syncer.converge()
+      await new Promise((resolve) => setTimeout(resolve, 20))
+
+      expect(rewrites).toBe(1)
+      expect(await localTexts()).toEqual(['stale-one', 'stale-two'])
+      expect(rejections).toEqual([])
+      expect(failures.map((failure) => (failure instanceof Error ? failure.message : String(failure)))).toEqual([
+        'disk full',
+      ])
+
+      diskFull = false
+      syncer.kick()
+      await syncer.converge()
+
+      expect(await localTexts()).toEqual(['one', 'two'])
+    } finally {
+      process.off('unhandledRejection', onRejection)
+    }
   })
 })
