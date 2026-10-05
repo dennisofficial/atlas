@@ -13,7 +13,7 @@ const THREAD = toThreadId('thread-track')
 const keyOf = (checkout: RepositoryCheckout): string => checkoutKey(checkout)
 
 const rig = (args: {
-  probed: RepositoryCheckout | null
+  probed: RepositoryCheckout | null | (() => RepositoryCheckout | null)
   cloud?: () => RepositoryCheckout | null
 }) => {
   const probeCalls: string[] = []
@@ -30,7 +30,7 @@ const rig = (args: {
     ...(args.cloud === undefined ? {} : { cloud: args.cloud }),
     probe: async ({ directory }) => {
       probeCalls.push(directory)
-      return args.probed
+      return typeof args.probed === 'function' ? args.probed() : args.probed
     },
   })
 
@@ -105,6 +105,33 @@ describe('the checkout tracking hooks', () => {
     await tracking.afterTurn({ threadId: THREAD })
 
     expect(probeCalls).toEqual([])
+    expect(service.current()?.checkout.branch).toBe('dennis/cloud-branch')
+    service.dispose()
+  })
+
+  it('probes the sandbox directory when the cloud fold has no identity', async () => {
+    const { service, tracking, probeCalls } = rig({
+      probed: aCheckout({ branch: 'dennis/cloud-branch' }),
+      cloud: () => null,
+    })
+
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/atlas/workspace' })
+
+    expect(probeCalls).toEqual(['/atlas/workspace'])
+    expect(service.current()?.checkout.branch).toBe('dennis/cloud-branch')
+    service.dispose()
+  })
+
+  it('picks up a worktree created mid-session when the arrival marker had no identity', async () => {
+    let probed: RepositoryCheckout | null = null
+    const { service, tracking } = rig({ probed: () => probed, cloud: () => null })
+
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/atlas/workspace' })
+    expect(service.current()).toBeNull()
+
+    probed = aCheckout({ branch: 'dennis/cloud-branch' })
+    await tracking.afterTurn({ threadId: THREAD })
+
     expect(service.current()?.checkout.branch).toBe('dennis/cloud-branch')
     service.dispose()
   })
