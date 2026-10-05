@@ -97,6 +97,7 @@ export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
       // The local durable log is the truth the serve's currency vouch is checked against: report
       // its head on the Hello so a clean re-attach of an unchanged transcript is vouched current.
       lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
+      localLog: app.log,
       settings: app.settings,
       readGitToken: () => readGhAuthToken(),
       capturePortable: () => capturePortableState({}),

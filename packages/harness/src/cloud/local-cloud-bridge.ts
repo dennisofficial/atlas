@@ -2,8 +2,12 @@ import type { ThreadId } from '@dltech/atlas-core'
 import { PORTABLE_STATE_PATH, type PortableState, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { SettingsService } from '../settings/service'
+import { atlasDirectory } from '../store/paths'
+import { MirroredEventLog } from './mirrored-event-log'
+import { mirrorWriter } from './mirror-writer'
 import { createRemoteDeltaChannel } from './remote-delta-channel'
 import { RemoteEventLog } from './remote-event-log'
+import type { MirrorLocalLog } from './transcript-syncer'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
 import { sandboxNameFor } from './sandbox-names'
@@ -66,6 +70,12 @@ export function createLocalCloudBridge(args: {
    * honoured. Absent means the client can never be vouched current.
    */
   lastEventSeq?: ((args: { threadId: ThreadId }) => number | Promise<number>) | undefined
+  /**
+   * The client's local transcript log the mirror serves reads from while lifted. Absent, the
+   * attach falls back to the channel-only RemoteEventLog, so a caller that never kept a local
+   * transcript (the live roundtrip script) still gets working reads.
+   */
+  localLog?: MirrorLocalLog | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
   settings?: SettingsService | undefined
 }): CloudBridge {
@@ -314,10 +324,19 @@ export function createLocalCloudBridge(args: {
       if (args.settings !== undefined) {
         unbindSettings = bindChannelSettingsSync({ channel, settings: args.settings })
       }
+      const localLog = args.localLog
       return {
         channel,
         stores: {
-          log: new RemoteEventLog({ channel }),
+          log:
+            localLog === undefined
+              ? new RemoteEventLog({ channel })
+              : new MirroredEventLog({
+                  channel,
+                  localLog,
+                  writer: mirrorWriter({ home: atlasDirectory }),
+                  threadId,
+                }),
           threads: new RemoteThreadStore({ channel }),
           ledger: new RemoteTurnLedger({ channel }),
         },
