@@ -10,6 +10,7 @@ import type { OpenedConversation } from './open-conversation'
 import { useRevokeGrant } from './revoke-grant'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 import { useCompaction } from './use-compaction'
+import { useFailureNotice } from './use-failure-notice'
 import { useSettledCommands } from './use-conversation-commands'
 import { useConversationDirectory, usePendingMove } from './use-conversation-directory'
 import { usePendingRows, useProjectEvents } from './use-conversation-projections'
@@ -28,7 +29,7 @@ export type { Conversation } from './conversation-types'
 export function useConversation(args: ConversationArgs): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
-  const [failure, setFailure] = useState<string | null>(null)
+  const { failure, setFailure, dismissalFor } = useFailureNotice()
   const [reported, setReported] = useState<ModelUsage | null>(null)
   const { pendingMove, pendingMoveRef, holdMove } = usePendingMove()
   const startedRef = useRef(args.opened.started)
@@ -55,7 +56,6 @@ export function useConversation(args: ConversationArgs): Conversation {
   )
 
   const pending = useMemo(() => app.pending.forThread({ threadId }), [app.pending, threadId])
-
   const cloudRunner = useMemo(
     () => (app.runner instanceof RemoteTurnRunner ? app.runner : null),
     [app.runner],
@@ -66,14 +66,12 @@ export function useConversation(args: ConversationArgs): Conversation {
     if (owned.bound) return null
     return 'the sandbox is still connecting — your message sends once the channel is open'
   }, [app.sessionOwner])
-
   const driveRefusal = useCallback(
     (): string | null => localDriveRefusal() ?? args.driveRefusal?.() ?? null,
     [localDriveRefusal, args.driveRefusal],
   )
 
   const sending = useSendingChannel({ app, cloudRunner, opened })
-
   const { drainSettledCommands, handleQueueSettled } = useSettledCommands({ pending })
 
   const view = useThreadView({
@@ -91,11 +89,9 @@ export function useConversation(args: ConversationArgs): Conversation {
 
   const { store, events, setEvents, refresh } = view
   const logSummary = useSyncExternalStore(store.subscribe, store.getLogSummary)
-
   useEffect(() => sending.reconcile(events), [events, sending])
 
   const handleRevokeGrant = useRevokeGrant({ app, threadId, refresh })
-
   const { name, naming, namingRequest, setName, renameSession } = useSessionName({
     app,
     threads: args.threads ?? app.threads,
@@ -106,17 +102,14 @@ export function useConversation(args: ConversationArgs): Conversation {
   })
 
   const started = opened.started || events.length > 0
-
   useEffect(
     () => app.markActiveThread({ threadId, title: name, started }),
     [app, name, threadId, started],
   )
-
   useEffect(() => store.setName(name), [store, name])
 
   const derived = view.model
   const { sidebar } = view
-
   const queued = useSyncExternalStore(pending.subscribe, pending.getSnapshot)
   const remote = useRemotePending({ app, cloudRunner })
 
@@ -156,11 +149,9 @@ export function useConversation(args: ConversationArgs): Conversation {
     ticking: !frozen && (derived.streaming || working || compacting !== null),
     clock,
   })
-
   const { turn } = view
 
   const handleWake = useCallback(() => void drive([]), [drive])
-
   const wakeNotices = useMainWake({
     shells: app.shells,
     agents: app.agents,
@@ -184,7 +175,6 @@ export function useConversation(args: ConversationArgs): Conversation {
     drive,
     setFailure,
   })
-
   const handleTakeBackPending = useTakeBackPending({ threadId, cloudRunner, moving, pending, sending })
 
   const adopt = useCallback(
@@ -201,7 +191,6 @@ export function useConversation(args: ConversationArgs): Conversation {
     },
     [args.onLocalOpened, holdMove, setEvents, setName, turnDriver],
   )
-
   const { handleNewConversation, handleOpenThread } = useThreadSwap({
     app,
     threadId,
@@ -209,7 +198,6 @@ export function useConversation(args: ConversationArgs): Conversation {
     adopt,
     onFailure: setFailure,
   })
-
   const { workspace, handleChangeDirectory } = useConversationDirectory({
     app,
     threadId,
@@ -222,26 +210,21 @@ export function useConversation(args: ConversationArgs): Conversation {
     holdMove,
     refresh,
   })
-
   const readEvents = useCallback(
     (): Promise<readonly Event[]> => app.log.read({ threadId }),
     [app.log, threadId],
   )
-
   const used = useMemo(
     () => (reported === null ? logSummary.tokens : contextTokens({ reported, events: [] })),
     [reported, logSummary],
   )
-
   const delegatedToolCalls = useDelegatedToolCalls({ agents: app.agents, threadId })
-
   const rows = usePendingRows({
     queued,
     remoteEntries: remote.channel === null ? undefined : remote.entries,
     wakeNotices,
     sending: sending.rows,
   })
-
   const operatorInput = useOperatorInput({
     app,
     threadId,
@@ -292,6 +275,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     refresh,
     handleTakeBackPending,
     handleRetry: retryable ? turnDriver.handleRetry : null,
+    handleDismissFailure: dismissalFor(derived.failure),
     handleResume: resumable ? turnDriver.handleResume : null,
     readEvents,
     loadOlderHistory: view.loadOlder,

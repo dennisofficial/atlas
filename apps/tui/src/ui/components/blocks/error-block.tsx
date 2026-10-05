@@ -32,7 +32,23 @@ const costOf = (args: { durationMs?: number; outputTokens?: number }): string =>
   return parts.join(SEPARATOR)
 }
 
-function Header(props: { cost: string }): React.ReactNode {
+const CLOSE_LABEL = ' ✕ '
+
+function CloseControl(props: { onDismiss: () => void }): React.ReactNode {
+  const region = useClickRegion(props.onDismiss)
+  return (
+    <text
+      fg={region.hovered ? theme.bright : theme.hint}
+      bg={region.wash.bg ?? theme.panelBg}
+      flexShrink={0}
+      {...region.handlers}
+    >
+      {CLOSE_LABEL}
+    </text>
+  )
+}
+
+function Header(props: { cost: string; onDismiss?: () => void }): React.ReactNode {
   return (
     <>
       <text fg={theme.error} bg={theme.panelBg}>{`${glyph.failed} ${HEADING}`}</text>
@@ -42,6 +58,7 @@ function Header(props: { cost: string }): React.ReactNode {
           {props.cost}
         </text>
       )}
+      {props.onDismiss === undefined ? null : <CloseControl onDismiss={props.onDismiss} />}
     </>
   )
 }
@@ -51,16 +68,13 @@ const retrySpans = (hovered: boolean): readonly Span[] => [
   { text: ` ${RETRY.hint}`, fg: hovered ? theme.hover : theme.hint },
 ]
 
-/**
- * The failed reading of the waiting-on-you slab: rail says who owns it, the band says what kind,
- * the body is the exact thing that happened, the last row is the keys.
- */
 export function ErrorBlock(props: {
   message: string
   width: number
   durationMs?: number
   outputTokens?: number
   onRetry?: () => void
+  onDismiss?: () => void
 }): React.ReactNode {
   const retry = useClickRegion(props.onRetry)
   const onRetry = props.onRetry
@@ -78,7 +92,12 @@ export function ErrorBlock(props: {
         fill={theme.overlayBg}
         band={theme.panelBg}
         width={Math.max(1, props.width - TRANSCRIPT_INSET)}
-        header={<Header cost={costOf(props)} />}
+        header={
+          <Header
+            cost={costOf(props)}
+            {...(props.onDismiss === undefined ? {} : { onDismiss: props.onDismiss })}
+          />
+        }
       >
         <text fg={theme.body} bg={theme.overlayBg}>
           {props.message}

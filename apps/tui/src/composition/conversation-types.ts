@@ -100,6 +100,7 @@ export type Conversation = {
   /** Local sessions answer synchronously; a cloud session asks the sandbox, so it answers async. */
   handleTakeBackPending: () => PendingSaid | null | Promise<PendingSaid | null>
   handleRetry: (() => void) | null
+  handleDismissFailure: (() => void) | null
   handleResume: (() => void) | null
   handleReportProblem: (reason: string) => void
   handleInterrupt: () => void
