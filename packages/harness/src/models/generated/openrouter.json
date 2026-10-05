@@ -2286,7 +2286,7 @@
     "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.72,
-      "outputPerMillion": 13,
+      "outputPerMillion": 14,
       "cacheReadPerMillion": 0.7
     },
     "effort": {
@@ -4841,9 +4841,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.132,
-      "outputPerMillion": 0.528,
-      "cacheReadPerMillion": 0.033
+      "inputPerMillion": 0.0825,
+      "outputPerMillion": 0.33,
+      "cacheReadPerMillion": 0.020625
     },
     "effort": {
       "off": "none",
@@ -4883,9 +4883,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 64000,
     "cost": {
-      "inputPerMillion": 0.834,
-      "outputPerMillion": 2.501,
-      "cacheReadPerMillion": 0.042
+      "inputPerMillion": 0.7506,
+      "outputPerMillion": 2.2509,
+      "cacheReadPerMillion": 0.0378
     },
     "effort": {
       "off": "none",
@@ -5459,11 +5459,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.38,
-      "outputPerMillion": 3.49,
-      "cacheReadPerMillion": 0.26
+      "inputPerMillion": 0.104,
+      "outputPerMillion": 8,
+      "cacheReadPerMillion": 0.1
     },
     "effort": {
       "high": "high",
@@ -5777,7 +5777,7 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.6518,
+      "inputPerMillion": 0.6483,
       "outputPerMillion": 13,
       "cacheReadPerMillion": 0.45
     },
@@ -5943,7 +5943,7 @@
     "cost": {
       "inputPerMillion": 0.0352,
       "outputPerMillion": 0.5,
-      "cacheReadPerMillion": 0.0352
+      "cacheReadPerMillion": 0.0232
     },
     "effort": {
       "low": "low",
@@ -5962,9 +5962,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.05,
+      "inputPerMillion": 0.08,
       "outputPerMillion": 5,
-      "cacheReadPerMillion": 0.04
+      "cacheReadPerMillion": 0.07
     },
     "effort": {
       "low": "low",
