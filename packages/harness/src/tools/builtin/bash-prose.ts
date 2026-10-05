@@ -33,8 +33,8 @@ export function bashDescription({
     'do-nothing ticks - are refused.',
     'shell_output reads a shell that will not end on its own, shell_list shows what is running, and',
     "shell_kill stops one. exposePort publishes a background server's port at runInBackground and",
-    'answers with the *.sandbox.localhost URL to hand the operator; bind the server to 0.0.0.0 and',
-    'never offer a localhost URL from a container.',
+    'answers with the URL to hand the operator. In a sandbox - Docker or cloud - bind the server to',
+    '0.0.0.0 and never offer a localhost URL: localhost there is the sandbox, not the operator’s machine.',
   ].join(' ')
 }
 
@@ -47,7 +47,9 @@ export function exposureClause({ exposure }: { exposure: PortExposure | undefine
   return [
     `It is reachable on the operator’s machine at ${exposure.url}, where a proxy forwards to port ${exposure.containerPort} in the sandbox.`,
     'Bind the server to 0.0.0.0 so the proxy can reach it.',
-    'Use the returned URL on the operator’s machine; use the service’s internal address for checks inside the container.',
+    'Hand the operator the returned URL, never a localhost or sandbox-internal one.',
+    'That name resolves only on the operator’s machine: a curl from inside the sandbox can never reach it, and a curl to localhost proves nothing about what the operator can open. Verify against the service’s in-sandbox address.',
+    'Every port subdomain of the sandbox host is one site, so cookies and cross-origin fetch behave as they do on one production domain - wire related servers with the returned URLs, not localhost.',
   ]
 }
 

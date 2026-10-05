@@ -40,7 +40,7 @@ const description = [
   'In bash, pipe the log through the atlas-svc helper: `atlas-svc logs svc_1 | grep ...` resolves the id to its log and execs tail, so -n and -f pass straight through into whatever pipe you build.',
   'Its stdin is closed and it is its own process group, so nothing it forks outlives a stop.',
   'exposePort publishes the port the service listens on and answers with the URL to hand the operator.',
-  'In a container sandbox any port can be exposed: have the service listen on 0.0.0.0 - 127.0.0.1 is invisible outside the container - and pass the port it listens on; the reply carries the URL to hand the operator.',
+  'In a sandbox - Docker or cloud - any port can be exposed: have the service listen on 0.0.0.0 - 127.0.0.1 is invisible outside the sandbox - and pass the port it listens on; the reply carries the URL to hand the operator, and localhost there is the sandbox, not the operator’s machine.',
 ].join(' ')
 
 export class ServiceStartTool extends SchemaTool<typeof inputSchema> {

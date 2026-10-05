@@ -24,20 +24,10 @@ describe('the exposure clause', () => {
 
     expect(text).toContain('operator’s machine')
     expect(text).toContain('http://3000.sandbox.localhost:22211')
-    expect(text).toContain('internal address for checks inside the container')
     expect(text).toContain('0.0.0.0')
-  })
-
-  it('leaves browser cookie and origin configuration to the application', () => {
-    const clauses = exposureClause({
-      exposure: {
-        containerPort: 3000,
-        hostPort: 22211,
-        url: 'http://3000.sandbox.localhost:22211',
-      },
-    })
-
-    expect(clauses.join(' ')).not.toContain('same site')
-    expect(clauses.join(' ')).not.toContain('cookies')
+    expect(text).toContain('never a localhost or sandbox-internal one')
+    expect(text).toContain('resolves only on the operator’s machine')
+    expect(text).toContain('proves nothing about what the operator can open')
+    expect(text).toContain('one site')
   })
 })
