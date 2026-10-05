@@ -228,6 +228,7 @@ export function createLocalCloudBridge(args: {
       ...(createArgs.onRotationStarted === undefined
         ? {}
         : { onRotationStarted: createArgs.onRotationStarted }),
+      ...(createArgs.onSettleWait === undefined ? {} : { onSettleWait: createArgs.onSettleWait }),
     })
 
     if (stagedPortable) {

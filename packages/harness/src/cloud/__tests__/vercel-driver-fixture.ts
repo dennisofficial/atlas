@@ -62,6 +62,16 @@ export const alreadyAttachedError = (): APIError<unknown> =>
     },
   })
 
+export const nameTakenError = (name = 'atlas-thread-x'): APIError<unknown> =>
+  new APIError(new Response(null, { status: 400 }), {
+    json: {
+      error: {
+        code: 'bad_request',
+        message: `A sandbox with the name '${name}' already exists for this project. Use GET /sandboxes/:name to resume it or delete it first.`,
+      },
+    },
+  })
+
 export const driverWith = ({
   sdk,
   driveSdk,

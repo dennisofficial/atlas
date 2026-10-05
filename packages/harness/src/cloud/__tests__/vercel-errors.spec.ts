@@ -9,6 +9,7 @@ import {
   isImageOptimizeFailure,
   isImageOptimizeLag,
   isSandboxMissing,
+  isSandboxNameConflict,
 } from '../vercel-errors'
 
 describe('isDriveAttachedConflict', () => {
@@ -120,6 +121,53 @@ describe('isSandboxMissing', () => {
     expect(isSandboxMissing(serverError)).toBe(false)
     expect(isSandboxMissing(driveFailure)).toBe(false)
     expect(isSandboxMissing(new Error('the quota is exhausted'))).toBe(false)
+  })
+})
+
+describe('isSandboxNameConflict', () => {
+  it('classifies the 400 bad_request the name registry answers a taken name with', () => {
+    const failure = new APIError(new Response(null, { status: 400 }), {
+      json: {
+        error: {
+          code: 'bad_request',
+          message:
+            "A sandbox with the name 'atlas-thread-x' already exists for this project. Use GET /sandboxes/:name to resume it or delete it first.",
+        },
+      },
+    })
+
+    expect(isSandboxNameConflict(failure)).toBe(true)
+  })
+
+  it('classifies the same message off a plain error', () => {
+    const failure = new Error(
+      "A sandbox with the name 'atlas-thread-x' already exists for this project. Use GET /sandboxes/:name to resume it or delete it first.",
+    )
+
+    expect(isSandboxNameConflict(failure)).toBe(true)
+  })
+
+  it('passes over another 400, another status, and a drive carrying the same phrasing', () => {
+    const badRequest = new APIError(new Response(null, { status: 400 }), {
+      json: { error: { code: 'bad_request', message: 'The `timeout` field must be a number.' } },
+    })
+    const wrongStatus = new APIError(new Response(null, { status: 409 }), {
+      json: {
+        error: {
+          message: "A sandbox with the name 'atlas-thread-x' already exists for this project.",
+        },
+      },
+    })
+    const driveFailure = new APIError(new Response(null, { status: 400 }), {
+      json: {
+        error: { message: "A drive with the name 'atlas-drive-x' already exists for this project." },
+      },
+    })
+
+    expect(isSandboxNameConflict(badRequest)).toBe(false)
+    expect(isSandboxNameConflict(wrongStatus)).toBe(false)
+    expect(isSandboxNameConflict(driveFailure)).toBe(false)
+    expect(isSandboxNameConflict(new Error('the quota is exhausted'))).toBe(false)
   })
 })
 

@@ -1,5 +1,5 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
+import { ESettleWait, RemoteTurnRunner, type CaptureContext, type SettleWaitNotice } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import { WAKE_HEADING } from '../container-move'
@@ -17,6 +17,19 @@ const WAKE_ROWS = [
   { id: 'waiting', text: 'waiting for the sandbox', nodeIds: ['waiting'] },
   { id: 'attaching', text: 'attaching and verifying the conversation', nodeIds: ['attaching'] },
 ] as const
+
+/**
+ * The provider settle the mount is riding out, said as what it is: the wake row stops reading
+ * "waiting for the sandbox" while the real wait is a name the registry has not released or a
+ * drive still detaching.
+ */
+const settleWaitTextOf = (notice: SettleWaitNotice): string => {
+  const attempt = ` (attempt ${notice.attempt}/${notice.attempts})`
+  if (notice.reason === ESettleWait.DriveAttached) {
+    return `reattaching the workspace drive — Vercel is still detaching it${attempt}`
+  }
+  return `waiting for Vercel to release the sandbox name${attempt}`
+}
 
 /**
  * Re-attaching to a thread's sandbox: the claim mints a fresh token and git credential, and the
@@ -42,6 +55,9 @@ export async function wakeSandbox(args: {
         row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
         heading: ROTATE_HEADING,
       })
+    },
+    onSettleWait: (notice) => {
+      args.move?.handleRowLabel({ nodeId: 'waiting', text: settleWaitTextOf(notice) })
     },
     captureContext: async (put) => {
       try {
