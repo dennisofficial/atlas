@@ -416,11 +416,14 @@ export function createRemoteDeltaChannel(args: {
 
   const moveTo = (next: ChannelConnection) => {
     connection = next
-    // A parked serve never answers again: fail the waiters now rather than at their timeouts.
+    // A parked serve never answers again, but a park is the sandbox resting, not failing:
+    // redrivable reads hold for the wake and re-drive on the fresh socket's ready; anything
+    // that may have applied fails now rather than at its timeout.
     if (next.state === EChannelConnection.Parked) {
       upstream.failWaiting({
         reason:
           next.detail === null ? 'the sandbox is parked' : `the sandbox is parked (${next.detail})`,
+        holdRedrivable: true,
       })
     }
     connections.emit(next)

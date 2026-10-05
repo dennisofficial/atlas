@@ -460,10 +460,39 @@ describe('a request riding the session socket', () => {
 })
 
 describe('a request against a parked channel', () => {
-  it('fails a waiting request the moment the serve parks, rather than at its timeout', async () => {
-    const { channel, receive } = readied({ requestTimeoutMs: 60_000 })
+  it('holds a redrivable read in flight across the park and re-drives it after the wake', async () => {
+    const { channel, receive, live } = readied({ requestTimeoutMs: 60_000 })
 
     const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
+    const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
+
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+
+    let settled = false
+    void answer.then(
+      () => (settled = true),
+      () => (settled = true),
+    )
+    await Bun.sleep(1)
+    expect(settled).toBe(false)
+
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 2 })
+
+    const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+    expect(resent).toHaveLength(2)
+    expect(resent[1]).toMatchObject({ op: EClientRequest.ReadEvents })
+    const id = resent[1]?.kind === EClientFrame.Request ? resent[1].id : ''
+    expect(id).toBe(first?.kind === EClientFrame.Request ? first.id : '')
+
+    receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { events: [] } })
+    expect(await answer).toEqual({ events: [] })
+  })
+
+  it('fails a non-redrivable request in flight the moment the serve parks, since it may have applied', async () => {
+    const { channel, receive } = readied({ requestTimeoutMs: 60_000 })
+
+    const answer = channel.request({ op: EClientRequest.Rewind, params: {} })
     const failure = async (): Promise<unknown> => await answer.catch((error: unknown) => error)
 
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })

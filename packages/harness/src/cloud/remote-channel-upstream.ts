@@ -80,11 +80,13 @@ export type UpstreamPipe = {
   detach(args: { reason: string }): void
   abandon(args: { reason: string }): void
   /**
-   * Rejects every outstanding request on purpose, unlike detach, which keeps redrivable reads in
-   * case of a reattach. Used when the serve says it is parked: it will not answer again until a
-   * wake, so nothing a caller could be waiting on resolves before then.
+   * Rejects outstanding requests on purpose, unlike detach, which keeps redrivable reads in case
+   * of a reattach. Used when the serve says it is parked: it will not answer again until a wake,
+   * so nothing a caller could be waiting on resolves before then. With `holdRedrivable`, the
+   * redrivable ones ride the wake instead — a park is the sandbox's resting state, not a failure,
+   * and the frame re-drives from the queue on the fresh socket's ready, same as after a drop.
    */
-  failWaiting(args: { reason: string }): void
+  failWaiting(args: { reason: string; holdRedrivable?: boolean }): void
   /**
    * Rejects only the requests whose frames never reached a socket — the ones stranded when a wake
    * the wire was counting on falls through. Requests already written keep racing their own
@@ -221,13 +223,28 @@ export function createUpstreamPipe(args: {
       }
     },
 
-    failWaiting({ reason }) {
-      redrivable.clear()
+    failWaiting({ reason, holdRedrivable }) {
+      if (holdRedrivable !== true) {
+        redrivable.clear()
+      }
 
       for (const [id, claimed] of [...waiting]) {
+        if (holdRedrivable === true && redrivable.has(id)) continue
         waiting.delete(id)
         unwritten.delete(id)
         claimed.reject(new RemoteRequestLost({ op: claimed.op, reason }))
+      }
+      if (holdRedrivable !== true) return
+
+      const kept = queued.filter(
+        (frame) => frame.kind !== EClientFrame.Request || redrivable.has(frame.id),
+      )
+      queued.splice(0, queued.length, ...kept)
+
+      const unsent = new Set(queued.flatMap((frame) => (frame.kind === EClientFrame.Request ? [frame.id] : [])))
+      for (const [id, frame] of [...redrivable]) {
+        if (unsent.has(id) || !waiting.has(id)) continue
+        queued.push(frame)
       }
     },
 
