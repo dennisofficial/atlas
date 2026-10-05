@@ -64,7 +64,6 @@ const looksLikeDroppedConnection = (message: string): boolean => {
 type ProviderFailureSource = {
   error: APICallError | StreamProviderError
   statusCode: number
-  isRetryable: boolean
 }
 
 const identifiersOf = (error: unknown): string[] => {
@@ -72,27 +71,20 @@ const identifiersOf = (error: unknown): string[] => {
   return [providerCode, providerType].filter((value): value is string => typeof value === 'string')
 }
 
-function namesUpstreamFailure(error: APICallError | StreamProviderError): boolean {
+function providerRetryHintOf(error: APICallError | StreamProviderError): boolean | undefined {
   const identifiers = identifiersOf(error)
   if (identifiers.some((identifier) => PERMANENT_IDENTIFIERS.has(identifier))) return false
-
-  return (
-    error.message.trim().toLowerCase() === UPSTREAM_FAILURE_MESSAGE ||
-    identifiers.some((identifier) => UPSTREAM_FAILURE_IDENTIFIERS.has(identifier))
-  )
+  if (error.message.trim().toLowerCase() === UPSTREAM_FAILURE_MESSAGE) return true
+  if (identifiers.some((identifier) => UPSTREAM_FAILURE_IDENTIFIERS.has(identifier))) return true
+  if (identifiers.some((identifier) => GENERIC_INVALID_REQUEST_IDENTIFIERS.has(identifier))) return false
+  return error.isRetryable ? true : undefined
 }
 
 function retryableOverrideOf(source: ProviderFailureSource): boolean {
-  const { error, statusCode, isRetryable } = source
+  const { error, statusCode } = source
   if (statusCode === TOO_MANY_REQUESTS || statusCode >= FIRST_SERVER_ERROR) return false
   if (PERMANENT_CLIENT_STATUSES.has(statusCode)) return false
-  if (namesUpstreamFailure(error)) return true
-
-  const identifiers = identifiersOf(error)
-  const blocksFlag = identifiers.some(
-    (identifier) => PERMANENT_IDENTIFIERS.has(identifier) || GENERIC_INVALID_REQUEST_IDENTIFIERS.has(identifier),
-  )
-  return isRetryable && !blocksFlag
+  return providerRetryHintOf(error) === true
 }
 
 const failureOfStatus = (source: ProviderFailureSource): ModelFailure => ({
@@ -106,6 +98,7 @@ export function modelFailureOf(error: unknown): ModelFailure | null {
   if (error instanceof ModelStreamError) return modelFailureOf(error.cause)
 
   if (APICallError.isInstance(error)) {
+    if (error.statusCode === undefined && providerRetryHintOf(error) === false) return null
     const retryAfterMs = retryAfterMsOf(error.responseHeaders)
     const status =
       error.statusCode === undefined
@@ -113,7 +106,6 @@ export function modelFailureOf(error: unknown): ModelFailure | null {
         : failureOfStatus({
             error,
             statusCode: error.statusCode,
-            isRetryable: error.isRetryable,
           })
     return {
       ...status,
@@ -126,10 +118,11 @@ export function modelFailureOf(error: unknown): ModelFailure | null {
       return failureOfStatus({
         error,
         statusCode: error.statusCode,
-        isRetryable: error.isRetryable,
       })
     }
-    if (error.isRetryable || namesUpstreamFailure(error)) return DROPPED
+    const hint = providerRetryHintOf(error)
+    if (hint === false) return null
+    if (hint === true) return DROPPED
   }
 
   // AbortSignal.timeout() aborts with a DOMException named 'TimeoutError', which carries no

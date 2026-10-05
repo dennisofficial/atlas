@@ -253,6 +253,9 @@ describe('reading a mid-stream provider error that carries no status', () => {
     const data = { error: { type: 'invalid_request_error' } }
 
     expect(modelFailureOf(streamError({ message: UPSTREAM_TEXT, isRetryable: false, data }))).toEqual({})
+    const invalid = streamError({ message: 'bad tool schema', isRetryable: true, data })
+    expect(modelFailureOf(invalid)).toBeNull()
+    expect(modelFailureOf(wrapped(invalid))).toBeNull()
   })
 
   it('refuses an unrecognised message with no status', () => {
@@ -275,7 +278,11 @@ describe('reading a mid-stream provider error that carries no status', () => {
     (code) => {
       const data = { error: { code } }
 
-      expect(modelFailureOf(streamError({ message: UPSTREAM_TEXT, isRetryable: false, data }))).toBeNull()
+      for (const isRetryable of [false, true]) {
+        const error = streamError({ message: UPSTREAM_TEXT, isRetryable, data })
+        expect(modelFailureOf(error)).toBeNull()
+        expect(modelFailureOf(wrapped(error))).toBeNull()
+      }
     },
   )
 

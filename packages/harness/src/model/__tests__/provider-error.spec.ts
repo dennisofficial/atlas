@@ -54,6 +54,24 @@ describe('reading the provider identifiers off an error', () => {
     })
   })
 
+  it('fills a missing code from the response body while keeping the structured type', () => {
+    const data = { error: { type: 'invalid_request_error' } }
+    const responseBody = JSON.stringify({ error: { type: 'server_error', code: 'insufficient_quota' } })
+    expect(providerErrorOf(apiError({ data, responseBody }))).toEqual({
+      providerType: 'invalid_request_error',
+      providerCode: 'insufficient_quota',
+    })
+  })
+
+  it('fills a missing type without replacing a structured code', () => {
+    const data = { error: { code: 'insufficient_quota' } }
+    const responseBody = JSON.stringify({ error: { type: 'invalid_request_error', code: 'upstream_error' } })
+    expect(providerErrorOf(apiError({ data, responseBody }))).toEqual({
+      providerType: 'invalid_request_error',
+      providerCode: 'insufficient_quota',
+    })
+  })
+
   it('reads a stream provider error', () => {
     const error = new StreamProviderError({
       message: 'm',

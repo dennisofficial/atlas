@@ -39,9 +39,6 @@ const parseBody = (body: string | undefined): unknown => {
   return JSON.parse(body)
 }
 
-const isEmpty = (identity: ProviderErrorIdentity): boolean =>
-  identity.providerCode === undefined && identity.providerType === undefined
-
 const readSafely = (read: () => ProviderErrorIdentity): ProviderErrorIdentity => {
   try {
     return read()
@@ -59,8 +56,9 @@ export function providerErrorOf(error: unknown): ProviderErrorIdentity {
 
   if (APICallError.isInstance(error)) {
     const fromData = readSafely(() => identityOfPayload(error.data))
-    if (!isEmpty(fromData)) return fromData
-    return readSafely(() => identityOfPayload(parseBody(error.responseBody)))
+    if (fromData.providerCode !== undefined && fromData.providerType !== undefined) return fromData
+    const fromBody = readSafely(() => identityOfPayload(parseBody(error.responseBody)))
+    return { ...fromBody, ...fromData }
   }
 
   return {}
