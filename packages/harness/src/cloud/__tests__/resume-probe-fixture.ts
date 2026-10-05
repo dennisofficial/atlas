@@ -56,6 +56,7 @@ export const probeOf = (args: {
   unpinned?: boolean
   health?: ServeRuntimeHealth | undefined
   healthThrows?: boolean
+  serveAlive?: boolean
   waitForDriveDetached?: () => Promise<boolean>
   drain?: (args: { sandbox: Sandbox; url: string }) => Promise<void>
   onRotationStarted?: () => void
@@ -71,6 +72,7 @@ export const probeOf = (args: {
       if (args.healthThrows === true) throw new Error('command unavailable')
       return args.health
     },
+    serveAlive: async () => args.serveAlive !== false,
     ...(args.drain === undefined ? {} : { drain: args.drain }),
     ...(args.onRotationStarted === undefined ? {} : { onRotationStarted: args.onRotationStarted }),
     ...(args.waitForDriveDetached === undefined
