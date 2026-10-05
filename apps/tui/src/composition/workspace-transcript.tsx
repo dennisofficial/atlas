@@ -105,7 +105,8 @@ export function WorkspaceTranscript(props: {
           waking={connection === EChannelConnection.Waking}
           reconnecting={
             connection === EChannelConnection.Reconnecting ||
-            connection === EChannelConnection.Connecting
+            connection === EChannelConnection.Connecting ||
+            connection === EChannelConnection.Reattaching
           }
           disconnected={connection === EChannelConnection.Closed}
           stale={cloudHealth?.stale === true}
