@@ -35,6 +35,50 @@ describe('naming why a model call is worth trying again', () => {
   })
 })
 
+describe('trusting a provider that flags a failure retryable', () => {
+  it.each([400, 408, 409])('retries a %i the provider flagged retryable', (status) => {
+    expect(retryReasonOf({ status, retryable: true })).toBe(ERetryReason.ServerError)
+  })
+
+  it('does not retry a 400 the provider did not flag', () => {
+    expect(retryReasonOf({ status: 400 })).toBeNull()
+    expect(retryReasonOf({ status: 400, retryable: false })).toBeNull()
+  })
+
+  it.each([401, 402, 403, 404, 413, 422])('refuses a %i even when flagged retryable', (status) => {
+    expect(retryReasonOf({ status, retryable: true })).toBeNull()
+  })
+
+  it('keeps the rate limit, overloaded and server fault reasons ahead of the flag', () => {
+    expect(retryReasonOf({ status: 429, retryable: true })).toBe(ERetryReason.RateLimited)
+    expect(retryReasonOf({ status: 529, retryable: true })).toBe(ERetryReason.Overloaded)
+    expect(retryReasonOf({ status: 503, retryable: true })).toBe(ERetryReason.ServerError)
+  })
+
+  it('does not let a false flag veto a server fault', () => {
+    expect(retryReasonOf({ status: 503, retryable: false })).toBe(ERetryReason.ServerError)
+  })
+
+  it('still reads a flagged failure with no status as a dropped connection', () => {
+    expect(retryReasonOf({ retryable: true })).toBe(ERetryReason.Network)
+  })
+
+  it('spends exactly the default five attempts on a flagged 400, honoring its retry-after', () => {
+    const failure = { status: 400, retryable: true, retryAfterMs: 3_000 }
+    const decisions = [1, 2, 3, 4, 5].map((attempts) =>
+      planRetry({
+        failure,
+        attempts,
+        policy: DEFAULT_RETRY_POLICY,
+        jitter: MAXIMUM_JITTER,
+      }),
+    )
+
+    expect(decisions.map((decision) => decision.retry)).toEqual([true, true, true, true, false])
+    expect(decisions[0]?.retry && decisions[0].delayMs).toBe(3_000)
+  })
+})
+
 describe('reading a failure that no retry will fix', () => {
   it('reads 401, 402 and 403 as auth failures, since the credential is dead either way', () => {
     expect(isAuthFailure({ status: 401 })).toBe(true)
