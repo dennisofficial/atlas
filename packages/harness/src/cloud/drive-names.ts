@@ -24,5 +24,4 @@ export const DRIVE_MOUNT_PATH = '/atlas'
 export const DRIVE_WORKSPACE_PATH = `${DRIVE_MOUNT_PATH}/workspace`
 export const DRIVE_HOME_PATH = `${DRIVE_MOUNT_PATH}/home`
 
-/** Small per-thread drives; the SDK's default is 1 TiB. */
-export const DRIVE_MAX_BYTES = 50 * 1024 ** 3
+export const DRIVE_MAX_BYTES = 1024 ** 4

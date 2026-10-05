@@ -136,7 +136,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
     const { credentials } = deps.config
     const driveName = driveNameFor({ threadId: args.threadId })
     driveExisted = await driveExists({ sdk: deps.drives, credentials, name: driveName })
-    const drive = await ensureDrive({ sdk: deps.drives, credentials, name: driveName })
+    const drive = await ensureDrive({ sdk: deps.drives, credentials, name: driveName, driveExisted })
     const { probe, rotatedFrom, outdatedProtocol } = await probeSandboxForResume({
       name: args.name,
       pinned: deps.config.serveVersion,
