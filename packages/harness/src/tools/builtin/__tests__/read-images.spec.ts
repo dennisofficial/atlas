@@ -4,7 +4,8 @@ import {
   MAX_INLINE_BYTES,
   toThreadId,
 } from '@dltech/atlas-core'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { mkdtemp, readdir, readFile as readFileFromDisk, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
@@ -207,5 +208,88 @@ describe('read on a text file', () => {
       ok: false,
       reason: `${path} looks like a binary file and cannot be read as text.`,
     })
+  })
+})
+describe('caching an inlined image in the session directory', () => {
+  const sha256 = (bytes: Uint8Array): string =>
+    createHash('sha256').update(bytes).digest('hex')
+
+  const readWithSession = async (args: { path: string; sessionDir: string }) => {
+    const sessionTool = new ReadTool({
+      sessionDirFor: async () => args.sessionDir,
+    })
+    const outcome = await sessionTool.invoke({
+      input: { path: args.path },
+      signal: new AbortController().signal,
+      idempotencyKey: 'read-images-cache',
+      projectDirectory: '/workspace',
+      threadId: toThreadId('thread-1'),
+    })
+    if (!outcome.ok) throw new Error(outcome.reason)
+    return outcome
+  }
+
+  it('writes the bytes and a provenance sidecar under <sessionDir>/images', async () => {
+    const sessionDir = await mkdtemp(join(tmpdir(), 'atlas-read-cache-session-'))
+    const outcome = await readWithSession({ path: paths.small, sessionDir })
+
+    const output = imageOutput(outcome.output)
+    const hash = sha256(await readFileFromDisk(paths.small))
+    const cachePath = join(sessionDir, 'images', `${hash}.png`)
+
+    expect(output.cachePath).toBe(cachePath)
+    const cached = await readFileFromDisk(cachePath)
+    expect(cached.byteLength).toBe(400 * 1024 + 24)
+
+    const sidecar = JSON.parse(await readFileFromDisk(`${cachePath}.json`, 'utf8')) as Record<
+      string,
+      unknown
+    >
+    expect(sidecar).toMatchObject({
+      sourcePath: paths.small,
+      mediaType: 'image/png',
+      byteLength: 400 * 1024 + 24,
+      width: 1024,
+      height: 768,
+    })
+    expect(typeof sidecar.readAt).toBe('string')
+  })
+
+  it('reuses the same cache file on a repeated read of the same bytes', async () => {
+    const sessionDir = await mkdtemp(join(tmpdir(), 'atlas-read-cache-session-'))
+
+    const first = imageOutput((await readWithSession({ path: paths.small, sessionDir })).output)
+    const second = imageOutput((await readWithSession({ path: paths.small, sessionDir })).output)
+
+    expect(first.cachePath).toBeDefined()
+    expect(second.cachePath).toBe(first.cachePath)
+
+    const directory = join(sessionDir, 'images')
+    const cached = (await readdir(directory)).filter((name) => name.endsWith('.png'))
+    expect(cached).toHaveLength(1)
+  })
+
+  it('writes nothing for a text-only image read past the inline ceiling', async () => {
+    const sessionDir = await mkdtemp(join(tmpdir(), 'atlas-read-cache-session-'))
+    const outcome = await readWithSession({ path: paths.heavy, sessionDir })
+
+    expect(imageOutput(outcome.output).inlined).toBe(false)
+    expect(imageOutput(outcome.output).cachePath).toBeUndefined()
+    await expect(readdir(join(sessionDir, 'images'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('still inlines without caching when no session directory is available', async () => {
+    const sessionless = new ReadTool({ sessionDirFor: async () => undefined })
+    const outcome = await sessionless.invoke({
+      input: { path: paths.small },
+      signal: new AbortController().signal,
+      idempotencyKey: 'read-images-cache',
+      projectDirectory: '/workspace',
+      threadId: toThreadId('thread-1'),
+    })
+    if (!outcome.ok) throw new Error(outcome.reason)
+
+    expect(imageOutput(outcome.output).inlined).toBe(true)
+    expect(imageOutput(outcome.output).cachePath).toBeUndefined()
   })
 })

@@ -8,6 +8,12 @@ export type ReadImage = {
   width: number | null
   height: number | null
   byteLength: number | null
+  /** The picture's base64 bytes, when the result inlined them for the model. */
+  data: string | null
+  /** Whether the bytes went to the model at all — a read can be text-only and still succeed. */
+  inlined: boolean
+  /** Why a text-only read stayed text-only, in the tool's own words. */
+  notSentReason: string | null
 }
 
 export function imageOf(call: ToolCall): ReadImage | null {
@@ -17,13 +23,28 @@ export function imageOf(call: ToolCall): ReadImage | null {
   if (mediaType === undefined || path === undefined) return null
   if (!mediaType.startsWith('image/')) return null
 
+  const inlined = output.inlined !== false
+
   return {
     path,
     mediaType,
     width: num(output.width) ?? null,
     height: num(output.height) ?? null,
     byteLength: num(output.byteLength) ?? null,
+    data: call.image?.data ?? null,
+    inlined,
+    notSentReason: inlined ? null : (notSentReasonOf(call.modelText) ?? 'the tool kept it text-only'),
   }
+}
+
+const NOT_SENT = 'It was not sent to you because '
+
+/** The reason a text-only image read gives the model, in the sentence the model was handed. */
+function notSentReasonOf(modelText: string): string | undefined {
+  const start = modelText.lastIndexOf(NOT_SENT)
+  if (start === -1) return undefined
+
+  return modelText.slice(start + NOT_SENT.length).replace(/\.s*$/, '')
 }
 
 const KILOBYTE = 1024

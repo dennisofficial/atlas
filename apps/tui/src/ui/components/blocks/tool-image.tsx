@@ -55,6 +55,10 @@ export function ToolImage(props: {
         })
   const marker = collapsible ? `${shown ? '▾' : '▸'} ` : ''
 
+  // Render from the bytes the event log carries. The path only has to exist where the tool ran —
+  // in a cloud session that is inside the sandbox, and by now the file can be gone entirely.
+  const bytes = image.data === null ? null : Buffer.from(image.data, 'base64')
+
   return (
     <box flexDirection="column" flexShrink={0}>
       <text wrapMode="none" width={props.inner} flexShrink={0} {...region.handlers}>
@@ -62,10 +66,14 @@ export function ToolImage(props: {
           {`${INDENT}${marker}${tailOfPath({ path: summary, cells })}`}
         </span>
       </text>
-      {!shown || span === null || span.columns < 1 || span.rows < 1 ? null : (
+      {!image.inlined ? (
+        <text wrapMode="none" width={props.inner} flexShrink={0}>
+          <span fg={theme.hint}>{`${INDENT}Not sent to the model: ${image.notSentReason ?? ''}`}</span>
+        </text>
+      ) : !shown || span === null || span.columns < 1 || span.rows < 1 ? null : (
         <box paddingLeft={INDENT.length} flexShrink={0}>
           <transcript-image
-            source={image.path}
+            source={bytes ?? image.path}
             protocol="auto"
             fit="fit"
             style={{ width: span.columns, height: span.rows }}

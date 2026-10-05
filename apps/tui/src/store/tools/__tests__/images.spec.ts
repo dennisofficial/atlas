@@ -70,6 +70,64 @@ describe('a read that came back as a picture', () => {
   })
 })
 
+describe('the bytes and the refusal a read carries', () => {
+  it('keeps the inlined bytes the result handed the model', () => {
+    const withBytes = aCall({
+      name: 'read',
+      input: { path: `${CWD}/docs/shot.png` },
+      output: {
+        path: `${CWD}/docs/shot.png`,
+        mediaType: 'image/png',
+        byteLength: 412 * 1024,
+        width: 1024,
+        height: 768,
+        inlined: true,
+      },
+      image: { data: 'aGVsbG8td29ybGQ=', mediaType: 'image/png' },
+    })
+
+    expect(imageOf(withBytes)?.data).toBe('aGVsbG8td29ybGQ=')
+    expect(imageOf(withBytes)?.inlined).toBe(true)
+    expect(imageOf(withBytes)?.notSentReason).toBeNull()
+  })
+
+  it('reads the refusal out of the sentence the model was handed', () => {
+    const textOnly = aCall({
+      name: 'read',
+      input: { path: `${CWD}/docs/shot.png` },
+      output: {
+        path: `${CWD}/docs/shot.png`,
+        mediaType: 'image/png',
+        byteLength: 20 * 1024 * 1024,
+        width: 4000,
+        height: 3000,
+        inlined: false,
+      },
+      modelText:
+        '/repo/docs/shot.png — image/png, 4000×3000, 20.0 MB. It was not sent to you because 20.0 MB is too large to inline.',
+    })
+
+    expect(imageOf(textOnly)?.inlined).toBe(false)
+    expect(imageOf(textOnly)?.notSentReason).toBe('20.0 MB is too large to inline')
+    expect(imageOf(textOnly)?.data).toBeNull()
+  })
+
+  it('says something even when an older log kept no reason', () => {
+    const silent = aCall({
+      name: 'read',
+      input: { path: `${CWD}/docs/shot.png` },
+      output: {
+        path: `${CWD}/docs/shot.png`,
+        mediaType: 'image/png',
+        byteLength: 900,
+        inlined: false,
+      },
+    })
+
+    expect(imageOf(silent)?.notSentReason).toBe('the tool kept it text-only')
+  })
+})
+
 describe('a read that came back as text', () => {
   const textRead = aCall({
     name: 'read',

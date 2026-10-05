@@ -9,7 +9,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { contextDirectory, threadDataDirectory } from '../store/sessions/paths'
+import { contextDirectory, imagesDirectory, threadDataDirectory } from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
 
 export const ATLAS_SESSION_DIR_ENV = 'ATLAS_SESSION_DIR'
@@ -27,7 +27,7 @@ const COULD_NOT_START = 127
 
 type Environment = Record<string, string | undefined>
 
-export type SessionPaths = { sessionDir: string; threadDir: string; contextDir: string }
+export type SessionPaths = { sessionDir: string; threadDir: string; contextDir: string; imagesDir: string }
 
 type ChunkReader = {
   read(): Promise<{ done: boolean; value?: Uint8Array | undefined }>
@@ -122,9 +122,11 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
 
     const threadDir = threadDataDirectory({ sessionDir, threadId })
     const contextDir = contextDirectory({ sessionDir })
+    const imagesDir = imagesDirectory({ sessionDir })
     await ensurePrivateDirectory({ anchor: dirname(sessionDir), directory: threadDir })
     await ensurePrivateDirectory({ anchor: sessionDir, directory: contextDir })
-    const paths: SessionPaths = { sessionDir, threadDir, contextDir }
+    await ensurePrivateDirectory({ anchor: sessionDir, directory: imagesDir })
+    const paths: SessionPaths = { sessionDir, threadDir, contextDir, imagesDir }
     this.resolved.set(threadId, paths)
     return paths
   }

@@ -9,6 +9,7 @@ import {
   nativeFileMediaType,
   SchemaTool,
   type DeclaredPathField,
+  type ThreadId,
   type ToolOutcome,
   type ToolRun,
   type WholeFileClaim,
@@ -156,6 +157,7 @@ function noticeFor(args: { path: string; scan: Selection }): string | undefined 
 export type ReadToolArgs = {
   files?: AgentFileSystemPort | undefined
   fileCapabilities?: FileCapabilitiesPort | undefined
+  sessionDirFor?: ((threadId: ThreadId) => Promise<string | undefined>) | undefined
 }
 
 export class ReadTool extends SchemaTool<typeof inputSchema> {
@@ -178,11 +180,13 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
 
   private readonly files: AgentFileSystemPort
   private readonly fileCapabilities: FileCapabilitiesPort | undefined
+  private readonly sessionDirFor: ((threadId: ThreadId) => Promise<string | undefined>) | undefined
 
   constructor(args: ReadToolArgs = {}) {
     super()
     this.files = args.files ?? new LocalFileSystemPort()
     this.fileCapabilities = args.fileCapabilities
+    this.sessionDirFor = args.sessionDirFor
   }
 
   protected override async run({
@@ -222,6 +226,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         head,
         files: this.files,
         threadId,
+        sessionDirFor: this.sessionDirFor,
       })
     }
 
