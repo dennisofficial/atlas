@@ -81,6 +81,7 @@ const opened = (drafts: readonly EventDraft[] = EXCHANGES): RewindState => {
 
 const said = (args: { seq: number; text: string }): RewindPoint => ({
   kind: ERewindPointKind.Said,
+  images: [],
   ...args,
 })
 

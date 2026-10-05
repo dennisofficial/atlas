@@ -6,12 +6,12 @@ import type { ClipboardImageReader } from '../clipboard-image'
 import {
   insertImagePlaceholder,
   insertPastedToken,
-  insertToken,
   liveTokens,
   removeToken,
   type LiveToken,
 } from '../composer-tokens'
-import { imageTag, type EImageTier } from '@dltech/atlas-core'
+import { restoredDraft, type RestoredPasteContent } from '../composer-restore'
+import type { EImageTier } from '@dltech/atlas-core'
 import type { DraftImage } from '../draft-images'
 
 export type DraftTokens = {
@@ -19,7 +19,11 @@ export type DraftTokens = {
   handleImage: () => void
   handlePasted: (content: string) => void
   settle: () => Promise<void>
-  restore: (images: readonly DraftImage[]) => void
+  restore: (args: {
+    text: string
+    images: readonly DraftImage[]
+    pastes?: readonly RestoredPasteContent[]
+  }) => void
 }
 
 /**
@@ -55,6 +59,7 @@ export function useDraftTokens(args: {
         }
         return
       }
+      if (editor.extmarks.get(token.id) === null) return
       token.slot.settled = true
       token.slot.image = image
     })
@@ -77,17 +82,19 @@ export function useDraftTokens(args: {
   }, [])
 
   const restore = useCallback(
-    (images: readonly DraftImage[]): void => {
+    (restored: {
+      text: string
+      images: readonly DraftImage[]
+      pastes?: readonly RestoredPasteContent[]
+    }): void => {
       const editor = args.editor.current
       if (editor === null) return
-
-      for (const image of images) {
-        insertToken({
-          editor,
-          label: imageTag(image.ordinal),
-          slot: { kind: 'image', ordinal: image.ordinal, settled: true, image },
-        })
-      }
+      restoredDraft({
+        editor,
+        text: restored.text,
+        images: restored.images,
+        pastes: restored.pastes,
+      })
     },
     [args.editor],
   )

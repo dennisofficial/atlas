@@ -54,6 +54,7 @@ export * from './message/parts'
 export * from './files/native'
 export * from './images/attached'
 export * from './images/limits'
+export * from './images/pasted-tags'
 export * from './images/projection'
 export * from './images/png'
 

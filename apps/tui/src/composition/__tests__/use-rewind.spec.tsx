@@ -249,7 +249,7 @@ describe('the rewind control', () => {
 
       expect(probe.picks).toEqual([
         {
-          point: { kind: ERewindPointKind.Said, seq: 5, text: 'third' },
+          point: { kind: ERewindPointKind.Said, seq: 5, text: 'third', images: [] },
           verb: ERewindVerb.ToHere,
         },
       ])
@@ -316,7 +316,7 @@ describe('the rewind control', () => {
       await flush()
 
       const choice: RewindChoice = {
-        point: { kind: ERewindPointKind.Said, seq: 1, text: 'first' },
+        point: { kind: ERewindPointKind.Said, seq: 1, text: 'first', images: [] },
         verb: ERewindVerb.SummariseFrom,
       }
       controlOf(probe).handlePick(choice)

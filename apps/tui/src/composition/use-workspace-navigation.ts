@@ -4,6 +4,8 @@ import { ECompactionAnchor, EForkMode } from '@dltech/atlas-core'
 import { forkConversation } from '@dltech/atlas-harness'
 
 import type { useDraft } from '../ui/hooks/use-draft'
+import type { useDraftTokens } from '../ui/hooks/use-draft-tokens'
+import { restoredImages } from '../ui/draft-images'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import { ERewindPointKind, ERewindVerb, type RewindChoice } from '../ui/rewind-model'
 import type { useContainerMove } from './use-container-move'
@@ -38,9 +40,10 @@ export function useWorkspaceNavigation(args: {
     | 'handleCompactAround'
   >
   draft: ReturnType<typeof useDraft>
+  tokens: ReturnType<typeof useDraftTokens>
   containerMove: ReturnType<typeof useContainerMove>
 }) {
-  const { props, conversation, draft, containerMove } = args
+  const { props, conversation, draft, tokens, containerMove } = args
 
   const routeRef = useRef<(threadId: string) => void>(() => undefined)
 
@@ -120,7 +123,12 @@ export function useWorkspaceNavigation(args: {
 
       if (verb === ERewindVerb.ToHere) {
         conversation.handleRewindTo(point.seq - 1)
-        if (point.kind === ERewindPointKind.Said) draft.setValue(point.text)
+        if (point.kind === ERewindPointKind.Said) {
+          tokens.restore({
+            text: point.text,
+            images: restoredImages({ images: point.images, text: point.text }),
+          })
+        }
         return
       }
 
@@ -131,7 +139,7 @@ export function useWorkspaceNavigation(args: {
 
       conversation.handleCompactAround({ anchor: ECompactionAnchor.Suffix, seq: point.seq })
     },
-    [conversation, draft, handleOpenThread, props.app.log, props.app.threads],
+    [conversation, tokens, handleOpenThread, props.app.log, props.app.threads],
   )
 
   const rewind = useRewind({ events: conversation.readEvents, onPick: handleRewindChoice })

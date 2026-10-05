@@ -1,4 +1,4 @@
-import type { Event } from '@dltech/atlas-core'
+import type { Event, SaidImage } from '@dltech/atlas-core'
 
 export const REWIND_ROWS = 5
 
@@ -27,7 +27,7 @@ export enum ERewindPointKind {
 }
 
 export type RewindPoint =
-  | { kind: ERewindPointKind.Said; seq: number; text: string }
+  | { kind: ERewindPointKind.Said; seq: number; text: string; images: readonly SaidImage[] }
   | { kind: ERewindPointKind.Compacted; seq: number; text: string; replaced: number }
 
 export type RewindState = {
@@ -54,7 +54,10 @@ const clamped = (args: { value: number; count: number }): number =>
   Math.min(Math.max(0, args.value), Math.max(0, args.count - 1))
 
 const pointOf = (event: Event): RewindPoint[] => {
-  if (wasSaid(event)) return [{ kind: ERewindPointKind.Said, seq: event.seq, text: event.text }]
+  if (wasSaid(event))
+    return [
+      { kind: ERewindPointKind.Said, seq: event.seq, text: event.text, images: event.images ?? [] },
+    ]
 
   if (wasCompaction(event))
     return [
