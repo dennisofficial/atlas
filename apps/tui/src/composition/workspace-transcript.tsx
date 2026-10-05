@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 
 import React from 'react'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
 import { EChannelConnection } from '@dltech/atlas-harness'
 
 import { versionLabel } from '../build/info'
@@ -15,6 +16,7 @@ import type { CloudHealth, CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { SubagentTranscript } from './subagent-transcript'
 import { TeammateTranscript } from './teammate-transcript'
+import { useSessionOwner } from './use-session-owner'
 import type { AgentView } from './use-agent-view'
 import type { Conversation } from './use-conversation'
 
@@ -49,9 +51,15 @@ export function WorkspaceTranscript(props: {
   onToggle: (key: string) => void
 }): React.ReactNode {
   const { app, welcome, width, thinking, agentView, conversation, cloudHealth, cloudSession } = props
+  const { location, threadId } = useSessionOwner({ app })
   const attachFailed = useAttachFailure()
+  const attachClosed =
+    cloudSession === null &&
+    location === EExecutionLocation.Cloud &&
+    attachFailed !== null &&
+    attachFailed.threadId === threadId
   const connection =
-    cloudHealth?.connection?.state ?? (cloudSession === null && attachFailed !== null ? EChannelConnection.Closed : undefined)
+    cloudHealth?.connection?.state ?? (attachClosed ? EChannelConnection.Closed : undefined)
 
   return (
     <box flexDirection="column" flexGrow={1} flexShrink={1}>

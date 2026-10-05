@@ -1,3 +1,8 @@
+import { mkdtempSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { afterEach, describe, expect, it } from 'bun:test'
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot } from '@opentui/react'
@@ -12,7 +17,7 @@ import { clearAttachFailure, recordAttachFailure } from '../attach-failure'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import { useCloudConnection } from '../use-cloud-connection'
 import { mountCloud } from './app-cloud-archive-fixture'
-import { THREAD, until } from './app-fixture'
+import { open, spokenIn, THREAD, until } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -197,4 +202,31 @@ describe('the connection the chrome derives from a recorded attach failure', () 
     await act(async () => clearAttachFailure())
     expect(probe.current?.state).toBe(EChannelConnection.Connecting)
   })
+})
+
+describe('a host session after an earlier cloud attach failure', () => {
+  it('renders the transcript undimmed and free of the disconnected row', async () => {
+    const app = appFor()
+    const opened = await spokenIn(app)
+    await app.executionLocation.activate({ threadId: opened.threadId, fallback: EExecutionLocation.Host })
+    recordAttachFailure({ threadId: OTHER, detail: REASON })
+
+    const home = mkdtempSync(join(tmpdir(), 'atlas-attach-failure-spec-'))
+    const previousHome = process.env.ATLAS_HOME
+    process.env.ATLAS_HOME = home
+    const mounted = await open({ app, opened })
+
+    try {
+      await settle(1_000)
+      const frame = await mounted.frame()
+      expect(frame).toContain('what is in here?')
+      expect(frame).not.toContain('○ disconnected')
+      expect(frame).not.toContain('ctrl+r reconnect')
+    } finally {
+      await mounted.done()
+      if (previousHome === undefined) delete process.env.ATLAS_HOME
+      else process.env.ATLAS_HOME = previousHome
+      await rm(home, { recursive: true, force: true })
+    }
+  }, 60_000)
 })
