@@ -44,12 +44,21 @@ const SANDBOX_NOT_FOUND_FOR_PROJECT = /sandbox\s+'[^']*'\s+not found for this pr
 
 export const isSandboxMissing = (error: unknown): boolean => {
   if (error instanceof APIError) {
-    if (error.response.status === 404) return true
+    // A 404 on a create whose payload names the image is the image missing, not the sandbox —
+    // the retry-settle branch would otherwise blame the sandbox for an unpublished image.
+    if (error.response.status === 404) return !isImageNotFound(error)
     if (error.response.status === 410 && snapshotCodeOf(error.json) === 'snapshot_not_found') {
       return true
     }
   }
   return SANDBOX_NOT_FOUND_FOR_PROJECT.test(failureTextOf(error))
+}
+
+const IMAGE_NOT_FOUND = /^image not found/i
+
+export const isImageNotFound = (failure: unknown): boolean => {
+  if (!(failure instanceof APIError) || failure.response.status !== 404) return false
+  return IMAGE_NOT_FOUND.test(failureTextOf(failure))
 }
 
 const isImageNotReady = (failure: unknown): boolean => {
@@ -79,6 +88,7 @@ export enum EVercelFailure {
   Unknown = 'unknown',
   DriveAttached = 'drive-attached',
   ImageOptimize = 'image-optimize',
+  ImageNotFound = 'image-not-found',
 }
 
 export class VercelFailure extends Error {

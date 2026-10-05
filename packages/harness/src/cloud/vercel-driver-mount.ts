@@ -16,6 +16,7 @@ import {
   EVercelFailure,
   failureTextOf,
   isDriveAttachedConflict,
+  isImageNotFound,
   isImageOptimizeFailure,
   isImageOptimizeLag,
   isSandboxMissing,
@@ -69,6 +70,15 @@ export async function mountWithRetries(args: {
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
       })
     } catch (failure) {
+      if (isImageNotFound(failure)) {
+        throw new VercelFailure({
+          kind: EVercelFailure.ImageNotFound,
+          message:
+            `sandbox image ${args.image} is not published. Update Atlas — a release that cannot ` +
+            `find its own image was cut before its image landed. If you override the image in ` +
+            `settings, check the name.`,
+        })
+      }
       if (isImageOptimizeFailure(failure)) {
         throw new VercelFailure({
           kind: EVercelFailure.ImageOptimize,
