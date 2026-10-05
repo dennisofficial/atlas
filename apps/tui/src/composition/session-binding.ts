@@ -2,6 +2,7 @@ import {
   createSessionContextReader,
   type ContextReader,
   ERuntimeKind,
+  MirroredContextFiles,
   RemoteContextFiles,
   type CloudBridge,
   type CloudChannel,
@@ -94,7 +95,12 @@ export const cloudBindingOf = (args: {
     attachment: {
       kind: 'cloud',
       opened: args.opened,
-      context: new RemoteContextFiles({ channel: args.channel }),
+      context: new MirroredContextFiles({
+        channel: args.channel,
+        local: createSessionContextReader({ threadId: args.opened.threadId }),
+        remote: new RemoteContextFiles({ channel: args.channel }),
+        threadId: args.opened.threadId,
+      }),
       bridge: args.bridge,
       stores: args.stores,
       session: args.session,
