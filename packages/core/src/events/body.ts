@@ -132,6 +132,15 @@ export type EventBody =
       cause?: ELocationChangeCause | undefined
     }
   | {
+      type: 'parked'
+      reason: string
+      turnRunning: boolean
+      childrenRunning: number
+      shellsRunning: number
+      servicesRunning: number
+      clientsAttached: number
+    }
+  | {
       type: 'operator-input-requested'
       requestId: string
       description: string

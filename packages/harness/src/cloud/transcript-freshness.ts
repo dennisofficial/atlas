@@ -78,9 +78,14 @@ export function isTranscriptMuted(args: {
   lifecycle: ECloudSandboxLifecycle
   socketOpen: boolean
   freshness: ECloudFreshness
+  tailIsParked: boolean
 }): boolean {
   if (args.socketOpen) return args.freshness !== ECloudFreshness.Synced
-  if (args.lifecycle === ECloudSandboxLifecycle.Parked && args.freshness === ECloudFreshness.Synced) {
+  if (
+    args.lifecycle === ECloudSandboxLifecycle.Parked &&
+    args.freshness === ECloudFreshness.Synced &&
+    args.tailIsParked
+  ) {
     return false
   }
   return true

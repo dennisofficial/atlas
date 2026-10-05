@@ -60,7 +60,7 @@ describe('sandbox lifecycle ownership', () => {
       stop: async () => { calls.push('provider-stop') },
     })
     const parking = test.lifecycle.park()
-    await Promise.resolve()
+    for (let step = 0; step < 20 && !calls.includes('finalize'); step += 1) await Promise.resolve()
     expect(test.admission.closed).toBe(true)
     expect(calls).toEqual(['finalize'])
     expect(test.calls).not.toContain('parked')
@@ -160,6 +160,45 @@ describe('sandbox lifecycle ownership', () => {
     expect(test.calls).not.toContain('serve.park-finalized')
     expect(test.calls).not.toContain('parked')
     expect(test.app.closed()).toBe(true)
+  })
+
+  it('appends the work snapshot as a parked draft between endings and finalization', async () => {
+    const order: string[] = []
+    const test = fixture({
+      work: () => ({ ...quiet(), turnRunning: true, servicesRunning: 1 }),
+      endProcesses: async () => { order.push('endings') },
+      finalize: async () => { order.push('finalize') },
+      stop: async () => { order.push('provider-stop') },
+    })
+    const baseAppend = test.app.log.append
+    test.app.log.append = (given) => {
+      order.push('append')
+      return baseAppend(given)
+    }
+    await test.lifecycle.park()
+    expect(order).toEqual(['endings', 'append', 'finalize', 'provider-stop'])
+    expect(test.app.appended).toContainEqual({
+      type: 'parked',
+      reason: 'idle',
+      turnRunning: true,
+      childrenRunning: 0,
+      shellsRunning: 0,
+      servicesRunning: 1,
+      clientsAttached: 0,
+    })
+  })
+
+  it('still completes the park when the parked append rejects', async () => {
+    let stopped = false
+    const test = fixture({
+      finalize: async () => undefined,
+      stop: async () => { stopped = true },
+    })
+    test.app.log.append = () => Promise.reject(new Error('disk full'))
+    await test.lifecycle.park()
+    expect(stopped).toBe(true)
+    expect(test.calls).toContain('parked')
+    expect(test.calls.at(-1)).toBe('exit')
   })
 
   it('actual shutdown retains cleanup and is idempotent', async () => {

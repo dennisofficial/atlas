@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { toEventId, toRunId, type Event, type EventOfType } from '@dltech/atlas-core'
+
 import {
   EChannelConnection,
   ECloudFreshness,
@@ -38,6 +40,22 @@ const deferred = <T>(): Deferred<T> => {
   }
 }
 
+const parkedEvent = (args: { seq: number; shellsRunning?: number }): EventOfType<'parked'> => ({
+  id: toEventId(`event-${args.seq}`),
+  seq: args.seq,
+  threadId: CLOUD_THREAD,
+  runId: toRunId('run-1'),
+  depth: 0,
+  at: '2026-10-01T00:00:00.000Z',
+  type: 'parked',
+  reason: 'idle',
+  turnRunning: false,
+  childrenRunning: 0,
+  shellsRunning: args.shellsRunning ?? 0,
+  servicesRunning: 0,
+  clientsAttached: 0,
+})
+
 const checkpointOf = (overrides: Partial<RuntimeCheckpoint> = {}): RuntimeCheckpoint => ({
   threadId: CLOUD_THREAD,
   runtimeId: 'runtime-1',
@@ -54,7 +72,11 @@ const sessionOn = (args: {
   find?: () => Promise<CloudSandboxStatus | undefined>
   onReload?: (reload: CloudReload) => Promise<void>
   appliedSnapshot?:
-    | (() => { identity: { head: number; count: number; digest: string }; appliedAt: number } | null)
+    | (() => {
+        identity: { head: number; count: number; digest: string }
+        appliedAt: number
+        events?: readonly Event[] | undefined
+      } | null)
     | undefined
   settleMs?: number
 }): { channel: FakeCloudChannel; session: CloudSession } => {
@@ -106,7 +128,7 @@ describe('the socket moves without waiting on the provider', () => {
     expect(session.health().failure).toBeNull()
   })
 
-  it('reads a parked checkpoint off the provider answer while the socket is closed', async () => {
+  it('dims a parked session whose synced transcript tail is not the parked marker', async () => {
     const applied = { head: 10, count: 10, digest: 'a'.repeat(64) }
     const { channel, session } = sessionOn({
       find: async () => ({
@@ -122,8 +144,49 @@ describe('the socket moves without waiting on the provider', () => {
 
     expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Parked)
     expect(session.health().freshness).toBe(ECloudFreshness.Synced)
-    expect(session.health().stale).toBe(false)
+    expect(session.health().stale).toBe(true)
     expect(session.health().lastSeenAt).toBe(1000)
+  })
+
+  it('ungrays a parked session whose synced transcript ends in the parked marker', async () => {
+    const applied = { head: 10, count: 10, digest: 'a'.repeat(64) }
+    const tail: readonly EventOfType<'parked'>[] = [
+      parkedEvent({ seq: 10, shellsRunning: 1 }),
+    ]
+    const { channel, session } = sessionOn({
+      find: async () => ({
+        state: ECloudSandboxState.Parked,
+        sandboxSessionId: 'session-a',
+        checkpoint: checkpointOf(),
+      }),
+      appliedSnapshot: () => ({ identity: applied, appliedAt: 1000, events: tail }),
+    })
+
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    await tick()
+
+    expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Parked)
+    expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('dims a parked session whose tail marker arrives on an unproven transcript', async () => {
+    const tail: readonly EventOfType<'parked'>[] = [parkedEvent({ seq: 99 })]
+    const { channel, session } = sessionOn({
+      find: async () => ({
+        state: ECloudSandboxState.Parked,
+        sandboxSessionId: 'session-a',
+        checkpoint: checkpointOf({ transcript: { head: 99, count: 99, digest: 'b'.repeat(64) } }),
+      }),
+      appliedSnapshot: () => ({ identity: { head: 10, count: 10, digest: 'a'.repeat(64) }, appliedAt: 1000, events: tail }),
+    })
+
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    await tick()
+
+    expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Parked)
+    expect(session.health().freshness).toBe(ECloudFreshness.Behind)
+    expect(session.health().stale).toBe(true)
   })
 })
 

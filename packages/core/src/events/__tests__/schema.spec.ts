@@ -31,6 +31,15 @@ const bodies: EventDraft[] = [
     to: EExecutionLocation.Cloud,
     cwd: '/workspace',
   },
+  {
+    type: 'parked',
+    reason: 'idle',
+    turnRunning: false,
+    childrenRunning: 2,
+    shellsRunning: 1,
+    servicesRunning: 0,
+    clientsAttached: 1,
+  },
 
   {
     type: 'agent-spawned',

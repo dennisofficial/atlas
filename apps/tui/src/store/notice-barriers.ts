@@ -14,6 +14,7 @@ const breaksEveryRun = (event: Event): boolean =>
   event.type === 'agent-ended' ||
   event.type === 'agent-reported' ||
   event.type === 'location-changed' ||
+  event.type === 'parked' ||
   event.type === 'history-compacted'
 
 export const transcriptNotice = (event: Event): boolean =>
