@@ -26,6 +26,7 @@ import {
 import { buildInfo, clientVersionHeader, EBuildKind } from '../build/info'
 import { ENoticeTone } from '../ui/notice-store'
 import { createCloudBridge } from './cloud/create-bridge'
+import { durableOpLog } from './durable-op-log'
 import { reapExpiredCloudSandboxes } from './cloud/reaper'
 import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
 import type { AtlasApp } from './compose'
@@ -93,6 +94,12 @@ export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
         credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
         ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
       }),
+      // The driver's settle and provision narration is the only record of a wake that failed
+      // before the channel could speak — persist it, or the next name-conflict incident leaves
+      // nothing to classify from.
+      onDriverLog: (line) => {
+        durableOpLog()?.info({ source: 'cloud.driver', message: line })
+      },
       attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
       // The local durable log is the truth the serve's currency vouch is checked against: report
       // its head on the Hello so a clean re-attach of an unchanged transcript is vouched current.

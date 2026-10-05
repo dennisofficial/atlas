@@ -87,6 +87,7 @@ export const asVercelFailure = (failure: unknown): Error => {
 export enum EVercelFailure {
   Unknown = 'unknown',
   DriveAttached = 'drive-attached',
+  NameConflict = 'name-conflict',
   ImageOptimize = 'image-optimize',
   ImageNotFound = 'image-not-found',
 }
@@ -99,6 +100,22 @@ export class VercelFailure extends Error {
   }
 
   readonly kind: EVercelFailure
+}
+
+// Vercel answers a create whose name is already taken with a generic 400 `bad_request` — the
+// code is shared with any malformed request (probed October 2026), so only the message
+// discriminates. That message is the wake's settle race: the resume probe found the name free
+// (or deleted the stale sandbox itself), and the name registry has not caught up. A next attempt
+// either finds the sandbox through the GET or succeeds through the POST, so the conflict is
+// always worth the settle retry, never a hard failure on first sight.
+const SANDBOX_NAME_TAKEN = /a sandbox with the name\s+'[^']*'\s+already exists for this project/i
+
+export const isSandboxNameConflict = (failure: unknown): boolean => {
+  if (failure instanceof APIError) {
+    if (failure.response.status !== 400) return false
+    return SANDBOX_NAME_TAKEN.test(failureTextOf(failure))
+  }
+  return SANDBOX_NAME_TAKEN.test(failureTextOf(failure))
 }
 
 export const isDriveAttachedConflict = (failure: unknown): boolean => {

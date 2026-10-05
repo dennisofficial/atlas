@@ -13,7 +13,7 @@ import { driveNameFor } from './drive-names'
 import { ESandboxProbe, probeSandboxForResume, type RuntimeActivityProbe } from './resume-probe'
 import type { RetryPolicy } from './retry-policy'
 import type { ServeLauncher } from './serve-launch'
-import { mountWithRetries } from './vercel-driver-mount'
+import { mountWithRetries, type SettleWaitNotice } from './vercel-driver-mount'
 import {
   routedUrlWithRetries,
   SANDBOX_QUICK_TIMEOUT_MS,
@@ -114,6 +114,11 @@ export type ProvisionArgs = {
    */
   environment?: Record<string, string> | undefined
   onRotationStarted?: (() => void) | undefined
+  /**
+   * The mount is riding out a provider settle (a name the registry has not released, a drive not
+   * yet detached). The wake narrates the wait so a long settle reads as what it is, not a stall.
+   */
+  onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
 }
 
 export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs): Promise<SandboxPlacement> {
@@ -181,6 +186,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
         created = true
         return Promise.resolve()
       },
+      ...(args.onSettleWait === undefined ? {} : { onSettleWait: args.onSettleWait }),
     })
     const createMs = Date.now() - createStartedAt
     if (args.putContextOnFreshBoot !== undefined) {

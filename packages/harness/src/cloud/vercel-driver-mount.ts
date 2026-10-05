@@ -20,8 +20,21 @@ import {
   isImageOptimizeFailure,
   isImageOptimizeLag,
   isSandboxMissing,
+  isSandboxNameConflict,
   VercelFailure,
 } from './vercel-errors'
+
+/** Which provider settle the mount is riding out, so the wake can narrate the wait truthfully. */
+export enum ESettleWait {
+  NameConflict = 'name-conflict',
+  DriveAttached = 'drive-attached',
+}
+
+export type SettleWaitNotice = {
+  reason: ESettleWait
+  attempt: number
+  attempts: number
+}
 
 export async function mountWithRetries(args: {
   sdk: VercelSdk
@@ -40,6 +53,7 @@ export async function mountWithRetries(args: {
   environment?: Record<string, string> | undefined
   pinnedModel?: string | undefined
   onCreate: () => Promise<void>
+  onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
 }): Promise<Sandbox> {
   for (let attempt = 1, optimizeWaits = 0; ; attempt++) {
     try {
@@ -117,6 +131,22 @@ export async function mountWithRetries(args: {
         await retrySleep(args.retry)
         continue
       }
+      // The mirror race: the probe saw the name free (or deleted the stale sandbox), and the
+      // create 400s because the name registry has not caught up. Same settle, same budget.
+      if (isSandboxNameConflict(failure)) {
+        if (attempt >= args.retry.attempts) {
+          throw new VercelFailure({
+            kind: EVercelFailure.NameConflict,
+            message: `sandbox ${args.name}'s name stayed taken through ${args.retry.attempts} attempts to resume or create it: ${failureTextOf(failure)}`,
+          })
+        }
+        args.log?.(
+          `Vercel still has sandbox ${args.name}'s name taken (attempt ${attempt}/${args.retry.attempts}) — waiting for the provider to release it`,
+        )
+        args.onSettleWait?.({ reason: ESettleWait.NameConflict, attempt, attempts: args.retry.attempts })
+        await retrySleep(args.retry)
+        continue
+      }
       if (!isDriveAttachedConflict(failure)) throw failure
       const retry = args.retry
       if (attempt >= retry.attempts) {
@@ -128,6 +158,7 @@ export async function mountWithRetries(args: {
       args.log?.(
         `drive ${args.driveName} still attached to another sandbox (attempt ${attempt}/${retry.attempts}) — waiting out the detach`,
       )
+      args.onSettleWait?.({ reason: ESettleWait.DriveAttached, attempt, attempts: retry.attempts })
       await retrySleep(retry)
     }
   }

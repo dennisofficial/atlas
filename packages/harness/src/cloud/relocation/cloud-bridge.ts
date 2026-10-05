@@ -7,6 +7,7 @@ import type {
   RemoteDeltaChannel,
 } from '../remote-delta-channel'
 import { ECloudSandboxState, type WorkspaceSpec } from '../sandbox-client'
+import type { SettleWaitNotice } from '../vercel-driver-mount'
 import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
 import type { ThreadStorePort } from '../../store/thread-store'
 
@@ -78,6 +79,11 @@ export type CloudSandboxes = {
     workspaceArchivePath?: string | undefined
     /** Fires the moment the wake finds a protocol-mismatched sandbox and starts rotating it. */
     onRotationStarted?: (() => void) | undefined
+    /**
+     * The mount is riding out a provider settle — a sandbox name the registry has not released
+     * yet, or a drive still detaching. Lets the caller narrate the wait rather than sit silent.
+     */
+    onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
   }): Promise<CloudSandbox>
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
