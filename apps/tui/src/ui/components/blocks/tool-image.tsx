@@ -4,12 +4,14 @@ import React from 'react'
 import type { ToolCall } from '../../../store'
 import { imageOf, imageSummary } from '../../../store/tools'
 import { useTranscriptCovered } from '../../covered-store'
+import { useClickRegion } from '../../hooks/use-click-region'
 import { imageRows } from '../../image-rows-store'
 import { DEFAULT_CELL_ASPECT, SAMPLES_PER_CELL, imageCellSpan } from '../../images'
 import '../../images/transcript-image'
 import { tailOfPath } from '../../paths'
 import { theme } from '../../theme'
 import { useTranscriptRows } from '../../viewport-rows-store'
+import type { Expander } from './more-toggle'
 
 const INDENT = '    '
 
@@ -21,13 +23,21 @@ const VIEWPORT_SHARE = 0.8
  */
 const HEADROOM = 2
 
-export function ToolImage(props: { call: ToolCall; inner: number; cwd: string }): React.ReactNode {
+export function ToolImage(props: {
+  call: ToolCall
+  inner: number
+  cwd: string
+  expand?: Expander
+}): React.ReactNode {
   const renderer = useRenderer()
   const { height } = useTerminalDimensions()
   const rows = useTranscriptRows()
   const covered = useTranscriptCovered()
   const image = imageOf(props.call)
   const summary = imageSummary({ call: props.call, cwd: props.cwd })
+  const collapsible = props.expand?.onToggle !== undefined
+  const shown = props.expand?.expanded ?? true
+  const region = useClickRegion(collapsible ? props.expand?.onToggle : undefined)
 
   if (summary === null || image === null) return null
 
@@ -43,13 +53,16 @@ export function ToolImage(props: { call: ToolCall; inner: number; cwd: string })
           cellAspect: cell.aspect,
           cellWidth: cell.width,
         })
+  const marker = collapsible ? `${shown ? '▾' : '▸'} ` : ''
 
   return (
     <box flexDirection="column" flexShrink={0}>
-      <text wrapMode="none" width={props.inner} flexShrink={0}>
-        <span fg={theme.meta}>{`${INDENT}${tailOfPath({ path: summary, cells })}`}</span>
+      <text wrapMode="none" width={props.inner} flexShrink={0} {...region.handlers}>
+        <span fg={collapsible ? theme.hint : theme.meta} {...region.wash}>
+          {`${INDENT}${marker}${tailOfPath({ path: summary, cells })}`}
+        </span>
       </text>
-      {span === null || span.columns < 1 || span.rows < 1 ? null : (
+      {!shown || span === null || span.columns < 1 || span.rows < 1 ? null : (
         <box paddingLeft={INDENT.length} flexShrink={0}>
           <transcript-image
             source={image.path}

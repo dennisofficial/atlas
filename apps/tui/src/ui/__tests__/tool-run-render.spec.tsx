@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import React, { act, useCallback, useState } from 'react'
 
 import { toCallId } from '@dltech/atlas-core'
@@ -8,6 +8,15 @@ import { ECallState, type ContextAttachment, type ToolCall, type ToolRun } from 
 import { glyph } from '../theme'
 import { ToolRunBlock } from '../components/blocks/tool-run-block'
 import { teardown } from '../markdown/__tests__/harness'
+import { applyImageRows, SHIPPED_IMAGE_ROWS } from '../image-rows-store'
+import { applyTranscriptRows } from '../viewport-rows-store'
+
+// The viewport and image-row stores are module-global and the app publishes into them; pin both so
+// shard order cannot leave a tall value that pushes an opened picture's neighbour off the frame.
+beforeEach(() => {
+  applyTranscriptRows(HEIGHT)
+  applyImageRows(SHIPPED_IMAGE_ROWS)
+})
 
 const BULLET = glyph.block
 
@@ -484,6 +493,45 @@ describe('a run of tool calls in the transcript', () => {
     expect(await frameOf(run, new Set([`sentence:${run.calls[0]?.callId ?? ''}`]))).toContain(
       'paths.ts',
     )
+  })
+
+  it('shows a picture where it was read, never behind a click, and folds on its header', async () => {
+    const shot = call({
+      name: 'read',
+      input: { path: `${CWD}/docs/shot.png` },
+      output: {
+        path: `${CWD}/docs/shot.png`,
+        mediaType: 'image/png',
+        byteLength: 412 * 1024,
+        width: 60,
+        height: 30,
+        inlined: true,
+      },
+    })
+    const other = call({
+      name: 'read',
+      input: { path: `${CWD}/docs/stripe.jpg` },
+      output: {
+        path: `${CWD}/docs/stripe.jpg`,
+        mediaType: 'image/jpeg',
+        byteLength: 4 * 1024,
+        width: 120,
+        height: 80,
+        inlined: true,
+      },
+    })
+    const run = runOf([shot, other])
+
+    const frame = await frameOf(run)
+    expect(frame).not.toContain('Read 2 files')
+    expect(frame).toContain('Read docs/shot.png')
+    expect(frame).toContain('Read docs/stripe.jpg')
+    expect(frame).toContain('▾ docs/shot.png · 60×30 · 412 KB')
+    expect(frame).toContain('▾ docs/stripe.jpg · 120×80 · 4 KB')
+
+    const folded = await frameOf(run, new Set([`more:${shot.callId}`]))
+    expect(folded).toContain('▸ docs/shot.png · 60×30 · 412 KB')
+    expect(folded).toContain('▾ docs/stripe.jpg · 120×80 · 4 KB')
   })
 
   it('opens an image read onto what the picture is, not onto its bytes', async () => {

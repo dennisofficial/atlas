@@ -79,6 +79,30 @@ describe('the sentence a run of gathering makes', () => {
   })
 })
 
+describe('a picture the run read', () => {
+  const picture = (path: string) =>
+    aCall({
+      name: 'read',
+      input: { path: `${CWD}/${path}` },
+      output: { path: `${CWD}/${path}`, mediaType: 'image/png', width: 120, height: 80, byteLength: 4096 },
+    })
+
+  it('leaves the sentence, because it shows itself rather than counting', () => {
+    expect(rowsOf([picture('shot.png'), picture('stripe.jpg')])).toEqual([
+      'Read shot.png',
+      'Read stripe.jpg',
+    ])
+  })
+
+  it('breaks the sentence where it fell rather than folding into it', () => {
+    expect(rowsOf([read('a.ts', 5), picture('shot.png'), read('b.ts', 5)])).toEqual([
+      'Read a.ts',
+      'Read shot.png',
+      'Read b.ts',
+    ])
+  })
+})
+
 describe('what does not join the sentence', () => {
   it('breaks the run where a named command fell, rather than reordering around it', () => {
     expect(

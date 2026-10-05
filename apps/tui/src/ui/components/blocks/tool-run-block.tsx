@@ -184,7 +184,15 @@ const AloneBlock = React.memo(function AloneBlock(props: {
           call={call}
           inner={props.inner}
           cwd={props.cwd}
-          expanded={props.opened.has(moreKey(call.callId))}
+          expanded={
+            /**
+             * A picture opens by default: the key that unfolds every other detail folds this one,
+             * so the picture's own header can collapse it back to its name.
+             */
+            reading.detail === EDetail.Image
+              ? !props.opened.has(moreKey(call.callId))
+              : props.opened.has(moreKey(call.callId))
+          }
           onToggle={props.onToggle}
         />
       ) : null}

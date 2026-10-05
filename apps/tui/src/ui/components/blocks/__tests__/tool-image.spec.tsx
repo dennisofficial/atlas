@@ -103,6 +103,40 @@ describe('an opened image read', () => {
     expect(frame).toContain('█')
   })
 
+  test('collapses to its header when the header asks it to', async () => {
+    const path = writeRedPng({ name: 'wide.png', width: 32, height: 32 })
+
+    const open = await testRender(
+      <ToolImage
+        call={readCall({ path, mediaType: 'image/png', width: 32, height: 32 })}
+        inner={40}
+        cwd={directory}
+        expand={{ expanded: true, onToggle: () => {} }}
+      />,
+      { width: 44, height: 20 },
+    )
+    await open.renderOnce()
+    await settle(open.flush)
+    expect(open.captureCharFrame()).toContain('▾ wide.png')
+    open.renderer.destroy()
+
+    const shut = await testRender(
+      <ToolImage
+        call={readCall({ path, mediaType: 'image/png', width: 32, height: 32 })}
+        inner={40}
+        cwd={directory}
+        expand={{ expanded: false, onToggle: () => {} }}
+      />,
+      { width: 44, height: 20 },
+    )
+    await shut.renderOnce()
+    await settle(shut.flush)
+
+    const collapsed = shut.captureCharFrame()
+    expect(collapsed).toContain('▸ wide.png')
+    expect(collapsed).not.toContain('█')
+  })
+
   test('says nothing at all for a read that was not an image', async () => {
     const notAnImage = {
       callId: 'call-1',
@@ -144,6 +178,6 @@ describe('an image under an overlay', () => {
     const frame = captureCharFrame()
 
     expect(frame).toContain('covered.png')
-    expect(frame).not.toContain('\u2588')
+    expect(frame).not.toContain('█')
   })
 })
