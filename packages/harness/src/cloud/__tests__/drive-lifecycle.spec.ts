@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 
-import { deleteDrive, waitForDriveDetached, type DriveSdk } from '../drive-lifecycle'
+import { deleteDrive, ensureDrive, waitForDriveDetached, type DriveSdk } from '../drive-lifecycle'
 
 const CREDENTIALS = { token: 'vercel-token', teamId: 'team_1', projectId: 'prj_1' }
 
@@ -16,6 +16,60 @@ const driveSdkWith = (drive: FakeDrive): DriveSdk => ({
 const attachedError = (): Error => new Error('Cannot delete a drive that is currently attached to a sandbox.')
 
 const NO_DELAY = { attempts: 10, delayMs: 0 }
+
+describe('ensureDrive', () => {
+  it('creates a drive with an exact 1 TiB ceiling and the provisioning options', async () => {
+    const drive = { name: 'atlas-drive-x', maxSize: 1_099_511_627_776 }
+    const getOrCreate = mock(async (_params: Parameters<DriveSdk['getOrCreate']>[0]) => drive as never)
+
+    const ensured = await ensureDrive({
+      sdk: { ...driveSdkWith({ name: drive.name, delete: async () => {} }), getOrCreate },
+      credentials: CREDENTIALS,
+      name: drive.name,
+      driveExisted: false,
+    })
+
+    expect<unknown>(ensured).toBe(drive)
+    expect(getOrCreate).toHaveBeenCalledTimes(1)
+    expect(getOrCreate.mock.calls[0]?.[0]).toEqual({
+      ...CREDENTIALS,
+      name: drive.name,
+      region: 'iad1',
+      maxSize: 1_099_511_627_776,
+      signal: expect.any(AbortSignal),
+    })
+    expect(getOrCreate.mock.calls[0]?.[0]?.signal?.aborted).toBe(false)
+  })
+
+  it('omits maxSize when retrieving an existing 50 GiB drive', async () => {
+    const drive = { name: 'atlas-drive-x', maxSize: 50 * 1024 ** 3 }
+    const getOrCreate = mock(async (params: Parameters<DriveSdk['getOrCreate']>[0]) => {
+      if (params?.maxSize !== undefined && params.maxSize !== drive.maxSize) {
+        throw new Error('drive maxSize conflicts with existing configuration')
+      }
+      return drive as never
+    })
+
+    const ensured = await ensureDrive({
+      sdk: { ...driveSdkWith({ name: drive.name, delete: async () => {} }), getOrCreate },
+      credentials: CREDENTIALS,
+      name: drive.name,
+      driveExisted: true,
+    })
+
+    expect<unknown>(ensured).toBe(drive)
+    expect(drive.maxSize).toBe(53_687_091_200)
+    expect(getOrCreate).toHaveBeenCalledTimes(1)
+    expect(getOrCreate.mock.calls[0]?.[0]).toEqual({
+      ...CREDENTIALS,
+      name: drive.name,
+      region: 'iad1',
+      signal: expect.any(AbortSignal),
+    })
+    expect(getOrCreate.mock.calls[0]?.[0]).not.toHaveProperty('maxSize')
+    expect(getOrCreate.mock.calls[0]?.[0]?.signal?.aborted).toBe(false)
+  })
+})
 
 describe('deleteDrive', () => {
   it('retries through the attach-detach lag until the drive deletes', async () => {

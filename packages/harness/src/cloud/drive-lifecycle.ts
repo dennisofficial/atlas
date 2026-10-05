@@ -30,12 +30,13 @@ export async function ensureDrive(args: {
   sdk: DriveSdk
   credentials: VercelCredentials
   name: string
+  driveExisted: boolean
 }): Promise<Drive> {
   return args.sdk.getOrCreate({
     ...args.credentials,
     name: args.name,
     region: SANDBOX_REGION,
-    maxSize: DRIVE_MAX_BYTES,
+    ...(args.driveExisted ? {} : { maxSize: DRIVE_MAX_BYTES }),
     signal: AbortSignal.timeout(60_000),
   })
 }

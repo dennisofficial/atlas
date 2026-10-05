@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 
+import type { DriveSdk } from '../drive-lifecycle'
 import {
   driveNameFor,
   DRIVE_MOUNT_PATH,
@@ -47,6 +48,54 @@ describe('createOrResume', () => {
       ATLAS_WORKSPACE_DIR: DRIVE_WORKSPACE_PATH,
       ATLAS_HOME: DRIVE_HOME_PATH,
     })
+  })
+
+  it('reuses and mounts an existing 50 GiB drive without requesting a new ceiling', async () => {
+    const driveName = driveNameFor({ threadId: 'brn_cloud' })
+    const drive = { name: driveName, maxSize: 50 * 1024 ** 3 }
+    const getOrCreate = mock(async (params: Parameters<DriveSdk['getOrCreate']>[0]) => {
+      if (params?.maxSize !== undefined && params.maxSize !== drive.maxSize) {
+        throw new Error('drive maxSize conflicts with existing configuration')
+      }
+      return drive as never
+    })
+    const list = mock(async (_params: Parameters<DriveSdk['list']>[0]) => (async function* () {
+      yield { name: `${driveName}-other`, maxSize: 1_099_511_627_776 } as never
+      yield drive as never
+    })())
+    const drives = fakeDriveSdk({ getOrCreate, list })
+    let mounted: unknown
+    const { driver } = driverWith({
+      sdk: {
+        getOrCreate: async (params) => {
+          mounted = params?.mounts?.[DRIVE_MOUNT_PATH]
+          return fakeSandbox()
+        },
+      },
+      driveSdk: drives.sdk,
+    })
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+    })
+
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list.mock.calls[0]?.[0]).toEqual({
+      ...CREDENTIALS,
+      namePrefix: driveName,
+      sortBy: 'name',
+      signal: expect.any(AbortSignal),
+    })
+    expect(getOrCreate).toHaveBeenCalledTimes(1)
+    expect(getOrCreate.mock.calls[0]?.[0]?.name).toBe(driveName)
+    expect(getOrCreate.mock.calls[0]?.[0]).not.toHaveProperty('maxSize')
+    expect(mounted).toBe(drive)
+    expect(drive.maxSize).toBe(53_687_091_200)
+    expect(placement.driveName).toBe(driveName)
+    expect(drives.created).toEqual([])
+    expect(drives.deleted).toEqual([])
   })
 
   it('retries the mount through the attach-detach lag until the drive is free', async () => {
