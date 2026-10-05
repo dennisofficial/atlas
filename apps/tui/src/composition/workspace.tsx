@@ -92,7 +92,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   })
   const sidebarNaming = useWorkspaceNaming({ conversation })
 
-  const navigation = useWorkspaceNavigation({ props, conversation, draft, containerMove })
+  const navigation = useWorkspaceNavigation({ props, conversation, draft, tokens, containerMove })
   const { threads, rewind } = navigation
 
   const { whatsNew } = props

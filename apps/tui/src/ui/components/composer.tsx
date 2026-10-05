@@ -3,6 +3,7 @@ import React, { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { composerEdge, EComposerEdge } from '../composer-edge-store'
 import { COMPOSER_NEWLINE_BINDINGS } from '../composer-input-bindings'
+import { liveTokens, snappedRange } from '../composer-tokens'
 import { charRangeOf } from '../highlight-offsets'
 import { mentionStyleId, mentionSyntaxStyle } from '../mention-style'
 import { useAppearance } from '../hooks/use-appearance'
@@ -163,6 +164,14 @@ function DerivedComposer(props: {
       if (!target) return
       event.preventDefault()
       if (target.hasSelection()) {
+        const selection = target.getSelection()
+        if (selection === null) return
+        const snapped = snappedRange({
+          tokens: liveTokens(target),
+          start: selection.start,
+          end: selection.end,
+        })
+        target.setSelection(snapped.start, snapped.end)
         target.deleteSelection()
         return
       }
@@ -170,7 +179,8 @@ function DerivedComposer(props: {
       target.gotoVisualLineHome()
       const start = target.cursorOffset
       if (start < end) {
-        target.setSelection(start, end)
+        const snapped = snappedRange({ tokens: liveTokens(target), start, end })
+        target.setSelection(snapped.start, snapped.end)
         target.deleteSelection()
         return
       }

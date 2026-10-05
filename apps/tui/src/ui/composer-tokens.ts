@@ -1,5 +1,5 @@
 import type { TextareaRenderable } from '@opentui/core'
-import { imageTag, type ImageTagSpan } from '@dltech/atlas-core'
+import { imageTag, pastedTag, type ImageTagSpan } from '@dltech/atlas-core'
 
 import type { ClipboardImage } from './clipboard-image'
 
@@ -19,9 +19,6 @@ export type LiveToken = ImageTagSpan & {
 }
 
 export const PASTE_TOKEN_LINES = 4
-
-export const pastedLabel = (ordinal: number, lineCount: number): string =>
-  `[Pasted text #${ordinal} +${lineCount} lines]`
 
 export const tokenizablePaste = (content: string): boolean =>
   content.split('\n').length > PASTE_TOKEN_LINES
@@ -91,7 +88,7 @@ export function insertPastedToken(args: {
   const ordinal = liveTokens(args.editor).filter((t) => t.slot.kind === 'pasted').length + 1
   const slot: TokenSlot = {
     kind: 'pasted',
-    label: pastedLabel(ordinal, args.content.split('\n').length),
+    label: pastedTag(ordinal, args.content.split('\n').length),
     content: args.content,
   }
   return insertToken({ editor: args.editor, label: slot.label, slot })
@@ -122,6 +119,23 @@ export function substitutePastedTokens(args: {
 export function tokenAtOffset(args: { editor: TextareaRenderable; offset: number }): LiveToken | null {
   const tokens = liveTokens(args.editor)
   return tokens.find((token) => token.start < args.offset && args.offset < token.end) ?? null
+}
+
+/**
+ * A delete range that crosses a token's edge would shrink the extmark into a live half-label, so
+ * the range grows to the token's boundary instead. Touching a boundary is not crossing it.
+ */
+export function snappedRange(args: {
+  tokens: readonly LiveToken[]
+  start: number
+  end: number
+}): { start: number; end: number } {
+  let { start, end } = args
+  for (const token of args.tokens) {
+    if (token.start < start && start < token.end) start = token.start
+    if (token.start < end && end < token.end) end = token.end
+  }
+  return { start, end }
 }
 
 

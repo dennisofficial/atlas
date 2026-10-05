@@ -1,4 +1,4 @@
-import { EForkMode, toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
+import { EForkMode, toCallId, toRunId, toThreadId, type SaidImage } from '@dltech/atlas-core'
 import { EKilledBy, EShellStatus, toShellId } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
@@ -6,6 +6,8 @@ import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
+import { editorIn } from './app-fixture'
+import { liveTokens } from '../../ui/composer-tokens'
 import { App } from '../app'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -127,6 +129,58 @@ describe('the rewind command', () => {
       expect(frame).not.toContain(REWIND_TITLE)
       expect(frame).toContain('now the lexer')
       expect(await app.log.read({ threadId: THREAD })).toHaveLength(2)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('restores a rewound picture as a live token at its own span, not dead text', async () => {
+    const app = appWith()
+    const image: SaidImage = {
+      path: '/tmp/shot.png',
+      mediaType: 'image/png',
+      data: 'aGk=',
+      width: 640,
+      height: 480,
+    }
+    const text = 'look at [Image #1] closely'
+    const seeded = await app.log.append({
+      threadId: THREAD,
+      runId: toRunId('run-seed'),
+      drafts: [
+        { type: 'user-said', text, images: [image] },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+      ],
+    })
+    const setup = await testRender(
+      <App app={app} opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }} />,
+      WIDE,
+    )
+
+    try {
+      await frameShowing({ setup, text: 'look at' })
+      await said(setup, app, '/rewind', REWIND_TITLE)
+
+      setup.mockInput.pressEnter()
+      expect(await frameShowing({ setup, text: 'rewind to here' })).toContain('rewind to here')
+
+      setup.mockInput.pressEnter()
+      await frameWhen({
+        setup,
+        holds: (drawn) => !drawn.includes(REWIND_TITLE),
+        describe: 'the rewind overlay to close',
+      })
+
+      const editor = editorIn(setup.renderer.root)
+      expect(editor?.plainText).toBe(text)
+      const tokens = editor === null ? [] : liveTokens(editor)
+      expect(tokens).toHaveLength(1)
+      expect(tokens[0]).toMatchObject({
+        start: 'look at '.length,
+        end: 'look at [Image #1]'.length,
+        ordinal: 1,
+        slot: { kind: 'image', settled: true },
+      })
     } finally {
       await teardown(setup)
     }

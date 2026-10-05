@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { liveTokens, tokenAtOffset, type LiveToken } from '../ui/composer-tokens'
+import { pastedTagSpans } from '@dltech/atlas-core'
 import { readImageBase64 } from '../ui/clipboard-image'
 import { restoredImages, submissionOf } from '../ui/draft-images'
 import { useDraft } from '../ui/hooks/use-draft'
@@ -122,9 +123,22 @@ export function useWorkspaceComposer(args: {
       draft.clear()
       setSends((count) => count + 1)
 
+      const putBackPastes = live.flatMap((token) => {
+        if (token.slot.kind !== 'pasted') return []
+        const span = pastedTagSpans(token.slot.label)[0]
+        return span === undefined ? [] : [{ ordinal: span.ordinal, content: token.slot.content }]
+      })
+
       const putBack = () => {
-        draft.setValue(said)
-        tokens.restore(readyImages)
+        tokens.restore({ text: said, images: readyImages, pastes: putBackPastes })
+      }
+
+      const keepAttachments = () => {
+        if (readyImages.length === 0) return
+        tokens.restore({
+          text: draft.editor.current?.plainText ?? '',
+          images: readyImages,
+        })
       }
 
       if (agentView.addressing !== null) {
@@ -147,7 +161,7 @@ export function useWorkspaceComposer(args: {
         ...(app.files === undefined ? {} : { loadFile: workspaceFileLoader(app.files) }),
       }).then((dispatched) => {
         if (dispatched.type === EDispatch.Queued) {
-          tokens.restore(readyImages)
+          keepAttachments()
           conversation.handleQueueSettled(dispatched.entry)
           return
         }
@@ -157,7 +171,7 @@ export function useWorkspaceComposer(args: {
           return
         }
         if (dispatched.type === EDispatch.Ran) {
-          tokens.restore(readyImages)
+          keepAttachments()
           if (dispatched.notice !== undefined) notify({ text: dispatched.notice })
           return
         }
@@ -194,8 +208,10 @@ export function useWorkspaceComposer(args: {
         .then((said) => {
           takingBack.current = false
           if (said === null) return
-          draft.setValue(said.text)
-          tokens.restore(restoredImages({ images: said.images, text: said.text }))
+          tokens.restore({
+            text: said.text,
+            images: restoredImages({ images: said.images, text: said.text }),
+          })
         })
         .catch(() => {
           takingBack.current = false
@@ -204,10 +220,12 @@ export function useWorkspaceComposer(args: {
     }
 
     if (taken === null) return false
-    draft.setValue(taken.text)
-    tokens.restore(restoredImages({ images: taken.images, text: taken.text }))
+    tokens.restore({
+      text: taken.text,
+      images: restoredImages({ images: taken.images, text: taken.text }),
+    })
     return true
-  }, [conversation, draft, tokens])
+  }, [conversation, tokens])
 
   return {
     sends,

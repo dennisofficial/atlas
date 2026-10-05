@@ -31,6 +31,7 @@ export const REPLY = 'Atlas derives every prompt from the event log.'
 export type Mounted = {
   app: FakeApp
   draftText: () => string | null
+  editor: () => TextareaRenderable | null
   frame: () => Promise<string>
   nextFrame: () => Promise<string>
   typeText: (text: string) => Promise<void>
@@ -116,6 +117,7 @@ export async function open(args: {
   return {
     app: args.app,
     draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
+    editor: () => editorIn(setup.renderer.root),
     frame: async () => {
       await setup.flush()
       await settle(SETTLE_MS)

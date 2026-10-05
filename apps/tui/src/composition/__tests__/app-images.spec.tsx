@@ -345,6 +345,7 @@ describe('a screenshot pasted into the draft', () => {
       await mounted.done()
     }
   }, 60_000)
+
 })
 
 describe('a block of pasted text', () => {

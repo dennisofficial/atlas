@@ -109,10 +109,12 @@ export function useWorkspaceSession(args: {
 
   useEffect(() => {
     restoreUndone.current = (said) => {
-      draft.setValue(said.text)
-      tokens.restore(restoredImages({ images: said.images, text: said.text }))
+      tokens.restore({
+        text: said.text,
+        images: restoredImages({ images: said.images, text: said.text }),
+      })
     }
-  }, [draft, tokens])
+  }, [tokens])
 
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set<string>())
 

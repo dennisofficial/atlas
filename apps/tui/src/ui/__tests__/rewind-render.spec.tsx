@@ -25,6 +25,7 @@ const NARROW = 30
 
 const said = (args: { seq: number; text: string }): RewindPoint => ({
   kind: ERewindPointKind.Said,
+  images: [],
   ...args,
 })
 

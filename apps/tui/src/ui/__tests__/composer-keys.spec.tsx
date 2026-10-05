@@ -4,6 +4,8 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { Composer } from '../components/composer'
+import { adoptToken } from '../composer-restore'
+import { liveTokens } from '../composer-tokens'
 import { useDraft, type DraftControls } from '../hooks/use-draft'
 import { grammarsReady, teardown } from '../markdown/__tests__/harness'
 import { drawn, HEIGHT } from './transcript-fixture'
@@ -118,6 +120,35 @@ describe('super+backspace in the composer', () => {
       setup.mockInput.pressBackspace()
 
       expect(editor.plainText).toBe(PROSE.slice(0, -1))
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('takes the whole token when the row rub-out starts inside one, never a half-tag', async () => {
+    const text = 'aaaa bbb ccc ddd eee fff ggg hhh [Image #1] tail'
+    const { setup, editor } = await mountDraft(text)
+    try {
+      const tagStart = text.indexOf('[Image #1]')
+      const tagEnd = tagStart + '[Image #1]'.length
+      adoptToken({
+        editor,
+        start: tagStart,
+        end: tagEnd,
+        slot: { kind: 'image', ordinal: 1, settled: true, image: null },
+      })
+
+      const end = editor.cursorOffset
+      editor.gotoVisualLineHome()
+      const rowStart = editor.cursorOffset
+      expect(rowStart).toBeGreaterThan(tagStart)
+      expect(rowStart).toBeLessThan(tagEnd)
+      editor.cursorOffset = end
+
+      setup.mockInput.pressBackspace({ super: true })
+
+      expect(editor.plainText).toBe(text.slice(0, tagStart))
+      expect(liveTokens(editor)).toHaveLength(0)
     } finally {
       await teardown(setup)
     }
