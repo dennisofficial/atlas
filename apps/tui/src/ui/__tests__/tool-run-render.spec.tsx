@@ -486,6 +486,45 @@ describe('a run of tool calls in the transcript', () => {
     )
   })
 
+  it('shows a picture where it was read, never behind a click, and folds on its header', async () => {
+    const shot = call({
+      name: 'read',
+      input: { path: `${CWD}/docs/shot.png` },
+      output: {
+        path: `${CWD}/docs/shot.png`,
+        mediaType: 'image/png',
+        byteLength: 412 * 1024,
+        width: 1024,
+        height: 768,
+        inlined: true,
+      },
+    })
+    const other = call({
+      name: 'read',
+      input: { path: `${CWD}/docs/stripe.jpg` },
+      output: {
+        path: `${CWD}/docs/stripe.jpg`,
+        mediaType: 'image/jpeg',
+        byteLength: 4 * 1024,
+        width: 120,
+        height: 80,
+        inlined: true,
+      },
+    })
+    const run = runOf([shot, other])
+
+    const frame = await frameOf(run)
+    expect(frame).not.toContain('Read 2 files')
+    expect(frame).toContain('Read docs/shot.png')
+    expect(frame).toContain('Read docs/stripe.jpg')
+    expect(frame).toContain('▾ docs/shot.png · 1024×768 · 412 KB')
+    expect(frame).toContain('▾ docs/stripe.jpg · 120×80 · 4 KB')
+
+    const folded = await frameOf(run, new Set([`more:${shot.callId}`]))
+    expect(folded).toContain('▸ docs/shot.png · 1024×768 · 412 KB')
+    expect(folded).toContain('▾ docs/stripe.jpg · 120×80 · 4 KB')
+  })
+
   it('opens an image read onto what the picture is, not onto its bytes', async () => {
     const shot = call({
       name: 'read',

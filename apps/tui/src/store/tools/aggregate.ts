@@ -8,6 +8,7 @@
 
 import { settled, type ToolCall } from '../tool-runs'
 import { classify } from './classify'
+import { imageOf } from './images'
 import { CLAUSES, EDetail, EGather, EToolClass, type Classification } from './kinds'
 
 export type Read = { call: ToolCall; reading: Classification }
@@ -36,8 +37,18 @@ const repeats = (segment: Segment | undefined, reading: Classification): boolean
  * the failed call is its own row in the place it happened: it says its own name, shows its own
  * error, and the sentence beside it goes back to describing work that succeeded.
  */
-const joinsSentence = (reading: Classification): boolean =>
-  reading.klass === EToolClass.Gathered && !reading.failed
+const isImage = (call: ToolCall, reading: Classification): boolean =>
+  reading.detail === EDetail.Image && imageOf(call) !== null
+
+/**
+ * A picture shows itself, so it leaves the sentence.
+ *
+ * Folded into `Read 2 files`, the image sits behind two clicks nobody pays for a picture of
+ * something the agent just looked at. The sentence is for output that reads as text; a picture
+ * joins the diffs and created files that open without being asked.
+ */
+const joinsSentence = (call: ToolCall, reading: Classification): boolean =>
+  reading.klass === EToolClass.Gathered && !reading.failed && !isImage(call, reading)
 
 /**
  * Two passes at one file, one card.
@@ -77,7 +88,7 @@ export function segmentsOf(args: { calls: readonly ToolCall[]; cwd: string }): S
     const read: Read = { call, reading }
     const open = segments.at(-1)
 
-    if (joinsSentence(reading)) {
+    if (joinsSentence(call, reading)) {
       if (open?.kind === 'sentence') {
         segments[segments.length - 1] = { ...open, reads: [...open.reads, read] }
         continue

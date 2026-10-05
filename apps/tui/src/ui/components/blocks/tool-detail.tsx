@@ -298,7 +298,7 @@ export function ToolDetail(props: {
     return <Reason call={props.call} inner={props.inner} expand={expand} />
   }
   if (props.detail === EDetail.Image) {
-    return <ToolImage call={props.call} inner={props.inner} cwd={props.cwd} />
+    return <ToolImage call={props.call} inner={props.inner} cwd={props.cwd} expand={expand} />
   }
   if (props.detail === EDetail.File) {
     return <FileRead call={props.call} inner={props.inner} cwd={props.cwd} expand={expand} />
