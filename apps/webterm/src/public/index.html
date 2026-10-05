@@ -18,7 +18,7 @@
          viewport and overflow. */
       #frame {
         height: 100%;
-        padding: 10px 12px;
+        padding: 10px;
         box-sizing: border-box;
       }
       #term {
@@ -107,6 +107,19 @@
         new ResizeObserver(function () {
           fit.fit();
         }).observe(document.getElementById('frame'));
+
+        // The initial fit runs before the external CSS and the JetBrains Mono
+        // webfont finish loading, so it measures against unsettled geometry and
+        // settles on too many rows — the bottom rows overflow until a manual
+        // resize refits. Refit once those settle.
+        window.addEventListener('load', function () {
+          fit.fit();
+        });
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(function () {
+            fit.fit();
+          });
+        }
 
         setInterval(function () {
           if (ws.readyState === WebSocket.OPEN) {
