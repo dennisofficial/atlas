@@ -83,4 +83,9 @@ export class MirroredEventLog extends EventLogPort {
   async refresh(args: { threadId: ThreadId }): Promise<void> {
     await this.local.refresh(args)
   }
+
+  /** The park flow awaits this before it writes the parked record, so the resume renders from a mirror the checkpoint has provably reached. */
+  converge(): Promise<void> {
+    return this.syncer.converge()
+  }
 }

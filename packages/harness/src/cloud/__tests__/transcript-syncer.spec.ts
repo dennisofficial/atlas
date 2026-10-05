@@ -124,14 +124,13 @@ const rig = async (args: {
     writer: args.writer ?? mirrorWriter({ home: () => fixture.home }),
     threadId,
   })
-  void syncer
 
   const localTexts = async (): Promise<string[]> =>
     (await fixture.log.readOwn({ threadId })).map((event) =>
       event.type === 'user-said' ? event.text : event.type,
     )
 
-  return { fixture, channel, remote, threadId, localTexts }
+  return { fixture, channel, remote, threadId, localTexts, syncer }
 }
 
 describe('TranscriptSyncer', () => {
@@ -185,5 +184,18 @@ describe('TranscriptSyncer', () => {
     })
 
     expect(writes).toEqual([])
+  })
+
+  it('converge resolves once a queued verify has landed its rewrite on disk', async () => {
+    const { fixture, channel, remote, threadId, localTexts, syncer } = await rig({
+      localTexts: ['one', 'two'],
+    })
+    for (const event of await fixture.log.readOwn({ threadId })) remote.push(event)
+    remote.push(remoteEvent({ threadId, seq: 3, text: 'three' }))
+
+    channel.receive({ kind: EServeFrame.Signal, seq: 3, signal: { type: 'events-appended' } })
+    await syncer.converge()
+
+    expect(await localTexts()).toEqual(['one', 'two', 'three'])
   })
 })

@@ -33,6 +33,7 @@ export class TranscriptSyncer {
   }
   private running = false
   private pending: 'tail' | 'verify' | null = null
+  private readonly settled = new Set<() => void>()
 
   constructor(args: {
     channel: SyncChannel
@@ -53,6 +54,19 @@ export class TranscriptSyncer {
     this.enqueue({ mode: 'tail' })
   }
 
+  /**
+   * The park checkpoint waits on this: it resolves once every sync queued so far has landed on
+   * disk, so the parked record vouches for what the local file provably holds rather than what
+   * the last read happened to answer with.
+   */
+  converge(): Promise<void> {
+    this.enqueue({ mode: 'verify' })
+    if (!this.running && this.pending === null) return Promise.resolve()
+    return new Promise((resolve) => {
+      this.settled.add(resolve)
+    })
+  }
+
   private readonly handleChannelSignal: ChannelListener = (signal) => {
     if (signal.type === 'events-appended') this.enqueue({ mode: 'tail' })
   }
@@ -69,18 +83,25 @@ export class TranscriptSyncer {
   }
 
   private async drain(): Promise<void> {
-    for (;;) {
-      const next = this.pending
-      if (next === null) {
-        this.running = false
-        return
+    try {
+      for (;;) {
+        const next = this.pending
+        if (next === null) return
+        this.pending = null
+        if (next === 'verify') {
+          await this.verify()
+          continue
+        }
+        await this.tailSync()
       }
-      this.pending = null
-      if (next === 'verify') {
-        await this.verify()
-        continue
+    } finally {
+      // A sync can die with the socket (park kills the wire mid-flight); whoever parked on
+      // converge still needs its answer — the record falls back to the safety-net digest read-back.
+      this.running = false
+      for (const resolve of [...this.settled]) {
+        this.settled.delete(resolve)
+        resolve()
       }
-      await this.tailSync()
     }
   }
 

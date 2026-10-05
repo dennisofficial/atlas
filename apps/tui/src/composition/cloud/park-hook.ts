@@ -16,6 +16,8 @@ export function parkHookFor(args: {
   channel: Pick<CloudChannel, 'threadId'>
   threadId?: ThreadId | undefined
   files?: TranscriptFiles | undefined
+  /** The binding's mirrored log converging one last time; absent, the local file is all there is. */
+  converge?: (() => Promise<void>) | undefined
 }): (checkpoint: RuntimeCheckpoint) => void {
   const readiness = cloudReadinessOf(args.channel)
   const threadId = args.threadId ?? args.channel.threadId
@@ -27,6 +29,7 @@ export function parkHookFor(args: {
     waitUntilApplied: (identity) => readiness.waitUntilApplied(identity),
     refreshLog: () => args.app.log.refresh({ threadId }),
     readLog: () => args.app.log.read({ threadId }),
+    ...(args.converge === undefined ? {} : { converge: args.converge }),
   })
   return (checkpoint) => {
     void parking.persist(checkpoint)
