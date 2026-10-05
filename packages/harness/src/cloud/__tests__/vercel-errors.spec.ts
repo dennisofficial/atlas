@@ -5,6 +5,7 @@ import { APIError } from '@vercel/sandbox'
 import {
   isDriveAttachedConflict,
   isDriveDeleteConflict,
+  isImageNotFound,
   isImageOptimizeFailure,
   isImageOptimizeLag,
   isSandboxMissing,
@@ -100,6 +101,14 @@ describe('isSandboxMissing', () => {
     ).toBe(true)
   })
 
+  it('leaves an image not found to its own classification', () => {
+    const failure = new APIError(new Response(null, { status: 404 }), {
+      json: { error: { message: 'Image not found.' } },
+    })
+
+    expect(isSandboxMissing(failure)).toBe(false)
+  })
+
   it('passes over unrelated failures and a drive carrying the same phrasing', () => {
     const serverError = new APIError(new Response(null, { status: 500 }), {
       json: { error: { message: 'something else broke' } },
@@ -111,6 +120,29 @@ describe('isSandboxMissing', () => {
     expect(isSandboxMissing(serverError)).toBe(false)
     expect(isSandboxMissing(driveFailure)).toBe(false)
     expect(isSandboxMissing(new Error('the quota is exhausted'))).toBe(false)
+  })
+})
+
+describe('isImageNotFound', () => {
+  it('classifies the create-side 404 the sandbox image carries', () => {
+    const failure = new APIError(new Response(null, { status: 404 }), {
+      json: { error: { message: 'Image not found.' } },
+    })
+
+    expect(isImageNotFound(failure)).toBe(true)
+  })
+
+  it('passes over a missing sandbox and unrelated failures', () => {
+    const sandboxMissing = new APIError(new Response(null, { status: 404 }), {
+      json: { error: { message: "Sandbox 'atlas-thread-x' not found for this project." } },
+    })
+    const serverError = new APIError(new Response(null, { status: 500 }), {
+      json: { error: { message: 'Image not found.' } },
+    })
+
+    expect(isImageNotFound(sandboxMissing)).toBe(false)
+    expect(isImageNotFound(serverError)).toBe(false)
+    expect(isImageNotFound(new Error('the quota is exhausted'))).toBe(false)
   })
 })
 

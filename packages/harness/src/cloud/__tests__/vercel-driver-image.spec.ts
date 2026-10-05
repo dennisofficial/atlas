@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { APIError } from '@vercel/sandbox'
+
 import { driveNameFor } from '../drive-names'
 import { VercelDriver } from '../vercel-driver'
 import { EVercelFailure, VercelFailure } from '../vercel-errors'
@@ -81,6 +83,39 @@ describe('createOrResume', () => {
     expect((failure as Error).message).toContain('fresh digest')
     expect(calls).toBe(1)
     expect(drives.deleted).toEqual([driveNameFor({ threadId: 'brn_cloud' })])
+  })
+
+  it('fails fast on an unpublished image, naming the publish as the recovery', async () => {
+    let calls = 0
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      imageOptimizeRetry: { attempts: 5, delayMs: 0 },
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+        getOrCreate: async () => {
+          calls += 1
+          throw new APIError(new Response(null, { status: 404 }), {
+            json: { error: { message: 'Image not found.' } },
+          })
+        },
+      },
+    })
+
+    const failure = await driver
+      .createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+      .catch((caught: unknown) => caught)
+
+    expect(calls).toBe(1)
+    expect(failure).toBeInstanceOf(VercelFailure)
+    expect((failure as VercelFailure).kind).toBe(EVercelFailure.ImageNotFound)
+    expect((failure as Error).message).toContain(`atlas-sandbox:${PINNED_VERSION}`)
   })
 
   it('rolls back the sandbox and the drive a failed wake created', async () => {
