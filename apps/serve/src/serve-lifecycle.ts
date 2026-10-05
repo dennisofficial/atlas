@@ -68,7 +68,7 @@ export function createServeLifecycle(args: {
       args.haltIdle()
       args.log({ event: EServeEvent.IdleStop, threadId: args.threadId, work })
       await args.app.endProcesses?.({ killedBy: EKilledBy.IdlePark })
-      await args.app.log
+      const parked = await args.app.log
         .append({
           threadId: args.threadId,
           runId: args.app.ids.nextRunId(),
@@ -85,6 +85,10 @@ export function createServeLifecycle(args: {
           ],
         })
         .catch(() => undefined)
+      // app.log is the raw EventLogPort (no withEventsAppendedPublishing wrapper — that wrapper
+      // exists only on the operator-input and shell registrations), so the append emits nothing.
+      // The parked marker is the transcript tail the dim rule checks, so publish it explicitly.
+      if (parked !== undefined) args.app.channel.publisherFor({ threadId: args.threadId }).eventsAppended()
       if (args.stopSandbox === undefined) {
         args.log({ event: EServeEvent.ParkUnfinalized, threadId: args.threadId, reason: 'provider-stop-unavailable' })
         await close('legacy-idle-exit')

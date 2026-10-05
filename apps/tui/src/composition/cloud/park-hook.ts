@@ -29,6 +29,7 @@ export function parkHookFor(args: {
     waitUntilApplied: (identity) => readiness.waitUntilApplied(identity),
     refreshLog: () => args.app.log.refresh({ threadId }),
     readLog: () => args.app.log.read({ threadId }),
+    seal: (snapshot) => readiness.registerApplied(snapshot.identity, snapshot.appliedAt, snapshot.events),
     ...(args.converge === undefined ? {} : { converge: args.converge }),
   })
   return (checkpoint) => {
