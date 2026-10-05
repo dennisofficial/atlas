@@ -41,6 +41,7 @@ export function useRemoteTurnState(args: {
   const runningRef = useRef(initial)
   const awaitingLifecycle = useRef(initial)
   const [running, setRunning] = useState(initial)
+  const [settlingNow, setSettlingNow] = useState(false)
   const interruptPending = useRef(false)
   const settleListeners = useRef(new Set<() => void>())
   const clock = useRef(readClock)
@@ -94,11 +95,13 @@ export function useRemoteTurnState(args: {
       handleRunning(false)
       awaitingLifecycle.current = false
       settling.current += 1
+      setSettlingNow(true)
       void settled
         .current()
         .catch(() => undefined)
         .finally(() => {
           settling.current -= 1
+          if (settling.current === 0) setSettlingNow(false)
           if (runningRef.current || awaitingLifecycle.current || settling.current > 0) return
           for (const listener of settleListeners.current) listener()
           settleListeners.current.clear()
@@ -167,5 +170,5 @@ export function useRemoteTurnState(args: {
     return new Promise((resolve) => settleListeners.current.add(resolve))
   }, [])
 
-  return { running, runningRef, interruptRequested, interrupt, pause, whenSettled }
+  return { running, runningRef, settling: settlingNow, interruptRequested, interrupt, pause, whenSettled }
 }
