@@ -6,11 +6,22 @@ import type { DirectoryEntry } from '@dltech/atlas-core'
 import { safeRelativeSegment } from './safe-relative-path'
 
 export const MAX_CONTEXT_ENTRIES = 500
-export const MAX_CONTEXT_FILE_BYTES = 2 * 1024 * 1024
+export const MAX_CONTEXT_FILE_BYTES = 32 * 1024 * 1024
 
 export type ContextFileContent =
   | { type: 'text'; content: string; truncated: boolean }
+  | { type: 'image'; data: string; mediaType: ImageMediaType }
   | { type: 'refused'; reason: string }
+
+export type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+
+const sniffImage = (read: Buffer): ImageMediaType | null => {
+  if (read.length >= 8 && read.readUInt32BE(0) === 0x89504e47) return 'image/png'
+  if (read.length >= 3 && read[0] === 0xff && read[1] === 0xd8 && read[2] === 0xff) return 'image/jpeg'
+  if (read.length >= 6 && read.toString('ascii', 0, 4) === 'GIF8') return 'image/gif'
+  if (read.length >= 12 && read.toString('ascii', 0, 4) === 'RIFF' && read.toString('ascii', 8, 12) === 'WEBP') return 'image/webp'
+  return null
+}
 
 export class ContextBrowser {
   private readonly root: string
@@ -37,10 +48,12 @@ export class ContextBrowser {
     if (found === null) return { type: 'refused', reason: 'the file does not exist' }
     if (!found.isFile()) return { type: 'refused', reason: 'the path is not a file' }
     if (found.size > MAX_CONTEXT_FILE_BYTES) {
-      return { type: 'refused', reason: 'the file exceeds the viewer’s 2 MiB limit' }
+      return { type: 'refused', reason: 'the file exceeds the viewer’s 32 MiB limit' }
     }
     const read = await readFile(full).catch(() => null)
     if (read === null) return { type: 'refused', reason: 'the file could not be read' }
+    const image = sniffImage(read)
+    if (image !== null) return { type: 'image', data: read.toString('base64'), mediaType: image }
     if (read.includes(0)) return { type: 'refused', reason: 'the file is binary' }
     return { type: 'text', content: read.toString('utf8'), truncated: false }
   }

@@ -38,6 +38,27 @@ describe('context files over the session socket', () => {
     } finally { client.close() }
   })
 
+  it('round-trips an image as base64 with its media type', async () => {
+    const root = contextDirectory({ sessionDir: sessionDirectory({ home: atlasDirectory(), sessionId: threadId }) })
+    await mkdir(root, { recursive: true })
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
+    await writeFile(join(root, 'shot.png'), png)
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+    try {
+      client.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION })
+      await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+      client.send(request({ op: EClientRequest.ReadContextFile, params: { path: 'shot.png' }, id: 'img' }))
+      const read = await client.waitFor((frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'img')
+      if (read.kind !== EServeFrame.Reply) throw new Error('missing reply')
+      expect(readContextFileReplySchema.parse(read.data).file).toEqual({
+        type: 'image',
+        data: png.toString('base64'),
+        mediaType: 'image/png',
+      })
+    } finally { client.close() }
+  })
+
   it('admits both context reads while the session is parking', () => {
     for (const op of [EClientRequest.ListContextFiles, EClientRequest.ReadContextFile]) {
       expect(isReadOnlyFrame(request({ op, params: {}, id: 'read' }))).toBe(true)

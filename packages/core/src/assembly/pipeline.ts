@@ -3,7 +3,7 @@ import { INFERENCE_PROVIDER_ID, requestCacheKey } from './annotators/request-cac
 import type { Annotator, Rule } from './rule'
 import { agentEndingsBlock } from './rules/agent-endings-block'
 import { compactedHistory } from './rules/compacted-history'
-import { imagesInContext } from './rules/images'
+import { corruptImagesDropped, imagesInContext } from './rules/images'
 import { messagesFromEvents } from './rules/messages-from-events'
 import { runningAgentsBlock, type RunningAgentsSource } from './rules/running-agents-block'
 import { runningServicesBlock, type RunningServicesSource } from './rules/running-services-block'
@@ -36,6 +36,7 @@ export function defaultRules({
     messagesFromEvents(),
     agentEndingsBlock(),
     compactedHistory(),
+    corruptImagesDropped(),
     imagesInContext(),
     worktreeBlock({ launchDirectory, repoRoot }),
     ...(runningShells === undefined ? [] : [runningShellsBlock({ runningShells })]),

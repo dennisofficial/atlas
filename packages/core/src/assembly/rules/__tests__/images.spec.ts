@@ -5,7 +5,7 @@ import { toEventId } from '../../../events/ids'
 import type { ImagePart } from '../../../message/parts'
 import { estimateTokens } from '../../tokens'
 import { contextFor, log } from '../../__tests__/log-fixture'
-import { MAX_IMAGE_BLOCKS, imagesInContext } from '../images'
+import { MAX_IMAGE_BLOCKS, corruptImagesDropped, imagesInContext } from '../images'
 
 const png = ({ width, height }: { width: number; height: number }): string => {
   const bytes = new Uint8Array(24)
@@ -207,5 +207,62 @@ describe('imagesInContext', () => {
     const output = imagesInContext({ limit: 0 })(assembledOf([unreadable]), ctx)
 
     expect(textAt({ assembled: output, index: 0 })).toBe('[image dropped from context: image/png]')
+  })
+})
+
+describe('corruptImagesDropped', () => {
+  const corruptJpeg = (): string => {
+    const bytes = new Uint8Array([
+      0xff, 0xd8,
+      0xff, 0xdb, 0x00, 0x83,
+      ...Array.from({ length: 129 }, () => 0x06),
+      0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x50, 0x00, 0x78, 0x03,
+    ])
+    return btoa(String.fromCharCode(...bytes))
+  }
+
+  const readCorrupt = (): AssembledMessage => ({
+    message: {
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'call-corrupt',
+          toolName: 'read',
+          output: {
+            type: 'content',
+            value: [
+              { type: 'text', text: 'shot.jpg' },
+              { type: 'image', data: corruptJpeg(), mediaType: 'image/jpeg', source: 'shot.jpg' },
+            ],
+          },
+        },
+      ],
+    },
+    origin: origin(1),
+  })
+
+  it('replaces a corrupt image part with a description, so the next turn stops re-sending it', () => {
+    const output = corruptImagesDropped()(assembledOf([readCorrupt()]), ctx)
+
+    const parts = partsOf(output)
+    expect(parts.filter((part) => part === 'image')).toEqual([])
+    expect(parts.some((part) => part.startsWith('[image dropped from context: shot.jpg'))).toBe(true)
+  })
+
+  it('leaves a valid image part alone', () => {
+    const input = assembledOf([shownByUser(0)])
+
+    const output = corruptImagesDropped()(input, ctx)
+
+    expect(output).toBe(input)
+  })
+
+  it('leaves a thread without images untouched', () => {
+    const input = assembledOf([
+      { message: { role: 'user', content: [{ type: 'text', text: 'hello' }] }, origin: origin(1) },
+    ])
+
+    expect(corruptImagesDropped()(input, ctx)).toBe(input)
   })
 })

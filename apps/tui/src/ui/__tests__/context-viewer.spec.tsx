@@ -4,10 +4,27 @@ import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { teardown } from '../markdown/__tests__/harness'
+import { encodePng } from '../images/__tests__/png-fixture'
 import { ContextViewer } from '../components/context-viewer'
 
 const WIDTH = 60
 const HEIGHT = 14
+
+const PNG = ((): string => {
+  const rgba = new Uint8Array(8 * 8 * 4)
+  for (let pixel = 0; pixel < 8 * 8; pixel += 1) rgba.set([220, 20, 60, 255], pixel * 4)
+  return Buffer.from(encodePng({ width: 8, height: 8, colourType: 6, bytesPerPixel: 4, samples: rgba })).toString('base64')
+})()
+
+/** Any of the quadrant glyphs the block sampler paints with. */
+const painted = (frame: string): boolean => /[▀-▟]/.test(frame)
+
+const settle = async (flush: () => Promise<void>): Promise<void> => {
+  for (let pass = 0; pass < 10; pass += 1) {
+    await Bun.sleep(3)
+    await flush()
+  }
+}
 
 const mount = (node: React.ReactNode) =>
   testRender(
@@ -155,6 +172,30 @@ describe('the context viewer', () => {
       await act(async () => { held.box?.scrollBy({ x: 200, y: 0 }) })
       await setup.flush()
       expect(setup.captureCharFrame()).toContain(tail.trim())
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('declines an image where the terminal cannot paint one, rather than corrupting the cells around it', async () => {
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="shot.png"
+        loading={false}
+        content={{ type: 'image', data: PNG, mediaType: 'image/png' }}
+        onDismiss={() => undefined}
+        attachScroll={() => undefined}
+      />,
+    )
+    try {
+      await setup.flush()
+      await settle(setup.flush)
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('shot.png')
+      expect(frame).toContain('cannot display')
+      expect(painted(frame)).toBe(false)
+      expect(frame).not.toContain('binary')
     } finally {
       await teardown(setup)
     }

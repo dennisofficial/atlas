@@ -20,7 +20,12 @@ const PTS_POLL_ATTEMPTS = 150;
 
 function scriptCommand({ inner }: { inner: string }): string[] {
   if (process.platform === 'darwin') {
-    return ['script', '-q', '/dev/null', 'sh', '-c', inner];
+    // macOS `script` tcgetattr()s fd 0 at boot and dies with "Operation not supported on socket"
+    // when the spawn handed it a socketpair (Bun's stdin: 'pipe' is one). Redirecting fd 0 from
+    // /dev/null satisfies the check; the child reads its own pty slave, never fd 0, so keystrokes
+    // are unaffected. The pipe we still pass stays writable for `write()` callers.
+    const quoted = inner.replaceAll("'", "'\\''");
+    return ['sh', '-c', `exec script -q /dev/null sh -c '${quoted}' < /dev/null`];
   }
   return ['script', '-qec', inner, '/dev/null'];
 }
