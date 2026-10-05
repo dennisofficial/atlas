@@ -99,8 +99,18 @@ export function useTurnDriver(args: {
   }, [drive, frozen, turnInFlight, working])
   const handleResume = useCallback(() => {
     if (working || turnInFlight() || frozen) return
-    void drive([], { resume: true })
-  }, [drive, frozen, turnInFlight, working])
+    void (async () => {
+      // The hint is offered from the view's events, which can lag the sandbox's final
+      // assistant-said by one settle refresh; re-read the authoritative log at press time so a
+      // completed thread never burns a no-op resume turn.
+      const fresh = await app.log.read({ threadId }).catch(() => null)
+      if (workingRef.current || turnInFlight()) return
+      if (fresh !== null && !isResumable(fresh)) return
+      await drive([], { resume: true })
+    })().catch((error: unknown) => {
+      setFailure(messageOf(error))
+    })
+  }, [app.log, drive, frozen, setFailure, threadId, turnInFlight, working, workingRef])
 
   const resumeFresh = useCallback(
     (confirmed: boolean) => {
@@ -269,7 +279,9 @@ export function useTurnDriver(args: {
     handleResume,
     handleResumeFresh,
     handleRewindTo,
-    isResumable: isResumable(events),
+    // A settle refresh lands the sandbox's final assistant-said; the view's events can lag it,
+    // so the offer must wait out the settle window or a completed turn flashes a phantom resume.
+    isResumable: !remote.settling && isResumable(events),
     settle,
     whenSettled,
   }

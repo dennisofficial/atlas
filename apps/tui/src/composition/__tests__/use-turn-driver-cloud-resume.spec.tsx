@@ -48,6 +48,28 @@ describe('cloud continuation ownership', () => {
     }
   })
 
+  it('does not drive a resume when the refresh shows the log was already answered', async () => {
+    const mounted = await mountCloudResume({ holdTurn: true })
+    try {
+      // The hint was offered from a stale tail (interrupted assistant-said). Behind it the
+      // sandbox already completed the turn; a refresh before driving must see that and stand
+      // down instead of firing a no-op resume turn.
+      mounted.app.log.read = async () => [
+        ...mounted.original.filter((event) => event.type !== 'assistant-said'),
+        {
+          ...mounted.original.find((event) => event.type === 'assistant-said')!,
+          interrupted: false,
+        },
+      ]
+      await mounted.perform(() => mounted.driver().handleResume())
+
+      expect(mounted.runs).toEqual([])
+      expect(mounted.probe.failure).toBeNull()
+    } finally {
+      await mounted.done()
+    }
+  })
+
   it('keeps Retry a bare run without attempting to rewrite history', async () => {
     const mounted = await mountCloudResume()
     try {

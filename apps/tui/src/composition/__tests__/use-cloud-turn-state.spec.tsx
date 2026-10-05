@@ -141,6 +141,34 @@ describe('a turn the sandbox starts by itself, with this TUI only watching', () 
     }
   }, 30_000)
 
+  it('never flashes a resume hint across the settle of a turn that completed on an answered log', async () => {
+    const { app, channel, opened } = await arrange(ANSWERED)
+    const screen = await mounted({ app, opened })
+
+    try {
+      channel.ready(false)
+      channel.signal({ type: 'turn-working', working: true })
+      await screen.until((frame) => frame.includes(WORKING), 'the working line')
+
+      // Sample every frame across the settle: the phantom was a one-commit window where working
+      // had cleared but the settle refresh had not yet landed the final assistant-said, so the
+      // stale tail read as resumable. The hint must stay hidden for the whole transition.
+      channel.end(ETurnStatus.Completed)
+      const hints: string[] = []
+      const deadline = Date.now() + 2_000
+      while (Date.now() < deadline) {
+        const frame = await screen.quiet(20)
+        if (frame.includes(RESUME_HINT)) hints.push(frame)
+        if (!frame.includes(WORKING) && screen.conversation().handleResume === null) break
+      }
+
+      expect(hints).toEqual([])
+      expect(screen.conversation().handleResume).toBeNull()
+    } finally {
+      await screen.done()
+    }
+  }, 30_000)
+
   it('settles on an interrupted ending and offers resume for the unfinished log', async () => {
     const { app, channel, opened } = await arrange(UNANSWERED)
     const screen = await mounted({ app, opened })
