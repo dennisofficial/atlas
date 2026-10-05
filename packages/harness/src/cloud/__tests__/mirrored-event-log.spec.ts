@@ -3,10 +3,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { toEventId, toRunId, type Event, type EventDraft, type EventEnvelope, type ThreadId } from '@dltech/atlas-core'
 import { EServeFrame } from '@dltech/atlas-wire'
 
+import { EClientRequest } from '../channel-wire'
 import { MirroredEventLog } from '../mirrored-event-log'
-import { mirrorWriter } from '../mirror-writer'
+import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
+import type { RemoteDeltaChannel } from '../remote-delta-channel'
+import type { MirrorLocalLog } from '../transcript-syncer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
-import { readied, THREAD } from './remote-channel-fixture'
+import { OTHER_THREAD, readied, THREAD } from './remote-channel-fixture'
 
 const fixtures: StoreFixture[] = []
 
@@ -128,5 +131,89 @@ describe('MirroredEventLog', () => {
     const events = await log.readOwn({ threadId })
     expect(events.map((event) => event.seq)).toEqual([1, 2])
     expect(events[1]).toMatchObject({ id: 'remote-evt-2', type: 'user-said' })
+  })
+})
+
+describe('a read for a thread the mirror does not own', () => {
+  const served = (args: { events: readonly Event[] }) => {
+    const localCalls: string[] = []
+    const local: MirrorLocalLog = {
+      read: async () => {
+        localCalls.push('read')
+        return []
+      },
+      readOwn: async () => {
+        localCalls.push('readOwn')
+        return []
+      },
+      head: async () => {
+        localCalls.push('head')
+        return 0
+      },
+      refresh: async () => {
+        localCalls.push('refresh')
+      },
+    }
+    const requests: { op: EClientRequest; params: unknown }[] = []
+    const request = async (requestArgs: { op: unknown; params: unknown }): Promise<unknown> => {
+      requests.push(requestArgs as { op: EClientRequest; params: unknown })
+      return { events: args.events.map(wireOf) }
+    }
+    const channel = { ...readied({ lastEventSeq: 0 }).channel, request }
+    const writer: MirrorWriter = {
+      appendDelta: async () => undefined,
+      rewriteFrom: async () => undefined,
+    }
+    const log = new MirroredEventLog({ channel, localLog: local, writer, threadId: THREAD })
+    return { localCalls, requests, log }
+  }
+
+  const childEvents = () => [remoteEvent({ threadId: OTHER_THREAD, seq: 1, text: 'from the child' })]
+
+  it('readOwn issues ReadEvents with the own flag and returns the served events', async () => {
+    const { localCalls, requests, log } = served({ events: childEvents() })
+
+    const events = await log.readOwn({ threadId: OTHER_THREAD })
+
+    expect(requests).toEqual([
+      { op: EClientRequest.ReadEvents, params: { threadId: OTHER_THREAD, own: true } },
+    ])
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ id: 'remote-evt-1', type: 'user-said', text: 'from the child' })
+    expect(localCalls).toEqual([])
+  })
+
+  it('read issues ReadEvents without the own flag', async () => {
+    const { localCalls, requests, log } = served({ events: childEvents() })
+
+    const events = await log.read({ threadId: OTHER_THREAD, fromSeq: 2 })
+
+    expect(requests).toEqual([
+      { op: EClientRequest.ReadEvents, params: { threadId: OTHER_THREAD, fromSeq: 2 } },
+    ])
+    expect(events).toHaveLength(1)
+    expect(localCalls).toEqual([])
+  })
+
+  it('head is answered over the channel', async () => {
+    const { localCalls, requests, log } = served({ events: childEvents() })
+
+    expect(await log.head({ threadId: OTHER_THREAD })).toBe(1)
+    expect(requests).toEqual([
+      { op: EClientRequest.ReadEvents, params: { threadId: OTHER_THREAD } },
+    ])
+    expect(localCalls).toEqual([])
+  })
+
+  it('a root-thread readOwn still reads local, and the kick it fires stays root-scoped', async () => {
+    const { localCalls, requests, log } = served({ events: [] })
+
+    await log.readOwn({ threadId: THREAD })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(localCalls).toEqual(['readOwn', 'head'])
+    expect(requests).toEqual([
+      { op: EClientRequest.ReadEvents, params: { threadId: THREAD, fromSeq: 0 } },
+    ])
   })
 })

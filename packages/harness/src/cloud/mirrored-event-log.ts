@@ -13,7 +13,9 @@ import { TranscriptSyncer, type MirrorLocalLog } from './transcript-syncer'
 
 export class MirroredEventLog extends EventLogPort {
   private readonly local: MirrorLocalLog
+  private readonly remote: RemoteEventLog
   private readonly syncer: TranscriptSyncer
+  private readonly rootThreadId: ThreadId
 
   constructor(args: {
     channel: Pick<
@@ -27,14 +29,16 @@ export class MirroredEventLog extends EventLogPort {
   }) {
     super()
     this.local = args.localLog
+    this.remote = new RemoteEventLog({ channel: args.channel })
     this.syncer = new TranscriptSyncer({
       channel: args.channel,
-      remote: new RemoteEventLog({ channel: args.channel }),
+      remote: this.remote,
       local: args.localLog,
       writer: args.writer,
       threadId: args.threadId,
       ...(args.onSyncFailed === undefined ? {} : { onSyncFailed: args.onSyncFailed }),
     })
+    this.rootThreadId = args.threadId
   }
 
   append(_args: {
@@ -64,6 +68,7 @@ export class MirroredEventLog extends EventLogPort {
     fromSeq?: number | undefined
     upTo?: number | undefined
   }): Promise<Event[]> {
+    if (args.threadId !== this.rootThreadId) return this.remote.read(args)
     const events = await this.local.read(args)
     this.syncer.kick()
     return events
@@ -74,12 +79,14 @@ export class MirroredEventLog extends EventLogPort {
     fromSeq?: number | undefined
     upTo?: number | undefined
   }): Promise<Event[]> {
+    if (args.threadId !== this.rootThreadId) return this.remote.readOwn(args)
     const events = await this.local.readOwn(args)
     this.syncer.kick()
     return events
   }
 
   async head(args: { threadId: ThreadId }): Promise<number> {
+    if (args.threadId !== this.rootThreadId) return this.remote.head(args)
     const head = await this.local.head(args)
     this.syncer.kick()
     return head
