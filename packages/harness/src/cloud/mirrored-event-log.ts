@@ -20,6 +20,7 @@ export class MirroredEventLog extends EventLogPort {
     localLog: MirrorLocalLog
     writer: MirrorWriter
     threadId: ThreadId
+    onSyncFailed?: ((failure: unknown) => void) | undefined
   }) {
     super()
     this.local = args.localLog
@@ -29,6 +30,7 @@ export class MirroredEventLog extends EventLogPort {
       local: args.localLog,
       writer: args.writer,
       threadId: args.threadId,
+      ...(args.onSyncFailed === undefined ? {} : { onSyncFailed: args.onSyncFailed }),
     })
   }
 

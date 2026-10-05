@@ -128,6 +128,12 @@ export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
           tone: ENoticeTone.Warn,
         })
       },
+      onMirrorFailed: () => {
+        noticePortBinding().notify({
+          text: 'the local transcript mirror fell out of sync — the conversation renders from the sandbox until the next sync lands',
+          tone: ENoticeTone.Warn,
+        })
+      },
       environment: () => ({
         ...cloudEnvironmentOf(app.settings.snapshot().resolution),
         ...telemetryEnvironmentOf(),

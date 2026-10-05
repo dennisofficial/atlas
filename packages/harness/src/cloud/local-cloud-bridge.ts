@@ -59,6 +59,11 @@ export function createLocalCloudBridge(args: {
   registration?: SandboxRegistration | undefined
   sendRegistration?: RegistrationSender | undefined
   onRegistrationFailed?: ((failure: unknown) => void) | undefined
+  /**
+   * A background mirror sync failed — the wire died mid-read, or the writer's disk refused it.
+   * Best-effort by design: the next signal retries, so this is a heads-up, never a thrown error.
+   */
+  onMirrorFailed?: ((failure: unknown) => void) | undefined
   onPortableOmitted?: ((omitted: PortableOmissions) => void) | undefined
   environment?: (() => Record<string, string>) | undefined
   cloudUrl?: (() => string) | undefined
@@ -336,6 +341,7 @@ export function createLocalCloudBridge(args: {
                   localLog,
                   writer: mirrorWriter({ home: atlasDirectory }),
                   threadId,
+                  ...(args.onMirrorFailed === undefined ? {} : { onSyncFailed: args.onMirrorFailed }),
                 }),
           threads: new RemoteThreadStore({ channel }),
           ledger: new RemoteTurnLedger({ channel }),
