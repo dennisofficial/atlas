@@ -69,7 +69,8 @@ export function useWorkspaceSession(args: {
   const connectionState = cloudHealth?.connection?.state
   const reconnectingSince = useSince(
     connectionState === EChannelConnection.Connecting ||
-      connectionState === EChannelConnection.Reconnecting,
+      connectionState === EChannelConnection.Reconnecting ||
+      connectionState === EChannelConnection.Reattaching,
   )
 
   const interruptRefusal = useCallback((): string | null => {

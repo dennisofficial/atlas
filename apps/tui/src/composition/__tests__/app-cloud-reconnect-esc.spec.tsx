@@ -111,4 +111,33 @@ describe('sending a message to a parked sandbox', () => {
       await mounted.done()
     }
   }, 60_000)
+
+  it('reads as reconnecting rather than working while the attachment is being re-created', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+      bridge.channel.moveTo({ state: EChannelConnection.Parked, detail: 'idle past the TTL' })
+
+      mounted.typeText('wake up')
+      mounted.pressEnter()
+
+      bridge.channel.moveTo({ state: EChannelConnection.Reattaching, detail: null })
+
+      const reattaching = await until({
+        holds: async () => {
+          const frame = await mounted.nextFrame()
+          return frame.includes('Reconnecting for') && !frame.includes('Working for')
+        },
+        within: 20_000,
+      })
+      expect(reattaching).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
 })
