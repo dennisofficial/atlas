@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { CHANNEL_PROTOCOL_VERSION } from './channel-wire'
 import { drainServe, type ServeDrain } from './serve-drain-client'
-import { SERVE_PROTOCOL_PATH, SERVE_TOKEN_PATH, SERVE_VERSION_PATH } from './serve-launch'
+import { probeServeAlive, SERVE_PROTOCOL_PATH, SERVE_TOKEN_PATH, SERVE_VERSION_PATH } from './serve-launch'
 
 export enum ESandboxProbe {
   Missing = 'missing',
@@ -52,6 +52,8 @@ export type RuntimeActivityProbe = (args: {
   sandbox: Sandbox
   url: string
 }) => Promise<ServeRuntimeHealth | undefined>
+
+export type ServeAliveProbe = (args: { sandbox: Sandbox }) => Promise<boolean>
 
 export type DetachWait = () => Promise<boolean>
 
@@ -177,6 +179,7 @@ export async function probeSandboxForResume(args: {
   servePort: number
   fetch: () => Promise<Sandbox>
   runtimeHealth: RuntimeActivityProbe
+  serveAlive?: ServeAliveProbe | undefined
   waitForDriveDetached?: DetachWait | undefined
   drain?: ServeDrain | undefined
   onRotationStarted?: (() => void) | undefined
@@ -243,7 +246,19 @@ export async function probeSandboxForResume(args: {
     if (url === undefined) {
       throw new Error(`sandbox ${args.name} has no preparation route — nothing was destroyed`)
     }
-    await (args.drain ?? drainServe)({ sandbox, url })
+    const health = await args.runtimeHealth({ sandbox, url }).catch(() => undefined)
+    const idle = runtimeIdleOf(health)
+    if (idle === ERuntimeIdle.Idle) {
+      args.log?.(`sandbox ${args.name} reports no work in flight — recreating without draining`)
+    } else {
+      const serveAlive = args.serveAlive ?? (({ sandbox: s }: { sandbox: Sandbox }) => probeServeAlive(s))
+      const alive = idle === ERuntimeIdle.Unknown && (await serveAlive({ sandbox }))
+      if (idle === ERuntimeIdle.Unknown && !alive) {
+        args.log?.(`sandbox ${args.name}'s serve process is gone — nothing left to drain, recreating directly`)
+      } else {
+        await (args.drain ?? drainServe)({ sandbox, url })
+      }
+    }
     await deleteSandbox(sandbox)
     const detached = await (args.waitForDriveDetached?.() ?? true)
     if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)

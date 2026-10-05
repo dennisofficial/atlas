@@ -114,7 +114,7 @@ describe('probeSandboxForResume', () => {
     await expect(probeOf({ sandbox })).rejects.toThrow('internal error')
   })
 
-  it('drains and replaces a stale sandbox whose runtime is running, however idle its health reads', async () => {
+  it('replaces a stale sandbox that reads fully idle without draining — there is nothing in flight to preserve', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     const order: string[] = []
     Object.assign(sandbox, {
@@ -131,9 +131,44 @@ describe('probeSandboxForResume', () => {
       },
     })
 
-    expect(order).toEqual(['drain', 'delete'])
+    expect(order).toEqual(['delete'])
     expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
     expect(result.rotatedFrom).toBe(STALE)
+  })
+
+  it('replaces a stale sandbox whose serve process is wedged — its exec works but nothing answers its port', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+    let drains = 0
+
+    const result = await probeOf({
+      sandbox,
+      health: undefined,
+      serveAlive: false,
+      drain: async () => {
+        drains += 1
+      },
+    })
+
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(drains).toBe(0)
+    expect(sandbox.deleted()).toBe(true)
+  })
+
+  it('still drains a stale sandbox whose serve is alive but whose idleness it cannot prove', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+    const order: string[] = []
+
+    const result = await probeOf({
+      sandbox,
+      health: undefined,
+      drain: async () => {
+        order.push('drain')
+      },
+    })
+
+    expect(order).toEqual(['drain'])
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(sandbox.deleted()).toBe(true)
   })
 
   it('drains and replaces a stale sandbox whose runtime is resuming', async () => {
@@ -149,9 +184,8 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(true)
   })
 
-  it('rotates a running stale sandbox whatever its runtime health reports', async () => {
-    const healthVariants: (ServeRuntimeHealth | undefined)[] = [
-      FULL_IDLE,
+  it('drains a stale sandbox that reports any in-flight work, whatever the field', async () => {
+    const busyVariants: ServeRuntimeHealth[] = [
       { ...FULL_IDLE, busy: true },
       { ...FULL_IDLE, childrenRunning: 1 },
       { ...FULL_IDLE, shellsRunning: 1 },
@@ -160,16 +194,55 @@ describe('probeSandboxForResume', () => {
       { ...FULL_IDLE, settlingWork: true },
       { ...FULL_IDLE, clients: 1 },
       { ...FULL_IDLE, turnRunning: true },
-      { clients: 0 },
-      undefined,
     ]
 
-    for (const health of healthVariants) {
+    for (const health of busyVariants) {
       const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
-      const result = await probeOf({ sandbox, health, drain: async () => undefined })
+      const order: string[] = []
+      const result = await probeOf({
+        sandbox,
+        health,
+        drain: async () => {
+          order.push('drain')
+        },
+      })
+      expect(order).toEqual(['drain'])
       expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
       expect(sandbox.deleted()).toBe(true)
     }
+  })
+
+  it('drains a stale sandbox whose health answer is partial — idleness it cannot prove is not idle', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+    const order: string[] = []
+
+    const result = await probeOf({
+      sandbox,
+      health: { clients: 0 },
+      drain: async () => {
+        order.push('drain')
+      },
+    })
+
+    expect(order).toEqual(['drain'])
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(sandbox.deleted()).toBe(true)
+  })
+
+  it('keeps a stale sandbox whose drain fails while it reports in-flight work', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+
+    await expect(
+      probeOf({
+        sandbox,
+        health: { ...FULL_IDLE, turnRunning: true },
+        drain: async () => {
+          throw new Error('child x is failed instead of paused or completed')
+        },
+      }),
+    ).rejects.toThrow('child x is failed')
+
+    expect(sandbox.deleted()).toBe(false)
   })
 
   it('preserves a stale sandbox when it has no preparation route', async () => {

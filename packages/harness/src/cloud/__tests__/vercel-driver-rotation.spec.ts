@@ -5,8 +5,8 @@ import { VercelDriver } from '../vercel-driver'
 import { CREDENTIALS, PINNED_VERSION, fakeSandbox, fakeDriveSdk } from './vercel-driver-fixture'
 
 describe('createOrResume', () => {
-  it('rotates a live running sandbox whose baked serve predates the pinned version: drain, delete, recreate', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running' })
+  it('rotates a live running sandbox whose baked serve predates the pinned version: delete, recreate, no drain when nothing is in flight', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running', alive: true })
     const fresh = fakeSandbox()
     const events: string[] = []
     Object.assign(stale, {
@@ -29,6 +29,15 @@ describe('createOrResume', () => {
       driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
+      runtimeHealth: async () => ({
+        busy: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        pendingInput: false,
+        settlingWork: false,
+        clients: 0,
+      }),
       sdk: {
         get: async () => stale,
         getOrCreate: async (params) => {
@@ -48,7 +57,7 @@ describe('createOrResume', () => {
       },
     })
 
-    expect(events).toEqual(['rotation-started', 'drain', 'delete', 'recreate'])
+    expect(events).toEqual(['rotation-started', 'delete', 'recreate'])
     expect(placement.created).toBe(true)
     expect(placement.rotatedFrom).toBe('1.19.1')
     expect(placement.rotatedProtocol).toBeUndefined()
@@ -145,8 +154,8 @@ describe('createOrResume', () => {
     expect(placement.rotatedFrom).toBeUndefined()
   })
 
-  it('preserves the sandbox and drive when a serve cannot confirm preparation', async () => {
-    const stale = fakeSandbox({ installedProtocol: '', drainStatus: '404' })
+  it('preserves a busy sandbox and its drive when its serve cannot confirm preparation', async () => {
+    const stale = fakeSandbox({ installedProtocol: '', drainStatus: '404', alive: true })
     const fresh = fakeSandbox()
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
@@ -154,6 +163,7 @@ describe('createOrResume', () => {
       driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
+      runtimeHealth: async () => ({ busy: true, turnRunning: true, clients: 1 }),
       sdk: { get: async () => stale, getOrCreate: async () => fresh },
     })
 
@@ -163,6 +173,32 @@ describe('createOrResume', () => {
 
     expect(stale.deleted).toBe(false)
     expect(fresh.commands).toHaveLength(0)
+  })
+
+  it('recreates an idle sandbox whose serve is too old to confirm preparation — there is nothing in flight for the drain to lose', async () => {
+    const stale = fakeSandbox({ installedProtocol: '', drainStatus: '404' })
+    const fresh = fakeSandbox()
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      runtimeHealth: async () => ({
+        busy: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        pendingInput: false,
+        settlingWork: false,
+        clients: 0,
+      }),
+      sdk: { get: async () => stale, getOrCreate: async () => fresh },
+    })
+
+    await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+
+    expect(stale.deleted).toBe(true)
   })
 
   it('recreates a stopped sandbox whose version file is missing — the file ships with the image, so its absence means an older bake', async () => {

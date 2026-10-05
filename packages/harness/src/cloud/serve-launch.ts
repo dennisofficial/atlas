@@ -52,14 +52,18 @@ const sh = (args: {
 const serveHealthy = async (sandbox: Sandbox): Promise<boolean> =>
   (await sh({ sandbox, script: HEALTH_PROBE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS })).exitCode === 0
 
-const serveAlive = async (sandbox: Sandbox): Promise<boolean> => {
+export const SERVE_ALIVE_PROBE = `kill -0 $(cat ${SERVE_HOME}/atlas-serve.pid 2>/dev/null) 2>/dev/null || { for pid in /proc/[0-9]*; do grep -qa '^${SERVE_BINARY_PATH}' "$pid/cmdline" 2>/dev/null && exit 0; done; exit 1; }`
+
+export const probeServeAlive = async (sandbox: Sandbox): Promise<boolean> => {
   const probe = await sh({
     sandbox,
-    script: `kill -0 $(cat ${SERVE_HOME}/atlas-serve.pid 2>/dev/null) 2>/dev/null || { for pid in /proc/[0-9]*; do grep -qa '^${SERVE_BINARY_PATH}' "$pid/cmdline" 2>/dev/null && exit 0; done; exit 1; }`,
+    script: SERVE_ALIVE_PROBE,
     timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
   }).catch(() => null)
   return probe === null || probe.exitCode === 0
 }
+
+const serveAlive = probeServeAlive
 
 const tokenFileMatches = async (args: { sandbox: Sandbox; token: string }): Promise<boolean> => {
   const probe = await sh({
