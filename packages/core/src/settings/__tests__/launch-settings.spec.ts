@@ -11,7 +11,6 @@ const LAUNCH_SETTINGS: readonly ESettingId[] = [
   ESettingId.ModelId,
   ESettingId.ModelEffort,
   ESettingId.SubagentModel,
-  ESettingId.KeychainService,
 ]
 
 /** The rows the models page owns now that the switcher writes the conversation instead. */
@@ -55,7 +54,6 @@ describe('the settings a launch used to carry in its environment', () => {
       'ATLAS_MODEL',
       'ATLAS_EFFORT',
       'ATLAS_SUBAGENT_MODEL',
-      'ATLAS_KEYCHAIN_SERVICE',
     ])
   })
 
@@ -86,17 +84,17 @@ describe('the settings a launch used to carry in its environment', () => {
       expect(definitionOf(id).fallback).toBe('')
     }
 
-    expect(textValueOf({ resolution: resolutionOver({}), id: ESettingId.KeychainService })).toBe('')
+    expect(textValueOf({ resolution: resolutionOver({}), id: ESettingId.ModelFavourites })).toBe('')
   })
 
   it('lets the environment outrank the file, which is the whole point of the move', () => {
     const resolution = resolutionOver({
-      file: { [ESettingId.KeychainService]: 'from-file' },
-      env: { [ESettingId.KeychainService]: 'from-env' },
+      file: { [ESettingId.ModelFavourites]: 'from-file' },
+      env: { [ESettingId.ModelFavourites]: 'from-env' },
     })
 
-    expect(textValueOf({ resolution, id: ESettingId.KeychainService })).toBe('from-env')
-    expect(resolution.settings.get(ESettingId.KeychainService)?.layer).toBe(ESettingsLayer.Environment)
+    expect(textValueOf({ resolution, id: ESettingId.ModelFavourites })).toBe('from-env')
+    expect(resolution.settings.get(ESettingId.ModelFavourites)?.layer).toBe(ESettingsLayer.Environment)
   })
 
   it('reports where a value came from, which an env read of its own never could', () => {
@@ -127,7 +125,7 @@ describe('the default model setting', () => {
 
 describe('a text setting', () => {
   it('takes any string, since a path and a model id have no shape to check', () => {
-    const definition = textDefinition(ESettingId.KeychainService)
+    const definition = textDefinition(ESettingId.ModelFavourites)
 
     expect(coerceSettingValue({ definition, raw: 'login.keychain' })).toEqual({
       ok: true,
@@ -137,7 +135,7 @@ describe('a text setting', () => {
   })
 
   it('refuses what is not text at all, rather than stringifying it', () => {
-    const definition = textDefinition(ESettingId.KeychainService)
+    const definition = textDefinition(ESettingId.ModelFavourites)
 
     expect(coerceSettingValue({ definition, raw: 42 }).ok).toBe(false)
     expect(coerceSettingValue({ definition, raw: null }).ok).toBe(false)

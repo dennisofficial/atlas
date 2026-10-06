@@ -68,4 +68,15 @@ describe('isExpired', () => {
     expect(isExpired({ secret: oauth({ expiresAt: minutesFromNow(4) }), now: NOW })).toBe(false)
     expect(isExpired({ secret: oauth({ expiresAt: minutesFromNow(-1) }), now: NOW })).toBe(true)
   })
+
+  it('never refreshes a grant Atlas Cloud owns, even while an upload seed is pending', () => {
+    const secret: AccountSecret = {
+      kind: EAuthKind.Oauth,
+      tokens: { accessToken: 'access', refreshToken: 'seed', expiresAt: minutesFromNow(-90) },
+      authority: { url: 'https://cloud.test', connectionId: 'oauth_1' },
+    }
+
+    expect(refreshDecision({ secret, now: NOW })).toBe(ERefresh.Unrefreshable)
+    expect(refreshDecision({ secret, now: NOW, revoked: true })).toBe(ERefresh.Unrefreshable)
+  })
 })

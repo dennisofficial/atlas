@@ -24,13 +24,11 @@ import {
 import {
   createHarnessContainer,
   createNotifyingModel,
-  createSecurityKeychainReader,
   critiqueConfiguration,
   disposeAll,
   ECritique,
   HaikuJudge,
   JudgeMemo,
-  KeychainReaderToken,
   messageOf,
   portToken,
   probeWorkspace,
@@ -96,7 +94,6 @@ async function openBench({
   })
 
   container.register(WorkspaceRoot, { useValue: cwd })
-  container.register(KeychainReaderToken, { useValue: createSecurityKeychainReader() })
   container.register(WorktreeDirectoryToken, { useValue: () => worktreeDirectory })
   container.register(WebSearchBackendToken, {
     useValue: () =>

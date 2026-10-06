@@ -1,13 +1,17 @@
 # apps/api
 
 The Atlas Cloud backend. NestJS 11 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
-(Neon in deployed tiers, docker locally). First client is the Atlas TUI. Atlas is local-first:
-the machine is the working credential store even while signed in. Accounts, secrets, user
-settings and MCP configuration are uploaded or downloaded only through explicit backup actions;
-memory is never a synced domain. Sandboxes are BYO: the client provisions Vercel directly with
-its own token and transfers working credentials/configuration during lift. The API provides
-identity, optional remote-control rendezvous and thread discovery, backup sync, and PR/CI
-webhook delivery. Neither local model requests nor sandbox provisioning depend on the API.
+(Neon in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
+API keys, ordinary secrets, user settings and MCP configuration stay on the machine; explicit
+backup actions copy them to/from the API. Signing in transfers Atlas-native provider OAuth
+renewal to dedicated cloud-owned connections. Local sessions and assigned sandboxes retrieve
+access tokens, never refresh tokens, from that authority. Persistent ownership survives signout
+and outages; a stale local seed is never a fallback refresher. Model requests still go directly
+to providers. MCP OAuth is separate and remains local; memory is never a synced domain.
+Sandboxes are BYO: the client provisions Vercel directly with its own token and transfers
+configuration during lift. OAuth-bearing lifts assign scoped connection access before serve
+starts; API-key-only lifts and sandbox provisioning remain API-independent. The API also provides
+identity, optional remote-control rendezvous, thread discovery, backup sync and PR/CI webhooks.
 
 ## Runtime and tests — the exception
 

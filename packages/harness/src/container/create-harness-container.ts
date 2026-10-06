@@ -1,5 +1,4 @@
 import {
-  AccountStorePort,
   ClockPort,
   CredentialPort,
   EDefinitionOrigin,
@@ -29,15 +28,6 @@ import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
 import { restoreArchivedLocalFiles } from '../cloud/local-recovery'
-import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
-import { CodexSource } from '../credentials/codex-source'
-import { fileAccountStore } from '../credentials/account-store'
-import { builtinOauthClients } from '../credentials/oauth'
-import { atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
-import { SecretCipher } from '../credentials/secret-cipher'
-import { FileSecretsStore } from '../secrets/file-secrets-store'
-import { atlasSecretsFile } from '../secrets/paths'
-import { RefreshingCredentialPort } from '../credentials/refreshing-credential-port'
 import { registerBuiltinHooks } from '../hooks/register-hooks'
 import { TurnLedgerPort } from '../ledger'
 import { JsonlTurnLedger } from '../ledger/jsonl'
@@ -71,6 +61,7 @@ import { registerBuiltinTools } from '../tools/register-tools'
 import { ToolRegistry } from '../tools/registry'
 import { registerDisposable } from './disposal'
 import { registerCloudStores } from './register-cloud-stores'
+import { registerCloudManagedCredentials } from './register-cloud-managed-credentials'
 import {
   createIsolatedContainer,
   instanceCachingFactory,
@@ -79,16 +70,10 @@ import {
   type InjectionToken,
 } from './injection'
 import {
-  ClaudeCodeSourceToken,
   ClientVersionToken,
-  CodexSourceToken,
   HookChainToken,
-  KeychainReaderToken,
   LanguageModelToken,
-  LocalAccountStoreToken,
-  LocalSecretsStoreToken,
   ModelCardSourceToken,
-  SecretsStoreToken,
   SessionRegistryToken,
   AtlasHomeToken,
   WakeSignalToken,
@@ -211,9 +196,6 @@ export function createHarnessContainer(): DependencyContainer {
         }),
     ),
   })
-  // The store holds listener state (onRename, onModelChosen), so a session must get exactly one
-  // instance: a second resolve would hand the titler a store whose rename echo reaches nobody,
-  // which is precisely the live bug the titling trace caught (store rename, listeners=0).
   harness.register(portToken(ThreadStorePort), {
     useFactory: instanceCachingFactory((resolver) =>
       new JsonlThreadStore(
@@ -228,57 +210,7 @@ export function createHarnessContainer(): DependencyContainer {
   })
   registerCloudStores({ container: harness, clientVersion: clientVersionOf })
 
-  harness.register(LocalAccountStoreToken, {
-    useFactory: instanceCachingFactory(
-      (resolver) =>
-        fileAccountStore({
-          file: atlasVaultFile(),
-          keyFile: atlasVaultKeyFile(),
-          clock: resolver.resolve(portToken(ClockPort)),
-        }),
-    ),
-  })
-  harness.register(portToken(AccountStorePort), {
-    useFactory: instanceCachingFactory((resolver) => resolver.resolve(LocalAccountStoreToken)),
-  })
-
-  harness.register(LocalSecretsStoreToken, {
-    useFactory: instanceCachingFactory(
-      () =>
-        new FileSecretsStore({
-          file: atlasSecretsFile(),
-          cipher: new SecretCipher(atlasVaultKeyFile()),
-        }),
-    ),
-  })
-  harness.register(SecretsStoreToken, {
-    useFactory: instanceCachingFactory((resolver) => resolver.resolve(LocalSecretsStoreToken)),
-  })
-
-  harness.register(ClaudeCodeSourceToken, {
-    useFactory: instanceCachingFactory(
-      (resolver) =>
-        new ClaudeCodeSource(
-          claudeCodePayloadStore({ reader: resolver.resolve(KeychainReaderToken) }),
-        ),
-    ),
-  })
-
-  harness.register(CodexSourceToken, {
-    useFactory: instanceCachingFactory(() => new CodexSource()),
-  })
-
-  harness.register(portToken(CredentialPort), {
-    useFactory: instanceCachingFactory((resolver) => {
-      const clock = resolver.resolve(portToken(ClockPort))
-      return new RefreshingCredentialPort({
-        accounts: resolver.resolve(portToken(AccountStorePort)),
-        clients: builtinOauthClients({ clock }),
-        clock,
-        sinks: [resolver.resolve(ClaudeCodeSourceToken), resolver.resolve(CodexSourceToken)],
-      })
-    }),
-  })
+  registerCloudManagedCredentials({ container: harness, clientVersion: clientVersionOf })
 
   registerFileState({ container: harness })
   registerExecution({ container: harness })
@@ -287,8 +219,6 @@ export function createHarnessContainer(): DependencyContainer {
   registerOperatorInput({ container: harness })
   registerSkills({ container: harness })
   registerAgents({ container: harness })
-  // bindModels re-registers this with the session's real state; the default only exists so a
-  // container that never binds models can still build the tool registry.
   harness.register(ExecutionLocationToken, {
     useFactory: instanceCachingFactory((resolver) => {
       const state = createExecutionLocationState({ initial: EExecutionLocation.Host })

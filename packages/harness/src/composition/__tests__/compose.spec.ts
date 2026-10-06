@@ -11,14 +11,8 @@ import { z } from 'zod'
 
 import { CloudSessionStore } from '../../cloud/cloud-session'
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../../cloud/settings-definitions'
-import { portToken, type DependencyContainer } from '../../container/injection'
-import {
-  ClaudeCodeSourceToken,
-  CodexSourceToken,
-  UserSettingsStoreToken,
-} from '../../container/tokens'
-import { ClaudeCodeSource } from '../../credentials/claude-code-source'
-import { CodexSource } from '../../credentials/codex-source'
+import { portToken } from '../../container/injection'
+import { UserSettingsStoreToken } from '../../container/tokens'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { composeHarness } from '../compose'
@@ -59,17 +53,6 @@ const settingsBinding = (): SettingsBinding => {
       container.register(UserSettingsStoreToken, { useValue: store })
     },
   }
-}
-
-// A spec must never read the developer's real keychain or codex file; bindPorts swaps the import
-// sources for silent ones before bindAccounts resolves them.
-const silentImportSources = (args: { container: DependencyContainer }): void => {
-  args.container.register(ClaudeCodeSourceToken, {
-    useValue: new ClaudeCodeSource({ read: async () => undefined, write: async () => {} }),
-  })
-  args.container.register(CodexSourceToken, {
-    useValue: new CodexSource({ file: join(atlasHome, 'no-codex-auth.json') }),
-  })
 }
 
 const compose = <TSurface = undefined>(args?: {
@@ -183,7 +166,6 @@ describe('composeHarness', () => {
         settings: settingsBinding(),
         clientVersion: 'compose-spec',
         surface: { notice: recordingNotices().port },
-        bindPorts: silentImportSources,
       })
 
       expect(Date.now() - started).toBeLessThan(10_000)
@@ -223,7 +205,6 @@ describe('composeHarness', () => {
         settings: settingsBinding(),
         clientVersion: 'compose-spec',
         surface: { notice: notices.port },
-        bindPorts: silentImportSources,
       })
 
       expect(
@@ -253,7 +234,6 @@ describe('composeHarness', () => {
         settings: settingsBinding(),
         clientVersion: 'compose-spec',
         surface: { notice: notices.port },
-        bindPorts: silentImportSources,
       })
 
       expect(notices.posts.some((post) => post.key === 'cloud:legacy-accounts')).toBe(false)

@@ -1264,11 +1264,9 @@ because the keychain is one platform's and the vault is not.
 `doStream`, so a token that goes stale mid-session is refreshed by the next step rather than failing
 the turn — nothing above the port has to know a refresh happened.
 
-Four decisions are pure and live in `core/credentials/`, tested with plain data:
+Credential decisions are pure and live in `core/credentials/`, tested with plain data:
 
 - `refreshDecision` — fresh, due inside a five-minute skew, or unrefreshable.
-- `adoptionOf` — whether a pair observed elsewhere is newer, ours, and worth keeping. Ported from the
-  previous TUI, where the missing case cost a week of dead accounts.
 - `chooseAccount` — which account answers. An `expired` account is ranked last but never excluded,
   because a refresh is the only thing that clears that status and excluding it makes the door
   one-way.
@@ -1277,30 +1275,48 @@ Four decisions are pure and live in `core/credentials/`, tested with plain data:
   wired and answer `reachable: true`; a provider only dims to `⚠ no key` in the switcher once the
   accounts say nothing holds a key for it.
 
-**Refresh-token rotation belongs to the issuer.** Copied rotating grants can race, and reuse can
-invalidate a sibling holder's login. `RefreshingCredentialPort` keeps one in-flight refresh per
-account per instance, keyed by id and dropped when it settles; it is not cross-machine coordination.
-On a hard authentication refusal it rereads the local vault for a newer pair before retiring the
-account. Temporary failures can use the held token while it still has life.
+**One provider OAuth grant has one refresh owner.** Before cloud handoff, the local vault owns
+renewal. Signing in to Atlas Cloud transfers Atlas-native Claude/Codex grants to dedicated encrypted
+OAuth connections in the API. A persistent authority marker in the local OAuth secret fences local
+refresh before upload; the same connection ID makes retrying a lost handoff response idempotent.
+After acceptance, the local refresh token is removed. Local sessions and detached sandboxes obtain
+access tokens from that authority; model requests still go directly to the provider.
 
-**Detached lift does not clone renewable OAuth grants.** The initial portable state carries
-API-key accounts and excludes provider and MCP OAuth grants. A selected subscription OAuth account
-is refused before lift rather than silently switched to API billing or allowed to invalidate the
-laptop's login. Independent grant ownership or a durable refresh authority is a separate design
-needed to remove that restriction. The simulator and provider-evidence boundaries are recorded in
-`docs/research/local-first-token-refresh.md`.
+**Cloud ownership is not sign-in state.** The authority marker survives signout, API outages and
+process restarts. A usable cached access token may keep working until expiry; without renewal,
+Atlas reports the affected connection rather than refreshing an obsolete local seed. A fresh native
+provider login creates a new grant and can be handed off again. API keys, ordinary secrets, settings
+and the user MCP configuration remain local unless explicitly backed up or transferred.
 
-**A credential imported from another tool is written back to it.** Atlas takes up an existing Claude
-Code login on first run, so nobody is asked to sign in twice — but refreshing it would leave the
-`claude` CLI holding a pair the server has already invalidated. So an imported account remembers its
-source, and the rotated pair goes back the way it came, guarded by `adoptionOf` in both directions:
-Atlas takes up a pair Claude Code refreshed first, and never pushes an older pair over a newer one.
+**Refresh exclusion precedes provider redemption.** The API claims a durable refresh attempt before
+sending the issuer request, using the connection generation to fence competing replicas. Contenders
+reread the stored successor rather than redeeming the predecessor. A delayed refusal of an older
+access token cannot force another rotation. Refresh begins before expiry; the margin is capped for
+short-lived tokens. A lost response or crashed attempt is uncertain, not permission to retry the
+same refresh token. Reauthorization recovers a grant whose successor cannot be proven.
 
-**The local vault is authoritative, including while signed in to Atlas Cloud.** Accounts, secrets,
-settings and the user MCP layer always resolve on the machine running the harness. Signing in
-adds remote-control and coordination capabilities; it never substitutes remote stores, archives
-working files, or makes a local turn depend on the API. Provider OAuth refresh talks directly to
-the provider, not through Atlas Cloud.
+**Detached lift carries access-only authority references.** Renewable provider grants never enter
+the portable snapshot. A sandbox receives a narrowly scoped assignment to the carried connections
+before its serve runtime starts; its own sandbox token can request those access tokens, not read the
+operator's account/secret backup endpoints. Provider OAuth lift requires Atlas Cloud handoff. An
+API-key-only lift retains its API-independent path. MCP OAuth credentials remain local and excluded
+from detached snapshots; provider ownership does not silently change the separate MCP OAuth flow.
+
+**Atlas does not import or synchronize other tools' logins.** Claude Code and Codex credential-store
+readers and token write-back are removed. Atlas uses its own native browser/device sign-in flows.
+Legacy CLI-imported rows require fresh Atlas authorization before cloud management, without deleting
+or revoking the external CLI's credentials. Environment API-key discovery remains supported.
+
+**Upgrade and re-lift older sessions.** The account vault reads version 1 and writes version 2;
+older Atlas builds refuse the newer vault instead of ignoring its ownership marker. Update running
+local clients before handing off OAuth. Existing sandboxes with old access-only snapshots need a
+descend and fresh lift to install authority references. Fresh native logins while signed in replace
+the grant behind the same connection using an authorization-ID fence, so current sandbox assignments
+survive and old refresh workers cannot overwrite the new login.
+
+The provider-support and synthetic-evidence limits in `docs/research/local-first-token-refresh.md`
+remain relevant: centralized rotation solves coordination, not provider eligibility or atomicity
+between an issuer's token endpoint and our database.
 
 **Cloud sync is explicit backup and transfer.** Upload and download copy accounts, secrets, user
 settings and MCP configuration only when the operator requests them. A failed sync leaves local
@@ -1311,10 +1327,9 @@ not a synced domain.
 **Sessions originate on the operator's machine.** An iOS remote-control client asks a connected
 laptop to start a session; an offline laptop cannot receive that request. The laptop provisions
 Vercel sandboxes using its own Vercel credentials and transfers the session's configuration and
-copyable credentials during lift. Atlas Cloud owns identity, remote-control rendezvous, thread discovery
-and PR/CI webhook delivery, not model credential resolution or sandbox provisioning. Detached
-refresh-token sharing is a provider-specific constraint to verify, not a reason to put local
-turns behind a cloud credential broker.
+copyable credentials during lift. Atlas Cloud owns identity, remote-control rendezvous, thread discovery,
+PR/CI webhook delivery and cloud-managed provider OAuth renewal, not sandbox provisioning or the
+model request path. Unsigned local-only accounts and API-key credentials do not require the API.
 
 ## Cloud transcript handoff
 

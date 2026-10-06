@@ -3,15 +3,11 @@ import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { ATLAS_ALLOW_REAL_HOME_ENV, EEffort, findCard } from '@dltech/atlas-core'
 
 import {
-  ClaudeCodeSource,
   RefreshingCredentialPort,
   atlasVaultFile,
   atlasVaultKeyFile,
   builtinOauthClients,
-  claudeCodePayloadStore,
-  createSecurityKeychainReader,
   fileAccountStore,
-  importClaudeCodeAccount,
 } from '../../credentials'
 import { ETurnStatus, buildHarness, type AtlasHarness } from '../../loop'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
@@ -38,17 +34,10 @@ const liveCredentials = async (): Promise<RefreshingCredentialPort> => {
     keyFile: atlasVaultKeyFile(),
     clock,
   })
-  const source = new ClaudeCodeSource(
-    claudeCodePayloadStore({ reader: createSecurityKeychainReader() }),
-  )
-
-  await importClaudeCodeAccount({ accounts, source })
-
   return new RefreshingCredentialPort({
     accounts,
     clients: builtinOauthClients({ clock }),
     clock,
-    sinks: [source],
   })
 }
 

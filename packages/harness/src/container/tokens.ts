@@ -12,9 +12,6 @@ import type { DeltaChannel } from '../channel/delta-channel'
 import type { SessionRegistry } from '../store/sessions/registry'
 import type { CloudSession, CloudSessionStore } from '../cloud/cloud-session'
 import type { CloudSettingsStore } from '../cloud/cloud-settings-store'
-import type { ClaudeCodeSource } from '../credentials/claude-code-source'
-import type { CodexSource } from '../credentials/codex-source'
-import type { KeychainReader } from '../credentials/keychain-reader'
 import type { DockerEngine } from '../execution/docker/engine'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import type { OnHookMishap } from '../hooks/budget'
@@ -34,13 +31,6 @@ export const AtlasHomeToken: InjectionToken<string> = Symbol('atlas.AtlasHome')
 export const DeltaChannelToken: InjectionToken<DeltaChannel> = Symbol('atlas.DeltaChannel')
 
 export const WorkspaceRoot: InjectionToken<string> = Symbol('atlas.WorkspaceRoot')
-
-export const KeychainReaderToken: InjectionToken<KeychainReader> = Symbol('atlas.KeychainReader')
-
-export const ClaudeCodeSourceToken: InjectionToken<ClaudeCodeSource> =
-  Symbol('atlas.ClaudeCodeSource')
-
-export const CodexSourceToken: InjectionToken<CodexSource> = Symbol('atlas.CodexSource')
 
 export const LanguageModelToken: InjectionToken<LanguageModelV4> = Symbol('atlas.LanguageModel')
 

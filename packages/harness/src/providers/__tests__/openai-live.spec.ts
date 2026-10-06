@@ -32,7 +32,6 @@ const liveAdapter = (fetch: typeof globalThis.fetch): OpenAiAdapter => {
     accounts: fileAccountStore({ file: atlasVaultFile(), keyFile: atlasVaultKeyFile(), clock }),
     clients: builtinOauthClients({ clock }),
     clock,
-    sinks: [],
   })
   const cards = [...generatedCatalogue().values()].filter(
     (card) => card.ref.providerId === 'openai',

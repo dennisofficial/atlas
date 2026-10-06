@@ -29,6 +29,7 @@ model User {
   githubConnection GithubConnection?
   threads       Thread[]
   cloudSandboxes CloudSandbox[]
+  oauthConnections OauthConnection[]
 }
 
 model Thread {
@@ -142,6 +143,7 @@ model CloudSandbox {
   updatedAt      String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   thread         Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  oauthConnections OauthConnectionSandbox[]
 
   @@index([userId])
   @@index([state, lastActivityAt])
@@ -165,6 +167,35 @@ model AgentAccount {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, provider])
+}
+
+model OauthConnection {
+  id               String    @id
+  provider         String
+  status           String    @default("active")
+  sealedTokens     String
+  authorizationId  String
+  generation       Int       @default(0)
+  refreshAttempt   String?
+  refreshStartedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sandboxes        OauthConnectionSandbox[]
+
+  @@index([userId])
+}
+
+model OauthConnectionSandbox {
+  connectionId String
+  sandboxId    String
+  createdAt    DateTime        @default(now())
+  connection   OauthConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  sandbox      CloudSandbox    @relation(fields: [sandboxId], references: [id], onDelete: Cascade)
+
+  @@id([connectionId, sandboxId])
+  @@index([sandboxId])
 }
 
 model ActiveAccount {

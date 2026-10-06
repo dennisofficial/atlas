@@ -16,6 +16,7 @@ import { HealthController } from './platform/health/health.controller'
 import { HealthModule } from './platform/health/health.module'
 import { MigrationStateService } from './platform/health/migration-state.service'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
+import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
@@ -39,6 +40,7 @@ import { SessionsModule } from './platform/sessions/sessions.module'
     ClientVersionModule,
     AuthModule,
     AccountsModule,
+    OauthConnectionsModule,
     SecretsModule,
     SettingsModule,
     McpServersModule,

@@ -1,5 +1,3 @@
-import { join } from 'node:path'
-
 import {
   EFinishReason,
   ModelPort,
@@ -10,14 +8,6 @@ import {
 } from '@dltech/atlas-core'
 
 import { portToken, type DependencyContainer } from '../../container/injection'
-import {
-  ClaudeCodeSourceToken,
-  CodexSourceToken,
-  KeychainReaderToken,
-} from '../../container/tokens'
-import { ClaudeCodeSource } from '../../credentials/claude-code-source'
-import { CodexSource } from '../../credentials/codex-source'
-import type { KeychainReader } from '../../credentials/keychain-reader'
 
 // The fake cloud and the fake provider are deliberately the same shape of dead: every socket a
 // local turn might open is refused before any bytes leave, and every refusal is recorded so the
@@ -37,28 +27,6 @@ export const outageFetch = (mode: 'reject' | '503' | 'hang'): typeof fetch =>
     if (mode === '503') return new Response('cloud unavailable', { status: 503 })
     throw new Error('offline')
   }) as unknown as typeof fetch
-
-// bindPorts swaps the credential sources before bindAccounts resolves them, so a spec never
-// touches the developer's keychain or Codex file while importing accounts.
-export const silentHostSources = (args: {
-  container: DependencyContainer
-  codexFile: string
-}): void => {
-  args.container.register(KeychainReaderToken, {
-    useValue: {
-      readGenericPassword: async () => {
-        throw new Error('the keychain is not part of a local-first session')
-      },
-      writeGenericPassword: async () => {},
-    } satisfies KeychainReader,
-  })
-  args.container.register(ClaudeCodeSourceToken, {
-    useValue: new ClaudeCodeSource({ read: async () => undefined, write: async () => {} }),
-  })
-  args.container.register(CodexSourceToken, {
-    useValue: new CodexSource({ file: join(args.codexFile) }),
-  })
-}
 
 export class ScriptedLocalModel extends ModelPort {
   readonly identity = { id: 'anthropic', modelId: 'scripted-local' }

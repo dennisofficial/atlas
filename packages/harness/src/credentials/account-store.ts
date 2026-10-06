@@ -14,6 +14,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { SecretCipher } from './secret-cipher'
+import { fileVaultLocks, inProcessVaultLocks, type VaultLocks } from './vault-lock'
 import {
   cipherSecretBox,
   fileVaultBackend,
@@ -30,13 +31,23 @@ export class AccountStore extends AccountStorePort {
   private readonly backend: VaultBackend
   private readonly box: SecretBox
   private readonly clock: ClockPort
-  private writes: Promise<unknown> = Promise.resolve()
+  private readonly locks: VaultLocks
 
-  constructor(args: { backend: VaultBackend; box: SecretBox; clock: ClockPort }) {
+  constructor(args: {
+    backend: VaultBackend
+    box: SecretBox
+    clock: ClockPort
+    locks?: VaultLocks | undefined
+  }) {
     super()
     this.backend = args.backend
     this.box = args.box
     this.clock = args.clock
+    this.locks = args.locks ?? inProcessVaultLocks()
+  }
+
+  override withAccountLock<T>(args: { accountId: AccountId; run: () => Promise<T> }): Promise<T> {
+    return this.locks.account({ accountId: args.accountId, run: args.run })
   }
 
   async list(): Promise<readonly Account[]> {
@@ -139,18 +150,10 @@ export class AccountStore extends AccountStorePort {
     }))
   }
 
-  /**
-   * Serialised in process and re-read from the backend inside the lock, so a refresh landing while
-   * the operator adds an account keeps both. Two Atlas processes writing in the same instant still
-   * race; `adoptionOf` is what stops that race replacing a newer credential with an older one.
-   */
-  private async mutate(change: (vault: VaultFile) => VaultFile): Promise<void> {
-    const queued = this.writes.then(async () => {
+  private mutate(change: (vault: VaultFile) => VaultFile): Promise<void> {
+    return this.locks.vault(async () => {
       this.backend.save(change(this.backend.load()))
     })
-
-    this.writes = queued.catch(() => undefined)
-    await queued
   }
 }
 
@@ -163,6 +166,7 @@ export const fileAccountStore = (args: {
     backend: fileVaultBackend(args.file),
     box: cipherSecretBox({ cipher: new SecretCipher(args.keyFile), where: args.file }),
     clock: args.clock,
+    locks: fileVaultLocks(args.file),
   })
 
 export const memoryAccountStore = (args: { clock: ClockPort }): AccountStore =>

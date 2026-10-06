@@ -1,17 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { PORTABLE_STATE_PATH, type PortableState, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { PORTABLE_STATE_PATH, type PortableState } from '@dltech/atlas-wire'
 
-import type { SettingsService } from '../settings/service'
-import { atlasDirectory } from '../store/paths'
-import { MirroredEventLog } from './mirrored-event-log'
-import { mirrorWriter } from './mirror-writer'
-import { createRemoteDeltaChannel } from './remote-delta-channel'
-import { RemoteEventLog } from './remote-event-log'
-import type { MirrorLocalLog } from './transcript-syncer'
-import { RemoteThreadStore } from './remote-thread-store'
-import { RemoteTurnLedger } from './remote-turn-ledger'
 import { sandboxNameFor } from './sandbox-names'
-import { bindChannelSettingsSync } from './settings-channel-sync'
 import { ECloudSandboxState } from './sandbox-client'
 import type {
   CloudBridge,
@@ -20,70 +10,30 @@ import type {
   CloudSandboxStatus,
 } from './relocation/cloud-bridge'
 import type { VercelSandboxConfig } from './vercel-driver'
+import { SANDBOX_SERVE_PORT } from './vercel-driver-sdk'
 import {
   bootstrapSpecOf,
   CONTEXT_ARCHIVE_PATH,
   liveDriverWith,
-  lifecycleEscalationOf,
   portableOmissionsOf,
   TRANSCRIPT_ARCHIVE_PATH,
   WORKSPACE_ARCHIVE_PATH,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
-  type GitTokenReader,
   type LiveSandbox,
   type PortableOmissions,
-  type RegistrationSender,
-  type SandboxRegistration,
   vaultPresentInSandbox,
 } from './local-cloud-bootstrap'
+import { attachmentOf } from './local-cloud-attachment'
+import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
+import { reattachSandbox } from './local-cloud-reattach'
+import { registerInBackground } from './local-cloud-registration'
 
-export async function reattachSandbox(args: {
-  sandboxes: CloudSandboxes
-  threadId: ThreadId
-}): Promise<{ url: string; token: string }> {
-  const woken = await args.sandboxes.create({ threadId: args.threadId, workspace: null })
-  return { url: woken.url, token: woken.token }
-}
+export type { LocalCloudBridgeOptions, SandboxAuthorizer } from './local-cloud-bridge-options'
 
-export function createLocalCloudBridge(args: {
-  vercel: () => VercelSandboxConfig
-  attachmentToken: (args: { threadId: ThreadId }) => string
-  readGitToken?: GitTokenReader | undefined
-  /**
-   * Runs only when the sandbox needs a snapshot — a fresh boot, or a resume whose vault never
-   * materialised after a failed first boot. A healthy resume never captures, so the sandbox's
-   * newer vault is never overwritten.
-   */
-  capturePortable?: (() => Promise<PortableState>) | undefined
-  registration?: SandboxRegistration | undefined
-  sendRegistration?: RegistrationSender | undefined
-  onRegistrationFailed?: ((failure: unknown) => void) | undefined
-  /**
-   * A background mirror sync failed — the wire died mid-read, or the writer's disk refused it.
-   * Best-effort by design: the next signal retries, so this is a heads-up, never a thrown error.
-   */
-  onMirrorFailed?: ((failure: unknown) => void) | undefined
-  onPortableOmitted?: ((omitted: PortableOmissions) => void) | undefined
-  environment?: (() => Record<string, string>) | undefined
-  cloudUrl?: (() => string) | undefined
-  readCheckpoint?: ((args: { threadId: ThreadId }) => Promise<RuntimeCheckpoint | null>) | undefined
-  onDriverLog?: ((line: string) => void) | undefined
-  /**
-   * The newest durable event seq the client holds for a thread, reported on the Hello so the serve
-   * can vouch the log is current. The truthful source is the local event store, so a Promise is
-   * honoured. Absent means the client can never be vouched current.
-   */
-  lastEventSeq?: ((args: { threadId: ThreadId }) => number | Promise<number>) | undefined
-  /**
-   * The client's local transcript log the mirror serves reads from while lifted. Absent, the
-   * attach falls back to the channel-only RemoteEventLog, so a caller that never kept a local
-   * transcript (the live roundtrip script) still gets working reads.
-   */
-  localLog?: MirrorLocalLog | undefined
-  driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
-  settings?: SettingsService | undefined
-}): CloudBridge {
+export { reattachSandbox }
+
+export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBridge {
   const driverWith =
     args.driverWith ??
     ((config: VercelSandboxConfig): BridgeDriver =>
@@ -110,38 +60,6 @@ export function createLocalCloudBridge(args: {
     }
   }
 
-  const registerInBackground = (registrationArgs: {
-    threadId: ThreadId
-    token: string
-    serveUrl: string
-    driveName: string
-  }): void => {
-    if (args.registration === undefined || args.sendRegistration === undefined) return
-    const { registration, sendRegistration, onRegistrationFailed } = args
-    const { threadId, token, serveUrl, driveName } = registrationArgs
-    void Promise.resolve()
-      .then(() => registration({ threadId }))
-      .then((read) => {
-        if (read === undefined) return undefined
-        return sendRegistration({
-          registration: {
-            threadId,
-            token,
-            serveUrl,
-            driveName,
-            ...(read.metadata === undefined ? {} : { metadata: read.metadata }),
-          },
-        })
-      })
-      .catch((failure: unknown) => {
-        try {
-          onRegistrationFailed?.(failure)
-        } catch {
-          // the notice itself must never become an unhandled rejection
-        }
-      })
-  }
-
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
   ): Promise<CloudSandbox> => {
@@ -163,6 +81,18 @@ export function createLocalCloudBridge(args: {
         portableCaptured = true
       }
       return portable
+    }
+
+    let authorized = false
+    const authorize = async (serveUrl: () => string): Promise<void> => {
+      if (args.authorizeSandbox === undefined) return
+      await args.authorizeSandbox({
+        threadId: createArgs.threadId,
+        token,
+        serveUrl: serveUrl(),
+        ...(createArgs.model === undefined ? {} : { model: createArgs.model }),
+      })
+      authorized = true
     }
 
     let bootstrap: string | undefined
@@ -209,6 +139,7 @@ export function createLocalCloudBridge(args: {
           stagedPortable = true
         }
       }
+      await authorize(() => sandbox.domain(SANDBOX_SERVE_PORT))
       if (createArgs.captureContext === undefined) return
       await createArgs.captureContext((archive) =>
         driver.writeBootstrapFileToSandbox({
@@ -231,12 +162,15 @@ export function createLocalCloudBridge(args: {
       ...(createArgs.onSettleWait === undefined ? {} : { onSettleWait: createArgs.onSettleWait }),
     })
 
+    if (!authorized) await authorize(() => placement.url)
+
     if (stagedPortable) {
       const omissions = portableOmissionsOf(portable)
       if (omissions !== null) notifyOmitted(omissions)
     }
 
     registerInBackground({
+      options: args,
       threadId: createArgs.threadId,
       token,
       serveUrl: placement.url,
@@ -314,40 +248,6 @@ export function createLocalCloudBridge(args: {
 
   return {
     sandboxes: bridgeSandboxes,
-    attach: ({ threadId, url, token }) => {
-      let unbindSettings: (() => void) | undefined
-      const channel = createRemoteDeltaChannel({
-        threadId,
-        url,
-        token,
-        ...(args.lastEventSeq === undefined
-          ? {}
-          : { lastEventSeq: () => args.lastEventSeq?.({ threadId }) ?? 0 }),
-        reattach: () => reattachSandbox({ sandboxes: bridgeSandboxes, threadId }),
-        lifecycleEscalation: lifecycleEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
-        onFinished: () => unbindSettings?.(),
-      })
-      if (args.settings !== undefined) {
-        unbindSettings = bindChannelSettingsSync({ channel, settings: args.settings })
-      }
-      const localLog = args.localLog
-      return {
-        channel,
-        stores: {
-          log:
-            localLog === undefined
-              ? new RemoteEventLog({ channel })
-              : new MirroredEventLog({
-                  channel,
-                  localLog,
-                  writer: mirrorWriter({ home: atlasDirectory }),
-                  threadId,
-                  ...(args.onMirrorFailed === undefined ? {} : { onSyncFailed: args.onMirrorFailed }),
-                }),
-          threads: new RemoteThreadStore({ channel }),
-          ledger: new RemoteTurnLedger({ channel }),
-        },
-      }
-    },
+    attach: attachmentOf({ options: args, sandboxes: bridgeSandboxes }),
   }
 }

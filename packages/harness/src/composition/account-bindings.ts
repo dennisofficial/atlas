@@ -2,53 +2,26 @@ import {
   AccountStorePort,
   ClockPort,
   CredentialPort,
-  ESettingId,
+  type Account,
+  type AccountId,
+  type AccountSecret,
 } from '@dltech/atlas-core'
 
 import { CloudService } from '../cloud/cloud-service'
+import type { CloudSession } from '../cloud/cloud-session'
 import { portToken, type DependencyContainer } from '../container/injection'
 import {
-  ClaudeCodeSourceToken,
   CloudSessionStoreToken,
-  CodexSourceToken,
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   UserSettingsStoreToken,
 } from '../container/tokens'
 import { AccountsService } from '../credentials/accounts-service'
-import {
-  ClaudeCodeSource,
-  claudeCodePayloadStore,
-  importClaudeCodeAccount,
-} from '../credentials/claude-code-source'
-import { importCodexAccount } from '../credentials/codex-source'
-import { createSecurityKeychainReader } from '../credentials/keychain-reader'
+import { CloudManagedCredentialPort } from '../credentials/cloud-managed-credential-port'
 import { syncEnvironmentAccounts } from '../credentials/environment-accounts'
 import { builtinOauthClients } from '../credentials/oauth/refresh-client'
 import { AnthropicUsageClient } from '../usage/anthropic-usage-client'
 import { createAccountUsageService, type AccountUsageService } from '../usage/account-usage-service'
-
-import { KeychainReaderToken } from '../container/tokens'
-
-export function bindKeychainSource(args: {
-  container: DependencyContainer
-  launchValue: (id: ESettingId) => string | undefined
-}): void {
-  args.container.register(KeychainReaderToken, { useValue: createSecurityKeychainReader() })
-
-  const keychainService = args.launchValue(ESettingId.KeychainService)
-  if (keychainService === undefined) return
-
-  args.container.register(ClaudeCodeSourceToken, {
-    useFactory: (resolver) =>
-      new ClaudeCodeSource(
-        claudeCodePayloadStore({
-          reader: resolver.resolve(KeychainReaderToken),
-          service: keychainService,
-        }),
-      ),
-  })
-}
 
 export async function bindAccounts(args: {
   container: DependencyContainer
@@ -77,23 +50,24 @@ export async function bindAccounts(args: {
       : {}),
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
+    ...(credentials instanceof CloudManagedCredentialPort
+      ? { handoffOauth: (session: CloudSession, accountIds?: readonly AccountId[]) => credentials.handoffAll(session, accountIds) }
+      : {}),
   })
 
   if (args.reconcileHostSources !== false) {
     await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
-    await importClaudeCodeAccount({
-      accounts: accountStore,
-      source: container.resolve(ClaudeCodeSourceToken),
-    })
-    await importCodexAccount({
-      accounts: accountStore,
-      source: container.resolve(CodexSourceToken),
-    })
   }
 
   const accounts = new AccountsService({
     accounts: accountStore,
     clients: builtinOauthClients({ clock: container.resolve(portToken(ClockPort)) }),
+    ...(credentials instanceof CloudManagedCredentialPort ? {
+      onOauthLogin: (account: Account) =>
+        credentials.read({ provider: account.provider, accountId: account.id }).then(() => undefined),
+      prepareOauthReplacement: (replacement: { accountId: AccountId; secret: AccountSecret }) =>
+        credentials.prepareReplacement(replacement),
+    } : {}),
   })
   const usage = createAccountUsageService({ usage: new AnthropicUsageClient({ credentials }) })
 

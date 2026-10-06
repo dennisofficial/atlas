@@ -47,10 +47,19 @@ const labelFor = (args: {
 export class AccountsService {
   private readonly accounts: AccountStorePort
   private readonly clients: OauthClients
+  private readonly onOauthLogin: ((account: Account) => Promise<void>) | undefined
+  private readonly prepareOauthReplacement: ((args: { accountId: AccountId; secret: AccountSecret }) => Promise<AccountSecret>) | undefined
 
-  constructor(args: { accounts: AccountStorePort; clients: OauthClients }) {
+  constructor(args: {
+    accounts: AccountStorePort
+    clients: OauthClients
+    onOauthLogin?: (account: Account) => Promise<void>
+    prepareOauthReplacement?: (args: { accountId: AccountId; secret: AccountSecret }) => Promise<AccountSecret>
+  }) {
     this.accounts = args.accounts
     this.clients = args.clients
+    this.onOauthLogin = args.onOauthLogin
+    this.prepareOauthReplacement = args.prepareOauthReplacement
   }
 
   list(): Promise<readonly Account[]> {
@@ -127,12 +136,20 @@ export class AccountsService {
   }
 
   private async addLogin(args: { provider: EAuthProvider; login: OauthLogin }): Promise<Account> {
+    const account = await this.storeLogin(args)
+    await this.onOauthLogin?.(account)
+    return account
+  }
+
+  private async storeLogin(args: { provider: EAuthProvider; login: OauthLogin }): Promise<Account> {
     const sameIdentity =
       args.login.email === undefined
         ? undefined
         : await this.sameEmail({ provider: args.provider, email: args.login.email })
 
-    if (sameIdentity !== undefined) {
+    if (sameIdentity?.importedFrom === 'claude-code' || sameIdentity?.importedFrom === 'codex') {
+      await this.accounts.remove(sameIdentity.id)
+    } else if (sameIdentity !== undefined) {
       return this.replaceInPlace({
         held: sameIdentity,
         secret: { kind: EAuthKind.Oauth, tokens: args.login.tokens },
@@ -167,16 +184,18 @@ export class AccountsService {
     )
   }
 
-  /**
-   * A sign-in for an identity the vault already holds refreshes that row rather than stacking a
-   * duplicate: the fresh secret lands, an expired row comes back to life, and the account id —
-   * which meters and the active pointer key off — survives.
-   */
-  private async replaceInPlace(args: {
-    held: Account
-    secret: AccountSecret
-  }): Promise<Account> {
-    await this.accounts.replaceSecret({ accountId: args.held.id, secret: args.secret })
+  private replaceInPlace(args: { held: Account; secret: AccountSecret }): Promise<Account> {
+    return this.accounts.withAccountLock({
+      accountId: args.held.id,
+      run: () => this.replaceLocked(args),
+    })
+  }
+
+  private async replaceLocked(args: { held: Account; secret: AccountSecret }): Promise<Account> {
+    const secret = args.secret.kind === EAuthKind.Oauth && this.prepareOauthReplacement !== undefined
+      ? await this.prepareOauthReplacement({ accountId: args.held.id, secret: args.secret })
+      : args.secret
+    await this.accounts.replaceSecret({ accountId: args.held.id, secret })
     if (args.held.status !== EAccountStatus.Active) {
       await this.accounts.setStatus({ accountId: args.held.id, status: EAccountStatus.Active })
     }
@@ -213,11 +232,6 @@ export class AccountsService {
     return added
   }
 
-  /**
-   * Removing the account Atlas was answering with leaves the provider pointing at nothing, so the
-   * next healthiest account of the same provider takes the pointer rather than the choice being
-   * silently reopened mid-session.
-   */
   async remove(accountId: AccountId): Promise<void> {
     const held = (await this.accounts.list()).find((account) => account.id === accountId)
     if (held === undefined) return

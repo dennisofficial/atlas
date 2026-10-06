@@ -38,7 +38,6 @@ import {
   outageFetch,
   registerModel,
   requests,
-  silentHostSources,
   type RecordedRequest,
 } from './local-first-outage-fakes'
 
@@ -85,9 +84,10 @@ const seedLocalAccounts = async (): Promise<void> => {
       kind: EAuthKind.Oauth,
       tokens: {
         accessToken: 'fake-access-token',
-        refreshToken: 'fake-refresh-token',
+        refreshToken: '',
         expiresAt: '2099-01-01T00:00:00.000Z',
       },
+      authority: { url: CLOUD_URL, connectionId: 'oauth-outage', generation: 1, refreshAfter: '2098-01-01T00:00:00.000Z' },
     },
   })
 }
@@ -120,10 +120,6 @@ const compose = async (args: {
     clientVersion: 'local-first-outage-spec',
     surface: { notice: recordingNotices().port },
     bindPorts: (bindArgs) => {
-      silentHostSources({
-        container: bindArgs.container,
-        codexFile: join(atlasHome, 'no-codex-auth.json'),
-      })
       if (args.model !== undefined) {
         registerModel({ container: bindArgs.container, model: args.model })
       }
@@ -132,7 +128,7 @@ const compose = async (args: {
   })
 
 describe('a composed local session while Atlas Cloud is down', () => {
-  it('boots signed-in, runs a fresh turn on the local vault, and never calls the cloud', async () => {
+  it('boots signed-in and runs a turn using cached cloud-owned access without an API request', async () => {
     const realFetch = globalThis.fetch
     globalThis.fetch = outageFetch('reject')
 
@@ -156,7 +152,6 @@ describe('a composed local session while Atlas Cloud is down', () => {
         'local answer one',
       )
 
-      // Nothing reaches the cloud on a local-first boot.
       expect(cloudRequests()).toEqual([])
       expect(requests.some((request) => request.url.includes('/v1/accounts'))).toBe(false)
       expect(requests.some((request) => request.url.includes('/v1/mcp'))).toBe(false)
@@ -268,7 +263,7 @@ describe('a composed local session while Atlas Cloud is down', () => {
     }
   })
 
-  it('a hung coordination read never blocks a local turn', async () => {
+  it('does not request renewal or block a turn while cached cloud access is fresh', async () => {
     const realFetch = globalThis.fetch
     globalThis.fetch = (async (input: unknown) => {
       const url = String(input)

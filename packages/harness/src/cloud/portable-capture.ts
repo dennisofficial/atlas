@@ -12,10 +12,8 @@ import {
   type PortableState,
   type PortableTokenSource,
 } from '@dltech/atlas-wire'
-import { EAccountOrigin, EAuthKind, accountSecretSchema } from '@dltech/atlas-core'
+import { EAccountOrigin, EAccountStatus, EAuthKind, accountSecretSchema } from '@dltech/atlas-core'
 
-import { CLAUDE_CODE_SOURCE_ID } from '../credentials/claude-code-source'
-import { CODEX_SOURCE_ID } from '../credentials/codex-source'
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
 import { ATLAS_VAULT_KEY_NAME, ATLAS_VAULT_NAME } from '../credentials/paths'
 import { fileVaultBackend } from '../credentials/vault-backend'
@@ -51,7 +49,7 @@ const portableOriginOf = (origin: EAccountOrigin): EAccountOrigin =>
 
 const portableSourceOf = (importedFrom: string | undefined): PortableTokenSource | undefined => {
   if (importedFrom === undefined) return undefined
-  if (importedFrom === CLAUDE_CODE_SOURCE_ID || importedFrom === CODEX_SOURCE_ID) {
+  if (importedFrom === 'claude-code' || importedFrom === 'codex') {
     return { kind: 'file', detail: importedFrom }
   }
   if (importedFrom.startsWith('environment:')) {
@@ -60,11 +58,17 @@ const portableSourceOf = (importedFrom: string | undefined): PortableTokenSource
   return { kind: 'unknown', detail: importedFrom }
 }
 
-type DecodedCarry = { sealed: SealedAccount; plaintext: string }
+type DecodedCarry = { sealed: SealedAccount; plaintext: string; omitted: boolean }
+
+const UNAVAILABLE_OAUTH_SECRET = JSON.stringify({
+  kind: EAuthKind.Oauth,
+  tokens: { accessToken: 'unavailable', refreshToken: '', expiresAt: '1970-01-01T00:00:00.000Z' },
+})
 
 const decodeCarriedAccount = (args: {
   sealed: SealedAccount
   sourceKeyHex: string
+  omitOauth: boolean
 }): DecodedCarry => {
   const opened = openSealed({ keyHex: args.sourceKeyHex, blob: args.sealed.secret })
   if (opened === undefined) {
@@ -89,12 +93,16 @@ const decodeCarriedAccount = (args: {
     })
   }
 
+  if (secret.data.kind === EAuthKind.Oauth && args.omitOauth) {
+    return { sealed: args.sealed, plaintext: UNAVAILABLE_OAUTH_SECRET, omitted: true }
+  }
+
   const carried =
     secret.data.kind === EAuthKind.Oauth
       ? JSON.stringify({ ...secret.data, tokens: { ...secret.data.tokens, refreshToken: '' } })
       : opened
 
-  return { sealed: args.sealed, plaintext: carried }
+  return { sealed: args.sealed, plaintext: carried, omitted: false }
 }
 
 const resealAccount = (args: { carry: DecodedCarry; vaultKeyHex: string }): PortableAccount => {
@@ -106,7 +114,7 @@ const resealAccount = (args: { carry: DecodedCarry; vaultKeyHex: string }): Port
     kind: sealed.kind,
     origin: portableOriginOf(sealed.origin),
     label: sealed.label,
-    status: sealed.status,
+    status: args.carry.omitted ? EAccountStatus.Expired : sealed.status,
     createdAt: sealed.createdAt,
     updatedAt: sealed.updatedAt,
     secret: sealWith({ keyHex: args.vaultKeyHex, plaintext: args.carry.plaintext }),
@@ -215,7 +223,10 @@ const validateMcpContent = (args: { path: string; content: string }): void => {
   }
 }
 
-export async function capturePortableState(args: { home?: string | undefined }): Promise<PortableState> {
+export async function capturePortableState(args: {
+  home?: string | undefined
+  omitOauthAccountIds?: readonly string[] | undefined
+}): Promise<PortableState> {
   const home = args.home ?? atlasDirectory()
 
   const sourceKeyHex = readSourceKeyHex(join(home, ATLAS_VAULT_KEY_NAME))
@@ -235,8 +246,13 @@ export async function capturePortableState(args: { home?: string | undefined }):
     )
   }
 
+  const omitIds = new Set(args.omitOauthAccountIds ?? [])
   const carried = vault.accounts.map((account) =>
-    decodeCarriedAccount({ sealed: account, sourceKeyHex: sourceKeyHex ?? '' }),
+    decodeCarriedAccount({
+      sealed: account,
+      sourceKeyHex: sourceKeyHex ?? '',
+      omitOauth: omitIds.has(account.id),
+    }),
   )
   const carriedIds = new Set(carried.map((carry) => carry.sealed.id))
 
@@ -256,7 +272,7 @@ export async function capturePortableState(args: { home?: string | undefined }):
       .map(([provider, accountId]) => ({ provider, accountId })),
     secrets: secrets.carried,
     omitted: {
-      oauthAccounts: [],
+      oauthAccounts: carried.filter((carry) => carry.omitted).map((carry) => carry.sealed.label),
       mcpOauthSecrets: secrets.mcpOauth,
       attachmentTokens: secrets.attachmentTokens,
     },

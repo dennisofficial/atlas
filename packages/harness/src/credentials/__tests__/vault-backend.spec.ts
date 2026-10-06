@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -107,6 +107,19 @@ describe('a vault holding a provider this build does not know', () => {
   })
 })
 
+describe('OAuth ownership vault compatibility', () => {
+  it('reads a version-one vault without losing accounts and upgrades it on the next write', () => {
+    write({ ...MIXED, version: 1 })
+    const backend = fileVaultBackend(file)
+    const vault = backend.load()
+    expect(vault.version).toBe(VAULT_VERSION)
+    expect(vault.accounts.map((account) => account.id)).toEqual([toAccountId(MINE.id)])
+    expect(onDisk()).toMatchObject({ version: 1 })
+    backend.save(vault)
+    expect(onDisk()).toEqual({ ...MIXED, version: 2 })
+  })
+})
+
 describe('a vault this build cannot use at all', () => {
   it('refuses a file that is not JSON', () => {
     writeFileSync(file, '{ not json')
@@ -132,5 +145,17 @@ describe('a vault this build cannot use at all', () => {
     expect(failure.failure).toBe(ECredentialFailure.Unsupported)
     expect(failure.message).toContain(`version ${VAULT_VERSION + 1}`)
     expect(failure.message).not.toContain('Move it aside')
+  })
+})
+
+describe('a vault file that cannot be opened', () => {
+  it('reads a missing file as empty', () => {
+    expect(fileVaultBackend(file).load().accounts).toEqual([])
+  })
+
+  it('refuses a path that exists but cannot be read rather than reading it as empty', () => {
+    mkdirSync(file)
+
+    expect(failureOf(() => fileVaultBackend(file).load()).failure).toBe(ECredentialFailure.Unreadable)
   })
 })

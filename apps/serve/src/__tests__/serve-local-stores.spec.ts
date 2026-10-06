@@ -105,7 +105,6 @@ describe('serve local stores after a lift', () => {
       accounts: store,
       clients: {},
       clock,
-      sinks: [],
     })
     const heldId = accounts[0]?.id
     if (heldId === undefined) throw new Error('the transferred account did not install')
@@ -184,7 +183,6 @@ describe('serve local stores after a lift', () => {
         }),
       },
       clock,
-      sinks: [],
     })
 
     const credential = await port.read({ provider: EAuthProvider.Anthropic })
@@ -238,7 +236,6 @@ describe('serve local stores after a lift', () => {
       accounts: firstStore,
       clients: { [EAuthProvider.Anthropic]: issuer },
       clock,
-      sinks: [],
     })
     await firstPort.read({ provider: EAuthProvider.Anthropic })
 
@@ -258,7 +255,6 @@ describe('serve local stores after a lift', () => {
         }),
       },
       clock,
-      sinks: [],
     })
 
     const credential = await secondPort.read({ provider: EAuthProvider.Anthropic })

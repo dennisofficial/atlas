@@ -44,6 +44,9 @@ const writtenByANewerAtlas = (where: string, version: number): CredentialError =
     message: `The account vault at ${where} is version ${version}, and this build of Atlas understands version ${VAULT_VERSION}. The accounts in it are intact — update Atlas rather than moving the vault aside.`,
   })
 
+const errorCodeOf = (error: unknown): unknown =>
+  typeof error === 'object' && error !== null ? Reflect.get(error, 'code') : undefined
+
 export const parseVault = (args: { text: string; where: string }): VaultReading => {
   let json: unknown
   try {
@@ -76,7 +79,8 @@ export const fileVaultBackend = (file: string): VaultBackend => {
       let text: string
       try {
         text = readFileSync(file, 'utf8')
-      } catch {
+      } catch (error) {
+        if (errorCodeOf(error) !== 'ENOENT') throw unreadable(file, 'the file could not be opened')
         remainder = emptyRemainder()
         return emptyVault()
       }

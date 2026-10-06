@@ -15,9 +15,10 @@ import { registerDisposable } from '../container/disposal'
 import { portToken, type DependencyContainer } from '../container/injection'
 import { SecretsStoreToken } from '../container/tokens'
 import type { AccountsService } from '../credentials/accounts-service'
+import { CloudManagedCredentialPort } from '../credentials/cloud-managed-credential-port'
 import type { AccountUsageService } from '../usage/account-usage-service'
 
-import { bindAccounts, bindKeychainSource } from './account-bindings'
+import { bindAccounts } from './account-bindings'
 import { bindSettingsPolicy } from './policy-bindings'
 import type { SettingsBinding } from './settings-binding'
 
@@ -46,8 +47,6 @@ export async function bindCredentials(args: {
 }): Promise<CredentialsBinding> {
   const { container, notice } = args
 
-  bindKeychainSource({ container, launchValue: args.launchValue })
-
   const accountStore = container.resolve(portToken(AccountStorePort))
   args.settings.bindTo(container)
   registerDisposable({
@@ -63,6 +62,18 @@ export async function bindCredentials(args: {
     clientVersion: args.clientVersion,
     reconcileHostSources: args.reconcileHostSources,
   })
+
+  const session = cloud.session()
+  if (args.reconcileHostSources && session !== null && credentials instanceof CloudManagedCredentialPort) {
+    void credentials.handoffAll(session).catch((error: unknown) => {
+      notice.notify({
+        key: 'cloud:oauth-handoff',
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+        text: `Signed in to Atlas Cloud; OAuth handoff is pending. ${error instanceof Error ? error.message : 'Retry sign-in.'}`,
+      })
+    })
+  }
 
   const secrets = container.resolve(SecretsStoreToken)
 
