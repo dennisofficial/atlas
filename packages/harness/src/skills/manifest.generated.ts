@@ -2,6 +2,264 @@
 
 export const BUILT_IN_SKILLS: readonly { path: string; text: string }[] = [
   {
+    path: 'atlas-cloud/SKILL.md',
+    text: `---
+name: atlas-cloud
+description: Explain and troubleshoot Atlas Cloud, lift and descend, /container cloud, Vercel sandbox setup, Cloud sign-in and backup, workspace transfer, disconnected or parked sessions, preview URLs, and cloud logs. Use when asked where Atlas runs, what survives a move, or how to operate a remote session.
+---
+
+# Atlas Cloud
+
+Use this guide without an Atlas source checkout. Establish location, connection, and transcript
+freshness first; these instructions describe behavior, not live state. Load \`atlas-config\` for configuration.
+
+## Establish the location
+
+Read workspace and execution reminders; \`/atlas/workspaces/<repo-name>\` alone does not prove location.
+The operator's \`/container\` reports location, and the terminal chip shows connection state. Name what you cannot inspect.
+
+- The terminal client renders the conversation and provisions sandboxes with the operator's Vercel credentials.
+- The sandbox runs the harness, model requests, tools, shells, and services. Its drive persists session data.
+  Closing or losing the terminal does not stop remote work.
+- The optional Atlas Cloud backend handles identity, remote control, thread discovery, PR/CI notifications,
+  provider OAuth renewal, and configuration backup. It does not provision sandboxes or proxy model requests.
+
+## Setup and operator controls
+
+In \`/settings\` (\`ctrl+o\`) select cloud. Set the Vercel token through the secret-setting UI, plus
+\`sandbox.vercelTeamId\` and \`sandbox.vercelProjectId\` (also \`VERCEL_TEAM_ID\` and \`VERCEL_PROJECT_ID\`).
+The token uses Atlas's secret store, not a Vercel environment variable. Keep it out of conversation text.
+An Atlas Cloud sign-in is not required for API-key-based execution; provider OAuth needs handoff below.
+
+Atlas reads \`gh auth token\` locally when first bootstrapping a sandbox. Missing credentials can leave
+it without GitHub access. Authenticate locally before lifting. A later local \`gh auth login\` does not
+update an existing sandbox; verify its Git access and arrange sandbox authentication if needed.
+Released builds select a matching image; prefer that default. \`sandbox.image\` / \`ATLAS_SANDBOX_IMAGE\`
+overrides it for image-access debugging or an intentional runtime. Quota and billing belong to the operator.
+
+The operator types these slash commands in Atlas, not in a shell:
+
+| Input                                 | Effect                                           |
+| ------------------------------------- | ------------------------------------------------ |
+| \`/container\`                          | Report current execution location                |
+| \`/container cloud\`                    | Lift the conversation to a cloud sandbox         |
+| \`/container off\` or \`/container host\` | Return to host; a cloud session descends         |
+| \`/container docker\`                   | Use local Docker; a cloud session descends first |
+
+\`execution_location\` switches host/Docker only. There are no \`/lift\`, \`/descend\`, park, or wake commands.
+Moves may wait or refuse for compaction, a prior unfinished move, or a connecting sandbox.
+Shells and services stop rather than migrate; restart what is needed at the destination. Only running
+shells trigger confirmation. Turns move at a clean pause, not by migrating an active process.
+
+## What a lift preserves
+
+Atlas pauses the family before capture, verifies the destination, commits ownership, and resumes.
+A pre-commit failure keeps the source authoritative; stopped local processes may need restarting.
+
+- Conversations and supervised threads travel with their event identities.
+- The primary repository's main checkout and the session's own worktree carry covered staged,
+  unstaged, and untracked files and logical Git state. No user commit or push is required.
+  Other linked worktrees stay behind. Include Git-ignored files with \`.atlas/.cloudinclude\`
+  (one glob per line, \`#\` comments) when they need workspace transfer.
+- A context bundle carries user skills, global instructions, user MCP configuration, memory/project
+  memory, and project-local instruction files. Above 256 MiB Atlas warns and omits the whole bundle.
+  An upload failure instead fails the lift before ownership changes; check which outcome occurred.
+- Copyable API-key accounts, ordinary secrets, and user settings carry through portable state.
+  Provider OAuth and MCP OAuth have the restrictions below.
+
+After verified lift, Atlas removes the local session worktree only if its fingerprint matches capture.
+A changed tree stays with a warning. Atlas does not remove the main checkout.
+Sibling clones under \`/atlas/workspaces\` are ephemeral: descend leaves them behind, and sandbox
+destruction deletes their copies. Preserve their work outside the sandbox before descending.
+User settings travel at lift and follow local changes while attached. Change them on the terminal;
+sandbox-side edits do not flow back. Cloud backup is a separate explicit operation.
+
+## Descend and preserve data
+
+\`/container off\` returns verified history and workspace; invalid history cannot replace the local conversation.
+If the local checkout changed independently, Atlas restores into a suffixed worktree instead of overwriting or merging.
+
+Descend refuses registered checkouts outside the covered roots, including a teammate's separate
+worktree, and names their paths. Preserve the work first. With operator authorization and after
+checking for uncommitted/unpushed work and active owners, \`git worktree remove <listed-path>\` inside
+the sandbox unregisters an omitted worktree. Do not force removal. Pushing alone, or deleting only
+the directory, does not clear the registration check. A coverage refusal leaves processes running;
+a descend that proceeds stops sandbox shells and services before packing.
+
+Confirm ownership with \`/container\`, not an attachment error's wording: failed restore/attach keeps the source local.
+After ownership commits, later problems arrive as a completed lift with a warning. Use \`ctrl+r\` to reconnect;
+\`/container cloud\` when already there only reports location. Preserve source files/logs; avoid destructive retries.
+
+## Cloud sign-in, credentials, and backup
+
+The cloud settings page offers device-code sign-in, sign-out, GitHub connection, and explicit upload
+or download of accounts, secrets, user settings, and MCP configuration. Restore merges local data:
+same-named secrets, MCP entries, and settings keys may be overwritten, while other local data remains.
+Memory is not a Cloud backup domain; it travels with session context.
+
+Sign-in, backup, restore, and lift preparation can hand eligible Atlas-native Claude/Codex OAuth grants
+to Cloud's refresh authority. Sandboxes use assigned short-lived access tokens, not provider refresh
+tokens. Local-only or legacy CLI-imported grants need native authorization/handoff. MCP OAuth stays
+local and is excluded from portable credentials. Follow omission notices rather than assuming every
+login works after lift. Use \`/auth\` for provider sign-in and \`/mcp signin <name>\` for local MCP sign-in;
+choose sandbox-compatible MCP authentication for Cloud. Signing out does not return OAuth refresh
+authority to the local client; cached tokens can work until expiry, but renewal still needs authority.
+
+## Connection, parking, and previews
+
+Keep sandbox lifecycle, client connection, and transcript freshness separate. Disconnection can
+leave the sandbox working while the terminal shows old history. Reopening through \`/resume\` or
+sending input can wake a parked session; \`ctrl+r\` retries disconnected attachment.
+With no outstanding work, a sandbox parks after about five idle minutes. Turns, children, shells,
+or queued input block parking. Services prevent parking while a client is attached; detached
+service-only sessions may park after about thirty quiet minutes, stopping those processes.
+A parked drive preserves data, not processes. Runtime replacement uses Atlas's drain/checkpoint
+procedure; a timeout is not permission to destroy a live sandbox.
+
+Signed-in startup may retire registered sandboxes whose last recorded activity exceeds seven days,
+including destroying their drives. Descend or preserve work before leaving it unused. Parking is
+not indefinite storage; signed-out sessions also retain Vercel billing and storage responsibilities.
+For previews, use \`service_start\` with \`exposePort\`, bind to \`0.0.0.0\`, and hand over the returned URL.
+\`localhost\` is the sandbox, not the operator's machine. Up to fifteen ports can be exposed, including
+Atlas's serve port. Use background \`bash\` for finite jobs. Restart services after sandbox recreation.
+
+## Diagnose with evidence
+
+Read \`/atlas/home/operational/atlas-serve.log\` for persistent Cloud diagnostics; older runtimes may
+use \`/opt/atlas/atlas-serve.log\`. User skills live in \`/atlas/home/skills\`, \`/atlas/home/.agents/skills\`,
+and \`/atlas/home/.claude/skills\`; prefer \`skill_install\` over the sandbox's ordinary home.
+Host Atlas home holds global \`logs.jsonl\` (including driver/wake narration) and \`sessions/<id>/logs.jsonl\`
+(including lift diagnostics). Inspect relevant errors without dumping credentials or sensitive headers.
+For setup failures, inspect the Vercel settings, image access, or quota named by the error. For Git
+failures, check the sandbox's authentication. Distinguish oversized context warnings from upload failures.
+For transfer refusals, preserve named checkouts. For stale history, inspect connection and serve logs
+before declaring an agent failed. Report the notice, location, and redacted evidence; ask for operator-side checks if needed.
+`,
+  },
+  {
+    path: 'atlas-config/SKILL.md',
+    text: `---
+name: atlas-config
+description: Configure and troubleshoot Atlas settings, settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, and MCP servers (mcp.json, .mcp.json). Use when asked how Atlas is configured, to change its configuration, or why it is not picking up a file.
+---
+
+# Atlas configuration
+
+Use this guide without an Atlas source checkout. Establish the session's current project directory
+and Atlas home before inspecting files. For Cloud execution, transfer, and sign-in, load \`atlas-cloud\`.
+These instructions describe configuration mechanisms, not the live values in this session.
+
+## Locate the configuration
+
+Atlas home is non-empty \`ATLAS_HOME\`, otherwise \`~/.atlas\`. A project is the session's working
+directory, including an entered worktree. A shell's environment may differ from Atlas's launch
+environment. Use current workspace reminders; do not assume the repository's main checkout.
+
+| Kind         | User                                                          | Project                                                          |
+| ------------ | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Settings     | \`<atlas-home>/settings.json\`                                  | \`<project>/.atlas/settings.json\`                                 |
+| MCP          | \`<atlas-home>/mcp.json\`                                       | \`<project>/.atlas/mcp.json\`, \`<project>/.mcp.json\`               |
+| Instructions | \`<atlas-home>/ATLAS.md\`                                       | \`AGENTS.md\`, \`CLAUDE.md\`, \`ATLAS.md\`, their \`.local.md\` siblings |
+| Skills       | \`<atlas-home>/skills\`, \`~/.agents/skills\`, \`~/.claude/skills\` | \`.atlas/skills\`, \`.agents/skills\`, \`.claude/skills\`              |
+| Agent types  | Corresponding \`agents\` roots                                  | Corresponding \`agents\` roots                                     |
+
+Cloud compatibility roots for skills use \`/atlas/home/.agents/skills\` and \`/atlas/home/.claude/skills\`.
+Agent compatibility roots still use the sandbox's ordinary home. Prefer \`skill_install\` for skills.
+Cloud user settings follow the attached terminal; sandbox edits do not sync back. Change them on the terminal.
+
+Read only relevant non-secret configuration. If a file can contain tokens or headers, inspect key
+names or masked values. Do not dump \`auth.json\`, \`secrets.json\`, vault keys, or credential values.
+Atlas has no \`atlas config\` CLI or effective-settings inspection tool. The slash commands below
+are typed by the operator in Atlas, not run in \`bash\`; ask for relevant non-secret output if needed.
+
+## Settings
+
+Settings files are flat JSON objects keyed by dotted id, for example \`{"context.reload": true}\`.
+
+- Precedence: built-in default < user file < project file < the setting's declared environment
+  variable. Environment overrides come from Atlas's launch environment.
+- Unknown ids and invalid values are rejected; the next valid lower layer applies. Keys starting
+  with \`$\` are dropped. Secret settings belong in the app's credential controls, not settings JSON.
+- Invalid JSON is reported. At startup it supplies no overrides; a watcher can retain the prior
+  valid document after a broken edit. Repair the file rather than assuming the value reset.
+- \`/settings\` shows labels, descriptions, current values, and \`layer · origin\` provenance.
+  It does not show file ids or raw choice values. Use the verified ids below for file edits;
+  for other settings, prefer the UI and inspect its resulting non-secret configuration.
+- Settings UI changes write the user file. A project or environment override can still win.
+  Files are watched, but activation depends on the consumer: some configuration is captured at
+  launch. Restart when a launch-only setting changes.
+- Default model preferences differ from the model saved on an existing conversation. \`/model\`
+  changes that conversation. Child model settings affect new spawns, not existing children.
+
+## Instruction files
+
+User-wide instructions come from \`<atlas-home>/ATLAS.md\`. Project discovery walks from the repository
+root to the project directory. With the default filename selection, each directory contributes
+\`AGENTS.md\`, \`CLAUDE.md\`, \`ATLAS.md\`, then \`AGENTS.local.md\`, \`CLAUDE.local.md\`, \`ATLAS.local.md\`.
+More specific instructions take precedence; nested directories touched by tools can add instructions.
+
+\`context.userInstructions\` and \`context.projectInstructions\` control loading. \`context.filenames\`
+selects \`both\`, \`agents\`, \`claude\`, or \`none\`; \`none\` still permits Atlas-named files.
+\`context.reload\` defaults on and re-reads root instructions each turn. With reload off, already-loaded
+instructions stay cached. The reader has a 40,000-character budget and skips whole overflowing files.
+
+## Skills
+
+Write \`<skill-root>/<name>/SKILL.md\` or a flat \`<skill-root>/<name>.md\`. Prefer \`skill_install\` for
+installation. Project definitions override user definitions, which override built-ins by name;
+within a layer Atlas roots precede \`.agents\`, then \`.claude\`. \`/skills\` reloads and reports changes.
+
+Put \`name\` and \`description\` in YAML frontmatter, followed by the Markdown procedure.
+
+Use lowercase names with digits and hyphens, matching the folder, at most 64 characters. Descriptions
+have a 1,024-character limit and teach the model when to load the body. \`user-invocable\` defaults true;
+\`disable-model-invocation\` defaults false. The prompt lists descriptions; the \`skill\` tool loads bodies
+on demand. Built-ins have no installed directory, so they must work without local supporting files.
+To substitute invocation arguments, write a dollar sign followed by \`ARGUMENTS\` or a digit \`1\`–\`9\`.
+Substitution applies throughout the body, including fenced examples. Other accepted frontmatter is
+not proof of tool restrictions or model switching; verify behavior before promising enforcement.
+
+## Agent types
+
+Add flat \`<agents-root>/<name>.md\` files; subdirectories are not scanned. Frontmatter uses \`name\`,
+required \`description\`, and optionally \`tools\`, \`disallowed-tools\`, \`model\`, \`max-effect\`. The body
+is the agent prompt. Names match \`^[a-z][a-z0-9-]*$\`; \`teammate\` is reserved. An unusable model or
+invalid definition refuses the type. Project overrides user overrides built-in. Restart after edits;
+\`/agents types\` reports loaded, refused, and shadowed definitions.
+
+## MCP servers
+
+Native user and project \`mcp.json\` files accept a server-name map, optionally wrapped in \`mcpServers\`:
+
+HTTP example: \`{"docs": {"transport": {"kind": "http", "url": "https://example.com/mcp"}}}\`.
+Stdio example: \`{"local": {"transport": {"kind": "stdio", "command": "my-mcp-server", "args": [], "env": {}}}}\`.
+
+Entries support \`transport\` and optional \`disabled\`; a disabled stub may omit transport. HTTP accepts
+\`headers\`; stdio accepts \`args\` and \`env\`. Names contain letters, digits, \`_\`, or \`-\`.
+Project native entries override user native entries. Project-root \`.mcp.json\` accepts Claude-compatible
+\`command\`/\`args\`/\`env\` or \`type\`/\`url\`/\`headers\` entries, only for names no valid native file defines.
+It is a compatibility fallback, not an override of native configuration.
+
+Values are literal: \`\${VAR}\` is not expanded. Stdio inherits only \`PATH\`, \`HOME\`, and its explicit
+\`env\`. Keep credentials out of committed files. \`/mcp signin <name>\` handles HTTP OAuth.
+Prefer \`mcp-edit\` to modify one named server in the chosen layer; inspect its current entry first.
+Enable/disable replace the entry, so supply its transport to preserve it. Restart after config edits;
+\`/mcp\` reports each server's status, tool count, and layer. Available tools use \`mcp__<server>__<tool>\`.
+
+## Change and verify
+
+1. Choose user scope for personal configuration or project scope for repository-shared configuration.
+2. Inspect the existing file without exposing secrets; preserve unrelated keys in the smallest edit.
+3. Validate JSON without printing it (\`jq empty <file>\`). Use verified file ids/values;
+   use \`/settings\` itself when the installed version's file schema is not known.
+4. Report the changed path and activation: settings according to their consumer, instructions next
+   turn with reload on, \`/skills\` for skills, restart for MCP and agent types.
+5. Verify through the matching operator command or runtime evidence. Stored overrides alone do not
+   prove the running session's state. For ignored changes, check home, project directory, shadowing,
+   invalid entries, and activation before retrying.
+`,
+  },
+  {
     path: 'commit/SKILL.md',
     text: `---
 name: commit
