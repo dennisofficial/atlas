@@ -2,6 +2,21 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "aleph-alpha/kolibri-1"
+    },
+    "label": "aleph-alpha/kolibri-1",
+    "api": "openai-completions",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.4
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "deepseek-v3.2"
     },
     "label": "deepseek-v3.2",
@@ -1093,21 +1108,6 @@
       "low": "low",
       "medium": "medium",
       "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "inference",
-      "modelId": "xiaomi/mimo-v2.6-flash"
-    },
-    "label": "xiaomi/mimo-v2.6-flash",
-    "api": "openai-completions",
-    "contextWindow": 1048576,
-    "imageTier": "standard",
-    "maxOutputTokens": 1048576,
-    "cost": {
-      "inputPerMillion": 0.1,
-      "outputPerMillion": 0.28
     }
   }
 ]
