@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
-import type { BoxRenderable } from '@opentui/core'
+import type { BoxRenderable, Renderable } from '@opentui/core'
 
 import { EContextLink, routeContextLink } from '../../composition/context-link-route'
 import { ELinkVerdict, registerLinkScope } from '../../composition/link-scope'
@@ -16,10 +16,11 @@ export function useContextLinkScope(args: {
   useEffect(
     () =>
       registerLinkScope({
-        contains: ({ x, y }) => {
+        contains: ({ x, y, target }) => {
           const pane = box.current
-          if (pane === null || pane.isDestroyed || !pane.visible) return false
-          return x >= pane.x && x < pane.x + pane.width && y >= pane.y && y < pane.y + pane.height
+          if (pane === null || pane.isDestroyed || !isShown(pane)) return false
+          if (x < pane.x || x >= pane.x + pane.width || y < pane.y || y >= pane.y + pane.height) return false
+          return isWithin({ target, ancestor: pane })
         },
         handle: (href) => {
           const { path, onNavigate } = latest.current
@@ -32,4 +33,18 @@ export function useContextLinkScope(args: {
       }),
     [box],
   )
+}
+
+function isShown(node: Renderable): boolean {
+  for (let current: Renderable | null = node; current !== null; current = current.parent) {
+    if (current.isDestroyed || !current.visible) return false
+  }
+  return true
+}
+
+function isWithin(args: { target: Renderable | null; ancestor: Renderable }): boolean {
+  for (let current = args.target; current !== null; current = current.parent) {
+    if (current === args.ancestor) return true
+  }
+  return false
 }

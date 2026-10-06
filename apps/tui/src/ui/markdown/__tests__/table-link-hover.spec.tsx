@@ -4,7 +4,6 @@ import { testRender } from '@opentui/react/test-utils'
 
 import { installLinkClickOpen, notifyLinkHover } from '../../../composition/link-click'
 import { theme } from '../../theme'
-import { upperTableHeader } from '../table-header'
 import { TableBlock } from '../table-block'
 import { teardown } from './harness'
 
@@ -108,22 +107,99 @@ describe('native table link hover', () => {
   })
 })
 
-describe('upperTableHeader', () => {
-  it('uppercases header text but never the link destination', () => {
-    const header = upperTableHeader('| Docs [guide](docs/Read%20Me.md) | See https://x.io/Path |\n| --- | --- |')
-    expect(header.split('\n')[0]).toBe('| DOCS [GUIDE](docs/Read%20Me.md) | SEE https://x.io/Path |')
+describe('table header link destinations', () => {
+  const frameText = (setup: Setup) => setup.captureCharFrame()
+
+  it('keeps the header uppercase look without touching the destination', async () => {
+    const setup = await mount({
+      markdown: '| [Guide](docs/a_(b).md) | [Site](www.x.io/Path) |\n| --- | --- |\n| x | y |',
+    })
+    expect(frameText(setup)).toContain('GUIDE')
+    const guide = locate({ setup, label: 'GUIDE' })
+    const site = locate({ setup, label: 'SITE' })
+    expect(setup.renderer.getLinkAt(guide.x, guide.y)).toBe('docs/a_(b).md')
+    expect(setup.renderer.getLinkAt(site.x, site.y)).toBe('www.x.io/Path')
   })
 
-  it('leaves the rows beneath untouched', () => {
-    expect(upperTableHeader('| a |\n| - |\n| b |')).toBe('| A |\n| - |\n| b |')
-  })
-
-  it('keeps a header link clickable with its original destination', async () => {
+  it('washes a header link on hover and still reports its destination', async () => {
     const setup = await mount({ markdown: '| [Guide](docs/Read.md) |\n| --- |\n| x |' })
     const at = locate({ setup, label: 'GUIDE' })
     await act(async () => {
       await setup.mockMouse.moveTo(at.x, at.y)
     })
+    await act(async () => {
+      await setup.flush()
+    })
     expect(setup.renderer.getLinkAt(at.x, at.y)).toBe('docs/Read.md')
+    expect(bgAt({ setup, ...at })).toEqual(HOVER_BG)
+  })
+})
+
+describe('table content updates under a stationary pointer', () => {
+  const swap: { current: ((markdown: string) => void) | null } = { current: null }
+
+  function Table(props: { markdown: string }): React.ReactNode {
+    const [markdown, setMarkdown] = React.useState(props.markdown)
+    swap.current = setMarkdown
+    return (
+      <box width={60} height={10}>
+        <TableBlock width={60} markdown={markdown} streaming />
+      </box>
+    )
+  }
+
+  async function settleFrames(setup: Setup): Promise<void> {
+    await act(async () => {
+      await Bun.sleep(5)
+      await setup.flush()
+      await setup.flush()
+    })
+  }
+
+  async function hovered(markdown: string): Promise<{ setup: Setup; target: { x: number; y: number } }> {
+    const setup = await testRender(<Table markdown={markdown} />, { width: 60, height: 10 })
+    live.push(setup)
+    installLinkClickOpen({ renderer: setup.renderer, openUrl: () => undefined, openFile: () => undefined })
+    await settleFrames(setup)
+    const target = locate({ setup, label: 'Table target' })
+    await act(async () => {
+      await setup.mockMouse.moveTo(target.x, target.y)
+    })
+    await settleFrames(setup)
+    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
+    return { setup, target }
+  }
+
+  it('repaints the wash after a streamed row arrives', async () => {
+    const { setup, target } = await hovered(TABLE)
+    await act(async () => {
+      swap.current?.(`${TABLE}\n| c | [Third target](t/three.md) |`)
+    })
+    await settleFrames(setup)
+    expect(setup.captureCharFrame()).toContain('Third target')
+    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
+  })
+
+  it('repaints the wash after the cell under the pointer is rewritten', async () => {
+    const { setup } = await hovered(TABLE)
+    await act(async () => {
+      swap.current?.(TABLE.replace('| a |', '| changed |'))
+    })
+    await settleFrames(setup)
+    expect(setup.captureCharFrame()).toContain('changed')
+    const moved = locate({ setup, label: 'Table target' })
+    expect(bgAt({ setup, ...moved })).toEqual(HOVER_BG)
+  })
+
+  it('paints the current hover on first mount', async () => {
+    const { setup, target } = await hovered(TABLE)
+    live.pop()
+    await teardown(setup)
+    const fresh = await testRender(<Table markdown={TABLE} />, { width: 60, height: 10 })
+    live.push(fresh)
+    installLinkClickOpen({ renderer: fresh.renderer, openUrl: () => undefined, openFile: () => undefined })
+    notifyLinkHover('t/one.md')
+    await settleFrames(fresh)
+    expect(bgAt({ setup: fresh, ...target })).toEqual(HOVER_BG)
   })
 })

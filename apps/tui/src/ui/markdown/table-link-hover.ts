@@ -1,57 +1,65 @@
-import { RGBA, TextTableRenderable, type MarkdownRenderable, type Renderable, type TextTableContent } from '@opentui/core'
+import { RGBA, TextTableRenderable, type MarkdownRenderable, type Renderable, type TextChunk, type TextTableContent } from '@opentui/core'
 import { useEffect, type RefObject } from 'react'
 
 import { linkHoverUrl, subscribeLinkHover } from '../../composition/link-click'
 import { theme } from '../theme'
 
-type Wash = { original: TextTableContent; applied: TextTableContent }
+type Decorated = { original: TextTableContent; applied: TextTableContent }
 
-const washes = new WeakMap<TextTableRenderable, Wash>()
+const decorated = new WeakMap<TextTableRenderable, Decorated>()
+
+const upperCells = new WeakMap<TextChunk[], TextChunk[]>()
 
 function tablesUnder(node: Renderable): TextTableRenderable[] {
   if (node instanceof TextTableRenderable) return [node]
   return node.getChildren().flatMap(tablesUnder)
 }
 
-function washedContent(args: { content: TextTableContent; url: string }): TextTableContent | null {
+function upperHeaderCell(cell: TextChunk[]): TextChunk[] {
+  const known = upperCells.get(cell)
+  if (known !== undefined) return known
+  const upper = cell.map((chunk) => ({ ...chunk, text: chunk.text.toUpperCase() }))
+  upperCells.set(cell, upper)
+  return upper
+}
+
+function washCell(args: { cell: TextChunk[]; url: string }): TextChunk[] {
+  if (!args.cell.some((chunk) => chunk.link?.url === args.url)) return args.cell
   const bg = RGBA.fromHex(theme.hoverBg)
-  let touched = false
-  const rows = args.content.map((row) =>
+  return args.cell.map((chunk) => (chunk.link?.url === args.url ? { ...chunk, bg } : chunk))
+}
+
+function decorate(args: { content: TextTableContent; url: string | null }): TextTableContent {
+  return args.content.map((row, rowIndex) =>
     row.map((cell) => {
-      if (!cell?.some((chunk) => chunk.link?.url === args.url)) return cell
-      touched = true
-      return cell.map((chunk) => (chunk.link?.url === args.url ? { ...chunk, bg } : chunk))
+      if (!Array.isArray(cell)) return cell
+      const shaped = rowIndex === 0 ? upperHeaderCell(cell) : cell
+      return args.url === null ? shaped : washCell({ cell: shaped, url: args.url })
     }),
   )
-  return touched ? rows : null
 }
 
 export function paintTableHover(args: { table: TextTableRenderable; url: string | null }): void {
   const { table } = args
-  const known = washes.get(table)
-  const base = known !== undefined && known.applied === table.content ? known.original : table.content
-  const next = args.url === null ? null : washedContent({ content: base, url: args.url })
-
-  if (next === null) {
-    washes.delete(table)
-    if (base !== table.content) table.content = base
-    return
-  }
-  washes.set(table, { original: base, applied: next })
-  table.content = next
+  const known = decorated.get(table)
+  const original = known !== undefined && known.applied === table.content ? known.original : table.content
+  const applied = decorate({ content: original, url: args.url })
+  decorated.set(table, { original, applied })
+  table.content = applied
 }
 
-export function useTableLinkHover(ref: RefObject<MarkdownRenderable | null>): void {
+export function useTableLinkHover(args: {
+  ref: RefObject<MarkdownRenderable | null>
+  content: string
+}): void {
+  const { ref, content } = args
   useEffect(() => {
-    const paint = (url: string | null) => {
+    const paint = () => {
       const markdown = ref.current
       if (markdown === null || markdown.isDestroyed) return
-      for (const table of tablesUnder(markdown)) paintTableHover({ table, url })
+      for (const table of tablesUnder(markdown)) paintTableHover({ table, url: linkHoverUrl() })
     }
-    const release = subscribeLinkHover(() => paint(linkHoverUrl()))
-    return () => {
-      release()
-      paint(null)
-    }
-  }, [ref])
+    paint()
+    return subscribeLinkHover(paint)
+  }, [ref, content])
 }

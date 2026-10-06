@@ -1,3 +1,5 @@
+import type { Renderable } from '@opentui/core'
+
 export enum ELinkVerdict {
   Pass = 'pass',
   Handled = 'handled',
@@ -9,7 +11,7 @@ export type LinkVerdict =
   | { kind: ELinkVerdict.Handled }
   | { kind: ELinkVerdict.Open; url: string }
 
-export type LinkPoint = { x: number; y: number }
+export type LinkPoint = { x: number; y: number; target: Renderable | null }
 
 export type LinkScope = {
   contains: (point: LinkPoint) => boolean

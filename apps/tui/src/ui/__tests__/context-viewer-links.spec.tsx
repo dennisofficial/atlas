@@ -21,7 +21,7 @@ type Mounted = {
   files: string[]
 }
 
-async function mount(args: { source: string; path?: string; outside?: boolean; hidden?: boolean }): Promise<Mounted> {
+async function mount(args: { source: string; path?: string; outside?: boolean; hidden?: boolean; shell?: 'hidden' | 'overlay' }): Promise<Mounted> {
   bindPathLinks({ resolve: (mention) => (mention.path === EDITOR_FILE ? { path: mention.path } : null) })
   const navigated: string[] = []
   const urls: string[] = []
@@ -44,7 +44,14 @@ async function mount(args: { source: string; path?: string; outside?: boolean; h
           <span link={{ url: 'https://example.com/x' }}>outside link</span>
         </text>
       ) : null}
-      {args.hidden === true ? null : viewer}
+      {args.hidden === true ? null : args.shell === 'hidden' ? <box visible={false}>{viewer}</box> : viewer}
+      {args.shell === 'overlay' ? (
+        <box position="absolute" top={2} left={0} width={WIDTH} height={3} backgroundColor="#000000">
+          <text>
+            <span link={{ url: 'rel/over.md' }}>overlay link</span>
+          </text>
+        </box>
+      ) : null}
     </box>,
     { width: WIDTH, height: HEIGHT },
   )
@@ -183,6 +190,48 @@ describe('context viewer links', () => {
       await mounted.setup.mockMouse.moveTo(x, y)
     })
     expect(linkHoverUrl()).toBe('notes/next.md')
+  })
+
+  it('treats an encoded absolute path as a context path, never the editor', async () => {
+    const mounted = await mount({ source: '[Hosts](%2Fetc%2Fhosts)' })
+    await clickOn({ mounted, label: 'Hosts' })
+    expect(mounted.files).toEqual([])
+    expect(mounted.urls).toEqual([])
+    expect(mounted.navigated).toEqual(['docs/etc/hosts'])
+  })
+
+  it('opens a relative file with a line suffix in the pane, not the browser', async () => {
+    const mounted = await mount({ source: '[Line ref](other.md:12)' })
+    await clickOn({ mounted, label: 'Line ref' })
+    expect(mounted.navigated).toEqual(['docs/other.md'])
+    expect(mounted.urls).toEqual([])
+  })
+
+  it('treats a colon filename as a context file, not a scheme', async () => {
+    const mounted = await mount({ source: '[Colon name](notes:2026.md)' })
+    await clickOn({ mounted, label: 'Colon name' })
+    expect(mounted.navigated).toEqual(['docs/notes:2026.md'])
+    expect(mounted.urls).toEqual([])
+  })
+
+  it('leaves mailto links to the opener', async () => {
+    const mounted = await mount({ source: '[Mail](mailto:a@b.co)' })
+    await clickOn({ mounted, label: 'Mail' })
+    expect(mounted.urls).toEqual(['mailto:a@b.co'])
+    expect(mounted.navigated).toEqual([])
+  })
+
+  it('ignores a relative link on an overlay drawn over the pane', async () => {
+    const mounted = await mount({ source: 'plain', shell: 'overlay' })
+    await clickOn({ mounted, label: 'overlay link' })
+    expect(mounted.navigated).toEqual([])
+  })
+
+  it('does not capture clicks through a pane hidden by an ancestor', async () => {
+    const mounted = await mount({ source: '[Sibling note](notes/next.md)', outside: true, shell: 'hidden' })
+    await clickOn({ mounted, label: 'outside link' })
+    expect(mounted.urls).toEqual(['https://example.com/x'])
+    expect(mounted.navigated).toEqual([])
   })
 
   it('drops its scope when the viewer unmounts, so the same spot opens externally', async () => {
