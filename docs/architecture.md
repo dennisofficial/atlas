@@ -1356,7 +1356,9 @@ additional repositories beside it under `/atlas/workspaces`. These adjacent clon
 only the primary repository and its active session worktree transfer, and descend cleanup deletes
 the remaining cloud copies. Export stays anchored to the primary repository even if the session
 has entered a sibling clone. Reconnect uses saved restoration paths, including legacy layouts,
-rather than relocating an existing workspace to the new default.
+rather than relocating an existing workspace to the new default. A populated legacy workspace
+without a receipt is reused when the new unnamed default is empty; an explicit configured directory
+or a saved receipt keeps priority.
 
 Workspace transfer carries physical files and logical Git state directly between the operator's
 machine and its sandbox. It does not require a user commit, flatten the index into a patch, or push

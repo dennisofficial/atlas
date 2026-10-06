@@ -1,11 +1,13 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
+  legacyWorkspaceDirectoryOf,
   newThreadMeta,
   registryFor,
   sessionDirectory,
   writeMeta,
   writeSessionMetaForRoot,
   threadMetaFile,
+  type DirectoryEntries,
 } from '@dltech/atlas-harness'
 
 import {
@@ -50,6 +52,7 @@ export async function bootServeFiles(args: {
   profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
+  directoryEntries?: DirectoryEntries | undefined
 }) {
   const { env, threadId, cwd, driveHome, log } = args
   const fetchSpecOnce = lazy(driveWorkspaceSpecFetcher({ driveHome }))
@@ -59,6 +62,10 @@ export async function bootServeFiles(args: {
   const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
   const direct = createDirectWorkspace({ driveHome, destination: cwd, restore: args.restoreWorkspace })
   const directBoot = await direct.boot()
+  const fallbackCwd =
+    directBoot.kind === 'none'
+      ? await legacyWorkspaceDirectoryOf({ cwd, driveHome, entriesOf: args.directoryEntries })
+      : cwd
   const workspace: WorkspaceReadiness =
     directBoot.kind === 'ready'
       ? {
@@ -72,8 +79,8 @@ export async function bootServeFiles(args: {
         }
       : directBoot.kind === 'failed'
         ? { state: EWorkspaceState.Failed, step: EWorkspaceStep.Apply, reason: directBoot.reason }
-        : await ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce })
-  const activeCwd = directBoot.kind === 'ready' ? directBoot.result.restored.cwd : cwd
+        : await ensureWorkspace({ cwd: fallbackCwd, fetchSpec: fetchSpecOnce })
+  const activeCwd = directBoot.kind === 'ready' ? directBoot.result.restored.cwd : fallbackCwd
   const workspaceMs = Date.now() - workspaceStartedAt
 
   if (workspace.state === EWorkspaceState.Failed) {

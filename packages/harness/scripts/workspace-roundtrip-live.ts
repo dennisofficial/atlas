@@ -74,7 +74,7 @@ const bridge = {
   sandboxes: {
     ...liveBridge.sandboxes,
     destroy: (args: { threadId: typeof fixture.threadId }) => {
-      teardown ??= liveBridge.sandboxes.destroy(args)
+      teardown = liveBridge.sandboxes.destroy(args)
       return teardown
     },
   },
@@ -164,6 +164,7 @@ subprocess.run(["git","clone",str(repo),str(sibling)],check=True)
   await liveGit({ cwd: fixture.repository, args: ['fsck', '--no-dangling'] })
   if (teardown === undefined) throw new Error('descend did not schedule sandbox cleanup')
   await teardown
+  if (await driver.inspect({ name: live.name }) !== undefined) throw new Error('the sandbox still exists after cleanup')
   console.log(JSON.stringify({ phase: 'ephemeral-sandbox-and-drive-deleted', name: live.name }))
   completed = true
   console.log(JSON.stringify({ phase: 'LIVE_ROUNDTRIP_PASSED', cwd: opened.cwd, directory: fixture.directory }))
@@ -176,6 +177,10 @@ subprocess.run(["git","clone",str(repo),str(sibling)],check=True)
   process.exitCode = 1
 } finally {
   channel?.close()
-  if (!completed && sandbox !== undefined) console.log(JSON.stringify({ phase: 'probe-sandbox-retained', name: sandbox.name, directory: fixture.directory }))
+  if (!completed && sandbox !== undefined) {
+    const observed = await driver.inspect({ name: sandbox.name }).catch(() => null)
+    const phase = observed === undefined ? 'probe-sandbox-deleted' : observed === null ? 'probe-cleanup-unknown' : 'probe-sandbox-retained'
+    console.log(JSON.stringify({ phase, name: sandbox.name, directory: fixture.directory }))
+  }
 }
 process.exit(completed ? 0 : 1)

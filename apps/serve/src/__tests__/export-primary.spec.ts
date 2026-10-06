@@ -19,7 +19,7 @@ afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 
-const git = async (cwd: string, args: readonly string[]): Promise<void> => {
+const git = async ({ cwd, args }: { cwd: string; args: readonly string[] }): Promise<void> => {
   const run = await runGit({
     args: ['-c', 'user.name=Spec', '-c', 'user.email=spec@example.com', '-c', 'commit.gpgsign=false', ...args],
     cwd,
@@ -29,10 +29,10 @@ const git = async (cwd: string, args: readonly string[]): Promise<void> => {
 
 const initRepository = async (path: string): Promise<void> => {
   await mkdir(path, { recursive: true })
-  await git(path, ['init', '--initial-branch=main'])
+  await git({ cwd: path, args: ['init', '--initial-branch=main'] })
   await writeFile(join(path, 'app.ts'), 'export const one = 1\n')
-  await git(path, ['add', '-A'])
-  await git(path, ['commit', '-m', 'seed'])
+  await git({ cwd: path, args: ['add', '-A'] })
+  await git({ cwd: path, args: ['commit', '-m', 'seed'] })
 }
 
 type Layout = {
@@ -53,7 +53,7 @@ const layout = async (): Promise<Layout> => {
   await initRepository(primary)
   await initRepository(sibling)
   await writeFile(join(primary, '.git', 'info', 'exclude'), '.atlas/\n')
-  await git(primary, ['worktree', 'add', linked, '-b', 'feature'])
+  await git({ cwd: primary, args: ['worktree', 'add', linked, '-b', 'feature'] })
   const primaryReceipt: RestoredWorkspace = {
     cwd: primary,
     repository: primary,
@@ -149,7 +149,7 @@ describe('exporting with a sibling clone entered', () => {
   it('still captures the primary and its entered linked worktree', async () => {
     const { primary, linked, primaryReceipt, root } = await layout()
     await writeFile(join(linked, 'feature.ts'), 'export const feature = true\n')
-    await git(linked, ['add', 'feature.ts'])
+    await git({ cwd: linked, args: ['add', 'feature.ts'] })
 
     const reply = await prepareWorkspaceExport({
       driveHome: join(root, 'home'),
