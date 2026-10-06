@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-04T21:39:09.559Z",
+  "generatedAt": "2026-10-06T00:10:07.579Z",
   "source": "models.dev + api.inference.net",
   "providerCount": 4,
-  "modelCount": 430,
-  "hash": "1100d6067030b4f1035c8e33c592ec78653f429f9aee0b9e506e5ff071631a55"
+  "modelCount": 428,
+  "hash": "41ef7d486780e32e250e843d03b2e560979033d913a419ad5d80adebd7d2154f"
 }
