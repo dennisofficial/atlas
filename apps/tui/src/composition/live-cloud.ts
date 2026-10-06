@@ -12,7 +12,6 @@ import {
 } from '@dltech/atlas-core'
 import {
   atlasDirectory,
-  capturePortableState,
   persistedTelemetryDistinctId,
   readGhAuthToken,
   requireVercelCredentials,
@@ -77,8 +76,12 @@ const portableOmissionNotice = (omitted: {
   oauthAccounts: readonly string[]
   mcpOauthSecrets: readonly string[]
 }): string => {
-  void omitted.oauthAccounts
   const parts: string[] = []
+  if (omitted.oauthAccounts.length > 0) {
+    parts.push(
+      `OAuth logins stayed local (${omitted.oauthAccounts.join(', ')}) — sign in again with /auth to authorize them with Atlas Cloud before the cloud session can use them`,
+    )
+  }
   if (omitted.mcpOauthSecrets.length > 0) {
     parts.push(
       `MCP OAuth sign-ins stayed local (${omitted.mcpOauthSecrets.join(', ')}) — these servers need separately configured non-OAuth credentials to authenticate in a detached sandbox`,
@@ -86,6 +89,13 @@ const portableOmissionNotice = (omitted: {
   }
   return `the cloud session boots without everything this machine holds: ${parts.join('; ')}`
 }
+
+export const cloudUrlOf = (app: {
+  cloud: { session(): { url: string } | null }
+  settings: { snapshot(): { resolution: SettingsResolution } }
+}): string =>
+  app.cloud.session()?.url ??
+  textValueOf({ resolution: app.settings.snapshot().resolution, id: ESettingId.CloudUrl })
 
 export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
   return () =>
@@ -107,7 +117,9 @@ export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
       localLog: app.log,
       settings: app.settings,
       readGitToken: () => readGhAuthToken(),
-      capturePortable: () => capturePortableState({}),
+      capturePortable: () => app.cloud.capturePortableState(),
+      authorizeSandbox: (authorization) => app.cloud.prepareSandboxOauth(authorization),
+      cloudUrl: () => cloudUrlOf(app),
       onPortableOmitted: (omitted) => {
         noticePortBinding().notify({
           text: portableOmissionNotice(omitted),

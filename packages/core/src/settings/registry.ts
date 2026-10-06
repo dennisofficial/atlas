@@ -56,7 +56,6 @@ export enum ESettingId {
   VercelTeamId = 'sandbox.vercelTeamId',
   VercelProjectId = 'sandbox.vercelProjectId',
   SandboxImage = 'sandbox.image',
-  KeychainService = 'credentials.keychainService',
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
   GrillingCeremony = 'experimental.grillingCeremony',
@@ -669,17 +668,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     kind: ESettingKind.Secret,
     fallback: '',
     masked: true,
-  },
-  {
-    id: ESettingId.KeychainService,
-    page: ESettingPage.Hidden,
-    group: 'Credentials',
-    label: 'Keychain item',
-    description:
-      'The keychain item a Claude Code login is imported from on boot, and written back to when Atlas refreshes it. Left empty, it is the item Claude Code itself writes.',
-    environmentVariable: 'ATLAS_KEYCHAIN_SERVICE',
-    kind: ESettingKind.Text,
-    fallback: '',
   },
   {
     id: ESettingId.GrillingCeremony,

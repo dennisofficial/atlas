@@ -21,9 +21,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { CredentialError, ECredentialFailure } from './credential-error'
-import type { CredentialSink } from './credential-sink'
 import { clientFor, isHardAuthFailure, type RefreshClients } from './oauth'
-import { SinkReconciler } from './sink-reconciler'
 
 const SIGN_IN = 'Sign in with /auth.'
 
@@ -45,7 +43,6 @@ export class RefreshingCredentialPort extends CredentialPort {
   private readonly accounts: AccountStorePort
   private readonly clients: RefreshClients
   private readonly clock: ClockPort
-  private readonly reconciler: SinkReconciler
   private readonly defaultProvider: EAuthProvider
   private readonly skewMs: number | undefined
   private readonly refreshing = new Map<AccountId, Promise<StoredAccount>>()
@@ -55,29 +52,20 @@ export class RefreshingCredentialPort extends CredentialPort {
     accounts: AccountStorePort
     clients: RefreshClients
     clock: ClockPort
-    sinks?: readonly CredentialSink[]
     defaultProvider?: EAuthProvider
     skewMs?: number | undefined
-    sinkTtlMs?: number | undefined
   }) {
     super()
     this.accounts = args.accounts
     this.clients = args.clients
     this.clock = args.clock
-    this.reconciler = new SinkReconciler({
-      accounts: args.accounts,
-      sinks: args.sinks ?? [],
-      clock: args.clock,
-      ttlMs: args.sinkTtlMs,
-    })
     this.defaultProvider = args.defaultProvider ?? EAuthProvider.Anthropic
     this.skewMs = args.skewMs
   }
 
   async read(request?: CredentialRequest): Promise<Credential> {
     const provider = request?.provider ?? this.defaultProvider
-    const chosen = await this.chosenAccount({ provider, accountId: request?.accountId })
-    const { account: stored } = await this.reconciler.adopt({ stored: chosen })
+    const stored = await this.chosenAccount({ provider, accountId: request?.accountId })
 
     const decision = this.decisionFor(stored)
 
@@ -127,7 +115,17 @@ export class RefreshingCredentialPort extends CredentialPort {
     const inFlight = this.refreshing.get(stored.id)
     if (inFlight !== undefined) return inFlight
 
-    const work = this.refresh(stored).finally(() => {
+    const work = this.accounts.withAccountLock({
+      accountId: stored.id,
+      run: async () => {
+        const current = await this.accounts.read(stored.id)
+        if (current === undefined) throw this.noAccount(stored.provider, ENoAccountReason.NoneForProvider)
+        const decision = this.decisionFor(current)
+        if (decision === ERefresh.Fresh) return current
+        if (decision === ERefresh.Unrefreshable) throw this.expired(current)
+        return this.refresh(current)
+      },
+    }).finally(() => {
       this.refreshing.delete(stored.id)
     })
     this.refreshing.set(stored.id, work)
@@ -135,22 +133,7 @@ export class RefreshingCredentialPort extends CredentialPort {
     return work
   }
 
-  /**
-   * A refresh token is single-use, so spending it is the one step that cannot be taken back. The
-   * other tool may have rotated since the cached look, and its store is free to read — and if it
-   * has, the pair to spend is that one. Ours is already scrap.
-   */
-  private async refresh(held: StoredAccount): Promise<StoredAccount> {
-    const { account: stored, adopted } = await this.reconciler.adopt({
-      stored: held,
-      bypassCache: true,
-    })
-
-    if (adopted) {
-      this.rejected.delete(stored.id)
-      if (this.decisionFor(stored) === ERefresh.Fresh) return stored
-    }
-
+  private async refresh(stored: StoredAccount): Promise<StoredAccount> {
     const tokens = tokensOf(stored)
     if (tokens === undefined) return stored
 
@@ -165,7 +148,6 @@ export class RefreshingCredentialPort extends CredentialPort {
 
       await this.accounts.replaceSecret({ accountId: stored.id, secret })
       const next: StoredAccount = { ...stored, secret, status: EAccountStatus.Active }
-      await this.reconciler.writeBack({ stored: next, rotated: merged, previous: tokens })
       this.rejected.delete(stored.id)
 
       return next

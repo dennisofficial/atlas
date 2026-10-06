@@ -30,8 +30,17 @@ export interface OauthTokens {
   accountId?: string
 }
 
+export interface OauthAuthority {
+  url: string
+  connectionId: string
+  generation?: number
+  refreshAfter?: string
+  authorizationId?: string
+  previousAuthorizationId?: string
+}
+
 export type AccountSecret =
-  | { kind: EAuthKind.Oauth; tokens: OauthTokens }
+  | { kind: EAuthKind.Oauth; tokens: OauthTokens; authority?: OauthAuthority }
   | { kind: EAuthKind.ApiKey; apiKey: string }
 
 export interface AccountDto {

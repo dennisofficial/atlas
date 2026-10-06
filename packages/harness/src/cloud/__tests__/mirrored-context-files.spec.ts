@@ -114,7 +114,9 @@ describe('MirroredContextFiles', () => {
             : join(mirrorDirOf(args.home), directory)
           const { readdir } = await import('node:fs/promises')
           const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
-          return entries.map((entry) => ({ name: entry.name, isDirectory: entry.isDirectory() }))
+          return entries
+            .map((entry) => ({ name: entry.name, isDirectory: entry.isDirectory() }))
+            .sort((left, right) => left.name.localeCompare(right.name))
         },
         load: async (path) => {
           const text = await readFile(join(mirrorDirOf(args.home), path), 'utf8').catch(() => null)

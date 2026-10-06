@@ -9,7 +9,6 @@ import {
 } from '@dltech/atlas-core'
 
 import { CredentialError, ECredentialFailure } from '../credential-error'
-import type { CredentialSink } from '../credential-sink'
 import { OauthHttpError } from '../oauth'
 import { RefreshingCredentialPort } from '../refreshing-credential-port'
 import {
@@ -54,15 +53,11 @@ let vault: Vault
 
 const portWith = (args: {
   client: ScriptedRefresh
-  sinks?: readonly CredentialSink[]
-  sinkTtlMs?: number
 }) =>
   new RefreshingCredentialPort({
     accounts: vault.store,
     clients: { [EAuthProvider.Anthropic]: args.client },
     clock,
-    ...(args.sinks === undefined ? {} : { sinks: args.sinks }),
-    ...(args.sinkTtlMs === undefined ? {} : { sinkTtlMs: args.sinkTtlMs }),
   })
 
 const failureOf = async (read: Promise<unknown>): Promise<CredentialError> => {
@@ -352,207 +347,5 @@ describe('RefreshingCredentialPort', () => {
     )
 
     expect(error.failure).toBe(ECredentialFailure.StoreUnavailable)
-  })
-})
-
-describe('an imported credential', () => {
-  type Sink = CredentialSink & {
-    written: OauthTokens[]
-    reads: number
-    hold: (tokens: OauthTokens) => void
-  }
-
-  const sinkHolding = (held: OauthTokens | undefined): Sink => {
-    let current = held
-    const written: OauthTokens[] = []
-
-    const sink: Sink = {
-      id: 'claude-code',
-      written,
-      reads: 0,
-      hold: (tokens) => {
-        current = tokens
-      },
-      read: async () => {
-        sink.reads += 1
-        return current
-      },
-      write: async (rotated) => {
-        written.push(rotated)
-        current = rotated
-      },
-    }
-
-    return sink
-  }
-
-  it('writes the rotated pair back, so the tool it came from keeps working', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(2) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(tokens({ expiresAt: minutesFromNow(2) }))
-
-    await portWith({ client: rotating(), sinks: [sink] }).read()
-
-    expect(sink.written).toHaveLength(1)
-    expect(sink.written[0]).toMatchObject({ accessToken: 'access-2', refreshToken: 'refresh-2' })
-  })
-
-  it('takes up a newer pair the other tool refreshed instead of spending its own', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(2) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(
-      tokens({ access: 'their-access', refresh: 'their-refresh', expiresAt: minutesFromNow(300) }),
-    )
-    const client = rotating()
-
-    const credential = await portWith({ client, sinks: [sink] }).read()
-
-    expect(client.calls).toBe(0)
-    expect(credential).toMatchObject({ accessToken: 'their-access' })
-    expect(sink.written).toEqual([])
-  })
-
-  it('takes up the pair the other tool rotated to, long before its own copy runs out', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(100) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(
-      tokens({ access: 'their-access', refresh: 'their-refresh', expiresAt: minutesFromNow(500) }),
-    )
-    const client = rotating()
-
-    const credential = await portWith({ client, sinks: [sink] }).read()
-
-    expect(client.calls).toBe(0)
-    expect(credential).toMatchObject({ accessToken: 'their-access' })
-  })
-
-  it('keeps the pair it took up, so the vault stops handing out the revoked one', async () => {
-    const account = await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(100) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(
-      tokens({ access: 'their-access', refresh: 'their-refresh', expiresAt: minutesFromNow(500) }),
-    )
-
-    await portWith({ client: rotating(), sinks: [sink] }).read()
-
-    const stored = await vault.store.read(account.id)
-    expect(stored?.secret).toMatchObject({ tokens: { accessToken: 'their-access' } })
-  })
-
-  it('reads the other store once for a burst of reads on the same pair', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(100) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(tokens({ expiresAt: minutesFromNow(100) }))
-    const port = portWith({ client: rotating(), sinks: [sink], sinkTtlMs: 10_000 })
-
-    await port.read()
-    await port.read()
-    await port.read()
-
-    expect(sink.reads).toBe(1)
-  })
-
-  it('looks again once the cached look has gone stale', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(100) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(tokens({ expiresAt: minutesFromNow(100) }))
-    const port = portWith({ client: rotating(), sinks: [sink], sinkTtlMs: 10_000 })
-
-    await port.read()
-    sink.hold(
-      tokens({ access: 'their-access', refresh: 'their-refresh', expiresAt: minutesFromNow(500) }),
-    )
-    clock.set(minutesFromNow(1))
-
-    expect(await port.read()).toMatchObject({ accessToken: 'their-access' })
-  })
-
-  it('takes the other pair for a refused token instead of spending its own', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(100) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(tokens({ expiresAt: minutesFromNow(100) }))
-    const client = rotating()
-    const port = portWith({ client, sinks: [sink] })
-
-    await port.discard(await port.read())
-    sink.hold(
-      tokens({ access: 'their-access', refresh: 'their-refresh', expiresAt: minutesFromNow(500) }),
-    )
-
-    expect(await port.read()).toMatchObject({ accessToken: 'their-access' })
-    expect(client.calls).toBe(0)
-  })
-
-  it('spends the pair it just took up, never the one that pair superseded', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(2) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(
-      tokens({ access: 'their-access', refresh: 'their-refresh', expiresAt: minutesFromNow(3) }),
-    )
-    const client = rotating()
-
-    await portWith({ client, sinks: [sink] }).read()
-
-    expect(client.seen).toEqual(['their-refresh'])
-  })
-
-  it('leaves another account credential in a shared store alone', async () => {
-    await vault.addAccount({
-      label: 'other',
-      secret: oauthSecret({ access: 'other-access', refresh: 'other-refresh' }),
-    })
-    const imported = await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(2) }),
-      importedFrom: 'claude-code',
-    })
-    await vault.store.setActive({ provider: EAuthProvider.Anthropic, accountId: imported.id })
-    const sink = sinkHolding(
-      tokens({ access: 'other-access', refresh: 'newer-refresh', expiresAt: minutesFromNow(300) }),
-    )
-    const client = rotating()
-
-    await portWith({ client, sinks: [sink] }).read()
-
-    expect(client.calls).toBe(1)
-  })
-
-  it('does not push an older pair over a newer one the other tool holds', async () => {
-    await vault.addAccount({
-      label: 'imported',
-      secret: oauthSecret({ expiresAt: minutesFromNow(2) }),
-      importedFrom: 'claude-code',
-    })
-    const sink = sinkHolding(
-      tokens({ access: 'their-access', refresh: 'their-refresh', expiresAt: minutesFromNow(400) }),
-    )
-
-    await portWith({ client: rotating(minutesFromNow(10)), sinks: [sink] }).read()
-
-    expect(sink.written).toEqual([])
   })
 })

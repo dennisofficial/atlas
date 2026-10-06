@@ -1,4 +1,4 @@
-import type { AccountStorePort, SettingsStorePort } from '@dltech/atlas-core'
+import type { AccountStorePort, SettingsStorePort, ThreadId } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
@@ -9,6 +9,12 @@ import { beginCloudLogin, type CloudLoginTicket } from './device-login'
 import { restoreArchivedLocalFiles } from './local-recovery'
 import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
 import { downloadCloudData } from './sync-download'
+import { capturePortableState } from './portable-state'
+import {
+  classifyOauthAccounts,
+  prepareSandboxOauth,
+  type OauthHandoffCallback,
+} from './cloud-oauth-sandbox'
 import { uploadLocalSettings } from './sync-settings'
 import {
   uploadLocalAccounts,
@@ -40,6 +46,7 @@ export class CloudService {
   private readonly fetchFn: typeof fetch
   private readonly signInOffer: SignInOffer
   private readonly sessionsClientFor: SessionsClientFor | undefined
+  private readonly handoffOauth: OauthHandoffCallback | undefined
   private cached: { token: string; client: CloudClient } | undefined
 
   constructor(args: {
@@ -52,6 +59,7 @@ export class CloudService {
     fetchFn?: typeof fetch
     signInOffer?: SignInOffer
     sessionsClientFor?: SessionsClientFor
+    handoffOauth?: OauthHandoffCallback
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
@@ -62,6 +70,7 @@ export class CloudService {
     this.fetchFn = args.fetchFn ?? fetch
     this.signInOffer = args.signInOffer ?? fileSignInOffer()
     this.sessionsClientFor = args.sessionsClientFor
+    this.handoffOauth = args.handoffOauth
   }
 
   private clientFor(args: { session: CloudSession }): CloudClient {
@@ -137,6 +146,7 @@ export class CloudService {
 
     const session: CloudSession = { url: ticket.url, token, email }
     this.sessions.write(session)
+    await this.handoffOauth?.(session)
 
     return { session }
   }
@@ -162,8 +172,38 @@ export class CloudService {
     return parsed.success ? (parsed.data.user.email ?? null) : null
   }
 
+  async capturePortableState() {
+    const session = this.session()
+    const before = await classifyOauthAccounts({ accounts: this.localAccounts, session })
+    if (session !== null && before.eligible.length > 0) {
+      await this.handoffOauth?.(session, before.eligible)
+    }
+    const after = await classifyOauthAccounts({ accounts: this.localAccounts, session })
+    const omitted = session === null ? [...after.eligible, ...after.excluded.map((account) => account.id)] : after.excluded.map((account) => account.id)
+    return capturePortableState({ omitOauthAccountIds: omitted })
+  }
+
+  async prepareSandboxOauth(args: {
+    threadId: ThreadId
+    token: string
+    serveUrl: string
+    model?: string | undefined
+  }): Promise<void> {
+    await prepareSandboxOauth({
+      accounts: this.localAccounts,
+      session: this.session(),
+      handoffOauth: this.handoffOauth,
+      registration: { threadId: args.threadId, token: args.token, serveUrl: args.serveUrl },
+      ...(args.model === undefined ? {} : { model: args.model }),
+      clientVersion: this.clientVersion ?? 'dev',
+      fetchFn: this.fetchFn,
+    })
+  }
+
   async uploadLocalToCloud(): Promise<CloudSyncCounts> {
     const client = this.requireClient()
+    const session = this.session()
+    if (session !== null) await this.handoffOauth?.(session)
     return {
       accounts: await uploadLocalAccounts({ client, local: this.localAccounts }),
       secrets: await uploadLocalSecrets({ client, localSecrets: this.localSecrets }),
@@ -174,7 +214,7 @@ export class CloudService {
 
   async downloadCloudToLocal(): Promise<CloudSyncCounts> {
     const client = this.requireClient()
-    return downloadCloudData({
+    const result = await downloadCloudData({
       client,
       stores: {
         accounts: this.localAccounts,
@@ -182,6 +222,9 @@ export class CloudService {
         settings: this.localSettings,
       },
     })
+    const session = this.session()
+    if (session !== null) await this.handoffOauth?.(session)
+    return result
   }
 
   private requireClient(): CloudClient {

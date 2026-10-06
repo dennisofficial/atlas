@@ -28,7 +28,9 @@ export const sameAccountSecret = (a: AccountSecret, b: AccountSecret): boolean =
   if (a.kind === EAuthKind.Oauth && b.kind === EAuthKind.Oauth) {
     return (
       a.tokens.accessToken === b.tokens.accessToken &&
-      a.tokens.refreshToken === b.tokens.refreshToken
+      a.tokens.refreshToken === b.tokens.refreshToken &&
+      a.authority?.url === b.authority?.url &&
+      a.authority?.connectionId === b.authority?.connectionId
     )
   }
   return false

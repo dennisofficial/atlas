@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator'
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator'
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from './accounts.types'
 
 export class OauthTokensDto {
@@ -23,6 +23,33 @@ export class OauthTokensDto {
   accountId?: string
 }
 
+export class OauthAuthorityDto {
+  @IsString()
+  @IsNotEmpty()
+  url!: string
+
+  @IsString()
+  @IsNotEmpty()
+  connectionId!: string
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  generation?: number
+
+  @IsOptional()
+  @IsString()
+  refreshAfter?: string
+
+  @IsOptional()
+  @IsString()
+  authorizationId?: string
+
+  @IsOptional()
+  @IsString()
+  previousAuthorizationId?: string
+}
+
 export class SecretDto {
   @IsIn([EAuthKind.Oauth, EAuthKind.ApiKey])
   kind!: EAuthKind
@@ -31,6 +58,11 @@ export class SecretDto {
   @ValidateNested()
   @Type(() => OauthTokensDto)
   tokens?: OauthTokensDto
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OauthAuthorityDto)
+  authority?: OauthAuthorityDto
 
   @IsOptional()
   @IsString()

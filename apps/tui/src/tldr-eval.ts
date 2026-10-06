@@ -26,9 +26,7 @@ import {
   atlasDirectory,
   createAnthropicOauthModel,
   createHarnessContainer,
-  createSecurityKeychainReader,
   disposeAll,
-  KeychainReaderToken,
   portToken,
   readSessionMetaSync,
   TurnLedgerPort,
@@ -153,7 +151,6 @@ async function judge(args: {
 
 async function main(): Promise<void> {
   const container = createHarnessContainer()
-  container.register(KeychainReaderToken, { useValue: createSecurityKeychainReader() })
   try {
     const log = container.resolve(portToken(EventLogPort))
     const ledger = container.resolve(portToken(TurnLedgerPort))

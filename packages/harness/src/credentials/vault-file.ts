@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { accountIdSchema, accountSchema, EAuthProvider } from '@dltech/atlas-core'
 
-export const VAULT_VERSION = 1
+export const VAULT_VERSION = 2
 
 export const sealedAccountSchema = accountSchema.extend({ secret: z.string().min(1) })
 
@@ -21,7 +21,7 @@ export const emptyVault = (): VaultFile => ({ version: VAULT_VERSION, accounts: 
 export const versionedFileSchema = z.looseObject({ version: z.number() })
 
 export const vaultEnvelopeSchema = z.object({
-  version: z.literal(VAULT_VERSION),
+  version: z.union([z.literal(1), z.literal(VAULT_VERSION)]),
   accounts: z.array(z.unknown()),
   active: z.record(z.string(), z.unknown()),
 })
@@ -54,7 +54,7 @@ const belongsToAnotherBuild = (entry: unknown): boolean => {
 export const readVaultEnvelope = (envelope: VaultEnvelope): VaultReading | undefined => {
   const active = Object.entries(envelope.active)
   const parsed = vaultFileSchema.safeParse({
-    version: envelope.version,
+    version: VAULT_VERSION,
     accounts: envelope.accounts.filter((entry) => !belongsToAnotherBuild(entry)),
     active: Object.fromEntries(active.filter(([provider]) => providerIsKnown(provider))),
   })

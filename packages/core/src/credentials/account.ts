@@ -40,12 +40,30 @@ export const oauthTokensSchema = z.object({
 
 export type OauthTokens = z.infer<typeof oauthTokensSchema>
 
+export const oauthAuthoritySchema = z.object({
+  url: z.string().min(1),
+  connectionId: z.string().min(1),
+  generation: z.number().int().nonnegative().optional(),
+  refreshAfter: z.string().optional(),
+  authorizationId: z.string().min(1).optional(),
+  previousAuthorizationId: z.string().min(1).optional(),
+})
+
+export type OauthAuthority = z.infer<typeof oauthAuthoritySchema>
+
 export const accountSecretSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal(EAuthKind.Oauth), tokens: oauthTokensSchema }),
+  z.object({
+    kind: z.literal(EAuthKind.Oauth),
+    tokens: oauthTokensSchema,
+    authority: oauthAuthoritySchema.optional(),
+  }),
   z.object({ kind: z.literal(EAuthKind.ApiKey), apiKey: z.string().min(1) }),
 ])
 
 export type AccountSecret = z.infer<typeof accountSecretSchema>
+
+export const authorityOf = (secret: AccountSecret): OauthAuthority | undefined =>
+  secret.kind === EAuthKind.Oauth ? secret.authority : undefined
 
 export const accountSchema = z.object({
   id: accountIdSchema,

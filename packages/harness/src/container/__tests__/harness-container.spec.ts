@@ -2,12 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { AccountStorePort, ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, ProcessPort, TelemetryPort, toThreadId } from '@dltech/atlas-core'
 
-import type { KeychainReader } from '../../credentials/keychain-reader'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { SessionEnvironmentProcessPort } from '../../execution/session-environment'
 import { sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
-import { RefreshingCredentialPort } from '../../credentials/refreshing-credential-port'
+import { CloudManagedCredentialPort } from '../../credentials/cloud-managed-credential-port'
 import { NullTelemetry } from '../../telemetry/null-telemetry'
 import { ThreadStorePort, RandomIds, SystemClock } from '../../store'
 import { JsonlEventLog } from '../../store/sessions/event-log'
@@ -15,12 +14,7 @@ import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { createHarnessContainer } from '../create-harness-container'
 import { portToken, type DependencyContainer } from '../injection'
-import { KeychainReaderToken, LocalAccountStoreToken, SecretsStoreToken, WorkspaceRoot } from '../tokens'
-
-const silentReader: KeychainReader = {
-  readGenericPassword: async () => '{}',
-  writeGenericPassword: async () => undefined,
-}
+import { LocalAccountStoreToken, SecretsStoreToken, WorkspaceRoot } from '../tokens'
 
 let temporary: TempHome
 let previousHome: string | undefined
@@ -42,7 +36,6 @@ describe('createHarnessContainer', () => {
 
   beforeEach(() => {
     harness = createHarnessContainer()
-    harness.register(KeychainReaderToken, { useValue: silentReader })
   })
 
   it('resolves the clock port to the system clock', () => {
@@ -65,8 +58,8 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(ThreadStorePort))).toBe(harness.resolve(portToken(ThreadStorePort)))
   })
 
-  it('resolves the credential port to the local refreshing port, whatever the sign-in state', () => {
-    expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(RefreshingCredentialPort)
+  it('resolves the credential port to the persistent OAuth ownership adapter', () => {
+    expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CloudManagedCredentialPort)
   })
 
   it('resolves the account store to the local vault file store', () => {

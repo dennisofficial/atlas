@@ -170,3 +170,25 @@ describe('portable state capture', () => {
     expect(PORTABLE_ACCOUNT_KIND).toBe(EAuthKind.ApiKey)
   })
 })
+
+describe('portable state capture of excluded OAuth accounts', () => {
+  it('replaces an excluded active OAuth secret with an expired placeholder and keeps its pointer', async () => {
+    const source = openHome()
+    try {
+      const { oauthAccountId } = await seedSource({ source })
+      const before = JSON.stringify(await source.store.list())
+      const state = await capturePortableState({ home: source.directory, omitOauthAccountIds: [oauthAccountId] })
+
+      const placeholder = state.accounts.find((account) => account.id === oauthAccountId)
+      expect(placeholder?.status).toBe('expired')
+      expect(placeholder?.label).toBe('Claude subscription')
+      expect(state.omitted?.oauthAccounts).toEqual(['Claude subscription'])
+      expect(state.active).toContainEqual({ provider: 'anthropic', accountId: oauthAccountId })
+      expect(JSON.stringify(state)).not.toContain('fake-access-token')
+      expect(JSON.stringify(state)).not.toContain('fake-refresh-token')
+      expect(JSON.stringify(await source.store.list())).toBe(before)
+    } finally {
+      rmSync(source.directory, { recursive: true, force: true })
+    }
+  })
+})

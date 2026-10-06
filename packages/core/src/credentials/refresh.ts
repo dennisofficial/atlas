@@ -1,4 +1,4 @@
-import { EAuthKind, type AccountSecret } from './account'
+import { authorityOf, EAuthKind, type AccountSecret } from './account'
 
 export enum ERefresh {
   Fresh = 'fresh',
@@ -21,7 +21,8 @@ export function refreshDecision(args: {
 }): ERefresh {
   if (args.secret.kind === EAuthKind.ApiKey) return ERefresh.Fresh
 
-  const canRefresh = args.secret.tokens.refreshToken.length > 0
+  const canRefresh =
+    authorityOf(args.secret) === undefined && args.secret.tokens.refreshToken.length > 0
   if (args.revoked === true) return canRefresh ? ERefresh.Due : ERefresh.Unrefreshable
 
   const nowMillis = millisOf(args.now)

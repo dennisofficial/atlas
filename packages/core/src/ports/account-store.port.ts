@@ -26,4 +26,8 @@ export abstract class AccountStorePort {
   abstract remove(accountId: AccountId): Promise<void>
   abstract setActive(args: { provider: EAuthProvider; accountId: AccountId }): Promise<void>
   abstract activeFor(provider: EAuthProvider): Promise<AccountId | undefined>
+
+  withAccountLock<T>(args: { accountId: AccountId; run: () => Promise<T> }): Promise<T> {
+    return args.run()
+  }
 }

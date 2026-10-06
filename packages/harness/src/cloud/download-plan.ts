@@ -1,4 +1,6 @@
 import {
+  authorityOf,
+  EAuthKind,
   EAuthProvider,
   type AccountId,
   type JsonValue,
@@ -106,6 +108,8 @@ const applyAccounts = async (args: {
 
   const localIds = new Map<AccountId, AccountId>()
   for (const stored of args.plan.accounts) {
+    if (stored.secret.kind === EAuthKind.Oauth && authorityOf(stored.secret) === undefined) continue
+
     const existing = held.find(
       (local) =>
         local.provider === stored.provider &&

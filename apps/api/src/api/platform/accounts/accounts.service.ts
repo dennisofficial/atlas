@@ -3,11 +3,12 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { AgentAccountModel } from '../../../db'
 import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { CreateAccountDto, SecretDto, SetActiveDto, SetStatusDto } from './accounts.dto'
+import type { CreateAccountDto, OauthAuthorityDto, SecretDto, SetActiveDto, SetStatusDto } from './accounts.dto'
 import type {
   AccountDto,
   AccountSecret,
   ActiveAccountDto,
+  OauthAuthority,
   StoredAccountDto,
 } from './accounts.types'
 import { EAccountStatus, EAuthKind } from './accounts.types'
@@ -28,6 +29,17 @@ function toAccountDto(row: AgentAccountModel): AccountDto {
   }
 }
 
+function toAuthority(dto: OauthAuthorityDto): OauthAuthority {
+  return {
+    url: dto.url,
+    connectionId: dto.connectionId,
+    ...(dto.generation === undefined ? {} : { generation: dto.generation }),
+    ...(dto.refreshAfter === undefined ? {} : { refreshAfter: dto.refreshAfter }),
+    ...(dto.authorizationId === undefined ? {} : { authorizationId: dto.authorizationId }),
+    ...(dto.previousAuthorizationId === undefined ? {} : { previousAuthorizationId: dto.previousAuthorizationId }),
+  }
+}
+
 function toAccountSecret(dto: SecretDto): AccountSecret {
   if (dto.kind === EAuthKind.Oauth) {
     const tokens = dto.tokens
@@ -45,6 +57,7 @@ function toAccountSecret(dto: SecretDto): AccountSecret {
         ...(tokens.scopes === undefined ? {} : { scopes: tokens.scopes }),
         ...(tokens.accountId === undefined ? {} : { accountId: tokens.accountId }),
       },
+      ...(dto.authority === undefined ? {} : { authority: toAuthority(dto.authority) }),
     }
   }
   if (dto.kind === EAuthKind.ApiKey) {

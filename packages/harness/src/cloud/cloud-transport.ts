@@ -322,6 +322,7 @@ export class CloudTransport {
     body?: unknown
     allowMissing?: boolean
     retry?: boolean
+    timeoutMs?: number | null | undefined
   }): Promise<unknown> {
     return cloudRequest({
       url: this.url,
@@ -333,6 +334,7 @@ export class CloudTransport {
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
       ...(args.retry === undefined ? {} : { retry: args.retry }),
+      ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
       ...(this.log === undefined ? {} : { log: this.log }),
     })
   }
