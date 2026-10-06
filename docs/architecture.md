@@ -971,6 +971,31 @@ in charge of what the model sees and give Atlas a prompt it cannot re-derive fro
 against the two rules. `clear_tool_uses_20250919` is cheap to reimplement as a pure rule if it is ever
 wanted, and would then work on every provider.
 
+## Skills
+
+Skills are authored under `packages/harness/skills` and discovered through the shared harness's
+skill registry. Project definitions shadow user definitions, which shadow embedded built-ins. A
+skill's description is listed in the prompt; its body is loaded through the `skill` tool only when
+needed. Supporting Markdown files and images are resources, never additional skill definitions.
+
+**Built-in bundles travel inside both binaries.** The shared skill generator emits entry text and
+native Bun file loaders for accompanying resources. Bundle-backed skills materialize into a
+content-addressed directory under `<atlasHome>/bin/skills`, outside discovery roots and inside the
+Atlas-home subtree mounted into Docker. The tool returns that real directory so ordinary file tools
+can read relative reference and image paths. Text-only built-ins retain their existing behavior.
+Neither a source checkout nor the original PDF/video package is required at runtime. A failed
+bundle load reports a warning through the session's notice port and leaves other built-ins available;
+standalone sources report to the console. Test-owned Atlas homes are removed after each test so
+materialized bundles do not accumulate across fixture runs.
+
+**`ui-design` is the default UI entry point.** When it is model-invocable, the shared skill-listing
+fragment instructs main agents, sub-agents, and teammates to load it for UI design, implementation,
+changes, and review, alongside relevant specialized skills. This standing instruction is independent
+of the optional relevance hint, not a tool-execution gate or a new setting. Existing skill shadowing
+and model-invocation controls still apply. The skill routes directly to focused references rather
+than preloading its source library; source text, page images, palette data, and timestamped
+walkthroughs remain available on demand.
+
 ## Memory
 
 Memory is markdown files and nothing else. Two directories, both under the Atlas home so nothing lands

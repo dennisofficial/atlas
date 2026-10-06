@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { EPromptAgent, toThreadId, type PromptContext } from '@dltech/atlas-core'
@@ -9,7 +10,8 @@ import { SkillTool } from '../../tools/builtin/skill'
 import { EmbeddedSkillSource } from '../embedded-source'
 import { LiveSkillRegistry } from '../live-registry'
 import { BUILT_IN_SKILLS } from '../manifest.generated'
-import { ESkillOrigin } from '../skill'
+import { digestOfBytes } from '../embedded-bundle'
+import { ESkillOrigin, isSkillEntryFilename } from '../skill'
 
 const ATLAS_SKILLS = ['atlas-config', 'atlas-cloud']
 
@@ -97,13 +99,33 @@ describe('native Atlas help skills', () => {
 describe('the shipped skill manifest', () => {
   it('embeds exactly the current authored Markdown content', async () => {
     const directory = fileURLToPath(new URL('../../../skills/', import.meta.url))
-    const paths = await Array.fromAsync(new Bun.Glob('**/*.md').scan({ cwd: directory }))
-    const authored = await Promise.all(
-      paths
-        .sort()
-        .map(async (path) => ({ path, text: await readFile(`${directory}/${path}`, 'utf8') })),
-    )
+    const roots = await readdir(directory, { withFileTypes: true })
+    const selected = await Promise.all(roots.map(async (root): Promise<readonly string[]> => {
+      if (root.isFile() && root.name.toLowerCase().endsWith('.md')) return [root.name]
+      if (!root.isDirectory()) return []
+      const entry = (await readdir(join(directory, root.name))).find(isSkillEntryFilename)
+      return entry === undefined ? [] : [`${root.name}/${entry}`]
+    }))
+    const authored = await Promise.all(selected.flat().sort().map(async (path) =>
+      ({ path, text: await readFile(join(directory, path), 'utf8') }),
+    ))
 
-    expect(BUILT_IN_SKILLS).toEqual(authored)
+    expect(BUILT_IN_SKILLS.map(({ path, text }) => ({ path, text }))).toEqual(authored)
+  })
+
+  it('keeps every bundled resource path and digest synchronized with authored files', async () => {
+    const directory = fileURLToPath(new URL('../../../skills/', import.meta.url))
+    for (const entry of BUILT_IN_SKILLS) {
+      if (!entry.path.includes('/')) continue
+      const root = join(directory, dirname(entry.path))
+      const entryName = entry.path.split('/').at(-1)
+      const paths = (await Array.fromAsync(new Bun.Glob('**/*').scan({ cwd: root, dot: true })))
+        .filter((path) => path !== entryName && !path.endsWith('.DS_Store')).sort()
+      const resources = entry.bundle?.files ?? []
+      expect(resources.map((file) => file.path).sort()).toEqual(paths)
+      for (const file of resources) {
+        expect(digestOfBytes(await readFile(join(root, file.path)))).toBe(file.digest)
+      }
+    }
   })
 })

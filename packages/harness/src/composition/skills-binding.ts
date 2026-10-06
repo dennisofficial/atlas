@@ -1,7 +1,7 @@
-import { skillRootPlan } from '@dltech/atlas-core'
+import { ENoticeTone, NOTICE_WARN_MS, skillRootPlan, type NoticePort } from '@dltech/atlas-core'
 
 import { portToken, type DependencyContainer } from '../container/injection'
-import { EmbeddedSkillSource } from '../skills/embedded-source'
+import { EmbeddedSkillSource, type EmbeddedSkillFailure } from '../skills/embedded-source'
 import { LiveSkillRegistry } from '../skills/live-registry'
 import { SkillRegistryPort } from '../skills/port'
 import { resolveSkillRoots, skillSourcesFor } from '../skills/roots'
@@ -31,11 +31,24 @@ export function bindSkillRegistry(args: {
   return resolved
 }
 
+const bundledSkillWarning =
+  (notice: NoticePort) =>
+  (failure: EmbeddedSkillFailure): void => {
+    notice.notify({
+      key: `bundled-skill:${failure.name}`,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: `bundled skill unavailable: ${failure.name} — ${failure.message}`,
+    })
+  }
+
 export async function liveSkillRegistry(args: {
   atlasHome: string
   home: string
   cwd: string
+  notice?: NoticePort | undefined
 }): Promise<SkillRegistryPort> {
+  const onFailure = args.notice === undefined ? undefined : bundledSkillWarning(args.notice)
   const registry = new LiveSkillRegistry({
     sources: async () => {
       const roots = await resolveSkillRoots({
@@ -47,7 +60,10 @@ export async function liveSkillRegistry(args: {
         }),
       })
 
-      return [new EmbeddedSkillSource(), ...skillSourcesFor({ roots })]
+      return [
+        new EmbeddedSkillSource({ home: args.atlasHome, onFailure }),
+        ...skillSourcesFor({ roots }),
+      ]
     },
   })
 
