@@ -156,6 +156,14 @@ export * from './policy/classifier/adjudicate'
 
 export * from './hooks/hooks'
 
+export * from './quality/change'
+export * from './quality/policy'
+export * from './quality/request'
+export * from './quality/registry'
+export * from './quality/ledger'
+export * from './quality/health'
+export * from './quality/schema'
+
 export * from './credentials/account'
 export * from './credentials/adoption'
 export * from './credentials/refresh'
@@ -184,6 +192,8 @@ export * from './ports/workspace.port'
 export * from './ports/workspace-facts.port'
 export * from './ports/judge.port'
 export * from './ports/decision.port'
+export * from './ports/quality-review.port'
+export * from './ports/workspace-identity.port'
 
 export * from './diff/hunk'
 export * from './diff/parse'

@@ -72,6 +72,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   stores?: HarnessStoreBinding | undefined
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
   repoIdentity?: string | null | undefined
+  userSkillHome?: string | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
   const notice = surface.notice
@@ -137,7 +138,10 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   })
 
   const roots = { atlasHome: atlasDirectory(), home: homedir(), cwd: anchor }
-  const skillRegistry = bindSkillRegistry({ container, registry: await liveSkillRegistry(roots) })
+  const skillRegistry = bindSkillRegistry({
+    container,
+    registry: await liveSkillRegistry({ ...roots, home: args.userSkillHome ?? roots.home }),
+  })
   const agentTypes = await bindSessionAgentTypes({ container, settings, launchValue, models, roots })
 
   const utility = bindUtilityModels({ container, settings, secrets, models, model, notice })

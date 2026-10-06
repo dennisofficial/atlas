@@ -15,6 +15,7 @@ describe('the models settings page', () => {
       ESettingPage.Appearance,
       ESettingPage.Experimental,
       ESettingPage.Cloud,
+      ESettingPage.CodeQuality,
     ])
   })
 

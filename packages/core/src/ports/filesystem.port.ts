@@ -22,6 +22,13 @@ export abstract class FileSystemPort {
 
   abstract readBytes(args: { path: string }): Promise<Uint8Array>
 
+  /**
+   * One byte read producing the backend's existing lossy decode plus a strict UTF-8 decode.
+   * Implementations reproduce their own readFile behavior for `text`; `strict` is null when the
+   * bytes are not valid UTF-8. Backends own decoding so tools never choose per-backend rules.
+   */
+  abstract readTextForEdit(args: { path: string }): Promise<{ text: string; strict: string | null }>
+
   abstract writeFile(args: { path: string; content: string; mode?: number }): Promise<void>
 
   abstract removeFile(args: { path: string }): Promise<void>

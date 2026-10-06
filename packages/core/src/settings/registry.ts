@@ -11,6 +11,7 @@ export const SETTING_PAGES: readonly SettingPage[] = [
   { id: ESettingPage.Appearance, label: 'appearance' },
   { id: ESettingPage.Experimental, label: 'experimental' },
   { id: ESettingPage.Cloud, label: 'cloud' },
+  { id: ESettingPage.CodeQuality, label: 'quality' },
 ]
 
 export enum ESettingId {
@@ -59,6 +60,8 @@ export enum ESettingId {
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
   GrillingCeremony = 'experimental.grillingCeremony',
+  QualityEnabled = 'quality.enabled',
+  QualityRecordExamples = 'quality.recordExamples',
 }
 
 export const DEFAULT_WORKTREE_DIRECTORY = '.atlas/worktrees'
@@ -677,6 +680,26 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     description:
       'With this on, a session plans feature-sized work by interviewing you first — walking the design tree one question at a time, recommending an answer with each, sharpening vague terminology, stress-testing edge cases, and checking your claims against the code, capturing every settled decision into the context folder as it goes. A localized fix with an obvious cause stays interview-free either way. Off by default while the ceremony proves itself.',
     environmentVariable: 'ATLAS_EXPERIMENTAL_GRILLING_CEREMONY',
+    kind: ESettingKind.Toggle,
+    fallback: false,
+  },
+  {
+    id: ESettingId.QualityEnabled,
+    page: ESettingPage.CodeQuality,
+    group: 'code-quality',
+    label: 'Code quality review',
+    description:
+      'After a successful file write, a decision model reviews the changed scope against the enabled code-quality policies and may leave the agent a one-time nudge. Advisory only: it never blocks or reverts a write, and a review that is skipped, late or inconclusive says nothing.',
+    kind: ESettingKind.Toggle,
+    fallback: false,
+  },
+  {
+    id: ESettingId.QualityRecordExamples,
+    page: ESettingPage.CodeQuality,
+    group: 'code-quality',
+    label: 'Record code-quality examples',
+    description:
+      'Save the source of each reviewed change, before and after, as a local example file under the conversation\u2019s data directory. Nothing is uploaded or committed, and recording never changes whether a write or a review succeeds.',
     kind: ESettingKind.Toggle,
     fallback: false,
   },

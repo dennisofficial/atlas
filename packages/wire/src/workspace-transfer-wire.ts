@@ -28,6 +28,7 @@ export const workspaceManifestWireSchema = z.object({
 export const prepareWorkspaceArchiveReplySchema = z.object({
   path: z.string().min(1),
   manifest: workspaceManifestWireSchema,
+  totalBytes: z.number().int().nonnegative().optional(),
 })
 
 export const restoredWorkspaceWireSchema = z.object({

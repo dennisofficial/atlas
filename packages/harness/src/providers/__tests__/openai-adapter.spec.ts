@@ -6,6 +6,7 @@ import { EEffort, EImageTier, type CredentialPort, type ModelCard } from '@dltec
 import { apiKeyCredential, oauthCredential } from '../../credentials/testing'
 import { OpenAiAdapter } from '../openai-adapter'
 import { recordingFetch } from './recording-fetch'
+import { streamedResponse } from './responses-stream-fixtures'
 
 const RESPONSE_JSON = JSON.stringify({
   id: 'resp_stub',
@@ -70,7 +71,7 @@ describe('the openai adapter merging provider options', () => {
   })
 
   it('passes a caller cache key through to the codex backend without retention', async () => {
-    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse() })
     const adapter = new OpenAiAdapter({
       credentials: {
         read: async () =>

@@ -1,6 +1,8 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
 import type { RuntimeCheckpoint, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
+import type { SandboxTransferProgress, TransferProgress } from '../transfer-progress'
+
 import type {
   ChannelConnection,
   ChannelReload,
@@ -72,6 +74,7 @@ export type CloudSandboxes = {
      */
     workspaceArchivePath?: string | undefined
     workspaceDirectory?: string | undefined
+    onTransferProgress?: ((progress: SandboxTransferProgress) => void) | undefined
     /** Fires the moment the wake finds a protocol-mismatched sandbox and starts rotating it. */
     onRotationStarted?: (() => void) | undefined
     /**
@@ -88,14 +91,20 @@ export type CloudSandboxes = {
    * The bridge owns how readiness is probed; the lift only reads the verdict.
    */
   confirmLanded(args: { threadId: ThreadId }): Promise<{ landed: boolean }>
-  /** Streams a serve-prepared workspace export from the sandbox into `destination`. */
-  downloadWorkspace?(args: { threadId: ThreadId; path: string; destination: string }): Promise<void>
+  downloadWorkspace?(args: {
+    threadId: ThreadId
+    path: string
+    destination: string
+    totalBytes?: number | undefined
+    onProgress?: ((progress: TransferProgress) => void) | undefined
+  }): Promise<void>
   /** Deletes one serve-prepared export once it has been downloaded or abandoned. */
   releaseWorkspace?(args: { threadId: ThreadId; path: string }): Promise<void>
   downloadSession?(args: {
     threadId: ThreadId
     archive: SessionArchiveDescriptor
     destination: string
+    onProgress?: ((progress: TransferProgress) => void) | undefined
   }): Promise<void>
   releaseSession?(args: { threadId: ThreadId; path: string }): Promise<void>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>

@@ -1,5 +1,5 @@
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 3,
   "configVersion": 1,
   "workspaces": {
     "": {
@@ -122,6 +122,13 @@
         "@types/bun": "latest",
       },
     },
+    "evals": {
+      "name": "@dltech/atlas-evals",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/core": {
       "name": "@dltech/atlas-core",
       "version": "0.1.0",
@@ -206,6 +213,10 @@
   "overrides": {
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "evalite": {
+      "@vitest/runner": "4.0.1",
+      "@vitest/utils": "4.0.1",
+    },
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "typescript": "6.0.3",
@@ -298,6 +309,8 @@
     "@dltech/atlas-api": ["@dltech/atlas-api@workspace:apps/api"],
 
     "@dltech/atlas-core": ["@dltech/atlas-core@workspace:packages/core"],
+
+    "@dltech/atlas-evals": ["@dltech/atlas-evals@workspace:evals"],
 
     "@dltech/atlas-harness": ["@dltech/atlas-harness@workspace:packages/harness"],
 

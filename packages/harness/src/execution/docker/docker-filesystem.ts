@@ -19,6 +19,16 @@ const S_IFDIR = 0o040000
 
 const decoder = new TextDecoder()
 
+const strictDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+
+const decodeStrict = ({ bytes }: { bytes: Uint8Array }): string | null => {
+  try {
+    return strictDecoder.decode(bytes)
+  } catch {
+    return null
+  }
+}
+
 type ExecOutcome = {
   readonly stdout: Uint8Array
   readonly stderr: string
@@ -108,6 +118,14 @@ export class DockerFileSystemPort extends AgentFileSystemPort {
       threadId: args.threadId,
     })
     return new Uint8Array(Buffer.from(decoder.decode(outcome.stdout).replace(/\s/g, ''), 'base64'))
+  }
+
+  async readTextForEdit(args: {
+    path: string
+    threadId?: ThreadId | undefined
+  }): Promise<{ text: string; strict: string | null }> {
+    const bytes = await this.readBytes(args)
+    return { text: decoder.decode(bytes), strict: decodeStrict({ bytes }) }
   }
 
   async writeFile(args: {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, spyOn } from 'bun:test'
 
 import { recordingFetch } from './recording-fetch'
+import { streamedResponse } from './responses-stream-fixtures'
 import {
   TEXT_RESPONSE,
   callWithHistory,
@@ -158,7 +159,7 @@ describe('openai history reasoning compatibility', () => {
 
   it('drops itemId-only reasoning on the store:false subscription path with an actionable warning', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: TEXT_RESPONSE, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse('done') })
 
     await callWithHistory({
       recorder,
@@ -176,7 +177,7 @@ describe('openai history reasoning compatibility', () => {
 
   it('keeps encrypted-only reasoning on the store:false subscription path', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: TEXT_RESPONSE, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse('done') })
 
     await callWithHistory({
       recorder,

@@ -38,6 +38,7 @@ export function startDescend(args: {
       }),
     onNodeStart: (nodeId) => containerMove.handleNodeStart(nodeId),
     onNodeDone: (nodeId) => containerMove.handleNodeDone(nodeId),
+    onTransferProgress: containerMove.handleTransferProgress,
     openLocal: async (home, threadId) => {
       const outcome = await openConversation({
         preparing: true,

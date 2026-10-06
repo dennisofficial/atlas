@@ -3,6 +3,7 @@ import {
   APICallError,
   type LanguageModelV4,
   type LanguageModelV4CallOptions,
+  type LanguageModelV4StreamPart,
   type SharedV4ProviderOptions,
 } from '@ai-sdk/provider'
 
@@ -18,6 +19,7 @@ import {
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
 import { openaiCacheOptions } from './openai-cache'
 import { withOpenAiCompatibleReasoning } from './openai-reasoning'
+import { generationFromStream } from './stream-generation'
 
 // A ChatGPT subscription token is only good against the codex backend, never api.openai.com. The
 // transport is the Responses API under /backend-api/codex with the account id as a header and the
@@ -34,6 +36,13 @@ type AuthorizedModel = { model: LanguageModelV4; credential: Credential }
 
 const wasRefused = (error: unknown): boolean =>
   APICallError.isInstance(error) && REFUSED_STATUSES.includes(error.statusCode ?? 0)
+
+const terminalResponse = (part: LanguageModelV4StreamPart): boolean => {
+  if (part.type !== 'raw') return false
+  const event = part.rawValue
+  if (typeof event !== 'object' || event === null || !('type' in event)) return false
+  return event.type === 'response.completed' || event.type === 'response.incomplete'
+}
 
 const settingsOf = (credential: Credential): OpenAIProviderSettings => {
   if (credential.kind === EAuthKind.ApiKey) return { apiKey: credential.apiKey }
@@ -138,15 +147,24 @@ export function createOpenAiModel(args: {
     }
   }
 
+  // The codex backend rejects a non-streaming request with 400 "Stream must be set to true"
+  // (verified live 2026-10-06), so a subscription generation is a collected stream.
   return {
     specificationVersion: 'v4',
     provider: args.providerId,
     modelId: args.modelId,
     supportedUrls: {},
     doGenerate: (options) =>
-      throughACredentialTheServerAccepts((authorized) =>
-        authorized.model.doGenerate(shaped({ authorized, options })),
-      ),
+      throughACredentialTheServerAccepts(async (authorized) => {
+        const shapedOptions = shaped({ authorized, options })
+        if (authorized.credential.kind !== EAuthKind.Oauth)
+          return authorized.model.doGenerate(shapedOptions)
+
+        return generationFromStream({
+          result: await authorized.model.doStream({ ...shapedOptions, includeRawChunks: true }),
+          isTerminalPart: terminalResponse,
+        })
+      }),
     doStream: (options) =>
       throughACredentialTheServerAccepts((authorized) =>
         authorized.model.doStream(shaped({ authorized, options })),

@@ -1435,6 +1435,22 @@ Serve diagnostics append to `/atlas/home/operational/atlas-serve.log` on the mou
 alongside durable session data, so sandbox recreation preserves prior boot and turn evidence.
 The serve binary, token, PID and process lock remain under `/opt/atlas` on the runtime filesystem.
 
+User skills also live on the drive: Atlas skills under `/atlas/home/skills`, compatibility skills
+under `/atlas/home/.agents/skills` and `/atlas/home/.claude/skills`. Serve configures the shared
+harness's user skill home to `/atlas/home`; local sessions retain their ordinary OS home. This
+changes only skill discovery, not shell home, credentials or agent-type discovery. Returned skill
+and asset paths point at the persistent locations, so edits and deletions there survive recreation.
+Cloud installers must target these persistent roots (or use `skill_install`); new files placed only
+under the sandbox's ordinary `$HOME/.agents/skills` or `$HOME/.claude/skills` are not discovered.
+
+The context receipt records this persistent skill layout. Older receipts trigger compatibility-only
+recovery: surviving ordinary-home skill roots are imported, and absent roots recover from the
+bootstrap archive or legacy bundle. Present roots are authoritative even when empty. Existing
+persistent files win, and recovery never replays memory, instructions, MCP configuration or Atlas
+skills. Failed recovery remains retryable without upgrading the receipt. A current receipt skips
+bootstrap replay, preserving runtime changes. Compatibility edits already lost with an older
+sandbox's ephemeral home cannot be reconstructed beyond the original bootstrap copy.
+
 A cloud client owns its attachment, not the execution it observes. Closing, restarting, or losing
 that client cannot interrupt the sandbox's turn, children, shells, or services. Local process shutdown stops agents and services but detaches durable shells by default;
 actual sandbox destruction still stops sandbox processes. Explicit stop

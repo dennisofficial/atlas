@@ -12,6 +12,7 @@ import type { OwnerTransaction, SessionOwner, SessionRuntime } from '../../compo
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
 import type { GpgKeyMaterial } from '../../workspace/gpg-material'
 import type { CaptureContext } from '../context-archive-policy'
+import type { RelocationTransferProgress } from '../transfer-progress'
 import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { runRelocation } from './dag'
 import { relocationWaves, type RelocationWave } from './waves'
@@ -105,7 +106,7 @@ export type LiftArgs = {
   onNodeStart?: ((nodeId: string) => void) | undefined
   /** A relocation node settled successfully — drives its wave's completion on the surface. */
   onNodeDone?: ((nodeId: string) => void) | undefined
-  /** Relabels one node's wave mid-flight — the sandbox wait flips to its context-upload text. */
+  onTransferProgress?: ((progress: RelocationTransferProgress) => void) | undefined
   onWaveLabel?: ((nodeId: string, label: string) => void) | undefined
   open?: ((args: { attachment: CloudAttachment; transaction: PlacementTransaction | OwnerTransaction<SessionRuntime>; restoredWorkspace?: RestoredWorkspace | undefined }) => Promise<void>) | undefined
 }

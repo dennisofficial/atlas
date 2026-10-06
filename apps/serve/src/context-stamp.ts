@@ -4,7 +4,15 @@ import type { WorkspaceFiles } from './workspace-files'
 
 const CONTEXT_STAMP_FILE = 'context.stamp'
 
-export type ContextStamp = { projectDirectory: string | null; identity: string | null }
+export enum ESkillLayout {
+  PersistentV1 = 'persistent-v1',
+}
+
+export type ContextStamp = {
+  projectDirectory: string | null
+  identity: string | null
+  skillLayout: ESkillLayout | null
+}
 
 export const contextStampPath = (atlasHome: string): string => join(atlasHome, CONTEXT_STAMP_FILE)
 
@@ -18,15 +26,14 @@ export const parseContextStamp = (text: string): ContextStamp | null => {
   if (typeof parsed !== 'object' || parsed === null) return null
   const projectDirectory = Reflect.get(parsed, 'projectDirectory')
   const identity = Reflect.get(parsed, 'identity')
-  const held = typeof projectDirectory === 'string' ? projectDirectory : null
-  return { projectDirectory: held, identity: typeof identity === 'string' ? identity : null }
+  const skillLayout = Reflect.get(parsed, 'skillLayout')
+  return {
+    projectDirectory: typeof projectDirectory === 'string' ? projectDirectory : null,
+    identity: typeof identity === 'string' ? identity : null,
+    skillLayout: skillLayout === ESkillLayout.PersistentV1 ? ESkillLayout.PersistentV1 : null,
+  }
 }
 
-/**
- * A sandbox snapshot restores the whole filesystem across stop/resume, this stamp included, so its
- * presence is what tells a resumed boot apart from a freshly created one that has never received
- * context yet.
- */
 export const readContextStamp = async (args: {
   files: WorkspaceFiles
   atlasHome: string
@@ -49,7 +56,10 @@ export const stampContextWithoutFailingBoot = (args: {
   args.files
     .write({
       path: contextStampPath(args.atlasHome),
-      text: JSON.stringify({ projectDirectory: args.projectDirectory, identity: args.identity }),
+      text: JSON.stringify({
+        projectDirectory: args.projectDirectory,
+        identity: args.identity,
+        skillLayout: ESkillLayout.PersistentV1,
+      }),
     })
     .catch(() => undefined)
-

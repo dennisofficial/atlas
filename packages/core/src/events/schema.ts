@@ -25,6 +25,12 @@ import {
 } from './body'
 import type { EventEnvelope } from './envelope'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
+import {
+  qualityAssessmentSchema,
+  qualityFindingSchema,
+  qualityScopeIdentitySchema,
+} from '../quality/schema'
+import { EQualityReviewStatus, EQualitySkipReason } from '../quality/policy'
 
 export const eventEnvelopeSchema: z.ZodType<EventEnvelope> = z.object({
   id: eventIdSchema,
@@ -156,6 +162,24 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     triggeredBy: z.string().optional(),
   }),
   z.object({ type: z.literal('nudge'), text: z.string(), lifetimeSteps: z.number().int().nonnegative() }),
+  z.object({
+    type: z.literal('code-quality-reviewed'),
+    callId: callIdSchema,
+    workspaceNamespace: z.string().min(1),
+    path: z.string().min(1),
+    scope: qualityScopeIdentitySchema.optional(),
+    beforeHash: z.string().nullable(),
+    afterHash: z.string().nullable(),
+    status: z.enum(EQualityReviewStatus),
+    reason: z.enum(EQualitySkipReason).optional(),
+    detail: z.string().optional(),
+    assessments: z.array(qualityAssessmentSchema),
+    findings: z.array(qualityFindingSchema),
+    durationMs: z.number().finite().nonnegative(),
+    requestedModel: z.string().min(1).optional(),
+    resolvedModel: z.string().min(1).optional(),
+    evidencePath: z.string().min(1).optional(),
+  }),
   z.object({
     type: z.literal('loop-watch-verdict'),
     consulted: z.boolean(),

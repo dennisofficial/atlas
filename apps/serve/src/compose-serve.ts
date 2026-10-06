@@ -15,7 +15,7 @@ import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 import { sandboxNameFor } from '@dltech/atlas-harness'
 import { SelectableModelToken } from '@dltech/atlas-harness'
 import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
-import { composeHarness } from '@dltech/atlas-harness'
+import { atlasDirectory, composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { portToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
@@ -95,6 +95,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
 
   const app = await composeHarness<ServeStores>({
     repoIdentity: args.identity ?? null,
+    userSkillHome: atlasDirectory(),
     bindPorts: ({ container }) => {
       container.register(ServeSessionToken, {
         useValue: { url: args.controlPlaneUrl, token: args.token, email: null },

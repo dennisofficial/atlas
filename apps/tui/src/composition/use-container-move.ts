@@ -2,6 +2,7 @@ import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useState } from 'react'
 
 import type { EExecutionLocation } from '@dltech/atlas-core'
+import type { RelocationTransferProgress } from '@dltech/atlas-harness'
 
 import { createAwakeClock } from './awake-clock'
 import {
@@ -12,6 +13,7 @@ import {
   relabelMoveRow,
   settleMoveNode,
   startMoveNode,
+  updateMoveTransfer,
   type ContainerMove,
 } from './container-move'
 import { useTickingNow } from './use-turn-clock'
@@ -26,11 +28,9 @@ export type ContainerMoveControl = {
     rows: readonly MoveRowSeed[]
     heading?: string | undefined
   }) => void
-  /** A DAG node started — its row turns active. */
   handleNodeStart: (nodeId: string) => void
-  /** A DAG node settled — its row completes once every node behind it has. */
   handleNodeDone: (nodeId: string) => void
-  /** Jumps to a row, completing everything before it — for hand-listed moves with no completion signal. */
+  handleTransferProgress: (progress: RelocationTransferProgress) => void
   handleRowActive: (id: string) => void
   handleRowLabel: (args: { nodeId: string; text: string }) => void
   handleExpand: (args: { insertBefore: string; row: MoveRowSeed; heading?: string | undefined }) => void
@@ -40,10 +40,6 @@ export type ContainerMoveControl = {
   handleKey: (key: KeyEvent) => void
 }
 
-/**
- * Timestamps each row transition, so a live round-trip can report per-stage latency without the
- * move overlay persisting anything. Inert unless the caller reads the log.
- */
 export type MoveStepTiming = { step: string; at: number }
 
 export function useContainerMove(args?: {
@@ -89,6 +85,10 @@ export function useContainerMove(args?: {
     },
     [clock, args],
   )
+
+  const handleTransferProgress = useCallback((progress: RelocationTransferProgress) => {
+    setMove((current) => (current === null ? null : updateMoveTransfer({ move: current, progress })))
+  }, [])
 
   const handleRowActive = useCallback(
     (id: string) => {
@@ -146,6 +146,7 @@ export function useContainerMove(args?: {
       handleBegin,
       handleNodeStart,
       handleNodeDone,
+      handleTransferProgress,
       handleRowActive,
       handleRowLabel,
       handleExpand,
@@ -154,6 +155,6 @@ export function useContainerMove(args?: {
       handleDismiss,
       handleKey,
     }),
-    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
+    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleTransferProgress, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
   )
 }

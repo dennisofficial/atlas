@@ -6,18 +6,41 @@ export type ModelFault = {
   fault: unknown
 }
 
-function errorChunkTap(
-  report: (fault: unknown) => void,
-): TransformStream<LanguageModelV4StreamPart, LanguageModelV4StreamPart> {
+function notifyingStream(args: {
+  stream: ReadableStream<LanguageModelV4StreamPart>
+  report: (fault: unknown) => void
+}): ReadableStream<LanguageModelV4StreamPart> {
+  const reader = args.stream.getReader()
   let reported = false
+  let cancelled = false
+  const reportOnce = (fault: unknown): void => {
+    if (reported) return
+    reported = true
+    args.report(fault)
+  }
 
-  return new TransformStream<LanguageModelV4StreamPart, LanguageModelV4StreamPart>({
-    transform(chunk, controller) {
-      if (chunk.type === 'error' && !reported) {
-        reported = true
-        report(chunk.error)
+  return new ReadableStream<LanguageModelV4StreamPart>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read()
+        if (cancelled) return
+        if (done) {
+          reader.releaseLock()
+          controller.close()
+          return
+        }
+        if (value.type === 'error') reportOnce(value.error)
+        controller.enqueue(value)
+      } catch (fault) {
+        if (cancelled) return
+        reportOnce(fault)
+        reader.releaseLock()
+        throw fault
       }
-      controller.enqueue(chunk)
+    },
+    cancel: (reason) => {
+      cancelled = true
+      return reader.cancel(reason).finally(() => reader.releaseLock())
     },
   })
 }
@@ -56,7 +79,7 @@ export function createNotifyingModel(args: {
     doStream: async (options) => {
       try {
         const result = await args.model.doStream(options)
-        return { ...result, stream: result.stream.pipeThrough(errorChunkTap(report)) }
+        return { ...result, stream: notifyingStream({ stream: result.stream, report }) }
       } catch (fault) {
         report(fault)
         throw fault

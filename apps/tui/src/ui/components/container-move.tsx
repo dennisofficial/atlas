@@ -19,6 +19,7 @@ import {
 } from './drawer'
 import { ShimmerLine } from './shimmer-line'
 import { Spans, type Span } from './spans'
+import { transferSpans } from './transfer-meter'
 
 const NARROWEST = 24
 
@@ -42,23 +43,41 @@ const rowSpans = (row: MoveRow): readonly Span[] => {
   ]
 }
 
-function RowLine(props: { row: MoveRow; elapsedMs: number }): React.ReactNode {
+function TransferLines(props: { row: MoveRow; cells: number }): React.ReactNode {
+  if (props.row.mark === EStepMark.Done) return null
+
+  return (props.row.transfers ?? []).map((transfer) => (
+    <DrawerLine key={`${transfer.nodeId}:${transfer.transferId}`}>
+      <text>
+        <Spans spans={transferSpans({ transfer, cells: props.cells })} />
+      </text>
+    </DrawerLine>
+  ))
+}
+
+function RowLine(props: { row: MoveRow; elapsedMs: number; cells: number }): React.ReactNode {
   const { row } = props
 
   if (row.mark === EStepMark.Active) {
     return (
-      <DrawerLine>
-        <ShimmerLine label={`${row.text} (${formatElapsed(Math.max(0, props.elapsedMs))})`} />
-      </DrawerLine>
+      <>
+        <DrawerLine>
+          <ShimmerLine label={`${row.text} (${formatElapsed(Math.max(0, props.elapsedMs))})`} />
+        </DrawerLine>
+        <TransferLines row={row} cells={props.cells} />
+      </>
     )
   }
 
   return (
-    <DrawerLine>
-      <text>
-        <Spans spans={rowSpans(row)} />
-      </text>
-    </DrawerLine>
+    <>
+      <DrawerLine>
+        <text>
+          <Spans spans={rowSpans(row)} />
+        </text>
+      </DrawerLine>
+      <TransferLines row={row} cells={props.cells} />
+    </>
   )
 }
 
@@ -76,7 +95,7 @@ export function ContainerMoveOverlay(props: {
     <BottomDrawer overlay>
       <DrawerHeading label={move.heading ?? moveHeading(move.target)} />
       {move.rows.map((row) => (
-        <RowLine key={row.id} row={row} elapsedMs={props.now - move.activeSince} />
+        <RowLine key={row.id} row={row} elapsedMs={props.now - move.activeSince} cells={drawerCells({ width: props.width })} />
       ))}
       {move.failure === null ? null : (
         <>

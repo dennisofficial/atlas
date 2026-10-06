@@ -43,11 +43,11 @@ const NOW_THE_PROJECT_DIRECTORY =
 
 const description = [
   'Create a git worktree and move the session into it.',
-  'Use it only when the developer asks for a worktree, or the project instructions say work happens in one; a request to fix something or start a branch is not by itself a request for a worktree.',
+  'Use it when the developer asks for a worktree, the project instructions say work happens in one, or your agent contract calls for one; a request to fix something or start a branch is not by itself a request for a worktree.',
   'name creates a new worktree on a new branch of that name, cut from a freshly fetched origin default branch, under the worktree directory this project is configured to use.',
   'path enters a worktree that already exists instead, given absolutely or relative, and must name one git already lists for this repository - not its main checkout, and not one that is bare, prunable or on a detached HEAD. A relative path is resolved against the session directory first and, when that does not match a listed worktree, against the repository root, so a session already inside a worktree can pass the repository-root-relative path.',
   'Entering that way adopts a worktree Atlas did not create: the reply reports the branch it is on, its upstream, and what is uncommitted or unpushed there, and exit_worktree will not remove it however it is called.',
-  'The two are mutually exclusive, and a new worktree cannot be created while the session is already in one - exit first, or switch straight to another existing worktree by path.',
+  'The two are mutually exclusive. A new worktree cannot be created through this tool while the session is already in one; a teammate whose contract calls for its own worktree creates it with git worktree add and adopts it here by path.',
   'While the session is in a worktree that worktree is the project directory: paths you pass to a tool resolve against it, a bash command starts there, and the instruction files are re-read from it.',
   'The repository this worktree came from stays checked out where it was; leave that checkout alone.',
   'exit_worktree leaves, keeping or removing the worktree as the developer asks, and worktree_list shows what exists.',
@@ -78,6 +78,7 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
   protected override async run({
     input,
     projectDirectory,
+    homeDirectory,
     activeWorktree,
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
@@ -124,7 +125,7 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
         }
       }
 
-      await this.leave({ cwd: view.root, path: projectDirectory })
+      await this.leave({ cwd: view.root, path: projectDirectory, homeDirectory })
       return this.adopted({ adopted, claim: claimed })
     }
 
@@ -167,8 +168,8 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
     })
   }
 
-  private async leave({ cwd, path }: { cwd: string; path: string }): Promise<void> {
-    if (path === this.launchDirectory) return
+  private async leave({ cwd, path, homeDirectory }: { cwd: string; path: string; homeDirectory: string | undefined }): Promise<void> {
+    if (path === (homeDirectory ?? this.launchDirectory)) return
     await releaseWorktree({ cwd, path })
   }
 

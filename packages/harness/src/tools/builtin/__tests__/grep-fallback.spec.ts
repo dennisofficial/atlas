@@ -54,6 +54,9 @@ const fakeFiles = (entries: readonly string[], stat?: FileSystemPort['stat']): F
   readBytes: async () => {
     throw new Error('ENOENT')
   },
+  readTextForEdit: async () => {
+    throw new Error('ENOENT')
+  },
   writeFile: async () => undefined,
   removeFile: async () => undefined,
   mkdir: async () => undefined,

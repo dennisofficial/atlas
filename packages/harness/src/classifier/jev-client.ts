@@ -20,6 +20,7 @@ export type JevDecisionClientDeps = {
   config: () => JevConfig | undefined
   systemOne?: JevSystemOne | undefined
   timeoutMs?: number | undefined
+  model?: string | undefined
 }
 
 const messageOf = (fault: unknown): string =>
@@ -39,10 +40,12 @@ export class JevDecisionClient implements DecisionPort {
   private readonly config: () => JevConfig | undefined
   private readonly systemOneFor: (config: JevConfig) => JevSystemOne
   private readonly timeoutMs: number
+  private readonly model: string | undefined
 
   constructor(deps: JevDecisionClientDeps) {
     this.config = deps.config
     this.timeoutMs = deps.timeoutMs ?? JEV_TIMEOUT_MS
+    this.model = deps.model
     this.systemOneFor =
       deps.systemOne === undefined
         ? (config) => {
@@ -62,20 +65,25 @@ export class JevDecisionClient implements DecisionPort {
     state: string
     questions: Record<string, DecisionQuestion>
     signal: AbortSignal
+    model?: string | undefined
   }): Promise<DecisionOutcome> {
     const config = this.config()
     if (config === undefined) return { ok: false, fault: 'decisions.url is not set' }
 
     try {
       const result = await this.systemOneFor(config)(
-        { state: args.state, questions: args.questions as Questions, model: JEV_MODEL },
+        { state: args.state, questions: args.questions as Questions, model: args.model ?? this.model ?? JEV_MODEL },
         { signal: args.signal },
       )
       const parsed = jevAnswersSchema.safeParse(result)
       if (!parsed.success) {
         return { ok: false, fault: 'the decision model answered in a shape that was not readable' }
       }
-      return { ok: true, answers: parsed.data.answers }
+      return {
+        ok: true,
+        answers: parsed.data.answers,
+        ...(parsed.data.model === undefined ? {} : { model: parsed.data.model }),
+      }
     } catch (fault) {
       return { ok: false, fault: messageOf(fault) }
     }

@@ -10,6 +10,7 @@ import {
   toThreadId,
   worktreeLockToken,
   type ActiveWorktree,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { startTimeOf } from '../../../workspace/process-identity'
@@ -49,14 +50,17 @@ const toolsFor = (launchDirectory: string) => ({
 const invocation = (args: {
   input: unknown
   projectDirectory: string
+  homeDirectory?: string
+  threadId?: ThreadId
   activeWorktree?: ActiveWorktree
 }) => ({
   input: args.input,
   signal: new AbortController().signal,
   idempotencyKey: 'run:call',
   projectDirectory: args.projectDirectory,
+  ...(args.homeDirectory === undefined ? {} : { homeDirectory: args.homeDirectory }),
   ...(args.activeWorktree === undefined ? {} : { activeWorktree: args.activeWorktree }),
-  threadId: toThreadId('br_7'),
+  threadId: args.threadId ?? toThreadId('br_7'),
 })
 
 const lockOf = async ({ root, path }: { root: string; path: string }) => {
@@ -187,6 +191,26 @@ describe('claiming a worktree so two sessions cannot share it', () => {
 })
 
 describe('giving the worktree back', () => {
+  it('preserves the parent claim when a teammate leaves its inherited home worktree', async () => {
+    const root = await repo()
+    const parent = await byHand({ root, name: 'parent', branch: 'parent' })
+    const child = await byHand({ root, name: 'child', branch: 'child' })
+    const { enter } = toolsFor(root)
+
+    await enter.invoke(invocation({ input: { path: parent }, projectDirectory: root }))
+    const parentClaim = await lockOf({ root, path: parent })
+    const outcome = await enter.invoke(invocation({
+      input: { path: child },
+      projectDirectory: parent,
+      homeDirectory: parent,
+      threadId: toThreadId('teammate-child'),
+    }))
+
+    expect(outcome.ok).toBe(true)
+    expect(await lockOf({ root, path: parent })).toEqual(parentClaim)
+    expect((await lockOf({ root, path: child })).isLocked).toBe(true)
+  })
+
   it('unlocks it on the way out, so another session can take it', async () => {
     const root = await repo()
     const tree = await byHand({ root, name: 'borrowed', branch: 'topic' })

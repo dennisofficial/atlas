@@ -33,6 +33,7 @@ describe('settingsModel', () => {
       'appearance',
       'experimental',
       'cloud',
+      'quality',
     ])
   })
 
