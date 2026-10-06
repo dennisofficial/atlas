@@ -2,7 +2,7 @@ import React from 'react'
 
 import { releaseNotesHeading, type ReleaseNotesRow } from '@dltech/atlas-core'
 
-import { useClickRegion } from '../hooks/use-click-region'
+import { CloseButton } from './close-button'
 import { MarkdownView } from '../markdown/markdown-view'
 import { theme } from '../theme'
 
@@ -10,15 +10,6 @@ export type WhatsNewState =
   | { readonly kind: 'loading' }
   | { readonly kind: 'ready'; readonly rows: readonly ReleaseNotesRow[] }
   | { readonly kind: 'failed' }
-
-function CloseButton(props: { onClose: () => void }): React.ReactNode {
-  const region = useClickRegion(props.onClose)
-  return (
-    <box {...region.handlers} {...(region.wash.bg === undefined ? {} : { backgroundColor: region.wash.bg })}>
-      <text fg={region.hovered ? theme.bright : theme.meta}>{' ✕ '}</text>
-    </box>
-  )
-}
 
 function VersionSection(props: { row: ReleaseNotesRow; width: number }): React.ReactNode {
   return (

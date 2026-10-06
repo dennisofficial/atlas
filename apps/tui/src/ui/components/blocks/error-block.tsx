@@ -9,6 +9,7 @@ import {
   type KeyDeclaration,
 } from '../../keys'
 import { formatElapsed, formatTokens, glyph, theme, TRANSCRIPT_INSET } from '../../theme'
+import { CloseButton } from '../close-button'
 import { Panel } from '../panel'
 import { Spans } from '../spans'
 import type { Span } from '../spans'
@@ -32,33 +33,19 @@ const costOf = (args: { durationMs?: number; outputTokens?: number }): string =>
   return parts.join(SEPARATOR)
 }
 
-const CLOSE_LABEL = ' [close] '
-
-function CloseControl(props: { onDismiss: () => void }): React.ReactNode {
-  const region = useClickRegion(props.onDismiss)
-  return (
-    <text
-      fg={region.hovered ? theme.bright : theme.hint}
-      bg={region.wash.bg ?? theme.panelBg}
-      flexShrink={0}
-      {...region.handlers}
-    >
-      {CLOSE_LABEL}
-    </text>
-  )
-}
-
 function Header(props: { cost: string; onDismiss?: () => void }): React.ReactNode {
   return (
     <>
       <text fg={theme.error} bg={theme.panelBg}>{`${glyph.failed} ${HEADING}`}</text>
       <box flexGrow={1} />
       {props.cost.length === 0 ? null : (
-        <text fg={theme.hint} bg={theme.panelBg}>
+        <text fg={theme.hint} bg={theme.panelBg} marginRight={props.onDismiss === undefined ? 0 : 1}>
           {props.cost}
         </text>
       )}
-      {props.onDismiss === undefined ? null : <CloseControl onDismiss={props.onDismiss} />}
+      {props.onDismiss === undefined ? null : (
+        <CloseButton onClose={props.onDismiss} bg={theme.panelBg} />
+      )}
     </>
   )
 }
