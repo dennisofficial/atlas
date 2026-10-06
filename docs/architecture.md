@@ -1350,6 +1350,14 @@ adopting the transferred family or reopening. Cloud read failures are errors, ne
 
 ## Workspace round trips and runtime ownership
 
+New cloud lifts place the primary repository at `/atlas/workspaces/<repo-name>`, using the original
+main checkout's directory name, with linked worktrees beneath that repository. Agents can clone
+additional repositories beside it under `/atlas/workspaces`. These adjacent clones are ephemeral:
+only the primary repository and its active session worktree transfer, and descend cleanup deletes
+the remaining cloud copies. Export stays anchored to the primary repository even if the session
+has entered a sibling clone. Reconnect uses saved restoration paths, including legacy layouts,
+rather than relocating an existing workspace to the new default.
+
 Workspace transfer carries physical files and logical Git state directly between the operator's
 machine and its sandbox. It does not require a user commit, flatten the index into a patch, or push
 transport refs to a repository host. The archive carries the main checkout and the session's own

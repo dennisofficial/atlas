@@ -1,6 +1,14 @@
-/**
- * Mirrors `WORKSPACE_PATH` in `apps/api/src/api/sandboxes/vercel-sandbox.client.ts`, duplicated
- * here rather than imported because `apps/api` carries no in-repo dependency by design (the same
- * reason `MAX_CONTEXT_BUNDLE_BYTES` is duplicated instead of shared).
- */
-export const CLOUD_WORKSPACE_PATH = '/workspace'
+export const CLOUD_WORKSPACES_PATH = '/atlas/workspaces'
+export const CLOUD_WORKSPACE_PATH = `${CLOUD_WORKSPACES_PATH}/workspace`
+
+const SEPARATORS = /[\\/]+/
+const UNNAMEABLE_COMPONENTS = new Set(['.', '..'])
+
+export function cloudWorkspacePath({ sourcePath }: { sourcePath: string }): string {
+  const name = sourcePath
+    .split(SEPARATORS)
+    .filter((component) => component.length > 0)
+    .at(-1)
+  if (name === undefined || UNNAMEABLE_COMPONENTS.has(name)) return CLOUD_WORKSPACE_PATH
+  return `${CLOUD_WORKSPACES_PATH}/${name}`
+}

@@ -1,14 +1,15 @@
 import { randomBytes } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, basename } from 'node:path'
 import { homedir } from 'node:os'
 import { Sandbox } from '@vercel/sandbox'
 
-import { EExecutionLocation, projectDirectoryOf } from '@dltech/atlas-core'
+import { cloudWorkspacePath, EExecutionLocation, projectDirectoryOf } from '@dltech/atlas-core'
 import {
   capturePortableState, captureWorkspaceMetadata, createLocalCloudBridge, descendFromCloud,
   FileSecretsStore, liftToCloud, SecretCipher, uploadWorkspaceArchive, VercelDriver,
-  type CloudChannel,
+  type CloudChannel, type RestoredWorkspace,
 } from '../src/index'
 import { liveFixture, liveGit, MODEL_STUB } from './workspace-roundtrip-live-fixture'
 
@@ -31,6 +32,7 @@ const sessionToken = randomBytes(32).toString('hex')
 const binary = process.env['ATLAS_PROBE_SERVE_BINARY'] ?? '/tmp/atlas-workspace-roundtrip-serve-linux'
 let sandbox: Sandbox | undefined
 let channel: CloudChannel | undefined
+let restored: RestoredWorkspace | undefined
 let completed = false
 console.log(JSON.stringify({ phase: 'starting', directory: fixture.directory, threadId: fixture.threadId }))
 const driver = new VercelDriver({
@@ -53,7 +55,7 @@ const driver = new VercelDriver({
     },
   },
 })
-const bridge = createLocalCloudBridge({
+const liveBridge = createLocalCloudBridge({
   vercel: () => ({ credentials, image: 'vercel/sandbox/universal:latest' }),
   attachmentToken: () => sessionToken,
   capturePortable: () => capturePortableState({ home: fixture.home }),
@@ -66,6 +68,17 @@ const bridge = createLocalCloudBridge({
     ATLAS_TELEMETRY_DISABLED: '1',
   }),
 })
+let teardown: Promise<void> | undefined
+const bridge = {
+  ...liveBridge,
+  sandboxes: {
+    ...liveBridge.sandboxes,
+    destroy: (args: { threadId: typeof fixture.threadId }) => {
+      teardown ??= liveBridge.sandboxes.destroy(args)
+      return teardown
+    },
+  },
+}
 
 try {
   const lifted = await liftToCloud({
@@ -80,17 +93,20 @@ try {
     captureContext: async () => undefined,
     onBegin: ({ waves }) => console.log(JSON.stringify({ phase: 'lift-plan', waves: waves.map((wave) => wave.label) })),
     onNodeDone: (nodeId) => console.log(JSON.stringify({ phase: 'lift', node: nodeId })),
-    open: async ({ attachment }) => {
+    open: async ({ attachment, restoredWorkspace }) => {
+      restored = restoredWorkspace
       channel = attachment.channel
       const events = await attachment.stores.log.readOwn({ threadId: fixture.threadId })
-      console.log(JSON.stringify({ phase: 'prepared', cwd: projectDirectoryOf({ events, launchDirectory: '/atlas/workspace' }) }))
+      console.log(JSON.stringify({ phase: 'prepared', cwd: projectDirectoryOf({ events, launchDirectory: restoredWorkspace?.cwd ?? cloudWorkspacePath({ sourcePath: fixture.repository }) }) }))
     },
   })
   if (!lifted.ok) throw new Error(`lift failed at ${lifted.step}: ${lifted.detail}`)
   channel = lifted.channel
   const live = sandbox
   if (live === undefined) throw new Error('no live sandbox')
-  const remotePath = '/atlas/workspace/.atlas/worktrees/feature'
+  if (restored?.repository !== cloudWorkspacePath({ sourcePath: fixture.repository })) throw new Error('the primary did not land in a named workspace')
+  const remotePath = restored.cwd
+  const remoteRepository = restored.repository
   const verifyRemote = await live.runCommand({ cmd: 'python3', args: ['-c', `import pathlib,subprocess,json
 p=pathlib.Path(${JSON.stringify(remotePath)})
 print(json.dumps({"file":(p/"file.txt").read_text(),"index":subprocess.check_output(["git","-C",str(p),"show",":file.txt"]).decode(),"ignored":(p/"ignored.txt").read_text()}))`], timeoutMs: 15000 })
@@ -117,12 +133,13 @@ print(json.dumps({"file":(p/"file.txt").read_text(),"index":subprocess.check_out
   } finally { remoteLog.channel.close() }
 
   const edit = await live.runCommand({ cmd: 'python3', args: ['-c', `import pathlib,subprocess
-repo=pathlib.Path("/atlas/workspace");p=repo/".atlas/worktrees/feature"
+repo=pathlib.Path(${JSON.stringify(remoteRepository)});p=pathlib.Path(${JSON.stringify(remotePath)})
 (p/"file.txt").write_text("unstaged cloud\\n");(p/"cloud-only.txt").write_text("cloud untracked\\n")
-new=repo/".atlas/worktrees/cloud-created"
-subprocess.run(["git","-C",str(repo),"worktree","add","-b","cloud-created",str(new)],check=True)
-(new/"new.txt").write_text("cloud-created dirty\\n")`], timeoutMs: 15000 })
+sibling=repo.parent/"ephemeral-clone"
+subprocess.run(["git","clone",str(repo),str(sibling)],check=True)
+(sibling/"new.txt").write_text("ephemeral dirty\\n")`], timeoutMs: 15000 })
   if (edit.exitCode !== 0) throw new Error(await edit.stderr())
+  if (!existsSync(fixture.worktree)) await liveGit({ cwd: fixture.repository, args: ['worktree', 'add', fixture.worktree, 'feature'] })
   await writeFile(join(fixture.repository, 'host-independent.txt'), 'host main stays\n')
   await writeFile(join(fixture.worktree, 'file.txt'), 'host independent feature\n')
 
@@ -142,9 +159,12 @@ subprocess.run(["git","-C",str(repo),"worktree","add","-b","cloud-created",str(n
   if (await readFile(join(opened.cwd, 'ignored.txt'), 'utf8') !== 'ignored local\n') throw new Error('the ignored file was lost')
   if (await readFile(join(fixture.worktree, 'file.txt'), 'utf8') !== 'host independent feature\n') throw new Error('the original host checkout was overwritten')
   if (await readFile(join(fixture.repository, 'host-independent.txt'), 'utf8') !== 'host main stays\n') throw new Error('host main was overwritten')
-  const newTree = join(fixture.repository, '.atlas', 'worktrees', 'cloud-created')
-  if (await readFile(join(newTree, 'new.txt'), 'utf8') !== 'cloud-created dirty\n') throw new Error('the cloud-created worktree was lost')
+  if (existsSync(join(fixture.directory, 'ephemeral-clone')) || existsSync(join(fixture.repository, 'ephemeral-clone'))) throw new Error('an ephemeral sibling was brought home')
+  console.log(JSON.stringify({ phase: 'named-layout-and-ephemeral-sibling-passed', repository: basename(fixture.repository) }))
   await liveGit({ cwd: fixture.repository, args: ['fsck', '--no-dangling'] })
+  if (teardown === undefined) throw new Error('descend did not schedule sandbox cleanup')
+  await teardown
+  console.log(JSON.stringify({ phase: 'ephemeral-sandbox-and-drive-deleted', name: live.name }))
   completed = true
   console.log(JSON.stringify({ phase: 'LIVE_ROUNDTRIP_PASSED', cwd: opened.cwd, directory: fixture.directory }))
 } catch (error) {

@@ -14,6 +14,7 @@ import {
   restoreTranscriptParamsSchema,
 } from '../../channel-wire'
 import { transcriptIdentityDigest } from '../../event-identity'
+import type { RestoredWorkspace } from '../../../workspace/transfer/manifest'
 import { toThreadId } from '@dltech/atlas-core'
 import {
   EChannelConnection,
@@ -60,6 +61,7 @@ export function fakeCloudChannel(
     applyTranscript?: (() => Promise<void>) | undefined
     prepareWorkspaceFails?: unknown
     applyWorkspaceFails?: unknown
+    restoredWorkspace?: RestoredWorkspace | undefined
   } = {},
 ): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
@@ -146,7 +148,10 @@ export function fakeCloudChannel(
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.ApplyWorkspaceArchive) {
         if (args.applyWorkspaceFails !== undefined) throw args.applyWorkspaceFails
-        return { applied: true, restored: { cwd: CLOUD_WORKSPACE_PATH, repository: CLOUD_WORKSPACE_PATH, trees: [] } }
+        return {
+          applied: true,
+          restored: args.restoredWorkspace ?? { cwd: CLOUD_WORKSPACE_PATH, repository: CLOUD_WORKSPACE_PATH, trees: [] },
+        }
       }
       if (given.op === EClientRequest.ActivateSession) return { activated: true }
       if (given.op === EClientRequest.PrepareWorkspaceArchive) {

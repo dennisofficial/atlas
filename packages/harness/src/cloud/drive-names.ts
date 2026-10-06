@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-core'
+
 const DRIVE_NAME_PREFIX = 'atlas-drive'
 const DIGEST_LENGTH = 24
 
@@ -21,7 +23,7 @@ export function driveNameFor(args: { threadId: string }): string {
  * loses nothing: the project checkout and the transcript survive on the drive.
  */
 export const DRIVE_MOUNT_PATH = '/atlas'
-export const DRIVE_WORKSPACE_PATH = `${DRIVE_MOUNT_PATH}/workspace`
+export const DRIVE_WORKSPACE_PATH = CLOUD_WORKSPACE_PATH
 export const DRIVE_HOME_PATH = `${DRIVE_MOUNT_PATH}/home`
 
 export const DRIVE_MAX_BYTES = 1024 ** 4

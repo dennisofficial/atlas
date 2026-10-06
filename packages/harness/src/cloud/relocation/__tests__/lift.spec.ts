@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH, EExecutionLocation } from '@dltech/atlas-core'
 import { CloudError, EShellStatus } from '@dltech/atlas-harness'
 
 import { useAtlasHome } from './descend-fixture'
@@ -168,7 +168,7 @@ describe('lifting a conversation into the cloud', () => {
     }
     expect(marker.from).toBe(EExecutionLocation.Host)
     expect(marker.to).toBe(EExecutionLocation.Cloud)
-    expect(marker.cwd).toBe('/workspace')
+    expect(marker.cwd).toBe(CLOUD_WORKSPACE_PATH)
     expect(marker.remoteUrl).toBe('git@github.com:comp-ai/atlas.git')
     expect(marker.branch).toBe('dennis/container-cloud')
   })
