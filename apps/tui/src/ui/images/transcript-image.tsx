@@ -1,9 +1,9 @@
 import { isWarpTerminal } from '@dltech/atlas-core'
-import { ImageRenderable, type OptimizedBuffer } from '@opentui/core'
+import type { OptimizedBuffer } from '@opentui/core'
 import { extend } from '@opentui/react'
 
 import { transcriptRows, transcriptTop } from '../viewport-rows-store'
-import { imageProtocolOf } from './protocol'
+import { TerminalImageRenderable } from './terminal-image'
 
 /**
  * A picture that paints its visible crop everywhere except the one path that mishandles crops.
@@ -16,12 +16,7 @@ import { imageProtocolOf } from './protocol'
  * terminals honor source rectangles, so only kitty under Warp is withheld when clipped. Everywhere
  * else a half-scrolled picture shows its visible half.
  */
-export class TranscriptImageRenderable extends ImageRenderable {
-  override get effectiveProtocol(): 'kitty' | 'sixel' | 'blocks' {
-    if (this.protocol !== 'auto') return super.effectiveProtocol
-    return imageProtocolOf({ env: { TERM_PROGRAM: process.env.TERM_PROGRAM }, fallback: super.effectiveProtocol })
-  }
-
+export class TranscriptImageRenderable extends TerminalImageRenderable {
   protected override renderSelf(buffer: OptimizedBuffer): void {
     if (this.wouldBeMishandledCrop()) return
     super.renderSelf(buffer)
