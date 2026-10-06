@@ -1,9 +1,12 @@
-import React, { useMemo } from 'react'
+import type { MarkdownRenderable } from '@opentui/core'
+import React, { useMemo, useRef } from 'react'
 
 import { ALT, theme } from '../theme'
 import { CopyButton } from './copy-button'
 import { HorizontalScroller } from './horizontal-scroller'
 import { proseSyntaxStyle } from './syntax-style'
+import { upperTableHeader } from './table-header'
+import { useTableLinkHover } from './table-link-hover'
 import { measureTable, TABLE_OPTIONS } from './table-metrics'
 
 /**
@@ -22,9 +25,12 @@ export function TableBlock(props: {
   bg?: string
 }): React.ReactNode {
   const metrics = useMemo(() => measureTable(props.markdown), [props.markdown])
-  const content = useMemo(() => upperHeader(props.markdown), [props.markdown])
+  const content = useMemo(() => upperTableHeader(props.markdown), [props.markdown])
+  const markdown = useRef<MarkdownRenderable | null>(null)
+  useTableLinkHover(markdown)
   const table = (
     <markdown
+      ref={markdown}
       content={content}
       streaming={props.streaming === true}
       syntaxStyle={proseSyntaxStyle()}
@@ -55,11 +61,4 @@ export function TableBlock(props: {
       </box>
     </box>
   )
-}
-
-function upperHeader(markdown: string): string {
-  const lines = markdown.split('\n')
-  const header = lines[0]
-  if (header === undefined) return markdown
-  return [header.toUpperCase(), ...lines.slice(1)].join('\n')
 }

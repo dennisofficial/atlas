@@ -4,6 +4,7 @@ import type { FileOpener, UrlOpener } from '@dltech/atlas-harness'
 
 import { ENoticePosition, ENoticeTone, notify } from '../ui/notice-store'
 import { glyph } from '../ui/theme'
+import { ELinkVerdict, linkScopeAt, type LinkScope } from './link-scope'
 import { resolvePathMention } from './path-links'
 
 const LEFT_BUTTON = 0
@@ -66,6 +67,7 @@ export function installLinkClickOpen(args: {
 
   let origin: { x: number; y: number } | null = null
   let originUrl: string | null = null
+  let originScope: LinkScope | null = null
   let pointerOnLink = false
 
   renderer.root.onMouseMove = (event) => {
@@ -82,24 +84,34 @@ export function installLinkClickOpen(args: {
     if (event.propagationStopped || event.defaultPrevented) return
     origin = { x: event.x, y: event.y }
     originUrl = renderer.getLinkAt(event.x, event.y)
+    originScope = linkScopeAt(event)
   }
 
   renderer.root.onMouseUp = (event) => {
     const start = origin
     const pressed = originUrl
+    const pressedScope = originScope
     origin = null
     originUrl = null
+    originScope = null
     if (event.button !== LEFT_BUTTON) return
     if (event.propagationStopped || event.defaultPrevented) return
     if (start === null) return
     if (!withinTravel({ from: start, event })) return
 
-    const url = renderer.getLinkAt(event.x, event.y) ?? pressed
-    if (url === null) return
+    const releasedScope = linkScopeAt(event)
+    if (releasedScope !== pressedScope) return
+
+    const pressedUrl = renderer.getLinkAt(event.x, event.y) ?? pressed
+    if (pressedUrl === null) return
 
     event.stopPropagation()
     event.preventDefault()
     renderer.clearSelection()
+
+    const verdict = releasedScope?.handle(pressedUrl) ?? { kind: ELinkVerdict.Pass }
+    if (verdict.kind === ELinkVerdict.Handled) return
+    const url = verdict.kind === ELinkVerdict.Open ? verdict.url : pressedUrl
 
     /**
      * A rendered link already resolved once, but a file can be deleted between paint and click,
