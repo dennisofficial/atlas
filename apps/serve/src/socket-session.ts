@@ -16,7 +16,7 @@ import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
 import { createTurnCommands } from './socket-commands'
 import { createRequestRouter, messageOf } from './socket-requests'
-import { operatorInputSnapshot } from './operator-input'
+import { createSocketGreeter } from './socket-greet'
 import type { HelloFrame, SessionHandlers, SessionHandlersArgs, SessionSocket } from './socket-session-types'
 import { createMutationTracker, isReadOnlyFrame, routeStateRequest } from './socket-state-requests'
 import { createStepAliaser, endsAliasedStep, retagged } from './step-alias'
@@ -34,7 +34,6 @@ const GOING_AWAY = 1001
 
 const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
 
-/** A serve without the github plugin (a spec fake) has nothing to report — empty, not an error. */
 const EMPTY_PR_STATES: NonNullable<SessionHandlersArgs['prStates']>['snapshot'] = () => []
 
 export function createSessionHandlers(args: SessionHandlersArgs): SessionHandlers {
@@ -46,15 +45,14 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const pending = args.pending
   const transcript = args.transcript
   const selectModel = args.selectModel
-  const sessionArchive = args.sessionArchive
-  const memoryArchive = args.memoryArchive
-  const restoreTranscript = args.restoreTranscript
+  const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
   const { admissionClosed, checkpoint, checkpointChanged } = args
   const mutations = createMutationTracker({ changed: checkpointChanged })
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
+  let historyGeneration = 0
 
   const send = (args: { socket: SessionSocket; frame: ServeFrame }): void => {
     args.socket.send(encodeFrame(args.frame))
@@ -76,7 +74,9 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     rewind,
     compaction: args.compaction,
     historyChanged: () => {
-      for (const socket of attached) send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: 0 } })
+      historyGeneration += 1
+      broadcast(buffer.pushLifecycle({ kind: EServeFrame.Reload, sinceEventSeq: 0 }))
+      broadcast(buffer.push({ type: 'events-appended' }))
     },
     agents,
     operatorInput: args.operatorInput,
@@ -109,83 +109,27 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     args.socket.close(POLICY_VIOLATION, args.reason)
   }
 
-  /**
-   * A cursor the buffer still holds resumes exactly; anything else — one that fell out, or a
-   * process that restarted with an empty buffer — is told to re-read the durable log, so a gap can
-   * never be silent. The in-flight step rides on top, since its deltas have no events behind them.
-   */
-  const greetRest = (args: { socket: SessionSocket; hello: HelloFrame; head: number | null; resumed: boolean }): void => {
-    const { socket, hello, head, resumed } = args
-    const cursor = hello.channelCursor
-
-    const ready: ServeFrame = {
-      kind: EServeFrame.Ready,
-      seq: buffer.nextSeq(),
-      protocol: CHANNEL_PROTOCOL_VERSION,
-      turnInFlight: driver.outcomePending(),
-      ...(head === null ? {} : { transcriptCurrent: head === hello.lastEventSeq }),
-      ...checkpointField(),
-    }
-    send({ socket, frame: ready })
-
-    const blocked = refusal()
-    if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
-
-    const queued = pending === undefined ? [] : pendingEntriesOf({ pending, threadId })
-    if (queued.length > 0) {
-      send({
-        socket,
-        frame: {
-          kind: EServeFrame.Signal,
-          seq: Math.max(0, buffer.nextSeq() - 1),
-          signal: { type: 'pending-changed', entries: queued },
-        },
-      })
-    }
-
-    const backfill = resumed && cursor !== null ? buffer.after(cursor) : inFlight()
-    const reloadedMidStep = resumed ? null : liveStepId()
-    socket.data.alias = reloadedMidStep === null ? null : aliaser.next(reloadedMidStep)
-
-    for (const frame of backfill) send({ socket, frame: forSocket({ socket, frame }) })
-    if (operatorInput !== undefined) send({ socket, frame: operatorInputSnapshot({ operatorInput, threadId, seq: buffer.nextSeq() }) })
-
-    attached.add(socket)
-    socket.data.greeted = true
-    for (const frame of socket.data.held.splice(0)) drive({ socket, frame })
-    log({
-      event: EServeEvent.ClientAttached,
-      resumed,
-      cursor,
-      backfilled: backfill.length,
-      clients: attached.size,
-    })
-  }
+  const greetRest = createSocketGreeter({
+    threadId, buffer, inFlight, liveStepId, driver, pending, operatorInput, checkpointField,
+    historyGeneration: () => historyGeneration, refusal, aliaser, attached, send, forSocket,
+    drive: (driven) => drive(driven), log,
+  })
 
   const greet = (args: { socket: SessionSocket; hello: HelloFrame }): void => {
     const { socket, hello } = args
-    const cursor = hello.channelCursor
-    const resumed = cursor !== null && buffer.holds(cursor)
-
-    if (!resumed) {
-      send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: hello.lastEventSeq } })
-    }
-
-    // A serve with no transcript store (a spec fake) has nothing to vouch on, so the greet stays
-    // synchronous; only a real store read suspends for the head.
     if (transcript === undefined) {
-      greetRest({ socket, hello, head: null, resumed })
+      greetRest({ socket, hello, head: null })
       return
     }
 
     void transcript.log.head({ threadId }).then(
       (head) => {
         if (!live.has(socket)) return
-        greetRest({ socket, hello, head, resumed })
+        greetRest({ socket, hello, head })
       },
       () => {
         if (!live.has(socket)) return
-        greetRest({ socket, hello, head: null, resumed })
+        greetRest({ socket, hello, head: null })
       },
     )
   }
@@ -193,9 +137,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const refuseDeferred = (args: { socket: SessionSocket; frame: ClientFrame; message: string }): void => {
     send({
       socket: args.socket,
-      frame: args.frame.kind === EClientFrame.Request
-        ? refusedRequest({ replyTo: args.frame.id, message: args.message })
-        : { kind: EServeFrame.Error, message: args.message },
+      frame:
+        args.frame.kind === EClientFrame.Request
+          ? refusedRequest({ replyTo: args.frame.id, message: args.message })
+          : { kind: EServeFrame.Error, message: args.message },
     })
   }
 
@@ -210,15 +155,17 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     const isRestoreOp = frame.kind === EClientFrame.Request && frame.op === EClientRequest.RestoreTranscript
     if (router.state.restoring !== null && !isRestoreOp) {
       const held = router.state.restoring
-      void held.then((result) => {
-        if (result.failed !== null) {
-          refuseDeferred({ ...args, message: `the transcript restore failed: ${result.failed}` })
-          return
-        }
-        drive({ socket, frame })
-      }).catch((error: unknown) => {
-        refuseDeferred({ ...args, message: messageOf(error, 'the transcript restore failed') })
-      })
+      void held
+        .then((result) => {
+          if (result.failed !== null) {
+            refuseDeferred({ ...args, message: `the transcript restore failed: ${result.failed}` })
+            return
+          }
+          drive({ socket, frame })
+        })
+        .catch((error: unknown) => {
+          refuseDeferred({ ...args, message: messageOf(error, 'the transcript restore failed') })
+        })
       return
     }
 
@@ -312,7 +259,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     },
 
     broadcastPrStates() {
-      const frame: ServeFrame = { kind: EServeFrame.PrStates, states: prStatesWireSchema.parse({ states: prStatesSnapshot() }).states }
+      const frame: ServeFrame = {
+        kind: EServeFrame.PrStates,
+        states: prStatesWireSchema.parse({ states: prStatesSnapshot() }).states,
+      }
       const encoded = encodeFrame(frame)
       for (const socket of attached) socket.send(encoded)
     },
@@ -337,8 +287,14 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       attached.clear()
     },
 
+    abortHistory: () => router.compaction.abortAll(),
+
     clients: () => attached.size,
     settling: () => router.state.restoring !== null || mutations.active(),
-    whenSettled: async () => { await router.state.restoring; await mutations.whenSettled() },
+    whenSettled: async () => {
+      await router.state.restoring
+      await router.compaction.whenSettled()
+      await mutations.whenSettled()
+    },
   }
 }

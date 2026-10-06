@@ -157,11 +157,10 @@ export function createTurnDriver(args: {
 
   const handle: ServeTurnDriver = {
     async say(said) {
-      history.assertAvailable()
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
       if (relocationFrozen) throw new Error('the session is paused for a workspace handoff')
-      if (intake !== null && pending !== null && (turning !== null || committing !== null)) {
+      if (intake !== null && pending !== null && (turning !== null || committing !== null || history.held())) {
         pending.forThread({ threadId }).enqueue({
           text: said.text,
           ...(said.images === undefined ? {} : { images: said.images }),
@@ -171,6 +170,7 @@ export function createTurnDriver(args: {
         intake.changed()
         return
       }
+      history.assertAvailable()
       const writing = commit(said)
       const active = committing === null ? writing : Promise.allSettled([committing, writing]).then((results) => {
         const failed = results.find((result) => result.status === 'rejected')

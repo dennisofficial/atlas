@@ -159,7 +159,7 @@ describe('history compaction over a real websocket and JSONL log', () => {
     expect(await first).toMatchObject({ type: ECompaction.Compacted })
   })
 
-  it('refuses sends, runs, rewind and agent steering from any client while compacting', async () => {
+  it('queues sends and refuses runs, rewind and agent steering while compacting', async () => {
     const probe = probeSummariser({ held: true })
     const served = await startCompactionServe({ summariser: probe.summariser })
     const second = await served.secondClient()
@@ -171,7 +171,7 @@ describe('history compaction over a real websocket and JSONL log', () => {
     await probe.entered
     served.client.channel.send({ text: 'sneaky' })
     served.client.channel.run()
-    await until({ what: 'both refusals', condition: () => errors.length >= 2 })
+    await until({ what: 'the run refusal and send acknowledgement', condition: () => errors.length >= 1 && served.client.frames.some((frame) => frame.kind === 'send-acked') })
     const rewind = second.channel.request({
       op: EClientRequest.Rewind,
       params: { threadId, cuts: [], toSeq: 1 },
@@ -192,7 +192,8 @@ describe('history compaction over a real websocket and JSONL log', () => {
     expect(jsonlRows(served.store)).toEqual(before)
     probe.release()
     expect(await running).toMatchObject({ type: ECompaction.Compacted })
-    expect(jsonlRows(served.store).some((row) => row.type === 'user-said' && row.seq > before.at(-1)!.seq)).toBe(false)
+    await until({ what: 'the queued message to commit after compaction', condition: () => jsonlRows(served.store).some((row) => row.type === 'user-said' && row.seq > before.at(-1)!.seq) })
+    expect(jsonlRows(served.store).filter((row) => row.type === 'user-said')).toHaveLength(4)
   })
 
   it('refuses a workspace handoff pause with an error frame while compacting', async () => {

@@ -951,11 +951,16 @@ and summarise-around anchor/sequence intent. Its local adapter invokes the share
 functions; its cloud adapter requests the same operation from serve, where the owning harness
 selects the range, runs its compaction model, applies the guards, and writes its own stores.
 The terminal never tries to mutate a cloud transcript through read-only store adapters. Serve
-holds turn admission and intake during summarisation; cancellation reaches the owning model and
-is rechecked before writing. Mutations are not replayed after a lost reply, and errors do not
-claim that history stayed unchanged when the commit outcome is unknown. Successful operations
-invalidate every attached client's transcript. Protocol version 19 requires matching client and
-sandbox runtimes.
+holds turn admission and intake during summarisation, refuses overlapping history edits in either
+arrival order, and acknowledges operator messages into the pending queue rather than writing them
+mid-summary. Cancellation races the owning model call and is rechecked before writing, so an
+abort-ignoring provider cannot keep history editing reserved or commit a late result. Explicit
+shutdown aborts the summary and waits for mutation settlement before disposing the app; attachment
+loss does neither. Mutations are not replayed after a lost reply, and errors do not claim that
+history stayed unchanged when the commit outcome is unknown. Successful operations buffer a
+reload before the next channel signal, so reconnect and late greet also verify rewritten history,
+including a destructive summary whose head sequence did not change. Protocol version 19 requires
+matching client and sandbox runtimes.
 
 **Compaction guidance arrives with the summary.** The stable system prompt carries no compaction
 notice; `compactedHistory` supplies continuation context when a summary replaces earlier turns.

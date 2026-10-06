@@ -13,6 +13,7 @@ import {
 
 import type { AgentRegistryPort } from '../agents/registry/port'
 import { SummaryFailure } from '../model/summariser'
+import { awaitSummary } from './await-summary'
 import type { ThreadStorePort } from './thread-store'
 
 export enum ECompactionFailure {
@@ -102,7 +103,9 @@ export async function compactThread(args: {
   signal?: AbortSignal | undefined
 }): Promise<CompactionOutcome> {
   const { log, threads, agents, threadId, anchor, seq, summarise, signal } = args
+  signal?.throwIfAborted()
   const events = await log.read({ threadId })
+  signal?.throwIfAborted()
 
   const target = guardFor({ events, anchor, seq })
   if (!target.allowed) {
@@ -118,7 +121,7 @@ export async function compactThread(args: {
 
   let summary: string | null
   try {
-    summary = await summarise({ events, ...range, ...(signal === undefined ? {} : { signal }) })
+    summary = await awaitSummary({ summarise, args: { events, ...range }, signal })
   } catch (fault) {
     if (signal?.aborted === true) throw fault
     if (fault instanceof SummaryFailure) {
@@ -126,10 +129,10 @@ export async function compactThread(args: {
     }
     throw fault
   }
-  signal?.throwIfAborted()
   if (summary === null) {
     return { ok: false, failure: ECompactionFailure.NoSummary, reason: NO_SUMMARY }
   }
+  signal?.throwIfAborted()
 
   if (args.destructive) {
     const cutAgents = delegationsCutBy({ events, threadId, ...range })

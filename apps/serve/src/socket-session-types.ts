@@ -37,6 +37,7 @@ export type SessionHandlers = {
   broadcastPrStates: () => void
   park: (args: { reason: string }) => void
   hangUp: () => void
+  abortHistory: () => void
   clients: () => number
   settling: () => boolean
   whenSettled: () => Promise<void>

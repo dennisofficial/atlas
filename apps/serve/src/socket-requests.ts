@@ -24,6 +24,7 @@ import {
   type TranscriptReaders,
 } from './requests'
 import { answerRewindRequest } from './rewind-request'
+import { createHistoryMutations } from './history-mutations'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -65,7 +66,13 @@ export function createRequestRouter(args: {
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
   const state: { restoring: Promise<RestoreOutcome> | null } = { restoring: null }
-  const compact = createCompactionRequests({ threadId, driver, compaction: args.compaction, changed: args.historyChanged ?? (() => undefined) })
+  const edits = createHistoryMutations()
+  const compact = createCompactionRequests({
+    threadId,
+    driver: { holdHistory: () => { edits.assertAvailable(); return driver.holdHistory() } },
+    compaction: args.compaction,
+    changed: args.historyChanged ?? (() => undefined),
+  })
 
   const route = (routed: { socket: SessionSocket; frame: RequestFrame }): void => {
     const { socket, frame } = routed
@@ -95,7 +102,7 @@ export function createRequestRouter(args: {
   }
   if (frame.op === EClientRequest.Rewind) {
     if (rewind === undefined) log({ event: EServeEvent.ClientRefused, reason: 'rewind-without-registries' })
-    void answerRewindRequest({ frame, threadId, driver, rewind }).then((reply) => send({ socket, frame: reply }))
+    void edits.run(() => answerRewindRequest({ frame, threadId, driver, rewind })).then((reply) => send({ socket, frame: reply }))
     return
   }
 
@@ -107,7 +114,7 @@ export function createRequestRouter(args: {
       })
       return
     }
-    void answerAgentSteer({ frame, agents })
+    void edits.run(() => answerAgentSteer({ frame, agents }))
       .then((reply) => send({ socket, frame: reply }))
       .catch((error: unknown) =>
         send({
@@ -203,7 +210,7 @@ export function createRequestRouter(args: {
   }
 
   if (isWorkspaceTransferOp(frame.op)) {
-    void answerWorkspaceTransfer({ frame, busy: () => driver.busy(), ...workspaceOps })
+    void edits.run(() => answerWorkspaceTransfer({ frame, busy: () => driver.busy(), ...workspaceOps }))
       .then((reply) => send({ socket, frame: reply }))
     return
   }
@@ -273,5 +280,5 @@ export function createRequestRouter(args: {
     )
   }
 
-  return { route, state }
+  return { route, state, compaction: compact }
 }
