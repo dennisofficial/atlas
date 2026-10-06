@@ -160,6 +160,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     roster: app.roster,
     prStates: app.prStates,
     rewind: app.rewind,
+    compaction: app.compaction,
     agents: app.agents,
     operatorInput: app.operatorInput,
     pending: app.pending,

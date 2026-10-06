@@ -73,9 +73,10 @@ export async function rotationFixture() {
   } = {}) => {
     boots += 1
     const disk = scratchTranscriptStore({ prefix: `rotation-boot-${boots}`, home })
+    const modelEntered = gate()
     const app = fakeServeApp({
       threadId, root: '/workspace', intake: true, log: disk.log,
-      holdStep: () => args.modelGate?.promise,
+      holdStep: () => { modelEntered.release(); return args.modelGate?.promise },
       family: args.family,
       adoptChildren: args.adopt ?? (async () => [childId]),
     })
@@ -106,7 +107,7 @@ export async function rotationFixture() {
       ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
       contextFiles: noFiles, write: () => undefined,
     }).then((handle) => { handles.push(handle); return handle })
-    return { starting, app, disk, resumed: () => resumed, ran: () => ran, outcomes }
+    return { starting, app, disk, modelEntered: modelEntered.promise, resumed: () => resumed, ran: () => ran, outcomes }
   }
   return { home, receipt, store, boot }
 }

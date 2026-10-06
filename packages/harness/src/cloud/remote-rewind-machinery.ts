@@ -113,25 +113,22 @@ export class RemoteRewindMachinery extends RewindMachineryPort {
     }
   }
 
-  /**
-   * The apply carries the rewind point: the sandbox's serve truncates its own durable log as part
-   * of the same apply that kills the cut processes, so the two never race. A channel that cannot
-   * carry the apply degrades to the processes left running — the operator hears what may still be
-   * running on the far side.
-   */
   async destroy(args: {
     cuts: readonly RewindCut[]
     threadId: ThreadId
     toSeq?: number | undefined
   }): Promise<void> {
-    await this.channel.apply(args).catch((error: unknown) => {
+    try {
+      await this.channel.apply(args)
+    } catch (error) {
       this.notice?.notify({
         key: REWIND_APPLY_NOTICE_KEY,
         tone: ENoticeTone.Warn,
         ttlMs: NOTICE_WARN_MS,
-        text: `the sandbox refused the rewind cleanup (${messageOf(error)}) — ${args.cuts.map(cutNameOf).join(', ')} may still be running in the cloud sandbox. The rewind itself landed.`,
+        text: `the sandbox did not confirm the rewind (${messageOf(error)}) — ${args.cuts.map(cutNameOf).join(', ')} may still be running in the cloud sandbox.`,
       })
-    })
+      throw error
+    }
   }
 }
 

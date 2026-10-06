@@ -11,7 +11,7 @@ import type { ServeTurnDriver } from './turn-driver'
 export function createServeLifecycle(args: {
   app: ServeApp
   driver: ServeTurnDriver
-  handlers: Pick<SessionHandlers, 'park' | 'hangUp'>
+  handlers: Pick<SessionHandlers, 'park' | 'hangUp'> & Partial<Pick<SessionHandlers, 'abortHistory' | 'whenSettled'>>
   server: { stop: (closeActiveConnections?: boolean) => Promise<void> }
   bridge: { close: () => void }
   threadId: ThreadId
@@ -40,7 +40,14 @@ export function createServeLifecycle(args: {
       args.log({ event: EServeEvent.ShutdownRequested, threadId: args.threadId, reason, work: args.work() })
       args.detach()
       args.driver.interrupt()
-      await withDeadline({ task: args.driver.settled().catch(() => undefined), ms: args.drainDeadlineMs })
+      args.handlers.abortHistory?.()
+      await withDeadline({
+        task: Promise.all([
+          args.driver.settled().catch(() => undefined),
+          args.handlers.whenSettled?.().catch(() => undefined),
+        ]).then(() => undefined),
+        ms: args.drainDeadlineMs,
+      })
       args.bridge.close()
       args.handlers.hangUp()
       await args.server.stop(true)
