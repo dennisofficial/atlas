@@ -364,6 +364,18 @@ describe('a request riding the session socket', () => {
     })
   })
 
+  it('never re-drives a session export after a drop, since another build would leave an orphan generation', async () => {
+    const { channel, drop, retries, receive, live } = readied()
+    const answer = channel.request({ op: EClientRequest.ReadSessionArchive, params: {} })
+    const failed = answer.catch((error: unknown) => error)
+    drop()
+    expect(await failed).toBeInstanceOf(RemoteRequestLost)
+    retries[0]?.run()
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 9 })
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
+  })
+
   it('rejects a rewind in flight when the socket closes, since it may have applied', async () => {
     const { channel, drop } = readied()
 

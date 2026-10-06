@@ -1349,6 +1349,8 @@ file and replies with only its root identity, path, byte count, and SHA-256. The
 that root's generated export path, streams it through the sandbox file API into a private partial
 file, verifies the byte count and digest, and atomically publishes it before extraction. Archive
 bytes never pass through JSON or a whole-archive base64 string; uploads use bounded file chunks.
+Session export requests are not replayed automatically after a socket loss: preparing another
+multi-GB generation is not a side-effect-free read. The source stays authoritative for an explicit retry.
 Export enumeration walks real directories without following symlinks. A genuinely missing session
 is distinct from an unreadable path, which is reported as an error rather than an empty transcript.
 
