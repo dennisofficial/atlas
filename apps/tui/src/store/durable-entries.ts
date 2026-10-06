@@ -367,21 +367,6 @@ export function durableEntries(args: {
       return [locationChangedEntry({ key: event.id, to: event.to, cause: event.cause })]
     }
 
-    if (event.type === 'parked') {
-      return [
-        {
-          kind: EEntryKind.Parked,
-          author: EAuthor.Model,
-          key: event.id,
-          text: `☾ parked after ${event.reason}`,
-          reason: event.reason,
-          childrenRunning: event.childrenRunning,
-          shellsRunning: event.shellsRunning,
-          servicesRunning: event.servicesRunning,
-        },
-      ]
-    }
-
     if (event.type === 'operator-input-requested') {
       return [
         {
