@@ -117,7 +117,10 @@ describe('the failed block close control', () => {
       expect(line).toContain(`${glyph.failed} failed`)
       expect(line).toContain('1m 32s')
       expect(line.indexOf(CLOSE)).toBeGreaterThan(line.indexOf('1m 32s'))
-      expect(line.endsWith(`${CLOSE} `) || line.endsWith(CLOSE)).toBe(true)
+      expect(line.endsWith(CLOSE)).toBe(true)
+      const beforeClose = line.slice(0, line.indexOf(CLOSE))
+      expect(beforeClose.endsWith('4.2k ')).toBe(true)
+      expect(beforeClose.endsWith('4.2k  ')).toBe(false)
     } finally {
       await teardown(setup)
     }
@@ -141,29 +144,31 @@ describe('the failed block close control', () => {
     }
   }, 60_000)
 
-  it('washes the control with the hover background while the pointer is on it', async () => {
-    const setup = await mountBlock({ width: 60, onDismiss: () => undefined })
+  it('washes exactly the seven label cells, leaving the cost gap and the next cell plain', async () => {
+    const setup = await mountBlock({ width: 60, onDismiss: () => undefined, withCost: true })
+    const hovered = (cell: number): boolean | undefined =>
+      paintedAt({ spans: setup.captureSpans(), row, cell })?.bg.equals(parseColor(theme.hoverBg))
+    const { row, column } = locate(setup)
+    const last = column + CLOSE.length - 1
 
     try {
-      const { row, column } = locate(setup)
-      const before = setup.captureSpans()
-      expect(paintedAt({ spans: before, row, cell: column })?.bg.equals(parseColor(theme.hoverBg))).toBe(false)
+      expect(hovered(column)).toBe(false)
 
       await act(async () => {
-        await setup.mockMouse.moveTo(column, row)
+        await setup.mockMouse.moveTo(last, row)
       })
       await setup.flush()
 
-      const lit = setup.captureSpans()
-      expect(paintedAt({ spans: lit, row, cell: column })?.bg.equals(parseColor(theme.hoverBg))).toBe(true)
+      for (let cell = column; cell <= last; cell += 1) expect(hovered(cell)).toBe(true)
+      expect(hovered(column - 1)).toBe(false)
+      expect(hovered(last + 1)).toBe(false)
 
       await act(async () => {
-        await setup.mockMouse.moveTo(1, row + 3)
+        await setup.mockMouse.moveTo(column - 1, row)
       })
       await setup.flush()
 
-      const after = setup.captureSpans()
-      expect(paintedAt({ spans: after, row, cell: column })?.bg.equals(parseColor(theme.hoverBg))).toBe(false)
+      for (let cell = column; cell <= last; cell += 1) expect(hovered(cell)).toBe(false)
     } finally {
       await teardown(setup)
     }
