@@ -13,6 +13,7 @@ import {
   type EventDraft,
 } from '@dltech/atlas-core'
 import {
+  EClientFrame,
   EClientRequest,
   JsonlEventLog,
   MirroredEventLog,
@@ -51,6 +52,8 @@ export async function mirrored(args: {
   seeded: readonly EventDraft[]
   hold: boolean
   inFlight: boolean
+  readyAtMount?: boolean
+  wakesInto?: boolean
 }) {
   const home = await mkdtemp(join(tmpdir(), 'atlas-mirror-resume-'))
   const local = new JsonlEventLog(home, new SessionRegistry(home), new SystemClock(), fakeIds())
@@ -60,7 +63,7 @@ export async function mirrored(args: {
     drafts: args.seeded,
   })
   const remote: Event[] = [...before]
-  const wired = wire(args.app)
+  const wired = wire(args.app, args.wakesInto === undefined ? {} : { wakesInto: args.wakesInto })
   const channel = cloudChannelOf(args.app)
   if (channel === null) throw new Error('the wired app has no cloud channel')
 
@@ -75,7 +78,7 @@ export async function mirrored(args: {
       events: remote.filter((event) => event.seq > (query.fromSeq ?? 0)).map(toWire),
     }
   }
-  wired.ready(args.inFlight)
+  if (args.readyAtMount !== false) wired.ready(args.inFlight)
   if (args.inFlight) wired.signal({ type: 'turn-working', working: true })
 
   const entered = promiseGate()
@@ -138,3 +141,6 @@ export async function mirrored(args: {
     },
   }
 }
+
+export const runsOf = (rig: Awaited<ReturnType<typeof mirrored>>) =>
+  rig.wired.frames.filter((frame) => frame.kind === EClientFrame.Run)

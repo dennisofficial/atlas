@@ -1,5 +1,11 @@
 import { isResumable, type EventDraft, type ThreadId } from '@dltech/atlas-core'
-import { ESuppress, LocalRewindMachinery, MirroredEventLog, rewindThread } from '@dltech/atlas-harness'
+import {
+  ESuppress,
+  LocalRewindMachinery,
+  MirroredEventLog,
+  RemoteTurnRunner,
+  rewindThread,
+} from '@dltech/atlas-harness'
 import { useCallback, useMemo, useRef, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
@@ -70,10 +76,14 @@ export function useTurnDriver(args: {
     if (app.log instanceof MirroredEventLog) await app.log.synchronize()
   }, [app.log])
   autonomousSettled.current = async () => {
-    await synchronizeMirror()
-    await refresh()
-    if (workingRef.current || driven.tailRef.current || remote.runningRef.current) return
-    await args.onSettled().catch(() => undefined)
+    try {
+      await synchronizeMirror()
+      await refresh()
+    } finally {
+      if (!workingRef.current && !driven.tailRef.current && !remote.runningRef.current) {
+        await args.onSettled().catch(() => undefined)
+      }
+    }
   }
   const busyRef = useMemo<RefObject<boolean>>(
     () => ({
@@ -104,6 +114,7 @@ export function useTurnDriver(args: {
   const handleResume = useCallback(() => {
     if (working || turnInFlight() || frozen) return
     void (async () => {
+      if (app.runner instanceof RemoteTurnRunner) await app.runner.ensureAttached()
       await synchronizeMirror()
       const fresh = await app.log.read({ threadId })
       if (workingRef.current || turnInFlight()) return
@@ -112,7 +123,7 @@ export function useTurnDriver(args: {
     })().catch((error: unknown) => {
       setFailure(messageOf(error))
     })
-  }, [app.log, drive, frozen, setFailure, synchronizeMirror, threadId, turnInFlight, working, workingRef])
+  }, [app.log, app.runner, drive, frozen, setFailure, synchronizeMirror, threadId, turnInFlight, working, workingRef])
 
   const resumeFresh = useCallback(
     (confirmed: boolean) => {

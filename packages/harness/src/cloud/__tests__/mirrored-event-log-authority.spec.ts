@@ -6,7 +6,8 @@ import { EClientRequest } from '../channel-wire'
 import { MirroredEventLog } from '../mirrored-event-log'
 import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
-import { readied, THREAD } from './remote-channel-fixture'
+import { EChannelConnection } from '../remote-delta-channel'
+import { harness, readied, THREAD } from './remote-channel-fixture'
 
 const fixtures: StoreFixture[] = []
 
@@ -23,7 +24,7 @@ const gate = () => {
 }
 
 const rig = async (
-  args: { writer?: ((writer: MirrorWriter) => MirrorWriter) | undefined } = {},
+  args: { writer?: ((writer: MirrorWriter) => MirrorWriter) | undefined; ready?: boolean } = {},
 ) => {
   const fixture = await openStoreFixture()
   fixtures.push(fixture)
@@ -45,7 +46,9 @@ const rig = async (
     type: 'assistant-said',
     parts: [{ type: 'text', text: 'Waiting for the background agent.' }],
   }
-  const channel = readied({ lastEventSeq: 0 })
+  const channel = args.ready === false
+    ? harness({ lastEventSeq: 0, maxAttempts: 0 })
+    : readied({ lastEventSeq: 0 })
   let requests = 0
   const log = new MirroredEventLog({
     channel: {
@@ -81,6 +84,45 @@ const rig = async (
 }
 
 describe('authoritative cloud transcript synchronization', () => {
+  it('waits for Open when an idle Ready listener starts synchronization before the state transition', async () => {
+    const held = await rig({ ready: false })
+    held.remote.push(held.answer)
+    let duringReady: EChannelConnection | undefined
+    let syncing: Promise<void> | undefined
+    held.channel.channel.onReady(() => {
+      duringReady = held.channel.channel.connection().state
+      syncing = held.log.synchronize()
+    })
+    held.channel.open()
+    held.channel.receive({ kind: EServeFrame.Ready, seq: 1, turnInFlight: false })
+    expect(duringReady).toBe(EChannelConnection.Connecting)
+    if (syncing === undefined) throw new Error('the Ready listener did not run')
+    await syncing
+    expect(await held.fixture.log.readOwn({ threadId: THREAD })).toEqual(held.remote)
+  })
+
+  it('waits for a reconnect to finish without issuing requests into the disconnected channel', async () => {
+    const held = await rig()
+    held.remote.push(held.answer)
+    held.channel.drop()
+    expect(held.channel.channel.connection().state).toBe(EChannelConnection.Reconnecting)
+    const syncing = held.log.synchronize()
+    expect(held.requests()).toBe(0)
+    held.channel.retries[0]?.run()
+    held.channel.open()
+    held.channel.receive({ kind: EServeFrame.Ready, seq: 2, turnInFlight: false })
+    await syncing
+    expect(await held.fixture.log.readOwn({ threadId: THREAD })).toEqual(held.remote)
+  })
+
+  it('rejects an attachment that closes before its first Ready without issuing a request', async () => {
+    const held = await rig({ ready: false })
+    const rejected = held.log.synchronize().catch((failure: unknown) => failure)
+    held.channel.drop()
+    expect(await rejected).toMatchObject({ message: 'the cloud transcript cannot synchronize while the channel is not open' })
+    expect(held.requests()).toBe(0)
+  })
+
   it('waits for the completed answer to reach disk while ordinary reads stay local-first', async () => {
     const entered = gate()
     const finish = gate()

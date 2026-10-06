@@ -54,6 +54,7 @@ export function useRemoteTurnState(args: {
   failure.current = args.onFailure
   const settling = useRef(0)
   const settleFailed = useRef(false)
+  const settleEpoch = useRef(0)
 
   useEffect(() => {
     const handleRunning = (next: boolean): void => {
@@ -98,15 +99,16 @@ export function useRemoteTurnState(args: {
       awaitingLifecycle.current = false
       settling.current += 1
       setSettlingNow(true)
+      settleEpoch.current += 1
+      const epoch = settleEpoch.current
+      const record = (failed: boolean): void => {
+        if (epoch === settleEpoch.current) settleFailed.current = failed
+      }
       void settled
         .current()
         .then(
-          () => {
-            settleFailed.current = false
-          },
-          () => {
-            settleFailed.current = true
-          },
+          () => record(false),
+          () => record(true),
         )
         .finally(() => {
           settling.current -= 1

@@ -81,15 +81,33 @@ export class TranscriptSyncer {
     })
   }
 
-  synchronize(): Promise<void> {
-    if (this.connection.state !== EChannelConnection.Open) {
-      return Promise.reject(
-        new Error('the cloud transcript cannot synchronize while the channel is not open'),
-      )
-    }
+  async synchronize(): Promise<void> {
+    await this.waitForOpen()
     return new Promise((resolve, reject) => {
       this.settled.add({ resolve, reject })
       this.enqueue({ mode: 'verify' })
+    })
+  }
+
+  private waitForOpen(): Promise<void> {
+    if (this.connection.state === EChannelConnection.Open) return Promise.resolve()
+    const unavailable = (): boolean =>
+      this.connection.state === EChannelConnection.Closed ||
+      this.connection.state === EChannelConnection.Parked
+    const failure = (): Error =>
+      new Error('the cloud transcript cannot synchronize while the channel is not open')
+    if (unavailable()) return Promise.reject(failure())
+    return new Promise((resolve, reject) => {
+      const unsubscribe = this.args.channel.onConnection(() => {
+        if (this.connection.state === EChannelConnection.Open) {
+          unsubscribe()
+          resolve()
+          return
+        }
+        if (!unavailable()) return
+        unsubscribe()
+        reject(failure())
+      })
     })
   }
 
