@@ -58,6 +58,7 @@ function DerivedTranscript(props: {
   /** When the wait on that background work began, held above this mount. See `WaitingLine`. */
   waitingSince?: number | null
   onRetry?: () => void
+  onDismissFailure?: () => void
   onResume?: () => void
   opened?: ReadonlySet<string>
   onToggle?: (key: string) => void
@@ -203,6 +204,9 @@ function DerivedTranscript(props: {
                   outputTokens: turn.completed.outputTokens,
                 })}
             {...(props.onRetry === undefined ? {} : { onRetry: props.onRetry })}
+            {...(props.onDismissFailure === undefined
+              ? {}
+              : { onDismiss: props.onDismissFailure })}
           />
         ) : null}
 
