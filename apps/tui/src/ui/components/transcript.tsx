@@ -34,28 +34,18 @@ function DerivedTranscript(props: {
   now: number
   cwd: string
   turn?: TurnClock
-  /** The cloud socket is down and being re-established; the turn itself runs on the sandbox. */
+  cloudConnected?: boolean
   reconnecting?: boolean
-  /** The sandbox was parked and is being woken; nothing is running until it answers. */
   waking?: boolean
-  /** The cloud socket is closed with no re-establish in flight; the local view is stale. */
   disconnected?: boolean
-  /**
-   * The applied transcript is not known to match what the sandbox persisted — parked with a
-   * checkpoint that disagrees, or no trustworthy checkpoint at all. Mutes the same way as
-   * disconnected, without the reconnect row when the socket itself is fine.
-   */
   stale?: boolean
-  /** When the reconnect began, held above this mount. See `WaitingLine`'s `since`. */
   reconnectingSince?: number | null
-  /** When the applied transcript was last proven — rendered in the disconnected row, static. */
   lastSeenAt?: number | null
   onReconnect?: () => void
   anchorKey?: string | null
   sends?: number
   pending?: readonly PendingRow[]
   background?: BackgroundWork
-  /** When the wait on that background work began, held above this mount. See `WaitingLine`. */
   waitingSince?: number | null
   onRetry?: () => void
   onDismissFailure?: () => void
@@ -102,6 +92,7 @@ function DerivedTranscript(props: {
     scroller,
     anchorId: anchorIndex >= 0 ? UNSEEN_ANCHOR_ID : null,
     sends: props.sends ?? 0,
+    cloudConnected: props.cloudConnected ?? false,
     peekKeys,
     onTick: windowing.handleTick,
     ...(windowing.active ? { offsetOfKey: windowing.offsetOfKey } : {}),
@@ -151,9 +142,6 @@ function DerivedTranscript(props: {
           key={entry.key}
           id={entry.key}
           flexDirection="column"
-          // A dropped cloud socket or an unproven transcript leaves the entries a stale snapshot:
-          // mute them through opacity (a single seam, not a prop threaded through every block)
-          // while the working/disconnected row stays full-strength so it can be read and clicked.
           opacity={props.disconnected === true || props.stale === true ? 0.4 : 1}
         >
           {index === anchorIndex ? (
