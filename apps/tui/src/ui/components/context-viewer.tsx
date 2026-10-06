@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BoxRenderable, ScrollBoxRenderable } from '@opentui/core'
-import { useRenderer } from '@opentui/react'
 import type { ContextFileContent } from '@dltech/atlas-harness'
 
 import { cellsOf } from '../hint-layout'
-import { viewerImageProtocol } from '../images/viewer-image'
+import '../images/viewer-image'
 import { useContextLinkScope } from '../hooks/use-context-link-scope'
 import { observeScroll } from '../scroll-signal'
 import { theme } from '../theme'
@@ -17,26 +16,6 @@ const VIEWPORT_PAD = 2
 const LEFT_PAD = 2
 
 export const isMarkdownPath = (path: string): boolean => /\.(md|markdown)$/i.test(path)
-
-/**
- * The blocks sampler writes past a renderable's box in xterm.js, so where no pixel protocol
- * answers, the viewer says so instead of painting garbage over the cells around it.
- */
-function ViewerImageBody(props: { bytes: Uint8Array; path: string }): React.ReactNode {
-  const renderer = useRenderer()
-  const protocol = viewerImageProtocol({
-    capabilities: renderer.capabilities,
-    hasResolution: renderer.resolution !== null,
-  })
-  if (protocol === 'blocks') {
-    return (
-      <text fg={theme.hint}>
-        {`${props.path} is an image, and this terminal cannot display one — open it in a terminal that speaks kitty or sixel graphics.`}
-      </text>
-    )
-  }
-  return <viewer-image source={props.bytes} protocol="auto" fit="fit" flexGrow={1} flexShrink={1} flexBasis={0} />
-}
 
 function ViewerBody(props: {
   content: ContextFileContent
@@ -97,7 +76,7 @@ export function ContextViewer(props: {
       </box>
       {props.loading ? <text fg={theme.hint}>Reading {props.path}…</text> : props.content === null ? null :
         imageBytes !== null ? (
-          <ViewerImageBody bytes={imageBytes} path={props.path} />
+          <viewer-image source={imageBytes} protocol="auto" fit="fit" flexGrow={1} flexShrink={1} flexBasis={0} />
         ) : (
           <scrollbox ref={attach} scrollX flexGrow={1} flexShrink={1} flexBasis={0} viewportCulling>
             <ViewerBody content={props.content} path={props.path} viewport={Math.max(1, props.width - LEFT_PAD - VIEWPORT_PAD)} window={window} />
