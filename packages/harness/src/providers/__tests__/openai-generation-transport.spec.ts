@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import { generateText } from 'ai'
 
-import { apiKeyCredential } from '../../credentials/testing'
+import { apiKeyCredential, oauthCredential } from '../../credentials/testing'
 import { createOpenAiModel } from '../openai-oauth'
+import { StreamEndedWithoutFinishError } from '../stream-generation'
 import { recordingFetch } from './recording-fetch'
+import { streamedIncomplete, streamedTruncated } from './responses-stream-fixtures'
 
 const JSON_RESPONSE = JSON.stringify({
   id: 'resp_stub',
@@ -21,6 +23,38 @@ const JSON_RESPONSE = JSON.stringify({
     },
   ],
   usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+})
+
+const subscriptionModel = (body: string) =>
+  createOpenAiModel({
+    credentials: {
+      read: async () => oauthCredential({ accessToken: 'stub', providerAccountId: 'stub' }),
+      discard: async () => {},
+    },
+    providerId: 'openai',
+    modelId: 'gpt-session',
+    fetch: recordingFetch({ body }).fetch,
+  })
+
+describe('subscription generation completion', () => {
+  it('rejects truncated SSE despite the SDK synthesizing a finish part', async () => {
+    await expect(
+      generateText({
+        model: subscriptionModel(streamedTruncated()),
+        prompt: 'ping',
+        maxRetries: 0,
+      }),
+    ).rejects.toBeInstanceOf(StreamEndedWithoutFinishError)
+  })
+
+  it('accepts a terminal response.incomplete event with its length finish reason', async () => {
+    const result = await generateText({
+      model: subscriptionModel(streamedIncomplete()),
+      prompt: 'ping',
+    })
+    expect(result.text).toBe('limited answer')
+    expect(result.finishReason).toBe('length')
+  })
 })
 
 describe('generation on an api key', () => {

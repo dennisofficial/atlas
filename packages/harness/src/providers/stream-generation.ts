@@ -46,14 +46,17 @@ const failureOf = (error: unknown): Error =>
 
 export async function generationFromStream({
   result,
+  isTerminalPart,
 }: {
   result: LanguageModelV4StreamResult
+  isTerminalPart?: ((part: LanguageModelV4StreamPart) => boolean) | undefined
 }): Promise<LanguageModelV4GenerateResult> {
   const content: LanguageModelV4Content[] = []
   const warnings: SharedV4Warning[] = []
   const blocks = new Map<string, TextBlock>()
   let response: LanguageModelV4ResponseMetadata = {}
   let finish: FinishPart | undefined
+  let reachedTerminal = isTerminalPart === undefined
 
   const blockFor = ({ kind, id }: { kind: ETextBlockKind; id: string }): TextBlock => {
     const key = `${kind}:${id}`
@@ -156,6 +159,7 @@ export async function generationFromStream({
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
+      if (isTerminalPart?.(value)) reachedTerminal = true
       absorb(value)
     }
   } catch (error) {
@@ -165,7 +169,7 @@ export async function generationFromStream({
     reader.releaseLock()
   }
 
-  if (finish === undefined) throw new StreamEndedWithoutFinishError()
+  if (finish === undefined || !reachedTerminal) throw new StreamEndedWithoutFinishError()
 
   const headers = result.response?.headers
   return {

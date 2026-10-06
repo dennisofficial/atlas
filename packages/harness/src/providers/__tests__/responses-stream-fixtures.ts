@@ -23,6 +23,22 @@ const messageEvents = ({ id, text }: { id: string; text: string }) => [
 export const streamedResponse = (text = 'pong'): string =>
   serverSentEvents([CREATED, ...messageEvents({ id: 'msg_stub', text }), completed()])
 
+export const streamedTruncated = (): string =>
+  serverSentEvents([CREATED, ...messageEvents({ id: 'msg_stub', text: 'half an answer' })])
+
+export const streamedIncomplete = (): string =>
+  serverSentEvents([
+    CREATED,
+    ...messageEvents({ id: 'msg_stub', text: 'limited answer' }),
+    {
+      type: 'response.incomplete',
+      response: {
+        incomplete_details: { reason: 'max_output_tokens' },
+        usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 },
+      },
+    },
+  ])
+
 export const streamedReasoningThenResponse = (text = 'pong'): string =>
   serverSentEvents([
     CREATED,
