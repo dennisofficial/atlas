@@ -4,6 +4,7 @@ import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { removeTestSandboxes, uniqueTestPrefix } from '../docker/__tests__/docker-test-cleanup'
 import { dockerUnavailableReason } from '../docker/__tests__/live-docker'
 
 import {
@@ -18,7 +19,7 @@ import {
 
 import { DockerProcessPort } from '../docker/docker-process'
 import { DockerEngine } from '../docker/engine'
-import { worktreeLabel, type SandboxConfig } from '../docker/sandbox'
+import type { SandboxConfig } from '../docker/sandbox'
 import { LocalProcessPort } from '../local-process'
 import { RoutedProcessPort } from '../routed-process'
 
@@ -178,19 +179,16 @@ const DOCKER_AVAILABLE = (await dockerUnavailableReason(SOCKET)) === undefined
 const describeDocker = DOCKER_AVAILABLE ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev-routed'
+const PREFIX = uniqueTestPrefix('routed')
 
 const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-routed-')))
 
 afterAll(async () => {
-  if (DOCKER_AVAILABLE) {
-    const stale = await engine.listContainers({
-      labels: { [worktreeLabel(PREFIX)]: worktree },
-      all: true,
-    })
-    for (const container of stale) await engine.removeContainer({ id: container.id })
+  try {
+    if (DOCKER_AVAILABLE) await removeTestSandboxes({ engine, prefix: PREFIX })
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
   }
-  await rm(worktree, { recursive: true, force: true })
 })
 
 const sandboxConfig = (): SandboxConfig => ({

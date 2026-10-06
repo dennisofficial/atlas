@@ -9,6 +9,7 @@ import { EMountMode } from '../../image/mounts'
 import { DockerEngine } from '../engine'
 import { DEFAULT_DOCKER_SOCKET, DEFAULT_SANDBOX_IMAGE, ensureSandbox, worktreeLabel } from '../sandbox'
 import { runSandboxScript } from '../sandbox-scripts'
+import { removeTestSandboxes } from './docker-test-cleanup'
 import { describeLiveDocker, quoted } from './live-docker'
 
 const SOCKET = DEFAULT_DOCKER_SOCKET
@@ -28,6 +29,22 @@ const checkedScript = async (args: {
     throw new Error(`sandbox script exited ${outcome.exitCode}\n${outcome.output}`)
   }
   return outcome.output
+}
+
+const emptyMountsAsRoot = async (args: { worktree: string; outside: string }): Promise<void> => {
+  const owned = await engine.listContainers({
+    labels: { [worktreeLabel(PREFIX)]: undefined },
+    all: true,
+  })
+  for (const container of owned) {
+    if (container.state !== 'running') await engine.startContainer({ id: container.id })
+    await checkedScript({
+      containerId: container.id,
+      cwd: '/',
+      user: '0',
+      script: `find ${quoted(args.worktree)} ${quoted(args.outside)} -mindepth 1 -delete`,
+    })
+  }
 }
 
 const bunFixtureScript = `
@@ -183,23 +200,15 @@ git status --short
         expect(refused.output).toContain('detected dubious ownership')
       }
     } finally {
-      const owned = await engine.listContainers({
-        labels: { [worktreeLabel(PREFIX)]: worktree },
-        all: true,
-      })
-      for (const container of owned) {
-        // the scripts above run partly as root, leaving files a native-Linux host
-        // cannot delete, so empty the mounts from inside before removing
-        await runSandboxScript({
-          engine,
-          containerId: container.id,
-          cwd: '/',
-          user: '0',
-          script: `rm -rf ${quoted(worktree)} ${quoted(outside)} || true`,
-        }).catch(() => undefined)
-        await engine.removeContainer({ id: container.id })
+      try {
+        try {
+          await emptyMountsAsRoot({ worktree, outside })
+        } finally {
+          await removeTestSandboxes({ engine, prefix: PREFIX })
+        }
+      } finally {
+        await rm(fixtureRoot, { recursive: true, force: true })
       }
-      await rm(fixtureRoot, { recursive: true, force: true })
     }
   }, 20 * 60_000)
 })

@@ -6,6 +6,7 @@ import { join } from 'node:path'
 
 import { DockerEngine } from '../engine'
 import { stopSandbox, sweepSandboxes } from '../lifecycle'
+import { removeTestSandboxes, uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
 import {
   DEFAULT_SANDBOX_IMAGE,
@@ -18,15 +19,9 @@ const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? '/var/run/docker.sock'
 const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev-lifecycle'
+const PREFIX = uniqueTestPrefix('lifecycle')
 
-const sweepDaemon = async (): Promise<void> => {
-  const stale = await engine.listContainers({
-    labels: { [worktreeLabel(PREFIX)]: undefined },
-    all: true,
-  })
-  for (const container of stale) await engine.removeContainer({ id: container.id })
-}
+const sweepDaemon = (): Promise<void> => removeTestSandboxes({ engine, prefix: PREFIX })
 
 describeDocker('lifecycle against a live daemon', () => {
   afterEach(sweepDaemon)

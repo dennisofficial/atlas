@@ -14,10 +14,7 @@ export async function prepareContainerForOperator(args: {
   const entry = `atlas:x:${config.uid}:${config.gid}:atlas:${config.home}:/bin/sh`
   const commands = [
     `if ! grep -q '^[^:]*:[^:]*:${config.uid}:' /etc/passwd; then printf '%s\\n' ${quoted(entry)} >> /etc/passwd; fi`,
-    // The container is the isolation boundary, so passwordless root inside it is deliberate:
-    // setup tooling like `playwright install --with-deps` elevates through su/sudo and cannot
-    // answer a password prompt from a non-interactive exec. Keyed to the synthesized user so
-    // images that ship no grant at all (custom .atlas/Dockerfile) still get one.
+    'mkdir -p /etc/sudoers.d',
     `printf 'atlas ALL=(ALL) NOPASSWD: ALL\\n' > /etc/sudoers.d/atlas-operator && chmod 0440 /etc/sudoers.d/atlas-operator`,
     // sudo's account phase (pam_unix acct_mgmt) rejects a passwd-only user as locked ("account
     // validation failure"), because there is no shadow row; `atlas:!:` marks the account

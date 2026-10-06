@@ -10,8 +10,9 @@ import type { ProcessHandle, ProcessPort } from '@dltech/atlas-core'
 import { LocalProcessPort, SIGKILL_GRACE_MS } from '../../local-process'
 import { DockerProcessPort } from '../docker-process'
 import { DockerEngine } from '../engine'
+import { removeTestSandboxes, uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
-import { worktreeLabel, type SandboxConfig } from '../sandbox'
+import type { SandboxConfig } from '../sandbox'
 
 const textOf = async (stream: ReadableStream<Uint8Array>): Promise<string> =>
   await new Response(stream).text()
@@ -51,24 +52,27 @@ const SOCKET = '/var/run/docker.sock'
 const DOCKER_AVAILABLE = (await dockerUnavailableReason(SOCKET)) === undefined
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev-process'
+const PREFIX = uniqueTestPrefix('process')
 
 const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-port-parity-')))
 const dockerWorktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-port-docker-')))
 
-const sweep = async (): Promise<void> => {
-  if (!DOCKER_AVAILABLE) return
-  const stale = await engine.listContainers({
-    labels: { [worktreeLabel(PREFIX)]: undefined },
-    all: true,
-  })
-  for (const container of stale) await engine.removeContainer({ id: container.id })
+const extraWorktrees: string[] = []
+
+const freshWorktree = async (name: string): Promise<string> => {
+  const created = await realpath(await mkdtemp(join(tmpdir(), name)))
+  extraWorktrees.push(created)
+  return created
 }
 
 afterAll(async () => {
-  await sweep()
-  await rm(worktree, { recursive: true, force: true })
-  await rm(dockerWorktree, { recursive: true, force: true })
+  try {
+    if (DOCKER_AVAILABLE) await removeTestSandboxes({ engine, prefix: PREFIX })
+  } finally {
+    for (const dir of [worktree, dockerWorktree, ...extraWorktrees]) {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
 })
 
 const sandboxConfig = (): SandboxConfig => ({
@@ -210,9 +214,7 @@ describeDocker('DockerProcessPort specifically', () => {
 
   it('collects an oversubscription warning when the request outruns the daemon', async () => {
     const info = await engine.info()
-    const oversubscribedWorktree = await realpath(
-      await mkdtemp(join(tmpdir(), 'atlas-dev-port-oversubscribed-')),
-    )
+    const oversubscribedWorktree = await freshWorktree('atlas-dev-port-oversubscribed-')
     const port = new DockerProcessPort({
       engine,
       sandbox: {
@@ -234,7 +236,7 @@ describeDocker('DockerProcessPort specifically', () => {
     DOCKER_AVAILABLE && sshAuthSock !== undefined && existsSync(sshAuthSock) ? it : it.skip
 
   itWithAgent('forwards the ssh agent socket where the operator uid can reach it', async () => {
-    const agentWorktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-port-agent-')))
+    const agentWorktree = await freshWorktree('atlas-dev-port-agent-')
     const port = new DockerProcessPort({
       engine,
       sandbox: { ...sandboxConfig(), worktree: agentWorktree, session: agentWorktree, sshAuthSock },
