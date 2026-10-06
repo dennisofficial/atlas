@@ -18,7 +18,11 @@ import {
   resolveIfPossible,
   type DependencyContainer,
 } from '../container/injection'
-import { SessionRegistryToken, SkillSuggestionEnabledToken, WorkspaceRoot } from '../container/tokens'
+import {
+  SessionRegistryToken,
+  SkillSuggestionEnabledToken,
+  WorkspaceRoot,
+} from '../container/tokens'
 import { FileReadStatePort } from '../files/read-state'
 import { SkillRegistryPort } from '../skills/port'
 import { InvalidateFactsHook } from './invalidate-facts'
@@ -92,7 +96,14 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
       ),
   })
   container.register(portToken(AfterToolHook), { useClass: MirrorPlanHook })
-  container.register(portToken(AfterToolHook), { useClass: OutsideProjectHook })
+  container.register(portToken(AfterToolHook), {
+    useFactory: (resolver) => {
+      const sessions = resolveIfPossible({ container: resolver, token: SessionRegistryToken })
+      return new OutsideProjectHook({
+        threadEnvironment: sessions === undefined ? undefined : threadEnvironmentFrom({ sessions }),
+      })
+    },
+  })
   container.register(portToken(AfterToolHook), { useClass: TrackWorktreeHook })
   container.register(portToken(AfterToolHook), {
     useFactory: (resolver) =>
