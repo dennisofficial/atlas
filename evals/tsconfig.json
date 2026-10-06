@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun", "node"]
+  },
+  "include": ["src", "code-quality", "__fixtures__"],
+  "exclude": ["node_modules", ".work", "dist", "datasets"]
+}
