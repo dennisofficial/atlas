@@ -78,6 +78,7 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
   protected override async run({
     input,
     projectDirectory,
+    homeDirectory,
     activeWorktree,
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
@@ -124,7 +125,7 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
         }
       }
 
-      await this.leave({ cwd: view.root, path: projectDirectory })
+      await this.leave({ cwd: view.root, path: projectDirectory, homeDirectory })
       return this.adopted({ adopted, claim: claimed })
     }
 
@@ -167,8 +168,8 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
     })
   }
 
-  private async leave({ cwd, path }: { cwd: string; path: string }): Promise<void> {
-    if (path === this.launchDirectory) return
+  private async leave({ cwd, path, homeDirectory }: { cwd: string; path: string; homeDirectory: string | undefined }): Promise<void> {
+    if (path === (homeDirectory ?? this.launchDirectory)) return
     await releaseWorktree({ cwd, path })
   }
 
