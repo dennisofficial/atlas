@@ -62,7 +62,8 @@ const roundTrip = async (source: string): Promise<string> => {
   const archive = await buildSessionArchive({ sessionDir: source })
   if (archive === undefined) throw new Error('expected an archive')
   const target = join(fresh(), 'restored')
-  await extractSessionArchive({ archive, sessionDir: target })
+  await extractSessionArchive({ archivePath: archive.path, sessionDir: target })
+  await archive.dispose()
   return target
 }
 
@@ -103,15 +104,17 @@ describe('shell files in the session archive', () => {
     const shell = writeShell({ session: source, phase: EShellPhase.Exited })
     const archive = await buildSessionArchive({ sessionDir: source })
     expect(archive).toBeDefined()
+    await archive?.dispose()
     const forged = fresh()
     mkdirSync(join(forged, SHELL), { recursive: true })
     writeFileSync(join(forged, 'meta.json'), '{}')
     writeFileSync(join(forged, SHELL, 'status.json'), readFileSync(join(shell, 'status.json')))
     writeFileSync(join(forged, SHELL, 'control.token'), 'secret')
-    const forgedArchive = Bun.spawnSync(['tar', '-czf', '-', '-C', forged, '.']).stdout
+    const forgedArchive = join(fresh(), 'forged.tar.gz')
+    Bun.spawnSync(['tar', '-czf', forgedArchive, '-C', forged, '.'])
     const target = join(fresh(), 'restored')
 
-    await extractSessionArchive({ archive: forgedArchive, sessionDir: target })
+    await extractSessionArchive({ archivePath: forgedArchive, sessionDir: target })
 
     expect(existsSync(join(target, SHELL, 'control.token'))).toBe(false)
     expect(existsSync(join(target, SHELL, 'status.json'))).toBe(true)
@@ -158,7 +161,9 @@ describe('shell files in the session archive', () => {
     writeSession(source)
     writeShell({ session: source, phase: EShellPhase.StartFailed })
 
-    expect(await buildSessionArchive({ sessionDir: source })).toBeDefined()
+    const archive = await buildSessionArchive({ sessionDir: source })
+    expect(archive).toBeDefined()
+    await archive?.dispose()
   })
 })
 

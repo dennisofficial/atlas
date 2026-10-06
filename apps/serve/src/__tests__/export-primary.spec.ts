@@ -125,7 +125,8 @@ describe('choosing the directory a cloud export captures', () => {
 
 describe('exporting with a sibling clone entered', () => {
   it('captures the primary repository with its uncommitted edits, not the sibling', async () => {
-    const { primary, sibling, primaryReceipt, root } = await layout()
+    const { primary, sibling, linked, primaryReceipt, root } = await layout()
+    await git({ cwd: primary, args: ['worktree', 'remove', linked] })
     await writeFile(join(primary, 'edited-in-cloud.txt'), 'keep me')
     await writeFile(join(sibling, 'scratch.txt'), 'discard me')
 

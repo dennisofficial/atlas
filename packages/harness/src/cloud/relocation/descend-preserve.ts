@@ -18,7 +18,7 @@ const sessionDirectoryNameOf = ({ threadId }: { threadId: string }): string => {
 }
 
 export async function replaceSessionDirectoryGuarded(args: {
-  archive: Uint8Array
+  archivePath: string
   sessionDir: string
   threadId: ThreadId
   tarCommand?: string | undefined
@@ -28,7 +28,7 @@ export async function replaceSessionDirectoryGuarded(args: {
   const stagedDir = join(scratch, sessionDirectoryNameOf({ threadId: args.threadId }))
   try {
     await extractSessionArchive({
-      archive: args.archive,
+      archivePath: args.archivePath,
       sessionDir: stagedDir,
       ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
     })
@@ -47,7 +47,7 @@ export async function replaceSessionDirectoryGuarded(args: {
   }
 
   await extractSessionArchive({
-    archive: args.archive,
+    archivePath: args.archivePath,
     sessionDir: args.sessionDir,
     ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
     ...(args.preserveOwnership === undefined ? {} : { preserveOwnership: { threadId: args.threadId, ...args.preserveOwnership } }),

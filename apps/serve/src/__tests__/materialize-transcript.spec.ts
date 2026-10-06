@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -35,7 +35,7 @@ describe('materializing the transcript at boot', () => {
     if (archive === undefined) throw new Error('expected an archive')
 
     const readiness = await materializeTranscript({
-      fetchArchive: async () => archive,
+      fetchArchive: async () => archive.path,
       atlasHome: home,
       threadId: THREAD,
     })
@@ -88,7 +88,7 @@ describe('materializing the transcript at boot', () => {
     const readiness = await materializeTranscript({
       fetchArchive: async () => {
         fetches += 1
-        return archive
+        return archive.path
       },
       atlasHome: home,
       threadId: THREAD,
@@ -119,7 +119,11 @@ describe('materializing the transcript at boot', () => {
     const home = freshHome()
 
     const readiness = await materializeTranscript({
-      fetchArchive: async () => Buffer.from('not a tar'),
+      fetchArchive: async () => {
+        const file = join(home, 'not-a-tar.tar.gz')
+        writeFileSync(file, 'not a tar')
+        return file
+      },
       atlasHome: home,
       threadId: THREAD,
     })

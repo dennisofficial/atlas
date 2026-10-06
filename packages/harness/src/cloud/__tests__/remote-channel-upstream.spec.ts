@@ -238,7 +238,7 @@ describe('a request riding the session socket', () => {
       expect(timeouts[0]?.delayMs).toBe(10_000)
     })
 
-    it('gives the archive and identity ops two minutes, since extracts and digests outlast a read', () => {
+    it('gives file archives ten minutes and small memory and identity reads two minutes', () => {
       const { channel, timeouts } = readied()
 
       void channel.request({ op: EClientRequest.RestoreTranscript, params: {} }).catch(() => undefined)
@@ -248,7 +248,7 @@ describe('a request riding the session socket', () => {
         .request({ op: EClientRequest.ReadTranscriptIdentity, params: {} })
         .catch(() => undefined)
 
-      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([120_000, 120_000, 120_000, 120_000])
+      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([600_000, 600_000, 120_000, 120_000])
     })
 
     it('lets an explicit requestTimeoutMs override the per-op default', () => {
@@ -268,7 +268,7 @@ describe('a request riding the session socket', () => {
 
       const failure = await answer.catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(RemoteRequestLost)
-      expect((failure as RemoteRequestLost).message).toContain('120000ms')
+      expect((failure as RemoteRequestLost).message).toContain('600000ms')
     })
   })
 

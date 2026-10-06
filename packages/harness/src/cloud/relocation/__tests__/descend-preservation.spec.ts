@@ -4,13 +4,14 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
 import { eventLogFile, sessionMetaFile } from '../../../store/sessions/paths'
-import { buildSessionArchive, extractSessionArchive } from '../../session-archive'
 import { transferTranscriptDown } from '../descend-transfer'
 import { TRANSCRIPT_ORIGIN_FILE_NAME } from '../descend-validate'
-import { CLOUD_THREAD, fakeCloudChannel } from './fixture'
+import { cloudHolding } from './descend-cloud-holding'
+import { archiveDescriptorOf, exportedArchiveOf, extractExportInto } from './fake-cloud-bridge'
+import { CLOUD_THREAD } from './fixture'
 import {
   AT,
-  base64ArchiveOf,
+  fileArchiveOf,
   capabilitiesOnlyArchive,
   readLocalLogBytes,
   said,
@@ -25,11 +26,11 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const { home, threads } = useStoreHome()
     await seedLocalHistory({ home, threads, texts: ['real history'] })
     const before = readLocalLogBytes({ home })
-    const channel = fakeCloudChannel({
-      archive: Buffer.from('not a tar at all').toString('base64'),
-    })
+    const damaged = join(scratchHome('atlas-descend-preserve-damaged-'), 'damaged.tar.gz')
+    writeFileSync(damaged, 'not a tar at all')
+    const cloud = cloudHolding({ archive: await exportedArchiveOf({ file: damaged }) })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow()
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow()
 
     expect(readLocalLogBytes({ home })).toEqual(before)
   })
@@ -38,11 +39,11 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const { home, threads } = useStoreHome()
     await seedLocalHistory({ home, threads, texts: ['real history'] })
     const before = readLocalLogBytes({ home })
-    const channel = fakeCloudChannel({
-      archive: await base64ArchiveOf({ drafts: [said('orphaned log')], rootMeta: false }),
+    const cloud = cloudHolding({
+      archive: await fileArchiveOf({ drafts: [said('orphaned log')], rootMeta: false }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'no root metadata',
     )
 
@@ -55,19 +56,16 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const before = readLocalLogBytes({ home })
     const staging = scratchHome('atlas-descend-preserve-mismatch-')
     const stagedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await base64ArchiveOf({ drafts: [said('up there')] }), 'base64'),
+    await extractExportInto({
+      archive: await fileArchiveOf({ drafts: [said('up there')] }),
       sessionDir: stagedDir,
     })
     const metaFile = sessionMetaFile({ sessionDir: stagedDir })
     const meta = JSON.parse(readFileSync(metaFile, 'utf8')) as { id: string }
     writeFileSync(metaFile, JSON.stringify({ ...meta, id: 'brn_someone-else' }))
-    const mismatched = await buildSessionArchive({ sessionDir: stagedDir })
-    const channel = fakeCloudChannel({
-      archive: (mismatched ?? Buffer.alloc(0)).toString('base64'),
-    })
+    const cloud = cloudHolding({ archive: await archiveDescriptorOf({ sessionDir: stagedDir }) })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'names a different session',
     )
 
@@ -80,18 +78,17 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const before = readLocalLogBytes({ home })
     const staging = scratchHome('atlas-descend-preserve-corrupt-')
     const stagedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await base64ArchiveOf({ drafts: [said('up there')] }), 'base64'),
+    await extractExportInto({
+      archive: await fileArchiveOf({ drafts: [said('up there')] }),
       sessionDir: stagedDir,
     })
     appendFileSync(
       eventLogFile({ sessionDir: stagedDir, threadId: CLOUD_THREAD }),
       `${JSON.stringify({ v: 1, id: 'evt_bad', seq: 2, threadId: CLOUD_THREAD, runId: 'run_cloud_seed', depth: 0, at: AT, type: 'user-said', body: { type: 'user-said', text: 42 } })}\n`,
     )
-    const corrupted = await buildSessionArchive({ sessionDir: stagedDir })
-    const channel = fakeCloudChannel({ archive: (corrupted ?? Buffer.alloc(0)).toString('base64') })
+    const cloud = cloudHolding({ archive: await archiveDescriptorOf({ sessionDir: stagedDir }) })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'unreadable rows',
     )
 
@@ -104,15 +101,14 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const before = readLocalLogBytes({ home })
     const staging = scratchHome('atlas-descend-preserve-strip-')
     const strippedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await base64ArchiveOf({ drafts: [said('up there')] }), 'base64'),
+    await extractExportInto({
+      archive: await fileArchiveOf({ drafts: [said('up there')] }),
       sessionDir: strippedDir,
     })
     rmSync(eventLogFile({ sessionDir: strippedDir, threadId: CLOUD_THREAD }), { force: true })
-    const stripped = await buildSessionArchive({ sessionDir: strippedDir })
-    const channel = fakeCloudChannel({ archive: (stripped ?? Buffer.alloc(0)).toString('base64') })
+    const cloud = cloudHolding({ archive: await archiveDescriptorOf({ sessionDir: strippedDir }) })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'no readable main-thread event log',
     )
 
@@ -123,9 +119,9 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const { home, threads } = useStoreHome()
     await seedLocalHistory({ home, threads, texts: ['first', 'second'] })
     const before = readLocalLogBytes({ home })
-    const channel = fakeCloudChannel({ archive: await capabilitiesOnlyArchive() })
+    const cloud = cloudHolding({ archive: await capabilitiesOnlyArchive() })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'no serve-stamped provenance',
     )
 
@@ -138,18 +134,17 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const before = readLocalLogBytes({ home })
     const staging = scratchHome('atlas-descend-preserve-forge-')
     const stagedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await capabilitiesOnlyArchive(), 'base64'),
+    await extractExportInto({
+      archive: await capabilitiesOnlyArchive(),
       sessionDir: stagedDir,
     })
     writeFileSync(
       join(stagedDir, TRANSCRIPT_ORIGIN_FILE_NAME),
       JSON.stringify({ threadId: 'brn_someone-else', archiveDigest: null, initialized: true }),
     )
-    const forged = await buildSessionArchive({ sessionDir: stagedDir })
-    const channel = fakeCloudChannel({ archive: (forged ?? Buffer.alloc(0)).toString('base64') })
+    const cloud = cloudHolding({ archive: await archiveDescriptorOf({ sessionDir: stagedDir }) })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'provenance marker names a different session',
     )
 
@@ -160,9 +155,9 @@ describe('the descend refusing a bogus cloud transcript', () => {
     const { home, threads } = useStoreHome()
     await seedLocalHistory({ home, threads, texts: ['only ever local'] })
     const before = readLocalLogBytes({ home })
-    const channel = fakeCloudChannel({ archive: '' })
+    const cloud = cloudHolding({ archive: null })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'the cloud holds no transcript',
     )
 

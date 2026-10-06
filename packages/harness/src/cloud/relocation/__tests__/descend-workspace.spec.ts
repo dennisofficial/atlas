@@ -111,7 +111,7 @@ describe('bringing the cloud workspace home', () => {
   })
 
   it('restores nothing and downloads nothing when the cloud transcript is invalid', async () => {
-    const { home, bridge } = await homeWithArchive(['unused'], { archive: '' })
+    const { home, bridge } = await homeWithArchive(['unused'], { archive: null })
     const restorer = fakeRestorer()
 
     await expect(descend({ bridge, home, restoreWorkspace: restorer.restore })).rejects.toThrow(

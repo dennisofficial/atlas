@@ -1356,7 +1356,8 @@ Descend stages and checks the incoming transcript before replacing local data. A
 or boot-context-only archive cannot erase a local conversation. The local store refreshes before
 adopting the transferred family or reopening. Cloud read failures are errors, never empty conversations.
 Session wire protocol versions must match; an older runtime must upgrade before using this export
-contract. Memory export remains a separate small context archive, not the session file stream.
+contract. Memory export remains a separate context archive on its existing byte-based path, not
+the session file stream.
 
 ## Workspace round trips and runtime ownership
 

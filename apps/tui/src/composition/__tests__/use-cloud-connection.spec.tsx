@@ -28,7 +28,6 @@ const sessionOn = (connection?: ChannelConnection): CloudSession => {
     sandboxes: {
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
       putContext: async () => undefined,
-      putTranscript: async () => undefined,
       confirmLanded: async () => ({ landed: true }),
       find: async () => undefined,
       destroy: async () => undefined,
