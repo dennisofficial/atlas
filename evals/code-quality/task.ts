@@ -22,7 +22,7 @@ export type DecisionCaller = (args: {
 
 export type CodeQualityInput = {
   scope: QualityScope
-  policies: readonly QualityPolicy[]
+  policyIds: readonly string[]
 }
 
 export type CodeQualityOutput = {
@@ -33,6 +33,7 @@ export type CodeQualityOutput = {
 
 export type CodeQualityTaskDeps = {
   decide: DecisionCaller
+  resolvePolicies: (args: { policyIds: readonly string[] }) => readonly QualityPolicy[]
   defaultModel?: string | undefined
 }
 
@@ -47,8 +48,9 @@ export async function runCodeQualityTask({
   deadlineMs: number
   deps: CodeQualityTaskDeps
 }): Promise<CodeQualityOutput> {
+  const policies = deps.resolvePolicies({ policyIds: input.policyIds })
   const prepareStart = performance.now()
-  const request = prepareQualityRequest({ scope: input.scope, policies: input.policies })
+  const request = prepareQualityRequest({ scope: input.scope, policies })
   const preparationMs = performance.now() - prepareStart
 
   const controller = new AbortController()
@@ -75,7 +77,7 @@ export async function runCodeQualityTask({
   const assessments = interpretQualityResponse({
     request,
     scope: input.scope,
-    policies: input.policies,
+    policies,
     answers: outcome.answers,
   })
   const interpretationMs = performance.now() - interpretStart

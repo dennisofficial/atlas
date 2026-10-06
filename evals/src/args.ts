@@ -69,8 +69,8 @@ export function resolveRunMode({ args, env }: { args: ParsedArgs; env: Record<st
   return ERunMode.Fake
 }
 
-export function resolveModel({ args, defaultModel }: { args: ParsedArgs; defaultModel: string }): { model: string; promotable: boolean } {
+export function resolveModel({ args, defaultModel }: { args: ParsedArgs; defaultModel: string }): { requested: string; promotable: boolean } {
   const override = args.values['--model']
-  if (override === undefined) return { model: defaultModel, promotable: true }
-  return { model: override, promotable: override === defaultModel }
+  if (override === undefined) return { requested: defaultModel, promotable: true }
+  return { requested: override, promotable: override === defaultModel }
 }

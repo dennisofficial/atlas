@@ -36,11 +36,8 @@ function decodeJsonlLines<T>({ text, schema, source }: { text: string; schema: z
   return decoded
 }
 
-export async function readCandidatesFile({ path }: { path: string }): Promise<{ candidates: readonly Candidate[]; featureId: string }> {
-  const candidates = decodeJsonlLines({ text: await readFile(path, 'utf8'), schema: candidateSchema, source: path })
-  const featureIds = new Set(candidates.map((candidate) => candidate.featureId))
-  if (featureIds.size !== 1) throw new GoldenDatasetError(`candidates name ${featureIds.size} feature ids; exactly one required`)
-  return { candidates, featureId: [...featureIds][0] as string }
+export async function readCandidatesFile({ path }: { path: string }): Promise<readonly Candidate[]> {
+  return decodeJsonlLines({ text: await readFile(path, 'utf8'), schema: candidateSchema, source: path })
 }
 
 export async function readLabelDrafts({ path }: { path: string }): Promise<readonly LabelDraft[]> {
@@ -105,10 +102,4 @@ export async function writeGoldenDataset({
   await writeFile(join(outputDir, 'refused.jsonl'), ledger, 'utf8')
 }
 
-export async function readCandidateDir({
-  candidatesPath,
-}: {
-  candidatesPath: string
-}): Promise<{ candidates: readonly Candidate[]; featureId: string }> {
-  return readCandidatesFile({ path: candidatesPath })
-}
+

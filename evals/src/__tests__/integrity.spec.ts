@@ -18,13 +18,13 @@ const result = ({ caseId, trialId, overrides }: { caseId: string; trialId: strin
 
 const exportOf = ({
   results,
-  startedAt = '2026-10-06T12:00:00.000Z',
+  createdAt = '2026-10-06T12:00:00.000Z',
   runType = 'full',
 }: {
   results: readonly unknown[]
-  startedAt?: string
+  createdAt?: string
   runType?: string
-}): unknown => ({ run: { id: 1, startedAt, runType }, evals: [{ name: 'feature', results }] })
+}): unknown => ({ run: { id: 1, createdAt, runType }, evals: [{ name: 'feature', results }] })
 
 const validResults = (): RawResult[] => planned.map((row) => result(row))
 
@@ -42,7 +42,7 @@ describe('validateRawExport', () => {
   })
 
   it('tolerates extra fields', () => {
-    const parsed = { run: { id: 1, startedAt: '2026-10-06T12:00:00.000Z', runType: 'full', extra: 'x' }, evals: [{ name: 'f', extra: 1, results: validResults() }] }
+    const parsed = { run: { id: 1, createdAt: '2026-10-06T12:00:00.000Z', runType: 'full', extra: 'x' }, evals: [{ name: 'f', extra: 1, results: validResults() }] }
     expect(kinds({ parsed })).toEqual([])
   })
 
@@ -51,7 +51,7 @@ describe('validateRawExport', () => {
   })
 
   it('flags a stale artifact', () => {
-    const parsed = exportOf({ results: validResults(), startedAt: '2026-10-06T10:59:59.000Z' })
+    const parsed = exportOf({ results: validResults(), createdAt: '2026-10-06T10:59:59.000Z' })
     expect(kinds({ parsed })).toEqual([EIntegrityProblem.StaleArtifact])
   })
 
@@ -99,7 +99,7 @@ describe('validateRawExport', () => {
   it('aggregates every problem instead of stopping at the first', () => {
     const parsed = exportOf({
       results: [result({ caseId: 'c1', trialId: 't1', overrides: { status: 'running', scores: [{ name: 'a', score: 'x' }] } })],
-      startedAt: '2026-01-01T00:00:00.000Z',
+      createdAt: '2026-01-01T00:00:00.000Z',
       runType: 'partial',
     })
     expect(new Set(kinds({ parsed }))).toEqual(

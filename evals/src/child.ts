@@ -1,10 +1,15 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
+import { Writable } from 'node:stream'
+import { fileURLToPath } from 'node:url'
 
+import { runEvalite } from 'evalite/runner'
+import { InMemoryStorage } from 'evalite/in-memory-storage'
 import { z } from 'zod'
 
 import { evalCaseSchema } from './case'
-import { registry } from './registry-default'
-import { executePlan } from './worker'
+
+const distDirectory = dirname(fileURLToPath(import.meta.url))
 
 const childInputSchema = z.object({
   invocationId: z.string().min(1),
@@ -15,6 +20,7 @@ const childInputSchema = z.object({
   deadlineMs: z.number().int().positive(),
   rows: z.array(z.object({ caseId: z.string(), trialId: z.string(), variantId: z.string() })).readonly(),
   cases: z.array(evalCaseSchema).readonly(),
+  answers: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
   outputPath: z.string().min(1),
   runStartedAt: z.string().min(1),
 })
@@ -28,47 +34,65 @@ function readManifestPath({ argv }: { argv: readonly string[] }): string {
   return value
 }
 
-function rowsPathOf({ outputPath }: { outputPath: string }): string {
-  return outputPath.replace(/evalite\.raw\.json$/, 'rows.normalized.json')
+function devNullWritable(): Writable {
+  return new Writable({
+    write(_chunk, _encoding, callback) {
+      callback()
+    },
+  })
+}
+
+const LOADER_FILE = 'loader.eval.ts'
+
+function loaderSource({ globalsPath, adapterPath }: { globalsPath: string; adapterPath: string }): string {
+  return [
+    'import { readFile } from "node:fs/promises"',
+    `const parsed = JSON.parse(await readFile(${JSON.stringify(globalsPath)}, "utf8"))`,
+    `const { registerCodeQualityEval } = await import(${JSON.stringify(adapterPath)})`,
+    'registerCodeQualityEval({ deps: parsed.deps, rows: parsed.rows })',
+    '',
+  ].join('\n')
 }
 
 async function handleChild(): Promise<void> {
   const manifestPath = readManifestPath({ argv: process.argv })
   const parsed: unknown = JSON.parse(await readFile(manifestPath, 'utf8'))
   const input = childInputSchema.parse(parsed)
+  const workDirectory = process.cwd()
 
-  const feature = registry.get({ id: input.featureId })
-  const rows = await executePlan({
-    feature,
-    cases: input.cases,
-    rows: input.rows,
-    context: {
-      invocationId: input.invocationId,
-      model: input.model.requested,
-      deadlineMs: input.deadlineMs,
-    },
+  const rows = input.rows.map((row) => {
+    const evalCase = input.cases.find((candidate) => candidate.id === row.caseId)
+    if (evalCase === undefined) throw new Error(`planned row ${row.caseId} has no case`)
+    return { ...row, evalCase }
   })
 
-  const exportJson = {
-    run: { id: input.invocationId, startedAt: input.runStartedAt, runType: 'full' },
-    evals: [
-      {
-        name: input.featureId,
-        results: rows.map((row) => ({
-          input: { caseId: row.caseId, trialId: row.trialId, variantId: row.variantId },
-          output: row.actual,
-          expected: row.expected,
-          status: row.status === 'completed' ? 'success' : 'fail',
-          scores: Object.entries(row.scores).map(([name, score]) => ({ name, score })),
-          error: row.error ?? null,
-          timing: row.timing,
-        })),
-      },
-    ],
+  const globalsPath = join(workDirectory, 'globals.json')
+  const globals = {
+    deps: {
+      mode: input.mode,
+      model: input.model.requested,
+      deadlineMs: input.deadlineMs,
+      ...(input.mode === 'fake' ? { answers: input.answers ?? {} } : {}),
+      ...(input.liveConfig === null ? {} : { liveConfig: input.liveConfig }),
+    },
+    rows,
   }
+  await writeFile(globalsPath, JSON.stringify(globals), 'utf8')
 
-  await writeFile(input.outputPath, `${JSON.stringify(exportJson, null, 2)}\n`, 'utf8')
-  await writeFile(rowsPathOf({ outputPath: input.outputPath }), `${JSON.stringify(rows, null, 2)}\n`, 'utf8')
+  const adapterPath = resolve(join(distDirectory, 'entry.eval.mjs'))
+  await mkdir(workDirectory, { recursive: true })
+  await writeFile(join(workDirectory, LOADER_FILE), loaderSource({ globalsPath, adapterPath }), 'utf8')
+
+  await runEvalite({
+    path: LOADER_FILE,
+    cwd: workDirectory,
+    mode: 'run-once-and-exit',
+    disableServer: true,
+    hideTable: true,
+    storage: InMemoryStorage.create(),
+    outputPath: input.outputPath,
+    testOutputWritable: devNullWritable(),
+  })
 }
 
 if (import.meta.main) {

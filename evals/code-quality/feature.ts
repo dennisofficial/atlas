@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   EQualityReviewStatus,
+  qualityAssessmentSchema,
   type QualityPolicy,
   type QualityScope,
 } from '@dltech/atlas-core'
@@ -42,24 +43,16 @@ const qualityScopeSchema: z.ZodType<QualityScope> = z.object({
 
 export const codeQualityInputSchema: z.ZodType<CodeQualityInput> = z.object({
   scope: qualityScopeSchema,
-  policies: z.custom<readonly QualityPolicy[]>((value) => Array.isArray(value) && value.length > 0),
+  policyIds: z.array(z.string().min(1)).readonly(),
 })
 
 export const codeQualityOutputSchema: z.ZodType<CodeQualityOutput> = z.object({
-  assessments: z
-    .array(
-      z.object({
-        policyId: z.string(),
-        status: z.nativeEnum(EQualityReviewStatus),
-        impact: z.string(),
-        evidenceIds: z.array(z.string()).readonly(),
-        currentConcernProbability: z.number().nullable(),
-      }).loose(),
-    )
-    .readonly(),
+  assessments: z.array(qualityAssessmentSchema).readonly(),
   resolvedModel: z.string().nullable(),
   timing: z.object({ preparationMs: z.number(), inferenceMs: z.number(), interpretationMs: z.number() }),
-}) as z.ZodType<CodeQualityOutput>
+})
+
+export type PolicyResolver = (args: { policyIds: readonly string[] }) => readonly QualityPolicy[]
 
 type Runner = ({ input, model, deadlineMs }: {
   input: CodeQualityInput

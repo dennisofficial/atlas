@@ -21,16 +21,18 @@ export type PlannedRow = { caseId: string; trialId: string }
 const rawExportSchema = z.object({
   run: z.object({
     id: z.unknown(),
-    startedAt: z.string(),
     runType: z.string(),
+    createdAt: z.string(),
   }),
   evals: z.array(
     z.object({
       name: z.string(),
+      status: z.string().optional(),
       results: z.array(
         z.object({
           input: z.unknown(),
           output: z.unknown(),
+          expected: z.unknown().optional(),
           scores: z.array(z.object({ name: z.string(), score: z.unknown() })),
           status: z.string(),
         }),
@@ -146,10 +148,10 @@ export function validateRawExport({
   const { run, evals } = schemaResult.data
   const results = evals.flatMap((evaluation) => evaluation.results)
   const problems: IntegrityProblem[] = []
-  if (!isStartedAfter({ startedAt: run.startedAt, startedAfter })) {
+  if (!isStartedAfter({ startedAt: run.createdAt, startedAfter })) {
     problems.push({
       kind: EIntegrityProblem.StaleArtifact,
-      detail: `run started ${run.startedAt}, before ${startedAfter}`,
+      detail: `run created ${run.createdAt}, before ${startedAfter}`,
     })
   }
   if (run.runType !== 'full') {

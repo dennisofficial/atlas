@@ -22,7 +22,8 @@ async function buildTarget({ source, out }: { source: string; out: string }): Pr
     target: 'node',
     format: 'esm',
     external: ['evalite', 'evalite/*', 'vitest', 'vitest/*', 'vite', 'better-sqlite3'],
-    outfile: outPath,
+    outdir: dirname(outPath),
+    naming: `[dir]/${out.split('/').pop() ?? 'out.mjs'}`,
   })
   if (!result.success) {
     const messages = result.logs.map((log) => log.message).join('; ')
@@ -59,7 +60,7 @@ async function handleBuildCli(): Promise<void> {
     return
   }
   const artifacts = await buildAll()
-  for (const artifact of artifacts) console.log(`${artifact.out} ${artifact.digest}`)
+  for (const artifact of artifacts) console.log(`${artifact.target} -> ${artifact.outPath} ${artifact.digest}`)
 }
 
 if (import.meta.main) {

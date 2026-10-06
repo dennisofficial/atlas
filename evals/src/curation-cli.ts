@@ -1,4 +1,5 @@
 import { ArgParseError, parseArgs, requireValue } from './args'
+import { EDatasetSplit } from './manifest'
 import { redactText } from './curation/redact'
 
 const EXPORT_SPEC = { '--session-dir': 'value', '--output-dir': 'value' } as const
@@ -8,6 +9,9 @@ const LABEL_REVIEW_SPEC = {
   '--labels': 'value',
   '--verification': 'value',
   '--output-dir': 'value',
+  '--feature': 'value',
+  '--dataset-version': 'value',
+  '--split': 'value',
 } as const
 
 function reparseAdapter(): boolean {
@@ -51,14 +55,31 @@ async function handleLabelReview({ argv }: { argv: readonly string[] }): Promise
   const labelsPath = requireValue({ args, key: '--labels' })
   const verificationPath = requireValue({ args, key: '--verification' })
   const outputDir = requireValue({ args, key: '--output-dir' })
+  const featureId = args.values['--feature'] ?? 'code-quality/single-responsibility'
+  const datasetVersion = requireValue({ args, key: '--dataset-version' })
+  const split = args.values['--split'] === 'holdout' ? EDatasetSplit.Holdout : EDatasetSplit.Development
   const { readCandidatesFile, readLabelDrafts, readLabelVerifications, writeGoldenDataset } =
     await import('./curation/label-review-io')
   const { buildGoldenCases } = await import('./curation/label-review')
-  const { candidates, featureId } = await readCandidatesFile({ path: candidatesPath })
+  const { registry } = await import('./registry-default')
+  const feature = registry.get({ id: featureId })
+  const candidates = await readCandidatesFile({ path: candidatesPath })
   const drafts = await readLabelDrafts({ path: labelsPath })
   const verifications = await readLabelVerifications({ path: verificationPath })
   const { cases, refused } = buildGoldenCases({ featureId, candidates, drafts, verifications })
-  await writeGoldenDataset({ outputDir, cases, refused })
+  await writeGoldenDataset({
+    outputDir,
+    cases,
+    refused,
+    featureVersions: {
+      featureId,
+      inputSchemaVersion: feature.inputSchemaVersion,
+      expectedSchemaVersion: feature.expectedSchemaVersion,
+      rubricVersion: feature.rubricVersion,
+    },
+    split,
+    datasetVersion,
+  })
   console.log(`golden: ${cases.length} accepted, ${refused.length} refused -> ${outputDir}`)
   return 0
 }

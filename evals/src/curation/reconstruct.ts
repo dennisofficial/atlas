@@ -167,7 +167,7 @@ function applyHunks({ source, hunks }: { source: TextModel; hunks: readonly Hunk
       position += 1
     }
     if (position === source.lines.length) {
-      if (hunk.oldNoNewline === source.trailingNewline) {
+      if (source.lines.length > 0 && hunk.oldNoNewline === source.trailingNewline) {
         return failed(`hunk ${hunk.index}: end-of-file newline state does not match the baseline`)
       }
       trailingNewline = !hunk.newNoNewline
