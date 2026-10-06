@@ -109,8 +109,11 @@ export class MirroredEventLog extends EventLogPort {
     for (const listener of [...this.listeners]) listener()
   }
 
-  /** The park flow awaits this before it writes the parked record, so the resume renders from a mirror the checkpoint has provably reached. */
   converge(): Promise<void> {
     return this.syncer.converge()
+  }
+
+  synchronize(): Promise<void> {
+    return this.syncer.synchronize()
   }
 }

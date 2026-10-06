@@ -1,5 +1,5 @@
 import { isResumable, type EventDraft, type ThreadId } from '@dltech/atlas-core'
-import { ESuppress, LocalRewindMachinery, rewindThread } from '@dltech/atlas-harness'
+import { ESuppress, LocalRewindMachinery, MirroredEventLog, rewindThread } from '@dltech/atlas-harness'
 import { useCallback, useMemo, useRef, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
@@ -48,7 +48,6 @@ export function useTurnDriver(args: {
   cancelCompaction: () => boolean
   interruptRefusal?: (() => string | null) | undefined
   driveRefusal?: (() => string | null) | undefined
-  /** A placement move owns the session: retries, resumes, and rewinds wait for it to settle. */
   frozen?: boolean | undefined
 }): TurnDriver {
   const { app, threadId, view, readClock } = args
@@ -67,10 +66,13 @@ export function useTurnDriver(args: {
   const claimed = useRunnerClaim(app)
   const driven = useDrivenTurn({ ...args, remoteRunning: remote.runningRef })
   const { working, workingRef, setWorking, abort, pause, drive, fireSettleListeners } = driven
+  const synchronizeMirror = useCallback(async (): Promise<void> => {
+    if (app.log instanceof MirroredEventLog) await app.log.synchronize()
+  }, [app.log])
   autonomousSettled.current = async () => {
-    if (workingRef.current || driven.tailRef.current) return
-    await refresh().catch(() => undefined)
-    if (remote.runningRef.current) return
+    await synchronizeMirror()
+    await refresh()
+    if (workingRef.current || driven.tailRef.current || remote.runningRef.current) return
     await args.onSettled().catch(() => undefined)
   }
   const busyRef = useMemo<RefObject<boolean>>(
@@ -102,17 +104,15 @@ export function useTurnDriver(args: {
   const handleResume = useCallback(() => {
     if (working || turnInFlight() || frozen) return
     void (async () => {
-      // The hint is offered from the view's events, which can lag the sandbox's final
-      // assistant-said by one settle refresh; re-read the authoritative log at press time so a
-      // completed thread never burns a no-op resume turn.
-      const fresh = await app.log.read({ threadId }).catch(() => null)
+      await synchronizeMirror()
+      const fresh = await app.log.read({ threadId })
       if (workingRef.current || turnInFlight()) return
-      if (fresh !== null && !isResumable(fresh)) return
+      if (!isResumable(fresh)) return
       await drive([], { resume: true })
     })().catch((error: unknown) => {
       setFailure(messageOf(error))
     })
-  }, [app.log, drive, frozen, setFailure, threadId, turnInFlight, working, workingRef])
+  }, [app.log, drive, frozen, setFailure, synchronizeMirror, threadId, turnInFlight, working, workingRef])
 
   const resumeFresh = useCallback(
     (confirmed: boolean) => {
@@ -281,8 +281,6 @@ export function useTurnDriver(args: {
     handleResume,
     handleResumeFresh,
     handleRewindTo,
-    // A settle refresh lands the sandbox's final assistant-said; the view's events can lag it,
-    // so the offer must wait out the settle window or a completed turn flashes a phantom resume.
     isResumable: !remote.settling && isResumable(events),
     settle,
     whenSettled,

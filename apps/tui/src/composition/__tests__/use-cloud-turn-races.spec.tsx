@@ -12,6 +12,8 @@ await grammarsReady()
 
 const WORKING = 'esc to interrupt'
 
+const RESUME_HINT = 'resume'
+
 const ASKED: EventDraft = { type: 'user-said', text: 'list the packages' }
 
 const ANSWER = 'Five packages live here.'
@@ -117,6 +119,41 @@ describe('what whenSettled waits for on a remote turn', () => {
     await new Promise((resolve) => setTimeout(resolve, 150))
 
     expect(state.settled).toBe(false)
+  }, 30_000)
+})
+
+describe('the gap between turn-working false and the lifecycle ending', () => {
+  it('offers no resume until the ending settles, then offers it for an unfinished log', async () => {
+    const { channel, screen } = await running()
+
+    try {
+      channel.signal({ type: 'turn-working', working: false })
+      const gap = await screen.quiet(300)
+
+      expect(gap).not.toContain(RESUME_HINT)
+      expect(screen.conversation().handleResume).toBeNull()
+
+      channel.end(ETurnStatus.Completed)
+      await screen.until((frame) => frame.includes(RESUME_HINT), 'the resume hint after the ending settled')
+    } finally {
+      await screen.done()
+    }
+  }, 30_000)
+
+  it('keeps settling for a newer turn that starts inside the gap', async () => {
+    const { channel, screen } = await running()
+
+    try {
+      channel.signal({ type: 'turn-working', working: false })
+      channel.signal({ type: 'turn-working', working: true })
+      const frame = await screen.quiet(300)
+
+      expect(frame).toContain(WORKING)
+      expect(frame).not.toContain(RESUME_HINT)
+      expect(screen.conversation().handleResume).toBeNull()
+    } finally {
+      await screen.done()
+    }
   }, 30_000)
 })
 
