@@ -24,12 +24,27 @@ import { defaultSelection } from './model-preference'
 const messageOf = (fault: unknown): string =>
   fault instanceof Error ? fault.message : String(fault)
 
-/**
- * A background-role model that follows the settings live: every call re-reads the role's row, so a
- * model picked in settings mid-session reaches the next tl;dr, title, judgement or compaction
- * without a restart. Built models are cached per ref, and a failure posts one keyed notice per
- * provider rather than a toast per call.
- */
+export function notifyingUtilityFallback(args: {
+  role: EUtilityModelRole
+  notice: NoticePort
+  fallback: () => LanguageModelV4 | undefined
+}): () => LanguageModelV4 | undefined {
+  return () => {
+    const model = args.fallback()
+    if (model === undefined) return undefined
+    return createNotifyingModel({
+      model,
+      onFault: (fault) =>
+        args.notice.notify({
+          key: `utility-model:${args.role}:fallback-failed`,
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+          text: `The ${UTILITY_ROLE_LABEL[args.role]} fallback session model ${fault.providerId}/${fault.modelId} failed: ${messageOf(fault.fault)}`,
+        }),
+    })
+  }
+}
+
 export function createUtilityModel(args: {
   role: EUtilityModelRole
   settings: SettingsService
@@ -38,6 +53,14 @@ export function createUtilityModel(args: {
   fallback?: (() => LanguageModelV4 | undefined) | undefined
 }): LanguageModelV4 {
   const built = new Map<string, LanguageModelV4>()
+  const fallback =
+    args.fallback === undefined
+      ? undefined
+      : notifyingUtilityFallback({
+          role: args.role,
+          notice: args.notice,
+          fallback: args.fallback,
+        })
 
   const resolveRef = (): ModelRef => {
     const settled = args.settings.snapshot().resolution
@@ -70,17 +93,17 @@ export function createUtilityModel(args: {
         }),
     })
     const model =
-      args.fallback === undefined
+      fallback === undefined
         ? notifying
         : createFallbackModel({
             primary: notifying,
-            fallback: args.fallback,
+            fallback,
             onFallback: () =>
               args.notice.notify({
                 key: `utility-model:${args.role}:fallback`,
                 tone: ENoticeTone.Warn,
                 ttlMs: NOTICE_WARN_MS,
-                text: `The ${UTILITY_ROLE_LABEL[args.role]} model fell back to the session model.`,
+                text: `The ${UTILITY_ROLE_LABEL[args.role]} model is retrying with the session model.`,
               }),
           })
     built.set(key, model)

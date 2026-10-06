@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { generateText } from 'ai'
+import { generateText, Output } from 'ai'
+import { z } from 'zod'
 
 import { secretOf, type CredentialPort } from '@dltech/atlas-core'
 
@@ -7,6 +8,11 @@ import { CredentialError } from '../../credentials'
 import { apiKeyCredential, oauthCredential } from '../../credentials/testing'
 import { createOpenAiModel } from '../openai-oauth'
 import { recordingFetch, refusingFirstFetch } from './recording-fetch'
+import {
+  streamedFailure,
+  streamedReasoningThenResponse,
+  streamedResponse,
+} from './responses-stream-fixtures'
 
 const RESPONSE_JSON = JSON.stringify({
   id: 'resp_stub',
@@ -56,7 +62,7 @@ const subscriptionCredentials = (...tokens: readonly string[]): CredentialPort &
 
 describe('the openai model authenticated by a ChatGPT subscription', () => {
   it('calls the codex backend with the account id as a header, never api.openai.com', async () => {
-    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse() })
     const model = createOpenAiModel({
       credentials: subscriptionCredentials('token-one'),
       providerId: 'openai',
@@ -74,7 +80,7 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
   })
 
   it('shapes the request the way the codex backend expects', async () => {
-    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse() })
     const model = createOpenAiModel({
       credentials: subscriptionCredentials('token-one'),
       providerId: 'openai',
@@ -91,7 +97,7 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
   })
 
   it('never sends prompt_cache_retention to the codex backend, which 400s on it', async () => {
-    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse() })
     const model = createOpenAiModel({
       credentials: subscriptionCredentials('token-one'),
       providerId: 'openai',
@@ -106,7 +112,7 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
   })
 
   it('keeps caller provider options over the subscription defaults', async () => {
-    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse() })
     const model = createOpenAiModel({
       credentials: subscriptionCredentials('token-one'),
       providerId: 'openai',
@@ -128,9 +134,8 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
 
   it('discards a refused token and retries with the rotated pair', async () => {
     const recorder = refusingFirstFetch({
-      body: RESPONSE_JSON,
+      body: streamedResponse(),
       status: 401,
-      contentType: 'application/json',
       refusalBody: refusal,
     })
     const credentials = subscriptionCredentials('token-revoked', 'token-rotated')
@@ -149,7 +154,7 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
   })
 
   it('refuses to send a subscription token with no account id anywhere', async () => {
-    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const recorder = recordingFetch({ body: streamedResponse() })
     const model = createOpenAiModel({
       credentials: {
         read: async () => oauthCredential({ accessToken: 'token-one' }),
@@ -165,6 +170,74 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
     expect(failure).toBeInstanceOf(CredentialError)
     expect(String(failure)).toContain('account id')
     expect(recorder.requests).toHaveLength(0)
+  })
+
+  it('asks the codex backend for a stream, which rejects a plain request', async () => {
+    const recorder = recordingFetch({ body: streamedResponse() })
+    const model = createOpenAiModel({
+      credentials: subscriptionCredentials('token-one'),
+      providerId: 'openai',
+      modelId: 'gpt-5.1-codex',
+      fetch: recorder.fetch,
+    })
+
+    await generateText({ model, prompt: 'ping' })
+
+    expect(recorder.requests[0]?.body).toMatchObject({ stream: true })
+  })
+
+  it('keeps the output cap and structured output schema on the streamed request', async () => {
+    const recorder = recordingFetch({ body: streamedResponse('{"score":3}') })
+    const model = createOpenAiModel({
+      credentials: subscriptionCredentials('token-one'),
+      providerId: 'openai',
+      modelId: 'gpt-5.1-codex',
+      fetch: recorder.fetch,
+    })
+
+    const result = await generateText({
+      model,
+      prompt: 'rate it',
+      maxOutputTokens: 256,
+      output: Output.object({ schema: z.object({ score: z.number() }) }),
+    })
+
+    expect(result.output).toEqual({ score: 3 })
+    expect(recorder.requests[0]?.body).toMatchObject({
+      stream: true,
+      max_output_tokens: 256,
+      text: { format: { type: 'json_schema', strict: true } },
+    })
+  })
+
+  it('carries reasoning and its encrypted content back from a streamed generation', async () => {
+    const recorder = recordingFetch({ body: streamedReasoningThenResponse() })
+    const model = createOpenAiModel({
+      credentials: subscriptionCredentials('token-one'),
+      providerId: 'openai',
+      modelId: 'gpt-5.1-codex',
+      fetch: recorder.fetch,
+    })
+
+    const result = await generateText({ model, prompt: 'ping' })
+
+    expect(result.text).toBe('pong')
+    expect(result.reasoningText).toBe('thinking it over')
+    expect(result.reasoning[0]?.providerMetadata).toMatchObject({
+      openai: { itemId: 'rs_stub', reasoningEncryptedContent: 'enc_stub' },
+    })
+  })
+
+  it('surfaces a failure the stream reports instead of an empty answer', async () => {
+    const recorder = recordingFetch({ body: streamedFailure() })
+    const model = createOpenAiModel({
+      credentials: subscriptionCredentials('token-one'),
+      providerId: 'openai',
+      modelId: 'gpt-5.1-codex',
+      fetch: recorder.fetch,
+    })
+
+    await expect(generateText({ model, prompt: 'ping' })).rejects.toThrow('upstream exploded')
   })
 })
 

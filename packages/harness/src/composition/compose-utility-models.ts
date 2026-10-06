@@ -21,7 +21,7 @@ import type { Summariser } from './compact-turn'
 import type { SessionTitler } from './harness-app'
 import type { ModelCatalogue } from './model-catalogue'
 import type { ModelChoice } from './model-selection'
-import { createUtilityModel } from './utility-model'
+import { createUtilityModel, notifyingUtilityFallback } from './utility-model'
 
 export type UtilityModels = {
   decisionsEnabled: () => boolean
@@ -65,12 +65,17 @@ export function bindUtilityModels(args: {
 
   const titlerModel = utility(EUtilityModelRole.Titler)
   const compactionModel = utility(EUtilityModelRole.Compaction)
+  const titleFallback = notifyingUtilityFallback({
+    role: EUtilityModelRole.Titler,
+    notice,
+    fallback,
+  })
 
   return {
     decisionsEnabled: () => decisionsConfig() !== undefined,
     tldrModel: utility(EUtilityModelRole.Tldr),
     titler: ({ text, images, signal }) =>
-      titleFor({ model: titlerModel, fallback, text, images, signal }),
+      titleFor({ model: titlerModel, fallback: titleFallback, text, images, signal }),
     summarise: ({ events, fromSeq, throughSeq, signal }) =>
       summaryFor({
         model: compactionModel,
