@@ -191,6 +191,14 @@ describe('table content updates under a stationary pointer', () => {
     expect(bgAt({ setup, ...moved })).toEqual(HOVER_BG)
   })
 
+  it('preserves the wash and uppercase header when terminal capabilities rebuild the table', async () => {
+    const { setup, target } = await hovered(TABLE)
+    await act(async () => { setup.renderer.emit('capabilities', { ...setup.renderer.capabilities, hyperlinks: true }) })
+    await settleFrames(setup)
+    expect(setup.captureCharFrame()).toContain('NAME')
+    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
+  })
+
   it('paints the current hover on first mount', async () => {
     const { setup, target } = await hovered(TABLE)
     live.pop()

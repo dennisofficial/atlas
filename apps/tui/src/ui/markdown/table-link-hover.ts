@@ -1,5 +1,6 @@
 import { RGBA, TextTableRenderable, type MarkdownRenderable, type Renderable, type TextChunk, type TextTableContent } from '@opentui/core'
-import { useEffect, type RefObject } from 'react'
+import { useLayoutEffect, type RefObject } from 'react'
+import { useRenderer } from '@opentui/react'
 
 import { linkHoverUrl, subscribeLinkHover } from '../../composition/link-click'
 import { theme } from '../theme'
@@ -44,6 +45,11 @@ export function paintTableHover(args: { table: TextTableRenderable; url: string 
   const known = decorated.get(table)
   const original = known !== undefined && known.applied === table.content ? known.original : table.content
   const applied = decorate({ content: original, url: args.url })
+  const unchanged = applied.length === table.content.length && applied.every((row, index) => {
+    const current = table.content[index]
+    return current !== undefined && row.length === current.length && row.every((cell, column) => cell === current[column])
+  })
+  if (unchanged) return
   decorated.set(table, { original, applied })
   table.content = applied
 }
@@ -53,13 +59,19 @@ export function useTableLinkHover(args: {
   content: string
 }): void {
   const { ref, content } = args
-  useEffect(() => {
+  const renderer = useRenderer()
+  useLayoutEffect(() => {
     const paint = () => {
       const markdown = ref.current
       if (markdown === null || markdown.isDestroyed) return
       for (const table of tablesUnder(markdown)) paintTableHover({ table, url: linkHoverUrl() })
     }
     paint()
-    return subscribeLinkHover(paint)
-  }, [ref, content])
+    const release = subscribeLinkHover(paint)
+    renderer.on('capabilities', paint)
+    return () => {
+      release()
+      renderer.off('capabilities', paint)
+    }
+  }, [ref, content, renderer])
 }

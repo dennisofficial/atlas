@@ -1,4 +1,4 @@
-import type { CliRenderer, MouseEvent } from '@opentui/core'
+import { Renderable, type CliRenderer, type MouseEvent } from '@opentui/core'
 import { parseLineSuffix } from '@dltech/atlas-core'
 import type { FileOpener, UrlOpener } from '@dltech/atlas-harness'
 
@@ -70,6 +70,9 @@ export function installLinkClickOpen(args: {
   let originScope: LinkScope | null = null
   let pointerOnLink = false
 
+  const scopeUnder = (point: { x: number; y: number }): LinkScope | null =>
+    linkScopeAt({ ...point, target: Renderable.renderablesByNumber.get(renderer.hitTest(point.x, point.y)) ?? null })
+
   renderer.root.onMouseMove = (event) => {
     const url = renderer.getLinkAt(event.x, event.y)
     notifyLinkHover(url)
@@ -84,7 +87,7 @@ export function installLinkClickOpen(args: {
     if (event.propagationStopped || event.defaultPrevented) return
     origin = { x: event.x, y: event.y }
     originUrl = renderer.getLinkAt(event.x, event.y)
-    originScope = linkScopeAt(event)
+    originScope = scopeUnder(event)
   }
 
   renderer.root.onMouseUp = (event) => {
@@ -99,7 +102,7 @@ export function installLinkClickOpen(args: {
     if (start === null) return
     if (!withinTravel({ from: start, event })) return
 
-    const releasedScope = linkScopeAt(event)
+    const releasedScope = scopeUnder(event)
     if (releasedScope !== pressedScope) return
 
     const pressedUrl = renderer.getLinkAt(event.x, event.y) ?? pressed
@@ -113,11 +116,6 @@ export function installLinkClickOpen(args: {
     if (verdict.kind === ELinkVerdict.Handled) return
     const url = verdict.kind === ELinkVerdict.Open ? verdict.url : pressedUrl
 
-    /**
-     * A rendered link already resolved once, but a file can be deleted between paint and click,
-     * and the resolver's cache is existence truth rather than freshness truth. Re-check here so a
-     * dead target says so instead of claiming an open that opened nothing.
-     */
     const target = linkTarget({ url })
     if (target === null) {
       notify({
