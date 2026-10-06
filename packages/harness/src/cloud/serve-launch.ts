@@ -1,8 +1,10 @@
+import { dirname } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { DRIVE_HOME_PATH } from './drive-names'
 import {
   SERVE_BINARY_PATH,
+  LEGACY_SERVE_LOG_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
@@ -13,6 +15,7 @@ import {
 
 export {
   SERVE_BINARY_PATH,
+  LEGACY_SERVE_LOG_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
@@ -94,7 +97,7 @@ const parkedCheckpointNames = async (args: {
 const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
   const tail = await sh({
     sandbox,
-    script: `tail -c 16384 ${SERVE_LOG_PATH} 2>/dev/null || true`,
+    script: `tail -c 16384 ${SERVE_LOG_PATH} 2>/dev/null || tail -c 16384 ${LEGACY_SERVE_LOG_PATH} 2>/dev/null || true`,
     timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
   }).catch(() => null)
   if (tail === null) return '<could not read the serve log>'
@@ -170,7 +173,7 @@ export function createServeLauncher(args?: {
       args: [
         '-c',
         withServeToken(
-          `exec flock -n ${SERVE_LOCK_PATH} sh -c 'echo $$ > ${SERVE_HOME}/atlas-serve.pid; exec ${SERVE_BINARY_PATH}' >> ${SERVE_LOG_PATH} 2>&1`,
+          `(umask 077; mkdir -p ${dirname(SERVE_LOG_PATH)} && : >> ${SERVE_LOG_PATH}) && exec flock -n ${SERVE_LOCK_PATH} sh -c 'echo $$ > ${SERVE_HOME}/atlas-serve.pid; exec ${SERVE_BINARY_PATH}' >> ${SERVE_LOG_PATH} 2>&1`,
         ),
       ],
       detached: true,

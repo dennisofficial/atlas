@@ -1,20 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { GpgKeyMaterial } from '@dltech/atlas-harness'
+
 import {
-  createEnvironmentProfile,
   EProfileStep,
   EProfileStepState,
   type EnvironmentProfile,
   type ProfileStepOutcome,
 } from '../environment-profile'
-import type { GitRunner } from '../materialize-workspace'
-import type { CommandRunner } from '../run-command'
-import type { WorkspaceFiles } from '../workspace-files'
 import type { WorkspaceSpec } from '../workspace-spec'
 
-const CWD = '/workspace'
-const HOME = '/home/sandbox'
+import { COMMIT_ID, CWD, harness, outcomeOf, spec, TREE_ID } from './environment-profile-fixture'
 
 const MATERIAL: GpgKeyMaterial = {
   keyId: 'ABCD1234',
@@ -24,140 +20,161 @@ const MATERIAL: GpgKeyMaterial = {
   sign: true,
 }
 
-const spec = (partial: Partial<WorkspaceSpec> = {}): WorkspaceSpec => ({
-  remoteUrl: 'git@github.com:dennisofficial/atlas.git',
-  branch: 'main',
-  commit: null,
-  patch: '',
-  githubToken: null,
-  contextBundle: null,
-  gpgKey: JSON.stringify(MATERIAL),
-  ...partial,
-})
-
-type CommandAttempt = { command: readonly string[]; cwd: string; stdin?: string | undefined }
-type GitAttempt = { args: readonly string[]; cwd: string }
-
-const harness = (args: {
-  present?: readonly string[] | undefined
-  runFails?: ((attempt: CommandAttempt) => { stderr: string } | undefined) | undefined
-  gitFails?: ((attempt: GitAttempt) => { stderr: string } | undefined) | undefined
-}) => {
-  const contents = new Map<string, string>()
-  for (const path of args.present ?? []) contents.set(path, '')
-  const commands: CommandAttempt[] = []
-  const gitAttempts: GitAttempt[] = []
-
-  const files: WorkspaceFiles = {
-    exists: async (path) => contents.has(path),
-    read: async (path) => {
-      const text = contents.get(path)
-      if (text === undefined) throw new Error(`no such file: ${path}`)
-      return text
-    },
-    write: async ({ path, text }) => void contents.set(path, text),
-    writeBytes: async ({ path, bytes }) => void contents.set(path, bytes.toString('utf8')),
-    ensureDirectory: async () => undefined,
-    empty: async () => undefined,
-  }
-
-  const run: CommandRunner = async (attempt) => {
-    commands.push(attempt)
-    const failure = args.runFails?.(attempt)
-    if (failure !== undefined) return { ok: false, stdout: '', stderr: failure.stderr }
-    return { ok: true, stdout: '', stderr: '' }
-  }
-
-  const git: GitRunner = async (attempt) => {
-    gitAttempts.push(attempt)
-    const failure = args.gitFails?.(attempt)
-    if (failure !== undefined) return { ok: false, stdout: '', stderr: failure.stderr }
-    return { ok: true, stdout: '', stderr: '' }
-  }
-
-  const apply = createEnvironmentProfile({ env: {}, files, run, git, home: HOME })
-  return { commands, gitAttempts, apply }
-}
-
-const outcomeOf = (profile: EnvironmentProfile, step: EProfileStep): ProfileStepOutcome => {
-  const outcome = profile.steps.find((one) => one.step === step)
-  if (outcome === undefined) throw new Error(`no outcome recorded for ${step}`)
-  return outcome
-}
+const gpgSpec = (partial: Partial<WorkspaceSpec> = {}): WorkspaceSpec =>
+  spec({ githubToken: null, gpgKey: JSON.stringify(MATERIAL), ...partial })
 
 const gpgOutcome = (profile: EnvironmentProfile): ProfileStepOutcome =>
   outcomeOf(profile, EProfileStep.GpgSigning)
 
-describe('environment profile gpg signing', () => {
-  it('imports the material over stdin, seeds ownertrust and sets repo-local signing config', async () => {
-    const { apply, commands, gitAttempts } = harness({ present: [`${CWD}/.git`] })
+const present = [`${CWD}/.git`]
 
-    const profile = await apply({ cwd: CWD, spec: spec() })
+describe('environment profile gpg signing', () => {
+  it('imports the material over stdin and seeds ownertrust', async () => {
+    const { apply, commands } = harness({ present })
+
+    const profile = await apply({ cwd: CWD, spec: gpgSpec() })
 
     expect(gpgOutcome(profile).state).toBe(EProfileStepState.Applied)
     const imported = commands.find((attempt) => attempt.command.includes('--import'))
     expect(imported?.stdin).toBe(`${MATERIAL.secretKey}\n${MATERIAL.publicKey}`)
     const trusted = commands.find((attempt) => attempt.command.includes('--import-ownertrust'))
     expect(trusted?.stdin).toBe(MATERIAL.ownerTrust)
-    expect(gitAttempts.map((attempt) => [...attempt.args])).toEqual([
-      ['config', 'user.signingkey', MATERIAL.keyId],
-      ['config', 'commit.gpgsign', 'true'],
-    ])
-    expect(gitAttempts.every((attempt) => attempt.cwd === CWD)).toBe(true)
   })
 
-  it('writes commit.gpgsign false when the bundle says not to sign', async () => {
-    const { apply, gitAttempts } = harness({ present: [`${CWD}/.git`] })
+  it('sets explicit openpgp signing config sequentially and reads it back', async () => {
+    const { apply, gitConfig, events } = harness({ present })
 
-    await apply({ cwd: CWD, spec: spec({ gpgKey: JSON.stringify({ ...MATERIAL, sign: false }) }) })
+    await apply({ cwd: CWD, spec: gpgSpec() })
 
-    expect(gitAttempts.map((attempt) => [...attempt.args])).toContainEqual([
-      'config',
-      'commit.gpgsign',
-      'false',
+    expect(Object.fromEntries(gitConfig)).toEqual({
+      'user.signingkey': MATERIAL.keyId,
+      'commit.gpgsign': 'true',
+      'gpg.format': 'openpgp',
+      'gpg.program': 'gpg',
+    })
+    const writes = events.filter((event) => /^git config \S+ \S/.test(event))
+    expect(writes).toEqual([
+      `git config user.signingkey ${MATERIAL.keyId}`,
+      'git config commit.gpgsign true',
+      'git config gpg.format openpgp',
+      'git config gpg.program gpg',
     ])
   })
 
-  it('skips the ownertrust import when the bundle carries none', async () => {
-    const { apply, commands } = harness({ present: [`${CWD}/.git`] })
+  it('keeps commit.gpgsign false when the bundle says not to sign', async () => {
+    const { apply, gitConfig } = harness({ present })
 
     const profile = await apply({
       cwd: CWD,
-      spec: spec({ gpgKey: JSON.stringify({ ...MATERIAL, ownerTrust: '' }) }),
+      spec: gpgSpec({ gpgKey: JSON.stringify({ ...MATERIAL, sign: false }) }),
+    })
+
+    expect(gitConfig.get('commit.gpgsign')).toBe('false')
+    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Applied)
+  })
+
+  it('skips the ownertrust import when the bundle carries none', async () => {
+    const { apply, commands } = harness({ present })
+
+    const profile = await apply({
+      cwd: CWD,
+      spec: gpgSpec({ gpgKey: JSON.stringify({ ...MATERIAL, ownerTrust: '' }) }),
     })
 
     expect(gpgOutcome(profile).state).toBe(EProfileStepState.Applied)
     expect(commands.some((attempt) => attempt.command.includes('--import-ownertrust'))).toBe(false)
   })
 
-  it('gates the capability on the secret-key probe', async () => {
-    const { apply, commands } = harness({ present: [`${CWD}/.git`] })
+  it('gates the capability on an actual sign and verify of an unreferenced commit', async () => {
+    const { apply, commands, gitAttempts } = harness({ present })
 
-    const profile = await apply({ cwd: CWD, spec: spec() })
+    const profile = await apply({ cwd: CWD, spec: gpgSpec() })
 
     expect(profile.capabilities.gpgSigning).toBe(true)
-    const probe = commands.find((attempt) => attempt.command.includes('--list-secret-keys'))
-    expect(probe?.command).toEqual(['gpg', '--batch', '--list-secret-keys', MATERIAL.keyId])
+    const mktree = commands.find((attempt) => attempt.command.join(' ') === 'git mktree')
+    expect(mktree?.stdin).toBe('')
+    const commitTree = gitAttempts.find((attempt) => attempt.args[0] === 'commit-tree')
+    expect(commitTree?.args).toEqual([
+      'commit-tree',
+      TREE_ID,
+      '-S',
+      '-m',
+      'atlas signing probe',
+    ])
+    const verify = gitAttempts.find((attempt) => attempt.args[0] === 'verify-commit')
+    expect(verify?.args).toEqual(['verify-commit', COMMIT_ID])
+    const mutating = gitAttempts.filter((attempt) =>
+      ['commit', 'update-ref', 'add', 'checkout', 'reset'].includes(attempt.args[0] ?? ''),
+    )
+    expect(mutating).toEqual([])
+    expect(commands.some((attempt) => attempt.command.includes('--list-secret-keys'))).toBe(false)
   })
 
-  it('fails when the probe cannot see the secret key', async () => {
+  it('reports signing unavailable when the commit cannot be signed', async () => {
     const { apply } = harness({
-      present: [`${CWD}/.git`],
-      runFails: (attempt) =>
-        attempt.command.includes('--list-secret-keys') ? { stderr: 'no secret key\n' } : undefined,
+      present,
+      gitFails: (attempt) =>
+        attempt.args[0] === 'commit-tree' ? { stderr: 'gpg failed to sign the data\n' } : undefined,
     })
 
-    const profile = await apply({ cwd: CWD, spec: spec() })
+    const profile = await apply({ cwd: CWD, spec: gpgSpec() })
 
     expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
-    expect(gpgOutcome(profile).detail).toBe('no secret key')
+    expect(gpgOutcome(profile).detail).toBe('gpg failed to sign the data')
     expect(profile.capabilities.gpgSigning).toBe(false)
   })
 
-  it('skips when the spec carries no gpg key and reports no signing capability', async () => {
-    const { apply, commands } = harness({ present: [`${CWD}/.git`] })
+  it('reports signing unavailable when the signature does not verify', async () => {
+    const { apply } = harness({
+      present,
+      gitFails: (attempt) =>
+        attempt.args[0] === 'verify-commit' ? { stderr: 'BAD signature\n' } : undefined,
+    })
 
-    const profile = await apply({ cwd: CWD, spec: spec({ gpgKey: null }) })
+    const profile = await apply({ cwd: CWD, spec: gpgSpec() })
+
+    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
+    expect(gpgOutcome(profile).detail).toBe('BAD signature')
+    expect(profile.capabilities.gpgSigning).toBe(false)
+  })
+
+  it('refuses an empty tree or commit id instead of passing it on as an argument', async () => {
+    const emptyTree = harness({
+      present,
+      runAnswers: (attempt) => (attempt.command[0] === 'git' ? '\n' : undefined),
+    })
+    const emptyCommit = harness({
+      present,
+      gitAnswers: (attempt) => (attempt.args[0] === 'commit-tree' ? '\n' : undefined),
+    })
+
+    const treeProfile = await emptyTree.apply({ cwd: CWD, spec: gpgSpec() })
+    const commitProfile = await emptyCommit.apply({ cwd: CWD, spec: gpgSpec() })
+
+    expect(treeProfile.capabilities.gpgSigning).toBe(false)
+    expect(commitProfile.capabilities.gpgSigning).toBe(false)
+    expect(emptyTree.gitAttempts.some((attempt) => attempt.args[0] === 'commit-tree')).toBe(false)
+    expect(emptyCommit.gitAttempts.some((attempt) => attempt.args[0] === 'verify-commit')).toBe(false)
+  })
+
+  it('stops after the first failed signing config write', async () => {
+    const { apply, events } = harness({
+      present,
+      gitFails: (attempt) =>
+        attempt.args[1] === 'commit.gpgsign' ? { stderr: 'locked\n' } : undefined,
+    })
+
+    const profile = await apply({ cwd: CWD, spec: gpgSpec() })
+
+    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
+    expect(events.some((event) => event.startsWith('git config gpg.format'))).toBe(false)
+    expect(events.some((event) => event.startsWith('git commit-tree'))).toBe(false)
+  })
+
+  it('skips when the spec carries no gpg key and reports no signing capability', async () => {
+    const { apply, commands } = harness({ present })
+
+    const profile = await apply({ cwd: CWD, spec: gpgSpec({ gpgKey: null }) })
 
     expect(gpgOutcome(profile).state).toBe(EProfileStepState.Skipped)
     expect(commands.some((attempt) => attempt.command[0] === 'gpg')).toBe(false)
@@ -165,38 +182,35 @@ describe('environment profile gpg signing', () => {
   })
 
   it('fails when the material does not parse', async () => {
-    const { apply } = harness({ present: [`${CWD}/.git`] })
+    const { apply } = harness({ present })
 
-    const profile = await apply({ cwd: CWD, spec: spec({ gpgKey: '{not json' }) })
+    const profile = await apply({ cwd: CWD, spec: gpgSpec({ gpgKey: '{not json' }) })
 
-    const outcome = gpgOutcome(profile)
-    expect(outcome.state).toBe(EProfileStepState.Failed)
-    expect(outcome.detail).toBe('the gpg material did not parse')
+    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
+    expect(gpgOutcome(profile).detail).toBe('the gpg material did not parse')
     expect(profile.capabilities.gpgSigning).toBe(false)
   })
 
   it('fails naming the issue when the material fails validation', async () => {
-    const { apply } = harness({ present: [`${CWD}/.git`] })
+    const { apply } = harness({ present })
 
     const profile = await apply({
       cwd: CWD,
-      spec: spec({ gpgKey: JSON.stringify({ ...MATERIAL, keyId: '' }) }),
+      spec: gpgSpec({ gpgKey: JSON.stringify({ ...MATERIAL, keyId: '' }) }),
     })
 
-    const outcome = gpgOutcome(profile)
-    expect(outcome.state).toBe(EProfileStepState.Failed)
-    expect(outcome.detail).toContain('the gpg material is invalid')
-    expect(outcome.detail).toContain('keyId')
+    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
+    expect(gpgOutcome(profile).detail).toContain('the gpg material is invalid')
+    expect(gpgOutcome(profile).detail).toContain('keyId')
   })
 
   it('skips with detail when the workspace is not a git repository', async () => {
     const { apply, commands, gitAttempts } = harness({})
 
-    const profile = await apply({ cwd: CWD, spec: spec() })
+    const profile = await apply({ cwd: CWD, spec: gpgSpec() })
 
-    const outcome = gpgOutcome(profile)
-    expect(outcome.state).toBe(EProfileStepState.Skipped)
-    expect(outcome.detail).toBe('the workspace is not a git repository')
+    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Skipped)
+    expect(gpgOutcome(profile).detail).toBe('the workspace is not a git repository')
     expect(commands.some((attempt) => attempt.command[0] === 'gpg')).toBe(false)
     expect(gitAttempts).toEqual([])
     expect(profile.capabilities.gpgSigning).toBe(false)
@@ -204,39 +218,41 @@ describe('environment profile gpg signing', () => {
 
   it('fails with the trimmed stderr when the import fails', async () => {
     const { apply } = harness({
-      present: [`${CWD}/.git`],
+      present,
       runFails: (attempt) =>
         attempt.command.includes('--import') && !attempt.command.includes('--import-ownertrust')
           ? { stderr: 'no valid OpenPGP data found\n' }
           : undefined,
     })
 
-    const profile = await apply({ cwd: CWD, spec: spec() })
+    const profile = await apply({ cwd: CWD, spec: gpgSpec() })
 
-    const outcome = gpgOutcome(profile)
-    expect(outcome.state).toBe(EProfileStepState.Failed)
-    expect(outcome.detail).toBe('no valid OpenPGP data found')
+    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
+    expect(gpgOutcome(profile).detail).toBe('no valid OpenPGP data found')
     expect(profile.capabilities.gpgSigning).toBe(false)
   })
 
   it('never lets the secret material leak into a recorded detail', async () => {
+    const leak = `gpg: key ${MATERIAL.secretKey} rejected; trust ${MATERIAL.ownerTrust}; pub ${MATERIAL.publicKey}`
     const { apply } = harness({
-      present: [`${CWD}/.git`],
-      runFails: (attempt) =>
-        attempt.command.includes('--import')
-          ? {
-              stderr: `gpg: key ${MATERIAL.secretKey} rejected; trust ${MATERIAL.ownerTrust}; pub ${MATERIAL.publicKey}`,
-            }
-          : undefined,
+      present,
+      runFails: (attempt) => (attempt.command.includes('--import') ? { stderr: leak } : undefined),
+    })
+    const signing = harness({
+      present,
+      gitFails: (attempt) => (attempt.args[0] === 'verify-commit' ? { stderr: leak } : undefined),
     })
 
-    const profile = await apply({ cwd: CWD, spec: spec() })
+    const imported = await apply({ cwd: CWD, spec: gpgSpec() })
+    const verified = await signing.apply({ cwd: CWD, spec: gpgSpec() })
 
-    expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
-    const recorded = JSON.stringify(profile)
-    expect(recorded).not.toContain(MATERIAL.secretKey)
-    expect(recorded).not.toContain(MATERIAL.publicKey)
-    expect(recorded).not.toContain(MATERIAL.ownerTrust)
-    expect(recorded).toContain('***')
+    for (const profile of [imported, verified]) {
+      expect(gpgOutcome(profile).state).toBe(EProfileStepState.Failed)
+      const recorded = JSON.stringify(profile)
+      expect(recorded).not.toContain(MATERIAL.secretKey)
+      expect(recorded).not.toContain(MATERIAL.publicKey)
+      expect(recorded).not.toContain(MATERIAL.ownerTrust)
+      expect(recorded).toContain('***')
+    }
   })
 })

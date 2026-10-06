@@ -8,6 +8,7 @@ import type { AtlasApp } from './compose'
 import type { DirectoryMove } from './directory-move'
 import { stoppageOf, turnSettled, turnStarted } from './turn-progress'
 import type { ThreadView } from './use-thread-view'
+import { runnerClaimed } from './use-runner-claim'
 
 export type DriveOptions = {
   onCommitFailed?: ((error: unknown) => void) | undefined
@@ -70,7 +71,7 @@ export function useDrivenTurn(args: {
 
   const drive = useCallback(
     (drafts: readonly EventDraft[], opts?: DriveOptions): Promise<void> => {
-      if (workingRef.current || remoteRunning.current) {
+      if (workingRef.current || remoteRunning.current || runnerClaimed(app)) {
         opts?.onCommitFailed?.(new Error('a turn is already running'))
         return Promise.resolve()
       }

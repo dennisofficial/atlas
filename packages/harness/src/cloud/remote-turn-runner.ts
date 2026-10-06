@@ -37,6 +37,7 @@ export class RemoteTurnRunner extends TurnRunner {
   private readonly seenOutcomes = new Set<string>()
   private heldForReattach = false
   private driving = false
+  private readonly claimListeners = new Set<() => void>()
 
   constructor(args: { channel: RemoteDeltaChannel; wake: () => Promise<void> }) {
     super()
@@ -74,6 +75,17 @@ export class RemoteTurnRunner extends TurnRunner {
       this.heldForReattach = false
       this.detachAll(reason)
     })
+  }
+
+  turnInFlight(): boolean {
+    return this.driving
+  }
+
+  onTurnClaimChanged(listener: () => void): () => void {
+    this.claimListeners.add(listener)
+    return () => {
+      this.claimListeners.delete(listener)
+    }
   }
 
   say(args: {
@@ -163,7 +175,7 @@ export class RemoteTurnRunner extends TurnRunner {
     }
 
     if (this.driving) throw new Error('a turn is already running on this runner')
-    this.driving = true
+    this.setDriving(true)
     try {
       const state = this.channel.connection().state
       if (state === EChannelConnection.Closed || state === EChannelConnection.Parked) {
@@ -192,8 +204,13 @@ export class RemoteTurnRunner extends TurnRunner {
         }
       })
     } finally {
-      this.driving = false
+      this.setDriving(false)
     }
+  }
+
+  private setDriving(driving: boolean): void {
+    this.driving = driving
+    for (const listener of [...this.claimListeners]) listener()
   }
 
   private isFirstSighting(outcome: TurnOutcome): boolean {

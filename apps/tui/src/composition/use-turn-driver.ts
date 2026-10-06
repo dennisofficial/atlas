@@ -10,6 +10,7 @@ import { messageOf } from './error-text'
 import { discardInterrupted, EDiscard } from './resume-turn'
 import { IDLE_PROGRESS, turnInterrupting } from './turn-progress'
 import { useDrivenTurn, type DriveOptions } from './use-driven-turn'
+import { runnerClaimed, useRunnerClaim } from './use-runner-claim'
 import { useRemoteTurnState, type InterruptChannel } from './use-remote-turn-state'
 import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
 import type { ThreadView } from './use-thread-view'
@@ -63,6 +64,7 @@ export function useTurnDriver(args: {
     onSettled: () => autonomousSettled.current(),
     onFailure: setFailure,
   })
+  const claimed = useRunnerClaim(app)
   const driven = useDrivenTurn({ ...args, remoteRunning: remote.runningRef })
   const { working, workingRef, setWorking, abort, pause, drive, fireSettleListeners } = driven
   autonomousSettled.current = async () => {
@@ -74,10 +76,10 @@ export function useTurnDriver(args: {
   const busyRef = useMemo<RefObject<boolean>>(
     () => ({
       get current() {
-        return workingRef.current || remote.runningRef.current
+        return workingRef.current || remote.runningRef.current || runnerClaimed(app)
       },
     }),
-    [workingRef, remote.runningRef],
+    [app, workingRef, remote.runningRef],
   )
 
   const machinery = useMemo(
@@ -89,8 +91,8 @@ export function useTurnDriver(args: {
   const rewindConfirm = useRewindConfirm()
 
   const turnInFlight = useCallback(
-    (): boolean => abort.current !== null || remote.runningRef.current,
-    [abort, remote.runningRef],
+    (): boolean => abort.current !== null || remote.runningRef.current || runnerClaimed(app),
+    [abort, app, remote.runningRef],
   )
   const frozen = args.frozen === true
   const handleRetry = useCallback(() => {
@@ -267,7 +269,7 @@ export function useTurnDriver(args: {
   }, [driven.whenSettled, remote.whenSettled])
 
   return {
-    working: working || remote.running,
+    working: working || remote.running || claimed,
     workingRef: busyRef,
     rewindConfirm,
     drive,

@@ -22,6 +22,7 @@ export const SERVE_BINARY_PATH = `${SERVE_HOME}/atlas-serve`
 export const SERVE_VERSION_PATH = `${SERVE_BINARY_PATH}.version`
 /** The CHANNEL_PROTOCOL_VERSION the baked serve speaks, written by the image build; a mismatch rotates the sandbox. */
 export const SERVE_PROTOCOL_PATH = `${SERVE_BINARY_PATH}.protocol`
-export const SERVE_LOG_PATH = `${SERVE_HOME}/atlas-serve.log`
+export const SERVE_LOG_PATH = '/atlas/home/operational/atlas-serve.log'
+export const LEGACY_SERVE_LOG_PATH = `${SERVE_HOME}/atlas-serve.log`
 export const SERVE_LOCK_PATH = `${SERVE_HOME}/atlas-serve.lock`
 export const SERVE_TOKEN_PATH = `${SERVE_HOME}/atlas-serve.token`

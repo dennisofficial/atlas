@@ -1398,6 +1398,10 @@ nothing else follows. A session living in the main checkout is never destroyed.
 
 ## Cloud execution lifetime and attachment
 
+Serve diagnostics append to `/atlas/home/operational/atlas-serve.log` on the mounted drive,
+alongside durable session data, so sandbox recreation preserves prior boot and turn evidence.
+The serve binary, token, PID and process lock remain under `/opt/atlas` on the runtime filesystem.
+
 A cloud client owns its attachment, not the execution it observes. Closing, restarting, or losing
 that client cannot interrupt the sandbox's turn, children, shells, or services. Local process shutdown stops agents and services but detaches durable shells by default;
 actual sandbox destruction still stops sandbox processes. Explicit stop

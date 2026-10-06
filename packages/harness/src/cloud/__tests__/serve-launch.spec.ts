@@ -190,6 +190,20 @@ describe('createServeLauncher', () => {
     expect(launch).toContain(SERVE_LOG_PATH)
   })
 
+  it('appends serve diagnostics on the mounted home after creating their directory privately', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false, alive: false })
+
+    await createServeLauncher()({ sandbox })
+
+    const launch = scriptsOf(launchesOf(commands))[0] ?? ''
+    expect(SERVE_LOG_PATH).toBe('/atlas/home/operational/atlas-serve.log')
+    expect(launch).toContain('umask 077')
+    expect(launch).toContain('mkdir -p /atlas/home/operational')
+    expect(launch.indexOf('mkdir -p')).toBeLessThan(launch.indexOf(`>> ${SERVE_LOG_PATH}`))
+    expect(launch).toContain(`>> ${SERVE_LOG_PATH} 2>&1`)
+    expect(SERVE_TOKEN_PATH).toBe('/opt/atlas/atlas-serve.token')
+  })
+
   it('hands the sandbox session id and cloud url to the detached boot, not to process env', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false, alive: false })
 
