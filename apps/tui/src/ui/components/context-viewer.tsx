@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ScrollBoxRenderable } from '@opentui/core'
+import type { BoxRenderable, ScrollBoxRenderable } from '@opentui/core'
 import { useRenderer } from '@opentui/react'
 import type { ContextFileContent } from '@dltech/atlas-harness'
 
 import { cellsOf } from '../hint-layout'
 import { viewerImageProtocol } from '../images/viewer-image'
+import { useContextLinkScope } from '../hooks/use-context-link-scope'
 import { observeScroll } from '../scroll-signal'
 import { theme } from '../theme'
 import { BackPill } from './back-pill'
@@ -62,12 +63,15 @@ export function ContextViewer(props: {
   loading: boolean
   content: ContextFileContent | null
   onDismiss: () => void
+  onNavigate?: (path: string) => void
   attachScroll: (box: ScrollBoxRenderable | null) => void
 }): React.ReactNode {
   const image = props.content?.type === 'image' ? props.content.data : null
   const imageBytes = useMemo(() => (image === null ? null : Buffer.from(image, 'base64')), [image])
   const [window, setWindow] = useState({ start: 0, end: 100 })
   const release = useRef<(() => void) | null>(null)
+  const pane = useRef<BoxRenderable | null>(null)
+  useContextLinkScope({ box: pane, path: props.path, onNavigate: props.onNavigate })
   const attach = useCallback((box: ScrollBoxRenderable | null) => {
     release.current?.()
     release.current = null
@@ -84,7 +88,7 @@ export function ContextViewer(props: {
   useEffect(() => () => { release.current?.() }, [])
 
   return (
-    <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0} paddingLeft={LEFT_PAD}>
+    <box ref={pane} flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0} paddingLeft={LEFT_PAD}>
       <box flexDirection="row" flexShrink={0} paddingTop={1} paddingBottom={1}>
         <BackPill label="context" onBack={props.onDismiss} />
         <box flexGrow={1} flexShrink={1} justifyContent="flex-end" flexDirection="row">

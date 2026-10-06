@@ -9,28 +9,35 @@ const source = new Map<string, readonly DirectoryEntry[]>([
   ['notes/deep', [{ name: 'decision.md', isDirectory: false }]],
 ])
 
-describe('reading expanded context levels', () => {
-  it('fetches only root and expanded visible branches', async () => {
+describe('reading open context levels', () => {
+  it('fetches every directory when nothing is closed', async () => {
     const asked: string[] = []
     const levels = await readContextTree({
       readers: { list: async (path) => { asked.push(path ?? ''); return source.get(path ?? '') ?? [] } },
-      expanded: new Set(['notes', 'notes/deep']), previous: new Map(),
+      closed: new Set(), previous: new Map(),
     })
-    expect(asked.sort()).toEqual(['', 'notes', 'notes/deep'])
-    expect([...levels.keys()].sort()).toEqual(['', 'notes', 'notes/deep'])
+    expect(asked.sort()).toEqual(['', 'notes', 'notes/deep', 'other'])
+    expect([...levels.keys()].sort()).toEqual(['', 'notes', 'notes/deep', 'other'])
   })
 
-  it('does not fetch remembered descendants whose parent is collapsed', async () => {
+  it('skips closed folders and the descendants beneath them', async () => {
     const asked: string[] = []
     await readContextTree({ readers: { list: async (path) => { asked.push(path ?? ''); return source.get(path ?? '') ?? [] } },
-      expanded: new Set(['notes/deep']), previous: new Map() })
-    expect(asked).toEqual([''])
+      closed: new Set(['notes']), previous: new Map() })
+    expect(asked.sort()).toEqual(['', 'other'])
+  })
+
+  it('never reads a closed path that is not in the listing', async () => {
+    const asked: string[] = []
+    await readContextTree({ readers: { list: async (path) => { asked.push(path ?? ''); return source.get(path ?? '') ?? [] } },
+      closed: new Set(['vanished', 'vanished/child']), previous: new Map() })
+    expect(asked.sort()).toEqual(['', 'notes', 'notes/deep', 'other'])
   })
 
   it('reports an unreadable level while preserving its last-known entries', async () => {
     const previous: ContextTreeLevels = new Map([['', { entries: source.get('') ?? [], error: null }]])
     const loaded = await readContextTree({ readers: { list: async () => { throw new Error('permission denied') } },
-      expanded: new Set(['notes']), previous })
+      closed: new Set(), previous })
     expect(loaded.get('')?.entries).toBe(previous.get('')?.entries)
     expect(loaded.get('')?.error).toBe('permission denied')
   })
