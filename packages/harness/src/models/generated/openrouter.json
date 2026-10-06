@@ -822,9 +822,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.03,
+      "inputPerMillion": 0.002,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.03
+      "cacheReadPerMillion": 0.002
     },
     "effort": {
       "high": "high",
@@ -842,9 +842,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.0152,
+      "inputPerMillion": 0.006,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.0152
+      "cacheReadPerMillion": 0.006
     },
     "effort": {
       "low": "low",
@@ -902,11 +902,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.4,
-      "outputPerMillion": 5,
-      "cacheReadPerMillion": 0.36
+      "inputPerMillion": 0.66,
+      "outputPerMillion": 1.98,
+      "cacheReadPerMillion": 0.022
     },
     "effort": {
       "low": "low",
@@ -925,9 +925,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.3,
-      "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.006
+      "inputPerMillion": 0.029474,
+      "outputPerMillion": 1.32,
+      "cacheReadPerMillion": 0.0165
     },
     "effort": {
       "low": "low",
@@ -1639,7 +1639,8 @@
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.1875,
-      "outputPerMillion": 0.6525
+      "outputPerMillion": 0.6525,
+      "cacheReadPerMillion": 0.05
     }
   },
   {
@@ -1666,10 +1667,10 @@
     "api": "openai-completions",
     "contextWindow": 131072,
     "imageTier": "standard",
-    "maxOutputTokens": 117964,
+    "maxOutputTokens": 16384,
     "cost": {
-      "inputPerMillion": 0.35,
-      "outputPerMillion": 1.5,
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
       "cacheReadPerMillion": 0.04
     },
     "effort": {
@@ -2021,6 +2022,26 @@
   {
     "ref": {
       "providerId": "openrouter",
+      "modelId": "mistralai/mistral-large-4-0"
+    },
+    "label": "Mistral Large 4",
+    "api": "openai-completions",
+    "contextWindow": 524288,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.68,
+      "outputPerMillion": 2.09,
+      "cacheReadPerMillion": 0.07
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
       "modelId": "mistralai/mistral-medium-3"
     },
     "label": "Mistral Medium 3",
@@ -2286,9 +2307,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.67,
+      "inputPerMillion": 0.83,
       "outputPerMillion": 14,
-      "cacheReadPerMillion": 0.22
+      "cacheReadPerMillion": 0.27
     },
     "effort": {
       "low": "low",
@@ -3887,11 +3908,10 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 235929,
+    "maxOutputTokens": 16384,
     "cost": {
-      "inputPerMillion": 0.0875,
-      "outputPerMillion": 0.35,
-      "cacheReadPerMillion": 0.0175
+      "inputPerMillion": 0.09,
+      "outputPerMillion": 0.55
     }
   },
   {
@@ -3933,10 +3953,10 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 32000,
+    "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.04815,
-      "outputPerMillion": 0.19305
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.3
     }
   },
   {
@@ -4273,11 +4293,11 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 235929,
+    "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0.15,
-      "outputPerMillion": 1,
-      "cacheReadPerMillion": 0.05
+      "inputPerMillion": 0.08,
+      "outputPerMillion": 0.75,
+      "cacheReadPerMillion": 0.04
     }
   },
   {
@@ -4289,11 +4309,11 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 235929,
+    "maxOutputTokens": 81920,
     "cost": {
-      "inputPerMillion": 0.55,
-      "outputPerMillion": 3.5,
-      "cacheReadPerMillion": 0.225
+      "inputPerMillion": 0.45,
+      "outputPerMillion": 3,
+      "cacheReadPerMillion": 0.22
     }
   },
   {
@@ -4539,26 +4559,6 @@
   {
     "ref": {
       "providerId": "openrouter",
-      "modelId": "qwen/qwen3.8-27b:free"
-    },
-    "label": "Qwen3.8 27B (free)",
-    "api": "openai-completions",
-    "contextWindow": 262144,
-    "imageTier": "standard",
-    "maxOutputTokens": 235929,
-    "cost": {
-      "inputPerMillion": 0,
-      "outputPerMillion": 0
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "xhigh": "xhigh"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openrouter",
       "modelId": "qwen/qwen3.8-flash"
     },
     "label": "Qwen3.8 Flash",
@@ -4777,28 +4777,6 @@
   {
     "ref": {
       "providerId": "openrouter",
-      "modelId": "stealth/space-bunny-alpha"
-    },
-    "label": "Space Bunny Alpha",
-    "api": "openai-completions",
-    "contextWindow": 1000000,
-    "imageTier": "standard",
-    "maxOutputTokens": 524288,
-    "cost": {
-      "inputPerMillion": 0,
-      "outputPerMillion": 0
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh",
-      "max": "max"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openrouter",
       "modelId": "stepfun/step-3.5-flash"
     },
     "label": "Step 3.5 Flash",
@@ -4843,9 +4821,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.132,
-      "outputPerMillion": 0.528,
-      "cacheReadPerMillion": 0.033
+      "inputPerMillion": 0.0825,
+      "outputPerMillion": 0.33,
+      "cacheReadPerMillion": 0.020625
     },
     "effort": {
       "off": "none",
@@ -4885,9 +4863,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 64000,
     "cost": {
-      "inputPerMillion": 0.834,
-      "outputPerMillion": 2.501,
-      "cacheReadPerMillion": 0.042
+      "inputPerMillion": 0.7506,
+      "outputPerMillion": 2.2509,
+      "cacheReadPerMillion": 0.0378
     },
     "effort": {
       "off": "none",
@@ -5463,9 +5441,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.0192,
-      "outputPerMillion": 16,
-      "cacheReadPerMillion": 0.0192
+      "inputPerMillion": 0.152,
+      "outputPerMillion": 12,
+      "cacheReadPerMillion": 0.15
     },
     "effort": {
       "high": "high",
@@ -5483,9 +5461,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.05,
+      "inputPerMillion": 0.07,
       "outputPerMillion": 7,
-      "cacheReadPerMillion": 0.045
+      "cacheReadPerMillion": 0.065
     },
     "effort": {
       "low": "low",
@@ -5672,9 +5650,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.003,
-      "outputPerMillion": 2.4,
-      "cacheReadPerMillion": 0.003
+      "inputPerMillion": 0.026795,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.015
     },
     "effort": {
       "low": "low",
@@ -5693,9 +5671,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.1901,
+      "inputPerMillion": 0.2399,
       "outputPerMillion": 4.2,
-      "cacheReadPerMillion": 0.19
+      "cacheReadPerMillion": 0.24
     },
     "effort": {
       "low": "low",
@@ -5714,9 +5692,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.0152,
+      "inputPerMillion": 0.006,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.0152
+      "cacheReadPerMillion": 0.006
     },
     "effort": {
       "low": "low",
@@ -5779,7 +5757,7 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.66,
+      "inputPerMillion": 0.82,
       "outputPerMillion": 13,
       "cacheReadPerMillion": 0.45
     },
@@ -5943,9 +5921,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.0352,
+      "inputPerMillion": 0.0317,
       "outputPerMillion": 0.5,
-      "cacheReadPerMillion": 0.0232
+      "cacheReadPerMillion": 0.0317
     },
     "effort": {
       "low": "low",
