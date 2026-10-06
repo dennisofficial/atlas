@@ -6,6 +6,7 @@ import {
   EToolEffect,
   SchemaTool,
   type DeclaredPathField,
+  type QualityCoverageDiagnostic,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
@@ -14,6 +15,7 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from '../../files/write-guard'
+import { captureText, makeChange } from '../../quality/source/capture-text'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
@@ -60,10 +62,12 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
     input,
     threadId,
     projectDirectory,
+    captureFileChanges,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const resolved = resolveToolPath({ projectDirectory, path: input.path })
     if (!resolved.ok) return { ok: false, reason: resolved.reason }
     const path = resolved.path
+    const capture = captureFileChanges === true
 
     const guarded = await this.guard.underLock({
       threadId,
@@ -81,7 +85,19 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
         if (stats === null) return { ok: false, reason: `File does not exist: ${path}` }
         if (!stats.isFile()) return { ok: false, reason: `${path} is not a regular file.` }
 
-        const raw = await this.files.readFile({ path, threadId })
+        let raw: string
+        let captureFault: QualityCoverageDiagnostic | null = null
+        let before: string | null = null
+        if (capture) {
+          const read = await this.files.readTextForEdit({ path, threadId })
+          raw = read.text
+          const captured = captureText({ path, text: read.text, strict: read.strict, changed: true })
+          if (!captured.ok) captureFault = captured.diagnostic
+          else before = captured.text
+        } else {
+          raw = await this.files.readFile({ path, threadId })
+        }
+
         let content = raw
         for (const [index, edit] of input.edits.entries()) {
           const replaced = replaceInContent({
@@ -108,6 +124,10 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
             diff: renderUnifiedDiff({ path, oldContent: toLf(raw), newContent: toLf(content) }),
           },
           modelText: `The file ${path} has been updated successfully.`,
+          ...(capture && captureFault === null && before !== null
+            ? { fileChanges: makeChange({ path, before, after: content }) }
+            : {}),
+          ...(captureFault !== null ? { fileChangeFaults: [captureFault] } : {}),
         }
       },
     })
