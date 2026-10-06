@@ -983,7 +983,10 @@ native Bun file loaders for accompanying resources. Bundle-backed skills materia
 content-addressed directory under `<atlasHome>/bin/skills`, outside discovery roots and inside the
 Atlas-home subtree mounted into Docker. The tool returns that real directory so ordinary file tools
 can read relative reference and image paths. Text-only built-ins retain their existing behavior.
-Neither a source checkout nor the original PDF/video package is required at runtime.
+Neither a source checkout nor the original PDF/video package is required at runtime. A failed
+bundle load reports a warning through the session's notice port and leaves other built-ins available;
+standalone sources report to the console. Test-owned Atlas homes are removed after each test so
+materialized bundles do not accumulate across fixture runs.
 
 **`ui-design` is the default UI entry point.** When it is model-invocable, the shared skill-listing
 fragment instructs main agents, sub-agents, and teammates to load it for UI design, implementation,

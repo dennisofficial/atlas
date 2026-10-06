@@ -12,7 +12,8 @@ import {
   type EmbeddedSkillEntry,
   type EmbeddedSkillFile,
 } from '../embedded-bundle'
-import { EmbeddedSkillSource } from '../embedded-source'
+import { EmbeddedSkillSource, type EmbeddedSkillFailure } from '../embedded-source'
+import { LiveSkillRegistry } from '../live-registry'
 import { ESkillOrigin } from '../skill'
 
 let home: string
@@ -123,5 +124,84 @@ describe('EmbeddedSkillSource', () => {
     const directory = loaded[0]?.directory ?? ''
 
     expect(directory).toContain(join(process.env['ATLAS_HOME'] ?? '', 'bin', 'skills'))
+  })
+
+  describe('when one bundled entry fails', () => {
+    const faulty = (state: { broken: boolean }): EmbeddedSkillEntry => {
+      const entry = bundledEntry()
+      const [guide, ...rest] = entry.bundle?.files ?? []
+      const wrapped: EmbeddedSkillFile = {
+        path: guide?.path ?? '',
+        digest: guide?.digest ?? '',
+        read: async () => {
+          if (state.broken) throw new Error('cache read failed')
+          return await (guide?.read() ?? Promise.resolve(new Uint8Array()))
+        },
+      }
+      return { ...entry, bundle: { digest: entry.bundle?.digest ?? '', files: [wrapped, ...rest] } }
+    }
+
+    it('keeps the other built-ins, reports the failure, and recovers on reload', async () => {
+      const state = { broken: true }
+      const failures: EmbeddedSkillFailure[] = []
+      const registry = new LiveSkillRegistry({
+        sources: () => [
+          new EmbeddedSkillSource({
+            home,
+            entries: [TEXT_ONLY, faulty(state)],
+            onFailure: (failure) => failures.push(failure),
+          }),
+        ],
+      })
+
+      await registry.reload()
+      expect(registry.all().map((skill) => skill.spec.name)).toEqual(['plain'])
+      expect(failures).toEqual([{ name: 'bundled', message: 'cache read failed' }])
+
+      state.broken = false
+      await registry.reload()
+      expect(registry.all().map((skill) => skill.spec.name)).toEqual(['bundled', 'plain'])
+      expect(registry.byName('bundled')?.directory).toBeDefined()
+      expect(failures).toHaveLength(1)
+    })
+
+    it('reports an entry whose digest is not valid hex and still loads the rest', async () => {
+      const failures: EmbeddedSkillFailure[] = []
+      const invalid: EmbeddedSkillEntry = {
+        ...bundledEntry(),
+        bundle: { digest: '../escape', files: bundledEntry().bundle?.files ?? [] },
+      }
+
+      const loaded = await new EmbeddedSkillSource({
+        home,
+        entries: [invalid, TEXT_ONLY],
+        onFailure: (failure) => failures.push(failure),
+      }).load()
+
+      expect(loaded.map((skill) => skill.spec.name)).toEqual(['plain'])
+      expect(failures).toHaveLength(1)
+      expect(failures[0]?.message).toContain('digest')
+      expect(readdirSync(home)).toEqual([])
+    })
+
+    it('falls back to a console warning when the failure callback itself throws', async () => {
+      const warned: unknown[][] = []
+      const original = console.warn
+      console.warn = (...parts: unknown[]) => void warned.push(parts)
+      try {
+        const loaded = await new EmbeddedSkillSource({
+          home,
+          entries: [faulty({ broken: true }), TEXT_ONLY],
+          onFailure: () => {
+            throw new Error('notice sink down')
+          },
+        }).load()
+
+        expect(loaded.map((skill) => skill.spec.name)).toEqual(['plain'])
+        expect(String(warned[0]?.[0])).toContain('built-in skill bundled is unavailable')
+      } finally {
+        console.warn = original
+      }
+    })
   })
 })
