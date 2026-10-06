@@ -5,6 +5,7 @@ import {
   outsideProjectNotice,
   type AfterTool,
   type HookOrder,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { ATLAS_SESSION_DIR_ENV } from '../execution/session-environment'
@@ -33,14 +34,23 @@ export class OutsideProjectHook extends AfterToolHook {
     const path = declaredPath(call.input)
     if (path === undefined) return {}
 
-    const environment = await this.options.threadEnvironment?.({ threadId: call.threadId })
-    const notice = outsideProjectNotice({
-      path,
-      projectDirectory,
-      sessionDirectory: environment?.[ATLAS_SESSION_DIR_ENV],
-    })
+    const sessionDirectory = await this.sessionDirectoryOf({ threadId: call.threadId })
+    const notice = outsideProjectNotice({ path, projectDirectory, sessionDirectory })
     if (notice === undefined) return {}
 
     return { additionalContext: notice }
+  }
+
+  private async sessionDirectoryOf({
+    threadId,
+  }: {
+    threadId: ThreadId
+  }): Promise<string | undefined> {
+    try {
+      const environment = await this.options.threadEnvironment?.({ threadId })
+      return environment?.[ATLAS_SESSION_DIR_ENV]
+    } catch {
+      return undefined
+    }
   }
 }

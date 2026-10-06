@@ -1,5 +1,4 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
 
@@ -114,6 +113,16 @@ describe('outside-project session ownership', () => {
     ).toContain(SESSION)
   })
 
+  it('keeps unrelated warnings when session ownership lookup fails', async () => {
+    const failing = new OutsideProjectHook({
+      threadEnvironment: async () => {
+        throw new Error('session index unavailable')
+      },
+    })
+    const path = '/atlas/workspaces/other/file.ts'
+    expect((await run({ hook: failing, path })).additionalContext).toContain(path)
+  })
+
   it('wires session ownership through the shared built-in registration', async () => {
     expect(
       await run({
@@ -138,7 +147,7 @@ describe('outside-project session ownership', () => {
 
 describe('file writes through the dispatch chain', () => {
   it('writes and edits real session files without injecting an outside-project notice', async () => {
-    const sessionDir = await mkdtemp(join(tmpdir(), 'atlas-outside-project-'))
+    const sessionDir = await mkdtemp(join(process.cwd(), 'atlas-outside-project-'))
     fixtures.push(sessionDir)
     const registry = new SessionRegistry('/atlas/home')
     registry.registerThread({ sessionDir, threadId: CHILD })
@@ -149,10 +158,29 @@ describe('file writes through the dispatch chain', () => {
       resolvedThreads.push(args.threadId)
       return lookup(args)
     }
+    const beforeTool = [new ResolveProjectPathsHook(tools, { threadEnvironment })]
+    const unownedDispatcher = new HookedToolDispatcher({
+      registry: new InMemoryToolRegistry(tools),
+      hooks: new HookChain({ beforeTool, afterTool: [new OutsideProjectHook()] }),
+    })
+    const control = await unownedDispatcher.dispatch({
+      call: {
+        callId: toCallId('call-control'),
+        runId: toRunId('run-control'),
+        threadId: CHILD,
+        name: 'write',
+        input: { path: '$ATLAS_SESSION_DIR/scratch/control.mjs', content: 'control\n' },
+      },
+      projectDirectory: PROJECT,
+      events: [],
+      signal: new AbortController().signal,
+    })
+    expect(control.some((draft) => draft.type === 'context-loaded')).toBe(true)
+    resolvedThreads.length = 0
     const dispatcher = new HookedToolDispatcher({
       registry: new InMemoryToolRegistry(tools),
       hooks: new HookChain({
-        beforeTool: [new ResolveProjectPathsHook(tools, { threadEnvironment })],
+        beforeTool,
         afterTool: [new OutsideProjectHook({ threadEnvironment })],
       }),
     })
