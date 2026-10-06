@@ -91,6 +91,21 @@ describe('waitUntilApplied', () => {
   })
 })
 
+describe('refreshing the applied view', () => {
+  it('routes park refreshes to the mounted view and keeps a newer binding on old cleanup', async () => {
+    const readiness = cloudReadinessOf(fakeCloudChannel())
+    const seen: string[] = []
+    const stopFirst = readiness.bindRefresh(async () => { seen.push('first') })
+    await readiness.refreshApplied()
+    const stopSecond = readiness.bindRefresh(async () => { seen.push('second') })
+    stopFirst()
+    await readiness.refreshApplied()
+    stopSecond()
+    await readiness.refreshApplied()
+    expect(seen).toEqual(['first', 'second'])
+  })
+})
+
 describe('registerApplied', () => {
   it('holds the identity and the moment it landed', () => {
     const readiness = cloudReadinessOf(fakeCloudChannel())

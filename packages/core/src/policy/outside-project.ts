@@ -1,15 +1,27 @@
-import { resolveAgainst, isUnderPath } from './classifier/path-set'
+import { isUnderPath, normalisePath, resolveAgainst } from './classifier/path-set'
 import { insideTemporaryRoot, isPersonalDotPath } from './classifier/shapes'
+
+const ownedSessionRoot = (sessionDirectory: string | undefined): string | undefined => {
+  if (sessionDirectory === undefined || !sessionDirectory.startsWith('/')) return undefined
+  const root = normalisePath({ path: sessionDirectory })
+  return root === '/' ? undefined : root
+}
 
 export function outsideProjectNotice({
   path,
   projectDirectory,
+  sessionDirectory,
 }: {
   path: string
   projectDirectory: string
+  sessionDirectory?: string | undefined
 }): string | undefined {
   const resolved = resolveAgainst({ base: projectDirectory, path })
+  const sessionRoot = ownedSessionRoot(sessionDirectory)
 
+  if (sessionRoot !== undefined && isUnderPath({ directory: sessionRoot, path: resolved })) {
+    return undefined
+  }
   if (isUnderPath({ directory: projectDirectory, path: resolved })) return undefined
   if (insideTemporaryRoot({ path: resolved })) return undefined
   if (isPersonalDotPath({ path: resolved })) return undefined
