@@ -3,6 +3,8 @@ import { z, type ZodType } from 'zod'
 import { EWorktreeExit } from '../events/body'
 import type { CallId, ThreadId } from '../events/ids'
 import type { FilePart, ImagePart, TextPart } from '../message/parts'
+import type { CapturedFileChange } from '../quality/change'
+import type { QualityCoverageDiagnostic } from '../quality/policy'
 import type { ActiveWorktree } from '../workspace/worktree'
 
 export enum EToolEffect {
@@ -71,6 +73,8 @@ export type ToolOutcome =
       output: unknown
       modelText: string
       modelParts?: readonly ModelPart[] | undefined
+      fileChanges?: readonly CapturedFileChange[] | undefined
+      fileChangeFaults?: readonly QualityCoverageDiagnostic[] | undefined
     }
   | { ok: false; reason: string }
 
@@ -152,6 +156,7 @@ export type ToolInvocation = {
   activeWorktree?: ActiveWorktree | undefined
   threadId: ThreadId
   onOutput?: OnToolOutput | undefined
+  captureFileChanges?: boolean | undefined
 }
 
 export type ToolRun<TSchema extends ZodType> = {
@@ -163,6 +168,7 @@ export type ToolRun<TSchema extends ZodType> = {
   activeWorktree: ActiveWorktree | undefined
   threadId: ThreadId
   onOutput?: OnToolOutput | undefined
+  captureFileChanges?: boolean | undefined
 }
 
 export abstract class ToolDefinition<TSchema extends ZodType = ZodType> {
@@ -192,6 +198,7 @@ export abstract class SchemaTool<TSchema extends ZodType = ZodType> extends Tool
     activeWorktree,
     threadId,
     onOutput,
+    captureFileChanges,
   }: ToolInvocation): Promise<ToolOutcome> {
     const parsed = this.inputSchema.safeParse(input)
     if (!parsed.success) {
@@ -207,6 +214,7 @@ export abstract class SchemaTool<TSchema extends ZodType = ZodType> extends Tool
       activeWorktree,
       threadId,
       onOutput,
+      captureFileChanges,
     })
   }
 }

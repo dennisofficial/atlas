@@ -21,9 +21,11 @@ class TappingTool extends SchemaTool<typeof schema> {
   readonly pathFields = [] as const
 
   seen: OnToolOutput | undefined
+  capture: boolean | undefined
 
   protected async run(args: ToolRun<typeof schema>): Promise<ToolOutcome> {
     this.seen = args.onOutput
+    this.capture = args.captureFileChanges
     args.onOutput?.({ stream: 'stdout', text: 'half\n' })
     return { ok: true, output: 'done', modelText: 'done' }
   }
@@ -56,5 +58,31 @@ describe('a schema tool invoked with an output listener', () => {
 
     expect(outcome).toEqual({ ok: true, output: 'done', modelText: 'done' })
     expect(tool.seen).toBeUndefined()
+  })
+})
+
+describe('a schema tool invoked with captureFileChanges', () => {
+  it('forwards true to the run', async () => {
+    const tool = new TappingTool()
+
+    await tool.invoke({ ...invocation(), captureFileChanges: true })
+
+    expect(tool.capture).toBe(true)
+  })
+
+  it('forwards false to the run', async () => {
+    const tool = new TappingTool()
+
+    await tool.invoke({ ...invocation(), captureFileChanges: false })
+
+    expect(tool.capture).toBe(false)
+  })
+
+  it('leaves it undefined when the invocation omits it', async () => {
+    const tool = new TappingTool()
+
+    await tool.invoke(invocation())
+
+    expect(tool.capture).toBeUndefined()
   })
 })

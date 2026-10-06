@@ -14,6 +14,16 @@ import { FileSystemPort, type FileStat, type FileSystemEntry } from '@dltech/atl
 
 import { walkGlob } from './walk-glob'
 
+const strictDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+
+const decodeStrict = ({ bytes }: { bytes: Uint8Array }): string | null => {
+  try {
+    return strictDecoder.decode(bytes)
+  } catch {
+    return null
+  }
+}
+
 export class LocalFileSystemPort implements FileSystemPort {
   stat(args: { path: string }): Promise<FileStat> {
     return nodeStat(args.path)
@@ -29,6 +39,11 @@ export class LocalFileSystemPort implements FileSystemPort {
 
   async readBytes(args: { path: string }): Promise<Uint8Array> {
     return await nodeReadFile(args.path)
+  }
+
+  async readTextForEdit(args: { path: string }): Promise<{ text: string; strict: string | null }> {
+    const bytes = await nodeReadFile(args.path)
+    return { text: bytes.toString('utf8'), strict: decodeStrict({ bytes }) }
   }
 
   async writeFile(args: { path: string; content: string; mode?: number }): Promise<void> {

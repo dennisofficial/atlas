@@ -82,6 +82,49 @@ describe('DockerFileSystemPort read', () => {
   })
 })
 
+describe('DockerFileSystemPort readTextForEdit', () => {
+  const encoded = (bytes: Uint8Array): CannedExec => ok(Buffer.from(bytes).toString('base64'))
+
+  it('reads once and returns identical lossy and strict text for valid utf8', async () => {
+    const processes = new FakeProcesses(() => encoded(Buffer.from('héllo ✓\n', 'utf8')))
+    const files = new DockerFileSystemPort({ processes })
+
+    const read = await files.readTextForEdit({ path: '/work/a.ts', threadId: THREAD })
+
+    expect(read).toEqual({ text: 'héllo ✓\n', strict: 'héllo ✓\n' })
+    expect(processes.spawned).toHaveLength(1)
+    expect(processes.spawned[0]?.threadId).toBe(THREAD)
+  })
+
+  it('reproduces readFile exactly for the lossy text, BOM stripped, and keeps it in strict', async () => {
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0x61])
+    const files = port(() => encoded(bytes))
+
+    const read = await files.readTextForEdit({ path: '/work/bom.ts' })
+
+    expect(read.text).toBe(await files.readFile({ path: '/work/bom.ts' }))
+    expect(read.text).toBe('a')
+    expect(read.strict).toBe('\ufeffa')
+  })
+
+  it('answers strict null for invalid bytes while text stays the lossy decode', async () => {
+    const files = port(() => encoded(new Uint8Array([0x61, 0xff, 0x62])))
+
+    const read = await files.readTextForEdit({ path: '/work/bad.ts' })
+
+    expect(read.strict).toBeNull()
+    expect(read.text).toBe('a\ufffdb')
+  })
+
+  it('surfaces a missing file as ENOENT', async () => {
+    const files = port(() => ({ exitCode: 1, stderr: 'base64: /work/gone: No such file or directory' }))
+
+    const failure = await files.readTextForEdit({ path: '/work/gone' }).catch((error: unknown) => error)
+
+    expect((failure as RemoteFileError).code).toBe('ENOENT')
+  })
+})
+
 describe('DockerFileSystemPort writeFile', () => {
   const scriptOf = (spawned: { cmd: readonly string[] }[], index: number): string =>
     String(spawned[index]?.cmd[2])

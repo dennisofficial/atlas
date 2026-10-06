@@ -49,6 +49,11 @@ const fakeFileSystem = (): FileSystemPort => {
       if (file === undefined) throw enoent('open', path)
       return new TextEncoder().encode(file.content)
     },
+    readTextForEdit: async ({ path }) => {
+      const file = files.get(path)
+      if (file === undefined) throw enoent('open', path)
+      return { text: file.content, strict: file.content }
+    },
     writeFile: async ({ path, content, mode }) => {
       const existing = files.get(path)
       files.set(path, { content, mode: mode ?? existing?.mode ?? 0o644, mtimeMs: ++ticks })

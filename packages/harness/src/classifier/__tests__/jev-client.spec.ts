@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { jevRiskQuestions } from '@dltech/atlas-core'
+import { JEV_MODEL, jevRiskQuestions } from '@dltech/atlas-core'
 
 import { JevDecisionClient, jevBaseUrl, type JevSystemOne } from '../jev-client'
 
@@ -102,6 +102,74 @@ describe('JevDecisionClient', () => {
     })
 
     expect(outcome.ok).toBe(false)
+  })
+})
+
+describe('JevDecisionClient model and confidence', () => {
+  const requestedModel = async (args: {
+    deps?: { model?: string }
+    model?: string
+  }): Promise<string> => {
+    let seen = ''
+    const systemOne: JevSystemOne = async (request) => {
+      seen = request.model
+      return noulResult(0.1)
+    }
+    const client = new JevDecisionClient({ config: () => CONFIG, systemOne, ...args.deps })
+    await client.decide({
+      state: 's',
+      questions: jevRiskQuestions(),
+      signal: AbortSignal.timeout(5000),
+      ...(args.model === undefined ? {} : { model: args.model }),
+    })
+    return seen
+  }
+
+  it('defaults to JEV_MODEL', async () => {
+    expect(await requestedModel({})).toBe(JEV_MODEL)
+  })
+
+  it('prefers the deps model over the default', async () => {
+    expect(await requestedModel({ deps: { model: 'jev-deps' } })).toBe('jev-deps')
+  })
+
+  it('prefers the per-call model over the deps model', async () => {
+    expect(await requestedModel({ deps: { model: 'jev-deps' }, model: 'jev-call' })).toBe('jev-call')
+  })
+
+  it('returns the resolved model and per-answer confidence from the response', async () => {
+    const systemOne: JevSystemOne = async () => ({
+      model: 'jev-1.13.0',
+      answers: { danger: { type: 'noul', noul: 0.4, confidence: 0.9 } },
+    })
+    const client = new JevDecisionClient({ config: () => CONFIG, systemOne })
+
+    const outcome = await decide(client)
+
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+    expect(outcome.model).toBe('jev-1.13.0')
+    expect(outcome.answers['danger']?.confidence).toBe(0.9)
+  })
+
+  it('omits the model key when the response names none', async () => {
+    const systemOne: JevSystemOne = async () => ({ answers: { danger: { noul: 0.4 } } })
+    const client = new JevDecisionClient({ config: () => CONFIG, systemOne })
+
+    const outcome = await decide(client)
+
+    expect(outcome.ok).toBe(true)
+    if (outcome.ok) expect('model' in outcome).toBe(false)
+  })
+
+  it('treats an out-of-range confidence as an unreadable answer', async () => {
+    const systemOne: JevSystemOne = async () => ({
+      model: 'jev-1.13.0',
+      answers: { danger: { noul: 0.4, confidence: 1.5 } },
+    })
+    const client = new JevDecisionClient({ config: () => CONFIG, systemOne })
+
+    expect((await decide(client)).ok).toBe(false)
   })
 })
 

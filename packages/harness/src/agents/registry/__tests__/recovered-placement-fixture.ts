@@ -103,6 +103,9 @@ class RecordingFileSystem extends AgentFileSystemPort {
   readBytes(): Promise<Uint8Array> {
     return this.unsupported()
   }
+  readTextForEdit(): Promise<{ text: string; strict: string | null }> {
+    return this.unsupported()
+  }
   writeFile(): Promise<void> {
     return this.unsupported()
   }

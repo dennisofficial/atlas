@@ -8,10 +8,11 @@ export type DecisionAnswer = {
   choice?: string | undefined
   score?: number | undefined
   probabilities?: Record<string, number> | undefined
+  confidence?: number | undefined
 }
 
 export type DecisionOutcome =
-  | { ok: true; answers: Record<string, DecisionAnswer> }
+  | { ok: true; answers: Record<string, DecisionAnswer>; model?: string | undefined }
   | { ok: false; fault: string }
 
 export abstract class DecisionPort {
@@ -19,5 +20,6 @@ export abstract class DecisionPort {
     state: string
     questions: Record<string, DecisionQuestion>
     signal: AbortSignal
+    model?: string | undefined
   }): Promise<DecisionOutcome>
 }

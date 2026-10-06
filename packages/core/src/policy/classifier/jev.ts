@@ -86,8 +86,10 @@ export const jevAnswersSchema = z.object({
       choice: z.string().optional(),
       score: z.number().optional(),
       probabilities: z.record(z.string(), z.number()).optional(),
+      confidence: z.number().min(0).max(1).optional(),
     }),
   ),
+  model: z.string().optional(),
 })
 
 const fixed = ({ probability }: { probability: number }): string => probability.toFixed(2)
