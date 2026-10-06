@@ -84,6 +84,7 @@ describe('serve sandbox rotation recovery without a client', () => {
     const handle = await first.starting
     await eventually(async () => (await first.disk.log.read({ threadId })).some((event) => event.type === 'nudge'))
     expect(await owed(fixture.home)).toBe(true)
+    await first.modelEntered
     model.fail(new Error('process lost before committing a model result'))
     await eventually(() => first.app.forgotten() === 1)
     expect(first.outcomes).toEqual([])
