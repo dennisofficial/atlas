@@ -101,9 +101,8 @@ describe('runtime checkpoint mirror', () => {
       capture.capture({ phase: ERuntimePhase.Running }),
       capture.capture({ phase: ERuntimePhase.Parked }),
     ])
-    await new Promise((resolve) => setTimeout(resolve, 30))
-    releaseFirst()
     await batch
+    releaseFirst()
     await capture.flush({ timeoutMs: 1_000 })
     expect(sentRevisions).toEqual([1, 3])
   })
