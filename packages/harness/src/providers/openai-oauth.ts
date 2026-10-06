@@ -18,6 +18,7 @@ import {
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
 import { openaiCacheOptions } from './openai-cache'
 import { withOpenAiCompatibleReasoning } from './openai-reasoning'
+import { generationFromStream } from './stream-generation'
 
 // A ChatGPT subscription token is only good against the codex backend, never api.openai.com. The
 // transport is the Responses API under /backend-api/codex with the account id as a header and the
@@ -138,15 +139,21 @@ export function createOpenAiModel(args: {
     }
   }
 
+  // The codex backend rejects a non-streaming request with 400 "Stream must be set to true"
+  // (verified live 2026-10-06), so a subscription generation is a collected stream.
   return {
     specificationVersion: 'v4',
     provider: args.providerId,
     modelId: args.modelId,
     supportedUrls: {},
     doGenerate: (options) =>
-      throughACredentialTheServerAccepts((authorized) =>
-        authorized.model.doGenerate(shaped({ authorized, options })),
-      ),
+      throughACredentialTheServerAccepts(async (authorized) => {
+        const shapedOptions = shaped({ authorized, options })
+        if (authorized.credential.kind !== EAuthKind.Oauth)
+          return authorized.model.doGenerate(shapedOptions)
+
+        return generationFromStream({ result: await authorized.model.doStream(shapedOptions) })
+      }),
     doStream: (options) =>
       throughACredentialTheServerAccepts((authorized) =>
         authorized.model.doStream(shaped({ authorized, options })),

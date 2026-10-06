@@ -191,10 +191,10 @@ describe('createUtilityModel', () => {
     ])
   })
 
-  it('falls back to the session model when the role model fails, with one keyed notice', async () => {
+  it.each(Object.values(EUtilityModelRole))('falls back to the session model for %s', async (role) => {
     const notices = recordingNotices()
     const model = createUtilityModel({
-      role: EUtilityModelRole.Tldr,
+      role,
       settings: settingsOver({}),
       catalogue: fakeCatalogue({ builds: [], fails: true }),
       notice: notices.port,
@@ -205,11 +205,11 @@ describe('createUtilityModel', () => {
 
     expect(result.content).toEqual([{ type: 'text', text: 'from the session model' }])
     const keys = notices.posts.map((post) => post.key)
-    expect(keys).toContain('utility-model:tldr:anthropic')
-    expect(keys).toContain('utility-model:tldr:fallback')
+    expect(keys).toContain(`utility-model:${role}:anthropic`)
+    expect(keys).toContain(`utility-model:${role}:fallback`)
     expect(
-      notices.posts.find((post) => post.key === 'utility-model:tldr:fallback')?.text,
-    ).toContain('fell back to the session model')
+      notices.posts.find((post) => post.key === `utility-model:${role}:fallback`)?.text,
+    ).toContain('is retrying with the session model')
   })
 
   it('resolves the fallback at fault time, never at build time', async () => {
