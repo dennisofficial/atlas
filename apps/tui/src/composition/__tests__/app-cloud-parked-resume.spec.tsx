@@ -99,6 +99,7 @@ describe('resuming a parked cloud thread', () => {
       const frame = await mounted.showing(LOCAL_TEXT)
 
       expect(frame).toContain(LOCAL_TEXT)
+      expect(frame).not.toContain('parked after')
       expect(app.sessionOwner.snapshot().bound).toBe(true)
       expect(bridge.created).toHaveLength(0)
       expect(bridge.attached).toHaveLength(0)
@@ -159,6 +160,7 @@ describe('resuming a parked cloud thread', () => {
       const frame = await mounted.showing(LOCAL_TEXT)
 
       expect(frame).toContain(LOCAL_TEXT)
+      expect(frame).not.toContain('parked after')
       expect(app.sessionOwner.snapshot().bound).toBe(true)
       expect(bridge.created).toHaveLength(0)
       expect(healthOf(app)?.stale).toBe(true)
