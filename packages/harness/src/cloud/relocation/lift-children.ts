@@ -1,6 +1,7 @@
 import {
   CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
+  projectDirectoryOf,
   type EventLogPort,
   type IdPort,
   type LogPort,
@@ -10,6 +11,8 @@ import {
 import type { AgentRegistryPort } from '../../agents/registry/port'
 import { logFieldsOf } from '../../store/logs'
 import type { ThreadStorePort } from '../../store/thread-store'
+import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
+import { restoredDirectoryOf } from './workspace-arrival'
 
 export type LiftAgentsPort = Pick<
   AgentRegistryPort,
@@ -23,6 +26,25 @@ type FlipArgs = {
   localThreads: ThreadStorePort
   localLog: EventLogPort
   logPort?: LogPort | undefined
+  restoredWorkspace?: RestoredWorkspace | undefined
+}
+
+const cloudDirectoryOf = async ({
+  threadId,
+  localThreads,
+  localLog,
+  restored,
+}: {
+  threadId: ThreadId
+  localThreads: ThreadStorePort
+  localLog: EventLogPort
+  restored: RestoredWorkspace | undefined
+}): Promise<string> => {
+  if (restored === undefined) return CLOUD_WORKSPACE_PATH
+  const stored = await localThreads.find({ threadId })
+  const events = await localLog.readOwn({ threadId })
+  const source = projectDirectoryOf({ events, launchDirectory: stored?.workspace ?? restored.cwd })
+  return restoredDirectoryOf({ source, restored }).path
 }
 
 /**
@@ -49,6 +71,12 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
   await agents.markChildrenRelocated({ threadId, location: EExecutionLocation.Cloud })
 
   for (const child of children) {
+    const cwd = await cloudDirectoryOf({
+      threadId: child.agentId,
+      localThreads,
+      localLog,
+      restored: args.restoredWorkspace,
+    })
     await localLog
       .append({
         threadId: child.agentId,
@@ -58,7 +86,7 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
             type: 'location-changed',
             from: froms.get(child.agentId) ?? EExecutionLocation.Host,
             to: EExecutionLocation.Cloud,
-            cwd: CLOUD_WORKSPACE_PATH,
+            cwd,
           },
         ],
       })

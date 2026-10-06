@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
+import type { RestoredWorkspace } from '../../../workspace/transfer/manifest'
 import { eventsInArchive } from './fake-transcript'
 import { fakeEventLog, fakeLedger, fakeThreadStore } from './fake-backend'
 import type { FakeEventLog } from './fake-event-log'
@@ -42,6 +43,7 @@ export type FakeBridge = Omit<CloudBridge, 'attach'> & {
     gpgKey?: string | undefined
     model?: string | undefined
     workspaceArchivePath?: string | undefined
+    workspaceDirectory?: string | undefined
   }[]
   readonly downloads: readonly { threadId: ThreadId; path: string; destination: string }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
@@ -81,6 +83,7 @@ export function fakeBridge(
     downloadWorkspaceFails?: unknown
     prepareWorkspaceFails?: unknown
     applyWorkspaceFails?: unknown
+    restoredWorkspace?: RestoredWorkspace | undefined
   } = {},
 ): FakeBridge {
   const log = fakeEventLog()
@@ -93,6 +96,7 @@ export function fakeBridge(
     gpgKey?: string | undefined
     model?: string | undefined
     workspaceArchivePath?: string | undefined
+    workspaceDirectory?: string | undefined
   }[] = []
   const downloads: { threadId: ThreadId; path: string; destination: string }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
@@ -127,6 +131,7 @@ export function fakeBridge(
         captureContext,
         transcript,
         workspaceArchivePath,
+        workspaceDirectory,
       }) => {
         if (transcript !== undefined) {
           trail.push('put-transcript')
@@ -148,6 +153,7 @@ export function fakeBridge(
           ...(gpgKey === undefined ? {} : { gpgKey }),
           ...(model === undefined ? {} : { model }),
           ...(workspaceArchivePath === undefined ? {} : { workspaceArchivePath }),
+          ...(workspaceDirectory === undefined ? {} : { workspaceDirectory }),
         })
         if (args.createFails !== undefined) throw args.createFails
         return sandbox
@@ -192,6 +198,7 @@ export function fakeBridge(
         archive: args.archive,
         prepareWorkspaceFails: args.prepareWorkspaceFails,
         applyWorkspaceFails: args.applyWorkspaceFails,
+        restoredWorkspace: args.restoredWorkspace,
         applyTranscript: async () => {
           const archive = transcriptPuts.at(-1)?.archive
           if (archive !== undefined) log.load(await eventsInArchive(archive))

@@ -38,10 +38,12 @@ export function createWorkspaceSession(args: {
     prepare: () => {
       preparing ??= (async () => {
         await args.app.family?.freeze?.({ threadId: args.threadId })
+        const receipt = await args.direct.receipt()
         return prepareWorkspaceExport({
           driveHome: args.driveHome,
           threadId: args.threadId,
           launchDirectory: args.launchDirectory(),
+          primaryWorkspace: receipt?.restored,
           log: args.app.log,
           capture: args.capture,
           stopProcesses: args.app.stopWorkspaceProcesses,

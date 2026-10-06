@@ -26,7 +26,9 @@ export async function liveGit(args: { cwd: string; args: readonly string[] }): P
 }
 
 export async function liveFixture() {
-  const directory = await realpath(await mkdtemp(join(tmpdir(), 'atlas-workspace-live-')))
+  const scratch = process.env['ATLAS_SESSION_DIR'] === undefined ? tmpdir() : join(process.env['ATLAS_SESSION_DIR'], 'scratch')
+  await mkdir(scratch, { recursive: true })
+  const directory = await realpath(await mkdtemp(join(scratch, 'atlas-workspace-live-')))
   const repository = join(directory, 'repository')
   const home = join(directory, 'home')
   const worktree = join(repository, '.atlas', 'worktrees', 'feature')
@@ -45,6 +47,8 @@ export async function liveFixture() {
   await writeFile(join(worktree, 'file.txt'), 'unstaged local\n')
   await writeFile(join(worktree, 'untracked.txt'), 'untracked local\n')
   await writeFile(join(worktree, 'ignored.txt'), 'ignored local\n')
+  await mkdir(join(worktree, '.atlas'), { recursive: true })
+  await writeFile(join(worktree, '.atlas', '.cloudinclude'), 'ignored.txt\n')
   const ids = new RandomIds()
   const clock = new SystemClock()
   await fileAccountStore({ file: join(home, 'auth.json'), keyFile: join(home, 'key'), clock }).add({

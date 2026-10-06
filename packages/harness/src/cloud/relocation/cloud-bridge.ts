@@ -77,6 +77,7 @@ export type CloudSandboxes = {
      * before serve launches, fresh boot or resumed. The path is never serialized into the boot spec.
      */
     workspaceArchivePath?: string | undefined
+    workspaceDirectory?: string | undefined
     /** Fires the moment the wake finds a protocol-mismatched sandbox and starts rotating it. */
     onRotationStarted?: (() => void) | undefined
     /**

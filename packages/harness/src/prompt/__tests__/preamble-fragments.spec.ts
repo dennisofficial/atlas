@@ -21,7 +21,7 @@ const CONTEXT: PromptContext = {
   agent: EPromptAgent.Main,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
   model: { contextWindow: 1_000_000 },
-  projectDirectory: '/w',
+  projectDirectory: '/prompt-primary-fixture',
 }
 
 const registered = () => {
@@ -61,7 +61,7 @@ describe('the builtin prompt', () => {
   it('keeps system text unchanged when the project directory changes', () => {
     const prompts = registered().resolve(portToken(PromptRegistry))
     const first = prompts.compile(CONTEXT)
-    const moved = prompts.compile({ ...CONTEXT, projectDirectory: '/w/.atlas/worktrees/feature' })
+    const moved = prompts.compile({ ...CONTEXT, projectDirectory: `${CONTEXT.projectDirectory}/.atlas/worktrees/feature` })
     expect(moved.blocks).toEqual(first.blocks)
     expect(first.blocks[0]?.text).not.toContain(CONTEXT.projectDirectory)
   })
@@ -124,7 +124,7 @@ describe('builtin registration', () => {
         ...reachablePromptContexts({
           agents: Object.values(EPromptAgent),
           providerIds: ['anthropic-oauth'],
-          projectDirectory: '/w',
+          projectDirectory: '/prompt-primary-fixture',
         }),
         { ...CONTEXT, provider: { id: 'inference', modelId: 'kimi-k3-fast' } },
       ],

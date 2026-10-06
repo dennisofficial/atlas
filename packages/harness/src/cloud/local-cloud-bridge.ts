@@ -1,5 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { PORTABLE_STATE_PATH, type PortableState } from '@dltech/atlas-wire'
+import { EServeEnv, PORTABLE_STATE_PATH, type PortableState } from '@dltech/atlas-wire'
 
 import { sandboxNameFor } from './sandbox-names'
 import { ECloudSandboxState } from './sandbox-client'
@@ -150,11 +150,18 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       )
     }
 
+    const environment: Record<string, string> = {
+      ...args.environment?.(),
+      ...(createArgs.workspaceDirectory === undefined
+        ? {}
+        : { [EServeEnv.WorkspaceDir]: createArgs.workspaceDirectory }),
+    }
+
     const placement = await driver.createOrResume({
       name,
       threadId: createArgs.threadId,
       token,
-      ...(args.environment === undefined ? {} : { environment: args.environment() }),
+      ...(Object.keys(environment).length === 0 ? {} : { environment }),
       putContextOnFreshBoot: writeBootstrap,
       ...(createArgs.onRotationStarted === undefined
         ? {}

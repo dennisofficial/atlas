@@ -21,7 +21,8 @@ import { verifyTranscript } from './verify-transcript'
 import type { RelocationPlan } from './dag'
 import { flipChildrenToCloud } from './lift-children'
 import { ELiftStep, type LiftArgs } from './lift'
-import { destroyLiftedWorktree } from './lift-destroy'
+import { destroyLiftedLocalWorktree } from './lift-destroy-local'
+import { provisionLiftSandbox } from './lift-provision'
 import { liftedDraft, type StoppedLocally } from './transition-notice'
 import { captureLiftWorkspace, type LiftWorkspaceArchive } from './lift-workspace'
 import { liftSettledBeforeDeadline } from './lift-failure'
@@ -176,28 +177,7 @@ export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> =>
     id: ELiftNode.Provision,
     needs: [ELiftNode.CaptureWorkspace, ELiftNode.CaptureGpg, ELiftNode.ArchiveSession],
     label: 'waiting for the sandbox',
-    run: async (ctx) => {
-      ctx.sandbox = await ctx.args.bridge.sandboxes.create({
-        threadId: ctx.args.threadId,
-        workspace: ctx.workspace,
-        ...(ctx.workspaceArchive === undefined ? {} : { workspaceArchivePath: ctx.workspaceArchive.path }),
-        model: ctx.args.model.ref,
-        ...(ctx.transcript === undefined ? {} : { transcript: ctx.transcript }),
-        ...(ctx.gpgKey === undefined ? {} : { gpgKey: ctx.gpgKey }),
-        captureContext: async (put) => {
-          ctx.onWaveLabel?.(ELiftNode.Provision, 'sending skills and memory to the sandbox')
-          try {
-            const archive = await ctx.args.captureContext()
-            if (archive !== undefined) await put(archive)
-          } catch (error) {
-            ctx.contextError = error
-            throw error
-          } finally {
-            ctx.onWaveLabel?.(ELiftNode.Provision, 'waiting for the sandbox')
-          }
-        },
-      })
-    },
+    run: provisionLiftSandbox,
   },
   {
     id: ELiftNode.ConfirmLanded,
@@ -286,6 +266,7 @@ export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> =>
         localThreads: args.localThreads,
         localLog: args.localLog,
         logPort: ctx.logPort,
+        restoredWorkspace: ctx.restoredWorkspace,
       })
     },
   },
@@ -300,25 +281,6 @@ export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> =>
   {
     id: ELiftNode.DestroyLocalWorktree,
     needs: [ELiftNode.ResumePaused],
-    run: async (ctx) => {
-      const archive = ctx.workspaceArchive
-      if (archive === undefined || ctx.restoredWorkspace === undefined) return
-      const tree = archive.manifest.trees.find((candidate) => candidate.id === archive.manifest.activeId)
-      if (tree === undefined) return
-      await destroyLiftedWorktree({
-        cwd: ctx.args.cwd,
-        expected: tree.fingerprint,
-        logPort: ctx.logPort,
-        threadId: ctx.args.threadId,
-      }).catch((error: unknown) => {
-        ctx.logPort?.warn({
-          source: 'cloud.lift',
-          message: 'the lifted local worktree could not be destroyed; it stays on disk',
-          threadId: ctx.args.threadId,
-          data: { operation: 'destroy-local-worktree' },
-          ...logFieldsOf({ error }),
-        })
-      })
-    },
+    run: destroyLiftedLocalWorktree,
   },
 ]

@@ -3,7 +3,7 @@ import { mkdir, readdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { projectDirectoryOf, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
-import { captureWorkspaceArchive } from '@dltech/atlas-harness'
+import { captureWorkspaceArchive, exportCwdOf, type RestoredWorkspace } from '@dltech/atlas-harness'
 import {
   workspaceManifestWireSchema,
   type PrepareWorkspaceArchiveReply,
@@ -19,13 +19,17 @@ export async function prepareWorkspaceExport(args: {
   driveHome: string
   threadId: ThreadId
   launchDirectory: string
+  primaryWorkspace?: RestoredWorkspace | undefined
   log: Pick<EventLogPort, 'readOwn'>
   capture?: WorkspaceCapturer | undefined
   stopProcesses?: (() => Promise<void>) | undefined
 }): Promise<PrepareWorkspaceArchiveReply> {
   const capture = args.capture ?? captureWorkspaceArchive
   const events = await args.log.readOwn({ threadId: args.threadId })
-  const cwd = projectDirectoryOf({ events, launchDirectory: args.launchDirectory })
+  const cwd = await exportCwdOf({
+    cwd: projectDirectoryOf({ events, launchDirectory: args.launchDirectory }),
+    primary: args.primaryWorkspace,
+  })
 
   const directory = driveWorkspaceExportDirectory(args)
   await mkdir(directory, { recursive: true })

@@ -93,4 +93,50 @@ describe('the workspace a lift carries', () => {
     expect(test.bridge.created[0]?.workspaceArchivePath).toBe('/tmp/atlas-lift-workspace-x/workspace.tar.gz')
     expect(released).toBe(1)
   })
+
+  it('names the cloud workspace after the primary repository the archive came from', async () => {
+    useAtlasHome()
+    const test = harness({
+      captureWorkspaceArchive: async () => ({
+        path: '/tmp/atlas-lift-workspace-x/workspace.tar.gz',
+        manifest: {
+          ...WORKSPACE_MANIFEST,
+          repository: { sourcePath: '/atlas/workspace', originPath: '/Users/me/Developer/atlas/' },
+        },
+        release: async () => {},
+      }),
+    })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.bridge.created[0]?.workspaceDirectory).toBe('/atlas/workspaces/atlas')
+  })
+
+  it('names a plain directory after its original tree', async () => {
+    useAtlasHome()
+    const [main] = WORKSPACE_MANIFEST.trees
+    if (main === undefined) throw new Error('the fixture has no tree')
+    const test = harness({
+      captureWorkspaceArchive: async () => ({
+        path: '/tmp/atlas-lift-workspace-x/workspace.tar.gz',
+        manifest: { ...WORKSPACE_MANIFEST, repository: null, trees: [{ ...main, originPath: '/Users/me/notes' }] },
+        release: async () => {},
+      }),
+    })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.bridge.created[0]?.workspaceDirectory).toBe('/atlas/workspaces/notes')
+  })
+
+  it('sends no workspace directory without an archive', async () => {
+    useAtlasHome()
+    const test = harness({ captureWorkspaceArchive: async () => undefined })
+
+    await liftToCloud(test.args)
+
+    expect(test.bridge.created[0]).not.toHaveProperty('workspaceDirectory')
+  })
 })
