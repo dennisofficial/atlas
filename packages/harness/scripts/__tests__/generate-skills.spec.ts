@@ -46,8 +46,22 @@ describe('generateSkills', () => {
     expect(manifest).toContain('path: "rich/SKILL.md"')
     expect(manifest).not.toContain('references/a.md')
     expect(manifest).not.toContain('not-a-skill')
-    expect(manifest).toContain('Body \\`tick\\` \\${x}')
+    expect(manifest).toContain('Body `tick` ${x}')
     expect(manifest.match(/bundle:/g)).toHaveLength(1)
+  })
+
+  it('keeps a large entry corpus under the manifest line bound without truncating text', async () => {
+    const bodies = Array.from({ length: 3 }, (_, index) =>
+      `---\nname: long-${index}\ndescription: Long.\n---\n${'Body `tick` ${value}\n'.repeat(150)}`,
+    )
+    for (const [index, body] of bodies.entries()) {
+      expect(body.split('\n').length).toBeGreaterThan(150)
+      write({ path: join(workspace, 'skills', `long-${index}.md`), content: body })
+    }
+    await generateSkills(layoutOf())
+    const manifest = readFileSync(layoutOf().manifestFile, 'utf8')
+    expect(manifest.split('\n').length).toBeLessThanOrEqual(300)
+    for (const body of bodies) expect(manifest).toContain(JSON.stringify(body))
   })
 
   it('imports each resource natively instead of inlining its bytes', async () => {

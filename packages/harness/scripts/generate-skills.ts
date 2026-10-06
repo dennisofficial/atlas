@@ -37,9 +37,6 @@ const defaultLayout = (): Layout => ({
 
 const byCodePoint = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 
-const forTemplateLiteral = (text: string): string =>
-  text.replaceAll('\\', '\\\\').replaceAll('`', '\\`').replaceAll('${', '\\${')
-
 const quoted = (text: string): string => JSON.stringify(text)
 
 const pathOf = (...segments: readonly string[]): string => segments.join('/')
@@ -217,7 +214,7 @@ async function writeChunks(args: {
 
 const manifestEntry = (args: { emitted: Emitted; aliases: ReadonlyMap<string, string> }): string => {
   const { entry, bundleDigest, chunkNames } = args.emitted
-  const head = `    path: ${quoted(entry.entryPath)},\n    text: \`${forTemplateLiteral(entry.text)}\`,`
+  const head = `    path: ${quoted(entry.entryPath)},\n    text: ${quoted(entry.text)},`
   if (bundleDigest === undefined) return `  {\n${head}\n  },`
 
   const files = chunkNames.map((name) => `...${args.aliases.get(name)}`).join(', ')
