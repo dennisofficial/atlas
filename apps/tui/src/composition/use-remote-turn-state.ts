@@ -2,7 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import type { DeltaChannel, RemoteDeltaChannel } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { clearNotice, ENoticeTone, NOTICE_MS, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { clearNotice, ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { turnInterrupting, turnSettled, turnStarted } from './turn-progress'
 import type { ThreadView } from './use-thread-view'
 
@@ -119,12 +119,6 @@ export function useRemoteTurnState(args: {
           progress.clock.interrupting ? turnSettled({ progress, now: clock.current() }) : progress,
         )
         clearNotice({ key: INTERRUPT_LOST_KEY })
-        notify({
-          key: 'interrupt-acknowledged',
-          tone: ENoticeTone.Done,
-          ttlMs: NOTICE_MS,
-          text: 'The turn was interrupted.',
-        })
       }),
       lifecycle.onError(() => {
         if (!interruptPending.current) return
