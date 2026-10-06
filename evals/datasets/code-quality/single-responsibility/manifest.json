@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "featureId": "code-quality/single-responsibility",
+  "inputSchemaVersion": "1",
+  "expectedSchemaVersion": "1",
+  "rubricVersion": "1",
+  "datasetVersion": "0-empty-skeleton",
+  "casesFile": "cases.jsonl",
+  "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "split": "development",
+  "caseIds": [],
+  "counts": { "accepted": 0, "rejected": 0 },
+  "metricGates": []
+}
