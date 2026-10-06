@@ -3,6 +3,7 @@ import {
   ESettingId,
   ESettingsLayer,
   resolveSettings,
+  toThreadId,
   type SecretPrompt,
   type SettingDefinition,
   type SettingsLayerInput,
@@ -12,6 +13,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { Settings, settingsDetailVisible } from '../components/settings'
+import { EQualityHealthReadKind } from '../../composition/use-quality-health'
 import { ECloudAction, idleSync } from '../components/settings/cloud'
 import type { Span } from '../components/spans'
 import { cellsOf } from '../hint-layout'
@@ -93,6 +95,12 @@ const page = (args: {
       onDownload={() => {}}
       onSelect={() => {}}
       onDismiss={() => {}}
+      qualityHealth={{
+        read: { kind: EQualityHealthReadKind.Loading },
+        enabled: false,
+        recording: false,
+        threadId: toThreadId('settings-render-thread'),
+      }}
     />
   )
 }

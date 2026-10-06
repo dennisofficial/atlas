@@ -2,6 +2,7 @@ import {
   ESettingPage,
   type SecretPrompt as SecretPromptState,
   type TextPrompt as TextPromptState,
+  type ThreadId,
 } from '@dltech/atlas-core'
 import type { ScrollBoxRenderable } from '@opentui/core'
 import React, { useEffect, useRef } from 'react'
@@ -11,6 +12,7 @@ import { useClickRegion } from '../hooks/use-click-region'
 import { currentPage, type SettingsModel, type SettingsState } from '../settings-model'
 import { ESettingsLogin, type SettingsLoginState } from '../settings-login-model'
 import { theme } from '../theme'
+import type { QualityHealthStatusProps } from '../../composition/use-workspace-quality-health'
 import type { Appearance } from '../appearance'
 import { ECloudAction, SettingsCloud, type CloudSyncState } from './settings/cloud'
 import { type GithubAccountView } from './settings/github-connect'
@@ -20,6 +22,7 @@ import { SettingsHead } from './settings/head'
 import { SecretPrompt } from './settings/secret-prompt'
 import { TextSettingPrompt } from './settings/text-prompt'
 import { SelectableSettingLine, SettingsGroupHeader, SettingsLine, SETTINGS_PAD } from './settings/rows'
+import { QualityHealthStatus } from './settings/quality-health'
 import { clipSpans } from './sidebar/cells'
 import { Spans, type Span } from './spans'
 
@@ -104,6 +107,7 @@ export function Settings(props: {
   cloudUpload: CloudSyncState
   cloudDownload: CloudSyncState
   github?: GithubAccountView | undefined
+  qualityHealth: QualityHealthStatusProps
   onSignOut: () => void
   onSignIn: () => void
   onOpenSignInUrl: () => void
@@ -117,6 +121,7 @@ export function Settings(props: {
   const cells = settingsCells({ width: columnWidth })
   const page = currentPage({ state: props.state, model: props.model })
   const onCloudPage = page?.page.id === ESettingPage.Cloud
+  const onQualityPage = page?.page.id === ESettingPage.CodeQuality
   const rowsActive = !onCloudPage || props.cloudAction === null
   const signInRowHeld = onCloudPage && !props.cloudSignedIn
   const rowIndex = signInRowHeld ? props.state.rowIndex - 1 : props.state.rowIndex
@@ -140,9 +145,13 @@ export function Settings(props: {
   const scroller = useRef<ScrollBoxRenderable | null>(null)
   const selectedId = selected?.definition.id
   useEffect(() => {
+    if (onQualityPage && props.state.rowIndex === 0) {
+      scroller.current?.scrollTo(0)
+      return
+    }
     if (selectedId === undefined) return
     scroller.current?.scrollChildIntoView(`setting-${selectedId}`)
-  }, [selectedId])
+  }, [onQualityPage, props.state.rowIndex, selectedId])
 
   return (
     <box
@@ -188,6 +197,15 @@ export function Settings(props: {
                   onSignIn={props.onSignIn}
                   onOpenSignInUrl={props.onOpenSignInUrl}
                   {...(props.github === undefined ? {} : { github: props.github })}
+                />
+              ) : null}
+              {onQualityPage ? (
+                <QualityHealthStatus
+                  read={props.qualityHealth.read}
+                  enabled={props.qualityHealth.enabled}
+                  recording={props.qualityHealth.recording}
+                  threadId={props.qualityHealth.threadId}
+                  cells={cells}
                 />
               ) : null}
               {page?.groups.map((group) => (

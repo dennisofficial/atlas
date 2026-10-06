@@ -24,17 +24,54 @@ const tabSpans = (args: {
     { text: page.label, fg: index === args.pageIndex ? theme.accent : theme.hint },
   ])
 
+const ELISION_CELLS = 1 + TAB_GAP.length
+
+const windowedTabSpans = (args: {
+  pages: readonly SettingPage[]
+  pageIndex: number
+  cells: number
+}): Span[] => {
+  const spans = tabSpans(args)
+  if (spanCells(spans) <= args.cells) return spans
+
+  const activeIndex = args.pageIndex * 2
+  const active = spans[activeIndex]
+  if (active === undefined) return spans
+
+  let start = 0
+  while (start < activeIndex) {
+    if (spans[start + 2] === undefined) break
+    if (spanCells(spans.slice(start)) + ELISION_CELLS <= args.cells) break
+    start += 2
+  }
+
+  if (start === 0) return clipSpans({ spans, cells: args.cells })
+
+  const room = args.cells - ELISION_CELLS
+  if (room < cellsOf(active.text)) return clipSpans({ spans: [active], cells: args.cells })
+
+  const elision: Span[] = [{ text: '…', fg: theme.hint }, { text: TAB_GAP }]
+  return clipSpans({ spans: [...elision, ...spans.slice(start)], cells: args.cells })
+}
+
 export function SettingsHead(props: {
   cells: number
   pages: readonly SettingPage[]
   pageIndex: number
   origin: string
 }): React.ReactNode {
-  const left: Span[] = [
+  const prefix: Span[] = [
     { text: `${glyph.block} `, fg: theme.accent },
     { text: TITLE, fg: theme.hover },
     { text: DIVIDER, fg: theme.rule },
-    ...tabSpans({ pages: props.pages, pageIndex: props.pageIndex }),
+  ]
+  const left: Span[] = [
+    ...prefix,
+    ...windowedTabSpans({
+      pages: props.pages,
+      pageIndex: props.pageIndex,
+      cells: Math.max(0, props.cells - spanCells(prefix)),
+    }),
   ]
 
   const room = props.cells - spanCells(left) - GAP_CELLS
