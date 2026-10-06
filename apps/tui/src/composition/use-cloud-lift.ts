@@ -107,6 +107,7 @@ export function useCloudLift(args: {
             }),
           onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
           onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
+          onTransferProgress: move.handleTransferProgress,
           onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
           captureContext,
           open: async ({ attachment, transaction, restoredWorkspace }) => {

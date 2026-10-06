@@ -17,6 +17,7 @@ import type { ToolRegistry } from '../../tools/registry'
 import type { ThreadStorePort } from '../../store/thread-store'
 import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
 import type { WorkspaceRestorer } from './descend-workspace'
+import type { RelocationTransferProgress } from '../transfer-progress'
 import { preserveDescendSource } from './descend-recovery'
 import { logFieldsOf } from '../../store/logs'
 import { probeWorkspace } from '../../workspace/probe'
@@ -54,6 +55,7 @@ export type DescendSurface<Opened> = {
   onBegin?: ((args: { waves: readonly RelocationWave[] }) => void) | undefined
   onNodeStart?: ((nodeId: string) => void) | undefined
   onNodeDone?: ((nodeId: string) => void) | undefined
+  onTransferProgress?: ((progress: RelocationTransferProgress) => void) | undefined
   protect?: (() => () => void) | undefined
   openLocal: (home: DescendLocalHome, threadId: ThreadId) => Promise<Opened>
   prepareRuntime?: ((args: { opened: Opened; home: DescendLocalHome }) => RuntimeBinding<SessionRuntime>) | undefined

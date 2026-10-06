@@ -157,6 +157,12 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
           destination: localApp.workspace.repo ?? localApp.workspace.workspace,
           restore: args.restoreWorkspace,
           logPort: args.logPort,
+          onProgress: (progress) => args.surface.onTransferProgress?.({
+            ...progress,
+            nodeId: EDescendNode.PrepareWorkspace,
+            transferId: 'workspace-download',
+            label: 'downloading workspace',
+          }),
           beforeRestore: async () => {
             await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
             await localApp.log.refresh({ threadId })

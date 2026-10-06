@@ -1,4 +1,5 @@
 import { EExecutionLocation } from '@dltech/atlas-core'
+import type { RelocationTransferProgress } from '@dltech/atlas-harness'
 
 export enum EStepMark {
   Pending = 'pending',
@@ -7,18 +8,21 @@ export enum EStepMark {
   Failed = 'failed',
 }
 
-/**
- * One row of the move overlay. Rows come from the relocation DAG's waves (lift/descend) or from a
- * short hand list (sandbox wake, local container switch) — either way the overlay renders rows, so
- * a node added to or dropped from the DAG changes the list without an edit here. Concurrent rows in
- * one wave are active together and complete independently of the rows after them.
- */
+export type MoveTransfer = {
+  nodeId: string
+  transferId: string
+  label: string
+  transferredBytes: number
+  totalBytes?: number | undefined
+  complete: boolean
+}
+
 export type MoveRow = {
   id: string
   text: string
-  /** The DAG node ids behind this row — it activates on their first start and completes once every one has settled. */
   nodeIds: readonly string[]
   mark: EStepMark
+  transfers?: readonly MoveTransfer[]
 }
 
 export type ContainerMove = {
@@ -81,7 +85,6 @@ const recompute = (args: { move: ContainerMove; now: number }): ContainerMove =>
   return { ...args.move, rows, activeSince }
 }
 
-/** A DAG node started — its row turns active. */
 export function startMoveNode(args: {
   move: ContainerMove
   nodeId: string
@@ -95,7 +98,6 @@ export function startMoveNode(args: {
   })
 }
 
-/** A DAG node settled — its row completes once every node behind it has. */
 export function settleMoveNode(args: {
   move: ContainerMove
   nodeId: string
@@ -109,7 +111,6 @@ export function settleMoveNode(args: {
   })
 }
 
-/** Advances to the row named by id, completing everything before it — for hand-listed moves with no per-node completion signal. */
 export function activateMoveRow(args: {
   move: ContainerMove
   id: string
@@ -128,6 +129,50 @@ export function activateMoveRow(args: {
   }
 }
 
+const sameTransfer = ({ a, b }: { a: MoveTransfer; b: MoveTransfer }): boolean =>
+  a.label === b.label &&
+  a.transferredBytes === b.transferredBytes &&
+  a.totalBytes === b.totalBytes &&
+  a.complete === b.complete
+
+export function updateMoveTransfer(args: {
+  move: ContainerMove
+  progress: RelocationTransferProgress
+}): ContainerMove {
+  const { move, progress } = args
+  if (move.failure !== null) return move
+  if (!move.startedNodeIds.includes(progress.nodeId)) return move
+  if (move.doneNodeIds.includes(progress.nodeId)) return move
+
+  const rowAt = move.rows.findIndex((row) => row.nodeIds.includes(progress.nodeId))
+  const row = move.rows[rowAt]
+  if (row === undefined || row.mark !== EStepMark.Active) return move
+
+  const next: MoveTransfer = {
+    nodeId: progress.nodeId,
+    transferId: progress.transferId,
+    label: progress.label,
+    transferredBytes: progress.transferredBytes,
+    totalBytes: progress.totalBytes,
+    complete: progress.complete,
+  }
+  const held = row.transfers ?? []
+  const heldAt = held.findIndex(
+    (transfer) => transfer.nodeId === next.nodeId && transfer.transferId === next.transferId,
+  )
+  const current = held[heldAt]
+  if (current !== undefined && sameTransfer({ a: current, b: next })) return move
+
+  const transfers =
+    current === undefined
+      ? [...held, next]
+      : held.map((transfer, index) => (index === heldAt ? next : transfer))
+  return {
+    ...move,
+    rows: move.rows.map((candidate, index) => (index === rowAt ? { ...candidate, transfers } : candidate)),
+  }
+}
+
 export function relabelMoveRow(args: {
   move: ContainerMove
   nodeId: string
@@ -141,11 +186,6 @@ export function relabelMoveRow(args: {
   }
 }
 
-/**
- * A wake can discover mid-flight that the sandbox needs rotating before it can attach — the probe
- * only answers once it has read the sandbox's stamps. Inserting the row ahead of the named one
- * keeps every mark behind the insertion point (they already happened) and re-activates the new row.
- */
 export function expandMove(args: {
   move: ContainerMove
   insertBefore: string

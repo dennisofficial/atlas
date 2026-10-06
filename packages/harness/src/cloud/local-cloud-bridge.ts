@@ -28,6 +28,7 @@ import { attachmentOf } from './local-cloud-attachment'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 import { reattachSandbox } from './local-cloud-reattach'
 import { registerInBackground } from './local-cloud-registration'
+import { transferBufferedArchive } from './buffered-transfer'
 
 export type { LocalCloudBridgeOptions, SandboxAuthorizer } from './local-cloud-bridge-options'
 
@@ -97,9 +98,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
 
     let bootstrap: string | undefined
     const writeBootstrap = async (sandbox: LiveSandbox): Promise<void> => {
-      // Serve reads the bootstrap at boot, so it must land before the launch the driver runs after
-      // this callback. Writes go through the live sandbox: on a fresh boot the name does not
-      // resolve until getOrCreate returns, so a by-name write here would fail.
       if (freshBoot) {
         bootstrap ??= bootstrapSpecOf({
           workspace: createArgs.workspace,
@@ -114,10 +112,11 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         })
       }
       if (createArgs.transcript !== undefined) {
-        await driver.writeBootstrapFileToSandbox({
-          sandbox,
-          path: TRANSCRIPT_ARCHIVE_PATH,
-          content: createArgs.transcript,
+        const archive = createArgs.transcript
+        await transferBufferedArchive({
+          archive,
+          upload: () => driver.writeBootstrapFileToSandbox({ sandbox, path: TRANSCRIPT_ARCHIVE_PATH, content: archive }),
+          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'transcript-upload', label: 'uploading conversation' }),
         })
       }
       if (createArgs.workspaceArchivePath !== undefined) {
@@ -125,6 +124,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           sandbox,
           source: createArgs.workspaceArchivePath,
           destination: WORKSPACE_ARCHIVE_PATH,
+          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'workspace-upload', label: 'uploading workspace' }),
         })
       }
       const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
@@ -142,10 +142,10 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       await authorize(() => sandbox.domain(SANDBOX_SERVE_PORT))
       if (createArgs.captureContext === undefined) return
       await createArgs.captureContext((archive) =>
-        driver.writeBootstrapFileToSandbox({
-          sandbox,
-          path: CONTEXT_ARCHIVE_PATH,
-          content: archive,
+        transferBufferedArchive({
+          archive,
+          upload: () => driver.writeBootstrapFileToSandbox({ sandbox, path: CONTEXT_ARCHIVE_PATH, content: archive }),
+          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'context-upload', label: 'uploading skills and memory' }),
         }),
       )
     }
@@ -233,11 +233,13 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         path: TRANSCRIPT_ARCHIVE_PATH,
         content: archive,
       }),
-    downloadWorkspace: ({ threadId, path, destination }) =>
+    downloadWorkspace: ({ threadId, path, destination, totalBytes, onProgress }) =>
       driverWith(args.vercel()).downloadWorkspaceArchive({
         name: sandboxNameFor({ threadId }),
         path,
         destination,
+        totalBytes,
+        onProgress,
       }),
     releaseWorkspace: ({ threadId, path }) =>
       driverWith(args.vercel()).releaseWorkspaceArchive({

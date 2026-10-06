@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { mkdir, readdir, rename, rm } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { projectDirectoryOf, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
@@ -44,7 +44,8 @@ export async function prepareWorkspaceExport(args: {
   try {
     const manifest = await capture({ cwd, destination: staging })
     await rename(staging, path)
-    return { path, manifest: workspaceManifestWireSchema.parse(manifest) }
+    const { size: totalBytes } = await stat(path)
+    return { path, manifest: workspaceManifestWireSchema.parse(manifest), totalBytes }
   } catch (error) {
     await rm(staging, { force: true })
     throw error

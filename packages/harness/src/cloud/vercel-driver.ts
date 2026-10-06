@@ -23,6 +23,8 @@ import {
   downloadWorkspaceArchive,
   releaseWorkspaceExport,
   uploadWorkspaceArchive,
+  type ArchiveDownloadArgs,
+  type ArchiveUploadArgs,
 } from './workspace-archive-transport'
 
 export * from './vercel-driver-sdk'
@@ -30,8 +32,6 @@ export * from './vercel-driver-sdk'
 /**
  * Everything Atlas needs from Vercel, driven with the operator's own token: the control plane
  * keeps the rendezvous rows and the credential brokering, and every sandbox call happens here.
- * Ported from apps/api's VercelSandboxClient with Nest stripped — drives, timeout extension and
- * park notification died with the server-side reaper.
  */
 export class VercelDriver {
   private readonly sdk: VercelSdk
@@ -200,23 +200,19 @@ export class VercelDriver {
     }
   }
 
-  async uploadWorkspaceArchive(args: {
-    sandbox: Sandbox
-    source: string
-    destination: string
-  }): Promise<void> {
+  async uploadWorkspaceArchive(
+    args: Omit<ArchiveUploadArgs, 'sandbox' | 'chunkBytes' | 'batchParts'> & { sandbox: Sandbox },
+  ): Promise<void> {
     await this.guarded(args.sandbox.name, () => uploadWorkspaceArchive(args))
   }
 
-  async downloadWorkspaceArchive(args: {
-    name: string
-    path: string
-    destination: string
-  }): Promise<void> {
-    await this.guarded(args.name, async () => {
-      const sandbox = await this.sandboxNamed(args.name)
-      await downloadWorkspaceArchive({ sandbox, path: args.path, destination: args.destination })
-    })
+  async downloadWorkspaceArchive(
+    args: Omit<ArchiveDownloadArgs, 'sandbox'> & { name: string },
+  ): Promise<void> {
+    const { name, ...transfer } = args
+    await this.guarded(name, async () =>
+      downloadWorkspaceArchive({ ...transfer, sandbox: await this.sandboxNamed(name) }),
+    )
   }
 
   async releaseWorkspaceArchive(args: { name: string; path: string }): Promise<void> {
