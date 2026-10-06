@@ -103,7 +103,7 @@ describe('bringing a cloud conversation home', () => {
       threadId: CLOUD_THREAD,
       location: EExecutionLocation.Cloud,
     })
-    const bridge = fakeBridge({ archive: '' })
+    const bridge = fakeBridge({ archive: null })
 
     await expect(descend({ bridge, home })).rejects.toThrow('the cloud holds no transcript')
 

@@ -6,10 +6,11 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 import type { NoticePost } from '@dltech/atlas-core'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 import { EClientRequest } from '../../channel-wire'
 import { ETurnStatus } from '../../../loop/turn-outcome'
 
-import { buildSessionArchive } from '../../session-archive'
+import { exportedSessionDirOf } from './fake-cloud-bridge'
 import { cloudArchiveOf, descend, useDescendHome, type DescendHome, type OpenedLocal } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge, type FakeCloudChannel } from './fixture'
 import { descendFromCloud, type DescendLocalHome, type DescendSurface, type WorkspaceRestorer } from '../descend'
@@ -23,14 +24,13 @@ afterEach(() => {
   for (const dir of empties.splice(0, empties.length)) rmSync(dir, { recursive: true, force: true })
 })
 
-const whitespaceSessionArchive = async (): Promise<string> => {
+const whitespaceSessionArchive = async (): Promise<SessionArchiveDescriptor | null> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-empty-seed-'))
   empties.push(home)
   const sessionDir = join(home, 'sessions', 'empty')
   mkdirSync(sessionDir, { recursive: true })
   writeFileSync(join(sessionDir, 'meta.json'), '{"unreadable":')
-  const built = await buildSessionArchive({ sessionDir })
-  return built?.toString('base64') ?? ''
+  return exportedSessionDirOf({ sessionDir })
 }
 
 const pausingChannel = (args: { channel: FakeCloudChannel; drop?: boolean }) => {
@@ -140,7 +140,7 @@ describe('the descend relocation plan', () => {
 
   it('resumes the paused loops when the descent fails after the pause landed', async () => {
     const home = useDescendHome()
-    const bridge = fakeBridge({ archive: '' })
+    const bridge = fakeBridge({ archive: null })
     const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
     const count = pausingChannel({ channel })
 

@@ -97,9 +97,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
 
     let bootstrap: string | undefined
     const writeBootstrap = async (sandbox: LiveSandbox): Promise<void> => {
-      // Serve reads the bootstrap at boot, so it must land before the launch the driver runs after
-      // this callback. Writes go through the live sandbox: on a fresh boot the name does not
-      // resolve until getOrCreate returns, so a by-name write here would fail.
       if (freshBoot) {
         bootstrap ??= bootstrapSpecOf({
           workspace: createArgs.workspace,
@@ -113,11 +110,11 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           content: bootstrap,
         })
       }
-      if (createArgs.transcript !== undefined) {
-        await driver.writeBootstrapFileToSandbox({
+      if (createArgs.transcriptArchivePath !== undefined) {
+        await driver.uploadWorkspaceArchive({
           sandbox,
-          path: TRANSCRIPT_ARCHIVE_PATH,
-          content: createArgs.transcript,
+          source: createArgs.transcriptArchivePath,
+          destination: TRANSCRIPT_ARCHIVE_PATH,
         })
       }
       if (createArgs.workspaceArchivePath !== undefined) {
@@ -227,12 +224,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         path: CONTEXT_ARCHIVE_PATH,
         content: archive,
       }),
-    putTranscript: ({ threadId, archive }) =>
-      driverWith(args.vercel()).writeBootstrapFile({
-        name: sandboxNameFor({ threadId }),
-        path: TRANSCRIPT_ARCHIVE_PATH,
-        content: archive,
-      }),
     downloadWorkspace: ({ threadId, path, destination }) =>
       driverWith(args.vercel()).downloadWorkspaceArchive({
         name: sandboxNameFor({ threadId }),
@@ -242,6 +233,19 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     releaseWorkspace: ({ threadId, path }) =>
       driverWith(args.vercel()).releaseWorkspaceArchive({
         name: sandboxNameFor({ threadId }),
+        path,
+      }),
+    downloadSession: ({ threadId, archive, destination }) =>
+      driverWith(args.vercel()).downloadSessionArchive({
+        name: sandboxNameFor({ threadId }),
+        threadId,
+        archive,
+        destination,
+      }),
+    releaseSession: ({ threadId, path }) =>
+      driverWith(args.vercel()).releaseSessionArchive({
+        name: sandboxNameFor({ threadId }),
+        threadId,
         path,
       }),
     confirmLanded: async ({ threadId }) => ({

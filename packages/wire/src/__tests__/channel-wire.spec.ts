@@ -14,6 +14,10 @@ import {
   EShellStatus,
   ETurnStatus,
   readMemoryArchiveReplySchema,
+  readSessionArchiveReplySchema,
+  SESSION_EXPORT_DIRECTORY_NAME,
+  SESSION_EXPORT_FILE_PATTERN,
+  sessionArchiveDescriptorSchema,
   resumeAgentParamsSchema,
   sayToAgentParamsSchema,
   setThreadModelParamsSchema,
@@ -139,9 +143,47 @@ describe('the memory archive op', () => {
   })
 })
 
+const descriptor = {
+  path: '/atlas/home/exports/session-root-0123456789ab.tar.gz',
+  size: 1_640_826_469,
+  sha256: 'a'.repeat(64),
+  threadId: 'root',
+}
+
+describe('the session archive op', () => {
+  it('answers a small file descriptor, or null when the session holds nothing', () => {
+    expect(JSON.stringify(readSessionArchiveReplySchema.parse({ archive: descriptor }))).toBe(JSON.stringify({ archive: descriptor }))
+    expect(readSessionArchiveReplySchema.parse({ archive: null })).toEqual({ archive: null })
+  })
+
+  it('refuses the old base64 string reply, so archive bytes never ride the JSON', () => {
+    expect(readSessionArchiveReplySchema.safeParse({ archive: 'H4sIAAAAAAAAA2NgGAWjYGgH' }).success).toBe(false)
+    expect(readSessionArchiveReplySchema.safeParse({ archive: '' }).success).toBe(false)
+  })
+
+  it.each([
+    { size: -1 },
+    { size: 1.5 },
+    { size: Number.MAX_SAFE_INTEGER + 2 },
+    { sha256: 'A'.repeat(64) },
+    { sha256: 'a'.repeat(63) },
+    { path: '' },
+    { threadId: '' },
+  ])('refuses a malformed descriptor field %o', (override) => {
+    expect(sessionArchiveDescriptorSchema.safeParse({ ...descriptor, ...override }).success).toBe(false)
+  })
+
+  it('names the export directory and a safe file pattern', () => {
+    expect(SESSION_EXPORT_DIRECTORY_NAME).toBe('exports')
+    expect(SESSION_EXPORT_FILE_PATTERN.test('session-root-0123456789ab.tar.gz')).toBe(true)
+    expect(SESSION_EXPORT_FILE_PATTERN.test('session-../x.tar.gz')).toBe(false)
+    expect(SESSION_EXPORT_FILE_PATTERN.test('workspace-x.tar.gz')).toBe(false)
+  })
+})
+
 describe('the protocol stamp', () => {
-  it('speaks the version that includes history compaction ops', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(18)
+  it('speaks the version with archive descriptors and history compaction ops', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(19)
   })
 })
 

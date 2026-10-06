@@ -34,6 +34,8 @@ const fixture = (args: {
     uploadWorkspaceArchive: async () => undefined,
     downloadWorkspaceArchive: async () => undefined,
     releaseWorkspaceArchive: async () => undefined,
+    downloadSessionArchive: async () => undefined,
+    releaseSessionArchive: async () => undefined,
     transcriptLanded: async () => false,
     destroy: async () => { destroys += 1 },
   }

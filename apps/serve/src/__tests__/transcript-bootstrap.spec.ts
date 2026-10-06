@@ -68,14 +68,14 @@ const appendSaid = async (args: { home: string; text: string }): Promise<void> =
   })
 }
 
-const archiveOf = async (args: { home: string }): Promise<Uint8Array> => {
+const archiveOf = async (args: { home: string }): Promise<string> => {
   const sessionDir = sessionDirectory({ home: args.home, sessionId: THREAD })
   const archive = await buildSessionArchive({ sessionDir })
   if (archive === undefined) throw new Error('expected an archive')
-  return archive
+  return archive.path
 }
 
-const seedArchiveHome = async (args: { text: string }): Promise<{ source: string; archive: Uint8Array }> => {
+const seedArchiveHome = async (args: { text: string }): Promise<{ source: string; archive: string }> => {
   const source = freshHome()
   await appendSaid({ home: source, text: args.text })
   return { source, archive: await archiveOf({ home: source }) }
@@ -90,6 +90,12 @@ const logTexts = async (args: { home: string }): Promise<readonly string[]> => {
 const receiptText = (args: { home: string }): string | null => {
   const file = join(args.home, 'bootstrap', 'transcript-applied.sha256')
   return existsSync(file) ? readFileSync(file, 'utf8').trim() : null
+}
+
+const notATar = (args: { home: string }): string => {
+  const file = join(args.home, 'not-a-tar.tar.gz')
+  writeFileSync(file, 'not a tar')
+  return file
 }
 
 const eventFile = (args: { home: string }): string =>
@@ -224,7 +230,7 @@ describe('applying a transcript archive generation-aware', () => {
     const home = freshHome()
 
     const boot = await applyTranscriptArchive({
-      fetchArchive: async () => Buffer.from('not a tar'),
+      fetchArchive: async () => notATar({ home }),
       atlasHome: home,
       threadId: THREAD,
       explicit: false,
@@ -235,7 +241,7 @@ describe('applying a transcript archive generation-aware', () => {
     expect(receiptText({ home })).toBeNull()
 
     const restore = await restoreTranscript({
-      fetchArchive: async () => Buffer.from('not a tar'),
+      fetchArchive: async () => notATar({ home }),
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
@@ -263,10 +269,11 @@ describe('applying a transcript archive generation-aware', () => {
       sessionDir: sessionDirectory({ home: foreign, sessionId: foreignThread }),
     })
     if (archive === undefined) throw new Error('expected an archive')
+    const archivePath = archive.path
 
     const before = readFileSync(eventFile({ home }), 'utf8')
     const boot = await applyTranscriptArchive({
-      fetchArchive: async () => archive,
+      fetchArchive: async () => archivePath,
       atlasHome: home,
       threadId: THREAD,
       explicit: false,
@@ -276,7 +283,7 @@ describe('applying a transcript archive generation-aware', () => {
     expect(readFileSync(eventFile({ home }), 'utf8')).toBe(before)
 
     const restore = await restoreTranscript({
-      fetchArchive: async () => archive,
+      fetchArchive: async () => archivePath,
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),

@@ -25,9 +25,11 @@ import { JsonlEventLog } from '../../../store/sessions/event-log'
 import { eventLogFile, sessionDirectory, threadMetaFile } from '../../../store/sessions/paths'
 import { SessionRegistry } from '../../../store/sessions/registry'
 import { JsonlThreadStore } from '../../../store/sessions/thread-store'
-import { buildSessionArchive, extractSessionArchive } from '../../session-archive'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
+
 import { TRANSCRIPT_ORIGIN_FILE_NAME } from '../descend-validate'
 import { useAtlasHome } from './descend-fixture'
+import { archiveDescriptorOf, extractExportInto } from './fake-cloud-bridge'
 import { CLOUD_THREAD } from './fixture'
 
 export const AT = '2026-09-17T12:00:00.000Z'
@@ -92,10 +94,10 @@ export const seedLocalHistory = async (args: {
   })
 }
 
-export const base64ArchiveOf = async (args: {
+export const fileArchiveOf = async (args: {
   drafts: readonly EventDraft[]
   rootMeta?: boolean
-}): Promise<string> => {
+}): Promise<SessionArchiveDescriptor> => {
   const home = scratchHome('atlas-descend-preserve-')
   const registry = new SessionRegistry(home)
   const ids = descendIds()
@@ -115,12 +117,11 @@ export const base64ArchiveOf = async (args: {
       workspace: '/work',
     })
   }
-  const archive = await buildSessionArchive({ sessionDir: sessionDirOf({ home }) })
-  return (archive ?? Buffer.alloc(0)).toString('base64')
+  return archiveDescriptorOf({ sessionDir: sessionDirOf({ home }) })
 }
 
-export const capabilitiesOnlyArchive = (): Promise<string> =>
-  base64ArchiveOf({
+export const capabilitiesOnlyArchive = (): Promise<SessionArchiveDescriptor> =>
+  fileArchiveOf({
     drafts: [
       { type: 'context-loaded', slot: 'capabilities', key: 'tools', content: 'you can do things' },
     ],
@@ -136,16 +137,15 @@ export const stampProvenance = ({ sessionDir }: { sessionDir: string }): void =>
 export const stagedArchiveOf = async (args: {
   drafts: readonly EventDraft[]
   provenance?: boolean
-}): Promise<string> => {
+}): Promise<SessionArchiveDescriptor> => {
   const staging = scratchHome('atlas-descend-preserve-stage-')
   const stagedDir = sessionDirOf({ home: staging })
-  await extractSessionArchive({
-    archive: Buffer.from(await base64ArchiveOf({ drafts: args.drafts }), 'base64'),
+  await extractExportInto({
+    archive: await fileArchiveOf({ drafts: args.drafts }),
     sessionDir: stagedDir,
   })
   if (args.provenance === true) stampProvenance({ sessionDir: stagedDir })
-  const rebuilt = await buildSessionArchive({ sessionDir: stagedDir })
-  return (rebuilt ?? Buffer.alloc(0)).toString('base64')
+  return archiveDescriptorOf({ sessionDir: stagedDir })
 }
 
 const fileBytesOf = ({ root, dir }: { root: string; dir: string }): Record<string, string> => {
@@ -175,11 +175,11 @@ export type FamilyStaging = {
 export const familyArchiveWithChild = async (args: {
   child: ThreadId
   mutate: (given: { stagedDir: string }) => void
-}): Promise<string> => {
+}): Promise<SessionArchiveDescriptor> => {
   const staging = scratchHome('atlas-descend-preserve-family-')
   const stagedDir = sessionDirOf({ home: staging })
-  await extractSessionArchive({
-    archive: Buffer.from(await base64ArchiveOf({ drafts: [said('parent speaks')] }), 'base64'),
+  await extractExportInto({
+    archive: await fileArchiveOf({ drafts: [said('parent speaks')] }),
     sessionDir: stagedDir,
   })
   const registry = new SessionRegistry(staging)
@@ -207,8 +207,7 @@ export const familyArchiveWithChild = async (args: {
     ],
   })
   args.mutate({ stagedDir })
-  const rebuilt = await buildSessionArchive({ sessionDir: stagedDir })
-  return (rebuilt ?? Buffer.alloc(0)).toString('base64')
+  return archiveDescriptorOf({ sessionDir: stagedDir })
 }
 
 export const tearChildLog = (args: { stagedDir: string; child: ThreadId }): void => {
@@ -226,8 +225,8 @@ export const dropChildFiles = (args: { stagedDir: string; child: ThreadId }): vo
 export const stageFamilyWithChild = async (args: { child: ThreadId }): Promise<FamilyStaging> => {
   const staging = scratchHome('atlas-descend-preserve-family-')
   const stagedDir = sessionDirOf({ home: staging })
-  await extractSessionArchive({
-    archive: Buffer.from(await base64ArchiveOf({ drafts: [said('parent speaks')] }), 'base64'),
+  await extractExportInto({
+    archive: await fileArchiveOf({ drafts: [said('parent speaks')] }),
     sessionDir: stagedDir,
   })
   const registry = new SessionRegistry(staging)
@@ -257,10 +256,11 @@ export const stageFamilyWithChild = async (args: { child: ThreadId }): Promise<F
   return { stagedDir, staging, log, threads }
 }
 
-export const archiveOfStagedDir = async ({ stagedDir }: { stagedDir: string }): Promise<string> => {
-  const rebuilt = await buildSessionArchive({ sessionDir: stagedDir })
-  return (rebuilt ?? Buffer.alloc(0)).toString('base64')
-}
+export const archiveOfStagedDir = ({
+  stagedDir,
+}: {
+  stagedDir: string
+}): Promise<SessionArchiveDescriptor> => archiveDescriptorOf({ sessionDir: stagedDir })
 
 export const spawnGrandchild = async (args: {
   family: FamilyStaging

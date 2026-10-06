@@ -88,7 +88,6 @@ const sessionOn = (args: {
     sandboxes: {
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
       putContext: async () => undefined,
-      putTranscript: async () => undefined,
       confirmLanded: async () => ({ landed: true }),
       find: args.find ?? (async () => missing),
       destroy: async () => undefined,
@@ -326,9 +325,6 @@ describe('provider inspection is read-only', () => {
         },
         putContext: async () => {
           calls.push('put-context')
-        },
-        putTranscript: async () => {
-          calls.push('put-transcript')
         },
         confirmLanded: async () => ({ landed: true }),
         find: async () => ({

@@ -21,12 +21,12 @@ import {
   wireRealLog,
 } from './restore-fixture'
 
-const archiveWithModel = async (model: { ref: string; effort: string }): Promise<Uint8Array> => {
+const archiveWithModel = async (model: { ref: string; effort: string }): Promise<string> => {
   const scratch = scratchTranscriptStore({ prefix: 'model-archive' })
   restoreHomes.push(scratch.home)
   const source = join(scratch.home, 'staged')
   await extractSessionArchive({
-    archive: await seedArchive({ texts: ['history'] }),
+    archivePath: await seedArchive({ texts: ['history'] }),
     sessionDir: source,
   })
   const file = threadMetaFile({ sessionDir: source, threadId: RESTORE_THREAD })
@@ -35,7 +35,7 @@ const archiveWithModel = async (model: { ref: string; effort: string }): Promise
   await writeMeta({ file, meta: { ...meta, modelRef: model.ref, modelEffort: model.effort } })
   const archive = await buildSessionArchive({ sessionDir: source })
   if (archive === undefined) throw new Error('missing archive')
-  return archive
+  return archive.path
 }
 
 describe('model selection after an explicit archive replacement', () => {

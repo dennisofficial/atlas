@@ -72,7 +72,7 @@ describe('operator child model retarget over the cloud channel', () => {
     const home = await mkdtemp(join(tmpdir(), 'atlas-retarget-relocated-'))
     try {
       await extractSessionArchive({
-        archive,
+        archivePath: archive.path,
         sessionDir: sessionDirectory({ home, sessionId: fixture.root.id }),
       })
       const relocated = await buildHarness({ home, model: scriptedModel({ script: [] }) })

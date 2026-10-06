@@ -242,7 +242,7 @@ describe('the interrupt gate Esc goes through', () => {
 })
 
 describe('a lost cloud interrupt', () => {
-  it('clears the interrupting stamp and says so once the ack lands', async () => {
+  it('clears the interrupting stamp silently once the ack lands', async () => {
     const channel = fakeRemoteChannel()
     const { probe, flush, done } = await mounted({ remoteChannel: channel })
 
@@ -259,9 +259,7 @@ describe('a lost cloud interrupt', () => {
       await flush()
 
       expect(probe.interrupting).toBe(false)
-      expect(currentNotices().some((notice) => notice.text === 'The turn was interrupted.')).toBe(
-        true,
-      )
+      expect(currentNotices()).toEqual([])
 
       await driverOf(probe).whenSettled()
     } finally {
@@ -298,9 +296,7 @@ describe('a lost cloud interrupt', () => {
           notice.text.startsWith('The sandbox never acknowledged the interrupt'),
         ),
       ).toBe(false)
-      expect(currentNotices().some((notice) => notice.text === 'The turn was interrupted.')).toBe(
-        true,
-      )
+      expect(currentNotices()).toEqual([])
 
       await driverOf(probe).whenSettled()
     } finally {

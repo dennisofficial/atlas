@@ -6,6 +6,7 @@ import {
   type RestoreTranscriptParams,
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import { answerArchiveRead, isArchiveReadOp } from './archive-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
@@ -53,7 +54,7 @@ export function createRequestRouter(args: {
   context?: ContextReaders | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
-  sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
+  sessionArchive?: (() => Promise<SessionArchiveDescriptor | null>) | undefined
   memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   restoreTranscript?: ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<RestoreOutcome>) | undefined
   workspace?: WorkspaceOps | undefined

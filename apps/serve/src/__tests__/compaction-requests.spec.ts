@@ -233,4 +233,3 @@ describe('compaction requests over the real JSONL store', () => {
     expect(await running).toMatchObject({ ok: true })
   })
 })
-

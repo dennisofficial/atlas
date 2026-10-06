@@ -89,6 +89,6 @@ describe('lifting a thread that was lifted before', () => {
     expect(bridge.transcriptPuts).toHaveLength(2)
     const put = bridge.transcriptPuts.at(-1)
     if (put === undefined) throw new Error('the re-lift shipped no transcript archive')
-    expect(cloudMarkers(await eventsInArchive(put.archive))).toBe(0)
+    expect(cloudMarkers(await eventsInArchive(put.archivePath))).toBe(0)
   })
 })
