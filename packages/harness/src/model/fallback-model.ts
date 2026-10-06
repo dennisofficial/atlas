@@ -4,34 +4,94 @@ import type {
   LanguageModelV4StreamResult,
 } from '@ai-sdk/provider'
 
+const beginsOutput = (part: LanguageModelV4StreamPart): boolean => {
+  switch (part.type) {
+    case 'stream-start':
+    case 'response-metadata':
+    case 'text-start':
+    case 'text-end':
+    case 'reasoning-start':
+    case 'reasoning-end':
+    case 'tool-input-start':
+    case 'tool-input-end':
+    case 'raw':
+      return false
+    case 'text-delta':
+    case 'reasoning-delta':
+    case 'tool-input-delta':
+      return part.delta.length > 0
+    default:
+      return true
+  }
+}
+
 const restartableStream = (args: {
   stream: ReadableStream<LanguageModelV4StreamPart>
   restart: (fault: unknown) => Promise<ReadableStream<LanguageModelV4StreamPart>>
+  signal?: AbortSignal | undefined
 }): ReadableStream<LanguageModelV4StreamPart> => {
-  let reader = args.stream.getReader()
+  const primaryReader = args.stream.getReader()
+  let reader: typeof primaryReader | undefined = primaryReader
+  let cancelled = false
+  let cancellationReason: unknown
   let emitted = false
   let restarted = false
+  const prelude: LanguageModelV4StreamPart[] = []
 
   return new ReadableStream<LanguageModelV4StreamPart>({
     async pull(controller) {
       for (;;) {
+        const activeReader = reader
+        if (activeReader === undefined || cancelled) return
         try {
-          const { done, value } = await reader.read()
+          const { done, value } = await activeReader.read()
+          if (cancelled) return
           if (done) {
+            for (const part of prelude) controller.enqueue(part)
+            prelude.length = 0
+            reader = undefined
+            activeReader.releaseLock()
             controller.close()
             return
           }
+          if (!emitted && !restarted && value.type === 'error') throw value.error
+          if (!emitted && !beginsOutput(value)) {
+            prelude.push(value)
+            continue
+          }
           emitted = true
+          for (const part of prelude) controller.enqueue(part)
+          prelude.length = 0
           controller.enqueue(value)
           return
         } catch (fault) {
-          if (emitted || restarted) throw fault
+          if (cancelled) return
+          reader = undefined
+          if (emitted || restarted || args.signal?.aborted) {
+            activeReader.releaseLock()
+            throw fault
+          }
           restarted = true
-          reader = (await args.restart(fault)).getReader()
+          await activeReader.cancel(fault).catch(() => {})
+          activeReader.releaseLock()
+          prelude.length = 0
+          if (cancelled) return
+          const stream = await args.restart(fault)
+          if (cancelled) {
+            await stream.cancel(cancellationReason)
+            return
+          }
+          reader = stream.getReader()
         }
       }
     },
-    cancel: (reason) => reader.cancel(reason),
+    cancel: (reason) => {
+      cancelled = true
+      cancellationReason = reason
+      const activeReader = reader
+      reader = undefined
+      return activeReader?.cancel(reason).finally(() => activeReader.releaseLock())
+    },
   })
 }
 
@@ -40,10 +100,14 @@ export function createFallbackModel(args: {
   fallback: () => LanguageModelV4 | undefined
   onFallback: (fault: unknown) => void
 }): LanguageModelV4 {
-  const fallbackFor = (fault: unknown): LanguageModelV4 => {
-    args.onFallback(fault)
+  const fallbackFor = (options: {
+    fault: unknown
+    signal?: AbortSignal | undefined
+  }): LanguageModelV4 => {
+    if (options.signal?.aborted) throw options.fault
     const model = args.fallback()
-    if (model === undefined) throw fault
+    if (model === undefined) throw options.fault
+    args.onFallback(options.fault)
     return model
   }
 
@@ -62,7 +126,7 @@ export function createFallbackModel(args: {
       try {
         return await args.primary.doGenerate(options)
       } catch (fault) {
-        return await fallbackFor(fault).doGenerate(options)
+        return await fallbackFor({ fault, signal: options.abortSignal }).doGenerate(options)
       }
     },
     doStream: async (options): Promise<LanguageModelV4StreamResult> => {
@@ -70,14 +134,16 @@ export function createFallbackModel(args: {
       try {
         result = await args.primary.doStream(options)
       } catch (fault) {
-        return await fallbackFor(fault).doStream(options)
+        return await fallbackFor({ fault, signal: options.abortSignal }).doStream(options)
       }
 
       return {
         ...result,
         stream: restartableStream({
           stream: result.stream,
-          restart: async (fault) => (await fallbackFor(fault).doStream(options)).stream,
+          signal: options.abortSignal,
+          restart: async (fault) =>
+            (await fallbackFor({ fault, signal: options.abortSignal }).doStream(options)).stream,
         }),
       }
     },

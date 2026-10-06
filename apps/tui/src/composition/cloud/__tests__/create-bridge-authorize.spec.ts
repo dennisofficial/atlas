@@ -53,6 +53,8 @@ const recordingDriver = (args: { created: boolean; events: string[] }): BridgeDr
     uploadWorkspaceArchive: async () => undefined,
     downloadWorkspaceArchive: async () => undefined,
     releaseWorkspaceArchive: async () => undefined,
+    downloadSessionArchive: async () => undefined,
+    releaseSessionArchive: async () => undefined,
   }
 }
 

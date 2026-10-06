@@ -9,6 +9,7 @@ import {
 
 import type { PlacementTransaction } from '../../composition/placement-controller'
 import type { OwnerTransaction, SessionRuntime } from '../../composition/session-owner'
+import type { SessionArchiveFile } from '../archive-file'
 import { buildSessionArchive } from '../session-archive'
 import { activateSessionReplySchema, applyWorkspaceArchiveReplySchema, EClientRequest } from '../channel-wire'
 import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
@@ -54,7 +55,7 @@ export type LiftCtx = {
   workspaceArchive: LiftWorkspaceArchive | undefined
   restoredWorkspace: RestoredWorkspace | undefined
   gpgKey: string | undefined
-  transcript: Uint8Array | undefined
+  transcript: SessionArchiveFile | undefined
   sandbox: CloudSandbox | undefined
   channel: CloudChannel | undefined
   attachment: CloudAttachment | undefined

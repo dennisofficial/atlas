@@ -1,13 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { createWriteStream } from 'node:fs'
-import { mkdir, open, rename, rm, stat } from 'node:fs/promises'
-import { dirname, posix } from 'node:path'
-import { Transform } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
+import { open, stat } from 'node:fs/promises'
+import { posix } from 'node:path'
 
 import { WORKSPACE_EXPORT_DIRECTORY_NAME, WORKSPACE_EXPORT_FILE_PATTERN } from '@dltech/atlas-wire'
 
 import { DRIVE_HOME_PATH } from './drive-names'
+import { downloadArchiveFile } from './archive-download'
 import type { TransferProgress } from './transfer-progress'
 
 export const WORKSPACE_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
@@ -135,39 +133,16 @@ export type ArchiveDownloadArgs = {
   onProgress?: ArchiveProgressReporter | undefined
 }
 
-const byteLengthOf = (chunk: Buffer | string): number =>
-  typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.byteLength
-
 export async function downloadWorkspaceArchive(args: ArchiveDownloadArgs): Promise<void> {
   const remote = exportedWorkspacePathOf(args.path)
   const stream = await args.sandbox.readFile({ path: remote })
   if (stream === null) throw new Error(`the sandbox holds no workspace export at ${remote}`)
-  await mkdir(dirname(args.destination), { recursive: true })
-  const staging = `${args.destination}.${randomBytes(4).toString('hex')}.partial`
-  const report = (progress: { transferredBytes: number; complete: boolean }): void =>
-    args.onProgress?.({ ...progress, totalBytes: args.totalBytes })
-  let received = 0
-  report({ transferredBytes: received, complete: false })
-  const counter = new Transform({
-    transform(chunk: Buffer | string, _encoding, done) {
-      received += byteLengthOf(chunk)
-      report({ transferredBytes: received, complete: false })
-      done(null, chunk)
-    },
+  await downloadArchiveFile({
+    stream,
+    destination: args.destination,
+    totalBytes: args.totalBytes,
+    onProgress: args.onProgress,
   })
-  try {
-    await pipeline(stream, counter, createWriteStream(staging, { mode: 0o600 }))
-    if (args.totalBytes !== undefined && received !== args.totalBytes) {
-      throw new Error(
-        `the workspace archive download ended at ${received} of ${args.totalBytes} bytes`,
-      )
-    }
-    await rename(staging, args.destination)
-    report({ transferredBytes: received, complete: true })
-  } catch (error) {
-    await rm(staging, { force: true })
-    throw error
-  }
 }
 
 export async function releaseWorkspaceExport(args: {

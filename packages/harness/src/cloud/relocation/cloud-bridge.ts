@@ -1,5 +1,5 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
-import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type { RuntimeCheckpoint, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import type { SandboxTransferProgress, TransferProgress } from '../transfer-progress'
 
@@ -67,13 +67,7 @@ export type CloudSandboxes = {
     captureContext?:
       | ((put: (archive: Uint8Array) => Promise<void>) => Promise<void>)
       | undefined
-    /**
-     * An already-captured transcript archive the lift hands over with the claim. Written into the
-     * bootstrap directory before serve launches, fresh boot or resumed, so the serve untars it at
-     * boot instead of the lift shipping it through `putTranscript` after the sandbox answers. A
-     * reconnect or wake omits it, and the sandbox keeps the transcript it already holds.
-     */
-    transcript?: Uint8Array | undefined
+    transcriptArchivePath?: string | undefined
     /**
      * A captured workspace archive on this machine, streamed to the drive's bootstrap directory
      * before serve launches, fresh boot or resumed. The path is never serialized into the boot spec.
@@ -92,12 +86,6 @@ export type CloudSandboxes = {
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
   /**
-   * The lift's transcript transfer: the tarred session directory, uploaded onto the sandbox row the
-   * claim opened. The serve untars it at boot; a resume skips the fetch because the snapshot
-   * already carries the directory.
-   */
-  putTranscript(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
-  /**
    * The anti-blank-log gate: after the transcript uploaded, the lift asks the control plane
    * whether the sandbox row reports the session present and non-empty before it flips ownership.
    * The bridge owns how readiness is probed; the lift only reads the verdict.
@@ -112,6 +100,13 @@ export type CloudSandboxes = {
   }): Promise<void>
   /** Deletes one serve-prepared export once it has been downloaded or abandoned. */
   releaseWorkspace?(args: { threadId: ThreadId; path: string }): Promise<void>
+  downloadSession?(args: {
+    threadId: ThreadId
+    archive: SessionArchiveDescriptor
+    destination: string
+    onProgress?: ((progress: TransferProgress) => void) | undefined
+  }): Promise<void>
+  releaseSession?(args: { threadId: ThreadId; path: string }): Promise<void>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
   /**
    * Tears down both halves: the Vercel sandbox through the operator's own token, and the control

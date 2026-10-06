@@ -20,6 +20,8 @@ export type BridgeDriver = Pick<
   | 'uploadWorkspaceArchive'
   | 'downloadWorkspaceArchive'
   | 'releaseWorkspaceArchive'
+  | 'downloadSessionArchive'
+  | 'releaseSessionArchive'
   | 'transcriptLanded'
   | 'destroy'
 >

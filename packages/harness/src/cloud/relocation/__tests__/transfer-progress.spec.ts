@@ -43,6 +43,33 @@ describe('relocation transfer progress', () => {
     expect(test.doneNodes).toContain(ELiftNode.Provision)
   })
 
+  it('tags both verified session downloads with the stage that owns each one', async () => {
+    const home = useDescendHome()
+    const archive = await cloudArchiveOf([{ drafts: [{ type: 'user-said', text: 'cloud work' }] }])
+    const bridge = fakeBridge({ archive })
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+    const progress: RelocationTransferProgress[] = []
+    const download = bridge.sandboxes.downloadSession
+    bridge.sandboxes.downloadSession = async (args) => {
+      args.onProgress?.({ transferredBytes: 0, totalBytes: args.archive.size, complete: false })
+      await download?.(args)
+      args.onProgress?.({ transferredBytes: args.archive.size, totalBytes: args.archive.size, complete: true })
+    }
+    const surface = fakeSurface()
+    await descendFromCloud({
+      threadId: CLOUD_THREAD, target: EExecutionLocation.Host, midTurn: false,
+      bridge, channel, localApp: home, restoreWorkspace: fakeRestorer().restore,
+      surface: { ...surface.surface, onTransferProgress: (reading) => progress.push(reading) },
+    })
+
+    expect(progress.map((reading) => reading.nodeId)).toEqual([
+      EDescendNode.ArchiveRemote, EDescendNode.ArchiveRemote,
+      EDescendNode.PrepareWorkspace, EDescendNode.PrepareWorkspace,
+    ])
+    expect(progress.every((reading) => reading.transferId === 'transcript-download' && reading.label === 'downloading conversation')).toBe(true)
+    expect(progress.filter((reading) => reading.complete)).toHaveLength(2)
+  })
+
   for (const knownTotal of [true, false]) {
     it(`forwards ${knownTotal ? 'known' : 'unknown'} export totals and download progress into restoration`, async () => {
       const home = useDescendHome()

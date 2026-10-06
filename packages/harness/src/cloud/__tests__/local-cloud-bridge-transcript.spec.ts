@@ -10,13 +10,13 @@ import {
   type LiveSandbox,
 } from '../local-cloud-bootstrap'
 import { createLocalCloudBridge } from '../local-cloud-bridge'
+import { sandboxNameFor } from '../sandbox-names'
 import { ECloudSandboxState } from '../sandbox-client'
 import type { SandboxPlacement, VercelSandboxConfig } from '../vercel-driver'
 import type { SandboxTransferProgress, TransferProgress } from '../transfer-progress'
-import { sandboxNameFor } from '../sandbox-names'
 
 const threadId = toThreadId('thread-transcript')
-const TRANSCRIPT = new Uint8Array([1, 2, 3, 4])
+const TRANSCRIPT_PATH = '/tmp/local/transcript.tar.gz'
 
 type RecordedWrite = { path: string; content: Uint8Array | string }
 
@@ -66,6 +66,13 @@ const fakeDriver = (args: { observed: boolean; vaultPresent?: boolean }) => {
     },
     downloadWorkspaceArchive: async () => {},
     releaseWorkspaceArchive: async () => {},
+    downloadSessionArchive: async (download) => {
+      events.push(`download-session:${download.name}:${download.archive.path}:${download.destination}`)
+      download.onProgress?.({ transferredBytes: 1, totalBytes: download.archive.size, complete: false })
+    },
+    releaseSessionArchive: async (release) => {
+      events.push(`release-session:${release.name}:${release.path}`)
+    },
     transcriptLanded: async () => true,
     destroy: async () => {},
   }
@@ -80,31 +87,36 @@ const bridgeWith = (driver: BridgeDriver) =>
   })
 
 describe('createLocalCloudBridge transcript handoff', () => {
-  it('writes the transcript archive into the bootstrap before serve launches on a fresh boot', async () => {
+  it('uploads the transcript archive file into the bootstrap before serve launches on a fresh boot', async () => {
     const { driver, events, writes } = fakeDriver({ observed: false })
 
-    await bridgeWith(driver).sandboxes.create({ threadId, workspace: null, transcript: TRANSCRIPT })
+    await bridgeWith(driver).sandboxes.create({
+      threadId,
+      workspace: null,
+      transcriptArchivePath: TRANSCRIPT_PATH,
+    })
 
-    const transcriptWrite = events.indexOf(`write:${TRANSCRIPT_ARCHIVE_PATH}`)
-    expect(transcriptWrite).toBeGreaterThan(-1)
-    expect(events.indexOf('launch')).toBeGreaterThan(transcriptWrite)
-    const write = writes.find((entry) => entry.path === TRANSCRIPT_ARCHIVE_PATH)
-    expect(write?.content).toBe(TRANSCRIPT)
+    const upload = events.indexOf(`upload:${TRANSCRIPT_ARCHIVE_PATH}:${TRANSCRIPT_PATH}`)
+    expect(upload).toBeGreaterThan(-1)
+    expect(events.indexOf('launch')).toBeGreaterThan(upload)
+    expect(writes.some((entry) => entry.path === TRANSCRIPT_ARCHIVE_PATH)).toBe(false)
   })
 
-  it('writes an explicit transcript on a resumed boot too, independent of the fresh-boot spec write', async () => {
+  it('uploads an explicit transcript on a resumed boot too, independent of the fresh-boot spec write', async () => {
     const { driver, events, writes } = fakeDriver({ observed: true, vaultPresent: true })
 
     const placement = await bridgeWith(driver).sandboxes.create({
       threadId,
       workspace: null,
-      transcript: TRANSCRIPT,
+      transcriptArchivePath: TRANSCRIPT_PATH,
     })
 
     expect(placement.created).toBe(false)
     expect(writes.some((entry) => entry.path === WORKSPACE_SPEC_PATH)).toBe(false)
-    expect(writes.some((entry) => entry.path === TRANSCRIPT_ARCHIVE_PATH)).toBe(true)
-    expect(events.indexOf(`write:${TRANSCRIPT_ARCHIVE_PATH}`)).toBeLessThan(events.indexOf('launch'))
+    expect(events.indexOf(`upload:${TRANSCRIPT_ARCHIVE_PATH}:${TRANSCRIPT_PATH}`)).toBeGreaterThan(-1)
+    expect(events.indexOf(`upload:${TRANSCRIPT_ARCHIVE_PATH}:${TRANSCRIPT_PATH}`)).toBeLessThan(
+      events.indexOf('launch'),
+    )
   })
 
   it('never rewrites the transcript when a reconnect or wake supplies none', async () => {
@@ -113,7 +125,7 @@ describe('createLocalCloudBridge transcript handoff', () => {
     await bridgeWith(driver).sandboxes.create({ threadId, workspace: null })
 
     expect(writes.some((entry) => entry.path === TRANSCRIPT_ARCHIVE_PATH)).toBe(false)
-    expect(events.some((event) => event === `write:${TRANSCRIPT_ARCHIVE_PATH}`)).toBe(false)
+    expect(events.some((event) => event.startsWith(`upload:${TRANSCRIPT_ARCHIVE_PATH}`))).toBe(false)
   })
 
   it('writes no bootstrap files at all on a healthy resume without a transcript', async () => {
@@ -161,7 +173,7 @@ describe('createLocalCloudBridge transcript handoff', () => {
     await bridgeWith(driver).sandboxes.create({
       threadId,
       workspace: null,
-      transcript: TRANSCRIPT,
+      transcriptArchivePath: TRANSCRIPT_PATH,
       workspaceArchivePath: '/tmp/local/workspace.tar.gz',
       captureContext: async (put) => put(new Uint8Array(6)),
       onTransferProgress: (reading) => {
@@ -171,8 +183,9 @@ describe('createLocalCloudBridge transcript handoff', () => {
     })
 
     expect(progress.filter((reading) => reading.transferId === 'transcript-upload')).toEqual([
-      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 0, totalBytes: 4, complete: false },
-      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 4, totalBytes: 4, complete: true },
+      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 0, totalBytes: 10, complete: false },
+      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 4, totalBytes: 10, complete: false },
+      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 10, totalBytes: 10, complete: true },
     ])
     expect(progress.filter((reading) => reading.transferId === 'workspace-upload').map((reading) => reading.transferredBytes)).toEqual([0, 4, 10])
     expect(progress.filter((reading) => reading.transferId === 'context-upload')).toEqual([
@@ -181,16 +194,16 @@ describe('createLocalCloudBridge transcript handoff', () => {
     ])
   })
 
-  it('does not report a buffered upload complete when its write fails', async () => {
+  it('does not report a buffered context upload complete when its write fails', async () => {
     const { driver } = fakeDriver({ observed: false })
     const progress: SandboxTransferProgress[] = []
     driver.writeBootstrapFileToSandbox = async ({ path }) => {
-      if (path === TRANSCRIPT_ARCHIVE_PATH) throw new Error('upload rejected')
+      if (path.endsWith('context.tar.gz')) throw new Error('upload rejected')
     }
     await expect(bridgeWith(driver).sandboxes.create({
       threadId,
       workspace: null,
-      transcript: TRANSCRIPT,
+      captureContext: async (put) => put(new Uint8Array(4)),
       onTransferProgress: (reading) => progress.push(reading),
     })).rejects.toThrow('upload rejected')
     expect(progress).toHaveLength(1)
@@ -222,5 +235,22 @@ describe('createLocalCloudBridge transcript handoff', () => {
     await bridgeWith(driver).sandboxes.create({ threadId, workspace: null })
 
     expect(events.some((event) => event.startsWith('upload:'))).toBe(false)
+  })
+
+  it('binds session download and release to the thread sandbox name', async () => {
+    const { driver, events } = fakeDriver({ observed: true })
+    const sandboxes = bridgeWith(driver).sandboxes
+    const archive = { path: '/atlas/home/exports/session-x.tar.gz', size: 3, sha256: 'ab', threadId }
+
+    const progress: TransferProgress[] = []
+    await sandboxes.downloadSession?.({ threadId, archive, destination: '/tmp/dest.partial', onProgress: (reading) => progress.push(reading) })
+    expect(progress).toEqual([{ transferredBytes: 1, totalBytes: 3, complete: false }])
+    await sandboxes.releaseSession?.({ threadId, path: archive.path })
+
+    const name = sandboxNameFor({ threadId })
+    expect(events).toEqual([
+      `download-session:${name}:${archive.path}:/tmp/dest.partial`,
+      `release-session:${name}:${archive.path}`,
+    ])
   })
 })

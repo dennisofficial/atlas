@@ -73,6 +73,20 @@ export type DescendPlanArgs<Opened> = {
 export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPlan<undefined> {
   const { threadId, target, channel, localApp } = args
   const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: threadId })
+  const downloadTranscript = ({ nodeId }: { nodeId: EDescendNode }): Promise<void> =>
+    transferTranscriptDown({
+      threadId,
+      channel,
+      bridge: args.bridge,
+      logPort: args.logPort,
+      preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace },
+      onProgress: (progress) => args.surface.onTransferProgress?.({
+        ...progress,
+        nodeId,
+        transferId: 'transcript-download',
+        label: 'downloading conversation',
+      }),
+    })
 
   return [
     {
@@ -94,7 +108,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       needs: [EDescendNode.PauseRemoteLoops],
       label: 'pulling the conversation down',
       run: async () => {
-        await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
+        await downloadTranscript({ nodeId: EDescendNode.ArchiveRemote })
         await localApp.log.refresh({ threadId })
       },
     },
@@ -164,7 +178,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
             label: 'downloading workspace',
           }),
           beforeRestore: async () => {
-            await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
+            await downloadTranscript({ nodeId: EDescendNode.PrepareWorkspace })
             await localApp.log.refresh({ threadId })
             await adoptTransferredChildren({ agents: localApp.agents, threadId })
           },

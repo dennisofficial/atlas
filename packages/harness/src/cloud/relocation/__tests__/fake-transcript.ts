@@ -5,10 +5,10 @@ import { toThreadId, type Event } from '@dltech/atlas-core'
 import { extractSessionArchive } from '../../session-archive'
 import { parseEventLines } from '../../../store/sessions/lines'
 
-export async function eventsInArchive(archive: Uint8Array): Promise<Event[]> {
+export async function eventsInArchive(archivePath: string): Promise<Event[]> {
   const sessionDir = await mkdtemp(join(tmpdir(), 'atlas-fake-transcript-'))
   try {
-    await extractSessionArchive({ archive, sessionDir })
+    await extractSessionArchive({ archivePath, sessionDir })
     const directory = join(sessionDir, 'threads')
     const files = await readdir(directory).catch(() => [] as string[])
     const events: Event[] = []

@@ -1,22 +1,19 @@
-import { cp, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
+import { cp, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative, sep } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { safeRelativeSegment } from '../files/safe-relative-path'
 import { locationOfPlacement, type PlacementRecord, type ThreadId, type WorkspaceIdentity } from '@dltech/atlas-core'
 import { readMeta, sessionMetaSchema, threadMetaSchema, writeMeta } from '../store/sessions/meta'
 import { metaWithPlacement } from '../store/sessions/placement-meta'
 import { sessionMetaFile, threadMetaFile } from '../store/sessions/paths'
+import { openArchiveFile, type SessionArchiveFile } from './archive-file'
 import { assertShellsTerminal, isPortableSessionFile, markShellsImported } from './portable-session-file'
+import { SessionWalkError, walkRegularFiles } from './session-walker'
 
-/**
- * The session transcript moves between machines as a `.tar.gz` of the session directory, built and
- * read with the platform's own `tar` for the same reason the context archive is: no archive
- * library joins the dependency tree, and macOS bsdtar and the sandbox image's GNU tar read each
- * other's output. The session lock and each shell's control token, socket, lock and leases are left
- * out — they name processes of one machine, which never survive the move. A shell without a terminal
- * status.json refuses the build: its process could still be writing.
- */
+export type { SessionArchiveFile } from './archive-file'
+
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
@@ -32,54 +29,83 @@ const runTar = async (args: {
   }
 }
 
-const collectFiles = async (directory: string): Promise<readonly string[]> => {
-  let listed
+const stageFile = async (args: { sessionDir: string; contentDir: string; key: string }): Promise<void> => {
+  const source = join(args.sessionDir, args.key)
+  const target = join(args.contentDir, args.key)
   try {
-    listed = await readdir(directory, { recursive: true, withFileTypes: true })
-  } catch {
-    return []
+    await mkdir(dirname(target), { recursive: true })
+    await cp(source, target, { preserveTimestamps: true })
+  } catch (cause) {
+    throw new SessionWalkError({ path: source, cause })
   }
-  return listed
-    .filter((entry) => entry.isFile())
-    .map((entry) => relative(directory, join(entry.parentPath, entry.name)).split(sep).join('/'))
+}
+
+const buildTarball = async (args: {
+  sessionDir: string
+  keys: readonly string[]
+  stagingDir: string
+  output: string
+  tarCommand?: string | undefined
+}): Promise<void> => {
+  const contentDir = join(args.stagingDir, 'content')
+  const listFile = join(args.stagingDir, 'files.list')
+  await mkdir(contentDir, { recursive: true })
+  for (const key of args.keys) await stageFile({ sessionDir: args.sessionDir, contentDir, key })
+  await writeFile(listFile, args.keys.map((key) => `./${key}\0`).join(''))
+  await runTar({
+    argv: ['-czf', args.output, '-C', contentDir, '--null', '-T', listFile],
+    ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
+  })
 }
 
 export async function buildSessionArchive(args: {
   sessionDir: string
+  archivePath?: string | undefined
   tarCommand?: string | undefined
-}): Promise<Buffer | undefined> {
-  const keys = (await collectFiles(args.sessionDir)).filter((key) => isPortableSessionFile({ key }))
+}): Promise<SessionArchiveFile | undefined> {
+  const found = await walkRegularFiles({ root: args.sessionDir })
+  const keys = (found ?? []).filter((key) => isPortableSessionFile({ key }))
   if (keys.length === 0) return undefined
   await assertShellsTerminal({ sessionDir: args.sessionDir, keys })
 
-  const workDir = await mkdtemp(join(tmpdir(), 'atlas-session-build-'))
-  const contentDir = join(workDir, 'content')
-  const archivePath = join(workDir, 'archive.tar.gz')
-  await mkdir(contentDir, { recursive: true })
-
+  const stagingDir = await mkdtemp(join(tmpdir(), 'atlas-session-build-'))
+  const destination = args.archivePath
+  const output =
+    destination === undefined
+      ? join(stagingDir, 'archive.tar.gz')
+      : `${destination}.${randomBytes(6).toString('hex')}.partial`
+  let published = false
+  let handedOff = false
   try {
-    for (const key of keys) {
-      const target = join(contentDir, key)
-      await mkdir(join(target, '..'), { recursive: true })
-      await cp(join(args.sessionDir, key), target, { preserveTimestamps: true })
-    }
-    await runTar({
-      argv: ['-czf', archivePath, '-C', contentDir, '.'],
+    if (destination !== undefined) await mkdir(dirname(destination), { recursive: true })
+    await buildTarball({
+      sessionDir: args.sessionDir,
+      keys,
+      stagingDir,
+      output,
       ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
     })
-    return await readFile(archivePath)
+    if (destination === undefined) {
+      const file = await openArchiveFile({ path: output, disposeTarget: stagingDir })
+      handedOff = true
+      return file
+    }
+    await rename(output, destination)
+    published = true
+    return await openArchiveFile({ path: destination, disposeTarget: destination })
+  } catch (error) {
+    if (published && destination !== undefined) await rm(destination, { force: true }).catch(() => undefined)
+    throw error
   } finally {
-    await rm(workDir, { recursive: true, force: true }).catch(() => undefined)
+    if (!handedOff) {
+      await rm(stagingDir, { recursive: true, force: true }).catch(() => undefined)
+      await rm(output, { force: true }).catch(() => undefined)
+    }
   }
 }
 
-/**
- * Replaces the target session directory wholesale: the machine the archive came from was the
- * transcript's home while it was away, so anything the local copy held from before is stale. An
- * entry that would escape the session directory is skipped rather than trusted.
- */
 export async function extractSessionArchive(args: {
-  archive: Uint8Array
+  archivePath: string
   sessionDir: string
   tarCommand?: string | undefined
   preserveOwnership?: { threadId: ThreadId; record: PlacementRecord; workspace: WorkspaceIdentity } | undefined
@@ -88,25 +114,23 @@ export async function extractSessionArchive(args: {
   const workDir = await mkdtemp(join(dirname(args.sessionDir), '.atlas-session-extract-'))
   let preserveRecovery = false
   const contentDir = join(workDir, 'content')
-  const archivePath = join(workDir, 'archive.tar.gz')
   await mkdir(contentDir, { recursive: true })
 
   try {
-    await writeFile(archivePath, args.archive)
     await runTar({
-      argv: ['-xzf', archivePath, '-C', contentDir, '--no-same-owner', '--no-same-permissions'],
+      argv: ['-xzf', args.archivePath, '-C', contentDir, '--no-same-owner', '--no-same-permissions'],
       ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
     })
 
-    const keys = await collectFiles(contentDir)
+    const keys = (await walkRegularFiles({ root: contentDir })) ?? []
     const staged = keys.filter((key) => safeRelativeSegment(key) !== null && isPortableSessionFile({ key }))
 
     const replacement = join(workDir, 'replacement')
     await mkdir(replacement)
     for (const key of staged) {
       const target = join(replacement, key)
-      await mkdir(join(target, '..'), { recursive: true })
-      await cp(join(contentDir, key), target, { recursive: true })
+      await mkdir(dirname(target), { recursive: true })
+      await rename(join(contentDir, key), target)
     }
     await markShellsImported({ root: replacement, keys: staged })
     const held = args.preserveOwnership

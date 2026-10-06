@@ -45,7 +45,7 @@ const fixedIds = (args: { prefix: string }): IdPort => {
 const openLog = (args: { home: string }): JsonlEventLog =>
   new JsonlEventLog(args.home, new SessionRegistry(args.home), clock, fixedIds({ prefix: 'spec' }))
 
-const seedArchive = async (text: string): Promise<Uint8Array> => {
+const seedArchive = async (text: string): Promise<string> => {
   const source = freshHome()
   const sourceLog = openLog({ home: source })
   await sourceLog.append({
@@ -57,7 +57,7 @@ const seedArchive = async (text: string): Promise<Uint8Array> => {
     sessionDir: sessionDirectory({ home: source, sessionId: THREAD }),
   })
   if (archive === undefined) throw new Error('expected an archive')
-  return archive
+  return archive.path
 }
 
 const eventFile = (args: { home: string }): string =>

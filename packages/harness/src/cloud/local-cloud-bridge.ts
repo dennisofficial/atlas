@@ -111,11 +111,11 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           content: bootstrap,
         })
       }
-      if (createArgs.transcript !== undefined) {
-        const archive = createArgs.transcript
-        await transferBufferedArchive({
-          archive,
-          upload: () => driver.writeBootstrapFileToSandbox({ sandbox, path: TRANSCRIPT_ARCHIVE_PATH, content: archive }),
+      if (createArgs.transcriptArchivePath !== undefined) {
+        await driver.uploadWorkspaceArchive({
+          sandbox,
+          source: createArgs.transcriptArchivePath,
+          destination: TRANSCRIPT_ARCHIVE_PATH,
           onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'transcript-upload', label: 'uploading conversation' }),
         })
       }
@@ -227,12 +227,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         path: CONTEXT_ARCHIVE_PATH,
         content: archive,
       }),
-    putTranscript: ({ threadId, archive }) =>
-      driverWith(args.vercel()).writeBootstrapFile({
-        name: sandboxNameFor({ threadId }),
-        path: TRANSCRIPT_ARCHIVE_PATH,
-        content: archive,
-      }),
     downloadWorkspace: ({ threadId, path, destination, totalBytes, onProgress }) =>
       driverWith(args.vercel()).downloadWorkspaceArchive({
         name: sandboxNameFor({ threadId }),
@@ -244,6 +238,20 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     releaseWorkspace: ({ threadId, path }) =>
       driverWith(args.vercel()).releaseWorkspaceArchive({
         name: sandboxNameFor({ threadId }),
+        path,
+      }),
+    downloadSession: ({ threadId, archive, destination, onProgress }) =>
+      driverWith(args.vercel()).downloadSessionArchive({
+        name: sandboxNameFor({ threadId }),
+        threadId,
+        archive,
+        destination,
+        onProgress,
+      }),
+    releaseSession: ({ threadId, path }) =>
+      driverWith(args.vercel()).releaseSessionArchive({
+        name: sandboxNameFor({ threadId }),
+        threadId,
         path,
       }),
     confirmLanded: async ({ threadId }) => ({

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import {
@@ -59,7 +59,14 @@ export function driveTranscriptArchiveFetcher(args: {
   driveHome: string
 }): FetchTranscriptArchive {
   const path = join(args.driveHome, BOOTSTRAP_DIRECTORY, TRANSCRIPT_ARCHIVE_FILE)
-  return () => readArchiveOrNull({ path })
+  return async () => {
+    try {
+      return (await stat(path)).isFile() ? path : null
+    } catch (error) {
+      if (isMissing(error)) return null
+      throw error
+    }
+  }
 }
 
 export const driveWorkspaceArchivePath = (args: { driveHome: string }): string =>

@@ -50,7 +50,6 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadThread,
   EClientRequest.ReadThreads,
   EClientRequest.ReadTurns,
-  EClientRequest.ReadSessionArchive,
   EClientRequest.ReadMemoryArchive,
   EClientRequest.ReadTranscriptIdentity,
   EClientRequest.RestoreTranscript,

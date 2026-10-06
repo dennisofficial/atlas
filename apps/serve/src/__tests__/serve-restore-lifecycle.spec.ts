@@ -51,7 +51,7 @@ const originIn = (home: string) =>
 describe('the restore-transcript op across a serve’s life', () => {
   it('restores the archive the lift uploaded after a profiled boot', async () => {
     const home = freshRestoreHome()
-    let uploaded: Uint8Array | null = null
+    let uploaded: string | null = null
     const app = fakeServeApp({ threadId: RESTORE_THREAD, root: '/workspace' })
     wireRealLog({ home, app })
 
@@ -105,7 +105,7 @@ describe('the restore-transcript op across a serve’s life', () => {
 
   it('keeps a cloud append across a reconnect and a restart against the same uploaded tar', async () => {
     const home = freshRestoreHome()
-    let uploaded: Uint8Array | null = null
+    let uploaded: string | null = null
     const firstApp = fakeServeApp({ threadId: RESTORE_THREAD, root: '/workspace' })
     const firstStores = wireRealLog({ home, app: firstApp })
 

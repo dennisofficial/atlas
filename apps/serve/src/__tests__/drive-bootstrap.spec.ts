@@ -102,15 +102,11 @@ describe('the archives the laptop left on the drive', () => {
     await expect(driveContextArchiveFetcher({ driveHome })()).resolves.toBeNull()
   })
 
-  it('answers the transcript archive bytes when the file is there', async () => {
+  it('answers the transcript archive path, never its bytes, when the file is there', async () => {
     const driveHome = freshDriveHome()
-    const bytes = new Uint8Array([9, 8, 7])
-    await writeBootstrap({ driveHome, name: 'transcript.tar.gz', content: bytes })
+    const path = await writeBootstrap({ driveHome, name: 'transcript.tar.gz', content: new Uint8Array([9, 8, 7]) })
 
-    const archive = await driveTranscriptArchiveFetcher({ driveHome })()
-
-    expect(archive).not.toBeNull()
-    expect(Array.from(archive ?? [])).toEqual([9, 8, 7])
+    await expect(driveTranscriptArchiveFetcher({ driveHome })()).resolves.toBe(path)
   })
 
   it('answers null when there is no transcript archive on the drive', async () => {

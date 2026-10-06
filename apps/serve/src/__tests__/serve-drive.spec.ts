@@ -1,5 +1,5 @@
 import { existsSync, rmSync } from 'node:fs'
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -62,7 +62,7 @@ const bareSpec = {
 const writeBootstrap = async (args: {
   home: string
   context: Uint8Array
-  transcript: Uint8Array | null
+  transcript: string | null
   spec?: Record<string, unknown> | undefined
 }): Promise<void> => {
   const dir = join(args.home, 'bootstrap')
@@ -72,7 +72,7 @@ const writeBootstrap = async (args: {
     JSON.stringify({ ...bareSpec, ...args.spec }),
   )
   await writeFile(join(dir, 'context.tar.gz'), args.context)
-  if (args.transcript !== null) await writeFile(join(dir, 'transcript.tar.gz'), args.transcript)
+  if (args.transcript !== null) await copyFile(args.transcript, join(dir, 'transcript.tar.gz'))
 }
 
 const withAtlasHome = (home: string): void => {
@@ -82,7 +82,7 @@ const withAtlasHome = (home: string): void => {
 
 const bootOn = async (args: {
   drive: Drive
-  archives: { context: Uint8Array; transcript: Uint8Array | null }
+  archives: { context: Uint8Array; transcript: string | null }
   ensureWorkspace: EnsureWorkspace
   spec?: Record<string, unknown> | undefined
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
@@ -114,7 +114,7 @@ const bootOn = async (args: {
 const transcriptArchiveFrom = async (
   source: string,
   threadMeta?: Record<string, unknown>,
-): Promise<Uint8Array> => {
+): Promise<string> => {
   const sourceSession = sessionDirectory({ home: source, sessionId: threadId })
   await mkdir(join(sourceSession, 'threads'), { recursive: true })
   await writeFile(join(sourceSession, 'meta.json'), '{"format":1}')
@@ -127,7 +127,7 @@ const transcriptArchiveFrom = async (
   }
   const archive = await buildSessionArchive({ sessionDir: sourceSession })
   if (archive === undefined) throw new Error('expected a transcript archive')
-  return archive
+  return archive.path
 }
 
 const contextArchiveFrom = async (source: string): Promise<Uint8Array> => {
@@ -143,7 +143,7 @@ const contextArchiveFrom = async (source: string): Promise<Uint8Array> => {
 const freshArchives = async (): Promise<{
   source: string
   context: Uint8Array
-  transcript: Uint8Array
+  transcript: string
 }> => {
   const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
   return {

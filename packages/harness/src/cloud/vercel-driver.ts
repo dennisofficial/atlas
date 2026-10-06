@@ -1,4 +1,5 @@
 import type { Sandbox } from '@vercel/sandbox'
+import { downloadSessionArchive, releaseSessionExport, type SessionDownloadArgs } from './session-archive-transport'
 
 import { detachThenDeleteDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
 import { driveNameFor } from './drive-names'
@@ -29,10 +30,6 @@ import {
 
 export * from './vercel-driver-sdk'
 
-/**
- * Everything Atlas needs from Vercel, driven with the operator's own token: the control plane
- * keeps the rendezvous rows and the credential brokering, and every sandbox call happens here.
- */
 export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
@@ -156,16 +153,6 @@ export class VercelDriver {
     }
   }
 
-  /**
-   * Writes one bootstrap file into the directory serve reads at boot (`<ATLAS_HOME>/bootstrap`).
-   * The laptop authors these — the workspace spec, the context and transcript archives — so the
-   * sandbox boots off the drive with no control-plane round-trip. Buffering the bytes in memory is
-   * safe here: this runs on the operator's machine, not a capped container (the #485 OOM was the
-   * API doing this server-side).
-   *
-   * Takes the live sandbox rather than re-fetching by name: the bootstrap must be writable before
-   * serve launches, and on a fresh boot the name does not resolve until `getOrCreate` returns.
-   */
   async writeBootstrapFileToSandbox(args: {
     sandbox: Sandbox
     path: string
@@ -178,11 +165,6 @@ export class VercelDriver {
     }
   }
 
-  /**
-   * Writes one bootstrap file into the directory serve reads at boot (`<ATLAS_HOME>/bootstrap`),
-   * resolving the sandbox by name. Used by the post-boot surface (the lift's transcript ship),
-   * where the sandbox already exists; the create path uses `writeBootstrapFileToSandbox` instead.
-   */
   async writeBootstrapFile(args: {
     name: string
     path: string
@@ -218,6 +200,23 @@ export class VercelDriver {
   async releaseWorkspaceArchive(args: { name: string; path: string }): Promise<void> {
     try {
       await releaseWorkspaceExport({ sandbox: await this.sandboxNamed(args.name), path: args.path })
+    } catch (failure) {
+      if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
+    }
+  }
+
+  async downloadSessionArchive(
+    args: Omit<SessionDownloadArgs, 'sandbox'> & { name: string },
+  ): Promise<void> {
+    const { name, ...transfer } = args
+    await this.guarded(name, async () =>
+      downloadSessionArchive({ ...transfer, sandbox: await this.sandboxNamed(name) }),
+    )
+  }
+
+  async releaseSessionArchive(args: { name: string; threadId: string; path: string }): Promise<void> {
+    try {
+      await releaseSessionExport({ ...args, sandbox: await this.sandboxNamed(args.name) })
     } catch (failure) {
       if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
     }

@@ -3,7 +3,13 @@ import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { projectDirectoryOf, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
-import { captureWorkspaceArchive, exportCwdOf, type RestoredWorkspace } from '@dltech/atlas-harness'
+import {
+  captureWorkspaceArchive,
+  exportCwdOf,
+  requireCoveredSourceWorktrees,
+  type RestoredWorkspace,
+  type SourceCoverageChecker,
+} from '@dltech/atlas-harness'
 import {
   workspaceManifestWireSchema,
   type PrepareWorkspaceArchiveReply,
@@ -22,14 +28,18 @@ export async function prepareWorkspaceExport(args: {
   primaryWorkspace?: RestoredWorkspace | undefined
   log: Pick<EventLogPort, 'readOwn'>
   capture?: WorkspaceCapturer | undefined
+  requireCoverage?: SourceCoverageChecker | undefined
   stopProcesses?: (() => Promise<void>) | undefined
 }): Promise<PrepareWorkspaceArchiveReply> {
   const capture = args.capture ?? captureWorkspaceArchive
+  const requireCoverage = args.requireCoverage ?? requireCoveredSourceWorktrees
   const events = await args.log.readOwn({ threadId: args.threadId })
   const cwd = await exportCwdOf({
     cwd: projectDirectoryOf({ events, launchDirectory: args.launchDirectory }),
     primary: args.primaryWorkspace,
   })
+
+  await requireCoverage({ cwd })
 
   const directory = driveWorkspaceExportDirectory(args)
   await mkdir(directory, { recursive: true })
@@ -43,6 +53,7 @@ export async function prepareWorkspaceExport(args: {
   const staging = `${path}.partial`
   try {
     const manifest = await capture({ cwd, destination: staging })
+    await requireCoverage({ cwd, manifest })
     await rename(staging, path)
     const { size: totalBytes } = await stat(path)
     return { path, manifest: workspaceManifestWireSchema.parse(manifest), totalBytes }

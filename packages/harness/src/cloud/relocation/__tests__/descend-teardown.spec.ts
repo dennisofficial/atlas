@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ENoticeTone, type ThreadId } from '@dltech/atlas-core'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import type { RetryPolicy } from '../../retry-policy'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
@@ -9,7 +10,7 @@ import { RESTORED_HOME } from './workspace-fixture'
 
 const said = (text: string) => ({ type: 'user-said' as const, text })
 
-const flakyDestroyBridge = (args: { archive: string | undefined; failures: number }) => {
+const flakyDestroyBridge = (args: { archive: SessionArchiveDescriptor | null; failures: number }) => {
   const bridge = fakeBridge({ archive: args.archive })
   const destroy = bridge.sandboxes.destroy.bind(bridge.sandboxes)
   let failures = args.failures
