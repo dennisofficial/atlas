@@ -17,6 +17,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { ensureFamilyOwnership } from '../../workspace/family-ownership'
 import type { OpenThreadArgs } from '../create-with-events'
 import type { ParkedTranscriptRecord } from '../../cloud/transcript-freshness'
 import { ForkSeqOutOfRange, ForkSourceMissing } from '../fork'
@@ -293,6 +294,7 @@ export class JsonlThreadStore implements ThreadStorePort {
     await this.registry.enqueue({
       handle,
       run: async () => {
+        await ensureFamilyOwnership({ sessionDir, registry: this.registry })
         const log = await this.registry.readThreadLog({ sessionDir, threadId })
         await rewriteThreadLog({
           registry: this.registry,
@@ -360,6 +362,7 @@ export class JsonlThreadStore implements ThreadStorePort {
       handle,
       run: async () => {
         const at = this.clock.now()
+        if (discardRows) await ensureFamilyOwnership({ sessionDir, registry: this.registry })
         const log = await this.registry.readThreadLog({ sessionDir, threadId })
         const vacated = log.events
           .filter((event) => event.seq >= fromSeq && event.seq <= throughSeq && !SURVIVES_SUMMARY.includes(event.type))
