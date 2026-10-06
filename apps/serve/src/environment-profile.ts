@@ -8,6 +8,7 @@ import { runGit } from '@dltech/atlas-harness'
 import { applyGitAccessEnv } from './git-access-env'
 import type { GitRunner } from './materialize-workspace'
 import { createGpgSigningStep } from './profile-gpg'
+import { verifyGitConfigs, writeGitConfigs } from './profile-git-config'
 import { runCommand, type CommandRunner } from './run-command'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { WorkspaceSpec } from './workspace-spec'
@@ -165,21 +166,15 @@ export function createEnvironmentProfile(args: {
             detail: 'the workspace is not a git repository',
           }
         }
-        const runs = await Promise.all([
-          git({ args: ['config', 'user.name', identity.name], cwd }),
-          git({ args: ['config', 'user.email', identity.email], cwd }),
-        ])
-        const probes = await Promise.all([
-          git({ args: ['config', 'user.name'], cwd }),
-          git({ args: ['config', 'user.email'], cwd }),
-        ])
-        const failedRun = [...runs, ...probes].find((one) => !one.ok)
-        if (failedRun !== undefined) {
-          return {
-            step: EProfileStep.GitIdentity,
-            state: EProfileStepState.Failed,
-            detail: failedRun.stderr.trim(),
-          }
+        const entries = [
+          ['user.name', identity.name],
+          ['user.email', identity.email],
+        ] as const
+        const failure =
+          (await writeGitConfigs({ git, cwd, entries })) ??
+          (await verifyGitConfigs({ git, cwd, entries }))
+        if (failure !== null) {
+          return { step: EProfileStep.GitIdentity, state: EProfileStepState.Failed, detail: failure }
         }
         probedIdentity = `${identity.name} <${identity.email}>`
         return { step: EProfileStep.GitIdentity, state: EProfileStepState.Applied }
@@ -246,12 +241,29 @@ export function createEnvironmentProfile(args: {
         return { step: EProfileStep.Toolchain, state: EProfileStepState.Applied }
       })
 
-    const [steps, dockerAvailable] = await Promise.all([
-      Promise.all([credentials(), gitIdentity(), knownHosts(), toolchain(), gpgSigning()]),
+    const gitChain = async (): Promise<
+      readonly [ProfileStepOutcome, ProfileStepOutcome, ProfileStepOutcome, ProfileStepOutcome]
+    > => {
+      const credentialsOutcome = await credentials()
+      const identityOutcome = await gitIdentity()
+      const gpgOutcome = await gpgSigning()
+      const toolchainOutcome = await toolchain()
+      return [credentialsOutcome, identityOutcome, gpgOutcome, toolchainOutcome]
+    }
+
+    const [chain, knownHostsOutcome, dockerAvailable] = await Promise.all([
+      gitChain(),
+      knownHosts(),
       probeDocker(run, cwd),
     ])
-    const [credentialsOutcome] = steps
-
+    const [credentialsOutcome, identityOutcome, gpgOutcome, toolchainOutcome] = chain
+    const steps = [
+      credentialsOutcome,
+      identityOutcome,
+      knownHostsOutcome,
+      toolchainOutcome,
+      gpgOutcome,
+    ] as const
     const capabilities: EnvironmentCapabilities = {
       canPush: credentialsOutcome.state === EProfileStepState.Applied,
       gitIdentity: probedIdentity,

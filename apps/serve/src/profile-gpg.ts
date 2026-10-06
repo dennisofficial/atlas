@@ -4,6 +4,7 @@ import { gpgKeyMaterialSchema, type GpgKeyMaterial } from '@dltech/atlas-harness
 
 import { EProfileStep, EProfileStepState, type ProfileStepOutcome } from './environment-profile'
 import type { GitRunner } from './materialize-workspace'
+import { verifyGitConfigs, writeGitConfigs } from './profile-git-config'
 import type { CommandRunner } from './run-command'
 import type { WorkspaceFiles } from './workspace-files'
 import type { WorkspaceSpec } from './workspace-spec'
@@ -44,6 +45,37 @@ const parseMaterial = (
   return { material: parsed.data }
 }
 
+const OBJECT_ID = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/
+
+const objectIdOf = (stdout: string): string | null => {
+  const id = stdout.trim()
+  return OBJECT_ID.test(id) ? id : null
+}
+
+const probeSigning = async (args: {
+  run: CommandRunner
+  git: GitRunner
+  cwd: string
+}): Promise<string | null> => {
+  const { run, git, cwd } = args
+  const tree = await run({ command: ['git', 'mktree'], cwd, stdin: '' })
+  const treeId = tree.ok ? objectIdOf(tree.stdout) : null
+  if (treeId === null) {
+    return tree.stderr.trim() || 'git mktree did not return a tree id for the signing probe'
+  }
+  const signed = await git({
+    args: ['commit-tree', treeId, '-S', '-m', 'atlas signing probe'],
+    cwd,
+  })
+  const commitId = signed.ok ? objectIdOf(signed.stdout) : null
+  if (commitId === null) {
+    return signed.stderr.trim() || 'git could not sign the probe commit'
+  }
+  const verified = await git({ args: ['verify-commit', commitId], cwd })
+  if (!verified.ok) return verified.stderr.trim() || 'git could not verify the probe signature'
+  return null
+}
+
 export function createGpgSigningStep(args: {
   files: WorkspaceFiles
   run: CommandRunner
@@ -82,22 +114,22 @@ export function createGpgSigningStep(args: {
       }
     }
 
-    const configs = await Promise.all([
-      git({ args: ['config', 'user.signingkey', material.keyId], cwd }),
-      git({ args: ['config', 'commit.gpgsign', String(material.sign)], cwd }),
-    ])
-    const failedConfig = configs.find((one) => !one.ok)
-    if (failedConfig !== undefined) {
-      return outcome(EProfileStepState.Failed, failedConfig.stderr.trim())
-    }
+    const configs = [
+      ['user.signingkey', material.keyId],
+      ['commit.gpgsign', String(material.sign)],
+      ['gpg.format', 'openpgp'],
+      ['gpg.program', 'gpg'],
+    ] as const
+    const configFailure =
+      (await writeGitConfigs({ git, cwd, entries: configs })) ??
+      (await verifyGitConfigs({ git, cwd, entries: configs }))
+    if (configFailure !== null) return outcome(EProfileStepState.Failed, configFailure)
 
-    const probe = await run({
-      command: ['gpg', '--batch', '--list-secret-keys', material.keyId],
-      cwd,
-    })
-    if (!probe.ok) {
-      return outcome(EProfileStepState.Failed, probe.stderr.trim())
+    const probeFailure = await probeSigning({ run, git, cwd })
+    if (probeFailure !== null) return outcome(EProfileStepState.Failed, probeFailure)
+    return {
+      outcome: { step: EProfileStep.GpgSigning, state: EProfileStepState.Applied },
+      probed: true,
     }
-    return { outcome: { step: EProfileStep.GpgSigning, state: EProfileStepState.Applied }, probed: true }
   }
 }
