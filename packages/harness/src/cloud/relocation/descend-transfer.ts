@@ -13,6 +13,7 @@ import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { exportedSessionPathOf } from '../session-archive-transport'
 import { replaceSessionDirectoryGuarded } from './descend-preserve'
 import { mergeMemoryArchive } from './session-archive'
+import type { TransferProgress } from '../transfer-progress'
 
 export async function transferTranscriptDown(args: {
   threadId: ThreadId
@@ -20,6 +21,7 @@ export async function transferTranscriptDown(args: {
   bridge: CloudBridge
   logPort?: LogPort | undefined
   preserveOwnership?: { record: PlacementRecord; workspace: WorkspaceIdentity } | undefined
+  onProgress?: ((progress: TransferProgress) => void) | undefined
 }): Promise<void> {
   const download = args.bridge.sandboxes.downloadSession
   if (download === undefined) throw new Error('the cloud bridge cannot download a session archive; the session remains in the cloud')
@@ -37,7 +39,7 @@ export async function transferTranscriptDown(args: {
   const archivePath = join(directory, 'session.tar.gz')
   const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: args.threadId })
   try {
-    await download({ threadId: args.threadId, archive: reply.archive, destination: archivePath })
+    await download({ threadId: args.threadId, archive: reply.archive, destination: archivePath, onProgress: args.onProgress })
     await replaceSessionDirectoryGuarded({
       archivePath,
       sessionDir,

@@ -13,6 +13,7 @@ import { createLocalCloudBridge } from '../local-cloud-bridge'
 import { sandboxNameFor } from '../sandbox-names'
 import { ECloudSandboxState } from '../sandbox-client'
 import type { SandboxPlacement, VercelSandboxConfig } from '../vercel-driver'
+import type { SandboxTransferProgress, TransferProgress } from '../transfer-progress'
 
 const threadId = toThreadId('thread-transcript')
 const TRANSCRIPT_PATH = '/tmp/local/transcript.tar.gz'
@@ -59,11 +60,15 @@ const fakeDriver = (args: { observed: boolean; vaultPresent?: boolean }) => {
     writeBootstrapFile: async () => {},
     uploadWorkspaceArchive: async (upload) => {
       events.push(`upload:${upload.destination}:${upload.source}`)
+      upload.onProgress?.({ transferredBytes: 0, totalBytes: 10, complete: false })
+      upload.onProgress?.({ transferredBytes: 4, totalBytes: 10, complete: false })
+      upload.onProgress?.({ transferredBytes: 10, totalBytes: 10, complete: true })
     },
     downloadWorkspaceArchive: async () => {},
     releaseWorkspaceArchive: async () => {},
     downloadSessionArchive: async (download) => {
       events.push(`download-session:${download.name}:${download.archive.path}:${download.destination}`)
+      download.onProgress?.({ transferredBytes: 1, totalBytes: download.archive.size, complete: false })
     },
     releaseSessionArchive: async (release) => {
       events.push(`release-session:${release.name}:${release.path}`)
@@ -162,6 +167,68 @@ describe('createLocalCloudBridge transcript handoff', () => {
     )
   })
 
+  it('reports each upload independently before the sandbox launches', async () => {
+    const { driver, events } = fakeDriver({ observed: false })
+    const progress: SandboxTransferProgress[] = []
+    await bridgeWith(driver).sandboxes.create({
+      threadId,
+      workspace: null,
+      transcriptArchivePath: TRANSCRIPT_PATH,
+      workspaceArchivePath: '/tmp/local/workspace.tar.gz',
+      captureContext: async (put) => put(new Uint8Array(6)),
+      onTransferProgress: (reading) => {
+        expect(events).not.toContain('launch')
+        progress.push(reading)
+      },
+    })
+
+    expect(progress.filter((reading) => reading.transferId === 'transcript-upload')).toEqual([
+      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 0, totalBytes: 10, complete: false },
+      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 4, totalBytes: 10, complete: false },
+      { transferId: 'transcript-upload', label: 'uploading conversation', transferredBytes: 10, totalBytes: 10, complete: true },
+    ])
+    expect(progress.filter((reading) => reading.transferId === 'workspace-upload').map((reading) => reading.transferredBytes)).toEqual([0, 4, 10])
+    expect(progress.filter((reading) => reading.transferId === 'context-upload')).toEqual([
+      { transferId: 'context-upload', label: 'uploading skills and memory', transferredBytes: 0, totalBytes: 6, complete: false },
+      { transferId: 'context-upload', label: 'uploading skills and memory', transferredBytes: 6, totalBytes: 6, complete: true },
+    ])
+  })
+
+  it('does not report a buffered context upload complete when its write fails', async () => {
+    const { driver } = fakeDriver({ observed: false })
+    const progress: SandboxTransferProgress[] = []
+    driver.writeBootstrapFileToSandbox = async ({ path }) => {
+      if (path.endsWith('context.tar.gz')) throw new Error('upload rejected')
+    }
+    await expect(bridgeWith(driver).sandboxes.create({
+      threadId,
+      workspace: null,
+      captureContext: async (put) => put(new Uint8Array(4)),
+      onTransferProgress: (reading) => progress.push(reading),
+    })).rejects.toThrow('upload rejected')
+    expect(progress).toHaveLength(1)
+    expect(progress[0]?.complete).toBe(false)
+    expect(progress[0]?.transferredBytes).toBe(0)
+  })
+
+  it('forwards a download total and byte readings through the driver', async () => {
+    const { driver } = fakeDriver({ observed: true })
+    const progress: TransferProgress[] = []
+    driver.downloadWorkspaceArchive = async (args) => {
+      expect(args.name).toBe(sandboxNameFor({ threadId }))
+      expect(args.totalBytes).toBe(20)
+      args.onProgress?.({ transferredBytes: 5, totalBytes: args.totalBytes, complete: false })
+    }
+    await bridgeWith(driver).sandboxes.downloadWorkspace?.({
+      threadId,
+      path: '/atlas/home/exports/workspace-test.tar.gz',
+      destination: '/tmp/workspace.tar.gz',
+      totalBytes: 20,
+      onProgress: (reading) => progress.push(reading),
+    })
+    expect(progress).toEqual([{ transferredBytes: 5, totalBytes: 20, complete: false }])
+  })
+
   it('uploads no workspace archive when none is supplied', async () => {
     const { driver, events } = fakeDriver({ observed: true, vaultPresent: true })
 
@@ -175,7 +242,9 @@ describe('createLocalCloudBridge transcript handoff', () => {
     const sandboxes = bridgeWith(driver).sandboxes
     const archive = { path: '/atlas/home/exports/session-x.tar.gz', size: 3, sha256: 'ab', threadId }
 
-    await sandboxes.downloadSession?.({ threadId, archive, destination: '/tmp/dest.partial' })
+    const progress: TransferProgress[] = []
+    await sandboxes.downloadSession?.({ threadId, archive, destination: '/tmp/dest.partial', onProgress: (reading) => progress.push(reading) })
+    expect(progress).toEqual([{ transferredBytes: 1, totalBytes: 3, complete: false }])
     await sandboxes.releaseSession?.({ threadId, path: archive.path })
 
     const name = sandboxNameFor({ threadId })

@@ -23,6 +23,8 @@ const fakeMove = (): FakeMove => {
     handleBegin: (args) => calls.push(`begin:${args.target}`),
     handleNodeStart: (nodeId) => calls.push(`start:${nodeId}`),
     handleNodeDone: (nodeId) => calls.push(`done:${nodeId}`),
+    handleTransferProgress: (progress) =>
+      calls.push(`transfer:${progress.nodeId}:${progress.transferId}`),
     handleRowActive: (id) => calls.push(`active:${id}`),
     handleRowLabel: (args) => calls.push(`label:${args.nodeId}:${args.text}`),
     handleExpand: (args) =>

@@ -28,6 +28,7 @@ import { attachmentOf } from './local-cloud-attachment'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 import { reattachSandbox } from './local-cloud-reattach'
 import { registerInBackground } from './local-cloud-registration'
+import { transferBufferedArchive } from './buffered-transfer'
 
 export type { LocalCloudBridgeOptions, SandboxAuthorizer } from './local-cloud-bridge-options'
 
@@ -115,6 +116,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           sandbox,
           source: createArgs.transcriptArchivePath,
           destination: TRANSCRIPT_ARCHIVE_PATH,
+          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'transcript-upload', label: 'uploading conversation' }),
         })
       }
       if (createArgs.workspaceArchivePath !== undefined) {
@@ -122,6 +124,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           sandbox,
           source: createArgs.workspaceArchivePath,
           destination: WORKSPACE_ARCHIVE_PATH,
+          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'workspace-upload', label: 'uploading workspace' }),
         })
       }
       const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
@@ -139,10 +142,10 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       await authorize(() => sandbox.domain(SANDBOX_SERVE_PORT))
       if (createArgs.captureContext === undefined) return
       await createArgs.captureContext((archive) =>
-        driver.writeBootstrapFileToSandbox({
-          sandbox,
-          path: CONTEXT_ARCHIVE_PATH,
-          content: archive,
+        transferBufferedArchive({
+          archive,
+          upload: () => driver.writeBootstrapFileToSandbox({ sandbox, path: CONTEXT_ARCHIVE_PATH, content: archive }),
+          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'context-upload', label: 'uploading skills and memory' }),
         }),
       )
     }
@@ -224,23 +227,26 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         path: CONTEXT_ARCHIVE_PATH,
         content: archive,
       }),
-    downloadWorkspace: ({ threadId, path, destination }) =>
+    downloadWorkspace: ({ threadId, path, destination, totalBytes, onProgress }) =>
       driverWith(args.vercel()).downloadWorkspaceArchive({
         name: sandboxNameFor({ threadId }),
         path,
         destination,
+        totalBytes,
+        onProgress,
       }),
     releaseWorkspace: ({ threadId, path }) =>
       driverWith(args.vercel()).releaseWorkspaceArchive({
         name: sandboxNameFor({ threadId }),
         path,
       }),
-    downloadSession: ({ threadId, archive, destination }) =>
+    downloadSession: ({ threadId, archive, destination, onProgress }) =>
       driverWith(args.vercel()).downloadSessionArchive({
         name: sandboxNameFor({ threadId }),
         threadId,
         archive,
         destination,
+        onProgress,
       }),
     releaseSession: ({ threadId, path }) =>
       driverWith(args.vercel()).releaseSessionArchive({

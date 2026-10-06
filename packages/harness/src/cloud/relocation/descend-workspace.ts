@@ -8,6 +8,7 @@ import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import type { LogPort, ThreadId } from '@dltech/atlas-core'
 import { logFieldsOf } from '../../store/logs'
+import type { TransferProgress } from '../transfer-progress'
 
 export type WorkspaceRestorer = (args: Parameters<typeof prepareWorkspaceRestoration>[0]) => Promise<RestoredWorkspace | WorkspaceRestoration>
 
@@ -19,6 +20,7 @@ export async function restoreCloudWorkspace(args: {
   restore?: WorkspaceRestorer | undefined
   logPort?: LogPort | undefined
   beforeRestore?: (() => Promise<void>) | undefined
+  onProgress?: ((progress: TransferProgress) => void) | undefined
 }): Promise<WorkspaceRestoration> {
   const download = args.bridge.sandboxes.downloadWorkspace
   if (download === undefined) throw new Error('the cloud bridge cannot download a workspace archive; the session remains in the cloud')
@@ -29,7 +31,13 @@ export async function restoreCloudWorkspace(args: {
   const directory = await mkdtemp(join(tmpdir(), 'atlas-descend-workspace-'))
   const archivePath = join(directory, 'workspace.tar.gz')
   try {
-    await download({ threadId: args.threadId, path: reply.path, destination: archivePath })
+    await download({
+      threadId: args.threadId,
+      path: reply.path,
+      destination: archivePath,
+      totalBytes: reply.totalBytes,
+      onProgress: args.onProgress,
+    })
     await args.beforeRestore?.()
     const restored = await (args.restore ?? prepareWorkspaceRestoration)({
       archivePath,

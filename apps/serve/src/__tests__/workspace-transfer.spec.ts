@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -84,6 +84,8 @@ describe('preparing a workspace export', () => {
     expect(reply.path.startsWith(join(home, 'exports', 'workspace-'))).toBe(true)
     expect(reply.path.endsWith('.tar.gz')).toBe(true)
     expect(existsSync(reply.path)).toBe(true)
+    expect(reply.totalBytes).toBe((await stat(reply.path)).size)
+    expect(reply.totalBytes).toBe(3)
     expect(reply.manifest.trees[0]?.sourcePath).toBe('/atlas/workspace/.atlas/worktrees/feature')
   })
 

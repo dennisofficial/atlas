@@ -1,6 +1,5 @@
 import type { Sandbox } from '@vercel/sandbox'
-import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
-import { downloadSessionArchive, releaseSessionExport } from './session-archive-transport'
+import { downloadSessionArchive, releaseSessionExport, type SessionDownloadArgs } from './session-archive-transport'
 
 import { detachThenDeleteDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
 import { driveNameFor } from './drive-names'
@@ -25,6 +24,8 @@ import {
   downloadWorkspaceArchive,
   releaseWorkspaceExport,
   uploadWorkspaceArchive,
+  type ArchiveDownloadArgs,
+  type ArchiveUploadArgs,
 } from './workspace-archive-transport'
 
 export * from './vercel-driver-sdk'
@@ -181,23 +182,19 @@ export class VercelDriver {
     }
   }
 
-  async uploadWorkspaceArchive(args: {
-    sandbox: Sandbox
-    source: string
-    destination: string
-  }): Promise<void> {
+  async uploadWorkspaceArchive(
+    args: Omit<ArchiveUploadArgs, 'sandbox' | 'chunkBytes' | 'batchParts'> & { sandbox: Sandbox },
+  ): Promise<void> {
     await this.guarded(args.sandbox.name, () => uploadWorkspaceArchive(args))
   }
 
-  async downloadWorkspaceArchive(args: {
-    name: string
-    path: string
-    destination: string
-  }): Promise<void> {
-    await this.guarded(args.name, async () => {
-      const sandbox = await this.sandboxNamed(args.name)
-      await downloadWorkspaceArchive({ sandbox, path: args.path, destination: args.destination })
-    })
+  async downloadWorkspaceArchive(
+    args: Omit<ArchiveDownloadArgs, 'sandbox'> & { name: string },
+  ): Promise<void> {
+    const { name, ...transfer } = args
+    await this.guarded(name, async () =>
+      downloadWorkspaceArchive({ ...transfer, sandbox: await this.sandboxNamed(name) }),
+    )
   }
 
   async releaseWorkspaceArchive(args: { name: string; path: string }): Promise<void> {
@@ -208,15 +205,13 @@ export class VercelDriver {
     }
   }
 
-  async downloadSessionArchive(args: {
-    name: string
-    threadId: string
-    archive: SessionArchiveDescriptor
-    destination: string
-  }): Promise<void> {
-    await this.guarded(args.name, async () => {
-      await downloadSessionArchive({ ...args, sandbox: await this.sandboxNamed(args.name) })
-    })
+  async downloadSessionArchive(
+    args: Omit<SessionDownloadArgs, 'sandbox'> & { name: string },
+  ): Promise<void> {
+    const { name, ...transfer } = args
+    await this.guarded(name, async () =>
+      downloadSessionArchive({ ...transfer, sandbox: await this.sandboxNamed(name) }),
+    )
   }
 
   async releaseSessionArchive(args: { name: string; threadId: string; path: string }): Promise<void> {
