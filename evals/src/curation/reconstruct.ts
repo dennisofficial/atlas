@@ -218,17 +218,17 @@ export function reconstructChange({
   expectedAfterSha256: string
   path?: string
 }): ReconstructedChange {
-  const refuse = (kind: EReconstructionKind, detail: string): ReconstructedChange => ({ ok: false, kind, change: null, detail })
-  if (before === null) return refuse(EReconstructionKind.Failed, 'baseline is missing; refusing to substitute current disk content')
+  const refuse = ({ kind, detail }: { kind: EReconstructionKind; detail: string }): ReconstructedChange => ({ ok: false, kind, change: null, detail })
+  if (before === null) return refuse({ kind: EReconstructionKind.Failed, detail: 'baseline is missing; refusing to substitute current disk content' })
   const targetPath = path ?? pathFromDiff({ diff })
-  if (targetPath === null) return refuse(EReconstructionKind.Failed, 'diff names no target path and none was supplied')
+  if (targetPath === null) return refuse({ kind: EReconstructionKind.Failed, detail: 'diff names no target path and none was supplied' })
   const applied = applyUnifiedDiff({ before, diff })
-  if (applied.kind === EReconstructionKind.Failed) return refuse(applied.kind, applied.detail ?? 'diff does not apply')
+  if (applied.kind === EReconstructionKind.Failed) return refuse({ kind: applied.kind, detail: applied.detail ?? 'diff does not apply' })
   if (applied.kind === EReconstructionKind.AlreadyApplied || applied.after === null) {
-    return refuse(EReconstructionKind.AlreadyApplied, 'diff is already applied to the baseline; no change to reconstruct')
+    return refuse({ kind: EReconstructionKind.AlreadyApplied, detail: 'diff is already applied to the baseline; no change to reconstruct' })
   }
   if (sha256Hex({ text: applied.after }) !== expectedAfterSha256) {
-    return refuse(EReconstructionKind.Failed, 'reconstructed text does not match the expected after digest')
+    return refuse({ kind: EReconstructionKind.Failed, detail: 'reconstructed text does not match the expected after digest' })
   }
   return { ok: true, kind: EReconstructionKind.Applied, change: { path: targetPath, before, after: applied.after } }
 }

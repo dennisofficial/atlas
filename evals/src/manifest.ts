@@ -75,9 +75,11 @@ export type DatasetStructure = {
   manifest: DatasetManifest
   casesText: string
   featureVersions: { inputSchemaVersion: string; expectedSchemaVersion: string; rubricVersion: string }
+  validateInput?: ((input: unknown) => string | null) | undefined
+  validateExpected?: ((expected: unknown) => string | null) | undefined
 }
 
-export function validateDatasetStructure({ manifest, casesText, featureVersions }: DatasetStructure): LoadedDataset {
+export function validateDatasetStructure({ manifest, casesText, featureVersions, validateInput, validateExpected }: DatasetStructure): LoadedDataset {
   const problems: string[] = []
 
   const contentHash = sha256Hex({ text: casesText })
@@ -110,6 +112,14 @@ export function validateDatasetStructure({ manifest, casesText, featureVersions 
     seen.add(evalCase.id)
     if (evalCase.featureId !== manifest.featureId) {
       problems.push(`case "${evalCase.id}" featureId ${evalCase.featureId} != manifest ${manifest.featureId}`)
+    }
+    if (validateInput !== undefined) {
+      const problem = validateInput(evalCase.input)
+      if (problem !== null) problems.push(`case "${evalCase.id}" input: ${problem}`)
+    }
+    if (validateExpected !== undefined) {
+      const problem = validateExpected(evalCase.expected)
+      if (problem !== null) problems.push(`case "${evalCase.id}" expected: ${problem}`)
     }
   }
 

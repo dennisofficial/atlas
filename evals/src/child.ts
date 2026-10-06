@@ -16,7 +16,7 @@ const childInputSchema = z.object({
   featureId: z.string().min(1),
   mode: z.enum(['fake', 'live']),
   model: z.object({ requested: z.string().min(1), promotable: z.boolean() }),
-  liveConfig: z.object({ baseUrl: z.string(), token: z.string().optional() }).nullable(),
+  liveConfig: z.object({ baseUrl: z.string() }).nullable(),
   deadlineMs: z.number().int().positive(),
   rows: z.array(z.object({ caseId: z.string(), trialId: z.string(), variantId: z.string() })).readonly(),
   cases: z.array(evalCaseSchema).readonly(),
@@ -44,12 +44,17 @@ function devNullWritable(): Writable {
 
 const LOADER_FILE = 'loader.eval.ts'
 
-function loaderSource({ globalsPath, adapterPath }: { globalsPath: string; adapterPath: string }): string {
+const ENTRY_BY_FEATURE: Readonly<Record<string, { file: string; register: string }>> = {
+  'code-quality/single-responsibility': { file: 'entry.code-quality.mjs', register: 'registerCodeQualityEval' },
+  calculator: { file: 'entry.calculator.mjs', register: 'registerCalculatorEval' },
+}
+
+function loaderSource({ globalsPath, adapterPath, register }: { globalsPath: string; adapterPath: string; register: string }): string {
   return [
     'import { readFile } from "node:fs/promises"',
     `const parsed = JSON.parse(await readFile(${JSON.stringify(globalsPath)}, "utf8"))`,
-    `const { registerCodeQualityEval } = await import(${JSON.stringify(adapterPath)})`,
-    'registerCodeQualityEval({ deps: parsed.deps, rows: parsed.rows })',
+    `const { ${register} } = await import(${JSON.stringify(adapterPath)})`,
+    `${register}({ deps: parsed.deps, rows: parsed.rows })`,
     '',
   ].join('\n')
 }
@@ -73,15 +78,19 @@ async function handleChild(): Promise<void> {
       model: input.model.requested,
       deadlineMs: input.deadlineMs,
       ...(input.mode === 'fake' ? { answers: input.answers ?? {} } : {}),
-      ...(input.liveConfig === null ? {} : { liveConfig: input.liveConfig }),
+      ...(input.liveConfig === null
+        ? {}
+        : { liveConfig: { baseUrl: input.liveConfig.baseUrl } }),
     },
     rows,
   }
   await writeFile(globalsPath, JSON.stringify(globals), 'utf8')
 
-  const adapterPath = resolve(join(distDirectory, 'entry.eval.mjs'))
+  const entry = ENTRY_BY_FEATURE[input.featureId]
+  if (entry === undefined) throw new Error(`no compiled entry for feature "${input.featureId}"`)
+  const adapterPath = resolve(join(distDirectory, entry.file))
   await mkdir(workDirectory, { recursive: true })
-  await writeFile(join(workDirectory, LOADER_FILE), loaderSource({ globalsPath, adapterPath }), 'utf8')
+  await writeFile(join(workDirectory, LOADER_FILE), loaderSource({ globalsPath, adapterPath, register: entry.register }), 'utf8')
 
   await runEvalite({
     path: LOADER_FILE,

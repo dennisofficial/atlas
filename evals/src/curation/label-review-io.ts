@@ -1,21 +1,23 @@
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { z } from 'zod'
 
-import { sha256Hex } from '../hash'
-import { EDatasetSplit, DATASET_MANIFEST_SCHEMA_VERSION, type DatasetManifest } from '../manifest'
+import { EDatasetSplit } from '../manifest'
 import type { EvalCase } from '../case'
-import { evalCaseSchema } from '../case'
+import {
+  assertCaseEnvelopes,
+  GoldenDatasetError,
+  writeDatasetDir,
+  writeRefusedLedger,
+  type FeatureVersions,
+  type SplitRequest,
+} from './golden-writer'
 import type { Candidate, LabelDraft, LabelVerification } from './label-review'
 import { candidateSchema, labelDraftSchema, labelVerificationSchema } from './label-review'
+import { splitCases } from './splits'
 
-export class GoldenDatasetError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'GoldenDatasetError'
-  }
-}
+export { GoldenDatasetError } from './golden-writer'
 
 function decodeJsonlLines<T>({ text, schema, source }: { text: string; schema: z.ZodType<T>; source: string }): T[] {
   const decoded: T[] = []
@@ -63,43 +65,38 @@ export async function writeGoldenDataset({
   refused,
   featureVersions,
   split,
+  partition,
   datasetVersion,
 }: {
   outputDir: string
   cases: readonly EvalCase[]
   refused: readonly { candidateId: string; reason: string }[]
-  featureVersions: { inputSchemaVersion: string; expectedSchemaVersion: string; rubricVersion: string; featureId: string }
+  featureVersions: FeatureVersions
   split: EDatasetSplit
+  partition?: SplitRequest | undefined
   datasetVersion: string
 }): Promise<void> {
   await refuseExisting({ outputDir })
+  assertCaseEnvelopes({ cases })
   await mkdir(outputDir, { recursive: true })
-  for (const evalCase of cases) {
-    const parsed = evalCaseSchema.safeParse(evalCase)
-    if (!parsed.success) {
-      throw new GoldenDatasetError(`case ${evalCase.id} fails the case envelope: ${parsed.error.issues[0]?.message ?? 'invalid'}`)
-    }
+  if (partition === undefined) {
+    await writeDatasetDir({ dir: outputDir, cases, featureVersions, split, datasetVersion })
+  } else {
+    const parts = splitCases({ cases, holdoutFraction: partition.holdoutFraction, seed: partition.seed })
+    await writeDatasetDir({
+      dir: join(outputDir, EDatasetSplit.Development),
+      cases: parts.development,
+      featureVersions,
+      split: EDatasetSplit.Development,
+      datasetVersion,
+    })
+    await writeDatasetDir({
+      dir: join(outputDir, EDatasetSplit.Holdout),
+      cases: parts.holdout,
+      featureVersions,
+      split: EDatasetSplit.Holdout,
+      datasetVersion,
+    })
   }
-  const casesFile = 'cases.jsonl'
-  const casesText = cases.map((evalCase) => JSON.stringify(evalCase)).join('\n') + (cases.length > 0 ? '\n' : '')
-  await writeFile(join(outputDir, casesFile), casesText, 'utf8')
-  const manifest: DatasetManifest = {
-    schemaVersion: DATASET_MANIFEST_SCHEMA_VERSION,
-    featureId: featureVersions.featureId,
-    inputSchemaVersion: featureVersions.inputSchemaVersion,
-    expectedSchemaVersion: featureVersions.expectedSchemaVersion,
-    rubricVersion: featureVersions.rubricVersion,
-    datasetVersion,
-    casesFile,
-    contentHash: sha256Hex({ text: casesText }),
-    split,
-    caseIds: cases.map((evalCase) => evalCase.id).sort(),
-    counts: { accepted: cases.length, rejected: refused.length },
-    metricGates: [],
-  }
-  await writeFile(join(outputDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
-  const ledger = refused.map((entry) => JSON.stringify(entry)).join('\n') + (refused.length > 0 ? '\n' : '')
-  await writeFile(join(outputDir, 'refused.jsonl'), ledger, 'utf8')
+  await writeRefusedLedger({ outputDir, refused })
 }
-
-

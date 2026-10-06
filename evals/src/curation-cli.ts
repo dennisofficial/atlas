@@ -1,5 +1,6 @@
 import { ArgParseError, parseArgs, requireValue } from './args'
 import { EDatasetSplit } from './manifest'
+import { resolveSuiteId } from './registry-default'
 import { redactText } from './curation/redact'
 
 const EXPORT_SPEC = { '--session-dir': 'value', '--output-dir': 'value' } as const
@@ -57,22 +58,39 @@ async function handleLabelReview({ argv }: { argv: readonly string[] }): Promise
   const outputDir = requireValue({ args, key: '--output-dir' })
   const featureId = args.values['--feature'] ?? 'code-quality/single-responsibility'
   const datasetVersion = requireValue({ args, key: '--dataset-version' })
-  const split = args.values['--split'] === 'holdout' ? EDatasetSplit.Holdout : EDatasetSplit.Development
+  const splitValue = args.values['--split'] ?? 'development'
+  if (splitValue !== 'development' && splitValue !== 'holdout') {
+    throw new ArgParseError(`--split must be "development" or "holdout", got "${splitValue}"`)
+  }
+  const split = splitValue === 'holdout' ? EDatasetSplit.Holdout : EDatasetSplit.Development
   const { readCandidatesFile, readLabelDrafts, readLabelVerifications, writeGoldenDataset } =
     await import('./curation/label-review-io')
   const { buildGoldenCases } = await import('./curation/label-review')
+  const { buildCodeQualityInput } = await import('../code-quality/input-builder')
+  const { enabledEvalPolicyIds } = await import('../code-quality/policies')
   const { registry } = await import('./registry-default')
-  const feature = registry.get({ id: featureId })
+  const feature = registry.get({ id: resolveSuiteId({ suite: featureId }) })
   const candidates = await readCandidatesFile({ path: candidatesPath })
   const drafts = await readLabelDrafts({ path: labelsPath })
   const verifications = await readLabelVerifications({ path: verificationPath })
-  const { cases, refused } = buildGoldenCases({ featureId, candidates, drafts, verifications })
+  const { cases, refused } = buildGoldenCases({
+    featureId: feature.id,
+    candidates,
+    drafts,
+    verifications,
+    buildInput: ({ candidate }) =>
+      buildCodeQualityInput({ candidate, prepareScope: undefined, policyIds: enabledEvalPolicyIds }),
+    validateExpected: (expected) => {
+      const result = feature.expectedSchema.safeParse(expected)
+      return result.success ? null : (result.error.issues[0]?.message ?? 'expected fails schema')
+    },
+  })
   await writeGoldenDataset({
     outputDir,
     cases,
     refused,
     featureVersions: {
-      featureId,
+      featureId: feature.id,
       inputSchemaVersion: feature.inputSchemaVersion,
       expectedSchemaVersion: feature.expectedSchemaVersion,
       rubricVersion: feature.rubricVersion,

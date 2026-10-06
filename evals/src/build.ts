@@ -9,7 +9,8 @@ const evalsDirectory = dirname(dirname(fileURLToPath(import.meta.url)))
 export const BUILD_TARGETS = [
   { source: 'src/supervisor.ts', out: 'dist/supervisor.mjs' },
   { source: 'src/child.ts', out: 'dist/child.mjs' },
-  { source: 'code-quality/entry.eval.ts', out: 'dist/entry.eval.mjs' },
+  { source: 'code-quality/entry.eval.ts', out: 'dist/entry.code-quality.mjs' },
+  { source: '__fixtures__/calculator-entry.eval.ts', out: 'dist/entry.calculator.mjs' },
 ] as const
 
 export type BuiltArtifact = { target: string; outPath: string; digest: string }

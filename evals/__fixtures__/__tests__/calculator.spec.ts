@@ -4,16 +4,9 @@ import { EvalRegistryError, createFeatureRegistry } from '../../src/feature-regi
 import type { AnyEvalFeature } from '../../src/feature-registry'
 import { gradeRow } from '../../src/grading'
 import { meanScore } from '../../src/metrics'
-import { type CalculatorInput, createCalculatorFeature, expectedSchema, inputSchema, outputSchema } from '../calculator'
+import { type CalculatorInput, calculate, createCalculatorFeature, expectedSchema, inputSchema, outputSchema } from '../calculator'
 
-const compute = (input: CalculatorInput): number => {
-  if (input.op === 'add') return input.a + input.b
-  if (input.op === 'subtract') return input.a - input.b
-  if (input.op === 'multiply') return input.a * input.b
-  return input.a / input.b
-}
-
-const feature = createCalculatorFeature({ evaluate: compute })
+const feature = createCalculatorFeature({ evaluate: calculate })
 const evaluator = feature.evaluators[0]
 
 const dummyFeature = (): AnyEvalFeature => ({
@@ -47,6 +40,13 @@ describe('calculator fixture', () => {
       score: 0,
       difference: 'expected 5, got 6',
     })
+  })
+
+  it('calculates each operation', () => {
+    expect(calculate({ a: 2, b: 3, op: 'add' })).toBe(5)
+    expect(calculate({ a: 2, b: 3, op: 'subtract' })).toBe(-1)
+    expect(calculate({ a: 2, b: 3, op: 'multiply' })).toBe(6)
+    expect(calculate({ a: 6, b: 3, op: 'divide' })).toBe(2)
   })
 
   it('always applies', () => {

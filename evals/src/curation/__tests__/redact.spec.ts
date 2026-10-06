@@ -18,10 +18,11 @@ describe('redactText', () => {
     expect(result.text).toBe('read <redacted:home>/src and <redacted:home>/x')
   })
 
-  test('map records digests of originals, never the originals, and counts occurrences', () => {
+  test('map records salted digests of originals, never the originals, and counts occurrences', () => {
     const result = redactText({ text: '/Users/jane/a /Users/jane/b /home/bob/c' })
-    const jane = result.map.find((entry) => entry.digest === sha256Hex({ text: '/Users/jane' }))
+    const jane = result.map.find((entry) => entry.digest === sha256Hex({ text: 'eval-redaction-v1\0/Users/jane' }))
     expect(jane?.occurrences).toBe(2)
+    expect(result.map.some((entry) => entry.digest === sha256Hex({ text: '/Users/jane' }))).toBe(false)
     expect(result.map).toHaveLength(2)
     expect(JSON.stringify(result.map)).not.toContain('jane')
   })

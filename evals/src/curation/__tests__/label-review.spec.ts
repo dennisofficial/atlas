@@ -16,7 +16,7 @@ const candidate = (id: string, method = ECandidateMethod.ProspectiveCapture): Ca
   candidateId: id,
   method,
   group: `group-${id}`,
-  provenance: { sessionDir: '/s', captureId: id, adapterVersion: 'adapter@1', sourceHash: `hash-${id}` },
+  provenance: { session: 's', captureId: id, adapterVersion: 'adapter@1', sourceHash: `hash-${id}` },
   change: { path: 'a.ts', before: null, after: 'x' },
 })
 
@@ -35,8 +35,14 @@ const verification = (id: string, outcome: EVerificationOutcome, extra: Partial<
   ...extra,
 })
 
-const build = (args: { candidates: Candidate[]; drafts: LabelDraft[]; verifications: LabelVerification[] }) =>
-  buildGoldenCases({ featureId: 'code-quality', ...args })
+const buildInput = ({ candidate }: { candidate: Candidate }): unknown => ({ change: candidate.change })
+
+const build = (args: {
+  candidates: Candidate[]
+  drafts: LabelDraft[]
+  verifications: LabelVerification[]
+  validateExpected?: (expected: unknown) => string | null
+}) => buildGoldenCases({ featureId: 'code-quality', buildInput, ...args })
 
 describe('buildGoldenCases', () => {
   test('confirmed uses the draft expected and carries provenance and review record', () => {
@@ -51,7 +57,7 @@ describe('buildGoldenCases', () => {
         schemaVersion: 1,
         id: 'a',
         featureId: 'code-quality',
-        input: { path: 'a.ts', before: null, after: 'x' },
+        input: { change: { path: 'a.ts', before: null, after: 'x' } },
         expected: { label: 'draft' },
         tags: ['group-a'],
         provenance: {
@@ -114,6 +120,55 @@ describe('buildGoldenCases', () => {
     })
     expect(cases.map((entry) => entry.id)).toEqual(['a', 'b'])
     expect(cases[1]?.provenance.completeness).toBe('reconstructed')
+  })
+})
+
+describe('buildGoldenCases independence and validation', () => {
+  test('refuses when the verifier is the generator', () => {
+    const { cases, refused } = build({
+      candidates: [candidate('a')],
+      drafts: [draft('a')],
+      verifications: [verification('a', EVerificationOutcome.Confirmed, { verifier: 'model' })],
+    })
+    expect(cases).toEqual([])
+    expect(refused).toEqual([{ candidateId: 'a', reason: 'verifier is the generator' }])
+  })
+
+  test('refuses duplicate drafts and duplicate verifications instead of overwriting', () => {
+    const { cases, refused } = build({
+      candidates: [candidate('a'), candidate('b')],
+      drafts: [draft('a'), draft('a', { label: 'other' }), draft('b')],
+      verifications: [
+        verification('a', EVerificationOutcome.Confirmed),
+        verification('b', EVerificationOutcome.Confirmed),
+        verification('b', EVerificationOutcome.Ambiguous),
+      ],
+    })
+    expect(cases).toEqual([])
+    expect(refused).toEqual([
+      { candidateId: 'a', reason: 'duplicate draft' },
+      { candidateId: 'b', reason: 'duplicate verification' },
+    ])
+  })
+
+  test('refuses cases whose expected fails validateExpected', () => {
+    const { cases, refused } = build({
+      candidates: [candidate('a'), candidate('b')],
+      drafts: [draft('a', { ok: true }), draft('b', { ok: false })],
+      verifications: [verification('a', EVerificationOutcome.Confirmed), verification('b', EVerificationOutcome.Confirmed)],
+      validateExpected: (expected) => (JSON.stringify(expected) === '{"ok":true}' ? null : 'bad'),
+    })
+    expect(cases.map((entry) => entry.id)).toEqual(['a'])
+    expect(refused).toEqual([{ candidateId: 'b', reason: 'expected fails schema' }])
+  })
+
+  test('input is whatever buildInput returned for the candidate', () => {
+    const { cases } = build({
+      candidates: [candidate('a')],
+      drafts: [draft('a')],
+      verifications: [verification('a', EVerificationOutcome.Confirmed)],
+    })
+    expect(cases[0]?.input).toEqual(buildInput({ candidate: candidate('a') }))
   })
 })
 

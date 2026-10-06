@@ -83,11 +83,13 @@ const completenessOf = (method: ECandidateMethod): string =>
 function buildCase({
   featureId,
   candidate,
+  input,
   expected,
   verification,
 }: {
   featureId: string
   candidate: Candidate
+  input: unknown
   expected: unknown
   verification: LabelVerification
 }): EvalCase {
@@ -95,7 +97,7 @@ function buildCase({
     schemaVersion: EVAL_CASE_SCHEMA_VERSION,
     id: candidate.candidateId,
     featureId,
-    input: candidate.change,
+    input,
     expected,
     tags: [candidate.group],
     provenance: {
@@ -119,46 +121,81 @@ function buildCase({
   }
 }
 
+function indexUnique<T extends { candidateId: string }>({ items }: { items: readonly T[] }): {
+  byId: Map<string, T>
+  duplicated: Set<string>
+} {
+  const byId = new Map<string, T>()
+  const duplicated = new Set<string>()
+  for (const item of items) {
+    if (byId.has(item.candidateId)) duplicated.add(item.candidateId)
+    else byId.set(item.candidateId, item)
+  }
+  return { byId, duplicated }
+}
+
 export function buildGoldenCases({
   featureId,
   candidates,
   drafts,
   verifications,
+  buildInput,
+  validateExpected,
 }: {
   featureId: string
   candidates: readonly Candidate[]
   drafts: readonly LabelDraft[]
   verifications: readonly LabelVerification[]
+  buildInput: (args: { candidate: Candidate }) => unknown
+  validateExpected?: ((expected: unknown) => string | null) | undefined
 }): { cases: readonly EvalCase[]; refused: readonly LabelRefusal[] } {
-  const draftById = new Map(drafts.map((draft) => [draft.candidateId, draft]))
-  const verificationById = new Map(verifications.map((verification) => [verification.candidateId, verification]))
+  const { byId: draftById, duplicated: duplicateDrafts } = indexUnique({ items: drafts })
+  const { byId: verificationById, duplicated: duplicateVerifications } = indexUnique({ items: verifications })
   const candidateIds = new Set(candidates.map((candidate) => candidate.candidateId))
   const cases: EvalCase[] = []
   const refused: LabelRefusal[] = []
 
   for (const candidate of [...candidates].sort((a, b) => a.candidateId.localeCompare(b.candidateId))) {
-    const draft = draftById.get(candidate.candidateId)
-    const verification = verificationById.get(candidate.candidateId)
+    const { candidateId } = candidate
+    const refuse = (reason: string): void => {
+      refused.push({ candidateId, reason })
+    }
+    const draft = draftById.get(candidateId)
+    const verification = verificationById.get(candidateId)
+    if (duplicateDrafts.has(candidateId)) {
+      refuse('duplicate draft')
+      continue
+    }
+    if (duplicateVerifications.has(candidateId)) {
+      refuse('duplicate verification')
+      continue
+    }
     if (draft === undefined) {
-      refused.push({ candidateId: candidate.candidateId, reason: 'no draft label' })
+      refuse('no draft label')
       continue
     }
     if (verification === undefined) {
-      refused.push({ candidateId: candidate.candidateId, reason: 'unverified' })
+      refuse('unverified')
+      continue
+    }
+    if (verification.verifier === draft.generator) {
+      refuse('verifier is the generator')
       continue
     }
     const resolution = resolveExpected({ draft, verification })
     if ('reason' in resolution) {
-      refused.push({ candidateId: candidate.candidateId, reason: resolution.reason })
+      refuse(resolution.reason)
       continue
     }
-    cases.push(buildCase({ featureId, candidate, expected: resolution.expected, verification }))
+    if (validateExpected !== undefined && validateExpected(resolution.expected) !== null) {
+      refuse('expected fails schema')
+      continue
+    }
+    cases.push(buildCase({ featureId, candidate, input: buildInput({ candidate }), expected: resolution.expected, verification }))
   }
 
-  for (const verification of verifications) {
-    if (!candidateIds.has(verification.candidateId)) {
-      refused.push({ candidateId: verification.candidateId, reason: 'verification names an unknown candidate' })
-    }
+  for (const candidateId of new Set(verifications.map((verification) => verification.candidateId))) {
+    if (!candidateIds.has(candidateId)) refused.push({ candidateId, reason: 'verification names an unknown candidate' })
   }
 
   cases.sort((a, b) => a.id.localeCompare(b.id))

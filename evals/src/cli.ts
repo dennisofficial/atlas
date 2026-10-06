@@ -2,7 +2,9 @@ import { JEV_QUALITY_MODEL } from '@dltech/atlas-core'
 
 import { parseArgs, parseTrials, requireValue, resolveModel, resolveRunMode, ArgParseError } from './args'
 import { loadDataset } from './dataset-io'
+import { loadFixtureAnswers } from './fixture-answers'
 import { loadRunDirectory } from './run-io'
+import { ERunMode } from './results'
 import { compareRuns, formatComparisonText } from './summary'
 import { handleRun, type RunRequest } from './supervisor'
 
@@ -13,6 +15,7 @@ const RUN_SPEC = {
   '--output-parent': 'value',
   '--model': 'value',
   '--baseline': 'value',
+  '--answers': 'value',
   '--fake': 'flag',
   '--live': 'flag',
 } as const
@@ -26,7 +29,7 @@ async function handleRunCommand({ argv }: { argv: readonly string[] }): Promise<
   const model = resolveModel({ args, defaultModel: JEV_QUALITY_MODEL })
 
   let liveConfig: RunRequest['liveConfig']
-  if (mode === 'live') {
+  if (mode === ERunMode.Live) {
     const baseUrl = process.env.ATLAS_EVAL_DECISIONS_URL
     if (baseUrl === undefined || baseUrl === '') {
       throw new ArgParseError('live mode requires ATLAS_EVAL_DECISIONS_URL; missing configuration is a config error')
@@ -37,6 +40,11 @@ async function handleRunCommand({ argv }: { argv: readonly string[] }): Promise<
   const outputParent = args.values['--output-parent'] ?? process.env.ATLAS_EVAL_OUTPUT
   if (outputParent === undefined) throw new ArgParseError('run requires --output-parent (or ATLAS_EVAL_OUTPUT)')
 
+  let fakeAnswers: RunRequest['fakeAnswers']
+  if (mode === ERunMode.Fake && args.values['--answers'] !== undefined) {
+    fakeAnswers = await loadFixtureAnswers({ path: args.values['--answers'] as string })
+  }
+
   const result = await handleRun({
     request: {
       suite: requireValue({ args, key: '--suite' }),
@@ -46,6 +54,7 @@ async function handleRunCommand({ argv }: { argv: readonly string[] }): Promise<
       mode,
       model,
       liveConfig,
+      fakeAnswers,
       baselineDir: args.values['--baseline'],
     },
   })

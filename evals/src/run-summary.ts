@@ -13,6 +13,28 @@ export function resolvedModelOf({ rows }: { rows: readonly ResultRow[] }): strin
   return null
 }
 
+const MAX_SUMMARY_VALUE_LENGTH = 120
+
+function summarizeValue({ value }: { value: unknown }): string {
+  const text = typeof value === 'string' ? value : JSON.stringify(value)
+  if (text === undefined) return String(value)
+  return text.length > MAX_SUMMARY_VALUE_LENGTH ? `${text.slice(0, MAX_SUMMARY_VALUE_LENGTH)}…` : text
+}
+
+function countInconclusive({ rows }: { rows: readonly ResultRow[] }): number {
+  let count = 0
+  for (const row of rows) {
+    if (typeof row.actual !== 'object' || row.actual === null) continue
+    const assessments: unknown = Reflect.get(row.actual, 'assessments')
+    if (!Array.isArray(assessments)) continue
+    for (const assessment of assessments) {
+      if (typeof assessment !== 'object' || assessment === null) continue
+      if (Reflect.get(assessment, 'status') === 'inconclusive') count += 1
+    }
+  }
+  return count
+}
+
 function groupCompletedTrials({ rows }: { rows: readonly ResultRow[] }): ReadonlyMap<string, readonly { trialId: string; passed: boolean }[]> {
   const grouped = new Map<string, { trialId: string; passed: boolean }[]>()
   for (const row of rows) {
@@ -73,6 +95,14 @@ export function assembleSummary({ request, invocationId, feature, normalized, pl
   const completedRows = normalized.filter((row) => row.status === ERowStatus.Completed)
   const errorRows = normalized.filter((row) => row.status !== ERowStatus.Completed)
 
+  const failures = completedRows
+    .filter((row) => Object.values(row.scores).some((score) => score < 1))
+    .map((row) => ({
+      caseId: row.caseId,
+      expected: summarizeValue({ value: row.expected }),
+      actual: row.difference ?? summarizeValue({ value: row.actual }),
+    }))
+
   const evaluatorIds = [...new Set(completedRows.flatMap((row) => Object.keys(row.scores)))].sort()
   const metrics: RunSummary['metrics'] = evaluatorIds.map((metricId) => {
     const values = completedRows
@@ -102,12 +132,12 @@ export function assembleSummary({ request, invocationId, feature, normalized, pl
     },
     completed: completedRows.length,
     errors: errorRows.length,
-    inconclusive: 0,
+    inconclusive: countInconclusive({ rows: completedRows }),
     operationalFailures: errorRows.length,
     repeatFlips: repeatFlipCount({ rowsByCase: groupCompletedTrials({ rows: completedRows }) }),
     metrics,
     datasetAggregates: [...featureAggregates],
-    failures: [],
+    failures,
     timing: {
       preparationMs: timingStats({ samples: completedRows.map((row) => row.timing.preparationMs) }),
       inferenceMs: timingStats({ samples: completedRows.map((row) => row.timing.inferenceMs) }),
@@ -122,7 +152,7 @@ export function assembleSummary({ request, invocationId, feature, normalized, pl
   }
 }
 
-export function buildRunManifest({ request, invocationId, startedAt, rows, variants, uniqueCases, dataset }: {
+export function buildRunManifest({ request, invocationId, startedAt, rows, variants, uniqueCases, dataset, codeDigests, enabledPolicyIds, concurrency }: {
   request: RunRequest
   invocationId: string
   startedAt: Date
@@ -130,6 +160,9 @@ export function buildRunManifest({ request, invocationId, startedAt, rows, varia
   variants: readonly string[]
   uniqueCases: number
   dataset: { version: string; hash: string; path: string }
+  codeDigests: { adapterDigest: string; supervisorDigest: string }
+  enabledPolicyIds: readonly string[]
+  concurrency: number
 }): RunManifest {
   return {
     schemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
@@ -137,13 +170,13 @@ export function buildRunManifest({ request, invocationId, startedAt, rows, varia
     featureId: request.suite,
     mode: request.mode,
     dataset,
-    code: { adapterDigest: 'unbuilt', supervisorDigest: 'unbuilt' },
+    code: codeDigests,
     model: request.model,
-    enabledPolicyIds: [],
+    enabledPolicyIds,
     batchMode: 'batched',
     planned: { uniqueCases, trialsPerCase: request.trials, variants, rows },
     deadlineMs: request.deadlineMs ?? 10000,
-    concurrency: 4,
+    concurrency,
     cacheDisabled: request.trials > 1,
     startedAt: startedAt.toISOString(),
   }

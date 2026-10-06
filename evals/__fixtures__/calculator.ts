@@ -17,6 +17,13 @@ export const expectedSchema: z.ZodType<CalculatorExpected> = z.object({ result: 
 
 export const outputSchema: z.ZodType<CalculatorOutput> = z.object({ result: z.number() })
 
+export function calculate(input: CalculatorInput): number {
+  if (input.op === 'add') return input.a + input.b
+  if (input.op === 'subtract') return input.a - input.b
+  if (input.op === 'multiply') return input.a * input.b
+  return input.a / input.b
+}
+
 export function createCalculatorFeature({
   evaluate,
 }: {

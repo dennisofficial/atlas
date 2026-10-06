@@ -1,5 +1,7 @@
 import { sha256Hex } from '../hash'
 
+const DIGEST_SALT = 'eval-redaction-v1\0'
+
 export type RedactionRule = {
   id: string
   pattern: RegExp
@@ -37,7 +39,7 @@ export function redactText({ text }: { text: string }): RedactionResult {
   let redacted = text
   for (const rule of REDACTION_RULES) {
     redacted = redacted.replace(rule.pattern, (match) => {
-      const digest = sha256Hex({ text: match })
+      const digest = sha256Hex({ text: `${DIGEST_SALT}${match}` })
       const key = `${rule.id}\0${digest}`
       const existing = occurrences.get(key)
       occurrences.set(key, { ruleId: rule.id, digest, occurrences: (existing?.occurrences ?? 0) + 1 })

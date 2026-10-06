@@ -6,7 +6,7 @@ export type RawExportResult = {
   output: unknown
   expected?: unknown
   status: string
-  scores: readonly { name: string; score: unknown }[]
+  scores: readonly { name: string; score: unknown; metadata?: unknown }[]
   error?: unknown
 }
 
@@ -46,12 +46,29 @@ function readTiming({ output }: { output: unknown }): { preparationMs: number; i
   }
 }
 
-function readScores({ scores }: { scores: readonly { name: string; score: unknown }[] }): Record<string, number> {
+function isNotApplicable({ metadata }: { metadata: unknown }): boolean {
+  if (typeof metadata !== 'object' || metadata === null) return false
+  return Reflect.get(metadata, 'notApplicable') === true
+}
+
+function readScores({ scores }: { scores: readonly { name: string; score: unknown; metadata?: unknown }[] }): Record<string, number> {
   const out: Record<string, number> = {}
   for (const entry of scores) {
+    if (isNotApplicable({ metadata: entry.metadata })) continue
     if (typeof entry.score === 'number' && Number.isFinite(entry.score)) out[entry.name] = entry.score
   }
   return out
+}
+
+function readDifference({ scores }: { scores: readonly { name: string; score: unknown; metadata?: unknown }[] }): string | undefined {
+  for (const entry of scores) {
+    if (isNotApplicable({ metadata: entry.metadata })) continue
+    if (typeof entry.score === 'number' && entry.score === 1) continue
+    if (typeof entry.metadata !== 'object' || entry.metadata === null) continue
+    const difference: unknown = Reflect.get(entry.metadata, 'difference')
+    if (typeof difference === 'string') return difference
+  }
+  return undefined
 }
 
 export function normalizeRows({
@@ -85,6 +102,7 @@ export function normalizeRows({
       }
     }
     const status = result.status === 'success' ? ERowStatus.Completed : ERowStatus.TaskError
+    const difference = readDifference({ scores: result.scores })
     return {
       caseId: planned.caseId,
       trialId: planned.trialId,
@@ -96,6 +114,7 @@ export function normalizeRows({
       ...(result.error === undefined || result.error === null
         ? {}
         : { error: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) }),
+      ...(difference === undefined ? {} : { difference }),
       timing: readTiming({ output: result.output }),
     }
   })

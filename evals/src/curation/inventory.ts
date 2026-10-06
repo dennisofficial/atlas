@@ -1,11 +1,12 @@
 import type { CapturedFileChange } from '@dltech/atlas-core'
-import { access, readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { access, readFile } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import { z } from 'zod'
 
 import { writeFileAtomic, writeJsonAtomic } from '../atomic'
 import { sha256Hex } from '../hash'
-import type { RedactionMapEntry, RedactionResult } from './redact'
+import { listExampleFiles, sortedNames, type ExampleFile } from './example-files'
+import { redactText, type RedactionMapEntry, type RedactionResult } from './redact'
 
 export const CAPTURED_EXAMPLE_SCHEMA_VERSION = 1
 export const EXPORT_MANIFEST_FILE = 'manifest.json'
@@ -20,7 +21,7 @@ export enum EExportRejection {
 }
 
 export type ExportRejection = {
-  sessionDir: string
+  session: string
   captureId: string | null
   kind: EExportRejection
   detail: string
@@ -43,7 +44,7 @@ export type DigestPair = { beforeSha256: string | null; afterSha256: string }
 export type ExportedExample = {
   schemaVersion: typeof CAPTURED_EXAMPLE_SCHEMA_VERSION
   captureId: string
-  sessionDir: string
+  session: string
   threadId: string
   runId: string
   callId: string
@@ -57,7 +58,7 @@ export type ExportedExample = {
 export type ExportManifest = {
   schemaVersion: typeof CAPTURED_EXAMPLE_SCHEMA_VERSION
   exportedAt: string
-  sessionDirs: readonly string[]
+  sessions: readonly string[]
   exported: readonly string[]
   rejections: readonly ExportRejection[]
 }
@@ -101,8 +102,6 @@ export const capturedExampleSchema: z.ZodType<CapturedExample> = z.object({
   digests: digestPairSchema,
 })
 
-type ExampleFile = { threadId: string; path: string }
-
 export async function assertOutputDirAbsent({ outputDir }: { outputDir: string }): Promise<void> {
   const exists = await access(outputDir).then(
     () => true,
@@ -111,32 +110,9 @@ export async function assertOutputDirAbsent({ outputDir }: { outputDir: string }
   if (exists) throw new Error('output directory already exists')
 }
 
-const sortedNames = (names: readonly string[]): string[] => [...names].sort()
-
-async function listDirectory({ path }: { path: string }) {
-  try {
-    return await readdir(path, { withFileTypes: true })
-  } catch {
-    return []
-  }
-}
-
-async function listExampleFiles({ sessionDir }: { sessionDir: string }): Promise<readonly ExampleFile[]> {
-  const threads = await listDirectory({ path: join(sessionDir, 'threads') })
-  const threadIds = sortedNames(threads.filter((entry) => entry.isDirectory()).map((entry) => entry.name))
-  const files: ExampleFile[] = []
-  for (const threadId of threadIds) {
-    const examplesDir = join(sessionDir, 'threads', threadId, 'quality', 'examples')
-    const entries = await listDirectory({ path: examplesDir })
-    const names = sortedNames(entries.filter((entry) => entry.isFile() && entry.name.endsWith('.json')).map((entry) => entry.name))
-    for (const name of names) files.push({ threadId, path: join(examplesDir, name) })
-  }
-  return files
-}
-
 const digestOrNull = (text: string | null): string | null => (text === null ? null : sha256Hex({ text }))
 
-type Verdict = { example: ExportedExample } | { rejection: Omit<ExportRejection, 'sessionDir'> }
+type Verdict = { example: ExportedExample } | { rejection: Omit<ExportRejection, 'session'> }
 
 async function parseExampleFile({ path }: { path: string }): Promise<CapturedExample | string> {
   let parsed: unknown
@@ -159,17 +135,17 @@ function verifyDigests({ captured }: { captured: CapturedExample }): string | nu
 
 function redactCapture({
   captured,
-  sessionDir,
+  session,
   deps,
 }: {
   captured: CapturedExample
-  sessionDir: string
+  session: string
   deps: ExportDeps
 }): Verdict {
   const { change } = captured
   const before = change.before === null ? null : deps.redact(change.before)
   const after = deps.redact(change.after)
-  const rejected = (kind: EExportRejection, detail: string): Verdict => ({
+  const rejected = ({ kind, detail }: { kind: EExportRejection; detail: string }): Verdict => ({
     rejection: { captureId: captured.captureId, kind, detail },
   })
 
@@ -178,18 +154,18 @@ function redactCapture({
     const second = deps.redact(first.text)
     return second.text === first.text && second.map.length === 0
   })
-  if (!stable) return rejected(EExportRejection.RedactionUnstable, 'redacting the redacted text changed it again')
+  if (!stable) return rejected({ kind: EExportRejection.RedactionUnstable, detail: 'redacting the redacted text changed it again' })
 
-  const redactedChange: CapturedFileChange = { path: change.path, before: before?.text ?? null, after: after.text }
+  const redactedChange: CapturedFileChange = { path: redactText({ text: change.path }).text, before: before?.text ?? null, after: after.text }
   if (!deps.reparse({ change: redactedChange })) {
-    return rejected(EExportRejection.AdapterMismatch, 'adapter could not reparse the redacted change')
+    return rejected({ kind: EExportRejection.AdapterMismatch, detail: 'adapter could not reparse the redacted change' })
   }
 
   return {
     example: {
       schemaVersion: captured.schemaVersion,
       captureId: captured.captureId,
-      sessionDir,
+      session,
       threadId: captured.threadId,
       runId: captured.runId,
       callId: captured.callId,
@@ -207,11 +183,11 @@ function redactCapture({
 
 async function evaluateFile({
   file,
-  sessionDir,
+  session,
   deps,
 }: {
   file: ExampleFile
-  sessionDir: string
+  session: string
   deps: ExportDeps
 }): Promise<Verdict> {
   const captured = await parseExampleFile({ path: file.path })
@@ -220,7 +196,7 @@ async function evaluateFile({
   if (digestProblem !== null) {
     return { rejection: { captureId: captured.captureId, kind: EExportRejection.DigestMismatch, detail: digestProblem } }
   }
-  return redactCapture({ captured, sessionDir, deps })
+  return redactCapture({ captured, session, deps })
 }
 
 export async function exportExamples({
@@ -239,20 +215,21 @@ export async function exportExamples({
   const seenCaptureIds = new Set<string>()
 
   for (const sessionDir of sortedSessions) {
+    const session = basename(sessionDir)
     const files = await listExampleFiles({ sessionDir })
     if (files.length === 0) {
-      rejections.push({ sessionDir, captureId: null, kind: EExportRejection.NoExamples, detail: 'no captured examples found' })
+      rejections.push({ session, captureId: null, kind: EExportRejection.NoExamples, detail: 'no captured examples found' })
       continue
     }
     for (const file of files) {
-      const verdict = await evaluateFile({ file, sessionDir, deps })
+      const verdict = await evaluateFile({ file, session, deps })
       if ('rejection' in verdict) {
-        rejections.push({ sessionDir, ...verdict.rejection })
+        rejections.push({ session, ...verdict.rejection })
         continue
       }
       if (seenCaptureIds.has(verdict.example.captureId)) {
         rejections.push({
-          sessionDir,
+          session,
           captureId: verdict.example.captureId,
           kind: EExportRejection.SchemaInvalid,
           detail: 'duplicate captureId',
@@ -270,7 +247,7 @@ export async function exportExamples({
   const manifest: ExportManifest = {
     schemaVersion: CAPTURED_EXAMPLE_SCHEMA_VERSION,
     exportedAt: (deps.now ?? (() => new Date().toISOString()))(),
-    sessionDirs: sortedSessions,
+    sessions: sortedSessions.map((sessionDir) => basename(sessionDir)),
     exported: exported.map((example) => example.captureId),
     rejections,
   }

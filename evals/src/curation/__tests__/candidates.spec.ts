@@ -31,8 +31,8 @@ const candidate = ({ id, path = 'a.ts', before = null, after = 'x' }: { id: stri
   schemaVersion: 1,
   candidateId: id,
   method: ECandidateMethod.ProspectiveCapture,
-  group: sha256Hex({ text: path }),
-  provenance: { sessionDir: '/s', captureId: id, adapterVersion: 'v1', sourceHash: sha256Hex({ text: after }) },
+  group: sha256Hex({ text: `s\n${path}` }),
+  provenance: { session: 's', captureId: id, adapterVersion: 'v1', sourceHash: sha256Hex({ text: after }) },
   change: { path, before, after },
 })
 
@@ -80,10 +80,21 @@ describe('candidateFromExport and readExportDir', () => {
     const { examples, manifest } = await readExportDir({ exportDir })
     expect(manifest.exported).toEqual(['cap-0', 'cap-1'])
     const [first, second] = examples.map((example) => candidateFromExport({ example, method: ECandidateMethod.ProspectiveCapture }))
-    expect(first?.group).toBe(sha256Hex({ text: 'src/a.ts' }))
+    expect(first?.group).toBe(sha256Hex({ text: `${first?.provenance.session}\nsrc/a.ts` }))
     expect(first?.group).toBe(second?.group)
     expect(first?.provenance.sourceHash).toBe(sha256Hex({ text: 'one' }))
     expect(first?.provenance.captureId).toBe('cap-0')
+  })
+
+  test('identical paths in different sessions get different groups', async () => {
+    const a = await exportOne([{ path: 'src/a.ts', before: null, after: 'one' }])
+    const b = await exportOne([{ path: 'src/a.ts', before: null, after: 'one' }])
+    const [exampleA] = (await readExportDir({ exportDir: a })).examples
+    const [exampleB] = (await readExportDir({ exportDir: b })).examples
+    if (exampleA === undefined || exampleB === undefined) throw new Error('missing example')
+    const groupA = candidateFromExport({ example: exampleA, method: ECandidateMethod.ProspectiveCapture }).group
+    const groupB = candidateFromExport({ example: exampleB, method: ECandidateMethod.ProspectiveCapture }).group
+    expect(groupA).not.toBe(groupB)
   })
 
   test('throws when the manifest is missing', async () => {

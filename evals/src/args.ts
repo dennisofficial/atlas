@@ -59,13 +59,15 @@ export function parseTrials({ args }: { args: ParsedArgs }): number {
 }
 
 export function resolveRunMode({ args, env }: { args: ParsedArgs; env: Record<string, string | undefined> }): ERunMode {
+  if (args.flags['--live'] === true && args.flags['--fake'] === true) {
+    throw new ArgParseError('--fake and --live are mutually exclusive')
+  }
   if (args.flags['--live'] === true) {
     if (env.ATLAS_EVAL_LIVE !== '1') {
       throw new ArgParseError('--live additionally requires ATLAS_EVAL_LIVE=1 in the environment')
     }
     return ERunMode.Live
   }
-  if (args.flags['--fake'] === true) return ERunMode.Fake
   return ERunMode.Fake
 }
 

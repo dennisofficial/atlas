@@ -52,6 +52,8 @@ export async function loadDataset({
   } catch {
     throw new DatasetNotFoundError(`cases file not readable at ${casesPath}`)
   }
+  const firstIssue = ({ error }: { error: { issues: readonly { message: string }[] } }): string =>
+    error.issues[0]?.message ?? 'invalid'
   const validated = validateDatasetStructure({
     manifest,
     casesText,
@@ -59,6 +61,14 @@ export async function loadDataset({
       inputSchemaVersion: feature.inputSchemaVersion,
       expectedSchemaVersion: feature.expectedSchemaVersion,
       rubricVersion: feature.rubricVersion,
+    },
+    validateInput: (input) => {
+      const result = feature.inputSchema.safeParse(input)
+      return result.success ? null : firstIssue({ error: result.error })
+    },
+    validateExpected: (expected) => {
+      const result = feature.expectedSchema.safeParse(expected)
+      return result.success ? null : firstIssue({ error: result.error })
     },
   })
   return { manifest, manifestPath, cases: validated.cases }

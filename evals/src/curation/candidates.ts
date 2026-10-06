@@ -34,7 +34,7 @@ export type Candidate = {
   candidateId: string
   method: ECandidateMethod
   group: string
-  provenance: { sessionDir: string; captureId: string; adapterVersion: string; sourceHash: string }
+  provenance: { session: string; captureId: string; adapterVersion: string; sourceHash: string }
   change: CapturedFileChange
 }
 
@@ -44,7 +44,7 @@ export const candidateSchema: z.ZodType<Candidate> = z.object({
   method: z.enum(ECandidateMethod),
   group: identifier,
   provenance: z.object({
-    sessionDir: z.string(),
+    session: identifier,
     captureId: identifier,
     adapterVersion: identifier,
     sourceHash: identifier,
@@ -61,7 +61,7 @@ const redactionMapEntrySchema: z.ZodType<RedactionMapEntry> = z.object({
 const exportedExampleSchema: z.ZodType<ExportedExample> = z.object({
   schemaVersion: z.literal(CAPTURED_EXAMPLE_SCHEMA_VERSION),
   captureId: captureIdentifier,
-  sessionDir: z.string(),
+  session: identifier,
   threadId: identifier,
   runId: identifier,
   callId: identifier,
@@ -78,12 +78,12 @@ const exportedExampleSchema: z.ZodType<ExportedExample> = z.object({
 const exportManifestSchema: z.ZodType<ExportManifest> = z.object({
   schemaVersion: z.literal(CAPTURED_EXAMPLE_SCHEMA_VERSION),
   exportedAt: identifier,
-  sessionDirs: z.array(z.string()).readonly(),
+  sessions: z.array(z.string()).readonly(),
   exported: z.array(identifier).readonly(),
   rejections: z
     .array(
       z.object({
-        sessionDir: z.string(),
+        session: z.string(),
         captureId: z.string().nullable(),
         kind: z.enum(EExportRejection),
         detail: z.string(),
@@ -129,9 +129,9 @@ export function candidateFromExport({
     schemaVersion: CANDIDATE_SCHEMA_VERSION,
     candidateId: example.captureId,
     method,
-    group: sha256Hex({ text: example.change.path }),
+    group: sha256Hex({ text: `${example.session}\n${example.change.path}` }),
     provenance: {
-      sessionDir: example.sessionDir,
+      session: example.session,
       captureId: example.captureId,
       adapterVersion: example.adapterVersion,
       sourceHash: example.digests.redacted.afterSha256,

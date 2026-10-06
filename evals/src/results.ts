@@ -39,7 +39,7 @@ export type ResultRow = {
   actual: unknown
   scores: Readonly<Record<string, number>>
   error?: string | undefined
-  rawAnswersRef?: string | undefined
+  difference?: string | undefined
   timing: RunTiming
 }
 

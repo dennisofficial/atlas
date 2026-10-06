@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdir, readdir, readFile, rm } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 import { buildCaptureJson, captureFixture, makeExampleDir, makeTmpDir, secretBearingScopeText, smallSyntheticScopeText } from '../../../__fixtures__/curation'
 import { sha256Hex } from '../../hash'
@@ -46,11 +46,13 @@ describe('exportExamples', () => {
     expect(written.digests.redacted.afterSha256).toBe(sha256Hex({ text: written.change.after }))
     expect(written.redaction.after.length).toBeGreaterThan(0)
     expect(JSON.stringify(written)).not.toContain('sk-live-abcdef123456')
+    expect(written.session).toBe(basename(session))
+    expect(JSON.stringify(written)).not.toContain(session)
     const manifest = JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8'))
     expect(manifest).toEqual({
       schemaVersion: 1,
       exportedAt: '2026-10-06T00:00:00.000Z',
-      sessionDirs: [session],
+      sessions: [basename(session)],
       exported: ['cap-a'],
       rejections: [],
     })
@@ -72,7 +74,7 @@ describe('exportExamples', () => {
 
     expect(report.exported).toBe(1)
     expect(report.rejections).toEqual([
-      { sessionDir: empty, captureId: null, kind: EExportRejection.NoExamples, detail: 'no captured examples found' },
+      { session: basename(empty), captureId: null, kind: EExportRejection.NoExamples, detail: 'no captured examples found' },
     ])
   })
 
@@ -167,7 +169,7 @@ describe('exportExamples', () => {
     const report = await exportExamples({ sessionDirs: [sessionB, sessionA], outputDir, deps: deps() })
 
     const manifest = JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8'))
-    expect(manifest.sessionDirs).toEqual([sessionA, sessionB].sort())
+    expect(manifest.sessions).toEqual([sessionA, sessionB].sort().map((dir) => basename(dir)))
     expect(report.exported).toBe(2)
     expect((await readdir(outputDir)).sort()).toEqual(['cap-1.json', 'cap-2.json', 'manifest.json', 'rejections.jsonl'])
   })
@@ -180,5 +182,39 @@ describe('exportExamples', () => {
 
     const lines = (await readFile(join(outputDir, 'rejections.jsonl'), 'utf8')).trim().split('\n')
     expect(lines.map((line) => JSON.parse(line).kind)).toEqual([EExportRejection.NoExamples])
+  })
+
+  test('redacts home paths in change.path and never stores the absolute session directory', async () => {
+    const session = await tmpDir()
+    const example = buildCaptureJson({ path: '/Users/jane/proj/a.ts', before: null, after: 'x', captureId: 'cap-p' })
+    await makeExampleDir({ tmp: session, captures: [captureFixture({ example })] })
+    const outputDir = await outputIn()
+
+    await exportExamples({ sessionDirs: [session], outputDir, deps: deps() })
+
+    const written = JSON.parse(await readFile(join(outputDir, 'cap-p.json'), 'utf8'))
+    expect(written.change.path).toBe('<redacted:home>/proj/a.ts')
+    const manifestText = await readFile(join(outputDir, 'manifest.json'), 'utf8')
+    expect(manifestText).not.toContain(session)
+    expect(manifestText).not.toContain('jane')
+  })
+
+  test('throws when a session directory does not exist', async () => {
+    const missing = join(await tmpDir(), 'nope')
+    await expect(exportExamples({ sessionDirs: [missing], outputDir: await outputIn(), deps: deps() })).rejects.toThrow(
+      'session directory does not exist',
+    )
+  })
+
+  test('enumerates examples recursively below the examples directory', async () => {
+    const session = await tmpDir()
+    const nested = join(session, 'threads', 'thread-1', 'quality', 'examples', 'deep', 'er')
+    await mkdir(nested, { recursive: true })
+    const example = buildCaptureJson({ path: 'a.ts', before: null, after: 'x', captureId: 'cap-deep' })
+    await Bun.write(join(nested, 'cap-deep.json'), JSON.stringify(example))
+
+    const report = await exportExamples({ sessionDirs: [session], outputDir: await outputIn(), deps: deps() })
+
+    expect(report.exported).toBe(1)
   })
 })
