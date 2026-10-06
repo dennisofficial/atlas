@@ -110,6 +110,8 @@ const fakeDriver = (args: { created: boolean; vaultPresent?: boolean }): FakeDri
     uploadWorkspaceArchive: async () => undefined,
     downloadWorkspaceArchive: async () => undefined,
     releaseWorkspaceArchive: async () => undefined,
+    downloadSessionArchive: async () => undefined,
+    releaseSessionArchive: async () => undefined,
   }
 }
 

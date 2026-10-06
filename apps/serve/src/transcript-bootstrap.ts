@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -6,7 +5,7 @@ import { join } from 'node:path'
 
 import { type ThreadId } from '@dltech/atlas-core'
 
-import { extractSessionArchive } from '@dltech/atlas-harness'
+import { describeArchiveFile, extractSessionArchive } from '@dltech/atlas-harness'
 import { eventLogFile, sessionDirectory } from '@dltech/atlas-harness'
 
 import type { FetchTranscriptArchive } from './workspace-spec'
@@ -34,9 +33,6 @@ const messageOf = (error: unknown): string =>
 
 const receiptFile = ({ atlasHome }: { atlasHome: string }): string =>
   join(atlasHome, BOOTSTRAP_DIRECTORY_NAME, APPLIED_RECEIPT_NAME)
-
-const digestOf = (archive: Uint8Array): string =>
-  createHash('sha256').update(archive).digest('hex')
 
 const appliedReceipt = async (args: { atlasHome: string }): Promise<string | null> => {
   try {
@@ -91,17 +87,17 @@ export async function readTranscriptOrigin(args: {
 }
 
 const replaceWithVerifiedArchive = async (args: {
-  archive: Uint8Array
+  archivePath: string
   sessionDir: string
   threadId: ThreadId
 }): Promise<string | null> => {
   const scratch = await mkdtemp(join(tmpdir(), 'atlas-transcript-verify-'))
   try {
-    await extractSessionArchive({ archive: args.archive, sessionDir: scratch })
+    await extractSessionArchive({ archivePath: args.archivePath, sessionDir: scratch })
     if (!existsSync(eventLogFile({ sessionDir: scratch, threadId: args.threadId }))) {
       return 'the transcript archive holds no events for this thread'
     }
-    await extractSessionArchive({ archive: args.archive, sessionDir: args.sessionDir })
+    await extractSessionArchive({ archivePath: args.archivePath, sessionDir: args.sessionDir })
     return null
   } catch (error) {
     return `the transcript archive did not extract: ${messageOf(error)}`
@@ -122,14 +118,14 @@ export async function applyTranscriptArchive(args: {
   const sessionDir = sessionDirectory({ home: args.atlasHome, sessionId: args.threadId })
   const logPresent = existsSync(eventLogFile({ sessionDir, threadId: args.threadId }))
 
-  let archive: Uint8Array | null
+  let archivePath: string | null
   try {
-    archive = await args.fetchArchive()
+    archivePath = await args.fetchArchive()
   } catch (error) {
     if (!args.explicit && logPresent) return idle
     return { ...idle, failed: `the transcript archive did not answer: ${messageOf(error)}` }
   }
-  if (archive === null) {
+  if (archivePath === null) {
     if (!args.explicit && !logPresent) {
       await stampTranscriptOrigin({ sessionDir, threadId: args.threadId, archiveDigest: null })
       return { ...idle, fresh: true }
@@ -138,7 +134,13 @@ export async function applyTranscriptArchive(args: {
     return { ...idle, failed: 'the drive holds no transcript archive' }
   }
 
-  const digest = digestOf(archive)
+  let digest: string
+  try {
+    digest = (await describeArchiveFile({ path: archivePath })).sha256
+  } catch (error) {
+    if (!args.explicit && logPresent) return idle
+    return { ...idle, failed: `the transcript archive did not answer: ${messageOf(error)}` }
+  }
   const receipt = await appliedReceipt({ atlasHome: args.atlasHome })
   const digestMatched = receipt === digest
   if (digestMatched && logPresent) return { ...idle, digestMatched }
@@ -150,7 +152,7 @@ export async function applyTranscriptArchive(args: {
   if (busy !== null) return { ...idle, digestMatched, failed: busy }
 
   const failure = await replaceWithVerifiedArchive({
-    archive,
+    archivePath,
     sessionDir,
     threadId: args.threadId,
   })

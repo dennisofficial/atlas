@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
@@ -32,10 +34,11 @@ describe('the transcript and payload the lift transfers', () => {
     await liftToCloud(test.args)
 
     expect(test.bridge.transcriptPuts).toHaveLength(1)
-    const archive = test.bridge.transcriptPuts[0]?.archive
-    expect(archive).toBeDefined()
-    expect(archive?.length).toBeGreaterThan(0)
-    expect(archive?.subarray(0, 2)).toEqual(Buffer.from([0x1f, 0x8b]))
+    const archivePath = test.bridge.transcriptPuts[0]?.archivePath
+    if (archivePath === undefined) throw new Error('the lift shipped no transcript archive')
+    const archive = await readFile(archivePath)
+    expect(archive.length).toBeGreaterThan(0)
+    expect(archive.subarray(0, 2)).toEqual(Buffer.from([0x1f, 0x8b]))
   })
 
   it('uploads no transcript for a conversation nobody has spoken in, and still attaches', async () => {

@@ -127,8 +127,20 @@ export const readTurnsReplySchema = z.object({
   delegated: z.array(wireTurnSchema),
 })
 
-/** The whole session directory as a base64 tar.gz — the descend's transcript transfer. */
-export const readSessionArchiveReplySchema = z.object({ archive: z.string() })
+export const SESSION_EXPORT_DIRECTORY_NAME = 'exports'
+export const SESSION_EXPORT_FILE_PATTERN = /^session-[A-Za-z0-9_-]+\.tar\.gz$/
+
+export const sessionArchiveDescriptorSchema = z.object({
+  path: z.string().min(1),
+  size: z.number().int().safe().nonnegative(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  threadId: threadIdWireSchema,
+})
+export type SessionArchiveDescriptor = z.infer<typeof sessionArchiveDescriptorSchema>
+
+export const readSessionArchiveReplySchema = z.object({
+  archive: sessionArchiveDescriptorSchema.nullable(),
+})
 
 /** The sandbox's memory roots as a base64 tar.gz — '' when the sandbox holds none. */
 export const readMemoryArchiveReplySchema = z.object({ archive: z.string() })

@@ -35,6 +35,8 @@ const bridgeSeeing = (args: { environment?: Record<string, string> }) => {
     uploadWorkspaceArchive: async () => {},
     downloadWorkspaceArchive: async () => {},
     releaseWorkspaceArchive: async () => {},
+    downloadSessionArchive: async () => {},
+    releaseSessionArchive: async () => {},
     transcriptLanded: async () => true,
     destroy: async () => {},
   }

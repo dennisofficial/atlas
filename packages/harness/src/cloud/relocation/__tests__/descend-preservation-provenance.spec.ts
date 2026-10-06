@@ -3,11 +3,12 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'bun:test'
 
 import { eventLogFile, threadMetaFile } from '../../../store/sessions/paths'
-import { buildSessionArchive, extractSessionArchive } from '../../session-archive'
 import { transferTranscriptDown } from '../descend-transfer'
-import { CLOUD_THREAD, fakeCloudChannel } from './fixture'
+import { cloudHolding } from './descend-cloud-holding'
+import { archiveDescriptorOf, extractExportInto } from './fake-cloud-bridge'
+import { CLOUD_THREAD } from './fixture'
 import {
-  base64ArchiveOf,
+  fileArchiveOf,
   said,
   scratchHome,
   seedLocalHistory,
@@ -32,9 +33,9 @@ describe('a serve-stamped empty transcript coming home', () => {
       ],
       provenance: true,
     })
-    const channel = fakeCloudChannel({ archive })
+    const cloud = cloudHolding({ archive })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     registry.invalidateSession({ sessionDir: sessionDirOf({ home }) })
     const events = await log.read({ threadId: CLOUD_THREAD })
@@ -45,8 +46,8 @@ describe('a serve-stamped empty transcript coming home', () => {
     const { home } = useStoreHome()
     const staging = scratchHome('atlas-descend-preserve-fresh-')
     const stagedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await base64ArchiveOf({ drafts: [said('placeholder')] }), 'base64'),
+    await extractExportInto({
+      archive: await fileArchiveOf({ drafts: [said('placeholder')] }),
       sessionDir: stagedDir,
     })
     rmSync(eventLogFile({ sessionDir: stagedDir, threadId: CLOUD_THREAD }), { force: true })
@@ -59,10 +60,9 @@ describe('a serve-stamped empty transcript coming home', () => {
       JSON.stringify({ ...threadMeta, head: 0 }),
     )
     stampProvenance({ sessionDir: stagedDir })
-    const fresh = await buildSessionArchive({ sessionDir: stagedDir })
-    const channel = fakeCloudChannel({ archive: (fresh ?? Buffer.alloc(0)).toString('base64') })
+    const cloud = cloudHolding({ archive: await archiveDescriptorOf({ sessionDir: stagedDir }) })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const landed = readFileSync(
       eventLogFile({ sessionDir: sessionDirOf({ home }), threadId: CLOUD_THREAD }),

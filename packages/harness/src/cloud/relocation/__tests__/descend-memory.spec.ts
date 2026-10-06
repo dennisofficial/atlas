@@ -4,6 +4,8 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
 
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
+
 import { EClientRequest } from '../../channel-wire'
 
 import { buildContextArchive, type ArchiveFileSource } from '../../context-archive'
@@ -42,7 +44,7 @@ const memoryTarOf = async (
   return archive.toString('base64')
 }
 
-const transcriptArchive = (): Promise<string | undefined> =>
+const transcriptArchive = (): Promise<SessionArchiveDescriptor | null> =>
   cloudArchiveOf([{ drafts: [{ type: 'user-said', text: 'one' }] }])
 
 describe('the descend’s memory transfer', () => {

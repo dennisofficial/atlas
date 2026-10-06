@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 
 import type { ThreadId } from '@dltech/atlas-core'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import type { RestoredWorkspace } from '../../../workspace/transfer/manifest'
 import { eventsInArchive } from './fake-transcript'
@@ -9,6 +10,7 @@ import type { FakeEventLog } from './fake-event-log'
 import type { FakeLedger } from './fake-ledger'
 import type { FakeThreadStore } from './fake-backend'
 import { fakeCloudChannel, type FakeCloudChannel } from './fake-cloud-channel'
+import { copyExportTo, copyTranscriptUpload } from './fake-cloud-bridge'
 import { WatchedThreadStore } from './watched-thread-store'
 import { DUMMY_ARCHIVE } from './workspace-fixture'
 import {
@@ -46,8 +48,14 @@ export type FakeBridge = Omit<CloudBridge, 'attach'> & {
     workspaceDirectory?: string | undefined
   }[]
   readonly downloads: readonly { threadId: ThreadId; path: string; destination: string }[]
+  readonly sessionDownloads: readonly {
+    threadId: ThreadId
+    archive: SessionArchiveDescriptor
+    destination: string
+  }[]
+  readonly sessionReleases: readonly { threadId: ThreadId; path: string }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
-  readonly transcriptPuts: readonly { threadId: ThreadId; archive: Buffer }[]
+  readonly transcriptPuts: readonly { threadId: ThreadId; archivePath: string }[]
   readonly attached: readonly {
     threadId: ThreadId
     url: string
@@ -72,12 +80,14 @@ export function fakeBridge(
     createFails?: unknown
     putContextFails?: unknown
     putTranscriptFails?: unknown
+    downloadSessionFails?: unknown
+    releaseSessionFails?: unknown
     confirmLandedFails?: unknown
     confirmLanded?: boolean | undefined
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
     threadStore?: FakeThreadStore
-    archive?: string | undefined
+    archive?: SessionArchiveDescriptor | null | undefined
     memoryArchive?: string | undefined
     restoreTranscriptRefused?: boolean | undefined
     downloadWorkspaceFails?: unknown
@@ -99,8 +109,14 @@ export function fakeBridge(
     workspaceDirectory?: string | undefined
   }[] = []
   const downloads: { threadId: ThreadId; path: string; destination: string }[] = []
+  const sessionDownloads: {
+    threadId: ThreadId
+    archive: SessionArchiveDescriptor
+    destination: string
+  }[] = []
+  const sessionReleases: { threadId: ThreadId; path: string }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
-  const transcriptPuts: { threadId: ThreadId; archive: Buffer }[] = []
+  const transcriptPuts: { threadId: ThreadId; archivePath: string }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
   const destroyed: ThreadId[] = []
   const trail: string[] = []
@@ -113,6 +129,8 @@ export function fakeBridge(
     ledger,
     created,
     downloads,
+    sessionDownloads,
+    sessionReleases,
     contextPuts,
     transcriptPuts,
     attached,
@@ -129,13 +147,16 @@ export function fakeBridge(
         gpgKey,
         model,
         captureContext,
-        transcript,
+        transcriptArchivePath,
         workspaceArchivePath,
         workspaceDirectory,
       }) => {
-        if (transcript !== undefined) {
+        if (transcriptArchivePath !== undefined) {
           trail.push('put-transcript')
-          transcriptPuts.push({ threadId, archive: Buffer.from(transcript) })
+          transcriptPuts.push({
+            threadId,
+            archivePath: await copyTranscriptUpload({ source: transcriptArchivePath }),
+          })
           if (args.putTranscriptFails !== undefined) throw args.putTranscriptFails
         }
         const sandbox = args.sandbox ?? RUNNING
@@ -163,11 +184,6 @@ export function fakeBridge(
         contextPuts.push({ threadId, archive: Buffer.from(archive) })
         if (args.putContextFails !== undefined) throw args.putContextFails
       },
-      putTranscript: async ({ threadId, archive }) => {
-        trail.push('put-transcript')
-        transcriptPuts.push({ threadId, archive: Buffer.from(archive) })
-        if (args.putTranscriptFails !== undefined) throw args.putTranscriptFails
-      },
       confirmLanded: async ({ threadId }) => {
         trail.push('confirm-landed')
         if (args.confirmLandedFails !== undefined) throw args.confirmLandedFails
@@ -181,6 +197,17 @@ export function fakeBridge(
         downloads.push({ threadId, path, destination })
         if (args.downloadWorkspaceFails !== undefined) throw args.downloadWorkspaceFails
         await writeFile(destination, DUMMY_ARCHIVE)
+      },
+      downloadSession: async ({ threadId, archive, destination }) => {
+        trail.push('download-session')
+        sessionDownloads.push({ threadId, archive, destination })
+        if (args.downloadSessionFails !== undefined) throw args.downloadSessionFails
+        await copyExportTo({ archive, destination })
+      },
+      releaseSession: async ({ threadId, path }) => {
+        trail.push('release-session')
+        sessionReleases.push({ threadId, path })
+        if (args.releaseSessionFails !== undefined) throw args.releaseSessionFails
       },
       find: async () => args.status,
       destroy: async ({ threadId }) => {
@@ -200,8 +227,8 @@ export function fakeBridge(
         applyWorkspaceFails: args.applyWorkspaceFails,
         restoredWorkspace: args.restoredWorkspace,
         applyTranscript: async () => {
-          const archive = transcriptPuts.at(-1)?.archive
-          if (archive !== undefined) log.load(await eventsInArchive(archive))
+          const archivePath = transcriptPuts.at(-1)?.archivePath
+          if (archivePath !== undefined) log.load(await eventsInArchive(archivePath))
         },
         ...(args.memoryArchive === undefined ? {} : { memoryArchive: args.memoryArchive }),
         ...(args.restoreTranscriptRefused === undefined

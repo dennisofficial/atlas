@@ -25,7 +25,9 @@ import { fakeServiceRegistry } from './fake-services'
 import { JsonlEventLog } from '../../../store/sessions/event-log'
 import { SessionRegistry } from '../../../store/sessions/registry'
 import { JsonlThreadStore } from '../../../store/sessions/thread-store'
-import { buildSessionArchive } from '../../session-archive'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
+
+import { exportedSessionDirOf } from './fake-cloud-bridge'
 import {
   descendFromCloud,
   type DescendLocalHome,
@@ -173,20 +175,17 @@ export type CloudThread = {
   title?: string
   drafts: readonly EventDraft[]
   spawnedBy?: ThreadId
-  /**
-   * Where the row sits while away. `flipChildrenBack` is driven by the agent roster, not the
-   * store, so a child row that never says `cloud` keeps its old location through the descend.
-   */
+  agentType?: string
   location?: EExecutionLocation
 }
 
 /**
  * Tars a cloud session dir the way serve would hold it — the parent and every child live in one
- * directory — and hands back the base64 the channel answers ReadSessionArchive with.
+ * directory — and hands back the export descriptor the channel answers ReadSessionArchive with.
  */
 export const cloudArchiveOf = async (
   threads: readonly CloudThread[],
-): Promise<string | undefined> => {
+): Promise<SessionArchiveDescriptor | null> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-cloud-seed-'))
   homes.push(home)
   const registry = new SessionRegistry(home)
@@ -204,13 +203,10 @@ export const cloudArchiveOf = async (
       ...(thread.title === undefined ? {} : { title: thread.title }),
       ...(thread.spawnedBy === undefined
         ? {}
-        : { agent: { spawnedBy: thread.spawnedBy, type: 'explore' } }),
+        : { agent: { spawnedBy: thread.spawnedBy, type: thread.agentType ?? 'explore' } }),
     })
   }
-  const archive = await buildSessionArchive({
-    sessionDir: join(home, 'sessions', CLOUD_THREAD),
-  })
-  return archive?.toString('base64')
+  return exportedSessionDirOf({ sessionDir: join(home, 'sessions', CLOUD_THREAD) })
 }
 
 export const descend = (args: {

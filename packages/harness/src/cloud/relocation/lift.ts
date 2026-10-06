@@ -148,17 +148,24 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
           pausedChildren: [],
         }
 
-        const run = await runRelocation({
-          plan,
-          ctx,
-          onStep: (id) => args.onNodeStart?.(id),
-          onDone: (id) => args.onNodeDone?.(id),
-          isCommitted: transaction.committed,
-          log:
-            args.logPort === undefined
-              ? undefined
-              : { port: args.logPort, source: 'cloud.relocation', threadId },
-        })
+        let run: Awaited<ReturnType<typeof runRelocation<LiftCtx>>>
+        try {
+          run = await runRelocation({
+            plan,
+            ctx,
+            onStep: (id) => args.onNodeStart?.(id),
+            onDone: (id) => args.onNodeDone?.(id),
+            isCommitted: transaction.committed,
+            log:
+              args.logPort === undefined
+                ? undefined
+                : { port: args.logPort, source: 'cloud.relocation', threadId },
+          })
+        } finally {
+          await ctx.transcript?.dispose().catch((error: unknown) => {
+            args.logPort?.warn({ source: 'cloud.lift', threadId, message: 'the transcript transfer staging archive could not be removed', ...logFieldsOf({ error }) })
+          })
+        }
 
         await ctx.workspaceArchive?.release().catch((error: unknown) => {
           args.logPort?.warn({ source: 'cloud.lift', threadId, message: 'the workspace transfer staging archive could not be removed', ...logFieldsOf({ error }) })

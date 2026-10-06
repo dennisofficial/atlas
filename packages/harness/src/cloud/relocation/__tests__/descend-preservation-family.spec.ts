@@ -5,12 +5,12 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 
 import { eventLogFile, sessionLockFile } from '../../../store/sessions/paths'
-import { buildSessionArchive, extractSessionArchive } from '../../session-archive'
 import { transferTranscriptDown } from '../descend-transfer'
-import { CLOUD_THREAD, fakeCloudChannel } from './fixture'
+import { cloudHolding } from './descend-cloud-holding'
+import { CLOUD_THREAD } from './fixture'
 import {
   archiveOfStagedDir,
-  base64ArchiveOf,
+  fileArchiveOf,
   dropChildFiles,
   familyArchiveWithChild,
   said,
@@ -33,9 +33,9 @@ describe('the descend validating the incoming family', () => {
       child,
       mutate: ({ stagedDir }) => dropChildFiles({ stagedDir, child }),
     })
-    const channel = fakeCloudChannel({ archive })
+    const cloud = cloudHolding({ archive })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'still references child',
     )
 
@@ -50,9 +50,9 @@ describe('the descend validating the incoming family', () => {
       child,
       mutate: ({ stagedDir }) => tearChildLog({ stagedDir, child }),
     })
-    const channel = fakeCloudChannel({ archive })
+    const cloud = cloudHolding({ archive })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const landed = readFileSync(
       eventLogFile({ sessionDir: sessionDirOf({ home }), threadId: child }),
@@ -65,11 +65,11 @@ describe('the descend validating the incoming family', () => {
   it('lands a family archive whose child is retained with a matching head', async () => {
     const { home } = useStoreHome()
     const child = toThreadId(`${CLOUD_THREAD}/kid`)
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await familyArchiveWithChild({ child, mutate: () => undefined }),
     })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const childText = readFileSync(
       eventLogFile({ sessionDir: sessionDirOf({ home }), threadId: child }),
@@ -86,11 +86,11 @@ describe('the descend validating the incoming family', () => {
   it('still lands a valid cloud transcript wholesale over diverged local history', async () => {
     const { home, log, threads, registry } = useStoreHome()
     await seedLocalHistory({ home, threads, texts: ['something else entirely'] })
-    const channel = fakeCloudChannel({
-      archive: await base64ArchiveOf({ drafts: [said('one'), said('two')] }),
+    const cloud = cloudHolding({
+      archive: await fileArchiveOf({ drafts: [said('one'), said('two')] }),
     })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     registry.invalidateSession({ sessionDir: sessionDirOf({ home }) })
     const texts = (await log.read({ threadId: CLOUD_THREAD })).map(
@@ -101,11 +101,11 @@ describe('the descend validating the incoming family', () => {
 
   it('still lands a valid archive for a conversation that only ever lived in the cloud', async () => {
     const { home, log } = useStoreHome()
-    const channel = fakeCloudChannel({
-      archive: await base64ArchiveOf({ drafts: [said('born up there')] }),
+    const cloud = cloudHolding({
+      archive: await fileArchiveOf({ drafts: [said('born up there')] }),
     })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const texts = (await log.read({ threadId: CLOUD_THREAD })).map(
       (event) => (event as { text?: string }).text,
@@ -115,11 +115,11 @@ describe('the descend validating the incoming family', () => {
 
   it('lays the session lock down again after the archive lands', async () => {
     const { home } = useStoreHome()
-    const channel = fakeCloudChannel({
-      archive: await base64ArchiveOf({ drafts: [said('one')] }),
+    const cloud = cloudHolding({
+      archive: await fileArchiveOf({ drafts: [said('one')] }),
     })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const lock = JSON.parse(
       readFileSync(sessionLockFile({ sessionDir: sessionDirOf({ home }) }), 'utf8'),
@@ -143,11 +143,11 @@ describe('a spawn reference made by a child, not the root', () => {
       'utf8',
     )
     expect(childLog).toContain('agent-spawned')
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir: family.stagedDir }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       `still references child ${grandchild}`,
     )
 

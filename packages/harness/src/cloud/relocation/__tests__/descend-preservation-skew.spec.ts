@@ -6,11 +6,13 @@ import { EAgentStart, toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { eventLogFile, sessionMetaFile, threadMetaFile } from '../../../store/sessions/paths'
 import { transferTranscriptDown } from '../descend-transfer'
-import { CLOUD_THREAD, fakeCloudChannel } from './fixture'
+import { cloudHolding } from './descend-cloud-holding'
+import { extractExportInto } from './fake-cloud-bridge'
+import { CLOUD_THREAD } from './fixture'
 import {
   AT,
   archiveOfStagedDir,
-  base64ArchiveOf,
+  fileArchiveOf,
   dropChildFiles,
   readLocalLogBytes,
   said,
@@ -21,7 +23,6 @@ import {
   stageFamilyWithChild,
   useStoreHome,
 } from './descend-preserve-fixture'
-import { extractSessionArchive } from '../../session-archive'
 
 const rewindMetaHead = (args: { stagedDir: string; threadId: string; by: number }): void => {
   const file = threadMetaFile({
@@ -39,11 +40,11 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
     const family = await stageFamilyWithChild({ child })
     rewindMetaHead({ stagedDir: family.stagedDir, threadId: CLOUD_THREAD, by: 1 })
     rewindMetaHead({ stagedDir: family.stagedDir, threadId: child, by: 1 })
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir: family.stagedDir }),
     })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const landed = readFileSync(
       eventLogFile({ sessionDir: sessionDirOf({ home }), threadId: child }),
@@ -56,17 +57,17 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
     const { home } = useStoreHome()
     const staging = scratchHome('atlas-descend-preserve-torn-')
     const stagedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await base64ArchiveOf({ drafts: [said('one'), said('two')] }), 'base64'),
+    await extractExportInto({
+      archive: await fileArchiveOf({ drafts: [said('one'), said('two')] }),
       sessionDir: stagedDir,
     })
     const tornBytes = Buffer.from('{"v":1,"id":"evt_torn","seq":3')
     appendFileSync(eventLogFile({ sessionDir: stagedDir, threadId: CLOUD_THREAD }), tornBytes)
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir }),
     })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const landed = readFileSync(
       eventLogFile({ sessionDir: sessionDirOf({ home }), threadId: CLOUD_THREAD }),
@@ -80,18 +81,18 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
     const before = readLocalLogBytes({ home })
     const staging = scratchHome('atlas-descend-preserve-short-')
     const stagedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await base64ArchiveOf({ drafts: [said('one')] }), 'base64'),
+    await extractExportInto({
+      archive: await fileArchiveOf({ drafts: [said('one')] }),
       sessionDir: stagedDir,
     })
     const metaFile = threadMetaFile({ sessionDir: stagedDir, threadId: CLOUD_THREAD })
     const meta = JSON.parse(readFileSync(metaFile, 'utf8')) as { head: number }
     writeFileSync(metaFile, JSON.stringify({ ...meta, head: meta.head + 3 }))
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'decodes to head',
     )
 
@@ -108,11 +109,11 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
     const metaFile = threadMetaFile({ sessionDir: family.stagedDir, threadId: child })
     const meta = JSON.parse(readFileSync(metaFile, 'utf8')) as { head: number }
     writeFileSync(metaFile, JSON.stringify({ ...meta, head: meta.head + 1 }))
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir: family.stagedDir }),
     })
 
-    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })
 
     const landed = readFileSync(
       eventLogFile({ sessionDir: sessionDirOf({ home }), threadId: child }),
@@ -129,11 +130,11 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
     const metaFile = threadMetaFile({ sessionDir: family.stagedDir, threadId: child })
     const meta = JSON.parse(readFileSync(metaFile, 'utf8')) as { head: number }
     writeFileSync(metaFile, JSON.stringify({ ...meta, head: meta.head + 1 }))
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir: family.stagedDir }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'decodes to head',
     )
 
@@ -150,11 +151,11 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
       eventLogFile({ sessionDir: family.stagedDir, threadId: child }),
       `${JSON.stringify({ v: 1, id: 'evt_bad', seq: 2, threadId: child, runId: 'run_x', depth: 0, at: AT, type: 'user-said', body: { type: 'user-said', text: 42 } })}\n`,
     )
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir: family.stagedDir }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'unreadable rows',
     )
 
@@ -167,17 +168,17 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
     const before = sessionDirBytes({ home })
     const staging = scratchHome('atlas-descend-preserve-noroot-')
     const stagedDir = sessionDirOf({ home: staging })
-    await extractSessionArchive({
-      archive: Buffer.from(await base64ArchiveOf({ drafts: [said('up there')] }), 'base64'),
+    await extractExportInto({
+      archive: await fileArchiveOf({ drafts: [said('up there')] }),
       sessionDir: stagedDir,
     })
     rmSync(threadMetaFile({ sessionDir: stagedDir, threadId: CLOUD_THREAD }), { force: true })
     expect(readFileSync(sessionMetaFile({ sessionDir: stagedDir }), 'utf8')).toContain(CLOUD_THREAD)
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       'no readable metadata',
     )
 
@@ -191,11 +192,11 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
     const child = toThreadId(`${CLOUD_THREAD}/kid`)
     const family = await stageFamilyWithChild({ child })
     dropChildFiles({ stagedDir: family.stagedDir, child })
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir: family.stagedDir }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       `still references child ${child}`,
     )
 
@@ -220,11 +221,11 @@ describe('a crash-torn or meta-lagging transcript coming home', () => {
         },
       ],
     })
-    const channel = fakeCloudChannel({
+    const cloud = cloudHolding({
       archive: await archiveOfStagedDir({ stagedDir: family.stagedDir }),
     })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
+    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, ...cloud })).rejects.toThrow(
       `still references child ${CLOUD_THREAD}/late`,
     )
     expect((await log.read({ threadId: CLOUD_THREAD })).map((event) => event.type)).toEqual([
