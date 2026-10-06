@@ -40,6 +40,28 @@ describe('DockerFileSystemPort stat', () => {
   })
 })
 
+describe('DockerFileSystemPort readTextForEdit', () => {
+  it('strips a BOM from the lossy text while the strict decode keeps it', async () => {
+    const bom = '﻿const a = 1\n'
+    const files = port(() => ok(Buffer.from(bom, 'utf8').toString('base64')))
+
+    const result = await files.readTextForEdit({ path: '/work/a.ts', threadId: THREAD })
+
+    expect(result.text).toBe('const a = 1\n')
+    expect(result.strict).toBe(bom)
+  })
+
+  it('returns null strict on invalid utf-8 while the lossy text replaces it', async () => {
+    const bytes = new Uint8Array([0xff, 0x61])
+    const files = port(() => ok(Buffer.from(bytes).toString('base64')))
+
+    const result = await files.readTextForEdit({ path: '/work/b.ts', threadId: THREAD })
+
+    expect(result.strict).toBeNull()
+    expect(result.text).not.toBeNull()
+  })
+})
+
 describe('DockerFileSystemPort read', () => {
   it('decodes base64 stdout back to the exact bytes', async () => {
     const original = new Uint8Array([0, 1, 2, 127, 128, 200, 255, 10, 0, 60])
