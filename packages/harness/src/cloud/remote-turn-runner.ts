@@ -149,14 +149,16 @@ export class RemoteTurnRunner extends TurnRunner {
   }
 
   async ensureAttached(): Promise<void> {
-    if (!this.needsWake()) return
+    if (!this.needsAttachment()) return
     this.channel.beginWake()
     await this.wake()
   }
 
-  private needsWake(): boolean {
+  private needsAttachment(): boolean {
     const state = this.channel.connection().state
-    return state === EChannelConnection.Closed || state === EChannelConnection.Parked
+    return state === EChannelConnection.Closed ||
+      state === EChannelConnection.Parked ||
+      state === EChannelConnection.Waking
   }
 
   runTurn(args: {
@@ -188,7 +190,7 @@ export class RemoteTurnRunner extends TurnRunner {
     if (this.driving) throw new Error('a turn is already running on this runner')
     this.setDriving(true)
     try {
-      if (this.needsWake()) await this.ensureAttached()
+      if (this.needsAttachment()) await this.ensureAttached()
 
       return await new Promise<TurnOutcome>((resolve, reject) => {
         const interrupt = () => this.channel.interrupt()

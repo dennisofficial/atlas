@@ -49,6 +49,27 @@ describe('preparing an attachment before an explicit resume check', () => {
     await turn
   })
 
+  it('joins an in-flight background wake and reports its failure before transcript verification', async () => {
+    const held = harness({ unattached: true })
+    const pending = Promise.withResolvers<void>()
+    let calls = 0
+    const wake = () => {
+      calls += 1
+      return pending.promise
+    }
+    held.channel.beginWake()
+    const background = wake().catch((failure: unknown) => failure)
+    const runner = new RemoteTurnRunner({ channel: held.channel, wake })
+    const preparing = runner.ensureAttached().catch((failure: unknown) => failure)
+    pending.reject(new Error('background wake failed'))
+
+    expect(await preparing).toMatchObject({ message: 'background wake failed' })
+    expect(await background).toMatchObject({ message: 'background wake failed' })
+    expect(calls).toBe(2)
+    expect(runner.turnInFlight()).toBe(false)
+    expect(held.sockets).toEqual([])
+  })
+
   it('reports a failed explicit wake without claiming a turn', async () => {
     const held = harness({ unattached: true })
     const runner = new RemoteTurnRunner({ channel: held.channel, wake: async () => { throw new Error('wake unavailable') } })
