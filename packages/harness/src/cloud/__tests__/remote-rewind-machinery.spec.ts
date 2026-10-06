@@ -146,15 +146,14 @@ describe('RemoteRewindMachinery', () => {
     expect(channel.applied).toEqual([{ threadId, cuts: [shellCut, agentCut] }])
   })
 
-  it('warns with the cut names when the sandbox refuses the apply, and the rewind write still lands', async () => {
+  it('rejects with the channel error when the sandbox refuses the apply, warning without claiming the rewind landed', async () => {
     const channel = new ScriptedChannel()
-    channel.failApply = new Error('the sandbox refused the rewind request: unknown op')
+    const failure = new Error('the sandbox refused the rewind request: unknown op')
+    channel.failApply = failure
     const notice = new RecordingNotice()
     const machinery = new RemoteRewindMachinery({ channel, read: rosterRead, notice })
 
-    await expect(
-      machinery.destroy({ cuts: [shellCut, agentCut], threadId }),
-    ).resolves.toBeUndefined()
+    await expect(machinery.destroy({ cuts: [shellCut, agentCut], threadId })).rejects.toBe(failure)
 
     expect(notice.posts).toHaveLength(1)
     expect(notice.posts[0]).toMatchObject({
@@ -164,6 +163,16 @@ describe('RemoteRewindMachinery', () => {
     expect(notice.posts[0]?.text).toContain('bash_1')
     expect(notice.posts[0]?.text).toContain('builder')
     expect(notice.posts[0]?.text).toContain('unknown op')
+    expect(notice.posts[0]?.text).toContain('did not confirm the rewind')
+    expect(notice.posts[0]?.text).not.toContain('landed')
+  })
+
+  it('rejects when the sandbox refuses the apply and no notice port was given', async () => {
+    const channel = new ScriptedChannel()
+    channel.failApply = new Error('socket closed')
+    const machinery = new RemoteRewindMachinery({ channel, read: rosterRead })
+
+    await expect(machinery.destroy({ cuts: [shellCut], threadId })).rejects.toThrow('socket closed')
   })
 
   it('serializes the cuts for the wire', () => {
