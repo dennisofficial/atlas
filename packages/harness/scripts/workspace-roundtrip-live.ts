@@ -12,6 +12,7 @@ import {
   type CloudChannel, type RestoredWorkspace,
 } from '../src/index'
 import { liveFixture, liveGit, MODEL_STUB } from './workspace-roundtrip-live-fixture'
+import { SERVE_LOG_PATH } from '../src/cloud/serve-launch'
 
 if (process.env['ATLAS_LIVE_WORKSPACE_ROUNDTRIP'] !== '1') throw new Error('Set ATLAS_LIVE_WORKSPACE_ROUNDTRIP=1 to provision a disposable Vercel sandbox')
 const realHome = join(homedir(), '.atlas')
@@ -171,7 +172,7 @@ subprocess.run(["git","clone",str(repo),str(sibling)],check=True)
 } catch (error) {
   console.error(error instanceof Error ? error.stack : String(error))
   if (sandbox !== undefined) {
-    const logs = await sandbox.runCommand({ cmd: 'sh', args: ['-c', 'tail -c 16000 /opt/atlas/atlas-serve.log; tail -c 4000 /opt/atlas/model-stub.log'], timeoutMs: 15000 }).catch(() => undefined)
+    const logs = await sandbox.runCommand({ cmd: 'sh', args: ['-c', `tail -c 16000 ${SERVE_LOG_PATH}; tail -c 4000 /opt/atlas/model-stub.log`], timeoutMs: 15000 }).catch(() => undefined)
     if (logs !== undefined) console.error(await logs.stdout())
   }
   process.exitCode = 1
