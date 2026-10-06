@@ -1,89 +1,82 @@
-import type { KeyEvent } from '@opentui/core'
-import type { ContextReader } from '@dltech/atlas-harness'
+import type { ContextFolderStateStore, ContextReader } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import {
-  contextTreeRows, contextTreeSelection, moveContextSelection, parentContextPath, toggleContextExpanded,
-  type ContextTreeLevels,
-} from '../ui/context-tree-model'
+import { contextTreeRows, toggleContextClosed, type ContextTreeLevels } from '../ui/context-tree-model'
+import { ENoticeTone, notify } from '../ui/notice-store'
 import { readContextTree, sameContextTreeLevels } from './context-tree-reader'
+
+const NOTICE_KEY_FOLDER_STATE = 'context-folder-state'
+const NO_CLOSED: ReadonlySet<string> = new Set()
+
+type Loaded = { owner: ContextFolderStateStore | undefined; closed: ReadonlySet<string> }
+
+const messageOf = (cause: unknown): string => cause instanceof Error ? cause.message : String(cause)
+
+const warnFolderState = ({ action, cause }: { action: string; cause: unknown }): void =>
+  notify({ key: NOTICE_KEY_FOLDER_STATE, tone: ENoticeTone.Warn, text: `Could not ${action} folder state: ${messageOf(cause)}` })
 
 export function useContextTree(args: {
   readers: ContextReader | undefined
+  folderState?: ContextFolderStateStore | undefined
   revision: number
   opened: string | null
   onOpen: (path: string) => void
   onClose: () => void
 }) {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const { folderState } = args
+  const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [levels, setLevels] = useState<ContextTreeLevels>(new Map())
   const [loading, setLoading] = useState(true)
-  const [focused, setFocused] = useState(false)
-  const [selected, setSelected] = useState<string | null>(null)
   const held = useRef(levels)
   held.current = levels
+  const ready = loaded === null ? folderState === undefined : loaded.owner === folderState
+  const closed = ready && loaded !== null ? loaded.closed : NO_CLOSED
+  const latestClosed = useRef(closed)
+  latestClosed.current = closed
+
+  useEffect(() => {
+    if (folderState === undefined) { setLoaded(null); return }
+    let live = true
+    folderState.load().then((paths) => {
+      if (live) setLoaded({ owner: folderState, closed: new Set(paths) })
+    }, (cause: unknown) => {
+      if (!live) return
+      warnFolderState({ action: 'load', cause })
+      setLoaded({ owner: folderState, closed: NO_CLOSED })
+    })
+    return () => { live = false }
+  }, [folderState])
 
   useEffect(() => {
     let live = true
     if (args.readers === undefined) { setLoading(false); return }
+    if (!ready) return
     if (held.current.size === 0) setLoading(true)
-    void readContextTree({ readers: args.readers, expanded, previous: held.current }).then((next) => {
+    void readContextTree({ readers: args.readers, closed, previous: held.current }).then((next) => {
       if (!live) return
       setLevels((current) => sameContextTreeLevels({ left: current, right: next }) ? current : next)
       setLoading(false)
     })
     return () => { live = false }
-  }, [args.readers, args.revision, expanded])
+  }, [args.readers, args.revision, closed, ready])
 
-  const rows = useMemo(() => contextTreeRows({ levels, expanded }), [levels, expanded])
-  const cursor = contextTreeSelection({ rows, selected })
-  const toggle = useCallback((path: string) => {
-    setExpanded((current) => toggleContextExpanded({ expanded: current, path }))
-  }, [])
-  const handleBlur = useCallback(() => setFocused(false), [])
-  const handleFocus = useCallback(() => {
-    setFocused(true)
-    if (args.opened !== null && rows.some((row) => row.path === args.opened)) setSelected(args.opened)
-  }, [args.opened, rows])
+  const rows = useMemo(() => contextTreeRows({ levels, closed }), [levels, closed])
+  const handleToggle = useCallback((path: string) => {
+    const next = toggleContextClosed({ closed: latestClosed.current, path })
+    latestClosed.current = next
+    setLoaded({ owner: folderState, closed: next })
+    if (folderState === undefined) return
+    folderState.save([...next]).catch((cause: unknown) => warnFolderState({ action: 'save', cause }))
+  }, [folderState])
   const handleActivate = useCallback((path: string) => {
     const row = rows.find((entry) => entry.path === path)
     if (row === undefined) return
-    if (focused) setSelected(path)
-    if (row.isDirectory) { setFocused(true); toggle(path); return }
+    if (row.isDirectory) { if (ready) handleToggle(path); return }
     if (path === args.opened) { args.onClose(); return }
-    setFocused(false)
-    setSelected(null)
     args.onOpen(path)
-  }, [rows, focused, toggle, args.onOpen, args.onClose, args.opened])
+  }, [rows, ready, handleToggle, args.onOpen, args.onClose, args.opened])
 
-  const handleKey = useCallback((key: Pick<KeyEvent, 'name'>) => {
-    if (key.name === 'escape' || key.name === 'tab') { handleBlur(); return }
-    if (key.name === 'up' || key.name === 'down') {
-      setSelected(moveContextSelection({ rows, selected: cursor, delta: key.name === 'up' ? -1 : 1 }))
-      return
-    }
-    if (key.name === 'home' || key.name === 'end') {
-      setSelected((key.name === 'home' ? rows[0] : rows.at(-1))?.path ?? null)
-      return
-    }
-    const row = rows.find((entry) => entry.path === cursor)
-    if (row === undefined) return
-    if (key.name === 'return' || key.name === 'enter' || key.name === 'space') { handleActivate(row.path); return }
-    if (key.name === 'right' && row.isDirectory) {
-      if (!row.expanded) { toggle(row.path); return }
-      const index = rows.findIndex((entry) => entry.path === row.path)
-      const child = rows[index + 1]
-      if (child !== undefined && child.depth > row.depth) setSelected(child.path)
-      return
-    }
-    if (key.name !== 'left') return
-    if (row.isDirectory && row.expanded) { toggle(row.path); return }
-    const parent = parentContextPath(row.path)
-    if (parent !== '') setSelected(parent)
-  }, [rows, cursor, toggle, handleBlur, handleActivate])
-
-  return { rows, levels, expanded, cursor: focused || selected !== null ? cursor : null, opened: args.opened, focused, loading,
-    handleFocus, handleBlur, handleActivate, handleKey }
+  return { rows, levels, closed, opened: args.opened, loading: loading || !ready, handleActivate }
 }
 
 export type ContextTreeControl = ReturnType<typeof useContextTree>

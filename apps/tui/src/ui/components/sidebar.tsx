@@ -153,6 +153,7 @@ function DerivedSidebar(props: {
           flexGrow={1}
           flexShrink={1}
           flexBasis={0}
+          focusable={false}
           contentOptions={{ paddingRight: SIDEBAR_PADDING }}
         >
           <box flexDirection="column" flexShrink={0} gap={1}>

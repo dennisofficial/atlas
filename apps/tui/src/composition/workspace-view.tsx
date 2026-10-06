@@ -7,7 +7,6 @@ import { LostChildren } from '../ui/components/lost-children'
 import { Screen } from '../ui/components/screen'
 import { Shortcuts } from '../ui/components/shortcuts'
 import { SelectionSurface } from '../ui/selection/selection-surface'
-import { EPressIntent, usePress } from '../ui/hooks/use-press'
 import type { AtlasApp } from './compose'
 import { EChromePanel } from './workspace-panels'
 
@@ -35,9 +34,7 @@ export function WorkspaceView(props: {
   sidebar: React.ReactNode
   overlays: React.ReactNode
   pane?: React.ReactNode
-  onPaneFocus?: () => void
 }): React.ReactNode {
-  const press = usePress({ intent: EPressIntent.Focus })
   return (
     <Screen {...(props.header === null ? {} : { header: props.header })}>
       <SelectionSurface>
@@ -47,7 +44,6 @@ export function WorkspaceView(props: {
           flexGrow={1}
           flexShrink={1}
           flexBasis={0}
-          {...press(props.onPaneFocus)}
         >
           <box
             flexDirection="column"

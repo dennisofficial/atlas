@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
@@ -14,7 +14,7 @@ import { fakeApp, scriptedModelPort } from './fake-app'
 await grammarsReady()
 
 describe('the context tree in a conversation', () => {
-  it('expands inline, navigates folders with keys, and isolates tree input from the draft', async () => {
+  it('shows folders open, toggles them by click without capturing the keyboard, and remembers closed folders', async () => {
     const previous = process.env.ATLAS_HOME
     const home = await mkdtemp(join(tmpdir(), 'atlas-context-tree-app-'))
     process.env.ATLAS_HOME = home
@@ -34,52 +34,48 @@ describe('the context tree in a conversation', () => {
       await act(async () => { await setup.mockMouse.click((lines[row] ?? '').indexOf(text), row) })
       await setup.flush()
     }
-    const press = async (name: 'right' | 'left' | 'escape' | 'enter' | 'tab') => {
+    const press = async (name: 'right' | 'left' | 'escape' | 'tab') => {
       await act(async () => {
         if (name === 'escape') { setup.mockInput.pressEscape(); await new Promise((resolve) => setTimeout(resolve, 60)) }
-        else if (name === 'enter') setup.mockInput.pressEnter()
         else if (name === 'tab') setup.mockInput.pressTab()
         else setup.mockInput.pressArrow(name)
       })
       await setup.flush()
     }
     try {
-      expect(await until({ holds: async () => (await sidebar()).includes('notes'), within: 5000 })).toBe(true)
-      await act(async () => { await setup.mockInput.typeText('keep the draft') })
-      await click('notes')
-      expect(await until({ holds: async () => (await sidebar()).includes('deep'), within: 5000 })).toBe(true)
-      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(2)
-      expect(await sidebar()).not.toContain('.. / back')
-      await act(async () => { await setup.mockInput.typeText('ignored by the focused tree') })
-      expect(editorIn(setup.renderer.root)?.plainText).toBe('keep the draft')
-      await click('notes')
-      expect(await sidebar()).not.toContain('deep')
-      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(1)
-      await click('notes')
-      expect(await until({ holds: async () => (await sidebar()).includes('deep'), within: 5000 })).toBe(true)
-      await press('right')
-      await press('right')
       expect(await until({ holds: async () => (await sidebar()).includes('decision.md'), within: 5000 })).toBe(true)
+      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(2)
+      expect(await sidebar()).not.toContain('↑↓')
+      await act(async () => { await setup.mockInput.typeText('keep the draft') })
+      expect(editorIn(setup.renderer.root)?.plainText).toBe('keep the draft')
+      await click('deep')
+      expect(await sidebar()).not.toContain('decision.md')
+      expect(editorIn(setup.renderer.root)?.focused).toBe(true)
+      await act(async () => { await setup.mockInput.typeText(' and more') })
+      expect(editorIn(setup.renderer.root)?.plainText).toBe('keep the draft and more')
+      await press('tab')
       await press('right')
-      await press('enter')
+      expect(editorIn(setup.renderer.root)?.plainText).toBe('keep the draft and more')
+      await click('notes')
+      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(1)
+      expect(await sidebar()).not.toContain('deep')
+      await click('notes')
+      expect(await until({ holds: async () => (await sidebar()).includes('deep'), within: 5000 })).toBe(true)
+      expect(await sidebar()).not.toContain('decision.md')
+      await click('deep')
+      expect(await until({ holds: async () => (await sidebar()).includes('decision.md'), within: 5000 })).toBe(true)
+      await click('decision.md')
       expect(await until({ holds: async () => (await frame()).includes('deep decision'), within: 5000 })).toBe(true)
       expect(await frame()).toContain('notes/deep/decision.md')
-      await press('tab')
-      expect(await sidebar()).toContain('↑↓ move')
-      await click('deep decision')
-      expect(await sidebar()).not.toContain('↑↓ move')
-      await press('tab')
-      await press('left')
-      await press('left')
-      expect(await sidebar()).not.toContain('decision.md')
-      expect(await frame()).toContain('deep decision')
       await press('escape')
-      expect(await frame()).toContain('deep decision')
-      await press('escape')
-      expect(await frame()).toContain('keep the draft')
+      expect(await frame()).not.toContain('notes/deep/decision.md')
+      expect(await frame()).toContain('keep the draft and more')
       await writeFile(join(root, 'notes', 'new.md'), 'new file')
       expect(await until({ holds: async () => (await sidebar()).includes('new.md'), within: 5000 })).toBe(true)
       expect(await sidebar()).toContain('plan.md')
+      await click('deep')
+      const saved = await readFile(join(home, 'sessions', THREAD, 'context-folders.json'), 'utf8').catch(() => '')
+      expect(saved).toContain('notes/deep')
     } finally {
       await teardown(setup)
       await app.close()
