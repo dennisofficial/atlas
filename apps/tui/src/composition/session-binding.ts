@@ -135,6 +135,7 @@ export const localBindingOf = (args: {
       agents: args.local.agents,
       services: args.local.services,
       rewindMachinery: undefined,
+      compaction: args.local.compaction,
       workspace: args.workspace,
       attachment: {
         kind: 'local',

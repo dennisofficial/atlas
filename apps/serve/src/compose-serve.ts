@@ -292,6 +292,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       stop: (steer) => app.agents.stop(steer),
     },
     operatorInput: app.operatorInput,
+    compaction: app.compaction,
     close: app.close,
   }
 }

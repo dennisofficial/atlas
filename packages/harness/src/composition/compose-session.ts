@@ -9,6 +9,7 @@ import type { TurnRunner } from '../loop/turn-runner.port'
 import type { ServiceRegistryPort } from '../services/service-registry'
 import type { ShellRegistryPort } from '../shells/shell-registry'
 import type { ThreadStorePort } from '../store/thread-store'
+import type { CompactionPort } from '../store/compaction-port'
 import type { ContributedSurface } from '../plugins/surface'
 
 import type { ExecutionLocationState } from './execution-location-state'
@@ -26,6 +27,7 @@ export function localSessionOwner(args: {
   shells: ShellRegistryPort
   agents: AgentRegistryPort
   services: ServiceRegistryPort
+  compaction?: CompactionPort | undefined
 }): SessionOwner<SessionRuntime> {
   const { placement, workspace, threads, intake, ...held } = args
 

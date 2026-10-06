@@ -31,6 +31,7 @@ import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
+import { LocalCompaction } from '../store/local-compaction'
 import { ToolRegistry } from '../tools/registry'
 
 import { bindBrowser } from './compose-browser'
@@ -188,6 +189,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     titler: utility.titler,
   })
 
+  const compaction = new LocalCompaction({ log, threads, agents, summarise: utility.summarise })
   const sessionOwner = localSessionOwner({
     placement: executionLocation,
     workspace,
@@ -200,6 +202,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     shells,
     agents,
     services,
+    compaction,
   })
 
   let prepared: HarnessCloseRequest = {}
@@ -214,6 +217,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     activeThread: () => activeThread,
     titler: utility.titler,
     summarise: utility.summarise,
+    compaction,
     settings,
     secrets,
     skills: skillRegistry.all(),

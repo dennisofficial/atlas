@@ -946,6 +946,17 @@ each rung of a recency ladder, measuring candidates by actually re-assembling th
 arithmetic, and reports `fits`, `compact` or `exhausted`. It is built and tested; nothing in the loop
 calls it yet, so compaction today is the operator pressing the chord.
 
+**Explicit compaction follows the transcript owner.** `CompactionPort` carries `/compact` scope
+and summarise-around anchor/sequence intent. Its local adapter invokes the shared compaction
+functions; its cloud adapter requests the same operation from serve, where the owning harness
+selects the range, runs its compaction model, applies the guards, and writes its own stores.
+The terminal never tries to mutate a cloud transcript through read-only store adapters. Serve
+holds turn admission and intake during summarisation; cancellation reaches the owning model and
+is rechecked before writing. Mutations are not replayed after a lost reply, and errors do not
+claim that history stayed unchanged when the commit outcome is unknown. Successful operations
+invalidate every attached client's transcript. Protocol version 18 requires matching client and
+sandbox runtimes.
+
 **Compaction guidance arrives with the summary.** The stable system prompt carries no compaction
 notice; `compactedHistory` supplies continuation context when a summary replaces earlier turns.
 

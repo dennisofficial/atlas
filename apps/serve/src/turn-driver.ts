@@ -2,6 +2,7 @@ import { saidBody, type EventDraft, type SaidFile, type SaidImage, type ThreadId
 import { PauseSignal, ETurnStatus, type TurnOutcome, type MessageIntake } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
+import { createHistoryAdmission } from './history-admission'
 
 export type TurnRunOptions = {
   resume?: boolean | undefined
@@ -29,6 +30,7 @@ export type ServeTurnDriver = {
   outcomePending: () => boolean
   settled: () => Promise<void>
   attach: (shared: MessageIntake) => () => void
+  holdHistory: () => () => void
 }
 
 export type TurnDriverHooks = {
@@ -64,6 +66,7 @@ export function createTurnDriver(args: {
   let lastOutcome: TurnOutcome | null = null
   let turnFailure: Error | null = null
   let resumeRelocation = false
+  const history = createHistoryAdmission({ threadId, intake, refusal: args.refusal, unavailable: () => turning !== null || committing !== null || relocationFrozen })
 
   const writeDrafts = async (drafts: readonly EventDraft[]): Promise<void> => {
     const runId = app.ids.nextRunId()
@@ -138,6 +141,7 @@ export function createTurnDriver(args: {
   }
 
   const run = (options?: TurnRunOptions): void => {
+    history.assertAvailable()
     const refused = args.refusal?.()
     if (refused !== undefined) throw new Error(refused)
     if (options?.onlyIfIdle === true && (turning !== null || committing !== null)) {
@@ -153,6 +157,7 @@ export function createTurnDriver(args: {
 
   const handle: ServeTurnDriver = {
     async say(said) {
+      history.assertAvailable()
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
       if (relocationFrozen) throw new Error('the session is paused for a workspace handoff')
@@ -205,6 +210,7 @@ export function createTurnDriver(args: {
       pause?.pause()
     },
     beginRelocation() {
+      history.assertAvailable()
       if (relocationSettling !== null) return relocationSettling
       relocationGeneration += 1
       relocationFrozen = true
@@ -277,7 +283,7 @@ export function createTurnDriver(args: {
       return shared.register({
         threadId,
         driver: {
-          blocked: () => turning !== null || committing !== null || relocationFrozen,
+          blocked: () => turning !== null || committing !== null || relocationFrozen || history.held(),
           wake: () => {
             handle.sayOrRun()
           }
@@ -285,9 +291,10 @@ export function createTurnDriver(args: {
       })
     },
     running: () => turning !== null,
-    busy: () => turning !== null || committing !== null,
+    busy: () => turning !== null || committing !== null || history.held(),
     outcomePending: () => outcomePending || (relocationSettling !== null && !relocationConfirmed),
     settled: () => Promise.allSettled([committing, turning, relocationSettling, relocationResuming]).then(() => undefined),
+    holdHistory: history.hold,
   }
   return handle
 }

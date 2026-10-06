@@ -22,7 +22,8 @@ import {
   type RequestFrame,
   type TranscriptReaders,
 } from './requests'
-import { answerRewind } from './rewind-apply'
+import { answerRewindRequest } from './rewind-request'
+import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionSocket } from './socket-session'
@@ -45,6 +46,8 @@ export function createRequestRouter(args: {
   prStates?: (() => readonly import('@dltech/atlas-wire').PrStateWire[]) | undefined
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
   rewind?: ServeRewind | undefined
+  compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
+  historyChanged?: (() => void) | undefined
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<import('@dltech/atlas-harness').OperatorInputPort, 'answer'> | undefined
   context?: ContextReaders | undefined
@@ -61,9 +64,14 @@ export function createRequestRouter(args: {
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
   const state: { restoring: Promise<RestoreOutcome> | null } = { restoring: null }
+  const compact = createCompactionRequests({ threadId, driver, compaction: args.compaction, changed: args.historyChanged ?? (() => undefined) })
 
   const route = (routed: { socket: SessionSocket; frame: RequestFrame }): void => {
     const { socket, frame } = routed
+    if (isCompactionOp(frame.op)) {
+      void compact.answer(frame).then((reply) => send({ socket, frame: reply }))
+      return
+    }
   if (frame.op === EClientRequest.ListRoster) {
     send({
       socket,
@@ -80,40 +88,13 @@ export function createRequestRouter(args: {
     return
   }
 
+  if (compact.active() && (frame.op === EClientRequest.Rewind || isAgentSteerOp(frame.op))) {
+    send({ socket, frame: refusedRequest({ replyTo: frame.id, message: 'the history is being summarised — wait for it to finish' }) })
+    return
+  }
   if (frame.op === EClientRequest.Rewind) {
-    if (rewind === undefined) {
-      log({ event: EServeEvent.ClientRefused, reason: 'rewind-without-registries' })
-      send({
-        socket,
-        frame: {
-          kind: EServeFrame.Reply,
-          replyTo: frame.id,
-          ok: false,
-          data: { message: 'this serve has nothing a rewind could cut' },
-        },
-      })
-      return
-    }
-    const target = rewind.target
-    void answerRewind({
-      frame,
-      threadId,
-      target,
-      driver,
-      ...(rewind.truncate === undefined ? {} : { truncate: { truncate: rewind.truncate } }),
-    })
-      .then((reply) => send({ socket, frame: reply }))
-      .catch((error: unknown) =>
-        send({
-          socket,
-          frame: {
-            kind: EServeFrame.Reply,
-            replyTo: frame.id,
-            ok: false,
-            data: { message: messageOf(error, 'the rewind cleanup failed') },
-          },
-        }),
-      )
+    if (rewind === undefined) log({ event: EServeEvent.ClientRefused, reason: 'rewind-without-registries' })
+    void answerRewindRequest({ frame, threadId, driver, rewind }).then((reply) => send({ socket, frame: reply }))
     return
   }
 

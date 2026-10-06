@@ -74,6 +74,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       send(sent)
     },
     rewind,
+    compaction: args.compaction,
+    historyChanged: () => {
+      for (const socket of attached) send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: 0 } })
+    },
     agents,
     operatorInput: args.operatorInput,
     ...(args.context === undefined ? {} : { context: args.context }),

@@ -61,6 +61,7 @@ export type SessionHandlersArgs = {
   /** The github plugin's live PR readings; absent in fakes, which answer empty. */
   prStates?: ServePrStates | undefined
   rewind?: ServeRewind | undefined
+  compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
   /** The sandbox's own agent registry, narrowed to the operator-steer ops; absent in fakes, which refuse them. */
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined

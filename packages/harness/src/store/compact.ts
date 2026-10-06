@@ -126,6 +126,7 @@ export async function compactThread(args: {
     }
     throw fault
   }
+  signal?.throwIfAborted()
   if (summary === null) {
     return { ok: false, failure: ECompactionFailure.NoSummary, reason: NO_SUMMARY }
   }
