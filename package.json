@@ -5,7 +5,8 @@
   "packageManager": "bun@1.4.2",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "evals"
   ],
   "scripts": {
     "do:spec:backup": "doctl apps spec get \"$DO_APP_ID\" --format yaml > .do/live-spec.backup.yaml",
@@ -20,7 +21,8 @@
     "proto:attachments": "bun apps/tui/prototype/user-attachments.tsx",
     "proto:links": "bun apps/tui/prototype/link-affordances.tsx",
     "test": "turbo run test",
-    "build": "turbo run build"
+    "build": "turbo run build",
+    "eval": "bun run --cwd evals eval:run"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.71.0",
@@ -35,6 +37,10 @@
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "@types/react": "^19",
-    "@types/react-dom": "^19"
+    "@types/react-dom": "^19",
+    "evalite": {
+      "@vitest/runner": "4.0.1",
+      "@vitest/utils": "4.0.1"
+    }
   }
 }
