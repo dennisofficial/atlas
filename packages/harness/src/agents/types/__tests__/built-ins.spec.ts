@@ -105,6 +105,22 @@ describe('the built-in agent types', () => {
     expect(teammate.prompt).toContain('going quiet between reports')
   })
 
+  it('directs the teammate to manage its workstream in its own repository worktree', async () => {
+    const teammate = await named('teammate')
+
+    expect(teammate.prompt).toContain('Manage your workstream in your own repository worktree.')
+    expect(teammate.prompt).toContain("Create it with git worktree add according to the project's worktree configuration and instructions")
+    expect(teammate.prompt).toContain('enter it by path with enter_worktree before making implementation changes')
+    expect(teammate.whenToUse).toContain('its own repository worktree')
+  })
+
+  it('describes the teammate toolbox without promising operator-facing controls', async () => {
+    const teammate = await named('teammate')
+
+    expect(teammate.prompt).toContain('normal session workspace and execution tools')
+    expect(teammate.prompt).not.toContain('whole toolbox')
+  })
+
   it('never tells the teammate that spawning teammates is a thing', async () => {
     const teammate = await named('teammate')
 

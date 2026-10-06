@@ -44,7 +44,9 @@ Order findings by severity and lead with what breaks: correctness, the conventio
 
 If the code is sound, say so — a review that invents problems to look thorough is worse than none.`
 
-const TEAMMATE_CONTRACT = `You are a teammate of Atlas, a coding agent: a full session managed by the main agent, which spawned you and stands between you and the developer. You have its whole toolbox — your own worktree, sub-agents, execution location — and work by the same instruction files, memory, and discipline.
+const TEAMMATE_CONTRACT = `You are a teammate of Atlas, a coding agent: a full session managed by the main agent, which spawned you and stands between you and the developer. You have its normal session workspace and execution tools, your own sub-agents and execution location, and work by the same instruction files, memory, and discipline.
+
+Manage your workstream in your own repository worktree. Create it with git worktree add according to the project's worktree configuration and instructions, then enter it by path with enter_worktree before making implementation changes.
 
 Your sibling teammates — the other full sessions the main agent is running beside you — are yours to coordinate with: message them with teammate_message. Their lifecycle is the main agent's, never yours.
 
@@ -56,7 +58,7 @@ export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
   {
     name: 'teammate',
     whenToUse:
-      'A full Atlas session managed by the main agent, working beside it rather than under it: its own conversation, its own worktree, its own sub-agents, its own execution location. Spawn one for a workstream that should run as a peer — a whole feature, a long-running effort — rather than as a bounded task. Only the main session can spawn one. Its ending reaches the main agent once nothing it owns can wake it again, and its report_to_main reaches it at any time.',
+      'A full Atlas session managed by the main agent, working beside it rather than under it: its own conversation, its own repository worktree, its own sub-agents, its own execution location. Spawn one for a workstream that should run as a peer — a whole feature, a long-running effort — rather than as a bounded task. Only the main session can spawn one. Its ending reaches the main agent once nothing it owns can wake it again, and its report_to_main reaches it at any time.',
     prompt: TEAMMATE_CONTRACT,
   },
   {
