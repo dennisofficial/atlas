@@ -23,7 +23,7 @@ import { handlerOptionsOf } from './serve-handler-options'
 import { createServeLog, EServeEvent, LoggingNoticePort } from './serve-log'
 import { createTranscriptRestorer } from './serve-restore'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
-import { subscribeThreadBroadcasts } from './serve-thread-broadcasts'
+import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
 import { startSessionServer } from './session-server'
 import { createSessionHandlers } from './socket-session'
@@ -95,6 +95,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     activeCwd,
     app,
     capture: args.captureWorkspace,
+    sourceSessionId: env.ATLAS_SANDBOX_SESSION_ID,
     dormant: bootDormant,
     deferStartChildren: recovery.deferred,
     resumeChildren: recovery.resumeChildren,
@@ -155,7 +156,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),
     refusal: () => workspaceRefusalOf(workspace) ?? null,
-    workspace: { prepare: session.prepare, apply: session.apply, activate: () => recovery.activate({ session, driver }) },
+    workspace: { prepare: session.prepare, apply: session.apply, confirmCleanup: session.confirmCleanup, activate: () => recovery.activate({ session, driver }) },
     log,
     roster: app.roster,
     prStates: app.prStates,
@@ -178,26 +179,14 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     }),
   })
 
-  const unsubscribeContext = contextReader.subscribe(() => {
-    handlers.broadcast(buffer.push({ type: 'context-changed' }))
+  const detachSubscriptions = bindServeSubscriptions({
+    app,
+    buffer,
+    handlers,
+    contextReader,
+    note,
+    captureRunning: () => captureRunning(),
   })
-  const unsubscribeThreads = subscribeThreadBroadcasts({ threads: app.threads, broadcast: handlers.broadcast })
-  const unsubscribeRoster = app.roster?.subscribe(() => {
-    idleStop.note()
-    captureRunning()
-    handlers.broadcastRoster()
-  })
-  // A steady SSE check stream notifies once per frame; the set a client renders changes rarely, so
-  // only a content change crosses the socket.
-  let lastPrStatesJson = ''
-  const unsubscribePrStates = app.prStates?.subscribe(() => {
-    idleStop.note()
-    const next = JSON.stringify(app.prStates?.snapshot() ?? [])
-    if (next === lastPrStatesJson) return
-    lastPrStatesJson = next
-    handlers.broadcastPrStates()
-  })
-  const unsubscribePending = app.pending?.subscribe(note)
 
   const bridge = createChannelBridge({
     channel: app.channel,
@@ -281,11 +270,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       recovery.detach()
       detachIntake?.()
       unsubscribeWake?.()
-      unsubscribeRoster?.()
-      unsubscribePrStates?.()
-      unsubscribeThreads?.()
-      unsubscribeContext()
-      unsubscribePending?.()
+      detachSubscriptions()
     },
     stopSandbox: args.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }),
     exit,

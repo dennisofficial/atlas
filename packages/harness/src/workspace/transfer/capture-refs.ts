@@ -41,6 +41,37 @@ const stashRef = async ({ tree }: { tree: CoveredTree }): Promise<LogicalRef | n
   return { name: STASH_REF, sha, symref: '' }
 }
 
+export type TreeRefs = { tree: CoveredTree & { isMain: boolean }; refs: LogicalRef[] }
+
+export async function listTreeRefSets({ trees }: { trees: readonly (CoveredTree & { isMain: boolean })[] }): Promise<TreeRefs[]> {
+  const sets: TreeRefs[] = []
+  for (const tree of trees) {
+    const refs = await listTreeRefs({ tree })
+    const stash = await stashRef({ tree })
+    if (stash !== null) refs.push(stash)
+    sets.push({ tree, refs })
+  }
+  return sets
+}
+
+const byName = (left: LogicalRef, right: LogicalRef): number => left.name.localeCompare(right.name)
+
+const isPrivate = (ref: LogicalRef): boolean => PER_WORKTREE_PREFIXES.some((prefix) => ref.name.startsWith(prefix))
+
+export function commonRefsOf({ sets }: { sets: readonly TreeRefs[] }): LogicalRef[] {
+  const found = new Map<string, LogicalRef>()
+  for (const { tree, refs } of sets) {
+    for (const ref of refs) {
+      if (isPrivate(ref) && !tree.isMain) continue
+      if (!found.has(ref.name)) found.set(ref.name, ref)
+    }
+  }
+  return [...found.values()].sort(byName)
+}
+
+export const refTipsOf = ({ sets }: { sets: readonly TreeRefs[] }): string[] =>
+  sets.flatMap(({ refs }) => refs.filter((ref) => ref.symref.length === 0).map((ref) => ref.sha))
+
 export async function listCoveredRefs({ trees }: { trees: readonly CoveredTree[] }): Promise<LogicalRef[]> {
   const found = new Map<string, LogicalRef>()
   for (const tree of trees) {
@@ -50,14 +81,13 @@ export async function listCoveredRefs({ trees }: { trees: readonly CoveredTree[]
     for (const ref of refs) if (!found.has(ref.name)) found.set(ref.name, ref)
   }
   // the staged packed-refs header promises sorted order, which git reads with a binary search
-  return [...found.values()].sort((left, right) => left.name.localeCompare(right.name))
+  return [...found.values()].sort(byName)
 }
 
 export const digestLines = ({ refs }: { refs: readonly LogicalRef[] }): string[] =>
   refs.map((ref) => `ref\0${ref.name}\0${ref.sha}\0${ref.symref}`)
 
-const isLoose = (ref: LogicalRef): boolean =>
-  ref.symref.length > 0 || PER_WORKTREE_PREFIXES.some((prefix) => ref.name.startsWith(prefix))
+const isLoose = (ref: LogicalRef): boolean => ref.symref.length > 0 || isPrivate(ref)
 
 export async function stageLogicalRefs({
   refs,

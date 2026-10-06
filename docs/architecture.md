@@ -1366,8 +1366,8 @@ the session file stream.
 New cloud lifts place the primary repository at `/atlas/workspaces/<repo-name>`, using the original
 main checkout's directory name, with linked worktrees beneath that repository. Agents can clone
 additional repositories beside it under `/atlas/workspaces`. These adjacent clones are ephemeral:
-only the primary repository and its active session worktree transfer, and descend cleanup deletes
-the remaining cloud copies. Export stays anchored to the primary repository even if the session
+only the primary repository and its family-owned worktrees transfer. Adjacent clones are not
+imported on descend; permitted source teardown deletes their cloud copies. Export stays anchored to the primary repository even if the session
 has entered a sibling clone. Reconnect uses saved restoration paths, including legacy layouts,
 rather than relocating an existing workspace to the new default. A populated legacy workspace
 without a receipt is reused when the new unnamed default is empty; an explicit configured directory
@@ -1375,16 +1375,37 @@ or a saved receipt keeps priority.
 
 Workspace transfer carries physical files and logical Git state directly between the operator's
 machine and its sandbox. It does not require a user commit, flatten the index into a patch, or push
-transport refs to a repository host. The archive carries the main checkout and the session's own
-worktree — sibling worktrees stay behind — including covered trees' staged, unstaged, and untracked
-files. Refs are scoped to what the covered trees need: their branch heads, their stash, and their
-per-worktree refs; objects pack from exactly those tips plus the covered indexes. Git
-administration is reconstructed for the destination's paths rather than copying machine-specific
-worktree registrations. Before exporting for descend, serve checks the primary repository's
-registered checkout roots against the covered roots, using exact canonical identities rather than
-ancestor paths. Any omitted sibling refuses the move and names its path; even a clean or finished
-teammate's checkout is not proof of a preserved copy. The cloud placement and source files remain
-authoritative. Expanding the transfer to family-owned worktrees is a separate scope decision.
+transport refs to a repository host. The archive carries the primary main checkout and every
+present checkout generation owned by the supervised session family, including finished teammates'
+and retained exited worktrees. Tracked files and nonignored untracked files travel; ignored
+untracked files travel only when selected by that checkout's `.atlas/.cloudinclude`. Each checkout
+is filtered and captured independently. Shared branch and stash refs stay shared; private
+per-worktree refs retain their checkout attribution. Reachable tips and all covered indexes seed
+one shared object pack. Git administration is reconstructed for destination paths rather than
+copying machine-specific worktree registrations.
+
+Family ownership is physical-workspace state, independent of the current-directory fold. A
+session-root `workspace-ownership.json` inventory persists through conversation rewind,
+summarisation and child deletion. Each owned linked checkout has a generation marker in its
+per-worktree Git administration; manual removal and recreation at the same path does not inherit
+ownership. Entry or adoption acquires ownership; keeping, switching or finishing does not release
+it. Removed or absent generations are not reconstructed. Independent forks start their own
+inventories. Historical lifecycle events seed an older family that has no inventory yet.
+
+The manifest carries each thread's home and optional active checkout by tree identity. Restore
+resolves all mappings through actual outcomes, including collision renaming, before placement
+commitment. An omitted checkout cannot masquerade as a subdirectory of a restored ancestor.
+Arrival preserves home separately from active and retains the original creation/adoption policy.
+
+Family export permission is separate from destructive cleanup permission. An unrelated registered
+primary-repository checkout stays outside capture and prevents sandbox/drive teardown, even when
+clean or finished. After host arrival commits, cleanup rechecks the prepared generation's exact
+checkout registry, covered physical/index/HEAD state and relevant Git administration. A mismatch,
+unreadable source or unknown runtime retains the frozen source with a persistent warning; the
+verified local destination remains authoritative. Deletion is fenced to the exported provider
+session and never retries by resolving a reused name. The external-writer race is narrowed by
+rechecking, not made atomic. Legacy exports without a family mapping retain the fail-closed guard
+that refuses when any registered primary checkout would be omitted.
 
 Each checkout carries its original identity and lift-time content fingerprint. An unchanged host
 checkout receives its incoming state in place. A checkout changed independently is left untouched;

@@ -7,7 +7,7 @@ import { ensureFamilyOwnership } from './family-ownership-seed'
 
 type Step = { kind: 'claim'; path: string } | { kind: 'adopt'; path: string } | { kind: 'drop'; path: string }
 
-async function ownCheckoutOf({ ownership, path }: { ownership: FamilyOwnership; path: string }): Promise<string | null> {
+async function primaryCheckoutOf({ ownership, path }: { ownership: FamilyOwnership; path: string }): Promise<string | null> {
   const checkout = await toplevelOf({ path })
   if (checkout === null) return null
   return (await registeredPrimaryOf({ checkout })) === ownership.primaryRepository ? checkout : null
@@ -18,7 +18,7 @@ async function stepsOf({ drafts, ownership }: { drafts: readonly EventDraft[]; o
   for (const draft of drafts) {
     if (draft.type === 'worktree-entered') steps.push({ kind: 'claim', path: await canonicalPath(draft.path) })
     if (draft.type === 'directory-changed') {
-      const checkout = await ownCheckoutOf({ ownership, path: draft.path })
+      const checkout = await primaryCheckoutOf({ ownership, path: draft.path })
       if (checkout !== null) steps.push({ kind: 'adopt', path: checkout })
     }
     if (draft.type === 'worktree-exited' && draft.action === EWorktreeExit.Remove) steps.push({ kind: 'drop', path: await canonicalPath(draft.path) })
@@ -67,7 +67,7 @@ async function unownedLaunchStep({
 }): Promise<Step | null> {
   if (workspace === null) return null
   if (workspace === ownership.primaryRepository || ownership.checkouts.some((checkout) => checkout.path === workspace)) return null
-  const path = await ownCheckoutOf({ ownership, path: workspace })
+  const path = await primaryCheckoutOf({ ownership, path: workspace })
   if (path === null || path === ownership.primaryRepository) return null
   if (ownership.checkouts.some((checkout) => checkout.path === path)) return null
   return { kind: 'adopt', path }

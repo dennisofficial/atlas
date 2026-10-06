@@ -9,22 +9,17 @@ import { dropExcludedRootWrappers } from './capture-files'
 import { assertPortable, treeSkipRule, walkTree, type TreeEntry } from './capture-files'
 import { snapshotWorkspaceTree, type TreeSnapshot } from './capture-fingerprint'
 import { discoverLayout, listCapturedWorktrees, type LayoutTree, type WorkspaceLayout } from './capture-layout'
-import { listCoveredRefs, stageLogicalRefs } from './capture-refs'
-import { packReachableObjects } from './capture-pack'
+import { stageSharedGit } from './capture-objects'
+import { familyManifestOf } from './capture-family'
 import {
   absoluteGitDir,
-  collectCommonAdmin,
   collectLinkedState,
   collectMainState,
   indexPathIfPresent,
-  mergeStateSeeds,
 } from './git-state'
-import { workspaceManifestSchema, type WorkspaceManifest } from './manifest'
+import { workspaceManifestSchema, type WorkspaceFamilyCapture, type WorkspaceManifest } from './manifest'
 
 export { fingerprintWorkspaceTree } from './capture-fingerprint'
-
-const MATERIALIZED_DIRECTORY = 'materialized-objects'
-const LOGICAL_REFS_DIRECTORY = 'logical-refs'
 
 type Collected = {
   tree: LayoutTree
@@ -116,7 +111,9 @@ function manifestFor({
   layout: WorkspaceLayout
   observed: Observation
 }): WorkspaceManifest {
+  const trees = layout.trees.map((tree) => ({ id: tree.id, sourcePath: tree.sourcePath, isMain: layout.trees.length === 1 ? true : tree.isMain }))
   return workspaceManifestSchema.parse({
+    ...(layout.family === null ? {} : { family: familyManifestOf({ family: layout.family, trees, plain: layout.commonDir === null }) }),
     version: 1,
     repository: layout.repository,
     activeId: layout.activeId,
@@ -147,40 +144,14 @@ async function stageAndPack({
   const mounts: ArchiveMount[] = []
   const relocated: Relocation[] = []
   if (layout.commonDir !== null) {
-    const admin = await collectCommonAdmin({ commonDir: layout.commonDir })
-    assertPortable({ unportable: admin.unportable, label: layout.commonDir })
-    mounts.push({ mountPath: 'git', sourcePath: layout.commonDir, entries: admin.entries })
-    const outputDir = join(stage, MATERIALIZED_DIRECTORY)
-    await mkdir(outputDir)
-    const refs = await listCoveredRefs({ trees: layout.trees })
-    const stateSeeds = await Promise.all(
-      collected.map((item) => (item.stateRoot === null ? Promise.resolve([]) : mergeStateSeeds({ gitDir: item.stateRoot }))),
-    )
-    const seeds = [
-      ...new Set([
-        ...refs.filter((ref) => ref.symref.length === 0).map((ref) => ref.sha),
-        ...layout.trees.map((tree) => tree.head).filter((head): head is string => head !== null),
-        ...stateSeeds.flat(),
-      ]),
-    ]
-    const names: string[] = []
-    for (const tree of layout.trees) {
-      names.push(
-        ...(await packReachableObjects({ cwd: tree.sourcePath, commonDir: layout.commonDir, outputDir, seeds })),
-      )
-    }
-    relocated.push({
-      stageDirectory: MATERIALIZED_DIRECTORY,
-      archiveDirectory: 'git/objects/pack',
-      names: [...new Set(names)],
+    const shared = await stageSharedGit({
+      stage,
+      layout,
+      commonDir: layout.commonDir,
+      stateRoots: collected.flatMap((item) => (item.stateRoot === null ? [] : [item.stateRoot])),
     })
-    const refsDir = join(stage, LOGICAL_REFS_DIRECTORY)
-    await mkdir(refsDir)
-    relocated.push({
-      stageDirectory: LOGICAL_REFS_DIRECTORY,
-      archiveDirectory: 'git',
-      names: await stageLogicalRefs({ refs, outputDir: refsDir }),
-    })
+    mounts.push(...shared.mounts)
+    relocated.push(...shared.relocated)
   }
   const looseNames: string[] = ['manifest.json']
   await writeFile(join(stage, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
@@ -233,11 +204,13 @@ const changedTree = ({
 export async function captureWorkspaceArchive({
   cwd,
   destination,
+  family,
 }: {
   cwd: string
   destination: string
+  family?: WorkspaceFamilyCapture | undefined
 }): Promise<WorkspaceManifest> {
-  const layout = await discoverLayout({ cwd })
+  const layout = await discoverLayout({ cwd, family })
   const target = await assertDestinationOutside({ destination, layout })
   const before = await observe({ layout })
   const collected = await Promise.all(layout.trees.map((tree) => collectTree({ tree, layout })))
@@ -248,7 +221,7 @@ export async function captureWorkspaceArchive({
     await stageAndPack({ stage, layout, collected, manifest, destination: target })
     const after = await observe({ layout })
     const moved = changedTree({ layout, before, after })
-    const relisted = await discoverLayout({ cwd })
+    const relisted = await discoverLayout({ cwd, family })
     const sameTrees = relisted.trees.map((tree) => tree.sourcePath).join('\0') === layout.trees.map((tree) => tree.sourcePath).join('\0')
     if (moved !== null || !sameTrees) {
       await rm(target, { force: true })

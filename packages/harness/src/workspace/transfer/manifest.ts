@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+import { workspaceFamilySchema, type RestoredFamily } from './family-manifest'
+
+export type { RestoredFamily, WorkspaceFamily, WorkspaceFamilyCapture } from './family-manifest'
+
 export const workspaceTreeSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]+$/),
   name: z.string().min(1),
@@ -21,6 +25,7 @@ export const workspaceManifestSchema = z.object({
   activeId: z.string().min(1),
   activeRelativePath: z.string().default(''),
   trees: z.array(workspaceTreeSchema).min(1),
+  family: workspaceFamilySchema.optional(),
 })
 
 export type WorkspaceTree = z.infer<typeof workspaceTreeSchema>
@@ -51,4 +56,5 @@ export type RestoredWorkspace = {
   cwd: string
   repository: string | null
   trees: readonly RestoredTree[]
+  family?: RestoredFamily | undefined
 }

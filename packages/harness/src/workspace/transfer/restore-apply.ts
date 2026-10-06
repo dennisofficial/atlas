@@ -101,9 +101,9 @@ async function addWorktree({ ctx, planned, branch }: { ctx: RestoreContext; plan
   })
 }
 
-async function alignHead({ ctx, planned }: { ctx: RestoreContext; planned: PlannedTree }) {
+async function alignHead({ ctx, planned, target }: { ctx: RestoreContext; planned: PlannedTree; target: string | null }) {
   const current = (await git({ args: ['symbolic-ref', '-q', 'HEAD'], cwd: planned.path })).stdout.trim()
-  const branch = planned.tree.branch
+  const branch = target
   const wanted = branch === null ? '' : `${HEADS}${branch}`
   if (current === wanted || (branch === null && current === '')) return
   if (branch === null) await mustGit({ args: ['update-ref', '--no-deref', 'HEAD', planned.tree.head ?? ''], cwd: planned.path })
@@ -127,7 +127,7 @@ async function linkedTree({ ctx, planned, branch }: { ctx: RestoreContext; plann
   await installState({ ctx, planned, gitDir, skipHead: true })
   await copySharedIndexes({ ctx, gitDir })
   await placeIndex({ ctx, planned, gitDir })
-  if (planned.action === ETreeAction.InPlace) await alignHead({ ctx, planned })
+  if (planned.action === ETreeAction.InPlace) await alignHead({ ctx, planned, target: branch })
 }
 
 export async function applyPlain({ ctx }: { ctx: RestoreContext }): Promise<TreeOutcome[]> {

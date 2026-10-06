@@ -13,6 +13,8 @@ import type { SessionArchiveFile } from '../archive-file'
 import { buildSessionArchive } from '../session-archive'
 import { activateSessionReplySchema, applyWorkspaceArchiveReplySchema, EClientRequest } from '../channel-wire'
 import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
+import { captureWorkspaceFamily } from '../../workspace/transfer/family-snapshot'
+import { verifyFamilyRestoration } from '../../workspace/transfer/family-restoration-proof'
 import { logFieldsOf } from '../../store/logs'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
@@ -114,7 +116,8 @@ export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> =>
     label: 'packing the uncommitted work',
     run: async (ctx) => {
       ctx.workspace = await ctx.args.capture({ cwd: ctx.args.cwd })
-      ctx.workspaceArchive = await (ctx.args.captureWorkspaceArchive ?? captureLiftWorkspace)({ cwd: ctx.args.cwd })
+      const family = await captureWorkspaceFamily({ threadId: ctx.args.threadId, cwd: ctx.args.cwd, threads: ctx.args.localThreads, log: ctx.args.localLog })
+      ctx.workspaceArchive = await (ctx.args.captureWorkspaceArchive ?? captureLiftWorkspace)({ cwd: ctx.args.cwd, family })
     },
   },
   {
@@ -154,7 +157,7 @@ export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> =>
   },
   {
     id: ELiftNode.ArchiveSession,
-    needs: [ELiftNode.PauseLoops, ELiftNode.StampModel],
+    needs: [ELiftNode.PauseLoops, ELiftNode.StampModel, ELiftNode.CaptureWorkspace],
     label: 'transferring the conversation',
     run: async (ctx) => {
       await ctx.args.localLog.refresh({ threadId: ctx.args.threadId })
@@ -208,6 +211,7 @@ export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> =>
           op: EClientRequest.ApplyWorkspaceArchive,
           params: {},
         }))
+        verifyFamilyRestoration({ manifest: ctx.workspaceArchive.manifest, restored: applied.restored })
         ctx.restoredWorkspace = applied.restored
       }
       if (ctx.transcript !== undefined) {

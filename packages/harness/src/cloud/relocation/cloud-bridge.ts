@@ -110,9 +110,11 @@ export type CloudSandboxes = {
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
   /**
    * Tears down both halves: the Vercel sandbox through the operator's own token, and the control
-   * plane row. Idempotent — descend calls this once the conversation is safely back on the host.
+   * plane row. Idempotent — descend calls this once the conversation is safely back on the host —
+   * unless `expectedSandboxSessionId` fences it to one session, which a replaced or missing
+   * sandbox refuses before anything is deleted.
    */
-  destroy(args: { threadId: ThreadId }): Promise<void>
+  destroy(args: { threadId: ThreadId; expectedSandboxSessionId?: string | undefined }): Promise<void>
 }
 
 export type CloudStores = {

@@ -7,6 +7,7 @@ import { applyExisting, applyFresh, applyPlain } from './restore-apply'
 import { defaultSuffix, DestinationMovedError, planDestination, readReceipt, RECEIPT_NAME } from './restore-destination'
 import { plainReceiptPath, writePlainWorkspaceReceipt } from './plain-receipt'
 import { canonicalize, isDirectory, remapTexts, rollbackJournal, stashEntry, type Journal } from './restore-files'
+import { restoredFamilyOf } from './restore-family'
 import { mustGit } from './restore-git'
 import { extractWorkspaceArchive, isCaseInsensitive, scanWorkspaceArchive } from './restore-archive'
 import {
@@ -139,7 +140,7 @@ async function activeDirectory({ manifest, outcomes }: { manifest: WorkspaceMani
   return (await isDirectory(nested)) ? nested : active.planned.path
 }
 
-function restoredOf({
+async function restoredOf({
   outcomes,
   cwd,
   plan,
@@ -149,7 +150,7 @@ function restoredOf({
   cwd: string
   plan: DestinationPlan
   manifest: WorkspaceManifest
-}): RestoredWorkspace {
+}): Promise<RestoredWorkspace> {
   const trees: RestoredTree[] = outcomes.map(({ planned, branch, renamedFrom }) => ({
     id: planned.tree.id,
     sourcePath: planned.tree.sourcePath,
@@ -157,7 +158,13 @@ function restoredOf({
     branch,
     renamedFrom,
   }))
-  return { cwd, repository: manifest.repository === null ? null : plan.anchor, trees }
+  const family = await restoredFamilyOf({ manifest, outcomes })
+  return {
+    cwd,
+    repository: manifest.repository === null ? null : plan.anchor,
+    trees,
+    ...(family === undefined ? {} : { family }),
+  }
 }
 
 const REPLAN_LIMIT = 3
@@ -191,7 +198,7 @@ async function prepareOnce(args: RestoreArgs): Promise<WorkspaceRestoration> {
     else if (only !== undefined) await writePlainReceipt({ ctx, outcome: only, mode: args.mode, fingerprints })
     const cwd = await activeDirectory({ manifest, outcomes })
     return {
-      restored: restoredOf({ outcomes, cwd, plan, manifest }),
+      restored: await restoredOf({ outcomes, cwd, plan, manifest }),
       commit: async () => {
         journal.undo.length = 0
         await rm(stage, { recursive: true, force: true })

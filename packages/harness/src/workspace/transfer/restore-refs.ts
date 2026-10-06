@@ -13,6 +13,7 @@ export type RefState = {
   incoming: Map<string, IncomingRef>
   host: Map<string, string>
   occupied: Set<string>
+  heldBy: Map<string, string[]>
   stageGit: string
 }
 
@@ -25,10 +26,11 @@ export async function loadRefState({ ctx, mainId }: { ctx: RestoreContext; mainI
   const incoming = new Map((await readRefs({ cwd, gitDir: stageGit })).map((item) => [item.ref, item]))
   const host = new Map((await readRefs({ cwd })).map((item) => [item.ref, item.sha]))
   const listing = await listWorktrees({ cwd })
-  const occupied = new Set(
-    listing.ok ? listing.worktrees.flatMap((tree) => (tree.branch === undefined ? [] : [`${HEADS}${tree.branch}`])) : [],
-  )
-  return { incoming, host, occupied, stageGit }
+  const held = listing.ok ? listing.worktrees.flatMap((tree) => (tree.branch === undefined ? [] : [{ ref: `${HEADS}${tree.branch}`, path: tree.path }])) : []
+  const occupied = new Set(held.map((entry) => entry.ref))
+  const heldBy = new Map<string, string[]>()
+  for (const entry of held) heldBy.set(entry.ref, [...(heldBy.get(entry.ref) ?? []), entry.path])
+  return { incoming, host, occupied, heldBy, stageGit }
 }
 
 function freeRef({ ref, state, make }: { ref: string; state: RefState; make: () => string }): string {
@@ -84,7 +86,8 @@ export async function settleBranch({
   if (sha === undefined && planned.tree.head !== null) throw new Error(`the archive has no ref for branch ${branch}`)
   const current = state.host.get(ref)
   if (sha === undefined) return settleUnborn({ ctx, state, planned, ref, current })
-  if (planned.action === ETreeAction.InPlace) {
+  const heldElsewhere = planned.action === ETreeAction.InPlace && (state.heldBy.get(ref) ?? []).some((path) => path !== planned.path)
+  if (planned.action === ETreeAction.InPlace && !heldElsewhere) {
     if (current === undefined) await create({ ctx, state, ref, from: ref, sha })
     else if (current !== sha) {
       await moveRef({ cwd: ctx.plan.repoCwd, ref, sha, previous: current, journal: ctx.journal })

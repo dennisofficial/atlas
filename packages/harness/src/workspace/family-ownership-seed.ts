@@ -3,10 +3,10 @@ import { basename, join } from 'node:path'
 
 import { EWorktreeExit, toThreadId } from '@dltech/atlas-core'
 
-import { readMetaSync, sessionMetaSchema, threadMetaSchema, type ThreadMeta } from '../store/sessions/meta'
+import { sessionMetaSchema, type SessionMeta, threadMetaSchema, type ThreadMeta } from '../store/sessions/meta'
 import { THREAD_META_FILE_SUFFIX, sessionMetaFile, threadsDirectory } from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
-import { canonicalPath, claimCheckoutMarker, linkedCheckoutsOf, pathExists, toplevelOf } from './family-ownership-git'
+import { canonicalPath, claimCheckoutMarker, linkedCheckoutsOf, pathExists, registeredPrimaryOf, toplevelOf } from './family-ownership-git'
 import { readFamilyOwnership, writeFamilyOwnership, type FamilyCheckout, type FamilyOwnership } from './family-ownership-file'
 
 const isMissing = (error: unknown): boolean =>
@@ -19,6 +19,25 @@ async function readThreadMeta({ file }: { file: string }): Promise<ThreadMeta | 
     if (isMissing(error)) return undefined
     throw error
   }
+}
+
+async function readSessionMeta({ sessionDir }: { sessionDir: string }): Promise<SessionMeta | undefined> {
+  try {
+    return sessionMetaSchema.parse(JSON.parse(await readFile(sessionMetaFile({ sessionDir }), 'utf8')))
+  } catch (error) {
+    if (isMissing(error)) return undefined
+    throw error
+  }
+}
+
+async function primaryOf({ session }: { session: SessionMeta }): Promise<string | null> {
+  if (session.repo !== null) {
+    const declared = await canonicalPath(session.repo)
+    return (await pathExists({ path: declared })) ? declared : null
+  }
+  if (session.workspace === null) return null
+  const checkout = await toplevelOf({ path: session.workspace })
+  return checkout === null ? null : registeredPrimaryOf({ checkout })
 }
 
 async function namesIn({ directory }: { directory: string }): Promise<string[]> {
@@ -81,10 +100,10 @@ export async function ensureFamilyOwnership({
   const existing = await readFamilyOwnership({ sessionDir })
   if (existing !== null) return existing
 
-  const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
-  if (session?.repo === null || session?.repo === undefined) return null
-  const primary = await canonicalPath(session.repo)
-  if (!(await pathExists({ path: primary }))) return null
+  const session = await readSessionMeta({ sessionDir })
+  if (session === undefined) return null
+  const primary = await primaryOf({ session })
+  if (primary === null) return null
   const registered = await linkedCheckoutsOf({ primary })
   if (registered.kind === 'not-a-repository') return null
 

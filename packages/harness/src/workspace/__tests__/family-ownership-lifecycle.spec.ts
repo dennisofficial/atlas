@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { ECompactionAnchor, EForkMode, EWorktreeExit } from '@dltech/atlas-core'
@@ -229,5 +229,55 @@ describe('a workspace that belongs to the other side of a transfer', () => {
     const child = await spawnChild({ fx, parent: rootId, workspace: stranger })
     await appendTo({ fx, threadId: child, drafts: [nudge()] })
     expect((await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))?.checkouts).toEqual([])
+  })
+})
+
+describe('root metadata and sessions that started outside Git', () => {
+  it('throws on a malformed or unreadable root meta instead of seeding an empty inventory', async () => {
+    const fx = await openFixture()
+    const rootId = await startRoot({ fx })
+    const sessionDir = sessionDirOf({ fx, rootId })
+    const meta = join(sessionDir, 'meta.json')
+    await rm(meta)
+    expect(await ensureFamilyOwnership({ sessionDir, registry: fx.registry })).toBeNull()
+    await writeFile(meta, '{not json')
+    await expect(ensureFamilyOwnership({ sessionDir, registry: fx.registry })).rejects.toThrow()
+    await rm(meta)
+    await mkdir(meta)
+    await expect(ensureFamilyOwnership({ sessionDir, registry: fx.registry })).rejects.toThrow()
+    expect(await readFamilyOwnership({ sessionDir })).toBeNull()
+  })
+
+  it('seeds from the registered primary when a plain-folder session later became a repository with a worktree', async () => {
+    const fx = await openFixture()
+    const plain = join(fx.root, 'plainstart')
+    await mkdir(plain, { recursive: true })
+    const rootId = (await fx.threads.create({ title: 'r', workspace: plain, repo: null })).id
+    const sessionDir = sessionDirOf({ fx, rootId })
+    expect(await ensureFamilyOwnership({ sessionDir, registry: fx.registry })).toBeNull()
+    expect(await readFamilyOwnership({ sessionDir })).toBeNull()
+
+    await git(['init', '-b', 'main'], plain)
+    await git(['config', 'user.email', 'test@example.com'], plain)
+    await git(['config', 'user.name', 'Test'], plain)
+    await Bun.write(join(plain, 'a.txt'), 'a')
+    await git(['add', '.'], plain)
+    await git(['commit', '-m', 'init'], plain)
+    const wt = await addLinked({ repo: plain, root: fx.root, name: 'plainwt' })
+    await appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })
+    const ownership = (await readFamilyOwnership({ sessionDir }))!
+    expect(ownership.primaryRepository).toBe(plain)
+    expect(pathsOf(ownership)).toEqual([wt])
+    expect(await presentFamilyCheckouts({ ownership })).toEqual(ownership.checkouts)
+  })
+
+  it('seeds a legacy plain-start session whose workspace is now a worktree', async () => {
+    const fx = await openFixture()
+    const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'legacyplain' })
+    const rootId = (await fx.threads.create({ title: 'r', workspace: wt, repo: null })).id
+    const sessionDir = sessionDirOf({ fx, rootId })
+    const seeded = await ensureFamilyOwnership({ sessionDir, registry: fx.registry })
+    expect(seeded?.primaryRepository).toBe(fx.repo)
+    expect(pathsOf(seeded)).toEqual([wt])
   })
 })
