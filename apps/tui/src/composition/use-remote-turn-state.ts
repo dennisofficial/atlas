@@ -53,10 +53,13 @@ export function useRemoteTurnState(args: {
   const failure = useRef(args.onFailure)
   failure.current = args.onFailure
   const settling = useRef(0)
+  const settleFailed = useRef(false)
+  const settleEpoch = useRef(0)
 
   useEffect(() => {
     const handleRunning = (next: boolean): void => {
       if (next) awaitingLifecycle.current = true
+      else if (awaitingLifecycle.current) setSettlingNow(true)
       if (runningRef.current !== next) {
         runningRef.current = next
         setRunning(next)
@@ -96,12 +99,22 @@ export function useRemoteTurnState(args: {
       awaitingLifecycle.current = false
       settling.current += 1
       setSettlingNow(true)
+      settleEpoch.current += 1
+      const epoch = settleEpoch.current
+      const record = (failed: boolean): void => {
+        if (epoch === settleEpoch.current) settleFailed.current = failed
+      }
       void settled
         .current()
-        .catch(() => undefined)
+        .then(
+          () => record(false),
+          () => record(true),
+        )
         .finally(() => {
           settling.current -= 1
-          if (settling.current === 0) setSettlingNow(false)
+          if (settling.current === 0 && !awaitingLifecycle.current && !settleFailed.current) {
+            setSettlingNow(false)
+          }
           if (runningRef.current || awaitingLifecycle.current || settling.current > 0) return
           for (const listener of settleListeners.current) listener()
           settleListeners.current.clear()

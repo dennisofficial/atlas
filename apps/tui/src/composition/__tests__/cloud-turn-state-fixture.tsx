@@ -49,8 +49,9 @@ export function capture(args: { name: string; frame: string }): void {
 
 export type Wired = ReturnType<typeof wire>
 
-export function wire(app: FakeApp) {
+export function wire(app: FakeApp, options: { wakesInto?: boolean } = {}) {
   const frames: ClientFrame[] = []
+  const wakes = { count: 0 }
   const socket: { handlers: ChannelSocketHandlers | null } = { handlers: null }
   let seq = 0
 
@@ -72,7 +73,14 @@ export function wire(app: FakeApp) {
       }
     },
   })
-  const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+  const runner = new RemoteTurnRunner({
+    channel,
+    wake: async () => {
+      wakes.count += 1
+      if (options.wakesInto === undefined) return
+      receive(encodeFrame({ kind: EServeFrame.Ready, seq: 1, turnInFlight: options.wakesInto }))
+    },
+  })
   Object.assign(app, { channel, runner })
 
   const receive = (data: string): void => {
@@ -90,6 +98,16 @@ export function wire(app: FakeApp) {
   return {
     app,
     frames,
+    wakes,
+    drop: (): void => {
+      if (socket.handlers === null) throw new Error('the channel never dialled')
+      socket.handlers.handleClose()
+    },
+    reopen: (): void => {
+      if (socket.handlers === null) throw new Error('the channel never dialled')
+      socket.handlers.handleOpen()
+    },
+    park: (): void => receive(encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' })),
     ready: (turnInFlight: boolean): void =>
       receive(encodeFrame({ kind: EServeFrame.Ready, seq: 1, turnInFlight })),
     signal,

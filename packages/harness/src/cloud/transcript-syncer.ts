@@ -44,7 +44,10 @@ export class TranscriptSyncer {
   private running = false
   private pending: 'tail' | 'verify' | null = null
   private connection: ChannelConnection
-  private readonly settled = new Set<() => void>()
+  private readonly settled = new Set<{
+    resolve: () => void
+    reject?: ((failure: unknown) => void) | undefined
+  }>()
 
   constructor(args: {
     channel: SyncChannel
@@ -69,18 +72,42 @@ export class TranscriptSyncer {
     this.enqueue({ mode: 'tail' })
   }
 
-  /**
-   * The park checkpoint waits on this: it resolves once every sync queued so far has landed on
-   * disk, so the parked record vouches for what the local file provably holds rather than what
-   * the last read happened to answer with. A parked channel has nothing to converge against —
-   * it resolves at once and the record falls back to the safety-net digest read-back.
-   */
   converge(): Promise<void> {
     this.enqueue({ mode: 'verify' })
     if (this.connection.state !== EChannelConnection.Open) return Promise.resolve()
     if (!this.running && this.pending === null) return Promise.resolve()
     return new Promise((resolve) => {
-      this.settled.add(resolve)
+      this.settled.add({ resolve })
+    })
+  }
+
+  async synchronize(): Promise<void> {
+    await this.waitForOpen()
+    return new Promise((resolve, reject) => {
+      this.settled.add({ resolve, reject })
+      this.enqueue({ mode: 'verify' })
+    })
+  }
+
+  private waitForOpen(): Promise<void> {
+    if (this.connection.state === EChannelConnection.Open) return Promise.resolve()
+    const unavailable = (): boolean =>
+      this.connection.state === EChannelConnection.Closed ||
+      this.connection.state === EChannelConnection.Parked
+    const failure = (): Error =>
+      new Error('the cloud transcript cannot synchronize while the channel is not open')
+    if (unavailable()) return Promise.reject(failure())
+    return new Promise((resolve, reject) => {
+      const unsubscribe = this.args.channel.onConnection(() => {
+        if (this.connection.state === EChannelConnection.Open) {
+          unsubscribe()
+          resolve()
+          return
+        }
+        if (!unavailable()) return
+        unsubscribe()
+        reject(failure())
+      })
     })
   }
 
@@ -110,10 +137,9 @@ export class TranscriptSyncer {
   }
 
   private async drain(): Promise<void> {
+    let failure: { cause: unknown } | null = null
     try {
       for (;;) {
-        // A parked sandbox never answers, and nothing wakes it while the operator is away —
-        // queued work waits for the connection to come back open rather than issue into it.
         if (this.connection.state !== EChannelConnection.Open) return
         const next = this.pending
         if (next === null) return
@@ -121,26 +147,28 @@ export class TranscriptSyncer {
         try {
           if (next === 'verify') {
             await this.verify()
+            await this.tailSync()
             continue
           }
           await this.tailSync()
         } catch (error) {
-          // The mirror is best-effort: a parked or dropped wire rejects the read, and a writer can
-          // fail on its own disk. Neither may crash the drain into an unhandled rejection — the
-          // sync and anything queued behind it are dropped, reported once, and the next signal
-          // re-queues fresh work against the live wire.
+          failure = { cause: error }
           this.pending = null
           this.args.onSyncFailed?.(error)
           return
         }
       }
     } finally {
-      // A sync can die with the socket (park kills the wire mid-flight); whoever parked on
-      // converge still needs its answer — the record falls back to the safety-net digest read-back.
       this.running = false
-      for (const resolve of [...this.settled]) {
-        this.settled.delete(resolve)
-        resolve()
+      if (failure === null && this.connection.state !== EChannelConnection.Open) {
+        failure = {
+          cause: new Error('the cloud channel closed before the transcript synchronized'),
+        }
+      }
+      for (const waiter of [...this.settled]) {
+        this.settled.delete(waiter)
+        if (failure !== null && waiter.reject !== undefined) waiter.reject(failure.cause)
+        else waiter.resolve()
       }
     }
   }
