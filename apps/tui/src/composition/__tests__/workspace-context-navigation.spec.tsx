@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import React, { act } from 'react'
 import { testRender } from '@opentui/react/test-utils'
 import { toThreadId } from '@dltech/atlas-core'
-import { contextDirectory, createSessionContextReader, sessionDirectory } from '@dltech/atlas-harness'
+import { contextDirectory, createSessionContextReader, registryFor, sessionDirectory } from '@dltech/atlas-harness'
 
 import { ContextSection } from '../../ui/components/sidebar/context'
 import { teardown } from '../../ui/markdown/__tests__/harness'
@@ -24,6 +24,7 @@ describe('workspace context navigation on disk', () => {
     process.env.ATLAS_HOME = home
     const threadId = toThreadId(`context-navigation-${Date.now()}`)
     const sessionDir = sessionDirectory({ home, sessionId: threadId })
+    registryFor({ home }).registerThread({ sessionDir, threadId })
     const root = contextDirectory({ sessionDir })
     await mkdir(join(root, 'sections'), { recursive: true })
     await writeFile(join(root, 'plan.md'), '# Context navigation\n\n[Read section](sections/intro.md)\n\n[Missing file](sections/missing.md)')

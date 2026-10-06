@@ -8,7 +8,10 @@ import { readContextTree, sameContextTreeLevels } from './context-tree-reader'
 const NOTICE_KEY_FOLDER_STATE = 'context-folder-state'
 const NO_CLOSED: ReadonlySet<string> = new Set()
 
-type Loaded = { owner: ContextFolderStateStore | undefined; closed: ReadonlySet<string> }
+type Snapshot = { owner: ContextReader | undefined; levels: ContextTreeLevels }
+const NO_LEVELS: ContextTreeLevels = new Map()
+
+type Loaded = { owner: ContextFolderStateStore | undefined; closed: ReadonlySet<string>; persist: boolean }
 
 const messageOf = (cause: unknown): string => cause instanceof Error ? cause.message : String(cause)
 
@@ -25,12 +28,14 @@ export function useContextTree(args: {
 }) {
   const { folderState } = args
   const [loaded, setLoaded] = useState<Loaded | null>(null)
-  const [levels, setLevels] = useState<ContextTreeLevels>(new Map())
-  const [loading, setLoading] = useState(true)
+  const [snapshot, setSnapshot] = useState<Snapshot>({ owner: undefined, levels: NO_LEVELS })
+  const owned = snapshot.owner === args.readers && args.readers !== undefined
+  const levels = owned ? snapshot.levels : NO_LEVELS
   const held = useRef(levels)
   held.current = levels
   const ready = loaded === null ? folderState === undefined : loaded.owner === folderState
   const closed = ready && loaded !== null ? loaded.closed : NO_CLOSED
+  const persist = ready && loaded?.persist !== false
   const latestClosed = useRef(closed)
   latestClosed.current = closed
 
@@ -38,24 +43,23 @@ export function useContextTree(args: {
     if (folderState === undefined) { setLoaded(null); return }
     let live = true
     folderState.load().then((paths) => {
-      if (live) setLoaded({ owner: folderState, closed: new Set(paths) })
+      if (live) setLoaded({ owner: folderState, closed: new Set(paths), persist: true })
     }, (cause: unknown) => {
       if (!live) return
       warnFolderState({ action: 'load', cause })
-      setLoaded({ owner: folderState, closed: NO_CLOSED })
+      setLoaded({ owner: folderState, closed: NO_CLOSED, persist: false })
     })
     return () => { live = false }
   }, [folderState])
 
   useEffect(() => {
     let live = true
-    if (args.readers === undefined) { setLoading(false); return }
-    if (!ready) return
-    if (held.current.size === 0) setLoading(true)
-    void readContextTree({ readers: args.readers, closed, previous: held.current }).then((next) => {
+    const { readers } = args
+    if (readers === undefined || !ready) return
+    void readContextTree({ readers, closed, previous: held.current }).then((next) => {
       if (!live) return
-      setLevels((current) => sameContextTreeLevels({ left: current, right: next }) ? current : next)
-      setLoading(false)
+      setSnapshot((current) => current.owner === readers && sameContextTreeLevels({ left: current.levels, right: next })
+        ? current : { owner: readers, levels: next })
     })
     return () => { live = false }
   }, [args.readers, args.revision, closed, ready])
@@ -64,19 +68,19 @@ export function useContextTree(args: {
   const handleToggle = useCallback((path: string) => {
     const next = toggleContextClosed({ closed: latestClosed.current, path })
     latestClosed.current = next
-    setLoaded({ owner: folderState, closed: next })
-    if (folderState === undefined) return
+    setLoaded({ owner: folderState, closed: next, persist })
+    if (folderState === undefined || !persist) return
     folderState.save([...next]).catch((cause: unknown) => warnFolderState({ action: 'save', cause }))
-  }, [folderState])
+  }, [folderState, persist])
   const handleActivate = useCallback((path: string) => {
     const row = rows.find((entry) => entry.path === path)
-    if (row === undefined) return
-    if (row.isDirectory) { if (ready) handleToggle(path); return }
+    if (row === undefined || !ready || !owned) return
+    if (row.isDirectory) { handleToggle(path); return }
     if (path === args.opened) { args.onClose(); return }
     args.onOpen(path)
-  }, [rows, ready, handleToggle, args.onOpen, args.onClose, args.opened])
+  }, [rows, ready, owned, handleToggle, args.onOpen, args.onClose, args.opened])
 
-  return { rows, levels, closed, opened: args.opened, loading: loading || !ready, handleActivate }
+  return { rows, levels, closed, opened: args.opened, loading: args.readers !== undefined && (!owned || !ready), handleActivate }
 }
 
 export type ContextTreeControl = ReturnType<typeof useContextTree>

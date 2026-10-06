@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { existsSync } from 'node:fs'
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -125,5 +126,46 @@ describe('session context folder state store', () => {
     const next = store.save(['after'])
     await expect(next).resolves.toBeUndefined()
     expect(await store.load()).toEqual(['after'])
+  })
+
+  it('lets a second adapter load the paths a first adapter just saved without awaiting', async () => {
+    const { home, root } = await fixture()
+    const first = createSessionContextFolderStateStore({ home, threadId: root })
+    const second = createSessionContextFolderStateStore({ home, threadId: root })
+    void first.save(['fresh/a', 'fresh/b'])
+    expect(await second.load()).toEqual(['fresh/a', 'fresh/b'])
+  })
+
+  it('serializes interleaved root and child saves so the last invoked wins', async () => {
+    const { home, root, child } = await fixture()
+    const rootStore = createSessionContextFolderStateStore({ home, threadId: root })
+    const childStore = createSessionContextFolderStateStore({ home, threadId: child })
+    const saves = Array.from({ length: 20 }, (_, index) =>
+      (index % 2 === 0 ? rootStore : childStore).save([`folder-${index}`]))
+    await Promise.all(saves)
+    expect(await rootStore.load()).toEqual(['folder-19'])
+    expect(await childStore.load()).toEqual(['folder-19'])
+  })
+
+  it('keeps loads queued behind a failing save and recovers afterwards', async () => {
+    const { home, root, file } = await fixture()
+    const store = createSessionContextFolderStateStore({ home, threadId: root })
+    await mkdir(file, { recursive: true })
+    const failed = store.save(['lost'])
+    const loaded = store.load()
+    await expect(failed).rejects.toBeDefined()
+    await expect(loaded).rejects.toMatchObject({ code: 'EISDIR' })
+    await rm(file, { recursive: true, force: true })
+    await store.save(['back'])
+    expect(await store.load()).toEqual(['back'])
+  })
+
+  it('refuses to save for a thread with no registered session and creates no directory', async () => {
+    const { home } = await fixture()
+    const stranger = toThreadId('stranger')
+    const store = createSessionContextFolderStateStore({ home, threadId: stranger })
+    await expect(store.save(['x'])).rejects.toBeDefined()
+    expect(existsSync(join(home, 'sessions', 'stranger'))).toBe(false)
+    expect(await store.load()).toEqual([])
   })
 })

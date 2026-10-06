@@ -7,7 +7,7 @@ import type { ContextFolderStateStore } from '@dltech/atlas-harness'
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { currentNotices } from '../../ui/notice-store'
 import type { ContextReaders } from '../session-binding'
-import { useContextBrowser, type ContextControl } from '../use-context'
+import { EContextView, useContextBrowser, type ContextControl } from '../use-context'
 
 type Held = { current: ContextControl | null }
 type Source = { readers: ContextReaders; folderState?: ContextFolderStateStore | undefined }
@@ -126,12 +126,18 @@ describe('context folder state in the browser hook', () => {
     } finally { await teardown(setup) }
   })
 
-  it('warns and falls back to all open when loading fails', async () => {
-    const { box, setup } = await probe({ readers, folderState: memoryStore({ failLoad: true }) })
+  it('warns and allows local toggles without overwriting unreadable saved choices', async () => {
+    const store = memoryStore({ failLoad: true })
+    const { box, setup } = await probe({ readers, folderState: store })
     try {
       await settle()
       expect(pathsOf(box)).toContain('notes/deep/decision.md')
       expect(currentNotices().some((notice) => notice.text.includes('disk unreadable'))).toBe(true)
+      await activate({ box, path: 'notes' })
+      expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
+      await activate({ box, path: 'notes' })
+      expect(pathsOf(box)).toContain('notes/deep/decision.md')
+      expect(store.saved).toEqual([])
     } finally { await teardown(setup) }
   })
 
@@ -150,6 +156,103 @@ describe('context folder state in the browser hook', () => {
     try {
       await settle()
       await activate({ box, path: 'notes' })
+      expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
+    } finally { await teardown(setup) }
+  })
+
+  it('drops old rows and shows unavailable when a swapped-in reader fails to list', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const failing: ContextReaders = { ...readers, list: async () => { await gate; throw new Error('offline') } }
+    const { box, setup, swap } = await probe({ readers })
+    try {
+      await settle()
+      expect(pathsOf(box)).toContain('notes/plan.md')
+      await swap({ readers: failing })
+      expect(pathsOf(box)).toEqual([])
+      expect(box.current?.tree.loading).toBe(true)
+      await act(async () => { release() })
+      await settle()
+      expect(pathsOf(box)).toEqual([])
+      expect(box.current?.tree.loading).toBe(false)
+      expect(box.current?.tree.levels.get('')?.error).toBe('offline')
+      expect(box.current?.tree.levels.get('')?.entries).toEqual([])
+    } finally { await teardown(setup) }
+  })
+
+  it('resets the open viewer when the reader changes and ignores stale activation', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const other: ContextReaders = { ...readers,
+      list: async (directory) => { await gate; return levels.get(directory ?? '') ?? [] },
+      load: async (path) => ({ type: 'text', content: `other ${path}`, truncated: false }) }
+    const { box, setup, swap } = await probe({ readers })
+    try {
+      await settle()
+      await activate({ box, path: 'plan.md' })
+      expect(box.current?.viewer?.path).toBe('plan.md')
+      await swap({ readers: other })
+      expect(box.current?.viewer).toBeNull()
+      expect(box.current?.tree.opened).toBeNull()
+      await act(async () => { box.current?.handleOpen('plan.md') })
+      expect(box.current?.viewer).toBeNull()
+      await settle()
+      expect(box.current?.viewer).toBeNull()
+      await act(async () => { release() })
+      await settle()
+      await activate({ box, path: 'plan.md' })
+      expect(box.current?.viewer).toEqual({ state: EContextView.Ready, path: 'plan.md',
+        content: { type: 'text', content: 'other plan.md', truncated: false } })
+    } finally { await teardown(setup) }
+  })
+
+  it('gates file opens while a new store hydrates but keeps same-reader rows', async () => {
+    const held = memoryStore({ initial: ['notes'], hold: true })
+    const { box, setup, swap } = await probe({ readers, folderState: memoryStore() })
+    try {
+      await settle()
+      const before = pathsOf(box)
+      expect(before).toContain('notes/plan.md')
+      await swap({ readers, folderState: held })
+      await settle()
+      expect(box.current?.tree.loading).toBe(true)
+      expect(pathsOf(box)?.length).toBeGreaterThan(0)
+      await act(async () => { box.current?.handleOpen('plan.md') })
+      await act(async () => { box.current?.handleOpen('notes') })
+      expect(box.current?.viewer).toBeNull()
+      expect(held.saved).toEqual([])
+      await act(async () => { held.release() })
+      await settle()
+      expect(box.current?.tree.loading).toBe(false)
+      expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
+      await activate({ box, path: 'plan.md' })
+      expect(box.current?.viewer?.path).toBe('plan.md')
+    } finally { await teardown(setup) }
+  })
+
+  it('gates file opens while the store hydrates at mount', async () => {
+    const held = memoryStore({ hold: true })
+    const { box, setup } = await probe({ readers, folderState: held })
+    try {
+      await settle()
+      await act(async () => { box.current?.handleOpen('plan.md') })
+      expect(box.current?.viewer).toBeNull()
+      expect(box.current?.tree.opened).toBeNull()
+    } finally { await teardown(setup) }
+  })
+
+  it('saves the latest choice for each of several rapid toggles', async () => {
+    const store = memoryStore()
+    const { box, setup } = await probe({ readers, folderState: store })
+    try {
+      await settle()
+      await act(async () => {
+        box.current?.handleOpen('notes/deep')
+        box.current?.handleOpen('notes')
+        box.current?.handleOpen('notes/deep')
+      })
+      await settle()
+      expect(store.saved.map((closed) => [...closed].sort())).toEqual([['notes/deep'], ['notes', 'notes/deep'], ['notes']])
       expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
     } finally { await teardown(setup) }
   })

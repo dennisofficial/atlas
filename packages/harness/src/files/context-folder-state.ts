@@ -53,26 +53,63 @@ async function readClosedPaths({ path }: { path: string }): Promise<readonly str
   return cleanClosedPaths({ candidates: state.data.closed })
 }
 
+const fileQueues = new Map<string, Promise<void>>()
+let admission: Promise<void> = Promise.resolve()
+
+function runAfterPriorWrites<T>({ file, run }: { file: string; run: () => Promise<T> }): Promise<T> {
+  const previous = fileQueues.get(file) ?? Promise.resolve()
+  const result = previous.then(run)
+  const tail = result.then(() => {}, () => {})
+  fileQueues.set(file, tail)
+  void tail.then(() => {
+    if (fileQueues.get(file) === tail) fileQueues.delete(file)
+  })
+  return result
+}
+
+function admitInInvocationOrder<T>({
+  resolveFile,
+  run,
+}: {
+  resolveFile: () => Promise<string>
+  run: (file: string) => Promise<T>
+}): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    admission = admission.then(async () => {
+      try {
+        const file = await resolveFile()
+        runAfterPriorWrites({ file, run: () => run(file) }).then(resolve, reject)
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
 export function createSessionContextFolderStateStore(args: {
   threadId: ThreadId
   home?: string
 }): ContextFolderStateStore {
-  const file = async () => {
-    const sessionDir = await registryFor({ home: args.home ?? atlasDirectory() })
-      .sessionDirFor({ threadId: args.threadId })
+  const registry = () => registryFor({ home: args.home ?? atlasDirectory() })
+  const readableFile = async () =>
+    join(await registry().sessionDirFor({ threadId: args.threadId }), CONTEXT_FOLDER_STATE_FILE_NAME)
+  const writableFile = async () => {
+    const sessionDir = await registry().sessionDirOf({ threadId: args.threadId })
+    if (sessionDir === undefined) throw new Error(`no session directory is registered for thread ${args.threadId}`)
     return join(sessionDir, CONTEXT_FOLDER_STATE_FILE_NAME)
   }
-  let pendingSave: Promise<void> = Promise.resolve()
 
   return {
-    load: async () => readClosedPaths({ path: await file() }),
+    load: () => admitInInvocationOrder({
+      resolveFile: readableFile,
+      run: (file) => readClosedPaths({ path: file }),
+    }),
     save: (closed) => {
       const closedPaths = cleanClosedPaths({ candidates: closed })
-      const write = pendingSave.then(async () => {
-        await writeMeta({ file: await file(), meta: { closed: closedPaths } })
+      return admitInInvocationOrder({
+        resolveFile: writableFile,
+        run: (file) => writeMeta({ file, meta: { closed: closedPaths } }),
       })
-      pendingSave = write.catch(() => {})
-      return write
     },
   }
 }

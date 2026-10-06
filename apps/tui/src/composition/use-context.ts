@@ -21,8 +21,14 @@ export function useContextBrowser(args: {
   onOpenFile?: () => void
 }) {
   const { readers, folderState } = args
-  const [path, setPath] = useState<string | null>(null)
-  const [viewer, setViewer] = useState<ContextViewer | null>(null)
+  const [opened, setOpened] = useState<{ owner: ContextReaders | undefined; path: string } | null>(null)
+  const [viewerHeld, setViewerHeld] = useState<{ owner: ContextReaders | undefined; viewer: ContextViewer | null }>(
+    { owner: readers, viewer: null })
+  const path = opened !== null && opened.owner === readers ? opened.path : null
+  const viewer = viewerHeld.owner === readers ? viewerHeld.viewer : null
+  const updateViewer = useCallback((update: (current: ContextViewer | null) => ContextViewer | null) => {
+    setViewerHeld((held) => ({ owner: readers, viewer: update(held.owner === readers ? held.viewer : null) }))
+  }, [readers])
   const [revision, setRevision] = useState(0)
   const scroller = useRef<ScrollBoxRenderable | null>(null)
 
@@ -32,27 +38,31 @@ export function useContextBrowser(args: {
   }, [readers])
 
   useEffect(() => {
-    if (path === null || readers === undefined) { setViewer(null); return }
+    if (path === null || readers === undefined) { updateViewer(() => null); return }
     let live = true
-    setViewer((current) => current?.path === path ? current : { state: EContextView.Loading, path })
+    updateViewer((current) => current?.path === path ? current : { state: EContextView.Loading, path })
     void readers.load(path).catch((cause: unknown): ContextFileContent => ({ type: 'refused', reason: messageOf(cause) }))
       .then((content) => {
         if (!live) return
-        setViewer((current) => current?.state === EContextView.Ready && current.path === path &&
+        updateViewer((current) => current?.state === EContextView.Ready && current.path === path &&
           JSON.stringify(current.content) === JSON.stringify(content) ? current : { state: EContextView.Ready, path, content })
       })
     return () => { live = false }
-  }, [readers, path, revision])
+  }, [readers, path, revision, updateViewer])
+
+  useEffect(() => {
+    setOpened((current) => current?.owner === readers ? current : null)
+  }, [readers])
 
   const handleFileOpen = useCallback((next: string) => {
-    setPath(next)
-    setViewer((current) => current?.path === next ? current : { state: EContextView.Loading, path: next })
+    setOpened({ owner: readers, path: next })
+    updateViewer((current) => current?.path === next ? current : { state: EContextView.Loading, path: next })
     args.onOpenFile?.()
-  }, [args.onOpenFile])
+  }, [readers, updateViewer, args.onOpenFile])
   const handleFileClose = useCallback(() => {
-    setPath(null)
-    setViewer(null)
-  }, [])
+    setOpened(null)
+    updateViewer(() => null)
+  }, [updateViewer])
   const tree = useContextTree({ readers, folderState, revision, opened: path, onOpen: handleFileOpen, onClose: handleFileClose })
   const attachScroll = useCallback((box: ScrollBoxRenderable | null) => { scroller.current = box }, [])
 

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
-import { contextDirectory, sessionDirectory } from '@dltech/atlas-harness'
+import { contextDirectory, registryFor, sessionDirectory } from '@dltech/atlas-harness'
 
 import { grammarsReady, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
@@ -18,7 +18,9 @@ describe('the context tree in a conversation', () => {
     const previous = process.env.ATLAS_HOME
     const home = await mkdtemp(join(tmpdir(), 'atlas-context-tree-app-'))
     process.env.ATLAS_HOME = home
-    const root = contextDirectory({ sessionDir: sessionDirectory({ home, sessionId: THREAD }) })
+    const sessionDir = sessionDirectory({ home, sessionId: THREAD })
+    registryFor({ home }).registerThread({ sessionDir, threadId: THREAD })
+    const root = contextDirectory({ sessionDir })
     await mkdir(join(root, 'notes', 'deep'), { recursive: true })
     await writeFile(join(root, 'plan.md'), 'root plan')
     await writeFile(join(root, 'notes', 'plan.md'), 'nested plan')
@@ -74,8 +76,9 @@ describe('the context tree in a conversation', () => {
       expect(await until({ holds: async () => (await sidebar()).includes('new.md'), within: 5000 })).toBe(true)
       expect(await sidebar()).toContain('plan.md')
       await click('deep')
-      const saved = await readFile(join(home, 'sessions', THREAD, 'context-folders.json'), 'utf8').catch(() => '')
-      expect(saved).toContain('notes/deep')
+      const savedFile = join(sessionDir, 'context-folders.json')
+      const saved = async () => readFile(savedFile, 'utf8').catch(() => '')
+      expect(await until({ holds: async () => (await saved()).includes('notes/deep'), within: 5000 })).toBe(true)
     } finally {
       await teardown(setup)
       await app.close()
