@@ -28,7 +28,7 @@ Visual examples are part of the explanation. Open the linked source-page images 
 
 ## References
 
-The index below links directly to answer-bearing files. Read only the topics needed for the current task. The source is Refactoring UI and its supplemental PDFs; original wording remains in each reference rather than being replaced by summaries. All PDF pages also have visual renders. Walkthroughs contain automated speech transcripts, not manually verified verbatim records.
+The index below links directly to answer-bearing files. Read only the topics needed for the current task. The source is Refactoring UI by Adam Wathan and Steve Schoger and its supplemental PDFs; original wording remains in each reference rather than being replaced by summaries. All PDF pages also have visual renders. Walkthroughs contain automated speech transcripts, not manually verified verbatim records.
 
 ### Start with the feature
 
@@ -178,6 +178,14 @@ The index below links directly to answer-bearing files. Read only the topics nee
 - [Green, teal, cyan, and light-blue swatches](references/green-teal-and-cyan-swatches.md)
 - [Blue, indigo, purple, and magenta swatches](references/blue-purple-and-magenta-swatches.md)
 - [Pink and neutral swatches](references/pink-and-neutral-swatches.md)
+
+### Timestamped design walkthroughs
+
+- [Content-heavy pages: reading, hierarchy, and responsive composition](references/video-content-design.md)
+- [Complex forms: field grouping, controls, and mobile layout](references/video-complex-form.md)
+- [Dashboards: overview hierarchy and recent activity](references/video-dashboard-part-1.md)
+- [Dashboards: tables, typography, and responsive layout](references/video-dashboard-part-2.md)
+- [Transcription method, recognition caveats, and coverage](references/video-transcription-quality.md)
 
 ### Source introductions
 

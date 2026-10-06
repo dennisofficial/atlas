@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
@@ -13,6 +13,7 @@ const sourceSchema = z.object({
   id: z.string(),
   pages: z.number(),
   baseline_characters: z.number(),
+  baseline_sha256: z.string(),
 })
 const paletteSchema = z.object({
   name: z.string(),
@@ -33,8 +34,33 @@ const pageSchema = z.object({
   image: z.string(),
   text_characters: z.number(),
   text_sha256: z.string(),
+  image_sha256: z.string(),
 })
 const tokensSchema = z.record(z.string(), z.string().regex(/^#[\dA-Fa-f]{6}$/))
+const videoCoverageSchema = z.array(z.object({
+  slug: z.string(),
+  video_duration_seconds: z.number(),
+  audio_duration_seconds: z.number(),
+  segments: z.number(),
+  excluded_segments: z.number(),
+  frames: z.number(),
+  transcript: z.string(),
+  transcript_sha256: z.string(),
+  references: z.array(z.string()),
+}))
+const transcriptSchema = z.object({
+  duration_seconds: z.number(),
+  transcription: z.object({ disclaimer: z.string() }),
+  coverage: z.object({
+    entire_audio_processed: z.literal(true),
+    audio_input_trimmed: z.literal(false),
+    transcription_text_capped: z.literal(false),
+    tail_status: z.string(),
+  }),
+  segments: z.array(z.object({ id: z.number(), start: z.number(), end: z.number(), text: z.string() })),
+  excluded_segments: z.array(z.object({ id: z.number(), exclusion_reason: z.string() })),
+  frames: z.array(z.object({ path: z.string(), time_seconds: z.number() })),
+})
 
 const sha256 = (data: string | Uint8Array): string => createHash('sha256').update(data).digest('hex')
 const jsonAt = async (path: string): Promise<unknown> => JSON.parse(await readFile(path, 'utf8'))
@@ -99,20 +125,34 @@ describe('the shipped UI design library', () => {
     expect(metadata.sources.map((source) => [source.id, source.pages])).toEqual(Object.entries(SOURCE_COUNTS))
 
     for (const source of metadata.sources) {
-      const coverage = z.array(pageSchema).parse(await jsonAt(join(ASSETS, 'coverage', `${source.id}.json`)))
+      const coveragePath = join(ASSETS, 'coverage', `${source.id}.json`)
+      expect((await readFile(coveragePath, 'utf8')).split('\n').length).toBeLessThanOrEqual(300)
+      const coverage = z.array(pageSchema).parse(await jsonAt(coveragePath))
+      const reconstructed: { page: number; text: string }[] = []
       expect(coverage.map((row) => row.page)).toEqual(Array.from({ length: source.pages }, (_, index) => index + 1))
+      for (const reference of new Set(coverage.map((row) => row.reference))) {
+        const text = references.get(reference) ?? ''
+        const actualPages = [...text.matchAll(/^### Source page (\d+)$/gm)].map((match) => Number(match[1]))
+        expect(actualPages).toEqual(coverage.filter((row) => row.reference === reference).map((row) => row.page))
+      }
       let sourceCharacters = 0
       for (const row of coverage) {
         const markdown = references.get(row.reference)
         if (markdown === undefined) throw new Error(`missing reference ${row.reference}`)
         const text = pageText({ markdown, page: row.page })
+        reconstructed.push({ page: row.page, text })
+        const heading = markdown.indexOf(`### Source page ${row.page}\n`)
+        const section = markdown.slice(heading, markdown.indexOf('```text\n', heading))
+        expect(linksIn(section)).toEqual([`../assets/${row.image}`])
         expect(sha256(text)).toBe(row.text_sha256)
         expect([...text].length).toBe(row.text_characters)
         const image = await readFile(join(ASSETS, row.image))
         expect([...image.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff])
         expect(image.length).toBeGreaterThan(100)
+        expect(sha256(image)).toBe(row.image_sha256)
         sourceCharacters += [...text].length
       }
+      expect(sha256(JSON.stringify(reconstructed, null, 2))).toBe(source.baseline_sha256)
       expect(sourceCharacters).toBe(source.baseline_characters)
       characters += sourceCharacters
       pages += coverage.length
@@ -121,7 +161,10 @@ describe('the shipped UI design library', () => {
     expect(characters).toBe(metadata.source_text_characters)
     expect(pages).toBe(525)
     expect(pages).toBe(metadata.visual_pages)
-    expect(z.array(z.unknown()).parse(await jsonAt(join(ASSETS, 'book-outline.json')))).toHaveLength(153)
+    const outline = z.array(z.tuple([z.number(), z.string(), z.number()])).parse(await jsonAt(join(ASSETS, 'book-outline.json')))
+    expect(outline).toHaveLength(153)
+    const allText = [...references.values()].join('\n')
+    for (const [, title, page] of outline) expect(allText).toContain(`${title} (source page ${page})`)
   })
 
   it('preserves palette-local values, source roles, and valid strict JSON companions', async () => {
@@ -145,10 +188,54 @@ describe('the shipped UI design library', () => {
     expect(purple['purple-500']).not.toBe(swatches['purple-500'])
   })
 
+  it('preserves every accepted video segment with timestamps, caveats, and visual frames', async () => {
+    const videos = videoCoverageSchema.parse(await jsonAt(join(ASSETS, 'video-coverage.json')))
+    expect(videos.map((video) => video.slug)).toEqual(['content-design', 'complex-form', 'dashboard'])
+    expect(videos.map((video) => video.video_duration_seconds)).toEqual([728.45, 672.85, 1039.98])
+    expect(videos.reduce((sum, video) => sum + video.segments, 0)).toBe(550)
+    expect(videos.reduce((sum, video) => sum + video.excluded_segments, 0)).toBe(10)
+    expect(videos.reduce((sum, video) => sum + video.frames, 0)).toBe(40)
+    for (const video of videos) {
+      const raw = await readFile(join(ASSETS, video.transcript), 'utf8')
+      expect(sha256(raw)).toBe(video.transcript_sha256)
+      const data = transcriptSchema.parse(JSON.parse(raw))
+      expect(data.duration_seconds).toBe(video.audio_duration_seconds)
+      expect(Math.abs(video.video_duration_seconds - data.duration_seconds)).toBeLessThan(0.01)
+      expect(data.transcription.disclaimer).toContain('Not a manually verified verbatim transcript')
+      expect(data.coverage.tail_status).toContain('not human-audited')
+      expect(data.segments).toHaveLength(video.segments)
+      expect(data.excluded_segments).toHaveLength(video.excluded_segments)
+      expect(new Set([...data.segments, ...data.excluded_segments].map((segment) => segment.id)).size).toBe(video.segments + video.excluded_segments)
+      const narrated: string[] = []
+      for (const reference of video.references) {
+        const text = await readFile(join(REFERENCES, reference), 'utf8')
+        for (const match of text.matchAll(/^- \*\*\[[^\]]+\]\*\* (.+)$/gm)) {
+          if (match[1] !== undefined) narrated.push(match[1])
+        }
+      }
+      expect(narrated).toEqual(data.segments.map((segment) => segment.text.trim()))
+      let priorEnd = 0
+      for (const segment of data.segments) {
+        expect(segment.start).toBeGreaterThanOrEqual(priorEnd - 0.01)
+        expect(segment.end).toBeGreaterThanOrEqual(segment.start)
+        expect(segment.end).toBeLessThanOrEqual(data.duration_seconds)
+        priorEnd = segment.end
+      }
+      for (const frame of data.frames) {
+        expect(frame.time_seconds).toBeGreaterThanOrEqual(0)
+        expect(frame.time_seconds).toBeLessThanOrEqual(video.video_duration_seconds)
+        expect(await Bun.file(join(ASSETS, frame.path)).exists()).toBe(true)
+      }
+    }
+  })
+
   it('ships no raw PDFs, videos, audio, or transcription-model weights', async () => {
     const glob = new Bun.Glob('**/*')
-    for await (const path of glob.scan({ cwd: ROOT })) {
-      expect(path).not.toMatch(/\.(pdf|mp4|wav|mp3|safetensors)$/i)
+    let bytes = 0
+    for await (const path of glob.scan({ cwd: ROOT, dot: true })) {
+      expect(path).toMatch(/\.(md|json|jpg)$/i)
+      bytes += (await stat(join(ROOT, path))).size
     }
+    expect(bytes).toBeLessThan(64 * 1024 * 1024)
   })
 })

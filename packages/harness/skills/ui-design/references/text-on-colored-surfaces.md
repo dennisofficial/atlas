@@ -2,7 +2,7 @@
 
 ## Apply this
 
-- If gray text looks dull on a colored panel, derive a lighter text tint from the panel hue.
+- If gray text looks dull on a colored panel, choose text with the panel's hue and adjust saturation and lightness toward the background while preserving readable contrast.
 - Choose a text color that matches the surface temperature while preserving contrast.
 - Measure contrast in every state; do not assume a related hue is automatically accessible.
 

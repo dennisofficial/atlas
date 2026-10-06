@@ -4,16 +4,13 @@
 
 - If locating an original passage, use the printed contents and source page markers.
 - Read the task-relevant topic and open its page images when examples matter.
-- This conversion preserves the original source; it does not claim authorship of its text or visuals.
+- Refactoring UI is by Adam Wathan and Steve Schoger. This conversion preserves their original source; it does not claim authorship of its text or visuals.
 
 ## Source
 
 Source: `Refactoring UI v1.0.2.pdf`, version 1.0.2, PDF pages 1–5.
 Apply this is new guidance; the source blocks below preserve the supplied pypdf extraction verbatim.
 Page images preserve the original visual content, including text absent from extraction.
-
-### Source outline
-
 
 ## Source pages
 

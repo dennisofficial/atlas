@@ -1,0 +1,51 @@
+[
+  {
+    "slug": "content-design",
+    "source_filename": "Designing Content v1.0.1.mp4",
+    "video_duration_seconds": 728.45,
+    "audio_duration_seconds": 728.448,
+    "segments": 140,
+    "excluded_segments": 4,
+    "frames": 13,
+    "model": "mlx-community/whisper-large-v3-turbo",
+    "model_revision": "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+    "transcript": "video-content-design.json",
+    "transcript_sha256": "a59f04433469430bc0e765781e5fed543c5e3af32e730adda0af9beefee048ad",
+    "references": [
+      "video-content-design.md"
+    ]
+  },
+  {
+    "slug": "complex-form",
+    "source_filename": "Designing a Complex Form.mp4",
+    "video_duration_seconds": 672.85,
+    "audio_duration_seconds": 672.8533125,
+    "segments": 127,
+    "excluded_segments": 4,
+    "frames": 12,
+    "model": "mlx-community/whisper-large-v3-turbo",
+    "model_revision": "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+    "transcript": "video-complex-form.json",
+    "transcript_sha256": "928591d8a3b5e79e1bcbe4961ea6bfcc4f8b6e848d9b5f1353057bd484796a43",
+    "references": [
+      "video-complex-form.md"
+    ]
+  },
+  {
+    "slug": "dashboard",
+    "source_filename": "Designing a Dashboard.mp4",
+    "video_duration_seconds": 1039.98,
+    "audio_duration_seconds": 1039.9786875,
+    "segments": 283,
+    "excluded_segments": 2,
+    "frames": 15,
+    "model": "mlx-community/whisper-large-v3-turbo",
+    "model_revision": "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+    "transcript": "video-dashboard.json",
+    "transcript_sha256": "b374401da67deb96de844c0155d823b28c4bcc6bbce6b9f0dc3d0eed6d2536f3",
+    "references": [
+      "video-dashboard-part-1.md",
+      "video-dashboard-part-2.md"
+    ]
+  }
+]

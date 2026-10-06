@@ -47,7 +47,7 @@ export async function liveSkillRegistry(args: {
         }),
       })
 
-      return [new EmbeddedSkillSource(), ...skillSourcesFor({ roots })]
+      return [new EmbeddedSkillSource({ home: args.atlasHome }), ...skillSourcesFor({ roots })]
     },
   })
 

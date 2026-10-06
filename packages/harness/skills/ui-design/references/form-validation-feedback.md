@@ -4,7 +4,7 @@
 
 - If users cannot locate a failed field, place a specific correction near the input.
 - Compare inline, grouped, and summary feedback patterns without obscuring values.
-- Associate errors with fields and expose them to assistive technology; do not rely only on a red outline.
+- Associate errors with fields and expose them to assistive technology; do not rely only on a red outline. Keep the complete correction visible without requiring hover, focus, or a tooltip, and do not truncate essential error text.
 
 ## Source
 

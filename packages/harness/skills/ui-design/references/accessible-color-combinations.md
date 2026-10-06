@@ -5,6 +5,7 @@
 - If a desired color pair fails contrast, rethink foreground/background roles.
 - Try a light tinted surface with dark text or adjust the hue instead of merely darkening everything.
 - Measure actual contrast for the content and state; visual appeal does not waive readability requirements.
+- Apply current [WCAG 2.2 contrast requirements](https://www.w3.org/TR/WCAG22/#contrast-minimum): 4.5:1 for normal text; 3:1 only for large text of at least 18pt (24 CSS px), or 14pt bold (about 18.67 CSS px). The source's approximate 18px cutoff is not correct for regular-weight text.
 
 ## Source
 
