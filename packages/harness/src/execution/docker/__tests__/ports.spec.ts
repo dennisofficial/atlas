@@ -10,6 +10,7 @@ import { EXPOSURE_HOST_SUFFIX, exposureUrlFor } from '@dltech/atlas-core'
 import { DockerProcessPort } from '../docker-process'
 import { DockerEngine } from '../engine'
 import { PROXY_CONTAINER_PORT } from '../expose-proxy'
+import { removeTestSandboxes, uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
 import { derivedHostPort, hostPortFor } from '../ports'
 import {
@@ -21,7 +22,7 @@ import {
 } from '../sandbox'
 
 const WORKTREE = '/Users/operator/Developer/project/.atlas/worktrees/feature'
-const PREFIX = 'atlas-dev-ports'
+const PREFIX = uniqueTestPrefix('ports')
 
 describe('derivedHostPort', () => {
   it('is a pure function of the session key and the container port', () => {
@@ -101,15 +102,7 @@ const SOCKET = '/var/run/docker.sock'
 const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 const engine = new DockerEngine({ socketPath: SOCKET })
 
-const sweep = async (): Promise<void> => {
-  const stale = await engine.listContainers({
-    labels: { [worktreeLabel(PREFIX)]: undefined },
-    all: true,
-  })
-  for (const container of stale) await engine.removeContainer({ id: container.id })
-  const networks = await engine.listNetworks({ labels: { [worktreeLabel(PREFIX)]: undefined } })
-  for (const network of networks) await engine.removeNetwork({ id: network.id }).catch(() => undefined)
-}
+const sweep = (): Promise<void> => removeTestSandboxes({ engine, prefix: PREFIX })
 
 const fetchViaProxy = (args: { hostPort: number; host: string }): Promise<{ status: number; body: string }> =>
   new Promise((resolve, reject) => {
@@ -131,11 +124,13 @@ const fetchViaProxy = (args: { hostPort: number; host: string }): Promise<{ stat
   })
 
 describeDocker('the expose proxy against a live daemon', () => {
-  afterEach(sweep)
-
   const roots: string[] = []
   afterEach(async () => {
-    await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+    try {
+      await sweep()
+    } finally {
+      await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+    }
   })
 
   const configFor = (root: string): SandboxConfig => ({

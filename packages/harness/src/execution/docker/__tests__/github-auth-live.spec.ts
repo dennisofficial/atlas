@@ -11,9 +11,9 @@ import {
   DEFAULT_DOCKER_SOCKET,
   DEFAULT_SANDBOX_IMAGE,
   ensureSandbox,
-  worktreeLabel,
 } from '../sandbox'
 import { runSandboxScript } from '../sandbox-scripts'
+import { removeTestSandboxes } from './docker-test-cleanup'
 import { describeLiveDocker } from './live-docker'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
@@ -56,8 +56,8 @@ describeDocker('github auth against a live daemon', () => {
     }
     expect(config.githubToken).toBeDefined()
 
-    const sandbox = await ensureSandbox({ engine, config })
     try {
+      const sandbox = await ensureSandbox({ engine, config })
       const script = [
         'set -eu',
         "test \"$(git config credential.https://github.com.helper)\" = '!gh auth git-credential'",
@@ -86,9 +86,11 @@ describeDocker('github auth against a live daemon', () => {
         outcome.output.replaceAll(config.githubToken ?? '', '<redacted>'),
       ).toBe(0)
     } finally {
-      const owned = await engine.listContainers({ labels: { [worktreeLabel(PREFIX)]: undefined }, all: true })
-      for (const container of owned) await engine.removeContainer({ id: container.id })
-      await rm(worktree, { recursive: true, force: true })
+      try {
+        await removeTestSandboxes({ engine, prefix: PREFIX })
+      } finally {
+        await rm(worktree, { recursive: true, force: true })
+      }
     }
   }, 300_000)
 })

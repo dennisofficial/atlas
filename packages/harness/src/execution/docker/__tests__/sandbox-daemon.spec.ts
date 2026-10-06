@@ -8,12 +8,12 @@ import { join } from 'node:path'
 import { EMountMode } from '../../image/mounts'
 import { DockerEngine } from '../engine'
 import { runSandboxScript, type ScriptOutcome } from '../sandbox-scripts'
+import { removeTestSandboxes, uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
 import {
   ensureSandbox,
   findSandbox,
   oversubscriptionWarnings,
-  worktreeLabel,
   type SandboxConfig,
 } from '../sandbox'
 
@@ -21,10 +21,8 @@ const SOCKET = '/var/run/docker.sock'
 const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev-sandbox'
+const PREFIX = uniqueTestPrefix('sandbox')
 
-// A fresh worktree per test, because a container named for a shared one can still be
-// finalizing its removal when the next test asks the daemon for it
 let worktree = ''
 const fixtureDirs: string[] = []
 
@@ -32,10 +30,7 @@ afterAll(async () => {
   for (const dir of fixtureDirs) await rm(dir, { recursive: true, force: true })
 })
 
-const sweep = async (): Promise<void> => {
-  const stale = await engine.listContainers({ labels: { [worktreeLabel(PREFIX)]: undefined }, all: true })
-  for (const container of stale) await engine.removeContainer({ id: container.id })
-}
+const sweep = (): Promise<void> => removeTestSandboxes({ engine, prefix: PREFIX })
 
 describeDocker('ensureSandbox against a live daemon', () => {
   beforeEach(async () => {

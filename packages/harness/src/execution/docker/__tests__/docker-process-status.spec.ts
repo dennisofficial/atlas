@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { DockerProcessPort } from '../docker-process'
 import { DockerEngine } from '../engine'
 import { sandboxNameFor, worktreeLabel, type SandboxConfig } from '../sandbox'
+import { removeTestSandboxes, uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
 import { ESandboxState, type SandboxStatus } from '../status'
 
@@ -15,18 +16,20 @@ const DOCKER_AVAILABLE = (await dockerUnavailableReason(SOCKET)) === undefined
 const describeDocker = DOCKER_AVAILABLE ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev-process-status'
+const PREFIX = uniqueTestPrefix('process-status')
 
 const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-status-')))
 
+const extraWorktrees: string[] = []
+
 afterAll(async () => {
-  if (!DOCKER_AVAILABLE) return
-  const stale = await engine.listContainers({
-    labels: { [worktreeLabel(PREFIX)]: worktree },
-    all: true,
-  })
-  for (const container of stale) await engine.removeContainer({ id: container.id })
-  await rm(worktree, { recursive: true, force: true })
+  try {
+    if (DOCKER_AVAILABLE) await removeTestSandboxes({ engine, prefix: PREFIX })
+  } finally {
+    for (const dir of [worktree, ...extraWorktrees]) {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
 })
 
 const sandboxConfig = (image = 'node:22-slim'): SandboxConfig => ({
@@ -67,6 +70,7 @@ describeDocker('DockerProcessPort sandbox status', () => {
 
   it("announces failed with the daemon's reason when the container cannot be created", async () => {
     const missingWorktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-status-failed-')))
+    extraWorktrees.push(missingWorktree)
     const seen: SandboxStatus[] = []
     const port = new DockerProcessPort({
       engine,
@@ -83,7 +87,6 @@ describeDocker('DockerProcessPort sandbox status', () => {
     const failed = seen.at(-1)
     if (failed?.state !== ESandboxState.Failed) throw new Error(`expected failed, got ${failed?.state ?? 'nothing'}`)
     expect(failed.reason).toContain('atlas-dev-no-such-image')
-    await rm(missingWorktree, { recursive: true, force: true })
   }, 60_000)
 
   it('restarts the sandbox on the next spawn when the daemon stopped it behind our back', async () => {

@@ -7,8 +7,9 @@ import { join } from 'node:path'
 
 import { DockerEngine } from '../engine'
 import { sandboxConfigFromHost } from '../host-environment'
-import { DEFAULT_DOCKER_SOCKET, ensureSandbox, worktreeLabel, type SandboxConfig } from '../sandbox'
+import { DEFAULT_DOCKER_SOCKET, ensureSandbox, type SandboxConfig } from '../sandbox'
 import { runSandboxScript } from '../sandbox-scripts'
+import { removeTestSandboxes } from './docker-test-cleanup'
 import { describeLiveDocker, quoted } from './live-docker'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
@@ -167,12 +168,11 @@ describeDocker('linked worktree against a live daemon', () => {
 `,
       })).toBe('')
     } finally {
-      const owned = await engine.listContainers({
-        labels: { [worktreeLabel(PREFIX)]: worktree },
-        all: true,
-      })
-      for (const container of owned) await engine.removeContainer({ id: container.id })
-      await rm(fixtureRoot, { recursive: true, force: true })
+      try {
+        await removeTestSandboxes({ engine, prefix: PREFIX })
+      } finally {
+        await rm(fixtureRoot, { recursive: true, force: true })
+      }
     }
   }, 10 * 60_000)
 })
