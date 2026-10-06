@@ -17,8 +17,6 @@ const WORKING = 'esc to interrupt'
 
 const RESUME_HINT = 'resume'
 
-const INTERRUPTED_NOTICE = 'The turn was interrupted.'
-
 const ASKED: EventDraft = { type: 'user-said', text: 'list the packages' }
 
 const PENDING_TOOL: readonly EventDraft[] = [
@@ -217,9 +215,10 @@ describe('mounting while the sandbox is already mid-turn', () => {
 
       channel.acknowledgeInterrupt()
       await screen.until(
-        () => currentNotices().some((notice) => notice.text === INTERRUPTED_NOTICE),
-        'the interrupt acknowledgement notice',
+        (frame) => !frame.includes('Interrupting'),
+        'the interrupting line to clear without a notice',
       )
+      expect(currentNotices()).toEqual([])
 
       channel.interrupted()
       const settled = await screen.until(
