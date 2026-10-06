@@ -5,13 +5,14 @@ import { definitionsOfPage, ESettingPage } from '../definition'
 import { ESettingKind } from '../value'
 
 describe('the grilling ceremony setting', () => {
-  it('holds the experimental page between appearance and cloud', () => {
+  it('holds the experimental page between appearance and cloud, ahead of code quality', () => {
     expect(SETTING_PAGES.map((page) => page.id)).toEqual([
       ESettingPage.General,
       ESettingPage.Models,
       ESettingPage.Appearance,
       ESettingPage.Experimental,
       ESettingPage.Cloud,
+      ESettingPage.CodeQuality,
     ])
   })
 

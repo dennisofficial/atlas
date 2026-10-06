@@ -6,6 +6,7 @@ export enum ESettingPage {
   Appearance = 'appearance',
   Experimental = 'experimental',
   Cloud = 'cloud',
+  CodeQuality = 'quality',
   Hidden = 'hidden',
 }
 

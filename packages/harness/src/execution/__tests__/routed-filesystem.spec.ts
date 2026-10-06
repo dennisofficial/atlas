@@ -53,6 +53,14 @@ class RecordingFiles extends AgentFileSystemPort {
     return Promise.resolve(new Uint8Array())
   }
 
+  readTextForEdit(args: {
+    path: string
+    threadId?: ThreadId | undefined
+  }): Promise<{ text: string; strict: string | null }> {
+    this.note('readTextForEdit', args)
+    return Promise.resolve({ text: 'lossy', strict: 'strict' })
+  }
+
   writeFile(args: {
     path: string
     content: string
@@ -156,5 +164,18 @@ describe('RoutedFileSystemPort', () => {
 
     expect(local.calls).toHaveLength(1)
     expect(docker.calls).toHaveLength(0)
+  })
+
+  it('delegates readTextForEdit to the port for the thread, keeping the thread id', async () => {
+    const local = new RecordingFiles()
+    const docker = new RecordingFiles()
+    const port = new RoutedFileSystemPort({ local, dockerFor: () => docker, locationOf })
+
+    const fromDocker = await port.readTextForEdit({ path: '/x', threadId: DOCKER_THREAD })
+    await port.readTextForEdit({ path: '/x', threadId: HOST_THREAD })
+
+    expect(fromDocker).toEqual({ text: 'lossy', strict: 'strict' })
+    expect(docker.calls).toEqual([{ method: 'readTextForEdit', threadId: DOCKER_THREAD }])
+    expect(local.calls).toEqual([{ method: 'readTextForEdit', threadId: HOST_THREAD }])
   })
 })

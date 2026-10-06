@@ -39,6 +39,13 @@ export class RoutedFileSystemPort extends AgentFileSystemPort {
     return this.portFor(args.threadId).readBytes(args)
   }
 
+  readTextForEdit(args: {
+    path: string
+    threadId?: ThreadId | undefined
+  }): Promise<{ text: string; strict: string | null }> {
+    return this.portFor(args.threadId).readTextForEdit(args)
+  }
+
   writeFile(args: {
     path: string
     content: string

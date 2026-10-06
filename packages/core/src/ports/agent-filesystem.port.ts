@@ -14,6 +14,11 @@ export abstract class AgentFileSystemPort {
 
   abstract readBytes(args: { path: string; threadId?: ThreadId | undefined }): Promise<Uint8Array>
 
+  abstract readTextForEdit(args: {
+    path: string
+    threadId?: ThreadId | undefined
+  }): Promise<{ text: string; strict: string | null }>
+
   abstract writeFile(args: {
     path: string
     content: string

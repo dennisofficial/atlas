@@ -203,4 +203,39 @@ describe('LocalFileSystemPort', () => {
       ]),
     )
   })
+
+  describe('readTextForEdit', () => {
+    it('returns identical lossy and strict text for valid utf8', async () => {
+      const path = join(root, 'ok.ts')
+      await port.writeFile({ path, content: 'héllo ✓\n' })
+
+      expect(await port.readTextForEdit({ path })).toEqual({ text: 'héllo ✓\n', strict: 'héllo ✓\n' })
+    })
+
+    it('keeps a leading BOM in both decodes', async () => {
+      const path = join(root, 'bom.ts')
+      await Bun.write(path, new Uint8Array([0xef, 0xbb, 0xbf, 0x61]))
+
+      const read = await port.readTextForEdit({ path })
+
+      expect(read.text).toBe('\ufeffa')
+      expect(read.strict).toBe('\ufeffa')
+      expect(read.text).toBe(await port.readFile({ path }))
+    })
+
+    it('answers strict null for invalid bytes while text stays the lossy decode', async () => {
+      const path = join(root, 'bad.ts')
+      await Bun.write(path, new Uint8Array([0x61, 0xff, 0x62]))
+
+      const read = await port.readTextForEdit({ path })
+
+      expect(read.strict).toBeNull()
+      expect(read.text).toBe('a\ufffdb')
+      expect(read.text).toBe(await port.readFile({ path }))
+    })
+
+    it('rejects a path nothing occupies', async () => {
+      await expect(port.readTextForEdit({ path: join(root, 'absent.ts') })).rejects.toThrow(/ENOENT/)
+    })
+  })
 })

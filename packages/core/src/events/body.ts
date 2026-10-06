@@ -4,6 +4,7 @@ import type { EAgentStatus } from '../agents/status'
 import type { EExecutionLocation } from '../execution/location'
 import type { FilePart, ImagePart, ReasoningPart, TextPart } from '../message/parts'
 import type { ERiskDimension } from '../policy/classifier/dimension'
+import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EGrantScope, GrantOffer } from '../policy/classifier/grant'
 import type { EClassifierMode, ETriage } from '../policy/classifier/triage'
 import type { EJudgment, EVerdictFault } from '../policy/classifier/verdict'
@@ -249,6 +250,7 @@ export type EventBody =
       reason: string
     }
   | { type: 'permission-revoked'; grantId: string }
+  | CodeQualityReviewedBody
   | {
       type: 'tldr-written'
       anchorSeq: number
@@ -264,6 +266,7 @@ export type EventType = EventBody['type']
 
 export const SURVIVES_SUMMARY: readonly EventType[] = [
   'context-loaded',
+  'code-quality-reviewed',
   'permission-granted',
   'permission-revoked',
   'pull-request-linked',

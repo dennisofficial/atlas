@@ -136,4 +136,36 @@ describe('jevAnswersSchema', () => {
       })
     }
   })
+
+  it('accepts confidence at the 0 and 1 bounds', () => {
+    for (const confidence of [0, 1]) {
+      const parsed = jevAnswersSchema.safeParse({ answers: { q: { noul: 0.5, confidence } } })
+      expect(parsed.success).toBe(true)
+    }
+  })
+
+  it('rejects confidence outside 0..1', () => {
+    for (const confidence of [-0.01, 1.01]) {
+      expect(jevAnswersSchema.safeParse({ answers: { q: { confidence } } }).success).toBe(false)
+    }
+  })
+
+  it('preserves the top-level model identity', () => {
+    const parsed = jevAnswersSchema.safeParse({ model: 'jev-1.13.0', answers: { q: { noul: 0.2 } } })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) expect(parsed.data.model).toBe('jev-1.13.0')
+  })
+
+  it('rejects a non-string model', () => {
+    expect(jevAnswersSchema.safeParse({ model: 3, answers: {} }).success).toBe(false)
+  })
+
+  it('still reads an old response with neither confidence nor model', () => {
+    const parsed = jevAnswersSchema.safeParse({ answers: { q: { noul: 0.2 } } })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.model).toBeUndefined()
+      expect(parsed.data.answers['q']?.confidence).toBeUndefined()
+    }
+  })
 })
