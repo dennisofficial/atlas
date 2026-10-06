@@ -1,7 +1,8 @@
 import { realpath } from 'node:fs/promises'
 import { isAbsolute, relative, sep } from 'node:path'
 
-import { probeWorkspace, type RestoredWorkspace } from '@dltech/atlas-harness'
+import { probeWorkspace } from '../probe'
+import type { RestoredWorkspace } from './manifest'
 
 const canonical = async (path: string): Promise<string> => {
   try {

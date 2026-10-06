@@ -4,11 +4,10 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toThreadId, type Event } from '@dltech/atlas-core'
-import { captureWorkspaceArchive, runGit, type RestoredWorkspace } from '@dltech/atlas-harness'
+import { captureWorkspaceArchive, exportCwdOf, runGit, type RestoredWorkspace } from '@dltech/atlas-harness'
 
 import { createDirectWorkspace } from '../direct-workspace'
 import { driveWorkspaceArchivePath } from '../drive-bootstrap'
-import { exportCwdOf } from '../export-primary'
 import { prepareWorkspaceExport } from '../prepare-workspace'
 import { createWorkspaceSession } from '../workspace-session'
 import type { ServeApp } from '../serve-app'

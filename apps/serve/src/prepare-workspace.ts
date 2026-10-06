@@ -3,14 +3,13 @@ import { mkdir, readdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { projectDirectoryOf, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
-import { captureWorkspaceArchive, type RestoredWorkspace } from '@dltech/atlas-harness'
+import { captureWorkspaceArchive, exportCwdOf, type RestoredWorkspace } from '@dltech/atlas-harness'
 import {
   workspaceManifestWireSchema,
   type PrepareWorkspaceArchiveReply,
 } from '@dltech/atlas-wire'
 
 import { driveWorkspaceExportDirectory } from './drive-bootstrap'
-import { exportCwdOf } from './export-primary'
 
 export type WorkspaceCapturer = typeof captureWorkspaceArchive
 
