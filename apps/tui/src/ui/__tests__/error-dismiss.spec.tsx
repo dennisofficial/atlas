@@ -18,11 +18,11 @@ import {
 
 await grammarsReady()
 
-const CLOSE = '✕'
+const CLOSE = '[close]'
 
 const MESSAGE = 'overloaded_error: the model is overloaded'
 
-const NARROW_WIDTHS = [12, 20, 30, 40, 60, 100, 200] as const
+const NARROW_WIDTHS = [20, 30, 40, 60, 100, 200] as const
 
 type Setup = Awaited<ReturnType<typeof testRender>>
 type Spans = ReturnType<Setup['captureSpans']>

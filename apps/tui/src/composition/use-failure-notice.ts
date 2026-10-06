@@ -2,11 +2,19 @@ import { useCallback, useState } from 'react'
 
 import type { StepFailure } from '../store'
 
-export function useFailureNotice() {
-  const [failure, setFailure] = useState<string | null>(null)
-  const handleDismiss = useCallback(() => setFailure(null), [])
-  const dismissalFor = (reported: StepFailure | null): (() => void) | null =>
-    failure !== null && typeof reported?.message !== 'string' ? handleDismiss : null
+type FailureNotice = { reason: string; dismissible: boolean }
 
-  return { failure, setFailure, dismissalFor }
+export function useFailureNotice() {
+  const [notice, setNotice] = useState<FailureNotice | null>(null)
+  const setFailure = useCallback((reason: string | null) => {
+    setNotice(reason === null ? null : { reason, dismissible: true })
+  }, [])
+  const setTurnFailure = useCallback((reason: string | null) => {
+    setNotice(reason === null ? null : { reason, dismissible: false })
+  }, [])
+  const handleDismiss = useCallback(() => setNotice(null), [])
+  const dismissalFor = (reported: StepFailure | null): (() => void) | null =>
+    reported === null && notice?.dismissible === true ? handleDismiss : null
+
+  return { failure: notice?.reason ?? null, setFailure, setTurnFailure, dismissalFor }
 }

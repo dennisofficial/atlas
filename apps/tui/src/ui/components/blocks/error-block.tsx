@@ -32,7 +32,7 @@ const costOf = (args: { durationMs?: number; outputTokens?: number }): string =>
   return parts.join(SEPARATOR)
 }
 
-const CLOSE_LABEL = ' ✕ '
+const CLOSE_LABEL = ' [close] '
 
 function CloseControl(props: { onDismiss: () => void }): React.ReactNode {
   const region = useClickRegion(props.onDismiss)

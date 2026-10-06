@@ -29,7 +29,7 @@ export type { Conversation } from './conversation-types'
 export function useConversation(args: ConversationArgs): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
-  const { failure, setFailure, dismissalFor } = useFailureNotice()
+  const { failure, setFailure, setTurnFailure, dismissalFor } = useFailureNotice()
   const [reported, setReported] = useState<ModelUsage | null>(null)
   const { pendingMove, pendingMoveRef, holdMove } = usePendingMove()
   const startedRef = useRef(args.opened.started)
@@ -132,7 +132,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     readClock,
     onSettled: drainSettledCommands,
     onUndone,
-    setFailure,
+    setFailure: setTurnFailure,
     forgetUsage,
     cancelCompaction: compaction.cancel,
     interruptRefusal: args.interruptRefusal,
