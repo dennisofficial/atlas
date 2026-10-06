@@ -1,7 +1,8 @@
-import { ImageRenderable, type TerminalCapabilities } from '@opentui/core'
+import type { TerminalCapabilities } from '@opentui/core'
 import { extend } from '@opentui/react'
 
 import { imageProtocolOf } from './protocol'
+import { TerminalImageRenderable } from './terminal-image'
 
 /**
  * What the viewer would paint with, given the terminal's answer set. The blocks sampler writes
@@ -25,18 +26,7 @@ export function viewerImageProtocol(args: {
   return imageProtocolOf({ env: { TERM_PROGRAM: process.env.TERM_PROGRAM }, fallback: 'blocks' })
 }
 
-/**
- * The context viewer's picture. Unlike the transcript's it owns its whole pane, so there is no
- * scroll position to survive — only Warp's half-spoken kitty claim to route around. The pane lays
- * it out with flexGrow between the header and footer, and `fit` keeps the picture contained and
- * centred inside whatever box that grants.
- */
-export class ViewerImageRenderable extends ImageRenderable {
-  override get effectiveProtocol(): 'kitty' | 'sixel' | 'blocks' {
-    if (this.protocol !== 'auto') return super.effectiveProtocol
-    return imageProtocolOf({ env: { TERM_PROGRAM: process.env.TERM_PROGRAM }, fallback: super.effectiveProtocol })
-  }
-}
+export class ViewerImageRenderable extends TerminalImageRenderable {}
 
 declare module '@opentui/react' {
   interface OpenTUIComponents {

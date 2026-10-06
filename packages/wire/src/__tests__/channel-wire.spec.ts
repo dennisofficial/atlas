@@ -182,8 +182,8 @@ describe('the session archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version whose session archive reply is a file descriptor', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(18)
+  it('speaks the version with archive descriptors and history compaction ops', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(19)
   })
 })
 

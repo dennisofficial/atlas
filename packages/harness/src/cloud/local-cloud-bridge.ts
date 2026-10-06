@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { EServeEnv, PORTABLE_STATE_PATH, type PortableState } from '@dltech/atlas-wire'
 
+import { uploadBootstrapArchives } from './bootstrap-archive-uploads'
 import { sandboxNameFor } from './sandbox-names'
 import { ECloudSandboxState } from './sandbox-client'
 import type {
@@ -16,8 +17,6 @@ import {
   CONTEXT_ARCHIVE_PATH,
   liveDriverWith,
   portableOmissionsOf,
-  TRANSCRIPT_ARCHIVE_PATH,
-  WORKSPACE_ARCHIVE_PATH,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
   type LiveSandbox,
@@ -56,9 +55,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
   const notifyOmitted = (omissions: PortableOmissions): void => {
     try {
       args.onPortableOmitted?.(omissions)
-    } catch {
-      // a notice callback must never fail a sandbox that is already up
-    }
+    } catch {}
   }
 
   const create = async (
@@ -111,22 +108,13 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           content: bootstrap,
         })
       }
-      if (createArgs.transcriptArchivePath !== undefined) {
-        await driver.uploadWorkspaceArchive({
-          sandbox,
-          source: createArgs.transcriptArchivePath,
-          destination: TRANSCRIPT_ARCHIVE_PATH,
-          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'transcript-upload', label: 'uploading conversation' }),
-        })
-      }
-      if (createArgs.workspaceArchivePath !== undefined) {
-        await driver.uploadWorkspaceArchive({
-          sandbox,
-          source: createArgs.workspaceArchivePath,
-          destination: WORKSPACE_ARCHIVE_PATH,
-          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'workspace-upload', label: 'uploading workspace' }),
-        })
-      }
+      await uploadBootstrapArchives({
+        driver,
+        sandbox,
+        transcriptArchivePath: createArgs.transcriptArchivePath,
+        workspaceArchivePath: createArgs.workspaceArchivePath,
+        onTransferProgress: createArgs.onTransferProgress,
+      })
       const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
       if (needsPortable) {
         const captured = await captureOnce()

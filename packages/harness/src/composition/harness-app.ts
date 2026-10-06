@@ -36,6 +36,7 @@ import type { ShellRegistryPort } from '../shells/shell-registry'
 import type { DiscoveredSkill } from '../skills/skill'
 import type { SkillRegistryPort } from '../skills/port'
 import type { ThreadStorePort } from '../store/thread-store'
+import type { CompactionPort } from '../store/compaction-port'
 import type { ToolRegistry } from '../tools/registry'
 import type { AccountUsageService } from '../usage/account-usage-service'
 
@@ -85,6 +86,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   activeThread: () => ActiveConversation | null
   titler: SessionTitler
   summarise: Summariser
+  compaction?: CompactionPort | undefined
   credentials: CredentialPort
   accounts: AccountsService
   cloud: CloudService

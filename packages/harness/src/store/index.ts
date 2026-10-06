@@ -13,6 +13,8 @@ export {
   type CompactionOutcome,
   type Summarise,
 } from './compact'
+export { CompactionPort } from './compaction-port'
+export { LocalCompaction } from './local-compaction'
 export { SystemClock } from './clock'
 export { ThreadNeedsOpeningDrafts, type OpenThreadArgs } from './create-with-events'
 export { ForkSeqOutOfRange, ForkSourceMissing } from './fork'

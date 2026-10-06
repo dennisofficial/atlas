@@ -6,7 +6,7 @@ export const DEFAULT_FRAME_BUFFER = 2048
 export type SignalFrame = Extract<ServeFrame, { kind: EServeFrame.Signal }>
 export type LifecycleFrame = Extract<
   ServeFrame,
-  { kind: EServeFrame.TurnEnded | EServeFrame.Error }
+  { kind: EServeFrame.TurnEnded | EServeFrame.Error | EServeFrame.Reload }
 >
 
 export type FrameBuffer = {

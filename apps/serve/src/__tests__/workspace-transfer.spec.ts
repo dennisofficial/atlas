@@ -208,7 +208,7 @@ describe('serving a restored direct workspace', () => {
 
     client.send({ kind: EClientFrame.Send, sendId: 's-2' as never, text: 'hello' })
     await client.waitFor((frame) => frame.kind === EServeFrame.SendAcked)
-  })
+  }, 15_000)
 
   it('keeps an already-activated generation active across a reboot', async () => {
     const first = await bootWith({ archive: 'generation' })

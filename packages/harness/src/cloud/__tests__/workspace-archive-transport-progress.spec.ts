@@ -70,6 +70,7 @@ const uploadWith = async (args: {
       destination: join(drive, 'workspace.tar.gz'),
       chunkBytes: 64,
       batchParts: 2,
+      concurrency: 1,
       onProgress: (progress) => events.push(progress),
     })
   } catch (failure) {

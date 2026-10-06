@@ -15,6 +15,7 @@ import type { ServiceRegistryPort } from '../services/service-registry'
 import type { ShellRegistryPort } from '../shells/shell-registry'
 import type { RewindMachineryPort } from '../store/rewind-machinery'
 import type { ThreadStorePort } from '../store/thread-store'
+import type { CompactionPort } from '../store/compaction-port'
 
 import type { ERecoveryAction } from './session-recovery'
 import type { EPlacementMoveKind, PlacementController, PlacementTransaction } from './placement-controller'
@@ -43,6 +44,7 @@ export type SessionRuntime = {
   agents: AgentRegistryPort
   services: ServiceRegistryPort
   rewindMachinery: RewindMachineryPort | undefined
+  compaction?: CompactionPort | undefined
   workspace: WorkspaceIdentity
   attachment: unknown
 }
