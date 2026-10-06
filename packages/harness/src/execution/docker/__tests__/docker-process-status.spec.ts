@@ -50,7 +50,7 @@ const runTrue = async (port: DockerProcessPort): Promise<number> => {
 }
 
 describeDocker('DockerProcessPort sandbox status', () => {
-  it('announces starting then running, with the ports the daemon bound', async () => {
+  it('announces starting then running without directly published sandbox ports', async () => {
     const seen: SandboxStatus[] = []
     const port = new DockerProcessPort({
       engine,
@@ -64,8 +64,7 @@ describeDocker('DockerProcessPort sandbox status', () => {
     const running = seen[1]
     if (running?.state !== ESandboxState.Running) throw new Error('unreachable')
     expect(running.name).toBe(sandboxNameFor({ prefix: PREFIX, session: worktree }))
-    expect(running.ports.length).toBeGreaterThan(0)
-    expect(running.ports[0]?.hostPort).toBeGreaterThan(0)
+    expect(running.ports).toEqual([])
   }, 60_000)
 
   it("announces failed with the daemon's reason when the container cannot be created", async () => {
