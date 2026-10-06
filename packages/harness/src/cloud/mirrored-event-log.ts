@@ -16,6 +16,7 @@ export class MirroredEventLog extends EventLogPort {
   private readonly remote: RemoteEventLog
   private readonly syncer: TranscriptSyncer
   private readonly rootThreadId: ThreadId
+  private readonly listeners = new Set<() => void>()
 
   constructor(args: {
     channel: Pick<
@@ -37,6 +38,7 @@ export class MirroredEventLog extends EventLogPort {
       writer: args.writer,
       threadId: args.threadId,
       ...(args.onSyncFailed === undefined ? {} : { onSyncFailed: args.onSyncFailed }),
+      onSynced: () => this.emit(),
     })
     this.rootThreadId = args.threadId
   }
@@ -94,6 +96,17 @@ export class MirroredEventLog extends EventLogPort {
 
   async refresh(args: { threadId: ThreadId }): Promise<void> {
     await this.local.refresh(args)
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  private emit(): void {
+    for (const listener of [...this.listeners]) listener()
   }
 
   /** The park flow awaits this before it writes the parked record, so the resume renders from a mirror the checkpoint has provably reached. */

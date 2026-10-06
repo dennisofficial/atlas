@@ -1,7 +1,10 @@
+import { randomBytes } from 'node:crypto'
+import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import type { ThreadId } from '@dltech/atlas-core'
 import { MEMORY_DIRECTORY_NAME } from '@dltech/atlas-core'
+import { SESSION_EXPORT_DIRECTORY_NAME, type SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import { buildContextArchive, type ArchiveFileSource } from '@dltech/atlas-harness'
 import { buildSessionArchive } from '@dltech/atlas-harness'
@@ -10,22 +13,26 @@ import { memoryDirectoriesFor } from '@dltech/atlas-harness'
 import { sessionDirectory } from '@dltech/atlas-harness'
 import { statMemoryDirectory } from '@dltech/atlas-harness'
 
-/**
- * The descend's transcript transfer: the session directory the sandbox served from, tarred the way
- * the lift shipped it up. Only the descend reads it, and a move cannot carry a live shell, so the
- * whole family's shells end before the tar is built; the build itself refuses a shell with no
- * terminal status. An empty directory answers null — the descend reads that as the cloud holding
- * nothing and refuses rather than wiping the local copy.
- */
+const SAFE_THREAD_ID = /^[A-Za-z0-9_-]+$/
+
 export async function serveSessionArchive(args: {
   threadId: ThreadId
   endFamilyShells?: (() => Promise<void>) | undefined
-}): Promise<Uint8Array | null> {
+}): Promise<SessionArchiveDescriptor | null> {
+  if (!SAFE_THREAD_ID.test(args.threadId)) {
+    throw new Error(`thread ${args.threadId} cannot name a session export`)
+  }
   await args.endFamilyShells?.()
+  const directory = join(atlasDirectory(), SESSION_EXPORT_DIRECTORY_NAME)
+  const prefix = `session-${args.threadId}-`
+  await mkdir(directory, { recursive: true })
+
   const archive = await buildSessionArchive({
     sessionDir: sessionDirectory({ home: atlasDirectory(), sessionId: args.threadId }),
+    archivePath: join(directory, `${prefix}${randomBytes(6).toString('hex')}.tar.gz`),
   })
-  return archive === undefined ? null : archive
+  if (archive === undefined) return null
+  return { path: archive.path, size: archive.size, sha256: archive.sha256, threadId: args.threadId }
 }
 
 const addFlatMemoryDirectory = async (args: {

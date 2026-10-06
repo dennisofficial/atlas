@@ -18,7 +18,7 @@ export const provisionLiftSandbox = async (ctx: LiftCtx): Promise<void> => {
     ...(ctx.workspaceArchive === undefined ? {} : { workspaceArchivePath: ctx.workspaceArchive.path }),
     ...(workspaceDirectory === undefined ? {} : { workspaceDirectory }),
     model: ctx.args.model.ref,
-    ...(ctx.transcript === undefined ? {} : { transcript: ctx.transcript }),
+    ...(ctx.transcript === undefined ? {} : { transcriptArchivePath: ctx.transcript.path }),
     ...(ctx.gpgKey === undefined ? {} : { gpgKey: ctx.gpgKey }),
     captureContext: async (put) => {
       ctx.onWaveLabel?.(ELiftNode.Provision, 'sending skills and memory to the sandbox')

@@ -187,13 +187,9 @@ export function useThreadView(args: {
     setEvents(initial().events);
   }, [initial, setEvents, viewRefresh]);
 
-  /**
-   * The seed identity registers in a layout effect, not during the render: the register must
-   * vouch that the store built around the seed is the one on screen, and a render-time write
-   * would run even for a tree that never commits.
-   */
   useLayoutEffect(() => {
     viewRefresh.registerSeedIdentity();
+    return viewRefresh.bindLocalUpdates();
   }, [viewRefresh]);
 
   useEffect(() => () => store.dispose(), [store]);

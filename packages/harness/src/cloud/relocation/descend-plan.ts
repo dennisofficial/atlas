@@ -94,7 +94,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       needs: [EDescendNode.PauseRemoteLoops],
       label: 'pulling the conversation down',
       run: async () => {
-        await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
+        await transferTranscriptDown({ threadId, channel, bridge: args.bridge, logPort: args.logPort, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
         await localApp.log.refresh({ threadId })
       },
     },
@@ -158,7 +158,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
           restore: args.restoreWorkspace,
           logPort: args.logPort,
           beforeRestore: async () => {
-            await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
+            await transferTranscriptDown({ threadId, channel, bridge: args.bridge, logPort: args.logPort, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
             await localApp.log.refresh({ threadId })
             await adoptTransferredChildren({ agents: localApp.agents, threadId })
           },

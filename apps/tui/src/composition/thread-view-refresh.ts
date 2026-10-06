@@ -1,10 +1,10 @@
 import type { Event, ThreadId } from "@dltech/atlas-core";
 import {
   EChannelConnection,
+  MirroredEventLog,
   RemoteTurnRunner,
   transcriptIdentityDigest,
   type RemoteDeltaChannel,
-  type TurnSpend,
 } from "@dltech/atlas-harness";
 
 import type { ConversationStore } from "../store";
@@ -107,6 +107,7 @@ export type ThreadViewRefresh = {
    * resolve before passive effects run.
    */
   registerSeedIdentity: () => void;
+  bindLocalUpdates: () => () => void;
 };
 
 /**
@@ -132,12 +133,32 @@ export function createThreadViewRefresh(args: {
   let heldIdentity = readSeed?.().identity;
 
   const cloudChannel = cloudChannelOf(app);
-  // Readiness is one slot per channel, and that slot vouches for the root thread alone — a
-  // parked session's record and the dim authority both read it as the root's. A child view
-  // registering its own identity there would stand in the park's way, so children get none.
   const ownsChannelReadiness =
     cloudChannel !== null && threadId === cloudChannel.threadId;
   const readiness = ownsChannelReadiness ? cloudReadinessOf(cloudChannel!) : null;
+  const mirror = readiness !== null && app.log instanceof MirroredEventLog ? app.log : null;
+  let readingSpend = false;
+  let spendQueued = false;
+  let viewEpoch = 0;
+  let detached = false;
+
+  const refreshSpend = (): void => {
+    if (cloudChannel?.connection().state !== EChannelConnection.Open) return;
+    if (readingSpend) {
+      spendQueued = true;
+      return;
+    }
+    readingSpend = true;
+    spendQueued = false;
+    const epoch = viewEpoch;
+    void readThreadSpend({ ledger: app.ledger, threadId }).then((spent) => {
+      if (epoch !== viewEpoch) return;
+      store.setEvents({ events: heldEvents(), turns: spent.turns });
+    }).catch(() => undefined).finally(() => {
+      readingSpend = false;
+      if (spendQueued && epoch === viewEpoch) refreshSpend();
+    });
+  };
 
   const localRefresh = async (): Promise<void> => {
     const [window, spent] = await Promise.all([
@@ -171,42 +192,46 @@ export function createThreadViewRefresh(args: {
     setEvents(window.events);
   };
 
-  // A cloud thread reads one authoritative full snapshot and replaces the projection wholesale.
-  // Window merging is a local-log shortcut — it cannot hear a compaction's same-head rewrite,
-  // where the digest is the only durable signal that the prefix changed, so identity equal means
-  // stand pat and anything else means reset. The register lands after the store holds the
-  // snapshot, so a waiter on `waitUntilApplied` observes the applied view, never the read that
-  // preceded it.
   const refresh =
     cloudChannel === null
       ? localRefresh
       : createCloudRefresh({
           run: async () => {
-            const [snapshot, spent] = await Promise.all([
-              readThreadSnapshot({
-                log: app.log,
-                threadId,
-                rows,
-                effects,
-                digest: transcriptIdentityDigest,
-              }),
-              readThreadSpend({ ledger: app.ledger, threadId }),
-            ]);
-            if (sameIdentity({ left: snapshot.identity, right: heldIdentity })) return;
-
-            const retained = retainNewest({ events: snapshot.events });
-            tailGapped = false;
-            store.resetLog({ events: retained, base: snapshot.base, turns: spent.turns });
-            setEvents(retained);
-            heldIdentity = snapshot.identity;
-            if (readiness !== null) {
-              readiness.registerApplied(snapshot.identity, Date.now(), snapshot.all);
+            if (detached) return;
+            const epoch = viewEpoch;
+            const reading = readThreadSnapshot({
+              log: app.log, threadId, rows, effects, digest: transcriptIdentityDigest,
+            });
+            const [snapshot, spent] = mirror === null
+              ? await Promise.all([reading, readThreadSpend({ ledger: app.ledger, threadId })])
+              : [await reading, undefined] as const;
+            if (detached || epoch !== viewEpoch) return;
+            if (!sameIdentity({ left: snapshot.identity, right: heldIdentity })) {
+              const cloudEvents = retainNewest({ events: snapshot.events });
+              tailGapped = false;
+              store.resetLog({ events: cloudEvents, base: snapshot.base, turns: spent?.turns });
+              setEvents(cloudEvents);
+              heldIdentity = snapshot.identity;
+              readiness?.registerApplied(snapshot.identity, Date.now(), snapshot.all);
             }
+            if (mirror !== null) refreshSpend();
           },
         });
 
   return {
     refresh,
+    bindLocalUpdates: () => {
+      if (mirror === null || readiness === null) return () => undefined;
+      detached = false;
+      const unbind = readiness.bindRefresh(refresh);
+      const unsubscribe = mirror.subscribe(() => { void refresh().catch(() => undefined); });
+      return () => {
+        viewEpoch += 1;
+        detached = true;
+        unbind();
+        unsubscribe();
+      };
+    },
     refreshable: () =>
       cloudChannel === null ||
       (cloudChannel.connection().state !== EChannelConnection.Closed &&

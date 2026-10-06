@@ -169,7 +169,7 @@ describe('the workspace restoration a descend holds until the move settles', () 
       trail.push(given.op)
       if (given.op === EClientRequest.ReadSessionArchive) {
         reads += 1
-        if (reads === 2) return { archive: second ?? '' }
+        if (reads === 2) return { archive: second }
       }
       return served(given)
     }

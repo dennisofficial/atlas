@@ -18,6 +18,8 @@ export type CloudTranscriptReadiness = {
   subscribe(listener: () => void): () => void
   waitUntilApplied(identity: ThreadIdentity): Promise<void>
   cancelWaiting(): void
+  bindRefresh(refresh: () => Promise<void>): () => void
+  refreshApplied(): Promise<void>
 }
 
 const readinessByChannel = new WeakMap<Pick<CloudChannel, 'threadId'>, CloudTranscriptReadiness>()
@@ -35,6 +37,7 @@ export const cloudReadinessOf = (
   if (held !== undefined) return held
 
   let applied: CloudAppliedSnapshot | null = null
+  let refresh: (() => Promise<void>) | null = null
   const listeners = new Set<() => void>()
   const waiting = new Set<{ identity: ThreadIdentity; resolve: () => void; reject: (error: Error) => void }>()
   const created: CloudTranscriptReadiness = {
@@ -48,6 +51,11 @@ export const cloudReadinessOf = (
       for (const listener of [...listeners]) listener()
     },
     applied: () => applied,
+    bindRefresh(next) {
+      refresh = next
+      return () => { if (refresh === next) refresh = null }
+    },
+    refreshApplied: () => refresh?.() ?? Promise.resolve(),
     subscribe(listener) {
       listeners.add(listener)
       return () => { listeners.delete(listener) }

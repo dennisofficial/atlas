@@ -47,7 +47,7 @@ export const wireRealLog = (args: { home: string; app: FakeServeApp }): Transcri
   return store
 }
 
-export const seedArchive = async (args: { texts: readonly string[] }): Promise<Uint8Array> => {
+export const seedArchive = async (args: { texts: readonly string[] }): Promise<string> => {
   const source = scratchTranscriptStore({ prefix: 'src' })
   restoreHomes.push(source.home)
   for (const text of args.texts) {
@@ -57,12 +57,12 @@ export const seedArchive = async (args: { texts: readonly string[] }): Promise<U
     sessionDir: sessionDirectory({ home: source.home, sessionId: RESTORE_THREAD }),
   })
   if (archive === undefined) throw new Error('expected an archive')
-  return archive
+  return archive.path
 }
 
 export const bootRestoreServe = async (args: {
   home: string
-  archive: () => Promise<Uint8Array | null>
+  archive: () => Promise<string | null>
   app: FakeServeApp
   capabilities?: import('@dltech/atlas-core').EnvironmentCapabilities
 }): Promise<{ handle: ServeHandle; client: TestClient }> => {

@@ -238,7 +238,7 @@ describe('a request riding the session socket', () => {
       expect(timeouts[0]?.delayMs).toBe(10_000)
     })
 
-    it('gives the archive and identity ops two minutes, since extracts and digests outlast a read', () => {
+    it('gives file archives ten minutes and small memory and identity reads two minutes', () => {
       const { channel, timeouts } = readied()
 
       void channel.request({ op: EClientRequest.RestoreTranscript, params: {} }).catch(() => undefined)
@@ -248,7 +248,7 @@ describe('a request riding the session socket', () => {
         .request({ op: EClientRequest.ReadTranscriptIdentity, params: {} })
         .catch(() => undefined)
 
-      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([120_000, 120_000, 120_000, 120_000])
+      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([600_000, 600_000, 120_000, 120_000])
     })
 
     it('lets an explicit requestTimeoutMs override the per-op default', () => {
@@ -268,7 +268,7 @@ describe('a request riding the session socket', () => {
 
       const failure = await answer.catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(RemoteRequestLost)
-      expect((failure as RemoteRequestLost).message).toContain('120000ms')
+      expect((failure as RemoteRequestLost).message).toContain('600000ms')
     })
   })
 
@@ -362,6 +362,18 @@ describe('a request riding the session socket', () => {
 
       await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
     })
+  })
+
+  it('never re-drives a session export after a drop, since another build would leave an orphan generation', async () => {
+    const { channel, drop, retries, receive, live } = readied()
+    const answer = channel.request({ op: EClientRequest.ReadSessionArchive, params: {} })
+    const failed = answer.catch((error: unknown) => error)
+    drop()
+    expect(await failed).toBeInstanceOf(RemoteRequestLost)
+    retries[0]?.run()
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 9 })
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
   })
 
   it('rejects a rewind in flight when the socket closes, since it may have applied', async () => {

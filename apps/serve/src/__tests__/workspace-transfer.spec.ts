@@ -67,6 +67,7 @@ describe('preparing a workspace export', () => {
       driveHome: home,
       threadId,
       launchDirectory: '/atlas/workspace',
+      requireCoverage: async () => undefined,
       log: {
         readOwn: async () => [
           event({ type: 'worktree-entered', path: '/atlas/workspace/.atlas/worktrees/feature', branch: 'feature' }),
@@ -96,6 +97,7 @@ describe('preparing a workspace export', () => {
       driveHome: home,
       threadId,
       launchDirectory: '/atlas/workspace',
+      requireCoverage: async () => undefined,
       log: { readOwn: async () => [] },
       stopProcesses: async () => {
         order.push('stop')
@@ -119,6 +121,7 @@ describe('preparing a workspace export', () => {
         driveHome: home,
         threadId,
         launchDirectory: '/atlas/workspace',
+        requireCoverage: async () => undefined,
         log: { readOwn: async () => [] },
         capture: async ({ destination }) => {
           await writeFile(destination, 'half')
@@ -151,6 +154,7 @@ const bootWith = async (args: { archive: string | null }) => {
   process.env.ATLAS_HOME = home
   const composedAt: string[] = []
   const restoredTo = join(configured, 'restored')
+  await mkdir(restoredTo, { recursive: true })
   const handle = await startServe({
     env: {},
     threadId,

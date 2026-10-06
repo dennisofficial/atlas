@@ -1344,9 +1344,22 @@ Reconnect and idle resume preserve the live event log, including events appended
 was captured. A new explicit lift supplies a new archive generation. Explicit refresh invalidates
 the entire session's cached logs after an out-of-band directory replacement.
 
+Session archives are files throughout lift, bootstrap, and descend. Serve exports a runtime-owned
+file and replies with only its root identity, path, byte count, and SHA-256. The client accepts only
+that root's generated export path, streams it through the sandbox file API into a private partial
+file, verifies the byte count and digest, and atomically publishes it before extraction. Archive
+bytes never pass through JSON or a whole-archive base64 string; uploads use bounded file chunks.
+Session export requests are not replayed automatically after a socket loss: preparing another
+multi-GB generation is not a side-effect-free read. The source stays authoritative for an explicit retry.
+Export enumeration walks real directories without following symlinks. A genuinely missing session
+is distinct from an unreadable path, which is reported as an error rather than an empty transcript.
+
 Descend stages and checks the incoming transcript before replacing local data. A missing, invalid,
 or boot-context-only archive cannot erase a local conversation. The local store refreshes before
 adopting the transferred family or reopening. Cloud read failures are errors, never empty conversations.
+Session wire protocol versions must match; an older runtime must upgrade before using this export
+contract. Memory export remains a separate context archive on its existing byte-based path, not
+the session file stream.
 
 ## Workspace round trips and runtime ownership
 
@@ -1367,7 +1380,11 @@ worktree — sibling worktrees stay behind — including covered trees' staged, 
 files. Refs are scoped to what the covered trees need: their branch heads, their stash, and their
 per-worktree refs; objects pack from exactly those tips plus the covered indexes. Git
 administration is reconstructed for the destination's paths rather than copying machine-specific
-worktree registrations.
+worktree registrations. Before exporting for descend, serve checks the primary repository's
+registered checkout roots against the covered roots, using exact canonical identities rather than
+ancestor paths. Any omitted sibling refuses the move and names its path; even a clean or finished
+teammate's checkout is not proof of a preserved copy. The cloud placement and source files remain
+authoritative. Expanding the transfer to family-owned worktrees is a separate scope decision.
 
 Each checkout carries its original identity and lift-time content fingerprint. An unchanged host
 checkout receives its incoming state in place. A checkout changed independently is left untouched;

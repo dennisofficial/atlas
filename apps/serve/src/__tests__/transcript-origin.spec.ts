@@ -68,14 +68,14 @@ const appendSaid = async (args: { home: string; text: string }): Promise<void> =
   })
 }
 
-const archiveOf = async (args: { home: string }): Promise<Uint8Array> => {
+const archiveOf = async (args: { home: string }): Promise<string> => {
   const sessionDir = sessionDirectory({ home: args.home, sessionId: THREAD })
   const archive = await buildSessionArchive({ sessionDir })
   if (archive === undefined) throw new Error('expected an archive')
-  return archive
+  return archive.path
 }
 
-const seedArchiveHome = async (args: { text: string }): Promise<{ source: string; archive: Uint8Array }> => {
+const seedArchiveHome = async (args: { text: string }): Promise<{ source: string; archive: string }> => {
   const source = freshHome()
   await appendSaid({ home: source, text: args.text })
   return { source, archive: await archiveOf({ home: source }) }

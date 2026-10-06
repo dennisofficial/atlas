@@ -72,6 +72,7 @@ export async function buildSession(options: SessionOptions = {}) {
   homes.push(home)
   await mkdir(join(home, 'bootstrap'), { recursive: true })
   const destination = join(home, 'workspace')
+  await mkdir(destination, { recursive: true })
   const events: string[] = []
   let restores = 0
   const direct = createDirectWorkspace({

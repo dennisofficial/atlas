@@ -6,7 +6,7 @@ import {
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type { RosterWire } from '@dltech/atlas-wire'
+import type { RosterWire, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import {
   EClientRequest,
@@ -55,7 +55,7 @@ export function fakeCloudChannel(
   args: {
     threadId?: ThreadId
     log?: FakeEventLog | undefined
-    archive?: string | undefined
+    archive?: SessionArchiveDescriptor | null | undefined
     memoryArchive?: string | undefined
     restoreTranscriptRefused?: boolean | undefined
     applyTranscript?: (() => Promise<void>) | undefined
@@ -159,14 +159,13 @@ export function fakeCloudChannel(
         return PREPARE_REPLY
       }
       if (given.op === EClientRequest.Rewind) return { applied: 0 }
-      if (given.op === EClientRequest.ReadSessionArchive) return { archive: args.archive ?? '' }
+      if (given.op === EClientRequest.ReadSessionArchive) return { archive: args.archive ?? null }
       if (given.op === EClientRequest.ReadMemoryArchive)
         return { archive: args.memoryArchive ?? '' }
       if (given.op === EClientRequest.RestoreTranscript) {
         if (args.restoreTranscriptRefused === true)
           throw new Error('unknown request op: restore-transcript')
         await args.applyTranscript?.()
-        // Mirror the serve's restore: pin the lift's location-changed marker on the sandbox log.
         const params = restoreTranscriptParamsSchema.safeParse(given.params ?? {})
         const marker = params.success ? params.data.locationChanged : undefined
         const threadId = args.threadId ?? CLOUD_THREAD
@@ -197,51 +196,35 @@ export function fakeCloudChannel(
     connection: () => held,
     onConnection: (listener) => {
       connections.add(listener)
-      return () => {
-        connections.delete(listener)
-      }
+      return () => { connections.delete(listener) }
     },
     onReload: (listener) => {
       reloads.add(listener)
-      return () => {
-        reloads.delete(listener)
-      }
+      return () => { reloads.delete(listener) }
     },
     onReady: (listener) => {
       readies.add(listener)
-      return () => {
-        readies.delete(listener)
-      }
+      return () => { readies.delete(listener) }
     },
     onTurnEnded: (listener) => {
       turnEndings.add(listener)
-      return () => {
-        turnEndings.delete(listener)
-      }
+      return () => { turnEndings.delete(listener) }
     },
     onError: (listener) => {
       failures.add(listener)
-      return () => {
-        failures.delete(listener)
-      }
+      return () => { failures.delete(listener) }
     },
     onServerError: (listener) => {
       serverErrors.add(listener)
-      return () => {
-        serverErrors.delete(listener)
-      }
+      return () => { serverErrors.delete(listener) }
     },
     onInterruptAck: (listener) => {
       interruptAcks.add(listener)
-      return () => {
-        interruptAcks.delete(listener)
-      }
+      return () => { interruptAcks.delete(listener) }
     },
     onRoster: (listener) => {
       rosters.add(listener)
-      return () => {
-        rosters.delete(listener)
-      }
+      return () => { rosters.delete(listener) }
     },
     onPrStates: () => () => undefined,
     onThreadRenamed: () => () => undefined,

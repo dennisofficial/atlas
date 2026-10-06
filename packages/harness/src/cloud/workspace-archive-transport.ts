@@ -1,12 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { createWriteStream } from 'node:fs'
-import { mkdir, open, rename, rm, stat } from 'node:fs/promises'
-import { dirname, posix } from 'node:path'
-import { pipeline } from 'node:stream/promises'
+import { open, stat } from 'node:fs/promises'
+import { posix } from 'node:path'
 
 import { WORKSPACE_EXPORT_DIRECTORY_NAME, WORKSPACE_EXPORT_FILE_PATTERN } from '@dltech/atlas-wire'
 
 import { DRIVE_HOME_PATH } from './drive-names'
+import { downloadArchiveFile } from './archive-download'
 
 export const WORKSPACE_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
 export const WORKSPACE_UPLOAD_BATCH_PARTS = 8
@@ -121,15 +120,7 @@ export async function downloadWorkspaceArchive(args: {
   const remote = exportedWorkspacePathOf(args.path)
   const stream = await args.sandbox.readFile({ path: remote })
   if (stream === null) throw new Error(`the sandbox holds no workspace export at ${remote}`)
-  await mkdir(dirname(args.destination), { recursive: true })
-  const staging = `${args.destination}.${randomBytes(4).toString('hex')}.partial`
-  try {
-    await pipeline(stream, createWriteStream(staging, { mode: 0o600 }))
-    await rename(staging, args.destination)
-  } catch (error) {
-    await rm(staging, { force: true })
-    throw error
-  }
+  await downloadArchiveFile({ stream, destination: args.destination })
 }
 
 export async function releaseWorkspaceExport(args: {

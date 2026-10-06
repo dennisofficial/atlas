@@ -14,7 +14,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 17
+export const CHANNEL_PROTOCOL_VERSION = 18
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
