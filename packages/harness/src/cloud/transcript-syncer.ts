@@ -39,6 +39,7 @@ export class TranscriptSyncer {
     writer: MirrorWriter
     threadId: ThreadId
     onSyncFailed?: ((failure: unknown) => void) | undefined
+    onSynced?: (() => void) | undefined
   }
   private running = false
   private pending: 'tail' | 'verify' | null = null
@@ -52,6 +53,7 @@ export class TranscriptSyncer {
     writer: MirrorWriter
     threadId: ThreadId
     onSyncFailed?: ((failure: unknown) => void) | undefined
+    onSynced?: (() => void) | undefined
   }) {
     this.args = args
     this.connection = args.channel.connection()
@@ -155,6 +157,7 @@ export class TranscriptSyncer {
     }
     await this.args.writer.appendDelta({ threadId: this.args.threadId, events })
     await this.args.local.refresh({ threadId: this.args.threadId })
+    this.args.onSynced?.()
   }
 
   private async verify(): Promise<void> {
@@ -171,6 +174,7 @@ export class TranscriptSyncer {
       events,
     })
     await this.args.local.refresh({ threadId: this.args.threadId })
+    this.args.onSynced?.()
   }
 
   private readonly remoteDigest: PrefixDigest = async (upTo) => {

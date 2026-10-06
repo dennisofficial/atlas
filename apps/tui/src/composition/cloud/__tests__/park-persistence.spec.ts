@@ -166,6 +166,32 @@ describe('persisting a park', () => {
     expect(held.written).toEqual([{ checkpoint: checkpointFor(EVENTS), applied: identityOf(EVENTS) }])
   })
 
+  it('applies the converged local transcript before waiting for the parked identity', async () => {
+    let applied: CloudAppliedSnapshot | null = null
+    const written: ParkedTranscriptRecord[] = []
+    const trail: string[] = []
+    const persistence = createParkPersistence({
+      threadId: CLOUD_THREAD,
+      threads: { writeParkedTranscript: async ({ record }) => void written.push(record) },
+      files: { swap: async () => ({ revert: async () => undefined, seal: async () => undefined }) },
+      applied: () => applied,
+      waitUntilApplied: () => Promise.reject(new Error('no view has applied the tail')),
+      converge: async () => { trail.push('converge') },
+      refreshApplied: async () => {
+        trail.push('apply')
+        applied = { identity: identityOf(EVENTS), appliedAt: 7, events: EVENTS }
+      },
+      refreshLog: async () => undefined,
+      readLog: async () => EVENTS,
+      appliedWaitMs: 5,
+    })
+
+    await persistence.persist(checkpointFor(EVENTS))
+
+    expect(trail).toEqual(['converge', 'apply'])
+    expect(written).toEqual([{ checkpoint: checkpointFor(EVENTS), applied: identityOf(EVENTS) }])
+  })
+
   it('warns instead of throwing when the record cannot be written', async () => {
     const persistence = createParkPersistence({
       threadId: CLOUD_THREAD,

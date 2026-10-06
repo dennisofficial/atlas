@@ -27,6 +27,7 @@ export function parkHookFor(args: {
     files: args.files ?? localTranscriptFiles({ home: atlasDirectory }),
     applied: () => readiness.applied(),
     waitUntilApplied: (identity) => readiness.waitUntilApplied(identity),
+    refreshApplied: () => readiness.refreshApplied(),
     refreshLog: () => args.app.log.refresh({ threadId }),
     readLog: () => args.app.log.read({ threadId }),
     seal: (snapshot) => readiness.registerApplied(snapshot.identity, snapshot.appliedAt, snapshot.events),
