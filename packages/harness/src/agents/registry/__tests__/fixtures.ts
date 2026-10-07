@@ -17,6 +17,7 @@ import type { TurnRunner } from '../../../loop/turn-runner.port'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import type { AgentType } from '../../types'
 import type { ChildRunnerRequest, ChildRunnerSource } from '../child-runner'
+import type { InheritOrphanedNotices } from '../deps'
 import { AgentSupervisor } from '../supervisor'
 
 export const agentTypeNamed = (args: Partial<AgentType> & { name: string }): AgentType => ({
@@ -132,10 +133,12 @@ export async function openSupervisor({
   agentTypes = [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: 'builder' })],
   sink,
   hasLiveWork,
+  inheritOrphanedNotices,
 }: {
   agentTypes?: readonly AgentType[]
   sink?: ExecutionLocationSinkPort | undefined
   hasLiveWork?: ((threadId: ThreadId) => boolean) | undefined
+  inheritOrphanedNotices?: InheritOrphanedNotices | undefined
 } = {}): Promise<OpenedSupervisor> {
   const temp = createTempHome()
   const harness = await buildHarness({
@@ -157,6 +160,7 @@ export async function openSupervisor({
       launchDirectory: '/launch',
       ...(sink === undefined ? {} : { sink }),
       ...(hasLiveWork === undefined ? {} : { hasLiveWork }),
+      ...(inheritOrphanedNotices === undefined ? {} : { inheritOrphanedNotices }),
     }),
     parent: (await harness.threads.create({})).id,
     close: async () => {

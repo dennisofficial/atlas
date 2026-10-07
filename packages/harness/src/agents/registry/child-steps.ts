@@ -13,7 +13,7 @@ import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
 import { ChildAdmissions } from './child-admissions'
-import type { HasLiveWork, IntakeChanged } from './deps'
+import type { HasLiveWork, InheritOrphanedNotices, IntakeChanged } from './deps'
 import {
   agentEndedDraft,
   recordContext,
@@ -40,6 +40,7 @@ export class ChildSteps {
   private readonly telemetry: TelemetryPort | undefined
   private readonly intake: IntakeChanged | undefined
   private readonly hasLiveWork: HasLiveWork | undefined
+  private readonly inheritOrphanedNotices: InheritOrphanedNotices | undefined
   private readonly onEnded: ((threadId: ThreadId) => void) | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
   private readonly settledListeners = new Set<() => void>()
@@ -55,6 +56,7 @@ export class ChildSteps {
     telemetry?: TelemetryPort | undefined
     intake?: IntakeChanged | undefined
     hasLiveWork?: HasLiveWork | undefined
+    inheritOrphanedNotices?: InheritOrphanedNotices | undefined
     onEnded?: ((threadId: ThreadId) => void) | undefined
   }) {
     this.runners = args.runners
@@ -64,6 +66,7 @@ export class ChildSteps {
     this.telemetry = args.telemetry
     this.intake = args.intake
     this.hasLiveWork = args.hasLiveWork
+    this.inheritOrphanedNotices = args.inheritOrphanedNotices
     this.onEnded = args.onEnded
   }
 
@@ -184,6 +187,8 @@ export class ChildSteps {
     child.endedAt = this.clock.now()
     child.steppingSince = undefined
     this.roster.changed()
+
+    this.inheritOrphanedNotices?.({ from: child.agentId, to: child.spawnedBy })
 
     this.telemetry?.agentEnded({
       agentType: child.agentType,

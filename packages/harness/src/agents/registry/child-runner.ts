@@ -27,7 +27,6 @@ import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
 import {
   AGENT_TOOL_NAMES,
   isTeammateType,
-  SERVICE_CONTROL_TOOL_NAMES,
   TEAMMATE_AGENT_TYPE,
   WORKTREE_TOOL_NAMES,
   toolRegistryFor,
@@ -58,12 +57,11 @@ export type ChildRunnerDepsSource = () => ChildRunnerDeps
 const SUB_AGENT_DENIED: readonly string[] = [
   ...AGENT_TOOL_NAMES,
   ...WORKTREE_TOOL_NAMES,
-  ...SERVICE_CONTROL_TOOL_NAMES,
   'operator_input',
 ]
 
 const deniedFor = (agentType: AgentType): readonly string[] =>
-  isTeammateType(agentType.name) ? [...SERVICE_CONTROL_TOOL_NAMES, 'operator_input'] : SUB_AGENT_DENIED
+  isTeammateType(agentType.name) ? ['operator_input'] : SUB_AGENT_DENIED
 
 function observingLog({
   log,

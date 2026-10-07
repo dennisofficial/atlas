@@ -24,6 +24,12 @@ export type IntakeSubmit = Pick<MessageIntake, 'changed' | 'submit' | 'hold' | '
  */
 export type HasLiveWork = (threadId: ThreadId) => boolean
 
+/**
+ * A finished child never drains again, so its pending service and shell notices move to the
+ * parent — the earliest thread guaranteed alive to hear them.
+ */
+export type InheritOrphanedNotices = (args: { from: ThreadId; to: ThreadId }) => void
+
 export type SupervisorDeps = {
   log: EventLogPort
   threads: ThreadStorePort
@@ -38,6 +44,7 @@ export type SupervisorDeps = {
   intake?: IntakeChanged | undefined
   input?: (() => IntakeSubmit | undefined) | undefined
   hasLiveWork?: HasLiveWork | undefined
+  inheritOrphanedNotices?: InheritOrphanedNotices | undefined
   /** Fired when a child's ending is recorded, so live wiring can hand back what ending orphans (its worktree claim). */
   onChildEnded?: ((threadId: ThreadId) => void) | undefined
 }
