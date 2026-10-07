@@ -6,8 +6,6 @@ import { captureGit } from './capture-git'
 
 const PACK_BASE = 'pack'
 
-const REACHABILITY_FLAGS = ['--indexed-objects'] as const
-
 export async function packReachableObjects({
   cwd,
   commonDir,
@@ -29,7 +27,10 @@ export async function packReachableObjects({
     const stdinPath = join(stdinScratch, 'revs')
     await writeFile(stdinPath, seeds.length === 0 ? '' : `${seeds.join('\n')}\n`)
     const run = await captureGit({
-      args: ['pack-objects', '--quiet', '--revs', ...REACHABILITY_FLAGS, join(packScratch, PACK_BASE)],
+      // --indexed-objects is deliberately absent: it enumerates every linked worktree's index and
+      // would leak sibling objects into the pack. Each covered tree's index objects are seeded
+      // explicitly by indexedObjectSeeds before this runs, so the flag adds only the leak.
+      args: ['pack-objects', '--quiet', '--revs', join(packScratch, PACK_BASE)],
       cwd,
       stdinPath,
     })
