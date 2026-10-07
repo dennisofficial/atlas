@@ -13,6 +13,7 @@ import { mirrorCloudRenames } from './cloud/rename-mirror'
 import { cloudAnchorOf, cloudBindingOf, prepareOn } from './session-binding'
 import type { CloudBridge, CloudReload, LiftedWorkspace, LiftWorkspaceCapture } from '@dltech/atlas-harness'
 import { createCloudRunner } from './cloud/cloud-runner'
+import { durableOpLog } from './durable-op-log'
 import { liftToCloud } from '@dltech/atlas-harness'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
 import { stopLocalWork } from '@dltech/atlas-harness'
@@ -96,6 +97,7 @@ export function useCloudLift(args: {
           localLog: app.log,
           agents: app.agents,
           ids: app.ids,
+          logPort: durableOpLog() ?? undefined,
           placement: owner,
           stopLocal: async () => stopLocalWork({ threadId, shells: app.shells, services: app.services, threads: app.threads }),
           capture: latest.current.capture,

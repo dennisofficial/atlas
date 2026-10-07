@@ -126,6 +126,22 @@ describe('a verified lift destroys the local session worktree', () => {
     expect(await exists(repo.session)).toBe(false)
   })
 
+  it('removes the session worktree Atlas locked for the session itself', async () => {
+    useAtlasHome()
+    const repo = await makeRepo()
+    const test = harness({
+      cwd: repo.session,
+      bridge: fakeBridge(),
+      captureWorkspaceArchive: async () => archiveOf({ repo, destination: 'workspace.tar.gz' }),
+    })
+    await git({ cwd: repo.main, args: ['worktree', 'lock', '--reason', 'bench-lock', repo.session] })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(await exists(repo.session)).toBe(false)
+  })
+
   it('keeps a session worktree whose local state drifted after the capture', async () => {
     useAtlasHome()
     const repo = await makeRepo()
