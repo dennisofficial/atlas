@@ -1,14 +1,12 @@
 import { createReadStream } from 'node:fs'
-import { lstat, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { lstat, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 
-import { captureGit } from './capture-git'
+import { presentObjects } from './capture-present-objects'
 
 const OBJECT_ID = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/
 const ZERO_ID = /^0+$/
-const MISSING = /^([0-9a-f]+) missing$/
 
 export async function reflogObjectIds({ path }: { path: string }): Promise<Set<string>> {
   const found = new Set<string>()
@@ -56,21 +54,6 @@ export async function walkLogs({ root }: { root: string }): Promise<LogEntry[]> 
 export const isCapturedCommonLog = ({ path, covered }: { path: string; covered: ReadonlySet<string> }): boolean =>
   !path.startsWith('refs/') || covered.has(path)
 
-async function presentObjects({ cwd, ids }: { cwd: string; ids: ReadonlySet<string> }): Promise<string[]> {
-  if (ids.size === 0) return []
-  const scratch = await mkdtemp(join(tmpdir(), 'atlas-reflog-seeds-'))
-  try {
-    const stdinPath = join(scratch, 'ids')
-    await writeFile(stdinPath, `${[...ids].join('\n')}\n`)
-    const run = await captureGit({ args: ['cat-file', '--batch-check'], cwd, stdinPath })
-    if (!run.ok) throw new Error(`Cannot check the reflog objects of ${cwd}: ${run.stderr.trim()}`)
-    const absent = new Set(run.stdout.split('\n').flatMap((line) => MISSING.exec(line)?.[1] ?? []))
-    return [...ids].filter((id) => !absent.has(id))
-  } finally {
-    await rm(scratch, { recursive: true, force: true })
-  }
-}
-
 export async function reflogSeeds({
   cwd,
   commonLogFiles,
@@ -84,5 +67,5 @@ export async function reflogSeeds({
   const files = [...commonLogFiles, ...linked.flat().filter((entry) => entry.kind === ELogEntryKind.File).map((entry) => entry.absolute)]
   const ids = new Set<string>()
   for (const file of files) for (const id of await reflogObjectIds({ path: file })) ids.add(id)
-  return presentObjects({ cwd, ids })
+  return presentObjects({ cwd, ids, scratchPrefix: 'atlas-reflog-seeds-', subject: 'reflog objects' })
 }

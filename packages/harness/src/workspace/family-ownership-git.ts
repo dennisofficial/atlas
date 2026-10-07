@@ -45,12 +45,19 @@ export async function pathExists({ path }: { path: string }): Promise<boolean> {
   }
 }
 
-export type LinkedCheckouts = { readonly kind: 'repository'; readonly linked: ReadonlyMap<string, Worktree> } | { readonly kind: 'not-a-repository' }
+export enum ELinkedCheckouts {
+  Repository = 'repository',
+  NotARepository = 'not-a-repository',
+}
+
+export type LinkedCheckouts =
+  | { readonly kind: ELinkedCheckouts.Repository; readonly linked: ReadonlyMap<string, Worktree> }
+  | { readonly kind: ELinkedCheckouts.NotARepository }
 
 export async function linkedCheckoutsOf({ primary }: { primary: string }): Promise<LinkedCheckouts> {
   const listing = await listWorktrees({ cwd: primary })
   if (!listing.ok) {
-    if (listing.message.toLowerCase().includes(NOT_A_REPOSITORY)) return { kind: 'not-a-repository' }
+    if (listing.message.toLowerCase().includes(NOT_A_REPOSITORY)) return { kind: ELinkedCheckouts.NotARepository }
     throw new Error(`could not list the checkouts of ${primary}: ${listing.message}`)
   }
   const linked = new Map<string, Worktree>()
@@ -58,7 +65,7 @@ export async function linkedCheckoutsOf({ primary }: { primary: string }): Promi
     if (worktree.isMain || worktree.isBare) continue
     linked.set(worktree.path, worktree)
   }
-  return { kind: 'repository', linked }
+  return { kind: ELinkedCheckouts.Repository, linked }
 }
 
 export async function registeredPrimaryOf({ checkout }: { checkout: string }): Promise<string | null> {

@@ -60,7 +60,7 @@ async function fixture() {
   return { store, restored, rootTree, childTree, repository }
 }
 
-const arrive = (store: StoreFixture, restored: RestoredWorkspace) => recordWorkspaceArrival({
+const arrive = ({ store, restored }: { store: StoreFixture; restored: RestoredWorkspace }) => recordWorkspaceArrival({
   threadId: root, from: EExecutionLocation.Host, to: EExecutionLocation.Cloud,
   restored, launchDirectory: '/host/repo', log: store.log, threads: store.threads, ids,
   sessionDir: join(store.home, 'sessions', root),
@@ -71,7 +71,7 @@ describe('explicit family workspace arrival', () => {
     const made = await fixture()
     const { store, restored, repository, rootTree, childTree } = made
     const original = await store.log.readOwn({ threadId: child })
-    await arrive(store, restored)
+    await arrive({ store, restored })
     const parentEvents = await store.log.readOwn({ threadId: root })
     expect(homeDirectoryOf({ events: parentEvents, launchDirectory: '/wrong' })).toBe(repository)
     expect(projectDirectoryOf({ events: parentEvents, launchDirectory: '/wrong' })).toBe(restored.cwd)
@@ -87,7 +87,7 @@ describe('explicit family workspace arrival', () => {
   it('rejects an omitted child mapping before adopting or appending any member', async () => {
     const { store, restored } = await fixture()
     const before = await store.log.readOwn({ threadId: root })
-    await expect(arrive(store, { ...restored, family: { ...restored.family, threads: restored.family.threads.slice(0, 1) } })).rejects.toThrow('mapping')
+    await expect(arrive({ store, restored: { ...restored, family: { ...restored.family, threads: restored.family.threads.slice(0, 1) } } })).rejects.toThrow('mapping')
     expect(await store.log.readOwn({ threadId: root })).toEqual(before)
     expect((await store.threads.find({ threadId: root }))?.workspace).toBe('/host/repo')
   })
@@ -95,7 +95,7 @@ describe('explicit family workspace arrival', () => {
   it('keeps a retained exited checkout owned without synthesizing an active entry', async () => {
     const { store, restored, repository } = await fixture()
     const workspace = { ...restored, family: { ...restored.family, threads: restored.family.threads.map((entry) => entry.threadId === child ? { ...entry, home: repository, active: null } : entry) } }
-    await arrive(store, workspace)
+    await arrive({ store, restored: workspace })
     const events = await store.log.readOwn({ threadId: child })
     expect(activeWorktreeOf(events)).toBeUndefined()
     expect(projectDirectoryOf({ events, launchDirectory: '/wrong' })).toBe(repository)

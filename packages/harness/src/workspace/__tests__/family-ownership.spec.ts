@@ -100,7 +100,7 @@ describe('tracking a family through the event log', () => {
     await removeLinked({ repo: fx.repo, path: wt })
     expect(await presentFamilyCheckouts({ ownership: first })).toEqual([])
 
-    await git(['worktree', 'add', wt, 'cycle'], fx.repo)
+    await git({ args: ['worktree', 'add', wt, 'cycle'], cwd: fx.repo })
     expect(await presentFamilyCheckouts({ ownership: first })).toEqual([])
 
     await appendTo({ fx, threadId: rootId, drafts: [nudge()] })
@@ -119,7 +119,7 @@ describe('tracking a family through the event log', () => {
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'again' })
     await appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })
     await removeLinked({ repo: fx.repo, path: wt })
-    await git(['worktree', 'add', wt, 'again'], fx.repo)
+    await git({ args: ['worktree', 'add', wt, 'again'], cwd: fx.repo })
 
     const child = await spawnChild({ fx, parent: rootId, workspace: wt })
     await appendTo({ fx, threadId: child, drafts: [nudge()] })

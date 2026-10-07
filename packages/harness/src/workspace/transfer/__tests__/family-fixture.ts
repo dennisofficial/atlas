@@ -6,8 +6,16 @@ import { createScratch, git } from './capture-fixture'
 
 export { cleanupScratches, createScratch, git } from './capture-fixture'
 
-export const MEMBERS = ['a', 'b', 'c', 'd', 'e'] as const
-export type Member = (typeof MEMBERS)[number]
+export enum EFamilyMember {
+  A = 'a',
+  B = 'b',
+  C = 'c',
+  D = 'd',
+  E = 'e',
+}
+
+export const MEMBERS: readonly EFamilyMember[] = Object.values(EFamilyMember)
+export type Member = EFamilyMember
 
 export type FamilyCheckout = { id: string; path: string; branch: string; keepsCache: boolean }
 
@@ -21,7 +29,7 @@ export type FamilyFixture = {
 }
 
 const MARKER = 'atlas-checkout-id'
-const CACHE_KEEPERS: readonly Member[] = ['a', 'c', 'e']
+const CACHE_KEEPERS: readonly Member[] = [EFamilyMember.A, EFamilyMember.C, EFamilyMember.E]
 
 const dangling = async ({ cwd, label }: { cwd: string; label: string }): Promise<string> =>
   git({ args: ['commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', label], cwd })
@@ -34,7 +42,7 @@ async function dress({ checkout, member }: { checkout: FamilyCheckout; member: M
   await writeFile(join(path, 'pkg', 'sub', 'deep.txt'), `deep ${member}\n`)
   await git({ args: ['add', '-A'], cwd: path })
   await git({ args: ['commit', '-m', `commit ${member}`], cwd: path })
-  if (member === 'b') {
+  if (member === EFamilyMember.B) {
     await writeFile(join(path, 'second-b.txt'), 'second\n')
     await git({ args: ['add', '-A'], cwd: path })
     await git({ args: ['commit', '-m', 'commit b2'], cwd: path })
@@ -52,7 +60,7 @@ async function dress({ checkout, member }: { checkout: FamilyCheckout; member: M
 }
 
 async function addCheckout({ scratch, main, member }: { scratch: string; main: string; member: Member }): Promise<FamilyCheckout> {
-  const path = member === 'e' ? join(main, '.atlas', 'worktrees', 'wt-e') : join(scratch, `wt-${member}`)
+  const path = member === EFamilyMember.E ? join(main, '.atlas', 'worktrees', 'wt-e') : join(scratch, `wt-${member}`)
   const checkout: FamilyCheckout = {
     id: `chk-${member}`,
     path,
@@ -68,8 +76,8 @@ async function addCheckout({ scratch, main, member }: { scratch: string; main: s
 
 const threadFor = ({ member, checkout }: { member: Member; checkout: FamilyCheckout }) => ({
   threadId: `t-${member}`,
-  home: member === 'c' ? join(checkout.path, 'pkg', 'sub') : checkout.path,
-  active: { path: checkout.path, branch: checkout.branch, base: member === 'c' ? undefined : 'main', adopted: member === 'c' },
+  home: member === EFamilyMember.C ? join(checkout.path, 'pkg', 'sub') : checkout.path,
+  active: { path: checkout.path, branch: checkout.branch, base: member === EFamilyMember.C ? undefined : 'main', adopted: member === EFamilyMember.C },
 })
 
 export async function createFamilyFixture(): Promise<FamilyFixture> {
@@ -113,7 +121,7 @@ export async function createFamilyFixture(): Promise<FamilyFixture> {
     ],
     threads: [
       { threadId: 'root', home: main, active: null },
-      ...MEMBERS.filter((member) => member !== 'd').map((member) => threadFor({ member, checkout: checkouts[member] })),
+      ...MEMBERS.filter((member) => member !== EFamilyMember.D).map((member) => threadFor({ member, checkout: checkouts[member] })),
       { threadId: 't-d', home: main, active: null },
       { threadId: 't-a-again', home: checkouts.a.path, active: null },
     ],

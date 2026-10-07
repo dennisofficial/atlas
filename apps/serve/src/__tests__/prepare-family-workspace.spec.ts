@@ -20,7 +20,7 @@ const cleanupOf = async (fx: FamilyFixture) => {
   return { reply, cleanup: reply.cleanup }
 }
 
-const verdictOf = async (fx: FamilyFixture, generation: string) => {
+const verdictOf = async ({ fx, generation }: { fx: FamilyFixture; generation: string }) => {
   const frame = await fx.confirm(generation)
   return { ok: frame.ok, data: frame.data as { safe?: boolean; reasons?: string[]; sourceSessionId?: string; message?: string } }
 }
@@ -40,9 +40,9 @@ describe('a family export beside an unrelated registered checkout', () => {
     expect(cleanup.sourceSessionId).toBe(SOURCE_SESSION)
     expect(cleanup.reasons.join('\n')).toContain(other)
 
-    expect((await verdictOf(fx, cleanup.generation)).data.safe).toBe(false)
+    expect((await verdictOf({ fx, generation: cleanup.generation })).data.safe).toBe(false)
     await git({ cwd: fx.repo, args: ['worktree', 'remove', '--force', other] })
-    const after = await verdictOf(fx, cleanup.generation)
+    const after = await verdictOf({ fx, generation: cleanup.generation })
     expect(after.ok).toBe(true)
     expect(after.data.safe).toBe(false)
     expect(after.data.sourceSessionId).toBe(SOURCE_SESSION)
@@ -58,7 +58,7 @@ describe('a complete family export', () => {
 
     expect(reply.manifest.trees.map((tree) => tree.sourcePath).sort()).toEqual([fx.repo, first, second].sort())
     expect(cleanup).toEqual({ generation: expect.any(String), sourceSessionId: SOURCE_SESSION, safe: true, reasons: [] })
-    expect(await verdictOf(fx, cleanup.generation)).toEqual({
+    expect(await verdictOf({ fx, generation: cleanup.generation })).toEqual({
       ok: true,
       data: { safe: true, reasons: [], sourceSessionId: SOURCE_SESSION },
     })
@@ -71,7 +71,7 @@ describe('a complete family export', () => {
 
     await unrelated(fx)
 
-    const verdict = await verdictOf(fx, cleanup.generation)
+    const verdict = await verdictOf({ fx, generation: cleanup.generation })
     expect(verdict.data.safe).toBe(false)
     expect(verdict.data.reasons?.join('\n')).toContain('registry-changed')
   })
@@ -83,7 +83,7 @@ describe('a complete family export', () => {
 
     await writeFile(join(first, 'late.txt'), 'late\n')
 
-    const verdict = await verdictOf(fx, cleanup.generation)
+    const verdict = await verdictOf({ fx, generation: cleanup.generation })
     expect(verdict.data.safe).toBe(false)
     expect(verdict.data.reasons?.join('\n')).toContain('fingerprint-drift')
   })
@@ -95,7 +95,7 @@ describe('a complete family export', () => {
 
     await git({ cwd: second, args: ['update-ref', 'refs/worktree/marker', 'HEAD'] })
 
-    const verdict = await verdictOf(fx, cleanup.generation)
+    const verdict = await verdictOf({ fx, generation: cleanup.generation })
     expect(verdict.data.safe).toBe(false)
     expect(verdict.data.reasons?.join('\n')).toContain('administration-drift')
   })
@@ -107,7 +107,7 @@ describe('a complete family export', () => {
 
     await rm(first, { recursive: true, force: true })
 
-    expect((await verdictOf(fx, cleanup.generation)).data.safe).toBe(false)
+    expect((await verdictOf({ fx, generation: cleanup.generation })).data.safe).toBe(false)
   })
 
   it('leaves the export files in place and removes nothing from the source', async () => {
@@ -115,7 +115,7 @@ describe('a complete family export', () => {
     const { first } = await ownedFamily(fx)
     const { reply, cleanup } = await cleanupOf(fx)
 
-    await verdictOf(fx, cleanup.generation)
+    await verdictOf({ fx, generation: cleanup.generation })
 
     expect((await readdir(join(fx.home, 'exports'))).some((name) => reply.path.endsWith(name))).toBe(true)
     expect(await git({ cwd: first, args: ['status', '--porcelain'] })).toBe('')
@@ -131,14 +131,14 @@ describe('confirmation fences', () => {
 
     expect(cleanup.safe).toBe(false)
     expect(cleanup.reasons.join('\n')).toContain('no provider-session identity')
-    expect((await verdictOf(fx, cleanup.generation)).data.safe).toBe(false)
+    expect((await verdictOf({ fx, generation: cleanup.generation })).data.safe).toBe(false)
   })
 
   it('answers false for a generation that was never prepared, as after a restart', async () => {
     const fx = await familyFixture()
     await ownedFamily(fx)
 
-    const verdict = await verdictOf(fx, '/exports/workspace-unknown.tar.gz')
+    const verdict = await verdictOf({ fx, generation: '/exports/workspace-unknown.tar.gz' })
 
     expect(verdict.ok).toBe(true)
     expect(verdict.data.safe).toBe(false)
@@ -152,7 +152,7 @@ describe('confirmation fences', () => {
 
     fx.setBusy(true)
 
-    const verdict = await verdictOf(fx, cleanup.generation)
+    const verdict = await verdictOf({ fx, generation: cleanup.generation })
     expect(verdict.ok).toBe(false)
     expect(verdict.data.message).toContain('a turn is running')
   })
@@ -164,7 +164,7 @@ describe('confirmation fences', () => {
     const second = (await cleanupOf(fx)).cleanup
 
     expect(second.generation).not.toBe(first.generation)
-    expect((await verdictOf(fx, first.generation)).data.safe).toBe(false)
-    expect((await verdictOf(fx, second.generation)).data.safe).toBe(true)
+    expect((await verdictOf({ fx, generation: first.generation })).data.safe).toBe(false)
+    expect((await verdictOf({ fx, generation: second.generation })).data.safe).toBe(true)
   })
 })

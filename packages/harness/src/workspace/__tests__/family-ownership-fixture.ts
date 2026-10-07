@@ -22,7 +22,7 @@ export async function tempRoot(): Promise<string> {
   return root
 }
 
-export async function git(args: readonly string[], cwd: string): Promise<string> {
+export async function git({ args, cwd }: { args: readonly string[]; cwd: string }): Promise<string> {
   const proc = Bun.spawn(['git', ...args], { cwd, stdout: 'pipe', stderr: 'pipe', stdin: 'ignore' })
   const [stdout, stderr, status] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited])
   if (status !== 0) throw new Error(`git ${args.join(' ')} failed in ${cwd}: ${stderr}`)
@@ -32,27 +32,27 @@ export async function git(args: readonly string[], cwd: string): Promise<string>
 export async function makeRepo({ root }: { root: string }): Promise<string> {
   const repo = join(root, 'repo')
   await mkdir(repo, { recursive: true })
-  await git(['init', '-b', 'main'], repo)
-  await git(['config', 'user.email', 'test@example.com'], repo)
-  await git(['config', 'user.name', 'Test'], repo)
+  await git({ args: ['init', '-b', 'main'], cwd: repo })
+  await git({ args: ['config', 'user.email', 'test@example.com'], cwd: repo })
+  await git({ args: ['config', 'user.name', 'Test'], cwd: repo })
   await Bun.write(join(repo, 'README.md'), 'hello')
-  await git(['add', '.'], repo)
-  await git(['commit', '-m', 'initial'], repo)
+  await git({ args: ['add', '.'], cwd: repo })
+  await git({ args: ['commit', '-m', 'initial'], cwd: repo })
   return repo
 }
 
 export async function addLinked({ repo, root, name }: { repo: string; root: string; name: string }): Promise<string> {
   const path = join(root, name)
-  await git(['worktree', 'add', '-b', name, path], repo)
+  await git({ args: ['worktree', 'add', '-b', name, path], cwd: repo })
   return path
 }
 
 export async function removeLinked({ repo, path }: { repo: string; path: string }): Promise<void> {
-  await git(['worktree', 'remove', '--force', path], repo)
+  await git({ args: ['worktree', 'remove', '--force', path], cwd: repo })
 }
 
 export async function markerOf({ checkout }: { checkout: string }): Promise<string> {
-  const gitDir = (await git(['rev-parse', '--path-format=absolute', '--git-dir'], checkout)).trim()
+  const gitDir = (await git({ args: ['rev-parse', '--path-format=absolute', '--git-dir'], cwd: checkout })).trim()
   return readFile(join(gitDir, 'atlas-checkout-id'), 'utf8')
 }
 

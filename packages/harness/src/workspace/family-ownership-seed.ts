@@ -6,7 +6,7 @@ import { EWorktreeExit, toThreadId } from '@dltech/atlas-core'
 import { sessionMetaSchema, type SessionMeta, threadMetaSchema, type ThreadMeta } from '../store/sessions/meta'
 import { THREAD_META_FILE_SUFFIX, sessionMetaFile, threadsDirectory } from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
-import { canonicalPath, claimCheckoutMarker, linkedCheckoutsOf, pathExists, registeredPrimaryOf, toplevelOf } from './family-ownership-git'
+import { ELinkedCheckouts, canonicalPath, claimCheckoutMarker, linkedCheckoutsOf, pathExists, registeredPrimaryOf, toplevelOf } from './family-ownership-git'
 import { readFamilyOwnership, writeFamilyOwnership, type FamilyCheckout, type FamilyOwnership } from './family-ownership-file'
 
 const isMissing = (error: unknown): boolean =>
@@ -105,7 +105,7 @@ export async function ensureFamilyOwnership({
   const primary = await primaryOf({ session })
   if (primary === null) return null
   const registered = await linkedCheckoutsOf({ primary })
-  if (registered.kind === 'not-a-repository') return null
+  if (registered.kind === ELinkedCheckouts.NotARepository) return null
 
   const checkouts: FamilyCheckout[] = []
   for (const [path, claimedBy] of await candidatesOf({ registry, sessionDir })) {

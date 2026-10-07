@@ -163,7 +163,7 @@ describe('launch and directory adoption from inside a linked checkout', () => {
     await appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })
     const before = (await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))!
     await removeLinked({ repo: fx.repo, path: wt })
-    await git(['worktree', 'add', wt, 'cdmismatch'], fx.repo)
+    await git({ args: ['worktree', 'add', wt, 'cdmismatch'], cwd: fx.repo })
     await appendTo({ fx, threadId: rootId, drafts: [{ type: 'directory-changed', path: wt, repo: fx.repo }] })
     const after = (await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))!
     expect(after.checkouts).toEqual(before.checkouts)
@@ -257,12 +257,12 @@ describe('root metadata and sessions that started outside Git', () => {
     expect(await ensureFamilyOwnership({ sessionDir, registry: fx.registry })).toBeNull()
     expect(await readFamilyOwnership({ sessionDir })).toBeNull()
 
-    await git(['init', '-b', 'main'], plain)
-    await git(['config', 'user.email', 'test@example.com'], plain)
-    await git(['config', 'user.name', 'Test'], plain)
+    await git({ args: ['init', '-b', 'main'], cwd: plain })
+    await git({ args: ['config', 'user.email', 'test@example.com'], cwd: plain })
+    await git({ args: ['config', 'user.name', 'Test'], cwd: plain })
     await Bun.write(join(plain, 'a.txt'), 'a')
-    await git(['add', '.'], plain)
-    await git(['commit', '-m', 'init'], plain)
+    await git({ args: ['add', '.'], cwd: plain })
+    await git({ args: ['commit', '-m', 'init'], cwd: plain })
     const wt = await addLinked({ repo: plain, root: fx.root, name: 'plainwt' })
     await appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })
     const ownership = (await readFamilyOwnership({ sessionDir }))!

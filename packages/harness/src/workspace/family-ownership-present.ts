@@ -1,10 +1,10 @@
-import { linkedCheckoutsOf, pathExists, readCheckoutMarker } from './family-ownership-git'
+import { ELinkedCheckouts, linkedCheckoutsOf, pathExists, readCheckoutMarker } from './family-ownership-git'
 import type { FamilyCheckout, FamilyOwnership } from './family-ownership-file'
 
 export async function presentFamilyCheckouts({ ownership }: { ownership: FamilyOwnership }): Promise<FamilyOwnership['checkouts']> {
   if (ownership.checkouts.length === 0) return []
   const registered = await linkedCheckoutsOf({ primary: ownership.primaryRepository })
-  if (registered.kind === 'not-a-repository') {
+  if (registered.kind === ELinkedCheckouts.NotARepository) {
     throw new Error(`${ownership.primaryRepository} is no longer a git repository, so its family checkouts cannot be verified`)
   }
   const present: FamilyCheckout[] = []

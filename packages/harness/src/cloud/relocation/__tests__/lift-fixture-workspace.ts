@@ -13,7 +13,7 @@ export const FIXTURE_WORKSPACE = '/work'
 
 export type FixtureWorkspace = { workspace: string; repo: string | null }
 
-const gitOutput = (cwd: string, args: readonly string[]): string | null => {
+const gitOutput = ({ cwd, args }: { cwd: string; args: readonly string[] }): string | null => {
   const run = Bun.spawnSync(['git', ...args], { cwd, stdout: 'pipe', stderr: 'ignore', stdin: 'ignore' })
   return run.exitCode === 0 ? run.stdout.toString().trim() : null
 }
@@ -21,7 +21,7 @@ const gitOutput = (cwd: string, args: readonly string[]): string | null => {
 export const fixtureWorkspaceOf = ({ cwd }: { cwd: string }): FixtureWorkspace => {
   if (!existsSync(cwd)) return { workspace: cwd, repo: null }
   const workspace = realpathSync(cwd)
-  const commonDir = gitOutput(workspace, ['rev-parse', '--path-format=absolute', '--git-common-dir'])
+  const commonDir = gitOutput({ cwd: workspace, args: ['rev-parse', '--path-format=absolute', '--git-common-dir'] })
   return { workspace, repo: commonDir === null ? null : realpathSync(dirname(commonDir)) }
 }
 

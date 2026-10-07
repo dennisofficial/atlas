@@ -77,14 +77,14 @@ export function probeFilesOf(spec: LiveCheckoutSpec): string[] {
   return [...new Set([...Object.keys(expectedFiles(spec)), ...Object.keys(CLOUD_EDITS[spec.key] ?? {}), ...spec.absentInCloud])]
 }
 
-const withAbsentAsNull = (spec: LiveCheckoutSpec, present: Record<string, string>): Record<string, string | null> =>
+const withAbsentAsNull = ({ spec, present }: { spec: LiveCheckoutSpec; present: Record<string, string> }): Record<string, string | null> =>
   Object.fromEntries(probeFilesOf(spec).map((rel) => [rel, present[rel] ?? null]))
 
 export const filesAfterLift = (spec: LiveCheckoutSpec): Record<string, string | null> =>
-  withAbsentAsNull(spec, Object.fromEntries(Object.entries(expectedFiles(spec)).filter(([rel]) => !spec.absentInCloud.includes(rel))))
+  withAbsentAsNull({ spec, present: Object.fromEntries(Object.entries(expectedFiles(spec)).filter(([rel]) => !spec.absentInCloud.includes(rel))) })
 
 export const filesAfterCloud = (spec: LiveCheckoutSpec): Record<string, string | null> =>
-  withAbsentAsNull(spec, filesExpectedAfterCloud(spec))
+  withAbsentAsNull({ spec, present: filesExpectedAfterCloud(spec) })
 
 async function put(args: { root: string; rel: string; content: string }): Promise<void> {
   const file = join(args.root, args.rel)
