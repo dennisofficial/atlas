@@ -48,6 +48,14 @@ export function activeWorktreeAfter(args: {
   return args.active
 }
 
+export function currentLocationOf(events: readonly Event[]): EExecutionLocation {
+  let location = EExecutionLocation.Host
+  for (const event of events) {
+    if (event.type === 'location-changed') location = event.to
+  }
+  return location
+}
+
 export function homeDirectoryOf(args: {
   events: readonly Event[]
   launchDirectory: string

@@ -31,6 +31,7 @@ export class ExecutionLocationFragment extends PromptFragment {
       'Atlas runs locally or in cloud.',
       'Local sessions execute commands and file operations on the host or in Docker.',
       'Cloud sessions run the harness and execution in a Vercel sandbox; the terminal is a client.',
+      "A cloud session's filesystem, /tmp, and localhost are the sandbox's alone; a Docker session shares only the project directory and its declared mounts with the host.",
       'New cloud workspaces place the primary repository at /atlas/workspaces/<repo-name>.',
       'Clone additional repositories beside it under /atlas/workspaces and use explicit workdir or absolute paths to work in them.',
       'Lift and descend transfer only the primary repository and its session worktree.',

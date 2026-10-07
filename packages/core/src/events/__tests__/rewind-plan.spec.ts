@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '../../execution/location'
+import { ECompactionAnchor } from '../body'
 import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
 import type { EventDraft } from '../body'
@@ -239,6 +240,28 @@ describe('rewindPlan for location changes', () => {
     expect(plan.reappend.map((notice) => notice.draft)).toEqual([
       { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
       { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host },
+    ])
+  })
+
+  it('re-appends a move that survived summarization, since the marker outlives the summary covering it', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      {
+        type: 'history-compacted',
+        anchor: ECompactionAnchor.Prefix,
+        fromSeq: 1,
+        throughSeq: 2,
+        summary: 'the session lifted',
+        replaced: 1,
+      },
+      said('msg_2'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(plan.reappend.map((notice) => notice.draft)).toEqual([
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
     ])
   })
 })
