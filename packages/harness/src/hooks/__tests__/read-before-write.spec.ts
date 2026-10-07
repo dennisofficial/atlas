@@ -19,6 +19,7 @@ import {
 
 import { digestOf } from '../../files/digest'
 import { InMemoryFileReadState, type FileView } from '../../files/read-state'
+import { itUnlessRoot } from '../../testing/root-unsafe'
 import { createReadBeforeWriteHook } from '../read-before-write'
 
 let root = ''
@@ -314,7 +315,7 @@ describe('createReadBeforeWriteHook', () => {
     )
   })
 
-  it('denies a write to a file whose current state cannot be read at all', async () => {
+  itUnlessRoot('denies a write to a file whose current state cannot be read at all', async () => {
     const locked = join(root, 'locked')
     await mkdir(locked, { recursive: true })
     const path = join(locked, 'unreachable.ts')

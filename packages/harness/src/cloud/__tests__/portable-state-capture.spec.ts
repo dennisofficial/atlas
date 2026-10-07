@@ -15,6 +15,7 @@ import {
   capturePortableState,
   materializePortableState,
 } from '../portable-state'
+import { itUnlessRoot } from '../../testing/root-unsafe'
 import { openHome, openSecrets, seedSource, type PortableHome } from './portable-state-fixture'
 
 describe('portable state capture', () => {
@@ -78,7 +79,7 @@ describe('portable state capture', () => {
     expect(carriedSealed).not.toBe(homeSealed)
   })
 
-  it('throws a path-only error when a credential file exists but cannot be read', async () => {
+  itUnlessRoot('throws a path-only error when a credential file exists but cannot be read', async () => {
     await seedSource({ source })
     chmodSync(join(source.directory, 'settings.json'), 0o000)
 

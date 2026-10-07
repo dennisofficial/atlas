@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
+import { itUnlessRoot } from '../../../testing/root-unsafe'
 import { EAgentTypeRefusal, type AgentTypeRead } from '../agent-type'
 import {
   DirectoryAgentTypeSource,
@@ -128,7 +129,7 @@ describe('readMarkdownDirectory', () => {
     expect(read.unreadable.map((entry) => entry.path)).toEqual([notADirectory])
   })
 
-  it('reports a markdown file it cannot open while keeping the ones it can', async () => {
+  itUnlessRoot('reports a markdown file it cannot open while keeping the ones it can', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'atlas-agent-types-'))
     writeFileSync(join(directory, 'reviewer.md'), definition('review things'))
     const locked = join(directory, 'locked.md')

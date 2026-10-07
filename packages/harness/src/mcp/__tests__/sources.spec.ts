@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
+import { itUnlessRoot } from '../../testing/root-unsafe'
 import {
   BuiltInMcpSource,
   CompatMcpSource,
@@ -245,7 +246,7 @@ describe('file sources against a real disk', () => {
     expect(specs[0]?.transport).toEqual({ kind: 'stdio', command: 'npx', args: ['-y', '@mcp/fs'] })
   })
 
-  it('reports a file it cannot open', async () => {
+  itUnlessRoot('reports a file it cannot open', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'atlas-mcp-'))
     mkdirSync(join(directory, '.atlas'))
     const locked = join(directory, '.atlas', 'mcp.json')
