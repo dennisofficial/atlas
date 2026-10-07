@@ -66,8 +66,8 @@ export function settingRowKey(setting: ResolvedSetting): string {
 
 const AGENT_GROUP_ORDER: readonly string[] = [
   EDefinitionOrigin.BuiltIn,
-  EDefinitionOrigin.Project,
   EDefinitionOrigin.User,
+  EDefinitionOrigin.Project,
 ].map(agentTypeModelGroup)
 
 const compareAgentRows = (left: ResolvedSetting, right: ResolvedSetting): number => {
