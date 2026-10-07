@@ -19,6 +19,7 @@ export function rotationRecordOf(args: {
   handoffPath: string
   watermark: number
   status: ERotationStatus
+  operationId: string
   clock: ClockPort
 }): RotationRecord {
   return {
@@ -26,6 +27,7 @@ export function rotationRecordOf(args: {
     successor: args.successor,
     handoffPath: args.handoffPath,
     watermarkSeq: args.watermark,
+    operationId: args.operationId,
     status: args.status,
     updatedAt: args.clock.now(),
   }

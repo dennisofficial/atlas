@@ -40,6 +40,7 @@ export const rotationSchema = z.object({
   successor: z.string(),
   handoffPath: z.string().nullable(),
   watermarkSeq: z.number(),
+  operationId: z.string().nullish(),
   status: z.enum([
     ERotationStatus.Preparing,
     ERotationStatus.Committed,

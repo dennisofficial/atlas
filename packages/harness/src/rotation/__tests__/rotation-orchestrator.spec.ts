@@ -650,7 +650,10 @@ describe('LocalRotation status reporting', () => {
       expect(status.phase).toBe(ERotationPhase.Committed)
       expect(status.successor).toBe(outcome.successor)
       expect(status.watermarkSeq).toBe(outcome.watermarkSeq)
+      expect(status.operationId).toBe(outcome.operationId)
+      expect(status.operationId).not.toBe(fixture.meta({ sessionId: main })?.rotation?.updatedAt)
     }
+    expect(fixture.meta({ sessionId: main })?.rotation?.operationId).toBe(outcome.operationId)
   })
 
   it('emits phase transitions in order', async () => {

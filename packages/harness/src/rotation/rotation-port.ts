@@ -68,6 +68,9 @@ export abstract class RotationPort {
    * boundary, fixed watermark, handoff, successor prepare, atomic commit, auto-activate, reconcile.
    * Throws RotationBusy when a rotation is already in flight for the session; a duplicate request
    * for the same in-flight operation is refused rather than producing a second successor.
+   * The successor is started directly after commit; the caller MUST hold the session's
+   * one-turn-at-a-time invariant (the slice-2 authority fence at admission is the durable guard —
+   * this port never counts runners).
    */
   abstract request(args: {
     sessionId: string
@@ -81,7 +84,11 @@ export abstract class RotationPort {
 
   /**
    * After a restart: an interrupted `preparing` rotation aborts back to the predecessor; a
-   * `committed` one re-activates the successor (fenced, never a duplicate turn).
+   * `committed` one re-activates the successor (fenced, never a duplicate turn). The caller MUST
+   * supply `activate` as its guarded turn-starter whenever one exists (surface drive path, serve
+   * admission); the default starts the successor's turn directly and is idempotent only within
+   * this process. Duplicate-turn exclusion across the session is the slice-2 fence's job, not a
+   * runner count here.
    */
   abstract recover(args: { sessionId: string; activate?: (() => Promise<void>) | undefined }): Promise<RotationStatus>
 

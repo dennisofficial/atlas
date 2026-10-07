@@ -162,7 +162,7 @@ export class LocalRotation extends RotationPort {
     await this.store.writeRecord({
       sessionId,
       write: {
-        rotation: this.record({ predecessor, successor, handoffPath: handoff.path, watermark, status: ERotationStatus.Preparing }),
+        rotation: this.record({ predecessor, successor, handoffPath: handoff.path, watermark, status: ERotationStatus.Preparing, operationId: operation.operationId }),
         expectedActiveMain: predecessor,
       },
     })
@@ -193,7 +193,7 @@ export class LocalRotation extends RotationPort {
     await this.store.writeRecord({
       sessionId,
       write: {
-        rotation: this.record({ predecessor, successor, handoffPath: handoff.path, watermark, status: ERotationStatus.Committed }),
+        rotation: this.record({ predecessor, successor, handoffPath: handoff.path, watermark, status: ERotationStatus.Committed, operationId: operation.operationId }),
         expectedActiveMain: predecessor,
         nextActiveMain: successor,
       },
@@ -238,6 +238,7 @@ export class LocalRotation extends RotationPort {
     handoffPath: string
     watermark: number
     status: ERotationStatus
+    operationId: string
   }): RotationRecord {
     return rotationRecordOf({ ...args, clock: this.deps.clock })
   }
@@ -282,7 +283,7 @@ function statusOfRecord({ sessionId, record }: { sessionId: string; record: Rota
   return {
     kind: 'active',
     sessionId,
-    operationId: record.updatedAt,
+    operationId: record.operationId ?? record.updatedAt,
     phase: record.status === ERotationStatus.Committed ? ERotationPhase.Committed : ERotationPhase.Preparing,
     predecessor: toThreadId(record.predecessor),
     successor: record.successor === '' ? undefined : toThreadId(record.successor),
