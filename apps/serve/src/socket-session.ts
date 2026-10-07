@@ -1,7 +1,6 @@
 import { prStatesWireSchema, rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import {
-  CHANNEL_PROTOCOL_VERSION,
   EClientFrame,
   EClientRequest,
   EServeFrame,
@@ -11,6 +10,7 @@ import {
   type ServeFrame,
 } from '@dltech/atlas-harness'
 
+import { admitsThread, protocolRefusal } from './hello-admission'
 import { pendingEntriesOf, refusedRequest } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
@@ -40,14 +40,9 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const prStatesSnapshot = args.prStates?.snapshot ?? EMPTY_PR_STATES
-  const rewind = args.rewind
-  const { agents, operatorInput } = args
-  const pending = args.pending
-  const transcript = args.transcript
-  const selectModel = args.selectModel
+  const { rewind, agents, operatorInput, pending, transcript, selectModel } = args
   const { sessionArchive, memoryArchive, restoreTranscript } = args
-  const workspaceOps = args.workspace
-  const { admissionClosed, checkpoint, checkpointChanged } = args
+  const { admissionClosed, checkpoint, checkpointChanged, workspace: workspaceOps } = args
   const mutations = createMutationTracker({ changed: checkpointChanged })
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
@@ -73,6 +68,9 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     },
     rewind,
     compaction: args.compaction,
+    rotation: args.rotation,
+    authority: args.authority,
+    broadcastRotation: (rotation) => broadcast(buffer.push({ type: 'rotation-changed', rotation })),
     historyChanged: () => {
       historyGeneration += 1
       broadcast(buffer.pushLifecycle({ kind: EServeFrame.Reload, sinceEventSeq: 0 }))
@@ -112,7 +110,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const greetRest = createSocketGreeter({
     threadId, buffer, inFlight, liveStepId, driver, pending, operatorInput, checkpointField,
     historyGeneration: () => historyGeneration, refusal, aliaser, attached, send, forSocket,
-    drive: (driven) => drive(driven), log,
+    drive: (driven) => drive(driven), log, rotation: () => router.rotation.current(),
   })
 
   const greet = (args: { socket: SessionSocket; hello: HelloFrame }): void => {
@@ -208,20 +206,21 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
           refuse({ socket, reason: 'hello arrives once' })
           return
         }
-        if (frame.threadId !== threadId) {
-          refuse({ socket, reason: 'this sandbox serves one thread' })
-          return
-        }
-        if (frame.protocol !== undefined && frame.protocol !== CHANNEL_PROTOCOL_VERSION) {
-          const reason =
-            frame.protocol > CHANNEL_PROTOCOL_VERSION
-              ? `this Atlas speaks a newer wire protocol (${frame.protocol}) than this sandbox's serve (${CHANNEL_PROTOCOL_VERSION}) — re-open the conversation so the sandbox's serve is rebuilt`
-              : `this Atlas speaks an older wire protocol (${frame.protocol}) than this sandbox's serve (${CHANNEL_PROTOCOL_VERSION}) — update Atlas, then re-open the conversation`
-          refuse({ socket, reason })
+        const mismatch = protocolRefusal(frame.protocol)
+        if (mismatch !== undefined) {
+          refuse({ socket, reason: mismatch })
           return
         }
         socket.data.helloed = true
-        void greet({ socket, hello: frame })
+        if (frame.threadId === threadId) {
+          void greet({ socket, hello: frame })
+          return
+        }
+        void admitsThread({ served: threadId, requested: frame.threadId, authority: args.authority }).then((admitted) => {
+          if (!live.has(socket)) return
+          if (admitted) greet({ socket, hello: frame })
+          else refuse({ socket, reason: 'this sandbox serves one thread' })
+        })
         return
       }
 
@@ -294,6 +293,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     whenSettled: async () => {
       await router.state.restoring
       await router.compaction.whenSettled()
+      await router.rotation.whenSettled()
       await mutations.whenSettled()
     },
   }

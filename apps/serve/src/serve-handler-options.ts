@@ -6,9 +6,11 @@ import type { SessionHandlersArgs } from './socket-session'
 export const handlerOptionsOf = (args: {
   app: ServeApp
   log: ServeLog
-}): Pick<SessionHandlersArgs, 'transcript' | 'selectModel' | 'sessionArchive' | 'memoryArchive' | 'applyUserSettings' | 'mentions'> => {
+}): Pick<SessionHandlersArgs, 'transcript' | 'selectModel' | 'sessionArchive' | 'memoryArchive' | 'applyUserSettings' | 'mentions' | 'rotation' | 'authority'> => {
   const { app, log } = args
   return {
+    rotation: app.rotation,
+    authority: app.authority,
     ...(app.ledger === undefined
       ? {}
       : { transcript: { log: app.log, threads: app.threads, ledger: app.ledger } }),

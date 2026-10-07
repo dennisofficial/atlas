@@ -11,7 +11,7 @@ import type { ContextReaders } from './context-requests'
 import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
-import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind } from './serve-app'
+import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind, ServeSessionAuthority } from './serve-app'
 import type { ServeLog } from './serve-log'
 import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
@@ -64,6 +64,8 @@ export type SessionHandlersArgs = {
   prStates?: ServePrStates | undefined
   rewind?: ServeRewind | undefined
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
+  rotation?: import('@dltech/atlas-harness').RotationPort | undefined
+  authority?: ServeSessionAuthority | undefined
   /** The sandbox's own agent registry, narrowed to the operator-steer ops; absent in fakes, which refuse them. */
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined

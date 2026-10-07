@@ -46,6 +46,8 @@ const untouchedDriver = (touched: string[]): ServeTurnDriver => {
     settled: async () => undefined,
     attach: touch('attach'),
     holdHistory: touch('holdHistory'),
+    beginRotation: touch('beginRotation'),
+    holdForRotation: touch('holdForRotation'),
   }
 }
 

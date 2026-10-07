@@ -2,11 +2,10 @@ import type { ThreadId } from '@dltech/atlas-core'
 import {
   EClientRequest,
   EServeFrame,
-  restoreTranscriptParamsSchema,
   type RestoreTranscriptParams,
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
-import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
+import type { RotationStateWire, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import { answerArchiveRead, isArchiveReadOp } from './archive-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
@@ -17,7 +16,6 @@ import {
   answerRequest,
   answerTranscriptRead,
   answerTranscriptWrite,
-  answeredRequest,
   isTranscriptReadOp,
   isTranscriptWriteOp,
   refusedRequest,
@@ -27,15 +25,15 @@ import {
 import { answerRewindRequest } from './rewind-request'
 import { createHistoryMutations } from './history-mutations'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
-import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
+import { createRestoreRequests, isRestoreOp, type RestoreOutcome } from './restore-request'
+import { createRotationRequests, isRotationOp } from './rotation-requests'
+import type { ServeAgentSteer, ServeRewind, ServeRoster, ServeSessionAuthority } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
 import { answerWorkspaceTransfer, isWorkspaceTransferOp } from './workspace-ops'
 
 type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate' | 'confirmCleanup'>
-
-export type RestoreOutcome = { restored: boolean; failed: string | null }
 
 export const messageOf = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback
@@ -50,6 +48,9 @@ export function createRequestRouter(args: {
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
   rewind?: ServeRewind | undefined
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
+  rotation?: import('@dltech/atlas-harness').RotationPort | undefined
+  authority?: ServeSessionAuthority | undefined
+  broadcastRotation?: ((rotation: RotationStateWire) => void) | undefined
   historyChanged?: (() => void) | undefined
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<import('@dltech/atlas-harness').OperatorInputPort, 'answer'> | undefined
@@ -67,8 +68,9 @@ export function createRequestRouter(args: {
   const context = args.context
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
-  const state: { restoring: Promise<RestoreOutcome> | null } = { restoring: null }
   const edits = createHistoryMutations()
+  const restore = createRestoreRequests({ driver, restoreTranscript })
+  const state = restore.state
   const compact = createCompactionRequests({
     threadId,
     driver: { holdHistory: () => { edits.assertAvailable(); return driver.holdHistory() } },
@@ -76,10 +78,26 @@ export function createRequestRouter(args: {
     changed: args.historyChanged ?? (() => undefined),
   })
 
+  const rotate = createRotationRequests({
+    threadId,
+    driver: {
+      holdForRotation: () => { edits.assertAvailable(); return driver.holdForRotation() },
+      beginRotation: driver.beginRotation,
+    },
+    rotation: args.rotation,
+    authority: args.authority,
+    broadcast: args.broadcastRotation ?? (() => undefined),
+    log,
+  })
+
   const route = (routed: { socket: SessionSocket; frame: RequestFrame }): void => {
     const { socket, frame } = routed
     if (isCompactionOp(frame.op)) {
       void compact.answer(frame).then((reply) => send({ socket, frame: reply }))
+      return
+    }
+    if (isRotationOp(frame.op)) {
+      void rotate.answer(frame).then((reply) => send({ socket, frame: reply }))
       return
     }
   if (frame.op === EClientRequest.ListRoster) {
@@ -98,6 +116,10 @@ export function createRequestRouter(args: {
     return
   }
 
+  if (rotate.active() && (frame.op === EClientRequest.Rewind || isAgentSteerOp(frame.op))) {
+    send({ socket, frame: refusedRequest({ replyTo: frame.id, message: 'the session is rotating — wait for it to finish' }) })
+    return
+  }
   if (compact.active() && (frame.op === EClientRequest.Rewind || isAgentSteerOp(frame.op))) {
     send({ socket, frame: refusedRequest({ replyTo: frame.id, message: 'the history is being summarised — wait for it to finish' }) })
     return
@@ -223,47 +245,8 @@ export function createRequestRouter(args: {
     return
   }
 
-  if (frame.op === EClientRequest.RestoreTranscript) {
-    if (restoreTranscript === undefined) {
-      send({
-        socket,
-        frame: refusedRequest({ replyTo: frame.id, message: 'this serve cannot restore a transcript' }),
-      })
-      return
-    }
-    if (driver.busy()) {
-      send({
-        socket,
-        frame: refusedRequest({ replyTo: frame.id, message: 'a turn is running, so the transcript cannot be replaced' }),
-      })
-      return
-    }
-    const parsed = restoreTranscriptParamsSchema.safeParse(frame.params ?? {})
-    const marker = parsed.success ? parsed.data.locationChanged : undefined
-    state.restoring ??= restoreTranscript(marker).finally(() => {
-      state.restoring = null
-    })
-    void state.restoring
-      .then((result) =>
-        send({
-          socket,
-          frame:
-            result.failed === null
-              ? answeredRequest({ replyTo: frame.id, data: { restored: result.restored } })
-              : refusedRequest({ replyTo: frame.id, message: result.failed }),
-        }),
-      )
-      .catch((error: unknown) =>
-        send({
-          socket,
-          frame: {
-            kind: EServeFrame.Reply,
-            replyTo: frame.id,
-            ok: false,
-            data: { message: messageOf(error, 'the transcript restore failed') },
-          },
-        }),
-      )
+  if (isRestoreOp(frame.op)) {
+    restore.answer({ frame, reply: (reply) => send({ socket, frame: reply }) })
     return
   }
 
@@ -288,5 +271,5 @@ export function createRequestRouter(args: {
     )
   }
 
-  return { route, state, compaction: compact }
+  return { route, state, compaction: compact, rotation: rotate }
 }

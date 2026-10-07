@@ -1,19 +1,14 @@
-import { saidBody, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
-import { PauseSignal, ETurnStatus, type TurnOutcome, type MessageIntake } from '@dltech/atlas-harness'
+import type { ThreadId } from '@dltech/atlas-core'
+import { PauseSignal, ETurnStatus, type RotationSettle, type TurnOutcome, type MessageIntake } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 import { createHistoryAdmission } from './history-admission'
+import { createRotationSettle } from './rotation-settle'
+import { createTurnCommit, type Said } from './turn-commit'
 
 export type TurnRunOptions = {
   resume?: boolean | undefined
   onlyIfIdle?: boolean | undefined
-}
-
-type Said = {
-  text: string
-  images?: readonly SaidImage[] | undefined
-  files?: readonly SaidFile[] | undefined
-  context?: readonly EventDraft[] | undefined
 }
 
 export type ServeTurnDriver = {
@@ -23,6 +18,7 @@ export type ServeTurnDriver = {
   interrupt: () => void
   pause: () => void
   beginRelocation: () => Promise<void>
+  beginRotation: () => RotationSettle
   relocationResumable: () => boolean
   resume: () => void
   running: () => boolean
@@ -31,6 +27,7 @@ export type ServeTurnDriver = {
   settled: () => Promise<void>
   attach: (shared: MessageIntake) => () => void
   holdHistory: () => () => void
+  holdForRotation: () => () => void
 }
 
 export type TurnDriverHooks = {
@@ -66,36 +63,9 @@ export function createTurnDriver(args: {
   let lastOutcome: TurnOutcome | null = null
   let turnFailure: Error | null = null
   let resumeRelocation = false
-  const history = createHistoryAdmission({ threadId, intake, refusal: args.refusal, unavailable: () => turning !== null || committing !== null || relocationFrozen })
+  const history = createHistoryAdmission({ threadId, intake, refusal: args.refusal, unavailable: () => turning !== null || committing !== null || relocationFrozen, relocating: () => relocationFrozen || relocationSettling !== null })
 
-  const writeDrafts = async (drafts: readonly EventDraft[]): Promise<void> => {
-    const runId = app.ids.nextRunId()
-    const existing = await app.threads.find({ threadId })
-    if (existing !== undefined) {
-      await app.log.append({ threadId, runId, drafts })
-      return
-    }
-    await app.threads.createWithFirstEvents({
-      threadId, drafts, runId, workspace: app.workspace.workspace, repo: app.workspace.repo,
-    })
-  }
-
-  const commit = async (said: Said): Promise<void> => {
-    if (intake !== null) {
-      intake.submit({
-        threadId, text: said.text,
-        ...(said.images === undefined ? {} : { images: said.images }),
-        ...(said.files === undefined ? {} : { files: said.files }),
-        ...(said.context === undefined ? {} : { context: said.context }),
-      })
-      await intake.commit({ threadId, append: writeDrafts })
-      return
-    }
-    await writeDrafts([
-      ...(said.context ?? []),
-      saidBody({ text: said.text, images: said.images, files: said.files }),
-    ])
-  }
+  const commit = createTurnCommit({ app, threadId, intake })
 
   const finishOutcome = async (outcome: TurnOutcome): Promise<void> => {
     if (!relocationConfirmed) lastOutcome = outcome
@@ -248,6 +218,15 @@ export function createTurnDriver(args: {
       })
       return preparing
     },
+    beginRotation: () => createRotationSettle({
+      stop: () => {
+        again = false
+        pause?.pause()
+      },
+      inFlight: () => ({ commit: committing, turn: turning }),
+      outcome: () => lastOutcome,
+      failure: () => turnFailure,
+    }),
     relocationResumable: () => relocationCommitIntent || lastOutcome?.status === ETurnStatus.RelocationPaused,
     resume() {
       if (!relocationFrozen || committing !== null || relocationResuming !== null) return
@@ -295,6 +274,7 @@ export function createTurnDriver(args: {
     outcomePending: () => outcomePending || (relocationSettling !== null && !relocationConfirmed),
     settled: () => Promise.allSettled([committing, turning, relocationSettling, relocationResuming]).then(() => undefined),
     holdHistory: history.hold,
+    holdForRotation: history.holdForRotation,
   }
   return handle
 }

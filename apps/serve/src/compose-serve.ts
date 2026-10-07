@@ -14,20 +14,21 @@ import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 
 import { sandboxNameFor } from '@dltech/atlas-harness'
 import { SelectableModelToken } from '@dltech/atlas-harness'
-import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
+import { VercelDriver } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { portToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
-import { ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
+import { RotationPort, SessionAuthorityPort, ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
 
 import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
 import { EPortableStateBoot, installPortableState } from './portable-state'
-import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
+import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates, ServeSessionAuthority } from './serve-app'
 import { ServeProcessPort } from './serve-process'
 import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
+import { vercelCredentialsOf } from './vercel-credentials'
 import { serveMemoryArchive, serveSessionArchive } from './serve-session-archive'
 
 export const SERVE_COMMAND = 'serve'
@@ -36,24 +37,9 @@ type ServeStores = {
   log: EventLogPort
   threads: ThreadStorePort
   modelBridge: ServeModelBridge
+  authority?: ServeSessionAuthority | undefined
+  rotation?: RotationPort | undefined
   prStates?: ServePrStates | undefined
-}
-
-const given = (value: string | undefined): string | undefined =>
-  value === undefined || value.trim().length === 0 ? undefined : value.trim()
-
-/**
- * The sandbox was created with the operator's Vercel credentials in its environment precisely so
- * serve can publish ports itself; a sandbox older than that wiring simply cannot expose.
- */
-const vercelCredentialsOf = (
-  env: Record<string, string | undefined>,
-): VercelCredentials | null => {
-  const token = given(env.VERCEL_TOKEN)
-  const teamId = given(env.VERCEL_TEAM_ID)
-  const projectId = given(env.VERCEL_PROJECT_ID)
-  if (token === undefined || teamId === undefined || projectId === undefined) return null
-  return { token, teamId, projectId }
 }
 
 /**
@@ -151,7 +137,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           }),
         })
 
-        return { log, threads, modelBridge, ...(prStates === undefined ? {} : { prStates }) }
+        const authority = container.isRegistered(portToken(SessionAuthorityPort), true)
+          ? container.resolve(portToken(SessionAuthorityPort))
+          : undefined
+        const rotation = container.isRegistered(portToken(RotationPort), true)
+          ? container.resolve(portToken(RotationPort))
+          : undefined
+        return { log, threads, modelBridge, authority, rotation, ...(prStates === undefined ? {} : { prStates }) }
       },
     },
   })
@@ -295,6 +287,8 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
     operatorInput: app.operatorInput,
     compaction: app.compaction,
+    authority: app.surface.authority,
+    rotation: app.surface.rotation,
     close: app.close,
   }
 }

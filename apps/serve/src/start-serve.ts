@@ -13,6 +13,7 @@ import { runtimeWork } from './runtime-work'
 import { sandboxPark } from './sandbox-park'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
+import { recoverRotation } from './rotation-recover'
 import { bootServeFiles } from './serve-boot'
 import { composeBootApp } from './serve-compose-boot'
 import { serveConfig } from './serve-config'
@@ -84,8 +85,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   }
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })
-  const settling = { count: 0 }
-  const noop = (): void => undefined
+  const settling = { count: 0 }, noop = (): void => undefined
   let idleStop: { note: () => void; halt: () => void; reset: () => void } = { note: noop, halt: noop, reset: noop }
   const note = (): void => idleStop.note()
   const session = createServeWorkspaceSession({
@@ -216,6 +216,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   })
 
   await recovery.recover({ session, driver })
+  await recoverRotation({ app, driver, threadId, log })
   const exit = args.exit ?? process.exit
   const drain = bindServeDrain({
     app,
