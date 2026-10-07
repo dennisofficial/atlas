@@ -135,9 +135,9 @@ RUN arch="$(uname -m)" \
 
 ARG CLOUDFLARED_VERSION=2026.10.0
 # Single static binary, no package; the tunnel alternative the repos reach for over ngrok.
-# Release assets use x86_64/arm64, not uname's x86_64/aarch64.
+# Release assets use amd64/arm64, not uname's x86_64/aarch64.
 RUN arch="$(uname -m)" \
-  && case "$arch" in x86_64) carch=x86_64;; aarch64) carch=arm64;; esac \
+  && case "$arch" in x86_64) carch=amd64;; aarch64) carch=arm64;; esac \
   && curl -fsSL "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${carch}" \
       -o /usr/local/bin/cloudflared \
   && chmod 755 /usr/local/bin/cloudflared \
