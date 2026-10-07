@@ -19,13 +19,13 @@ export type RedactionResult = {
   map: readonly RedactionMapEntry[]
 }
 
-const assignmentKey = (match: string): string => match.split(/\s*[:=]/)[0] ?? match
+const redactedAssignment = (match: string): string => match.replace(/["'][^"']*["']$/, '"<redacted>"')
 
 export const REDACTION_RULES: readonly RedactionRule[] = [
   {
     id: 'credential-assignment',
     pattern: /(api[_-]?key|token|secret|password|authorization)\s*[:=]\s*["'](?!<redacted>["'])[^"']{8,}["']/gi,
-    replacement: (match) => `${assignmentKey(match)}: "<redacted>"`,
+    replacement: redactedAssignment,
   },
   {
     id: 'absolute-home-path',

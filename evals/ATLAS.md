@@ -27,9 +27,11 @@ bun run --cwd evals eval:validate --manifest <accepted-manifest>
 bun run --cwd evals eval:export-examples --session-dir <named-session-dir> [--session-dir <second>] --output-dir <new-export-dir>
 bun run --cwd evals eval:curate --export-dir <sanitized-export> --output-dir <new-candidates-dir>
 bun run --cwd evals eval:label-review --candidates <candidates.jsonl> --labels <drafts.jsonl> --verification <checks.jsonl> --dataset-version <new-version> --output-dir <new-golden-dir>
+bun run --cwd evals eval:import-history --session-dir <named-session-dir> [--session-dir <second>] --output-dir <new-private-history-dir>
 
 ATLAS_EVAL_LIVE=1 bun run eval --suite code-quality/single-responsibility --live --dataset <manifest> --trials 3 --output-parent "$ATLAS_CONTEXT_DIR/evidence/evals"
 bun run --cwd evals eval:compare --baseline <run-dir> --candidate <run-dir>
+bun run --cwd evals eval:efficacy --run <run-dir> --dataset <manifest> --judgments <judgments.jsonl> --output-dir <new-report-dir>
 ```
 
 - The model defaults to the exported `JEV_QUALITY_MODEL` from `@dltech/atlas-core`. Passing `--model`
@@ -38,6 +40,11 @@ bun run --cwd evals eval:compare --baseline <run-dir> --candidate <run-dir>
   Missing endpoint configuration is a config error, never an implicit fallback.
 - `eval:compare` requires identical dataset version/hash, feature, requested model and mode; a mismatch is
   reported as an explicit comparison failure, not averaged over.
+- `eval:efficacy` never executes the model. It replays a saved run against frozen independently reviewed
+  judgments, uses the production finding ledger for fresh-episode notification, and writes `report.json` /
+  `report.txt`. It is a nonpromotional diagnostic; zero denominators mean insufficient evidence, not success.
+- `eval:import-history` reads ONLY explicitly named `<session>/threads/*.events.jsonl` files. It writes raw,
+  private source under a fresh 0700 directory and its manifest marks that output unsanitized and not provider-ready.
 
 ## Modes and honesty
 
@@ -79,7 +86,10 @@ contains no `evalite.config.*` so no config can silently load. Work folders accu
   dataset version and rerunning baseline AND candidate.
 - Real-session data enters only via `eval:export-examples` from explicitly named session dirs — the
   exporter verifies digests, applies allowlisted redaction, re-parses redacted text, and records the
-  redaction map. Nothing ever scans ATLAS_HOME.
+  redaction map. `eval:import-history` is the complementary strict historical replay path: it may establish
+  provable creation, or complete before/after text only from a proven same-log write/diff chain. It rejects
+  opaque barriers, missing baselines and mismatching thread files rather than reading today's disk state.
+  Nothing ever scans ATLAS_HOME.
 - Synthetic/fixture data lives under `evals/__fixtures__/` and is labelled synthetic; it is never counted
   as real-session volume.
 

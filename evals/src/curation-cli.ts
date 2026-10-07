@@ -15,6 +15,18 @@ const LABEL_REVIEW_SPEC = {
   '--dataset-version': 'value',
   '--split': 'value',
 } as const
+const HISTORY_SPEC = { '--session-dir': 'value', '--output-dir': 'value' } as const
+
+async function handleImportHistory({ argv }: { argv: readonly string[] }): Promise<number> {
+  const args = parseArgs({ argv, spec: HISTORY_SPEC })
+  const sessionDirs = args.lists['--session-dir'] ?? []
+  if (sessionDirs.length === 0) throw new ArgParseError('import-history requires at least one --session-dir')
+  const outputDir = requireValue({ args, key: '--output-dir' })
+  const { importHistoricalSessions } = await import('./curation/historical-import')
+  const report = await importHistoricalSessions({ sessionDirs, outputDir })
+  console.log(`history: ${report.changes} changes, ${report.rejections} rejections across ${report.logs} logs -> ${report.outputDir}`)
+  return 0
+}
 
 async function handleExportExamples({ argv }: { argv: readonly string[] }): Promise<number> {
   const args = parseArgs({ argv, spec: EXPORT_SPEC })
@@ -65,6 +77,7 @@ async function handleLabelReview({ argv }: { argv: readonly string[] }): Promise
   const { buildGoldenCases } = await import('./curation/label-review')
   const { buildCodeQualityInput } = await import('../code-quality/input-builder')
   const { enabledEvalPolicyIds } = await import('../code-quality/policies')
+  const { expectedEvidenceProblem } = await import('../code-quality/expected')
   const { registry } = await import('./registry-default')
   const feature = registry.get({ id: resolveSuiteId({ suite: featureId }) })
   const candidates = await readCandidatesFile({ path: candidatesPath })
@@ -77,6 +90,7 @@ async function handleLabelReview({ argv }: { argv: readonly string[] }): Promise
     verifications,
     buildInput: ({ candidate }) =>
       buildCodeQualityInput({ candidate, policyIds: enabledEvalPolicyIds }),
+    validateLabel: expectedEvidenceProblem,
     validateExpected: (expected) => {
       const result = feature.expectedSchema.safeParse(expected)
       return result.success ? null : (result.error.issues[0]?.message ?? 'expected fails schema')
@@ -113,6 +127,8 @@ export async function handleCurationCommand({
       return handleCurate({ argv })
     case 'label-review':
       return handleLabelReview({ argv })
+    case 'import-history':
+      return handleImportHistory({ argv })
     default:
       throw new ArgParseError(`unknown curation command "${command}"`)
   }
