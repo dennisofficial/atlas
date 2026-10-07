@@ -135,6 +135,12 @@ type EventBody =
   transcript must show what the model can read: scrollback past a boundary the model cannot see makes
   "why doesn't it remember that" unanswerable. The cost is that a compaction cannot be undone, which is
   why the guard refuses an unsafe range rather than trimming it.
+- **`code-quality-reviewed` is retained bookkeeping, not turn-taking speech.** Source-free policy
+  assessments and finding episodes survive destructive summary so reopen does not re-notify existing
+  debt. Rewind/fork follow the ordinary event history, and physical-notice replay does not resurrect
+  cut findings. Successful write results precede review records; only a newly notifiable finding adds
+  a finite one-step `nudge`. Review/capture/model faults are visible coverage outcomes, never a reason
+  to fail an already committed write.
 - **`context-loaded` is the general mechanism** for anything the model sees that is not a message: a
   `CLAUDE.md` pulled in because a tool touched a directory beneath it, a skill body, MCP tool
   descriptions. `(slot, key)` names the thing; the content decides whether it is the same load.
@@ -450,10 +456,10 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   is declared with **method syntax** deliberately, because a property-syntax optional would make a
   specifically-typed implementation unassignable under `strictFunctionTypes`.
 - **A Write or Destructive tool is never concurrency-safe, whatever it declares.** `isConcurrencySafeCall`
-  short-circuits on effect before consulting the predicate. `dispatch` snapshots the workspace before
-  such a tool runs, and a snapshot means "the tree before this call" — concurrent writers capture each
-  other's partial state and rewind-to-before-this-call stops being true. Making this structural rather
-  than conventional is what stops a later tool reintroducing the hazard by opting in.
+  short-circuits on effect before consulting the predicate. Direct file tools capture exact
+  before/after text under the write lock, and serial calls must see the state the prior call settled.
+  Making this structural rather than conventional stops a later tool reintroducing the hazard by
+  opting in. This is not file-restoring rewind: moving conversation history does not restore files.
 - **Ordering is by named stage**, with a numeric nudge within a stage. Bare integers work at three
   hooks and rot at thirty, where two authors both pick 50 and an alphabetical tiebreak silently
   decides security policy. `OnChunk` order is a **security** constraint: a hook returning `null` drops

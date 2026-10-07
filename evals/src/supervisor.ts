@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadDataset } from './dataset-io'
+import { materializeSmokeDataset, SMOKE_FEATURE_ID } from './smoke-default'
 import { registry, resolveSuiteId } from './registry-default'
 import { ERunMode, ERunStatus, type ResultRow, type RunSummary } from './results'
 import { expandPlan } from './run-plan'
@@ -11,6 +12,7 @@ import { assembleSummary, buildRunManifest, failureSummary } from './run-summary
 import { enabledEvalPolicyIds } from '../code-quality/policies'
 import { sha256Hex } from './hash'
 import { evaluateRun, formatSummaryText, compareRuns } from './summary'
+import { promotionEligible } from './promotion'
 import { loadRunDirectory } from './run-io'
 import { validateRawExport } from './integrity'
 import { normalizeRows, type RawExport } from './normalize'
@@ -121,7 +123,12 @@ function spawnChild({
 
 export async function handleRun({ request }: { request: RunRequest }): Promise<RunResult> {
   const feature = registry.get({ id: resolveSuiteId({ suite: request.suite }) })
-  const loaded = await loadDataset({ feature, datasetPath: request.datasetPath ?? null, suite: request.suite })
+  await mkdir(join(evalsRoot, '.work'), { recursive: true })
+  const workDirectory = await mkdtemp(join(evalsRoot, '.work/'))
+  const datasetPath =
+    request.datasetPath ??
+    (feature.id === SMOKE_FEATURE_ID ? await materializeSmokeDataset({ workDirectory }) : null)
+  const loaded = await loadDataset({ feature, datasetPath, suite: request.suite })
   const { rows, variants } = expandPlan({ cases: loaded.cases, trials: request.trials })
   if (rows.length === 0) {
     throw new RunFailure(`planned zero rows for suite ${request.suite}; a run requires at least one accepted case`)
@@ -131,8 +138,6 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
   const runDirectory = join(resolve(request.outputParent), invocationId)
   if (await pathExists(runDirectory)) throw new RunFailure(`run directory already exists: ${runDirectory}`)
   await mkdir(runDirectory, { recursive: true })
-  await mkdir(join(evalsRoot, '.work'), { recursive: true })
-  const workDirectory = await mkdtemp(join(evalsRoot, '.work/'))
 
   const startedAt = request.now?.() ?? new Date()
   const datasetHash = loaded.manifest.contentHash
@@ -212,6 +217,7 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
       invocationId,
       dataset: { version: loaded.manifest.datasetVersion, hash: datasetHash },
       notes,
+      enabledPolicyIds: enabledEvalPolicyIds,
     })
     summary.status = ERunStatus.IntegrityFailure
     await writeJsonAtomic({ path: join(runDirectory, 'summary.json'), value: summary })
@@ -226,6 +232,7 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
     feature,
     normalized,
     plannedRows: rows,
+    enabledPolicyIds: enabledEvalPolicyIds,
     planned: {
       uniqueCases: loaded.cases.length,
       trialsPerCase: request.trials,
@@ -242,7 +249,7 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
     summary.status = ERunStatus.ExecutionFailure
     summary.failureNotes = [childFailureNote, ...verdict.notes]
   }
-  if (request.mode === ERunMode.Fake) summary.promotable = false
+  summary.promotable = promotionEligible({ summary, dataset: loaded.manifest })
 
   if (request.baselineDir !== undefined) {
     const baseline = await loadRunDirectory({ directory: request.baselineDir })

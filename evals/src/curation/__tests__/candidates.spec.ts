@@ -2,18 +2,12 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { buildCaptureJson, captureFixture, makeExampleDir, makeTmpDir } from '../../../__fixtures__/curation'
+import { makeCandidate } from '../../../__fixtures__/candidate'
+import { counterAfter, counterBefore, makeTmpDir, recordCapture } from '../../../__fixtures__/curation'
 import { sha256Hex } from '../../hash'
-import {
-  candidateFromExport,
-  dedupeCandidates,
-  ECandidateMethod,
-  readExportDir,
-  writeCandidates,
-  type Candidate,
-} from '../candidates'
-import { exportExamples } from '../inventory'
-import { redactText } from '../redact'
+import { candidateFromExport, dedupeCandidates, ECandidateMethod, readExportDir, writeCandidates } from '../candidates'
+import { defaultExportDeps, exportExamples } from '../inventory'
+import { reparseScope } from '../reparse-scope'
 
 const created: string[] = []
 
@@ -27,90 +21,79 @@ const tmpDir = async (): Promise<string> => {
   return dir
 }
 
-const candidate = ({ id, path = 'a.ts', before = null, after = 'x' }: { id: string; path?: string; before?: string | null; after?: string }): Candidate => ({
-  schemaVersion: 1,
-  candidateId: id,
-  method: ECandidateMethod.ProspectiveCapture,
-  group: sha256Hex({ text: `s\n${path}` }),
-  provenance: { session: 's', captureId: id, adapterVersion: 'v1', sourceHash: sha256Hex({ text: after }) },
-  change: { path, before, after },
-})
-
-const exportOne = async (captures: Parameters<typeof buildCaptureJson>[0][]): Promise<string> => {
+const exportCaptures = async (captures: readonly { before: string | null; after: string; path?: string }[]): Promise<string> => {
   const session = await tmpDir()
-  const examples = captures.map((capture, index) => buildCaptureJson({ ...capture, captureId: `cap-${index}` }))
-  await makeExampleDir({ tmp: session, captures: examples.map((example) => captureFixture({ example })) })
+  for (const capture of captures) await recordCapture({ sessionDir: session, ...capture })
   const outputDir = join(await tmpDir(), 'export')
   await exportExamples({
     sessionDirs: [session],
     outputDir,
-    deps: { redact: (text) => redactText({ text }), reparse: () => true, now: () => '2026-10-06T00:00:00.000Z' },
+    deps: { ...defaultExportDeps({ reparse: reparseScope }), now: () => '2026-10-06T00:00:00.000Z' },
   })
   return outputDir
 }
 
 describe('dedupeCandidates', () => {
-  test('keeps the lexically first candidate among identical content (forks duplicated by inheritance)', () => {
+  test('keeps the lexically first candidate among identical scope content', () => {
     const { kept, duplicates } = dedupeCandidates({
-      candidates: [candidate({ id: 'fork-b' }), candidate({ id: 'fork-a' }), candidate({ id: 'other', after: 'y' })],
+      candidates: [makeCandidate({ id: 'fork-b' }), makeCandidate({ id: 'fork-a' }), makeCandidate({ id: 'other', after: 'y' })],
     })
     expect(kept.map((entry) => entry.candidateId)).toEqual(['fork-a', 'other'])
     expect(duplicates).toEqual([{ candidateId: 'fork-b', duplicateOf: 'fork-a' }])
   })
 
   test('before null and before empty string count as the same content key', () => {
-    const { duplicates } = dedupeCandidates({
-      candidates: [candidate({ id: 'a', before: null }), candidate({ id: 'b', before: '' })],
-    })
-    expect(duplicates).toEqual([{ candidateId: 'b', duplicateOf: 'a' }])
+    const a = makeCandidate({ id: 'a', before: null })
+    const b = makeCandidate({ id: 'b', before: '' })
+    expect(dedupeCandidates({ candidates: [a, b] }).duplicates).toEqual([{ candidateId: 'b', duplicateOf: 'a' }])
   })
 
   test('different before with the same after is not a duplicate', () => {
-    const { kept } = dedupeCandidates({ candidates: [candidate({ id: 'a', before: 'p' }), candidate({ id: 'b', before: 'q' })] })
+    const { kept } = dedupeCandidates({ candidates: [makeCandidate({ id: 'a', before: 'p' }), makeCandidate({ id: 'b', before: 'q' })] })
     expect(kept).toHaveLength(2)
   })
 })
 
 describe('candidateFromExport and readExportDir', () => {
-  test('round-trips an export into candidates grouped by path hash', async () => {
-    const exportDir = await exportOne([
-      { path: 'src/a.ts', before: null, after: 'one' },
-      { path: 'src/a.ts', before: 'one', after: 'two' },
-    ])
+  test('carries the stored scope snapshot, redaction maps and digest-based ids into candidates', async () => {
+    const exportDir = await exportCaptures([{ before: counterBefore(), after: counterAfter() }])
     const { examples, manifest } = await readExportDir({ exportDir })
-    expect(manifest.exported).toEqual(['cap-0', 'cap-1'])
-    const [first, second] = examples.map((example) => candidateFromExport({ example, method: ECandidateMethod.ProspectiveCapture }))
-    expect(first?.group).toBe(sha256Hex({ text: `${first?.provenance.session}\nsrc/a.ts` }))
-    expect(first?.group).toBe(second?.group)
-    expect(first?.provenance.sourceHash).toBe(sha256Hex({ text: 'one' }))
-    expect(first?.provenance.captureId).toBe('cap-0')
+    const [example] = examples
+    if (example === undefined) throw new Error('missing example')
+    expect(manifest.exported).toEqual([example.captureId])
+    const candidate = candidateFromExport({ example, method: ECandidateMethod.ProspectiveCapture })
+    expect(candidate.candidateId).toMatch(/^[0-9a-f]{64}$/)
+    expect(candidate.group).toBe(sha256Hex({ text: `${example.session}\n${example.path}` }))
+    expect(candidate.provenance.sourceHash).toBe(sha256Hex({ text: example.scope.after ?? '' }))
+    expect(candidate.snapshot.scope).toEqual(example.scope)
+    expect(candidate.snapshot.redaction).toEqual(example.redaction)
+    expect(candidate.snapshot.workspaceNamespace).toBe(example.workspaceNamespace)
   })
 
   test('identical paths in different sessions get different groups', async () => {
-    const a = await exportOne([{ path: 'src/a.ts', before: null, after: 'one' }])
-    const b = await exportOne([{ path: 'src/a.ts', before: null, after: 'one' }])
-    const [exampleA] = (await readExportDir({ exportDir: a })).examples
-    const [exampleB] = (await readExportDir({ exportDir: b })).examples
-    if (exampleA === undefined || exampleB === undefined) throw new Error('missing example')
-    const groupA = candidateFromExport({ example: exampleA, method: ECandidateMethod.ProspectiveCapture }).group
-    const groupB = candidateFromExport({ example: exampleB, method: ECandidateMethod.ProspectiveCapture }).group
-    expect(groupA).not.toBe(groupB)
+    const a = (await readExportDir({ exportDir: await exportCaptures([{ before: null, after: counterAfter() }]) })).examples[0]
+    const b = (await readExportDir({ exportDir: await exportCaptures([{ before: null, after: counterAfter() }]) })).examples[0]
+    if (a === undefined || b === undefined) throw new Error('missing example')
+    expect(candidateFromExport({ example: a, method: ECandidateMethod.ProspectiveCapture }).group).not.toBe(
+      candidateFromExport({ example: b, method: ECandidateMethod.ProspectiveCapture }).group,
+    )
   })
 
-  test('throws when the manifest is missing', async () => {
+  test('throws when the manifest is missing, or disagrees with the files present', async () => {
     await expect(readExportDir({ exportDir: await tmpDir() })).rejects.toThrow()
-  })
-
-  test('throws when an example file is not referenced by the manifest', async () => {
-    const exportDir = await exportOne([{ path: 'a.ts', before: null, after: 'x' }])
+    const exportDir = await exportCaptures([{ before: null, after: counterAfter() }])
     await Bun.write(join(exportDir, 'stray.json'), '{}')
     await expect(readExportDir({ exportDir })).rejects.toThrow('does not match')
   })
 
-  test('throws when the manifest references a missing example file', async () => {
-    const exportDir = await exportOne([{ path: 'a.ts', before: null, after: 'x' }])
-    await rm(join(exportDir, 'cap-0.json'))
-    await expect(readExportDir({ exportDir })).rejects.toThrow('does not match')
+  test('rejects an exported example carrying unknown fields', async () => {
+    const exportDir = await exportCaptures([{ before: null, after: counterAfter() }])
+    const { examples } = await readExportDir({ exportDir })
+    const id = examples[0]?.captureId ?? ''
+    const path = join(exportDir, `${id}.json`)
+    const record = JSON.parse(await readFile(path, 'utf8'))
+    await Bun.write(path, JSON.stringify({ ...record, change: { path: 'x', before: null, after: 'whole file' } }))
+    await expect(readExportDir({ exportDir })).rejects.toThrow('is invalid')
   })
 })
 
@@ -119,11 +102,10 @@ describe('writeCandidates', () => {
     const outputDir = join(await tmpDir(), 'cands')
     await writeCandidates({
       outputDir,
-      candidates: [candidate({ id: 'a', path: 'x.ts' }), candidate({ id: 'b', path: 'x.ts', after: 'z' }), candidate({ id: 'c', path: 'y.ts' })],
+      candidates: [makeCandidate({ id: 'a' }), makeCandidate({ id: 'b', after: 'z' })],
     })
-    const lines = (await readFile(join(outputDir, 'candidates.jsonl'), 'utf8')).trim().split('\n')
-    expect(lines).toHaveLength(3)
-    expect(JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8'))).toEqual({ schemaVersion: 1, count: 3, groups: 2 })
+    expect((await readFile(join(outputDir, 'candidates.jsonl'), 'utf8')).trim().split('\n')).toHaveLength(2)
+    expect(JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8'))).toEqual({ schemaVersion: 2, count: 2, groups: 2 })
   })
 
   test('refuses an existing output directory', async () => {

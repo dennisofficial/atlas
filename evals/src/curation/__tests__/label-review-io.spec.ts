@@ -8,6 +8,7 @@ import { EVerificationOutcome } from '../../case'
 import { loadDataset } from '../../dataset-io'
 import type { AnyEvalFeature } from '../../feature-registry'
 import { EDatasetSplit } from '../../manifest'
+import { makeCandidate } from '../../../__fixtures__/candidate'
 import { ECandidateMethod, type Candidate } from '../candidates'
 import { buildGoldenCases } from '../label-review'
 import { writeGoldenDataset } from '../label-review-io'
@@ -26,14 +27,7 @@ const versions = {
   rubricVersion: '1',
 }
 
-const candidate = (id: string): Candidate => ({
-  schemaVersion: 1,
-  candidateId: id,
-  method: ECandidateMethod.ProspectiveCapture,
-  group: `group-${id}`,
-  provenance: { session: 's', captureId: id, adapterVersion: 'v1', sourceHash: `hash-${id}` },
-  change: { path: 'a.ts', before: null, after: 'x' },
-})
+const candidate = (id: string): Candidate => makeCandidate({ id })
 
 const golden = () => {
   const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']

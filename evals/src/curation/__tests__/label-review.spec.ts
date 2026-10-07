@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
+import { sha256Hex } from '../../hash'
 import { ECaseReviewState, EVerificationOutcome } from '../../case'
+import { makeCandidate } from '../../../__fixtures__/candidate'
 import { ECandidateMethod, type Candidate } from '../candidates'
 import {
   buildGoldenCases,
@@ -11,14 +13,7 @@ import {
   type LabelVerification,
 } from '../label-review'
 
-const candidate = (id: string, method = ECandidateMethod.ProspectiveCapture): Candidate => ({
-  schemaVersion: 1,
-  candidateId: id,
-  method,
-  group: `group-${id}`,
-  provenance: { session: 's', captureId: id, adapterVersion: 'adapter@1', sourceHash: `hash-${id}` },
-  change: { path: 'a.ts', before: null, after: 'x' },
-})
+const candidate = (id: string, method = ECandidateMethod.ProspectiveCapture): Candidate => makeCandidate({ id, method })
 
 const draft = (id: string, expected: unknown = { label: 'draft' }): LabelDraft => ({
   candidateId: id,
@@ -35,7 +30,7 @@ const verification = (id: string, outcome: EVerificationOutcome, extra: Partial<
   ...extra,
 })
 
-const buildInput = ({ candidate }: { candidate: Candidate }): unknown => ({ change: candidate.change })
+const buildInput = ({ candidate }: { candidate: Candidate }): unknown => ({ scope: candidate.snapshot.scope.after })
 
 const build = (args: {
   candidates: Candidate[]
@@ -57,14 +52,14 @@ describe('buildGoldenCases', () => {
         schemaVersion: 1,
         id: 'a',
         featureId: 'code-quality',
-        input: { change: { path: 'a.ts', before: null, after: 'x' } },
+        input: { scope: 'x' },
         expected: { label: 'draft' },
         tags: ['group-a'],
         provenance: {
           group: 'group-a',
           method: ECandidateMethod.ProspectiveCapture,
-          sourceHash: 'hash-a',
-          sourceVersion: 'adapter@1',
+          sourceHash: sha256Hex({ text: 'x' }),
+          sourceVersion: '1',
           completeness: 'captured-scope',
         },
         review: {

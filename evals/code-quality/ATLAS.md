@@ -36,3 +36,17 @@ baseline and candidate.
 `../datasets/code-quality/single-responsibility/` currently holds an empty validated skeleton. Real cases
 come from sanitized exports only; probe/synthetic cases are tagged and never counted as real-session volume.
 Grouped splits keep session/repository/change-family groups together; holdout is for promotion, not tuning.
+
+## Captured-example format and scope fidelity
+
+`eval:export-examples` reads the files `QualityExampleSink` writes (sink `schemaVersion` is the STRING `"1"`;
+anything else is rejected). The capture id is the sink file's sha256 name, verified against the content, the
+before/after hashes and the stored diff. Exports and candidates carry the stored SCOPE snapshot (declaration
+text, diff, dependency context, evidence, per-field redaction maps), never a reconstructed full file, and no
+capture timestamp exists to invent. Export schema is numeric `1`, candidate schema numeric `2`; they are
+distinct from the sink's string version. The golden input rebuilds the `QualityScope` from the snapshot after
+re-checking digests, diff and evidence-id uniqueness; the pure production SRP policy is imported directly.
+
+Model parity: a decision that resolves a model other than the one requested is a task execution error
+(never graded, never promotable). `eval:compare` also requires identical enabled policy ids, batch mode and
+resolved model, and exits 1 on regression, 2 when incomparable.

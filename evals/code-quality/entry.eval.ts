@@ -51,7 +51,7 @@ export function registerCodeQualityEval({ deps, rows }: { deps: EntryDependencie
             const key = row === undefined ? '' : rowKey(row)
             const answers = deps.answers?.[key]
             if (answers === undefined) throw new Error(`fake transport has no answers for row ${key}`)
-            return { answers }
+            return { answers, model: request.model }
           },
         }
       : {}),

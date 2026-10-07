@@ -11,7 +11,7 @@ import {
   type QualityScope,
 } from '@dltech/atlas-core'
 
-import { withQualityDeadline } from './deadline'
+import { deadlineErrorOf, settleUnderBudget, type QualityDeadlineError } from './deadline'
 import { buildAssessmentCacheKey, type QualityAssessmentCache } from './evaluation-cache'
 import { buildRecord, type NotifiableEntry, type ReviewItem } from './review-records'
 import type { RequestPlan, RequestUnit } from './review-scopes'
@@ -42,21 +42,40 @@ const failed = (facts: {
   resolvedModel?: string | undefined
 }): UnitResult => ({ kind: 'failed', ...facts })
 
+const abortedFailure = ({ signal }: { signal: AbortSignal }): UnitResult | undefined => {
+  if (!signal.aborted) return undefined
+  const error = deadlineErrorOf(signal)
+  return error === undefined
+    ? failed({
+        status: EQualityReviewStatus.Skipped,
+        reason: EQualitySkipReason.TurnInterrupted,
+        detail: 'the turn was interrupted before the review finished',
+      })
+    : deadlineFailure({ error })
+}
+
+export const deadlineFailure = ({ error }: { error: QualityDeadlineError }): UnitResult =>
+  failed({
+    status: EQualityReviewStatus.OperationalError,
+    reason: EQualitySkipReason.ReviewDeadline,
+    detail: error.message,
+  })
+
 export async function executeUnit({
   decisions,
   cache,
   scope,
   unit,
   signal,
-  deadlineMs,
 }: {
   decisions: DecisionPort
   cache: QualityAssessmentCache
   scope: QualityScope
   unit: RequestUnit
   signal: AbortSignal
-  deadlineMs: number
 }): Promise<UnitResult> {
+  const aborted = abortedFailure({ signal })
+  if (aborted !== undefined) return aborted
   const key = buildAssessmentCacheKey({
     scope,
     policies: unit.policies,
@@ -66,9 +85,8 @@ export async function executeUnit({
   const cached = cache.get({ key })
   if (cached !== undefined) return { kind: 'assessed', assessments: cached, resolvedModel: JEV_QUALITY_MODEL }
 
-  const raced = await withQualityDeadline({
+  const raced = await settleUnderBudget({
     signal,
-    deadlineMs,
     work: (inner) =>
       decisions.decide({
         state: unit.request.state,
@@ -77,13 +95,7 @@ export async function executeUnit({
         model: JEV_QUALITY_MODEL,
       }),
   })
-  if (raced.kind === 'deadline') {
-    return failed({
-      status: EQualityReviewStatus.OperationalError,
-      reason: EQualitySkipReason.ReviewDeadline,
-      detail: `review exceeded ${deadlineMs}ms`,
-    })
-  }
+  if (raced.kind === 'deadline') return deadlineFailure({ error: raced.error })
   if (raced.kind === 'aborted') {
     return failed({
       status: EQualityReviewStatus.Skipped,
@@ -153,17 +165,15 @@ export async function reviewScopeJob({
   cache,
   job,
   signal,
-  deadlineMs,
 }: {
   decisions: DecisionPort
   cache: QualityAssessmentCache
   job: ScopeJob
   signal: AbortSignal
-  deadlineMs: () => number
 }): Promise<UnitResult[]> {
   const executed = await Promise.all(
     job.plan.units.map((unit) =>
-      executeUnit({ decisions, cache, scope: job.scope, unit, signal, deadlineMs: deadlineMs() }),
+      executeUnit({ decisions, cache, scope: job.scope, unit, signal }),
     ),
   )
   const rejected = job.plan.rejected.map((entry): UnitResult => ({ kind: 'failed', ...entry }))

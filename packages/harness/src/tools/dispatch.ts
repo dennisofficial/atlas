@@ -20,13 +20,16 @@ import {
   type WorkspacePort,
   type HookOutcome,
   type LogPort,
+  type QualityReviewPort,
 } from '@dltech/atlas-core'
 
 import { logFieldsOf } from '../store/logs'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain, RegisteredHook } from '../hooks/registry'
 import { outcomeWhenAHookDidNotAnswerInTime } from './hook-silence'
+import { QualityStage } from './quality-dispatch'
 import type { ToolRegistry } from './registry'
+import { resultDraft } from './tool-result-draft'
 
 export type DispatchableCall = {
   callId: CallId
@@ -63,6 +66,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
   private readonly workspace: WorkspacePort | undefined
   private readonly onMishap: OnHookMishap | undefined
   private readonly logPort: LogPort | undefined
+  private readonly quality: QualityStage
 
   constructor(args: {
     registry: ToolRegistry
@@ -70,6 +74,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
     workspace?: WorkspacePort | undefined
     onMishap?: OnHookMishap | undefined
     logPort?: LogPort | undefined
+    quality?: QualityReviewPort | undefined
   }) {
     super()
     this.registry = args.registry
@@ -77,6 +82,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
     this.workspace = args.workspace
     this.onMishap = args.onMishap ?? args.hooks.bounds.onMishap
     this.logPort = args.logPort
+    this.quality = new QualityStage({ quality: args.quality, logPort: args.logPort })
   }
 
   async dispatch(args: {
@@ -127,12 +133,14 @@ export class HookedToolDispatcher extends ToolDispatcher {
       activeWorktree,
       threadId: call.threadId,
       onOutput,
+      captureFileChanges: this.quality.captureEnabled({ threadId: call.threadId }),
     })
 
     return [
       ...drafts,
-      this.resultDraft({ call: allowed, result, interrupted: signal.aborted }),
+      resultDraft({ call: allowed, result, interrupted: signal.aborted }),
       ...(await this.observeAfterTool({ call: allowed, result, projectDirectory, signal })),
+      ...(await this.quality.review({ call: allowed, runId: call.runId, result, events, projectDirectory, signal })),
     ]
   }
 
@@ -229,6 +237,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
     activeWorktree: ActiveWorktree | undefined
     threadId: ThreadId
     onOutput: OnToolOutput | undefined
+    captureFileChanges: boolean
   }): Promise<ToolOutcome> {
     try {
       return await args.definition.invoke({
@@ -240,6 +249,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
         activeWorktree: args.activeWorktree,
         threadId: args.threadId,
         onOutput: args.onOutput,
+        ...(args.captureFileChanges ? { captureFileChanges: true } : {}),
       })
     } catch (error) {
       this.logPort?.error({
@@ -279,27 +289,5 @@ export class HookedToolDispatcher extends ToolDispatcher {
     }
 
     return observed
-  }
-
-  private resultDraft(args: { call: ToolCall; result: ToolOutcome; interrupted: boolean }): EventDraft {
-    if (args.result.ok) {
-      return {
-        type: 'tool-result',
-        callId: args.call.callId,
-        name: args.call.name,
-        output: args.result.output,
-        modelText: args.result.modelText,
-        ...(args.result.modelParts === undefined ? {} : { modelParts: args.result.modelParts }),
-      }
-    }
-
-    return {
-      type: 'tool-result',
-      callId: args.call.callId,
-      name: args.call.name,
-      output: undefined,
-      error: { message: args.result.reason },
-      ...(args.interrupted ? { interrupted: true } : {}),
-    }
   }
 }

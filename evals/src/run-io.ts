@@ -21,6 +21,8 @@ function isRunSummary(value: unknown): value is RunSummary {
     typeof candidate.datasetVersion === 'string' &&
     Object.values(ERunStatus).includes(candidate.status as ERunStatus) &&
     Object.values(ERunMode).includes(candidate.mode as ERunMode) &&
+    Array.isArray(candidate.enabledPolicyIds) &&
+    typeof candidate.batchMode === 'string' &&
     Array.isArray(candidate.metrics) &&
     Array.isArray(candidate.failureNotes)
   )

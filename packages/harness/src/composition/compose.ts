@@ -5,6 +5,7 @@ import {
   EventLogPort,
   ESettingId,
   IdPort,
+  LogPort,
   ModelPort,
   NoticePort,
   textValueOf,
@@ -44,6 +45,7 @@ import {
   hookMishapNotice,
 } from './compose-lifecycle'
 import { bindMcp } from './compose-mcp'
+import { bindQuality } from './compose-quality'
 import { asPluginSurfaces, localSessionOwner } from './compose-session'
 import { bindUtilityModels } from './compose-utility-models'
 import type { HarnessLaunch } from './config'
@@ -150,6 +152,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
 
+  bindQuality({ container, settings })
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
@@ -167,7 +170,12 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const services = container.resolve(portToken(ServiceRegistryPort))
   const operatorInput = container.resolve(portToken(OperatorInputPort))
 
-  const channel = createDeltaChannel()
+  const channel = createDeltaChannel({
+    onListenerError: (cause) => container.resolve(portToken(LogPort)).error({
+      source: 'channel.listener',
+      message: cause instanceof Error ? cause.message : 'channel listener failed',
+    }),
+  })
   const pending = createPendingQueues<Command>()
 
   const { runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({

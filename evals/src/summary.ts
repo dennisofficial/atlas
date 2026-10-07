@@ -66,6 +66,9 @@ const identityDifferences = ({ baseline, candidate }: { baseline: RunSummary; ca
     { name: 'featureId', baseline: baseline.featureId, candidate: candidate.featureId },
     { name: 'model.requested', baseline: baseline.model.requested, candidate: candidate.model.requested },
     { name: 'mode', baseline: baseline.mode, candidate: candidate.mode },
+    { name: 'enabledPolicyIds', baseline: [...baseline.enabledPolicyIds].sort().join(','), candidate: [...candidate.enabledPolicyIds].sort().join(',') },
+    { name: 'batchMode', baseline: baseline.batchMode, candidate: candidate.batchMode },
+    { name: 'model.resolved', baseline: baseline.model.resolved ?? 'unresolved', candidate: candidate.model.resolved ?? 'unresolved' },
   ]
   return fields
     .filter((field) => field.baseline !== field.candidate)
@@ -78,6 +81,11 @@ const metricDeltas = ({ baseline, candidate }: { baseline: RunSummary; candidate
     const delta = baselineValue === null || metric.value === null ? null : metric.value - baselineValue
     return { metricId: metric.id, baseline: baselineValue, candidate: metric.value, delta }
   })
+
+export function comparisonExitCode({ comparison, candidate }: { comparison: RunComparison; candidate: LoadedRun }): ERunExitCode {
+  if (!comparison.comparable || candidate.summary.status !== ERunStatus.Complete) return ERunExitCode.ExecutionOrIntegrityFailure
+  return comparison.verdict.regressionNotes.length > 0 ? ERunExitCode.QualityRegression : ERunExitCode.Success
+}
 
 export function compareRuns({ baseline, candidate }: { baseline: LoadedRun; candidate: LoadedRun }): RunComparison {
   const baselineInvocationId = baseline.summary.invocationId
@@ -96,7 +104,7 @@ export function compareRuns({ baseline, candidate }: { baseline: LoadedRun; cand
   const regressionNotes = deltas
     .filter((entry) => entry.delta !== null && entry.delta < 0)
     .map((entry) => `${entry.metricId}: ${formatValue({ value: entry.baseline })} -> ${formatValue({ value: entry.candidate })}`)
-  const promotable = candidate.summary.status === ERunStatus.Complete && candidate.summary.promotable
+  const promotable = candidate.summary.status === ERunStatus.Complete && candidate.summary.promotable && regressionNotes.length === 0
   return { baselineInvocationId, comparable: true, deltas, verdict: { promotable, regressionNotes } }
 }
 

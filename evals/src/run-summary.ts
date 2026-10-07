@@ -13,6 +13,8 @@ export function resolvedModelOf({ rows }: { rows: readonly ResultRow[] }): strin
   return null
 }
 
+export const BATCH_MODE = 'batched'
+
 const MAX_SUMMARY_VALUE_LENGTH = 120
 
 function summarizeValue({ value }: { value: unknown }): string {
@@ -46,8 +48,9 @@ function groupCompletedTrials({ rows }: { rows: readonly ResultRow[] }): Readonl
   return grouped
 }
 
-export function failureSummary({ request, invocationId, dataset, notes }: {
+export function failureSummary({ request, invocationId, dataset, notes, enabledPolicyIds }: {
   request: RunRequest
+  enabledPolicyIds: readonly string[]
   invocationId: string
   dataset: { version: string; hash: string }
   notes: readonly string[]
@@ -61,6 +64,8 @@ export function failureSummary({ request, invocationId, dataset, notes }: {
     datasetHash: dataset.hash,
     model: { requested: request.model.requested, resolved: null },
     mode: request.mode,
+    enabledPolicyIds,
+    batchMode: BATCH_MODE,
     planned: { uniqueCases: 0, rows: 0, trialsPerCase: request.trials, variants: [] },
     completed: 0,
     errors: 0,
@@ -84,8 +89,9 @@ export function failureSummary({ request, invocationId, dataset, notes }: {
   }
 }
 
-export function assembleSummary({ request, invocationId, feature, normalized, plannedRows, planned }: {
+export function assembleSummary({ request, invocationId, feature, normalized, plannedRows, planned, enabledPolicyIds }: {
   request: RunRequest
+  enabledPolicyIds: readonly string[]
   invocationId: string
   feature: AnyEvalFeature
   normalized: readonly ResultRow[]
@@ -124,6 +130,8 @@ export function assembleSummary({ request, invocationId, feature, normalized, pl
     datasetHash: planned.datasetHash,
     model: { requested: request.model.requested, resolved: resolvedModelOf({ rows: normalized }) },
     mode: request.mode,
+    enabledPolicyIds,
+    batchMode: BATCH_MODE,
     planned: {
       uniqueCases: planned.uniqueCases,
       rows: plannedRows.length,
@@ -173,7 +181,7 @@ export function buildRunManifest({ request, invocationId, startedAt, rows, varia
     code: codeDigests,
     model: request.model,
     enabledPolicyIds,
-    batchMode: 'batched',
+    batchMode: BATCH_MODE,
     planned: { uniqueCases, trialsPerCase: request.trials, variants, rows },
     deadlineMs: request.deadlineMs ?? 10000,
     concurrency,

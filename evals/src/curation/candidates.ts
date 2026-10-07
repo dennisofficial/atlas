@@ -6,21 +6,19 @@ import { writeFileAtomic, writeJsonAtomic } from '../atomic'
 import { sha256Hex } from '../hash'
 import {
   assertOutputDirAbsent,
-  captureIdentifier,
-  changeSchema,
-  digestPairSchema,
   EExportRejection,
   EXPORT_MANIFEST_FILE,
-  CAPTURED_EXAMPLE_SCHEMA_VERSION,
+  EXPORT_SCHEMA_VERSION,
+  exportedExampleSchema,
+  exportedScopeSchema,
   identifier,
-  sha256Digest,
+  redactionMapsSchema,
+  scopeDigestsSchema,
   type ExportedExample,
   type ExportManifest,
 } from './inventory'
-import type { RedactionMapEntry } from './redact'
-import type { CapturedFileChange } from '@dltech/atlas-core'
 
-export const CANDIDATE_SCHEMA_VERSION = 1
+export const CANDIDATE_SCHEMA_VERSION = 2
 export const CANDIDATES_FILE = 'candidates.jsonl'
 export const CANDIDATES_MANIFEST_FILE = 'manifest.json'
 
@@ -29,54 +27,42 @@ export enum ECandidateMethod {
   HistoricalReconstruction = 'historical_reconstruction',
 }
 
+export const candidateSnapshotSchema = z.strictObject({
+  path: identifier,
+  workspaceNamespace: identifier,
+  adapterVersion: identifier,
+  scope: exportedScopeSchema,
+  digests: scopeDigestsSchema,
+  redaction: redactionMapsSchema,
+})
+
+export type CandidateSnapshot = z.infer<typeof candidateSnapshotSchema>
+
 export type Candidate = {
   schemaVersion: typeof CANDIDATE_SCHEMA_VERSION
   candidateId: string
   method: ECandidateMethod
   group: string
   provenance: { session: string; captureId: string; adapterVersion: string; sourceHash: string }
-  change: CapturedFileChange
+  snapshot: CandidateSnapshot
 }
 
-export const candidateSchema: z.ZodType<Candidate> = z.object({
+export const candidateSchema: z.ZodType<Candidate> = z.strictObject({
   schemaVersion: z.literal(CANDIDATE_SCHEMA_VERSION),
   candidateId: identifier,
   method: z.enum(ECandidateMethod),
   group: identifier,
-  provenance: z.object({
+  provenance: z.strictObject({
     session: identifier,
     captureId: identifier,
     adapterVersion: identifier,
     sourceHash: identifier,
   }),
-  change: changeSchema,
-})
-
-const redactionMapEntrySchema: z.ZodType<RedactionMapEntry> = z.object({
-  ruleId: identifier,
-  digest: sha256Digest,
-  occurrences: z.number().int().positive(),
-})
-
-const exportedExampleSchema: z.ZodType<ExportedExample> = z.object({
-  schemaVersion: z.literal(CAPTURED_EXAMPLE_SCHEMA_VERSION),
-  captureId: captureIdentifier,
-  session: identifier,
-  threadId: identifier,
-  runId: identifier,
-  callId: identifier,
-  capturedAt: identifier,
-  adapterVersion: identifier,
-  change: changeSchema,
-  digests: z.object({ original: digestPairSchema, redacted: digestPairSchema }),
-  redaction: z.object({
-    before: z.array(redactionMapEntrySchema).readonly(),
-    after: z.array(redactionMapEntrySchema).readonly(),
-  }),
+  snapshot: candidateSnapshotSchema,
 })
 
 const exportManifestSchema: z.ZodType<ExportManifest> = z.object({
-  schemaVersion: z.literal(CAPTURED_EXAMPLE_SCHEMA_VERSION),
+  schemaVersion: z.literal(EXPORT_SCHEMA_VERSION),
   exportedAt: identifier,
   sessions: z.array(z.string()).readonly(),
   exported: z.array(identifier).readonly(),
@@ -94,8 +80,8 @@ const exportManifestSchema: z.ZodType<ExportManifest> = z.object({
 
 export type DuplicateRecord = { candidateId: string; duplicateOf: string }
 
-const contentKey = ({ change }: { change: CapturedFileChange }): string =>
-  sha256Hex({ text: `${change.before ?? ''}\0${change.after}` })
+const contentKey = ({ snapshot }: { snapshot: CandidateSnapshot }): string =>
+  sha256Hex({ text: `${snapshot.scope.id}\0${snapshot.scope.before ?? ''}\0${snapshot.scope.after ?? ''}` })
 
 export function dedupeCandidates({ candidates }: { candidates: readonly Candidate[] }): {
   kept: readonly Candidate[]
@@ -106,7 +92,7 @@ export function dedupeCandidates({ candidates }: { candidates: readonly Candidat
   const kept: Candidate[] = []
   const duplicates: DuplicateRecord[] = []
   for (const candidate of ordered) {
-    const key = contentKey({ change: candidate.change })
+    const key = contentKey({ snapshot: candidate.snapshot })
     const first = firstByContent.get(key)
     if (first === undefined) {
       firstByContent.set(key, candidate)
@@ -125,18 +111,22 @@ export function candidateFromExport({
   example: ExportedExample
   method: ECandidateMethod
 }): Candidate {
+  const sourceHash = example.digests.redacted.afterSha256 ?? example.digests.redacted.beforeSha256
+  if (sourceHash === null) throw new Error(`exported example ${example.captureId} carries no scope text digest`)
   return {
     schemaVersion: CANDIDATE_SCHEMA_VERSION,
     candidateId: example.captureId,
     method,
-    group: sha256Hex({ text: `${example.session}\n${example.change.path}` }),
-    provenance: {
-      session: example.session,
-      captureId: example.captureId,
+    group: sha256Hex({ text: `${example.session}\n${example.path}` }),
+    provenance: { session: example.session, captureId: example.captureId, adapterVersion: example.adapterVersion, sourceHash },
+    snapshot: {
+      path: example.path,
+      workspaceNamespace: example.workspaceNamespace,
       adapterVersion: example.adapterVersion,
-      sourceHash: example.digests.redacted.afterSha256,
+      scope: example.scope,
+      digests: example.digests.redacted,
+      redaction: example.redaction,
     },
-    change: example.change,
   }
 }
 

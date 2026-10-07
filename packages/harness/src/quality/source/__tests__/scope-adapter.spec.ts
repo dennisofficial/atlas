@@ -14,13 +14,10 @@ import { prepareQualityScopes } from '../scope-adapter'
 
 const PROJECT = '/proj'
 const NAMESPACE = 'local:test-root-sha'
-
 let scratch = ''
-
 beforeEach(async () => {
   scratch = await mkdtemp(join(tmpdir(), 'atlas-quality-adapter-'))
 })
-
 afterEach(async () => {
   await rm(scratch, { recursive: true, force: true })
 })

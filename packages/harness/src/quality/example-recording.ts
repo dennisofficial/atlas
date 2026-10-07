@@ -1,6 +1,6 @@
 import type { CallId, CapturedFileChange, RunId, ThreadId } from '@dltech/atlas-core'
 
-import { withQualityDeadline } from './deadline'
+import { settleUnderBudget } from './deadline'
 import { EXAMPLE_SCHEMA_VERSION, type QualityExampleSink } from './example-sink'
 import type { ScopeSelection } from './review-scopes'
 
@@ -13,7 +13,6 @@ export async function recordSelectedExamples({
   provenance,
   workspaceNamespace,
   signal,
-  deadlineMs,
 }: {
   sink: Pick<QualityExampleSink, 'record'>
   selections: readonly ScopeSelection[]
@@ -21,11 +20,9 @@ export async function recordSelectedExamples({
   provenance: { threadId: ThreadId; runId: RunId; callId: CallId; toolName: string }
   workspaceNamespace: string
   signal: AbortSignal
-  deadlineMs: number
 }): Promise<Map<string, ExampleOutcome>> {
-  const recorded = await withQualityDeadline({
+  const recorded = await settleUnderBudget({
     signal,
-    deadlineMs,
     work: () =>
       Promise.all(
         selections.map(({ scope, policies }) =>

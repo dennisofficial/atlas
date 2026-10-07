@@ -70,3 +70,14 @@ export function redactionMapEquals({
     )
   })
 }
+
+export function mergeRedactionMaps({ maps }: { maps: readonly (readonly RedactionMapEntry[])[] }): RedactionMapEntry[] {
+  const merged = new Map<string, RedactionMapEntry>()
+  for (const map of maps) {
+    for (const entry of map) {
+      const key = `${entry.ruleId}\0${entry.digest}`
+      merged.set(key, { ...entry, occurrences: (merged.get(key)?.occurrences ?? 0) + entry.occurrences })
+    }
+  }
+  return [...merged.values()].sort((a, b) => a.ruleId.localeCompare(b.ruleId) || a.digest.localeCompare(b.digest))
+}

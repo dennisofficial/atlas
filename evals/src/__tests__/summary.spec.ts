@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { ERunExitCode, ERunMode, ERunStatus } from '../results'
 import type { LoadedRun, RunSummary } from '../results'
-import { compareRuns, evaluateRun, formatComparisonText, formatSummaryText } from '../summary'
+import { compareRuns, comparisonExitCode, evaluateRun, formatComparisonText, formatSummaryText } from '../summary'
 
 const stats = { p50: 10, p95: 20, samples: 4 }
 
@@ -13,6 +13,8 @@ const makeSummary = ({ overrides }: { overrides?: Partial<RunSummary> | undefine
   datasetHash: 'hash-a',
   model: { requested: 'model-x', resolved: null },
   mode: ERunMode.Fake,
+  enabledPolicyIds: ['single-responsibility'],
+  batchMode: 'batched',
   planned: { uniqueCases: 2, rows: 4, trialsPerCase: 2, variants: ['default'] },
   completed: 4,
   errors: 0,
@@ -109,6 +111,35 @@ describe('evaluateRun', () => {
   })
 })
 
+describe('comparison parity and exit code', () => {
+  const exit = (overrides: Partial<RunSummary>) => {
+    const candidate = makeRun({ overrides })
+    return { comparison: compareRuns({ baseline: makeRun(), candidate }), candidate }
+  }
+
+  it('refuses differing enabled policy ids, batch mode and resolved model', () => {
+    const { comparison } = exit({ enabledPolicyIds: ['other'], batchMode: 'per-policy-split', model: { requested: 'model-x', resolved: 'model-z' } })
+    expect(comparison.comparable).toBe(false)
+    expect(comparison.mismatchReason).toContain('enabledPolicyIds')
+    expect(comparison.mismatchReason).toContain('batchMode')
+    expect(comparison.mismatchReason).toContain('model.resolved')
+  })
+
+  it('exits 0 when comparable without regressions', () => {
+    expect(comparisonExitCode(exit({}))).toBe(ERunExitCode.Success)
+  })
+
+  it('exits 1 on a metric regression and 2 when not comparable', () => {
+    const regress = exit({ metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.5, numerator: 5, denominator: 10 }] })
+    expect(comparisonExitCode(regress)).toBe(ERunExitCode.QualityRegression)
+    expect(comparisonExitCode(exit({ datasetHash: 'other' }))).toBe(ERunExitCode.ExecutionOrIntegrityFailure)
+  })
+
+  it('exits 2 when the candidate run itself did not complete', () => {
+    expect(comparisonExitCode(exit({ status: ERunStatus.ExecutionFailure }))).toBe(ERunExitCode.ExecutionOrIntegrityFailure)
+  })
+})
+
 describe('compareRuns', () => {
   it('computes deltas and a promotable verdict for comparable runs', () => {
     const baseline = makeRun()
@@ -129,6 +160,7 @@ describe('compareRuns', () => {
     })
     const comparison = compareRuns({ baseline: makeRun(), candidate })
     expect(comparison.verdict.regressionNotes).toEqual(['accuracy: 0.900 -> 0.700'])
+    expect(comparison.verdict.promotable).toBe(false)
   })
 
   it('uses null delta when either side is null', () => {
@@ -227,7 +259,7 @@ describe('formatComparisonText', () => {
     expect(text).toContain('baseline inv-1 vs candidate inv-2')
     expect(text).toContain('comparable: yes')
     expect(text).toContain('accuracy: 0.900 -> 0.700 (-0.200)')
-    expect(text).toContain('promotable: yes')
+    expect(text).toContain('promotable: no')
     expect(text).toContain('note: accuracy: 0.900 -> 0.700')
   })
 

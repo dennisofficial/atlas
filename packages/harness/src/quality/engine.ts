@@ -19,6 +19,7 @@ import {
   type Event,
 } from '@dltech/atlas-core'
 
+import { createQualityBudget, deadlineErrorOf } from './deadline'
 import { recordingFaultItem, retirementItem, skipItem } from './coverage-records'
 import { createQualityAssessmentCache, type QualityAssessmentCache } from './evaluation-cache'
 import { recordSelectedExamples, type ExampleOutcome } from './example-recording'
@@ -33,7 +34,7 @@ import {
   type QualitySourceAdapter,
   type ScopeSelection,
 } from './review-scopes'
-import { recordScope, reviewScopeJob, type ScopeJob } from './scope-review'
+import { deadlineFailure, recordScope, reviewScopeJob, type ScopeJob } from './scope-review'
 import { resolveWorkspaceNamespace } from './workspace-namespace'
 import { qualitySwitches, type QualitySettingsAccessor, type QualitySwitches } from './settings'
 
@@ -56,6 +57,7 @@ type ReviewArgs = {
   events: readonly Event[]
   projectDirectory: string
   signal: AbortSignal
+  deadlineAt?: number | undefined
 }
 
 type ReviewContext = ReviewArgs & {
@@ -86,6 +88,16 @@ export class CodeQualityReview extends QualityReviewPort {
   }
 
   async review(args: ReviewArgs): Promise<readonly EventDraft[]> {
+    if (args.deadlineAt !== undefined) return this.reviewUnderSignal(args)
+    const budget = createQualityBudget({ signal: args.signal, budgetMs: this.deps.deadlineMs, now: this.deps.clock })
+    try {
+      return await this.reviewUnderSignal({ ...args, signal: budget.signal })
+    } finally {
+      budget.dispose()
+    }
+  }
+
+  private async reviewUnderSignal(args: ReviewArgs): Promise<readonly EventDraft[]> {
     const switches = qualitySwitches({ values: this.deps.settings() })
     if (!switches.enabled && !switches.recordExamples) return []
     if (args.changes.length === 0 && args.captureFaults.length === 0) return []
@@ -96,10 +108,9 @@ export class CodeQualityReview extends QualityReviewPort {
       projectDirectory: args.projectDirectory,
       threadId: args.call.threadId,
       signal: args.signal,
-      deadlineMs: Math.max(1, this.deps.deadlineMs - (this.deps.clock() - started)),
     })
     if (typeof namespace !== 'string') {
-      return this.finish({ items: this.bail({ args, started, ...namespace }) })
+      return this.finish({ items: this.bail({ args, started, ...namespace }), signal: args.signal })
     }
 
     const records = args.events.filter(isQualityReviewEvent)
@@ -121,14 +132,15 @@ export class CodeQualityReview extends QualityReviewPort {
       jobs.push(...reviewed.jobs)
     }
     items.push(...(await Promise.all(jobs.map((job) => this.runJob({ ctx, job })))))
-    return this.finish({ items })
+    return this.finish({ items, signal: args.signal })
   }
 
-  private finish({ items }: { items: readonly ReviewItem[] }): readonly EventDraft[] {
+  private finish({ items, signal }: { items: readonly ReviewItem[]; signal: AbortSignal }): readonly EventDraft[] {
+    const lateNudge = deadlineErrorOf(signal) !== undefined
     const validated = items.map((item) => validateItem({ item }))
     const drafts: EventDraft[] = validated.map(({ record }) => record)
     const text = renderNudge({ items: validated })
-    if (text !== undefined) drafts.push({ type: 'nudge', text, lifetimeSteps: 1 })
+    if (text !== undefined && !lateNudge) drafts.push({ type: 'nudge', text, lifetimeSteps: 1 })
     return drafts
   }
 
@@ -260,20 +272,21 @@ export class CodeQualityReview extends QualityReviewPort {
       provenance: { threadId: ctx.call.threadId, runId: ctx.runId, callId: ctx.call.callId, toolName: ctx.call.name },
       workspaceNamespace: ctx.namespace,
       signal: ctx.signal,
-      deadlineMs: Math.max(1, this.deps.deadlineMs - (this.deps.clock() - ctx.started)),
     })
   }
 
   private async runJob({ ctx, job }: { ctx: ReviewContext; job: ScopeJob }): Promise<ReviewItem> {
     const previous = ctx.ledger.get(job.scope.id) ?? []
     try {
-      const results = await reviewScopeJob({
+      const reviewed = await reviewScopeJob({
         decisions: this.deps.decisions,
         cache: this.cache,
         job,
         signal: ctx.signal,
-        deadlineMs: () => Math.max(0, this.deps.deadlineMs - (this.deps.clock() - ctx.started)),
       })
+      const deadline = deadlineErrorOf(ctx.signal)
+      const timedOut = reviewed.some((result) => result.kind === 'failed' && result.reason === EQualitySkipReason.ReviewDeadline)
+      const results = deadline !== undefined && timedOut ? [deadlineFailure({ error: deadline })] : reviewed
       return recordScope({ callId: ctx.call.callId, job, results, previous, durationMs: this.deps.clock() - ctx.started }).item
     } catch (error) {
       return this.skip({ ctx, path: job.path, scope: job.scope, reason: EQualitySkipReason.DecisionUnavailable, detail: describeError(error) })

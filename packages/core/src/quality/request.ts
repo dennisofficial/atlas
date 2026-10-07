@@ -1,4 +1,5 @@
 import type { DecisionAnswer, DecisionQuestion } from '../ports/decision.port'
+import { JEV_MODEL } from '../policy/classifier/jev'
 import type { QualityScope } from './change'
 import {
   EQualityImpact,
@@ -9,7 +10,7 @@ import {
   type QualityPolicy,
 } from './policy'
 
-export const JEV_QUALITY_MODEL = 'jev-1.13.0'
+export const JEV_QUALITY_MODEL = JEV_MODEL
 
 export const MAX_CHOICE_OPTIONS = 255
 

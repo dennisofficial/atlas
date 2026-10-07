@@ -1,11 +1,19 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdir, readdir, readFile, rm } from 'node:fs/promises'
+import { readdir, readFile, rm } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 
-import { buildCaptureJson, captureFixture, makeExampleDir, makeTmpDir, secretBearingScopeText, smallSyntheticScopeText } from '../../../__fixtures__/curation'
+import {
+  counterAfter,
+  counterBefore,
+  makeTmpDir,
+  recordCapture,
+  secretBearingSource,
+  writeRawSinkFile,
+} from '../../../__fixtures__/curation'
 import { sha256Hex } from '../../hash'
 import { EExportRejection, exportExamples, type ExportDeps } from '../inventory'
 import { redactText } from '../redact'
+import { reparseScope } from '../reparse-scope'
 
 const created: string[] = []
 
@@ -21,200 +29,154 @@ const tmpDir = async (): Promise<string> => {
 
 const deps = (overrides: Partial<ExportDeps> = {}): ExportDeps => ({
   redact: (text) => redactText({ text }),
-  reparse: () => true,
+  reparse: reparseScope,
   now: () => '2026-10-06T00:00:00.000Z',
   ...overrides,
 })
 
 const outputIn = async (): Promise<string> => join(await tmpDir(), 'out')
 
-describe('exportExamples', () => {
-  test('exports redacted examples with original and redacted digests plus manifest and ledger', async () => {
-    const session = await tmpDir()
-    const example = buildCaptureJson({ path: 'src/client.ts', before: null, after: secretBearingScopeText(), captureId: 'cap-a' })
-    await makeExampleDir({ tmp: session, captures: [captureFixture({ example })] })
-    const outputDir = await outputIn()
+const exportOne = async ({ before, after, overrides }: { before: string | null; after: string; overrides?: Partial<ExportDeps> }) => {
+  const sessionDir = await tmpDir()
+  const capture = await recordCapture({ sessionDir, before, after })
+  const outputDir = await outputIn()
+  const report = await exportExamples({ sessionDirs: [sessionDir], outputDir, deps: deps(overrides) })
+  const id = basename(capture.relativePaths[0] ?? '', '.json')
+  return { sessionDir, outputDir, report, id }
+}
 
-    const report = await exportExamples({ sessionDirs: [session], outputDir, deps: deps() })
+describe('exportExamples against the production sink', () => {
+  test('preserves the stored scope snapshot, evidence and provenance; capture id is the sink digest', async () => {
+    const { outputDir, report, id, sessionDir } = await exportOne({ before: counterBefore(), after: counterAfter() })
 
-    expect(report.exported).toBe(1)
     expect(report.rejections).toEqual([])
-    const written = JSON.parse(await readFile(join(outputDir, 'cap-a.json'), 'utf8'))
-    expect(written.change.after).not.toContain('sk-live')
-    expect(written.change.after).not.toContain('/Users/someone')
-    expect(written.digests.original.afterSha256).toBe(sha256Hex({ text: secretBearingScopeText() }))
-    expect(written.digests.redacted.afterSha256).toBe(sha256Hex({ text: written.change.after }))
+    const written = JSON.parse(await readFile(join(outputDir, `${id}.json`), 'utf8'))
+    expect(written.schemaVersion).toBe(1)
+    expect(written.sinkSchemaVersion).toBe('1')
+    expect(written.captureId).toBe(id)
+    expect(written.session).toBe(basename(sessionDir))
+    expect(written.provenance).toEqual({ toolName: 'write', threadId: 'thread-1', runId: 'run-1', callId: 'call-1' })
+    expect(written.scope.kind).toBe('class')
+    expect(written.scope.name).toBe('Counter')
+    expect(written.scope.after).toStartWith('export class Counter')
+    expect(written.scope.after).not.toContain('import ')
+    expect(written.scope.before).not.toBeNull()
+    expect(written.scope.diff).toContain('+  describe(): string')
+    expect(written.scope.evidence.map((entry: { label: string }) => entry.label)).toEqual(['total', 'add', 'describe'])
+    expect(written).not.toHaveProperty('capturedAt')
+    expect(written.digests.redacted.afterSha256).toBe(sha256Hex({ text: written.scope.after }))
+  })
+
+  test('is a scope snapshot, never a full-file capture', async () => {
+    const source = `import { x } from './x'\n\n${counterAfter()}\nexport const unrelated = 1\n`
+    const { outputDir, id } = await exportOne({ before: null, after: source })
+    const written = JSON.parse(await readFile(join(outputDir, `${id}.json`), 'utf8'))
+    expect(written.scope.after).not.toContain('unrelated')
+    expect(written.scope.dependencyContext).toEqual(["import { x } from './x'"])
+  })
+
+  test('redacts every source-bearing field and keeps per-field redaction maps', async () => {
+    const { outputDir, id, report } = await exportOne({ before: null, after: secretBearingSource() })
+
+    expect(report.rejections).toEqual([])
+    const text = await readFile(join(outputDir, `${id}.json`), 'utf8')
+    expect(text).not.toContain('sk-live-abcdef123456')
+    expect(text).not.toContain('/Users/someone')
+    const written = JSON.parse(text)
     expect(written.redaction.after.length).toBeGreaterThan(0)
-    expect(JSON.stringify(written)).not.toContain('sk-live-abcdef123456')
-    expect(written.session).toBe(basename(session))
-    expect(JSON.stringify(written)).not.toContain(session)
-    const manifest = JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8'))
-    expect(manifest).toEqual({
-      schemaVersion: 1,
-      exportedAt: '2026-10-06T00:00:00.000Z',
-      sessions: [basename(session)],
-      exported: ['cap-a'],
-      rejections: [],
-    })
-    expect(await readFile(join(outputDir, 'rejections.jsonl'), 'utf8')).toBe('')
+    expect(written.redaction.diff.length).toBeGreaterThan(0)
+    expect(written.scope.diff).toContain('<redacted>')
+    expect(written.digests.original.afterSha256).not.toBe(written.digests.redacted.afterSha256)
   })
 
-  test('refuses an existing output directory', async () => {
-    const outputDir = await tmpDir()
-    await expect(exportExamples({ sessionDirs: [], outputDir, deps: deps() })).rejects.toThrow('output directory already exists')
+  test('rejects an unsupported sink schema version legibly', async () => {
+    const sessionDir = await tmpDir()
+    await writeRawSinkFile({ sessionDir, fileStem: 'a'.repeat(64), content: JSON.stringify({ schemaVersion: '2' }) })
+    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    expect(report.rejections[0]?.kind).toBe(EExportRejection.SchemaInvalid)
+    expect(report.rejections[0]?.detail).toContain('unsupported sink schemaVersion "2"')
   })
 
-  test('a session without an examples directory yields NoExamples and processing continues', async () => {
+  test('rejects the legacy numeric schemaVersion 1 flat format', async () => {
+    const sessionDir = await tmpDir()
+    await writeRawSinkFile({ sessionDir, fileStem: 'b'.repeat(64), content: JSON.stringify({ schemaVersion: 1, captureId: 'x' }) })
+    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    expect(report.rejections[0]?.detail).toContain('unsupported sink schemaVersion 1')
+  })
+
+  test('rejects content whose digest differs from the file name', async () => {
+    const { sessionDir, id } = await exportOne({ before: null, after: counterAfter() })
+    const file = join(sessionDir, 'threads', 'thread-1', 'quality', 'examples', `${id}.json`)
+    const text = await readFile(file, 'utf8')
+    await rm(file)
+    await writeRawSinkFile({ sessionDir, fileStem: id, content: `${text} ` })
+    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    expect(report.rejections.map((entry) => [entry.captureId, entry.kind])).toEqual([[id, EExportRejection.DigestMismatch]])
+    expect(report.rejections[0]?.detail).toContain('content digest')
+  })
+
+  test('rejects tampered after text even when the file name matches the tampered bytes', async () => {
+    const { sessionDir, id } = await exportOne({ before: null, after: counterAfter() })
+    const file = join(sessionDir, 'threads', 'thread-1', 'quality', 'examples', `${id}.json`)
+    const record = JSON.parse(await readFile(file, 'utf8'))
+    record.after = `${record.after}// tampered`
+    const tampered = JSON.stringify(record)
+    await rm(file)
+    await writeRawSinkFile({ sessionDir, fileStem: sha256Hex({ text: tampered }), content: tampered })
+    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    expect(report.rejections[0]?.kind).toBe(EExportRejection.DigestMismatch)
+    expect(report.rejections[0]?.detail).toContain('hashes.after')
+  })
+
+  test('rejects a record whose provenance thread differs from its directory', async () => {
+    const { sessionDir, id } = await exportOne({ before: null, after: counterAfter() })
+    const source = join(sessionDir, 'threads', 'thread-1', 'quality', 'examples', `${id}.json`)
+    const text = await readFile(source, 'utf8')
+    await writeRawSinkFile({ sessionDir, threadId: 'thread-2', fileStem: id, content: text })
+    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    expect(report.rejections.map((entry) => entry.kind)).toEqual([EExportRejection.SchemaInvalid])
+  })
+
+  test('rejects adapter reparse failures and writes nothing for them', async () => {
+    const { outputDir, report } = await exportOne({ before: null, after: counterAfter(), overrides: { reparse: () => 'cannot parse' } })
+    expect(report.exported).toBe(0)
+    expect(report.rejections[0]?.kind).toBe(EExportRejection.AdapterMismatch)
+    expect((await readdir(outputDir)).sort()).toEqual(['manifest.json', 'rejections.jsonl'])
+  })
+
+  test('rejects a redactor that is not stable on its own output', async () => {
+    const growing: ExportDeps['redact'] = (text) => ({ text: `${text}!`, map: [] })
+    const { report } = await exportOne({ before: null, after: counterAfter(), overrides: { redact: growing } })
+    expect(report.rejections[0]?.kind).toBe(EExportRejection.RedactionUnstable)
+  })
+
+  test('a session without examples yields NoExamples and processing continues', async () => {
     const empty = await tmpDir()
     const good = await tmpDir()
-    const example = buildCaptureJson({ path: 'a.ts', before: null, after: smallSyntheticScopeText(), captureId: 'cap-ok' })
-    await makeExampleDir({ tmp: good, captures: [captureFixture({ example })] })
-
+    await recordCapture({ sessionDir: good, before: null, after: counterAfter() })
     const report = await exportExamples({ sessionDirs: [empty, good], outputDir: await outputIn(), deps: deps() })
-
     expect(report.exported).toBe(1)
     expect(report.rejections).toEqual([
       { session: basename(empty), captureId: null, kind: EExportRejection.NoExamples, detail: 'no captured examples found' },
     ])
   })
 
-  test('rejects schema-invalid captures, including missing digests', async () => {
-    const session = await tmpDir()
-    const valid = buildCaptureJson({ path: 'a.ts', before: null, after: 'x', captureId: 'cap-nodigest' })
-    const { digests: _digests, ...withoutDigests } = valid
-    await makeExampleDir({
-      tmp: session,
-      captures: [
-        { threadId: 'thread-1', captureId: 'cap-nodigest', json: withoutDigests },
-        { threadId: 'thread-1', captureId: 'cap-wrongversion', json: { ...valid, schemaVersion: 2 } },
-      ],
-    })
-
-    const report = await exportExamples({ sessionDirs: [session], outputDir: await outputIn(), deps: deps() })
-
-    expect(report.exported).toBe(0)
-    expect(report.rejections.map((rejection) => rejection.kind)).toEqual([
-      EExportRejection.SchemaInvalid,
-      EExportRejection.SchemaInvalid,
-    ])
-  })
-
-  test('rejects non-JSON files as schema invalid', async () => {
-    const session = await tmpDir()
-    const dir = join(session, 'threads', 't', 'quality', 'examples')
-    await mkdir(dir, { recursive: true })
-    await Bun.write(join(dir, 'broken.json'), '{not json')
-
-    const report = await exportExamples({ sessionDirs: [session], outputDir: await outputIn(), deps: deps() })
-
-    expect(report.rejections[0]?.kind).toBe(EExportRejection.SchemaInvalid)
-  })
-
-  test('rejects digest mismatches for before and after', async () => {
-    const session = await tmpDir()
-    const valid = buildCaptureJson({ path: 'a.ts', before: 'old', after: 'new', captureId: 'cap-good' })
-    const badAfter = { ...valid, captureId: 'cap-bad-after', change: { ...valid.change, after: 'tampered' } }
-    const badBefore = { ...valid, captureId: 'cap-bad-before', change: { ...valid.change, before: 'tampered' } }
-    await makeExampleDir({
-      tmp: session,
-      captures: [
-        { threadId: 'thread-1', captureId: 'cap-bad-after', json: badAfter },
-        { threadId: 'thread-1', captureId: 'cap-bad-before', json: badBefore },
-      ],
-    })
-
-    const report = await exportExamples({ sessionDirs: [session], outputDir: await outputIn(), deps: deps() })
-
-    expect(report.rejections.map((rejection) => [rejection.captureId, rejection.kind])).toEqual([
-      ['cap-bad-after', EExportRejection.DigestMismatch],
-      ['cap-bad-before', EExportRejection.DigestMismatch],
-    ])
-  })
-
-  test('rejects adapter reparse failures on the redacted change', async () => {
-    const session = await tmpDir()
-    const example = buildCaptureJson({ path: 'a.ts', before: null, after: 'x', captureId: 'cap-r' })
-    await makeExampleDir({ tmp: session, captures: [captureFixture({ example })] })
-    const outputDir = await outputIn()
-
-    const report = await exportExamples({ sessionDirs: [session], outputDir, deps: deps({ reparse: () => false }) })
-
-    expect(report.exported).toBe(0)
-    expect(report.rejections[0]?.kind).toBe(EExportRejection.AdapterMismatch)
-    expect(await readdir(outputDir)).not.toContain('cap-r.json')
-  })
-
-  test('rejects a redactor that is not stable on its own output', async () => {
-    const session = await tmpDir()
-    const example = buildCaptureJson({ path: 'a.ts', before: null, after: 'x', captureId: 'cap-u' })
-    await makeExampleDir({ tmp: session, captures: [captureFixture({ example })] })
-    const growing: ExportDeps['redact'] = (text) => ({ text: `${text}!`, map: [] })
-
-    const report = await exportExamples({ sessionDirs: [session], outputDir: await outputIn(), deps: deps({ redact: growing }) })
-
-    expect(report.rejections[0]?.kind).toBe(EExportRejection.RedactionUnstable)
-  })
-
-  test('reads only examples files and orders sessions and files lexically', async () => {
-    const sessionB = await tmpDir()
-    const sessionA = await tmpDir()
-    const first = buildCaptureJson({ path: 'a.ts', before: null, after: 'a', captureId: 'cap-1', threadId: 'thread-b' })
-    const second = buildCaptureJson({ path: 'b.ts', before: null, after: 'b', captureId: 'cap-2', threadId: 'thread-a' })
-    await makeExampleDir({ tmp: sessionB, captures: [captureFixture({ example: first })] })
-    await makeExampleDir({ tmp: sessionA, captures: [captureFixture({ example: second })] })
-    await Bun.write(join(sessionA, 'events.jsonl'), 'SECRET sk-should-never-be-read')
-    await Bun.write(join(sessionA, 'threads', 'thread-a', 'quality', 'notes.txt'), 'ignored')
-    const outputDir = await outputIn()
-
-    const report = await exportExamples({ sessionDirs: [sessionB, sessionA], outputDir, deps: deps() })
-
-    const manifest = JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8'))
-    expect(manifest.sessions).toEqual([sessionA, sessionB].sort().map((dir) => basename(dir)))
-    expect(report.exported).toBe(2)
-    expect((await readdir(outputDir)).sort()).toEqual(['cap-1.json', 'cap-2.json', 'manifest.json', 'rejections.jsonl'])
-  })
-
-  test('writes one JSON object per rejection line', async () => {
-    const empty = await tmpDir()
-    const outputDir = await outputIn()
-
-    await exportExamples({ sessionDirs: [empty], outputDir, deps: deps() })
-
-    const lines = (await readFile(join(outputDir, 'rejections.jsonl'), 'utf8')).trim().split('\n')
-    expect(lines.map((line) => JSON.parse(line).kind)).toEqual([EExportRejection.NoExamples])
-  })
-
-  test('redacts home paths in change.path and never stores the absolute session directory', async () => {
-    const session = await tmpDir()
-    const example = buildCaptureJson({ path: '/Users/jane/proj/a.ts', before: null, after: 'x', captureId: 'cap-p' })
-    await makeExampleDir({ tmp: session, captures: [captureFixture({ example })] })
-    const outputDir = await outputIn()
-
-    await exportExamples({ sessionDirs: [session], outputDir, deps: deps() })
-
-    const written = JSON.parse(await readFile(join(outputDir, 'cap-p.json'), 'utf8'))
-    expect(written.change.path).toBe('<redacted:home>/proj/a.ts')
-    const manifestText = await readFile(join(outputDir, 'manifest.json'), 'utf8')
-    expect(manifestText).not.toContain(session)
-    expect(manifestText).not.toContain('jane')
-  })
-
-  test('throws when a session directory does not exist', async () => {
+  test('refuses an existing output directory and a missing session directory', async () => {
+    await expect(exportExamples({ sessionDirs: [], outputDir: await tmpDir(), deps: deps() })).rejects.toThrow('output directory already exists')
     const missing = join(await tmpDir(), 'nope')
-    await expect(exportExamples({ sessionDirs: [missing], outputDir: await outputIn(), deps: deps() })).rejects.toThrow(
-      'session directory does not exist',
-    )
+    await expect(exportExamples({ sessionDirs: [missing], outputDir: await outputIn(), deps: deps() })).rejects.toThrow('session directory does not exist')
   })
 
-  test('enumerates examples recursively below the examples directory', async () => {
-    const session = await tmpDir()
-    const nested = join(session, 'threads', 'thread-1', 'quality', 'examples', 'deep', 'er')
-    await mkdir(nested, { recursive: true })
-    const example = buildCaptureJson({ path: 'a.ts', before: null, after: 'x', captureId: 'cap-deep' })
-    await Bun.write(join(nested, 'cap-deep.json'), JSON.stringify(example))
-
-    const report = await exportExamples({ sessionDirs: [session], outputDir: await outputIn(), deps: deps() })
-
-    expect(report.exported).toBe(1)
+  test('manifest records only base names, never absolute session directories', async () => {
+    const { outputDir, sessionDir, id } = await exportOne({ before: null, after: counterAfter() })
+    const manifestText = await readFile(join(outputDir, 'manifest.json'), 'utf8')
+    expect(JSON.parse(manifestText)).toEqual({
+      schemaVersion: 1,
+      exportedAt: '2026-10-06T00:00:00.000Z',
+      sessions: [basename(sessionDir)],
+      exported: [id],
+      rejections: [],
+    })
+    expect(manifestText).not.toContain(sessionDir)
   })
 })

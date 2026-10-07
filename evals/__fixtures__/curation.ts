@@ -2,15 +2,23 @@ import { mkdir, mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { toCallId, toRunId, toThreadId, type QualityScope } from '@dltech/atlas-core'
+
+import { singleResponsibilityPolicy } from '../../packages/core/src/quality/policies/single-responsibility'
+import { QualityExampleSink, EXAMPLE_SCHEMA_VERSION } from '../../packages/harness/src/quality/example-sink'
+import { prepareQualityScopes } from '../../packages/harness/src/quality/source/scope-adapter'
 import { writeFileAtomic } from '../src/atomic'
-import { sha256Hex } from '../src/hash'
-import type { CapturedExample } from '../src/curation/inventory'
 
-export type CaptureFixture = { threadId: string; captureId: string; json: unknown }
+export const PROJECT_DIRECTORY = '/proj'
+export const WORKSPACE_NAMESPACE = 'local:eval-test-namespace'
+export const SRP_POLICY = 'single-responsibility'
 
-export type CaptureOverrides = Partial<Omit<CapturedExample, 'change' | 'digests'>>
+export const makeTmpDir = (): Promise<string> => mkdtemp(join(tmpdir(), 'atlas-curation-'))
 
-export const smallSyntheticScopeText = (): string =>
+export const counterBefore = (): string =>
+  ['export class Counter {', '  private total = 0', '', '  add(amount: number): number {', '    this.total += amount', '    return this.total', '  }', '}', ''].join('\n')
+
+export const counterAfter = (): string =>
   [
     'export class Counter {',
     '  private total = 0',
@@ -19,59 +27,76 @@ export const smallSyntheticScopeText = (): string =>
     '    this.total += amount',
     '    return this.total',
     '  }',
+    '',
+    '  describe(): string {',
+    '    return `total=${this.total}`',
+    '  }',
     '}',
     '',
   ].join('\n')
 
-export const secretBearingScopeText = (): string =>
-  [
-    'export const client = {',
-    '  apiKey: "sk-live-abcdef123456",',
-    '  cache: "/Users/someone/project/.cache",',
-    '}',
-    '',
-  ].join('\n')
+export const secretBearingSource = (): string =>
+  ['export class Client {', '  apiKey = "sk-live-abcdef123456"', '  cache = "/Users/someone/project/.cache"', '  connect(): void {}', '}', ''].join('\n')
 
-export function buildCaptureJson({
-  path,
+export type RecordedCapture = { sessionDir: string; threadId: string; relativePaths: readonly string[]; scopes: readonly QualityScope[] }
+
+export async function recordCapture({
+  sessionDir,
+  threadId = 'thread-1',
+  path = 'src/counter.ts',
   before,
   after,
-  ...overrides
 }: {
-  path: string
+  sessionDir: string
+  threadId?: string
+  path?: string
   before: string | null
   after: string
-} & CaptureOverrides): CapturedExample {
-  const captureId = overrides.captureId ?? `capture-${sha256Hex({ text: `${path}\0${before ?? ''}\0${after}` }).slice(0, 12)}`
-  return {
-    schemaVersion: 1,
-    captureId,
-    threadId: overrides.threadId ?? 'thread-1',
-    runId: overrides.runId ?? 'run-1',
-    callId: overrides.callId ?? 'call-1',
-    capturedAt: overrides.capturedAt ?? '2026-10-01T00:00:00.000Z',
-    adapterVersion: overrides.adapterVersion ?? 'ts-adapter@1',
-    change: { path, before, after },
-    digests: {
-      beforeSha256: before === null ? null : sha256Hex({ text: before }),
-      afterSha256: sha256Hex({ text: after }),
-    },
+}): Promise<RecordedCapture> {
+  const sink = new QualityExampleSink({ sessions: { sessionDirOf: async () => sessionDir } })
+  const preparation = prepareQualityScopes({
+    change: { path: `${PROJECT_DIRECTORY}/${path}`, before, after },
+    projectDirectory: PROJECT_DIRECTORY,
+    workspaceNamespace: WORKSPACE_NAMESPACE,
+    previousScopes: [],
+  })
+  const selectedIds = new Set(singleResponsibilityPolicy.selectScopes({ scopes: preparation.scopes }))
+  const selected = preparation.scopes.filter((scope) => selectedIds.has(scope.id))
+  const relativePaths: string[] = []
+  for (const scope of selected) {
+    const result = await sink.record({
+      threadId: toThreadId(threadId),
+      runId: toRunId('run-1'),
+      callId: toCallId('call-1'),
+      toolName: 'write',
+      scope,
+      change: { path, before, after },
+      workspaceNamespace: WORKSPACE_NAMESPACE,
+      policyIds: [SRP_POLICY],
+      policyVersions: { [SRP_POLICY]: '1' },
+      adapterVersion: scope.adapterVersion,
+      schemaVersion: EXAMPLE_SCHEMA_VERSION,
+    })
+    if (!result.ok) throw new Error(result.fault)
+    relativePaths.push(result.relativePath)
   }
+  return { sessionDir, threadId, relativePaths, scopes: selected }
 }
 
-export const makeTmpDir = (): Promise<string> => mkdtemp(join(tmpdir(), 'atlas-curation-'))
-
-export async function makeExampleDir({ tmp, captures }: { tmp: string; captures: readonly CaptureFixture[] }): Promise<string> {
-  await mkdir(tmp, { recursive: true })
-  for (const capture of captures) {
-    const path = join(tmp, 'threads', capture.threadId, 'quality', 'examples', `${capture.captureId}.json`)
-    await writeFileAtomic({ path, content: `${JSON.stringify(capture.json, null, 2)}\n` })
-  }
-  return tmp
+export async function writeRawSinkFile({
+  sessionDir,
+  threadId = 'thread-1',
+  fileStem,
+  content,
+}: {
+  sessionDir: string
+  threadId?: string
+  fileStem: string
+  content: string
+}): Promise<string> {
+  const directory = join(sessionDir, 'threads', threadId, 'quality', 'examples')
+  await mkdir(directory, { recursive: true })
+  const path = join(directory, `${fileStem}.json`)
+  await writeFileAtomic({ path, content })
+  return path
 }
-
-export const captureFixture = ({ example }: { example: CapturedExample }): CaptureFixture => ({
-  threadId: example.threadId,
-  captureId: example.captureId,
-  json: example,
-})

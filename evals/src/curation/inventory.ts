@@ -1,24 +1,25 @@
-import type { CapturedFileChange } from '@dltech/atlas-core'
 import { access, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import { z } from 'zod'
 
+import { renderScopeDiff } from '../../../packages/harness/src/quality/source/scope-diff'
 import { writeFileAtomic, writeJsonAtomic } from '../atomic'
 import { sha256Hex } from '../hash'
+import {
+  EExportRejection,
+  EXPORT_SCHEMA_VERSION,
+  SINK_SCHEMA_VERSION,
+  type ExportedExample,
+  type ScopeDigests,
+} from './exported-example'
 import { listExampleFiles, sortedNames, type ExampleFile } from './example-files'
-import { redactText, type RedactionMapEntry, type RedactionResult } from './redact'
+import { redactText, type RedactionResult } from './redact'
+import { redactSinkRecord, type RedactedRecord } from './redact-scope'
+import { parseSinkRecord } from './sink-record'
 
-export const CAPTURED_EXAMPLE_SCHEMA_VERSION = 1
+export * from './exported-example'
+
 export const EXPORT_MANIFEST_FILE = 'manifest.json'
 export const REJECTIONS_FILE = 'rejections.jsonl'
-
-export enum EExportRejection {
-  NoExamples = 'no_examples',
-  DigestMismatch = 'digest_mismatch',
-  SchemaInvalid = 'schema_invalid',
-  RedactionUnstable = 'redaction_unstable',
-  AdapterMismatch = 'adapter_mismatch',
-}
 
 export type ExportRejection = {
   session: string
@@ -27,36 +28,8 @@ export type ExportRejection = {
   detail: string
 }
 
-export type CapturedExample = {
-  schemaVersion: typeof CAPTURED_EXAMPLE_SCHEMA_VERSION
-  captureId: string
-  threadId: string
-  runId: string
-  callId: string
-  capturedAt: string
-  adapterVersion: string
-  change: CapturedFileChange
-  digests: { beforeSha256: string | null; afterSha256: string }
-}
-
-export type DigestPair = { beforeSha256: string | null; afterSha256: string }
-
-export type ExportedExample = {
-  schemaVersion: typeof CAPTURED_EXAMPLE_SCHEMA_VERSION
-  captureId: string
-  session: string
-  threadId: string
-  runId: string
-  callId: string
-  capturedAt: string
-  adapterVersion: string
-  change: CapturedFileChange
-  digests: { original: DigestPair; redacted: DigestPair }
-  redaction: { before: readonly RedactionMapEntry[]; after: readonly RedactionMapEntry[] }
-}
-
 export type ExportManifest = {
-  schemaVersion: typeof CAPTURED_EXAMPLE_SCHEMA_VERSION
+  schemaVersion: typeof EXPORT_SCHEMA_VERSION
   exportedAt: string
   sessions: readonly string[]
   exported: readonly string[]
@@ -71,36 +44,9 @@ export type ExportReport = {
 
 export type ExportDeps = {
   redact: (text: string) => RedactionResult
-  reparse: (args: { change: CapturedFileChange }) => boolean
+  reparse: (args: { path: string; scope: ExportedExample['scope'] }) => string | null
   now?: () => string
 }
-
-export const identifier = z.string().min(1)
-export const sha256Digest = z.string().regex(/^[0-9a-f]{64}$/, 'digest is a lowercase sha256 hex digest')
-export const captureIdentifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, 'captureId must be a safe file stem')
-
-export const changeSchema: z.ZodType<CapturedFileChange> = z.object({
-  path: identifier,
-  before: z.string().nullable(),
-  after: z.string(),
-})
-
-export const digestPairSchema: z.ZodType<DigestPair> = z.object({
-  beforeSha256: sha256Digest.nullable(),
-  afterSha256: sha256Digest,
-})
-
-export const capturedExampleSchema: z.ZodType<CapturedExample> = z.object({
-  schemaVersion: z.literal(CAPTURED_EXAMPLE_SCHEMA_VERSION),
-  captureId: captureIdentifier,
-  threadId: identifier,
-  runId: identifier,
-  callId: identifier,
-  capturedAt: identifier,
-  adapterVersion: identifier,
-  change: changeSchema,
-  digests: digestPairSchema,
-})
 
 export async function assertOutputDirAbsent({ outputDir }: { outputDir: string }): Promise<void> {
   const exists = await access(outputDir).then(
@@ -114,71 +60,13 @@ const digestOrNull = (text: string | null): string | null => (text === null ? nu
 
 type Verdict = { example: ExportedExample } | { rejection: Omit<ExportRejection, 'session'> }
 
-async function parseExampleFile({ path }: { path: string }): Promise<CapturedExample | string> {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(await readFile(path, 'utf8'))
-  } catch {
-    return 'file is not readable JSON'
-  }
-  const decoded = capturedExampleSchema.safeParse(parsed)
-  if (decoded.success) return decoded.data
-  return decoded.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')
-}
-
-function verifyDigests({ captured }: { captured: CapturedExample }): string | null {
-  const { change, digests } = captured
-  if (digestOrNull(change.before) !== digests.beforeSha256) return 'beforeSha256 does not match change.before'
-  if (sha256Hex({ text: change.after }) !== digests.afterSha256) return 'afterSha256 does not match change.after'
+function ambiguityOf({ redacted, originalEvidenceIds }: { redacted: RedactedRecord; originalEvidenceIds: readonly string[] }): string | null {
+  const ids = redacted.scope.evidence.map((entry) => entry.id)
+  if (new Set(ids).size !== new Set(originalEvidenceIds).size) return 'redaction merged distinct evidence ids'
+  const { scope } = redacted
+  const rendered = renderScopeDiff({ path: redacted.path, before: scope.before, after: scope.after })
+  if (rendered !== scope.diff) return 'redacted diff no longer matches the redacted before and after text'
   return null
-}
-
-function redactCapture({
-  captured,
-  session,
-  deps,
-}: {
-  captured: CapturedExample
-  session: string
-  deps: ExportDeps
-}): Verdict {
-  const { change } = captured
-  const before = change.before === null ? null : deps.redact(change.before)
-  const after = deps.redact(change.after)
-  const rejected = ({ kind, detail }: { kind: EExportRejection; detail: string }): Verdict => ({
-    rejection: { captureId: captured.captureId, kind, detail },
-  })
-
-  const stable = [before, after].every((first) => {
-    if (first === null) return true
-    const second = deps.redact(first.text)
-    return second.text === first.text && second.map.length === 0
-  })
-  if (!stable) return rejected({ kind: EExportRejection.RedactionUnstable, detail: 'redacting the redacted text changed it again' })
-
-  const redactedChange: CapturedFileChange = { path: redactText({ text: change.path }).text, before: before?.text ?? null, after: after.text }
-  if (!deps.reparse({ change: redactedChange })) {
-    return rejected({ kind: EExportRejection.AdapterMismatch, detail: 'adapter could not reparse the redacted change' })
-  }
-
-  return {
-    example: {
-      schemaVersion: captured.schemaVersion,
-      captureId: captured.captureId,
-      session,
-      threadId: captured.threadId,
-      runId: captured.runId,
-      callId: captured.callId,
-      capturedAt: captured.capturedAt,
-      adapterVersion: captured.adapterVersion,
-      change: redactedChange,
-      digests: {
-        original: captured.digests,
-        redacted: { beforeSha256: digestOrNull(redactedChange.before), afterSha256: sha256Hex({ text: redactedChange.after }) },
-      },
-      redaction: { before: before?.map ?? [], after: after.map },
-    },
-  }
 }
 
 async function evaluateFile({
@@ -190,14 +78,59 @@ async function evaluateFile({
   session: string
   deps: ExportDeps
 }): Promise<Verdict> {
-  const captured = await parseExampleFile({ path: file.path })
-  if (typeof captured === 'string') return { rejection: { captureId: null, kind: EExportRejection.SchemaInvalid, detail: captured } }
-  const digestProblem = verifyDigests({ captured })
-  if (digestProblem !== null) {
-    return { rejection: { captureId: captured.captureId, kind: EExportRejection.DigestMismatch, detail: digestProblem } }
+  let rawText: string
+  try {
+    rawText = await readFile(file.path, 'utf8')
+  } catch {
+    return { rejection: { captureId: null, kind: EExportRejection.SchemaInvalid, detail: 'file is not readable' } }
   }
-  return redactCapture({ captured, session, deps })
+  const captureId = basename(file.path, '.json')
+  const parsed = parseSinkRecord({ rawText, fileStem: captureId, threadId: file.threadId })
+  if ('rejection' in parsed) return parsed
+  const { record } = parsed
+
+  const outcome = redactSinkRecord({ record, redact: deps.redact })
+  const rejected = ({ kind, detail }: { kind: EExportRejection; detail: string }): Verdict => ({
+    rejection: { captureId, kind, detail },
+  })
+  if (!outcome.ok) {
+    return rejected({
+      kind: EExportRejection.RedactionUnstable,
+      detail: `redacting the redacted ${outcome.unstableFields.join(', ')} changed it again`,
+    })
+  }
+  const { redacted } = outcome
+  const ambiguity = ambiguityOf({ redacted, originalEvidenceIds: record.evidence.map((entry) => entry.id) })
+  if (ambiguity !== null) return rejected({ kind: EExportRejection.RedactionUnstable, detail: ambiguity })
+  const reparseProblem = deps.reparse({ path: redacted.path, scope: redacted.scope })
+  if (reparseProblem !== null) return rejected({ kind: EExportRejection.AdapterMismatch, detail: reparseProblem })
+
+  const redactedDigests: ScopeDigests = {
+    beforeSha256: digestOrNull(redacted.scope.before),
+    afterSha256: digestOrNull(redacted.scope.after),
+  }
+  return {
+    example: {
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      sinkSchemaVersion: SINK_SCHEMA_VERSION,
+      captureId,
+      session,
+      provenance: record.provenance,
+      workspaceNamespace: record.workspaceNamespace,
+      adapterVersion: record.adapterVersion,
+      path: redacted.path,
+      policies: record.policies,
+      scope: redacted.scope,
+      digests: { original: { beforeSha256: record.hashes.before, afterSha256: record.hashes.after }, redacted: redactedDigests },
+      redaction: redacted.redaction,
+    },
+  }
 }
+
+export const defaultExportDeps = ({ reparse }: Pick<ExportDeps, 'reparse'>): ExportDeps => ({
+  redact: (text: string) => redactText({ text }),
+  reparse,
+})
 
 export async function exportExamples({
   sessionDirs,
@@ -228,12 +161,7 @@ export async function exportExamples({
         continue
       }
       if (seenCaptureIds.has(verdict.example.captureId)) {
-        rejections.push({
-          session,
-          captureId: verdict.example.captureId,
-          kind: EExportRejection.SchemaInvalid,
-          detail: 'duplicate captureId',
-        })
+        rejections.push({ session, captureId: verdict.example.captureId, kind: EExportRejection.SchemaInvalid, detail: 'duplicate captureId' })
         continue
       }
       seenCaptureIds.add(verdict.example.captureId)
@@ -245,7 +173,7 @@ export async function exportExamples({
     await writeJsonAtomic({ path: join(outputDir, `${example.captureId}.json`), value: example })
   }
   const manifest: ExportManifest = {
-    schemaVersion: CAPTURED_EXAMPLE_SCHEMA_VERSION,
+    schemaVersion: EXPORT_SCHEMA_VERSION,
     exportedAt: (deps.now ?? (() => new Date().toISOString()))(),
     sessions: sortedSessions.map((sessionDir) => basename(sessionDir)),
     exported: exported.map((example) => example.captureId),

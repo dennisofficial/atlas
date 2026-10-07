@@ -1,7 +1,8 @@
 import { ArgParseError, parseArgs, requireValue } from './args'
 import { EDatasetSplit } from './manifest'
 import { resolveSuiteId } from './registry-default'
-import { redactText } from './curation/redact'
+import { defaultExportDeps } from './curation/inventory'
+import { reparseScope } from './curation/reparse-scope'
 
 const EXPORT_SPEC = { '--session-dir': 'value', '--output-dir': 'value' } as const
 const CURATE_SPEC = { '--export-dir': 'value', '--output-dir': 'value' } as const
@@ -15,10 +16,6 @@ const LABEL_REVIEW_SPEC = {
   '--split': 'value',
 } as const
 
-function reparseAdapter(): boolean {
-  return true
-}
-
 async function handleExportExamples({ argv }: { argv: readonly string[] }): Promise<number> {
   const args = parseArgs({ argv, spec: EXPORT_SPEC })
   const sessionDirs = args.lists['--session-dir'] ?? []
@@ -28,7 +25,7 @@ async function handleExportExamples({ argv }: { argv: readonly string[] }): Prom
   const report = await exportExamples({
     sessionDirs,
     outputDir,
-    deps: { redact: (text: string) => redactText({ text }), reparse: () => reparseAdapter() },
+    deps: defaultExportDeps({ reparse: reparseScope }),
   })
   console.log(`exported ${report.exported} examples, ${report.rejections.length} rejections -> ${report.outputDir}`)
   return 0
@@ -79,7 +76,7 @@ async function handleLabelReview({ argv }: { argv: readonly string[] }): Promise
     drafts,
     verifications,
     buildInput: ({ candidate }) =>
-      buildCodeQualityInput({ candidate, prepareScope: undefined, policyIds: enabledEvalPolicyIds }),
+      buildCodeQualityInput({ candidate, policyIds: enabledEvalPolicyIds }),
     validateExpected: (expected) => {
       const result = feature.expectedSchema.safeParse(expected)
       return result.success ? null : (result.error.issues[0]?.message ?? 'expected fails schema')

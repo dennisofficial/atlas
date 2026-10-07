@@ -20,12 +20,13 @@ provider unless both `--live` and `ATLAS_EVAL_LIVE=1` are present.
 bun run --cwd evals typecheck
 bun run --cwd evals test
 
+# default smoke materializes the synthetic calculator dataset in the invocation work dir (never real volume)
 bun run eval --suite smoke --fake --trials 2 --output-parent "$ATLAS_CONTEXT_DIR/evidence/eval-smoke"
 bun run --cwd evals eval:validate --manifest <accepted-manifest>
 
 bun run --cwd evals eval:export-examples --session-dir <named-session-dir> [--session-dir <second>] --output-dir <new-export-dir>
 bun run --cwd evals eval:curate --export-dir <sanitized-export> --output-dir <new-candidates-dir>
-bun run --cwd evals eval:label-review --candidates <candidates.jsonl> --labels <drafts.jsonl> --verification <checks.jsonl> --output-dir <new-golden-dir>
+bun run --cwd evals eval:label-review --candidates <candidates.jsonl> --labels <drafts.jsonl> --verification <checks.jsonl> --dataset-version <new-version> --output-dir <new-golden-dir>
 
 ATLAS_EVAL_LIVE=1 bun run eval --suite code-quality/single-responsibility --live --dataset <manifest> --trials 3 --output-parent "$ATLAS_CONTEXT_DIR/evidence/evals"
 bun run --cwd evals eval:compare --baseline <run-dir> --candidate <run-dir>

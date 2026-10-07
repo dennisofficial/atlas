@@ -1,12 +1,5 @@
-import {
-  ESettingPage,
-  projectQualityHealth,
-  type EventLogPort,
-  type QualityHealth,
-  type QualityHealthRecord,
-  type ThreadId,
-} from '@dltech/atlas-core'
-import type { DeltaChannel } from '@dltech/atlas-harness'
+import { ESettingPage, type EventLogPort, type QualityHealth, type ThreadId } from '@dltech/atlas-core'
+import { readQualityHealth, type DeltaChannel } from '@dltech/atlas-harness'
 import { useEffect, useRef, useState } from 'react'
 
 import { currentPage, type SettingsModel, type SettingsState } from '../ui/settings-model'
@@ -40,17 +33,6 @@ const settingsOnQualityPage = (args: {
 
 const failureText = (cause: unknown): string =>
   cause instanceof Error ? cause.message : 'the thread log could not be read'
-
-async function readRecordedHealth(args: {
-  log: QualityHealthSource['log']
-  threadId: ThreadId
-}): Promise<QualityHealth> {
-  const events = await args.log.readOwn({ threadId: args.threadId })
-  const records = events.flatMap((event): QualityHealthRecord[] =>
-    event.type === 'code-quality-reviewed' ? [event] : [],
-  )
-  return projectQualityHealth({ records })
-}
 
 const REFRESH_SIGNALS = new Set(['events-appended', 'step-started', 'step-ended'])
 
@@ -98,7 +80,7 @@ export function useQualityHealth(args: {
           return
         }
 
-        const health = await readRecordedHealth({ log: args.app.log, threadId: args.threadId })
+        const health = await readQualityHealth({ log: args.app.log, threadId: args.threadId })
         if (generation.current !== mine) return
 
         lastHead.current = head

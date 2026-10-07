@@ -1,8 +1,8 @@
 import { createQualityRegistry, type QualityPolicy } from '@dltech/atlas-core'
 
-import { fakeSrpPolicy } from '../__fixtures__/fake-srp-policy'
+import { singleResponsibilityPolicy } from '../../packages/core/src/quality/policies/single-responsibility'
 
-const evalQualityRegistry = createQualityRegistry({ policies: [fakeSrpPolicy] })
+const evalQualityRegistry = createQualityRegistry({ policies: [singleResponsibilityPolicy] })
 
 export function resolveEvalPolicies({ policyIds }: { policyIds: readonly string[] }): readonly QualityPolicy[] {
   return policyIds.map((id) => {
@@ -12,4 +12,4 @@ export function resolveEvalPolicies({ policyIds }: { policyIds: readonly string[
   })
 }
 
-export const enabledEvalPolicyIds: readonly string[] = [fakeSrpPolicy.id]
+export const enabledEvalPolicyIds: readonly string[] = [singleResponsibilityPolicy.id]

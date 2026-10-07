@@ -59,6 +59,8 @@ export type RunSummary = {
   datasetHash: string
   model: { requested: string; resolved: string | null }
   mode: ERunMode
+  enabledPolicyIds: readonly string[]
+  batchMode: string
   planned: { uniqueCases: number; rows: number; trialsPerCase: number; variants: readonly string[] }
   completed: number
   errors: number

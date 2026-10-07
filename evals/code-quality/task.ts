@@ -53,6 +53,7 @@ export async function runCodeQualityTask({
   const request = prepareQualityRequest({ scope: input.scope, policies })
   const preparationMs = performance.now() - prepareStart
 
+  const requestedModel = model === '' ? (deps.defaultModel ?? JEV_QUALITY_MODEL) : model
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), deadlineMs)
   let outcome: DecisionOutcome
@@ -62,7 +63,7 @@ export async function runCodeQualityTask({
       state: request.state,
       questions: request.questions,
       signal: controller.signal,
-      model: model === '' ? (deps.defaultModel ?? JEV_QUALITY_MODEL) : model,
+      model: requestedModel,
     })
   } finally {
     clearTimeout(timer)
@@ -71,6 +72,11 @@ export async function runCodeQualityTask({
 
   if (!outcome.ok) {
     throw new TaskExecutionError(`decision call failed: ${outcome.fault}`)
+  }
+  if (outcome.model !== requestedModel) {
+    throw new TaskExecutionError(
+      `model identity mismatch: requested ${requestedModel} but the decision resolved ${outcome.model ?? 'no model identity'}`,
+    )
   }
 
   const interpretStart = performance.now()

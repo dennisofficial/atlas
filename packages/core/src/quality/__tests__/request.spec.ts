@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { DecisionQuestion } from '../../ports/decision.port'
+import { JEV_MODEL } from '../../policy/classifier/jev'
 import { EQualityImpact, EQualityReviewStatus, EQualityTransition, QualityContractError } from '../policy'
 import { interpretQualityResponse, JEV_QUALITY_MODEL, prepareQualityRequest } from '../request'
 import { policyFixture, scopeFixture } from './fixtures'
@@ -8,8 +9,9 @@ import { policyFixture, scopeFixture } from './fixtures'
 const scope = scopeFixture()
 
 describe('prepareQualityRequest', () => {
-  it('pins the quality model', () => {
-    expect(JEV_QUALITY_MODEL).toBe('jev-1.13.0')
+  it('uses the same gateway-compatible model as other Jev features', () => {
+    expect(JEV_QUALITY_MODEL).toBe(JEV_MODEL)
+    expect(JEV_QUALITY_MODEL).toBe('jev-latest')
   })
 
   it('prefixes question ids with the policy id and binds them back', () => {

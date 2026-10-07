@@ -5,7 +5,8 @@ import {
   type WorkspaceIdentityPort,
 } from '@dltech/atlas-core'
 
-import { withQualityDeadline } from './deadline'
+import { settleUnderBudget } from './deadline'
+import { WorkspaceIdentityDeadlineError } from './git-workspace-identity'
 
 export type NamespaceFailure = { status: EQualityReviewStatus; reason: EQualitySkipReason; detail: string }
 
@@ -17,35 +18,36 @@ const unidentified = (detail: string): NamespaceFailure => ({
   detail,
 })
 
+const deadlineFailure = (detail: string): NamespaceFailure => ({
+  status: EQualityReviewStatus.OperationalError,
+  reason: EQualitySkipReason.ReviewDeadline,
+  detail,
+})
+
 export async function resolveWorkspaceNamespace({
   identity,
   projectDirectory,
   threadId,
   signal,
-  deadlineMs,
 }: {
   identity: WorkspaceIdentityPort
   projectDirectory: string
   threadId: ThreadId
   signal: AbortSignal
-  deadlineMs: number
 }): Promise<string | NamespaceFailure> {
-  const raced = await withQualityDeadline({
+  const raced = await settleUnderBudget({
     signal,
-    deadlineMs,
     work: () => identity.identify({ projectDirectory, threadId }),
   })
   if (raced.kind === 'aborted') {
     return { status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.TurnInterrupted, detail: 'turn interrupted' }
   }
-  if (raced.kind === 'deadline') {
-    return {
-      status: EQualityReviewStatus.OperationalError,
-      reason: EQualitySkipReason.ReviewDeadline,
-      detail: `workspace identity probe exceeded ${deadlineMs}ms`,
-    }
+  if (raced.kind === 'deadline') return deadlineFailure(`workspace identity: ${raced.error.message}`)
+  if (raced.kind === 'failed') {
+    return raced.error instanceof WorkspaceIdentityDeadlineError
+      ? deadlineFailure(describeError(raced.error))
+      : unidentified(describeError(raced.error))
   }
-  if (raced.kind === 'failed') return unidentified(describeError(raced.error))
 
   const { remote, worktreePath } = raced.value
   if (remote === null || remote === '') return unidentified('workspace has no remote identity')

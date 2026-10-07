@@ -19,7 +19,7 @@ export function createFakeTransport({ rules }: { rules: readonly FakeTransportRu
     calls.push({ state: request.state, questions: request.questions, model: request.model })
     const rule = rules.find((candidate) => candidate.matchState === undefined || request.state.includes(candidate.matchState))
     if (rule === undefined) return Promise.reject(new Error('fake transport has no rule for this request'))
-    return Promise.resolve({ answers: rule.answers, ...(rule.model === undefined ? {} : { model: rule.model }) })
+    return Promise.resolve({ answers: rule.answers, model: rule.model ?? request.model })
   }
   return { systemOne, calls }
 }

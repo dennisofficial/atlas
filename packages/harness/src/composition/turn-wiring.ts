@@ -1,11 +1,8 @@
 import {
   defaultPipeline,
-  EAgentStatus,
   ENoticeTone,
   EPromptAgent,
-  EServiceStatus,
   ESettingId,
-  EShellStatus,
   isTurnTaking,
   NOTICE_WARN_MS,
   promptContextFor,
@@ -18,6 +15,7 @@ import {
   IdPort,
   LogPort,
   ModelPort,
+  QualityReviewPort,
   TelemetryPort,
   rangeValueOf,
   type EventDraft,
@@ -66,6 +64,7 @@ import { createTurnPolicyRunner } from './turn-policy-runner'
 import type { TurnPolicy } from '../loop/turn-policy'
 import { LocalRewindMachinery } from '../store/local-rewind-machinery'
 import { createUsageTracker } from './usage-tracker'
+import { turnBackgroundState } from './turn-background-state'
 
 const asClockJumps = (wake: WakeSignal): ClockJumpDetector => ({
   onJump: (callback) => wake.subscribe((jump) => callback(jump.gapMs)),
@@ -128,39 +127,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     pending, shells, agents, services, log, ids, stopSandbox: args.stopSandbox,
   })
 
-  const runningShells = ({ threadId }: { threadId: ThreadId }) =>
-    shells
-      .list({ threadId })
-      .filter((shell) => shell.status === EShellStatus.Running)
-      .map((shell) => ({
-        shellId: shell.shellId,
-        command: shell.command,
-        description: shell.description,
-        awaitingInput: shell.awaitingInput,
-        totalCharacters: shell.totalCharacters,
-      }))
-
-  const runningAgents = ({ threadId }: { threadId: ThreadId }) =>
-    agents
-      .list({ threadId })
-      .filter((agent) => agent.status === EAgentStatus.Running)
-      .map((agent) => ({
-        agentId: agent.agentId,
-        agentType: agent.agentType,
-        intent: agent.intent,
-      }))
-
-  const runningServices = () =>
-    services
-      .list()
-      .filter((service) => service.status === EServiceStatus.Running)
-      .map((service) => ({
-        serviceId: service.serviceId,
-        command: service.command,
-        description: service.description,
-        logPath: service.logPath,
-      }))
-
+  const { runningShells, runningAgents, runningServices } = turnBackgroundState({ agents, shells, services })
   const compiledPrompt = ({ projectDirectory }: { projectDirectory: string }) =>
     prompts.compile(
       promptContextFor({
@@ -244,12 +211,13 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   }
   const modelFor = childModelSource(childModels)
   const modelAtSpawn = childModelSelection(childModels)
-
   container.register(ChildRunnerDepsToken, {
     useValue: (): ChildRunnerDeps => ({
       turn,
       tools: container.resolve(portToken(ToolRegistry)),
       hooks: container.resolve(HookChainToken),
+      quality: container.isRegistered(portToken(QualityReviewPort), true)
+        ? container.resolve(portToken(QualityReviewPort)) : undefined,
       channel: args.channel,
       drainNotices: (request) => intake.prepare(request),
       intake,
@@ -277,7 +245,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
         }),
     }),
   })
-
   const usage = createUsageTracker({ channel: args.channel, log })
   const atPercent = () =>
     rangeValueOf({
@@ -307,7 +274,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
         }),
     })
   })()
-
   const titling = new TitlingTurnRunner({
     inner: runner,
     log,

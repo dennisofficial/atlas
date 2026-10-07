@@ -5,7 +5,7 @@ import { loadDataset } from './dataset-io'
 import { loadFixtureAnswers } from './fixture-answers'
 import { loadRunDirectory } from './run-io'
 import { ERunMode } from './results'
-import { compareRuns, formatComparisonText } from './summary'
+import { compareRuns, comparisonExitCode, formatComparisonText, formatSummaryText } from './summary'
 import { handleRun, type RunRequest } from './supervisor'
 
 const RUN_SPEC = {
@@ -58,6 +58,8 @@ async function handleRunCommand({ argv }: { argv: readonly string[] }): Promise<
       baselineDir: args.values['--baseline'],
     },
   })
+  console.log(formatSummaryText({ summary: result.summary }))
+  console.log(`artifacts: ${result.runDirectory}`)
   return result.exitCode
 }
 
@@ -85,7 +87,7 @@ async function handleCompareCommand({ argv }: { argv: readonly string[] }): Prom
   const candidate = await loadRunDirectory({ directory: requireValue({ args, key: '--candidate' }) })
   const comparison = compareRuns({ baseline, candidate })
   console.log(formatComparisonText({ comparison, baseline, candidate }))
-  return comparison.comparable ? 0 : 2
+  return comparisonExitCode({ comparison, candidate })
 }
 
 async function handleDispatch(): Promise<number> {
