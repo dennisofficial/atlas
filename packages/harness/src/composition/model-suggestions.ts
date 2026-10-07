@@ -1,5 +1,7 @@
 import {
+  agentTypeSettingId,
   ESettingId,
+  TEAMMATE_AGENT_TYPE,
   parseRef,
   textValueOf,
   type ModelRef,
@@ -24,21 +26,19 @@ const cheapestReachable = (catalogue: ModelCatalogue): ModelRef | undefined => {
   return best?.ref
 }
 
-/**
- * Where an unset model row's picker should open. The quick tier suggests the cheapest card any
- * connected provider carries; a per-type row suggests what it would resolve to (the sub-agent
- * role, then the default); everything else opens on the default the conversation would run.
- */
 export function suggestedModelRef(args: {
   id: string
   settled: SettingsResolution
   catalogue: ModelCatalogue
+  current?: ModelRef
 }): ModelRef {
   const followed = defaultSelection({ settled: args.settled, catalogue: args.catalogue }).ref
 
   if (args.id === ESettingId.QuickModel) {
     return cheapestReachable(args.catalogue) ?? followed
   }
+
+  if (args.id === agentTypeSettingId(TEAMMATE_AGENT_TYPE)) return args.current ?? followed
 
   if (args.id.startsWith('agents.type.')) {
     const held = textValueOf({ resolution: args.settled, id: ESettingId.SubagentModel })

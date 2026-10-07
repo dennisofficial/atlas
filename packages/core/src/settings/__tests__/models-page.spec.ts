@@ -59,6 +59,17 @@ describe('agentTypeModelDefinitions', () => {
     }
   })
 
+  it('places teammates with the main model and inherits the main agent', () => {
+    const [definition] = agentTypeModelDefinitions({ typeNames: ['teammate'] })
+
+    expect(definition?.id).toBe('agents.type.teammate')
+    expect(definition?.page).toBe(ESettingPage.Models)
+    expect(definition?.group).toBe('Model')
+    expect(definition?.label).toBe('Teammates')
+    expect(definition?.unsetLabel).toBe('follow main agent')
+    expect(definition?.description).toContain("main agent's current model and effort")
+  })
+
   it('derives stable ids from the type name', () => {
     expect(agentTypeSettingId('general-purpose')).toBe('agents.type.general-purpose')
   })

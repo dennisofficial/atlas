@@ -51,6 +51,34 @@ describe('suggestedModelRef', () => {
     ).toBe('anthropic/claude-sonnet-5')
   })
 
+  it('suggests the current main agent for teammates, not the sub-agent or new-conversation default', () => {
+    const settled = settledOver({
+      [ESettingId.ModelId]: 'anthropic/claude-opus-5',
+      [ESettingId.SubagentModel]: 'anthropic/claude-haiku-4-5',
+    })
+    const ref = suggestedModelRef({
+      id: agentTypeSettingId('teammate'),
+      settled,
+      catalogue: fakeCatalogue(),
+      current: { providerId: 'anthropic', modelId: 'claude-sonnet-5' },
+    })
+
+    expect(refKey(ref)).toBe('anthropic/claude-sonnet-5')
+  })
+
+  it('skips the sub-agent role for teammates even without a current conversation', () => {
+    const ref = suggestedModelRef({
+      id: agentTypeSettingId('teammate'),
+      settled: settledOver({
+        [ESettingId.ModelId]: 'anthropic/claude-opus-5',
+        [ESettingId.SubagentModel]: 'anthropic/claude-haiku-4-5',
+      }),
+      catalogue: fakeCatalogue(),
+    })
+
+    expect(refKey(ref)).toBe('anthropic/claude-opus-5')
+  })
+
   it('skips a sub-agent role whose provider is not set up, falling to the default', () => {
     const settled = settledOver({
       [ESettingId.ModelId]: 'anthropic/claude-opus-5',

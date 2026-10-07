@@ -1578,10 +1578,11 @@ catalogue — or whose account is gone — falls back *whole*, so an effort neve
 that offered it.
 
 **A child's model and effort are chosen at spawn and change only by an explicit operator pick.**
-The type's settings row outranks its definition pin, which outranks the sub-agent role row;
-otherwise the child inherits its spawner's pair. A teammate's children inherit the teammate's
-pair, not the main conversation's. The chosen pair is stored in the child's existing thread
-metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
+The type's settings row outranks its definition pin. For sub-agents, the sub-agent role row
+comes next; otherwise the child inherits its spawner's pair. Teammates skip the sub-agent role
+row and inherit the main agent's current pair unless explicitly pinned. A teammate's sub-agents
+inherit the teammate's pair, not the main conversation's. The chosen pair is stored in the child's
+existing thread metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
 Changing the parent or settings affects new children only; steering, waking, resuming, and
 relocating a child retain its saved pair. Older children with no recorded pair resolve and save
 one on their first re-entry. An unavailable saved model fails rather than silently choosing another.
@@ -1600,8 +1601,9 @@ on an updated runtime to support them.
 **Every background call has a role, and every role has a row.** The tl;dr footer, the session
 titler and the nudge judge share the quick-calls row (`model.quickModel`); compaction has its own
 (`model.compactionModel`); sub-agents have theirs (`agents.subagentModel`), with one dynamically
-registered row per loaded agent type beneath it. A role left empty follows the default model —
-there is no hardcoded model id anywhere in the chain, because no provider can be assumed set up.
+registered row per loaded sub-agent type beneath it. The teammate row sits with the main model
+settings and follows the main agent, independently of the sub-agent role. A role left empty follows
+the default model — there is no hardcoded model id anywhere in the chain, because no provider can be assumed set up.
 Utility calls re-read the settings per call and children per spawn, so a pick lands mid-session,
 and a role whose pick cannot run
 (provider account gone, model dropped from the catalogue) raises a standing notice that clears
