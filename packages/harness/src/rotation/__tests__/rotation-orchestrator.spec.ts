@@ -278,16 +278,42 @@ describe('LocalRotation happy path', () => {
     expect(handoff).toContain('Runtime manifest')
 
     const seed = await fixture.log.read({ threadId: outcome.successor })
-    expect(seed).toHaveLength(1)
+    expect(seed).toHaveLength(2)
     expect(seed[0]?.type).toBe('user-said')
     if (seed[0]?.type === 'user-said') {
       expect(seed[0].text).toContain(outcome.handoffPath)
       expect(seed[0].text).toContain('pick up the migration')
     }
+    expect(seed[1]?.type).toBe('rotated')
+    if (seed[1]?.type === 'rotated') {
+      expect(seed[1].predecessor).toBe(main)
+      expect(seed[1].handoffPath).toBe(outcome.handoffPath)
+      expect(seed[1].instructions).toBe('pick up the migration')
+    }
 
     expect(fixture.runner.started).toEqual([outcome.successor])
     expect(await fixture.authority.activeMainOf({ sessionId: main })).toBe(outcome.successor)
     expect(await fixture.authority.fenceMainThread({ threadId: main })).toMatchObject({ allowed: false })
+  })
+
+  it('omits the instructions field from the rotated divider when the operator gave none', async () => {
+    const fixture = await openFixture()
+    const main = await fixture.openMain()
+
+    const outcome = await fixture.rotation().request({
+      sessionId: main,
+      predecessor: main,
+      instructions: '',
+      settle: idleSettle(),
+    })
+    if (outcome.kind !== 'committed') throw new Error('expected commit')
+
+    const seed = await fixture.log.read({ threadId: outcome.successor })
+    const divider = seed.find((event) => event.type === 'rotated')
+    if (divider?.type !== 'rotated') throw new Error('the successor log carries no rotated divider')
+    expect(divider.predecessor).toBe(main)
+    expect(divider.handoffPath).toBe(outcome.handoffPath)
+    expect(divider.instructions).toBeUndefined()
   })
 
   it('keeps the predecessor authoritative and runnable when the summary fails', async () => {

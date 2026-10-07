@@ -210,6 +210,19 @@ export class LocalRotation extends RotationPort {
       successor,
     })
 
+    await this.deps.log.append({
+      threadId: successor,
+      runId: this.deps.ids.nextRunId(),
+      drafts: [
+        {
+          type: 'rotated',
+          predecessor,
+          handoffPath: handoff.path,
+          ...(instructions.trim().length === 0 ? {} : { instructions }),
+        },
+      ],
+    })
+
     this.advance({ sessionId, operation, phase: ERotationPhase.Activating })
     this.activateOnce({ successor })
     this.advance({ sessionId, operation, phase: ERotationPhase.Committed })
