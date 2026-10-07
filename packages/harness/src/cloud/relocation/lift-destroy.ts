@@ -34,6 +34,24 @@ export const destroyPlanOf = ({
   return { kind: 'remove', path: containing.path }
 }
 
+type RegisteredDescendants = { descendants: string[]; unresolved: string[] }
+
+async function registeredDescendantsOf({
+  worktrees,
+  target,
+}: {
+  worktrees: readonly Worktree[]
+  target: string
+}): Promise<RegisteredDescendants> {
+  const found: RegisteredDescendants = { descendants: [], unresolved: [] }
+  for (const worktree of worktrees) {
+    const resolved = await realpath(worktree.path).catch(() => null)
+    if (resolved === null) found.unresolved.push(worktree.path)
+    else if (resolved !== target && isInside({ parent: target, child: resolved })) found.descendants.push(resolved)
+  }
+  return found
+}
+
 export async function destroyLiftedWorktree({
   cwd,
   expected,
@@ -65,6 +83,21 @@ export async function destroyLiftedWorktree({
         data: { operation: 'destroy-local-worktree' },
       })
     }
+    return
+  }
+  const registered = await registeredDescendantsOf({ worktrees: listing.worktrees, target: plan.path })
+  if (registered.descendants.length > 0 || registered.unresolved.length > 0) {
+    logPort?.warn({
+      source: 'cloud.lift',
+      message: `the lifted local worktree ${plan.path} stays on disk because removing it could delete other registered checkouts`,
+      threadId,
+      data: {
+        operation: 'destroy-local-worktree',
+        path: plan.path,
+        registeredDescendants: registered.descendants,
+        unresolvedRegistrations: registered.unresolved,
+      },
+    })
     return
   }
   const current = await fingerprintWorkspaceTree({ cwd: plan.path }).catch(() => null)
