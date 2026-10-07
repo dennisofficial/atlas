@@ -11,7 +11,7 @@ import {
   type ModelRef,
   type SettingsResolution,
 } from '@dltech/atlas-core'
-import type { SettingsService } from '../settings/service'
+import type { SettingsService, SettingsWrite } from '../settings/service'
 import type { ThreadModel } from '../store/thread-store'
 
 import { DEFAULT_MODEL_REF } from './config'
@@ -141,8 +141,8 @@ export function rememberSettingModel(args: {
   settings: SettingsService
   target: { id: string; withEffort: boolean }
   selection: ModelSelection
-}): void {
-  args.settings.set({ id: args.target.id, value: refKey(args.selection.ref) })
-  if (!args.target.withEffort) return
-  args.settings.set({ id: ESettingId.ModelEffort, value: args.selection.effort })
+}): SettingsWrite {
+  const written = args.settings.set({ id: args.target.id, value: refKey(args.selection.ref) })
+  if (!written.ok || !args.target.withEffort) return written
+  return args.settings.set({ id: ESettingId.ModelEffort, value: args.selection.effort })
 }

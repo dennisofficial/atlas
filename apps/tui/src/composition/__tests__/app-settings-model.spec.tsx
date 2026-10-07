@@ -1,5 +1,6 @@
 import {
   agentTypeModelDefinitions,
+  EDefinitionOrigin,
   agentTypeSettingId,
   choiceValueOf,
   DEFAULT_EFFORT,
@@ -115,7 +116,7 @@ const rowShowing = (setup: Mounted, needle: string): string =>
 describe('the model-kind settings rows', () => {
   it('opens an unset teammate picker on the current main agent rather than the sub-agent model', async () => {
     const app = appWith()
-    app.settings.register(agentTypeModelDefinitions({ typeNames: ['teammate'] }))
+    app.settings.register(agentTypeModelDefinitions({ types: [{ name: 'teammate', origin: EDefinitionOrigin.BuiltIn }] }))
     app.settings.set({ id: ESettingId.ModelId, value: 'anthropic/claude-opus-5' })
     app.settings.set({ id: ESettingId.SubagentModel, value: 'anthropic/claude-haiku-4-5' })
     const setup = await testRender(

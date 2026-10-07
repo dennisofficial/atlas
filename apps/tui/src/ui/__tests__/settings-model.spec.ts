@@ -1,6 +1,7 @@
 import {
   ATLAS_SETTINGS,
   agentTypeModelDefinitions,
+  EDefinitionOrigin,
   agentTypeSettingId,
   ESettingId,
   ESettingPage,
@@ -18,6 +19,9 @@ import {
   settingsModel,
   type SettingsModel,
 } from '../settings-model'
+
+const builtIn = (names: readonly string[]) =>
+  names.map((name) => ({ name, origin: EDefinitionOrigin.BuiltIn }))
 
 const modelWith = (layers: readonly SettingsLayerInput[] = []): SettingsModel =>
   settingsModel({
@@ -99,7 +103,7 @@ describe('settingsModel', () => {
   it('groups a late-registered teammate with the main model and keeps navigation in visual order', () => {
     const definitions = [
       ...ATLAS_SETTINGS,
-      ...agentTypeModelDefinitions({ typeNames: ['builder', 'teammate', 'explore'] }),
+      ...agentTypeModelDefinitions({ types: builtIn(['builder', 'teammate', 'explore']) }),
     ]
     const model = settingsModel({
       definitions,
@@ -110,7 +114,7 @@ describe('settingsModel', () => {
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 3],
       ['Background processes', 3],
-      ['Sub-agent types', 2],
+      ['Built-in sub-agents', 2],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
       ESettingId.ModelId,

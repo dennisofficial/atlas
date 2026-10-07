@@ -3,7 +3,6 @@ import {
   adjustSetting,
   ESettingKind,
   ESettingPage,
-  type ResolvedSetting,
   type SettingValue,
 } from '@dltech/atlas-core'
 import type { SettingsWrite } from '@dltech/atlas-harness'
@@ -13,9 +12,11 @@ import { useCallback } from 'react'
 import {
   currentPage,
   currentRow,
+  isOverriddenSetting,
   movePage,
   moveRow,
   type SettingsModel,
+  type SettingsRow,
   type SettingsState,
 } from '../ui/settings-model'
 import type { AtlasApp } from './compose'
@@ -66,9 +67,9 @@ export function useSettingsKeys(args: {
   )
 
   const write = useCallback(
-    (target: SettingsState, next: (row: ResolvedSetting) => SettingValue) => {
+    (target: SettingsState, next: (row: SettingsRow) => SettingValue) => {
       const row = currentRow({ state: cloudRow(target), model: view })
-      if (row === undefined) return
+      if (row === undefined || isOverriddenSetting(row)) return
 
       settle(app.settings.set({ id: row.definition.id, value: next(row) }))
     },
@@ -78,7 +79,7 @@ export function useSettingsKeys(args: {
   const handleClearValue = useCallback(
     (target: SettingsState) => {
       const row = currentRow({ state: cloudRow(target), model: view })
-      if (row === undefined) return
+      if (row === undefined || isOverriddenSetting(row)) return
       if (row.definition.kind !== ESettingKind.Model && row.definition.kind !== ESettingKind.Text) {
         return
       }
@@ -106,7 +107,7 @@ export function useSettingsKeys(args: {
       }
 
       const row = currentRow({ state: cloudRow(target), model: view })
-      if (row === undefined) return
+      if (row === undefined || isOverriddenSetting(row)) return
 
       if (row.definition.kind === ESettingKind.Secret) {
         secret.open(row.definition.id)

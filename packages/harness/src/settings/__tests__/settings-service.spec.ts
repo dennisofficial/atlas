@@ -1,4 +1,11 @@
-import { agentTypeModelDefinitions, ATLAS_SETTINGS, EMPTY_SETTINGS_DOCUMENT, ESettingId, ESettingsLayer } from '@dltech/atlas-core'
+import {
+  agentTypeModelDefinitions,
+  ATLAS_SETTINGS,
+  EDefinitionOrigin,
+  EMPTY_SETTINGS_DOCUMENT,
+  ESettingId,
+  ESettingsLayer,
+} from '@dltech/atlas-core'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,6 +25,8 @@ const serviceWith = (args: { user: MemorySettingsStore; project?: MemorySettings
       ? {}
       : { environment: environmentLayer({ definitions: ATLAS_SETTINGS, env: args.env }) }),
   })
+
+const EXPLORE_TYPE = [{ name: 'explore', origin: EDefinitionOrigin.BuiltIn }]
 
 describe('createSettingsService', () => {
   let user: MemorySettingsStore
@@ -118,7 +127,7 @@ describe('createSettingsService', () => {
     expect(service.snapshot().resolution.settings.has('agents.type.explore')).toBe(false)
 
     service.register(
-      agentTypeModelDefinitions({ typeNames: ['explore'] }).map((definition) => ({ ...definition })),
+      agentTypeModelDefinitions({ types: EXPLORE_TYPE }).map((definition) => ({ ...definition })),
     )
 
     expect(told).toBe(1)
@@ -136,8 +145,8 @@ describe('createSettingsService', () => {
       told += 1
     })
 
-    service.register(agentTypeModelDefinitions({ typeNames: ['explore'] }))
-    service.register(agentTypeModelDefinitions({ typeNames: ['explore'] }))
+    service.register(agentTypeModelDefinitions({ types: EXPLORE_TYPE }))
+    service.register(agentTypeModelDefinitions({ types: EXPLORE_TYPE }))
 
     expect(told).toBe(1)
   })

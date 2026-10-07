@@ -1,6 +1,7 @@
 import {
   ATLAS_SETTINGS,
   agentTypeModelDefinitions,
+  EDefinitionOrigin,
   agentTypeSettingId,
   ESettingsLayer,
 } from '@dltech/atlas-core'
@@ -9,9 +10,12 @@ import { describe, expect, it } from 'bun:test'
 import { glyph } from '../theme'
 import { NARROW, WIDE, page, rowsOf, rowWith } from './settings-render-fixture'
 
+const builtIn = (names: readonly string[]) =>
+  names.map((name) => ({ name, origin: EDefinitionOrigin.BuiltIn }))
+
 const definitions = [
   ...ATLAS_SETTINGS,
-  ...agentTypeModelDefinitions({ typeNames: ['builder', 'explore', 'teammate'] }),
+  ...agentTypeModelDefinitions({ types: builtIn(['builder', 'explore', 'teammate']) }),
 ]
 const state = { pageIndex: 1, rowIndex: 2 }
 
@@ -21,7 +25,7 @@ describe('teammate model settings', () => {
       const rows = await rowsOf(page({ definitions, state, width }), width)
       const teammates = rows.findIndex((row) => row.includes('Teammates'))
       const background = rows.findIndex((row) => row.includes('BACKGROUND PROCESSES'))
-      const subagents = rows.findIndex((row) => row.includes('SUB-AGENT TYPES'))
+      const subagents = rows.findIndex((row) => row.includes('BUILT-IN SUB-AGENTS'))
 
       expect(teammates).toBeGreaterThan(rows.findIndex((row) => row.includes('Default effort')))
       expect(teammates).toBeLessThan(background)

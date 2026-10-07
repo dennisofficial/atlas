@@ -85,8 +85,14 @@ export function useSettings(args: {
   const [refused, setRefused] = useState<string | null>(null)
 
   const view = useMemo(
-    () => settingsModel({ definitions: app.settings.definitions, resolution: held.resolution }),
-    [app.settings.definitions, held.resolution],
+    () =>
+      settingsModel({
+        definitions: app.settings.definitions,
+        resolution: held.resolution,
+        shadowedAgentTypes: app.agentTypes.shadowed,
+        writeOriginOf: app.settings.writeOrigin,
+      }),
+    [app.agentTypes.shadowed, app.settings.definitions, app.settings.writeOrigin, held.resolution],
   )
 
   const { accent, density, composer, imageRows, fenceWrap } = appearanceOf({

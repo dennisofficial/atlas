@@ -9,7 +9,14 @@ import React, { useEffect, useRef } from 'react'
 
 import { fitHints, hintSpans, type Hint } from '../hint-layout'
 import { useClickRegion } from '../hooks/use-click-region'
-import { currentPage, type SettingsModel, type SettingsState } from '../settings-model'
+import { destinationOf } from '../settings-destination'
+import {
+  currentPage,
+  isOverriddenSetting,
+  settingRowKey,
+  type SettingsModel,
+  type SettingsState,
+} from '../settings-model'
 import { ESettingsLogin, type SettingsLoginState } from '../settings-login-model'
 import { theme } from '../theme'
 import type { QualityHealthStatusProps } from '../../composition/use-workspace-quality-health'
@@ -31,6 +38,12 @@ export const SETTINGS_ROWS_MIN_CELLS = 60
 const HINTS: readonly Hint[] = [
   { key: '↑↓', label: 'row' },
   { key: '⏎', label: 'set' },
+  { key: '⇥', label: 'tab' },
+  { key: 'esc', label: 'back' },
+]
+
+const READ_ONLY_HINTS: readonly Hint[] = [
+  { key: '↑↓', label: 'row' },
   { key: '⇥', label: 'tab' },
   { key: 'esc', label: 'back' },
 ]
@@ -127,12 +140,14 @@ export function Settings(props: {
   const rowIndex = signInRowHeld ? props.state.rowIndex - 1 : props.state.rowIndex
   const selected = rowsActive && rowIndex >= 0 ? page?.rows[rowIndex] : undefined
 
+  const destination = destinationOf({ setting: selected, fallback: props.origin })
+
   const status =
     props.problem ??
     (onCloudPage
       ? 'providers and api keys live in the accounts overlay — ctrl+a'
       : props.prompt === null
-        ? `edits write to ${props.origin}`
+        ? destination.status
         : `sealed into ${props.secretOrigin}, never into ${props.origin}`)
 
   const hints =
@@ -140,18 +155,20 @@ export function Settings(props: {
       ? props.cloudSignIn.status === ESettingsLogin.Idle
         ? CLOUD_HINTS_SIGNED_OUT_IDLE
         : CLOUD_HINTS_SIGNED_OUT_PENDING
-      : HINTS
+      : selected !== undefined && isOverriddenSetting(selected)
+        ? READ_ONLY_HINTS
+        : HINTS
 
   const scroller = useRef<ScrollBoxRenderable | null>(null)
-  const selectedId = selected?.definition.id
+  const selectedKey = selected === undefined ? undefined : settingRowKey(selected)
   useEffect(() => {
     if (onQualityPage && props.state.rowIndex === 0) {
       scroller.current?.scrollTo(0)
       return
     }
-    if (selectedId === undefined) return
-    scroller.current?.scrollChildIntoView(`setting-${selectedId}`)
-  }, [onQualityPage, props.state.rowIndex, selectedId])
+    if (selectedKey === undefined) return
+    scroller.current?.scrollChildIntoView(`setting-${selectedKey}`)
+  }, [onQualityPage, props.state.rowIndex, selectedKey])
 
   return (
     <box
@@ -168,7 +185,7 @@ export function Settings(props: {
         cells={settingsCells({ width: props.width })}
         pages={props.model.pages.map((held) => held.page)}
         pageIndex={props.state.pageIndex}
-        origin={props.origin}
+        origin={destination.origin}
       />
       <box flexDirection="row" flexGrow={1} flexShrink={1} flexBasis={0}>
         <box
@@ -213,11 +230,11 @@ export function Settings(props: {
                   <SettingsGroupHeader label={group.label} />
                   {group.rows.map((row) => (
                     <SelectableSettingLine
-                      key={row.definition.id}
+                      key={settingRowKey(row)}
                       setting={row}
                       cells={cells}
                       override={props.secretOf(row.definition.id)}
-                      selected={row.definition.id === selected?.definition.id}
+                      selected={selected !== undefined && settingRowKey(row) === settingRowKey(selected)}
                       onSelect={() =>
                         props.onSelect({
                           pageIndex: props.state.pageIndex,
@@ -245,7 +262,7 @@ export function Settings(props: {
             cells={cells}
             hints={hints}
             status={status}
-            failing={props.problem !== undefined}
+            failing={props.problem !== undefined || destination.failing}
             onDismiss={props.onDismiss}
           />
         </box>

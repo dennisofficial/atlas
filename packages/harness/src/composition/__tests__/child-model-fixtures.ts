@@ -230,7 +230,7 @@ export const pinSubagent = (fixture: ChildModelFixture, ref: ModelRef): void => 
 }
 
 export const pinType = (fixture: ChildModelFixture, args: { type: string; ref: ModelRef }): void => {
-  fixture.settings.register(agentTypeModelDefinitions({ typeNames: [args.type] }))
+  fixture.settings.register(agentTypeModelDefinitions({ types: [{ name: args.type, origin: EDefinitionOrigin.BuiltIn }] }))
   const written = fixture.settings.set({ id: agentTypeSettingId(args.type), value: keyOf(args.ref) })
   if (!written.ok) throw new Error('the agent-type model pin did not land')
 }
