@@ -13,6 +13,7 @@ import { logFieldsOf } from '../../store/logs'
 import type { ThreadStorePort } from '../../store/thread-store'
 import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
 import { restoredDirectoryOf } from './workspace-arrival'
+import { storedFamilyIds } from './family-arrival'
 
 export type LiftAgentsPort = Pick<
   AgentRegistryPort,
@@ -41,50 +42,53 @@ const cloudDirectoryOf = async ({
   restored: RestoredWorkspace | undefined
 }): Promise<string> => {
   if (restored === undefined) return CLOUD_WORKSPACE_PATH
+  const member = restored.family?.threads.find((entry) => entry.threadId === threadId)
+  if (member !== undefined) return member.active?.path ?? member.home
+  if (restored.family !== undefined) throw new Error(`the restored family has no workspace mapping for ${threadId}`)
   const stored = await localThreads.find({ threadId })
   const events = await localLog.readOwn({ threadId })
   const source = projectDirectoryOf({ events, launchDirectory: stored?.workspace ?? restored.cwd })
   return restoredDirectoryOf({ source, restored }).path
 }
 
-/**
- * The flip half of the family move, taken once the parent's own flip has landed: each child's local
- * row goes to the cloud, and the notice goes to its local log so its transcript says where it went.
- * The logs themselves never move here — the whole family lives in the parent's session directory,
- * which the lift's archive carries in one piece.
- */
 export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
   const { threadId, ids, agents, localThreads, localLog } = args
-  const children = agents.list({ threadId })
+  const owners = await storedFamilyIds({ threadId, threads: localThreads })
+  const children = args.restoredWorkspace?.family === undefined
+    ? [...new Set([...owners.slice(1), ...agents.list({ threadId }).map((child) => child.agentId)])]
+    : owners.slice(1)
   if (children.length === 0) return
 
   const froms = new Map<ThreadId, EExecutionLocation>()
   for (const child of children) {
-    const stored = await localThreads.find({ threadId: child.agentId })
-    froms.set(child.agentId, stored?.executionLocation ?? EExecutionLocation.Host)
+    const stored = await localThreads.find({ threadId: child })
+    froms.set(child, stored?.executionLocation ?? EExecutionLocation.Host)
     await localThreads.chooseExecutionLocation({
-      threadId: child.agentId,
+      threadId: child,
       location: EExecutionLocation.Cloud,
     })
   }
 
-  await agents.markChildrenRelocated({ threadId, location: EExecutionLocation.Cloud })
+  for (const owner of owners) {
+    if (owner !== threadId && (await localThreads.spawned({ threadId: owner })).length === 0) continue
+    await agents.markChildrenRelocated({ threadId: owner, location: EExecutionLocation.Cloud })
+  }
 
   for (const child of children) {
     const cwd = await cloudDirectoryOf({
-      threadId: child.agentId,
+      threadId: child,
       localThreads,
       localLog,
       restored: args.restoredWorkspace,
     })
     await localLog
       .append({
-        threadId: child.agentId,
+        threadId: child,
         runId: ids.nextRunId(),
         drafts: [
           {
             type: 'location-changed',
-            from: froms.get(child.agentId) ?? EExecutionLocation.Host,
+            from: froms.get(child) ?? EExecutionLocation.Host,
             to: EExecutionLocation.Cloud,
             cwd,
           },
@@ -95,7 +99,7 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
           source: 'cloud.lift',
           message: "a child's location-changed notice never reached its local log",
           threadId: args.threadId,
-          data: { childId: child.agentId, operation: 'append-child-location-changed' },
+          data: { childId: child, operation: 'append-child-location-changed' },
           ...logFieldsOf({ error }),
         })
       })
@@ -109,20 +113,15 @@ export async function flipChildrenBack(args: {
   location: EExecutionLocation
 }): Promise<void> {
   const { threadId, localThreads, agents, location } = args
-  if (agents.list({ threadId }).length === 0) return
-
-  await agents.markChildrenRelocated({ threadId, location }).catch(() => undefined)
-  for (const child of agents.list({ threadId })) {
-    await localThreads
-      .chooseExecutionLocation({ threadId: child.agentId, location })
-      .catch(() => undefined)
+  const owners = await storedFamilyIds({ threadId, threads: localThreads })
+  const children = new Set(owners.filter((id) => id !== threadId))
+  for (const owner of owners) {
+    for (const child of agents.list({ threadId: owner })) children.add(child.agentId)
+    if (owner === threadId || (await localThreads.spawned({ threadId: owner })).length > 0) await agents.markChildrenRelocated({ threadId: owner, location })
   }
+  for (const child of children) await localThreads.chooseExecutionLocation({ threadId: child, location })
 }
 
-/**
- * A failed lift leaves the family working: children it stopped get resumed where they were, since
- * the sandbox that would have adopted them is never coming.
- */
 export async function resumeStoppedChildren(args: {
   agents: LiftAgentsPort
   threadId: ThreadId

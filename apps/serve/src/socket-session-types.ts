@@ -17,7 +17,7 @@ import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
 import type { answerWorkspaceTransfer } from './workspace-ops'
 
-type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate'>
+type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate' | 'confirmCleanup'>
 
 export type SocketState = {
   helloed: boolean

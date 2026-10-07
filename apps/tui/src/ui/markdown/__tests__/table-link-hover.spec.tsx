@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
+import { rgbToHex } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 
 import { installLinkClickOpen, notifyLinkHover } from '../../../composition/link-click'
+import { linkHoverStyle } from '../../link-hover-style'
 import { theme } from '../../theme'
 import { TableBlock } from '../table-block'
 import { teardown } from './harness'
@@ -10,8 +12,6 @@ import { teardown } from './harness'
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const TABLE = '| Name | Link |\n| --- | --- |\n| a | [Table target](t/one.md) |\n| b | [Other target](t/two.md) |'
-
-const HOVER_BG = [0x2b, 0x27, 0x24]
 
 type Setup = Awaited<ReturnType<typeof testRender>>
 
@@ -46,25 +46,29 @@ function locate(args: { setup: Setup; label: string }): { x: number; y: number }
   return { x: (lines[y] ?? '').indexOf(args.label) + 1, y }
 }
 
-function bgAt(args: { setup: Setup; x: number; y: number }): number[] | null {
+type Ink = { fg: string; bg: string }
+
+function inkAt(args: { setup: Setup; x: number; y: number }): Ink | null {
   const row = args.setup.captureSpans().lines[args.y]
   if (row === undefined) return null
   let cursor = 0
   for (const span of row.spans) {
-    if (args.x < cursor + span.width) return span.bg.toInts().slice(0, 3)
+    if (args.x < cursor + span.width) return { fg: rgbToHex(span.fg), bg: rgbToHex(span.bg) }
     cursor += span.width
   }
   return null
 }
 
+const HOVER: Ink = linkHoverStyle(theme.link)
+
 describe('native table link hover', () => {
-  it('washes only the hovered link with the theme hover background and restores it on leave', async () => {
+  it('inverts only the hovered link and restores it on leave', async () => {
     const setup = await mount()
     const target = locate({ setup, label: 'Table target' })
     const other = locate({ setup, label: 'Other target' })
-    expect(theme.hoverBg).toBe('#2b2724')
-    const before = bgAt({ setup, ...target })
-    expect(before).not.toEqual(HOVER_BG)
+    const before = inkAt({ setup, ...target })
+    expect(before?.fg).toBe(theme.link)
+    expect(before).not.toEqual(HOVER)
 
     await act(async () => {
       await setup.mockMouse.moveTo(target.x, target.y)
@@ -72,8 +76,8 @@ describe('native table link hover', () => {
     await act(async () => {
       await setup.flush()
     })
-    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
-    expect(bgAt({ setup, ...other })).toEqual(before)
+    expect(inkAt({ setup, ...target })).toEqual(HOVER)
+    expect(inkAt({ setup, ...other })).toEqual(before)
 
     await act(async () => {
       await setup.mockMouse.moveTo(other.x, other.y)
@@ -81,8 +85,8 @@ describe('native table link hover', () => {
     await act(async () => {
       await setup.flush()
     })
-    expect(bgAt({ setup, ...other })).toEqual(HOVER_BG)
-    expect(bgAt({ setup, ...target })).toEqual(before)
+    expect(inkAt({ setup, ...other })).toEqual(HOVER)
+    expect(inkAt({ setup, ...target })).toEqual(before)
 
     await act(async () => {
       await setup.mockMouse.moveTo(0, 9)
@@ -90,10 +94,10 @@ describe('native table link hover', () => {
     await act(async () => {
       await setup.flush()
     })
-    expect(bgAt({ setup, ...other })).toEqual(before)
+    expect(inkAt({ setup, ...other })).toEqual(before)
   })
 
-  it('washes inside a table that pans horizontally', async () => {
+  it('inverts inside a table that pans horizontally', async () => {
     const wide = `${TABLE.split('\n').map((line, row) => `${line} ${row === 1 ? '--- |' : `${'x'.repeat(50)} |`}`).join('\n')}`
     const setup = await mount({ markdown: wide, width: 30 })
     const target = locate({ setup, label: 'Table target' })
@@ -103,7 +107,7 @@ describe('native table link hover', () => {
     await act(async () => {
       await setup.flush()
     })
-    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
+    expect(inkAt({ setup, ...target })).toEqual(HOVER)
   })
 })
 
@@ -121,9 +125,11 @@ describe('table header link destinations', () => {
     expect(setup.renderer.getLinkAt(site.x, site.y)).toBe('www.x.io/Path')
   })
 
-  it('washes a header link on hover and still reports its destination', async () => {
+  it('inverts a header link on hover and still reports its destination', async () => {
     const setup = await mount({ markdown: '| [Guide](docs/Read.md) |\n| --- |\n| x |' })
     const at = locate({ setup, label: 'GUIDE' })
+    const resting = inkAt({ setup, ...at })
+    expect(resting).not.toBeNull()
     await act(async () => {
       await setup.mockMouse.moveTo(at.x, at.y)
     })
@@ -131,7 +137,8 @@ describe('table header link destinations', () => {
       await setup.flush()
     })
     expect(setup.renderer.getLinkAt(at.x, at.y)).toBe('docs/Read.md')
-    expect(bgAt({ setup, ...at })).toEqual(HOVER_BG)
+    expect(inkAt({ setup, ...at })).toEqual(linkHoverStyle(resting?.fg ?? ''))
+    expect(frameText(setup)).toContain('GUIDE')
   })
 })
 
@@ -166,21 +173,21 @@ describe('table content updates under a stationary pointer', () => {
       await setup.mockMouse.moveTo(target.x, target.y)
     })
     await settleFrames(setup)
-    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
+    expect(inkAt({ setup, ...target })).toEqual(HOVER)
     return { setup, target }
   }
 
-  it('repaints the wash after a streamed row arrives', async () => {
+  it('repaints the inversion after a streamed row arrives', async () => {
     const { setup, target } = await hovered(TABLE)
     await act(async () => {
       swap.current?.(`${TABLE}\n| c | [Third target](t/three.md) |`)
     })
     await settleFrames(setup)
     expect(setup.captureCharFrame()).toContain('Third target')
-    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
+    expect(inkAt({ setup, ...target })).toEqual(HOVER)
   })
 
-  it('repaints the wash after the cell under the pointer is rewritten', async () => {
+  it('repaints the inversion after the cell under the pointer is rewritten', async () => {
     const { setup } = await hovered(TABLE)
     await act(async () => {
       swap.current?.(TABLE.replace('| a |', '| changed |'))
@@ -188,15 +195,15 @@ describe('table content updates under a stationary pointer', () => {
     await settleFrames(setup)
     expect(setup.captureCharFrame()).toContain('changed')
     const moved = locate({ setup, label: 'Table target' })
-    expect(bgAt({ setup, ...moved })).toEqual(HOVER_BG)
+    expect(inkAt({ setup, ...moved })).toEqual(HOVER)
   })
 
-  it('preserves the wash and uppercase header when terminal capabilities rebuild the table', async () => {
+  it('preserves the inversion and uppercase header when terminal capabilities rebuild the table', async () => {
     const { setup, target } = await hovered(TABLE)
     await act(async () => { setup.renderer.emit('capabilities', { ...setup.renderer.capabilities, hyperlinks: true }) })
     await settleFrames(setup)
     expect(setup.captureCharFrame()).toContain('NAME')
-    expect(bgAt({ setup, ...target })).toEqual(HOVER_BG)
+    expect(inkAt({ setup, ...target })).toEqual(HOVER)
   })
 
   it('paints the current hover on first mount', async () => {
@@ -208,6 +215,6 @@ describe('table content updates under a stationary pointer', () => {
     installLinkClickOpen({ renderer: fresh.renderer, openUrl: () => undefined, openFile: () => undefined })
     notifyLinkHover('t/one.md')
     await settleFrames(fresh)
-    expect(bgAt({ setup: fresh, ...target })).toEqual(HOVER_BG)
+    expect(inkAt({ setup: fresh, ...target })).toEqual(HOVER)
   })
 })

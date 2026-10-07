@@ -1,5 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { PrepareWorkspaceArchiveReply } from '@dltech/atlas-wire'
+import type { ConfirmWorkspaceCleanupReply, PrepareWorkspaceArchiveReply } from '@dltech/atlas-wire'
+import { verifySourceCleanupProof, type SourceCleanupProof } from '@dltech/atlas-harness'
 
 import { prepareWorkspaceExport, type WorkspaceCapturer } from './prepare-workspace'
 import type { DirectWorkspace } from './direct-workspace'
@@ -12,7 +13,8 @@ export function createWorkspaceSession(args: {
   driveHome: string
   threadId: ThreadId
   launchDirectory: () => string
-  app: Pick<ServeApp, 'log' | 'stopWorkspaceProcesses' | 'family'>
+  app: Pick<ServeApp, 'log' | 'stopWorkspaceProcesses' | 'family'> & Partial<Pick<ServeApp, 'threads'>>
+  sourceSessionId?: string | undefined
   capture?: WorkspaceCapturer | undefined
   dormant: boolean
   startChildren: () => Promise<void>
@@ -20,6 +22,7 @@ export function createWorkspaceSession(args: {
   let dormant = args.dormant
   let activating: Promise<{ activated: boolean }> | undefined
   let preparing: Promise<PrepareWorkspaceArchiveReply> | undefined
+  let cleanupProof: SourceCleanupProof | undefined
 
   const activate = (): Promise<{ activated: boolean }> => {
     if (!dormant) return Promise.resolve({ activated: true })
@@ -45,11 +48,21 @@ export function createWorkspaceSession(args: {
           launchDirectory: args.launchDirectory(),
           primaryWorkspace: receipt?.restored,
           log: args.app.log,
+          threads: args.app.threads,
+          sourceSessionId: args.sourceSessionId,
+          onCleanupProof: (proof) => { cleanupProof = proof },
           capture: args.capture,
           stopProcesses: args.app.stopWorkspaceProcesses,
         })
       })().finally(() => { preparing = undefined })
       return preparing
+    },
+
+    confirmCleanup: async ({ generation }: { generation: string }): Promise<ConfirmWorkspaceCleanupReply> => {
+      const sourceSessionId = args.sourceSessionId ?? ''
+      if (cleanupProof === undefined || cleanupProof.generation !== generation) return { safe: false, reasons: ['the source has no matching prepared cleanup generation'], sourceSessionId }
+      const verdict = await verifySourceCleanupProof({ proof: cleanupProof, sourceSessionId })
+      return { ...verdict, sourceSessionId }
     },
 
     apply: async () => {

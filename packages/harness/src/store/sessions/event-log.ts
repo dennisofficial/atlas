@@ -15,6 +15,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { trackFamilyOwnership } from '../../workspace/family-ownership'
 import { contextIdentityOf, planAppend, type ContextIdentity } from '../append-plan'
 import { EUnreadableReason, type UnreadableRow } from '../decode-events'
 import { planSegments } from './compose'
@@ -152,6 +153,13 @@ export class JsonlEventLog implements EventLogPort {
     const reusable = await this.loadReusableContext({ threadId: args.threadId, drafts: args.drafts })
     const plan = planAppend({ drafts: args.drafts, reusable })
     if (plan.fresh.length === 0) return plan.resolve([])
+    await trackFamilyOwnership({
+      sessionDir,
+      registry: this.registry,
+      threadId: args.threadId,
+      drafts: plan.fresh,
+      workspace: meta.workspace,
+    })
 
     const firstSeq = log.head + 1
     const prepared = plan.fresh.map((draft, index) => {

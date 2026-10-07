@@ -99,14 +99,19 @@ async function handleDispatch(): Promise<number> {
       return handleValidateCommand({ argv: rest })
     case 'compare':
       return handleCompareCommand({ argv: rest })
+    case 'efficacy-report': {
+      const { handleEfficacyCommand } = await import('./efficacy-cli')
+      return handleEfficacyCommand({ argv: rest })
+    }
     case 'export-examples':
     case 'curate':
-    case 'label-review': {
+    case 'label-review':
+    case 'import-history': {
       const { handleCurationCommand } = await import('./curation-cli')
       return handleCurationCommand({ command, argv: rest })
     }
     default:
-      throw new ArgParseError(`unknown command "${command ?? ''}"; expected run|validate|compare|export-examples|curate|label-review`)
+      throw new ArgParseError(`unknown command "${command ?? ''}"; expected run|validate|compare|efficacy-report|export-examples|curate|label-review|import-history`)
   }
 }
 

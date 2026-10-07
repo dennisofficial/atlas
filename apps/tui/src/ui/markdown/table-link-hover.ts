@@ -1,8 +1,9 @@
-import { RGBA, TextTableRenderable, type MarkdownRenderable, type Renderable, type TextChunk, type TextTableContent } from '@opentui/core'
+import { RGBA, rgbToHex, TextTableRenderable, type MarkdownRenderable, type Renderable, type TextChunk, type TextTableContent } from '@opentui/core'
 import { useLayoutEffect, type RefObject } from 'react'
 import { useRenderer } from '@opentui/react'
 
 import { linkHoverUrl, subscribeLinkHover } from '../../composition/link-click'
+import { linkHoverStyle } from '../link-hover-style'
 import { theme } from '../theme'
 
 type Decorated = { original: TextTableContent; applied: TextTableContent }
@@ -24,10 +25,14 @@ function upperHeaderCell(cell: TextChunk[]): TextChunk[] {
   return upper
 }
 
+function invert(chunk: TextChunk): TextChunk {
+  const style = linkHoverStyle(chunk.fg === undefined ? theme.link : rgbToHex(chunk.fg))
+  return { ...chunk, fg: RGBA.fromHex(style.fg), bg: RGBA.fromHex(style.bg) }
+}
+
 function washCell(args: { cell: TextChunk[]; url: string }): TextChunk[] {
   if (!args.cell.some((chunk) => chunk.link?.url === args.url)) return args.cell
-  const bg = RGBA.fromHex(theme.hoverBg)
-  return args.cell.map((chunk) => (chunk.link?.url === args.url ? { ...chunk, bg } : chunk))
+  return args.cell.map((chunk) => (chunk.link?.url === args.url ? invert(chunk) : chunk))
 }
 
 function decorate(args: { content: TextTableContent; url: string | null }): TextTableContent {

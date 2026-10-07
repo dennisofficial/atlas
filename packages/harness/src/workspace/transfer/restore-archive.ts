@@ -3,6 +3,7 @@ import { readFile, rm, writeFile, stat } from 'node:fs/promises'
 import { join, posix } from 'node:path'
 import { createGunzip } from 'node:zlib'
 
+import { assertFamilyManifest } from './family-manifest'
 import { workspaceManifestSchema, type WorkspaceManifest } from './manifest'
 
 const BLOCK = 512
@@ -221,6 +222,7 @@ const assertManifest = (manifest: WorkspaceManifest): void => {
   if (!ids.has(manifest.activeId)) throw new Error('archive manifest names an active tree that does not exist')
   if (unsafe) throw new Error(`archive manifest has an unsafe active path: ${relative}`)
   if (manifest.repository === null && manifest.trees.length !== 1) throw new Error('archive manifest has several trees but no repository')
+  if (manifest.family !== undefined) assertFamilyManifest({ trees: manifest.trees, family: manifest.family, plain: manifest.repository === null })
 }
 
 export async function extractWorkspaceArchive({

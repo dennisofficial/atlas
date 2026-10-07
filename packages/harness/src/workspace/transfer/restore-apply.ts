@@ -6,7 +6,8 @@ import { exists, makeDirs, mergeInto, moveEntry, stashEntry } from './restore-fi
 import { git, importObjects, mustGit } from './restore-git'
 import { OPERATION_STATE_ROOTS } from './git-state'
 import { sweepOriginals } from './restore-snapshot'
-import { importOtherRefs, loadRefState, settleBranch, type RefState } from './restore-refs'
+import { isPrivateRefName } from './capture-refs'
+import { importOtherRefs, installMainPrivateRefs, isRelocatedMain, loadRefState, settleBranch, type RefState } from './restore-refs'
 import { ETreeAction, type PlannedTree, type RestoreContext, type TreeOutcome } from './restore-types'
 
 const HEADS = 'refs/heads/'
@@ -101,9 +102,9 @@ async function addWorktree({ ctx, planned, branch }: { ctx: RestoreContext; plan
   })
 }
 
-async function alignHead({ ctx, planned }: { ctx: RestoreContext; planned: PlannedTree }) {
+async function alignHead({ ctx, planned, target }: { ctx: RestoreContext; planned: PlannedTree; target: string | null }) {
   const current = (await git({ args: ['symbolic-ref', '-q', 'HEAD'], cwd: planned.path })).stdout.trim()
-  const branch = planned.tree.branch
+  const branch = target
   const wanted = branch === null ? '' : `${HEADS}${branch}`
   if (current === wanted || (branch === null && current === '')) return
   if (branch === null) await mustGit({ args: ['update-ref', '--no-deref', 'HEAD', planned.tree.head ?? ''], cwd: planned.path })
@@ -127,7 +128,7 @@ async function linkedTree({ ctx, planned, branch }: { ctx: RestoreContext; plann
   await installState({ ctx, planned, gitDir, skipHead: true })
   await copySharedIndexes({ ctx, gitDir })
   await placeIndex({ ctx, planned, gitDir })
-  if (planned.action === ETreeAction.InPlace) await alignHead({ ctx, planned })
+  if (planned.action === ETreeAction.InPlace) await alignHead({ ctx, planned, target: branch })
 }
 
 export async function applyPlain({ ctx }: { ctx: RestoreContext }): Promise<TreeOutcome[]> {
@@ -160,6 +161,7 @@ export async function applyExisting({ ctx }: { ctx: RestoreContext }): Promise<T
   const state: RefState = await loadRefState({ ctx, mainId: main.tree.id })
   await importObjects({ stageGit: state.stageGit, commonDir: ctx.commonDir, journal: ctx.journal })
   const outcomes: TreeOutcome[] = []
+  let relocatedMain = false
   for (const planned of ctx.plan.trees) {
     if (planned.action === ETreeAction.Reuse) {
       const head = (await git({ args: ['symbolic-ref', '-q', '--short', 'HEAD'], cwd: planned.path })).stdout.trim()
@@ -169,9 +171,16 @@ export async function applyExisting({ ctx }: { ctx: RestoreContext }): Promise<T
     if (planned.action === ETreeAction.InPlace) await assertStillReplaceable({ path: planned.path, tree: planned.tree, repoCwd: ctx.plan.repoCwd })
     const branch = await settleBranch({ ctx, state, planned })
     await linkedTree({ ctx, planned, branch })
+    if (isRelocatedMain({ ctx, planned })) {
+      await installMainPrivateRefs({ ctx, state, planned, gitDir: await gitDirOf(planned.path) })
+      relocatedMain = true
+    }
     outcomes.push(outcomeOf({ planned, branch }))
   }
-  const handled = new Set(ctx.manifest.trees.flatMap((tree) => (tree.branch === null ? [] : [`${HEADS}${tree.branch}`])))
+  const handled = new Set([
+    ...ctx.manifest.trees.flatMap((tree) => (tree.branch === null ? [] : [`${HEADS}${tree.branch}`])),
+    ...(relocatedMain ? [...state.incoming.keys()].filter(isPrivateRefName) : []),
+  ])
   await importOtherRefs({ ctx, state, handled })
   return outcomes
 }

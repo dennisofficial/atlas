@@ -196,15 +196,21 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     }
   }
 
-  const destroy = async (destroyArgs: { threadId: ThreadId }): Promise<void> => {
+  const destroy = async (destroyArgs: Parameters<CloudSandboxes['destroy']>[0]): Promise<void> => {
     const name = sandboxNameFor({ threadId: destroyArgs.threadId })
+    const expectedSandboxSessionId = destroyArgs.expectedSandboxSessionId
     let config: VercelSandboxConfig
     try {
       config = args.vercel()
-    } catch {
+    } catch (failure) {
+      if (expectedSandboxSessionId !== undefined) throw failure
       return
     }
-    await driverWith(config).destroy({ name, threadId: destroyArgs.threadId })
+    await driverWith(config).destroy({
+      name,
+      threadId: destroyArgs.threadId,
+      sessionId: expectedSandboxSessionId,
+    })
   }
 
   const bridgeSandboxes: CloudSandboxes = {

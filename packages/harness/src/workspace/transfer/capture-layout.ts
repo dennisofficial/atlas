@@ -6,7 +6,8 @@ import { parseWorktreePorcelain, type Worktree } from '../worktrees-parse'
 import { captureGit } from './capture-git'
 import { absoluteCommonDir } from './git-state'
 import { plainReceiptPath, readPlainWorkspaceReceipt } from './plain-receipt'
-import { workspaceReceiptSchema, type WorkspaceReceipt, type WorkspaceTree } from './manifest'
+import { canonicalizeFamily, selectFamilyWorktrees, type CanonicalFamily } from './capture-family'
+import { workspaceReceiptSchema, type WorkspaceFamilyCapture, type WorkspaceReceipt, type WorkspaceTree } from './manifest'
 
 export type LayoutTree = Omit<WorkspaceTree, 'fingerprint'> & { excludedRoots: string[] }
 
@@ -16,6 +17,7 @@ export type WorkspaceLayout = {
   activeId: string
   activeRelativePath: string
   trees: LayoutTree[]
+  family: CanonicalFamily | null
 }
 
 const RECEIPT_NAME = 'atlas-transfer.json'
@@ -51,7 +53,7 @@ const readReceipt = async ({ commonDir }: { commonDir: string }): Promise<Worksp
 const isInside = ({ parent, child }: { parent: string; child: string }): boolean =>
   child === parent || child.startsWith(parent.endsWith(sep) ? parent : `${parent}${sep}`)
 
-async function plainLayout(cwd: string): Promise<WorkspaceLayout> {
+async function plainLayout({ cwd, family }: { cwd: string; family: WorkspaceFamilyCapture | undefined }): Promise<WorkspaceLayout> {
   const receipt = await readPlainWorkspaceReceipt({ path: await plainReceiptPath({ root: cwd }) })
   const id = receipt?.treeId ?? MAIN_ID
   return {
@@ -59,6 +61,7 @@ async function plainLayout(cwd: string): Promise<WorkspaceLayout> {
     commonDir: null,
     activeId: id,
     activeRelativePath: '',
+    family: family === undefined ? null : await canonicalizeFamily({ family }),
     trees: [
       {
         id,
@@ -75,14 +78,21 @@ async function plainLayout(cwd: string): Promise<WorkspaceLayout> {
   }
 }
 
-export async function discoverLayout({ cwd: requested }: { cwd: string }): Promise<WorkspaceLayout> {
+export async function discoverLayout({
+  cwd: requested,
+  family,
+}: {
+  cwd: string
+  family?: WorkspaceFamilyCapture | undefined
+}): Promise<WorkspaceLayout> {
   const cwd = await realpath(requested)
   const top = await captureGit({ args: ['rev-parse', '--show-toplevel'], cwd })
-  if (!top.ok && NOT_A_REPOSITORY.test(top.stderr)) return plainLayout(cwd)
+  if (!top.ok && NOT_A_REPOSITORY.test(top.stderr)) return plainLayout({ cwd, family })
   if (!top.ok) throw new Error(`Cannot inspect ${cwd} as a git repository: ${top.stderr.trim()}`)
 
   const worktrees = await listCapturedWorktrees({ cwd })
-  const unusable = worktrees.find((worktree) => worktree.isBare || worktree.isPrunable)
+  const canonical = family === undefined ? null : await canonicalizeFamily({ family })
+  const unusable = canonical === null ? worktrees.find((worktree) => worktree.isBare || worktree.isPrunable) : undefined
   if (unusable !== undefined) {
     throw new Error(
       `Cannot capture worktree ${unusable.path}: it is ${unusable.isBare ? 'a bare repository' : 'missing on disk (prunable)'}`,
@@ -113,13 +123,19 @@ export async function discoverLayout({ cwd: requested }: { cwd: string }): Promi
   }
   const tree = layoutTree({ worktree: active })
   const main = worktrees.find((worktree) => worktree.isMain)
-  const trees = active.isMain || main === undefined ? [tree] : [layoutTree({ worktree: main }), tree]
+  const selected = canonical === null ? null : await selectFamilyWorktrees({ worktrees, family: canonical })
+  if (selected !== null && !selected.some((worktree) => worktree.path === active.path)) {
+    throw new Error(`${cwd} is inside checkout ${active.path}, which the family does not own`)
+  }
+  const legacyTrees = active.isMain || main === undefined ? [tree] : [layoutTree({ worktree: main }), tree]
+  const trees = selected === null ? legacyTrees : selected.map((worktree) => layoutTree({ worktree }))
   const root = main ?? active
   const segments = relative(active.path, cwd).split(sep).filter((part) => part.length > 0)
   return {
     repository: { sourcePath: root.path, originPath: receipt?.repositoryOrigin ?? root.path },
     commonDir,
     trees,
+    family: canonical,
     activeId: tree.id,
     activeRelativePath: segments.join('/'),
   }

@@ -33,7 +33,7 @@ import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
 import { answerWorkspaceTransfer, isWorkspaceTransferOp } from './workspace-ops'
 
-type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate'>
+type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate' | 'confirmCleanup'>
 
 export type RestoreOutcome = { restored: boolean; failed: string | null }
 

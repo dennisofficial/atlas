@@ -15,8 +15,7 @@ import {
 import type { AgentSnapshot } from '../../../agents/registry/snapshot'
 import { PlacementController } from '../../../composition/placement-controller'
 import { encodeEventLine } from '../../../store/sessions/lines'
-import { SESSION_FORMAT_VERSION } from '../../../store/sessions/meta'
-import { SESSION_META_NAME, sessionDirectory } from '../../../store/sessions/paths'
+import { sessionDirectory } from '../../../store/sessions/paths'
 import {
   fakeEventLog,
   fakeThreadStore,
@@ -27,8 +26,9 @@ import type { LiftAgentsPort } from '../lift-children'
 import type { LiftArgs } from '../lift'
 import type { RelocationWave } from '../waves'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge, type FakeBridge } from './fixture'
+import { FIXTURE_AT, FIXTURE_WORKSPACE, fixtureWorkspaceOf, seedLiftSession, type FixtureWorkspace } from './lift-fixture-workspace'
 
-const AT = '2026-09-16T12:00:00.000Z'
+const AT = FIXTURE_AT
 
 let ids = 0
 
@@ -129,21 +129,15 @@ export type Harness = {
   readonly settleWaits: number
 }
 
-/**
- * The lift tars the on-disk session dir, so a started conversation needs one under the staged
- * `ATLAS_HOME` — the fake stores never touch the disk, and an empty dir ships no transcript.
- */
-export const seedSessionDir = (args: { started?: boolean } = {}): void => {
+export const seedSessionDir = (args: { started?: boolean; placed?: FixtureWorkspace } = {}): void => {
   if (args.started === false) return
   const home = process.env['ATLAS_HOME']
   if (home === undefined) throw new Error('the spec must stage an ATLAS_HOME first')
-  const sessionDir = sessionDirectory({ home, sessionId: CLOUD_THREAD })
-  mkdirSync(join(sessionDir, 'threads'), { recursive: true })
-  writeFileSync(join(sessionDir, 'threads', `${CLOUD_THREAD}.events.jsonl`), LOCAL_LOG.map((event) => `${encodeEventLine({ draft: event, envelope: event })}\n`).join(''))
-  writeFileSync(
-    join(sessionDir, SESSION_META_NAME),
-    JSON.stringify({ format: SESSION_FORMAT_VERSION, id: CLOUD_THREAD }),
-  )
+  seedLiftSession({
+    home,
+    placed: args.placed ?? { workspace: FIXTURE_WORKSPACE, repo: null },
+    events: LOCAL_LOG,
+  })
 }
 
 export const harness = (
@@ -151,15 +145,17 @@ export const harness = (
 ): Harness => {
   const bridge = over.bridge ?? fakeBridge()
   const localLog = fakeEventLog([...LOCAL_LOG])
-  const localThreads = fakeThreadStore({ log: localLog, existing: [CLOUD_THREAD] })
+  const cwd = over.cwd ?? FIXTURE_WORKSPACE
+  const placed = fixtureWorkspaceOf({ cwd })
+  const localThreads = fakeThreadStore({ log: localLog, existing: [CLOUD_THREAD], workspace: placed.workspace, repo: placed.repo })
   const placement = new PlacementController(EExecutionLocation.Host)
-  placement.bind({ threads: localThreads, workspace: '/work', repo: '/work' })
+  placement.bind({ threads: localThreads, workspace: placed.workspace, repo: placed.repo ?? placed.workspace })
   let waves: RelocationWave[] = []
   const doneNodes: string[] = []
   let stops = 0
   let interrupts = 0
   let settleWaits = 0
-  seedSessionDir({ started: over.started ?? true })
+  seedSessionDir({ started: over.started ?? true, placed })
   const append = localLog.append.bind(localLog)
   localLog.append = async (request) => {
     const events = await append(request)

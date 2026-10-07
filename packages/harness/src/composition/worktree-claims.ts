@@ -1,6 +1,7 @@
-import { ENoticeTone, NOTICE_WARN_MS, type EventLogPort, type IdPort, type NoticePort, type ThreadId, type WorkspaceIdentity } from '@dltech/atlas-core'
+import { ENoticeTone, NOTICE_WARN_MS, projectDirectoryOf, type IdPort, type NoticePort, type ThreadId, type WorkspaceIdentity } from '@dltech/atlas-core'
 
-import type { DependencyContainer } from '../container/injection'
+import { portToken, resolveIfPossible, type DependencyContainer } from '../container/injection'
+import { EventLogPort } from '@dltech/atlas-core'
 import { registerDisposable } from '../container/disposal'
 import { HookChainToken } from '../container/tokens'
 import type { ThreadStorePort } from '../store/thread-store'
@@ -49,18 +50,9 @@ export async function claimLaunchWorktree(args: {
   releaseWorktreeOnClose({ container: args.container, repo, path })
 }
 
-/**
- * A resumed thread's worktree is folded back out of its event log, so nothing re-locks it for the
- * process that picked the thread up — the lock still names the process that entered it, which may
- * be long dead. Every thread open re-claims it; a stale lock is cleared and retaken, a live one is
- * reported, and the claim is handed back when the app closes.
- *
- * A teammate that has not moved out of its spawner's worktree claims nothing: the spawner's own
- * claim covers it, and a second claim would only overwrite the lock label. Once it enters its own
- * worktree, it claims like any other thread.
- */
 async function sharesSpawnerWorktree(args: {
   threads: ThreadStorePort
+  log?: Pick<EventLogPort, 'readOwn'> | undefined
   threadId: ThreadId
   projectDirectory: string
 }): Promise<boolean> {
@@ -71,23 +63,21 @@ async function sharesSpawnerWorktree(args: {
   const spawner = await args.threads.find({ threadId: spawnerId })
   if (spawner?.workspace === null || spawner?.workspace === undefined) return false
 
-  return spawner.workspace === args.projectDirectory
+  const events = args.log === undefined ? [] : await args.log.readOwn({ threadId: spawnerId })
+  return projectDirectoryOf({ events, launchDirectory: spawner.workspace }) === args.projectDirectory
 }
 
-/**
- * The mirror of `claimOpenedWorktree` for a thread whose ending is being recorded: if it claimed a
- * worktree of its own, hand the claim back — otherwise the lock outlives the thread until process
- * shutdown, which in a shared serve process (the whole teammate family in one pid) is never. A
- * thread still parked in its spawner's worktree holds no claim of its own, exactly as at open.
- */
 export async function releaseEndedWorktree(args: {
   threads: ThreadStorePort
+  log?: Pick<EventLogPort, 'readOwn'> | undefined
   threadId: ThreadId
 }): Promise<void> {
   const ended = await args.threads.find({ threadId: args.threadId })
-  const workspace = ended?.workspace
-  if (workspace === null || workspace === undefined) return
-  if (await sharesSpawnerWorktree({ threads: args.threads, threadId: args.threadId, projectDirectory: workspace })) return
+  const launchDirectory = ended?.workspace
+  if (launchDirectory === null || launchDirectory === undefined) return
+  const events = args.log === undefined ? [] : await args.log.readOwn({ threadId: args.threadId })
+  const workspace = projectDirectoryOf({ events, launchDirectory })
+  if (await sharesSpawnerWorktree({ threads: args.threads, log: args.log, threadId: args.threadId, projectDirectory: workspace })) return
 
   const identity = await probeWorkspace({ cwd: workspace }).catch(() => undefined)
   if (identity === undefined || identity.repo === null || identity.workspace === identity.repo) return
@@ -98,11 +88,13 @@ export async function releaseEndedWorktree(args: {
 export async function claimOpenedWorktree(args: {
   container: DependencyContainer
   threads: ThreadStorePort
+  log?: Pick<EventLogPort, 'readOwn'> | undefined
   threadId: ThreadId
   projectDirectory: string
   notice: NoticePort
 }): Promise<void> {
-  if (await sharesSpawnerWorktree(args)) return
+  const log = args.log ?? resolveIfPossible({ container: args.container, token: portToken(EventLogPort) })
+  if (await sharesSpawnerWorktree({ ...args, log })) return
 
   const claimed = await claimWorktreeAt({
     cwd: args.projectDirectory,
@@ -139,10 +131,6 @@ export async function claimOpenedWorktree(args: {
   releaseWorktreeOnClose({ container: args.container, repo: claimed.repo, path: claimed.path })
 }
 
-/**
- * Drafts append only to a thread the store already knows: a conversation nobody has spoken in
- * is opened by its first turn, and an OnThreadOpen draft must not open it early.
- */
 export function threadOpenedHandler(args: {
   container: DependencyContainer
   log: EventLogPort
@@ -157,6 +145,7 @@ export function threadOpenedHandler(args: {
       threadId,
       projectDirectory,
       notice: args.notice,
+      log: args.log,
     })
 
     const chain = args.container.resolve(HookChainToken)

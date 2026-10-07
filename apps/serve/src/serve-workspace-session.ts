@@ -12,6 +12,7 @@ export function createServeWorkspaceSession(args: {
   driveHome: string
   threadId: ThreadId
   activeCwd: string
+  sourceSessionId?: string | undefined
   app: ServeApp
   capture?: WorkspaceCapturer | undefined
   dormant: boolean
@@ -53,6 +54,7 @@ export function createServeWorkspaceSession(args: {
     app,
     capture: args.capture,
     dormant: args.dormant,
+    sourceSessionId: args.sourceSessionId,
     startChildren,
   })
   if (!session.dormant() && args.deferStartChildren !== true) {

@@ -8,11 +8,20 @@ export type RedactedRecord = { path: string; scope: ExportedScope; redaction: Re
 
 export type RedactOutcome = { ok: true; redacted: RedactedRecord } | { ok: false; unstableFields: readonly string[] }
 
-export function redactSinkRecord({
-  record,
+export function redactSinkRecord({ record, redact }: {
+  record: SinkRecord
+  redact: (text: string) => RedactionResult
+}): RedactOutcome {
+  return redactScopeSnapshot({ path: record.path, scope: exportedScopeOf({ record }), redact })
+}
+
+export function redactScopeSnapshot({
+  path: sourcePath,
+  scope: source,
   redact,
 }: {
-  record: SinkRecord
+  path: string
+  scope: ExportedScope
   redact: (text: string) => RedactionResult
 }): RedactOutcome {
   const unstable = new Set<string>()
@@ -29,8 +38,7 @@ export function redactSinkRecord({
     return { texts: results.map((result) => result.text), map: mergeRedactionMaps({ maps: results.map((result) => result.map) }) }
   }
 
-  const source = exportedScopeOf({ record })
-  const path = one({ field: 'path', text: record.path })
+  const path = one({ field: 'path', text: sourcePath })
   const name = one({ field: 'name', text: source.name })
   const before = nullable({ field: 'before', text: source.before })
   const after = nullable({ field: 'after', text: source.after })

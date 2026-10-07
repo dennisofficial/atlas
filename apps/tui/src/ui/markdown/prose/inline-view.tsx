@@ -2,6 +2,7 @@ import { TextAttributes } from '@opentui/core'
 import React, { useSyncExternalStore } from 'react'
 
 import { linkHoverUrl, subscribeLinkHover } from '../../../composition/link-click'
+import { linkHoverStyle } from '../../link-hover-style'
 import { glyph, theme } from '../../theme'
 import { EInline, type InlineNode } from './inline'
 import { codeForeground, LINK_ARROW, markAttributes, markForeground } from './prose-style'
@@ -31,7 +32,9 @@ function isSameSpan(
 
 function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): React.ReactNode {
   const { node } = props
-  const hovered = useSyncExternalStore(subscribeLinkHover, linkHoverUrl)
+  const href = hrefOf(node)
+  const hovered = useSyncExternalStore(subscribeLinkHover, () => href !== null && linkHoverUrl() === href)
+  const linkInk = hovered ? linkHoverStyle(theme.link) : { fg: theme.link }
 
   if (node.kind === EInline.Text) {
     return (
@@ -56,8 +59,7 @@ function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): R
     return (
       <>
         <span
-          fg={theme.link}
-          {...(hovered === node.href ? { bg: theme.hoverBg } : {})}
+          {...linkInk}
           attributes={TextAttributes.UNDERLINE}
           link={{ url: node.href }}
         >
@@ -69,14 +71,9 @@ function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): R
   }
 
   if (node.kind === EInline.FilePath) {
-    const href = fileHref({ path: node.path, line: node.line })
+    const url = fileHref({ path: node.path, line: node.line })
     return (
-      <span
-        fg={theme.link}
-        {...(hovered === href ? { bg: theme.hoverBg } : {})}
-        attributes={TextAttributes.UNDERLINE}
-        link={{ url: href }}
-      >
+      <span {...linkInk} attributes={TextAttributes.UNDERLINE} link={{ url }}>
         {node.text}
       </span>
     )
@@ -93,6 +90,12 @@ function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): R
   }
 
   return <span fg={theme.link}>{node.marker}</span>
+}
+
+function hrefOf(node: InlineNode): string | null {
+  if (node.kind === EInline.Link) return node.href
+  if (node.kind === EInline.FilePath) return fileHref({ path: node.path, line: node.line })
+  return null
 }
 
 function fileHref(args: { path: string; line?: number | undefined }): string {
