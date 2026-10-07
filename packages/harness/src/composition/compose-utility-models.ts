@@ -26,6 +26,7 @@ import { createUtilityModel, notifyingUtilityFallback } from './utility-model'
 export type UtilityModels = {
   decisionsEnabled: () => boolean
   tldrModel: LanguageModelV4
+  compactionModel: LanguageModelV4
   titler: SessionTitler
   summarise: Summariser
 }
@@ -74,6 +75,7 @@ export function bindUtilityModels(args: {
   return {
     decisionsEnabled: () => decisionsConfig() !== undefined,
     tldrModel: utility(EUtilityModelRole.Tldr),
+    compactionModel,
     titler: ({ text, images, signal }) =>
       titleFor({ model: titlerModel, fallback: titleFallback, text, images, signal }),
     summarise: ({ events, fromSeq, throughSeq, signal }) =>
