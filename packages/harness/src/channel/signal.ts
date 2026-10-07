@@ -10,7 +10,7 @@ export const toStepId = (value: string): StepId => stepIdSchema.parse(value)
 
 export { EStepEnd } from '@dltech/atlas-wire'
 
-import { EStepEnd } from '@dltech/atlas-wire'
+import { EStepEnd, type RotationStateWire } from '@dltech/atlas-wire'
 
 export type StepSignal =
   | { type: 'turn-working'; working: boolean }
@@ -47,3 +47,4 @@ export type ChannelSignal =
   | { type: 'retry-cleared' }
   | { type: 'pending-changed'; entries: PendingEntrySignal[] }
   | { type: 'operator-input'; request: OperatorInputRequest | null }
+  | { type: 'rotation-changed'; rotation: RotationStateWire }
