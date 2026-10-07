@@ -1,4 +1,4 @@
-import type { Renderable } from '@opentui/core'
+import { BoxRenderable, getBorderSides, type Renderable } from '@opentui/core'
 
 import type { ImageRectangle } from './image-placement'
 
@@ -13,10 +13,11 @@ export function imageClipBounds(args: {
   let bottom = Math.min(args.node.ctx.height, args.origin.y + args.buffer.height)
   for (let parent = args.node.parent; parent !== null; parent = parent.parent) {
     if (parent.overflow === 'visible' || parent.width <= 0 || parent.height <= 0) continue
-    left = Math.max(left, parent.screenX)
-    top = Math.max(top, parent.screenY)
-    right = Math.min(right, parent.screenX + parent.width)
-    bottom = Math.min(bottom, parent.screenY + parent.height)
+    const border = getBorderSides(parent instanceof BoxRenderable ? parent.border : false)
+    left = Math.max(left, parent.screenX + Number(border.left))
+    top = Math.max(top, parent.screenY + Number(border.top))
+    right = Math.min(right, parent.screenX + parent.width - Number(border.right))
+    bottom = Math.min(bottom, parent.screenY + parent.height - Number(border.bottom))
   }
   return {
     x: left - args.origin.x,

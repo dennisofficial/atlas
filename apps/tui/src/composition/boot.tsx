@@ -29,6 +29,7 @@ import { createUrlOpener, loadSettings, logFieldsOf, createFileOpener, EEditor }
 import { trackTerminalFocus } from "./terminal-focus";
 import { terminalTitleSequence } from "./terminal-title";
 import { readTerminalSize, settleTerminalSize } from "./terminal-size";
+import { kittyImageTransportOf } from "./terminal-image-transport";
 
 const TARGET_FPS = 120;
 
@@ -93,6 +94,7 @@ export async function bootAtlas(args: {
     useMouse: true,
     exitOnCtrlC: false,
     targetFps: TARGET_FPS,
+    kittyImageTransport: kittyImageTransportOf({ env: args.env }),
   });
 
   /*

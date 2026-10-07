@@ -80,6 +80,50 @@ describe.each(kinds)('a %s on Warp with Kitty capabilities', (_name, kind) => {
     })
   })
 
+  test('a bordered overflow-hidden parent clips at its inner edge, not its outer box', async () => {
+    await withPicture({
+      kind,
+      parentOf: (scene) => {
+        const parent = new BoxRenderable(scene.renderer, { width: 20, height: 6, overflow: 'hidden', border: true })
+        scene.renderer.root.add(parent)
+        return parent
+      },
+      run: async ({ scene, node }) => {
+        const drawn = draw({ scene, node })
+
+        expect([node.screenX, node.screenY]).toEqual([1, 1])
+        expect(drawn?.destination).toEqual([1, 1, 8, 4])
+        expect(drawn?.source).toEqual([0, 0, 16, 16])
+        expect(drawn && [drawn.image.width, drawn.image.height]).toEqual([16, 16])
+        expect(drawn && bandsOf(drawn.image)).toEqual(['red', 'green'])
+      },
+    })
+  })
+
+  test('a parent bordered only along the bottom insets only that side', async () => {
+    await withPicture({
+      kind,
+      parentOf: (scene) => {
+        const parent = new BoxRenderable(scene.renderer, {
+          width: 20,
+          height: 6,
+          overflow: 'hidden',
+          border: ['bottom'],
+        })
+        scene.renderer.root.add(parent)
+        return parent
+      },
+      run: async ({ scene, node }) => {
+        const drawn = draw({ scene, node })
+
+        expect([node.screenX, node.screenY]).toEqual([0, 0])
+        expect(drawn?.destination).toEqual([0, 0, 8, 5])
+        expect(drawn && [drawn.image.width, drawn.image.height]).toEqual([16, 20])
+        expect(drawn && bandsOf(drawn.image)).toEqual(['red', 'green', 'blue'])
+      },
+    })
+  })
+
   test('a narrow nested scroller crops columns and rows together', async () => {
     const scrollers: ScrollBoxRenderable[] = []
     await withPicture({
