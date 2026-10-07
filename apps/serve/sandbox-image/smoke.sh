@@ -58,6 +58,20 @@ expect 'ripgrep present' 'ripgrep' run 'rg --version'
 expect 'docker cli present' 'Docker version' run 'docker --version'
 expect 'compose plugin present' 'Docker Compose version' run 'docker compose version'
 expect 'gh present' 'gh version' run 'gh --version'
+expect 'jq present' 'jq-' run 'jq --version'
+expect 'git-lfs present' 'git-lfs' run 'git lfs version'
+expect 'psql present' 'psql' run 'psql --version'
+expect 'linear present' '.' run 'linear --version'
+expect 'aws present' 'aws-cli/2' run 'aws --version'
+expect 'gcloud present' 'Google Cloud SDK' run 'CLOUDSDK_PYTHON=/usr/bin/python3 gcloud --version'
+expect 'gsutil present' 'gsutil version' run 'CLOUDSDK_PYTHON=/usr/bin/python3 gsutil version'
+expect 'bq present' 'BigQuery CLI' run 'CLOUDSDK_PYTHON=/usr/bin/python3 bq version'
+expect 'doctl present' 'doctl version' run 'doctl version'
+expect 'pulumi present' 'v3.' run 'pulumi version'
+expect 'stripe present' 'stripe version' run 'stripe --version'
+expect 'terraform present' 'Terraform v' run 'terraform version'
+expect 'cloudflared present' 'cloudflared version' run 'cloudflared --version'
+expect 'vercel present' '.' run 'vercel --version'
 
 expect 'node resolves via mise shim' '/opt/mise/shims/node' run 'command -v node'
 expect 'python resolves via mise shim' '/opt/mise/shims/python' run 'command -v python'
@@ -141,6 +155,10 @@ expect 'scoped safe.directory wildcard env works as uid 501' 'nothing to commit'
 
 expect 'node works under docker run as uid 501 with tmp HOME' 'v' \
   docker run --rm --user 501:20 -e HOME=/tmp/smoke-home "$image" sh -c 'node --version'
+
+expect 'aws runs as uid 501' 'aws-cli/2' run501 'aws --version'
+expect 'gcloud runs as uid 501' 'Google Cloud SDK' run501 'CLOUDSDK_PYTHON=/usr/bin/python3 gcloud --version'
+expect 'vercel runs as uid 501' '.' run501 'vercel --version'
 
 # sudo refuses a uid with no passwd record before it ever reads sudoers, so the grant can only
 # be exercised through a named account; the Atlas bootstrap synthesizes the operator entry at
