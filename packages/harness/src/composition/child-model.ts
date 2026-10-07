@@ -13,7 +13,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { AgentType } from '../agents/types'
+import { isTeammateType, type AgentType } from '../agents/types'
 import type { HookChain } from '../hooks/registry'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import type { SettingsService } from '../settings/service'
@@ -49,7 +49,7 @@ export function childModelSelection(args: ChildModelDeps): (request: {
     const pinned =
       liveSetting(agentTypeSettingId(agentType.name)) ??
       agentType.model ??
-      liveSetting(ESettingId.SubagentModel)
+      (isTeammateType(agentType.name) ? undefined : liveSetting(ESettingId.SubagentModel))
     const spawner = await args.threads.find({ threadId: spawnedBy })
     const inherited = spawner?.agent === undefined ? undefined : spawner.model
     return {

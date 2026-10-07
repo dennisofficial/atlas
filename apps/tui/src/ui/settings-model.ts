@@ -40,9 +40,10 @@ const groupsOf = (rows: readonly ResolvedSetting[]): readonly SettingsGroup[] =>
   const groups: SettingsGroup[] = []
 
   for (const row of rows) {
-    const last = groups.at(-1)
-    if (last !== undefined && last.label === row.definition.group) {
-      groups[groups.length - 1] = { label: last.label, rows: [...last.rows, row] }
+    const index = groups.findIndex((group) => group.label === row.definition.group)
+    const group = groups[index]
+    if (group !== undefined) {
+      groups[index] = { label: group.label, rows: [...group.rows, row] }
       continue
     }
     groups.push({ label: row.definition.group, rows: [row] })
@@ -79,7 +80,8 @@ export function settingsModel(args: {
     })
     if (rows.length === 0 && !keepsEmptyPage(page)) continue
 
-    pages.push({ page, groups: groupsOf(rows), rows })
+    const groups = groupsOf(rows)
+    pages.push({ page, groups, rows: groups.flatMap((group) => group.rows) })
   }
 
   return { pages }

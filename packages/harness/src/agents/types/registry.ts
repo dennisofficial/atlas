@@ -81,7 +81,7 @@ function modelRefusal(args: {
   subagentModelId: string | undefined
 }): AgentTypeRefusal | undefined {
   const pinned = args.agentType.model
-  const modelId = pinned ?? args.subagentModelId
+  const modelId = pinned ?? (isTeammateType(args.agentType.name) ? undefined : args.subagentModelId)
   if (modelId === undefined || args.isUsable(modelId)) return undefined
 
   return {

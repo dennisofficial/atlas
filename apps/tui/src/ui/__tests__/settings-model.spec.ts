@@ -1,5 +1,7 @@
 import {
   ATLAS_SETTINGS,
+  agentTypeModelDefinitions,
+  agentTypeSettingId,
   ESettingId,
   ESettingPage,
   ESettingsLayer,
@@ -92,6 +94,37 @@ describe('settingsModel', () => {
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
     ])
+  })
+
+  it('groups a late-registered teammate with the main model and keeps navigation in visual order', () => {
+    const definitions = [
+      ...ATLAS_SETTINGS,
+      ...agentTypeModelDefinitions({ typeNames: ['builder', 'teammate', 'explore'] }),
+    ]
+    const model = settingsModel({
+      definitions,
+      resolution: resolveSettings({ definitions, layers: [] }),
+    })
+    const models = model.pages.find((page) => page.page.id === ESettingPage.Models)
+
+    expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
+      ['Model', 3],
+      ['Background processes', 3],
+      ['Sub-agent types', 2],
+    ])
+    expect(models?.rows.map((row) => row.definition.id)).toEqual([
+      ESettingId.ModelId,
+      ESettingId.ModelEffort,
+      agentTypeSettingId('teammate'),
+      ESettingId.QuickModel,
+      ESettingId.CompactionModel,
+      ESettingId.SubagentModel,
+      agentTypeSettingId('builder'),
+      agentTypeSettingId('explore'),
+    ])
+    expect(currentRow({ state: { pageIndex: 1, rowIndex: 2 }, model })?.definition.id).toBe(
+      agentTypeSettingId('teammate'),
+    )
   })
 
   it('keeps the appearance page to its colour, its density and its composer', () => {
