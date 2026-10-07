@@ -9,6 +9,7 @@ const TRUNCATION_NOTICE = (path: string): string =>
   `\n\n[${path} was too large to attach whole; the rest was left out. Read it with the read tool if you need more.]`
 
 export function workspaceFileLoader(browser: MentionReader): FileLoader {
+  browser.forget()
   return async (path: string): Promise<MentionedFile | null> => {
     if (!(await browser.exists(path))) return null
     const loaded = await browser.load(path)

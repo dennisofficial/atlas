@@ -1,5 +1,4 @@
 import type { KeyEvent } from '@opentui/core'
-import { homedir } from 'node:os'
 import { isAbsolute, resolve } from 'node:path'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
@@ -8,7 +7,6 @@ import type { MentionReader } from '@dltech/atlas-harness'
 
 import { cdQueryOf, completedCdArgument, openCdMenu } from '../ui/cd-menu-model'
 import { moveFileSelection, type FileMenuState } from '../ui/file-menu-model'
-import { expandHome } from '../ui/paths'
 import { messageOf } from './error-text'
 
 export type CdMenuControl = {
@@ -21,10 +19,9 @@ export type CdMenuControl = {
 const listingDirectoryOf = (args: { directory: string; current: string }): string => {
   if (args.directory === '') return args.current
 
-  const expanded = expandHome({ path: args.directory, home: homedir() })
-  if (isAbsolute(expanded)) return expanded
-
-  return resolve(args.current, expanded)
+  if (args.directory === '~' || args.directory.startsWith('~/') || isAbsolute(args.directory))
+    return args.directory
+  return resolve(args.current, args.directory)
 }
 
 export function useCdMenu(args: {
@@ -50,15 +47,21 @@ export function useCdMenu(args: {
       }
 
       const ticket = asked.current
-      const directory = listingDirectoryOf({ directory: query.directory, current: currentDirectory })
-      void files.list(directory).then((entries: readonly DirectoryEntry[]) => {
-        if (ticket !== asked.current) return
-        setState(openCdMenu({ query, entries }))
-      }).catch((error: unknown) => {
-        if (ticket !== asked.current) return
-        setState(null)
-        args.onProblem?.(`could not list directories: ${messageOf(error)}`)
+      const directory = listingDirectoryOf({
+        directory: query.directory,
+        current: currentDirectory,
       })
+      void files
+        .list(directory)
+        .then((entries: readonly DirectoryEntry[]) => {
+          if (ticket !== asked.current) return
+          setState(openCdMenu({ query, entries }))
+        })
+        .catch((error: unknown) => {
+          if (ticket !== asked.current) return
+          setState(null)
+          args.onProblem?.(`could not list directories: ${messageOf(error)}`)
+        })
     },
     [files, currentDirectory, args.onProblem],
   )

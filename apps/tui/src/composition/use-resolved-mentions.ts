@@ -24,9 +24,11 @@ export function useResolvedMentions(args: {
   reportProblem.current = args.onProblem
   const failed = useRef<{
     reader: MentionReader | undefined
+    text: string
     paths: Set<string>
   }>({
     reader: files,
+    text,
     paths: new Set<string>(),
   })
 
@@ -36,8 +38,8 @@ export function useResolvedMentions(args: {
     )
     if (files === undefined) return
 
-    if (failed.current.reader !== files)
-      failed.current = { reader: files, paths: new Set<string>() }
+    if (failed.current.reader !== files || failed.current.text !== text)
+      failed.current = { reader: files, text, paths: new Set<string>() }
     const gaveUp = failed.current.paths
 
     const paths = mentionedFilePaths(text).filter((path) => !known.has(path) && !gaveUp.has(path))

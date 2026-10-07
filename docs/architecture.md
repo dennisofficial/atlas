@@ -344,7 +344,9 @@ Folder mentions remain one-level listings and text retains the existing bounded 
 A cloud reader never falls back to the terminal's filesystem. An unbound cloud owner exposes an
 unavailable reader rather than its inherited local browser. Runtime changes invalidate pending
 listings and confirmed highlights; sending checks the files afresh rather than depending on an
-asynchronous highlight. A failed context read refuses the submission and restores its draft.
+asynchronous highlight. A failed context read refuses the submission while preserving its draft. During preparation the
+draft stays visible with a reading notice; duplicate submissions of that draft are ignored, and an
+edited newer submission can supersede an unresolved read.
 Explicit pasted and uploaded attachments remain operator input, separate from file mentions.
 The three mention read operations use session wire protocol 20, requiring matching client and
 sandbox runtimes.

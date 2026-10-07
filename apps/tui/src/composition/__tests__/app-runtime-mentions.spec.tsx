@@ -73,6 +73,86 @@ describe('the composer with a cloud mention reader', () => {
     ).toBe(true)
   }, 30_000)
 
+  it('keeps the draft visible during preparation and prevents duplicate sends', async () => {
+    const app = await localApp()
+    let loads = 0
+    let release: (value: unknown) => void = () => undefined
+    const waiting = new Promise<unknown>((resolve) => {
+      release = resolve
+    })
+    app.files = new RemoteMentionFiles({
+      threadId: THREAD,
+      channel: {
+        request: async ({ op }) => {
+          if (op === EClientRequest.ListMentionFiles) return { entries: [] }
+          if (op === EClientRequest.MentionFileExists) return { exists: true }
+          loads += 1
+          return waiting
+        },
+      },
+    })
+    const setup = await open({ app })
+    mounted.push(setup)
+    await setup.typeText('read @shared.txt ')
+    await setup.frame()
+    setup.pressEnter()
+    expect(await setup.frame()).toContain('Reading mentioned files')
+    expect(setup.draftText()).toBe('read @shared.txt ')
+    setup.pressEnter()
+    await setup.frame()
+    expect(loads).toBe(1)
+    release({
+      file: {
+        type: 'text',
+        path: 'shared.txt',
+        content: 'prepared cloud context',
+        truncated: false,
+      },
+    })
+    await setup.frame()
+    expect(
+      (await app.log.read({ threadId: THREAD })).filter((event) => event.type === 'user-said'),
+    ).toHaveLength(1)
+    expect(setup.draftText()).toBe('')
+  }, 30_000)
+
+  it('lets a newer edited submission supersede an unresolved mention read', async () => {
+    const app = await localApp()
+    let release: (value: unknown) => void = () => undefined
+    const waiting = new Promise<unknown>((resolve) => {
+      release = resolve
+    })
+    app.files = new RemoteMentionFiles({
+      threadId: THREAD,
+      channel: {
+        request: async ({ op }) => {
+          if (op === EClientRequest.ListMentionFiles) return { entries: [] }
+          if (op === EClientRequest.MentionFileExists) return { exists: true }
+          return waiting
+        },
+      },
+    })
+    const setup = await open({ app })
+    mounted.push(setup)
+    await setup.typeText('read @shared.txt ')
+    await setup.frame()
+    setup.pressEnter()
+    await setup.frame()
+    setup.editor()?.setText('a newer message')
+    setup.pressEnter()
+    await setup.frame()
+    release({
+      file: { type: 'text', path: 'shared.txt', content: 'stale cloud context', truncated: false },
+    })
+    await setup.frame()
+    const users = (await app.log.read({ threadId: THREAD })).filter(
+      (event) => event.type === 'user-said',
+    )
+    expect(users).toHaveLength(1)
+    expect(users[0]).toMatchObject({ text: 'a newer message' })
+    expect(setup.draftText()).toBe('')
+  }, 30_000)
+
   it('restores the draft and shows an error when a remote file read fails', async () => {
     const app = await localApp()
     app.files = new RemoteMentionFiles({

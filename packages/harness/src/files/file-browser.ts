@@ -83,7 +83,10 @@ export class FileBrowser {
     const held = this.levels.get(directory)
     if (held !== undefined) return held
 
-    const reading = this.listLevel(directory)
+    const reading = this.listLevel(directory).catch((error: unknown) => {
+      if (this.levels.get(directory) === reading) this.levels.delete(directory)
+      throw error
+    })
     this.levels.set(directory, reading)
     return reading
   }
@@ -105,7 +108,10 @@ export class FileBrowser {
     const held = this.known.get(path)
     if (held !== undefined) return held
 
-    const asking = this.checkExists(path)
+    const asking = this.checkExists(path).catch((error: unknown) => {
+      if (this.known.get(path) === asking) this.known.delete(path)
+      throw error
+    })
     this.known.set(path, asking)
     return asking
   }

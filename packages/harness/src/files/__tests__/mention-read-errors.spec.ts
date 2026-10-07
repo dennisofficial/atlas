@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtemp, rm, symlink } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,6 +19,10 @@ describe('mention filesystem lookup failures', () => {
     await expect(reader.list('loop')).rejects.toThrow('ELOOP')
     await expect(reader.exists('loop')).rejects.toThrow('ELOOP')
     await expect(reader.load('loop')).rejects.toThrow('ELOOP')
+    await rm(join(root, 'loop'))
+    await mkdir(join(root, 'loop'))
+    expect(await reader.exists('loop')).toBe(true)
+    expect(await reader.list('loop')).toEqual([])
   })
 
   it('still treats missing paths as absent rather than breaking ordinary @ prose', async () => {

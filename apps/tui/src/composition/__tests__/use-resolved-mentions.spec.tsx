@@ -103,7 +103,7 @@ describe('mentions resolved against a reader', () => {
     expect(paths()).toEqual(['a.md'])
   })
 
-  it('reports a rejected lookup, paints nothing, and does not re-ask the failed spelling', async () => {
+  it('reports a rejected lookup and retries when the draft changes', async () => {
     const watch = trackUnhandledRejections()
     try {
       const reader = scriptedReader()
@@ -116,8 +116,12 @@ describe('mentions resolved against a reader', () => {
       expect(seen.problems).toHaveLength(1)
       expect(seen.problems[0]).toContain('the sandbox is parked')
 
-      await harness.rerender({ text: '@a.md ok', files: reader })
+      await harness.rerender({ text: '@a.md', files: reader })
       expect(reader.checked).toEqual(['a.md'])
+      await harness.rerender({ text: '@a.md ok', files: reader })
+      expect(reader.checked).toEqual(['a.md', 'a.md'])
+      await harness.act(() => reader.pendingChecks[1]?.resolve(true))
+      expect(paths()).toEqual(['a.md'])
       expect(watch.seen).toEqual([])
     } finally {
       watch.stop()

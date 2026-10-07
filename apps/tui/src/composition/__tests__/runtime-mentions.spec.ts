@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 import { EExecutionLocation, toThreadId } from '@dltech/atlas-core'
 import {
+  activeMentionReader,
   EClientRequest,
   EFileLoad,
   ERuntimeKind,
@@ -96,15 +97,24 @@ describe('runtime-owned composer mentions', () => {
     await local.executionLocation.activate({ threadId, fallback: EExecutionLocation.Cloud })
     expect(local.sessionOwner.snapshot().binding).toBeUndefined()
     const app = appOf({ local, binding: undefined })
-    expect(app.files).not.toBe(local.files)
-    expect(appOf({ local, binding: undefined }).files).toBe(app.files)
-    await expect(app.files.list('')).rejects.toThrow('the cloud filesystem is still connecting')
+    expect(app).toBe(local)
+    const owner = local.sessionOwner.snapshot()
+    const files = activeMentionReader({
+      reader: app.files,
+      location: owner.location,
+      bound: owner.bound,
+    })
+    expect(files).not.toBe(local.files)
+    expect(
+      activeMentionReader({ reader: app.files, location: owner.location, bound: owner.bound }),
+    ).toBe(files)
+    await expect(files.list('')).rejects.toThrow('the cloud filesystem is still connecting')
     expect(
       await dispatchSubmission({
         text: 'read @local-only.txt',
         commands: [],
         skills: [],
-        loadFile: workspaceFileLoader(app.files),
+        loadFile: workspaceFileLoader(files),
       }),
     ).toMatchObject({ type: EDispatch.Refused })
   })
@@ -153,6 +163,20 @@ describe('runtime-owned composer mentions', () => {
     await writeFile(join(worktree, 'same.txt'), 'worktree')
     const files = rebaseMentionReader({ reader: new FileBrowser({ root: launch }), root: worktree })
     expect(await files.load('same.txt')).toMatchObject({ type: 'text', content: 'worktree' })
+  })
+
+  it('refreshes local existence at send time after files are created or deleted', async () => {
+    const root = await scratch()
+    const files = new FileBrowser({ root })
+    expect(await files.exists('late.txt')).toBe(false)
+    await writeFile(join(root, 'late.txt'), 'created after autocomplete')
+    expect(await workspaceFileLoader(files)('late.txt')).toEqual({
+      path: 'late.txt',
+      content: 'created after autocomplete',
+    })
+    expect(await files.exists('late.txt')).toBe(true)
+    await rm(join(root, 'late.txt'))
+    expect(await workspaceFileLoader(files)('late.txt')).toBeNull()
   })
 
   it('reports a refusal after existence rather than silently sending without the mention', async () => {
