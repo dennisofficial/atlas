@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   agentTypeModelDefinitions,
   ATLAS_SETTINGS,
+  EDefinitionOrigin,
   ESettingId,
   type SettingDefinition,
 } from '@dltech/atlas-core'
@@ -70,7 +71,7 @@ describe('unreachableModelSettings', () => {
   it('checks late-registered per-type rows too', () => {
     const definitions: readonly SettingDefinition[] = [
       ...ATLAS_SETTINGS,
-      ...agentTypeModelDefinitions({ typeNames: ['explore'] }),
+      ...agentTypeModelDefinitions({ types: [{ name: 'explore', origin: EDefinitionOrigin.BuiltIn }] }),
     ]
 
     const problems = unreachableModelSettings({

@@ -120,6 +120,28 @@ describe('settings file watching across tiles', () => {
     expect(held?.origin).toBe('project')
   })
 
+  it('clears a repaired project read problem even when its last-good values are unchanged', async () => {
+    const user = new MemorySettingsStore()
+    const { file, store } = fileStore()
+    store.write({ values: { [ESettingId.Accent]: 'moss' } })
+    const service = createSettingsService({
+      definitions: ATLAS_SETTINGS,
+      user,
+      project: store,
+      watch: { files: [file], debounceMs: DEBOUNCE_MS },
+    })
+    services.push(service)
+    writeFileSync(file, '{ partial', 'utf8')
+    service.set({ id: ESettingId.SidebarWidth, value: 50 })
+    expect(service.snapshot().problems).toHaveLength(1)
+
+    store.write({ values: { [ESettingId.Accent]: 'moss' } })
+    await settled(DEBOUNCE_MS * 6)
+
+    expect(service.snapshot().problems).toEqual([])
+    expect(service.snapshot().resolution.settings.get(ESettingId.Accent)?.value).toBe('moss')
+  })
+
   it('keeps live-syncing after an unrelated local write failure', async () => {
     const { file, store } = fileStore()
     const service = createSettingsService({

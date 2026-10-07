@@ -38,16 +38,20 @@ export type SettingsService = {
   set: (args: { id: string; value: SettingValue }) => SettingsWrite
   clear: (args: { id: string }) => SettingsWrite
   applyUserDocument: (document: SettingsDocument) => SettingsWrite
-  /** Late-registered rows — the per-agent-type model picks exist only once the types are loaded. */
+  writeOrigin: (id: string) => string | undefined
   register: (extra: readonly SettingDefinition[]) => void
   reload: () => void
-  /** Stops file watching. The service keeps answering from its held snapshot afterwards. */
   close: () => void
 }
 
 export type SettingsWatchOptions = {
   files: readonly string[]
   debounceMs?: number
+}
+
+type WriteTarget = {
+  store: SettingsStorePort
+  cached: () => SettingsDocument
 }
 
 const messageOf = (error: unknown): string =>
@@ -69,9 +73,11 @@ export function createSettingsService(args: {
 
   function readLayer(store: SettingsStorePort, layer: ESettingsLayer) {
     const read = store.read()
+    const cached = layer === ESettingsLayer.Project ? layerReads.project : layerReads.user
+    const document = read.problem === undefined ? read.document : (cached ?? EMPTY_SETTINGS_DOCUMENT)
     return {
-      input: { layer, origin: store.origin(), values: read.document.values },
-      document: read.document,
+      input: { layer, origin: store.origin(), values: document.values },
+      document,
       ...(read.problem === undefined ? {} : { problem: read.problem }),
     }
   }
@@ -104,12 +110,6 @@ export function createSettingsService(args: {
     for (const listener of listeners) listener()
   }
 
-  /**
-   * Another tile's write lands through the same file we write to. Republish only on a real change,
-   * or our own writes would echo back as a second notification. A layer that fails to read keeps
-   * its last-good document: a torn file must not knock the running tiles back to fallbacks, and a
-   * write failure is no reason to stop listening for file changes.
-   */
   function reloadExternal(): void {
     const priorUser = layerReads.user
     const priorProject = layerReads.project ?? EMPTY_SETTINGS_DOCUMENT
@@ -124,7 +124,8 @@ export function createSettingsService(args: {
     const nextProject = layerReads.project ?? EMPTY_SETTINGS_DOCUMENT
     const unchanged =
       serialiseSettingsDocument(next.document) === serialiseSettingsDocument(snapshot.document) &&
-      serialiseSettingsDocument(nextProject) === serialiseSettingsDocument(priorProject)
+      serialiseSettingsDocument(nextProject) === serialiseSettingsDocument(priorProject) &&
+      JSON.stringify(next.problems) === JSON.stringify(snapshot.problems)
     if (unchanged) return
 
     snapshot = next
@@ -144,30 +145,54 @@ export function createSettingsService(args: {
 
   armWatcher()
 
-  function freshDocument(): SettingsDocument {
+  function targetFor(id: string): WriteTarget | undefined {
+    const definition = definitions.find((candidate) => candidate.id === id)
+    if (definition?.writeLayer !== ESettingsLayer.Project) return userTarget()
+    if (args.project === undefined) return undefined
+    return { store: args.project, cached: () => layerReads.project ?? EMPTY_SETTINGS_DOCUMENT }
+  }
+
+  function userTarget(): WriteTarget {
+    return { store: args.user, cached: () => layerReads.user }
+  }
+
+  function freshDocument(target: WriteTarget): SettingsDocument {
     try {
-      const read = args.user.read()
-      // A store answers a torn or unreadable file with a problem and an empty document, not a
-      // throw — merging onto that would empty every other tile's settings on the next write.
-      if (read.problem !== undefined) return snapshot.document
+      const read = target.store.read()
+      if (read.problem !== undefined) return target.cached()
       return read.document
     } catch {
-      return snapshot.document
+      return target.cached()
     }
   }
 
-  function persist(change: (document: SettingsDocument) => SettingsDocument): SettingsWrite {
+  function persist(args: {
+    target: WriteTarget
+    change: (document: SettingsDocument) => SettingsDocument
+  }): SettingsWrite {
     try {
-      args.user.write(change(freshDocument()))
+      args.target.store.write(args.change(freshDocument(args.target)))
     } catch (error) {
       return { ok: false, message: messageOf(error) }
     }
 
-    // The write may have created a directory the boot-time watch could not see (a project with no
-    // .atlas/ yet); re-arm so later external edits on that layer are picked up too.
     armWatcher()
     republish()
     return { ok: true }
+  }
+
+  function persistSetting(args: {
+    id: string
+    change: (document: SettingsDocument) => SettingsDocument
+  }): SettingsWrite {
+    const target = targetFor(args.id)
+    if (target === undefined) {
+      return {
+        ok: false,
+        message: `${args.id} is saved per repository, but this session has no project settings file`,
+      }
+    }
+    return persist({ target, change: args.change })
   }
 
   return {
@@ -182,14 +207,17 @@ export function createSettingsService(args: {
         listeners.delete(listener)
       }
     },
-    set: ({ id, value }) => persist((document) => withSetting({ document, id, value })),
-    clear: ({ id }) => persist((document) => withoutSetting({ document, id })),
+    set: ({ id, value }) =>
+      persistSetting({ id, change: (document) => withSetting({ document, id, value }) }),
+    clear: ({ id }) =>
+      persistSetting({ id, change: (document) => withoutSetting({ document, id }) }),
+    writeOrigin: (id) => targetFor(id)?.store.origin(),
     applyUserDocument: (document) => {
       const parsed = parseSettingsDocument(document.values)
       const unchanged =
         serialiseSettingsDocument(parsed) === serialiseSettingsDocument(snapshot.document)
       if (unchanged) return { ok: true }
-      return persist(() => parsed)
+      return persist({ target: userTarget(), change: () => parsed })
     },
     register: (extra) => {
       const known = new Set(definitions.map((definition) => definition.id))

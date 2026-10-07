@@ -29,7 +29,9 @@ export async function bindSessionAgentTypes(args: {
   })
 
   args.settings.register(
-    agentTypeModelDefinitions({ typeNames: agentTypes.types.map((type) => type.name) }),
+    agentTypeModelDefinitions({
+      types: agentTypes.types.map(({ name, origin, definedIn }) => ({ name, origin, definedIn })),
+    }),
   )
 
   return agentTypes

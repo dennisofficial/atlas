@@ -1,4 +1,4 @@
-import { refKey, type ThreadId } from '@dltech/atlas-core'
+import { ENoticeTone, NOTICE_WARN_MS, refKey, type ThreadId } from '@dltech/atlas-core'
 import type { ThreadModel } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -128,7 +128,15 @@ export function useThreadModel(args: {
       const next: ModelSelection = { ref: choice.ref, effort: choice.effort }
 
       if (target.scope === EModelScope.Setting) {
-        rememberSettingModel({ settings: app.settings, target, selection: next })
+        const written = rememberSettingModel({ settings: app.settings, target, selection: next })
+        if (!written.ok) {
+          notify({
+            key: `setting-model-write:${target.id}`,
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: `Could not save model preference: ${written.message}`,
+          })
+        }
         return
       }
 

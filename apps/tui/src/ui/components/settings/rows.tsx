@@ -1,9 +1,9 @@
-import type { ResolvedSetting } from '@dltech/atlas-core'
 import React from 'react'
 
 import { cellsOf } from '../../hint-layout'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { type PressHandlers } from '../../hooks/use-press'
+import { isOverriddenSetting, settingRowKey, type SettingsRow } from '../../settings-model'
 import { affordanceHint, valueColour, valueLabel } from '../../settings-format'
 import { glyph, theme } from '../../theme'
 import { clipSpans, spanCells, truncateCells } from '../sidebar/cells'
@@ -14,6 +14,8 @@ export const SETTINGS_PAD = 2
 export const SETTINGS_LABEL_CELLS = 28
 
 const MARK_CELLS = 2
+
+export const OVERRIDDEN = 'overridden'
 
 const GAP = 1
 
@@ -60,11 +62,14 @@ const paddedLabel = (args: { label: string; cells: number }): string => {
 }
 
 function readOut(args: {
-  setting: ResolvedSetting
+  setting: SettingsRow
   cells: number
   override?: Span | undefined
 }): Span[] {
   const { definition, value } = args.setting
+  if (isOverriddenSetting(args.setting)) {
+    return [{ text: truncateCells({ text: OVERRIDDEN, cells: Math.max(0, args.cells) }), fg: theme.hint }]
+  }
   const shown: Span = args.override ?? {
     text: valueLabel({ definition, value }),
     fg: valueColour({ definition, value }),
@@ -85,12 +90,14 @@ export function SettingsTextLine(props: {
   value: readonly Span[]
   cells: number
   selected?: boolean | undefined
+  struck?: boolean | undefined
   id?: string | undefined
   band?: string | undefined
   press?: LineHandlers | undefined
 }): React.ReactNode {
   const labelCells = labelColumn(props.cells)
   const selected = props.selected === true
+  const label = truncateCells({ text: props.label, cells: labelCells })
   const mark: Span = selected
     ? { text: `${glyph.selected} `, fg: theme.accent }
     : { text: ' '.repeat(MARK_CELLS) }
@@ -98,9 +105,11 @@ export function SettingsTextLine(props: {
   const spans: Span[] = [
     mark,
     {
-      text: paddedLabel({ label: props.label, cells: labelCells }),
-      fg: selected ? theme.bright : theme.hover,
+      text: props.struck === true ? label : paddedLabel({ label: props.label, cells: labelCells }),
+      fg: props.struck === true ? theme.hint : selected ? theme.bright : theme.hover,
+      ...(props.struck === true ? { strike: true } : {}),
     },
+    ...(props.struck === true ? [{ text: ' '.repeat(Math.max(0, labelCells - cellsOf(label))) }] : []),
     { text: ' ' },
     ...props.value,
   ]
@@ -121,7 +130,7 @@ export function SettingsTextLine(props: {
 }
 
 export function SettingLine(props: {
-  setting: ResolvedSetting
+  setting: SettingsRow
   cells: number
   selected: boolean
   override?: Span | undefined
@@ -132,7 +141,8 @@ export function SettingLine(props: {
 
   return (
     <SettingsTextLine
-      id={`setting-${props.setting.definition.id}`}
+      id={`setting-${settingRowKey(props.setting)}`}
+      struck={isOverriddenSetting(props.setting)}
       label={props.setting.definition.label}
       value={readOut({
         setting: props.setting,
@@ -148,7 +158,7 @@ export function SettingLine(props: {
 }
 
 export function SelectableSettingLine(props: {
-  setting: ResolvedSetting
+  setting: SettingsRow
   cells: number
   selected: boolean
   override?: Span | undefined

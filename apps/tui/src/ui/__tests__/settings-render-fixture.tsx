@@ -11,7 +11,7 @@ import { SHIPPED_FENCE_WRAP } from '../fence-wrap-store'
 import { EComposerEdge } from '../composer-edge-store'
 import { EBlockDensity } from '../density-store'
 import { idleLogin } from '../settings-login-model'
-import { settingsModel, type SettingsState } from '../settings-model'
+import { settingsModel, type SettingsState, type ShadowedAgentTypeSource } from '../settings-model'
 import { SIDEBAR_WIDTH } from '../theme'
 import { frameOf } from './transcript-fixture'
 
@@ -42,6 +42,8 @@ export const page = (args: {
   textPrompt?: TextPrompt
   secretOf?: (id: string) => Span | undefined
   definitions?: readonly SettingDefinition[]
+  shadowedAgentTypes?: readonly ShadowedAgentTypeSource[]
+  writeOriginOf?: (id: string) => string | undefined
 }): React.ReactNode => {
   const definitions = args.definitions ?? ATLAS_SETTINGS
   const resolution = resolveSettings({ definitions, layers: args.layers ?? [] })
@@ -50,7 +52,12 @@ export const page = (args: {
     <Settings
       width={args.width ?? WIDE}
       sidebarWidth={args.sidebarWidth ?? SIDEBAR_WIDTH}
-      model={settingsModel({ definitions, resolution })}
+      model={settingsModel({
+        definitions,
+        resolution,
+        ...(args.shadowedAgentTypes === undefined ? {} : { shadowedAgentTypes: args.shadowedAgentTypes }),
+        ...(args.writeOriginOf === undefined ? {} : { writeOriginOf: args.writeOriginOf }),
+      })}
       state={args.state ?? { pageIndex: 0, rowIndex: 0 }}
       cwd="/Users/dennis/Developer/atlas"
       origin={ORIGIN}

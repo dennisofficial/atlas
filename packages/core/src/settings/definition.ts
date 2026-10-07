@@ -1,3 +1,5 @@
+import type { EDefinitionOrigin } from '../discovery/origin'
+import type { ESettingsLayer } from './layers'
 import { ESettingKind, type SettingOption } from './value'
 
 export enum ESettingPage {
@@ -22,6 +24,7 @@ type SettingFacts = {
   label: string
   description: string
   environmentVariable?: string
+  writeLayer?: ESettingsLayer.User | ESettingsLayer.Project
 }
 
 export type ToggleDefinition = SettingFacts & {
@@ -51,12 +54,18 @@ export type TextDefinition = SettingFacts & {
   fallback: string
 }
 
-/** A model reference chosen through the switcher rather than typed, so the page hands off to it. */
+export type AgentTypeModelSource = {
+  name: string
+  origin: EDefinitionOrigin
+  definedIn?: string | undefined
+  overriddenBy?: EDefinitionOrigin | undefined
+}
+
 export type ModelDefinition = SettingFacts & {
   kind: ESettingKind.Model
   fallback: string
-  /** What the row reads while nothing is set — the resolution chain's own words for "empty". */
   unsetLabel?: string
+  agentType?: AgentTypeModelSource
 }
 
 export type SecretDefinition = SettingFacts & {

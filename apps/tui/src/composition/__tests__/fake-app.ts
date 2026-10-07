@@ -762,6 +762,7 @@ export function fakeApp(args: {
   model: ModelPort
   settings?: SettingsDocument
   settingsStore?: (created: MemorySettingsStore) => void
+  projectSettings?: { label: string; document?: SettingsDocument }
   secrets?: Record<string, string>
   secretsPort?: SecretsPort
   names?: string | null
@@ -1085,6 +1086,14 @@ export function fakeApp(args: {
         args.settingsStore?.(store)
         return store
       })(),
+      ...(args.projectSettings === undefined
+        ? {}
+        : {
+            project: new MemorySettingsStore({
+              label: args.projectSettings.label,
+              document: args.projectSettings.document ?? { values: {} },
+            }),
+          }),
     }),
     secrets: args.secretsPort ?? new MemorySecretsStore({
       label: '~/.atlas/secrets.json',
