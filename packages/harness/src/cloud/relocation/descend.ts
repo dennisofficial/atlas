@@ -22,6 +22,7 @@ import { preserveDescendSource } from './descend-recovery'
 import { logFieldsOf } from '../../store/logs'
 import { probeWorkspace } from '../../workspace/probe'
 import { releaseWorktree } from '../../workspace/worktree-lock'
+import { EChannelConnection } from '../remote-delta-channel'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { retrySleep, type RetryPolicy } from '../retry-policy'
 import { runRelocation } from './dag'
@@ -34,6 +35,16 @@ export const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 export const descendDestroyRetry: RetryPolicy = { attempts: 3, delayMs: 15_000 }
 
 export type DestroySleeper = (policy: RetryPolicy) => Promise<void>
+
+/**
+ * Wakes a parked (or stranded-closed) sandbox and re-attaches the channel before the descend's
+ * first node runs. A parked channel has no socket, so its pause frame would be written nowhere
+ * and the descend would wait out its whole deadline on a reply that can never arrive. The
+ * caller owns provisioning and the attachment swap; the descend owns deciding whether one is
+ * needed. An attached channel never wakes — the state is re-read after the wake resolves, so a
+ * wake that settled nothing is the same refusal it always was.
+ */
+export type DescendWake = () => Promise<void>
 
 const NO_PROTECTION = (): void => undefined
 
@@ -79,6 +90,12 @@ type DescendArgs<Opened> = {
    * spec without one keeps the bare store flip so the relocation mechanics stay exercisable alone.
    */
   placement?: PlacementController | SessionOwner<SessionRuntime> | undefined
+  /**
+   * Wakes the sandbox when the channel is not attached. Live wiring passes it whenever the thread
+   * can be parked; a spec that omits it keeps the bare pause frame, which an attached fake
+   * channel answers directly.
+   */
+  wake?: DescendWake | undefined
   /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
   /** The teardown retry's clock — a spec passes a sleeper that never waits real time. */
@@ -118,6 +135,11 @@ async function runDescend<Opened>(
     sourceRecord: args.placement === undefined ? undefined : ('placement' in args.placement ? args.placement.placement : args.placement).snapshot(threadId),
     destroySleep: args.destroySleep ?? retrySleep,
   })
+
+  const connection = channel.connection().state
+  if (connection === EChannelConnection.Parked || connection === EChannelConnection.Closed) {
+    await args.wake?.()
+  }
 
   surface.onBegin?.({ waves: relocationWaves(plan) })
   const release = surface.protect === undefined ? NO_PROTECTION : surface.protect()
