@@ -1,7 +1,8 @@
 import React from 'react'
 
 import { useWorkspaceContext, WorkspaceContextPane } from './workspace-context'
-import { HeaderBar } from '../ui/components/header-bar'
+import { workspaceHeader } from './workspace-header'
+import { useWorkspaceQualityHealth } from './use-workspace-quality-health'
 import { useCopyOnSelect } from '../ui/selection/use-copy-on-select'
 import { useComposerPaste } from './use-composer-paste'
 import { useModelChecks } from './use-model-checks'
@@ -84,6 +85,8 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     viewedPicker: models.viewedPicker,
     onFocusComposer: session.handleFocusComposer,
   })
+
+  const qualityHealth = useWorkspaceQualityHealth({ app: props.app, agentView, conversationThreadId: conversation.threadId, settings })
 
   const layout = useWorkspaceLayout({
     frame,
@@ -201,12 +204,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
 
   useComposerPaste({ overlaid, tokens, handleAttachImage: composer.handleAttachImage })
 
-  const header = layout.welcome ? null : <HeaderBar
-      width={frame.width}
-      projectDirectory={conversation.projectDirectory}
-      repoRoot={layout.repoRoot}
-      diff={layout.headerDiff}
-    />
+  const header = workspaceHeader({ welcome: layout.welcome, width: frame.width, projectDirectory: conversation.projectDirectory, repoRoot: layout.repoRoot, diff: layout.headerDiff })
 
   return (
     <WorkspaceView
@@ -284,7 +282,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           active={selection.ref}
           accountMeters={accountMeters}
           {...{ switcher, shells, services, agents, settings, onboarding, whatsNew,
-            accounts, threads, agentsPicker, rewind }}
+            accounts, threads, agentsPicker, rewind, qualityHealth }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
           {...{ exitGuard, containerGuard }}

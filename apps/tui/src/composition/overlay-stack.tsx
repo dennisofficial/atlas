@@ -35,6 +35,7 @@ import type { OperatorInputControl } from './use-operator-input'
 import type { RewindControl } from './use-rewind'
 import type { RewindConfirmControl } from './use-rewind-confirm'
 import type { ServicesControl } from './use-services'
+import type { QualityHealthStatusProps } from './use-workspace-quality-health'
 import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
 import { type SwitcherControl } from './use-switcher'
@@ -53,6 +54,7 @@ function DerivedOverlayStack(props: {
   agents: AgentsControl
   agentsPicker: AgentsPickerControl
   settings: SettingsControl
+  qualityHealth: QualityHealthStatusProps
   onboarding: OnboardingControl
   whatsNew: WhatsNewControl
   accounts: AccountsControl
@@ -282,6 +284,7 @@ function DerivedOverlayStack(props: {
           onDownload={settings.handleDownload}
           onSelect={settings.handleSelect}
           onDismiss={settings.handleDismiss}
+          qualityHealth={props.qualityHealth}
         />
       )}
     </>

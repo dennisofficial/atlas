@@ -177,11 +177,11 @@ bite a step the model deliberately fanned out, and every call in a batch is read
 and a future `bash` of `ls` may be while `bash` of `rm -rf` is not. It is declared as an optional
 `isConcurrencySafe(input)` on `ToolDefinition`, defaults to unsafe, and fails closed on a schema-parse
 failure or a throwing predicate. **Effect outranks the predicate**: a Write or Destructive tool is
-never batched even if it declares itself safe, because `dispatch` snapshots the workspace before such a
-tool runs and a snapshot must mean "the tree before this call" — two of them in flight capture each
-other's half-applied writes and rewind stops being true. That guard is also what keeps two `write`
-calls to one path out of a single step, which the read-before-write hook could not see, since hooks are
-handed one call at a time rather than a batch.
+never batched even if it declares itself safe. Direct file tools capture their before/after text under
+the existing per-path write lock, so serial writes must see the prior call's settled state rather than
+each other's half-applied changes. This guard also keeps two `write` calls to one path out of a single
+batch. Settlement snapshots the pending call list once but rereads events before each run, preserving
+fresh guard and quality-finding history without rediscovering calls mid-settlement.
 
 **Partitioning necessarily reads pre-hook input.** It happens before `dispatch`, so a `BeforeTool` hook
 that rewrites input cannot move a call between batches. Accepted: the parse it runs is the tool's own
@@ -971,6 +971,42 @@ in charge of what the model sees and give Atlas a prompt it cannot re-derive fro
 against the two rules. `clear_tool_uses_20250919` is cheap to reimplement as a pure rule if it is ever
 wanted, and would then work on every provider.
 
+## Advisory code quality
+
+The shared harness composes Code Quality for main agents, sub-agents, teammates and serve sessions.
+Successful direct `write`, `edit` and `multi_edit` calls may carry transient immutable before/after
+text captured under their existing write lock. The source adapter prepares complete named TypeScript
+and JavaScript scopes with the TypeScript compiler; unsupported languages, unavailable source,
+ambiguous scope identity and bounded-size skips are reported as coverage gaps, never clean reviews.
+Shell, MCP and external-editor writes are not attributed by this module.
+
+Registered policies own scope selection, atomic questions, interpretation and deterministic coaching.
+The first policy is single responsibility. The engine uses the shared `DecisionPort` and the same gateway-compatible `jev-latest` route as
+other Jev features, not a prose-generating fallback. This alias is not an immutable model version;
+eval artifacts record the requested and returned identities without claiming version-pinned efficacy. One joined review deadline/turn-abort bounds advisory
+work; reviewer faults, invalid drafts and timeouts cannot replace a committed write's successful result.
+The dispatcher returns the result, compact review bookkeeping and any one-step nudge in order.
+
+`code-quality-reviewed` records hold source-free assessments and finding episodes. They survive
+destructive summary and reopen, follow normal rewind/fork history, and do not become transcript rows
+or permanent prompt context. Only a newly notifiable episode emits finite coaching; existing debt does
+not recursively nudge the agent. Workspace namespaces use normalized repository identity plus branch
+and repo-relative worktree identity through the thread's execution backend, not absolute host paths.
+
+Settings register policy toggles from descriptors and read live values. The master switch defaults off
+pending independently verified real-session efficacy evidence; example collection is separately opt-in.
+Examples are local immutable scope records under the owning thread's session data, not retained source
+in event bookkeeping. The settings surface reads shared harness health for the active runtime and
+labels it last-recorded status, not a continuously running scan. The existing protocol 19 already supports strict quality event decoding; integration adds no
+quality-specific frame or compatibility bump.
+
+`evals/` is a development-only shared Evalite workspace. It builds supervised Node adapters that reuse
+production request preparation and interpretation, validates exact case/trial coverage and writes fresh
+artifacts with separate quality, operational-failure and latency dimensions. Default tests and evals
+are fake/no-network; live provider calls require explicit flags and configuration. Synthetic smoke
+proves integration, not policy efficacy. No eval framework enters the shipped TUI or serve dependency
+graph, and an empty real corpus cannot justify calibrated detection claims or default enablement.
+
 ## Skills
 
 Skills are authored under `packages/harness/skills` and discovered through the shared harness's
@@ -1053,16 +1089,15 @@ and a Haiku model is already provisioned, so the seam is there when the index st
 | --- | --- | --- |
 | **Conversation** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL) | move the thread head |
 | **Control** — pending tool, retries, interrupt reason | *derived from the log* | re-read the log |
-| **World** — files, git index, worktree, subprocesses | Workspace snapshots (git objects) | restore the snapshot on the event |
+| **World** — files, git index, worktree, subprocesses | Execution ports and external systems | not restored by conversation rewind |
 
 The middle row is where frameworks want to sell you a checkpointer. We don't have one because we
 don't need one.
 
-`rewind(eventId)` resolves the event's `snapshotId`, restores the workspace, and moves the thread
-head. Fork is the same operation writing to a new `threadId` — one row, because context is derived.
-
-Snapshots cannot undo non-filesystem effects, so tool dispatch takes
-`idempotencyKey: ${runId}:${callId}`.
+Rewind moves the thread head and, after confirmation, destroys creations cut from the conversation.
+It does not restore file contents or the Git index. Fork creates a new thread with copied or referenced
+history; neither operation treats a historical snapshot as authority over the current workspace.
+Tool dispatch carries `idempotencyKey: ${runId}:${callId}` independently of these history operations.
 
 ### Where the session is, is Conversation
 

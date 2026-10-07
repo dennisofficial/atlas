@@ -76,20 +76,14 @@ export function createSettlePending(deps: {
     let activeWorktree: ActiveWorktree | undefined = activeWorktreeOf(events)
     let homeDirectory = homeDirectoryOf({ events, launchDirectory })
 
-    for (const run of runs) {
+    for (const [index, run] of runs.entries()) {
       if (signal.aborted) return {}
 
+      const current = index === 0 ? events : await deps.log.read({ threadId })
       const projectDirectory = activeWorktree?.path ?? homeDirectory
       const settled = await Promise.all(
         run.map(async (call) => {
-          const drafts = await settleOne({
-            call,
-            events,
-            signal,
-            projectDirectory,
-            homeDirectory,
-            activeWorktree,
-          })
+          const drafts = await settleOne({ call, events: current, signal, projectDirectory, homeDirectory, activeWorktree })
           if (drafts.length > 0) await deps.log.append({ threadId, runId: call.runId, drafts })
           return drafts
         }),

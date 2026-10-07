@@ -6,6 +6,7 @@ import {
   type EventLogPort,
   type ModelPort,
   type ProviderIdentity,
+  type QualityReviewPort,
   type TelemetryPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -37,6 +38,7 @@ export type ChildRunnerDeps = {
   turn: Omit<TurnDeps, 'drainPending'>
   tools: ToolRegistry
   hooks: HookChain
+  quality?: QualityReviewPort | undefined
   channel: DeltaChannel
   assemblyFor: (args: {
     agentType: AgentType
@@ -190,6 +192,7 @@ export async function buildChildRunner({
           registry,
           hooks: deps.hooks,
           logPort: turn.logPort,
+          quality: deps.quality,
         }),
         telemetry: deps.telemetry,
       }),

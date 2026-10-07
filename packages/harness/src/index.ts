@@ -2,6 +2,7 @@ export const HARNESS_PACKAGE_NAME = '@dltech/atlas-harness'
 
 export * from './browser'
 export * from './channel'
+export { readQualityHealth } from './quality/health'
 export * from './classifier'
 export * from './cloud'
 export * from './composition'

@@ -7,6 +7,7 @@ import {
   SchemaTool,
   type ThreadId,
   type DeclaredPathField,
+  type QualityCoverageDiagnostic,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
@@ -15,6 +16,7 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from '../../files/write-guard'
+import { captureText, captureUnavailableFault, makeChange } from '../../quality/source/capture-text'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
@@ -46,6 +48,9 @@ async function createFile(args: {
   mode: number | undefined
   files: AgentFileSystemPort
   threadId: ThreadId
+  capture: boolean
+  captureFault: QualityCoverageDiagnostic | null
+  capturedBefore: string | null
 }): Promise<ToolOutcome> {
   if (args.newString === '') {
     return {
@@ -78,6 +83,10 @@ async function createFile(args: {
       }),
     },
     modelText: args.existing === null ? created(args.path) : updated(args.path),
+    ...(args.capture && args.captureFault === null
+      ? { fileChanges: makeChange({ path: args.path, before: args.capturedBefore, after: args.newString }) }
+      : {}),
+    ...(args.captureFault !== null ? { fileChangeFaults: [args.captureFault] } : {}),
   }
 }
 
@@ -89,8 +98,21 @@ async function replaceInFile(args: {
   mode: number
   files: AgentFileSystemPort
   threadId: ThreadId
+  capture: boolean
 }): Promise<ToolOutcome> {
-  const raw = await args.files.readFile({ path: args.path, threadId: args.threadId })
+  let raw: string
+  let captureFault: QualityCoverageDiagnostic | null = null
+  let before: string | null = null
+  if (args.capture) {
+    const read = await args.files.readTextForEdit({ path: args.path, threadId: args.threadId })
+    raw = read.text
+    const captured = captureText({ path: args.path, text: read.text, strict: read.strict, changed: true })
+    if (!captured.ok) captureFault = captured.diagnostic
+    else before = captured.text
+  } else {
+    raw = await args.files.readFile({ path: args.path, threadId: args.threadId })
+  }
+
   const replaced = replaceInContent({
     content: raw,
     oldString: args.oldString,
@@ -118,6 +140,10 @@ async function replaceInFile(args: {
       }),
     },
     modelText: updated(args.path),
+    ...(args.capture && captureFault === null && before !== null
+      ? { fileChanges: makeChange({ path: args.path, before, after: replaced.content }) }
+      : {}),
+    ...(captureFault !== null ? { fileChangeFaults: [captureFault] } : {}),
   }
 }
 
@@ -141,11 +167,13 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
     input,
     threadId,
     projectDirectory,
+    captureFileChanges,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const resolved = resolveToolPath({ projectDirectory, path: input.path })
     if (!resolved.ok) return { ok: false, reason: resolved.reason }
     const path = resolved.path
     const { oldString, newString, replaceAll } = input
+    const capture = captureFileChanges === true
 
     const guarded = await this.guard.underLock({
       threadId,
@@ -159,6 +187,18 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
         if (oldString === '') {
           const existing =
             stats === null ? null : await this.files.readFile({ path, threadId })
+          let createFault: QualityCoverageDiagnostic | null = null
+          let capturedBefore: string | null = existing
+          if (capture && existing !== null) {
+            const read = await this.files.readTextForEdit({ path, threadId }).catch(() => null)
+            if (read === null) {
+              createFault = captureUnavailableFault({ path, detail: 'the previous contents could not be read' })
+            } else {
+              const captured = captureText({ path, text: read.text, strict: read.strict, changed: true })
+              if (!captured.ok) createFault = captured.diagnostic
+              else capturedBefore = captured.text
+            }
+          }
           return await createFile({
             path,
             newString,
@@ -166,6 +206,9 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
             mode: stats?.mode,
             files: this.files,
             threadId,
+            capture,
+            captureFault: createFault,
+            capturedBefore,
           })
         }
 
@@ -179,6 +222,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
           mode: stats.mode,
           files: this.files,
           threadId,
+          capture,
         })
       },
     })
