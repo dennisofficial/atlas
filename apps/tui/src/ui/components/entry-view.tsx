@@ -6,6 +6,7 @@ import type { EMark } from '../tool-marks'
 import { AssistantBlock } from './blocks/assistant-block'
 import { CompactedBlock } from './blocks/compacted-block'
 import { NoticeBlock } from './blocks/notice-block'
+import { QualityNoticeBlock } from './blocks/quality-notice-block'
 import { ThinkingBlock } from './blocks/thinking-block'
 import { TldrBlock } from './blocks/tldr-block'
 import { ToolRunBlock } from './blocks/tool-run-block'
@@ -249,6 +250,18 @@ function DerivedEntryView(props: {
 
     case EEntryKind.LocationChanged:
       return <LocationDivider width={props.width} location={entry.to} cause={entry.cause} />
+
+    case EEntryKind.CodeQualityReviewed:
+      return (
+        <QualityNoticeBlock
+          text={entry.text}
+          body={entry.body}
+          failure={entry.failed}
+          width={props.width}
+          expanded={props.expanded ?? false}
+          {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
+        />
+      )
 
     default: {
       const unrendered: never = entry

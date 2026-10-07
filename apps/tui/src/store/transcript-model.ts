@@ -27,6 +27,7 @@ export enum EEntryKind {
   SandboxNotice = 'sandbox-notice',
   LocationChanged = 'location-changed',
   OperatorInput = 'operator-input',
+  CodeQualityReviewed = 'code-quality-reviewed',
 }
 
 export type OperatorSaidEntry = {
@@ -209,6 +210,15 @@ export type OperatorInputEntry = {
   text: string
 }
 
+export type CodeQualityReviewedEntry = {
+  kind: EEntryKind.CodeQualityReviewed
+  author: EAuthor.Model
+  key: string
+  text: string
+  body: string
+  failed: boolean
+}
+
 export type TranscriptEntry =
   | OperatorSaidEntry
   | ModelSaidEntry
@@ -228,6 +238,7 @@ export type TranscriptEntry =
   | SandboxNoticeEntry
   | LocationChangedEntry
   | OperatorInputEntry
+  | CodeQualityReviewedEntry
 
 export type StepFailure = { message: string | null }
 
