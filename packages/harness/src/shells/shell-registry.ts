@@ -217,6 +217,10 @@ export class BunShellRegistry extends ShellRegistryPort {
     this.state.notices.forget({ threadId })
   }
 
+  reassignNotices({ from, to }: { from: ThreadId; to: ThreadId }): void {
+    this.state.notices.reassign({ from, to })
+  }
+
   async closeAll(args?: { killedBy?: EKilledBy; threadId?: ThreadId }): Promise<void> {
     const owners = new Set(this.admittedOwners)
     if (args?.threadId !== undefined) owners.add(args.threadId)

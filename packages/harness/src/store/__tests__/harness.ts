@@ -133,6 +133,7 @@ export class UnstaffedShells extends ShellRegistryPort {
     return () => undefined
   }
   forgetNotices() {}
+  reassignNotices() {}
   closeAll() {
     return Promise.resolve()
   }
@@ -171,6 +172,7 @@ export class UnstaffedServices extends ServiceRegistryPort {
     return () => undefined
   }
   forgetNotices() {}
+  reassignNotices() {}
   closeAll() {
     return Promise.resolve()
   }

@@ -92,6 +92,21 @@ export class ServiceNoticeQueue {
     this.settle(kept)
   }
 
+  /**
+   * A finished child's leftovers move to the parent: the parent's next drain is the earliest
+   * anyone alive can hear about them, and the child will never drain again.
+   */
+  reassign({ from, to }: { from: ThreadId; to: ThreadId }): void {
+    if (from === to) return
+    if (!this.queued.some((notice) => notice.threadId === from)) return
+
+    this.settle(
+      this.queued.map((notice) =>
+        notice.threadId === from ? { ...notice, threadId: to } : notice,
+      ),
+    )
+  }
+
   dropServices({ serviceIds }: { serviceIds: readonly string[] }): void {
     if (this.queued.length === 0 || serviceIds.length === 0) return
     this.settle(

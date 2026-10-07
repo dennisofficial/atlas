@@ -471,7 +471,7 @@ describe("a teammate's session", () => {
     return { harness, model }
   }
 
-  it('keeps the session-shaping tools a sub-agent is denied, bar service control', async () => {
+  it('keeps the session-shaping tools a sub-agent is denied, service control included', async () => {
     const { model } = await spawnTeammate({ script: [{ text: 'done' }] })
 
     expect(model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual([
@@ -479,6 +479,7 @@ describe("a teammate's session", () => {
       'agent_spawn',
       'enter_worktree',
       'execution_location',
+      'service_start',
     ])
   })
 

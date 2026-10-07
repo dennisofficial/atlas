@@ -4,7 +4,7 @@ import { EToolEffect } from '@dltech/atlas-core'
 
 import { filteredToolRegistry, InMemoryToolRegistry } from '../../../tools/registry'
 import { toolNamed } from '../../../tools/__tests__/fixtures'
-import { AGENT_TOOL_NAMES, SERVICE_CONTROL_TOOL_NAMES, WORKTREE_TOOL_NAMES } from '../agent-type'
+import { AGENT_TOOL_NAMES, WORKTREE_TOOL_NAMES } from '../agent-type'
 
 const named = (name: string) =>
   toolNamed({
@@ -25,28 +25,31 @@ const wholeToolset = () =>
 const asAChildSees = () =>
   filteredToolRegistry({
     registry: wholeToolset(),
-    deny: [...AGENT_TOOL_NAMES, ...WORKTREE_TOOL_NAMES, ...SERVICE_CONTROL_TOOL_NAMES],
+    deny: [...AGENT_TOOL_NAMES, ...WORKTREE_TOOL_NAMES, 'operator_input'],
   })
 
 describe('what a child may do with the session’s services', () => {
-  it('keeps service_list, so a child can see what is online', () => {
+  it('keeps start, stop and list: services are session-wide infrastructure any thread may operate', () => {
     const child = asAChildSees()
 
+    expect(child.find('service_start')).toBeDefined()
+    expect(child.find('service_stop')).toBeDefined()
     expect(child.find('service_list')).toBeDefined()
   })
 
-  it('loses start and stop: an ending routes to the starting thread, and a finished child has nothing left to deliver it', () => {
+  it('still loses agent, worktree and operator tools', () => {
     const child = asAChildSees()
 
-    expect(child.find('service_start')).toBeUndefined()
-    expect(child.find('service_stop')).toBeUndefined()
+    expect(child.find('agent_spawn')).toBeUndefined()
+    expect(child.find('enter_worktree')).toBeUndefined()
+    expect(child.find('operator_input')).toBeUndefined()
   })
 
-  it('advertises the same split rather than merely refusing by name', () => {
+  it('advertises every service tool rather than merely refusing by name', () => {
     const offered = asAChildSees()
       .declarations()
       .map((declaration) => declaration.name)
 
-    expect(offered).toEqual(['service_list', 'read', 'bash'])
+    expect(offered).toEqual(['service_start', 'service_stop', 'service_list', 'read', 'bash'])
   })
 })

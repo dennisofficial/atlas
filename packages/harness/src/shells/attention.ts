@@ -65,6 +65,21 @@ export class ShellAttentionQueue {
     this.settle(this.queued.filter((notice) => notice.threadId !== threadId))
   }
 
+  /**
+   * A finished child's leftovers move to the parent: the parent's next drain is the earliest
+   * anyone alive can hear about them, and the child will never drain again.
+   */
+  reassign({ from, to }: { from: ThreadId; to: ThreadId }): void {
+    if (from === to) return
+    if (!this.queued.some((notice) => notice.threadId === from)) return
+
+    this.settle(
+      this.queued.map((notice) =>
+        notice.threadId === from ? { ...notice, threadId: to } : notice,
+      ),
+    )
+  }
+
   private settle(notices: readonly ShellAttention[]): void {
     this.queued = notices
     const byThread = new Map<ThreadId, PendingShellNotice[]>()

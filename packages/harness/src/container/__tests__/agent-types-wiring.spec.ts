@@ -289,6 +289,7 @@ describe('the container with nothing bound over it', () => {
       'explore',
       'builder',
       'reviewer',
+      'preview',
     ])
   })
 })

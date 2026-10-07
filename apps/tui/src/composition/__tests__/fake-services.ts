@@ -140,6 +140,11 @@ export function fakeServiceRegistry(): FakeServices {
       settle(kept)
     },
 
+    reassignNotices: ({ from, to }) => {
+      if (!ended.some((one) => one.threadId === from)) return
+      settle(ended.map((one) => (one.threadId === from ? { ...one, threadId: to } : one)))
+    },
+
     closeAll: async () => {},
   }
 }
