@@ -102,7 +102,11 @@ export function createRequestRouter(args: {
   }
   if (frame.op === EClientRequest.Rewind) {
     if (rewind === undefined) log({ event: EServeEvent.ClientRefused, reason: 'rewind-without-registries' })
-    void edits.run(() => answerRewindRequest({ frame, threadId, driver, rewind })).then((reply) => send({ socket, frame: reply }))
+    void edits.run(async () => {
+      const reply = await answerRewindRequest({ frame, threadId, driver, rewind })
+      if (reply.ok) args.historyChanged?.()
+      return reply
+    }).then((reply) => send({ socket, frame: reply }))
     return
   }
 

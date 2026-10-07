@@ -135,7 +135,7 @@ export const startRecoveryServe = async (args: {
       agents: store.agents,
       summarise: args.summariser,
     }),
-    rewind: { target: fakeRewindTarget(), truncate: async () => undefined },
+    rewind: { target: fakeRewindTarget(), truncate: (given) => store.threads.rewind(given) },
   }
 
   const handle = await startServe({

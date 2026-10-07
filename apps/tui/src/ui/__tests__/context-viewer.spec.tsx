@@ -177,7 +177,7 @@ describe('the context viewer', () => {
     }
   })
 
-  it('declines an image where the terminal cannot paint one, rather than corrupting the cells around it', async () => {
+  it('paints an image as coloured cells with no refusal line', async () => {
     const setup = await mount(
       <ContextViewer
         width={WIDTH}
@@ -193,9 +193,8 @@ describe('the context viewer', () => {
       await settle(setup.flush)
       const frame = setup.captureCharFrame()
       expect(frame).toContain('shot.png')
-      expect(frame).toContain('cannot display')
-      expect(painted(frame)).toBe(false)
-      expect(frame).not.toContain('binary')
+      expect(frame).not.toContain('cannot display')
+      expect(painted(frame)).toBe(true)
     } finally {
       await teardown(setup)
     }

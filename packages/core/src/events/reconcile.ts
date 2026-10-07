@@ -21,10 +21,6 @@ export async function findDivergence(args: {
   }
 
   const remoteHead = await args.remoteDigest(head)
-  if (remoteHead.count < head) {
-    return remoteHead.count + 1
-  }
-
   const headDigest = prefixDigestOf({ events: args.local, upTo: head })
   if (headDigest === remoteHead.digest) {
     return null

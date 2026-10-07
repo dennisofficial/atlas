@@ -142,7 +142,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const roots = { atlasHome: atlasDirectory(), home: homedir(), cwd: anchor }
   const skillRegistry = bindSkillRegistry({
     container,
-    registry: await liveSkillRegistry({ ...roots, home: args.userSkillHome ?? roots.home }),
+    registry: await liveSkillRegistry({ ...roots, home: args.userSkillHome ?? roots.home, notice }),
   })
   const agentTypes = await bindSessionAgentTypes({ container, settings, launchValue, models, roots })
 
