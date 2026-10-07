@@ -543,6 +543,38 @@ describe('LocalRotation recovery', () => {
     expect(reopened.runner.started).toEqual([successor.thread.id])
     expect(await reopened.authority.activeMainOf({ sessionId: main })).toBe(successor.thread.id)
   })
+
+  it('starts the successor at most once when recover repeats without a guarded activator', async () => {
+    const fixture = await openFixture()
+    const main = await fixture.openMain()
+    const successor = await fixture.threads.createWithFirstEvents({
+      sessionId: main,
+      drafts: [saidBody({ text: 'seed' })],
+      runId: fixture.ids.nextRunId(),
+    })
+
+    await fixture.authority.writeRotation({
+      sessionId: main,
+      write: {
+        rotation: {
+          predecessor: main,
+          successor: successor.thread.id,
+          handoffPath: '/tmp/handoff.md',
+          watermarkSeq: 1,
+          status: ERotationStatus.Committed,
+          updatedAt: fixture.clock.now(),
+        },
+        expectedActiveMain: main,
+        nextActiveMain: successor.thread.id,
+      },
+    })
+
+    const rotation = fixture.rotation()
+    await rotation.recover({ sessionId: main })
+    await rotation.recover({ sessionId: main })
+
+    expect(fixture.runner.started).toEqual([successor.thread.id])
+  })
 })
 
 describe('LocalRotation fault injection at each durable write', () => {

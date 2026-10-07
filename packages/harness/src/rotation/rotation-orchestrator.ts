@@ -25,6 +25,7 @@ type Inflight = InflightRotation
 
 export class LocalRotation extends RotationPort {
   private readonly inflight = new Map<string, Inflight>()
+  private readonly activated = new Set<ThreadId>()
   private readonly listeners = new Set<RotationListener>()
   private readonly store: RotationStore
 
@@ -73,7 +74,7 @@ export class LocalRotation extends RotationPort {
       successor,
     })
     if (args.activate !== undefined) await args.activate()
-    else void this.deps.runner.runTurn({ threadId: successor })
+    else this.activateOnce({ successor })
     return this.status(args)
   }
 
@@ -210,7 +211,7 @@ export class LocalRotation extends RotationPort {
     })
 
     this.advance({ sessionId, operation, phase: ERotationPhase.Activating })
-    void this.deps.runner.runTurn({ threadId: successor })
+    this.activateOnce({ successor })
     this.advance({ sessionId, operation, phase: ERotationPhase.Committed })
 
     return {
@@ -241,6 +242,12 @@ export class LocalRotation extends RotationPort {
     operationId: string
   }): RotationRecord {
     return rotationRecordOf({ ...args, clock: this.deps.clock })
+  }
+
+  private activateOnce({ successor }: { successor: ThreadId }): void {
+    if (this.activated.has(successor)) return
+    this.activated.add(successor)
+    void this.deps.runner.runTurn({ threadId: successor })
   }
 
   private advance(args: {
