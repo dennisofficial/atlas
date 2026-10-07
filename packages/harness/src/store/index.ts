@@ -53,5 +53,11 @@ export {
   type ThreadMeta,
 } from './sessions/meta'
 export { writeSessionMetaForRoot } from './sessions/session-meta'
+export {
+  JsonlSessionAuthority,
+  MainConflict,
+  type RotationWrite,
+} from './sessions/session-authority'
+export { ERotationStatus, SessionAuthorityPort, type MainThreadFence, type RotationRecord } from './sessions/meta'
 export { migrateSessionDirectory, canMigrateToCurrent, type SessionMigration, type SessionMigrationContext } from './sessions/migrations'
 export { EVENT_LINE_VERSION, parseEventLines } from './sessions/lines'

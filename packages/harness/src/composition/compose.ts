@@ -31,6 +31,7 @@ import { PromptRegistry } from '../prompt/registry'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
+import { SessionAuthorityPort } from '../store/sessions/meta'
 import { ThreadStorePort } from '../store/thread-store'
 import { LocalCompaction } from '../store/local-compaction'
 import { ToolRegistry } from '../tools/registry'
@@ -155,7 +156,14 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
-  executionLocation.bind({ threads, workspace: workspace.workspace, repo: workspace.repo })
+  executionLocation.bind({
+    threads,
+    workspace: workspace.workspace,
+    repo: workspace.repo,
+    authority: container.isRegistered(portToken(SessionAuthorityPort), true)
+      ? container.resolve(portToken(SessionAuthorityPort))
+      : undefined,
+  })
   const ledger = container.resolve(portToken(TurnLedgerPort))
 
   container.register(HookMishapReporterToken, { useValue: hookMishapNotice(notice) })

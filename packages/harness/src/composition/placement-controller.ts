@@ -11,12 +11,15 @@ import {
 } from '@dltech/atlas-core'
 
 import { isTeammateType } from '../agents/types'
+import type { SessionAuthorityPort } from '../store/sessions/meta'
 import type { ThreadStorePort } from '../store/thread-store'
 
 export type PlacementStore = Pick<
   ThreadStorePort,
   'readPlacement' | 'writePlacement' | 'onPlacementChanged' | 'find'
 >
+
+export type PlacementSessionAuthority = Pick<SessionAuthorityPort, 'activeMainOf'>
 
 export enum EPlacementMoveKind {
   Tools = 'tools',
@@ -50,7 +53,12 @@ export class PlacementController {
   private readonly moving = new Set<ThreadId>()
   private readonly startedMoves = new Set<string>()
   private readonly gates = new Set<(args: { threadId: ThreadId; record: PlacementRecord }) => void>()
-  private binding: { threads: PlacementStore; workspace: string; repo: string | null } | undefined
+  private binding: {
+    threads: PlacementStore
+    workspace: string
+    repo: string | null
+    authority?: PlacementSessionAuthority | undefined
+  } | undefined
   private sequence = 0
 
   constructor(private readonly initial: EExecutionLocation) {}
@@ -87,7 +95,12 @@ export class PlacementController {
     return () => this.listeners.delete(listener)
   }
 
-  bind(binding: { threads: PlacementStore; workspace: string; repo: string | null }): void {
+  bind(binding: {
+    threads: PlacementStore
+    workspace: string
+    repo: string | null
+    authority?: PlacementSessionAuthority | undefined
+  }): void {
     if (this.binding !== undefined) throw new Error('placement is already bound to its store')
     this.binding = binding
     binding.threads.onPlacementChanged(({ threadId, record }) => this.publish({ threadId, record }))
@@ -236,6 +249,15 @@ export class PlacementController {
   }
 
   private async sessionRoot(threadId: ThreadId): Promise<ThreadId> {
+    const authority = this.binding?.authority
+    if (authority !== undefined) {
+      const active = await authority.activeMainOf({ sessionId: threadId })
+      if (active !== undefined) return active
+    }
+    return this.supervisionRoot(threadId)
+  }
+
+  private async supervisionRoot(threadId: ThreadId): Promise<ThreadId> {
     let root = threadId
     const seen = new Set<ThreadId>()
     while (!seen.has(root)) {

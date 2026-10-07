@@ -20,5 +20,7 @@ export type OpenThreadArgs = {
   repo?: string | null | undefined
   executionLocation?: EExecutionLocation | undefined
   agent?: SupervisedAgent | undefined
+  /** Names an existing session the new main joins (rotation); absent, a main opens its own session. */
+  sessionId?: string | undefined
   model?: ThreadModel | undefined
 }
