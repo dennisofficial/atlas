@@ -18,7 +18,7 @@ import type { DeltaChannel } from '../channel/delta-channel'
 import type { CloudService } from '../cloud/cloud-service'
 import type { DependencyContainer } from '../container/injection'
 import type { AccountsService } from '../credentials/accounts-service'
-import type { FileBrowser } from '../files/file-browser'
+import type { MentionReader } from '../files/mention-reader'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { TldrFeed } from '../loop/tldr-turn-runner'
 import type { TurnPolicy } from '../loop/turn-policy'
@@ -116,7 +116,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   settings: SettingsService
   secrets: SecretsPort
   usage: AccountUsageService
-  files: FileBrowser
+  files: MentionReader
   openUrl: UrlOpener
   openFile: FileOpener
   pathResolver: PathResolver

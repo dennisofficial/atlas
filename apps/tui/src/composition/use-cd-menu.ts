@@ -4,11 +4,12 @@ import { isAbsolute, resolve } from 'node:path'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { DirectoryEntry } from '@dltech/atlas-core'
-import type { FileBrowser } from '@dltech/atlas-harness'
+import type { MentionReader } from '@dltech/atlas-harness'
 
 import { cdQueryOf, completedCdArgument, openCdMenu } from '../ui/cd-menu-model'
 import { moveFileSelection, type FileMenuState } from '../ui/file-menu-model'
 import { expandHome } from '../ui/paths'
+import { messageOf } from './error-text'
 
 export type CdMenuControl = {
   state: FileMenuState | null
@@ -27,9 +28,10 @@ const listingDirectoryOf = (args: { directory: string; current: string }): strin
 }
 
 export function useCdMenu(args: {
-  files?: FileBrowser | undefined
+  files?: Pick<MentionReader, 'list'> | undefined
   currentDirectory: string
   onComplete: (text: string) => void
+  onProblem?: ((reason: string) => void) | undefined
 }): CdMenuControl {
   const [state, setState] = useState<FileMenuState | null>(null)
   const typed = useRef('')
@@ -52,9 +54,13 @@ export function useCdMenu(args: {
       void files.list(directory).then((entries: readonly DirectoryEntry[]) => {
         if (ticket !== asked.current) return
         setState(openCdMenu({ query, entries }))
+      }).catch((error: unknown) => {
+        if (ticket !== asked.current) return
+        setState(null)
+        args.onProblem?.(`could not list directories: ${messageOf(error)}`)
       })
     },
-    [files, currentDirectory],
+    [files, currentDirectory, args.onProblem],
   )
 
   const handleDismiss = useCallback(() => {

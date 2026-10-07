@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { DiscoveredSkill } from '@dltech/atlas-harness'
+import { rebaseMentionReader, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { liveTokens, tokenAtOffset, type LiveToken } from '../ui/composer-tokens'
 import { pastedTagSpans } from '@dltech/atlas-core'
@@ -8,7 +8,7 @@ import { readImageBase64 } from '../ui/clipboard-image'
 import { restoredImages, submissionOf } from '../ui/draft-images'
 import { useDraft } from '../ui/hooks/use-draft'
 import { useDraftTokens } from '../ui/hooks/use-draft-tokens'
-import { notify } from '../ui/notice-store'
+import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { commandSpecs, dispatchSubmission, EDispatch, localCommands } from './commands'
 import type { AtlasApp } from './compose'
 import { workspaceFileLoader } from './mentioned-files'
@@ -36,9 +36,21 @@ export function useWorkspaceComposer(args: {
 
   const specs = useMemo(() => commandSpecs({ commands, skills }), [commands, skills])
 
+  const files = useMemo(
+    () => rebaseMentionReader({ reader: app.files, root: conversation.projectDirectory }),
+    [app.files, conversation.projectDirectory],
+  )
+  const currentFiles = useRef(files)
+  currentFiles.current = files
+  const handleMentionProblem = useCallback((reason: string) => {
+    notify({ text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, key: 'mention-files' })
+  }, [])
+
   const menus = useComposerMenus({
     specs,
-    files: app.files,
+    files,
+    cdFiles: app.files,
+    onProblem: handleMentionProblem,
     currentDirectory: conversation.projectDirectory,
     onComplete: draft.setValue,
   })
@@ -47,9 +59,13 @@ export function useWorkspaceComposer(args: {
 
   useEffect(() => {
     readDraft.current(draft.value)
-  }, [draft.value])
+  }, [draft.value, files])
 
-  const mentionSpans = useResolvedMentions({ text: draft.value, files: app.files })
+  const mentionSpans = useResolvedMentions({
+    text: draft.value,
+    files,
+    onProblem: handleMentionProblem,
+  })
 
   const cursorOffsetBefore = useRef<number | null>(null)
 
@@ -92,15 +108,7 @@ export function useWorkspaceComposer(args: {
     setTokenSpans(liveTokens(editor))
   }, [draft])
 
-  const highlights = useMemo(
-    () => [...mentionSpans, ...tokenSpans],
-    [mentionSpans, tokenSpans],
-  )
-
-  const highlightedFiles = useMemo(
-    () => new Set(mentionSpans.map((mention) => mention.path)),
-    [mentionSpans],
-  )
+  const highlights = useMemo(() => [...mentionSpans, ...tokenSpans], [mentionSpans, tokenSpans])
 
   const handleSubmit = useCallback(() => {
     void (async () => {
@@ -152,13 +160,13 @@ export function useWorkspaceComposer(args: {
         return
       }
 
+      const ownerBinding = app.sessionOwner.snapshot().binding
       void dispatchSubmission({
         text: said,
         commands,
         skills,
         working: conversation.working,
-        highlightedFiles,
-        ...(app.files === undefined ? {} : { loadFile: workspaceFileLoader(app.files) }),
+        loadFile: workspaceFileLoader(files),
       }).then((dispatched) => {
         if (dispatched.type === EDispatch.Queued) {
           keepAttachments()
@@ -176,6 +184,16 @@ export function useWorkspaceComposer(args: {
           return
         }
         if (dispatched.type !== EDispatch.Send) return
+        if (
+          currentFiles.current !== files ||
+          app.sessionOwner.snapshot().binding !== ownerBinding
+        ) {
+          putBack()
+          conversation.handleReportProblem(
+            'The session filesystem changed while preparing your message. Send it again from the current runtime.',
+          )
+          return
+        }
 
         const sending = submissionOf({
           text: dispatched.text,
@@ -185,18 +203,23 @@ export function useWorkspaceComposer(args: {
         conversation.handleSend({ ...sending, context: dispatched.drafts })
       })
     })()
-  }, [agentView, app.files, commands, conversation, draft, handleOpenNewest, highlightedFiles, skills, tokens])
+  }, [
+    agentView,
+    app.sessionOwner,
+    commands,
+    conversation,
+    draft,
+    files,
+    handleOpenNewest,
+    skills,
+    tokens,
+  ])
 
   const draftIsEmpty = useCallback(
     (): boolean => (draft.editor.current?.plainText ?? draft.value).length === 0,
     [draft],
   )
 
-  /**
-   * Cloud take-back is a round trip to the sandbox, so the draft fills from the reply rather than
-   * the keypress. A concurrent second ↑ is refused while one is in flight — both would race for
-   * the same queue tail and the sandbox would hand it out twice.
-   */
   const takingBack = useRef(false)
   const handleTakeBackPending = useCallback((): boolean => {
     if (takingBack.current) return false

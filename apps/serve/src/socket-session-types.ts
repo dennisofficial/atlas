@@ -8,6 +8,7 @@ import type { ClientFrame, EClientFrame, RestoreTranscriptParams, ServeFrame } f
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 
 import type { ContextReaders } from './context-requests'
+import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
 import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind } from './serve-app'
@@ -69,6 +70,8 @@ export type SessionHandlersArgs = {
   /** The operator's queued input; its changes are broadcast and take-back-pending answers from it. Absent in fakes. */
   pending?: PendingQueues | undefined
   context?: ContextReaders | undefined
+  /** Answers the @-mention ops from the owning filesystem; absent in fakes, which refuse them. */
+  mentions?: MentionRouting | undefined
   /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
   transcript?: TranscriptReaders | undefined
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */

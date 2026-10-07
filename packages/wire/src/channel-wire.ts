@@ -14,7 +14,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 19
+export const CHANNEL_PROTOCOL_VERSION = 20
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -121,6 +121,14 @@ export enum EClientRequest {
   ReadRuntimeCheckpoint = 'read-runtime-checkpoint',
   ListContextFiles = 'list-context-files',
   ReadContextFile = 'read-context-file',
+  /**
+   * The composer's @ mentions, answered by the filesystem that owns the thread: the sandbox's own
+   * files for a cloud session, never the terminal's. A serve built before these ops version-refuses
+   * the socket at hello, and the client reports the failure rather than reading local files.
+   */
+  ListMentionFiles = 'list-mention-files',
+  MentionFileExists = 'mention-file-exists',
+  ReadMentionFile = 'read-mention-file',
   /**
    * Takes the newest unreserved operator message back out of the sandbox's pending queue and
    * returns it for the composer, so the take-back is confirmed by the queue's owner. A serve built

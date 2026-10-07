@@ -29,8 +29,18 @@ export function resolveMentionPath(args: { root: string; path: string }): string
   return resolve(args.root, path)
 }
 
+const missingPathOrThrow = (error: unknown): null => {
+  if (
+    error instanceof Error &&
+    'code' in error &&
+    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+  )
+    return null
+  throw error
+}
+
 const entriesOf = async (directory: string): Promise<readonly DirectoryEntry[]> => {
-  const read = await readdir(directory, { withFileTypes: true }).catch(() => null)
+  const read = await readdir(directory, { withFileTypes: true }).catch(missingPathOrThrow)
   if (read === null) return []
 
   return read
@@ -39,11 +49,6 @@ const entriesOf = async (directory: string): Promise<readonly DirectoryEntry[]> 
     .slice(0, MAX_LEVEL_ENTRIES)
 }
 
-/**
- * The directories the thread's execution environment can actually read: the project plus whatever
- * is mounted into the container. Undefined means the open host filesystem. A getter, because the
- * thread column can move the session between the two mid-conversation.
- */
 export type ReachableRoots = () => readonly string[] | undefined
 
 const reachable = (args: { roots: readonly string[]; path: string }): boolean =>
@@ -61,6 +66,17 @@ export class FileBrowser {
   constructor(args: { root: string; reachableRoots?: ReachableRoots | undefined }) {
     this.root = args.root
     this.reachableRoots = args.reachableRoots
+  }
+
+  atRoot(root: string): FileBrowser {
+    const reachableRoots = this.reachableRoots
+    if (reachableRoots === undefined) return new FileBrowser({ root })
+
+    const from = this.root
+    return new FileBrowser({
+      root,
+      reachableRoots: () => reachableRoots()?.map((held) => (held === from ? root : held)),
+    })
   }
 
   list(directory: string): Promise<readonly DirectoryEntry[]> {
@@ -101,7 +117,10 @@ export class FileBrowser {
 
     return await stat(full)
       .then(() => true)
-      .catch(() => false)
+      .catch((error: unknown) => {
+        missingPathOrThrow(error)
+        return false
+      })
   }
 
   forget(): void {
@@ -120,7 +139,7 @@ export class FileBrowser {
       }
     }
 
-    const found = await stat(full).catch(() => null)
+    const found = await stat(full).catch(missingPathOrThrow)
     if (found === null) return { type: EFileLoad.Refused, path, reason: 'it does not exist' }
 
     if (found.isDirectory()) {
@@ -134,8 +153,7 @@ export class FileBrowser {
 
     if (!found.isFile()) return { type: EFileLoad.Refused, path, reason: 'it is not a file' }
 
-    const read = await readFile(full).catch(() => null)
-    if (read === null) return { type: EFileLoad.Refused, path, reason: 'it could not be read' }
+    const read = await readFile(full)
     if (read.includes(0)) return { type: EFileLoad.Refused, path, reason: 'it is binary' }
 
     const truncated = read.byteLength > MAX_MENTION_BYTES

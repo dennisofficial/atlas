@@ -21,7 +21,7 @@ import { portToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
-import { ThreadStorePort } from '@dltech/atlas-harness'
+import { ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
 
 import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
 import { EPortableStateBoot, installPortableState } from './portable-state'
@@ -185,6 +185,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     settings: app.settings,
     ids: app.ids,
     files: app.files,
+    mentionFiles: (id) => threadMentionFiles({ threadId: id, log: app.surface.log, threads: app.surface.threads, launchDirectory: args.cwd }),
     workspace: app.workspace,
     pending: app.pending,
     ...(app.intake === undefined ? {} : { intake: app.intake }),

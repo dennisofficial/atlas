@@ -1,8 +1,8 @@
 import type { KeyEvent } from '@opentui/core'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { DirectoryEntry } from '@dltech/atlas-core'
-import type { FileBrowser } from '@dltech/atlas-harness'
+import type { MentionReader } from '@dltech/atlas-harness'
 
 import {
   completedMention,
@@ -11,6 +11,7 @@ import {
   openFileMenu,
   type FileMenuState,
 } from '../ui/file-menu-model'
+import { messageOf } from './error-text'
 
 export type FileMenuControl = {
   state: FileMenuState | null
@@ -19,43 +20,73 @@ export type FileMenuControl = {
   handleDismiss: () => void
 }
 
-/**
- * A level is read asynchronously, so a listing that lands after the developer has typed on is
- * dropped rather than shown: only the newest ticket may set the menu.
- */
+type HeldMenu = {
+  reader: MentionReader | undefined
+  menu: FileMenuState | null
+}
+
 export function useFileMenu(args: {
-  files?: FileBrowser | undefined
+  files?: MentionReader | undefined
   onComplete: (text: string) => void
+  onProblem?: ((reason: string) => void) | undefined
 }): FileMenuControl {
-  const [state, setState] = useState<FileMenuState | null>(null)
+  const { files, onComplete } = args
+  const [held, setHeld] = useState<HeldMenu>({ reader: files, menu: null })
+  const state = held.reader === files ? held.menu : null
   const typed = useRef('')
   const asked = useRef(0)
-  const { files, onComplete } = args
+  const reportProblem = useRef(args.onProblem)
+  reportProblem.current = args.onProblem
+
+  const close = useCallback(() => {
+    setHeld((current) =>
+      current.menu === null && current.reader === files ? current : { reader: files, menu: null },
+    )
+  }, [files])
+
+  const ask = useCallback(
+    (text: string) => {
+      asked.current += 1
+      close()
+
+      const query = mentionQueryOf(text)
+      if (query === null || files === undefined) return
+
+      const ticket = asked.current
+      files.list(query.directory).then(
+        (entries: readonly DirectoryEntry[]) => {
+          if (ticket !== asked.current) return
+          setHeld({ reader: files, menu: openFileMenu({ query, entries }) })
+        },
+        (error: unknown) => {
+          if (ticket !== asked.current) return
+          reportProblem.current?.(`could not list files to mention: ${messageOf(error)}`)
+        },
+      )
+    },
+    [close, files],
+  )
+
+  useEffect(() => {
+    ask(typed.current)
+
+    return () => {
+      asked.current += 1
+    }
+  }, [ask])
 
   const handleTextChanged = useCallback(
     (text: string) => {
       typed.current = text
-      asked.current += 1
-
-      const query = mentionQueryOf(text)
-      if (query === null || files === undefined) {
-        setState(null)
-        return
-      }
-
-      const ticket = asked.current
-      void files.list(query.directory).then((entries: readonly DirectoryEntry[]) => {
-        if (ticket !== asked.current) return
-        setState(openFileMenu({ query, entries }))
-      })
+      ask(text)
     },
-    [files],
+    [ask],
   )
 
   const handleDismiss = useCallback(() => {
     asked.current += 1
-    setState(null)
-  }, [])
+    close()
+  }, [close])
 
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
@@ -67,7 +98,10 @@ export function useFileMenu(args: {
       }
 
       if (key.name === 'up' || key.name === 'down') {
-        setState(moveFileSelection({ state, delta: key.name === 'up' ? -1 : 1 }))
+        setHeld({
+          reader: files,
+          menu: moveFileSelection({ state, delta: key.name === 'up' ? -1 : 1 }),
+        })
         return true
       }
 
@@ -77,11 +111,11 @@ export function useFileMenu(args: {
       if (completed === null) return false
       if (key.name === 'return' && completed === typed.current) return false
 
-      setState(null)
+      close()
       onComplete(completed)
       return true
     },
-    [handleDismiss, onComplete, state],
+    [close, files, handleDismiss, onComplete, state],
   )
 
   return useMemo(

@@ -4,6 +4,7 @@ import {
   ERuntimeKind,
   MirroredContextFiles,
   RemoteContextFiles,
+  UnavailableMentionFiles,
   type CloudBridge,
   type CloudChannel,
   type CloudStores,
@@ -16,6 +17,7 @@ import {
 } from '@dltech/atlas-harness'
 import {
   CLOUD_WORKSPACE_PATH,
+  EExecutionLocation,
   projectDirectoryOf,
   repoOf,
   type ThreadId,
@@ -137,6 +139,7 @@ export const localBindingOf = (args: {
       rewindMachinery: undefined,
       compaction: args.local.compaction,
       workspace: args.workspace,
+      files: args.local.files,
       attachment: {
         kind: 'local',
         opened: args.opened,
@@ -147,10 +150,18 @@ export const localBindingOf = (args: {
 }
 
 const derived = new WeakMap<Binding, AtlasApp>()
+const disconnected = new WeakMap<AtlasApp, AtlasApp>()
 
 export function appOf(args: { local: AtlasApp; binding: Binding | undefined }): AtlasApp {
   const { local, binding } = args
-  if (binding === undefined) return local
+  if (binding === undefined) {
+    if (local.sessionOwner.current() !== EExecutionLocation.Cloud) return local
+    const cached = disconnected.get(local)
+    if (cached !== undefined) return cached
+    const app = { ...local, files: new UnavailableMentionFiles() }
+    disconnected.set(local, app)
+    return app
+  }
   const held = binding.adapters
   if (binding.kind === ERuntimeKind.Local) return local
   const cached = derived.get(binding)

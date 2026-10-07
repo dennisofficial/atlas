@@ -785,7 +785,7 @@ export function fakeApp(args: {
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
-  const workspace = args.workspace ?? { workspace: args.cwd ?? FAKE_CONFIG.cwd, repo: null }
+  const workspace = args.workspace ?? { workspace: args.cwd ?? args.workspaceRoot ?? FAKE_CONFIG.cwd, repo: null }
   const threads = fakeThreadStore({ log, workspace: workspace.workspace, repo: workspace.repo })
   const ids = new RandomIds()
   const ledger = fakeLedger()
@@ -1049,6 +1049,7 @@ export function fakeApp(args: {
           services,
           rewindMachinery: undefined,
           workspace,
+          files: new FileBrowser({ root: workspace.workspace }),
           attachment: undefined,
         },
       },

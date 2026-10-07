@@ -11,6 +11,7 @@ import type { ShellRegistryPort } from '../shells/shell-registry'
 import type { ThreadStorePort } from '../store/thread-store'
 import type { CompactionPort } from '../store/compaction-port'
 import type { ContributedSurface } from '../plugins/surface'
+import type { MentionReader } from '../files/mention-reader'
 
 import type { ExecutionLocationState } from './execution-location-state'
 import { createSessionOwner, ERuntimeKind, type SessionOwner, type SessionRuntime } from './session-owner'
@@ -27,6 +28,7 @@ export function localSessionOwner(args: {
   shells: ShellRegistryPort
   agents: AgentRegistryPort
   services: ServiceRegistryPort
+  files: MentionReader
   compaction?: CompactionPort | undefined
 }): SessionOwner<SessionRuntime> {
   const { placement, workspace, threads, intake, ...held } = args

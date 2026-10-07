@@ -5,6 +5,7 @@ import {
   EClientRequest,
   LocalRewindMachinery,
   RemoteCompaction,
+  RemoteMentionFiles,
   RemoteRewindMachinery,
   rewindApplyParamsOf,
   type RewindRead,
@@ -26,7 +27,18 @@ import { createSharedRoster } from './roster-reader'
 
 export type CloudRuntimeParts = Pick<
   SessionRuntime,
-  'runner' | 'channel' | 'log' | 'threads' | 'ledger' | 'intake' | 'shells' | 'agents' | 'services' | 'rewindMachinery' | 'compaction'
+  | 'runner'
+  | 'channel'
+  | 'log'
+  | 'threads'
+  | 'ledger'
+  | 'intake'
+  | 'shells'
+  | 'agents'
+  | 'services'
+  | 'rewindMachinery'
+  | 'compaction'
+  | 'files'
 >
 
 export const cloudRuntimeParts = (args: {
@@ -49,6 +61,7 @@ export const cloudRuntimeParts = (args: {
     ledger: args.stores.ledger,
     channel: args.channel,
     runner: args.runner,
+    files: new RemoteMentionFiles({ channel: args.channel, threadId: args.channel.threadId }),
     shells,
     agents,
     services,
