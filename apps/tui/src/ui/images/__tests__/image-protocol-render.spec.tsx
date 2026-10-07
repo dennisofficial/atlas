@@ -8,7 +8,6 @@ import {
 } from '@opentui/core'
 import { createTestRenderer, setRendererCapabilities, type TestRendererSetup } from '@opentui/core/testing'
 
-import { applyTranscriptBounds } from '../../viewport-rows-store'
 import { TranscriptImageRenderable } from '../transcript-image'
 import { ViewerImageRenderable } from '../viewer-image'
 
@@ -28,7 +27,6 @@ const useTerminal = (program: string | undefined): void => {
 }
 
 afterEach(() => {
-  applyTranscriptBounds({ top: 0, rows: 0 })
   useTerminal(heldTermProgram)
 })
 
@@ -71,7 +69,7 @@ interface Paintable {
 
 const forwardedProtocol = (node: Picture): unknown => {
   const calls: unknown[][] = []
-  const probe = { drawImage: (...call: unknown[]) => calls.push(call) }
+  const probe = { width: 20, height: 20, drawImage: (...call: unknown[]) => calls.push(call) }
   const paintable = node as unknown as Paintable
   paintable.renderSelf(probe as unknown as OptimizedBuffer)
   return calls.at(-1)?.[PROTOCOL_ARGUMENT]
@@ -114,8 +112,8 @@ describe.each(kinds)('a %s handed to the native painter', (_name, kind) => {
     return seen
   }
 
-  test('auto under Warp reaches the native painter as blocks and stays requested as auto', async () => {
-    expect(await forwardedFor({ program: 'WarpTerminal', protocol: 'auto' })).toEqual({ forwarded: 'blocks', requested: 'auto' })
+  test('auto under Warp reaches the native painter as kitty and stays requested as auto', async () => {
+    expect(await forwardedFor({ program: 'WarpTerminal', protocol: 'auto' })).toEqual({ forwarded: 'kitty', requested: 'auto' })
   })
 
   test('auto elsewhere reaches the native painter as the resolved kitty', async () => {
@@ -142,7 +140,7 @@ describe.each(kinds)('a %s handed to the native painter', (_name, kind) => {
         useTerminal('WarpTerminal')
         seen.push(forwardedProtocol(node))
 
-        expect(seen).toEqual(['blocks', 'kitty', 'blocks', 'kitty', 'blocks'])
+        expect(seen).toEqual(['kitty', 'kitty', 'blocks', 'kitty', 'kitty'])
         expect(node.protocol).toBe('auto')
       },
     })
@@ -188,10 +186,10 @@ describe.each(kinds)('a %s handed to the native painter', (_name, kind) => {
         seen.push([forwardedProtocol(node), node.protocol])
 
         expect(seen).toEqual([
-          ['blocks', 'auto'],
+          ['kitty', 'auto'],
           ['kitty', 'kitty'],
-          ['blocks', 'auto'],
-          ['blocks', 'auto'],
+          ['kitty', 'auto'],
+          ['kitty', 'auto'],
         ])
       },
     })
@@ -246,7 +244,6 @@ const scrolledBands = async (args: {
   const mounted = await mountPicture({ scene, kind, protocol: args.protocol, parent: scroll })
   scroll.add(new BoxRenderable(scene.renderer, { height: SPACER_AFTER, flexShrink: 0 }))
   await scene.renderOnce()
-  applyTranscriptBounds({ top: scroll.viewport.y, rows: scroll.viewport.height })
   scroll.scrollTo(args.offset)
   await scene.renderOnce()
   const bands = Array.from({ length: VIEWPORT_ROWS }, (_, row) => bandAt({ scene, row }))
@@ -262,15 +259,11 @@ const expectedByOffset: Array<[number, Band[]]> = [
   [10, ['yellow', 'yellow', N, N, N, N, N, N, N, N]],
 ]
 
-describe.each<[ImageRenderProtocol, string | undefined]>([
-  ['blocks', undefined],
-  ['auto', 'WarpTerminal'],
-])('a banded portrait picture in a real scrollbox with protocol %s', (protocol, program) => {
+describe('a banded portrait picture in a real scrollbox with protocol blocks', () => {
   test.each(expectedByOffset)('at scroll offset %d shows the matching slice at unchanged scale', async (offset, expected) => {
-    useTerminal(program)
     await withScene(async (scene) => {
       setRendererCapabilities(scene.renderer, KITTY_CAPABLE)
-      const scrolled = await scrolledBands({ scene, protocol, offset })
+      const scrolled = await scrolledBands({ scene, protocol: 'blocks', offset })
       try {
         expect(scrolled.imageHeight).toBe(8)
         expect(scrolled.bands).toEqual(expected)
