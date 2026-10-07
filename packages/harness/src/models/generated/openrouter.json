@@ -233,6 +233,30 @@
   {
     "ref": {
       "providerId": "openrouter",
+      "modelId": "anthropic/claude-haiku-5.5"
+    },
+    "label": "Claude Haiku 5.5",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.01,
+      "cacheWritePerMillion": 0.125
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
       "modelId": "anthropic/claude-opus-4.1"
     },
     "label": "Claude Opus 4.1 (latest)",
@@ -477,7 +501,7 @@
     "cost": {
       "inputPerMillion": 2,
       "outputPerMillion": 10,
-      "cacheReadPerMillion": 0.2,
+      "cacheReadPerMillion": 0.1,
       "cacheWritePerMillion": 2.5
     },
     "effort": {
@@ -789,11 +813,11 @@
     "api": "openai-completions",
     "contextWindow": 163840,
     "imageTier": "standard",
-    "maxOutputTokens": 65536,
+    "maxOutputTokens": 147456,
     "cost": {
-      "inputPerMillion": 0.28,
+      "inputPerMillion": 0.259,
       "outputPerMillion": 0.42,
-      "cacheReadPerMillion": 0.028
+      "cacheReadPerMillion": 0.135
     }
   },
   {
@@ -925,9 +949,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.05,
+      "inputPerMillion": 0.3,
       "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.02
+      "cacheReadPerMillion": 0.006
     },
     "effort": {
       "low": "low",
@@ -1353,9 +1377,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.09,
-      "outputPerMillion": 0.3,
-      "cacheReadPerMillion": 0.05
+      "inputPerMillion": 0.0765,
+      "outputPerMillion": 0.255,
+      "cacheReadPerMillion": 0.0425
     }
   },
   {
@@ -1899,7 +1923,7 @@
       "providerId": "openrouter",
       "modelId": "mistralai/codestral-2508"
     },
-    "label": "Codestral 2508",
+    "label": "Codestral 25.08",
     "api": "openai-completions",
     "contextWindow": 256000,
     "imageTier": "standard",
@@ -2310,9 +2334,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.62,
+      "inputPerMillion": 0.5,
       "outputPerMillion": 15,
-      "cacheReadPerMillion": 0.43
+      "cacheReadPerMillion": 0.45
     },
     "effort": {
       "low": "low",
@@ -2350,11 +2374,10 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 235929,
+    "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.05,
-      "outputPerMillion": 0.2,
-      "cacheReadPerMillion": 0.03
+      "outputPerMillion": 0.2
     }
   },
   {
@@ -2463,11 +2486,11 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 32768,
+    "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.06,
-      "outputPerMillion": 0.16,
-      "cacheReadPerMillion": 0.03
+      "inputPerMillion": 0.049,
+      "outputPerMillion": 0.14,
+      "cacheReadPerMillion": 0.0245
     }
   },
   {
@@ -4824,9 +4847,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.132,
-      "outputPerMillion": 0.528,
-      "cacheReadPerMillion": 0.033
+      "inputPerMillion": 0.0825,
+      "outputPerMillion": 0.33,
+      "cacheReadPerMillion": 0.020625
     },
     "effort": {
       "off": "none",
@@ -4866,9 +4889,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 64000,
     "cost": {
-      "inputPerMillion": 0.834,
-      "outputPerMillion": 2.501,
-      "cacheReadPerMillion": 0.042
+      "inputPerMillion": 0.7506,
+      "outputPerMillion": 2.2509,
+      "cacheReadPerMillion": 0.0378
     },
     "effort": {
       "off": "none",
@@ -5464,9 +5487,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.07,
-      "outputPerMillion": 7,
-      "cacheReadPerMillion": 0.065
+      "inputPerMillion": 0.062,
+      "outputPerMillion": 3.39,
+      "cacheReadPerMillion": 0.06
     },
     "effort": {
       "low": "low",
@@ -5584,14 +5607,21 @@
     },
     "label": "Claude Haiku Latest",
     "api": "openai-completions",
-    "contextWindow": 200000,
+    "contextWindow": 1000000,
     "imageTier": "standard",
-    "maxOutputTokens": 64000,
+    "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 1,
-      "outputPerMillion": 5,
-      "cacheReadPerMillion": 0.1,
-      "cacheWritePerMillion": 1.25
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.01,
+      "cacheWritePerMillion": 0.125
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
     }
   },
   {
@@ -5631,7 +5661,7 @@
     "cost": {
       "inputPerMillion": 2,
       "outputPerMillion": 10,
-      "cacheReadPerMillion": 0.2,
+      "cacheReadPerMillion": 0.1,
       "cacheWritePerMillion": 2.5
     },
     "effort": {
@@ -5653,9 +5683,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.05,
-      "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.02
+      "inputPerMillion": 0.019,
+      "outputPerMillion": 0.424,
+      "cacheReadPerMillion": 0.009
     },
     "effort": {
       "low": "low",
@@ -5672,11 +5702,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 384000,
+    "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.4,
-      "outputPerMillion": 4.3,
-      "cacheReadPerMillion": 0.033
+      "inputPerMillion": 0.2856,
+      "outputPerMillion": 4.2,
+      "cacheReadPerMillion": 0.2
     },
     "effort": {
       "low": "low",
@@ -5760,7 +5790,7 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.61,
+      "inputPerMillion": 0.49,
       "outputPerMillion": 13,
       "cacheReadPerMillion": 0.45
     },
@@ -5924,9 +5954,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.0278,
+      "inputPerMillion": 0.04,
       "outputPerMillion": 0.5,
-      "cacheReadPerMillion": 0.0278
+      "cacheReadPerMillion": 0.025
     },
     "effort": {
       "low": "low",
@@ -5943,11 +5973,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.063,
-      "outputPerMillion": 6.3,
-      "cacheReadPerMillion": 0.0585
+      "inputPerMillion": 0.062,
+      "outputPerMillion": 3.39,
+      "cacheReadPerMillion": 0.06
     },
     "effort": {
       "low": "low",
