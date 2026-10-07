@@ -51,5 +51,10 @@ export abstract class ServiceRegistryPort {
   threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
+  /**
+   * Moves a finished thread's pending notices to a live one. Services are session-wide, so the
+   * starting thread is only a return address — when it ends, the parent inherits the mailbox.
+   */
+  abstract reassignNotices(args: { from: ThreadId; to: ThreadId }): void
   abstract closeAll(args?: { killedBy?: EKilledBy }): Promise<void>
 }
