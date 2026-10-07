@@ -31,6 +31,13 @@ const bodies: EventDraft[] = [
     to: EExecutionLocation.Cloud,
     cwd: '/workspace',
   },
+  { type: 'rotated', predecessor: toThreadId('thread-1'), handoffPath: '/handoff.md' },
+  {
+    type: 'rotated',
+    predecessor: toThreadId('thread-1'),
+    handoffPath: '/handoff.md',
+    instructions: 'keep the auth notes',
+  },
   {
     type: 'parked',
     reason: 'idle',
@@ -222,6 +229,12 @@ describe('eventBodySchema', () => {
   it('rejects a relocation that names a location outside the enum', () => {
     expect(() =>
       eventBodySchema.parse({ type: 'location-changed', from: 'host', to: 'the moon' }),
+    ).toThrow()
+  })
+
+  it('rejects a rotation marker with an empty handoff path', () => {
+    expect(() =>
+      eventBodySchema.parse({ type: 'rotated', predecessor: 'thread-1', handoffPath: '' }),
     ).toThrow()
   })
 

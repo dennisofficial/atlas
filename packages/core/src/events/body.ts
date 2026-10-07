@@ -132,6 +132,7 @@ export type EventBody =
       branch?: string | null | undefined
       cause?: ELocationChangeCause | undefined
     }
+  | { type: 'rotated'; predecessor: ThreadId; handoffPath: string; instructions?: string | undefined }
   | {
       type: 'parked'
       reason: string
