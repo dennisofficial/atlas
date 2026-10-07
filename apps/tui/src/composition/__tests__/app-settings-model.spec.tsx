@@ -1,4 +1,6 @@
 import {
+  agentTypeModelDefinitions,
+  agentTypeSettingId,
   choiceValueOf,
   DEFAULT_EFFORT,
   EEffort,
@@ -73,7 +75,6 @@ async function openSettingsWith(setup: Mounted): Promise<void> {
   await landed(setup)
 }
 
-/** The model rows live on the models page now — one tab right of where settings opens. */
 async function openModelsWith(setup: Mounted): Promise<void> {
   await openSettingsWith(setup)
   setup.mockInput.pressTab()
@@ -112,6 +113,36 @@ const rowShowing = (setup: Mounted, needle: string): string =>
     .find((line) => line.includes(needle)) ?? ''
 
 describe('the model-kind settings rows', () => {
+  it('opens an unset teammate picker on the current main agent rather than the sub-agent model', async () => {
+    const app = appWith()
+    app.settings.register(agentTypeModelDefinitions({ typeNames: ['teammate'] }))
+    app.settings.set({ id: ESettingId.ModelId, value: 'anthropic/claude-opus-5' })
+    app.settings.set({ id: ESettingId.SubagentModel, value: 'anthropic/claude-haiku-4-5' })
+    const setup = await testRender(
+      <App app={app} opened={{
+        threadId: THREAD, events: [], turns: [], name: null, started: true,
+        model: { ref: 'anthropic/claude-sonnet-5', effort: EEffort.High },
+      }} />,
+      WIDE,
+    )
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Teammates' })
+      await enter(setup)
+      await enter(setup)
+
+      expect(app.settings.snapshot().document.values[agentTypeSettingId('teammate')]).toBe(
+        'anthropic/claude-sonnet-5',
+      )
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
   it('writes the picked model and effort to the Default model row that was activated', async () => {
     const app = appWith()
     const setup = await opened(app)
