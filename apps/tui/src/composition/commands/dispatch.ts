@@ -103,10 +103,15 @@ export async function dispatchSubmission(args: {
   })
 
   const load = args.loadFile
-  const fileDrafts =
-    load === undefined
-      ? []
-      : await mentionedFileDrafts({ text: args.text, load, highlighted: args.highlightedFiles })
+  try {
+    const fileDrafts =
+      load === undefined
+        ? []
+        : await mentionedFileDrafts({ text: args.text, load, highlighted: args.highlightedFiles })
 
-  return { type: EDispatch.Send, text: args.text, drafts: [...skillDrafts, ...fileDrafts] }
+    return { type: EDispatch.Send, text: args.text, drafts: [...skillDrafts, ...fileDrafts] }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'The mentioned files could not be read'
+    return { type: EDispatch.Refused, reason }
+  }
 }

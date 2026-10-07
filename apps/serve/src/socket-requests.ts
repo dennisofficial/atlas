@@ -12,6 +12,7 @@ import { answerArchiveRead, isArchiveReadOp } from './archive-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
 import { routeOperatorInput } from './operator-input'
 import { answerContextRead, isContextOp, type ContextReaders } from './context-requests'
+import { routeMentionRead, type MentionRouting } from './mention-requests'
 import {
   answerRequest,
   answerTranscriptRead,
@@ -53,6 +54,7 @@ export function createRequestRouter(args: {
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<import('@dltech/atlas-harness').OperatorInputPort, 'answer'> | undefined
   context?: ContextReaders | undefined
+  mentions?: MentionRouting | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   sessionArchive?: (() => Promise<SessionArchiveDescriptor | null>) | undefined
@@ -159,6 +161,8 @@ export function createRequestRouter(args: {
       )
     return
   }
+
+  if (routeMentionRead({ frame, root: threadId, mentions: args.mentions, reply: (reply) => send({ socket, frame: reply }) })) return
 
   if (isContextOp(frame.op)) {
     if (context === undefined) {

@@ -16,7 +16,7 @@ import {
 
 describe('the protocol stamp', () => {
   it('speaks the version carrying family workspace mappings and cleanup proofs', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(19)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(20)
   })
 })
 

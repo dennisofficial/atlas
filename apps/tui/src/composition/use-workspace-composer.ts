@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { liveTokens, tokenAtOffset, type LiveToken } from '../ui/composer-tokens'
-import { pastedTagSpans } from '@dltech/atlas-core'
+import { mentionedFilePaths, pastedTagSpans } from '@dltech/atlas-core'
 import { readImageBase64 } from '../ui/clipboard-image'
 import { restoredImages, submissionOf } from '../ui/draft-images'
 import { useDraft } from '../ui/hooks/use-draft'
@@ -12,10 +12,16 @@ import { notify } from '../ui/notice-store'
 import { commandSpecs, dispatchSubmission, EDispatch, localCommands } from './commands'
 import type { AtlasApp } from './compose'
 import { workspaceFileLoader } from './mentioned-files'
+import {
+  beginMentionPreparation,
+  finishMentionPreparation,
+  reportMentionProblem,
+} from './mention-notices'
 import type { useAgentView } from './use-agent-view'
 import { useComposerMenus } from './use-composer-menus'
 import type { useConversation } from './use-conversation'
 import { useResolvedMentions } from './use-resolved-mentions'
+import { useComposerFiles } from './use-composer-files'
 
 export function useWorkspaceComposer(args: {
   app: AtlasApp
@@ -36,9 +42,18 @@ export function useWorkspaceComposer(args: {
 
   const specs = useMemo(() => commandSpecs({ commands, skills }), [commands, skills])
 
+  const { reader, files } = useComposerFiles({
+    app,
+    projectDirectory: conversation.projectDirectory,
+  })
+  const currentFiles = useRef(files)
+  currentFiles.current = files
+
   const menus = useComposerMenus({
     specs,
-    files: app.files,
+    files,
+    cdFiles: reader,
+    onProblem: reportMentionProblem,
     currentDirectory: conversation.projectDirectory,
     onComplete: draft.setValue,
   })
@@ -47,9 +62,13 @@ export function useWorkspaceComposer(args: {
 
   useEffect(() => {
     readDraft.current(draft.value)
-  }, [draft.value])
+  }, [draft.value, files])
 
-  const mentionSpans = useResolvedMentions({ text: draft.value, files: app.files })
+  const mentionSpans = useResolvedMentions({
+    text: draft.value,
+    files,
+    onProblem: reportMentionProblem,
+  })
 
   const cursorOffsetBefore = useRef<number | null>(null)
 
@@ -92,20 +111,16 @@ export function useWorkspaceComposer(args: {
     setTokenSpans(liveTokens(editor))
   }, [draft])
 
-  const highlights = useMemo(
-    () => [...mentionSpans, ...tokenSpans],
-    [mentionSpans, tokenSpans],
-  )
+  const highlights = useMemo(() => [...mentionSpans, ...tokenSpans], [mentionSpans, tokenSpans])
 
-  const highlightedFiles = useMemo(
-    () => new Set(mentionSpans.map((mention) => mention.path)),
-    [mentionSpans],
-  )
-
+  const preparing = useRef<{ text: string } | null>(null)
   const handleSubmit = useCallback(() => {
+    const attempt = { text: draft.editor.current?.plainText ?? draft.value }
+    if (preparing.current?.text === attempt.text) return
+    preparing.current = attempt
     void (async () => {
       const editor = draft.editor.current
-      const said = editor?.plainText ?? draft.value
+      const said = attempt.text
 
       await tokens.settle()
       const live = editor === null ? [] : tokens.tokens()
@@ -120,8 +135,15 @@ export function useWorkspaceComposer(args: {
         return
       }
 
-      draft.clear()
-      setSends((count) => count + 1)
+      const clearDraft = () => {
+        if (
+          preparing.current !== attempt ||
+          (draft.editor.current?.plainText ?? draft.value) !== said
+        )
+          return
+        draft.clear()
+        setSends((count) => count + 1)
+      }
 
       const putBackPastes = live.flatMap((token) => {
         if (token.slot.kind !== 'pasted') return []
@@ -134,7 +156,7 @@ export function useWorkspaceComposer(args: {
       }
 
       const keepAttachments = () => {
-        if (readyImages.length === 0) return
+        if (preparing.current !== attempt || readyImages.length === 0) return
         tokens.restore({
           text: draft.editor.current?.plainText ?? '',
           images: readyImages,
@@ -142,6 +164,7 @@ export function useWorkspaceComposer(args: {
       }
 
       if (agentView.addressing !== null) {
+        clearDraft()
         const spoken = submissionOf({ text: said, tokens: live, load: readImageBase64 })
         void agentView.handleSay(spoken).then((refusal) => {
           if (refusal === null) return
@@ -152,51 +175,84 @@ export function useWorkspaceComposer(args: {
         return
       }
 
-      void dispatchSubmission({
+      const ownerBinding = app.sessionOwner.snapshot().binding
+      if (mentionedFilePaths(said).length > 0) beginMentionPreparation()
+      const dispatched = await dispatchSubmission({
         text: said,
         commands,
         skills,
         working: conversation.working,
-        highlightedFiles,
-        ...(app.files === undefined ? {} : { loadFile: workspaceFileLoader(app.files) }),
-      }).then((dispatched) => {
-        if (dispatched.type === EDispatch.Queued) {
-          keepAttachments()
-          conversation.handleQueueSettled(dispatched.entry)
-          return
-        }
-        if (dispatched.type === EDispatch.Refused) {
-          putBack()
-          conversation.handleReportProblem(dispatched.reason)
-          return
-        }
-        if (dispatched.type === EDispatch.Ran) {
-          keepAttachments()
-          if (dispatched.notice !== undefined) notify({ text: dispatched.notice })
-          return
-        }
-        if (dispatched.type !== EDispatch.Send) return
-
-        const sending = submissionOf({
-          text: dispatched.text,
-          tokens: live,
-          load: readImageBase64,
-        })
-        conversation.handleSend({ ...sending, context: dispatched.drafts })
+        loadFile: workspaceFileLoader(files),
       })
+      if (dispatched.type === EDispatch.Queued) {
+        clearDraft()
+        keepAttachments()
+        conversation.handleQueueSettled(dispatched.entry)
+        return
+      }
+      if (dispatched.type === EDispatch.Refused) {
+        conversation.handleReportProblem(dispatched.reason)
+        return
+      }
+      if (dispatched.type === EDispatch.Ran) {
+        clearDraft()
+        keepAttachments()
+        if (dispatched.notice !== undefined) notify({ text: dispatched.notice })
+        return
+      }
+      if (dispatched.type !== EDispatch.Send || preparing.current !== attempt) return
+      if (
+        currentFiles.current !== files ||
+        app.sessionOwner.snapshot().binding !== ownerBinding ||
+        app.sessionOwner.placement.moveFor(conversation.threadId) !== null
+      ) {
+        conversation.handleReportProblem(
+          'The session filesystem changed while preparing your message. Send it again from the current runtime.',
+        )
+        return
+      }
+
+      if ((draft.editor.current?.plainText ?? draft.value) !== said) {
+        conversation.handleReportProblem(
+          'The draft changed while reading mentioned files. Send it again when ready.',
+        )
+        return
+      }
+      clearDraft()
+      const sending = submissionOf({
+        text: dispatched.text,
+        tokens: live,
+        load: readImageBase64,
+      })
+      conversation.handleSend({ ...sending, context: dispatched.drafts })
     })()
-  }, [agentView, app.files, commands, conversation, draft, handleOpenNewest, highlightedFiles, skills, tokens])
+      .catch((error: unknown) => {
+        conversation.handleReportProblem(
+          error instanceof Error ? error.message : 'Could not prepare the message',
+        )
+      })
+      .finally(() => {
+        if (preparing.current !== attempt) return
+        preparing.current = null
+        finishMentionPreparation()
+      })
+  }, [
+    agentView,
+    app.sessionOwner,
+    commands,
+    conversation,
+    draft,
+    files,
+    handleOpenNewest,
+    skills,
+    tokens,
+  ])
 
   const draftIsEmpty = useCallback(
     (): boolean => (draft.editor.current?.plainText ?? draft.value).length === 0,
     [draft],
   )
 
-  /**
-   * Cloud take-back is a round trip to the sandbox, so the draft fills from the reply rather than
-   * the keypress. A concurrent second ↑ is refused while one is in flight — both would race for
-   * the same queue tail and the sandbox would hand it out twice.
-   */
   const takingBack = useRef(false)
   const handleTakeBackPending = useCallback((): boolean => {
     if (takingBack.current) return false

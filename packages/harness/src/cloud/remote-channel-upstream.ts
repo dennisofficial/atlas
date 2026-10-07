@@ -57,6 +57,9 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ActivateSession,
   EClientRequest.ListContextFiles,
   EClientRequest.ReadContextFile,
+  EClientRequest.ListMentionFiles,
+  EClientRequest.MentionFileExists,
+  EClientRequest.ReadMentionFile,
   EClientRequest.ListPrStates,
 ])
 

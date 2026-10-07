@@ -80,7 +80,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     },
     agents,
     operatorInput: args.operatorInput,
-    ...(args.context === undefined ? {} : { context: args.context }),
+    context: args.context, mentions: args.mentions,
     transcript,
     selectModel,
     sessionArchive,

@@ -2,7 +2,7 @@ import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo } from 'react'
 
 import type { CommandSpec } from '@dltech/atlas-core'
-import type { FileBrowser } from '@dltech/atlas-harness'
+import type { MentionReader } from '@dltech/atlas-harness'
 
 import { cdQueryOf } from '../ui/cd-menu-model'
 import type { CommandMenuState } from '../ui/command-menu-model'
@@ -22,15 +22,23 @@ export type ComposerMenus = {
 
 export function useComposerMenus(args: {
   specs: readonly CommandSpec[]
-  files?: FileBrowser | undefined
+  files?: MentionReader | undefined
+  cdFiles?: MentionReader | undefined
   currentDirectory: string
   onComplete: (text: string) => void
+  onProblem?: ((reason: string) => void) | undefined
 }): ComposerMenus {
-  const { files, onComplete } = args
+  const { files, onComplete, onProblem } = args
+  const cdFiles = args.cdFiles ?? files
 
   const commands = useCommandMenu({ specs: args.specs, onComplete })
-  const mentions = useFileMenu({ files, onComplete })
-  const cd = useCdMenu({ files, currentDirectory: args.currentDirectory, onComplete })
+  const mentions = useFileMenu({ files, onComplete, onProblem })
+  const cd = useCdMenu({
+    files: cdFiles,
+    currentDirectory: args.currentDirectory,
+    onComplete,
+    onProblem,
+  })
 
   const handleTextChanged = useCallback(
     (text: string) => {

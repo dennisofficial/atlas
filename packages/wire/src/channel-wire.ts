@@ -14,7 +14,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 19
+export const CHANNEL_PROTOCOL_VERSION = 20
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -77,6 +77,9 @@ export enum EClientRequest {
   ReadRuntimeCheckpoint = 'read-runtime-checkpoint',
   ListContextFiles = 'list-context-files',
   ReadContextFile = 'read-context-file',
+  ListMentionFiles = 'list-mention-files',
+  MentionFileExists = 'mention-file-exists',
+  ReadMentionFile = 'read-mention-file',
   TakeBackPending = 'take-back-pending',
   PrepareWorkspaceArchive = 'prepare-workspace-archive',
   ConfirmWorkspaceCleanup = 'confirm-workspace-cleanup',

@@ -147,7 +147,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const agentTypes = await bindSessionAgentTypes({ container, settings, launchValue, models, roots })
 
   const utility = bindUtilityModels({ container, settings, secrets, models, model, notice })
-
   if (args.stores !== undefined) await args.stores.bind({ container })
 
   const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
@@ -160,7 +159,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const ledger = container.resolve(portToken(TurnLedgerPort))
 
   container.register(HookMishapReporterToken, { useValue: hookMishapNotice(notice) })
-
   const bound = surface.bind === undefined ? undefined : await surface.bind({ container })
 
   const modelPort = faultInjected(container.resolve(portToken(ModelPort)))
@@ -202,7 +200,9 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   })
 
   const compaction = new LocalCompaction({ log, threads, agents, summarise: utility.summarise })
+  const browser = bindBrowser({ anchor, settings, executionLocation, mounts })
   const sessionOwner = localSessionOwner({
+    files: browser.files,
     placement: executionLocation,
     workspace,
     runner,
@@ -235,7 +235,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes,
-    ...bindBrowser({ anchor, settings, executionLocation, mounts }),
+    ...browser,
     credentials,
     accounts,
     cloud,

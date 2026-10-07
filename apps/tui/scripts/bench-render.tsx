@@ -185,6 +185,7 @@ const benchApp = (args: {
           services,
           rewindMachinery: undefined,
           workspace,
+          files: new FileBrowser({ root: args.root }),
           attachment: undefined,
         },
       },

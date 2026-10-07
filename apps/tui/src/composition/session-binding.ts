@@ -137,6 +137,7 @@ export const localBindingOf = (args: {
       rewindMachinery: undefined,
       compaction: args.local.compaction,
       workspace: args.workspace,
+      files: args.local.files,
       attachment: {
         kind: 'local',
         opened: args.opened,

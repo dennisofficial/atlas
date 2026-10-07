@@ -12,7 +12,7 @@ import type { PrStateWire, RosterWire, SessionArchiveDescriptor } from '@dltech/
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
 import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController, RecoveredAgents } from '@dltech/atlas-harness'
-import type { FileBrowser } from '@dltech/atlas-harness'
+import type { FileBrowser, MentionReader } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
@@ -117,6 +117,8 @@ export type ServeApp = {
   settings?: UserSettingsTarget | undefined
   ids: Pick<IdPort, 'nextRunId'>
   files: Pick<FileBrowser, 'list' | 'forget'>
+  /** The reader a mention op answers from, per thread of the served family; absent in fakes, which refuse the ops. */
+  mentionFiles?: ((threadId: ThreadId) => Promise<MentionReader>) | undefined
   workspace: WorkspaceIdentity
   pending?: PendingQueues | undefined
   /** The shared message intake driving this serve's idle wake; absent in fakes. */
