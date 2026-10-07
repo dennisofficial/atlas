@@ -20,6 +20,7 @@ import {
   sandboxServeTokenFor,
   storedModel,
   VercelDriver,
+  type LocalCloudBridgeOptions,
 } from '@dltech/atlas-harness'
 
 import { buildInfo, clientVersionHeader, EBuildKind } from '../build/info'
@@ -97,68 +98,70 @@ export const cloudUrlOf = (app: {
   app.cloud.session()?.url ??
   textValueOf({ resolution: app.settings.snapshot().resolution, id: ESettingId.CloudUrl })
 
-export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
-  return () =>
-    createCloudBridge({
-      vercel: () => ({
-        credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
-        ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
-      }),
-      // The driver's settle and provision narration is the only record of a wake that failed
-      // before the channel could speak — persist it, or the next name-conflict incident leaves
-      // nothing to classify from.
-      onDriverLog: (line) => {
-        durableOpLog()?.info({ source: 'cloud.driver', message: line })
-      },
-      attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
-      // The local durable log is the truth the serve's currency vouch is checked against: report
-      // its head on the Hello so a clean re-attach of an unchanged transcript is vouched current.
-      lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
-      localLog: app.log,
-      settings: app.settings,
-      readGitToken: () => readGhAuthToken(),
-      capturePortable: () => app.cloud.capturePortableState(),
-      authorizeSandbox: (authorization) => app.cloud.prepareSandboxOauth(authorization),
-      cloudUrl: () => cloudUrlOf(app),
-      onPortableOmitted: (omitted) => {
-        noticePortBinding().notify({
-          text: portableOmissionNotice(omitted),
-          tone: ENoticeTone.Warn,
-        })
-      },
-      registration: async ({ threadId }) => {
-        if (app.cloud.session() === null) return undefined
-        const metadata = await registryMetadataOf({ app, threadId }).catch(() => undefined)
-        return metadata === undefined ? {} : { metadata }
-      },
-      sendRegistration: ({ registration }) => {
-        const session = app.cloud.session()
-        if (session === null) return
-        const registry = new SandboxClient({
-          url: session.url,
-          token: session.token,
-          clientVersion: clientVersionHeader(),
-        })
-        return registry.registerSandbox(registration)
-      },
-      onRegistrationFailed: () => {
-        noticePortBinding().notify({
-          text: 'the sandbox is up, but Atlas Cloud could not register it — remote control and the cloud listing will miss it until the next lift',
-          tone: ENoticeTone.Warn,
-        })
-      },
-      onMirrorFailed: () => {
-        noticePortBinding().notify({
-          text: 'the local transcript mirror fell out of sync — the conversation renders from the sandbox until the next sync lands',
-          tone: ENoticeTone.Warn,
-        })
-      },
-      environment: () => ({
-        ...cloudEnvironmentOf(app.settings.snapshot().resolution),
-        ...telemetryEnvironmentOf(),
-      }),
+export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => ({
+  vercel: () => ({
+    credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
+    ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
+  }),
+  // The driver's settle and provision narration is the only record of a wake that failed
+  // before the channel could speak — persist it, or the next name-conflict incident leaves
+  // nothing to classify from.
+  onDriverLog: (line) => {
+    durableOpLog()?.info({ source: 'cloud.driver', message: line })
+  },
+  attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
+  // The local durable log is the truth the serve's currency vouch is checked against: report
+  // its head on the Hello so a clean re-attach of an unchanged transcript is vouched current.
+  lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
+  localLog: app.log,
+  settings: app.settings,
+  readGitToken: () => readGhAuthToken(),
+  capturePortable: () => app.cloud.capturePortableState(),
+  authorizeSandbox: (authorization) => app.cloud.prepareSandboxOauth(authorization),
+  cloudUrl: () => cloudUrlOf(app),
+  onPortableOmitted: (omitted) => {
+    noticePortBinding().notify({
+      text: portableOmissionNotice(omitted),
+      tone: ENoticeTone.Warn,
     })
-}
+  },
+  registration: async ({ threadId }) => {
+    if (app.cloud.session() === null) return undefined
+    const metadata = await registryMetadataOf({ app, threadId }).catch(() => undefined)
+    return metadata === undefined ? {} : { metadata }
+  },
+  sendRegistration: ({ registration }) => {
+    const session = app.cloud.session()
+    if (session === null) return
+    const registry = new SandboxClient({
+      url: session.url,
+      token: session.token,
+      clientVersion: clientVersionHeader(),
+    })
+    return registry.registerSandbox(registration)
+  },
+  onRegistrationFailed: () => {
+    noticePortBinding().notify({
+      text: 'the sandbox is up, but Atlas Cloud could not register it — remote control and the cloud listing will miss it until the next lift',
+      tone: ENoticeTone.Warn,
+    })
+  },
+  onMirrorFailed: () => {
+    noticePortBinding().notify({
+      text: 'the local transcript mirror fell out of sync — the conversation renders from the sandbox until the next sync lands',
+      tone: ENoticeTone.Warn,
+    })
+  },
+  environment: () => ({
+    ...cloudEnvironmentOf(app.settings.snapshot().resolution),
+    ...telemetryEnvironmentOf(),
+  }),
+})
+
+export const liveBridgeFor =
+  (app: AtlasApp): CloudBridgeFactory =>
+  () =>
+    createCloudBridge(liveBridgeOptionsFor(app))
 
 export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
   const session = app.cloud.session()

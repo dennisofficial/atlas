@@ -5,7 +5,7 @@ import type { LogPort, ThreadId } from '@dltech/atlas-core'
 
 import { logFieldsOf } from '../../store/logs'
 import { fingerprintWorkspaceTree } from '../../workspace/transfer/capture-fingerprint'
-import { listWorktrees, removeWorktree, type Worktree } from '../../workspace/worktrees'
+import { listWorktrees, removeWorktree, unlockWorktree, type Worktree } from '../../workspace/worktrees'
 
 export enum EDestroySkip {
   MainCheckout = 'main-checkout',
@@ -111,6 +111,23 @@ export async function destroyLiftedWorktree({
     return
   }
   const mainCwd = listing.worktrees.find((worktree) => worktree.isMain)?.path ?? cwd
+  const planned = listing.worktrees.find((worktree) => worktree.path === plan.path)
+  if (planned?.isLocked === true) {
+    // The fingerprint check above already proved the tree is byte-identical to the verified cloud
+    // copy, and the lift owns the move at this point. Atlas locks its own launch worktree for the
+    // session, so that lock is what `remove --force` would refuse; unlock it rather than leaving
+    // the proven-redundant checkout on disk.
+    const unlocked = await unlockWorktree({ cwd: mainCwd, path: plan.path })
+    if (!unlocked.ok) {
+      logPort?.warn({
+        source: 'cloud.lift',
+        message: `the lifted local worktree ${plan.path} could not be unlocked and stays on disk`,
+        threadId,
+        data: { operation: 'destroy-local-worktree', path: plan.path, reason: unlocked.message },
+      })
+      return
+    }
+  }
   const removal = await removeWorktree({ cwd: mainCwd, path: plan.path, force: true })
   if (!removal.worktreeRemoved.ok) {
     logPort?.warn({

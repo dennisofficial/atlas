@@ -11,7 +11,7 @@ import { cpus } from 'node:os'
 
 const MAXIMUM_SHARDS = 20
 
-const SPEC_GLOB = 'src/**/*.spec.{ts,tsx}'
+const SPEC_GLOB = '{src,scripts}/**/*.spec.{ts,tsx}'
 
 const COUNT = /^\s*(\d+)\s+(pass|fail)\s*$/gm
 
