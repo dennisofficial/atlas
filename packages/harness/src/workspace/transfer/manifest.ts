@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
-import { workspaceFamilySchema, type RestoredFamily } from './family-manifest'
+import { workspaceFamilySchema, type RestoredFamily } from '@dltech/atlas-core'
 
-export type { RestoredFamily, WorkspaceFamily, WorkspaceFamilyCapture } from './family-manifest'
+export type { RestoredFamily, WorkspaceFamily, WorkspaceFamilyCapture } from '@dltech/atlas-core'
 
 export const workspaceTreeSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]+$/),

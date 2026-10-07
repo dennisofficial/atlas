@@ -1,36 +1,15 @@
 import { realpath } from 'node:fs/promises'
 
+import { describeFailure, ECleanupReason, reasonFor, type SourceObservation } from '@dltech/atlas-core'
+
 import { digestGitAdmin } from './capture-admin'
 import { snapshotWorkspaceTree } from './capture-fingerprint'
 import { listCapturedWorktrees } from './capture-layout'
 import type { WorkspaceManifest, WorkspaceTree } from './manifest'
 
-export enum ECleanupReason {
-  InspectionFailed = 'inspection-failed',
-  UnrelatedCheckout = 'unrelated-checkout',
-  UnusableCheckout = 'unusable-checkout',
-  UnregisteredRoot = 'unregistered-covered-root',
-  AmbiguousRoot = 'ambiguous-root',
-  FingerprintDrift = 'fingerprint-drift',
-  AdminDrift = 'administration-drift',
-  RegistryChanged = 'registry-changed',
-  SessionChanged = 'session-changed',
-  AdminBaselineMissing = 'administration-baseline-missing',
-  AdminBaselineMismatch = 'administration-baseline-mismatch',
-}
-
-export type SourceObservation = {
-  cwd: string
-  registryRoots: readonly string[]
-  adminDigest: string | null
-  reasons: readonly string[]
-}
+export { describeFailure, ECleanupReason, reasonFor, type SourceObservation } from '@dltech/atlas-core'
 
 type CoveredRoot = { tree: WorkspaceTree; root: string }
-
-export const reasonFor = ({ code, detail }: { code: ECleanupReason; detail: string }): string => `${code}: ${detail}`
-
-export const describeFailure = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 const duplicates = (values: readonly string[]): string[] =>
   [...new Set(values.filter((value, index) => values.indexOf(value) !== index))]
