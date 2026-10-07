@@ -27,7 +27,7 @@ import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { childRunnerSource } from '../child-runner'
 import { subAgentPrompt } from '../child-prompt'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, fakeRunners, finished, settled } from './fixtures'
+import { agentTypeNamed, fakeRunners, finished, loggedOfType, settled } from './fixtures'
 
 const PROJECT_DIRECTORY = '/w'
 
@@ -154,7 +154,7 @@ describe('spawning a teammate', () => {
     await settled()
 
     runners.started[0]?.settle(finished())
-    await settled()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     expect(supervisor.threadsAwaitingNotice()).toEqual([])
     expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(0)
@@ -165,7 +165,7 @@ describe('spawning a teammate', () => {
   })
 
   it('relays its ending to the main session once nothing it owns can wake it again', async () => {
-    const { runners, supervisor, parent } = await open()
+    const { harness, runners, supervisor, parent } = await open()
     const outcome = await supervisor.spawn({
       threadId: parent,
       agentType: TEAMMATE_AGENT_TYPE,
@@ -176,13 +176,14 @@ describe('spawning a teammate', () => {
     await settled()
 
     runners.started[0]?.settle(finished())
-    await settled()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     expect(supervisor.threadsAwaitingNotice()).toEqual([parent])
 
     const drained = supervisor.drainNotifications({ threadId: parent })
     expect(drained.wakesTurn).toBe(true)
-    expect(drained.drafts[0]?.type).toBe('agent-ended')
+    expect(drained.drafts).toEqual([])
+    expect(await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })).toHaveLength(1)
   })
 })
 
@@ -212,11 +213,11 @@ describe('a teammate reporting to the main session', () => {
     expect(opened.supervisor.threadsAwaitingNotice()).toEqual([opened.parent])
     expect(opened.supervisor.pendingNotices({ threadId: opened.parent })).toHaveLength(1)
 
-    const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts
-    expect(drafts).toEqual([
+    expect(opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts).toEqual([])
+    const logged = await loggedOfType({ harness: opened.harness, threadId: opened.parent, type: 'agent-reported' })
+    expect(logged.map(({ agentId: from, agentType, intent, prose }) => ({ from, agentType, intent, prose }))).toEqual([
       {
-        type: 'agent-reported',
-        agentId,
+        from: agentId,
         agentType: TEAMMATE_AGENT_TYPE,
         intent: 'billing workstream',
         prose: 'billing is migrated',

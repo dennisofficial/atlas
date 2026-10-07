@@ -107,6 +107,7 @@ describe('a child finish with a shared intake wired', () => {
     const { ChildSteps } = await import('../child-steps')
     const { AgentRoster } = await import('../roster')
     const { AgentNoticeQueue } = await import('../notices')
+    const { AgentJournal } = await import('../agent-journal')
     const { freshChild } = await import('../child-state')
 
     const roster = new AgentRoster()
@@ -134,6 +135,7 @@ describe('a child finish with a shared intake wired', () => {
         runners: temp.runners.source,
         roster,
         notices,
+        journal: new AgentJournal({ log: temp.harness.log, ids: temp.harness.ids }),
         clock: temp.harness.clock,
         intake,
       })

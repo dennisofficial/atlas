@@ -2,6 +2,7 @@ import {
   EAgentRestart,
   EMessageOrigin,
   saidBody,
+  type EventDraft,
   type EventLogPort,
   type IdPort,
   type SaidFile,
@@ -13,9 +14,10 @@ import { isTeammateType, type AgentType } from '../types'
 import { isStepping, snapshotOf, type ChildState, type SteerMessage } from './child-state'
 import type { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
+import type { AgentJournal } from './agent-journal'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentOutcome } from './port'
-import { NOT_A_TEAMMATE, notYourTeammate, retiredAgentType, unknownAgent } from './reasons'
+import { NOT_A_TEAMMATE, notYourTeammate, reportNotRecorded, retiredAgentType, unknownAgent } from './reasons'
 import { recordRestart } from './record-restart'
 import { childDirectory } from './relocate-children'
 import type { AgentRoster } from './roster'
@@ -26,6 +28,7 @@ export type SayChannels = {
   agentTypes: readonly AgentType[]
   roster: AgentRoster
   notices: AgentNoticeQueue
+  journal: AgentJournal
   steps: ChildSteps
   deps: SupervisorDeps
 }
@@ -178,17 +181,22 @@ export async function reportToParent(
     return { ok: false, reason: NOT_A_TEAMMATE }
   }
 
+  const draft: EventDraft = {
+    type: 'agent-reported',
+    agentId: caller.agentId,
+    agentType: caller.agentType,
+    intent: caller.intent,
+    prose: args.text,
+  }
+  const recorded = await args.journal.record({ threadId: caller.spawnedBy, draft })
+  if (!recorded.recorded) return { ok: false, reason: reportNotRecorded(recorded.cause) }
+
   args.notices.queue({
     threadId: caller.spawnedBy,
     snapshot: snapshotOf(caller),
     kind: EAgentNotice.Report,
-    draft: {
-      type: 'agent-reported',
-      agentId: caller.agentId,
-      agentType: caller.agentType,
-      intent: caller.intent,
-      prose: args.text,
-    },
+    draft,
+    logged: true,
   })
 
   return { ok: true, snapshot: snapshotOf(caller) }

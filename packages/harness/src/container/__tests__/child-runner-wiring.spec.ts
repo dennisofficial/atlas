@@ -132,7 +132,7 @@ const settled = async (agents: AgentRegistryPort, agentId: ThreadId): Promise<EA
   const deadline = Date.now() + 5_000
   while (Date.now() < deadline) {
     const found = agents.listEverywhere().find((one) => one.agentId === agentId)
-    if (found !== undefined && found.status !== EAgentStatus.Running) return found.status
+    if (found !== undefined && found.status !== EAgentStatus.Running && agents.threadsAwaitingNotice().length > 0) return found.status
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
   throw new Error('the child never settled')
@@ -212,7 +212,7 @@ describe('the ending a parent is meant to be woken by', () => {
     const first = agents.pendingNotices({ threadId: parent })
     expect(agents.pendingNotices({ threadId: parent })).toBe(first)
 
-    expect(agents.drainNotifications({ threadId: parent }).drafts).toHaveLength(1)
+    expect(agents.drainNotifications({ threadId: parent }).wakesTurn).toBe(true)
     expect(agents.pendingNotices({ threadId: parent })).toHaveLength(0)
   }, 30_000)
 })

@@ -11,6 +11,7 @@ import {
   agentTypeNamed,
   fakeRunners,
   finished,
+  loggedOfType,
   openSupervisor,
   settled,
   type OpenedSupervisor,
@@ -62,66 +63,64 @@ describe('preparing agent notices without acknowledging', () => {
     const entry = await open()
     await spawnEnded(entry)
     entry.runners.started[0]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     const first = entry.supervisor.prepareNotifications({ threadId: entry.parent })
     const second = entry.supervisor.prepareNotifications({ threadId: entry.parent })
 
-    expect(first.drafts).toHaveLength(1)
-    expect(second.drafts).toHaveLength(1)
-    expect(second.drafts[0]).toBe(first.drafts[0])
+    expect(first.drafts).toEqual([])
+    expect(first.wakesTurn).toBe(true)
+    expect(second.wakesTurn).toBe(true)
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
 
     first.acknowledge()
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
-    expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).drafts).toEqual([])
+    expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).wakesTurn).toBe(false)
+    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(1)
   })
 
   it('acknowledges exactly once: a second ack removes nothing more', async () => {
     const entry = await open()
     await spawnEnded(entry)
     entry.runners.started[0]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     const batch = entry.supervisor.prepareNotifications({ threadId: entry.parent })
     await spawnEnded(entry)
     entry.runners.started[1]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     batch.acknowledge()
-    const stillQueued = entry.supervisor.prepareNotifications({ threadId: entry.parent })
-    expect(stillQueued.drafts).toHaveLength(1)
+    expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
 
     batch.acknowledge()
-    expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).drafts).toHaveLength(1)
+    expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
   })
 
   it('leaves a notice that arrived while the batch was being prepared', async () => {
     const entry = await open()
     await spawnEnded(entry)
     entry.runners.started[0]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     const batch = entry.supervisor.prepareNotifications({ threadId: entry.parent })
-    expect(batch.drafts).toHaveLength(1)
+    expect(batch.wakesTurn).toBe(true)
 
     const late = await spawnEnded(entry)
     entry.runners.started[1]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     batch.acknowledge()
 
-    const remaining = entry.supervisor.prepareNotifications({ threadId: entry.parent })
-    expect(remaining.drafts).toHaveLength(1)
-    const draft = remaining.drafts[0]
-    expect(draft?.type === 'agent-ended' ? draft.agentId : undefined).toBe(late)
+    const remaining = entry.supervisor.pendingNotices({ threadId: entry.parent })
+    expect(remaining.map((one) => one.agentId)).toEqual([late])
   })
 
   it('leaves an unacknowledged batch unstamped, so the ending is still owed', async () => {
     const entry = await open()
     const agentId = await spawnEnded(entry)
     entry.runners.started[0]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     entry.supervisor.prepareNotifications({ threadId: entry.parent })
 
@@ -132,19 +131,19 @@ describe('preparing agent notices without acknowledging', () => {
     const entry = await open()
     const agentId = await spawnEnded(entry)
     entry.runners.started[0]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     const batch = entry.supervisor.prepareNotifications({ threadId: entry.parent })
 
     const restarted = await entry.supervisor.say({ agentId, threadId: entry.parent, text: 'again' })
     expect(restarted.ok).toBe(true)
     entry.runners.started[1]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     batch.acknowledge()
 
     expect(deliveredOf(entry, agentId)).toBeUndefined()
-    expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).drafts).toHaveLength(1)
+    expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
   })
 
   it('stamps a report never, because a report is not an ending', async () => {
@@ -186,7 +185,7 @@ describe('preparing agent notices without acknowledging', () => {
     if (!spawned.ok) throw new Error(spawned.reason)
     const agentId = spawned.snapshot.agentId
     runners.started[0]?.settle(finished())
-    await settled()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     const firstEndedAt = supervisor
       .list({ threadId: parent })
@@ -196,7 +195,7 @@ describe('preparing agent notices without acknowledging', () => {
 
     await supervisor.say({ agentId, threadId: parent, text: 'again' })
     runners.started[1]?.settle(finished())
-    await settled()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     const secondEndedAt = supervisor
       .list({ threadId: parent })
@@ -204,7 +203,8 @@ describe('preparing agent notices without acknowledging', () => {
     expect(secondEndedAt).toBe(firstEndedAt)
 
     const fresh = supervisor.prepareNotifications({ threadId: parent })
-    expect(fresh.drafts).toHaveLength(2)
+    expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(2)
+    expect(fresh.wakesTurn).toBe(true)
 
     stale.acknowledge()
 
@@ -224,7 +224,7 @@ describe('enumerating threads with anything queued', () => {
     const entry = await openWithLiveWork()
     await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
     entry.runners.started[0]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     expect(entry.supervisor.threadsAwaitingNotice()).toEqual([])
     expect(entry.supervisor.threadsWithPendingInput()).toEqual([])
@@ -238,12 +238,13 @@ describe('enumerating threads with anything queued', () => {
     const entry = await open()
     await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
     entry.runners.started[0]?.settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     expect(entry.supervisor.threadsAwaitingNotice()).toEqual([entry.parent])
 
     const drained = entry.supervisor.drainNotifications({ threadId: entry.parent })
     expect(drained.wakesTurn).toBe(true)
-    expect(drained.drafts[0]?.type).toBe('agent-ended')
+    expect(drained.drafts).toEqual([])
+    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(1)
   })
 })

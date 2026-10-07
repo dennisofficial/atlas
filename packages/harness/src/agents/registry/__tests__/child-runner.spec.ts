@@ -28,7 +28,7 @@ import { AGENT_TOOL_NAMES, toolRegistryFor, type AgentType } from '../../types'
 import { childRunnerSource } from '../child-runner'
 import { subAgentPrompt } from '../child-prompt'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, fixedModelPort } from './fixtures'
+import { agentTypeNamed, fixedModelPort, loggedOfType } from './fixtures'
 
 const PROJECT_DIRECTORY = '/w'
 
@@ -179,9 +179,9 @@ describe('a child taking its first step', () => {
       agentType: agentTypeNamed({ name: 'explore' }),
     })
 
-    const [draft] = spawned.supervisor.drainNotifications({ threadId: spawned.parent }).drafts
-    expect(draft?.type === 'agent-ended' ? draft.prose : '').toBe('four call sites')
-    expect(draft?.type === 'agent-ended' ? draft.turns : 0).toBe(1)
+    const [draft] = await loggedOfType({ harness: spawned.harness, threadId: spawned.parent, type: 'agent-ended' })
+    expect(draft?.prose).toBe('four call sites')
+    expect(draft?.turns).toBe(1)
   })
 })
 
@@ -192,9 +192,9 @@ describe('a child whose model keeps dropping its replies', () => {
       agentType: agentTypeNamed({ name: 'explore' }),
     })
 
-    const [draft] = spawned.supervisor.drainNotifications({ threadId: spawned.parent }).drafts
-    expect(draft?.type === 'agent-ended' ? draft.status : undefined).toBe(EAgentStatus.Finished)
-    expect(draft?.type === 'agent-ended' ? draft.prose : '').toBe(NO_CONTENT_TEXT)
+    const [draft] = await loggedOfType({ harness: spawned.harness, threadId: spawned.parent, type: 'agent-ended' })
+    expect(draft?.status).toBe(EAgentStatus.Finished)
+    expect(draft?.prose).toBe(NO_CONTENT_TEXT)
 
     const events = await spawned.harness.log.read({ threadId: spawned.agentId })
     const said = events.at(-1)

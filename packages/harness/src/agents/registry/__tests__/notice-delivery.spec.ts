@@ -7,7 +7,7 @@ import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, failed, fakeRunners, finished, type FakeRunners } from './fixtures'
+import { agentTypeNamed, failed, fakeRunners, finished, loggedOfType, type FakeRunners } from './fixtures'
 
 const EXPLORE = agentTypeNamed({ name: 'explore' })
 const TEAMMATE = agentTypeNamed({ name: TEAMMATE_AGENT_TYPE })
@@ -20,6 +20,7 @@ const tickingClock = (): ClockPort => {
 }
 
 type Opened = {
+  harness: AtlasHarness
   runners: FakeRunners
   supervisor: AgentSupervisor
   clock: ClockPort
@@ -39,6 +40,7 @@ async function open(): Promise<Opened> {
   const clock = tickingClock()
 
   return {
+    harness,
     runners,
     clock,
     supervisor: new AgentSupervisor({
@@ -104,24 +106,21 @@ describe('when a finished child counts as delivered', () => {
     const agentId = await spawnUnder({ supervisor, threadId: parent })
 
     runners.started[0]?.settle(finished())
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(1)
     expect(deliveryOf({ supervisor, threadId: parent, agentId })).toBeUndefined()
   })
 
   it('hands the parent the provider error a failed child died on', async () => {
-    const { runners, supervisor, parent } = await open()
+    const { harness, runners, supervisor, parent } = await open()
     await spawnUnder({ supervisor, threadId: parent })
 
     runners.started[0]?.settle(failed('provider inference.net returned 402: credit exhausted'))
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
-    const drafts = supervisor.drainNotifications({ threadId: parent })
-    const ending = drafts.drafts.find((draft) => draft.type === 'agent-ended')
-    expect(ending?.type).toBe('agent-ended')
-    if (ending?.type !== 'agent-ended') return
-    expect(ending.failureCause).toBe('provider inference.net returned 402: credit exhausted')
+    const [ending] = await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })
+    expect(ending?.failureCause).toBe('provider inference.net returned 402: credit exhausted')
   })
 
   it('stamps the child when its parent drains the notice', async () => {
@@ -129,12 +128,12 @@ describe('when a finished child counts as delivered', () => {
     const agentId = await spawnUnder({ supervisor, threadId: parent })
 
     runners.started[0]?.settle(finished())
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     const drafts = supervisor.drainNotifications({ threadId: parent })
     const next = clock.now()
 
-    expect(drafts.drafts).toHaveLength(1)
+    expect(drafts.wakesTurn).toBe(true)
     const delivered = deliveryOf({ supervisor, threadId: parent, agentId })
     expect(delivered).toBeDefined()
     expect(delivered !== undefined && delivered < next).toBe(true)
@@ -147,7 +146,7 @@ describe('when a finished child counts as delivered', () => {
 
     runners.started[0]?.settle(finished())
     runners.started[1]?.settle(finished())
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     supervisor.drainNotifications({ threadId: other })
 
@@ -159,7 +158,7 @@ describe('when a finished child counts as delivered', () => {
     const agentId = await spawnUnder({ supervisor, threadId: parent })
 
     runners.started[0]?.settle(finished())
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     supervisor.forgetNotices({ threadId: parent })
 
@@ -172,7 +171,7 @@ describe('when a finished child counts as delivered', () => {
     const agentId = await spawnUnder({ supervisor, threadId: parent })
 
     runners.started[0]?.settle(finished())
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     supervisor.drainNotifications({ threadId: parent })
     const first = deliveryOf({ supervisor, threadId: parent, agentId })
@@ -187,7 +186,7 @@ describe('when a finished child counts as delivered', () => {
     await spawnUnder({ supervisor, threadId: parent })
 
     runners.started[0]?.settle(finished())
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     let changes = 0
     supervisor.onChange(() => {
@@ -206,7 +205,7 @@ describe('when a finished child counts as delivered', () => {
     const agentId = await spawnUnder({ supervisor, threadId: parent })
 
     runners.started[0]?.settle(finished())
-    await settle()
+    await supervisor.whenChildrenSettled({ threadId: parent })
     supervisor.drainNotifications({ threadId: parent })
 
     await supervisor.say({ agentId, threadId: parent, text: 'keep going' })

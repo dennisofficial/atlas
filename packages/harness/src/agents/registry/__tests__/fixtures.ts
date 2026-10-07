@@ -3,6 +3,7 @@ import {
   EFinishReason,
   toCallId,
   toRunId,
+  type Event,
   type EventDraft,
   type ExecutionLocationSinkPort,
   type ModelPort,
@@ -170,4 +171,17 @@ export const settled = async (): Promise<void> => {
   await Promise.resolve()
   await Promise.resolve()
   await Promise.resolve()
+}
+
+export async function loggedOfType<T extends Event['type']>({
+  harness,
+  threadId,
+  type,
+}: {
+  harness: AtlasHarness
+  threadId: ThreadId
+  type: T
+}): Promise<readonly Extract<Event, { type: T }>[]> {
+  const events = await harness.log.readOwn({ threadId })
+  return events.filter((event): event is Extract<Event, { type: T }> => event.type === type)
 }

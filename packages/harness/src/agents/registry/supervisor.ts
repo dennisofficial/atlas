@@ -15,6 +15,7 @@ import { ChildSteps } from './child-steps'
 import type { SupervisorDeps } from './deps'
 import { snapshotOf, type ChildState } from './child-state'
 import { NoticeDelivery, type NoticeDrain } from './delivery'
+import { AgentJournal } from './agent-journal'
 import { AgentNoticeQueue } from './notices'
 import { NoticeWake } from './notice-wake'
 import { followAgentModels } from './model-follow'
@@ -42,6 +43,7 @@ export class AgentSupervisor extends AgentRegistryPort {
   private readonly agentTypes: readonly AgentType[]
   private readonly roster = new AgentRoster()
   private readonly notices = new AgentNoticeQueue()
+  private readonly journal: AgentJournal
   private readonly delivery: NoticeDelivery
   private readonly steps: ChildSteps
   private readonly recovery: ChildRecovery
@@ -58,10 +60,12 @@ export class AgentSupervisor extends AgentRegistryPort {
     this.ids = args.ids
     this.agentTypes = args.agentTypes
     this.sink = args.sink ?? new NoopExecutionLocationSink()
+    this.journal = new AgentJournal({ log: args.log, ids: args.ids })
     this.steps = new ChildSteps({
       runners: args.runners,
       roster: this.roster,
       notices: this.notices,
+      journal: this.journal,
       clock: args.clock,
       ...(args.telemetry === undefined ? {} : { telemetry: args.telemetry }),
       ...(args.hasLiveWork === undefined ? {} : { hasLiveWork: args.hasLiveWork }),
@@ -132,6 +136,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       agentTypes: this.agentTypes,
       roster: this.roster,
       notices: this.notices,
+      journal: this.journal,
       steps: this.steps,
       deps: this.deps,
     })
@@ -158,6 +163,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       agentTypes: this.agentTypes,
       roster: this.roster,
       notices: this.notices,
+      journal: this.journal,
       steps: this.steps,
       deps: this.deps,
     })
@@ -171,6 +177,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       agentTypes: this.agentTypes,
       roster: this.roster,
       notices: this.notices,
+      journal: this.journal,
       steps: this.steps,
       deps: this.deps,
     })

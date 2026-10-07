@@ -16,7 +16,7 @@ import type { TurnOutcome } from '../../../loop/turn-outcome'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import type { ChildRunnerSource } from '../child-runner'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, finished, interrupted, settled } from './fixtures'
+import { agentTypeNamed, finished, interrupted, loggedOfType, settled } from './fixtures'
 
 type HeldRun = {
   threadId: ThreadId
@@ -192,13 +192,14 @@ describe('relocating a stepping child', () => {
     expect(snapshot?.status).toBe(EAgentStatus.Running)
 
     runOf(entry, childId, 'resume').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
-    const endings = entry.supervisor
+    const unlogged = entry.supervisor
       .drainNotifications({ threadId: entry.parent })
       .drafts.flatMap((draft: EventDraft) => (draft.type === 'agent-ended' ? [draft] : []))
-    expect(endings[0]?.killedBy).toBe(EKilledBy.ContainerSwitch)
-    expect(endings[1]?.status).toBe(EAgentStatus.Finished)
+    expect(unlogged.map((draft) => draft.killedBy)).toEqual([EKilledBy.ContainerSwitch])
+    const logged = await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })
+    expect(logged.at(-1)?.status).toBe(EAgentStatus.Finished)
   })
 })
 
@@ -208,7 +209,7 @@ describe('relocating a child that is not stepping', () => {
     opened.push(entry)
     const childId = await spawnChild(entry, entry.parent)
     runOf(entry, childId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     await entry.supervisor.relocateChildren({
       threadId: entry.parent,
@@ -253,7 +254,7 @@ describe("relocating one thread's children", () => {
     expect(stored?.executionLocation).toBeUndefined()
 
     runOf(entry, mine, 'resume').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
   })
 })
 
@@ -263,10 +264,10 @@ describe('relocating a thread that owns a teammate alongside a sub-agent', () =>
     opened.push(entry)
     const subAgentId = await spawnChild(entry, entry.parent)
     runOf(entry, subAgentId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
     const teammateId = await spawnTeammate(entry, entry.parent)
     runOf(entry, teammateId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     await entry.supervisor.relocateChildren({
       threadId: entry.parent,
@@ -325,7 +326,7 @@ describe('relocating a thread that owns a teammate alongside a sub-agent', () =>
     expect(snapshot?.status).toBe(EAgentStatus.Running)
 
     runOf(entry, teammateId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
   })
 })
 
@@ -335,7 +336,7 @@ describe('relocating a thread whose child is already terminal', () => {
     opened.push(entry)
     const childId = await spawnChild(entry, entry.parent)
     runOf(entry, childId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     await entry.supervisor.relocateChildren({
       threadId: entry.parent,
@@ -357,7 +358,7 @@ describe('relocating a thread whose child is already terminal', () => {
     const childId = await spawnChild(entry, entry.parent)
     await entry.supervisor.stop({ agentId: childId, threadId: entry.parent, by: EKilledBy.User })
     runOf(entry, childId, 'run').settle(interrupted())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     await entry.supervisor.relocateChildren({
       threadId: entry.parent,
@@ -388,14 +389,14 @@ describe("relocating a teammate's own children", () => {
     opened.push(entry)
     const teammateId = await spawnTeammate(entry, entry.parent)
     runOf(entry, teammateId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
     const siblingTeammateId = await spawnTeammate(entry, entry.parent)
     runOf(entry, siblingTeammateId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     const teammateSubAgentId = await spawnChild(entry, teammateId)
     runOf(entry, teammateSubAgentId, 'run').settle(finished())
-    await settled()
+    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     await entry.supervisor.relocateChildren({
       threadId: teammateId,
@@ -468,7 +469,7 @@ describe('relocating while the caller itself is a stepping child', () => {
       ])
     } finally {
       runOf(entry, childId, 'run').settle(finished())
-      await settled()
+      await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
     }
 
     expect(entry.order).not.toContain(`abort:${childId}`)

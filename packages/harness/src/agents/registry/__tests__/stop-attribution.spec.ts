@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { agentEnding, EAgentStatus, EKilledBy, type EventDraft } from '@dltech/atlas-core'
+import { agentEnding, EAgentStatus, EKilledBy, type EventOfType } from '@dltech/atlas-core'
 
-import { finished, interrupted, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
+import { finished, interrupted, loggedOfType, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
 
 const opened: OpenedSupervisor[] = []
 
@@ -26,15 +26,10 @@ async function spawned(): Promise<OpenedSupervisor> {
   return open
 }
 
-type Ending = Extract<EventDraft, { type: 'agent-ended' }>
+type Ending = EventOfType<'agent-ended'>
 
-const endingsFor = (open: OpenedSupervisor): readonly Ending[] =>
-  open.supervisor
-    .drainNotifications({ threadId: open.parent })
-    .drafts.flatMap((draft: EventDraft) => (draft.type === 'agent-ended' ? [draft] : []))
-
-const lastEnding = (open: OpenedSupervisor): Ending => {
-  const ending = endingsFor(open).at(-1)
+const lastEnding = async (open: OpenedSupervisor): Promise<Ending> => {
+  const ending = (await loggedOfType({ harness: open.harness, threadId: open.parent, type: 'agent-ended' })).at(-1)
   if (ending === undefined) throw new Error('the parent was told nothing')
   return ending
 }
@@ -53,7 +48,7 @@ describe('a sub-agent the operator stopped', () => {
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
 
-    const ending = lastEnding(open)
+    const ending = await lastEnding(open)
     expect(ending.status).toBe(EAgentStatus.Stopped)
     expect(ending.killedBy).toBe(EKilledBy.User)
     expect(agentEnding(ending)).toContain('was stopped by the user')
@@ -66,7 +61,7 @@ describe('a sub-agent the operator stopped', () => {
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
 
-    const ending = lastEnding(open)
+    const ending = await lastEnding(open)
     expect(ending.killedBy).toBe(EKilledBy.Model)
     expect(agentEnding(ending)).toContain('was stopped at your request')
   })
@@ -78,7 +73,7 @@ describe('a sub-agent the operator stopped', () => {
     open.runners.started[0]?.fail(new Error('the model stream was aborted'))
     await open.supervisor.closeAll()
 
-    const ending = lastEnding(open)
+    const ending = await lastEnding(open)
     expect(ending.status).toBe(EAgentStatus.Stopped)
     expect(ending.killedBy).toBe(EKilledBy.User)
   })
@@ -90,14 +85,14 @@ describe('a sub-agent the operator stopped', () => {
     await open.supervisor.stop({ agentId, threadId: open.parent, by: EKilledBy.User })
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
-    expect(lastEnding(open).killedBy).toBe(EKilledBy.User)
+    expect((await lastEnding(open)).killedBy).toBe(EKilledBy.User)
 
     await open.supervisor.say({ agentId, threadId: open.parent, text: 'carry on' })
     await settled()
     open.runners.started[1]?.settle(finished())
     await open.supervisor.closeAll()
 
-    const ending = lastEnding(open)
+    const ending = await lastEnding(open)
     expect(ending.status).toBe(EAgentStatus.Finished)
     expect(ending.killedBy).toBeUndefined()
   })
@@ -128,7 +123,7 @@ describe('a sub-agent still stepping when the session closes', () => {
     open.runners.started[0]?.settle(interrupted())
     await closing
 
-    const ending = lastEnding(open)
+    const ending = await lastEnding(open)
     expect(ending.status).toBe(EAgentStatus.Stopped)
     expect(ending.killedBy).toBe(EKilledBy.SessionEnd)
     expect(agentEnding(ending)).toContain('was stopped when the session closed')
@@ -142,6 +137,6 @@ describe('a sub-agent still stepping when the session closes', () => {
     open.runners.started[0]?.settle(interrupted())
     await closing
 
-    expect(lastEnding(open).killedBy).toBe(EKilledBy.User)
+    expect((await lastEnding(open)).killedBy).toBe(EKilledBy.User)
   })
 })
