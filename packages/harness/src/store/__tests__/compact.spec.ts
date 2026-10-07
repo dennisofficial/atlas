@@ -5,6 +5,7 @@ import {
   eventBodySchema,
   ECompactionAnchor,
   ECompactionRefusal,
+  EExecutionLocation,
   ERewindRefusal,
   toCallId,
   toRunId,
@@ -341,6 +342,25 @@ describe('what neither operation will do', () => {
 
     const outcome = await summariseTo({ threadId, throughSeq: 3, summary: 'the cleanup' })
 
+    expect(outcome.ok === true && outcome.replaced).toBe(2)
+  })
+
+  it('spares a location-changed marker from a destructive summary, since the move is still true', async () => {
+    const threadId = await openThread([
+      said('lift it'),
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      said('keep going'),
+      replied('done'),
+    ])
+
+    const outcome = await summariseTo({ threadId, throughSeq: 3, summary: 'the lift and the ask' })
+
+    expect(outcome.ok).toBe(true)
+    expect(await shapeOf(threadId)).toEqual([
+      [2, 'location-changed'],
+      [3, 'history-compacted'],
+      [4, 'assistant-said'],
+    ])
     expect(outcome.ok === true && outcome.replaced).toBe(2)
   })
 })

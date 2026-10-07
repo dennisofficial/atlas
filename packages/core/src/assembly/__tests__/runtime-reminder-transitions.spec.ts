@@ -106,17 +106,22 @@ describe('runtime reminders across transitions', () => {
     }
   })
 
-  it('states the worktree after entering it, and invents no execution-location tail', () => {
+  it('states the worktree after entering it, and names the execution location only while the session is away from the host', () => {
     const inTree = assembleWith({ drafts: [...BASE, ENTERED] })
     const inDocker = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER] })
     const backOnHost = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST] })
 
     expect(textOf(inTree.messages.at(-1))).toContain(`Project directory: ${TREE}`)
-    for (const assembled of [inTree, inDocker, backOnHost]) {
+    expect(textOf(inDocker.messages.at(-1))).toContain('Execution location: a Docker container')
+    for (const assembled of [inTree, backOnHost]) {
       for (const entry of assembled.messages) {
         expect(textOf(entry)).not.toContain('Execution location')
         expect(textOf(entry)).not.toContain('Docker container')
       }
+    }
+    for (const entry of inDocker.messages.slice(0, -1)) {
+      expect(textOf(entry)).not.toContain('Execution location')
+      expect(textOf(entry)).not.toContain('Docker container')
     }
   })
 
