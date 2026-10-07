@@ -1,12 +1,6 @@
 import {
-  ECompactionAnchor,
   EExecutionLocation,
-  EForkMode,
-  SURVIVES_SUMMARY,
-  executionLocationOf,
-  locationOfPlacement,
   placementOf,
-  stampEvent,
   toThreadId,
   type PlacementRecord,
   type ClockPort,
@@ -19,26 +13,19 @@ import {
 
 import type { OpenThreadArgs } from '../create-with-events'
 import type { ParkedTranscriptRecord } from '../../cloud/transcript-freshness'
-import { ForkSeqOutOfRange, ForkSourceMissing } from '../fork'
 import type { Unsubscribe } from '../../channel/delta-channel'
-import type { ModelChosenListener, PlacementChangedListener, RenameListener, SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary, WritePlacementArgs } from '../thread-store'
+import type { ModelChosenListener, PlacementChangedListener, RenameListener, ThreadModel, ThreadStorePort, ThreadSummary, WritePlacementArgs } from '../thread-store'
 import { metaWithParkedTranscript, parkedTranscriptOf } from './parked-transcript-meta'
-import { metaWithPlacement, PlacementConflict, placementRecordOf } from './placement-meta'
-import {
-  dropRewoundChildren,
-  findNamedRoot,
-  listRoots,
-  mostRecentRoot,
-  readThreadMetas,
-  toThreadSummary,
-  touchThreadMeta,
-  tryReadThreadMeta,
-} from './listing'
-import { newThreadMeta, readMetaSync, sessionMetaSchema, writeMeta, type ThreadMeta } from './meta'
-import { sessionDirectory, sessionMetaFile, threadMetaFile } from './paths'
+import { placementRecordOf } from './placement-meta'
+import { findNamedRoot, listRoots, mostRecentRoot, readThreadMetas, toThreadSummary, tryReadThreadMeta } from './listing'
+import { writeMeta } from './meta'
 import type { SessionRegistry } from './registry'
+import { threadMetaFile } from './paths'
 import { writeSessionMetaForRoot } from './session-meta'
-import { appendStampedEvent, rewriteThreadLog } from './thread-places'
+import type { ForkArgs, MarkArgs, RewindArgs, ThreadStoreContext } from './thread-store-context'
+import { blankMeta, sessionDirFor, sessionDirForNew } from './thread-store-fields'
+import { forkThread, markThreadHistory, rewindThread } from './thread-store-history'
+import { updateThreadMeta, writePlacementMeta } from './thread-store-mutations'
 
 export class ThreadNeedsOpeningDrafts extends Error {
   constructor() {
@@ -48,22 +35,6 @@ export class ThreadNeedsOpeningDrafts extends Error {
     this.name = 'ThreadNeedsOpeningDrafts'
   }
 }
-
-type CreateArgs = {
-  title?: string | undefined
-  workspace?: string | undefined
-  repo?: string | null | undefined
-  agent?: SupervisedAgent | undefined
-  id?: ThreadId | undefined
-  executionLocation?: EExecutionLocation | undefined
-  model?: ThreadModel | undefined
-}
-
-type MarkArgs = { threadId: ThreadId; anchor: ECompactionAnchor; fromSeq: number; throughSeq: number; summary: string }
-
-type RewindArgs = { threadId: ThreadId; toSeq: number; cutAgents?: readonly ThreadId[] | undefined }
-
-type ForkArgs = { from: ThreadId; seq: number; mode: EForkMode; title?: string | undefined }
 
 export class JsonlThreadStore implements ThreadStorePort {
   private readonly renameListeners = new Set<RenameListener>()
@@ -89,9 +60,9 @@ export class JsonlThreadStore implements ThreadStorePort {
     return () => this.modelChosenListeners.delete(listener)
   }
 
-  async create(args: CreateArgs): Promise<ThreadSummary> {
-    const meta = this.blankMeta({ threadId: args.id ?? this.ids.nextThreadId(), fields: args })
-    const sessionDir = await this.sessionDirForNew({ id: toThreadId(meta.id), agent: args.agent })
+  async create(args: Parameters<ThreadStorePort['create']>[0]): Promise<ThreadSummary> {
+    const meta = blankMeta({ clock: this.clock, threadId: args.id ?? this.ids.nextThreadId(), fields: args })
+    const sessionDir = await sessionDirForNew({ context: this.context(), id: toThreadId(meta.id), agent: args.agent })
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(meta.id) }), meta })
     this.registry.registerThread({ sessionDir, threadId: toThreadId(meta.id) })
     if (args.agent === undefined) await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: EExecutionLocation.Host })
@@ -101,8 +72,8 @@ export class JsonlThreadStore implements ThreadStorePort {
   async createWithFirstEvents(args: OpenThreadArgs): Promise<{ thread: ThreadSummary; events: Event[] }> {
     if (args.drafts.length === 0) throw new ThreadNeedsOpeningDrafts()
     const threadId = args.threadId ?? this.ids.nextThreadId()
-    const meta = this.blankMeta({ threadId, fields: { ...args, id: threadId } })
-    const sessionDir = await this.sessionDirForNew({ id: threadId, agent: args.agent })
+    const meta = blankMeta({ clock: this.clock, threadId, fields: { ...args, id: threadId } })
+    const sessionDir = await sessionDirForNew({ context: this.context(), id: threadId, agent: args.agent })
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
     this.registry.registerThread({ sessionDir, threadId })
     if (args.agent === undefined) {
@@ -121,7 +92,7 @@ export class JsonlThreadStore implements ThreadStorePort {
   }
 
   async spawned({ threadId }: { threadId: ThreadId }): Promise<readonly ThreadSummary[]> {
-    const metas = await readThreadMetas({ sessionDir: await this.sessionDirFor({ threadId }) })
+    const metas = await readThreadMetas({ sessionDir: await sessionDirFor({ context: this.context(), threadId }) })
     return metas
       .filter((meta) => meta.spawnerThreadId === threadId)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -154,7 +125,7 @@ export class JsonlThreadStore implements ThreadStorePort {
   async rename({ threadId, title }: { threadId: ThreadId; title: string }): Promise<void> {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
-    await this.updateMeta({ threadId, change: (meta) => ({ ...meta, title }) })
+    await updateThreadMeta({ context: this.context(), threadId, change: (meta) => ({ ...meta, title }) })
     if (process.env.ATLAS_TRACE_TITLING !== undefined) {
       this.trace?.info({
         source: 'titling.trace',
@@ -179,50 +150,13 @@ export class JsonlThreadStore implements ThreadStorePort {
   }
 
   async writePlacement(args: WritePlacementArgs): Promise<void> {
-    const { threadId, record } = args
-    const known = await this.registry.sessionDirOf({ threadId })
-    const sessionDir = known ?? sessionDirectory({ home: this.home, sessionId: threadId })
-    const handle = this.registry.handleFor({ sessionDir })
-    const written = await this.registry.enqueue({
-      handle,
-      run: async () => {
-        const file = threadMetaFile({ sessionDir, threadId })
-        const existing = tryReadThreadMeta({ file })
-        const base = existing ?? newThreadMeta({ id: threadId, at: this.clock.now() })
-        const held = placementRecordOf(base)
-        // A row whose meta carries no placement field yet (the archive just rewrote it, or nothing
-        // ever placed it) cannot conflict: there is no durable placement to move underneath this
-        // write. The write plants its placement wholesale rather than arguing with the fallback.
-        const conflict =
-          args.expectedRevision !== undefined &&
-          existing !== undefined &&
-          existing.placement !== undefined &&
-          existing.placement !== null &&
-          held.revision !== args.expectedRevision
-        if (conflict) {
-          throw new PlacementConflict({ expected: args.expectedRevision ?? 0, found: held.revision })
-        }
-        const meta = metaWithPlacement({
-          meta: {
-            ...base,
-            ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-            ...(args.repo === undefined ? {} : { repo: args.repo }),
-          },
-          record,
-        })
-        await writeMeta({ file, meta })
-        return meta
-      },
-    })
-    this.registry.registerThread({ sessionDir, threadId })
-    if (sessionDir.endsWith(`/${threadId}`)) {
-      await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: written, home: locationOfPlacement(record.placement) })
-    }
-    for (const listener of [...this.placementListeners]) listener({ threadId, record })
+    await writePlacementMeta({ context: this.context(), args })
+    for (const listener of [...this.placementListeners]) listener({ threadId: args.threadId, record: args.record })
   }
 
   async writeParkedTranscript(args: { threadId: ThreadId; record: ParkedTranscriptRecord }): Promise<void> {
-    await this.updateMeta({
+    await updateThreadMeta({
+      context: this.context(),
       threadId: args.threadId,
       change: (meta) => metaWithParkedTranscript({ meta, record: args.record }),
     })
@@ -248,7 +182,8 @@ export class JsonlThreadStore implements ThreadStorePort {
   }): Promise<void> {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
-    await this.updateMeta({
+    await updateThreadMeta({
+      context: this.context(),
       threadId,
       change: (meta) => {
         const frozen = meta.spawnerThreadId !== null && meta.modelRef !== null && meta.modelEffort !== null
@@ -260,13 +195,6 @@ export class JsonlThreadStore implements ThreadStorePort {
     for (const listener of [...this.modelChosenListeners]) listener({ threadId, model })
   }
 
-  /**
-   * A thread whose meta has never been written (an unstarted /new conversation) is still a thread
-   * the moment something places it somewhere — a lift to the cloud is exactly that, and the record
-   * must exist for a later boot to route the resume to the attach path. Materialize it; the
-   * workspace stays null until the first real turn opens the thread and adopts it. A host (or
-   * cleared) placement of a thread nothing has written stays a no-op.
-   */
   async chooseExecutionLocation(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {
     const { threadId, location } = args
     const known = await this.registry.sessionDirOf({ threadId })
@@ -284,178 +212,26 @@ export class JsonlThreadStore implements ThreadStorePort {
   }
 
   async adopt({ threadId, workspace, repo }: { threadId: ThreadId; workspace: string; repo: string | null }): Promise<void> {
-    await this.updateMeta({ threadId, change: (meta) => ({ ...meta, workspace, repo }) })
+    await updateThreadMeta({ context: this.context(), threadId, change: (meta) => ({ ...meta, workspace, repo }) })
   }
 
-  async rewind({ threadId, toSeq, cutAgents = [] }: RewindArgs): Promise<void> {
-    const sessionDir = await this.sessionDirFor({ threadId })
-    const handle = this.registry.handleFor({ sessionDir })
-    await this.registry.enqueue({
-      handle,
-      run: async () => {
-        const log = await this.registry.readThreadLog({ sessionDir, threadId })
-        await rewriteThreadLog({
-          registry: this.registry,
-          ids: this.ids,
-          sessionDir,
-          threadId,
-          events: log.events.filter((event) => event.seq <= toSeq),
-        })
-        await dropRewoundChildren({ home: this.home, registry: this.registry, agentIds: cutAgents })
-        await touchThreadMeta({ registry: this.registry, sessionDir, threadId, at: this.clock.now() })
-      },
-    })
+  async rewind(args: RewindArgs): Promise<void> {
+    await rewindThread({ context: this.context(), args })
   }
 
   async compact(args: MarkArgs): Promise<number> {
-    return this.mark({ ...args, discardRows: false, cutAgents: [] })
+    return markThreadHistory({ context: this.context(), args: { ...args, discardRows: false, cutAgents: [] } })
   }
 
   async summarise(args: MarkArgs & { cutAgents?: readonly ThreadId[] | undefined }): Promise<number> {
-    return this.mark({ ...args, cutAgents: args.cutAgents ?? [], discardRows: true })
+    return markThreadHistory({ context: this.context(), args: { ...args, cutAgents: args.cutAgents ?? [], discardRows: true } })
   }
 
-  async fork({ from, seq, mode, title }: ForkArgs): Promise<ThreadSummary> {
-    const fromDir = await this.sessionDirFor({ threadId: from })
-    const handle = this.registry.handleFor({ sessionDir: fromDir })
-    const created = await this.registry.enqueue({
-      handle,
-      run: async () => {
-        const source = tryReadThreadMeta({ file: threadMetaFile({ sessionDir: fromDir, threadId: from }) })
-        if (source === undefined) throw new ForkSourceMissing({ from })
-        const head = (await this.registry.readThreadLog({ sessionDir: fromDir, threadId: from })).head
-        if (seq < 0 || seq > head) throw new ForkSeqOutOfRange({ from, seq, head })
-        const into = this.ids.nextThreadId()
-        const sessionDir = sessionDirectory({ home: this.home, sessionId: into })
-        const meta: ThreadMeta = {
-          ...this.blankMeta({ threadId: into, fields: { title, repo: source.repo } }),
-          head: seq,
-          parentThreadId: from,
-          forkSeq: seq,
-          forkMode: mode,
-          workspace: source.workspace,
-          modelRef: source.modelRef,
-          modelEffort: source.modelEffort,
-          executionLocation: source.executionLocation,
-        }
-        if (mode === EForkMode.Copy) {
-          const prefix = await this.log.read({ threadId: from, upTo: seq })
-          await rewriteThreadLog({ registry: this.registry, ids: this.ids, sessionDir, threadId: into, events: prefix })
-          meta.head = prefix.at(-1)?.seq ?? 0
-        }
-        await writeMeta({ file: threadMetaFile({ sessionDir, threadId: into }), meta })
-        this.registry.registerThread({ sessionDir, threadId: into })
-        return { meta, sessionDir }
-      },
-    })
-    await writeSessionMetaForRoot({ registry: this.registry, sessionDir: created.sessionDir, root: created.meta, home: this.homeOf({ source: created.meta, fromDir }) })
-    return toThreadSummary(created.meta)
+  async fork(args: ForkArgs): Promise<ThreadSummary> {
+    return forkThread({ context: this.context(), args })
   }
 
-  private async mark(args: MarkArgs & { discardRows: boolean; cutAgents: readonly ThreadId[] }): Promise<number> {
-    const { threadId, anchor, fromSeq, throughSeq, summary, discardRows, cutAgents } = args
-    const sessionDir = await this.sessionDirFor({ threadId })
-    const handle = this.registry.handleFor({ sessionDir })
-    return this.registry.enqueue({
-      handle,
-      run: async () => {
-        const at = this.clock.now()
-        const log = await this.registry.readThreadLog({ sessionDir, threadId })
-        const vacated = log.events
-          .filter((event) => event.seq >= fromSeq && event.seq <= throughSeq && !SURVIVES_SUMMARY.includes(event.type))
-          .map((event) => event.seq)
-        const standIn = discardRows
-          ? anchor === ECompactionAnchor.Prefix
-            ? vacated.at(-1)
-            : vacated[0]
-          : undefined
-        const watermark = stampEvent({
-          draft: { type: 'history-compacted', anchor, fromSeq, throughSeq, summary, replaced: vacated.length },
-          envelope: { id: this.ids.nextEventId(), seq: standIn ?? log.head + 1, threadId, runId: this.ids.nextRunId(), depth: 0, at },
-        })
-        if (!discardRows) {
-          await appendStampedEvent({ registry: this.registry, sessionDir, event: watermark })
-        } else {
-          const removed = new Set(vacated)
-          const merged = [...log.events.filter((event) => !removed.has(event.seq)), watermark].sort(
-            (a, b) => a.seq - b.seq,
-          )
-          await rewriteThreadLog({ registry: this.registry, ids: this.ids, sessionDir, threadId, events: merged })
-          await dropRewoundChildren({ home: this.home, registry: this.registry, agentIds: cutAgents })
-        }
-        await touchThreadMeta({ registry: this.registry, sessionDir, threadId, at })
-        return vacated.length
-      },
-    })
-  }
-
-  private async updateMeta({
-    threadId,
-    change,
-  }: {
-    threadId: ThreadId
-    change: (meta: ThreadMeta) => ThreadMeta
-  }): Promise<void> {
-    const sessionDir = await this.registry.sessionDirOf({ threadId })
-    if (sessionDir === undefined) return
-    const handle = this.registry.handleFor({ sessionDir })
-    const next = await this.registry.enqueue({
-      handle,
-      run: async () => {
-        const file = threadMetaFile({ sessionDir, threadId })
-        const meta = tryReadThreadMeta({ file })
-        if (meta === undefined) return undefined
-        const updated = change(meta)
-        await writeMeta({ file, meta: updated })
-        return updated
-      },
-    })
-    if (next === undefined || !sessionDir.endsWith(`/${threadId}`)) return
-    await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: next, home: this.homeOf({ source: next, fromDir: sessionDir }) })
-  }
-
-  private homeOf({ source, fromDir }: { source: ThreadMeta; fromDir: string }): EExecutionLocation {
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir: fromDir }), schema: sessionMetaSchema })
-    return executionLocationOf(session?.home) ?? executionLocationOf(source.executionLocation) ?? EExecutionLocation.Host
-  }
-
-  private blankMeta({
-    threadId,
-    fields,
-  }: {
-    threadId: ThreadId
-    fields: CreateArgs
-  }): ThreadMeta {
-    const meta = newThreadMeta({ id: threadId, at: this.clock.now() })
-    if (fields.title !== undefined) meta.title = fields.title
-    if (fields.workspace !== undefined) meta.workspace = fields.workspace
-    if (fields.repo !== undefined) meta.repo = fields.repo
-    if (fields.executionLocation !== undefined) meta.executionLocation = fields.executionLocation
-    if (fields.model !== undefined) {
-      meta.modelRef = fields.model.ref
-      meta.modelEffort = fields.model.effort
-    }
-    if (fields.agent !== undefined) {
-      meta.spawnerThreadId = fields.agent.spawnedBy
-      meta.agentType = fields.agent.type
-    }
-    return meta
-  }
-
-  private async sessionDirForNew({
-    id,
-    agent,
-  }: {
-    id: ThreadId
-    agent: SupervisedAgent | undefined
-  }): Promise<string> {
-    if (agent === undefined) return sessionDirectory({ home: this.home, sessionId: id })
-    return this.sessionDirFor({ threadId: agent.spawnedBy })
-  }
-
-  private async sessionDirFor({ threadId }: { threadId: ThreadId }): Promise<string> {
-    const resolved = await this.registry.sessionDirOf({ threadId })
-    if (resolved !== undefined) return resolved
-    return sessionDirectory({ home: this.home, sessionId: threadId })
+  private context(): ThreadStoreContext {
+    return { home: this.home, registry: this.registry, clock: this.clock, ids: this.ids, log: this.log }
   }
 }

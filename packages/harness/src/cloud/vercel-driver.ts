@@ -1,8 +1,8 @@
 import type { Sandbox } from '@vercel/sandbox'
 import { downloadSessionArchive, releaseSessionExport, type SessionDownloadArgs } from './session-archive-transport'
 
-import { detachThenDeleteDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
-import { driveNameFor } from './drive-names'
+import { liveDriveSdk, type DriveSdk } from './drive-lifecycle'
+import { deleteThreadDrive } from './vercel-driver-destroy'
 import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
 import { attachLagRetry, imageOptimizeRetry, type RetryPolicy } from './retry-policy'
 import { createServeLauncher, type ServeLauncher } from './serve-launch'
@@ -233,27 +233,19 @@ export class VercelDriver {
     }
   }
 
-  async destroy(args: { name: string; threadId?: string | undefined }): Promise<void> {
+  async destroy(args: { name: string; threadId?: string | undefined; sessionId?: string | undefined }): Promise<void> {
+    const fenced = args.sessionId !== undefined
     try {
-      const sandbox = await this.sandboxNamed(args.name)
+      const sandbox = await this.sandboxNamed(args.name, fenced ? { resume: false } : undefined)
+      assertLiveSession({ sandbox, name: args.name, expected: args.sessionId })
       await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
+      if (fenced) throw new SandboxMissingError(args.name)
     }
-    if (args.threadId !== undefined) {
-      const driveName = driveNameFor({ threadId: args.threadId })
-      const detached = await detachThenDeleteDrive({
-        sdk: this.drives,
-        credentials: this.args.credentials,
-        name: driveName,
-        retry: this.attachLagRetry,
-      })
-      if (!detached) {
-        this.args.log?.(
-          `drive ${driveName} still read attached when its delete ran — the delete's retry waited out the detach`,
-        )
-      }
-    }
+    if (args.threadId === undefined) return
+    const { drives: sdk, attachLagRetry: retry } = this
+    await deleteThreadDrive({ sdk, retry, credentials: this.args.credentials, log: this.args.log, threadId: args.threadId, sandboxName: args.name, fenced })
   }
 
   private async guarded(name: string, run: () => Promise<void>): Promise<void> {

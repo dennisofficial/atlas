@@ -127,6 +127,7 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         onChildEnded: (threadId) => {
           void releaseEndedWorktree({
             threads: resolver.resolve(portToken(ThreadStorePort)),
+            log: resolver.resolve(portToken(EventLogPort)),
             threadId,
           }).catch(() => undefined)
         },

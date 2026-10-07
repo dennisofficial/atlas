@@ -13,17 +13,11 @@ import { SessionRegistry } from '../src/store/sessions/registry'
 import { UnstaffedAgents, UnstaffedServices } from '../src/store/__tests__/harness'
 import { InMemoryToolRegistry } from '../src/tools/registry'
 import { PlacementController } from '../src/composition/placement-controller'
+import { EXITED_RETAINED_KEY, featureSpec, GITIGNORE, hostUnrelatedSpec, seedCheckout, teammateSpecs } from './workspace-roundtrip-live-family'
+import { liveGit } from './workspace-roundtrip-live-git'
+import { LIVE_MODEL, seedTeammates } from './workspace-roundtrip-live-threads'
 
-export async function liveGit(args: { cwd: string; args: readonly string[] }): Promise<string> {
-  const process = Bun.spawn(['git', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', ...args.args], {
-    cwd: args.cwd,
-    env: { ...globalThis.process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_TRACE2: '0', GIT_TRACE2_EVENT: '0', GIT_TRACE2_PERF: '0' },
-    stdout: 'pipe', stderr: 'pipe', stdin: 'ignore',
-  })
-  const [stdout, stderr, exit] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited])
-  if (exit !== 0) throw new Error(`git ${args.args.join(' ')} failed: ${stderr}`)
-  return stdout.trim()
-}
+export { liveGit }
 
 export async function liveFixture() {
   const scratch = process.env['ATLAS_SESSION_DIR'] === undefined ? tmpdir() : join(process.env['ATLAS_SESSION_DIR'], 'scratch')
@@ -31,24 +25,19 @@ export async function liveFixture() {
   const directory = await realpath(await mkdtemp(join(scratch, 'atlas-workspace-live-')))
   const repository = join(directory, 'repository')
   const home = join(directory, 'home')
-  const worktree = join(repository, '.atlas', 'worktrees', 'feature')
   await mkdir(repository)
   await mkdir(home)
   await liveGit({ cwd: repository, args: ['init', '-b', 'main'] })
   await liveGit({ cwd: repository, args: ['config', 'user.name', 'Atlas Live Probe'] })
   await liveGit({ cwd: repository, args: ['config', 'user.email', 'probe@example.invalid'] })
-  await writeFile(join(repository, '.gitignore'), '.atlas/\nignored.txt\n')
+  await writeFile(join(repository, '.gitignore'), GITIGNORE)
   await writeFile(join(repository, 'file.txt'), 'base\n')
   await liveGit({ cwd: repository, args: ['add', '.'] })
   await liveGit({ cwd: repository, args: ['commit', '-m', 'base fixture'] })
-  await liveGit({ cwd: repository, args: ['worktree', 'add', '-b', 'feature', worktree] })
-  await writeFile(join(worktree, 'file.txt'), 'staged local\n')
-  await liveGit({ cwd: worktree, args: ['add', 'file.txt'] })
-  await writeFile(join(worktree, 'file.txt'), 'unstaged local\n')
-  await writeFile(join(worktree, 'untracked.txt'), 'untracked local\n')
-  await writeFile(join(worktree, 'ignored.txt'), 'ignored local\n')
-  await mkdir(join(worktree, '.atlas'), { recursive: true })
-  await writeFile(join(worktree, '.atlas', '.cloudinclude'), 'ignored.txt\n')
+  const feature = featureSpec(repository)
+  const teammateCheckouts = teammateSpecs(repository)
+  const hostUnrelated = hostUnrelatedSpec(repository)
+  for (const spec of [feature, ...teammateCheckouts, hostUnrelated]) await seedCheckout({ repository, spec })
   const ids = new RandomIds()
   const clock = new SystemClock()
   await fileAccountStore({ file: join(home, 'auth.json'), keyFile: join(home, 'key'), clock }).add({
@@ -58,9 +47,9 @@ export async function liveFixture() {
     secret: { kind: EAuthKind.ApiKey, apiKey: 'probe-placeholder-key' },
   })
   await writeFile(join(home, 'settings.json'), JSON.stringify({
-    'model.id': 'openrouter/openai/gpt-4o-mini',
-    'model.quickModel': 'openrouter/openai/gpt-4o-mini',
-    'model.compactionModel': 'openrouter/openai/gpt-4o-mini',
+    'model.id': LIVE_MODEL.ref,
+    'model.quickModel': LIVE_MODEL.ref,
+    'model.compactionModel': LIVE_MODEL.ref,
     'classifier.mode': 'off',
   }))
   const registry = new SessionRegistry(home)
@@ -68,22 +57,26 @@ export async function liveFixture() {
   const threads = new JsonlThreadStore(home, registry, clock, ids, log)
   const threadId = toThreadId(`brn_live_roundtrip_${crypto.randomUUID()}`)
   await threads.createWithFirstEvents({
-    threadId, runId: ids.nextRunId(), workspace: worktree, repo: repository,
+    threadId, runId: ids.nextRunId(), workspace: feature.path, repo: repository,
     executionLocation: EExecutionLocation.Host,
-    model: { ref: 'openrouter/openai/gpt-4o-mini', effort: 'medium' },
+    model: LIVE_MODEL,
     drafts: [{ type: 'user-said', text: 'Prepare a workspace round trip.' }],
   })
+  const teammates = await seedTeammates({ threads, log, ids, rootId: threadId, repository, home: feature.path, specs: teammateCheckouts, exitedKey: EXITED_RETAINED_KEY })
   const placement = new PlacementController(EExecutionLocation.Host)
-  placement.bind({ threads, workspace: worktree, repo: repository })
+  placement.bind({ threads, workspace: feature.path, repo: repository })
   await placement.activate({ threadId })
   const local = {
     threads, log, ids,
-    workspace: { workspace: worktree, repo: repository },
+    workspace: { workspace: feature.path, repo: repository },
     agents: new UnstaffedAgents(), services: new UnstaffedServices(), tools: new InMemoryToolRegistry([]),
     ledger: { forThread: async () => [], forThreadTree: async () => ({ own: [], delegated: [] }), record: async () => undefined },
   }
-  return { directory, repository, home, worktree, threadId, placement, local }
+  const threadIds = [threadId, ...teammates.map((teammate) => teammate.threadId)]
+  return { directory, repository, home, worktree: feature.path, feature, hostUnrelated, teammates, threadIds, threadId, placement, local }
 }
+
+export type LiveFixture = Awaited<ReturnType<typeof liveFixture>>
 
 export const MODEL_STUB = `const server = Bun.serve({port:3001,hostname:'127.0.0.1',async fetch(request){
 const body=await request.json();const tools=body.tools??[];const bash=tools.find(tool=>tool.function?.name==='bash');

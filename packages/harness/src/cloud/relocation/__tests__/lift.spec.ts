@@ -24,7 +24,8 @@ describe('lifting a conversation into the cloud', () => {
     expect(test.bridge.transcriptPuts).toHaveLength(1)
     expect(test.waves.map((wave) => wave.label)).toEqual([
       'closing what is running here',
-      'packing the uncommitted work, transferring the conversation',
+      'packing the uncommitted work',
+      'transferring the conversation',
       'waiting for the sandbox',
       'attaching and verifying the conversation',
       'handing the conversation over',

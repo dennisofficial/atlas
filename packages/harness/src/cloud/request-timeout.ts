@@ -20,6 +20,7 @@ const WORKSPACE_TRANSFER: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.RestoreTranscript,
   EClientRequest.ReadSessionArchive,
   EClientRequest.PrepareWorkspaceArchive,
+  EClientRequest.ConfirmWorkspaceCleanup,
   EClientRequest.ApplyWorkspaceArchive,
   EClientRequest.ActivateSession,
 ])

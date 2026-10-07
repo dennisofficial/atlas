@@ -1,11 +1,11 @@
 import { readdir } from 'node:fs/promises'
 
-import { ENoticeTone, EExecutionLocation, type LogPort, type NoticePort, type PlacementRecord, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, type LogPort, type NoticePort, type PlacementRecord, type ThreadId } from '@dltech/atlas-core'
 
 import type { PlacementTransaction } from '../../composition/placement-controller'
 import { logFieldsOf } from '../../store/logs'
 import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
-import type { WorkspaceRestoration } from '../../workspace/transfer/restore'
+import type { CloudWorkspaceRestoration } from './descend-workspace'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
@@ -15,17 +15,13 @@ import { adoptTransferredChildren, activateTransferredChildren } from './adopt-t
 import { flipChildrenBack } from './lift-children'
 import type { RelocationPlan } from './dag'
 import { restoreCloudWorkspace, type WorkspaceRestorer } from './descend-workspace'
+import { finishSourceCleanup } from './descend-source-cleanup'
 import { recordWorkspaceArrival } from './workspace-arrival'
 import {
-  DESCEND_DESTROY_NOTICE_KEY,
-  descendDestroyRetry,
   type DescendLocalHome,
   type DescendSurface,
   type DestroySleeper,
 } from './descend'
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 const PAUSE_DEADLINE_MS = 30_000
 
@@ -46,7 +42,7 @@ export type DescendRun = {
   pauseLanded: boolean
   pauseRequested: boolean
   restored: RestoredWorkspace | undefined
-  restoration: WorkspaceRestoration | undefined
+  restoration: CloudWorkspaceRestoration | undefined
   home: DescendLocalHome
 }
 
@@ -222,52 +218,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
     {
       id: EDescendNode.DestroySandbox,
       needs: [EDescendNode.ActivateChildren],
-      run: async () => {
-        void destroySandboxWithRetry(args).catch((error: unknown) => {
-          args.logPort?.warn({
-            source: 'cloud.descend',
-            message: 'the sandbox teardown retry itself failed — the warning notice stands',
-            threadId,
-            data: { operation: 'destroy-sandbox-retry' },
-            ...logFieldsOf({ error }),
-          })
-        })
-      },
+      run: () => finishSourceCleanup(args),
     },
   ]
 }
-
-async function destroySandboxWithRetry<Opened>(args: DescendPlanArgs<Opened>): Promise<void> {
-  for (let attempt = 1; attempt <= descendDestroyRetry.attempts; attempt += 1) {
-    try {
-      await args.bridge.sandboxes.destroy({ threadId: args.threadId })
-      if (attempt === 1) return
-      args.notice.notify({
-        key: DESCEND_DESTROY_NOTICE_KEY,
-        text: 'the cloud sandbox was torn down after all',
-        tone: ENoticeTone.Success,
-      })
-      return
-    } catch (error: unknown) {
-      args.logPort?.warn({
-        source: 'cloud.descend',
-        message: 'the cloud sandbox could not be torn down',
-        threadId: args.threadId,
-        data: { operation: 'destroy-sandbox' },
-        ...logFieldsOf({ error }),
-      })
-      if (attempt === 1) {
-        args.notice.notify({
-          key: DESCEND_DESTROY_NOTICE_KEY,
-          text: `this conversation is home, but its cloud sandbox could not be torn down — ${messageOf(error)}`,
-          tone: ENoticeTone.Warn,
-          ttlMs: null,
-        })
-      }
-      if (attempt < descendDestroyRetry.attempts) {
-        await args.destroySleep(descendDestroyRetry)
-      }
-    }
-  }
-}
-

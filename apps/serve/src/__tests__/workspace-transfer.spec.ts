@@ -167,7 +167,13 @@ const bootWith = async (args: { archive: string | null }) => {
     write: () => undefined,
     compose: async (composeArgs) => {
       composedAt.push(composeArgs.cwd)
-      return fakeServeApp({ threadId, root: composeArgs.cwd })
+      const app = fakeServeApp({ threadId, root: composeArgs.cwd })
+      const find = app.threads.find.bind(app.threads)
+      app.threads.find = async (given) => {
+        const thread = await find(given)
+        return thread === undefined ? undefined : { ...thread, workspace: composeArgs.cwd }
+      }
+      return app
     },
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     restoreWorkspace: async () => restoredAt(restoredTo),
