@@ -62,20 +62,20 @@ const modelPage = (withShadows = true) => {
 const nameOf = (setting: { definition: { label: string } }): string => setting.definition.label
 
 describe('the models page agent sections', () => {
-  it('orders built-in, repository and global sections, rows alphabetical, teammates kept in Model', () => {
+  it('orders built-in, global and repository sections, rows alphabetical, teammates kept in Model', () => {
     const { held } = modelPage()
 
     expect(held.groups.map((group) => group.label)).toEqual([
       'Model',
       'Background processes',
       'Built-in sub-agents',
-      'Repository-defined sub-agents',
       'Global user-defined sub-agents',
+      'Repository-defined sub-agents',
     ])
     expect(held.groups[0]?.rows.map(nameOf)).toContain('Teammates')
     expect(held.groups[2]?.rows.map(nameOf)).toEqual(['explore agents', 'explore agents'])
-    expect(held.groups[3]?.rows.map(nameOf)).toEqual(['auditor agents', 'reviewer agents'])
-    expect(held.groups[4]?.rows.map(nameOf)).toEqual([
+    expect(held.groups[4]?.rows.map(nameOf)).toEqual(['auditor agents', 'reviewer agents'])
+    expect(held.groups[3]?.rows.map(nameOf)).toEqual([
       'reviewer agents',
       'reviewer agents',
       'writer agents',
