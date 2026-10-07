@@ -7,7 +7,7 @@ import {
   sessionMetaSchema,
   writeMeta,
   type MainThreadFence,
-  type RotationRecord,
+  type RotationWriteArgs,
   type SessionMeta,
 } from './meta'
 import { sessionMetaFile } from './paths'
@@ -22,11 +22,7 @@ export class MainConflict extends Error {
   }
 }
 
-export type RotationWrite = {
-  rotation: RotationRecord
-  expectedActiveMain: ThreadId
-  nextActiveMain?: ThreadId | undefined
-}
+export type RotationWrite = RotationWriteArgs
 
 export class JsonlSessionAuthority extends SessionAuthorityPort {
   constructor(private readonly deps: { registry: SessionRegistry; clock: ClockPort }) {

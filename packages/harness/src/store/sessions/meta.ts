@@ -73,10 +73,18 @@ export type MainThreadFence =
   | { allowed: true; generation: number }
   | { allowed: false; activeMain: ThreadId | null }
 
+export type RotationWriteArgs = {
+  rotation: RotationRecord
+  expectedActiveMain: ThreadId
+  nextActiveMain?: ThreadId | undefined
+}
+
 export abstract class SessionAuthorityPort {
   abstract activeMainOf(args: { sessionId: string }): Promise<ThreadId | undefined>
   abstract mainGenerationOf(args: { threadId: ThreadId }): Promise<number | undefined>
   abstract fenceMainThread(args: { threadId: ThreadId; generation?: number | undefined }): Promise<MainThreadFence>
+  abstract writeRotation(args: { sessionId: string; write: RotationWriteArgs }): Promise<void>
+  abstract recoverInterruptedRotation(args: { sessionId: string }): Promise<void>
 }
 
 export const THREAD_META_VERSION = 1
