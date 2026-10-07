@@ -124,7 +124,8 @@ export function createSettingsService(args: {
     const nextProject = layerReads.project ?? EMPTY_SETTINGS_DOCUMENT
     const unchanged =
       serialiseSettingsDocument(next.document) === serialiseSettingsDocument(snapshot.document) &&
-      serialiseSettingsDocument(nextProject) === serialiseSettingsDocument(priorProject)
+      serialiseSettingsDocument(nextProject) === serialiseSettingsDocument(priorProject) &&
+      JSON.stringify(next.problems) === JSON.stringify(snapshot.problems)
     if (unchanged) return
 
     snapshot = next
