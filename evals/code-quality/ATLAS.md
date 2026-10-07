@@ -19,8 +19,12 @@ Each case's `expected` is either:
   abstention, never counted as decided accuracy.
 
 Labels are drafted offline under the versioned SRP rubric and verified blind by a separate reviewer before
-`eval:label-review` accepts them. Changing a verified label creates a new dataset version and reruns BOTH
-baseline and candidate.
+`eval:label-review` accepts them. When the workflow uses reasoning agents, the reviewer sees only sanitized
+input plus rubric — never the drafter's judgment or the evaluated model's output — and records actual
+identity/model (or honestly records that the agent API exposes no model identity), reasoning, disagreement
+and uncertainty. Such results are machine-reviewed evidence, never human or independently calibrated model
+ground truth. Expected evidence ids are validated against the candidate's supplied evidence. Changing a
+verified label creates a new dataset version and reruns BOTH baseline and candidate.
 
 ## SRP rubric (mirrors section 04 thresholds)
 
@@ -50,3 +54,10 @@ re-checking digests, diff and evidence-id uniqueness; the pure production SRP po
 Model parity: a decision that resolves a model other than the one requested is a task execution error
 (never graded, never promotable). `eval:compare` also requires identical enabled policy ids, batch mode and
 resolved model, and exits 1 on regression, 2 when incomparable.
+
+`eval:efficacy` separately reports impact, explicitly named `currentConcern>=0.5` classification, actual
+decision coverage/abstentions, evidence grounding, and fresh-episode notification from the production
+ledger. It also prints a Weka 0-R training-mode yardstick derived from frozen judgments before outputs;
+accuracy that merely matches that mode is not model gain. A one-repository/one-class-family pilot with no
+positive or abstention denominators has undefined recall/precision and is insufficient for holdout or
+production enablement claims.

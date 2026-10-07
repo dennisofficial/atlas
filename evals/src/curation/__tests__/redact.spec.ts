@@ -13,6 +13,11 @@ describe('redactText', () => {
     expect(result.text).toBe('const x = { apiKey: "<redacted>" }')
   })
 
+  test('preserves assignment syntax while redacting a credential', () => {
+    expect(redactText({ text: 'const token = "private-test-value"' }).text)
+      .toBe('const token = "<redacted>"')
+  })
+
   test('redacts home paths', () => {
     const result = redactText({ text: 'read /Users/jane.doe/src and /home/bob/x' })
     expect(result.text).toBe('read <redacted:home>/src and <redacted:home>/x')

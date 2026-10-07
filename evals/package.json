@@ -12,7 +12,9 @@
     "eval:export-examples": "bun run src/cli.ts export-examples",
     "eval:curate": "bun run src/cli.ts curate",
     "eval:label-review": "bun run src/cli.ts label-review",
-    "eval:compare": "bun run src/cli.ts compare"
+    "eval:import-history": "bun run src/cli.ts import-history",
+    "eval:compare": "bun run src/cli.ts compare",
+    "eval:efficacy": "bun run src/cli.ts efficacy-report"
   },
   "devDependencies": {
     "@types/bun": "latest",

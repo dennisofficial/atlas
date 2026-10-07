@@ -141,6 +141,7 @@ export function buildGoldenCases({
   verifications,
   buildInput,
   validateExpected,
+  validateLabel,
 }: {
   featureId: string
   candidates: readonly Candidate[]
@@ -148,6 +149,7 @@ export function buildGoldenCases({
   verifications: readonly LabelVerification[]
   buildInput: (args: { candidate: Candidate }) => unknown
   validateExpected?: ((expected: unknown) => string | null) | undefined
+  validateLabel?: ((args: { expected: unknown; input: unknown }) => string | null) | undefined
 }): { cases: readonly EvalCase[]; refused: readonly LabelRefusal[] } {
   const { byId: draftById, duplicated: duplicateDrafts } = indexUnique({ items: drafts })
   const { byId: verificationById, duplicated: duplicateVerifications } = indexUnique({ items: verifications })
@@ -191,7 +193,13 @@ export function buildGoldenCases({
       refuse('expected fails schema')
       continue
     }
-    cases.push(buildCase({ featureId, candidate, input: buildInput({ candidate }), expected: resolution.expected, verification }))
+    const input = buildInput({ candidate })
+    const labelProblem = validateLabel?.({ expected: resolution.expected, input })
+    if (labelProblem !== undefined && labelProblem !== null) {
+      refuse(labelProblem)
+      continue
+    }
+    cases.push(buildCase({ featureId, candidate, input, expected: resolution.expected, verification }))
   }
 
   for (const candidateId of new Set(verifications.map((verification) => verification.candidateId))) {
