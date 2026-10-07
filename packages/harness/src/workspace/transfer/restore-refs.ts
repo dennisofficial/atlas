@@ -2,6 +2,7 @@ import { copyFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { listWorktrees } from '../worktrees'
+import { isPrivateRefName } from './capture-refs'
 import { exists } from './restore-files'
 import { copyReflog, createRef, createSymref, isAncestor, moveRef, readRefs } from './restore-git'
 import { ETreeAction, type IncomingRef, type PlannedTree, type RestoreContext } from './restore-types'
@@ -119,6 +120,28 @@ export async function settleBranch({
   await create({ ctx, state, ref: renamed, from: ref, sha })
   state.occupied.add(renamed)
   return renamed.slice(HEADS.length)
+}
+
+export const isRelocatedMain = ({ ctx, planned }: { ctx: RestoreContext; planned: PlannedTree }): boolean =>
+  planned.tree.isMain && planned.action === ETreeAction.Create && planned.path !== ctx.plan.anchor
+
+export async function installMainPrivateRefs({
+  ctx,
+  state,
+  planned,
+  gitDir,
+}: {
+  ctx: RestoreContext
+  state: RefState
+  planned: PlannedTree
+  gitDir: string
+}): Promise<void> {
+  await copyReflog({ stageGit: state.stageGit, commonDir: gitDir, from: 'HEAD', to: 'HEAD', journal: ctx.journal })
+  for (const item of state.incoming.values()) {
+    if (!isPrivateRefName(item.ref) || item.symref !== '') continue
+    await createRef({ cwd: planned.path, ref: item.ref, sha: item.sha, journal: ctx.journal })
+    await copyReflog({ stageGit: state.stageGit, commonDir: gitDir, from: item.ref, to: item.ref, journal: ctx.journal })
+  }
 }
 
 export async function importOtherRefs({

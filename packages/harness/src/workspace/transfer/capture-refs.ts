@@ -56,7 +56,9 @@ export async function listTreeRefSets({ trees }: { trees: readonly (CoveredTree 
 
 const byName = (left: LogicalRef, right: LogicalRef): number => left.name.localeCompare(right.name)
 
-const isPrivate = (ref: LogicalRef): boolean => PER_WORKTREE_PREFIXES.some((prefix) => ref.name.startsWith(prefix))
+export const isPrivateRefName = (name: string): boolean => PER_WORKTREE_PREFIXES.some((prefix) => name.startsWith(prefix))
+
+const isPrivate = (ref: LogicalRef): boolean => isPrivateRefName(ref.name)
 
 export function commonRefsOf({ sets }: { sets: readonly TreeRefs[] }): LogicalRef[] {
   const found = new Map<string, LogicalRef>()
