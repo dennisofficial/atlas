@@ -11,6 +11,7 @@ import { TldrBlock } from './blocks/tldr-block'
 import { ToolRunBlock } from './blocks/tool-run-block'
 import { TurnEndedBlock } from './blocks/turn-ended-block'
 import { LocationDivider } from './location-divider'
+import { RotatedDivider } from './rotated-divider'
 import { UserBlock } from './blocks/user-block'
 
 const SHELL_OUTPUT_HINT = '↵ output'
@@ -249,6 +250,15 @@ function DerivedEntryView(props: {
 
     case EEntryKind.LocationChanged:
       return <LocationDivider width={props.width} location={entry.to} cause={entry.cause} />
+
+    case EEntryKind.Rotated:
+      return (
+        <RotatedDivider
+          width={props.width}
+          predecessor={entry.predecessor}
+          handoffPath={entry.handoffPath}
+        />
+      )
 
     default: {
       const unrendered: never = entry

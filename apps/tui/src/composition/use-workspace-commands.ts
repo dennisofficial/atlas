@@ -17,7 +17,7 @@ import type { EExecutionLocation } from '@dltech/atlas-core'
 export function useWorkspaceCommands(args: {
   app: AtlasApp
   onRestart: (() => void) | null
-  conversation: Pick<Conversation, 'handleChangeDirectory' | 'handleCompact' | 'handleRename'>
+  conversation: Pick<Conversation, 'handleChangeDirectory' | 'handleCompact' | 'handleRename' | 'handleRotate'>
   rewind: Pick<RewindControl, 'handleOpen'>
   settings: Pick<SettingsControl, 'handleOpen'>
   shells: ShellsControl
@@ -70,6 +70,7 @@ export function useWorkspaceCommands(args: {
       onChangeDirectory: conversation.handleChangeDirectory,
       onContainer: handleContainer,
       onCompact: conversation.handleCompact,
+      onRotate: conversation.handleRotate,
       onRewind: rewind.handleOpen,
       onShortcuts: chrome.handleShortcuts,
       onOpenSwitcher: () => switcher.handleOpen(),
@@ -99,6 +100,7 @@ export function useWorkspaceCommands(args: {
     conversation.handleChangeDirectory,
     conversation.handleCompact,
     conversation.handleRename,
+    conversation.handleRotate,
     handleContainer,
     handleNewConversation,
     handleOpenAccounts,

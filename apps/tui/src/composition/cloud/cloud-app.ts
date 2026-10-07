@@ -7,6 +7,7 @@ import {
   RemoteCompaction,
   RemoteMentionFiles,
   RemoteRewindMachinery,
+  type RotationPort,
   rewindApplyParamsOf,
   type RewindRead,
   type SessionRuntime,
@@ -21,6 +22,7 @@ import { unstartedConversation, type OpenedConversation } from '../open-conversa
 import type { CloudChannel, CloudStores } from '@dltech/atlas-harness'
 import { attachCloudSession, MissingCloudThreadError } from './attach-cloud'
 import { RemoteAgentRegistry } from './remote-agents'
+import { RemoteRotation } from './remote-rotation'
 import { RemoteServiceRegistry } from './remote-services'
 import { RemoteShellRegistry } from './remote-shells'
 import { createSharedRoster } from './roster-reader'
@@ -39,7 +41,7 @@ export type CloudRuntimeParts = Pick<
   | 'rewindMachinery'
   | 'compaction'
   | 'files'
->
+> & { rotation?: RotationPort | undefined }
 
 export const cloudRuntimeParts = (args: {
   channel: CloudChannel
@@ -66,6 +68,7 @@ export const cloudRuntimeParts = (args: {
     agents,
     services,
     compaction: new RemoteCompaction({ channel: args.channel }),
+    rotation: new RemoteRotation({ channel: args.channel }),
     rewindMachinery: new RemoteRewindMachinery({
       channel: {
         apply: (applyArgs) =>

@@ -13,6 +13,7 @@ import {
   type CommandEffect,
   type LocalCommand,
 } from './local-command'
+import { rotateCommand } from './rotation'
 
 const UNKNOWN_SCOPE = (argumentText: string): string =>
   `/compact takes no argument, or "all" to compact the whole conversation — not ${argumentText.trim()}`
@@ -66,6 +67,7 @@ export type LocalCommandHandlers = {
   onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   onContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
   onCompact: (scope: ECompactScope) => void
+  onRotate: (instructions: string | undefined) => void
   onRewind: () => void
   onShortcuts: () => void
   onOpenSwitcher: () => void
@@ -202,6 +204,7 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
         return RAN
       },
     }),
+    rotateCommand({ onRotate: handlers.onRotate }),
     local({
       name: 'rewind',
       summary: 'go back to an earlier message, summarise around it, or fork the conversation from it',

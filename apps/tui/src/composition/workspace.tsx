@@ -287,6 +287,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           operatorInput={conversation.operatorInput}
           {...{ exitGuard, containerGuard }}
           compacting={conversation.compacting}
+          rotating={conversation.rotating}
           containerMove={containerMove.move}
           containerMoveNow={containerMove.now}
           onDismissContainerMove={containerMove.handleDismiss}

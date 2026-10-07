@@ -184,6 +184,7 @@ describe('localCommands', () => {
       'new',
       'resume',
       'rewind',
+      'rotate',
     ])
   })
 })
@@ -524,6 +525,7 @@ describe('the restart command', () => {
       'new',
       'resume',
       'rewind',
+      'rotate',
     ])
   })
 

@@ -18,6 +18,7 @@ export const handlers = (
   onChangeDirectory: async () => RAN,
   onContainer: () => 'on the host',
   onCompact: stub,
+  onRotate: stub,
   onRewind: stub,
   onShortcuts: stub,
   onOpenSwitcher: stub,

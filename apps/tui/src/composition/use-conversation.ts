@@ -10,13 +10,14 @@ import type { OpenedConversation } from './open-conversation'
 import { useRevokeGrant } from './revoke-grant'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 import { useCompaction } from './use-compaction'
+import { useConversationRotation } from './use-conversation-rotation'
 import { useFailureNotice } from './use-failure-notice'
 import { useSettledCommands } from './use-conversation-commands'
 import { useConversationDirectory, usePendingMove } from './use-conversation-directory'
 import { usePendingRows, useProjectEvents } from './use-conversation-projections'
 import { useOperatorInput } from './use-operator-input'
 import { useResumeOnOpen } from './use-conversation-resume'
-import { usePlacementMoving, useRemotePending, useSendingChannel, useSendMessage, useTakeBackPending } from './use-conversation-send'
+import { usePlacementMoving, useRemotePending, useSendingChannel } from './use-conversation-send'
 import { useMainWake } from './use-main-wake'
 import { useSessionName } from './use-session-name'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
@@ -145,10 +146,6 @@ export function useConversation(args: ConversationArgs): Conversation {
   const { working, drive } = turnDriver
   const { compacting } = compaction
   const frozen = args.frozen === true
-  const now = useTickingNow({
-    ticking: !frozen && (derived.streaming || working || compacting !== null),
-    clock,
-  })
   const { turn } = view
 
   const handleWake = useCallback(() => void drive([]), [drive])
@@ -164,19 +161,6 @@ export function useConversation(args: ConversationArgs): Conversation {
     intake: app.intake,
   })
 
-  const handleSend = useSendMessage({
-    app,
-    threadId,
-    pending,
-    sending,
-    cloudRunner,
-    working,
-    moving,
-    drive,
-    setFailure,
-  })
-  const handleTakeBackPending = useTakeBackPending({ threadId, cloudRunner, moving, pending, sending })
-
   const adopt = useCallback(
     (next: OpenedConversation) => {
       turnDriver.settle()
@@ -191,12 +175,30 @@ export function useConversation(args: ConversationArgs): Conversation {
     },
     [args.onLocalOpened, holdMove, setEvents, setName, turnDriver],
   )
-  const { handleNewConversation, handleOpenThread } = useThreadSwap({
+  const { handleNewConversation, handleOpenThread, handleOpenSuccessor } = useThreadSwap({
     app,
     threadId,
     working: turnDriver.workingRef,
     adopt,
     onFailure: setFailure,
+  })
+  const { rotating, handleRotate, handleSend, handleTakeBackPending } = useConversationRotation({
+    app,
+    threadId,
+    readClock,
+    compacting: compacting !== null,
+    moving,
+    working,
+    pending,
+    sending,
+    cloudRunner,
+    driver: turnDriver,
+    setFailure,
+    onRotated: handleOpenSuccessor,
+  })
+  const now = useTickingNow({
+    ticking: !frozen && (derived.streaming || working || compacting !== null || rotating !== null),
+    clock,
   })
   const { workspace, handleChangeDirectory } = useConversationDirectory({
     app,
@@ -234,15 +236,9 @@ export function useConversation(args: ConversationArgs): Conversation {
 
   const model = transcriptOfTurn({ model: derived, working, failure })
   const channelReady = args.channelReady !== false
-  const retryable =
-    model.failure !== null && !working && !turnDriver.turnInFlight() && !moving && channelReady
-  const resumable =
-    model.failure === null &&
-    !working &&
-    !turnDriver.turnInFlight() &&
-    turnDriver.isResumable &&
-    !moving &&
-    channelReady
+  const idleAndReady = !working && !turnDriver.turnInFlight() && !moving && channelReady
+  const retryable = model.failure !== null && idleAndReady
+  const resumable = model.failure === null && idleAndReady && turnDriver.isResumable
 
   return {
     rewindConfirm: turnDriver.rewindConfirm,
@@ -281,6 +277,8 @@ export function useConversation(args: ConversationArgs): Conversation {
     loadOlderHistory: view.loadOlder,
     hasOlderHistory: logSummary.windowStartSeq > 1,
     compacting,
+    rotating,
+    handleRotate,
     handleReportProblem: setFailure,
     handleInterrupt: turnDriver.handleInterrupt,
     handleInterruptForMove: turnDriver.handleInterruptForMove,

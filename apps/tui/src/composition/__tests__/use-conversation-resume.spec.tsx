@@ -41,6 +41,7 @@ function ResumeOnOpenProbe(props: {
     handleInterrupt: () => undefined,
     handleInterruptForMove: () => undefined,
     handlePauseForMove: () => undefined,
+    lastOutcome: { current: null },
     turnInFlight: () => turnInFlightRef.current,
     handleRetry: () => undefined,
     handleResume: () => {
