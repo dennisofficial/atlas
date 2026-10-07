@@ -118,6 +118,7 @@ function manifestFor({
     repository: layout.repository,
     activeId: layout.activeId,
     activeRelativePath: layout.activeRelativePath,
+    administrationFingerprint: observed.admin,
     trees: layout.trees.map(({ excludedRoots: _excluded, ...tree }, index) => ({
       ...tree,
       isMain: layout.trees.length === 1 ? true : tree.isMain,

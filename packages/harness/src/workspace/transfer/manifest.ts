@@ -26,6 +26,7 @@ export const workspaceManifestSchema = z.object({
   activeRelativePath: z.string().default(''),
   trees: z.array(workspaceTreeSchema).min(1),
   family: workspaceFamilySchema.optional(),
+  administrationFingerprint: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
 })
 
 export type WorkspaceTree = z.infer<typeof workspaceTreeSchema>

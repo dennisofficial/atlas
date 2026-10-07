@@ -68,6 +68,7 @@ export const workspaceManifestWireSchema = z.object({
   activeRelativePath: z.string().default(''),
   trees: z.array(workspaceTreeWireSchema).min(1),
   family: workspaceFamilyWireSchema.optional(),
+  administrationFingerprint: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
 })
 
 export const prepareWorkspaceArchiveReplySchema = z.object({

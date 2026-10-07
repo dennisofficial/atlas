@@ -35,6 +35,28 @@ const observeSafely = async ({ cwd, manifest }: { cwd: string; manifest: Workspa
   }
 }
 
+const capturedAdminDigest = ({
+  manifest,
+  observed,
+}: {
+  manifest: WorkspaceManifest
+  observed: SourceObservation
+}): { digest: string | null; reasons: string[] } => {
+  if (manifest.repository === null) return { digest: null, reasons: [] }
+  const captured = manifest.administrationFingerprint
+  if (typeof captured !== 'string') {
+    return {
+      digest: null,
+      reasons: [reasonFor({ code: ECleanupReason.AdminBaselineMissing, detail: 'the archive recorded no git administration digest' })],
+    }
+  }
+  if (observed.adminDigest === captured) return { digest: captured, reasons: [] }
+  return {
+    digest: captured,
+    reasons: [reasonFor({ code: ECleanupReason.AdminBaselineMismatch, detail: 'the source administration differs from the archived capture' })],
+  }
+}
+
 export async function captureSourceCleanupProof({
   cwd,
   manifest,
@@ -47,14 +69,15 @@ export async function captureSourceCleanupProof({
   sourceSessionId: string
 }): Promise<SourceCleanupProof> {
   const observed = await observeSafely({ cwd, manifest })
+  const baseline = capturedAdminDigest({ manifest, observed })
   return {
     generation,
     sessionId: sourceSessionId,
     manifest,
     cwd: observed.cwd,
     registryRoots: [...observed.registryRoots],
-    adminDigest: observed.adminDigest,
-    retentionReasons: unique(observed.reasons),
+    adminDigest: baseline.digest,
+    retentionReasons: unique([...observed.reasons, ...baseline.reasons]),
   }
 }
 

@@ -15,6 +15,8 @@ export enum ECleanupReason {
   AdminDrift = 'administration-drift',
   RegistryChanged = 'registry-changed',
   SessionChanged = 'session-changed',
+  AdminBaselineMissing = 'administration-baseline-missing',
+  AdminBaselineMismatch = 'administration-baseline-mismatch',
 }
 
 export type SourceObservation = {
