@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ECompactionAnchor } from '../../events/body'
+import { EExecutionLocation } from '../../execution/location'
 import { replacedRanges } from '../watermark'
-import { compactedRange, eventsFrom, loaded, replied, said } from './fixture'
+import { compactedRange, eventsFrom, loaded, movedLocation, replied, said } from './fixture'
 
 describe('replacedRanges', () => {
   it('is empty without a watermark', () => {
@@ -38,5 +39,15 @@ describe('replacedRanges', () => {
     ])
 
     expect(replacedRanges(events)).toEqual([{ fromSeq: 2, throughSeq: 8 }])
+  })
+
+  it('calls a range replaced when only a spared location-changed marker is left standing in it', () => {
+    const events = eventsFrom([
+      movedLocation({ from: EExecutionLocation.Host, to: EExecutionLocation.Cloud }),
+      compactedRange({ fromSeq: 1, throughSeq: 1, summary: 'the session lifted' }),
+      said('next'),
+    ])
+
+    expect(replacedRanges(events)).toEqual([{ fromSeq: 1, throughSeq: 1 }])
   })
 })

@@ -97,6 +97,17 @@ describe('handing a finished background shell to the model', () => {
     expect(block.startsWith('<background-shell-ended>')).toBe(true)
     expect(block.endsWith('</background-shell-ended>')).toBe(true)
   })
+
+  it('marks the output as final output from a dead process, so a progress-flavored tail is not read as a live run', () => {
+    const block = backgroundShellBlock(
+      ended({ exitCode: 2, output: 'status: execution_failure\ntrials 21/36 | errors 15\n' }),
+    )
+
+    expect(block).toContain('no longer running')
+    expect(block).toContain('failed with exit code 2')
+    expect(block).toContain('final, complete output')
+    expect(block).toContain('not a snapshot of a live job')
+  })
 })
 
 const matched = (over: Partial<Parameters<typeof backgroundShellMatchedBlock>[0]> = {}) =>

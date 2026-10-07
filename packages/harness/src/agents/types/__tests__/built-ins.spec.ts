@@ -25,13 +25,14 @@ const CAPABILITY_CLAIMS = [
 ]
 
 describe('the built-in agent types', () => {
-  it('ships general-purpose, explore, builder and reviewer, all marked built-in', async () => {
+  it('ships general-purpose, explore, builder, reviewer and preview, all marked built-in', async () => {
     const loaded = await load()
 
     expect(loaded.map((agentType) => agentType.name)).toEqual([
       'builder',
       'explore',
       'general-purpose',
+      'preview',
       'reviewer',
       'teammate',
     ])
@@ -103,6 +104,18 @@ describe('the built-in agent types', () => {
 
     expect(teammate.prompt).toContain('relays your ending to the main agent')
     expect(teammate.prompt).toContain('going quiet between reports')
+  })
+
+  it('gives the preview agent the playbook that makes a preview actually load', async () => {
+    const preview = await named('preview')
+
+    expect(preview.prompt).toContain('0.0.0.0')
+    expect(preview.prompt).toContain('exposePort')
+    expect(preview.prompt).toContain('CORS')
+    expect(preview.prompt).toContain('allowedDevOrigins')
+    expect(preview.prompt).toContain('service_start')
+    expect(preview.prompt).toContain('.atlas/preview.md')
+    expect(preview.prompt).toContain('Verify before you report')
   })
 
   it('directs the teammate to manage its workstream in its own repository worktree', async () => {

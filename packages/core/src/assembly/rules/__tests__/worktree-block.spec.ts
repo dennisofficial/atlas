@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ECompactionAnchor, EWorktreeExit } from '../../../events/body'
+import { EExecutionLocation } from '../../../execution/location'
 import { contextFor, log } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 import { worktreeBlock } from '../worktree-block'
@@ -9,6 +10,12 @@ const LAUNCH = '/w'
 const TREE = '/w/.atlas/worktrees/eng-327'
 
 const entered = { type: 'worktree-entered' as const, path: TREE, branch: 'dennis/eng-327', base: 'origin/main' }
+
+const relocated = (to: EExecutionLocation) => ({
+  type: 'location-changed' as const,
+  from: EExecutionLocation.Host,
+  to,
+})
 
 const assembleWith = (events: ReturnType<typeof log>, options?: { repoRoot?: string; launch?: string }) => {
   const ctx = contextFor({ events })
@@ -142,5 +149,73 @@ describe('telling the model the project directory and any active worktree', () =
     )
 
     expect(noteOf(assembled)).toContain(TREE)
+  })
+
+  it('names no execution location on the host, the default', () => {
+    const note = noteOf(assembleWith(log([{ type: 'user-said', text: 'hello' }])))
+
+    expect(note).not.toContain('Execution location')
+  })
+
+  it('asserts the cloud sandbox and its isolation once the session lifted', () => {
+    const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Cloud)])))
+
+    expect(note).toContain('Execution location: a cloud sandbox')
+    expect(note).toContain("the operator's machine cannot see any of it")
+  })
+
+  it('says a Docker session shares only the project directory and its declared mounts', () => {
+    const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Docker)])))
+
+    expect(note).toContain('Execution location: a Docker container')
+    expect(note).toContain('only the project directory and explicitly mounted paths are shared with the host')
+  })
+
+  it('drops the sentence again once the session is back on the host', () => {
+    const note = noteOf(
+      assembleWith(
+        log([relocated(EExecutionLocation.Cloud), { ...relocated(EExecutionLocation.Host), from: EExecutionLocation.Cloud }]),
+      ),
+    )
+
+    expect(note).not.toContain('Execution location')
+  })
+
+  it('answers the latest move when the session lifted twice', () => {
+    const note = noteOf(
+      assembleWith(
+        log([relocated(EExecutionLocation.Docker), { ...relocated(EExecutionLocation.Cloud), from: EExecutionLocation.Docker }]),
+      ),
+    )
+
+    expect(note).toContain('a cloud sandbox')
+    expect(note).not.toContain('a Docker container')
+  })
+
+  it('still asserts the location after the history covering the move is compacted', () => {
+    const assembled = assembleWith(
+      log([
+        relocated(EExecutionLocation.Cloud),
+        { type: 'user-said', text: 'hello' },
+        {
+          type: 'history-compacted',
+          anchor: ECompactionAnchor.Prefix,
+          fromSeq: 1,
+          throughSeq: 2,
+          summary: 'The session lifted to the cloud.',
+          replaced: 2,
+        },
+      ]),
+    )
+
+    expect(noteOf(assembled)).toContain('a cloud sandbox')
+  })
+
+  it('composes with the worktree advisory when both are true', () => {
+    const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Cloud), entered])))
+
+    expect(note).toContain(`Project directory: ${TREE}`)
+    expect(note).toContain('branched from origin/main')
+    expect(note).toContain('a cloud sandbox')
   })
 })

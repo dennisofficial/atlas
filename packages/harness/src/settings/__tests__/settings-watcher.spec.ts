@@ -4,6 +4,7 @@ import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
+import { itUnlessRoot } from '../../testing/root-unsafe'
 import { FileSettingsStore } from '../file-store'
 import { MemorySettingsStore } from '../memory-store'
 import { createSettingsService, type SettingsService } from '../service'
@@ -142,7 +143,7 @@ describe('settings file watching across tiles', () => {
     expect(service.snapshot().resolution.settings.get(ESettingId.Accent)?.value).toBe('moss')
   })
 
-  it('keeps live-syncing after an unrelated local write failure', async () => {
+  itUnlessRoot('keeps live-syncing after an unrelated local write failure', async () => {
     const { file, store } = fileStore()
     const service = createSettingsService({
       definitions: ATLAS_SETTINGS,

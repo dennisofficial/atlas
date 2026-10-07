@@ -11,6 +11,12 @@ describe('stable execution topology', () => {
     expect(text).toContain('terminal is a client')
   })
 
+  it('states what each sandboxed location shares with the operator\'s machine', () => {
+    const text = new ExecutionLocationFragment().text()
+    expect(text).toContain("A cloud session's filesystem, /tmp, and localhost are the sandbox's alone")
+    expect(text).toContain('a Docker session shares only the project directory and its declared mounts with the host')
+  })
+
   it('explains sibling cloning without promising multi-repository transfers', () => {
     const text = new ExecutionLocationFragment().text()
     expect(text).toContain('/atlas/workspaces/<repo-name>')

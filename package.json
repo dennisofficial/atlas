@@ -15,6 +15,7 @@
     "typecheck": "turbo run typecheck",
     "bench:load": "bun apps/tui/scripts/bench-load.ts",
     "bench:replay": "bun apps/tui/scripts/bench-replay.ts",
+    "bench:cloud": "bun apps/tui/scripts/bench-cloud.ts",
     "proto:shell": "bun apps/tui/prototype/shell.tsx",
     "proto:round2": "bun apps/tui/prototype/round2.tsx",
     "proto:footer": "bun apps/tui/prototype/footer-pills.tsx",

@@ -17,7 +17,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git ripgrep gnupg ca-certificates curl unzip xz-utils openssh-client build-essential sudo procps \
+      git git-lfs ripgrep gnupg ca-certificates curl unzip xz-utils openssh-client build-essential sudo procps \
+      jq postgresql-client python3 \
   && install -m 0755 -d /etc/apt/keyrings \
   && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
   && chmod a+r /etc/apt/keyrings/docker.asc \
@@ -48,7 +49,99 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && cc --version >/dev/null \
   && docker --version \
   && docker compose version \
-  && gh --version
+  && gh --version \
+  && jq --version \
+  && git lfs version \
+  && psql --version
+
+ARG LINEAR_CLI_VERSION=3.0.0
+# schpet/linear-cli, the same CLI the operator runs on macOS; agents in sandboxes reach Linear
+# with it. Direct binary download rather than the cargo-dist installer (1.6k lines of shell).
+# The tarball ships one directory holding a single `linear` binary.
+RUN arch="$(uname -m)" \
+  && curl -fsSL "https://github.com/schpet/linear-cli/releases/download/v${LINEAR_CLI_VERSION}/linear-${arch}-unknown-linux-gnu.tar.xz" \
+      -o /tmp/linear.tar.xz \
+  && tar -xJf /tmp/linear.tar.xz -C /tmp \
+  && install -m 0755 "/tmp/linear-${arch}-unknown-linux-gnu/linear" /usr/local/bin/linear \
+  && rm -rf /tmp/linear.tar.xz "/tmp/linear-${arch}-unknown-linux-gnu" \
+  && linear --version
+
+ARG AWS_CLI_VERSION=2.37.10
+# aws-cli v2 ships as a self-contained Linux installer; aarch64 and x86_64 are separate zips.
+RUN arch="$(uname -m)" \
+  && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${arch}-${AWS_CLI_VERSION}.zip" \
+      -o /tmp/awscliv2.zip \
+  && unzip -q /tmp/awscliv2.zip -d /tmp \
+  && /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update \
+  && rm -rf /tmp/awscliv2.zip /tmp/aws \
+  && aws --version
+
+ARG GCLOUD_VERSION=585.0.0
+# google-cloud-cli is a python app. The tarball's install.sh exists to wire PATH and shell rc,
+# both meaningless in a container — direct symlinks into /usr/local/bin do the same job.
+# CLOUDSDK_PYTHON must name a real interpreter, not the mise shim: gcloud resolves python
+# before any shim would run. trixie's python3 satisfies it.
+RUN arch="$(uname -m)" \
+  && case "$arch" in x86_64) garch=x86_64;; aarch64) garch=arm;; esac \
+  && curl -fsSL "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${GCLOUD_VERSION}-linux-${garch}.tar.gz" \
+      -o /tmp/gcloud.tar.gz \
+  && tar -xzf /tmp/gcloud.tar.gz -C /opt \
+  && rm /tmp/gcloud.tar.gz \
+  && for cmd in gcloud gsutil bq; do ln -s "/opt/google-cloud-sdk/bin/$cmd" "/usr/local/bin/$cmd"; done \
+  && CLOUDSDK_PYTHON=/usr/bin/python3 gcloud --version \
+  && CLOUDSDK_PYTHON=/usr/bin/python3 gsutil version >/dev/null \
+  && CLOUDSDK_PYTHON=/usr/bin/python3 bq version
+
+ARG DOCTL_VERSION=1.179.0
+RUN arch="$(dpkg --print-architecture)" \
+  && curl -fsSL "https://github.com/digitalocean/doctl/releases/download/v${DOCTL_VERSION}/doctl-${DOCTL_VERSION}-linux-${arch}.tar.gz" \
+      -o /tmp/doctl.tar.gz \
+  && tar -xzf /tmp/doctl.tar.gz -C /usr/local/bin doctl \
+  && rm /tmp/doctl.tar.gz \
+  && doctl version
+
+ARG PULUMI_VERSION=3.268.0
+# The pulumi tarball holds several language-host binaries; only `pulumi` goes on PATH, the rest
+# are looked up next to it, so the whole set lands in /usr/local/bin.
+RUN arch="$(uname -m)" \
+  && case "$arch" in x86_64) parch=x64;; aarch64) parch=arm64;; esac \
+  && curl -fsSL "https://get.pulumi.com/releases/sdk/pulumi-v${PULUMI_VERSION}-linux-${parch}.tar.gz" \
+      -o /tmp/pulumi.tar.gz \
+  && tar -xzf /tmp/pulumi.tar.gz -C /tmp \
+  && install -m 0755 /tmp/pulumi/pulumi /usr/local/bin/pulumi \
+  && install -m 0755 /tmp/pulumi/pulumi-language-* /usr/local/bin/ \
+  && rm -rf /tmp/pulumi.tar.gz /tmp/pulumi \
+  && pulumi version
+
+ARG STRIPE_CLI_VERSION=1.53.0
+# stripe-cli, for `stripe listen --forward-to` webhook forwarding in sandboxes.
+# Release assets use x86_64/arm64, not uname's x86_64/aarch64.
+RUN arch="$(uname -m)" \
+  && case "$arch" in x86_64) sarch=x86_64;; aarch64) sarch=arm64;; esac \
+  && curl -fsSL "https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_CLI_VERSION}/stripe_${STRIPE_CLI_VERSION}_linux_${sarch}.tar.gz" \
+      -o /tmp/stripe.tar.gz \
+  && tar -xzf /tmp/stripe.tar.gz -C /usr/local/bin stripe \
+  && rm /tmp/stripe.tar.gz \
+  && stripe --version
+
+ARG TERRAFORM_VERSION=1.16.5
+RUN arch="$(uname -m)" \
+  && case "$arch" in x86_64) tarch=amd64;; aarch64) tarch=arm64;; esac \
+  && curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${tarch}.zip" \
+      -o /tmp/terraform.zip \
+  && unzip -o /tmp/terraform.zip terraform -d /usr/local/bin \
+  && rm /tmp/terraform.zip \
+  && terraform version
+
+ARG CLOUDFLARED_VERSION=2026.10.0
+# Single static binary, no package; the tunnel alternative the repos reach for over ngrok.
+# Release assets use amd64/arm64, not uname's x86_64/aarch64.
+RUN arch="$(uname -m)" \
+  && case "$arch" in x86_64) carch=amd64;; aarch64) carch=arm64;; esac \
+  && curl -fsSL "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${carch}" \
+      -o /usr/local/bin/cloudflared \
+  && chmod 755 /usr/local/bin/cloudflared \
+  && cloudflared --version
 
 ARG PLAYWRIGHT_VERSION=1.61.1
 # Baked ENV (unlike legacy v2) so every repo resolves the prebuilt browser with no download;
@@ -146,6 +239,18 @@ RUN mkdir -p /opt/corepack/bin \
   && yarn --version \
   && pnpm --version \
   && npm --version
+
+ARG VERCEL_CLI_VERSION=62.7.0
+# Dedicated prefix rather than npm -g: npm resolves its global prefix from the node it runs
+# under, and node here is a mise shim whose prefix is off-PATH. /opt + a symlink is how the
+# playwright-cli block above already solves the same problem.
+RUN mkdir -p /opt/vercel-cli \
+  && cd /opt/vercel-cli \
+  && printf '{"name":"atlas-vercel-cli","private":true}\n' > package.json \
+  && npm install "vercel@${VERCEL_CLI_VERSION}" \
+  && ln -s /opt/vercel-cli/node_modules/.bin/vercel /usr/local/bin/vercel \
+  && chmod -R a+rwX /opt/vercel-cli \
+  && vercel --version
 
 # Lazy docker-in-docker: /usr/local/bin/docker shadows the real docker-ce-cli at /usr/bin/docker
 # and starts the baked daemon through sudo on first use. Baked for every image so the local docker

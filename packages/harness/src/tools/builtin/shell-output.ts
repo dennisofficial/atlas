@@ -35,6 +35,11 @@ function renderModelText(args: { snapshot: ShellSnapshot; delta: ShellDelta }): 
     : `Shell ${snapshot.shellId} ${shellEnding(snapshot)}.`
 
   const sections = [heading]
+  if (!stillRunning(snapshot.status)) {
+    sections.push(
+      '[This process is no longer running. Any output below is its final, complete output — not a snapshot of a live job. Do not wait for it, poll it, or expect more from it.]',
+    )
+  }
   if (snapshot.outputPath !== undefined) {
     sections.push(`Full output: ${snapshot.outputPath}. Use Read or Grep on the file for history.`)
   }

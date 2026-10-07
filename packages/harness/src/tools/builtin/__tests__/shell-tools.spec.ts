@@ -205,6 +205,30 @@ describe('reading a background shell through shell_output', () => {
     expect(modelTextOf(outcome)).toContain('exit code 4')
   }, 30_000)
 
+  it('marks a finished shell\'s output as final, so a progress-flavored tail is not read as a live run', async () => {
+    const suite = await openSuite()
+    const started = outputOf(
+      await runBash(suite, { command: 'echo "trials 21/36 | errors 15"; exit 2', runInBackground: true }),
+    )
+    await settled(suite, String(started.shellId))
+
+    const outcome = await invoke(suite.output, { shellId: started.shellId })
+
+    expect(modelTextOf(outcome)).toContain('no longer running')
+    expect(modelTextOf(outcome)).toContain('final, complete output')
+    expect(modelTextOf(outcome)).toContain('not a snapshot of a live job')
+  }, 30_000)
+
+  it('does not mark a still-running shell\'s output as final', async () => {
+    const suite = await openSuite()
+    const started = outputOf(await runBash(suite, { command: 'sleep 30', runInBackground: true }))
+
+    const outcome = await invoke(suite.output, { shellId: started.shellId })
+
+    expect(modelTextOf(outcome)).not.toContain('no longer running')
+    expect(modelTextOf(outcome)).not.toContain('final, complete output')
+  }, 30_000)
+
   it('fails with a correctable message on an unknown shell id', async () => {
     const suite = await openSuite()
     await runBash(suite, { command: 'sleep 30', runInBackground: true })

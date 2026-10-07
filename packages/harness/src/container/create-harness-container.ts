@@ -126,6 +126,10 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           if (services.list().some((service) => service.status === EServiceStatus.Running)) return true
           return live.someChild(threadId, isStepping)
         },
+        inheritOrphanedNotices: ({ from, to }) => {
+          resolver.resolve(portToken(ShellRegistryPort)).reassignNotices({ from, to })
+          resolver.resolve(portToken(ServiceRegistryPort)).reassignNotices({ from, to })
+        },
         onChildEnded: (threadId) => {
           void releaseEndedWorktree({
             threads: resolver.resolve(portToken(ThreadStorePort)),

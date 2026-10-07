@@ -112,5 +112,7 @@ export class RemoteShellRegistry extends ShellRegistryPort {
 
   forgetNotices(_args: { threadId: ThreadId }): void {}
 
+  reassignNotices(_args: { from: ThreadId; to: ThreadId }): void {}
+
   async closeAll(): Promise<void> {}
 }

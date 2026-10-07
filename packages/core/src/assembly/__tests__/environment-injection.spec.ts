@@ -86,9 +86,19 @@ describe('environment injection at the default pipeline', () => {
       const loggedSeqs = new Set(events.map((event) => event.seq))
 
       expect(assembled.messages.every((entry) => loggedSeqs.has(entry.origin.seq))).toBe(true)
-      expect(textsOf(assembled).some((text) => text.includes('Docker container'))).toBe(false)
       expect(textsOf(assembled).some((text) => text.includes('probed capabilities'))).toBe(false)
     }
+  })
+
+  it('lets only the project-directory note name the execution location, anchored to the last logged event', () => {
+    const { events, assembled } = assembleThrough(HISTORY.length)
+    const mentions = assembled.messages.filter((entry) =>
+      textsOfEntry(entry.message).includes('Execution location'),
+    )
+
+    expect(mentions).toHaveLength(1)
+    expect(mentions[0]?.origin.eventId).toBe(events.at(-1)?.id)
+    expect(textsOfEntry(mentions[0]!.message)).toContain('Project directory')
   })
 
   it('moves only the project-directory tail as the log grows across repeated assemblies', () => {

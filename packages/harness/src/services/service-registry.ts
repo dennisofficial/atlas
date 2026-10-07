@@ -248,6 +248,10 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     this.notices.forget({ threadId: threadIdToForget })
   }
 
+  reassignNotices({ from, to }: { from: ThreadId; to: ThreadId }): void {
+    this.notices.reassign({ from, to })
+  }
+
   /**
    * Teardown stops everything but suppresses nothing: every ending is recorded to its thread's log
    * before this resolves, and a recording that failed gets one more attempt.

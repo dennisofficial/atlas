@@ -271,6 +271,7 @@ export const SURVIVES_SUMMARY: readonly EventType[] = [
   'permission-granted',
   'permission-revoked',
   'pull-request-linked',
+  'location-changed',
 ]
 
 export const survivesSummary = (type: EventType): boolean => SURVIVES_SUMMARY.includes(type)
