@@ -15,6 +15,11 @@ const MATCHED_CLOSE = '</background-shell-matched>'
 
 const PRINTED_NOTHING = 'It printed nothing.'
 
+type Ending = Parameters<typeof shellEnding>[0]
+
+const finalOutputNote = (ending: Ending): string =>
+  `[This process is no longer running: it ${shellEnding(ending)}. What follows is its final, complete output — not a snapshot of a live job. Do not wait for it, poll it, or expect more from it.]`
+
 const USER_KILLED =
   'The user stopped this shell deliberately. Nothing is wrong; do not restart it, work around it, or spend another run reproducing what it was doing unless the user asks.'
 
@@ -69,6 +74,8 @@ export function backgroundShellBlock(
   if (event.killedBy === EKilledBy.User) sections.push(USER_KILLED)
 
   if (event.droppedCharacters > 0) sections.push(droppedNote(event.droppedCharacters))
+
+  sections.push(finalOutputNote(event))
 
   if (path === undefined) {
     sections.push(event.output.trimEnd() === '' ? PRINTED_NOTHING : event.output.trimEnd())
