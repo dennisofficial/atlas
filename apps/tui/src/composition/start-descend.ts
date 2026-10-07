@@ -6,6 +6,7 @@ import { EOpenMode } from './config'
 import { activateOpenedConversation } from './conversation-claim'
 import { moveFailedNotice } from './container-notices'
 import { messageOf } from './error-text'
+import { wakeSandbox } from './cloud/cloud-runner'
 import { noticePortBinding } from './notice-binding'
 import { openConversation, type OpenedConversation } from './open-conversation'
 import { localBindingOf } from './session-binding'
@@ -71,6 +72,17 @@ export function startDescend(args: {
     localApp,
     surface,
     placement: localApp.sessionOwner,
+    wake: async () => {
+      cloudSession.channel.beginWake()
+      const woken = await wakeSandbox({
+        bridge: cloudBridge,
+        threadId: conversation.threadId,
+        captureContext: () => localApp.captureContext({ cwd: localApp.workspace.workspace }),
+        move: containerMove,
+      })
+      cloudSession.channel.wake({ url: woken.url, token: woken.token })
+      containerMove.handleSettle()
+    },
     ...(props.restoreWorkspace === undefined ? {} : { restoreWorkspace: props.restoreWorkspace }),
   })
     .then(async (opened) => {

@@ -31,6 +31,7 @@ import { exportedSessionDirOf } from './fake-cloud-bridge'
 import {
   descendFromCloud,
   type DescendLocalHome,
+  type DescendWake,
   type DestroySleeper,
   type WorkspaceRestorer,
 } from '../descend'
@@ -215,6 +216,7 @@ export const descend = (args: {
   channel?: FakeCloudChannel
   surface?: Surface
   midTurn?: boolean
+  wake?: DescendWake
   pauseDeadlineMs?: number
   restoreWorkspace?: WorkspaceRestorer
   logPort?: LogPort
@@ -234,6 +236,7 @@ export const descend = (args: {
     localApp: args.home,
     surface: surface.surface,
     ...(args.placement === undefined ? {} : { placement: args.placement }),
+    ...(args.wake === undefined ? {} : { wake: args.wake }),
     ...(args.pauseDeadlineMs === undefined ? {} : { pauseDeadlineMs: args.pauseDeadlineMs }),
     restoreWorkspace: args.restoreWorkspace ?? fakeRestorer().restore,
     ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
