@@ -1,8 +1,7 @@
 import { parseColor, type RGBA } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import { useKeyboard } from '@opentui/react'
 import { describe, expect, it } from 'bun:test'
-import React, { act, useState } from 'react'
+import React, { act } from 'react'
 
 import { teardown } from '../markdown/__tests__/harness'
 import { ContextSection, type ContextSectionProps } from '../components/sidebar/context'
@@ -16,8 +15,8 @@ const levels: ContextTreeLevels = new Map([
   ['notes', { entries: [{ name: 'plan.md', isDirectory: false }], error: null }],
 ])
 const defaults: ContextSectionProps = {
-  rows: contextTreeRows({ levels, expanded: new Set(['notes']) }), levels, cursor: null, opened: null,
-  focused: false, loading: false, cells: 30, onFocus: () => {}, onActivate: () => {},
+  rows: contextTreeRows({ levels, closed: new Set() }), levels, opened: null,
+  loading: false, cells: 30, onActivate: () => {},
 }
 const mount = (node: React.ReactNode) => testRender(
   <box flexDirection="column" width={WIDTH} height={HEIGHT}>{node}</box>, { width: WIDTH, height: HEIGHT },
@@ -76,32 +75,29 @@ describe('context sidebar tree', () => {
     } finally { await teardown(setup) }
   })
 
-  it('draws the keyboard cursor only while the tree holds focus', async () => {
-    const setup = await mount(<ContextSection {...defaults} cursor="notes/plan.md" focused={false} />)
+  it('draws a collapsed folder with a closed arrow and hides its children', async () => {
+    const closed = contextTreeRows({ levels, closed: new Set(['notes']) })
+    const setup = await mount(<ContextSection {...defaults} rows={closed} />)
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('▸')
+      expect(frame).not.toContain('▾')
+      expect(frame.split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(1)
+    } finally { await teardown(setup) }
+  })
+
+  it('toggles a folder from a click and shows no keyboard hint or heading action', async () => {
+    const activated: string[] = []
+    const setup = await mount(<ContextSection {...defaults} onActivate={(path) => activated.push(path)} />)
     try {
       await setup.flush()
       const lines = setup.captureCharFrame().split('\n')
-      const row = lines.findIndex((line) => line.includes('plan.md'))
-      const cell = (lines[row] ?? '').indexOf('plan.md')
-      expect(backgroundAt({ setup, row, cell })?.equals(parseColor(theme.userBg))).toBe(false)
-    } finally { await teardown(setup) }
-    const active = await mount(<ContextSection {...defaults} cursor="notes/plan.md" focused />)
-    try {
-      await active.flush()
-      const lines = active.captureCharFrame().split('\n')
-      const row = lines.findIndex((line) => line.includes('plan.md'))
-      const cell = (lines[row] ?? '').indexOf('plan.md')
-      expect(backgroundAt({ setup: active, row, cell })?.equals(parseColor(theme.userBg))).toBe(true)
-    } finally { await teardown(active) }
-  })
-
-  it('lets the heading claim keyboard focus', async () => {
-    let focused = 0
-    const setup = await mount(<ContextSection {...defaults} onFocus={() => { focused += 1 }} />)
-    try {
-      await setup.flush()
+      expect(setup.captureCharFrame()).not.toContain('↑↓')
+      const row = lines.findIndex((line) => line.includes('notes'))
+      await act(async () => { await setup.mockMouse.click((lines[row] ?? '').indexOf('notes'), row) })
       await act(async () => { await setup.mockMouse.click(2, 0) })
-      expect(focused).toBe(1)
+      expect(activated).toEqual(['notes'])
     } finally { await teardown(setup) }
   })
 
@@ -122,25 +118,6 @@ describe('context sidebar tree', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('Context unavailable')
       expect(frame).not.toContain('The list-context-files request was never answered')
-    } finally { await teardown(setup) }
-  })
-
-  it('scrolls the sidebar to keep a keyboard-selected row visible', async () => {
-    const many: ContextTreeLevels = new Map([['', { entries: Array.from({ length: 25 }, (_, index) =>
-      ({ name: `file${index}.md`, isDirectory: false })), error: null }]])
-    const rows = contextTreeRows({ levels: many, expanded: new Set() })
-    function Tree() {
-      const [cursor, setCursor] = useState(rows[0]?.path ?? null)
-      useKeyboard((key) => { if (key.name === 'end') setCursor(rows.at(-1)?.path ?? null) })
-      return <scrollbox height={6}><ContextSection {...defaults} rows={rows} levels={many} focused cursor={cursor} /></scrollbox>
-    }
-    const setup = await mount(<Tree />)
-    try {
-      await setup.flush()
-      expect(setup.captureCharFrame()).not.toContain('file24.md')
-      await act(async () => { setup.mockInput.pressKey('END') })
-      await setup.flush()
-      expect(setup.captureCharFrame()).toContain('file24.md')
     } finally { await teardown(setup) }
   })
 })

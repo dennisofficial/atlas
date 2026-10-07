@@ -17,6 +17,8 @@ export type ListenerErrorSink = (cause: unknown) => void
 
 export type Unsubscribe = () => void
 
+export type DeltaChannelOptions = { readonly onListenerError?: ListenerErrorSink }
+
 export type ThreadPublisher = {
   readonly threadId: ThreadId
   readonly onChunk: ChunkFilter
@@ -60,7 +62,7 @@ const needsAStepToFailIn = (args: { state: ThreadState; end: EStepEnd }): boolea
 const endOf = (event: EventOfType<'assistant-said'> | undefined): EStepEnd =>
   event?.interrupted === true ? EStepEnd.Interrupted : EStepEnd.Completed
 
-export function createDeltaChannel(): DeltaChannel {
+export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChannel {
   const threads = new Map<ThreadId, ThreadState>()
 
   const stateFor = (threadId: ThreadId): ThreadState => {
@@ -89,8 +91,31 @@ export function createDeltaChannel(): DeltaChannel {
     threads.delete(args.threadId)
   }
 
+  const report = (args: { sink: ListenerErrorSink | undefined; cause: unknown }) => {
+    try {
+      args.sink?.(args.cause)
+    } catch {
+      return
+    }
+  }
+
+  const deliver = (args: {
+    listeners: Iterable<ChannelListener>
+    signal: ChannelSignal
+    onListenerError?: ListenerErrorSink | undefined
+  }) => {
+    const sink = args.onListenerError ?? options.onListenerError
+    for (const listener of [...args.listeners]) {
+      try {
+        listener(args.signal)
+      } catch (cause) {
+        report({ sink, cause })
+      }
+    }
+  }
+
   const notify = (args: { state: ThreadState; signal: ChannelSignal }) => {
-    for (const listener of [...args.state.listeners]) listener(args.signal)
+    deliver({ listeners: args.state.listeners, signal: args.signal })
   }
 
   const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
@@ -157,7 +182,7 @@ export function createDeltaChannel(): DeltaChannel {
   return {
     subscribe({ threadId, listener }) {
       const state = stateFor(threadId)
-      for (const signal of stableReplay(state)) listener(signal)
+      for (const signal of stableReplay(state)) deliver({ listeners: [listener], signal })
       state.listeners.add(listener)
 
       return () => {
@@ -194,14 +219,11 @@ export function createDeltaChannel(): DeltaChannel {
           const state = threads.get(threadId)
           if (state === undefined) return
 
-          const signal: ChannelSignal = { type: 'events-appended' }
-          for (const listener of [...state.listeners]) {
-            try {
-              listener(signal)
-            } catch (cause) {
-              args?.onListenerError?.(cause)
-            }
-          }
+          deliver({
+            listeners: state.listeners,
+            signal: { type: 'events-appended' },
+            onListenerError: args?.onListenerError,
+          })
         },
 
         settleAppend({ events }) {
@@ -235,13 +257,11 @@ export function createDeltaChannel(): DeltaChannel {
           const state = stateFor(threadId)
           state.operatorInput = open
           state.replay = undefined
-          for (const listener of [...state.listeners]) {
-            try {
-              listener({ type: 'operator-input', request: open })
-            } catch (cause) {
-              onListenerError?.(cause)
-            }
-          }
+          deliver({
+            listeners: state.listeners,
+            signal: { type: 'operator-input', request: open },
+            onListenerError,
+          })
           if (open === null) forgetIfIdle({ threadId, state })
         },
       }

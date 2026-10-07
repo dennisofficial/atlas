@@ -2,20 +2,19 @@ import {
   ECompactionAnchor,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { Compacting } from '../ui/components/compacting'
 import {
-  compactTurn,
   ECompaction,
   ECompactScope,
-  summariseAt,
+  LocalCompaction,
   type Compaction,
 } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
 const compactionCrashed = (fault: unknown): string =>
-  `compacting the history did not finish, so nothing was changed: ${fault instanceof Error ? fault.message : String(fault)}`
+  `compacting the history did not finish: ${fault instanceof Error ? fault.message : String(fault)}`
 
 export type CompactionControl = {
   compacting: Compacting | null
@@ -24,11 +23,6 @@ export type CompactionControl = {
   cancel: () => boolean
 }
 
-/**
- * The operator-facing half of compaction: the pill state, the esc cancel, and the two explicit
- * commands (/compact, prune-at). The between-turns decision no longer lives here — the harness's
- * turn policy fires it for every session kind and this surface observes it through the log.
- */
 export function useCompaction(args: {
   app: AtlasApp
   threadId: ThreadId
@@ -36,12 +30,22 @@ export function useCompaction(args: {
   refresh: () => Promise<void>
   onFailure: (reason: string) => void
   onCompacted: () => void
-  /** A placement move owns the session: rewriting the log waits for it to settle. */
   frozen?: boolean | undefined
 }): CompactionControl {
   const { app, threadId, readClock, refresh, onFailure, onCompacted } = args
   const [compacting, setCompacting] = useState<Compacting | null>(null)
   const compacter = useRef<AbortController | null>(null)
+  const port = useMemo(
+    () =>
+      app.compaction ??
+      new LocalCompaction({
+        log: app.log,
+        threads: app.threads,
+        agents: app.agents,
+        summarise: app.summarise,
+      }),
+    [app.agents, app.compaction, app.log, app.summarise, app.threads],
+  )
 
   const settle = useCallback(
     async (compaction: Compaction) => {
@@ -82,44 +86,21 @@ export function useCompaction(args: {
   const compact = useCallback(
     (scope: ECompactScope) => {
       if (frozen) return
-      void run((signal) =>
-        compactTurn({
-          log: app.log,
-          threads: app.threads,
-          agents: app.agents,
-          threadId,
-          scope,
-          summarise: app.summarise,
-          signal,
-        }),
-      )
+      void run((signal) => port.compact({ threadId, scope, signal }))
     },
-    [app.agents, app.log, app.summarise, app.threads, frozen, run, threadId],
+    [frozen, port, run, threadId],
   )
 
   const compactAround = useCallback(
     (around: { anchor: ECompactionAnchor; seq: number }) => {
       if (frozen) return
       void run((signal) =>
-        summariseAt({
-          log: app.log,
-          threads: app.threads,
-          agents: app.agents,
-          threadId,
-          anchor: around.anchor,
-          seq: around.seq,
-          summarise: app.summarise,
-          signal,
-        }),
+        port.summarise({ threadId, anchor: around.anchor, seq: around.seq, signal }),
       )
     },
-    [app.agents, app.log, app.summarise, app.threads, frozen, run, threadId],
+    [frozen, port, run, threadId],
   )
 
-  /**
-   * Interrupting a compaction is not interrupting a turn, and the operator pressed one key for
-   * both — so this answers whether it took the press.
-   */
   const cancel = useCallback((): boolean => {
     const running = compacter.current
     if (running === null) return false

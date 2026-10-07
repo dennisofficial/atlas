@@ -16,5 +16,6 @@ export abstract class QualityReviewPort {
     events: readonly Event[]
     projectDirectory: string
     signal: AbortSignal
+    deadlineAt?: number
   }): Promise<readonly EventDraft[]>
 }

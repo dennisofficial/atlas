@@ -8,6 +8,12 @@ import { channelSignalSchema } from './signal-wire.js'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
 
+/**
+ * Bumped by hand when a frame's shape changes. The TUI and the serve are built at different times
+ * from different releases — the TUI from the operator's build, the serve from whatever the API's
+ * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
+ * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
+ */
 export const CHANNEL_PROTOCOL_VERSION = 19
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
@@ -80,6 +86,9 @@ export enum EClientRequest {
   ResumeAgent = 'resume-agent',
   StopAgent = 'stop-agent',
   ProvideOperatorInput = 'provide-operator-input',
+  CompactHistory = 'compact-history',
+  SummariseHistory = 'summarise-history',
+  CancelCompaction = 'cancel-compaction',
 }
 
 export enum ETurnStatus {

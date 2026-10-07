@@ -168,7 +168,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
       { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
-      { open: contextBrowser.viewer !== null || contextBrowser.tree.focused,
+      { open: contextBrowser.viewer !== null,
         handleKey: contextBrowser.handleKey, coversComposer: true, coversTranscript: contextBrowser.viewer !== null },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
@@ -188,7 +188,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       compacting,
       contextBrowser.handleKey,
       contextBrowser.viewer,
-      contextBrowser.tree.focused,
       containerMove.handleKey,
       conversation.operatorInput.handleKey,
       conversation.operatorInput.state,
@@ -234,14 +233,14 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
       if (key.eventType !== 'release' && key.name !== 'escape') agentView.disarmStop()
 
-      if (conversation.operatorInput.state === null && contextBrowser.viewer === null && !contextBrowser.tree.focused && menus.handleKey(key)) {
+      if (conversation.operatorInput.state === null && contextBrowser.viewer === null && menus.handleKey(key)) {
         key.preventDefault()
         return
       }
 
       handleKey(key)
     },
-    [agentView, conversation.operatorInput.state, covered, contextBrowser.viewer, contextBrowser.tree.focused, handleKey, menus],
+    [agentView, conversation.operatorInput.state, covered, contextBrowser.viewer, handleKey, menus],
   )
 
   useKeyboard(handleKeyWithMenu)

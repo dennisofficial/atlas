@@ -1,5 +1,5 @@
 import type { KeyEvent, ScrollBoxRenderable } from '@opentui/core'
-import type { ContextFileContent } from '@dltech/atlas-harness'
+import type { ContextFileContent, ContextFolderStateStore } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { EOutputScroll, outputScrollCommand } from '../ui/shells-model'
@@ -17,11 +17,18 @@ const PAN_COLUMNS = 8
 
 export function useContextBrowser(args: {
   readers: ContextReaders | undefined
+  folderState?: ContextFolderStateStore | undefined
   onOpenFile?: () => void
 }) {
-  const { readers } = args
-  const [path, setPath] = useState<string | null>(null)
-  const [viewer, setViewer] = useState<ContextViewer | null>(null)
+  const { readers, folderState } = args
+  const [opened, setOpened] = useState<{ owner: ContextReaders | undefined; path: string } | null>(null)
+  const [viewerHeld, setViewerHeld] = useState<{ owner: ContextReaders | undefined; viewer: ContextViewer | null }>(
+    { owner: readers, viewer: null })
+  const path = opened !== null && opened.owner === readers ? opened.path : null
+  const viewer = viewerHeld.owner === readers ? viewerHeld.viewer : null
+  const updateViewer = useCallback((update: (current: ContextViewer | null) => ContextViewer | null) => {
+    setViewerHeld((held) => ({ owner: readers, viewer: update(held.owner === readers ? held.viewer : null) }))
+  }, [readers])
   const [revision, setRevision] = useState(0)
   const scroller = useRef<ScrollBoxRenderable | null>(null)
 
@@ -31,38 +38,36 @@ export function useContextBrowser(args: {
   }, [readers])
 
   useEffect(() => {
-    if (path === null || readers === undefined) { setViewer(null); return }
+    if (path === null || readers === undefined) { updateViewer(() => null); return }
     let live = true
-    setViewer((current) => current?.path === path ? current : { state: EContextView.Loading, path })
+    updateViewer((current) => current?.path === path ? current : { state: EContextView.Loading, path })
     void readers.load(path).catch((cause: unknown): ContextFileContent => ({ type: 'refused', reason: messageOf(cause) }))
       .then((content) => {
         if (!live) return
-        setViewer((current) => current?.state === EContextView.Ready && current.path === path &&
+        updateViewer((current) => current?.state === EContextView.Ready && current.path === path &&
           JSON.stringify(current.content) === JSON.stringify(content) ? current : { state: EContextView.Ready, path, content })
       })
     return () => { live = false }
-  }, [readers, path, revision])
+  }, [readers, path, revision, updateViewer])
+
+  useEffect(() => {
+    setOpened((current) => current?.owner === readers ? current : null)
+  }, [readers])
 
   const handleFileOpen = useCallback((next: string) => {
-    setPath(next)
-    setViewer({ state: EContextView.Loading, path: next })
+    setOpened({ owner: readers, path: next })
+    updateViewer((current) => current?.path === next ? current : { state: EContextView.Loading, path: next })
     args.onOpenFile?.()
-  }, [args.onOpenFile])
+  }, [readers, updateViewer, args.onOpenFile])
   const handleFileClose = useCallback(() => {
-    setPath(null)
-    setViewer(null)
-  }, [])
-  const tree = useContextTree({ readers, revision, opened: path, onOpen: handleFileOpen, onClose: handleFileClose })
-  const handleDismiss = useCallback(() => {
-    handleFileClose()
-    tree.handleBlur()
-  }, [handleFileClose, tree.handleBlur])
+    setOpened(null)
+    updateViewer(() => null)
+  }, [updateViewer])
+  const tree = useContextTree({ readers, folderState, revision, opened: path, onOpen: handleFileOpen, onClose: handleFileClose })
   const attachScroll = useCallback((box: ScrollBoxRenderable | null) => { scroller.current = box }, [])
 
   const handleKey = useCallback((key: Pick<KeyEvent, 'name'> & Partial<Pick<KeyEvent, 'shift'>>) => {
-    if (tree.focused) { tree.handleKey(key); return }
-    if (key.name === 'tab') { tree.handleFocus(); return }
-    if (key.name === 'escape' || key.name === 'q') { handleDismiss(); return }
+    if (key.name === 'escape' || key.name === 'q') { handleFileClose(); return }
     if (key.name === 'left' || key.name === 'right') {
       scroller.current?.scrollBy({ x: key.name === 'left' ? -PAN_COLUMNS : PAN_COLUMNS, y: 0 })
       return
@@ -76,10 +81,10 @@ export function useContextBrowser(args: {
     else if (command.kind === EOutputScroll.ToStart) box.scrollTo(0)
     else if (command.kind === EOutputScroll.Pages) box.scrollBy(command.amount, 'viewport')
     else box.scrollBy(command.amount)
-  }, [tree.focused, tree.handleKey, tree.handleFocus, handleDismiss])
+  }, [handleFileClose])
 
-  return { tree, viewer, handleOpen: tree.handleActivate, handleDismiss, handleKey, attachScroll,
-    handleViewerFocus: tree.handleBlur }
+  return { tree, viewer, handleOpen: tree.handleActivate, handleNavigate: handleFileOpen, handleDismiss: handleFileClose,
+    handleKey, attachScroll }
 }
 
 export type ContextControl = ReturnType<typeof useContextBrowser>

@@ -14,13 +14,6 @@ export type TranscriptFollow = {
   handleJumpTo: (key: string) => void
 }
 
-/**
- * Peek candidates in ascending top order. The layout model is the source of truth when it is
- * available: windowing unmounts everything outside the viewport's margin, so a mounted-children
- * scan cannot see the message sitting just above the window — exactly the one the peek line
- * exists for. Model tops are content rows, so the viewport top is the scroll offset; the
- * mounted fallback compares painted positions, so it takes the viewport's screen row.
- */
 const candidatesOf = (
   keys: ReadonlySet<string>,
   offsetOfKey: (key: string) => number | null,
@@ -47,6 +40,7 @@ export function useTranscriptFollow(
     scroller?: RefObject<ScrollBoxRenderable | null>
     anchorId?: string | null
     sends?: number
+    cloudConnected?: boolean
     peekKeys?: ReadonlySet<string>
     onTick?: () => void
     offsetOfKey?: (key: string) => number | null
@@ -154,6 +148,11 @@ export function useTranscriptFollow(
     if (sends === 0) return
     handleJumpToBottom()
   }, [sends, handleJumpToBottom])
+
+  useEffect(() => {
+    if (args.cloudConnected !== true) return
+    handleJumpToBottom()
+  }, [args.cloudConnected, handleJumpToBottom])
 
   return { scroller, handleJumpToBottom, handleJumpTo }
 }

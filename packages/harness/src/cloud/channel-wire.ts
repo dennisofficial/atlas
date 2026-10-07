@@ -5,6 +5,12 @@ import type { TurnOutcome } from '../loop/turn-outcome'
 
 export {
   bearerSubprotocolOf,
+  cancelCompactionParamsSchema,
+  compactHistoryParamsSchema,
+  compactionReplySchema,
+  EWireCompactionAnchor,
+  EWireCompactScope,
+  summariseHistoryParamsSchema,
   channelSignalSchema,
   CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
@@ -76,6 +82,10 @@ export {
 
 export type {
   ActivateSessionReply,
+  CancelCompactionParams,
+  CompactHistoryParams,
+  CompactionReply,
+  SummariseHistoryParams,
   ApplyWorkspaceArchiveReply,
   ClientFrame,
   OperatorInputReply,

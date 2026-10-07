@@ -30,7 +30,7 @@ it('persists root and finished-child continuation obligations before acknowledgi
       say: async () => undefined, run: () => undefined, sayOrRun: () => false,
       interrupt: () => undefined, pause: () => undefined, resume: () => undefined,
       running: () => false, outcomePending: () => false, settled: async () => undefined,
-      attach: () => () => undefined,
+      attach: () => () => undefined, holdHistory: () => () => undefined,
     },
     admission: { closed: false }, haltIdle: () => undefined, whenMutationsSettled: async () => undefined,
     checkpoint: { current: () => null, finalizeRotation: async () => { throw new Error('sealing interrupted') } },

@@ -5,6 +5,7 @@ import {
   EventLogPort,
   ESettingId,
   IdPort,
+  LogPort,
   ModelPort,
   NoticePort,
   textValueOf,
@@ -31,6 +32,7 @@ import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
+import { LocalCompaction } from '../store/local-compaction'
 import { ToolRegistry } from '../tools/registry'
 
 import { bindBrowser } from './compose-browser'
@@ -43,6 +45,7 @@ import {
   hookMishapNotice,
 } from './compose-lifecycle'
 import { bindMcp } from './compose-mcp'
+import { bindQuality } from './compose-quality'
 import { asPluginSurfaces, localSessionOwner } from './compose-session'
 import { bindUtilityModels } from './compose-utility-models'
 import type { HarnessLaunch } from './config'
@@ -139,7 +142,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const roots = { atlasHome: atlasDirectory(), home: homedir(), cwd: anchor }
   const skillRegistry = bindSkillRegistry({
     container,
-    registry: await liveSkillRegistry({ ...roots, home: args.userSkillHome ?? roots.home }),
+    registry: await liveSkillRegistry({ ...roots, home: args.userSkillHome ?? roots.home, notice }),
   })
   const agentTypes = await bindSessionAgentTypes({ container, settings, launchValue, models, roots })
 
@@ -149,6 +152,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
 
+  bindQuality({ container, settings })
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
@@ -166,7 +170,12 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const services = container.resolve(portToken(ServiceRegistryPort))
   const operatorInput = container.resolve(portToken(OperatorInputPort))
 
-  const channel = createDeltaChannel()
+  const channel = createDeltaChannel({
+    onListenerError: (cause) => container.resolve(portToken(LogPort)).error({
+      source: 'channel.listener',
+      message: cause instanceof Error ? cause.message : 'channel listener failed',
+    }),
+  })
   const pending = createPendingQueues<Command>()
 
   const { runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
@@ -192,6 +201,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     titler: utility.titler,
   })
 
+  const compaction = new LocalCompaction({ log, threads, agents, summarise: utility.summarise })
   const sessionOwner = localSessionOwner({
     placement: executionLocation,
     workspace,
@@ -204,6 +214,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     shells,
     agents,
     services,
+    compaction,
   })
 
   let prepared: HarnessCloseRequest = {}
@@ -218,6 +229,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     activeThread: () => activeThread,
     titler: utility.titler,
     summarise: utility.summarise,
+    compaction,
     settings,
     secrets,
     skills: skillRegistry.all(),

@@ -4,6 +4,7 @@ import {
   createRemoteRosterReader,
   EClientRequest,
   LocalRewindMachinery,
+  RemoteCompaction,
   RemoteRewindMachinery,
   rewindApplyParamsOf,
   type RewindRead,
@@ -25,7 +26,7 @@ import { createSharedRoster } from './roster-reader'
 
 export type CloudRuntimeParts = Pick<
   SessionRuntime,
-  'runner' | 'channel' | 'log' | 'threads' | 'ledger' | 'intake' | 'shells' | 'agents' | 'services' | 'rewindMachinery'
+  'runner' | 'channel' | 'log' | 'threads' | 'ledger' | 'intake' | 'shells' | 'agents' | 'services' | 'rewindMachinery' | 'compaction'
 >
 
 export const cloudRuntimeParts = (args: {
@@ -51,6 +52,7 @@ export const cloudRuntimeParts = (args: {
     shells,
     agents,
     services,
+    compaction: new RemoteCompaction({ channel: args.channel }),
     rewindMachinery: new RemoteRewindMachinery({
       channel: {
         apply: (applyArgs) =>

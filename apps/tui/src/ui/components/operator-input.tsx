@@ -5,6 +5,7 @@ import type { OperatorInputState } from '../../composition/use-operator-input'
 import { fitHints, hintSpans, type Hint } from '../hint-layout'
 import { COMPOSER_NEWLINE_BINDINGS } from '../composer-input-bindings'
 import { useClickRegion, type ClickRegion } from '../hooks/use-click-region'
+import { linkHoverStyle } from '../link-hover-style'
 import { glyph, theme } from '../theme'
 import { BottomDrawer, DRAWER_PAD, drawerCells, DrawerLine } from './drawer'
 import { clipSpans } from './sidebar/cells'
@@ -67,7 +68,12 @@ export function OperatorInputOverlay(props: {
           backgroundColor={url.wash.bg ?? theme.overlayBg}
           {...url.handlers}
         >
-          <text fg={theme.accent}>{state.request.url}</text>
+          <text
+            fg={theme.accent}
+            {...(url.hovered ? linkHoverStyle(theme.accent) : {})}
+          >
+            {state.request.url}
+          </text>
         </box>
       )}
       <box paddingLeft={DRAWER_PAD} paddingRight={DRAWER_PAD} flexShrink={0}>

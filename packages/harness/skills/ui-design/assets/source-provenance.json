@@ -1,0 +1,230 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "id": "book",
+      "filename": "Refactoring UI v1.0.2.pdf",
+      "version": "1.0.2",
+      "pages": 218,
+      "sha256": "663a6d56910c82e5130c2de1d725aef1d1b771589044f26a1f3a9162d2a1c3a6",
+      "baseline_sha256": "e4d87350af6b36adef81c02ca5d89a950c85793e3088c7dafd1f5160956e433d",
+      "baseline_characters": 101264
+    },
+    {
+      "id": "palette",
+      "filename": "Color Palettes v1.1.0.pdf",
+      "version": "1.1.0",
+      "pages": 152,
+      "sha256": "c3cc2f6cd005337d54810b15fccdc3d28c9ac7d6d670e0a53244fdcb8fd65e13",
+      "baseline_sha256": "9e993aac4e4710903c63a5ba5b33f194902b432811d0979a09456a4b9e4a020a",
+      "baseline_characters": 68932
+    },
+    {
+      "id": "gallery",
+      "filename": "Component Gallery v1.1.0.pdf",
+      "version": "1.1.0",
+      "pages": 86,
+      "sha256": "fa910e3b97ff842ecad68ee32a34e2ca6c2b0cb47695dd2510e6f5394c58d168",
+      "baseline_sha256": "bdac42d98b4f0d4d5fb00fbd28778af597fc807b86b604bad93cf96b984870d8",
+      "baseline_characters": 13946
+    },
+    {
+      "id": "font",
+      "filename": "Font Recommendations v1.0.1.pdf",
+      "version": "1.0.1",
+      "pages": 69,
+      "sha256": "2e043588404e0d5158d78273f233e80812c819ca398c223ee248bc26fddd1cc5",
+      "baseline_sha256": "1af840ee34de96d4a39f1692b036fc978a1a19976065d96ed52ab18db989da3f",
+      "baseline_characters": 9180
+    }
+  ],
+  "palette_archive": {
+    "filename": "Color Palettes JSON v1.1.0.zip",
+    "sha256": "659bcf97843871f4a3a5510ace665dec8bf4d3148e4ec94b9dd11fef5b8608c9",
+    "entries": [
+      {
+        "name": "palette-01.json",
+        "strict_name": "palette-01.strict.json",
+        "source_sha256": "bfc021683a885040f96f5219aa79adc1c80df7004718d3897c5b54a070797bf1",
+        "strict_sha256": "9c94e7ae0b7def0bdcecc655245587db866273718457039a85a03c1a1320be1c",
+        "entries": 60
+      },
+      {
+        "name": "palette-02.json",
+        "strict_name": "palette-02.strict.json",
+        "source_sha256": "04927c9133c9495c03ee1635918149e4a7a5d9b1c4d7f856c26738db8b0313c7",
+        "strict_sha256": "e186be7972895b0dc8677556e5650fe79d267aaf67f7973c8b7e38213fb504a0",
+        "entries": 50
+      },
+      {
+        "name": "palette-03.json",
+        "strict_name": "palette-03.strict.json",
+        "source_sha256": "b50d30c359939a27eb1bdad4fb2dce17c913d23dff1a0d9bd84608c3f7117be9",
+        "strict_sha256": "6347be8488ae03af55085abaa6e7012aa25183fca878d0f81ce0eddba7bff6cd",
+        "entries": 60
+      },
+      {
+        "name": "palette-04.json",
+        "strict_name": "palette-04.strict.json",
+        "source_sha256": "9a48b6e8d787d29b60c19587e1aa409f2a82f8008d1aa5188c436b601842d33f",
+        "strict_sha256": "207ce47e42be62ed605e200f215b48b112d4010a5894cb8ac1f11bbc45baa756",
+        "entries": 60
+      },
+      {
+        "name": "palette-05.json",
+        "strict_name": "palette-05.strict.json",
+        "source_sha256": "886aa35747cfce6c57ffc1407a2b7e00339394f553dc0e7c5ecdf4f1bb9dc4b2",
+        "strict_sha256": "a0b2ce2169c8f44b36a41c3ef9429ad8ccc5f24f0800d83a31ad1200802f3882",
+        "entries": 70
+      },
+      {
+        "name": "palette-06.json",
+        "strict_name": "palette-06.strict.json",
+        "source_sha256": "b2e6569970c8cdcd86697decd64662a52a02875aff35e47ba5a1c900ad8e98ee",
+        "strict_sha256": "ed7e83fc2f40d650cf3b01daa557db9db333dbe5c9ec8eb9ce97d62101a241c9",
+        "entries": 50
+      },
+      {
+        "name": "palette-07.json",
+        "strict_name": "palette-07.strict.json",
+        "source_sha256": "217826b5b94eb1a738e2dcdf63c791994585681bdfadb8f6ae285d05ac40fc60",
+        "strict_sha256": "0f748f0c3aac701791efbad47c9588d0b4b400329a24ddc635bcf2f8e7add00a",
+        "entries": 60
+      },
+      {
+        "name": "palette-08.json",
+        "strict_name": "palette-08.strict.json",
+        "source_sha256": "f6fa030f6378af350379a787d8e847d9fbdb7f046986af53b3a2b9daa16334a1",
+        "strict_sha256": "0689567dbbd98c7dcf6d51b2d1488e090d90b51ebd0a431aca25c64d94d9cd70",
+        "entries": 60
+      },
+      {
+        "name": "palette-09.json",
+        "strict_name": "palette-09.strict.json",
+        "source_sha256": "153f0a04046255c066b77768d88e589ee45c9e9e561afa81ab93ffd59b5e7f83",
+        "strict_sha256": "c03d3db553a9d5a707313c3159e4564bf0c2ea753c72a68ffa24679dffc3a0c8",
+        "entries": 60
+      },
+      {
+        "name": "palette-10.json",
+        "strict_name": "palette-10.strict.json",
+        "source_sha256": "3901b4f39bfa50e5b6b1727c6859372545b54f6e149cca2e4e56a8b08420cc84",
+        "strict_sha256": "8a095c6f3f64d2dd38b3fb1117c510dc62354cf8fdbe89722b748ed978ce9b2f",
+        "entries": 60
+      },
+      {
+        "name": "palette-11.json",
+        "strict_name": "palette-11.strict.json",
+        "source_sha256": "03f19ea1eb46c76225edc953bb73f3b4773d271c3bd61ad3469f38487527df33",
+        "strict_sha256": "50bb5a425d7c28cc00e776ff0372a1e9fa9aa0c2422017f88089fe3bd23d1e86",
+        "entries": 60
+      },
+      {
+        "name": "palette-12.json",
+        "strict_name": "palette-12.strict.json",
+        "source_sha256": "6135de4df3ad4f50b8bedcbcb868103975664ee304108ab8dda775fdbc015638",
+        "strict_sha256": "14d86752cbce7deeae528f96b501f8ac7c02f6463754bc6033a3c81adb2713b5",
+        "entries": 50
+      },
+      {
+        "name": "palette-13.json",
+        "strict_name": "palette-13.strict.json",
+        "source_sha256": "2c2218a9f02c9a1e4a835b635a5f09165ddb1cfc2f314181154250c754a2a1a1",
+        "strict_sha256": "d5278480d86af7707ad5df3667fa252c9d2081b41fafb754c803b8e44d88759d",
+        "entries": 50
+      },
+      {
+        "name": "palette-14.json",
+        "strict_name": "palette-14.strict.json",
+        "source_sha256": "baafe92b1ad8aafc6b1ff9cd728ec5611083dca04cd8df950be3dfc8af3c6226",
+        "strict_sha256": "64b02d51f70436c5fd27574c5e8eac24b0749ee16eeb0cfdb8174c75e76acef3",
+        "entries": 60
+      },
+      {
+        "name": "palette-15.json",
+        "strict_name": "palette-15.strict.json",
+        "source_sha256": "ba521e4caa5caa0b09e56265141438ace318028a29aad58b58a9ca5ab8419c01",
+        "strict_sha256": "6d304b88e5a8dea5649d28cb809f1020893df097717bf843709c3ea6d4f1008f",
+        "entries": 50
+      },
+      {
+        "name": "palette-16.json",
+        "strict_name": "palette-16.strict.json",
+        "source_sha256": "e2af72645d8d648392aca67be242caa066bb92d273287cc62738ea8d2654f6e7",
+        "strict_sha256": "b4baf6ad693704732bfc2cc1eb926fde97dcfcf6b6d5e0936d7b5e9627607aa2",
+        "entries": 50
+      },
+      {
+        "name": "palette-17.json",
+        "strict_name": "palette-17.strict.json",
+        "source_sha256": "ea2c538533e8d7fa1d28a28ee27da9d208178acac840a3ca804f4a2cdbaf230e",
+        "strict_sha256": "ace113ea2e58f7756a7b7054a3dff0d9069bd10e77c90056ae47cf8ff3668e05",
+        "entries": 60
+      },
+      {
+        "name": "palette-18.json",
+        "strict_name": "palette-18.strict.json",
+        "source_sha256": "5b0d118704dc40587aa142636954b96cad2dd4cf7dd5cd2fcf3a2db6de0a9f03",
+        "strict_sha256": "35dd56afc41a83ccad25d2e020464fbb2c65463dea9188df108ea0b305364cb9",
+        "entries": 60
+      },
+      {
+        "name": "palette-19.json",
+        "strict_name": "palette-19.strict.json",
+        "source_sha256": "3581c4446bcfdc3cf1ec51dff353e8b8556125e599d129278b4af48166db7a9c",
+        "strict_sha256": "fb0fe2940dadb65cbe680ebe77201f6b73f099b3dfb93ef1f6a789539a88a152",
+        "entries": 70
+      },
+      {
+        "name": "palette-20.json",
+        "strict_name": "palette-20.strict.json",
+        "source_sha256": "88ae20d2edeec7841fe758958e96a0e087ba53543c399e482e4724809f8b639b",
+        "strict_sha256": "18e2c4b5e63332ae1679a75f0df017d9fb97230c32d8071578d217661fad3575",
+        "entries": 60
+      },
+      {
+        "name": "palette-21.json",
+        "strict_name": "palette-21.strict.json",
+        "source_sha256": "d1a728cfb40ef991512576480356bc4b9b772668028e695762f5f7159d72de42",
+        "strict_sha256": "085c5bf101f459105063da10b6611ba27773a37ca11dd93646e05453afd316d0",
+        "entries": 60
+      },
+      {
+        "name": "palette-22.json",
+        "strict_name": "palette-22.strict.json",
+        "source_sha256": "2c4ece97993d41397da3bdfae27f0ea95e597063c648fac3581a3a044aac29af",
+        "strict_sha256": "3cba400a90d4d70fe40dd5eae4f1d49c57024ea4dc923f74e01883895fdb377f",
+        "entries": 70
+      },
+      {
+        "name": "palette-23.json",
+        "strict_name": "palette-23.strict.json",
+        "source_sha256": "a1120686850b5e9bcd3cda94f2e9130e315d45171f7289343fe8f9486516a651",
+        "strict_sha256": "68941e43c10fa77dc7539c5be609facf77dede54ef4c11ee687ed23ae9fce6ae",
+        "entries": 40
+      },
+      {
+        "name": "palette-24.json",
+        "strict_name": "palette-24.strict.json",
+        "source_sha256": "a5b0a4921a99ebd586d3b186892158427450cfc08056c153c1bc648f4b09553e",
+        "strict_sha256": "fa25b44c2160c29787055e19dcda8678ec6268d675ffe260d7013a5beca2a2b6",
+        "entries": 60
+      },
+      {
+        "name": "swatches.json",
+        "strict_name": "swatches.strict.json",
+        "source_sha256": "9aaddbb22984c1353fb5caa22957c3058a35537c6ff78611bbc55889e3322b3d",
+        "strict_sha256": "0681f47230e507448ed2cbfa7887d4636100e7a255f66b54418034a1735e40cf",
+        "entries": 300
+      }
+    ]
+  },
+  "text_parser": {
+    "heading": "### Source page N",
+    "open_fence": "```text\n",
+    "close_separator": "\n```\n",
+    "exact_boundary": "Use validation.json page_mapping text_start_character and text_characters to slice UTF-8-decoded Markdown; offsets count Unicode characters, not bytes."
+  },
+  "source_text_characters": 193322,
+  "visual_pages": 525
+}

@@ -30,6 +30,7 @@ export function WorkspaceTranscript(props: {
   agentView: Pick<AgentView, 'selected' | 'scopedTo' | 'backLabel' | 'handleBack'>
   conversation: Pick<
     Conversation,
+    | 'threadId'
     | 'model'
     | 'now'
     | 'projectDirectory'
@@ -98,6 +99,8 @@ export function WorkspaceTranscript(props: {
         />
       ) : (
         <Transcript
+          key={conversation.threadId}
+          cloudConnected={connection === EChannelConnection.Open}
           model={conversation.model}
           width={width}
           now={conversation.now}

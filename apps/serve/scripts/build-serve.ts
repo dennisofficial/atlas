@@ -2,6 +2,7 @@ import { chmod, copyFile, mkdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 
+import { generateSkills } from '../../../packages/harness/scripts/generate-skills'
 import { writeSupervisorBundle } from '../../../packages/harness/src/shells/supervisor-bundle'
 
 const RIPGREP_PLATFORMS: Readonly<Record<string, string>> = {
@@ -54,6 +55,7 @@ async function stageVendoredRipgrep(args: { target: string | undefined }): Promi
 const target = arg('--target')
 const version = await stageVendoredRipgrep({ target })
 await writeSupervisorBundle()
+await generateSkills()
 
 const cmd = [
   'bun',

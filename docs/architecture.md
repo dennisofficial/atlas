@@ -177,11 +177,11 @@ bite a step the model deliberately fanned out, and every call in a batch is read
 and a future `bash` of `ls` may be while `bash` of `rm -rf` is not. It is declared as an optional
 `isConcurrencySafe(input)` on `ToolDefinition`, defaults to unsafe, and fails closed on a schema-parse
 failure or a throwing predicate. **Effect outranks the predicate**: a Write or Destructive tool is
-never batched even if it declares itself safe, because `dispatch` snapshots the workspace before such a
-tool runs and a snapshot must mean "the tree before this call" — two of them in flight capture each
-other's half-applied writes and rewind stops being true. That guard is also what keeps two `write`
-calls to one path out of a single step, which the read-before-write hook could not see, since hooks are
-handed one call at a time rather than a batch.
+never batched even if it declares itself safe. Direct file tools capture their before/after text under
+the existing per-path write lock, so serial writes must see the prior call's settled state rather than
+each other's half-applied changes. This guard also keeps two `write` calls to one path out of a single
+batch. Settlement snapshots the pending call list once but rereads events before each run, preserving
+fresh guard and quality-finding history without rediscovering calls mid-settlement.
 
 **Partitioning necessarily reads pre-hook input.** It happens before `dispatch`, so a `BeforeTool` hook
 that rewrites input cannot move a call between batches. Accepted: the parse it runs is the tool's own
@@ -946,6 +946,22 @@ each rung of a recency ladder, measuring candidates by actually re-assembling th
 arithmetic, and reports `fits`, `compact` or `exhausted`. It is built and tested; nothing in the loop
 calls it yet, so compaction today is the operator pressing the chord.
 
+**Explicit compaction follows the transcript owner.** `CompactionPort` carries `/compact` scope
+and summarise-around anchor/sequence intent. Its local adapter invokes the shared compaction
+functions; its cloud adapter requests the same operation from serve, where the owning harness
+selects the range, runs its compaction model, applies the guards, and writes its own stores.
+The terminal never tries to mutate a cloud transcript through read-only store adapters. Serve
+holds turn admission and intake during summarisation, refuses overlapping history edits in either
+arrival order, and acknowledges operator messages into the pending queue rather than writing them
+mid-summary. Cancellation races the owning model call and is rechecked before writing, so an
+abort-ignoring provider cannot keep history editing reserved or commit a late result. Explicit
+shutdown aborts the summary and waits for mutation settlement before disposing the app; attachment
+loss does neither. Mutations are not replayed after a lost reply, and errors do not claim that
+history stayed unchanged when the commit outcome is unknown. Successful operations buffer a
+reload before the next channel signal, so reconnect and late greet also verify rewritten history,
+including a destructive summary whose head sequence did not change. Protocol version 19 requires
+matching client and sandbox runtimes.
+
 **Compaction guidance arrives with the summary.** The stable system prompt carries no compaction
 notice; `compactedHistory` supplies continuation context when a summary replaces earlier turns.
 
@@ -954,6 +970,67 @@ returns an opaque compaction block that must be echoed back on every request, wh
 in charge of what the model sees and give Atlas a prompt it cannot re-derive from its own log — both
 against the two rules. `clear_tool_uses_20250919` is cheap to reimplement as a pure rule if it is ever
 wanted, and would then work on every provider.
+
+## Advisory code quality
+
+The shared harness composes Code Quality for main agents, sub-agents, teammates and serve sessions.
+Successful direct `write`, `edit` and `multi_edit` calls may carry transient immutable before/after
+text captured under their existing write lock. The source adapter prepares complete named TypeScript
+and JavaScript scopes with the TypeScript compiler; unsupported languages, unavailable source,
+ambiguous scope identity and bounded-size skips are reported as coverage gaps, never clean reviews.
+Shell, MCP and external-editor writes are not attributed by this module.
+
+Registered policies own scope selection, atomic questions, interpretation and deterministic coaching.
+The first policy is single responsibility. The engine uses the shared `DecisionPort` and the same gateway-compatible `jev-latest` route as
+other Jev features, not a prose-generating fallback. This alias is not an immutable model version;
+eval artifacts record the requested and returned identities without claiming version-pinned efficacy. One joined review deadline/turn-abort bounds advisory
+work; reviewer faults, invalid drafts and timeouts cannot replace a committed write's successful result.
+The dispatcher returns the result, compact review bookkeeping and any one-step nudge in order.
+
+`code-quality-reviewed` records hold source-free assessments and finding episodes. They survive
+destructive summary and reopen, follow normal rewind/fork history, and do not become transcript rows
+or permanent prompt context. Only a newly notifiable episode emits finite coaching; existing debt does
+not recursively nudge the agent. Workspace namespaces use normalized repository identity plus branch
+and repo-relative worktree identity through the thread's execution backend, not absolute host paths.
+
+Settings register policy toggles from descriptors and read live values. The master switch defaults off
+pending independently verified real-session efficacy evidence; example collection is separately opt-in.
+Examples are local immutable scope records under the owning thread's session data, not retained source
+in event bookkeeping. The settings surface reads shared harness health for the active runtime and
+labels it last-recorded status, not a continuously running scan. The existing protocol 19 already supports strict quality event decoding; integration adds no
+quality-specific frame or compatibility bump.
+
+`evals/` is a development-only shared Evalite workspace. It builds supervised Node adapters that reuse
+production request preparation and interpretation, validates exact case/trial coverage and writes fresh
+artifacts with separate quality, operational-failure and latency dimensions. Default tests and evals
+are fake/no-network; live provider calls require explicit flags and configuration. Synthetic smoke
+proves integration, not policy efficacy. No eval framework enters the shipped TUI or serve dependency
+graph, and an empty real corpus cannot justify calibrated detection claims or default enablement.
+
+## Skills
+
+Skills are authored under `packages/harness/skills` and discovered through the shared harness's
+skill registry. Project definitions shadow user definitions, which shadow embedded built-ins. A
+skill's description is listed in the prompt; its body is loaded through the `skill` tool only when
+needed. Supporting Markdown files and images are resources, never additional skill definitions.
+
+**Built-in bundles travel inside both binaries.** The shared skill generator emits entry text and
+native Bun file loaders for accompanying resources. Bundle-backed skills materialize into a
+content-addressed directory under `<atlasHome>/bin/skills`, outside discovery roots and inside the
+Atlas-home subtree mounted into Docker. The tool returns that real directory so ordinary file tools
+can read relative reference and image paths. Text-only built-ins retain their existing behavior.
+Neither a source checkout nor the original PDF/video package is required at runtime. A failed
+bundle load reports a warning through the session's notice port and leaves other built-ins available;
+standalone sources report to the console. Test-owned Atlas homes are removed after each test so
+materialized bundles do not accumulate across fixture runs.
+
+**`ui-design` is the default UI entry point.** When it is model-invocable, the shared skill-listing
+fragment instructs main agents, sub-agents, and teammates to load it for UI design, implementation,
+changes, and review, alongside relevant specialized skills. This standing instruction is independent
+of the optional relevance hint, not a tool-execution gate or a new setting. Existing skill shadowing
+and model-invocation controls still apply. The skill routes directly to focused references rather
+than preloading its source library; source text, page images, palette data, and timestamped
+walkthroughs remain available on demand.
 
 ## Memory
 
@@ -1012,16 +1089,15 @@ and a Haiku model is already provisioned, so the seam is there when the index st
 | --- | --- | --- |
 | **Conversation** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL) | move the thread head |
 | **Control** — pending tool, retries, interrupt reason | *derived from the log* | re-read the log |
-| **World** — files, git index, worktree, subprocesses | Workspace snapshots (git objects) | restore the snapshot on the event |
+| **World** — files, git index, worktree, subprocesses | Execution ports and external systems | not restored by conversation rewind |
 
 The middle row is where frameworks want to sell you a checkpointer. We don't have one because we
 don't need one.
 
-`rewind(eventId)` resolves the event's `snapshotId`, restores the workspace, and moves the thread
-head. Fork is the same operation writing to a new `threadId` — one row, because context is derived.
-
-Snapshots cannot undo non-filesystem effects, so tool dispatch takes
-`idempotencyKey: ${runId}:${callId}`.
+Rewind moves the thread head and, after confirmation, destroys creations cut from the conversation.
+It does not restore file contents or the Git index. Fork creates a new thread with copied or referenced
+history; neither operation treats a historical snapshot as authority over the current workspace.
+Tool dispatch carries `idempotencyKey: ${runId}:${callId}` independently of these history operations.
 
 ### Where the session is, is Conversation
 
@@ -1523,10 +1599,11 @@ catalogue — or whose account is gone — falls back *whole*, so an effort neve
 that offered it.
 
 **A child's model and effort are chosen at spawn and change only by an explicit operator pick.**
-The type's settings row outranks its definition pin, which outranks the sub-agent role row;
-otherwise the child inherits its spawner's pair. A teammate's children inherit the teammate's
-pair, not the main conversation's. The chosen pair is stored in the child's existing thread
-metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
+The type's settings row outranks its definition pin. For sub-agents, the sub-agent role row
+comes next; otherwise the child inherits its spawner's pair. Teammates skip the sub-agent role
+row and inherit the main agent's current pair unless explicitly pinned. A teammate's sub-agents
+inherit the teammate's pair, not the main conversation's. The chosen pair is stored in the child's
+existing thread metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
 Changing the parent or settings affects new children only; steering, waking, resuming, and
 relocating a child retain its saved pair. Older children with no recorded pair resolve and save
 one on their first re-entry. An unavailable saved model fails rather than silently choosing another.
@@ -1545,8 +1622,9 @@ on an updated runtime to support them.
 **Every background call has a role, and every role has a row.** The tl;dr footer, the session
 titler and the nudge judge share the quick-calls row (`model.quickModel`); compaction has its own
 (`model.compactionModel`); sub-agents have theirs (`agents.subagentModel`), with one dynamically
-registered row per loaded agent type beneath it. A role left empty follows the default model —
-there is no hardcoded model id anywhere in the chain, because no provider can be assumed set up.
+registered row per loaded sub-agent type beneath it. The teammate row sits with the main model
+settings and follows the main agent, independently of the sub-agent role. A role left empty follows
+the default model — there is no hardcoded model id anywhere in the chain, because no provider can be assumed set up.
 Utility calls re-read the settings per call and children per spawn, so a pick lands mid-session,
 and a role whose pick cannot run
 (provider account gone, model dropped from the catalogue) raises a standing notice that clears

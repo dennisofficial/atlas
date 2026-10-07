@@ -17,10 +17,6 @@ const INDENT = '    '
 
 const VIEWPORT_SHARE = 0.8
 
-/**
- * A picture is kept strictly shorter than the transcript, so there is always a scroll position that
- * shows all of it. One that exactly fills the viewport is clipped at every position instead.
- */
 const HEADROOM = 2
 
 export function ToolImage(props: {
@@ -34,6 +30,10 @@ export function ToolImage(props: {
   const rows = useTranscriptRows()
   const covered = useTranscriptCovered()
   const image = imageOf(props.call)
+  const bytes = React.useMemo(
+    () => image?.data == null ? null : Buffer.from(image.data, 'base64'),
+    [image?.data],
+  )
   const summary = imageSummary({ call: props.call, cwd: props.cwd })
   const collapsible = props.expand?.onToggle !== undefined
   const shown = props.expand?.expanded ?? true
@@ -54,10 +54,6 @@ export function ToolImage(props: {
           cellWidth: cell.width,
         })
   const marker = collapsible ? `${shown ? '▾' : '▸'} ` : ''
-
-  // Render from the bytes the event log carries. The path only has to exist where the tool ran —
-  // in a cloud session that is inside the sandbox, and by now the file can be gone entirely.
-  const bytes = image.data === null ? null : Buffer.from(image.data, 'base64')
 
   return (
     <box flexDirection="column" flexShrink={0}>
@@ -88,11 +84,6 @@ type CellMetrics = { aspect: number; width: number }
 
 const BLOCK_SAMPLER: CellMetrics = { aspect: DEFAULT_CELL_ASPECT, width: SAMPLES_PER_CELL }
 
-/**
- * Matches `ImageRenderable.cellAspectRatio`, so the box we reserve is the box it draws into. With no
- * resolution to report, OpenTUI paints blocks rather than pixels, and there a cell really is two
- * samples wide.
- */
 function cellMetricsOf(renderer: ReturnType<typeof useRenderer>): CellMetrics {
   const resolution = renderer.resolution
   if (!resolution || renderer.terminalWidth < 1 || renderer.terminalHeight < 1) return BLOCK_SAMPLER

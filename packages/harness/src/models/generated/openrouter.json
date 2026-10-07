@@ -822,9 +822,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.002,
+      "inputPerMillion": 0.03,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.002
+      "cacheReadPerMillion": 0.03
     },
     "effort": {
       "high": "high",
@@ -842,9 +842,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.006,
+      "inputPerMillion": 0.018,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.006
+      "cacheReadPerMillion": 0.018
     },
     "effort": {
       "low": "low",
@@ -925,9 +925,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.029474,
-      "outputPerMillion": 1.32,
-      "cacheReadPerMillion": 0.0165
+      "inputPerMillion": 0.05,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.02
     },
     "effort": {
       "low": "low",
@@ -1295,6 +1295,25 @@
   {
     "ref": {
       "providerId": "openrouter",
+      "modelId": "google/gemini-nano-banana-2.1"
+    },
+    "label": "Nano Banana 2.1",
+    "api": "openai-completions",
+    "contextWindow": 65536,
+    "imageTier": "standard",
+    "maxOutputTokens": 58982,
+    "cost": {
+      "inputPerMillion": 1.5,
+      "outputPerMillion": 7.5
+    },
+    "effort": {
+      "minimal": "minimal",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
       "modelId": "google/gemma-3-12b-it"
     },
     "label": "Gemma 3 12B IT",
@@ -1526,22 +1545,6 @@
     "cost": {
       "inputPerMillion": 0,
       "outputPerMillion": 0
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openrouter",
-      "modelId": "kwaipilot/kat-coder-pro-v2.5"
-    },
-    "label": "KAT-Coder-Pro V2.5",
-    "api": "openai-completions",
-    "contextWindow": 262144,
-    "imageTier": "standard",
-    "maxOutputTokens": 235929,
-    "cost": {
-      "inputPerMillion": 0.74,
-      "outputPerMillion": 2.96,
-      "cacheReadPerMillion": 0.15
     }
   },
   {
@@ -2275,9 +2278,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.95,
-      "outputPerMillion": 4,
-      "cacheReadPerMillion": 0.16
+      "inputPerMillion": 0.465,
+      "outputPerMillion": 2.45,
+      "cacheReadPerMillion": 0.0975
     }
   },
   {
@@ -2307,9 +2310,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.83,
-      "outputPerMillion": 14,
-      "cacheReadPerMillion": 0.27
+      "inputPerMillion": 0.62,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.43
     },
     "effort": {
       "low": "low",
@@ -3953,10 +3956,10 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 235929,
+    "maxOutputTokens": 32000,
     "cost": {
-      "inputPerMillion": 0.1,
-      "outputPerMillion": 0.3
+      "inputPerMillion": 0.04815,
+      "outputPerMillion": 0.19305
     }
   },
   {
@@ -4293,11 +4296,11 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 32768,
+    "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.08,
-      "outputPerMillion": 0.75,
-      "cacheReadPerMillion": 0.04
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 1,
+      "cacheReadPerMillion": 0.05
     }
   },
   {
@@ -4386,10 +4389,10 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 262140,
+    "maxOutputTokens": 65536,
     "cost": {
-      "inputPerMillion": 0.32,
-      "outputPerMillion": 3.25,
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 2,
       "cacheReadPerMillion": 0.03
     }
   },
@@ -4821,9 +4824,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.0825,
-      "outputPerMillion": 0.33,
-      "cacheReadPerMillion": 0.020625
+      "inputPerMillion": 0.132,
+      "outputPerMillion": 0.528,
+      "cacheReadPerMillion": 0.033
     },
     "effort": {
       "off": "none",
@@ -4863,9 +4866,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 64000,
     "cost": {
-      "inputPerMillion": 0.7506,
-      "outputPerMillion": 2.2509,
-      "cacheReadPerMillion": 0.0378
+      "inputPerMillion": 0.834,
+      "outputPerMillion": 2.501,
+      "cacheReadPerMillion": 0.042
     },
     "effort": {
       "off": "none",
@@ -4882,11 +4885,11 @@
     "api": "openai-completions",
     "contextWindow": 524288,
     "imageTier": "standard",
-    "maxOutputTokens": 262144,
+    "maxOutputTokens": 471859,
     "cost": {
-      "inputPerMillion": 0.95,
+      "inputPerMillion": 1,
       "outputPerMillion": 4.05,
-      "cacheReadPerMillion": 0.16
+      "cacheReadPerMillion": 0.17
     },
     "effort": {
       "off": "none",
@@ -5423,11 +5426,11 @@
     "api": "openai-completions",
     "contextWindow": 204800,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 1.4,
-      "outputPerMillion": 4.4,
-      "cacheReadPerMillion": 0.26
+      "inputPerMillion": 0.966,
+      "outputPerMillion": 3.036,
+      "cacheReadPerMillion": 0.1794
     }
   },
   {
@@ -5441,9 +5444,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.152,
-      "outputPerMillion": 12,
-      "cacheReadPerMillion": 0.15
+      "inputPerMillion": 0.171,
+      "outputPerMillion": 7.2,
+      "cacheReadPerMillion": 0.162
     },
     "effort": {
       "high": "high",
@@ -5650,9 +5653,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.026795,
+      "inputPerMillion": 0.05,
       "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.015
+      "cacheReadPerMillion": 0.02
     },
     "effort": {
       "low": "low",
@@ -5669,11 +5672,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 393216,
+    "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.2399,
-      "outputPerMillion": 4.2,
-      "cacheReadPerMillion": 0.24
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 4.3,
+      "cacheReadPerMillion": 0.033
     },
     "effort": {
       "low": "low",
@@ -5692,9 +5695,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.006,
+      "inputPerMillion": 0.018,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.006
+      "cacheReadPerMillion": 0.018
     },
     "effort": {
       "low": "low",
@@ -5757,7 +5760,7 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.82,
+      "inputPerMillion": 0.61,
       "outputPerMillion": 13,
       "cacheReadPerMillion": 0.45
     },
@@ -5921,9 +5924,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.0317,
+      "inputPerMillion": 0.0278,
       "outputPerMillion": 0.5,
-      "cacheReadPerMillion": 0.0317
+      "cacheReadPerMillion": 0.0278
     },
     "effort": {
       "low": "low",
@@ -5942,9 +5945,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.03,
-      "outputPerMillion": 12,
-      "cacheReadPerMillion": 0.03
+      "inputPerMillion": 0.063,
+      "outputPerMillion": 6.3,
+      "cacheReadPerMillion": 0.0585
     },
     "effort": {
       "low": "low",

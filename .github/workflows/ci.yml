@@ -88,6 +88,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
       - run: bun install
 
       - uses: actions/cache@v6

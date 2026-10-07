@@ -1,0 +1,14 @@
+diff --git a/package.json b/package.json
+index eb97e77a113845742622c3d3ec9567d5f231b04c..498ef8fb4e213dec96ca60eed040eae50357075d 100644
+--- a/package.json
++++ b/package.json
+@@ -55,7 +55,8 @@
+     "file-type": "^19.6.0",
+     "jiti": "^2.6.1",
+     "table": "^6.9.0",
+-    "tinyrainbow": "^3.0.3"
++    "tinyrainbow": "^3.0.3",
++    "vitest": "4.0.1"
+   },
+   "devDependencies": {
+     "@types/better-sqlite3": "^7.6.13",

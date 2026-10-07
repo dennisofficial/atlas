@@ -180,12 +180,17 @@ describe('rewind on a cloud thread', () => {
     })
   })
 
-  it('still lands the rewind write when the sandbox refuses the cleanup', async () => {
+  it('preserves history when the sandbox refuses the rewind apply', async () => {
     const bridge = fakeBridge()
     const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
     const { stores } = bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
     const channel: FakeCloudChannel = bridge.channel
     const attached = cloudApp({ app, channel, stores, runner: app.runner })
+    const request = channel.request.bind(channel)
+    channel.request = async (given) => {
+      if (given.op === EClientRequest.Rewind) throw new Error('the sandbox refused the rewind apply')
+      return request(given)
+    }
     await bridge.log.append({
       threadId: CLOUD_THREAD,
       runId,
@@ -194,19 +199,18 @@ describe('rewind on a cloud thread', () => {
     channel.pushRoster(LIVE_ROSTER)
     await settle(100)
 
-    const result = await rewindThread({
+    await expect(rewindThread({
       log: bridge.log,
       threads: bridge.threads,
       machinery: machineryOf(attached),
       threadId: CLOUD_THREAD,
       toSeq: 1,
       confirmed: true,
-    })
+    })).rejects.toThrow('the sandbox refused the rewind apply')
 
-    expect(result).toMatchObject({ ok: true })
     expect(
       (await bridge.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type),
-    ).toEqual(['user-said'])
+    ).toEqual(['user-said', 'tool-called', 'tool-result', 'user-said'])
   })
 })
 

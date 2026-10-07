@@ -11,6 +11,7 @@ import {
   LogPort,
   ModelPort,
   NoopExecutionLocationSink,
+  QualityReviewPort,
   TelemetryPort,
   telemetryEnabled,
 } from '@dltech/atlas-core'
@@ -245,6 +246,8 @@ export function createHarnessContainer(): DependencyContainer {
           registry: resolver.resolve(portToken(ToolRegistry)),
           hooks: resolver.resolve(HookChainToken),
           logPort: resolver.resolve(portToken(LogPort)),
+          quality: resolver.isRegistered(portToken(QualityReviewPort), true)
+            ? resolver.resolve(portToken(QualityReviewPort)) : undefined,
         }),
         telemetry: resolver.resolve(portToken(TelemetryPort)),
       }),

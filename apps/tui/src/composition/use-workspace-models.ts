@@ -73,10 +73,10 @@ export function useWorkspaceModels(args: {
       const settled = app.settings.snapshot().resolution
       return (
         settingModelRef({ id, settled, catalogue: app.models }) ??
-        suggestedModelRef({ id, settled, catalogue: app.models })
+        suggestedModelRef({ id, settled, catalogue: app.models, current: selection.ref })
       )
     },
-    [app],
+    [app, selection.ref],
   )
 
   const viewedPicker = useRef<SwitcherViewed | undefined>(undefined)

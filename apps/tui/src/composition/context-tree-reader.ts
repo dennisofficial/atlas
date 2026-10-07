@@ -5,7 +5,7 @@ const messageOf = (cause: unknown): string => cause instanceof Error ? cause.mes
 
 export async function readContextTree(args: {
   readers: Pick<ContextReader, 'list'>
-  expanded: ReadonlySet<string>
+  closed: ReadonlySet<string>
   previous: ContextTreeLevels
 }): Promise<ContextTreeLevels> {
   const levels = new Map<string, { entries: Awaited<ReturnType<ContextReader['list']>>; error: string | null }>()
@@ -15,7 +15,7 @@ export async function readContextTree(args: {
       levels.set(directory, { entries, error: null })
       await Promise.all(entries.filter((entry) => entry.isDirectory).map(async (entry) => {
         const path = directory ? `${directory}/${entry.name}` : entry.name
-        if (args.expanded.has(path)) await visit(path)
+        if (!args.closed.has(path)) await visit(path)
       }))
     } catch (cause) {
       levels.set(directory, { entries: args.previous.get(directory)?.entries ?? [], error: messageOf(cause) })
