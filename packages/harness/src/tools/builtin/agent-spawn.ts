@@ -27,7 +27,7 @@ const PROSE = [
   'It runs in the background, so this returns its agentId at once and its answer reaches you on its own when it stops; never poll for it.',
   'brief is the whole of what it will ever know about the task, because it does not read your conversation: state the goal, the files and facts it needs, and what to report back.',
   'intent is a one-to-three-word name for what it is doing, which is how you and the person watching tell your agents apart.',
-  'Delegate work that is worth a fresh context window — a search across many files, a self-contained change, a review — and keep work you are already holding the context for.',
+  'Delegate work that is bigger than the brief that would describe it — a search across many files, a self-contained change, a review — and keep only what you could finish in a couple of tool calls.',
   'One call starts exactly one agent. To run several at once, emit several agent_spawn calls in one turn, each with its own full brief — and when several make changes at once, give each a disjoint set of files to own.',
 ].join(' ')
 
