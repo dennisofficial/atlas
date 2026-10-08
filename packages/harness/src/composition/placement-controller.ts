@@ -11,40 +11,16 @@ import {
 } from '@dltech/atlas-core'
 
 import { isTeammateType } from '../agents/types'
-import type { SessionAuthorityPort } from '../store/sessions/meta'
-import type { ThreadStorePort } from '../store/thread-store'
+import {
+  EPlacementMoveKind,
+  PlacementBusy,
+  type MoveSettledListener,
+  type PlacementSessionAuthority,
+  type PlacementStore,
+  type PlacementTransaction,
+} from './placement-controller-types'
 
-export type PlacementStore = Pick<
-  ThreadStorePort,
-  'readPlacement' | 'writePlacement' | 'onPlacementChanged' | 'find'
->
-
-export type PlacementSessionAuthority = Pick<SessionAuthorityPort, 'activeMainOf'>
-
-export enum EPlacementMoveKind {
-  Tools = 'tools',
-  Lift = 'lift',
-  Descend = 'descend',
-  /** A same-placement fill: the record stays put, only its detail (e.g. drive name) is written. */
-  Correct = 'correct',
-}
-
-export class PlacementBusy extends Error {
-  constructor() {
-    super('a placement move is already underway for this session')
-  }
-}
-
-export type PlacementTransaction = {
-  from: EExecutionLocation
-  committed: () => boolean
-  commit: (placement?: SessionPlacement) => Promise<void>
-  /**
-   * Ends the move without flipping placement, for work that reports its failure as a value rather
-   * than throwing it. The preparation marker is cleared and the source placement stands.
-   */
-  abandon: () => void
-}
+export * from './placement-controller-types'
 
 export class PlacementController {
   private active: ThreadId | undefined
@@ -53,6 +29,7 @@ export class PlacementController {
   private readonly moving = new Set<ThreadId>()
   private readonly startedMoves = new Set<string>()
   private readonly gates = new Set<(args: { threadId: ThreadId; record: PlacementRecord }) => void>()
+  private readonly settleListeners = new Set<MoveSettledListener>()
   private binding: {
     threads: PlacementStore
     workspace: string
@@ -78,6 +55,11 @@ export class PlacementController {
   readonly beforePublish = (gate: (args: { threadId: ThreadId; record: PlacementRecord }) => void): (() => void) => {
     this.gates.add(gate)
     return () => this.gates.delete(gate)
+  }
+
+  readonly onMoveSettled = (listener: MoveSettledListener): (() => void) => {
+    this.settleListeners.add(listener)
+    return () => this.settleListeners.delete(listener)
   }
 
   readonly snapshot = (threadId: ThreadId): PlacementRecord | undefined => this.records.get(threadId)
@@ -198,6 +180,7 @@ export class PlacementController {
     } finally {
       this.moving.delete(session)
       if (startedId !== undefined) this.startedMoves.delete(startedId)
+      this.settled(args.threadId)
     }
   }
 
@@ -284,6 +267,16 @@ export class PlacementController {
     for (const gate of this.gates) gate(args)
     this.records.set(args.threadId, args.record)
     this.notify()
+  }
+
+  private settled(threadId: ThreadId): void {
+    for (const listener of [...this.settleListeners]) {
+      try {
+        listener({ threadId })
+      } catch {
+        continue
+      }
+    }
   }
 
   private notify(): void {

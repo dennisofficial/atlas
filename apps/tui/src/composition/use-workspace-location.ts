@@ -178,7 +178,10 @@ export function useWorkspaceLocation(args: {
       if (asked === execution.location) return currentLocationNotice(execution.location)
       const owner = props.localApp.sessionOwner
       const unfinished = owner.snapshot().record?.move
-      if (unfinished != null && !owner.placement.startedHere(unfinished.id)) {
+      if (unfinished != null && owner.placement.startedHere(unfinished.id)) {
+        return 'a move is already underway — wait for it to settle'
+      }
+      if (unfinished != null) {
         if (recovering.current) return 'a recovery is already underway — wait for it to settle'
         recovering.current = true
         void recoverSession({

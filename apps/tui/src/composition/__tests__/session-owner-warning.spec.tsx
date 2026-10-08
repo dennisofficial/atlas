@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, spyOn } from 'bun:test'
 
 import { EExecutionLocation, EHarnessPlacement, EPlacementMovePhase } from '@dltech/atlas-core'
 import { EClientRequest, ERuntimeKind, RemoteTurnRunner } from '@dltech/atlas-harness'
@@ -114,6 +114,32 @@ describe('a lift whose cloud runtime answers activated: false after ownership co
       expect(await until({ holds: async () => app.sessionOwner.snapshot().location === EExecutionLocation.Host, within: 20_000 })).toBe(true)
       expect(app.sessionOwner.snapshot().binding?.kind).toBe(ERuntimeKind.Local)
       expect(app.sessionOwner.snapshot().record?.move).toBeNull()
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('answers /container off with a move-underway reply, and neither recovers nor descends, when this process still runs the unfinished move', async () => {
+    const { app, bridge, mounted, seen } = await lifted({ replies: [false, true] })
+    const owner = app.sessionOwner
+
+    try {
+      await mounted.showing('could not be activated')
+      const moveId = owner.snapshot().record?.move?.id
+      expect(moveId).toBeDefined()
+      const startedHere = spyOn(owner.placement, 'startedHere').mockImplementation((id) => id === moveId)
+
+      await mounted.command('/container off')
+      const frame = await mounted.showing('a move is already underway')
+
+      expect(frame).not.toContain('recovering it first')
+      expect(frame).not.toContain('did not finish')
+      expect(frame).not.toContain('a placement move is already underway for this session')
+      expect(seen.filter((op) => op === EClientRequest.ActivateSession)).toHaveLength(1)
+      expect(bridge.destroyed).toEqual([])
+      expect(owner.snapshot().location).toBe(EExecutionLocation.Cloud)
+      expect(owner.snapshot().record?.move?.phase).toBe(EPlacementMovePhase.Committed)
+      startedHere.mockRestore()
     } finally {
       await mounted.done()
     }
