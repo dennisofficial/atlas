@@ -1,14 +1,18 @@
 import {
   projectQualityHealth,
+  type CodeQualityReviewedBody,
   type EventLogPort,
-  type EventOfType,
+  type Event,
   type QualityHealth,
   type QualityHealthRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-export const isQualityReviewEvent = (event: { type: string }): event is EventOfType<'code-quality-reviewed'> =>
-  event.type === 'code-quality-reviewed'
+export function qualityReviewsOf(event: Event): readonly CodeQualityReviewedBody[] {
+  if (event.type === 'code-quality-reviewed') return [event]
+  if (event.type === 'tool-result') return event.qualityReviews ?? []
+  return []
+}
 
 export async function readQualityHealth({
   log,
@@ -18,6 +22,8 @@ export async function readQualityHealth({
   threadId: ThreadId
 }): Promise<QualityHealth> {
   const events = await log.readOwn({ threadId })
-  const records: QualityHealthRecord[] = events.filter(isQualityReviewEvent).map((event) => ({ ...event, at: event.at }))
+  const records: QualityHealthRecord[] = events.flatMap((event) =>
+    qualityReviewsOf(event).map((record) => ({ ...record, at: event.at })),
+  )
   return projectQualityHealth({ records })
 }

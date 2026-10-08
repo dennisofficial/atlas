@@ -24,7 +24,7 @@ import { recordingFaultItem, retirementItem, skipItem } from './coverage-records
 import { createQualityAssessmentCache, type QualityAssessmentCache } from './evaluation-cache'
 import { recordSelectedExamples, type ExampleOutcome } from './example-recording'
 import type { QualityExampleSink } from './example-sink'
-import { isQualityReviewEvent } from './health'
+import { qualityReviewsOf } from './health'
 import { buildRecord, renderNudge, validateItem, type ReviewItem } from './review-records'
 import {
   normalizeWorkspacePath,
@@ -113,7 +113,7 @@ export class CodeQualityReview extends QualityReviewPort {
       return this.finish({ items: this.bail({ args, started, ...namespace }), signal: args.signal })
     }
 
-    const records = args.events.filter(isQualityReviewEvent)
+    const records = args.events.flatMap((event) => qualityReviewsOf(event))
     const ctx: ReviewContext = {
       ...args,
       namespace,

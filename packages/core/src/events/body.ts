@@ -100,6 +100,7 @@ export type EventBody =
       modelParts?: readonly (TextPart | ImagePart | FilePart)[] | undefined
       error?: { message: string } | undefined
       interrupted?: boolean | undefined
+      qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
     }
   | { type: 'tool-denied'; callId: CallId; name: string; reason: string; interrupted?: boolean | undefined }
   | { type: 'approval-requested'; callId: CallId; reason: string }

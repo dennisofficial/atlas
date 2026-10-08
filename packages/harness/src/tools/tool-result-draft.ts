@@ -1,6 +1,11 @@
-import type { EventDraft, ToolCall, ToolOutcome } from '@dltech/atlas-core'
+import type { CodeQualityReviewedBody, EventDraft, ToolCall, ToolOutcome } from '@dltech/atlas-core'
 
-export function resultDraft(args: { call: ToolCall; result: ToolOutcome; interrupted: boolean }): EventDraft {
+export function resultDraft(args: {
+  call: ToolCall
+  result: ToolOutcome
+  interrupted: boolean
+  qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
+}): EventDraft {
   if (args.result.ok) {
     return {
       type: 'tool-result',
@@ -9,6 +14,9 @@ export function resultDraft(args: { call: ToolCall; result: ToolOutcome; interru
       output: args.result.output,
       modelText: args.result.modelText,
       ...(args.result.modelParts === undefined ? {} : { modelParts: args.result.modelParts }),
+      ...(args.qualityReviews === undefined || args.qualityReviews.length === 0
+        ? {}
+        : { qualityReviews: args.qualityReviews }),
     }
   }
 

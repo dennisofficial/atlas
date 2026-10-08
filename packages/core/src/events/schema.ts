@@ -26,6 +26,7 @@ import {
 import type { EventEnvelope } from './envelope'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 import {
+  codeQualityReviewedSchema,
   qualityAssessmentSchema,
   qualityFindingSchema,
   qualityScopeIdentitySchema,
@@ -135,6 +136,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     modelParts: z.array(toolResultPartSchema).optional(),
     error: z.object({ message: z.string() }).optional(),
     interrupted: z.boolean().optional(),
+    qualityReviews: z.array(codeQualityReviewedSchema).optional(),
   }),
   z.object({
     type: z.literal('tool-denied'),

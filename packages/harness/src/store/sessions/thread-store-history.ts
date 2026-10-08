@@ -52,7 +52,13 @@ export async function markThreadHistory({
       if (discardRows) await ensureFamilyOwnership({ sessionDir, registry })
       const log = await registry.readThreadLog({ sessionDir, threadId })
       const vacated = log.events
-        .filter((event) => event.seq >= fromSeq && event.seq <= throughSeq && !SURVIVES_SUMMARY.includes(event.type))
+        .filter(
+          (event) =>
+            event.seq >= fromSeq &&
+            event.seq <= throughSeq &&
+            !SURVIVES_SUMMARY.includes(event.type) &&
+            !(event.type === 'tool-result' && (event.qualityReviews ?? []).length > 0),
+        )
         .map((event) => event.seq)
       const standIn = discardRows
         ? anchor === ECompactionAnchor.Prefix

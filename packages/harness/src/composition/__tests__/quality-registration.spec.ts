@@ -4,7 +4,7 @@ import { ESettingId, EQualityReviewStatus, QualityReviewPort } from '@dltech/atl
 
 import { portToken } from '../../container/injection'
 import { CodeQualityReview } from '../../quality/engine'
-import { FakeDecisions, QualityRig, WIDGET_SOURCE, typesOf } from './quality-test-fixtures'
+import { FakeDecisions, QualityRig, WIDGET_SOURCE, reviewsOf, typesOf } from './quality-test-fixtures'
 
 const POLICY_SETTING = 'quality.policies.singleResponsibility'
 const SRP_CONCERN_KEY = 'single-responsibility:currentConcern'
@@ -20,7 +20,7 @@ afterEach(async () => {
 })
 
 const reviewedStatuses = (drafts: Awaited<ReturnType<QualityRig['dispatchWrite']>>): EQualityReviewStatus[] =>
-  drafts.flatMap((draft) => (draft.type === 'code-quality-reviewed' ? [draft.status] : []))
+  reviewsOf(drafts).map((record) => record.status)
 
 describe('bindQuality in the shared root', () => {
   it('registers the quality port after the DecisionPort and before the surface binds, and descriptors reach settings', () => {
@@ -51,10 +51,10 @@ describe('bindQuality in the shared root', () => {
 
     const drafts = await rig.dispatchWrite({ threadId, relative: 'widget.ts', content: WIDGET_SOURCE })
 
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed', 'nudge'])
+    expect(typesOf(drafts)).toEqual(['tool-result', 'nudge'])
     expect(rig.decisions.calls[0]?.questionKeys).toContain(SRP_CONCERN_KEY)
-    const record = drafts.find((draft) => draft.type === 'code-quality-reviewed')
-    if (record?.type !== 'code-quality-reviewed') throw new Error('no review record')
+    const record = reviewsOf(drafts)[0]
+    if (record === undefined) throw new Error('no review record')
     expect(record.status).toBe(EQualityReviewStatus.Completed)
     expect(record.scope?.path).toBe('widget.ts')
     expect(record.workspaceNamespace).toStartWith('local:')

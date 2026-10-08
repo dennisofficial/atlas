@@ -3,6 +3,7 @@ import {
   EQualitySkipReason,
   eventBodySchema,
   type CallId,
+  type CodeQualityReviewedBody,
   type Event,
   type EventDraft,
   type LogPort,
@@ -22,10 +23,14 @@ const UNIDENTIFIED_NAMESPACE = 'unidentified'
 
 const NUDGE_LIFETIME_STEPS = 1
 
-const postDeadlineAcceptable = (draft: EventDraft): boolean =>
-  draft.type === 'code-quality-reviewed' && draft.status !== EQualityReviewStatus.Completed
-
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+
+export type QualityReviewOutcome = {
+  reviews: readonly CodeQualityReviewedBody[]
+  nudge: EventDraft | undefined
+}
+
+const NO_REVIEW: QualityReviewOutcome = { reviews: [], nudge: undefined }
 
 function containedLog(args: {
   logPort: LogPort | undefined
@@ -45,25 +50,27 @@ function containedLog(args: {
   }
 }
 
-function reviewDraftsOf(args: { value: unknown; callId: CallId }): readonly EventDraft[] | undefined {
+function reviewOutcomeOf(args: { value: unknown; callId: CallId }): QualityReviewOutcome | undefined {
   if (!Array.isArray(args.value)) return undefined
-  const drafts: EventDraft[] = []
-  let nudges = 0
+  const reviews: CodeQualityReviewedBody[] = []
+  let nudge: EventDraft | undefined
   for (const candidate of args.value) {
     const parsed = eventBodySchema.safeParse(candidate)
     if (!parsed.success) return undefined
     const draft = parsed.data
     if (draft.type === 'code-quality-reviewed') {
       if (draft.callId !== args.callId) return undefined
-    } else if (draft.type === 'nudge') {
-      nudges += 1
-      if (nudges > 1 || draft.lifetimeSteps !== NUDGE_LIFETIME_STEPS) return undefined
-    } else {
-      return undefined
+      reviews.push(draft)
+      continue
     }
-    drafts.push(draft)
+    if (draft.type === 'nudge') {
+      if (nudge !== undefined || draft.lifetimeSteps !== NUDGE_LIFETIME_STEPS) return undefined
+      nudge = draft
+      continue
+    }
+    return undefined
   }
-  return drafts
+  return { reviews, nudge }
 }
 
 function bookkeeping(args: {
@@ -73,23 +80,21 @@ function bookkeeping(args: {
   reason?: EQualitySkipReason
   detail: string
   startedAt: number
-}): readonly EventDraft[] {
-  return [
-    {
-      type: 'code-quality-reviewed',
-      callId: args.call.callId,
-      workspaceNamespace: UNIDENTIFIED_NAMESPACE,
-      path: args.path,
-      beforeHash: null,
-      afterHash: null,
-      status: args.status,
-      ...(args.reason === undefined ? {} : { reason: args.reason }),
-      detail: args.detail,
-      assessments: [],
-      findings: [],
-      durationMs: Math.max(0, Date.now() - args.startedAt),
-    },
-  ]
+}): CodeQualityReviewedBody {
+  return {
+    type: 'code-quality-reviewed',
+    callId: args.call.callId,
+    workspaceNamespace: UNIDENTIFIED_NAMESPACE,
+    path: args.path,
+    beforeHash: null,
+    afterHash: null,
+    status: args.status,
+    ...(args.reason === undefined ? {} : { reason: args.reason }),
+    detail: args.detail,
+    assessments: [],
+    findings: [],
+    durationMs: Math.max(0, Date.now() - args.startedAt),
+  }
 }
 
 const deadlineBookkeeping = (args: {
@@ -97,7 +102,7 @@ const deadlineBookkeeping = (args: {
   path: string
   startedAt: number
   budgetMs: number
-}): readonly EventDraft[] =>
+}): CodeQualityReviewedBody =>
   bookkeeping({
     ...args,
     status: EQualityReviewStatus.OperationalError,
@@ -105,7 +110,7 @@ const deadlineBookkeeping = (args: {
     detail: `review exceeded ${args.budgetMs}ms`,
   })
 
-async function qualityDraftsFor(args: {
+async function qualityReviewFor(args: {
   quality: QualityReviewPort | undefined
   logPort: LogPort | undefined
   call: ToolCall
@@ -115,12 +120,12 @@ async function qualityDraftsFor(args: {
   projectDirectory: string
   signal: AbortSignal
   budgetMs: number
-}): Promise<readonly EventDraft[]> {
+}): Promise<QualityReviewOutcome> {
   const { quality, call, result } = args
-  if (quality === undefined || !result.ok) return []
+  if (quality === undefined || !result.ok) return NO_REVIEW
   const changes = result.fileChanges ?? []
   const captureFaults = result.fileChangeFaults ?? []
-  if (changes.length === 0 && captureFaults.length === 0) return []
+  if (changes.length === 0 && captureFaults.length === 0) return NO_REVIEW
 
   const startedAt = Date.now()
   const path = changes[0]?.path ?? captureFaults[0]?.path ?? call.name
@@ -142,36 +147,50 @@ async function qualityDraftsFor(args: {
   }).finally(budget.dispose)
 
   if (raced.kind === 'completed') {
-    const valid = reviewDraftsOf({ value: raced.value, callId: call.callId })
-    const drafts = raced.afterDeadline ? valid?.filter(postDeadlineAcceptable) : valid
-    if (raced.afterDeadline && drafts !== undefined && drafts.length > 0) return drafts
-    if (raced.afterDeadline) return deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })
-    if (drafts !== undefined) return drafts
+    const valid = reviewOutcomeOf({ value: raced.value, callId: call.callId })
+    if (raced.afterDeadline) {
+      const late = valid?.reviews.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
+      if (late.length > 0) return { reviews: late, nudge: undefined }
+      return { reviews: [deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })], nudge: undefined }
+    }
+    if (valid !== undefined) return valid
     containedLog({
       logPort: args.logPort,
       message: `the quality review of the ${call.name} call returned drafts that failed validation`,
       threadId: call.threadId,
     })
-    return bookkeeping({
-      call,
-      path,
-      startedAt,
-      status: EQualityReviewStatus.OperationalError,
-      detail: 'review returned malformed records and they were dropped',
-    })
+    return {
+      reviews: [
+        bookkeeping({
+          call,
+          path,
+          startedAt,
+          status: EQualityReviewStatus.OperationalError,
+          detail: 'review returned malformed records and they were dropped',
+        }),
+      ],
+      nudge: undefined,
+    }
   }
 
-  if (raced.kind === 'deadline') return deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })
+  if (raced.kind === 'deadline') {
+    return { reviews: [deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })], nudge: undefined }
+  }
 
   if (raced.kind === 'aborted') {
-    return bookkeeping({
-      call,
-      path,
-      startedAt,
-      status: EQualityReviewStatus.Skipped,
-      reason: EQualitySkipReason.TurnInterrupted,
-      detail: 'the turn was interrupted before the review finished',
-    })
+    return {
+      reviews: [
+        bookkeeping({
+          call,
+          path,
+          startedAt,
+          status: EQualityReviewStatus.Skipped,
+          reason: EQualitySkipReason.TurnInterrupted,
+          detail: 'the turn was interrupted before the review finished',
+        }),
+      ],
+      nudge: undefined,
+    }
   }
 
   containedLog({
@@ -180,13 +199,18 @@ async function qualityDraftsFor(args: {
     threadId: call.threadId,
     error: raced.error,
   })
-  return bookkeeping({
-    call,
-    path,
-    startedAt,
-    status: EQualityReviewStatus.OperationalError,
-    detail: `review failed: ${messageOf(raced.error)}`,
-  })
+  return {
+    reviews: [
+      bookkeeping({
+        call,
+        path,
+        startedAt,
+        status: EQualityReviewStatus.OperationalError,
+        detail: `review failed: ${messageOf(raced.error)}`,
+      }),
+    ],
+    nudge: undefined,
+  }
 }
 
 export class QualityStage {
@@ -221,7 +245,7 @@ export class QualityStage {
     events: readonly Event[]
     projectDirectory: string
     signal: AbortSignal
-  }): Promise<readonly EventDraft[]> {
-    return qualityDraftsFor({ ...this.deps, ...args, budgetMs: this.deps.budgetMs ?? QUALITY_REVIEW_BUDGET_MS })
+  }): Promise<QualityReviewOutcome> {
+    return qualityReviewFor({ ...this.deps, ...args, budgetMs: this.deps.budgetMs ?? QUALITY_REVIEW_BUDGET_MS })
   }
 }

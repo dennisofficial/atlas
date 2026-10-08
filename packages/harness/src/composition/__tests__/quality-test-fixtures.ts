@@ -11,6 +11,7 @@ import {
   QualityReviewPort,
   toCallId,
   toRunId,
+  type CodeQualityReviewedBody,
   type DecisionAnswer,
   type DecisionOutcome,
   type DecisionQuestion,
@@ -198,3 +199,6 @@ export class QualityRig {
 }
 
 export const typesOf = (drafts: readonly EventDraft[]): string[] => drafts.map((draft) => draft.type)
+
+export const reviewsOf = (drafts: readonly EventDraft[]): CodeQualityReviewedBody[] =>
+  drafts.flatMap((draft) => (draft.type === 'tool-result' ? [...(draft.qualityReviews ?? [])] : []))
