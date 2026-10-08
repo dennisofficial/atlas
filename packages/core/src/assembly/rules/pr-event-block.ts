@@ -1,9 +1,9 @@
 import { EPrEventKind, EPrVerdict } from '../../events/body'
-import type { EventOfType } from '../../events/envelope'
+import type { DraftOfType } from '../../events/envelope'
 
 const BODY_CLIP = 400
 
-type PrEvent = EventOfType<'pr-event'>
+type PrEvent = DraftOfType<'pr-event'>
 
 const clip = (text: string, limit: number): string =>
   text.length <= limit ? text : `${text.slice(0, limit - 1)}…`

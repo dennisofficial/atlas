@@ -90,6 +90,7 @@ export {
 export * from './cloud/signal-wire'
 export * from './cloud/remote-delta-channel'
 export * from './cloud/remote-pr-states'
+export * from './cloud/pr-event-frame'
 export * from './cloud/remote-roster'
 export * from './cloud/remote-rewind-machinery'
 export * from './cloud/remote-turn-runner'

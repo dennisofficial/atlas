@@ -162,6 +162,7 @@ const benchApp = (args: {
     }),
     captureContext: async () => undefined,
     pullRequests: null,
+    prEventSink: null,
     mcp: () => [],
     mcpSignIn: undefined,
     threadOpened: async () => {},

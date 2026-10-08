@@ -19,6 +19,7 @@ import { NativePlugin } from '../../plugin'
 import { CachedPullRequestPort } from '../pull-request-cache-port'
 import GithubPlugin, { registerPlugin } from '../index'
 import { PullRequestPort } from '../pure'
+import { PrEventFrameSink } from '../pr-event-sink'
 import { GithubUiBridgePort } from '../ui-bridge'
 
 const CONTEXT: PromptContext = {
@@ -138,6 +139,7 @@ describe('the github plugin as the loader sees it', () => {
     ])
     expect((contribution.ports ?? []).map((binding) => binding.token)).toEqual([
       PullRequestPort,
+      PrEventFrameSink,
       GithubUiBridgePort,
     ])
     expect(contribution.tools ?? []).toEqual([])
