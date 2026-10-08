@@ -73,6 +73,7 @@ export type DescendSurface<Opened> = {
 }
 
 export type { WorkspaceRestorer } from './descend-workspace'
+export { EDescendNode } from './descend-plan'
 
 type DescendArgs<Opened> = {
   threadId: ThreadId

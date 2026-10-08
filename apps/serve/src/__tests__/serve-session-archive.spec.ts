@@ -113,6 +113,16 @@ describe('the served session archive', () => {
     await expect(serveSessionArchive({ threadId: toThreadId('empty') })).resolves.toBeNull()
   })
 
+  it('forwards the builder progress to the reporter it is given', async () => {
+    seedSession()
+    const phases: string[] = []
+
+    await serveSessionArchive({ threadId: thread, onBuildProgress: (progress) => phases.push(progress.phase) })
+
+    expect(phases).toContain('walking')
+    expect(phases).toContain('compressing')
+  })
+
   it('refuses a thread id that cannot name an export', async () => {
     await expect(serveSessionArchive({ threadId: toThreadId('../escape') })).rejects.toThrow('cannot name a session export')
   })

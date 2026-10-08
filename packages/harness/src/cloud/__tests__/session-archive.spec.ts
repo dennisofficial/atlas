@@ -44,6 +44,22 @@ const caught = async (work: Promise<unknown>): Promise<unknown> => {
 }
 
 describe('the session archive', () => {
+  it('reports build progress walking, then staging, then compressing in order', async () => {
+    const source = fresh()
+    writeSession(source)
+    const phases: string[] = []
+    const archive = await buildSessionArchive({
+      sessionDir: source,
+      onBuildProgress: (p) => phases.push(p.phase),
+    })
+    expect(archive).not.toBe(undefined)
+    expect(phases[0]).toBe('walking')
+    expect(phases).toContain('staging')
+    expect(phases[phases.length - 1]).toBe('compressing')
+    expect(phases.indexOf('staging')).toBeGreaterThan(phases.indexOf('walking'))
+    archive?.dispose()
+  })
+
   it('round-trips the session directory through a tar.gz file', async () => {
     const source = fresh()
     writeSession(source)

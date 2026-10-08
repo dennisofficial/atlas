@@ -8,7 +8,8 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type { UserSettingsTarget } from './apply-user-settings'
-import type { PrStateWire, RosterWire, SessionArchiveDescriptor } from '@dltech/atlas-wire'
+import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
+import type { SessionArchiveReader } from './archive-progress'
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
 import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController, RecoveredAgents } from '@dltech/atlas-harness'
@@ -140,7 +141,7 @@ export type ServeApp = {
    */
   recordLostAgents?: ((args: { threadId: ThreadId }) => Promise<RecoveredAgents>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
-  sessionArchive?: (() => Promise<SessionArchiveDescriptor | null>) | undefined
+  sessionArchive?: SessionArchiveReader | undefined
   /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
   memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   /**
