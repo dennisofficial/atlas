@@ -90,22 +90,40 @@ export async function writeArchive({
     renameArgs({ gnu, from: move.stageDirectory, to: move.archiveDirectory }),
   )
   try {
+    // Pipe tar to `gzip -1` rather than `tar -czf`: the archive is a one-shot transfer artifact
+    // (extracted with `tar -xpf`, which is compression-level agnostic), so the fastest level wins
+    // ~40% of the capture CPU for a few percent larger bytes. Not a durable format choice.
     const tar = Bun.spawn(
-      ['tar', '--no-recursion', '--null', ...renames, '-C', stage, '-T', listPath, '-czf', partial],
+      ['tar', '--no-recursion', '--null', ...renames, '-C', stage, '-T', listPath, '-cf', '-'],
       {
-        stdout: 'ignore',
+        stdout: 'pipe',
         stderr: 'pipe',
         stdin: 'ignore',
         env: { ...process.env, COPYFILE_DISABLE: '1' },
       },
     )
+    const gzip = Bun.spawn(['gzip', '-1'], {
+      stdin: tar.stdout,
+      stdout: Bun.file(partial),
+      stderr: 'pipe',
+    })
     reapOnExit(tar)
+    reapOnExit(gzip)
     try {
-      const [stderr, status] = await Promise.all([new Response(tar.stderr).text(), tar.exited])
-      if (status !== 0) throw new Error(`tar failed while writing ${destination}: ${stderr.trim()}`)
+      const [tarStderr, tarStatus, gzipStderr, gzipStatus] = await Promise.all([
+        new Response(tar.stderr).text(),
+        tar.exited,
+        new Response(gzip.stderr).text(),
+        gzip.exited,
+      ])
+      if (tarStatus !== 0)
+        throw new Error(`tar failed while writing ${destination}: ${tarStderr.trim()}`)
+      if (gzipStatus !== 0)
+        throw new Error(`gzip failed while writing ${destination}: ${gzipStderr.trim()}`)
       await rename(partial, destination)
     } finally {
       releaseTar(tar)
+      releaseTar(gzip)
     }
   } finally {
     await rm(partial, { force: true })
