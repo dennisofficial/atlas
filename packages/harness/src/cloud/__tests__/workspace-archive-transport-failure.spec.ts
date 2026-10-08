@@ -38,22 +38,22 @@ describe('a failure during a concurrent wave', () => {
       },
     )
 
-    await gate.whenStarted(4)
+    await gate.whenStarted(8)
     gate.started[1]?.fail(new Error('the second write failed'))
     gate.started[2]?.release()
     await quiesce()
 
     expect(settled).toBe(false)
     expect(gate.commands.some((command) => command.includes('rm -rf'))).toBe(false)
-    expect(gate.started).toHaveLength(4)
+    expect(gate.started).toHaveLength(8)
 
     gate.started[0]?.release()
-    gate.started[3]?.release()
+    for (const write of gate.started.slice(3)) write.release()
     const error = await outcome
 
     expect(error).toBeInstanceOf(Error)
     expect((error as Error).message).toBe('the second write failed')
-    expect(gate.started).toHaveLength(4)
+    expect(gate.started).toHaveLength(8)
     expect(gate.commands.at(-1)).toContain('rm -rf')
     expect(await readFile(destination, 'utf8')).toBe('previous archive')
     expect(await readdir(drive)).toEqual(['workspace.tar.gz'])
