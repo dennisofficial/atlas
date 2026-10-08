@@ -23,6 +23,10 @@ permissions:
 # older pending runs, so merges landing close together silently skipped publishing their
 # sha-<commit> tags — and every merge can be a release whose retag polls for exactly that tag.
 # Runs must stack up and each publish its own sha tag; latest is last-writer-wins and self-heals.
+#
+# VCR gets no per-merge push: released TUIs pin atlas-sandbox:<own-version> and the retag job
+# below rebuilds that tag from the release commit, so sha/latest tags on VCR would only
+# accumulate billable storage nothing reads.
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-sandbox
@@ -71,71 +75,6 @@ jobs:
           # cache evicts its own Docker blobs, forcing cold builds.
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
-
-  publish-vcr:
-    # Inert until a VERCEL_VCR_ENABLED=true repo variable exists. Auth is the VERCEL_TOKEN repo
-    # secret (a token scoped to the atlas project); the VCR docker username is the team id.
-    # VCR only prepares linux/amd64 for Sandbox, so the arm64 variant stays GHCR-only.
-    if: github.event_name != 'release' && vars.VERCEL_VCR_ENABLED == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: docker/setup-buildx-action@v4
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/login-action@v4
-        with:
-          registry: vcr.vercel.com
-          username: team_GR4aCzLIY5D3YYWgITz3Tere
-          password: ${{ secrets.VERCEL_TOKEN }}
-
-      - name: compute tag
-        id: meta
-        run: echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
-
-      - uses: oven-sh/setup-bun@v2.2.0
-
-      - run: bun install
-
-      # Unlike the GHCR placeholders above: cloud sandboxes boot serve straight from the
-      # image, so the VCR variant bakes the real binary and a version file the driver's drift
-      # probe matches against the release a TUI pins.
-      - name: build serve into the image context
-        working-directory: apps/serve
-        run: bun run build:serve -- --target bun-linux-x64 --outfile sandbox-image/atlas-serve
-
-      # Empty here and filled by the retag job's rebuild when a release labels the image: a
-      # released TUI pins its own version, so only a labeled bake satisfies its drift probe,
-      # while an unpinned (dev) build skips the probe and trusts whatever the image carries.
-      - name: write the serve version and protocol files
-        run: |
-          touch apps/serve/sandbox-image/atlas-serve.version
-          sed -nE 's/^export const CHANNEL_PROTOCOL_VERSION = ([0-9]+).*/\1/p' packages/wire/src/channel-wire.ts | tr -d '\n' > apps/serve/sandbox-image/atlas-serve.protocol
-          test -s apps/serve/sandbox-image/atlas-serve.protocol
-          # fresh stamp per bake: the verify step heals a poisoned optimization by republishing, and
-          # only a changed stamp guarantees the republish lands under a new manifest digest
-          printf '%s-%s' "$(date -u +%s)" "${{ github.run_attempt }}" \
-            > apps/serve/sandbox-image/atlas-serve.bake-id
-
-      - uses: docker/build-push-action@v7
-        with:
-          context: apps/serve/sandbox-image
-          platforms: linux/amd64
-          provenance: false
-          tags: |
-            ${{ env.VCR_IMAGE }}:${{ steps.meta.outputs.sha_tag }}
-            ${{ env.VCR_IMAGE }}:latest
-          outputs: type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
-          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
 
   retag:
     # release-on-main (the release job in .github/workflows/ci.yml) tags tui releases as tui-vX.Y.Z
