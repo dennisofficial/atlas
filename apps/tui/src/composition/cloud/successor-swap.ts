@@ -55,13 +55,15 @@ export async function swapToCloudSuccessor(args: {
 
   // The successor has no sandbox of its own — it shares the predecessor's. A successor-hashed
   // name resolves to a sandbox that was never created, so the fresh channel attaches straight to
-  // the predecessor's live coordinates and names the successor only in its Hello, which the serve
-  // admits through the session's main-generation rule.
+  // the predecessor's live coordinates and resolves its wakes/reattachments to the predecessor's
+  // sandbox (sandboxThreadId), naming the successor only in its Hello — which the serve admits
+  // through the session's main-generation rule.
   const live = priorChannel.attachment()
-  const parked =
-    live === undefined
-      ? bridge.attach({ threadId: successor })
-      : bridge.attach({ threadId: successor, url: live.url, token: live.token })
+  const parked = bridge.attach({
+    threadId: successor,
+    sandboxThreadId: predecessor,
+    ...(live === undefined ? {} : { url: live.url, token: live.token }),
+  })
   trace(`successor attachment minted (${live === undefined ? 'parked' : 'live coordinates'})`)
 
   try {

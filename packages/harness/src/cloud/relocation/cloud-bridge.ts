@@ -139,6 +139,16 @@ export type CloudAttachment = {
  */
 export type CloudBridge = {
   sandboxes: CloudSandboxes
-  /** No `url`/`token` means deferred: a parked channel until `wake` applies an attachment. */
-  attach(args: { threadId: ThreadId; url?: string | undefined; token?: string | undefined }): CloudAttachment
+  /**
+   * No `url`/`token` means deferred: a parked channel until `wake` applies an attachment.
+   * `sandboxThreadId` overrides the thread whose sandbox hosts the session — a rotation successor
+   * shares the predecessor's sandbox, so its wakes and reattachments must resolve that thread's
+   * sandbox rather than a successor-named one that was never created.
+   */
+  attach(args: {
+    threadId: ThreadId
+    url?: string | undefined
+    token?: string | undefined
+    sandboxThreadId?: ThreadId | undefined
+  }): CloudAttachment
 }
