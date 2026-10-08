@@ -52,7 +52,7 @@ export function useFooterStrip(args: {
   /**
    * Entry is a binding that may decline, so an empty row, a blurred composer or a caret with a row
    * still below it all fall through to the textarea's own `move-down`. `editor.focused` subsumes
-   * every overlay: `focused={!overlaid}` already blurs the composer whenever anything covers it.
+   * every overlay: `focused={!overlaid}` blurs the composer whenever anything covers or blocks it.
    */
   const handleEnter = useCallback((): boolean => {
     const editor = draft.editor.current

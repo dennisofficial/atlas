@@ -18,6 +18,13 @@ export type OverlayPresence = {
    * narrows the transcript rather than painting across it leaves pictures alone.
    */
   coversTranscript: boolean
+  /**
+   * A blocking overlay with no input of its own (rotation, compaction) takes the composer's caret
+   * even though it does not paint over it: the screen belongs to the overlay, so nothing may blink
+   * or echo beneath it. Keystrokes still queue into the draft through the workspace input layer.
+   * An overlay with a real input (operator input) must never set this — its own field holds focus.
+   */
+  blursComposer?: boolean | undefined
 }
 
 /** The usual drawer: owns the keyboard, and paints over both the composer and the transcript. */
@@ -48,3 +55,13 @@ export const composerCovered = (overlays: readonly OverlayPresence[]): boolean =
 
 export const transcriptCovered = (overlays: readonly OverlayPresence[]): boolean =>
   overlays.some((overlay) => overlay.open && overlay.coversTranscript)
+
+/**
+ * The composer is blurred when anything is painted over it or anything blurring is up — painting
+ * alone is not the rule, since a bottom-drawer overlay leaves the composer visible but still owns
+ * the screen.
+ */
+export const composerBlurred = (overlays: readonly OverlayPresence[]): boolean =>
+  overlays.some(
+    (overlay) => overlay.open && (overlay.coversComposer || overlay.blursComposer === true),
+  )
