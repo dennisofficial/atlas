@@ -19,12 +19,12 @@ import {
 afterEach(removeScratchRoots)
 
 describe('concurrent chunk uploads', () => {
-  it('defaults to four concurrent writes', () => {
-    expect(WORKSPACE_UPLOAD_CONCURRENCY).toBe(4)
+  it('defaults to eight concurrent writes', () => {
+    expect(WORKSPACE_UPLOAD_CONCURRENCY).toBe(8)
   })
 
-  it('keeps up to four writes pending on independent buffers and starts no fifth until all settle', async () => {
-    const { source, bytes, destination } = await prepare(CHUNK * 10)
+  it('keeps up to eight writes pending on independent buffers and starts no ninth until all settle', async () => {
+    const { source, bytes, destination } = await prepare(CHUNK * 18)
     const gate = gatedSandbox()
     const upload = uploadWorkspaceArchive({
       sandbox: gate.sandbox,
@@ -34,9 +34,9 @@ describe('concurrent chunk uploads', () => {
       batchParts: 8,
     })
 
-    await gate.whenStarted(4)
+    await gate.whenStarted(8)
     await quiesce()
-    expect(gate.started).toHaveLength(4)
+    expect(gate.started).toHaveLength(8)
     gate.started.forEach((write, index) => {
       expect(Buffer.compare(Buffer.from(write.content), bytes.subarray(index * CHUNK, (index + 1) * CHUNK))).toBe(0)
     })
@@ -45,16 +45,16 @@ describe('concurrent chunk uploads', () => {
     gate.started[0]?.release()
     gate.started[2]?.release()
     await quiesce()
-    expect(gate.started).toHaveLength(4)
-    gate.started[1]?.release()
+    expect(gate.started).toHaveLength(8)
+    for (const write of gate.started.slice(1)) write.release()
 
-    await gate.whenStarted(8)
-    gate.started.slice(4, 8).forEach((write, index) => {
-      expect(Buffer.compare(Buffer.from(write.content), bytes.subarray((index + 4) * CHUNK, (index + 5) * CHUNK))).toBe(0)
+    await gate.whenStarted(16)
+    gate.started.slice(8, 16).forEach((write, index) => {
+      expect(Buffer.compare(Buffer.from(write.content), bytes.subarray((index + 8) * CHUNK, (index + 9) * CHUNK))).toBe(0)
     })
-    await releaseAll({ gate, total: 10 })
+    await releaseAll({ gate, total: 18 })
     await upload
-    expect(gate.peak()).toBe(4)
+    expect(gate.peak()).toBe(8)
   })
 
   it('assembles the exact bytes when writes complete in reverse order', async () => {

@@ -8,9 +8,9 @@ import { DRIVE_HOME_PATH } from './drive-names'
 import { downloadArchiveFile } from './archive-download'
 import type { TransferProgress } from './transfer-progress'
 
-export const WORKSPACE_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
+export const WORKSPACE_UPLOAD_CHUNK_BYTES = 16 * 1024 * 1024
 export const WORKSPACE_UPLOAD_BATCH_PARTS = 8
-export const WORKSPACE_UPLOAD_CONCURRENCY = 4
+export const WORKSPACE_UPLOAD_CONCURRENCY = 8
 export const WORKSPACE_EXPORT_DIRECTORY = `${DRIVE_HOME_PATH}/${WORKSPACE_EXPORT_DIRECTORY_NAME}`
 
 const COMMAND_TIMEOUT_MS = 120_000
