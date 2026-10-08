@@ -7,7 +7,6 @@ import {
   toRunId,
   type CodeQualityReviewedBody,
   type DecisionOutcome,
-  type EventDraft,
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
@@ -30,9 +29,6 @@ const BUDGET_MS = 60
 const fileChange = { path: '/repo/src/a.ts', before: 'old', after: 'new' }
 const result: ToolOutcome = { ok: true, output: {}, modelText: 'ok', fileChanges: [fileChange] }
 
-const recordsOf = (drafts: readonly EventDraft[]): CodeQualityReviewedBody[] =>
-  drafts.filter((draft): draft is CodeQualityReviewedBody => draft.type === 'code-quality-reviewed')
-
 function stageFor(args: { quality: ConstructorParameters<typeof QualityStage>[0]['quality']; budgetMs?: number }) {
   return new QualityStage({ quality: args.quality, logPort: undefined, budgetMs: args.budgetMs ?? BUDGET_MS })
 }
@@ -46,6 +42,12 @@ const reviewVia = (stage: QualityStage, extra: { events?: Parameters<QualityStag
     projectDirectory: '/repo',
     signal: extra.signal ?? new AbortController().signal,
   })
+
+const reviewOf = (outcome: { reviews: readonly CodeQualityReviewedBody[] }): CodeQualityReviewedBody => {
+  const record = outcome.reviews[0]
+  if (record === undefined) throw new Error('no review record')
+  return record
+}
 
 describe('the engine under the dispatcher-owned deadline', () => {
   it('hands the port one absolute deadline and a signal that fires with a typed reason', async () => {
@@ -75,19 +77,19 @@ describe('the engine under the dispatcher-owned deadline', () => {
     })
     const budgetMs = 80
     const started = Date.now()
-    const drafts = await reviewVia(stageFor({ quality: rig.engine, budgetMs }), { events: history })
+    const outcome = await reviewVia(stageFor({ quality: rig.engine, budgetMs }), { events: history })
 
     expect(Date.now() - started).toBeLessThan(budgetMs + QUALITY_SETTLEMENT_GRACE_MS + 150)
-    expect(drafts.map((draft) => draft.type)).toEqual(['code-quality-reviewed'])
-    const [record] = recordsOf(drafts)
+    expect(outcome.nudge).toBeUndefined()
+    const record = reviewOf(outcome)
     expect(record).toMatchObject({
       status: EQualityReviewStatus.OperationalError,
       reason: EQualitySkipReason.ReviewDeadline,
       path: 'src/a.ts',
       evidencePath: 'threads/t/quality/examples/scope-1.json',
     })
-    expect(record?.scope?.id).toBe('scope-1')
-    expect(record?.findings[0]).toMatchObject({ state: EQualityFindingState.Active })
+    expect(record.scope?.id).toBe('scope-1')
+    expect(record.findings[0]).toMatchObject({ state: EQualityFindingState.Active })
   })
 
   it('discards a clean or nudging decision that lands after the deadline', async () => {
@@ -97,11 +99,11 @@ describe('the engine under the dispatcher-owned deadline', () => {
         return calibrated({ answers: answersFor({ verdicts: { srp: INTRODUCE } }) })
       },
     })
-    const drafts = await reviewVia(stageFor({ quality: rig.engine }))
+    const outcome = await reviewVia(stageFor({ quality: rig.engine }))
     await new Promise((resolve) => setTimeout(resolve, 120))
-    expect(drafts.map((draft) => draft.type)).toEqual(['code-quality-reviewed'])
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
-    expect(recordsOf(drafts)[0]?.assessments).toEqual([])
+    expect(outcome.nudge).toBeUndefined()
+    expect(reviewOf(outcome)).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
+    expect(reviewOf(outcome).assessments).toEqual([])
   })
 
   it('drops a port that completes cleanly after the deadline and returns the generic fallback', async () => {
@@ -116,27 +118,26 @@ describe('the engine under the dispatcher-owned deadline', () => {
           ),
         ),
     })
-    const drafts = await reviewVia(stageFor({ quality }))
-    expect(drafts.map((draft) => draft.type)).toEqual(['code-quality-reviewed'])
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
+    const outcome = await reviewVia(stageFor({ quality }))
+    expect(outcome.nudge).toBeUndefined()
+    expect(reviewOf(outcome)).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
   })
 
   it('bounds a signal-ignoring port to the budget plus the settlement grace', async () => {
     const started = Date.now()
-    const drafts = await reviewVia(stageFor({ quality: new FakeQuality({ review: never }) }))
+    const outcome = await reviewVia(stageFor({ quality: new FakeQuality({ review: never }) }))
     const elapsed = Date.now() - started
     expect(elapsed).toBeGreaterThanOrEqual(BUDGET_MS - 5)
     expect(elapsed).toBeLessThan(BUDGET_MS + QUALITY_SETTLEMENT_GRACE_MS + 150)
-    expect(recordsOf(drafts)[0]).toMatchObject({ reason: EQualitySkipReason.ReviewDeadline })
+    expect(reviewOf(outcome)).toMatchObject({ reason: EQualitySkipReason.ReviewDeadline })
   })
 
   it('keeps an operator abort a skipped TurnInterrupted record', async () => {
     const rig = createRig({ decide: (): Promise<DecisionOutcome> => never() })
     const operator = new AbortController()
     setTimeout(() => operator.abort(), 10)
-    const drafts = await reviewVia(stageFor({ quality: rig.engine, budgetMs: 500 }), { signal: operator.signal })
-    expect(drafts.map((draft) => draft.type)).toEqual(['code-quality-reviewed'])
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.TurnInterrupted })
+    const outcome = await reviewVia(stageFor({ quality: rig.engine, budgetMs: 500 }), { signal: operator.signal })
+    expect(reviewOf(outcome)).toMatchObject({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.TurnInterrupted })
   })
 
   it('maps the identity adapter typed timeout to ReviewDeadline rather than WorkspaceUnidentified', async () => {
@@ -145,8 +146,8 @@ describe('the engine under the dispatcher-owned deadline', () => {
         throw new WorkspaceIdentityDeadlineError(750)
       },
     })
-    const drafts = await reviewVia(stageFor({ quality: rig.engine, budgetMs: 500 }))
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
+    const outcome = await reviewVia(stageFor({ quality: rig.engine, budgetMs: 500 }))
+    expect(reviewOf(outcome)).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
   })
 
   it('still reports a plain identity failure as WorkspaceUnidentified', async () => {
@@ -155,7 +156,7 @@ describe('the engine under the dispatcher-owned deadline', () => {
         throw new Error('not a repo')
       },
     })
-    const drafts = await reviewVia(stageFor({ quality: rig.engine, budgetMs: 500 }))
-    expect(recordsOf(drafts)[0]).toMatchObject({ reason: EQualitySkipReason.WorkspaceUnidentified })
+    const outcome = await reviewVia(stageFor({ quality: rig.engine, budgetMs: 500 }))
+    expect(reviewOf(outcome)).toMatchObject({ reason: EQualitySkipReason.WorkspaceUnidentified })
   })
 })

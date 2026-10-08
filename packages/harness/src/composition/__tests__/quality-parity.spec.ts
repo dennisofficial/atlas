@@ -8,7 +8,7 @@ import { ChildRunnerDepsToken } from '../../container/create-harness-container'
 import { portToken } from '../../container/injection'
 import { AiSdkModelPort } from '../../model/ai-sdk-model-port'
 import { scriptedModel } from '../../model/testing/scripted-model'
-import { QualityRig, WIDGET_SOURCE, typesOf } from './quality-test-fixtures'
+import { QualityRig, WIDGET_SOURCE, reviewsOf, typesOf } from './quality-test-fixtures'
 
 const rigs: QualityRig[] = []
 
@@ -78,7 +78,8 @@ describe.each([
     const threadId = await rig.newThread()
     rig.enableReview()
     const drafts = await rig.dispatchWrite({ threadId, relative: 'root.ts', content: WIDGET_SOURCE })
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed', 'nudge'])
+    expect(typesOf(drafts)).toEqual(['tool-result', 'nudge'])
+    expect(reviewsOf(drafts)).toHaveLength(1)
   })
 
   it.each([{ kind: 'sub-agent', name: 'child' }, { kind: 'teammate', name: TEAMMATE_AGENT_TYPE }])(
@@ -92,8 +93,10 @@ describe.each([
       expect(deps.quality).toBe(rig.container.resolve(portToken(QualityReviewPort)))
       expect(await rig.onDisk('child.ts')).toBe(WIDGET_SOURCE)
       expect(rig.decisions.calls[0]?.questionKeys).toContain('single-responsibility:currentConcern')
-      const record = events.find((event) => event.type === 'code-quality-reviewed')
-      if (record?.type !== 'code-quality-reviewed') throw new Error('child write produced no review record')
+      const record = events
+        .filter((event) => event.type === 'tool-result')
+        .flatMap((event) => event.qualityReviews ?? [])[0]
+      if (record === undefined) throw new Error('child write produced no review record')
       expect(record.status).toBe(EQualityReviewStatus.Completed)
       expect(events.some((event) => event.type === 'nudge')).toBe(true)
     },
@@ -106,6 +109,12 @@ describe.each([
 
     expect(await rig.onDisk('child.ts')).toBe(WIDGET_SOURCE)
     expect(rig.decisions.calls).toHaveLength(0)
-    expect(events.some((event) => event.type === 'code-quality-reviewed' || event.type === 'nudge')).toBe(false)
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'nudge' ||
+          (event.type === 'tool-result' && (event.qualityReviews ?? []).length > 0),
+      ),
+    ).toBe(false)
   })
 })

@@ -8,6 +8,7 @@ import {
   EQualitySkipReason,
   EStage,
   EToolEffect,
+  type CodeQualityReviewedBody,
   type ToolInvocation,
 } from '@dltech/atlas-core'
 
@@ -27,26 +28,33 @@ import {
 
 const typesOf = (drafts: readonly { type: string }[]): string[] => drafts.map((draft) => draft.type)
 
+const reviewsOf = (drafts: readonly { type: string }[]): readonly CodeQualityReviewedBody[] => {
+  const result = drafts.find((draft) => draft.type === 'tool-result')
+  if (result === undefined || !('qualityReviews' in result)) return []
+  return (result as { qualityReviews: readonly CodeQualityReviewedBody[] }).qualityReviews
+}
+
 describe('dispatching a successful write with quality review wired', () => {
-  it('publishes the result first, then the review record, then the nudge', async () => {
+  it('attaches the review record to the tool result, then the nudge', async () => {
     const quality = new FakeQuality()
 
     const drafts = await dispatchWrite(qualityDispatcher({ quality }))
 
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed', 'nudge'])
-    expect(drafts[2]).toEqual(reviewNudge)
+    expect(typesOf(drafts)).toEqual(['tool-result', 'nudge'])
+    expect(reviewsOf(drafts)).toEqual([reviewRecord])
+    expect(drafts[1]).toEqual(reviewNudge)
   })
 
   it('keeps the tool output and model text exactly as the tool produced them', async () => {
     const withQuality = await dispatchWrite(qualityDispatcher({ quality: new FakeQuality() }))
     const without = await dispatchWrite(qualityDispatcher({}))
 
-    expect(withQuality[0]).toEqual(without[0])
     expect(withQuality[0]).toMatchObject({
       output: { bytes: 3 },
       modelText: 'wrote a.ts',
     })
-    expect(JSON.stringify(withQuality[0])).not.toContain('fileChanges')
+    expect(JSON.stringify(without[0])).not.toContain('fileChanges')
+    expect(JSON.stringify(without[0])).not.toContain('qualityReviews')
   })
 
   it('reviews the actual captured changes with the call, run, events and directory', async () => {
@@ -103,6 +111,7 @@ describe('dispatching a successful write with quality review wired', () => {
     const drafts = await dispatchWrite(dispatcher)
 
     expect(typesOf(drafts)).toEqual(['tool-result'])
+    expect(reviewsOf(drafts)).toEqual([])
     expect(quality.reviews).toHaveLength(0)
   })
 })
@@ -153,6 +162,7 @@ describe('dispatching without quality review, or when it is switched off', () =>
     const drafts = await dispatchWrite(dispatcher)
 
     expect(typesOf(drafts)).toEqual(['tool-result'])
+    expect(reviewsOf(drafts)).toEqual([])
     expect(quality.reviews).toHaveLength(0)
   })
 
@@ -241,7 +251,7 @@ describe('a faulty review port', () => {
     expect(seen).toEqual([undefined])
   })
 
-  it('is replaced by an operational-error record when the reviewer throws', async () => {
+  it('attaches an operational-error record when the reviewer throws', async () => {
     const quality = new FakeQuality({
       review: async () => {
         throw new Error('reviewer exploded')
@@ -250,24 +260,24 @@ describe('a faulty review port', () => {
 
     const drafts = await dispatchWrite(qualityDispatcher({ quality }))
 
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed'])
+    expect(typesOf(drafts)).toEqual(['tool-result'])
     expect(drafts[0]).not.toHaveProperty('error')
-    expect(drafts[1]).toMatchObject({
+    expect(reviewsOf(drafts)[0]).toMatchObject({
       status: EQualityReviewStatus.OperationalError,
       path: '/workspace/a.ts',
       detail: 'review failed: reviewer exploded',
     })
   })
 
-  it('is replaced by an operational-error record when drafts are malformed', async () => {
+  it('attaches an operational-error record when drafts are malformed', async () => {
     const quality = new FakeQuality({
       review: async () => [reviewRecord, { ...reviewRecord, durationMs: -1 }, reviewNudge],
     })
 
     const drafts = await dispatchWrite(qualityDispatcher({ quality }))
 
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed'])
-    expect(drafts[1]).toMatchObject({
+    expect(typesOf(drafts)).toEqual(['tool-result'])
+    expect(reviewsOf(drafts)[0]).toMatchObject({
       status: EQualityReviewStatus.OperationalError,
     })
   })
@@ -279,8 +289,8 @@ describe('a faulty review port', () => {
 
     const drafts = await dispatchWrite(qualityDispatcher({ quality }))
 
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed'])
-    expect(drafts[1]).toMatchObject({
+    expect(typesOf(drafts)).toEqual(['tool-result'])
+    expect(reviewsOf(drafts)[0]).toMatchObject({
       status: EQualityReviewStatus.OperationalError,
     })
   })
@@ -290,6 +300,7 @@ describe('a faulty review port', () => {
 
     const drafts = await dispatchWrite(qualityDispatcher({ quality }))
 
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed'])
+    expect(typesOf(drafts)).toEqual(['tool-result'])
+    expect(reviewsOf(drafts)).toHaveLength(1)
   })
 })

@@ -13,6 +13,7 @@ import { tailOfPath } from '../../paths'
 import { markPaint, type EMark } from '../../tool-marks'
 import { MINUS_SIGN } from '../diff/diff-style'
 import { MergedDiff } from '../diff/merged-diff'
+import { QualityIndicator, qualityNoticeOf } from './quality-indicator'
 import { Attachments } from './tool-run-attachments'
 import { GAP } from './tool-run-rows'
 
@@ -41,6 +42,10 @@ export const MergedBlock = React.memo(function MergedBlock(props: {
     if (first !== undefined) props.onToggle(first.call.callId)
   })
   const note = useMemo(() => summedNote(props.reads), [props.reads])
+  const notice = useMemo(
+    () => qualityNoticeOf(props.reads.flatMap((read) => read.call.qualityReviews ?? [])),
+    [props.reads],
+  )
   if (first === undefined) return null
 
   const paint = markPaint({
@@ -61,6 +66,7 @@ export const MergedBlock = React.memo(function MergedBlock(props: {
         </span>
         <span fg={paint.text} {...region.wash}>{`${label}${pad}`}</span>
         <span fg={paint.note} {...region.wash}>{`${' '.repeat(GAP)}${note}`}</span>
+        {notice === null ? null : <QualityIndicator notice={notice} />}
       </text>
       <Attachments
         calls={props.reads.map((read) => read.call)}

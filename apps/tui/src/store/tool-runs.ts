@@ -1,4 +1,4 @@
-import { EContextSlot, type CallId, type Event, type EventOfType } from '@dltech/atlas-core'
+import { EContextSlot, type CallId, type CodeQualityReviewedBody, type Event, type EventOfType } from '@dltech/atlas-core'
 
 import { transcriptNotice } from './notice-barriers'
 
@@ -40,6 +40,7 @@ export type ToolCall = {
    */
   liveOutput?: string | undefined
   attachments: readonly ContextAttachment[]
+  qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
 }
 
 export type ContextAttachment = {
@@ -87,6 +88,7 @@ type Settle = {
   modelText: string
   note: string | null
   image: ToolCall['image']
+  qualityReviews: readonly CodeQualityReviewedBody[]
 }
 
 function awaitingApprovalIn(events: readonly Event[]): ReadonlyMap<CallId, string> {
@@ -112,6 +114,7 @@ function settlesOf(events: readonly Event[]): Map<CallId, Settle> {
         modelText: event.modelText ?? '',
         note: event.error?.message ?? null,
         image: firstImageIn(event.modelParts),
+        qualityReviews: event.qualityReviews ?? [],
       })
     }
 
@@ -123,6 +126,7 @@ function settlesOf(events: readonly Event[]): Map<CallId, Settle> {
         modelText: '',
         note: event.reason,
         image: undefined,
+        qualityReviews: [],
       })
     }
   }
@@ -174,6 +178,7 @@ function callOf(args: {
     at: seed.at,
     settledAt: settle?.at ?? null,
     attachments: args.attachments,
+    qualityReviews: settle?.qualityReviews ?? [],
   }
 }
 

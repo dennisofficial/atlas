@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EQualityReviewStatus, EQualitySkipReason } from '@dltech/atlas-core'
+import { EQualityReviewStatus, EQualitySkipReason, type CodeQualityReviewedBody } from '@dltech/atlas-core'
 
 import { QUALITY_REVIEW_BUDGET_MS } from '../quality-dispatch'
 import { FakeQuality, dispatchWrite, qualityDispatcher, type ReviewArgs } from './quality-fixtures'
 
 const never = (): Promise<never> => new Promise(() => undefined)
+
+const reviewsOf = (drafts: readonly { type: string }[]): readonly CodeQualityReviewedBody[] => {
+  const result = drafts.find((draft) => draft.type === 'tool-result')
+  if (result === undefined || !('qualityReviews' in result)) return []
+  return (result as { qualityReviews: readonly CodeQualityReviewedBody[] }).qualityReviews
+}
 
 describe('a review port that does not answer', () => {
   it('is cut off at the review budget even though it ignores its signal', async () => {
@@ -15,9 +21,9 @@ describe('a review port that does not answer', () => {
     const drafts = await dispatchWrite(qualityDispatcher({ quality }))
 
     expect(Date.now() - started).toBeLessThan(QUALITY_REVIEW_BUDGET_MS + 500)
-    expect(drafts.map((draft) => draft.type)).toEqual(['tool-result', 'code-quality-reviewed'])
+    expect(drafts.map((draft) => draft.type)).toEqual(['tool-result'])
     expect(drafts[0]).not.toHaveProperty('error')
-    expect(drafts[1]).toMatchObject({
+    expect(reviewsOf(drafts)[0]).toMatchObject({
       status: EQualityReviewStatus.OperationalError,
       reason: EQualitySkipReason.ReviewDeadline,
     })
@@ -48,9 +54,9 @@ describe('a review port that does not answer', () => {
 
     const drafts = await dispatchWrite(qualityDispatcher({ quality }), controller.signal)
 
-    expect(drafts.map((draft) => draft.type)).toEqual(['tool-result', 'code-quality-reviewed'])
+    expect(drafts.map((draft) => draft.type)).toEqual(['tool-result'])
     expect(drafts[0]).not.toHaveProperty('interrupted')
-    expect(drafts[1]).toMatchObject({
+    expect(reviewsOf(drafts)[0]).toMatchObject({
       status: EQualityReviewStatus.Skipped,
       reason: EQualitySkipReason.TurnInterrupted,
     })

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EQualitySkipReason, ESettingId } from '@dltech/atlas-core'
 
-import { QualityRig, WIDGET_SOURCE, typesOf } from './quality-test-fixtures'
+import { QualityRig, WIDGET_SOURCE, reviewsOf, typesOf } from './quality-test-fixtures'
 
 let rig: QualityRig
 
@@ -34,9 +34,9 @@ describe('quality example recording through the shared root', () => {
     expect(files).toHaveLength(1)
     expect(files[0]).toContain(`threads/${threadId}/quality/examples/`)
     expect(rig.decisions.calls).toHaveLength(0)
-    expect(typesOf(drafts)).toEqual(['tool-result', 'code-quality-reviewed'])
-    const record = drafts[1]
-    if (record?.type !== 'code-quality-reviewed') throw new Error('no review record')
+    expect(typesOf(drafts)).toEqual(['tool-result'])
+    const record = reviewsOf(drafts)[0]
+    if (record === undefined) throw new Error('no review record')
     expect(record.reason).toBe(EQualitySkipReason.Disabled)
     expect(record.evidencePath).toContain(`threads/${threadId}/quality/examples/`)
     expect(await rig.onDisk('a.ts')).toBe(WIDGET_SOURCE)

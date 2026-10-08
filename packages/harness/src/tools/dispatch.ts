@@ -136,11 +136,13 @@ export class HookedToolDispatcher extends ToolDispatcher {
       captureFileChanges: this.quality.captureEnabled({ threadId: call.threadId }),
     })
 
+    const qualityOutcome = await this.quality.review({ call: allowed, runId: call.runId, result, events, projectDirectory, signal })
+
     return [
       ...drafts,
-      resultDraft({ call: allowed, result, interrupted: signal.aborted }),
+      resultDraft({ call: allowed, result, interrupted: signal.aborted, qualityReviews: qualityOutcome.reviews }),
       ...(await this.observeAfterTool({ call: allowed, result, projectDirectory, signal })),
-      ...(await this.quality.review({ call: allowed, runId: call.runId, result, events, projectDirectory, signal })),
+      ...(qualityOutcome.nudge === undefined ? [] : [qualityOutcome.nudge]),
     ]
   }
 
