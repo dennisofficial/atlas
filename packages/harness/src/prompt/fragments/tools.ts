@@ -37,8 +37,8 @@ export class OperatorInputFragment extends PromptFragment {
   text(): string {
     return [
       'When a process needs a value only the operator can supply — a device code, an OTP, a login token, any long paste —',
-      'ask for it with operator_input. The value travels straight from the operator to the destination you choose,',
-      'never through the conversation, and you never retype it.',
+      'ask for it with operator_input. Ask once, then reuse the delivered value: keep the file it landed in and read or pipe',
+      'from it as often as the work needs instead of asking again.',
     ].join(' ')
   }
 }
