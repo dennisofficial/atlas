@@ -129,7 +129,11 @@ export async function mirrorRotationCommit(args: {
   const extracted = join(staging, 'session')
 
   try {
-    await download({ threadId: successor, archive: descriptor, destination: archivePath })
+    // The sandbox's name is a digest of the thread that owns it — the predecessor the lift
+    // created it for, not the successor the rotation just minted. The session archive roots at
+    // the same session id (the predecessor), so both the sandbox lookup and the descriptor's
+    // own root check address the predecessor; the successor's transcript rides inside it.
+    await download({ threadId: predecessor, archive: descriptor, destination: archivePath })
     await extractSessionArchive({ archivePath, sessionDir: extracted })
 
     const successorEvents = await readThreadEvents({ sessionDir: extracted, threadId: successor })

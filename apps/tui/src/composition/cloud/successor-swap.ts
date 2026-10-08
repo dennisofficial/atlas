@@ -3,11 +3,16 @@ import type { CloudBridge, CloudReload } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
+import { durableOpLog } from '../durable-op-log'
 import { messageOf } from '../error-text'
 import { cloudAttachmentOf } from '../session-binding'
 import { settleOnChannel } from '../session-recovery'
 import { openCloudThread } from './cloud-open'
 import { mirrorRotationCommit } from './rotation-mirror'
+
+const trace = (message: string): void => {
+  durableOpLog()?.info({ source: 'cloud.rotate-swap', message })
+}
 
 /**
  * A cloud rotation commits in the sandbox: the successor's log and the session authority's
@@ -30,12 +35,14 @@ export async function swapToCloudSuccessor(args: {
   onReload: (reload: CloudReload) => Promise<void>
 }): Promise<void> {
   const { localApp, bridge, successor, predecessor } = args
+  trace(`swap begin predecessor=${predecessor} successor=${successor}`)
 
   const prior = localApp.sessionOwner.snapshot()
   const priorChannel = cloudAttachmentOf(prior.binding)?.session.channel
   if (priorChannel === undefined) {
     throw new Error('the session is not attached to a cloud sandbox — the rotation commit has no channel to read')
   }
+  trace('prior channel found')
 
   const mirrored = await mirrorRotationCommit({
     channel: priorChannel,
@@ -44,8 +51,18 @@ export async function swapToCloudSuccessor(args: {
     predecessor,
     localLog: localApp.log,
   })
+  trace('mirror landed')
 
-  const parked = bridge.attach({ threadId: successor })
+  // The successor has no sandbox of its own — it shares the predecessor's. A successor-hashed
+  // name resolves to a sandbox that was never created, so the fresh channel attaches straight to
+  // the predecessor's live coordinates and names the successor only in its Hello, which the serve
+  // admits through the session's main-generation rule.
+  const live = priorChannel.attachment()
+  const parked =
+    live === undefined
+      ? bridge.attach({ threadId: successor })
+      : bridge.attach({ threadId: successor, url: live.url, token: live.token })
+  trace(`successor attachment minted (${live === undefined ? 'parked' : 'live coordinates'})`)
 
   try {
     await localApp.sessionOwner.activateLocal({ threadId: successor }).catch(() => undefined)
@@ -56,6 +73,7 @@ export async function swapToCloudSuccessor(args: {
       onReload: args.onReload,
       parkedAttachment: parked,
     })
+    trace('cloud thread opened')
     await localApp.sessionOwner.adopt({
       threadId: successor,
       binding,
@@ -64,7 +82,9 @@ export async function swapToCloudSuccessor(args: {
       },
     })
     await mirrored.seal()
+    trace('swap adopted and sealed')
   } catch (error) {
+    trace(`swap failed: ${messageOf(error)}`)
     await mirrored.revert().catch(() => undefined)
     parked.channel.close()
     throw error

@@ -4,6 +4,7 @@ import { useCallback, type RefObject } from 'react'
 import { swapToCloudSuccessorNoticed } from './cloud/successor-swap'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
+import { durableOpLog } from './durable-op-log'
 import {
   openConversation,
   unstartedConversation,
@@ -89,6 +90,10 @@ export function useThreadSwap(args: {
   const handleOpenSuccessor = useCallback(
     ({ successor }: { successor: ThreadId }) => {
       const held = cloudAttachmentOf(app.sessionOwner.snapshot().binding)
+      durableOpLog()?.info({
+        source: 'cloud.rotate-swap',
+        message: `handleOpenSuccessor successor=${successor} predecessor=${threadId} cloudBinding=${held !== undefined}`,
+      })
       if (held !== undefined) {
         swapToCloudSuccessorNoticed({
           localApp: app,
