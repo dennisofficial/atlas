@@ -238,6 +238,62 @@ describe('parseGhPullRequest', () => {
     )
   })
 
+  it('reads mergeable from gh\'s uppercase enum, unknown as null', () => {
+    const read = (mergeable: unknown) =>
+      parseGhPullRequest({ ...OPEN_WITH_ROLLUP, mergeable })?.mergeable
+
+    expect(read('MERGEABLE')).toBe(true)
+    expect(read('CONFLICTING')).toBe(false)
+    expect(read('UNKNOWN')).toBeNull()
+    expect(read('SOMETHING_NEW')).toBeNull()
+    expect(read(undefined)).toBeNull()
+  })
+
+  it('reads comments and reviews, dropping an odd entry without losing its siblings', () => {
+    const pullRequest = parseGhPullRequest({
+      ...OPEN_WITH_ROLLUP,
+      comments: [
+        { id: 'IC_1', author: { login: 'vercel' }, body: 'hi', url: 'u1', createdAt: 't1' },
+        { id: 7, author: 'weird' },
+        { id: 'IC_2', author: null, body: 'ghost', url: 'u2', createdAt: 't2' },
+      ],
+      reviews: [
+        { id: 'PRR_1', author: { login: 'steiza' }, state: 'APPROVED', body: 'ok' },
+        'garbage',
+      ],
+    })
+
+    expect(pullRequest?.comments).toEqual([
+      { id: 'IC_1', authorLogin: 'vercel', body: 'hi', url: 'u1', createdAt: 't1' },
+      { id: 'IC_2', authorLogin: null, body: 'ghost', url: 'u2', createdAt: 't2' },
+    ])
+    expect(pullRequest?.reviews).toEqual([
+      { id: 'PRR_1', authorLogin: 'steiza', state: 'APPROVED', body: 'ok' },
+    ])
+    expect(pullRequest?.checks).toBe(EChecksState.Passing)
+  })
+
+  it('keeps the pull request when comments and reviews are absent or not lists', () => {
+    const pullRequest = parseGhPullRequest({ ...OPEN_WITH_ROLLUP, comments: 'no', reviews: null })
+
+    expect(pullRequest?.comments).toEqual([])
+    expect(pullRequest?.reviews).toEqual([])
+  })
+
+  it('keeps only the latest window of comments', () => {
+    const comments = Array.from({ length: 30 }, (_, index) => ({
+      id: `IC_${index}`,
+      author: { login: 'a' },
+      body: 'b',
+      url: 'u',
+      createdAt: 't',
+    }))
+    const pullRequest = parseGhPullRequest({ ...OPEN_WITH_ROLLUP, comments })
+
+    expect(pullRequest?.comments).toHaveLength(20)
+    expect(pullRequest?.comments.at(-1)?.id).toBe('IC_29')
+  })
+
   it('is null on an unknown state, on a missing field and on garbage', () => {
     expect(parseGhPullRequest({ ...OPEN_WITH_ROLLUP, state: 'LOCKED' })).toBeNull()
     expect(parseGhPullRequest({ number: 1 })).toBeNull()

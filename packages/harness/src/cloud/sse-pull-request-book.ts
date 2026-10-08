@@ -49,6 +49,9 @@ export const readingOfState = (state: SubscriptionPrState): PullRequestReading =
     state: pullState,
     checks: checksOf(tally),
     tally,
+    mergeable: state.mergeable,
+    comments: [],
+    reviews: [],
   }
   return { lookup: EPullRequestLookup.Found, pullRequest }
 }
@@ -213,6 +216,7 @@ const sameShown = (left: PullRequestReading, right: PullRequestReading): boolean
     left.pullRequest.number === right.pullRequest.number &&
     left.pullRequest.state === right.pullRequest.state &&
     left.pullRequest.checks === right.pullRequest.checks &&
+    left.pullRequest.mergeable === right.pullRequest.mergeable &&
     left.pullRequest.tally.running === right.pullRequest.tally.running &&
     left.pullRequest.tally.passed === right.pullRequest.tally.passed &&
     left.pullRequest.tally.failed === right.pullRequest.tally.failed

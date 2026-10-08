@@ -21,6 +21,7 @@ const found = (checks: EChecksState): PullRequestReading => {
     state: EPullRequestState.Open,
     checks,
     tally: NO_CHECKS,
+    mergeable: null, comments: [], reviews: [],
   }
   return { lookup: EPullRequestLookup.Found, pullRequest }
 }

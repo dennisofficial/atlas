@@ -4,7 +4,7 @@ import { EPullRequestLookup, EPullRequestState, type PullRequestReading, type Re
 import type { PullRequest } from './pure'
 import { pullRequestLinkKey } from './links'
 
-const repoOf = (checkout: RepositoryCheckout): string =>
+export const repoOf = (checkout: RepositoryCheckout): string =>
   `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}`
 
 const wireStateOf = (state: EPullRequestState): EPullRequestStateWire => {
@@ -23,7 +23,7 @@ const wireState = (args: { repo: string; branch: string; pullRequest: PullReques
   checksRunning: args.pullRequest.tally.running,
   checksPassed: args.pullRequest.tally.passed,
   checksFailed: args.pullRequest.tally.failed,
-  mergeable: null,
+  mergeable: args.pullRequest.mergeable,
 })
 
 export type TrackedReading = {

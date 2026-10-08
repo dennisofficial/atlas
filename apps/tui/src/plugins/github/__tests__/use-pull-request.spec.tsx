@@ -60,6 +60,7 @@ const FOUND: PullRequestReading = {
     state: EPullRequestState.Open,
     checks: EChecksState.Running,
     tally: { running: 1, passed: 4, failed: 0 },
+    mergeable: null, comments: [], reviews: [],
   },
 }
 

@@ -11,8 +11,9 @@ import {
   type PullRequestReading,
   type RepositoryCheckout,
 } from './pure'
+import { announcePolled, type PolledPullRequest } from './polled-pull-request'
 import { createPullRequestReadings } from './pull-request-readings'
-import { pullRequestStatesWireOf, type TrackedReading } from './pull-request-state-wire'
+import { pullRequestStatesWireOf, repoOf, type TrackedReading } from './pull-request-state-wire'
 
 export const PULL_REQUEST_TICK_MS = 5_000
 
@@ -62,6 +63,7 @@ export function createPullRequestService(args: {
   tickMs?: number
   floorMs?: number
   expectingMs?: number
+  onPolled?: (polled: PolledPullRequest) => void
 }): PullRequestService {
   const now = args.now ?? Date.now
   const floorMs = args.floorMs ?? POLL_FLOOR_MS
@@ -112,6 +114,14 @@ export function createPullRequestService(args: {
       if (request.target.kind === 'link' && !watched.has(request.key)) return
 
       readings.record({ key: request.key, reading })
+      if (!args.pullRequests.pushes) {
+        announcePolled({
+          listener: args.onPolled,
+          key: request.key,
+          repo: request.target.kind === 'checkout' ? repoOf(request.target.checkout) : request.target.link.repo,
+          reading,
+        })
+      }
     } finally {
       inFlight.delete(request.key)
     }

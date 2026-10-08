@@ -23,6 +23,7 @@ const withChecks = (tally: {
   title: 'a change',
   checks: tally.failed > 0 ? EChecksState.Failing : EChecksState.None,
   tally,
+  mergeable: null, comments: [], reviews: [],
 })
 
 const splitAt = (args: { pullRequest: PullRequest; cells: number }): SidebarRowSplit =>

@@ -37,6 +37,7 @@ export const samePullRequestReading = (
     left.pullRequest.checks === right.pullRequest.checks &&
     left.pullRequest.title === right.pullRequest.title &&
     left.pullRequest.url === right.pullRequest.url &&
+    left.pullRequest.mergeable === right.pullRequest.mergeable &&
     left.pullRequest.tally.running === right.pullRequest.tally.running &&
     left.pullRequest.tally.passed === right.pullRequest.tally.passed &&
     left.pullRequest.tally.failed === right.pullRequest.tally.failed

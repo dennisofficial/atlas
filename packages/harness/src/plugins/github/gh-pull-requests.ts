@@ -10,7 +10,7 @@ import { ESpawnFailure, spawnCommand, type CommandRunner } from './run-command'
 
 export const GH_TIMEOUT_MS = 10_000
 
-const GH_VIEW_FIELDS = 'number,state,isDraft,url,statusCheckRollup,title'
+const GH_VIEW_FIELDS = 'number,state,isDraft,url,statusCheckRollup,title,mergeable,comments,reviews'
 
 export const GH_PULL_REQUEST_ARGV = ['gh', 'pr', 'view', '--json', GH_VIEW_FIELDS] as const
 
