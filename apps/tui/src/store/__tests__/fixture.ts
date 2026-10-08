@@ -110,7 +110,6 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.AgentRestarted }
       | { kind: EEntryKind.AgentReported }
       | { kind: EEntryKind.OperatorInput }
-      | { kind: EEntryKind.CodeQualityReviewed }
     > =>
       entry.kind !== EEntryKind.OperatorSaid &&
       entry.kind !== EEntryKind.HistoryCompacted &&
@@ -126,8 +125,7 @@ export const fromTheModel = (model: TranscriptModel) =>
       entry.kind !== EEntryKind.LocationChanged &&
       entry.kind !== EEntryKind.AgentRestarted &&
       entry.kind !== EEntryKind.AgentReported &&
-      entry.kind !== EEntryKind.OperatorInput &&
-      entry.kind !== EEntryKind.CodeQualityReviewed,
+      entry.kind !== EEntryKind.OperatorInput,
   )
 
 export const fromTheOperator = (model: TranscriptModel) =>

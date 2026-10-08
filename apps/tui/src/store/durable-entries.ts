@@ -1,4 +1,4 @@
-import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, replacedRanges, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type ELocationChangeCause, type SaidImage } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type ELocationChangeCause, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -13,7 +13,6 @@ import { deliberateAgentRestart } from './notice-barriers'
 import { modelEntries } from './model-entries'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
-import { qualityEntriesBySeq } from './quality-entries'
 import { toolRuns, type ToolRun } from './tool-runs'
 import type { TurnSpend } from '@dltech/atlas-harness'
 import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
@@ -218,7 +217,7 @@ export function durableEntries(args: {
     event.output === '' &&
     shellKillResults.has(`${event.shellId}${event.command}`)
 
-  const rowsOfEvent = (event: Event): TranscriptEntry[] => {
+  const entriesOfEvent = (event: Event): TranscriptEntry[] => {
     if (event.type === 'user-said') {
       return [
         {
@@ -399,20 +398,16 @@ export function durableEntries(args: {
     return []
   }
 
-  const qualityBySeq = qualityEntriesBySeq(events)
-
   const flat = (): TranscriptEntry[] =>
     events.flatMap((event): TranscriptEntry[] => {
       noteToolResult(event)
-      const entries = rowsOfEvent(event)
-      const quality = qualityBySeq.get(event.seq)
-      const withQuality = quality === undefined ? entries : [...entries, quality]
+      const entries = entriesOfEvent(event)
       const footer = footers.get(event.seq)
       const withFooter =
         footer === undefined
-          ? withQuality
+          ? entries
           : [
-              ...withQuality,
+              ...entries,
               {
                 kind: EEntryKind.TldrWritten as const,
                 author: EAuthor.Model as const,
