@@ -9,7 +9,11 @@ export type RetryPolicy = {
   delayMs: number
 }
 
-export const attachLagRetry: RetryPolicy = { attempts: 10, delayMs: 2_000 }
+// 30 × 5s = 150s per consumer (the detach poll, then the delete retry), so the full
+// delete path outlasts the multi-minute detach Vercel actually takes in the slow case —
+// the October 2026 bench teardown flaked on the old 20s budget while a drive sat wedged
+// attached to an already-gone sandbox.
+export const attachLagRetry: RetryPolicy = { attempts: 30, delayMs: 5_000 }
 
 /**
  * The first boot of a freshly published image waits on Vercel optimizing that digest — the
