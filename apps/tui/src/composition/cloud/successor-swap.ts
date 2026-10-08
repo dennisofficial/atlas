@@ -1,12 +1,16 @@
-import type { ThreadId } from '@dltech/atlas-core'
-import type { CloudBridge, CloudReload } from '@dltech/atlas-harness'
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
+import { transcriptIdentityDigest, type CloudBridge, type CloudReload } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { durableOpLog } from '../durable-op-log'
 import { messageOf } from '../error-text'
+import type { OpenedConversation } from '../open-conversation'
 import { cloudAttachmentOf } from '../session-binding'
 import { settleOnChannel } from '../session-recovery'
+import { readThreadSnapshot } from '../thread-reads'
+import { readThreadSpend } from '../thread-spend'
+import { EThreadRows } from '../use-thread-view'
 import { openCloudThread } from './cloud-open'
 import { mirrorRotationCommit } from './rotation-mirror'
 
@@ -75,6 +79,39 @@ export async function swapToCloudSuccessor(args: {
   })
   trace('successor attachment minted on the predecessor sandbox')
 
+  // The successor conversation comes from the mirror just written, not the wire: the commit
+  // tears the predecessor's channel down under the adoption, and any read that rides it (a
+  // read-thread over the socket) can die mid-swap and revert the whole follow.
+  const local = cloudAttachmentOf(prior.binding)?.local ?? localApp
+  const thread = await local.threads.find({ threadId: successor })
+  if (thread === undefined) {
+    await mirrored.revert().catch(() => undefined)
+    parked.channel.close()
+    throw new Error(`the mirrored successor thread ${successor} is not in the local store`)
+  }
+  const snapshot = await readThreadSnapshot({
+    log: local.log,
+    threadId: successor,
+    rows: EThreadRows.Composed,
+    effects: (name) => local.tools.find(name)?.effect,
+    digest: transcriptIdentityDigest,
+  })
+  const spent = await readThreadSpend({ ledger: local.ledger, threadId: successor })
+  const opened: OpenedConversation = {
+    threadId: successor,
+    events: snapshot.events,
+    turns: spent.turns,
+    name: thread.title ?? null,
+    started: true,
+    model: thread.model,
+    executionLocation: EExecutionLocation.Cloud,
+    lostShells: [],
+    base: snapshot.base,
+    identity: snapshot.identity,
+    appliedEvents: snapshot.all,
+  }
+  trace(`successor conversation read off the mirror (${opened.events.length} events)`)
+
   try {
     await localApp.sessionOwner.activateLocal({ threadId: successor }).catch(() => undefined)
     const binding = await openCloudThread({
@@ -83,6 +120,7 @@ export async function swapToCloudSuccessor(args: {
       threadId: successor,
       onReload: args.onReload,
       parkedAttachment: parked,
+      opened,
     })
     trace('cloud thread opened')
     await localApp.sessionOwner.adopt({

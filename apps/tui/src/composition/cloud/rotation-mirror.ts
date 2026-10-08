@@ -27,7 +27,14 @@ import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import { localTranscriptFiles } from './local-transcript-files'
 
-export type RotationMirror = { revert(): Promise<void>; seal(): Promise<void> }
+export type RotationMirror = {
+  revert(): Promise<void>
+  seal(): Promise<void>
+  /** The successor's events as mirrored, so the caller can build the conversation without a wire read. */
+  successorEvents: readonly Event[]
+  /** The successor's thread row as mirrored, so the caller can build the conversation without a wire read. */
+  successorThread: ThreadMeta | undefined
+}
 
 const readThreadEvents = async (args: {
   sessionDir: string
@@ -140,6 +147,7 @@ export async function mirrorRotationCommit(args: {
     if (successorEvents.length === 0) {
       throw new Error('the rotated successor transcript was not in the sandbox session archive')
     }
+    const successorThread = readThreadMeta({ sessionDir: extracted, threadId: successor })
     const predecessorEvents = await readThreadEvents({ sessionDir: extracted, threadId: predecessor })
 
     await stampSessionOwnership({ extracted, home: atlasDirectory(), successor, predecessor })
@@ -163,6 +171,8 @@ export async function mirrorRotationCommit(args: {
     await refreshBoth()
 
     return {
+      successorEvents,
+      successorThread,
       revert: async () => {
         await successorSwap.revert().catch(() => undefined)
         await predecessorSwap?.revert().catch(() => undefined)

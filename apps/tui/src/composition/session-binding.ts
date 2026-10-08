@@ -37,6 +37,12 @@ export type CloudAttachment = {
   bridge: CloudBridge
   stores: CloudStores
   session: CloudSession
+  /**
+   * The root local app beneath the cloud binding — the stores that read this machine's log. A
+   * rotation swap reads the freshly-mirrored successor transcript through these rather than the
+   * channel the commit is tearing down.
+   */
+  local: AtlasApp
   /** Set while the sandbox still has to be woken behind an already-rendered transcript. */
   wakeInBackground?: (() => void) | undefined
 }
@@ -104,6 +110,7 @@ export const cloudBindingOf = (args: {
       bridge: args.bridge,
       stores: args.stores,
       session: args.session,
+      local: args.local,
       ...(args.wakeInBackground === undefined ? {} : { wakeInBackground: args.wakeInBackground }),
     },
   },

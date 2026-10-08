@@ -43,6 +43,12 @@ type OpenArgs = {
    * attach a second one.
    */
   parkedAttachment?: CloudAttachment | undefined
+  /**
+   * A caller that already read the conversation off the local mirror (a rotation swap, where the
+   * channel is being torn down under the commit) hands it in rather than letting the open read
+   * the thread over the wire.
+   */
+  opened?: OpenedConversation | undefined
 }
 
 type Composed = {
@@ -139,12 +145,16 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
     // composeEager would attach a second channel — and on a rotation swap its wake boots a fresh
     // successor-named sandbox with no transcript. Render what the mirror landed and wake behind
     // it; an empty local read here means the mirror broke, not that the sandbox needs re-booting.
+    // A handed-in opened conversation short-circuits even the local read: the swap's caller read
+    // the mirror before handing it over.
+    const openedFor =
+      args.opened ?? renderable?.opened ?? (await openCloudConversation({ app, threadId }))
     const composed =
-      renderable === null && args.parkedAttachment === undefined
+      renderable === null && args.parkedAttachment === undefined && args.opened === undefined
         ? await composeEager(args)
         : composeRenderFirst({
             ...args,
-            opened: renderable?.opened ?? (await openCloudConversation({ app, threadId })),
+            opened: openedFor,
             resume: renderable?.resume ?? EParkedResume.Unknown,
           })
     const { channel, stores } = composed

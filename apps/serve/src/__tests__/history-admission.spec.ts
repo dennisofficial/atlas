@@ -9,7 +9,7 @@ const threadId = toThreadId('history-admission')
 describe('history admission', () => {
   it('marks compaction busy and releases the reservation', () => {
     const history = createHistoryAdmission({
-      threadId,
+      threadId: () => threadId,
       intake: null,
       unavailable: () => false,
     })
@@ -24,7 +24,7 @@ describe('history admission', () => {
 
   it('never enters while a turn or workspace handoff owns the session', () => {
     const history = createHistoryAdmission({
-      threadId,
+      threadId: () => threadId,
       intake: null,
       unavailable: () => true,
     })
@@ -34,7 +34,7 @@ describe('history admission', () => {
 
   it('honours the dormant and parking refusals before any mutation', () => {
     const history = createHistoryAdmission({
-      threadId,
+      threadId: () => threadId,
       intake: null,
       unavailable: () => false,
       refusal: () => 'the destination is dormant',
@@ -70,7 +70,7 @@ describe('history admission', () => {
       },
     })
     const history = createHistoryAdmission({
-      threadId,
+      threadId: () => threadId,
       intake,
       unavailable: () => false,
     })
@@ -87,7 +87,7 @@ describe('history admission', () => {
   })
 
   it('holds for rotation exclusively against the history hold, in both directions', () => {
-    const history = createHistoryAdmission({ threadId, intake: null, unavailable: () => false })
+    const history = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => false })
     const release = history.holdForRotation()
     expect(history.held()).toBe(true)
     expect(() => history.hold()).toThrow('the session is rotating — wait for it to finish')
@@ -103,9 +103,9 @@ describe('history admission', () => {
   })
 
   it('rotation tolerates a running turn but not a workspace handoff', () => {
-    const history = createHistoryAdmission({ threadId, intake: null, unavailable: () => true, relocating: () => false })
+    const history = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => true, relocating: () => false })
     expect(() => history.holdForRotation()()).not.toThrow()
-    const handoff = createHistoryAdmission({ threadId, intake: null, unavailable: () => true, relocating: () => true })
+    const handoff = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => true, relocating: () => true })
     expect(() => handoff.holdForRotation()).toThrow('workspace handoff')
   })
 })

@@ -83,6 +83,7 @@ export function createRequestRouter(args: {
     driver: {
       holdForRotation: () => { edits.assertAvailable(); return driver.holdForRotation() },
       beginRotation: driver.beginRotation,
+      followActiveMain: driver.followActiveMain,
     },
     rotation: args.rotation,
     authority: args.authority,

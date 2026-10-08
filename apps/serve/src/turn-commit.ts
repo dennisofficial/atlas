@@ -10,10 +10,11 @@ export type Said = {
   context?: readonly EventDraft[] | undefined
 }
 
-export function createTurnCommit(args: { app: ServeApp; threadId: ThreadId; intake: MessageIntake | null }) {
-  const { app, threadId, intake } = args
+export function createTurnCommit(args: { app: ServeApp; threadId: () => ThreadId; intake: MessageIntake | null }) {
+  const { app, intake } = args
 
   const writeDrafts = async (drafts: readonly EventDraft[]): Promise<void> => {
+    const threadId = args.threadId()
     const runId = app.ids.nextRunId()
     const existing = await app.threads.find({ threadId })
     if (existing !== undefined) {
@@ -26,6 +27,7 @@ export function createTurnCommit(args: { app: ServeApp; threadId: ThreadId; inta
   }
 
   return async (said: Said): Promise<void> => {
+    const threadId = args.threadId()
     if (intake !== null) {
       intake.submit({
         threadId, text: said.text,

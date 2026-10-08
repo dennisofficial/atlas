@@ -10,7 +10,7 @@ import type { RotationStateWire } from '@dltech/atlas-wire'
 import type { createStepAliaser } from './step-alias'
 
 export function createSocketGreeter(args: {
-  threadId: ThreadId
+  threadId: () => ThreadId
   buffer: FrameBuffer
   inFlight: () => readonly SignalFrame[]
   liveStepId: SessionHandlersArgs['liveStepId']
@@ -28,7 +28,8 @@ export function createSocketGreeter(args: {
   log: ServeLog
   rotation: () => RotationStateWire | undefined
 }) {
-  const { threadId, buffer, inFlight, liveStepId, driver, pending, operatorInput, send, log } = args
+  const { buffer, inFlight, liveStepId, driver, pending, operatorInput, send, log } = args
+  const threadId = args.threadId
   return (greeting: { socket: SessionSocket; hello: HelloFrame; head: number | null }): void => {
     const { socket, hello, head } = greeting
     const cursor = hello.channelCursor
@@ -50,7 +51,7 @@ export function createSocketGreeter(args: {
     })
     const blocked = args.refusal()
     if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
-    const queued = pending === undefined ? [] : pendingEntriesOf({ pending, threadId })
+    const queued = pending === undefined ? [] : pendingEntriesOf({ pending, threadId: threadId() })
     if (queued.length > 0)
       send({
         socket,
@@ -74,7 +75,7 @@ export function createSocketGreeter(args: {
     socket.data.alias = reloadedMidStep === null ? null : args.aliaser.next(reloadedMidStep)
     for (const frame of backfill) send({ socket, frame: args.forSocket({ socket, frame }) })
     if (operatorInput !== undefined)
-      send({ socket, frame: operatorInputSnapshot({ operatorInput, threadId, seq: buffer.nextSeq() }) })
+      send({ socket, frame: operatorInputSnapshot({ operatorInput, threadId: threadId(), seq: buffer.nextSeq() }) })
     args.attached.add(socket)
     socket.data.greeted = true
     for (const frame of socket.data.held.splice(0)) args.drive({ socket, frame })
