@@ -1,4 +1,4 @@
-import { EHookPhase } from '@dltech/atlas-core'
+import { EHookPhase, EPromptAgent, type PromptContext } from '@dltech/atlas-core'
 import { afterAll, describe, expect, it } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -20,6 +20,13 @@ import { CachedPullRequestPort } from '../pull-request-cache-port'
 import GithubPlugin, { registerPlugin } from '../index'
 import { PullRequestPort } from '../pure'
 import { GithubUiBridgePort } from '../ui-bridge'
+
+const CONTEXT: PromptContext = {
+  agent: EPromptAgent.Main,
+  provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
+  model: { contextWindow: 1_000_000 },
+  projectDirectory: '/w',
+}
 
 const made: string[] = []
 
@@ -131,6 +138,20 @@ describe('the github plugin as the loader sees it', () => {
       GithubUiBridgePort,
     ])
     expect(contribution.tools ?? []).toEqual([])
+
+    await contribution.dispose?.()
+  })
+
+  it('contributes the CI-feed fragment that tells the model check state is pushed, not pulled', async () => {
+    const { contribution } = await resolved()
+
+    const fragments = contribution.promptFragments ?? []
+    expect(fragments.map((fragment) => fragment.id)).toContain('github.ci-feed')
+
+    const text =
+      fragments.find((fragment) => fragment.id === 'github.ci-feed')?.text(CONTEXT) ?? ''
+    expect(text).toContain('Pull request updates')
+    expect(text).toContain('end your turn')
 
     await contribution.dispose?.()
   })

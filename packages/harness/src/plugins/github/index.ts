@@ -11,6 +11,7 @@ import {
 } from '../../container/tokens'
 
 import { NativePlugin, type PluginContribution } from '../plugin'
+import { CiFeedFragment } from './ci-feed-fragment'
 import { createCloudCheckout } from './cloud-checkout'
 import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
@@ -98,6 +99,7 @@ export default class GithubPlugin extends NativePlugin {
     links.projection.subscribe(() => service.watch({ links: links.projection.current() }))
 
     return {
+      promptFragments: [new CiFeedFragment()],
       hooks: [
         {
           phase: EHookPhase.BeforeTurn,
