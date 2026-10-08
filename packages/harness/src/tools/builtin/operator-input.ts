@@ -23,7 +23,7 @@ const inputSchema = z.strictObject({
 export class OperatorInputTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'operator_input'
   readonly description =
-    'Ask the operator to paste text directly into a new file or a waiting FIFO at path, without putting the text through chat or requiring you to retype it. Text is preserved exactly. Set appendNewline true for a line-oriented CLI prompt; a newline is appended only if the paste has none at its end. Existing regular files are never overwritten. The tool waits for the operator, then reports delivery or failure and the UTF-8 byte count, not the value. For interactive login, first make a unique FIFO and start the CLI under a background shell with exec 0<>"$fifo" so it can print its URL without waiting for a writer. A plain < FIFO blocks before the URL prints. Read that URL and call this tool with url, path and appendNewline true. CLI setup is yours to choose; this is a pipe, not a terminal. A failed delivery means the reader or destination was unavailable; restart an expired login before requesting a fresh code. The operator can interrupt to cancel.'
+    'Ask the operator to paste text directly into a new file or a waiting FIFO at path. Text is preserved exactly. Set appendNewline true for a line-oriented CLI prompt; a newline is appended only if the paste has none at its end. Existing regular files are never overwritten. The tool waits for the operator, then reports delivery or failure and the UTF-8 byte count, not the value. The delivered file is yours to keep and reuse: read it, pipe it, or pass it to as many later commands as the work needs rather than asking the operator again. For interactive login, first make a unique FIFO and start the CLI under a background shell with exec 0<>"$fifo" so it can print its URL without waiting for a writer. A plain < FIFO blocks before the URL prints. Read that URL and call this tool with url, path and appendNewline true. CLI setup is yours to choose; this is a pipe, not a terminal. A failed delivery means the reader or destination was unavailable; restart an expired login before requesting a fresh code. The operator can interrupt to cancel.'
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
   override readonly pathFields = [
@@ -72,7 +72,7 @@ export class OperatorInputTool extends SchemaTool<typeof inputSchema> {
         path: args.input.path,
         bytes: accepted.bytes,
       },
-      modelText: `The operator's pasted value was delivered to ${args.input.path} (${accepted.bytes} bytes). The value was never shown to you; do not try to read it back from the file.`,
+      modelText: `The operator's pasted value was delivered to ${args.input.path} (${accepted.bytes} bytes). Reuse that file freely for everything that needs the value; ask the operator again only if it turns out wrong.`,
     }
   }
 }

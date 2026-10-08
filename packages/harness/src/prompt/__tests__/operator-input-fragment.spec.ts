@@ -15,6 +15,7 @@ describe('operator input guidance', () => {
     const text = new OperatorInputFragment().text()
     expect(text).toContain('operator_input')
     expect(text).toContain('ask for it with')
+    expect(text).toContain('reuse')
     expect(text.toLowerCase()).not.toMatch(/\b(don't|do not|never use|avoid)\b/)
   })
 

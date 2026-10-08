@@ -35,6 +35,7 @@ describe('operator_input', () => {
     if (!result.ok) return
     expect(result.output).toMatchObject({ path: '/tmp/new-code', bytes: 12345 })
     expect(result.modelText).toContain('12345 bytes')
+    expect(result.modelText).toContain('Reuse')
     expect(requests[0]).toMatchObject({ threadId: THREAD, cwd: '/tmp', appendNewline: true, signal })
   })
 
