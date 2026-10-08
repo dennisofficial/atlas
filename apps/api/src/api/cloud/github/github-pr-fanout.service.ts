@@ -1,14 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import type { GithubPrStateDto } from './github-realtime.types'
+import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
 type PrStateHandler = (state: GithubPrStateDto) => void
+type PrEventHandler = (event: GithubPrEventDto) => void
 
 const COALESCE_WINDOW_MS = 1_000
 
 type PendingPush = { state: GithubPrStateDto; userIds: readonly string[]; dirty: boolean }
+type PendingEventPush = { event: GithubPrEventDto; userIds: readonly string[]; dirty: boolean }
 
-type OpenStream = { handler: PrStateHandler; onClosed: (() => void) | undefined }
+type OpenStream = {
+  handler: PrStateHandler
+  eventHandler: PrEventHandler | undefined
+  onClosed: (() => void) | undefined
+}
 
 /**
  * The in-process fan-out seam named in the spec's fallback table: one publisher interface per
@@ -25,6 +31,8 @@ export class GithubPrFanoutService {
   private readonly streams = new Map<string, Set<OpenStream>>()
   private readonly pending = new Map<string, PendingPush>()
   private readonly timers = new Map<string, NodeJS.Timeout>()
+  private readonly pendingEvents = new Map<string, PendingEventPush>()
+  private readonly eventTimers = new Map<string, NodeJS.Timeout>()
 
   constructor(drain: DrainStateService) {
     drain.onDrain(() => this.closeAll())
@@ -33,9 +41,14 @@ export class GithubPrFanoutService {
   openStream(args: {
     userId: string
     handler: PrStateHandler
+    eventHandler?: PrEventHandler
     onClosed?: () => void
   }): () => void {
-    const entry: OpenStream = { handler: args.handler, onClosed: args.onClosed }
+    const entry: OpenStream = {
+      handler: args.handler,
+      eventHandler: args.eventHandler,
+      onClosed: args.onClosed,
+    }
     let handlers = this.streams.get(args.userId)
     if (handlers === undefined) {
       handlers = new Set()
@@ -54,6 +67,9 @@ export class GithubPrFanoutService {
     for (const timer of this.timers.values()) clearTimeout(timer)
     this.timers.clear()
     this.pending.clear()
+    for (const timer of this.eventTimers.values()) clearTimeout(timer)
+    this.eventTimers.clear()
+    this.pendingEvents.clear()
     for (const entry of entries) {
       try {
         entry.onClosed?.()
@@ -75,6 +91,52 @@ export class GithubPrFanoutService {
     }
 
     this.pending.set(key, { state: args.state, userIds: args.userIds, dirty: true })
+  }
+
+  /**
+   * Same coalescing shape as `push`, keyed per (repo, pr, kind): the first event flushes
+   * immediately, and a burst of the same kind inside the one-second window collapses to the
+   * latest — a re-push storm must not turn into an event storm.
+   */
+  pushEvent(args: { userIds: readonly string[]; event: GithubPrEventDto }): void {
+    const key = `${args.event.repoFullName}#${args.event.prNumber}#${args.event.kind}#${[...args.userIds].sort().join(',')}`
+    const held = this.pendingEvents.get(key)
+
+    if (held === undefined) {
+      this.pendingEvents.set(key, { event: args.event, userIds: args.userIds, dirty: false })
+      this.flushEvents(args)
+      this.openEventWindow({ key })
+      return
+    }
+
+    this.pendingEvents.set(key, { event: args.event, userIds: args.userIds, dirty: true })
+  }
+
+  private openEventWindow(args: { key: string }): void {
+    const prior = this.eventTimers.get(args.key)
+    if (prior !== undefined) clearTimeout(prior)
+    const timer = setTimeout(() => {
+      this.eventTimers.delete(args.key)
+      const held = this.pendingEvents.get(args.key)
+      this.pendingEvents.delete(args.key)
+      if (held?.dirty) this.flushEvents({ userIds: held.userIds, event: held.event })
+    }, COALESCE_WINDOW_MS)
+    this.eventTimers.set(args.key, timer)
+  }
+
+  private flushEvents(args: { userIds: readonly string[]; event: GithubPrEventDto }): void {
+    for (const userId of args.userIds) {
+      const handlers = this.streams.get(userId)
+      if (handlers === undefined) continue
+      for (const entry of handlers) {
+        if (entry.eventHandler === undefined) continue
+        try {
+          entry.eventHandler(args.event)
+        } catch (failure) {
+          this.logger.warn(`an event handler failed for ${userId}: ${String(failure)}`)
+        }
+      }
+    }
   }
 
   private openWindow(args: { key: string }): void {
