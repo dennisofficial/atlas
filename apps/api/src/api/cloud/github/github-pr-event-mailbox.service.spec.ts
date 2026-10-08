@@ -46,7 +46,7 @@ describe('GithubPrEventMailboxService', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
       kind: EPrEventKind.Comment,
-      payload: { url: 'https://github.com/compai/app/pull/42#issuecomment-1', authorLogin: 'dennis', body: 'hi', headSha: '' },
+      payload: { url: 'https://github.com/compai/app/pull/42#issuecomment-1', authorLogin: 'dennis', body: 'hi' },
     })
 
     expect(fake.prEvents).toHaveLength(2)
@@ -64,7 +64,7 @@ describe('GithubPrEventMailboxService', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
       kind: EPrEventKind.Verdict,
-      payload: { url: 'https://github.com/compai/app/pull/42', authorLogin: '', verdict: 'failed', headSha: 'abc' },
+      payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'failed', headSha: 'abc' },
     })
 
     expect(fake.prEvents).toHaveLength(1)
@@ -82,7 +82,7 @@ describe('GithubPrEventMailboxService', () => {
         repoFullName: 'compai/app',
         prNumber: 42,
         kind: 'comment',
-        payload: { url: 'u2', authorLogin: 'x', headSha: '' },
+        payload: { url: 'u2', authorLogin: 'x' },
         deliveredAt: null,
         createdAt: newer,
       },
@@ -92,7 +92,7 @@ describe('GithubPrEventMailboxService', () => {
         repoFullName: 'compai/app',
         prNumber: 42,
         kind: 'comment',
-        payload: { url: 'u1', authorLogin: 'x', headSha: '' },
+        payload: { url: 'u1', authorLogin: 'x' },
         deliveredAt: null,
         createdAt: older,
       },
@@ -102,7 +102,7 @@ describe('GithubPrEventMailboxService', () => {
         repoFullName: 'compai/app',
         prNumber: 42,
         kind: 'comment',
-        payload: { url: 'u0', authorLogin: 'x', headSha: '' },
+        payload: { url: 'u0', authorLogin: 'x' },
         deliveredAt: new Date('2026-10-08T09:00:00.000Z'),
         createdAt: new Date('2026-10-08T08:00:00.000Z'),
       },
@@ -112,7 +112,7 @@ describe('GithubPrEventMailboxService', () => {
         repoFullName: 'compai/app',
         prNumber: 42,
         kind: 'comment',
-        payload: { url: 'u9', authorLogin: 'x', headSha: '' },
+        payload: { url: 'u9', authorLogin: 'x' },
         deliveredAt: null,
         createdAt: older,
       },
@@ -137,7 +137,7 @@ describe('GithubPrEventMailboxService', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
       kind: 'comment',
-      payload: { url: 'u1', authorLogin: 'x', headSha: '' },
+      payload: { url: 'u1', authorLogin: 'x' },
       deliveredAt: null,
       createdAt: new Date(),
     })

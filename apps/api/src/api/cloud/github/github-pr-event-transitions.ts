@@ -32,19 +32,19 @@ export function transitionsOf(args: {
   if (args.next.checksFailed > 0 && args.prior.checksFailed === 0) {
     events.push({
       kind: EPrEventKind.Verdict,
-      payload: { url: args.next.url, authorLogin: '', verdict: 'failed', headSha: args.next.headSha },
+      payload: { url: args.next.url, verdict: 'failed', headSha: args.next.headSha },
     })
   } else if (checksSettled && args.prior.checksRunning > 0 && args.next.checksFailed === 0) {
     events.push({
       kind: EPrEventKind.Verdict,
-      payload: { url: args.next.url, authorLogin: '', verdict: 'green', headSha: args.next.headSha },
+      payload: { url: args.next.url, verdict: 'green', headSha: args.next.headSha },
     })
   }
 
   if (args.next.mergeable !== null && args.prior.mergeable !== args.next.mergeable) {
     events.push({
       kind: EPrEventKind.Mergeability,
-      payload: { url: args.next.url, authorLogin: '', mergeable: args.next.mergeable, headSha: args.next.headSha },
+      payload: { url: args.next.url, mergeable: args.next.mergeable, headSha: args.next.headSha },
     })
   }
 
@@ -52,7 +52,7 @@ export function transitionsOf(args: {
     if (args.next.state === 'merged' || args.next.state === 'closed') {
       events.push({
         kind: EPrEventKind.State,
-        payload: { url: args.next.url, authorLogin: '', state: args.next.state, headSha: args.next.headSha },
+        payload: { url: args.next.url, state: args.next.state, headSha: args.next.headSha },
       })
     }
   }

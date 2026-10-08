@@ -127,7 +127,6 @@ describe('GithubPrStreamController', () => {
         url: 'https://github.com/compai/app/pull/42#issuecomment-1',
         authorLogin: 'dennis',
         body: 'ship it',
-        headSha: '',
       },
       createdAt: '2026-10-08T10:00:00.000Z',
     }
@@ -156,7 +155,7 @@ describe('GithubPrStreamController', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
       kind: EPrEventKind.Verdict,
-      payload: { url: 'https://github.com/compai/app/pull/42', authorLogin: '', verdict: 'failed', headSha: 'abc' },
+      payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'failed', headSha: 'abc' },
       createdAt: '2026-10-08T11:00:00.000Z',
     }
     fanout.pushEvent({ userIds: ['usr_1'], event })

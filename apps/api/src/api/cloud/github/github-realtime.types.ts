@@ -21,13 +21,13 @@ export enum EPrEventKind {
 
 export type GithubPrEventPayload = {
   url: string
-  authorLogin: string
+  authorLogin?: string
   body?: string
   reviewState?: string
   verdict?: 'green' | 'failed'
   mergeable?: boolean
   state?: 'merged' | 'closed'
-  headSha: string
+  headSha?: string
 }
 
 export interface GithubPrEventDto {

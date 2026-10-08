@@ -31,7 +31,6 @@ export class GithubPrDiscussionDeliveryService {
         url: payload.comment.html_url,
         authorLogin: payload.sender.login,
         body: payload.comment.body,
-        headSha: '',
       },
     })
   }
