@@ -50,7 +50,8 @@ const isNotice = (event: Event): boolean =>
   isShellNotice(event) ||
   event.type === 'service-ended' ||
   event.type === 'agent-ended' ||
-  event.type === 'location-changed'
+  event.type === 'location-changed' ||
+  event.type === 'pr-event'
 
 const isServiceStart = (event: Event): boolean =>
   event.type === 'tool-called' && event.name === 'service_start'
@@ -117,7 +118,7 @@ export function rewindPlan({
   }
 
   const survives = (event: Event): boolean => {
-    if (event.type === 'location-changed') return true
+    if (event.type === 'location-changed' || event.type === 'pr-event') return true
     if (isShellNotice(event)) {
       const occurrence = occurrenceOfNotice({ occurrences, notice: event })
       return occurrence === undefined || occurrence.seq <= toSeq

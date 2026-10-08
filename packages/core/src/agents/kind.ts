@@ -16,6 +16,7 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'background-shell-matched':
     case 'background-shell-still-running':
     case 'service-ended':
+    case 'pr-event':
     case 'agent-reported':
     case 'agent-ended':
       return true

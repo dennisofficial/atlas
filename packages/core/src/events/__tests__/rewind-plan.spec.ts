@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '../../execution/location'
-import { ECompactionAnchor } from '../body'
+import { ECompactionAnchor, EPrEventKind, EPrVerdict } from '../body'
 import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
 import type { EventDraft } from '../body'
@@ -263,5 +263,34 @@ describe('rewindPlan for location changes', () => {
     expect(plan.reappend.map((notice) => notice.draft)).toEqual([
       { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
     ])
+  })
+})
+
+describe('rewindPlan for PR events', () => {
+  const prEvent = (): EventDraft => ({
+    type: 'pr-event',
+    repo: 'github.com/owner/repo',
+    prNumber: 12,
+    kind: EPrEventKind.Verdict,
+    url: 'https://github.com/owner/repo/pull/12',
+    verdict: EPrVerdict.Green,
+  })
+
+  it('re-appends a PR event that landed above the cut', () => {
+    const events = eventsFrom([said('msg_1'), replied('pushed'), prEvent(), said('msg_2')])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(plan.cuts).toEqual([])
+    expect(plan.reappend).toHaveLength(1)
+    expect(plan.reappend[0]?.draft).toEqual(prEvent())
+  })
+
+  it('leaves a PR event below the cut where it is', () => {
+    const events = eventsFrom([said('msg_1'), prEvent(), replied('seen'), said('msg_2')])
+
+    const plan = rewindPlan({ events, toSeq: 3 })
+
+    expect(plan.reappend).toEqual([])
   })
 })
