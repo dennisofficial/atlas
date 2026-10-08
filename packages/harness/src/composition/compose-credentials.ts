@@ -14,6 +14,7 @@ import type { CloudService } from '../cloud/cloud-service'
 import { registerDisposable } from '../container/disposal'
 import { portToken, type DependencyContainer } from '../container/injection'
 import { SecretsStoreToken } from '../container/tokens'
+import { migrateDecisionsSettings } from '../settings/migrate-decisions'
 import type { AccountsService } from '../credentials/accounts-service'
 import { CloudManagedCredentialPort } from '../credentials/cloud-managed-credential-port'
 import type { AccountUsageService } from '../usage/account-usage-service'
@@ -76,10 +77,12 @@ export async function bindCredentials(args: {
   }
 
   const secrets = container.resolve(SecretsStoreToken)
+  migrateDecisionsSettings({ settings: args.settings.service, secrets })
 
   await bindSettingsPolicy({
     container,
     settings: args.settings.service,
+    secrets,
     workspace: args.workspace,
     credentials,
     cwd: args.anchor,

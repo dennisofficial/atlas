@@ -5,8 +5,10 @@ import {
   agentTypeSettingId,
   ESettingId,
   ESettingPage,
+  ESettingKind,
   ESettingsLayer,
   resolveSettings,
+  type SettingDefinition,
   type SettingsLayerInput,
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
@@ -64,13 +66,13 @@ describe('settingsModel', () => {
       ['Context window', 1],
       ['Worktrees', 1],
       ['Usage meters', 3],
-      ['Nudges', 3],
+      ['Nudges', 1],
       ['Notifications', 1],
       ['Development', 1],
       ['Web', 2],
       ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(30)
+    expect(general?.rows).toHaveLength(28)
   })
 
   it('gathers the core cloud rows on the cloud page', () => {
@@ -90,6 +92,7 @@ describe('settingsModel', () => {
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 2],
       ['Background processes', 3],
+      ['Decisions', 2],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
       ESettingId.ModelId,
@@ -97,6 +100,8 @@ describe('settingsModel', () => {
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
+      ESettingId.DecisionsProvider,
+      ESettingId.DecisionsToken,
     ])
   })
 
@@ -114,6 +119,7 @@ describe('settingsModel', () => {
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 3],
       ['Background processes', 3],
+      ['Decisions', 2],
       ['Built-in sub-agents', 2],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
@@ -123,6 +129,8 @@ describe('settingsModel', () => {
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
+      ESettingId.DecisionsProvider,
+      ESettingId.DecisionsToken,
       agentTypeSettingId('builder'),
       agentTypeSettingId('explore'),
     ])
@@ -165,7 +173,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 29 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 27 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
@@ -194,5 +202,66 @@ describe('moving around the page', () => {
     expect(currentRow({ state: { pageIndex: 2, rowIndex: 0 }, model })?.definition.id).toBe(
       ESettingId.Accent,
     )
+  })
+})
+
+describe('conditional rows', () => {
+  const onCustom: SettingsLayerInput = {
+    layer: ESettingsLayer.User,
+    origin: 'user',
+    values: { [ESettingId.DecisionsProvider]: 'custom' },
+  }
+  const modelsOf = (layers: readonly SettingsLayerInput[]) =>
+    modelWith(layers).pages.find((page) => page.page.id === ESettingPage.Models)
+
+  it('reveals the custom-only rows in group order when the provider is custom', () => {
+    const decisions = modelsOf([onCustom])?.groups.find((group) => group.label === 'Decisions')
+
+    expect(decisions?.rows.map((row) => row.definition.id)).toEqual([
+      ESettingId.DecisionsProvider,
+      ESettingId.DecisionsUrl,
+      ESettingId.DecisionsModel,
+      ESettingId.DecisionsToken,
+    ])
+  })
+
+  it('never lets a hidden row reach the groups or the navigation list', () => {
+    const models = modelsOf([])
+
+    expect(models?.rows.some((row) => row.definition.id === ESettingId.DecisionsUrl)).toBe(false)
+    expect(models?.groups.flatMap((group) => group.rows).length).toBe(models?.rows.length ?? -1)
+  })
+
+  it('leaves the cursor on a real row when the list shrinks under it', () => {
+    const grown = modelWith([onCustom])
+    const shrunk = modelWith([])
+    const lastOnCustom = (modelsOf([onCustom])?.rows.length ?? 0) - 1
+    const stranded = { pageIndex: 1, rowIndex: lastOnCustom }
+
+    const moved = moveRow({ state: stranded, model: shrunk, delta: 0 })
+
+    expect(currentRow({ state: stranded, model: grown })?.definition.id).toBe(ESettingId.DecisionsToken)
+    expect(currentRow({ state: moved, model: shrunk })?.definition.id).toBe(ESettingId.DecisionsToken)
+  })
+
+  it('still renders the other groups when every row of one group is hidden', () => {
+    const only: SettingDefinition = {
+      id: 'demo.hidden',
+      page: ESettingPage.General,
+      group: 'Hidden group',
+      label: 'x',
+      description: 'x',
+      kind: ESettingKind.Toggle,
+      fallback: true,
+      visibleWhen: () => false,
+    }
+    const definitions = [...ATLAS_SETTINGS, only]
+    const general = settingsModel({
+      definitions,
+      resolution: resolveSettings({ definitions, layers: [] }),
+    }).pages[0]
+
+    expect(general?.groups.map((group) => group.label)).not.toContain('Hidden group')
+    expect(general?.groups.length).toBeGreaterThan(1)
   })
 })

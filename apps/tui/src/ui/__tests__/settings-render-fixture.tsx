@@ -1,4 +1,4 @@
-import { ATLAS_SETTINGS, ESettingId, resolveSettings, toThreadId, type SecretPrompt, type SettingDefinition, type SettingsLayerInput, type TextPrompt } from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, ESettingId, ESettingsLayer, resolveSettings, toThreadId, type SecretPrompt, type SettingDefinition, type SettingsLayerInput, type TextPrompt } from '@dltech/atlas-core'
 import React from 'react'
 import { Settings } from '../components/settings'
 import { EQualityHealthReadKind } from '../../composition/use-quality-health'
@@ -100,8 +100,12 @@ export const page = (args: {
 export const rowsOf = async (node: React.ReactNode, width: number): Promise<string[]> =>
   (await frameOf(node, width)).split('\n')
 
-export const stateOf = (id: ESettingId): SettingsState => {
-  const resolution = resolveSettings({ definitions: ATLAS_SETTINGS, layers: [] })
+export const CUSTOM_DECISIONS: readonly SettingsLayerInput[] = [
+  { layer: ESettingsLayer.User, origin: 'user', values: { [ESettingId.DecisionsProvider]: 'custom' } },
+]
+
+export const stateOf = (id: ESettingId, layers: readonly SettingsLayerInput[] = []): SettingsState => {
+  const resolution = resolveSettings({ definitions: ATLAS_SETTINGS, layers })
   const model = settingsModel({ definitions: ATLAS_SETTINGS, resolution })
 
   for (const [pageIndex, page] of model.pages.entries()) {

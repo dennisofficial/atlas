@@ -10,9 +10,9 @@ import {
 
 import { portToken, type DependencyContainer } from '../container/injection'
 import { HaikuJudge } from '../classifier/judge'
-import { JevDecisionClient } from '../classifier/jev-client'
+import { createDecisionClient, liveDecisionsEndpoint } from '../classifier/decision-backend'
 import { JevJudge } from '../classifier/jev-judge'
-import { decisionsConfigFrom, RoutedJudge } from '../classifier/routed-judge'
+import { RoutedJudge } from '../classifier/routed-judge'
 import { summaryFor } from '../model/summariser'
 import { titleFor } from '../model/titler'
 import type { SettingsService } from '../settings/service'
@@ -40,8 +40,8 @@ export function bindUtilityModels(args: {
 }): UtilityModels {
   const { container, settings, models, model, notice } = args
 
-  const decisionsConfig = decisionsConfigFrom({ settings, secrets: args.secrets })
-  const decisions = new JevDecisionClient({ config: decisionsConfig })
+  const decisionsEndpoint = liveDecisionsEndpoint({ settings, secrets: args.secrets })
+  const decisions = createDecisionClient({ settings, secrets: args.secrets })
   container.register(portToken(DecisionPort), { useValue: decisions })
 
   const fallback = (): LanguageModelV4 | undefined => {
@@ -59,7 +59,7 @@ export function bindUtilityModels(args: {
     useValue: new RoutedJudge({
       fallback: new HaikuJudge({ model: utility(EUtilityModelRole.Judge) }),
       jev: new JevJudge({ decisions }),
-      enabled: () => decisionsConfig() !== undefined,
+      enabled: () => decisionsEndpoint() !== null,
     }),
   })
 
@@ -72,7 +72,7 @@ export function bindUtilityModels(args: {
   })
 
   return {
-    decisionsEnabled: () => decisionsConfig() !== undefined,
+    decisionsEnabled: () => decisionsEndpoint() !== null,
     tldrModel: utility(EUtilityModelRole.Tldr),
     titler: ({ text, images, signal }) =>
       titleFor({ model: titlerModel, fallback: titleFallback, text, images, signal }),

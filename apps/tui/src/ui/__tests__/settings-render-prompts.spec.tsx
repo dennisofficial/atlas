@@ -1,7 +1,7 @@
 import { ESettingId, type SecretPrompt, type TextPrompt } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { theme } from '../theme'
-import { WIDE, ORIGIN, SECRETS_ORIGIN, page, rowsOf, stateOf } from './settings-render-fixture'
+import { CUSTOM_DECISIONS, WIDE, ORIGIN, SECRETS_ORIGIN, page, rowsOf, stateOf } from './settings-render-fixture'
 
 describe('the search key row', () => {
   const KEY_ROW = stateOf(ESettingId.WebSearchKey)
@@ -53,27 +53,27 @@ describe('the search key row', () => {
 })
 
 describe('the text setting prompt', () => {
-  const URL_ROW = stateOf(ESettingId.DecisionsUrl)
+  const URL_ROW = stateOf(ESettingId.DecisionsUrl, CUSTOM_DECISIONS)
 
   it('offers the field instead of the preview band once the row is being edited', async () => {
     const textPrompt: TextPrompt = {
       id: ESettingId.DecisionsUrl,
-      label: 'Decision model',
+      label: 'Decision endpoint',
       typed: 'https://api.typesafe.ai/v1/systemone',
     }
-    const rows = await rowsOf(page({ state: URL_ROW, textPrompt }), WIDE)
+    const rows = await rowsOf(page({ state: URL_ROW, textPrompt, layers: CUSTOM_DECISIONS }), WIDE)
 
-    expect(rows.some((row) => row.includes('DECISION MODEL'))).toBe(true)
+    expect(rows.some((row) => row.includes('DECISION ENDPOINT'))).toBe(true)
     expect(rows.some((row) => row.includes('https://api.typesafe.ai/v1/systemone'))).toBe(true)
   })
 
   it('writes to the settings file, so it says so rather than naming a vault', async () => {
     const textPrompt: TextPrompt = {
       id: ESettingId.DecisionsUrl,
-      label: 'Decision model',
+      label: 'Decision endpoint',
       typed: '',
     }
-    const rows = await rowsOf(page({ state: URL_ROW, textPrompt }), WIDE)
+    const rows = await rowsOf(page({ state: URL_ROW, textPrompt, layers: CUSTOM_DECISIONS }), WIDE)
 
     expect(rows.some((row) => row.includes(`edits write to ${ORIGIN}`))).toBe(true)
     expect(rows.some((row) => row.includes(SECRETS_ORIGIN))).toBe(false)

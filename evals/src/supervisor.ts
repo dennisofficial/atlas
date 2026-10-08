@@ -103,6 +103,10 @@ function spawnChild({
         ATLAS_HOME: workDirectory,
         PATH: process.env.PATH ?? '',
         ...(token === undefined ? {} : { ATLAS_EVAL_DECISIONS_TOKEN: token }),
+        ...(process.env.ATLAS_EVAL_BACKEND === undefined ? {} : { ATLAS_EVAL_BACKEND: process.env.ATLAS_EVAL_BACKEND }),
+        ...(process.env.ATLAS_EVAL_OPENAI_KEY_FILE === undefined
+          ? {}
+          : { ATLAS_EVAL_OPENAI_KEY_FILE: process.env.ATLAS_EVAL_OPENAI_KEY_FILE }),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })

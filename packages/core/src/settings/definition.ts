@@ -1,5 +1,6 @@
 import type { EDefinitionOrigin } from '../discovery/origin'
 import type { ESettingsLayer } from './layers'
+import type { SettingsResolution } from './resolve'
 import { ESettingKind, type SettingOption } from './value'
 
 export enum ESettingPage {
@@ -25,6 +26,7 @@ type SettingFacts = {
   description: string
   environmentVariable?: string
   writeLayer?: ESettingsLayer.User | ESettingsLayer.Project
+  visibleWhen?: (args: { resolution: SettingsResolution }) => boolean
 }
 
 export type ToggleDefinition = SettingFacts & {
@@ -95,4 +97,11 @@ export function optionOf(args: {
   value: string
 }): SettingOption | undefined {
   return args.definition.options.find((option) => option.value === args.value)
+}
+
+export function isSettingVisible(args: {
+  definition: SettingDefinition
+  resolution: SettingsResolution
+}): boolean {
+  return args.definition.visibleWhen?.({ resolution: args.resolution }) ?? true
 }
