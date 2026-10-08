@@ -212,6 +212,12 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     cause: z.enum(ELocationChangeCause).optional(),
   }),
   z.object({
+    type: z.literal('rotated'),
+    predecessor: threadIdSchema,
+    handoffPath: z.string().min(1),
+    instructions: z.string().optional(),
+  }),
+  z.object({
     type: z.literal('parked'),
     reason: z.string(),
     turnRunning: z.boolean(),

@@ -48,7 +48,7 @@ export type WorkspaceInputArgs = {
   handleNewConversation: () => void
   handleOpenAccounts: () => void
   handleQuit: () => void
-  conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'operatorInput'>
+  conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'rotating' | 'operatorInput'>
   composer: Pick<ReturnType<typeof useWorkspaceComposer>,
     'draftIsEmpty' | 'handleSubmit' | 'handleTakeBackPending' | 'handleAttachImage' | 'menus'>
   agentView: Pick<ReturnType<typeof useAgentView>, 'handleCycle' | 'disarmStop'>
@@ -149,6 +149,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
   const { rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
+  const rotating = conversation.rotating !== null
   const moving = containerMove.move !== null
   const moveFailed = containerMove.move?.failure != null
 
@@ -172,6 +173,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
         handleKey: contextBrowser.handleKey, coversComposer: true, coversTranscript: contextBrowser.viewer !== null },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
+      { open: rotating, coversComposer: false, coversTranscript: true, porous: true },
       {
         open: moving,
         handleKey: moveFailed ? containerMove.handleKey : undefined,
@@ -186,6 +188,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       agentsPicker.handleKey,
       agentsPicker.state,
       compacting,
+      rotating,
       contextBrowser.handleKey,
       contextBrowser.viewer,
       containerMove.handleKey,

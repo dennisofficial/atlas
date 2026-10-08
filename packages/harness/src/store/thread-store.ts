@@ -109,6 +109,8 @@ export abstract class ThreadStorePort {
     agent?: SupervisedAgent | undefined
     /** Caller-chosen id, for a stub that shadows a thread another store already owns; generated when absent. */
     id?: ThreadId | undefined
+    /** Names an existing session the new main joins (rotation); absent, a main opens its own session. */
+    sessionId?: string | undefined
     executionLocation?: EExecutionLocation | undefined
     model?: ThreadModel | undefined
   }): Promise<ThreadSummary>

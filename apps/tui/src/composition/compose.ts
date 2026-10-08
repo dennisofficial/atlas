@@ -10,6 +10,7 @@ import {
   type ContributedProjection,
   type HarnessApp,
   type RewindMachineryPort,
+  type RotationPort,
   type SandboxControl,
   type SessionTitler,
   type SettingsBinding,
@@ -41,6 +42,7 @@ export type AtlasApp = Omit<
   pullRequests: PullRequestPort | null
   /** Absent for a local session, where rewind cleans up through the local registries. */
   rewindMachinery?: RewindMachineryPort | undefined
+  rotation?: RotationPort | undefined
   config: AtlasConfig
   command: string
 }

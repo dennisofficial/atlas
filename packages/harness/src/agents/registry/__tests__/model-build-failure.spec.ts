@@ -2,7 +2,7 @@ import { expect, it } from 'bun:test'
 import { EAgentStatus } from '@dltech/atlas-core'
 
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, openSupervisor } from './fixtures'
+import { agentTypeNamed, loggedOfType, openSupervisor } from './fixtures'
 
 it('reports the reason when a saved child model cannot build a runner', async () => {
   const opened = await openSupervisor()
@@ -26,8 +26,8 @@ it('reports the reason when a saved child model cannot build a runner', async ()
     expect(child.ok).toBe(true)
     await supervisor.whenChildrenSettled({ threadId: parent })
     expect(supervisor.list({ threadId: parent })[0]?.status).toBe(EAgentStatus.Failed)
-    const ending = supervisor.drainNotifications({ threadId: parent }).drafts[0]
-    expect(ending?.type === 'agent-ended' ? ending.prose : '').toContain('inference/kimi-k3-fast')
+    const [ending] = await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })
+    expect(ending?.prose ?? '').toContain('inference/kimi-k3-fast')
   } finally {
     await opened.close()
   }

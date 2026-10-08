@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { fakeRunners, finished, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
+import { fakeRunners, finished, loggedOfType, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
 
 let opened: OpenedSupervisor | undefined
 
@@ -61,7 +61,7 @@ describe('a child’s leftover notices at completion', () => {
 
   it('runs without the wiring when composition supplies none', async () => {
     opened = await openSupervisor()
-    const { supervisor, runners, parent } = opened
+    const { harness, supervisor, runners, parent } = opened
 
     const spawned = await supervisor.spawn({
       threadId: parent,
@@ -74,9 +74,9 @@ describe('a child’s leftover notices at completion', () => {
     const started = runners.started[0]
     if (started === undefined) throw new Error('the child never ran')
     started.settle(finished())
-    await settled()
-    await settled()
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
+    expect(await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })).toHaveLength(1)
     expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(1)
   })
 })

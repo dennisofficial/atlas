@@ -37,6 +37,7 @@ import type { DiscoveredSkill } from '../skills/skill'
 import type { SkillRegistryPort } from '../skills/port'
 import type { ThreadStorePort } from '../store/thread-store'
 import type { CompactionPort } from '../store/compaction-port'
+import type { RotationPort } from '../rotation'
 import type { ToolRegistry } from '../tools/registry'
 import type { AccountUsageService } from '../usage/account-usage-service'
 
@@ -87,6 +88,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   titler: SessionTitler
   summarise: Summariser
   compaction?: CompactionPort | undefined
+  rotation?: RotationPort | undefined
   credentials: CredentialPort
   accounts: AccountsService
   cloud: CloudService

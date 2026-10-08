@@ -13,6 +13,7 @@ import { CloudSessionStore } from '../../cloud/cloud-session'
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../../cloud/settings-definitions'
 import { portToken } from '../../container/injection'
 import { UserSettingsStoreToken } from '../../container/tokens'
+import { RotationPort } from '../../rotation'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { composeHarness } from '../compose'
@@ -106,6 +107,22 @@ describe('composeHarness', () => {
     })
 
     expect(resolved).toBe(app.model)
+    await expect(app.close()).resolves.toBeUndefined()
+  })
+
+  it('registers the rotation port so surfaces resolve it at bind time, bound to the composed runner', async () => {
+    let resolved: RotationPort | undefined
+    const app = await compose<undefined>({
+      bind: ({ container }) => {
+        expect(container.isRegistered(portToken(RotationPort), true)).toBe(true)
+        resolved = container.resolve(portToken(RotationPort))
+        return undefined
+      },
+    })
+
+    expect(resolved).toBeDefined()
+    expect(app.rotation).toBeDefined()
+    await expect(resolved!.status({ sessionId: 'compose-spec-unknown-session' })).resolves.toEqual({ kind: 'idle' })
     await expect(app.close()).resolves.toBeUndefined()
   })
 

@@ -6,6 +6,7 @@ import { operatorInputSnapshot } from './operator-input'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { HelloFrame, SessionHandlersArgs, SessionSocket } from './socket-session-types'
+import type { RotationStateWire } from '@dltech/atlas-wire'
 import type { createStepAliaser } from './step-alias'
 
 export function createSocketGreeter(args: {
@@ -25,6 +26,7 @@ export function createSocketGreeter(args: {
   forSocket: (args: { socket: SessionSocket; frame: ServeFrame }) => ServeFrame
   drive: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ClientFrame }) => void
   log: ServeLog
+  rotation: () => RotationStateWire | undefined
 }) {
   const { threadId, buffer, inFlight, liveStepId, driver, pending, operatorInput, send, log } = args
   return (greeting: { socket: SessionSocket; hello: HelloFrame; head: number | null }): void => {
@@ -56,6 +58,16 @@ export function createSocketGreeter(args: {
           kind: EServeFrame.Signal,
           seq: Math.max(0, buffer.nextSeq() - 1),
           signal: { type: 'pending-changed', entries: queued },
+        },
+      })
+    const rotating = args.rotation()
+    if (rotating !== undefined)
+      send({
+        socket,
+        frame: {
+          kind: EServeFrame.Signal,
+          seq: Math.max(0, buffer.nextSeq() - 1),
+          signal: { type: 'rotation-changed', rotation: rotating },
         },
       })
     const reloadedMidStep = resumed ? null : liveStepId()

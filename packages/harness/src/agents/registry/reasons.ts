@@ -71,3 +71,6 @@ export function notYourTeammate({
   const ids = known.length === 0 ? 'none' : known.map((one) => one.agentId).join(', ')
   return `${agentId} is not a teammate of yours; your teammates: ${ids}`
 }
+
+export const reportNotRecorded = (cause: string): string =>
+  `your report was not delivered: the main agent's log refused it (${cause}); nothing was sent, so send it again`

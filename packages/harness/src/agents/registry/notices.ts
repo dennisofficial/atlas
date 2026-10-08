@@ -13,6 +13,7 @@ export type AgentNotice = {
   snapshot: AgentSnapshot
   kind: EAgentNotice
   draft: EventDraft
+  logged: boolean
   generation?: AbortSignal | undefined
 }
 
@@ -22,7 +23,8 @@ const NOTHING_PENDING: readonly AgentNotice[] = Object.freeze([])
 
 const NOTHING_ANNOUNCED: readonly AgentSnapshot[] = Object.freeze([])
 
-const NOTHING_DRAINED: readonly EventDraft[] = Object.freeze([])
+export const unloggedDrafts = (notices: readonly AgentNotice[]): readonly EventDraft[] =>
+  notices.filter((notice) => !notice.logged).map((notice) => notice.draft)
 
 const NOTHING_NOTICED: ReadonlyMap<ThreadId, readonly AgentSnapshot[]> = new Map()
 
@@ -36,7 +38,7 @@ export class AgentNoticeQueue {
   }
 
   drain({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
-    return this.take({ threadId, where: () => true }).map((notice) => notice.draft)
+    return unloggedDrafts(this.take({ threadId, where: () => true }))
   }
 
   prepare({ threadId }: { threadId: ThreadId }): AgentNoticeBatch {
@@ -44,7 +46,7 @@ export class AgentNoticeQueue {
     let acknowledged = false
     return {
       notices: captured,
-      drafts: captured.map((notice) => notice.draft),
+      drafts: unloggedDrafts(captured),
       wakesTurn: captured.length > 0,
       acknowledge: () => {
         if (acknowledged) return

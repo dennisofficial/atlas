@@ -4,7 +4,7 @@ import { dirname } from 'node:path'
 
 import { z } from 'zod'
 
-import type { LogPort } from '@dltech/atlas-core'
+import type { LogPort, ThreadId } from '@dltech/atlas-core'
 import { runtimeCheckpointSchema, transcriptCheckpointSchema } from '@dltech/atlas-wire'
 
 import { logFieldsOf } from '../logs'
@@ -28,6 +28,30 @@ const spendSchema = z.object({
   cacheWriteTokens: z.number(),
 })
 
+export enum ERotationStatus {
+  Preparing = 'preparing',
+  Committed = 'committed',
+  Failed = 'failed',
+  Aborted = 'aborted',
+}
+
+export const rotationSchema = z.object({
+  predecessor: z.string(),
+  successor: z.string(),
+  handoffPath: z.string().nullable(),
+  watermarkSeq: z.number(),
+  operationId: z.string().nullish(),
+  status: z.enum([
+    ERotationStatus.Preparing,
+    ERotationStatus.Committed,
+    ERotationStatus.Failed,
+    ERotationStatus.Aborted,
+  ]),
+  updatedAt: z.string(),
+})
+
+export type RotationRecord = z.infer<typeof rotationSchema>
+
 export const sessionMetaSchema = z.object({
   format: z.number(),
   id: z.string(),
@@ -40,9 +64,29 @@ export const sessionMetaSchema = z.object({
   worktree: z.string().nullable(),
   pullRequests: z.array(z.number()).nullable(),
   spend: spendSchema.nullable(),
+  activeMainThreadId: z.string().nullish(),
+  rotation: rotationSchema.nullish(),
 })
 
 export type SessionMeta = z.infer<typeof sessionMetaSchema>
+
+export type MainThreadFence =
+  | { allowed: true; generation: number }
+  | { allowed: false; activeMain: ThreadId | null }
+
+export type RotationWriteArgs = {
+  rotation: RotationRecord
+  expectedActiveMain: ThreadId
+  nextActiveMain?: ThreadId | undefined
+}
+
+export abstract class SessionAuthorityPort {
+  abstract activeMainOf(args: { sessionId: string }): Promise<ThreadId | undefined>
+  abstract mainGenerationOf(args: { threadId: ThreadId }): Promise<number | undefined>
+  abstract fenceMainThread(args: { threadId: ThreadId; generation?: number | undefined }): Promise<MainThreadFence>
+  abstract writeRotation(args: { sessionId: string; write: RotationWriteArgs }): Promise<void>
+  abstract recoverInterruptedRotation(args: { sessionId: string }): Promise<void>
+}
 
 export const THREAD_META_VERSION = 1
 

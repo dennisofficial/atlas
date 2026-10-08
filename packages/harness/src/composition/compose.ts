@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
 import {
+  ClockPort,
   EventLogPort,
   ESettingId,
   IdPort,
@@ -21,6 +22,7 @@ import {
   ClientVersionToken,
   DockerEngineToken,
   HookMishapReporterToken,
+  SessionRegistryToken,
   SleepPreventionToken,
   WakeSignalToken,
 } from '../container/tokens'
@@ -31,8 +33,11 @@ import { PromptRegistry } from '../prompt/registry'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
+import { SessionAuthorityPort } from '../store/sessions/meta'
 import { ThreadStorePort } from '../store/thread-store'
 import { LocalCompaction } from '../store/local-compaction'
+import { LocalRotation, RotationPort, handoffSummariser } from '../rotation'
+import { LateRotation } from './rotation-binding'
 import { ToolRegistry } from '../tools/registry'
 
 import { bindBrowser } from './compose-browser'
@@ -155,8 +160,18 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
-  executionLocation.bind({ threads, workspace: workspace.workspace, repo: workspace.repo })
+  executionLocation.bind({
+    threads,
+    workspace: workspace.workspace,
+    repo: workspace.repo,
+    authority: container.isRegistered(portToken(SessionAuthorityPort), true)
+      ? container.resolve(portToken(SessionAuthorityPort))
+      : undefined,
+  })
   const ledger = container.resolve(portToken(TurnLedgerPort))
+
+  const lateRotation = new LateRotation()
+  container.register(portToken(RotationPort), { useValue: lateRotation })
 
   container.register(HookMishapReporterToken, { useValue: hookMishapNotice(notice) })
   const bound = surface.bind === undefined ? undefined : await surface.bind({ container })
@@ -200,6 +215,22 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   })
 
   const compaction = new LocalCompaction({ log, threads, agents, summarise: utility.summarise })
+  const rotation = new LocalRotation({
+    authority: container.resolve(portToken(SessionAuthorityPort)),
+    registry: container.resolve(SessionRegistryToken),
+    threads,
+    log,
+    ids,
+    clock: container.resolve(portToken(ClockPort)),
+    agents,
+    shells,
+    services,
+    runner,
+    summarise: handoffSummariser({ model: utility.compactionModel }),
+    workspace: workspace.workspace,
+    repo: workspace.repo,
+  })
+  lateRotation.bind(rotation)
   const browser = bindBrowser({ anchor, settings, executionLocation, mounts })
   const sessionOwner = localSessionOwner({
     files: browser.files,
@@ -230,6 +261,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     titler: utility.titler,
     summarise: utility.summarise,
     compaction,
+    rotation,
     settings,
     secrets,
     skills: skillRegistry.all(),

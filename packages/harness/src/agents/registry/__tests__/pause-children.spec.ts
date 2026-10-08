@@ -160,7 +160,7 @@ describe('pausing a stepping child', () => {
     expect(events.some((event) => event.type === 'agent-ended' && event.agentId === first && event.status === EAgentStatus.Failed)).toBe(true)
   })
 
-  it('preserves a drained terminal ending when its append fails so the frozen retry can persist it', async () => {
+  it('keeps a terminal ending whose first append failed so the pause flush persists it', async () => {
     const entry = await openSupervisor()
     opened.push(entry)
     const child = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
@@ -175,7 +175,7 @@ describe('pausing a stepping child', () => {
     }
     const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
     entry.runners.started[0]?.settle(finished())
-    await expect(pausing).rejects.toThrow('ending storage unavailable')
+    await pausing
     await entry.supervisor.pauseChildren({ threadId: entry.parent })
     const events = await entry.harness.log.readOwn({ threadId: entry.parent })
     expect(events.filter((event) => event.type === 'agent-ended' && event.agentId === child))

@@ -1,5 +1,5 @@
 import type { EventDraft, ThreadId } from '@dltech/atlas-core'
-import { PauseSignal, RemoteTurnDetached, RemoteTurnRunner } from '@dltech/atlas-harness'
+import { PauseSignal, RemoteTurnDetached, RemoteTurnRunner, type TurnOutcome } from '@dltech/atlas-harness'
 import { useCallback, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
@@ -36,6 +36,7 @@ export function useDrivenTurn(args: {
   const workingRef = useRef(false)
   const abort = useRef<AbortController | null>(null)
   const pause = useRef<PauseSignal | null>(null)
+  const lastOutcome = useRef<TurnOutcome | null>(null)
   const tailRef = useRef(false)
   const settleListeners = useRef(new Set<() => void>())
 
@@ -93,6 +94,7 @@ export function useDrivenTurn(args: {
         settleCommit = resolve
       })
       abort.current = controller
+      lastOutcome.current = null
       pause.current = pauseSignal
       workingRef.current = true
       setWorking(true)
@@ -145,6 +147,7 @@ export function useDrivenTurn(args: {
                   signal: controller.signal,
                   pause: pauseSignal,
                 })
+          lastOutcome.current = outcome
           setFailure(stoppageOf(outcome))
           await app.turnPolicy.onOutcome({ threadId, outcome })
           const said = app.turnPolicy.undone()
@@ -206,6 +209,7 @@ export function useDrivenTurn(args: {
     setWorking,
     abort,
     pause,
+    lastOutcome,
     drive,
     whenSettled,
     fireSettleListeners,

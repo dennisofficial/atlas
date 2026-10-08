@@ -14,30 +14,15 @@ import type { AtlasApp } from './compose'
 import type { DirectoryMove } from './directory-move'
 import { messageOf } from './error-text'
 import { discardInterrupted, EDiscard } from './resume-turn'
+import type { TurnDriver } from './turn-driver-types'
 import { IDLE_PROGRESS, turnInterrupting } from './turn-progress'
-import { useDrivenTurn, type DriveOptions } from './use-driven-turn'
+import { useDrivenTurn } from './use-driven-turn'
 import { runnerClaimed, useRunnerClaim } from './use-runner-claim'
 import { useRemoteTurnState, type InterruptChannel } from './use-remote-turn-state'
-import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
+import { useRewindConfirm } from './use-rewind-confirm'
 import type { ThreadView } from './use-thread-view'
 
-export type TurnDriver = {
-  working: boolean
-  workingRef: RefObject<boolean>
-  rewindConfirm: RewindConfirmControl
-  drive: (drafts: readonly EventDraft[], opts?: DriveOptions) => Promise<void>
-  handleInterrupt: () => void
-  handleInterruptForMove: () => void
-  handlePauseForMove: () => void
-  turnInFlight: () => boolean
-  handleRetry: () => void
-  handleResume: () => void
-  handleResumeFresh: () => void
-  handleRewindTo: (toSeq: number) => void
-  isResumable: boolean
-  settle: () => void
-  whenSettled: () => Promise<void>
-}
+export type { TurnDriver } from './turn-driver-types'
 
 export function useTurnDriver(args: {
   app: AtlasApp
@@ -295,5 +280,6 @@ export function useTurnDriver(args: {
     isResumable: !remote.settling && isResumable(events),
     settle,
     whenSettled,
+    lastOutcome: driven.lastOutcome,
   }
 }

@@ -205,7 +205,10 @@ export function useWorkspaceLocation(args: {
       }
 
       if (asked === EExecutionLocation.Cloud) {
-        const refusal = liftRefusal({ compacting: conversation.compacting !== null })
+        const refusal = liftRefusal({
+          compacting: conversation.compacting !== null,
+          rotating: conversation.rotating !== null,
+        })
         if (refusal !== null) return refusal
       }
 
@@ -235,6 +238,7 @@ export function useWorkspaceLocation(args: {
       props.onReload,
       props.opened,
       conversation.compacting,
+      conversation.rotating,
       conversation.started,
       execution,
     ],

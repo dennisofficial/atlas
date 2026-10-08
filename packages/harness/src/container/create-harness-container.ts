@@ -51,6 +51,8 @@ import { JsonlLog } from '../store/logs'
 import { atlasDirectory } from '../store/paths'
 import { JsonlEventLog } from '../store/sessions/event-log'
 import { registryFor } from '../store/sessions/registry'
+import { SessionAuthorityPort } from '../store/sessions/meta'
+import { JsonlSessionAuthority } from '../store/sessions/session-authority'
 import { JsonlThreadStore } from '../store/sessions/thread-store'
 import { AgentRegistrySourceToken, AgentTypesToken } from '../tools/builtin/agent-tokens'
 import { NullTelemetry } from '../telemetry/null-telemetry'
@@ -163,6 +165,15 @@ export function createHarnessContainer(): DependencyContainer {
   const home = atlasDirectory()
   harness.register(AtlasHomeToken, { useValue: home })
   harness.register(SessionRegistryToken, { useValue: registryFor({ home }) })
+  harness.register(portToken(SessionAuthorityPort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new JsonlSessionAuthority({
+          registry: resolver.resolve(SessionRegistryToken),
+          clock: resolver.resolve(portToken(ClockPort)),
+        }),
+    ),
+  })
 
   harness.register(portToken(ClockPort), { useClass: SystemClock })
   harness.register(portToken(IdPort), { useClass: RandomIds })
@@ -232,6 +243,9 @@ export function createHarnessContainer(): DependencyContainer {
         threads: resolver.resolve(portToken(ThreadStorePort)),
         workspace: resolver.isRegistered(WorkspaceRoot, true) ? resolver.resolve(WorkspaceRoot) : home,
         repo: null,
+        authority: resolver.isRegistered(portToken(SessionAuthorityPort), true)
+          ? resolver.resolve(portToken(SessionAuthorityPort))
+          : undefined,
       })
       return { state, pinned: false }
     }),

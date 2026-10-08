@@ -37,11 +37,14 @@ export async function sessionDirForNew({
   context,
   id,
   agent,
+  sessionId,
 }: {
   context: ThreadStoreContext
   id: ThreadId
   agent: SupervisedAgent | undefined
+  sessionId: string | undefined
 }): Promise<string> {
+  if (sessionId !== undefined) return sessionDirFor({ context, threadId: sessionId as ThreadId })
   if (agent === undefined) return sessionDirectory({ home: context.home, sessionId: id })
   return sessionDirFor({ context, threadId: agent.spawnedBy })
 }

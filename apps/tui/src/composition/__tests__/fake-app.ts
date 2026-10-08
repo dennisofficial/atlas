@@ -94,7 +94,7 @@ import type { QueuedSettled } from '../commands'
 import { userSaidDraft } from '@dltech/atlas-harness'
 import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { AtlasApp } from '../compose'
-import type { HarnessCloseRequest } from '@dltech/atlas-harness'
+import type { HarnessCloseRequest, RotationPort } from '@dltech/atlas-harness'
 import type { ActiveConversation } from '@dltech/atlas-harness'
 import { threadHandle } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
@@ -788,6 +788,7 @@ export function fakeApp(args: {
   drainFailures?: number
   turnPolicy?: TurnPolicy
   intake?: boolean | undefined
+  rotation?: RotationPort | undefined
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -1028,6 +1029,7 @@ export function fakeApp(args: {
     ids,
     pending,
     ...(intake === undefined ? {} : { intake }),
+    ...(args.rotation === undefined ? {} : { rotation: args.rotation }),
     shells,
     agents,
     services,

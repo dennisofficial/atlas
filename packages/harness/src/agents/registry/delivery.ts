@@ -1,7 +1,7 @@
 import type { ClockPort, EventDraft, ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../../intake/input-batch'
-import { EAgentNotice, type AgentNotice, type AgentNoticeQueue } from './notices'
+import { EAgentNotice, unloggedDrafts, type AgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
 
 export type NoticeDrain = {
@@ -50,7 +50,7 @@ export class NoticeDelivery {
     threadId: ThreadId
     where: (notice: AgentNotice) => boolean
   }): readonly EventDraft[] {
-    return this.notices.take({ threadId, where }).map((notice) => notice.draft)
+    return unloggedDrafts(this.notices.take({ threadId, where }))
   }
 
   private stampDelivered(handed: readonly AgentNotice[]): void {

@@ -367,6 +367,19 @@ export function durableEntries(args: {
       return [locationChangedEntry({ key: event.id, to: event.to, cause: event.cause })]
     }
 
+    if (event.type === 'rotated') {
+      return [
+        {
+          kind: EEntryKind.Rotated,
+          author: EAuthor.Model,
+          key: event.id,
+          text: `rotated from ${event.predecessor}`,
+          predecessor: event.predecessor,
+          handoffPath: event.handoffPath,
+        },
+      ]
+    }
+
     if (event.type === 'operator-input-requested') {
       return [
         {

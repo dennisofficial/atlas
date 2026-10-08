@@ -13,6 +13,7 @@ import {
   finished,
   interrupted,
   said,
+  loggedOfType,
   type FakeRunners,
 } from './fixtures'
 
@@ -130,7 +131,7 @@ describe('spawning', () => {
 
     const onParent = await harness.log.readOwn({ threadId: parent })
     expect(onParent.every((event) => event.threadId === parent)).toBe(true)
-    expect(onParent.map((event) => event.type)).toEqual(['agent-spawned'])
+    expect(onParent.map((event) => event.type)).toEqual(['agent-spawned', 'agent-ended'])
   })
 
   it('refuses a type it does not know, naming the ones it does', async () => {
@@ -170,8 +171,10 @@ describe('an ending', () => {
     opened.runners.started[0]?.settle(finished())
     await opened.supervisor.closeAll()
 
-    const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent })
-    expect(drafts.drafts).toEqual([
+    const logged = await loggedOfType({ harness: opened.harness, threadId: opened.parent, type: 'agent-ended' })
+    expect(logged.map(({ type, agentId, agentType, intent, status, prose, turns, toolCalls }) => ({
+      type, agentId, agentType, intent, status, prose, turns, toolCalls,
+    }))).toEqual([
       {
         type: 'agent-ended',
         agentId,
@@ -235,8 +238,8 @@ describe('stopping', () => {
     opened.runners.started[0]?.settle(interrupted())
     await opened.supervisor.closeAll()
 
-    const [draft] = opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts
-    expect(draft?.type === 'agent-ended' ? draft.status : undefined).toBe(EAgentStatus.Stopped)
+    const [ending] = await loggedOfType({ harness: opened.harness, threadId: opened.parent, type: 'agent-ended' })
+    expect(ending?.status).toBe(EAgentStatus.Stopped)
   })
 
   it('refuses an agent another conversation supervises', async () => {

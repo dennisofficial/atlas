@@ -11,6 +11,7 @@ export enum EWorkingVerb {
   Working = 'Working',
   Thinking = 'Thinking',
   Compacting = 'Compacting',
+  Rotating = 'Rotating',
   Reconnecting = 'Reconnecting',
   Waking = 'Waking the sandbox',
   Disconnected = 'Disconnected',

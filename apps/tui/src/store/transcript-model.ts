@@ -26,6 +26,7 @@ export enum EEntryKind {
   TurnEnded = 'turn-ended',
   SandboxNotice = 'sandbox-notice',
   LocationChanged = 'location-changed',
+  Rotated = 'rotated',
   OperatorInput = 'operator-input',
 }
 
@@ -202,6 +203,15 @@ export type LocationChangedEntry = {
   cause?: ELocationChangeCause | undefined
 }
 
+export type RotatedEntry = {
+  kind: EEntryKind.Rotated
+  author: EAuthor.Model
+  key: string
+  text: string
+  predecessor: string
+  handoffPath: string
+}
+
 export type OperatorInputEntry = {
   kind: EEntryKind.OperatorInput
   author: EAuthor.Model
@@ -227,6 +237,7 @@ export type TranscriptEntry =
   | TurnEndedEntry
   | SandboxNoticeEntry
   | LocationChangedEntry
+  | RotatedEntry
   | OperatorInputEntry
 
 export type StepFailure = { message: string | null }

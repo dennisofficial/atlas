@@ -12,6 +12,7 @@ import {
 export type ThreadSwap = {
   handleNewConversation: () => void
   handleOpenThread: (threadId: string) => void
+  handleOpenSuccessor: (args: { successor: ThreadId }) => void
 }
 
 /**
@@ -33,10 +34,8 @@ export function useThreadSwap(args: {
     adopt(unstartedConversation({ ids: app.ids }))
   }, [adopt, app.ids, working])
 
-  const handleOpenThread = useCallback(
+  const open = useCallback(
     (asked: string) => {
-      if (working.current || asked === threadId) return
-
       void openConversation({
         threads: app.threads,
         log: app.log,
@@ -66,10 +65,22 @@ export function useThreadSwap(args: {
       app.threads,
       app.workspace,
       onFailure,
-      threadId,
-      working,
     ],
   )
 
-  return { handleNewConversation, handleOpenThread }
+  const handleOpenThread = useCallback(
+    (asked: string) => {
+      if (working.current || asked === threadId) return
+
+      open(asked)
+    },
+    [open, threadId, working],
+  )
+
+  const handleOpenSuccessor = useCallback(
+    ({ successor }: { successor: ThreadId }) => open(successor),
+    [open],
+  )
+
+  return { handleNewConversation, handleOpenThread, handleOpenSuccessor }
 }

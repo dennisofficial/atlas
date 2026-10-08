@@ -15,13 +15,13 @@ import type { ChildRunnerSource } from './child-runner'
 import { ChildAdmissions } from './child-admissions'
 import type { HasLiveWork, InheritOrphanedNotices, IntakeChanged } from './deps'
 import {
-  agentEndedDraft,
   recordContext,
   recordProgress,
-  snapshotOf,
   type ChildState,
   type SteerMessage,
 } from './child-state'
+import { AgentJournal } from './agent-journal'
+import { recordEnding } from './child-endings'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import { statusOf } from './reasons'
 import type { AgentRoster } from './roster'
@@ -36,6 +36,7 @@ export class ChildSteps {
   private readonly runners: ChildRunnerSource
   private readonly roster: AgentRoster
   private readonly notices: AgentNoticeQueue
+  private readonly journal: AgentJournal
   private readonly clock: ClockPort
   private readonly telemetry: TelemetryPort | undefined
   private readonly intake: IntakeChanged | undefined
@@ -52,6 +53,7 @@ export class ChildSteps {
     runners: ChildRunnerSource
     roster: AgentRoster
     notices: AgentNoticeQueue
+    journal: AgentJournal
     clock: ClockPort
     telemetry?: TelemetryPort | undefined
     intake?: IntakeChanged | undefined
@@ -62,6 +64,7 @@ export class ChildSteps {
     this.runners = args.runners
     this.roster = args.roster
     this.notices = args.notices
+    this.journal = args.journal
     this.clock = args.clock
     this.telemetry = args.telemetry
     this.intake = args.intake
@@ -180,7 +183,7 @@ export class ChildSteps {
     }
   }
 
-  private finish({ child, status }: { child: ChildState; status: EAgentStatus }): void {
+  private async finish({ child, status }: { child: ChildState; status: EAgentStatus }): Promise<void> {
     if (this.roster.find(child.agentId) === undefined) return
 
     child.status = status
@@ -199,13 +202,7 @@ export class ChildSteps {
 
     const kind = this.endingKind(child)
     if (kind !== undefined) {
-      this.notices.queue({
-        threadId: child.spawnedBy,
-        snapshot: snapshotOf(child),
-        kind,
-        draft: agentEndedDraft(child),
-        generation: child.abort.signal,
-      })
+      await recordEnding({ journal: this.journal, notices: this.notices, roster: this.roster, child, kind })
       this.onEnded?.(child.agentId)
     }
 

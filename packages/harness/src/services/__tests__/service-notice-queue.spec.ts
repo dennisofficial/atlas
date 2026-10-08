@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EServiceStatus, toThreadId } from '@dltech/atlas-core'
 
-import { ServiceNoticeQueue } from '../service-notices'
+import { ServiceNoticeQueue, serviceEndedDraft } from '../service-notices'
 import type { ServiceSnapshot } from '../service-process'
 
 const THREAD = toThreadId('thread-under-test')
@@ -20,11 +20,17 @@ const snapshotOf = (serviceId: string): ServiceSnapshot => ({
   endedAt: '2026-08-27T12:00:01.000Z',
 })
 
+const noticeOf = (serviceId: string, threadId: ReturnType<typeof toThreadId>) => ({
+  snapshot: snapshotOf(serviceId),
+  threadId,
+  draft: serviceEndedDraft({ snapshot: snapshotOf(serviceId) }),
+})
+
 describe('reassigning a finished thread’s service notices', () => {
   it('moves every queued notice to the parent, preserving order', () => {
-    const queue = new ServiceNoticeQueue()
-    queue.queue({ snapshot: snapshotOf('svc_1'), threadId: CHILD })
-    queue.queue({ snapshot: snapshotOf('svc_2'), threadId: CHILD })
+    const queue = new ServiceNoticeQueue({ logged: false })
+    queue.queue(noticeOf('svc_1', CHILD))
+    queue.queue(noticeOf('svc_2', CHILD))
 
     queue.reassign({ from: CHILD, to: PARENT })
 
@@ -37,9 +43,9 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('leaves other threads’ notices where they are', () => {
-    const queue = new ServiceNoticeQueue()
-    queue.queue({ snapshot: snapshotOf('svc_1'), threadId: CHILD })
-    queue.queue({ snapshot: snapshotOf('svc_2'), threadId: THREAD })
+    const queue = new ServiceNoticeQueue({ logged: false })
+    queue.queue(noticeOf('svc_1', CHILD))
+    queue.queue(noticeOf('svc_2', THREAD))
 
     queue.reassign({ from: CHILD, to: PARENT })
 
@@ -48,8 +54,8 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('is a no-op when the finished thread left nothing, and never fires a listener', () => {
-    const queue = new ServiceNoticeQueue()
-    queue.queue({ snapshot: snapshotOf('svc_1'), threadId: THREAD })
+    const queue = new ServiceNoticeQueue({ logged: false })
+    queue.queue(noticeOf('svc_1', THREAD))
     let rang = 0
     queue.onNotice(() => { rang += 1 })
 
@@ -60,8 +66,8 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('is a no-op when from and to are the same thread', () => {
-    const queue = new ServiceNoticeQueue()
-    queue.queue({ snapshot: snapshotOf('svc_1'), threadId: CHILD })
+    const queue = new ServiceNoticeQueue({ logged: false })
+    queue.queue(noticeOf('svc_1', CHILD))
 
     queue.reassign({ from: CHILD, to: CHILD })
 
@@ -69,8 +75,8 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('lets the inheriting parent drain what the child never could', () => {
-    const queue = new ServiceNoticeQueue()
-    queue.queue({ snapshot: snapshotOf('svc_1'), threadId: CHILD })
+    const queue = new ServiceNoticeQueue({ logged: false })
+    queue.queue(noticeOf('svc_1', CHILD))
 
     queue.reassign({ from: CHILD, to: PARENT })
 

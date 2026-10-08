@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { agentEnding, EAgentStatus } from '@dltech/atlas-core'
 
-import { openSupervisor, paused, settled, type OpenedSupervisor } from './fixtures'
+import { loggedOfType, openSupervisor, paused, settled, type OpenedSupervisor } from './fixtures'
 
 const opened: OpenedSupervisor[] = []
 
@@ -26,8 +26,8 @@ async function spawnAndPause(): Promise<{ status: EAgentStatus; turns: number; c
   open.runners.started[0]?.settle(paused())
   await open.supervisor.closeAll()
 
-  const [draft] = open.supervisor.drainNotifications({ threadId: open.parent }).drafts
-  if (draft?.type !== 'agent-ended') throw new Error('the parent was told nothing')
+  const [draft] = await loggedOfType({ harness: open.harness, threadId: open.parent, type: 'agent-ended' })
+  if (draft === undefined) throw new Error('the parent was told nothing')
 
   return { status: draft.status, turns: draft.turns, calls: draft.toolCalls }
 }

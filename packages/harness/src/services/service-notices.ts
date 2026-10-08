@@ -6,12 +6,8 @@ import { logTail, type ServiceSnapshot } from './service-process'
 
 export const ENDING_TAIL_CHARACTERS = 4_000
 
-export type ServiceNotice = { snapshot: ServiceSnapshot; threadId: ThreadId }
+export type ServiceNotice = { snapshot: ServiceSnapshot; threadId: ThreadId; draft: EventDraft }
 
-/**
- * The tail is read at handover rather than at exit: a notice that is dropped rather than delivered
- * takes nothing with it, because the log file keeps everything the service ever printed.
- */
 export function serviceEndedDraft(args: { snapshot: ServiceSnapshot }): EventDraft {
   const { snapshot } = args
 
@@ -41,6 +37,11 @@ export class ServiceNoticeQueue {
   private queued: readonly ServiceNotice[] = NOTHING_PENDING
   private noticed: ReadonlyMap<ThreadId, readonly ServiceSnapshot[]> = NOTHING_NOTICED
   private readonly listeners = new Set<() => void>()
+  private readonly logged: boolean
+
+  constructor(args: { logged: boolean }) {
+    this.logged = args.logged
+  }
 
   queue(notice: ServiceNotice): void {
     this.settle([...this.queued, notice])
@@ -54,7 +55,7 @@ export class ServiceNoticeQueue {
 
   prepare({ threadId }: { threadId: ThreadId }): InputBatch {
     const captured = this.queued.filter((notice) => notice.threadId === threadId)
-    const drafts = captured.map((notice) => serviceEndedDraft({ snapshot: notice.snapshot }))
+    const drafts = this.logged ? [] : captured.map((notice) => notice.draft)
 
     let acknowledged = false
     const acknowledge = (): void => {
@@ -65,7 +66,7 @@ export class ServiceNoticeQueue {
       if (kept.length !== this.queued.length) this.settle(kept)
     }
 
-    return { drafts, wakesTurn: drafts.length > 0, acknowledge }
+    return { drafts, wakesTurn: captured.length > 0, acknowledge }
   }
 
   pending({ threadId }: { threadId: ThreadId }): readonly ServiceSnapshot[] {

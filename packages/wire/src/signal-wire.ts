@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { rotationStateWireSchema } from './rotation-wire.js'
+
 export enum EFinishReason {
   Stop = 'stop',
   Length = 'length',
@@ -155,6 +157,7 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
     type: z.literal('operator-input'),
     request: operatorInputRequestWireSchema.nullable(),
   }),
+  z.object({ type: z.literal('rotation-changed'), rotation: rotationStateWireSchema }),
 ])
 
 export type ChannelSignal = z.infer<typeof channelSignalSchema>

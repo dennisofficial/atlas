@@ -24,6 +24,7 @@ import type {
   TranscriptModel,
 } from '../store'
 import type { Compacting } from '../ui/components/compacting'
+import type { Rotating } from '../ui/components/rotating'
 
 import type { OperatorInputControl } from './use-operator-input'
 import type { TurnClock } from '../ui/turn-clock'
@@ -109,11 +110,13 @@ export type Conversation = {
   handleResumeSource: () => void
   whenSettled: () => Promise<void>
   compacting: Compacting | null
+  rotating: Rotating | null
   handleNewConversation: () => void
   handleOpenThread: (threadId: string) => void
   handleChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   handleRename: (argumentText: string) => Promise<Renaming>
   handleCompact: (scope: ECompactScope) => void
+  handleRotate: (instructions: string | undefined) => void
   handleCompactAround: (args: { anchor: ECompactionAnchor; seq: number }) => void
   handleRewindTo: (toSeq: number) => void
   handleRevokeGrant: (grantId: string) => void

@@ -62,10 +62,12 @@ export class JsonlThreadStore implements ThreadStorePort {
 
   async create(args: Parameters<ThreadStorePort['create']>[0]): Promise<ThreadSummary> {
     const meta = blankMeta({ clock: this.clock, threadId: args.id ?? this.ids.nextThreadId(), fields: args })
-    const sessionDir = await sessionDirForNew({ context: this.context(), id: toThreadId(meta.id), agent: args.agent })
+    const sessionDir = await sessionDirForNew({ context: this.context(), id: toThreadId(meta.id), agent: args.agent, sessionId: args.sessionId })
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(meta.id) }), meta })
     this.registry.registerThread({ sessionDir, threadId: toThreadId(meta.id) })
-    if (args.agent === undefined) await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: EExecutionLocation.Host })
+    if (args.agent === undefined && args.sessionId === undefined) {
+      await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: EExecutionLocation.Host })
+    }
     return toThreadSummary(meta)
   }
 
@@ -73,10 +75,10 @@ export class JsonlThreadStore implements ThreadStorePort {
     if (args.drafts.length === 0) throw new ThreadNeedsOpeningDrafts()
     const threadId = args.threadId ?? this.ids.nextThreadId()
     const meta = blankMeta({ clock: this.clock, threadId, fields: { ...args, id: threadId } })
-    const sessionDir = await sessionDirForNew({ context: this.context(), id: threadId, agent: args.agent })
+    const sessionDir = await sessionDirForNew({ context: this.context(), id: threadId, agent: args.agent, sessionId: args.sessionId })
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
     this.registry.registerThread({ sessionDir, threadId })
-    if (args.agent === undefined) {
+    if (args.agent === undefined && args.sessionId === undefined) {
       const home = args.executionLocation ?? EExecutionLocation.Host
       await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home })
     }
