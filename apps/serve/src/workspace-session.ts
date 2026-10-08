@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import type { ConfirmWorkspaceCleanupReply, PrepareWorkspaceArchiveReply } from '@dltech/atlas-wire'
 import { verifySourceCleanupProof, type SourceCleanupProof } from '@dltech/atlas-harness'
 
+import type { ArchiveBuildOptions } from './archive-progress'
 import { prepareWorkspaceExport, type WorkspaceCapturer } from './prepare-workspace'
 import type { DirectWorkspace } from './direct-workspace'
 import type { ServeApp } from './serve-app'
@@ -38,7 +39,7 @@ export function createWorkspaceSession(args: {
   return {
     dormant: (): boolean => dormant,
 
-    prepare: () => {
+    prepare: (options?: ArchiveBuildOptions) => {
       preparing ??= (async () => {
         await args.app.family?.freeze?.({ threadId: args.threadId })
         const receipt = await args.direct.receipt()
@@ -53,6 +54,7 @@ export function createWorkspaceSession(args: {
           onCleanupProof: (proof) => { cleanupProof = proof },
           capture: args.capture,
           stopProcesses: args.app.stopWorkspaceProcesses,
+          onBuildProgress: options?.onBuildProgress,
         })
       })().finally(() => { preparing = undefined })
       return preparing

@@ -4,9 +4,9 @@ import {
   type ConfirmWorkspaceCleanupReply,
   type ActivateSessionReply,
   type ApplyWorkspaceArchiveReply,
-  type PrepareWorkspaceArchiveReply,
 } from '@dltech/atlas-harness'
 
+import type { WorkspacePreparer } from './archive-progress'
 import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
 
 export const isWorkspaceTransferOp = (op: EClientRequest): boolean =>
@@ -18,7 +18,7 @@ export const isWorkspaceTransferOp = (op: EClientRequest): boolean =>
 export async function answerWorkspaceTransfer(args: {
   frame: RequestFrame
   busy: () => boolean
-  prepare?: (() => Promise<PrepareWorkspaceArchiveReply>) | undefined
+  prepare?: WorkspacePreparer | undefined
   apply?: (() => Promise<ApplyWorkspaceArchiveReply | null>) | undefined
   activate?: (() => Promise<ActivateSessionReply>) | undefined
   confirmCleanup?: ((args: { generation: string }) => Promise<ConfirmWorkspaceCleanupReply>) | undefined

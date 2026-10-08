@@ -1,12 +1,13 @@
 import type { ServerWebSocket } from 'bun'
 
 import type { ThreadId } from '@dltech/atlas-core'
-import type { RuntimeCheckpoint, SessionArchiveDescriptor } from '@dltech/atlas-wire'
+import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, RestoreTranscriptParams, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 
+import type { ArchiveProgressFields, SessionArchiveReader } from './archive-progress'
 import type { ContextReaders } from './context-requests'
 import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
@@ -78,7 +79,7 @@ export type SessionHandlersArgs = {
   transcript?: TranscriptReaders | undefined
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
-  sessionArchive?: (() => Promise<SessionArchiveDescriptor | null>) | undefined
+  sessionArchive?: SessionArchiveReader | undefined
   /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
   memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   /** The workspace-transfer ops; absent in fakes, which refuse them. */

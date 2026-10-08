@@ -71,6 +71,13 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     rotation: args.rotation,
     authority: args.authority,
     broadcastRotation: (rotation) => broadcast(buffer.push({ type: 'rotation-changed', rotation })),
+    broadcastArchiveProgress: (progress) => {
+      try {
+        broadcast(buffer.push({ type: 'archive-progress', ...progress }))
+      } catch {
+        // Progress is advisory; a socket hiccup must not fail the archive it describes.
+      }
+    },
     historyChanged: () => {
       historyGeneration += 1
       broadcast(buffer.pushLifecycle({ kind: EServeFrame.Reload, sinceEventSeq: 0 }))
