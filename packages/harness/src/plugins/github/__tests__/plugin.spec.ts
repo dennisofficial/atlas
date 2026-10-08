@@ -127,6 +127,9 @@ describe('the github plugin as the loader sees it', () => {
       `${EHookPhase.AfterTool}:refresh-pull-request`,
       `${EHookPhase.AfterShell}:refresh-pull-request-after-shell`,
       `${EHookPhase.BeforeTurn}:seed-pull-request-transitions`,
+      `${EHookPhase.BeforeTool}:block-ci-watch`,
+      `${EHookPhase.BeforeTurn}:route-pr-events`,
+      `${EHookPhase.OnThreadOpen}:route-pr-events-thread`,
     ])
     expect(contribution.surfaces ?? []).toEqual([])
     expect((contribution.projections ?? []).map((projection) => projection.id)).toEqual([
@@ -138,6 +141,7 @@ describe('the github plugin as the loader sees it', () => {
       GithubUiBridgePort,
     ])
     expect(contribution.tools ?? []).toEqual([])
+    expect(contribution.intakeSources ?? []).toHaveLength(1)
 
     await contribution.dispose?.()
   })
@@ -152,6 +156,13 @@ describe('the github plugin as the loader sees it', () => {
       fragments.find((fragment) => fragment.id === 'github.ci-feed')?.text(CONTEXT) ?? ''
     expect(text).toContain('Pull request updates')
     expect(text).toContain('end your turn')
+    for (const kind of ['comment', 'review', 'verdict', 'mergeability', 'merged or closed']) {
+      expect(text).toContain(kind)
+    }
+    expect(text).toContain('wakes an idle session')
+    expect(text).toContain('between steps')
+    expect(text).toContain('`gh run watch`')
+    expect(text).toContain('One-shot reads')
 
     await contribution.dispose?.()
   })

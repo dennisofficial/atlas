@@ -1,28 +1,22 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
-/**
- * The pull-request service already watches the tracked checkout and hands check-state transitions
- * to the model at the start of the next turn, so CI is pushed, not pulled. A model that does not
- * know that reaches for `gh pr checks` / `gh run watch` / a watch shell and then keeps re-waking
- * itself on its own polling cadence — the loop this fragment exists to prevent. Naming the feed as
- * authoritative, and ending the turn as the way to wait, removes the reason to poll without gating
- * the tools, which stay available for the detail the transition line does not carry (a failing
- * job's log, a specific check name).
- */
 export class CiFeedFragment extends PromptFragment {
   readonly id = 'github.ci-feed'
 
   text(): string {
     return [
-      "This checkout's pull-request check state is delivered to you automatically: when a check",
-      'starts, fails, or passes, the change arrives at the start of your next turn as a',
-      '"Pull request updates" note. You do not need to track CI yourself.',
-      'Do not run `gh pr checks`, `gh pr view`, `gh run watch`, or any CI-polling or CI-watch command',
-      'to follow along, and do not start a background shell to watch checks — that re-wakes you on',
-      'its own cadence and is the loop this feed exists to replace. When you have pushed and are',
-      'waiting on checks, end your turn with no tool call; the transition wakes you. Reach for the',
-      'CI commands only when you need detail the update does not carry, like a failing job\u2019s log',
-      'or a specific check name.',
+      "Atlas tracks this checkout's pull request, and its linked pull requests, and delivers what",
+      'happens on them as notices: a comment, a review (approved, changes requested, or commented),',
+      'a review comment, a checks verdict (green or failed), a mergeability change, or the pull',
+      'request being merged or closed. A notice wakes an idle session and arrives between steps of a',
+      'running one. The start of your next turn also carries a "Pull request updates" note that',
+      'summarizes check-state changes since your last turn, so it can restate a verdict notice you',
+      'already received.',
+      'After you push or open a pull request, end your turn with no tool call and let the notice',
+      'wake you. `gh run watch`, `--watch` flags, `watch gh`, and sleep loops are refused, and a',
+      'background shell for waiting only re-wakes you on its own cadence. One-shot reads such as',
+      '`gh pr checks` or `gh run view --log-failed` stay available for detail a notice does not',
+      'carry, like a failing job\u2019s log.',
     ].join('\n')
   }
 }
