@@ -19,7 +19,7 @@ describe('a message typed while the last model step is running', () => {
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(model.doStreamCalls).toHaveLength(2)
-    expect(userTexts(model.doStreamCalls[1]?.prompt ?? [])).toContain('actually, do Y')
+    expect(userTexts(model.doStreamCalls[1]?.prompt ?? [])).toContainEqual(expect.stringContaining('actually, do Y'))
   })
 
   it('lands after the assistant turn it followed, so the exchange never ends on the assistant', async () => {

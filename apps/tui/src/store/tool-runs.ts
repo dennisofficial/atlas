@@ -209,7 +209,7 @@ const NOTHING_ATTACHED: readonly ContextAttachment[] = Object.freeze([])
 
 const MESSAGE_BADGES: ReadonlySet<string> = new Set([EContextSlot.Skill, EContextSlot.File])
 
-function attachmentsOf(events: readonly Event[]): Map<CallId, ContextAttachment[]> {
+export function attachmentsOf(events: readonly Event[]): Map<CallId, ContextAttachment[]> {
   const attached = new Map<CallId, ContextAttachment[]>()
   let lastCall: CallId | null = null
 

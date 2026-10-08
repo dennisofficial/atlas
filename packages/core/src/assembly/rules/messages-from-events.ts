@@ -1,4 +1,5 @@
 import { EAgentRestart } from '../../agents/restart'
+import { operatorSaid } from '../../context/envelope'
 import { contextBlock } from '../../context/render'
 import { currentContextEvents } from '../../context/supersede'
 import type { AssistantPart } from '../../events/body'
@@ -146,7 +147,7 @@ function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart | F
     })
   }
 
-  return [{ type: 'text', text: [event.text, ...named].join('\n') }, ...shown]
+  return [{ type: 'text', text: operatorSaid({ text: [event.text, ...named].join('\n') }) }, ...shown]
 }
 
 type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, SettledCall> }

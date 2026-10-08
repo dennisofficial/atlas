@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { contextFor, log } from '../../__tests__/log-fixture'
+import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 import { runningAgentsBlock, type RunningAgent } from '../running-agents-block'
 import { runningShellsBlock, type RunningShell } from '../running-shells-block'
@@ -46,7 +46,7 @@ describe('telling the model what it still has out', () => {
   it('says nothing while no sub-agent is running', () => {
     const assembled = assembleWith({ events: SPOKEN, agents: [] })
 
-    expect(textsOf(assembled)).toEqual(['audit the slices'])
+    expect(textsOf(assembled)).toEqual([operatorSaidAs('audit the slices')])
   })
 
   it('names every running agent by id and by the intent it was given', () => {

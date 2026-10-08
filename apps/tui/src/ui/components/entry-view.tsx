@@ -24,6 +24,8 @@ const MATCHED_NOTHING = 'matched nothing'
 
 const AGENT_REPORT_HINT = '↵ report'
 
+const CONTEXT_HINT = '↵ context'
+
 const REPORTED_NOTHING = 'reported nothing'
 
 function DerivedEntryView(props: {
@@ -234,6 +236,32 @@ function DerivedEntryView(props: {
         <box flexDirection="row" marginBottom={1} flexShrink={0}>
           <text fg={theme.dim}>{entry.text}</text>
         </box>
+      )
+
+    case EEntryKind.SystemContext:
+      return (
+        <NoticeBlock
+          text={`system context — ${entry.superseded ? `${entry.text} (superseded)` : entry.text}`}
+          body={entry.content}
+          failed={false}
+          width={props.width}
+          openHint={CONTEXT_HINT}
+          expanded={props.expanded ?? false}
+          {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
+        />
+      )
+
+    case EEntryKind.SystemNotice:
+      return (
+        <NoticeBlock
+          text={`system notice — ${entry.text}`}
+          body={entry.content}
+          failed={false}
+          width={props.width}
+          openHint={CONTEXT_HINT}
+          expanded={props.expanded ?? false}
+          {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
+        />
       )
 
     case EEntryKind.AgentRestarted:

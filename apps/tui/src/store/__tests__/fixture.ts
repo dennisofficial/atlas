@@ -111,6 +111,9 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.AgentRestarted }
       | { kind: EEntryKind.AgentReported }
       | { kind: EEntryKind.OperatorInput }
+      | { kind: EEntryKind.SystemContext }
+      | { kind: EEntryKind.SystemNotice }
+      | { kind: EEntryKind.OperatorInput }
     > =>
       entry.kind !== EEntryKind.OperatorSaid &&
       entry.kind !== EEntryKind.HistoryCompacted &&

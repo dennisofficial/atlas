@@ -1,7 +1,5 @@
+import { systemNotice } from '../../context/envelope'
 import type { EventOfType } from '../../events/envelope'
 
-const OPEN = '<nudge>'
-const CLOSE = '</nudge>'
-
 export const nudgeBlock = (event: EventOfType<'nudge'>): string =>
-  [OPEN, event.text, CLOSE].join('\n')
+  systemNotice({ kind: 'nudge', content: event.text })

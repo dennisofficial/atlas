@@ -1,4 +1,4 @@
-import { wrapInSystemReminder } from '../../context/render'
+import { systemContext } from '../../context/envelope'
 import { EExecutionLocation } from '../../execution/location'
 import {
   activeWorktreeOf,
@@ -83,7 +83,7 @@ export function worktreeBlock({
       const location = currentLocationOf(ctx.events)
       const note = projectDirectoryNote({ directory: home, worktree, mainCheckout, location })
 
-      return appendedAtTail({ input, ctx, text: wrapInSystemReminder(note) })
+      return appendedAtTail({ input, ctx, text: systemContext({ slot: 'workspace', key: 'directory', content: note }) })
     },
   })
 }

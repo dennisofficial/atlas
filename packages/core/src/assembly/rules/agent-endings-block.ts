@@ -1,13 +1,11 @@
 import { agentLabel } from '../../agents/label'
+import { systemNotice } from '../../context/envelope'
 import { agentEnding, countedNoun, EAgentStatus } from '../../agents/status'
 import { NO_CONTENT_TEXT } from '../../events/empty-step'
 import type { Event, EventOfType } from '../../events/envelope'
 import { EKilledBy } from '../../shells/status'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
-
-const OPEN = '<agents-ended>'
-const CLOSE = '</agents-ended>'
 
 const REPORTED_NOTHING = 'It reported nothing.'
 
@@ -60,7 +58,7 @@ function sectionOf(event: Ending): string {
 export function agentEndingsText({ endings }: { endings: readonly Ending[] }): string {
   const roster = `${countedNoun({ count: endings.length, noun: 'agent' })} you spawned ended. ${NOT_YOUR_HISTORY}`
 
-  return [OPEN, [roster, ...endings.map(sectionOf)].join('\n\n'), CLOSE].join('\n')
+  return systemNotice({ kind: 'agents-ended', content: [roster, ...endings.map(sectionOf)].join('\n\n') })
 }
 
 /**

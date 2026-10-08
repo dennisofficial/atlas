@@ -7,7 +7,7 @@ import { EGrantScope } from '../../../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../../../policy/classifier/triage'
 import { EJudgment } from '../../../policy/classifier/verdict'
 import type { Assembled } from '../../assembled'
-import { contextFor, log } from '../../__tests__/log-fixture'
+import { contextFor, envelopedAs, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 
 const empty: Assembled = { system: [], messages: [] }
@@ -23,7 +23,7 @@ describe('messagesFromEvents', () => {
 
     expect(assembled.messages).toEqual([
       {
-        message: { role: 'user', content: [{ type: 'text', text: 'hello' }] },
+        message: { role: 'user', content: [{ type: 'text', text: operatorSaidAs('hello') }] },
         origin: { eventId: toEventId('event-1'), seq: 1 },
       },
       {
@@ -162,13 +162,9 @@ describe('messagesFromEvents', () => {
     expect(assembled.messages[1]?.message.content).toEqual([
       {
         type: 'text',
-        text: [
-          '<system-reminder>',
-          'Contents of /repo/CLAUDE.md (project instructions, checked into the codebase):',
-          '',
-          'rules',
-          '</system-reminder>',
-        ].join('\n'),
+        text: expect.stringMatching(
+          /^<system-context source="project-instructions"[^>]*>\nContents of \/repo\/CLAUDE\.md \(project instructions, checked into the codebase\):\n\nrules\n<\/system-context>$/,
+        ),
       },
     ])
   })
@@ -215,7 +211,7 @@ describe('messagesFromEvents and nudges', () => {
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
     expect(assembled.messages.at(-1)).toEqual({
-      message: { role: 'user', content: [{ type: 'text', text: '<nudge>\ncarry on\n</nudge>' }] },
+      message: { role: 'user', content: [{ type: 'text', text: envelopedAs({ tag: 'system-notice', body: 'carry on' }) }] },
       origin: { eventId: toEventId('event-3'), seq: 3 },
     })
   })
@@ -293,7 +289,7 @@ describe('messagesFromEvents and nudges', () => {
 
     const notice = assembled.messages[1]?.message.content[0]
     expect(notice?.type).toBe('text')
-    expect(notice?.type === 'text' ? notice.text : '').toContain('<background-shell-matched>')
+    expect(notice?.type === 'text' ? notice.text : '').toContain('<system-notice kind="background-shell-matched"')
   })
 })
 
@@ -335,7 +331,7 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(false)
+    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(false)
   })
 
   it('renders an ending that lands after the model has spoken past the kill', () => {
@@ -348,7 +344,7 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
+    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
   })
 
   it('renders an ending whose shell no shell_kill ever answered', () => {
@@ -356,7 +352,7 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
+    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
   })
 
   it('renders an ending under a recycled shell id whose command no shell_kill named', () => {
@@ -364,7 +360,7 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
+    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
   })
 
   it('suppresses an ending that landed before the kill result in the same stretch', () => {
@@ -372,7 +368,7 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(false)
+    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(false)
   })
 
   it('lets one kill result cover one ending, so a recycled id ending still renders', () => {
@@ -380,7 +376,7 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).filter((text) => text.includes('<background-shell-ended>'))).toHaveLength(1)
+    expect(texts(assembled).filter((text) => text.includes('<system-notice kind="background-shell-ended"'))).toHaveLength(1)
   })
 
   it('does not let a kill result that failed muzzle the ending', () => {
@@ -389,6 +385,6 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
+    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
   })
 })

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { MAX_INLINE_BYTES } from '../../../images/limits'
 import type { Assembled } from '../../assembled'
-import { contextFor, log } from '../../__tests__/log-fixture'
+import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 
 const empty: Assembled = { system: [], messages: [] }
@@ -24,7 +24,7 @@ const contentOf = (event: Parameters<typeof log>[0][number]) =>
 describe('a message somebody attached a picture to', () => {
   it('reaches the model as the words followed by the image', () => {
     expect(contentOf({ type: 'user-said', text: 'why is this broken', images: [SHOT] })).toEqual([
-      { type: 'text', text: 'why is this broken' },
+      { type: 'text', text: operatorSaidAs('why is this broken') },
       {
         type: 'image',
         data: SHOT.data,
@@ -54,14 +54,19 @@ describe('a message somebody attached a picture to', () => {
 
   it('is a plain text message when nobody attached one', () => {
     expect(contentOf({ type: 'user-said', text: 'why is this broken' })).toEqual([
-      { type: 'text', text: 'why is this broken' },
+      { type: 'text', text: operatorSaidAs('why is this broken') },
     ])
   })
 
   it('names a picture too heavy to inline instead of sending bytes that fail the step', () => {
     expect(
       contentOf({ type: 'user-said', text: 'look at this', images: [PAST_THE_CEILING] }),
-    ).toEqual([{ type: 'text', text: 'look at this\n[image /tmp/atlas/shot.png · 560×280]' }])
+    ).toEqual([
+      {
+        type: 'text',
+        text: operatorSaidAs('look at this\n[image /tmp/atlas/shot.png · 560×280]'),
+      },
+    ])
   })
 
   it('shows the ones it can and names the ones it cannot, in one message', () => {
@@ -74,7 +79,7 @@ describe('a message somebody attached a picture to', () => {
     expect(content).toHaveLength(2)
     expect(content?.[0]).toEqual({
       type: 'text',
-      text: 'both of these\n[image /tmp/atlas/shot.png · 560×280]',
+      text: operatorSaidAs('both of these\n[image /tmp/atlas/shot.png · 560×280]'),
     })
     expect(content?.[1]?.type).toBe('image')
   })
@@ -89,7 +94,7 @@ describe('a message somebody attached a file to', () => {
 
   it('reaches the model as the words followed by the file, named from its path', () => {
     expect(contentOf({ type: 'user-said', text: 'summarise this', files: [SPEC] })).toEqual([
-      { type: 'text', text: 'summarise this' },
+      { type: 'text', text: operatorSaidAs('summarise this') },
       {
         type: 'file',
         data: SPEC.data,

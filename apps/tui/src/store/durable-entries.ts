@@ -1,4 +1,4 @@
-import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type ELocationChangeCause, type SaidImage } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, currentContextEvents, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type ELocationChangeCause, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -13,7 +13,7 @@ import { deliberateAgentRestart } from './notice-barriers'
 import { modelEntries } from './model-entries'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
-import { toolRuns, type ToolRun } from './tool-runs'
+import { attachmentsOf, toolRuns, type ToolRun } from './tool-runs'
 import type { TurnSpend } from '@dltech/atlas-harness'
 import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
 import { turnEndedEntry, turnsBySeq } from './turn-rows'
@@ -89,29 +89,44 @@ type AttachedContext = { skills: readonly string[]; files: readonly string[] }
 
 const NOTHING_ATTACHED: AttachedContext = { skills: [], files: [] }
 
-function contextLoadedWith(events: readonly Event[]): ReadonlyMap<EventId, AttachedContext> {
+function contextLoadedWith(events: readonly Event[]): {
+  attached: ReadonlyMap<EventId, AttachedContext>
+  folded: ReadonlySet<EventId>
+} {
   const attached = new Map<EventId, AttachedContext>()
+  const folded = new Set<EventId>()
   let skills: string[] = []
   let files: string[] = []
+  let pending: EventId[] = []
 
   for (const event of events) {
     if (event.type === 'context-loaded') {
       if (event.slot === EContextSlot.Skill) skills.push(event.key)
       if (event.slot === EContextSlot.File) files.push(event.key)
+      pending.push(event.id)
       continue
     }
 
     if (event.type === 'user-said' && skills.length + files.length > 0) {
       attached.set(event.id, { skills, files })
+      for (const id of pending) folded.add(id)
     }
     skills = []
     files = []
+    pending = []
   }
 
-  return attached
+  return { attached, folded }
 }
 
 const NOTHING_PICTURED: readonly SaidImage[] = Object.freeze([])
+
+const FOLDED_ELSEWHERE_SLOTS: ReadonlySet<string> = new Set([EContextSlot.Skill, EContextSlot.File])
+
+const firstLineOf = (content: string): string => {
+  const line = content.trim().split('\n')[0] ?? ''
+  return line.length <= 80 ? line : `${line.slice(0, 80)}…`
+}
 
 function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
   const folded: TranscriptEntry[] = []
@@ -168,7 +183,13 @@ export function durableEntries(args: {
   const { events } = args
   const opened = new Map<string, ToolRun>(toolRuns(events).map((run) => [run.openedBy, run]))
   const steers = saidWhileToolsWereOutstanding(events)
-  const loaded = contextLoadedWith(events)
+  const { attached, folded } = contextLoadedWith(events)
+  const currentContext = new Set(currentContextEvents(events).map((event) => event.id))
+  const pinnedToCalls = new Set(
+    [...attachmentsOf(events).values()].flatMap((attachments) =>
+      attachments.map((attachment) => attachment.id),
+    ),
+  )
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
 
@@ -227,14 +248,41 @@ export function durableEntries(args: {
           text: event.text,
           said: [event.text],
           steer: steers.has(event.id),
-          skills: (loaded.get(event.id) ?? NOTHING_ATTACHED).skills,
-          files: (loaded.get(event.id) ?? NOTHING_ATTACHED).files,
+          skills: (attached.get(event.id) ?? NOTHING_ATTACHED).skills,
+          files: (attached.get(event.id) ?? NOTHING_ATTACHED).files,
           images: event.images ?? NOTHING_PICTURED,
         },
       ]
     }
 
     if (event.type === 'assistant-said') return entriesOfAssistantEvent(event)
+
+    if (event.type === 'context-loaded') {
+      if (folded.has(event.id) || pinnedToCalls.has(event.id)) return []
+      return [
+        {
+          kind: EEntryKind.SystemContext,
+          author: EAuthor.Model,
+          key: event.id,
+          text: `${event.slot} · ${firstLineOf(event.content)}`,
+          slot: event.slot,
+          content: event.content,
+          superseded: !currentContext.has(event.id),
+        },
+      ]
+    }
+
+    if (event.type === 'nudge') {
+      return [
+        {
+          kind: EEntryKind.SystemNotice,
+          author: EAuthor.Model,
+          key: event.id,
+          text: `nudge · ${firstLineOf(event.text)}`,
+          content: event.text,
+        },
+      ]
+    }
 
     if (event.type === 'tool-called') {
       const run = opened.get(event.callId)

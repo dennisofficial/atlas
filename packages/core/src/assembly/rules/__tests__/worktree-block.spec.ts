@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { ECompactionAnchor, EWorktreeExit } from '../../../events/body'
 import { EExecutionLocation } from '../../../execution/location'
-import { contextFor, log } from '../../__tests__/log-fixture'
+import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 import { worktreeBlock } from '../worktree-block'
 
@@ -38,7 +38,7 @@ describe('telling the model the project directory and any active worktree', () =
     const assembled = assembleWith(log([{ type: 'user-said', text: 'hello' }]))
 
     expect(assembled.system).toEqual([])
-    expect(textsOf(assembled)[0]).toBe('hello')
+    expect(textsOf(assembled)[0]).toEqual(operatorSaidAs('hello'))
     expect(noteOf(assembled)).toContain('Project directory: /w.')
     expect(noteOf(assembled)).not.toContain('worktree')
   })
@@ -54,7 +54,7 @@ describe('telling the model the project directory and any active worktree', () =
     ]))
 
     expect(assembled.messages.at(-1)?.message.role).toBe('assistant')
-    expect(textsOf(assembled)).toEqual(['request', 'answer'])
+    expect(textsOf(assembled)).toEqual([operatorSaidAs('request'), 'answer'])
   })
 
   it('names the worktree, its branch, what it was branched from and the main checkout', () => {
@@ -75,8 +75,8 @@ describe('telling the model the project directory and any active worktree', () =
     expect(assembled.system).toEqual([])
     expect(tail?.message.role).toBe('user')
     expect(tail?.origin.seq).toBe(3)
-    expect(textsOf(assembled).slice(0, 2)).toEqual(['hello', 'much later'])
-    expect(noteOf(assembled)).toStartWith('<system-reminder>')
+    expect(textsOf(assembled).slice(0, 2)).toEqual([operatorSaidAs('hello'), operatorSaidAs('much later')])
+    expect(noteOf(assembled)).toStartWith('<system-context source="workspace"')
     expect(noteOf(assembled)).toContain(TREE)
   })
 

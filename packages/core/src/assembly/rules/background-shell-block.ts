@@ -1,17 +1,9 @@
+import { systemNotice } from '../../context/envelope'
 import type { EventOfType } from '../../events/envelope'
 import { elapsedPhrase } from '../../shells/elapsed'
 import { shellLabel } from '../../shells/label'
 import type { ShellEventContext } from '../../shells/lifecycle'
 import { EKilledBy, shellEnding } from '../../shells/status'
-
-const OPEN = '<background-shell-ended>'
-const CLOSE = '</background-shell-ended>'
-
-const AWAITING_OPEN = '<background-shell-awaiting-input>'
-const AWAITING_CLOSE = '</background-shell-awaiting-input>'
-
-const MATCHED_OPEN = '<background-shell-matched>'
-const MATCHED_CLOSE = '</background-shell-matched>'
 
 const PRINTED_NOTHING = 'It printed nothing.'
 
@@ -87,7 +79,7 @@ export function backgroundShellBlock(
     sections.push(outputPathNote({ path, event }))
   }
 
-  return [OPEN, sections.join('\n\n'), CLOSE].join('\n')
+  return systemNotice({ kind: 'background-shell-ended', content: sections.join('\n\n') })
 }
 
 const AWAITING_WITHOUT_STDIN =
@@ -102,7 +94,7 @@ export function backgroundShellAwaitingInputBlock(
 ): string {
   const ended = context?.endedBefore
   if (ended !== undefined) {
-    return [AWAITING_OPEN, alreadyEnded({ event, ended }), AWAITING_CLOSE].join('\n')
+    return systemNotice({ kind: 'background-shell-awaiting-input', content: alreadyEnded({ event, ended }) })
   }
 
   const supported = event.inputSupported === true
@@ -125,7 +117,7 @@ export function backgroundShellAwaitingInputBlock(
 
   sections.push(supported ? AWAITING_WITH_STDIN : AWAITING_WITHOUT_STDIN)
 
-  return [AWAITING_OPEN, sections.join('\n\n'), AWAITING_CLOSE].join('\n')
+  return systemNotice({ kind: 'background-shell-awaiting-input', content: sections.join('\n\n') })
 }
 
 const MATCHED_NOTHING = 'It carried no lines with it.'
@@ -160,11 +152,8 @@ export function backgroundShellMatchedBlock(
   const path = pathOf({ event, context })
   if (path !== undefined) sections.push(outputPathNote({ path, event }))
 
-  return [MATCHED_OPEN, sections.join('\n\n'), MATCHED_CLOSE].join('\n')
+  return systemNotice({ kind: 'background-shell-matched', content: sections.join('\n\n') })
 }
-
-const STILL_RUNNING_OPEN = '<background-shell-still-running>'
-const STILL_RUNNING_CLOSE = '</background-shell-still-running>'
 
 const STILL_RUNNING_NOT_ENDED =
   'This is a scheduled check-in, not an ending: the shell is still running, and when it ends you will be told, along with everything it printed.'
@@ -178,7 +167,7 @@ export function backgroundShellStillRunningBlock(
 ): string {
   const ended = context?.endedBefore
   if (ended !== undefined) {
-    return [STILL_RUNNING_OPEN, alreadyEnded({ event, ended }), STILL_RUNNING_CLOSE].join('\n')
+    return systemNotice({ kind: 'background-shell-still-running', content: alreadyEnded({ event, ended }) })
   }
 
   const headline = `Background shell ${event.shellId} ${shellLabel(event)} has been running for ${elapsedPhrase(event.runningForMs)} and has not ended. ${STILL_RUNNING_NOT_ENDED}`
@@ -197,5 +186,5 @@ export function backgroundShellStillRunningBlock(
   sections.push(stillRunningExits(event.shellId))
   sections.push(`These check-ins repeat every ${elapsedPhrase(event.checkInMs)} for as long as the shell runs.`)
 
-  return [STILL_RUNNING_OPEN, sections.join('\n\n'), STILL_RUNNING_CLOSE].join('\n')
+  return systemNotice({ kind: 'background-shell-still-running', content: sections.join('\n\n') })
 }
