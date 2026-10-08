@@ -179,3 +179,16 @@ jobs:
           VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
           VERCEL_PROJECT_ID: prj_sYzDU4qVdx0jaSuYprH3QaZb1vIF
         run: bun apps/serve/scripts/verify-vcr-image.ts "atlas-sandbox:${{ env.VERSION }}"
+
+      # Prune after the new tag is verified, never before: the registry gains an image only when
+      # this job succeeds, so this is the one moment the window can shrink. A release tag survives
+      # for 7 days so a parked terminal on an older version can still boot its pinned image;
+      # anything a live sandbox booted from is spared regardless of age.
+      - name: prune stale VCR images
+        if: vars.VERCEL_VCR_ENABLED == 'true'
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
+          VERCEL_PROJECT_ID: prj_sYzDU4qVdx0jaSuYprH3QaZb1vIF
+        run: bun apps/serve/scripts/prune-vcr-images.ts
