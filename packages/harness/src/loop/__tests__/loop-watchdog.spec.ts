@@ -35,6 +35,21 @@ class FakeDecisions extends DecisionPort {
   }
 }
 
+class SequencedDecisions extends DecisionPort {
+  calls = 0
+
+  constructor(private readonly outcomes: readonly DecisionOutcome[]) {
+    super()
+  }
+
+  async decide(): Promise<DecisionOutcome> {
+    const outcome = this.outcomes[this.calls] ?? this.outcomes.at(-1)
+    this.calls += 1
+    if (outcome === undefined) throw new Error('SequencedDecisions needs at least one outcome')
+    return outcome
+  }
+}
+
 const looping = (probability: number, loopStart?: string): DecisionOutcome => ({
   ok: true,
   answers: {
@@ -251,6 +266,24 @@ async function openWatched(args: {
   return { harness, watches: counter.watches }
 }
 
+async function openDecided(args: {
+  script: readonly ScriptedStep[]
+  decisions: DecisionPort
+}): Promise<{ harness: AtlasHarness }> {
+  const temp = createTempHome()
+  const registry = new InMemoryToolRegistry([touchTool])
+  const harness = await buildHarness({
+    home: temp.home,
+    model: scriptedModel({ script: args.script }),
+    tools: () => registry.declarations(),
+    dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
+    launchDirectory: '/w',
+    watchLoop: jevLoopWatch({ decisions: args.decisions, enabled: () => true }),
+  })
+  opened.push({ harness, temp })
+  return { harness }
+}
+
 const earliestSpeech = (events: readonly Event[]): number | undefined =>
   events.find((event) => event.type === 'assistant-said')?.seq
 
@@ -422,6 +455,23 @@ describe('the loop watchdog in a turn', () => {
       (event) => event.type === 'loop-watch-verdict',
     )
     expect(verdicts).toHaveLength(0)
+  })
+
+  it('records a looping verdict even when its own append would have blocked the cut', async () => {
+    const decisions = new SequencedDecisions([looping(0.83, '2'), looping(0.12)])
+    const { harness } = await openDecided({
+      script: [...varyingSteps(3), { text: 'all verified' }],
+      decisions,
+    })
+
+    const thread = await harness.threads.create({})
+    const outcome = await harness.runner.say({ threadId: thread.id, text: 'verify the deploy' })
+
+    expect(outcome.status).toBe(ETurnStatus.Completed)
+    const events = await harness.log.read({ threadId: thread.id })
+    expect(nudgeTexts(events).some((text) => text.includes('cut'))).toBe(true)
+    const verdicts = events.filter((event) => event.type === 'loop-watch-verdict')
+    expect(verdicts.some((event) => event.looping && event.probability === 0.83)).toBe(true)
   })
 
   it('gives a re-forming loop two cuts, then nudges, then stops the turn idle', async () => {

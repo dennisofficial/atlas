@@ -158,26 +158,34 @@ export async function watchStepLoop({
   if (watchLoop === undefined || signal.aborted) return { kind: 'step' }
 
   const watch = await watchLoop({ events, signal })
-  if (watch.verdict !== ELoopWatch.NoVerdict && (watch.noul !== undefined || watch.fault !== undefined)) {
-    const judged: EventDraft = {
-      type: 'loop-watch-verdict',
-      consulted: true,
-      looping: watch.verdict === ELoopWatch.Looping,
-      steps: events.length,
-      ...(watch.noul === undefined ? {} : { probability: watch.noul }),
-      ...(watch.loopStartSeq === undefined ? {} : { loopStartSeq: watch.loopStartSeq }),
-      ...(watch.fault === undefined ? {} : { fault: watch.fault }),
-    }
-    await log.append({ threadId, runId, drafts: [judged] })
-  }
+  const judged: EventDraft | undefined =
+    watch.verdict !== ELoopWatch.NoVerdict && (watch.noul !== undefined || watch.fault !== undefined)
+      ? {
+          type: 'loop-watch-verdict',
+          consulted: true,
+          looping: watch.verdict === ELoopWatch.Looping,
+          steps: events.length,
+          ...(watch.noul === undefined ? {} : { probability: watch.noul }),
+          ...(watch.loopStartSeq === undefined ? {} : { loopStartSeq: watch.loopStartSeq }),
+          ...(watch.fault === undefined ? {} : { fault: watch.fault }),
+        }
+      : undefined
 
+  // The verdict is recorded only once the cut decision is made: appending it first would move
+  // the log tip past the judged events, and applyLoopCut refuses a cut whose range no longer
+  // reaches the tip — so on the cut path the verdict lands after the truncation, where it
+  // survives as the record of what was removed.
   if (watch.verdict === ELoopWatch.Clear) {
+    if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
     state.warned = false
     state.cutAnchors.length = 0
     return { kind: 'step' }
   }
 
-  if (watch.verdict !== ELoopWatch.Looping) return { kind: 'step' }
+  if (watch.verdict !== ELoopWatch.Looping) {
+    if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
+    return { kind: 'step' }
+  }
 
   const throughSeq = events.at(-1)?.seq
   const target =
@@ -198,10 +206,13 @@ export async function watchStepLoop({
     })
     if (applied) {
       state.cutAnchors.push(target)
+      if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
       onLoopWatchCut?.({ steps: throughSeq - target })
       return { kind: 'rewind' }
     }
   }
+
+  if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
 
   if (state.warned) {
     onLoopStop?.()
