@@ -3,6 +3,7 @@ import type { SleepPrevention } from '../power/sleep-prevention'
 import type { WakeSignal } from '../wake/wake-signals'
 import type { LanguageModel } from 'ai'
 
+import type { IntakeSource } from '../intake'
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { DependencyContainer } from '../container/injection'
 import type { TldrFeed } from '../loop/tldr-turn-runner'
@@ -24,6 +25,7 @@ export type TurnSetup<Command = never> = {
   prompts: PromptRegistry
   declarations: () => readonly ToolDeclaration[]
   pending: PendingQueues<Command>
+  pluginSources?: readonly IntakeSource[]
   channel: DeltaChannel
   notice: NoticePort
   summarise: Summariser

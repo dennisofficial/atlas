@@ -221,3 +221,27 @@ describe('a contributed projection is checked before the store folds with it', (
     expect(validated.ok ? '' : validated.detail).toContain('subscribe')
   })
 })
+
+describe('a contributed intake source is checked before the intake subscribes to it', () => {
+  const source = { prepare: () => ({}), subscribe: () => () => undefined, threadsAwaitingInput: () => [] }
+
+  it('accepts a source with the members intake calls', () => {
+    expect(validatePluginContribution({ contribution: { intakeSources: [source] }, pluginId: 'p' }).ok).toBe(true)
+  })
+
+  it('refuses intake sources that are not an array', () => {
+    const checked = validatePluginContribution({ contribution: { intakeSources: {} }, pluginId: 'p' })
+
+    expect(checked.ok === false && checked.refusal).toBe(EPluginRefusal.IntakeSourcesNotAnArray)
+  })
+
+  it('names the member that is missing', () => {
+    const checked = validatePluginContribution({
+      contribution: { intakeSources: [{ ...source, subscribe: 1 }] },
+      pluginId: 'p',
+    })
+
+    expect(checked.ok === false && checked.refusal).toBe(EPluginRefusal.IntakeSourceCannotIntake)
+    expect(checked.ok === false && checked.detail).toContain('subscribe')
+  })
+})

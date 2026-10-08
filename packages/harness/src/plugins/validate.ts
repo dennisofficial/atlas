@@ -23,6 +23,8 @@ export enum EPluginRefusal {
   ProjectionNotAnObject = 'projection-not-an-object',
   ProjectionIdMissing = 'projection-id-missing',
   ProjectionCannotFold = 'projection-cannot-fold',
+  IntakeSourcesNotAnArray = 'intake-sources-not-an-array',
+  IntakeSourceCannotIntake = 'intake-source-cannot-intake',
 }
 
 export type RepoPluginOrigin = EDefinitionOrigin.User | EDefinitionOrigin.Project

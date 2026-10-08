@@ -19,6 +19,7 @@ import type {
   WorkspacePort,
 } from '@dltech/atlas-core'
 
+import type { IntakeSource } from '../intake/message-intake'
 import type { PluginProjection } from './projection'
 import type { PluginSurfaceHook } from './surface'
 
@@ -51,6 +52,7 @@ export type PluginContribution = {
   ports?: readonly PortBinding[]
   promptFragments?: readonly PromptFragment[]
   projections?: readonly PluginProjection<unknown>[]
+  intakeSources?: readonly IntakeSource[]
   surfaces?: readonly PluginSurfaceHook[]
   dispose?: () => void | Promise<void>
 }
