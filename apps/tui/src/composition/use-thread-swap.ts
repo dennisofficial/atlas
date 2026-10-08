@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { useCallback, type RefObject } from 'react'
 
+import { swapToCloudSuccessorNoticed } from './cloud/successor-swap'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
 import {
@@ -8,6 +9,7 @@ import {
   unstartedConversation,
   type OpenedConversation,
 } from './open-conversation'
+import { cloudAttachmentOf } from './session-binding'
 
 export type ThreadSwap = {
   handleNewConversation: () => void
@@ -77,9 +79,29 @@ export function useThreadSwap(args: {
     [open, threadId, working],
   )
 
+  /**
+   * A rotation commit hands the successor over by id. Locally that is the plain open. In the
+   * cloud the transcript, the channel, and the session owner all still name the predecessor, so
+   * the successor has to be mirrored down and re-attached — opening it through `open` would only
+   * read the frozen predecessor's view and refuse. The cloud marker is the binding the owner
+   * holds: a local thread never has one.
+   */
   const handleOpenSuccessor = useCallback(
-    ({ successor }: { successor: ThreadId }) => open(successor),
-    [open],
+    ({ successor }: { successor: ThreadId }) => {
+      const held = cloudAttachmentOf(app.sessionOwner.snapshot().binding)
+      if (held !== undefined) {
+        swapToCloudSuccessorNoticed({
+          localApp: app,
+          bridge: held.bridge,
+          successor,
+          predecessor: threadId,
+          onReload: async () => undefined,
+        })
+        return
+      }
+      open(successor)
+    },
+    [app, open, threadId],
   )
 
   return { handleNewConversation, handleOpenThread, handleOpenSuccessor }

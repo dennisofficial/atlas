@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import {
   EParkedResume,
   MirroredEventLog,
+  type CloudAttachment,
   type CloudBridge,
   type CloudChannel,
   type CloudReload,
@@ -36,6 +37,12 @@ type OpenArgs = {
   onReload: (reload: CloudReload) => Promise<void>
   /** Wake the sandbox before anything renders. Recovery settles on the live channel, so it needs this. */
   wakeFirst?: boolean | undefined
+  /**
+   * A caller that already attached (a rotation swap mints the successor's attachment before the
+   * mirror lands, so its lifetime is the caller's) hands it in rather than letting the open
+   * attach a second one.
+   */
+  parkedAttachment?: CloudAttachment | undefined
 }
 
 type Composed = {
@@ -77,7 +84,7 @@ async function composeEager(args: OpenArgs): Promise<Composed> {
 }
 
 function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resume: EParkedResume }): Composed {
-  const attachment = args.bridge.attach({ threadId: args.threadId })
+  const attachment = args.parkedAttachment ?? args.bridge.attach({ threadId: args.threadId })
   const { channel } = attachment
   let created = false
   const wake = createCloudWake({
