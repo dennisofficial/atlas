@@ -104,7 +104,7 @@ export function useThreadView(args: {
    * What the model reported spending. Only a conversation passes this: a child runs its own window
    * and folding its usage into the parent's meter would make the parent's remaining context a lie.
    */
-  onUsage?: ((usage: ModelUsage) => void) | undefined;
+  onUsage?: ((args: { threadId: ThreadId; usage: ModelUsage }) => void) | undefined;
 }): ThreadView {
   const { app, threadId, rows, thinking, readClock, initial } = args;
   const tldrStatus = args.tldrStatus ?? true;
@@ -220,7 +220,7 @@ export function useThreadView(args: {
       listener: (signal) => {
         if (signal.type === "chunk" && signal.chunk.type === "finish") {
           const { usage } = signal.chunk;
-          if (usage !== undefined) onUsage?.(usage);
+          if (usage !== undefined) onUsage?.({ threadId, usage });
         }
 
         /**

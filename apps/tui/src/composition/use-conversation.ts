@@ -1,4 +1,4 @@
-import { contextTokens, type Event, type ModelUsage } from '@dltech/atlas-core'
+import { contextTokens, type Event, type ModelUsage, type ThreadId } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { RemoteTurnRunner, sessionDigest, threadHandle } from '@dltech/atlas-harness'
@@ -31,7 +31,7 @@ export function useConversation(args: ConversationArgs): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
   const { failure, setFailure, setTurnFailure, dismissalFor } = useFailureNotice()
-  const [reported, setReported] = useState<ModelUsage | null>(null)
+  const [reported, setReported] = useState<{ threadId: ThreadId; usage: ModelUsage } | null>(null)
   const { pendingMove, pendingMoveRef, holdMove } = usePendingMove()
   const startedRef = useRef(args.opened.started)
 
@@ -216,9 +216,15 @@ export function useConversation(args: ConversationArgs): Conversation {
     (): Promise<readonly Event[]> => app.log.read({ threadId }),
     [app.log, threadId],
   )
+  // Reported usage belongs to the thread whose step emitted it: after a rotation the predecessor's
+  // last report must not read as the successor's window, so it only counts while it names the
+  // active thread — otherwise the fresh thread's own log estimate stands until its first step.
   const used = useMemo(
-    () => (reported === null ? logSummary.tokens : contextTokens({ reported, events: [] })),
-    [reported, logSummary],
+    () =>
+      reported === null || reported.threadId !== threadId
+        ? logSummary.tokens
+        : contextTokens({ reported: reported.usage, events: [] }),
+    [reported, threadId, logSummary],
   )
   const delegatedToolCalls = useDelegatedToolCalls({ agents: app.agents, threadId })
   const rows = usePendingRows({
