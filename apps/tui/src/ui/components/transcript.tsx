@@ -202,7 +202,18 @@ function DerivedTranscript(props: {
           <ResumeBlock onResume={props.onResume} />
         )}
 
-        {model.failure === null && model.streaming && turn.startedAt !== null ? (
+        {model.failure === null && props.disconnected === true ? (
+          <box flexDirection="row" marginTop={1} marginBottom={1}>
+            <WorkingLine
+              elapsedMs={0}
+              outputTokens={0}
+              interrupting={false}
+              verb={EWorkingVerb.Disconnected}
+              {...(props.lastSeenAt === undefined ? {} : { lastSeenAt: props.lastSeenAt })}
+              {...(props.onReconnect === undefined ? {} : { onReconnect: props.onReconnect })}
+            />
+          </box>
+        ) : model.failure === null && model.streaming && turn.startedAt !== null ? (
           <box flexDirection="row" marginTop={1} marginBottom={1}>
             <WorkingLine
               elapsedMs={props.now - turn.startedAt}
@@ -218,17 +229,6 @@ function DerivedTranscript(props: {
                       : EWorkingVerb.Working
               }
               retry={turn.retry}
-            />
-          </box>
-        ) : props.disconnected === true ? (
-          <box flexDirection="row" marginTop={1} marginBottom={1}>
-            <WorkingLine
-              elapsedMs={0}
-              outputTokens={0}
-              interrupting={false}
-              verb={EWorkingVerb.Disconnected}
-              {...(props.lastSeenAt === undefined ? {} : { lastSeenAt: props.lastSeenAt })}
-              {...(props.onReconnect === undefined ? {} : { onReconnect: props.onReconnect })}
             />
           </box>
         ) : props.reconnecting === true && props.stale !== true ? (
