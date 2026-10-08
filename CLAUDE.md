@@ -258,7 +258,12 @@ operator's global instructions: the rule stays "produce a preview", this is the 
 
 ## Sandbox image
 
-The sandbox image is a private GHCR listing; access rides on GitHub.
+The sandbox image lives in two registries. GHCR (`ghcr.io/<owner>/atlas-sandbox`) is the private
+canonical listing — multi-arch, `sha-<7>` + `latest` per merge, used by local Docker sandboxes and
+as the build cache; access rides on GitHub. VCR (`vcr.vercel.com`) is the delivery mechanism Vercel
+Sandbox requires — `linux/amd64` only, and **only one tag per release** (the semver a released TUI
+pins); per-merge sha/latest pushes were removed because nothing consumed them and each cost ~1.4–2 GB
+of billable storage.
 
 ## Triage labels
 
