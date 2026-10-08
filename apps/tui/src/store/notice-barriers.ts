@@ -13,6 +13,7 @@ const breaksEveryRun = (event: Event): boolean =>
   event.type === 'service-ended' ||
   event.type === 'agent-ended' ||
   event.type === 'agent-reported' ||
+  event.type === 'pr-event' ||
   event.type === 'location-changed' ||
   event.type === 'parked' ||
   event.type === 'history-compacted'

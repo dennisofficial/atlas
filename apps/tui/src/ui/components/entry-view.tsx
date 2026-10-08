@@ -26,6 +26,10 @@ const AGENT_REPORT_HINT = '↵ report'
 
 const REPORTED_NOTHING = 'reported nothing'
 
+const PR_EVENT_BODY_HINT = '↵ body'
+
+const NO_BODY = 'no body'
+
 function DerivedEntryView(props: {
   entry: TranscriptEntry
   width: number
@@ -198,6 +202,20 @@ function DerivedEntryView(props: {
           width={props.width}
           openHint={AGENT_REPORT_HINT}
           expanded={props.expanded ?? true}
+          {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
+        />
+      )
+
+    case EEntryKind.PrEvent:
+      return (
+        <NoticeBlock
+          text={entry.text}
+          body={entry.body}
+          failed={entry.failed}
+          width={props.width}
+          openHint={PR_EVENT_BODY_HINT}
+          silentNote={NO_BODY}
+          expanded={props.expanded ?? false}
           {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
         />
       )

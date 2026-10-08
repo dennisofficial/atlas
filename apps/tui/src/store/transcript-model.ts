@@ -28,6 +28,7 @@ export enum EEntryKind {
   LocationChanged = 'location-changed',
   Rotated = 'rotated',
   OperatorInput = 'operator-input',
+  PrEvent = 'pr-event',
 }
 
 export type OperatorSaidEntry = {
@@ -219,6 +220,15 @@ export type OperatorInputEntry = {
   text: string
 }
 
+export type PrEventEntry = {
+  kind: EEntryKind.PrEvent
+  author: EAuthor.Model
+  key: string
+  text: string
+  body: string
+  failed: boolean
+}
+
 export type TranscriptEntry =
   | OperatorSaidEntry
   | ModelSaidEntry
@@ -239,6 +249,7 @@ export type TranscriptEntry =
   | LocationChangedEntry
   | RotatedEntry
   | OperatorInputEntry
+  | PrEventEntry
 
 export type StepFailure = { message: string | null }
 
