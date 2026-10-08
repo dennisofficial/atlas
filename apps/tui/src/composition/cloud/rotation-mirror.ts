@@ -151,17 +151,27 @@ export async function mirrorRotationCommit(args: {
         ? undefined
         : await files.swap({ threadId: predecessor, events: predecessorEvents })
 
+    // The log port caches each thread's read, so the swapped bytes are invisible until a refresh —
+    // and the caller's next step (opening the successor) reads through that cache. Refresh the
+    // moment the files land, not at seal: a stale read between swap and seal opens the successor
+    // as empty and the open falls into the eager wake path, which boots a fresh successor-named
+    // sandbox with no transcript at all.
+    const refreshBoth = async (): Promise<void> => {
+      await localLog.refresh({ threadId: successor })
+      await localLog.refresh({ threadId: predecessor })
+    }
+    await refreshBoth()
+
     return {
       revert: async () => {
         await successorSwap.revert().catch(() => undefined)
         await predecessorSwap?.revert().catch(() => undefined)
+        await refreshBoth().catch(() => undefined)
         await rm(staging, { recursive: true, force: true }).catch(() => undefined)
       },
       seal: async () => {
         await successorSwap.seal()
         await predecessorSwap?.seal()
-        await localLog.refresh({ threadId: successor })
-        await localLog.refresh({ threadId: predecessor })
         await rm(staging, { recursive: true, force: true }).catch(() => undefined)
       },
     }

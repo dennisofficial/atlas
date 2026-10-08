@@ -135,10 +135,18 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
 
   try {
     const renderable = args.wakeFirst === true ? null : await renderableLocally(args)
+    // A handed-in attachment pins the channel and stores the open runs on: falling back to
+    // composeEager would attach a second channel — and on a rotation swap its wake boots a fresh
+    // successor-named sandbox with no transcript. Render what the mirror landed and wake behind
+    // it; an empty local read here means the mirror broke, not that the sandbox needs re-booting.
     const composed =
-      renderable === null
+      renderable === null && args.parkedAttachment === undefined
         ? await composeEager(args)
-        : composeRenderFirst({ ...args, opened: renderable.opened, resume: renderable.resume })
+        : composeRenderFirst({
+            ...args,
+            opened: renderable?.opened ?? (await openCloudConversation({ app, threadId })),
+            resume: renderable?.resume ?? EParkedResume.Unknown,
+          })
     const { channel, stores } = composed
     const mirrored = stores.log instanceof MirroredEventLog ? stores.log : undefined
 
