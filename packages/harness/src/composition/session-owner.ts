@@ -9,6 +9,7 @@ import {
 import type { PlacementController } from './placement-controller'
 import { createSessionFreezes } from './session-freezes'
 import { recoveryActionOf } from './session-recovery'
+import { createRetirementQueue } from './session-retirement'
 import {
   ERuntimeKind,
   type OwnerSnapshot,
@@ -52,20 +53,10 @@ export function createSessionOwner<Adapters>(args: {
   const holdFreeze = (threadId: ThreadId): Promise<void> =>
     freezes.hold({ threadId, freeze: (cloud?.threadId === threadId ? cloud.binding : local).freeze ?? baseFreeze })
 
-  const retiring: RuntimeBinding<Adapters>[] = []
-
-  const flushRetired = (): void => {
-    for (const binding of retiring.splice(0)) {
-      try {
-        binding.close?.()
-      } catch {
-        continue
-      }
-    }
-  }
+  const retiring = createRetirementQueue<RuntimeBinding<Adapters>>()
 
   const notify = (): void => {
-    flushRetired()
+    retiring.flush()
     for (const listener of [...listeners]) {
       try {
         listener()
@@ -139,6 +130,10 @@ export function createSessionOwner<Adapters>(args: {
     let prepared: RuntimeBinding<Adapters> | undefined
     let committed = false
     let froze = false
+    const releaseRetirement = retiring.hold()
+    const offSettled = placement.onMoveSettled(({ threadId }) => {
+      if (threadId === moveArgs.threadId) releaseRetirement()
+    })
     const discard = (): void => {
       const dropped = prepared
       prepared = undefined
@@ -188,6 +183,8 @@ export function createSessionOwner<Adapters>(args: {
         discard()
         if (froze) releaseFreeze(moveArgs.threadId)
       }
+      offSettled()
+      releaseRetirement()
     }
   }
 
