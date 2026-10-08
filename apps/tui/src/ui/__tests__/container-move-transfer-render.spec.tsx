@@ -150,6 +150,25 @@ describe('a transfer on the active row', () => {
   })
 })
 
+describe('an archive build on the active row', () => {
+  it('shows the label and the byte count with no bar or percentage', async () => {
+    const frame = await frameOf(
+      overlay({
+        move: moveWith(
+          reading({ transferId: 'archive-build-workspace', label: 'packing the workspace', transferredBytes: 3 * MIB, totalBytes: undefined }),
+        ),
+      }),
+      80,
+    )
+
+    expect(frame).toContain('packing the workspace')
+    expect(frame).toContain('3.0 MiB')
+    expect(frame).not.toContain('%')
+    expect(frame).not.toContain('█')
+    expect(frame).not.toContain('░')
+  })
+})
+
 describe('a transfer beyond the active row', () => {
   it('hides the detail once the row is done', async () => {
     const settled = settleMoveNode({
