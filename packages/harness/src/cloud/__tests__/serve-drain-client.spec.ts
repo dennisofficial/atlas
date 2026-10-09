@@ -13,6 +13,7 @@ const sandboxAnswering = (args: {
   afterRequest?: string
   exitCode?: number
   legacy?: boolean
+  health?: string
   calls?: { script: string; timeoutMs: number }[]
 }) => {
   let requested = false
@@ -22,7 +23,8 @@ const sandboxAnswering = (args: {
       const script = params.args?.[1] ?? ''
       args.calls?.push({ script, timeoutMs: params.timeoutMs ?? 0 })
       if (script.includes('/v1/health')) {
-        return { exitCode: 0, stdout: async () => args.legacy ? '{"ok":true}' : '{"rotationPreparationVersion":1,"sandboxSessionId":"session-1"}' }
+        const ready = args.legacy ? '{"ok":true}' : '{"rotationPreparationVersion":1,"sandboxSessionId":"session-1"}'
+        return { exitCode: 0, stdout: async () => args.health ?? ready }
       }
       if (script.includes('/v1/drain')) {
         requested = true
@@ -86,5 +88,54 @@ describe('confirmed drainServe', () => {
     const stale = { ...receipt, sandboxSessionId: 'old', checkpoint: { ...receipt.checkpoint, sandboxSessionId: 'old' } }
     const stdout = `${JSON.stringify({ ok: true, prepared: true, receipt: stale })}\n200`
     await expect(drainServe({ sandbox: sandboxAnswering({ stdout, persisted: JSON.stringify(stale) }), url: URL })).rejects.toThrow('another sandbox session')
+  })
+})
+
+const WEDGE_HEALTH = JSON.stringify({
+  sandboxSessionId: 'session-1',
+  admissionClosed: true,
+  busy: false,
+  turnRunning: false,
+  childrenRunning: 0,
+  shellsRunning: 0,
+  servicesRunning: 0,
+  pendingInput: false,
+  settlingWork: false,
+  clients: 0,
+})
+
+describe('a wedged serve at the drain seam', () => {
+  it('replaces a serve that reports admission closed with no work, bypassing the drain it cannot answer', async () => {
+    const calls: { script: string; timeoutMs: number }[] = []
+    await drainServe({
+      sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: WEDGE_HEALTH, calls }),
+      url: URL,
+    })
+    expect(calls.some((call) => call.script.includes('/v1/drain'))).toBe(false)
+  })
+
+  it('preserves a wedged serve that still reports a turn running', async () => {
+    const busy = JSON.stringify({ ...JSON.parse(WEDGE_HEALTH), turnRunning: true, busy: true })
+    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: busy }), url: URL })).rejects.toThrow('sandbox was preserved')
+  })
+
+  it('preserves a wedged serve missing any work signal', async () => {
+    const partial = JSON.parse(WEDGE_HEALTH)
+    delete partial.shellsRunning
+    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: JSON.stringify(partial) }), url: URL })).rejects.toThrow('sandbox was preserved')
+  })
+
+  it('preserves a serve whose admission is open', async () => {
+    const open = JSON.stringify({ ...JSON.parse(WEDGE_HEALTH), admissionClosed: false })
+    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: open }), url: URL })).rejects.toThrow('sandbox was preserved')
+  })
+
+  it('preserves a wedge signature from another sandbox session', async () => {
+    const foreign = JSON.stringify({ ...JSON.parse(WEDGE_HEALTH), sandboxSessionId: 'session-2' })
+    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: foreign }), url: URL })).rejects.toThrow('sandbox was preserved')
+  })
+
+  it('preserves when the health body cannot be parsed at all', async () => {
+    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: 'not-json' }), url: URL })).rejects.toThrow('sandbox was preserved')
   })
 })

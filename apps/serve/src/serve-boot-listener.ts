@@ -14,6 +14,7 @@ export type BootedHealthArgs = {
   work: () => Record<string, unknown>
   nextSeq: () => number
   resumable: boolean
+  admissionClosed: () => boolean
 }
 
 export type BootListener = {
@@ -56,6 +57,7 @@ const bootedHealth = (args: {
   threadId: args.threadId,
   uptimeMs: Date.now() - args.startedAt,
   clients: args.base.clients(),
+  admissionClosed: args.base.admissionClosed(),
   ...args.base.work(),
   nextSeq: args.base.nextSeq(),
   resumable: args.base.resumable,

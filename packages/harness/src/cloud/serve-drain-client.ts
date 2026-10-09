@@ -34,7 +34,39 @@ const hasPreparedReceipt = async (sandbox: Sandbox): Promise<boolean> => {
   return parsed.data.sandboxSessionId === sandbox.currentSession().sessionId
 }
 
-const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): Promise<void> => {
+const wedgeHealthSchema = z.looseObject({
+  sandboxSessionId: z.string().min(1),
+  admissionClosed: z.literal(true),
+  busy: z.boolean().optional(),
+  turnRunning: z.boolean().optional(),
+  childrenRunning: z.number().optional(),
+  shellsRunning: z.number().optional(),
+  servicesRunning: z.number().optional(),
+  pendingInput: z.boolean().optional(),
+  settlingWork: z.boolean().optional(),
+  clients: z.number().optional(),
+})
+
+/**
+ * A wedged serve — admission latched, refusing every frame, but process-alive — fails the
+ * safe-preparation handshake yet holds nothing worth preserving. It may be replaced only on
+ * positive evidence: admission is closed AND every work signal is present and empty. Any work
+ * indicator, any missing signal, a closed-but-admitting serve, or a foreign session is preserved.
+ */
+const wedgeProofOf = (health: unknown, sessionId: string): boolean => {
+  const parsed = wedgeHealthSchema.safeParse(health)
+  if (!parsed.success) return false
+  const h = parsed.data
+  if (h.sandboxSessionId !== sessionId) return false
+  if (h.busy !== false || h.turnRunning !== false) return false
+  if (h.childrenRunning !== 0 || h.shellsRunning !== 0 || h.servicesRunning !== 0) return false
+  if (h.pendingInput !== false || h.settlingWork !== false) return false
+  return true
+}
+
+type PreparationGate = { kind: 'ready' } | { kind: 'wedged' }
+
+const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): Promise<PreparationGate> => {
   const probe = await args.sandbox.runCommand({
     cmd: 'sh',
     args: ['-c',
@@ -43,16 +75,30 @@ const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): 
     ],
     timeoutMs: 15_000,
   })
-  const schema = z.looseObject({ rotationPreparationVersion: z.literal(1), sandboxSessionId: z.string().min(1) })
-  const health = schema.safeParse(JSON.parse((await probe.stdout()) || 'null'))
-  if (probe.exitCode !== 0 || !health.success || health.data.sandboxSessionId !== args.sandbox.currentSession().sessionId) {
-    throw new Error('this serve cannot confirm safe relocation preparation — the sandbox was preserved')
+  let body: unknown = null
+  if (probe.exitCode === 0) {
+    try {
+      body = JSON.parse((await probe.stdout()) || 'null')
+    } catch {
+      body = null
+    }
   }
+  const schema = z.looseObject({ rotationPreparationVersion: z.literal(1), sandboxSessionId: z.string().min(1) })
+  const health = schema.safeParse(body)
+  if (probe.exitCode === 0 && health.success && health.data.sandboxSessionId === args.sandbox.currentSession().sessionId) {
+    return { kind: 'ready' }
+  }
+  if (wedgeProofOf(body, args.sandbox.currentSession().sessionId)) return { kind: 'wedged' }
+  throw new Error('this serve cannot confirm safe relocation preparation — the sandbox was preserved')
 }
 
 export const drainServe: ServeDrain = async ({ sandbox, url }) => {
   if (await hasPreparedReceipt(sandbox)) return
-  await requireSafePreparation({ sandbox, url })
+  const gate = await requireSafePreparation({ sandbox, url })
+  // A wedged serve already ended its own processes when it parked and cannot answer a drain —
+  // asking it to is the deadlock. Its durable state is on the drive; bypass the drain and let the
+  // caller replace it.
+  if (gate.kind === 'wedged') return
   const body = JSON.stringify({ reason: DRAIN_REASON, preparationVersion: 1 })
   try {
     const run = await sandbox.runCommand({

@@ -155,6 +155,7 @@ describe('booting health listener', () => {
     expect(after.body).toMatchObject({
       ok: true,
       threadId: String(threadId),
+      admissionClosed: false,
       workspace: { state: EWorkspaceState.Skipped },
     })
   })
