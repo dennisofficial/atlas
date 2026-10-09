@@ -846,9 +846,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.0099,
+      "inputPerMillion": 0.0075,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.0099
+      "cacheReadPerMillion": 0.0075
     },
     "effort": {
       "high": "high",
@@ -866,9 +866,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.006,
+      "inputPerMillion": 0.0104,
       "outputPerMillion": 1.28,
-      "cacheReadPerMillion": 0.006
+      "cacheReadPerMillion": 0.0104
     },
     "effort": {
       "low": "low",
@@ -908,9 +908,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.287274,
-      "outputPerMillion": 0.574548,
-      "cacheReadPerMillion": 0.02394
+      "inputPerMillion": 0.95526,
+      "outputPerMillion": 1.91052,
+      "cacheReadPerMillion": 0.079605
     },
     "effort": {
       "high": "high",
@@ -1650,8 +1650,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 16384,
     "cost": {
-      "inputPerMillion": 0.1,
-      "outputPerMillion": 0.32
+      "inputPerMillion": 0.22,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.11
     }
   },
   {
@@ -2302,9 +2303,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.4344,
+      "inputPerMillion": 0.465,
       "outputPerMillion": 2.45,
-      "cacheReadPerMillion": 0.12
+      "cacheReadPerMillion": 0.0975
     }
   },
   {
@@ -2334,9 +2335,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.82,
-      "outputPerMillion": 13.5,
-      "cacheReadPerMillion": 0.55
+      "inputPerMillion": 0.53,
+      "outputPerMillion": 12,
+      "cacheReadPerMillion": 0.3
     },
     "effort": {
       "low": "low",
@@ -2488,9 +2489,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.049,
-      "outputPerMillion": 0.14,
-      "cacheReadPerMillion": 0.0245
+      "inputPerMillion": 0.0469,
+      "outputPerMillion": 0.134,
+      "cacheReadPerMillion": 0.02345
     }
   },
   {
@@ -4318,11 +4319,11 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 235929,
+    "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0.15,
-      "outputPerMillion": 1,
-      "cacheReadPerMillion": 0.05
+      "inputPerMillion": 0.08,
+      "outputPerMillion": 0.75,
+      "cacheReadPerMillion": 0.04
     }
   },
   {
@@ -4413,9 +4414,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 65536,
     "cost": {
-      "inputPerMillion": 0.3,
-      "outputPerMillion": 2,
-      "cacheReadPerMillion": 0.03
+      "inputPerMillion": 0.45,
+      "outputPerMillion": 2.7
     }
   },
   {
@@ -4852,9 +4852,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.0825,
-      "outputPerMillion": 0.33,
-      "cacheReadPerMillion": 0.020625
+      "inputPerMillion": 0.132,
+      "outputPerMillion": 0.528,
+      "cacheReadPerMillion": 0.033
     },
     "effort": {
       "off": "none",
@@ -4894,9 +4894,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 64000,
     "cost": {
-      "inputPerMillion": 0.7506,
-      "outputPerMillion": 2.2509,
-      "cacheReadPerMillion": 0.0378
+      "inputPerMillion": 0.834,
+      "outputPerMillion": 2.501,
+      "cacheReadPerMillion": 0.042
     },
     "effort": {
       "off": "none",
@@ -5379,7 +5379,7 @@
     "cost": {
       "inputPerMillion": 0.3,
       "outputPerMillion": 0.9,
-      "cacheReadPerMillion": 0.05
+      "cacheReadPerMillion": 0.055
     }
   },
   {
@@ -5473,7 +5473,7 @@
     "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.084,
-      "outputPerMillion": 3.6,
+      "outputPerMillion": 8,
       "cacheReadPerMillion": 0.083
     },
     "effort": {
@@ -5492,9 +5492,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.049,
-      "outputPerMillion": 3.39,
-      "cacheReadPerMillion": 0.048
+      "inputPerMillion": 0.039,
+      "outputPerMillion": 7,
+      "cacheReadPerMillion": 0.038
     },
     "effort": {
       "low": "low",
@@ -5689,7 +5689,7 @@
     "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.016,
-      "outputPerMillion": 1.2,
+      "outputPerMillion": 0.6,
       "cacheReadPerMillion": 0.005
     },
     "effort": {
@@ -5709,9 +5709,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.1271,
+      "inputPerMillion": 0.135,
       "outputPerMillion": 8,
-      "cacheReadPerMillion": 0.13
+      "cacheReadPerMillion": 0.14
     },
     "effort": {
       "low": "low",
@@ -5730,9 +5730,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.0048,
-      "outputPerMillion": 0.484359,
-      "cacheReadPerMillion": 0.0048
+      "inputPerMillion": 0.00832,
+      "outputPerMillion": 0.204351,
+      "cacheReadPerMillion": 0.00832
     },
     "effort": {
       "low": "low",
@@ -5795,9 +5795,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.81,
-      "outputPerMillion": 13,
-      "cacheReadPerMillion": 0.3
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 4,
+      "cacheReadPerMillion": 0.1
     },
     "effort": {
       "low": "low",
@@ -5960,7 +5960,7 @@
     "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.032,
-      "outputPerMillion": 3.109323,
+      "outputPerMillion": 1.959642,
       "cacheReadPerMillion": 0.02
     },
     "effort": {
@@ -5980,9 +5980,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.0392,
-      "outputPerMillion": 12,
-      "cacheReadPerMillion": 0.0365
+      "inputPerMillion": 0.0312,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.029
     },
     "effort": {
       "low": "low",
