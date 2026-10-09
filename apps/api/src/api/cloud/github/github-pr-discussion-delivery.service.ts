@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { db } from '../../../db'
+import { subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { EPrEventKind, type GithubPrEventPayload } from './github-realtime.types'
 import type {
@@ -98,8 +99,10 @@ export class GithubPrDiscussionDeliveryService {
     const subscribers = await db.githubSubscription.findMany({
       where: {
         repoFullName: args.repoFullName,
-        expiresAt: { gt: new Date() },
-        OR: [{ prNumber: args.prNumber }, { prNumber: null, branch: { not: '' } }],
+        AND: [
+          subscriptionLiveWhere({ now: new Date() }),
+          { OR: [{ prNumber: args.prNumber }, { prNumber: null, branch: { not: '' } }] },
+        ],
       },
     })
     const branches = subscribers

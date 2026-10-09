@@ -10,20 +10,42 @@ import type {
   GithubPushWebhookPayload,
 } from './github-webhook.types'
 
+/**
+ * A subscription whose heartbeats stopped is still live when it is thread-linked to a sandbox
+ * whose lastActivityAt sits inside the park-wake window: the parked sandbox is the wake-routing
+ * target, so its rows must survive until the window closes. Unlinked rows (user-session
+ * subscribes) keep the bare heartbeat TTL. `CloudSandbox.lastActivityAt` is an ISO string
+ * column, so the cutoff compares lexicographically.
+ */
+export const PARK_WAKE_WINDOW_MS = 24 * 60 * 60 * 1_000
+
+export function subscriptionLiveWhere(args: { now: Date }): Record<string, unknown> {
+  const wakeCutoff = new Date(args.now.getTime() - PARK_WAKE_WINDOW_MS).toISOString()
+  return {
+    OR: [
+      { expiresAt: { gt: args.now } },
+      { AND: [{ threadId: { not: null } }, { sandbox: { lastActivityAt: { gt: wakeCutoff } } }] },
+    ],
+  }
+}
+
 export function subscriberWhereOf(args: {
   repoFullName: string
   prNumber: number
   routing: GithubBranchRouting
 }): Record<string, unknown> {
-  const live = { expiresAt: { gt: new Date() } }
+  const live = subscriptionLiveWhere({ now: new Date() })
   const routing = args.routing
   if (!routing.headRepoMatchesBase || routing.headBranch === '') {
-    return { repoFullName: args.repoFullName, prNumber: args.prNumber, ...live }
+    return {
+      repoFullName: args.repoFullName,
+      prNumber: args.prNumber,
+      AND: [live],
+    }
   }
   return {
     repoFullName: args.repoFullName,
-    ...live,
-    OR: [{ prNumber: args.prNumber }, { branch: { equals: routing.headBranch, not: '' } }],
+    AND: [live, { OR: [{ prNumber: args.prNumber }, { branch: { equals: routing.headBranch, not: '' } }] }],
   }
 }
 

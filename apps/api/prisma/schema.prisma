@@ -144,6 +144,7 @@ model CloudSandbox {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   thread         Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
   oauthConnections OauthConnectionSandbox[]
+  githubSubscriptions GithubSubscription[]
 
   @@index([userId])
   @@index([state, lastActivityAt])
@@ -352,12 +353,17 @@ model GithubSubscription {
   branch       String   @default("")
   pollBacked   Boolean  @default(false)
   expiresAt    DateTime
+  threadId     String?
+  sandboxId    String?
   createdAt    DateTime @default(now())
+
+  sandbox      CloudSandbox? @relation(fields: [threadId], references: [threadId])
 
   @@unique([userId, repoFullName, branch])
   @@index([repoFullName, prNumber])
   @@index([repoFullName, branch])
   @@index([expiresAt])
+  @@index([threadId])
 }
 
 model GithubRepoHook {

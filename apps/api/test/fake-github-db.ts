@@ -55,14 +55,40 @@ export type FakePullRequestRow = {
   updatedAt: Date
 }
 
+export type FakeCloudSandboxRow = {
+  id: string
+  threadId: string
+  userId: string
+  sandboxId: string
+  name: string
+  region: string
+  state: string
+  lastActivityAt: string
+}
+
 const matchesWhere = <Row>(row: Row, where: Where | undefined): boolean => {
   if (where === undefined) return true
   return Object.entries(where).every(([key, condition]) => {
     if (key === 'OR' && Array.isArray(condition)) {
       return (condition as Where[]).some((clause) => matchesWhere(row, clause))
     }
+    if (key === 'AND' && Array.isArray(condition)) {
+      return (condition as Where[]).every((clause) => matchesWhere(row, clause))
+    }
+    if (key === 'sandbox' && typeof condition === 'object' && condition !== null) {
+      const threadId = (row as unknown as Where).threadId
+      if (typeof threadId !== 'string') return false
+      const sandbox = cloudSandboxes.find((candidate) => candidate.threadId === threadId)
+      return sandbox !== undefined && matchesWhere(sandbox, condition as Where)
+    }
     return matchesValue((row as unknown as Where)[key], condition)
   })
+}
+
+let cloudSandboxes: FakeCloudSandboxRow[] = []
+
+export function seedCloudSandbox(row: FakeCloudSandboxRow): void {
+  cloudSandboxes = [...cloudSandboxes.filter((held) => held.threadId !== row.threadId), row]
 }
 
 function createFakeGithubDb() {
@@ -73,6 +99,7 @@ function createFakeGithubDb() {
   let prStates: FakePrStateRow[] = []
   let prEvents: FakePrEventRow[] = []
   let cloudSettings: FakeCloudSettingRow[] = []
+  cloudSandboxes = []
 
   const subscriptionTable = createFakeSubscriptionTable({
     matchesWhere,
@@ -158,6 +185,10 @@ function createFakeGithubDb() {
       findMany: async (args: { where?: Where } = {}) =>
         cloudSettings.filter((row) => matchesWhere(row, args.where)),
     },
+    cloudSandbox: {
+      findMany: async (args: { where?: Where } = {}) =>
+        cloudSandboxes.filter((row) => matchesWhere(row, args.where)),
+    },
   }
 
   return {
@@ -191,6 +222,7 @@ function createFakeGithubDb() {
       prStates = []
       prEvents = []
       cloudSettings = []
+      cloudSandboxes = []
       subscriptionTable.resetSequence()
       prEventTable.resetSequence()
     },

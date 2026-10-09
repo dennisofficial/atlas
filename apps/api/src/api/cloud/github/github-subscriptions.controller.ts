@@ -43,6 +43,9 @@ export class GithubSubscriptionsController {
       repoFullName: body.repoFullName,
       ...(body.prNumber === undefined ? {} : { prNumber: body.prNumber }),
       ...(body.branch === undefined ? {} : { branch: body.branch }),
+      ...(request.sandbox === undefined
+        ? {}
+        : { threadId: request.sandbox.threadId, sandboxId: request.sandbox.sandboxId }),
     })
   }
 
@@ -60,6 +63,12 @@ export class GithubSubscriptionsController {
     @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
   ): Promise<{ expiresAt: string }> {
-    return this.subscriptions.heartbeat({ userId: userIdOf(request), subscriptionId: id })
+    return this.subscriptions.heartbeat({
+      userId: userIdOf(request),
+      subscriptionId: id,
+      ...(request.sandbox === undefined
+        ? {}
+        : { threadId: request.sandbox.threadId, sandboxId: request.sandbox.sandboxId }),
+    })
   }
 }
