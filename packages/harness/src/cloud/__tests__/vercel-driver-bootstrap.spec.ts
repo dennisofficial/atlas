@@ -14,6 +14,43 @@ import {
 } from './vercel-driver-fixture'
 
 describe('createOrResume', () => {
+  it('passes the configured vcpu count to the create call, and none when unset', async () => {
+    const seen: (number | undefined)[] = []
+    const driverSized = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      vcpus: 4,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      driveSdk: fakeDriveSdk().sdk,
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+        getOrCreate: async (params) => {
+          seen.push(params?.resources?.vcpus)
+          return fakeSandbox()
+        },
+      },
+    })
+    await driverSized.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+
+    const { driver: driverDefault } = driverWith({
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+        getOrCreate: async (params) => {
+          seen.push(params?.resources?.vcpus)
+          return fakeSandbox()
+        },
+      },
+    })
+    await driverDefault.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+
+    expect(seen).toEqual([4, undefined])
+  })
+
   it('writes the bootstrap onto a fresh sandbox after it exists, before serve launches', async () => {
     const calls: string[] = []
     const { driver } = driverWith({

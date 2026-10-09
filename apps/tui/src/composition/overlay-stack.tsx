@@ -8,6 +8,7 @@ import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
 import { RotatingOverlay, type Rotating } from '../ui/components/rotating'
 import { ContainerGuard } from '../ui/components/container-guard'
 import { ContainerMoveOverlay } from '../ui/components/container-move'
+import { ContainerResources } from '../ui/components/container-resources'
 import type { ContainerMove } from './container-move'
 import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
@@ -30,6 +31,7 @@ import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
 import type { AgentsPickerControl } from './use-agents-picker'
 import type { ContainerGuardControl } from './use-container-guard'
+import type { ContainerResourcesControl } from './use-container-resources'
 import type { ExitGuardControl } from './use-exit-guard'
 import type { OnboardingControl } from './use-onboarding'
 import type { OperatorInputControl } from './use-operator-input'
@@ -65,6 +67,7 @@ function DerivedOverlayStack(props: {
   rewindConfirm: RewindConfirmControl
   exitGuard: ExitGuardControl
   containerGuard: ContainerGuardControl
+  containerResources: ContainerResourcesControl
   compacting: Compacting | null
   rotating: Rotating | null
   containerMove: ContainerMove | null
@@ -85,6 +88,7 @@ function DerivedOverlayStack(props: {
     rewind,
     exitGuard,
     containerGuard,
+    containerResources,
   } = props
   useAppearance()
   const sidebarWidth = Math.min(settings.sidebarWidth, props.width)
@@ -233,6 +237,14 @@ function DerivedOverlayStack(props: {
           overlay
           onPick={exitGuard.handlePick}
           onDismiss={exitGuard.handleDismiss}
+        />
+      )}
+      {containerResources.state === null ? null : (
+        <ContainerResources
+          width={Math.min(props.contentWidth, props.width)}
+          state={containerResources.state}
+          overlay
+          onDismiss={containerResources.handleDismiss}
         />
       )}
       {containerGuard.state === null || containerGuard.target === null ? null : (

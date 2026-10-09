@@ -47,6 +47,7 @@ export const agentsAskOfArgument = (argumentText: string): EAgentsAsk | null => 
 
 export enum EContainerAsk {
   Current = 'current',
+  Resources = 'resources',
 }
 
 export const containerAskOfArgument = (
@@ -57,15 +58,17 @@ export const containerAskOfArgument = (
   if (asked === 'off' || asked === 'host') return EExecutionLocation.Host
   if (asked === 'docker') return EExecutionLocation.Docker
   if (asked === 'cloud') return EExecutionLocation.Cloud
+  if (asked === 'resources') return EContainerAsk.Resources
   return null
 }
 
 const unknownContainerArgument = (argumentText: string): string =>
-  `/container takes no argument to say where this conversation runs, or "off" | "docker" | "cloud" to move it — not ${argumentText.trim()}`
+  `/container takes no argument to say where this conversation runs, "off" | "docker" | "cloud" to move it, or "resources" to resize a cloud sandbox — not ${argumentText.trim()}`
 
 export type LocalCommandHandlers = {
   onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   onContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
+  onContainerResources: () => string | undefined
   onCompact: (scope: ECompactScope) => void
   onRotate: (instructions: string | undefined) => void
   onRewind: () => void
@@ -124,13 +127,16 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     local({
       name: 'container',
       summary: 'move this conversation between the host, a docker container and the cloud',
-      argumentHint: '[off|docker|cloud]',
+      argumentHint: '[off|docker|cloud|resources]',
       group: ECommandGroup.Session,
       timing: ECommandTiming.Immediate,
       echo: ECommandEcho.Output,
       run: ({ argumentText }) => {
         const asked = containerAskOfArgument(argumentText)
         if (asked === null) return refused(unknownContainerArgument(argumentText))
+        if (asked === EContainerAsk.Resources) {
+          return { type: ECommandEffect.Ran, notice: handlers.onContainerResources() }
+        }
 
         return { type: ECommandEffect.Ran, notice: handlers.onContainer(asked) }
       },

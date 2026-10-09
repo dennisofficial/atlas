@@ -45,6 +45,8 @@ export class VercelDriver {
       cloudUrl: string
       /** Only createOrResume boots one, so an exposure-only driver never names one. */
       image?: string | undefined
+      /** Creation-time sandbox size, same contract as `VercelSandboxConfig.vcpus`. */
+      vcpus?: number | undefined
       /** Same pin as `VercelSandboxConfig.serveVersion`; a direct driver construction names it here. */
       serveVersion?: string | undefined
       timeoutMs?: number | undefined
@@ -123,6 +125,36 @@ export class VercelDriver {
         )
       }
       return sandbox.domain(args.port)
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw asVercelFailure(failure)
+    }
+  }
+
+  /**
+   * The live allocation as Vercel reports it. Either field is undefined when the SDK's record
+   * does not carry it — callers treat that as "unknown", not zero.
+   */
+  async readResources(args: { name: string }): Promise<{ vcpus?: number; memoryMb?: number }> {
+    try {
+      const sandbox = await this.sandboxNamed(args.name, { resume: false })
+      return {
+        ...(sandbox.vcpus === undefined ? {} : { vcpus: sandbox.vcpus }),
+        ...(sandbox.memory === undefined ? {} : { memoryMb: sandbox.memory }),
+      }
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw asVercelFailure(failure)
+    }
+  }
+
+  async updateResources(args: { name: string; vcpus: number }): Promise<void> {
+    try {
+      const sandbox = await this.sandboxNamed(args.name)
+      await sandbox.update(
+        { resources: { vcpus: args.vcpus } },
+        { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
+      )
     } catch (failure) {
       if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
       throw asVercelFailure(failure)

@@ -18,6 +18,7 @@ import {
   SandboxClient,
   sandboxImageOf,
   sandboxServeTokenFor,
+  sandboxVcpusOf,
   storedModel,
   VercelDriver,
   type LocalCloudBridgeOptions,
@@ -104,6 +105,7 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   vercel: () => ({
     credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
     ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
+    vcpus: sandboxVcpusOf({ settings: app.settings }),
   }),
   // The driver's settle and provision narration is the only record of a wake that failed
   // before the channel could speak — persist it, or the next name-conflict incident leaves

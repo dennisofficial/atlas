@@ -46,6 +46,8 @@ export async function mountWithRetries(args: {
   credentials: VercelCredentials
   name: string
   image: string
+  /** Creation-time size; undefined leaves Vercel's default (2 vCPU). Ignored by Vercel on resume. */
+  vcpus?: number | undefined
   drive: Awaited<ReturnType<DriveSdk['getOrCreate']>>
   driveName: string
   threadId: string
@@ -66,6 +68,7 @@ export async function mountWithRetries(args: {
         persistent: true,
         resume: true,
         image: args.image,
+        ...(args.vcpus === undefined ? {} : { resources: { vcpus: args.vcpus } }),
         mounts: { [DRIVE_MOUNT_PATH]: args.drive },
         onCreate: args.onCreate,
         env: {

@@ -45,6 +45,21 @@ export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     fallback: 'atlas-sandbox:latest',
   },
   {
+    id: ESettingId.SandboxVcpus,
+    page: ESettingPage.Cloud,
+    group: 'Cloud sandboxes',
+    label: 'Sandbox size',
+    description:
+      'The vCPUs a new cloud sandbox boots with, and 2 GB of RAM per vCPU. Applies at creation only — a sandbox that already exists keeps its size; resize the one you are in with /container resources. Vercel bills provisioned memory per GB-hour, so a bigger default costs more while a sandbox runs. Above 8 needs a Vercel Enterprise plan (up to 32 there).',
+    environmentVariable: 'ATLAS_SANDBOX_VCPUS',
+    kind: ESettingKind.Range,
+    fallback: 2,
+    minimum: 2,
+    maximum: 8,
+    step: 2,
+    unit: ' vcpu',
+  },
+  {
     id: ESettingId.CloudUrl,
     page: ESettingPage.Hidden,
     group: 'Cloud',

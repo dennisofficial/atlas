@@ -17,6 +17,7 @@ export const handlers = (
 ): LocalCommandHandlers => ({
   onChangeDirectory: async () => RAN,
   onContainer: () => 'on the host',
+  onContainerResources: stub,
   onCompact: stub,
   onRotate: stub,
   onRewind: stub,

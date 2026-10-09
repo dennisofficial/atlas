@@ -90,6 +90,8 @@ const sessionOn = (args: {
       putContext: async () => undefined,
       confirmLanded: async () => ({ landed: true }),
       find: args.find ?? (async () => missing),
+      readResources: async () => ({}),
+      updateResources: async () => {},
       destroy: async () => undefined,
     },
     onReload: args.onReload ?? (async () => undefined),
@@ -332,6 +334,8 @@ describe('provider inspection is read-only', () => {
           sandboxSessionId: 'session-a',
           checkpoint: checkpointOf(),
         }),
+        readResources: async () => ({}),
+        updateResources: async () => {},
         destroy: async () => {
           calls.push('destroy')
         },

@@ -91,6 +91,58 @@ describe('inspect', () => {
   })
 })
 
+describe('updateResources', () => {
+  it('resizes the live sandbox through an instance update', async () => {
+    const sandbox = fakeSandbox({ vcpus: 2, memoryMb: 4096 })
+    const { driver } = driverWith({ sdk: { get: async () => sandbox } })
+
+    await driver.updateResources({ name: 'x', vcpus: 4 })
+
+    expect(sandbox.resourceUpdates).toEqual([4])
+  })
+
+  it('reads a missing sandbox as gone', async () => {
+    const { driver } = driverWith({
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+      },
+    })
+
+    await expect(driver.updateResources({ name: 'x', vcpus: 4 })).rejects.toBeInstanceOf(
+      SandboxMissingError,
+    )
+  })
+})
+
+describe('readResources', () => {
+  it('answers the allocation the provider reports', async () => {
+    const sandbox = fakeSandbox({ vcpus: 4, memoryMb: 8192 })
+    const { driver } = driverWith({ sdk: { get: async () => sandbox } })
+
+    expect(await driver.readResources({ name: 'x' })).toEqual({ vcpus: 4, memoryMb: 8192 })
+  })
+
+  it('omits fields the provider does not report rather than answering zero', async () => {
+    const { driver } = driverWith({ sdk: { get: async () => fakeSandbox() } })
+
+    expect(await driver.readResources({ name: 'x' })).toEqual({})
+  })
+
+  it('reads a missing sandbox as gone', async () => {
+    const { driver } = driverWith({
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+      },
+    })
+
+    await expect(driver.readResources({ name: 'x' })).rejects.toBeInstanceOf(SandboxMissingError)
+  })
+})
+
 describe('exposePort', () => {
   it('grows the routed list rather than replacing it, and answers the domain', async () => {
     const sandbox = fakeSandbox({ routes: [3000, 3001] })

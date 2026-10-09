@@ -14,11 +14,14 @@ import {
   moveFailedNotice,
   movingNotice,
   pendingSwitchNotice,
+  resourcesConnectingNotice,
+  resourcesRefusalNotice,
 } from './container-notices'
 import { messageOf } from './error-text'
 import { useCloudLift } from './use-cloud-lift'
 import { useContainerGuard, type ContainerGuardControl } from './use-container-guard'
 import type { useContainerMove } from './use-container-move'
+import type { ContainerResourcesControl } from './use-container-resources'
 import type { useConversation } from './use-conversation'
 import type { useExecutionLocation } from './use-execution-location'
 import type { useShells } from './use-shells'
@@ -27,6 +30,7 @@ import type { WorkspaceProps } from './workspace-props'
 export type WorkspaceLocation = {
   containerGuard: ContainerGuardControl
   handleContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
+  handleContainerResources: () => string | undefined
 }
 
 type LocationProps = Pick<WorkspaceProps,
@@ -40,6 +44,7 @@ export function useWorkspaceLocation(args: {
   conversation: ReturnType<typeof useConversation>
   execution: ReturnType<typeof useExecutionLocation>
   containerMove: ReturnType<typeof useContainerMove>
+  containerResources: ContainerResourcesControl
   shells: ReturnType<typeof useShells>
 }): WorkspaceLocation {
   const { props, conversation, execution, containerMove, shells } = args
@@ -175,6 +180,8 @@ export function useWorkspaceLocation(args: {
   const handleContainer = useCallback(
     (asked: EExecutionLocation | EContainerAsk): string | undefined => {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
+      // The registry routes Resources to handleContainerResources before this runs.
+      if (asked === EContainerAsk.Resources) return undefined
       if (asked === execution.location) return currentLocationNotice(execution.location)
       const owner = props.localApp.sessionOwner
       const unfinished = owner.snapshot().record?.move
@@ -254,5 +261,14 @@ export function useWorkspaceLocation(args: {
     containerGuard.handleApply()
   }, [containerGuard, shells.running])
 
-  return { containerGuard, handleContainer }
+  const handleContainerResources = useCallback((): string | undefined => {
+    if (execution.location !== EExecutionLocation.Cloud) {
+      return resourcesRefusalNotice(execution.location)
+    }
+    if (!execution.bound) return resourcesConnectingNotice
+    args.containerResources.handleOpen()
+    return undefined
+  }, [args.containerResources, execution])
+
+  return { containerGuard, handleContainer, handleContainerResources }
 }

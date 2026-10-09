@@ -28,6 +28,7 @@ export function useWorkspaceCommands(args: {
     'handleShortcuts' | 'handleShowAgentTypes' | 'handleShowLostAgents'
   >
   handleContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
+  handleContainerResources: () => string | undefined
   handleOpenAccounts: () => void
   handleNewConversation: () => void
   handleResumeConversation: (handle: string) => void
@@ -45,6 +46,7 @@ export function useWorkspaceCommands(args: {
     switcher,
     chrome,
     handleContainer,
+    handleContainerResources,
     handleOpenAccounts,
     handleNewConversation,
     handleResumeConversation,
@@ -69,6 +71,7 @@ export function useWorkspaceCommands(args: {
     return localCommands({
       onChangeDirectory: conversation.handleChangeDirectory,
       onContainer: handleContainer,
+      onContainerResources: handleContainerResources,
       onCompact: conversation.handleCompact,
       onRotate: conversation.handleRotate,
       onRewind: rewind.handleOpen,
@@ -102,6 +105,7 @@ export function useWorkspaceCommands(args: {
     conversation.handleRename,
     conversation.handleRotate,
     handleContainer,
+    handleContainerResources,
     handleNewConversation,
     handleOpenAccounts,
     handleQuit,

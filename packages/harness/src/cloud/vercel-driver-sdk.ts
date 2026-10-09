@@ -29,6 +29,12 @@ export type VercelSandboxConfig = {
   credentials: VercelCredentials
   image: string
   /**
+   * Creation-time size for a fresh sandbox, from `sandbox.vcpus` — RAM rides along at 2048 MB
+   * per vCPU. Vercel ignores create params when resuming, so this never resizes an existing
+   * sandbox; /container resources is the live knob. Undefined leaves Vercel's own default.
+   */
+  vcpus?: number | undefined
+  /**
    * The serve version this build pins, from `sandboxImageOf` — a released Atlas names its own
    * version, anything else undefined. Drives the resume-time drift check: a sandbox whose baked
    * serve predates the pin is torn down and recreated from the pinned image rather than resumed

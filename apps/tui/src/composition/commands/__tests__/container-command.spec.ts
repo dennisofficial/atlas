@@ -14,6 +14,7 @@ import { handlers } from './local-handlers'
 const run = async (args: {
   text: string
   onContainer?: LocalCommandHandlers['onContainer']
+  onContainerResources?: LocalCommandHandlers['onContainerResources']
 }): Promise<Dispatch> =>
   dispatchSubmission({
     text: args.text,
@@ -22,6 +23,9 @@ const run = async (args: {
         onContainer:
           args.onContainer ??
           ((asked) => (asked === EContainerAsk.Current ? 'on the host' : `moved to ${asked}`)),
+        ...(args.onContainerResources === undefined
+          ? {}
+          : { onContainerResources: args.onContainerResources }),
       }),
     ),
     skills: [],
@@ -33,7 +37,7 @@ describe('the container command', () => {
     const dispatched = await run({
       text: '/container docker',
       onContainer: (asked) => {
-        if (asked !== EContainerAsk.Current) moved.push(asked)
+        if (asked !== EContainerAsk.Current && asked !== EContainerAsk.Resources) moved.push(asked)
         return 'this conversation now runs in a Docker container'
       },
     })
@@ -50,7 +54,7 @@ describe('the container command', () => {
     const dispatched = await run({
       text: '/container off',
       onContainer: (asked) => {
-        if (asked !== EContainerAsk.Current) moved.push(asked)
+        if (asked !== EContainerAsk.Current && asked !== EContainerAsk.Resources) moved.push(asked)
         return 'this conversation runs on the host again'
       },
     })
@@ -70,6 +74,32 @@ describe('the container command', () => {
 
     expect(dispatched.type).toBe(EDispatch.Refused)
     expect(dispatched.type === EDispatch.Refused && dispatched.reason).toContain('podman')
+  })
+
+  it('hands resources to its own handler rather than to a move', async () => {
+    let opened = 0
+    const dispatched = await run({
+      text: '/container resources',
+      onContainer: () => {
+        throw new Error('a resize is not a move')
+      },
+      onContainerResources: () => {
+        opened += 1
+        return 'opening the resize overlay'
+      },
+    })
+
+    expect(dispatched).toEqual({ type: EDispatch.Ran, notice: 'opening the resize overlay' })
+    expect(opened).toBe(1)
+  })
+
+  it('runs resources silently when the overlay owns the answer', async () => {
+    const dispatched = await run({
+      text: '/container resources',
+      onContainerResources: () => undefined,
+    })
+
+    expect(dispatched).toEqual({ type: EDispatch.Ran, notice: undefined })
   })
 })
 

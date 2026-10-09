@@ -16,6 +16,7 @@ type FakeSandboxExtras = {
   readonly commands: readonly string[]
   readonly written: readonly RecordedWrite[]
   readonly updates: readonly number[][]
+  readonly resourceUpdates: readonly number[]
   readonly stopped: boolean
   readonly deleted: boolean
 }
@@ -30,6 +31,8 @@ export const fakeSandbox = (
   args: {
     status?: string
     routes?: number[]
+    vcpus?: number
+    memoryMb?: number
     installedVersion?: string
     installedProtocol?: string
     drainStatus?: string
@@ -42,6 +45,7 @@ export const fakeSandbox = (
   const commands: string[] = []
   const written: RecordedWrite[] = []
   const updates: number[][] = []
+  const resourceUpdates: number[] = []
   const calls = args.calls
   const routedPorts = [...(args.routes ?? [3000])]
   let stopped = false
@@ -51,6 +55,8 @@ export const fakeSandbox = (
   const base = {
     name: 'atlas-thread-x',
     status: args.status ?? 'running',
+    vcpus: args.vcpus,
+    memory: args.memoryMb,
     routes: (args.routes ?? [3000]).map((port) => ({ port, subdomain: `sb-${port}` })),
     currentSession: () => ({ sessionId: 'session-1' }),
     domain: (port: number) => {
@@ -112,9 +118,12 @@ export const fakeSandbox = (
       written.push(...files)
       files.forEach((file) => calls?.push({ kind: ERecordedCallKind.Write, path: file.path }))
     },
-    update: async (params: { ports: number[] }) => {
-      updates.push(params.ports)
-      routedPorts.splice(0, routedPorts.length, ...params.ports)
+    update: async (params: { ports?: number[]; resources?: { vcpus?: number } }) => {
+      if (params.ports !== undefined) {
+        updates.push(params.ports)
+        routedPorts.splice(0, routedPorts.length, ...params.ports)
+      }
+      if (params.resources?.vcpus !== undefined) resourceUpdates.push(params.resources.vcpus)
     },
     stop: async () => {
       stopped = true
@@ -129,6 +138,7 @@ export const fakeSandbox = (
     commands: { get: () => commands },
     written: { get: () => written },
     updates: { get: () => updates },
+    resourceUpdates: { get: () => resourceUpdates },
     stopped: { get: () => stopped },
     deleted: { get: () => deleted },
   })

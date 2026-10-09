@@ -253,6 +253,10 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         name: sandboxNameFor({ threadId }),
       }),
     }),
+    readResources: ({ threadId }) =>
+      driverWith(args.vercel()).readResources({ name: sandboxNameFor({ threadId }) }),
+    updateResources: ({ threadId, vcpus }) =>
+      driverWith(args.vercel()).updateResources({ name: sandboxNameFor({ threadId }), vcpus }),
     find,
     destroy,
   }

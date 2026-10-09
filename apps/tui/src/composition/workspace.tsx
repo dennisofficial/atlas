@@ -22,6 +22,7 @@ import { useWorkspaceNavigation } from './use-workspace-navigation'
 import { useWorkspaceNotices } from './use-workspace-notices'
 import { useWorkspaceCommands } from './use-workspace-commands'
 import { useWorkspaceLifecycle } from './use-workspace-lifecycle'
+import { useContainerResources } from './use-container-resources'
 import { useWorkspaceLocation } from './use-workspace-location'
 import { useWorkspacePlacement } from './use-workspace-placement'
 import { useWorkspaceSession } from './use-workspace-session'
@@ -107,11 +108,22 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
       onChooseModel: relay.handleChoose,
     })
 
-  const { containerGuard, handleContainer } = useWorkspaceLocation({
+  const containerResources = useContainerResources({
+    readResources: () => {
+      if (props.cloudBridge === null) return Promise.resolve({})
+      return props.cloudBridge.sandboxes.readResources({ threadId: conversation.threadId })
+    },
+    updateResources: async (vcpus) => {
+      if (props.cloudBridge === null) throw new Error('no cloud bridge attached')
+      await props.cloudBridge.sandboxes.updateResources({ threadId: conversation.threadId, vcpus })
+    },
+  })
+  const { containerGuard, handleContainer, handleContainerResources } = useWorkspaceLocation({
     props,
     conversation,
     execution: placement.execution,
     containerMove,
+    containerResources,
     shells,
   })
   const { handleRestart, handleQuit } = useWorkspaceLifecycle({
@@ -137,6 +149,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     switcher,
     chrome,
     handleContainer,
+    handleContainerResources,
     handleRestart,
     handleQuit,
     handleOpenAccounts,
@@ -201,6 +214,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     exitGuard,
     containerGuard,
     containerMove,
+    containerResources,
     contextBrowser,
   })
 
@@ -287,7 +301,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
             accounts, threads, agentsPicker, rewind, qualityHealth }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
-          {...{ exitGuard, containerGuard }}
+          {...{ exitGuard, containerGuard, containerResources }}
           compacting={conversation.compacting}
           rotating={conversation.rotating}
           containerMove={containerMove.move}
