@@ -121,8 +121,6 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           if (live === undefined) return false
           const shells = resolver.resolve(portToken(ShellRegistryPort))
           if (shells.list({ threadId }).some((shell) => shell.status === EShellStatus.Running)) return true
-          const services = resolver.resolve(portToken(ServiceRegistryPort))
-          if (services.hasRunningFor?.({ threadId }) === true) return true
           return live.someChild(threadId, isStepping)
         },
         inheritOrphanedNotices: ({ from, to }) => {

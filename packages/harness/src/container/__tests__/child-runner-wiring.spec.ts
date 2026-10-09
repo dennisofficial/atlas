@@ -14,12 +14,12 @@ import {
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../../agents/registry/port'
+import { ServiceRegistryPort } from '../../services/service-registry'
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { subAgentPrompt } from '../../agents/registry/child-prompt'
 import type { ChildRunnerDeps } from '../../agents/registry/child-runner'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
-import { ServiceRegistryPort } from '../../services/service-registry'
 import { ThreadStorePort } from '../../store'
 import { PromptRegistry } from '../../prompt/registry'
 import { ToolRegistry } from '../../tools/registry'
@@ -113,6 +113,7 @@ async function composed(args: { bind: boolean; model?: ReturnType<typeof scripte
   services: ServiceRegistryPort
   threads: ThreadStorePort
   parent: ThreadId
+  container: DependencyContainer
   cwd: string
 }> {
   const temp = createTempHome()
@@ -139,6 +140,7 @@ async function composed(args: { bind: boolean; model?: ReturnType<typeof scripte
     services,
     threads,
     parent,
+    container,
     cwd: temp.home,
   }
 }
@@ -230,6 +232,7 @@ describe('the ending a parent is meant to be woken by', () => {
     expect(agents.drainNotifications({ threadId: parent }).wakesTurn).toBe(true)
     expect(agents.pendingNotices({ threadId: parent })).toHaveLength(0)
   }, 30_000)
+
 })
 
 function gatedModel(): { model: ReturnType<typeof scriptedModel>; release: () => void } {
@@ -289,7 +292,7 @@ describe('live work that decides whether a child ending is queued to its parent'
     expect(await endWithServiceOwnedBy({ owner: 'parent' })).toBe(1)
   }, 30_000)
 
-  it('holds the ending back while the running service belongs to the ending child itself', async () => {
-    expect(await endWithServiceOwnedBy({ owner: 'child' })).toBe(0)
+  it('queues the ending even when the running service belongs to the ending child itself', async () => {
+    expect(await endWithServiceOwnedBy({ owner: 'child' })).toBe(1)
   }, 30_000)
 })
