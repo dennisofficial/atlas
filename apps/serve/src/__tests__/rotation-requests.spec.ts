@@ -55,7 +55,7 @@ const rotateFrame = (params: Record<string, unknown>): RequestFrame => ({
   params,
 })
 
-const rig = (args?: { rotation?: ScriptedRotation | null; related?: Set<string> }) => {
+const rig = (args?: { rotation?: ScriptedRotation | null; related?: Set<string>; activeMain?: ThreadId }) => {
   const rotation = args?.rotation === null ? undefined : (args?.rotation ?? new ScriptedRotation())
   const admission = createHistoryAdmission({ threadId: () => served, intake: null, unavailable: () => false })
   const broadcasts: RotationStateWire[] = []
@@ -64,7 +64,7 @@ const rig = (args?: { rotation?: ScriptedRotation | null; related?: Set<string> 
     rotation,
     authority: {
       mainGenerationOf: async ({ threadId }) => (args?.related?.has(threadId) === true ? 0 : undefined),
-      activeMainOf: async () => undefined,
+      activeMainOf: async () => args?.activeMain,
     },
     driver: {
       holdForRotation: admission.holdForRotation,
@@ -194,5 +194,33 @@ describe('rotation requests', () => {
   it('refuses malformed params', async () => {
     const { requests } = rig()
     expect(await requests.answer(rotateFrame({}))).toMatchObject({ ok: false })
+  })
+
+  it('drives the session’s active main, not the boot thread, so a rotate after a wake from a rotated session does not refuse', async () => {
+    // The woken sandbox boots for the session’s original thread while the session meta’s active
+    // main is the committed successor of a pre-park rotation. The drive must follow the active
+    // main — passing the boot thread as predecessor is what the orchestrator fence refused with
+    // "the thread is not the session’s active main".
+    const { rotation, requests } = rig({ activeMain: successor })
+    const reply = requests.answer(rotateFrame(params))
+    await Promise.resolve()
+    await Promise.resolve()
+    rotation!.stage(ERotationPhase.Settling)
+    expect(await reply).toMatchObject({ data: { type: 'started' } })
+    expect(rotation!.requests[0]).toMatchObject({ sessionId: served, predecessor: successor })
+    rotation!.finish({ kind: 'failed', sessionId: served, operationId: 'op', reason: 'x' })
+    await requests.whenSettled()
+  })
+
+  it('drives the served thread while it is still the active main', async () => {
+    const { rotation, requests } = rig({ activeMain: served })
+    const reply = requests.answer(rotateFrame(params))
+    await Promise.resolve()
+    await Promise.resolve()
+    rotation!.stage(ERotationPhase.Settling)
+    expect(await reply).toMatchObject({ data: { type: 'started' } })
+    expect(rotation!.requests[0]).toMatchObject({ sessionId: served, predecessor: served })
+    rotation!.finish({ kind: 'failed', sessionId: served, operationId: 'op', reason: 'x' })
+    await requests.whenSettled()
   })
 })
