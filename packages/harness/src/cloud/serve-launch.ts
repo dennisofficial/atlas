@@ -197,6 +197,10 @@ export function createServeLauncher(args?: {
 }): ServeLauncher {
   const install = args?.installServe ?? installServe
   return async ({ sandbox, token, sandboxSessionId, cloudUrl, desiredVersion }) => {
+    // The parked-checkpoint refusal guards a serve that vanished without this launch stopping it.
+    // A deliberate stop in this launch (the drift swap below) is exactly that launch's own doing,
+    // so the guard would otherwise refuse the boot the stop was performed to enable.
+    let stoppedForSwap = false
     if (await serveAlive(sandbox)) {
       if (token !== undefined && !(await tokenFileMatches({ sandbox, token }))) {
         throw new Error('atlas serve is already running under a different token; refusing to rotate its live credentials')
@@ -232,11 +236,10 @@ export function createServeLauncher(args?: {
           `atlas serve refused to stop for its in-place swap; the sandbox was left running the old serve rather than destroyed`,
         )
       }
+      stoppedForSwap = true
     }
 
-    if (
-      await parkedCheckpointNames({ sandbox, sandboxSessionId })
-    ) {
+    if (!stoppedForSwap && (await parkedCheckpointNames({ sandbox, sandboxSessionId }))) {
       throw new Error(
         `sandbox ${sandbox.name} holds a checkpoint that parked this very session ${sandboxSessionId ?? ''} — refusing to boot a new serve over its park proof`,
       )

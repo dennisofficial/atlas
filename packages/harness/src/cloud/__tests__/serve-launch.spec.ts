@@ -11,7 +11,9 @@ import {
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
   SERVE_TOKEN_PATH,
+  SERVE_VERSION_PATH,
 } from '../serve-launch'
+import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 
 interface RecordedCommand {
   cmd: string
@@ -35,10 +37,13 @@ const fakeSandbox = (args: {
   checkpointFails?: boolean
   waitSucceeds?: boolean
   logTail?: string
+  serveVersion?: string
+  stopLeavesCorpse?: boolean
 }) => {
   const commands: RecordedCommand[] = []
   const writes: RecordedWrite[] = []
   const ops: string[] = []
+  let alive = args.alive === true
   const sandbox = {
     name: 'atlas-thread-x',
     writeFiles: async (files: RecordedWrite[]) => {
@@ -51,7 +56,15 @@ const fakeSandbox = (args: {
       const script = params.args?.[1] ?? ''
       if (params.detached === true) return { cmdId: 'cmd_1' }
       if (script.startsWith('kill -0')) {
-        return { exitCode: args.alive === true ? 0 : 1 }
+        return { exitCode: alive ? 0 : 1 }
+      }
+      if (script.includes('kill "$_pid"')) {
+        alive = args.stopLeavesCorpse === true
+        return { exitCode: 0 }
+      }
+      if (script.startsWith('printf') && script.includes(SERVE_VERSION_PATH)) {
+        const version = args.serveVersion ?? ''
+        return { exitCode: 0, stdout: async () => `${version}\n${version === '' ? '' : String(CHANNEL_PROTOCOL_VERSION)}\n` }
       }
       if (script.startsWith('[ ! -s') && script.includes(SERVE_TOKEN_PATH)) {
         return { exitCode: args.tokenMatches === false ? 1 : 0 }
@@ -237,6 +250,46 @@ describe('createServeLauncher', () => {
 
     await expect(
       createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' }),
+    ).rejects.toThrow('parked')
+
+    expect(launchesOf(commands)).toHaveLength(0)
+  })
+
+  it('boots the new serve after a deliberate swap stop, over a checkpoint parked from this session', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: false,
+      alive: true,
+      checkpointParked: true,
+      serveVersion: '1.88.0',
+    })
+
+    await createServeLauncher({ installServe: async () => undefined })({
+      sandbox,
+      token: 'tok_fresh',
+      sandboxSessionId: 'vsn_42',
+      desiredVersion: '1.89.1',
+    })
+
+    const scripts = scriptsOf(commands)
+    expect(scripts.some((script) => script.includes('kill "$_pid"'))).toBe(true)
+    expect(scripts.some((script) => script.includes(SERVE_CHECKPOINT_PATH))).toBe(false)
+    expect(launchesOf(commands)).toHaveLength(1)
+  })
+
+  it('still refuses a parked checkpoint when this launch stopped nothing', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: false,
+      alive: false,
+      checkpointParked: true,
+    })
+
+    await expect(
+      createServeLauncher({ installServe: async () => undefined })({
+        sandbox,
+        token: 'tok_fresh',
+        sandboxSessionId: 'vsn_42',
+        desiredVersion: '1.89.1',
+      }),
     ).rejects.toThrow('parked')
 
     expect(launchesOf(commands)).toHaveLength(0)
