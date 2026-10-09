@@ -6,8 +6,8 @@ import type { PortableState } from '@dltech/atlas-wire'
 import {
   ECloudSandboxState,
   type CloudSandboxes,
-  type VercelSandboxConfig,
 } from '@dltech/atlas-harness'
+import type { VercelSandboxConfig } from '@dltech/atlas-wire'
 import {
   createCloudBridge,
   parkedEscalationOf,

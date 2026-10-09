@@ -12,7 +12,7 @@ import {
 import { createLocalCloudBridge } from '../local-cloud-bridge'
 import { sandboxNameFor } from '../sandbox-names'
 import { ECloudSandboxState } from '../sandbox-client'
-import type { SandboxPlacement, VercelSandboxConfig } from '../vercel-driver'
+import type { SandboxPlacement, VercelSandboxConfig } from '@dltech/atlas-wire'
 import type { SandboxTransferProgress, TransferProgress } from '../transfer-progress'
 
 const threadId = toThreadId('thread-transcript')

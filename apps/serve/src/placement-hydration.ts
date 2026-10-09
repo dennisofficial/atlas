@@ -6,7 +6,8 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { driveNameFor, type PlacementController } from '@dltech/atlas-harness'
+import type { PlacementController } from '@dltech/atlas-harness'
+import { driveNameFor } from '@dltech/atlas-wire'
 
 import type { ServeApp } from './serve-app'
 

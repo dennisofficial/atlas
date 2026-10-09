@@ -1,5 +1,4 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
-import type { RuntimeCheckpoint, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import type { SandboxTransferProgress, TransferProgress } from '../transfer-progress'
 
@@ -9,7 +8,7 @@ import type {
   RemoteDeltaChannel,
 } from '../remote-delta-channel'
 import { ECloudSandboxState, type WorkspaceSpec } from '../sandbox-client'
-import type { SettleWaitNotice } from '../vercel-driver-mount'
+import type { SettleWaitNotice, RuntimeCheckpoint, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
 import type { ThreadStorePort } from '../../store/thread-store'
 

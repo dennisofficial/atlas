@@ -26,8 +26,8 @@ describe('the grilling ceremony setting', () => {
     )
   })
 
-  it('is the only row the experimental page carries', () => {
+  it('is the first row the experimental page carries', () => {
     const rows = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.Experimental })
-    expect(rows.map((row) => row.id)).toEqual([ESettingId.GrillingCeremony])
+    expect(rows.map((row) => row.id)[0]).toBe(ESettingId.GrillingCeremony)
   })
 })

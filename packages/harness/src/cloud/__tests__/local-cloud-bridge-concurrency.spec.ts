@@ -10,7 +10,7 @@ import {
 } from '../local-cloud-bootstrap'
 import { createLocalCloudBridge } from '../local-cloud-bridge'
 import { ECloudSandboxState } from '../sandbox-client'
-import type { SandboxPlacement, VercelSandboxConfig } from '../vercel-driver'
+import type { SandboxPlacement, VercelSandboxConfig } from '@dltech/atlas-wire'
 
 const threadId = toThreadId('thread-concurrency')
 

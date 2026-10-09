@@ -24,7 +24,7 @@ const { CloudClient } = await import(`${REPO}/packages/harness/src/cloud/cloud-c
 const { decodeSettingValue } = await import(`${REPO}/packages/harness/src/cloud/sync-settings.ts`)
 const { VercelDriver } = await import(`${REPO}/packages/harness/src/cloud/vercel-driver.ts`)
 const { sandboxNameFor } = await import(`${REPO}/packages/harness/src/cloud/sandbox-names.ts`)
-const { driveNameFor } = await import(`${REPO}/packages/harness/src/cloud/drive-names.ts`)
+const { driveNameFor } = wire
 const { sealWith } = await import(`${REPO}/packages/harness/src/cloud/portable-validation.ts`)
 const { vaultFileSchema, VAULT_VERSION } = await import(`${REPO}/packages/harness/src/credentials/vault-file.ts`)
 

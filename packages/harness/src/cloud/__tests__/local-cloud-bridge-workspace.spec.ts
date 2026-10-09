@@ -6,7 +6,7 @@ import { EServeEnv } from '@dltech/atlas-wire'
 import type { BridgeDriver } from '../local-cloud-bootstrap'
 import { createLocalCloudBridge } from '../local-cloud-bridge'
 import { ECloudSandboxState } from '../sandbox-client'
-import type { VercelSandboxConfig } from '../vercel-driver'
+import type { VercelSandboxConfig } from '@dltech/atlas-wire'
 
 const threadId = toThreadId('thread-workspace')
 

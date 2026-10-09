@@ -10,8 +10,9 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { driveNameFor, PlacementController, type ThreadSummary } from '@dltech/atlas-harness'
+import { PlacementController, type ThreadSummary } from '@dltech/atlas-harness'
 import type { PlacementStore } from '@dltech/atlas-harness'
+import { driveNameFor } from '@dltech/atlas-wire'
 
 import { hydrateCloudPlacement } from '../placement-hydration'
 

@@ -137,6 +137,7 @@ model CloudSandbox {
   driveMode      String? // outgoing column from the deleted server-side provisioning path; drive lifecycle is harness-owned now — drop once no release reads it
   pinnedModel    String?
   serveUrl       String?
+  serveVersion   String?
   runtimeCheckpoint Json?
   runtimeCheckpointRevision Int?
   createdAt      String

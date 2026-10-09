@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { VercelDriver } from '../vercel-driver'
-import { ESettleWait, type SettleWaitNotice } from '../vercel-driver-mount'
-import { EVercelFailure, VercelFailure } from '../vercel-errors'
+import { ESettleWait, type SettleWaitNotice, EVercelFailure, VercelFailure } from '@dltech/atlas-wire'
 import { CREDENTIALS, PINNED_VERSION, alreadyAttachedError, fakeSandbox, fakeDriveSdk, nameTakenError, notFound } from './vercel-driver-fixture'
 
 describe('createOrResume riding out the name-registry settle', () => {

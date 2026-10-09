@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 import { stat } from 'node:fs/promises'
-import { liveSdk, VercelDriver, type VercelSandboxConfig } from '@dltech/atlas-harness'
-import { liveDriveSdk } from '../../../../packages/harness/src/cloud/drive-lifecycle'
+import { VercelDriver } from '@dltech/atlas-harness'
+import { liveDriveSdk, liveSdk, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { measured, type BenchmarkRecorder } from './timing'
 
 export class BenchmarkDriver extends VercelDriver {

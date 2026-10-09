@@ -2,8 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { APIError } from '@vercel/sandbox'
 
-import { driveNameFor } from '../drive-names'
-import type { DriveSdk } from '../drive-lifecycle'
+import { driveNameFor, type DriveSdk } from '@dltech/atlas-wire'
 import { fakeSandbox, fakeDrive, fakeDriveSdk, driverWith, notFound } from './vercel-driver-fixture'
 
 describe('stop and destroy', () => {

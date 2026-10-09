@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { CLOUD_WORKSPACE_PATH, EExecutionLocation } from '@dltech/atlas-core'
+import { EExecutionLocation } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import { CloudError, EShellStatus } from '@dltech/atlas-harness'
 
 import { useAtlasHome } from './descend-fixture'

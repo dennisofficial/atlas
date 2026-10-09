@@ -1,4 +1,5 @@
-import { CLOUD_WORKSPACE_PATH, liftedWorkspaceOf } from '@dltech/atlas-core'
+import { liftedWorkspaceOf } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 
 import { defineProjection, type PluginProjection } from '../projection'
 import { checkoutKey, checkoutOf, type RepositoryCheckout } from './pure'

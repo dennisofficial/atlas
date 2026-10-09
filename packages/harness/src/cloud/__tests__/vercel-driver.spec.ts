@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { driveNameFor, DRIVE_WORKSPACE_PATH, DRIVE_HOME_PATH } from '../drive-names'
+import { driveNameFor, DRIVE_WORKSPACE_PATH, DRIVE_HOME_PATH, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
 import { ECloudSandboxState } from '../sandbox-client'
-import { SERVE_TOKEN_PATH } from '../serve-launch'
 import { CREDENTIALS, PINNED_VERSION, fakeSandbox, driverWith } from './vercel-driver-fixture'
 
 describe('createOrResume', () => {

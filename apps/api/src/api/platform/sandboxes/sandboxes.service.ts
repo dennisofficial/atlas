@@ -66,6 +66,7 @@ export class SandboxesService {
     contextPending?: boolean | undefined
     clientToken?: string | undefined
     serveUrl?: string | undefined
+    serveVersion?: string | undefined
     metadata?: { title?: string; repo?: string; model?: string } | undefined
   }): Promise<SandboxAttachmentDto> {
     const clientToken = args.clientToken
@@ -76,6 +77,7 @@ export class SandboxesService {
         clientToken,
         serveUrl: args.serveUrl,
         ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+        ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
         ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
       })
     }

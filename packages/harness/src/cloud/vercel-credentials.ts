@@ -2,7 +2,7 @@ import { ESettingId, ESettingsLayer, rangeValueOf, textValueOf, type SecretsPort
 
 import type { SettingsService } from '../settings/service'
 
-import type { VercelCredentials } from './vercel-driver'
+import type { VercelCredentials } from '@dltech/atlas-wire'
 
 const SETTINGS_POINTER = 'settings (ctrl+o) › cloud'
 

@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 
 export type DirectoryEntries = (args: { directory: string }) => Promise<readonly string[]>
 

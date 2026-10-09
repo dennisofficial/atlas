@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { driveNameFor } from '../drive-names'
-import type { DriveSdk } from '../drive-lifecycle'
+import { driveNameFor, type DriveSdk, type VercelSdk } from '@dltech/atlas-wire'
 import { driverWith, fakeDrive, fakeSandbox, notFound } from './vercel-driver-fixture'
-import type { VercelSdk } from '../vercel-driver'
 
 const THREAD = 'brn_cloud'
 

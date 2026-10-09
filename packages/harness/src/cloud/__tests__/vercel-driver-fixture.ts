@@ -1,7 +1,7 @@
 import { APIError } from '@vercel/sandbox'
 
-import type { DriveSdk } from '../drive-lifecycle'
-import { VercelDriver, type VercelSdk } from '../vercel-driver'
+import type { DriveSdk, VercelSdk } from '@dltech/atlas-wire'
+import { VercelDriver } from '../vercel-driver'
 import { PINNED_VERSION, fakeSandbox } from './vercel-driver-sandbox-fixture'
 
 export {

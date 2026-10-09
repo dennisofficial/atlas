@@ -1,10 +1,14 @@
 import type { Sandbox } from '@vercel/sandbox'
 import { z } from 'zod'
-import { sandboxDrainReplySchema, sandboxRotationReceiptSchema, type SandboxRotationReceipt } from '@dltech/atlas-wire'
 
-import { DRIVE_HOME_PATH } from './drive-names'
+import {
+  DRIVE_HOME_PATH,
+  SERVE_TOKEN_PATH,
+  sandboxDrainReplySchema,
+  sandboxRotationReceiptSchema,
+  type SandboxRotationReceipt,
+} from '@dltech/atlas-wire'
 import { SANDBOX_ROTATION_RECEIPT_RELATIVE_PATH } from './sandbox-rotation-receipt'
-import { SERVE_TOKEN_PATH } from './serve-launch'
 
 export const SERVE_DRAIN_PATH = '/v1/drain'
 export const DRAIN_REASON = 'cloud sandbox update'

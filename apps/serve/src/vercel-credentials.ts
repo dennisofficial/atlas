@@ -1,4 +1,4 @@
-import type { VercelCredentials } from '@dltech/atlas-harness'
+import type { VercelCredentials } from '@dltech/atlas-wire'
 
 const given = (value: string | undefined): string | undefined =>
   value === undefined || value.trim().length === 0 ? undefined : value.trim()

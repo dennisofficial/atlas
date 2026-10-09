@@ -412,6 +412,34 @@ describe('SandboxesService', () => {
       expect(verified.userId).toBe(USER_A)
     })
 
+    it('stores the serve version the client reported, and keeps it when a re-registration omits it', async () => {
+      await service.claim({
+        userId: USER_A,
+        threadId: THREAD,
+        clientToken: CLIENT_TOKEN,
+        serveUrl: SERVE_URL,
+        serveVersion: '1.42.0',
+      })
+      expect(fake.cloudSandboxes.find((r) => r.threadId === THREAD)?.serveVersion).toBe('1.42.0')
+
+      await service.claim({
+        userId: USER_A,
+        threadId: THREAD,
+        clientToken: CLIENT_TOKEN,
+        serveUrl: SERVE_URL,
+      })
+      expect(fake.cloudSandboxes.find((r) => r.threadId === THREAD)?.serveVersion).toBe('1.42.0')
+
+      await service.claim({
+        userId: USER_A,
+        threadId: THREAD,
+        clientToken: CLIENT_TOKEN,
+        serveUrl: SERVE_URL,
+        serveVersion: '1.43.0',
+      })
+      expect(fake.cloudSandboxes.find((r) => r.threadId === THREAD)?.serveVersion).toBe('1.43.0')
+    })
+
     it('marks the thread as cloud-executing and records the metadata it carried', async () => {
       await service.claim({
         userId: USER_A,

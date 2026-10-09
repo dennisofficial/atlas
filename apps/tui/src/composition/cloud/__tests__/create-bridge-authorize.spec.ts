@@ -6,8 +6,8 @@ import type { PortableState } from '@dltech/atlas-wire'
 import {
   ECloudSandboxState,
   reattachSandbox,
-  type VercelSandboxConfig,
 } from '@dltech/atlas-harness'
+import type { VercelSandboxConfig } from '@dltech/atlas-wire'
 import { createCloudBridge, type BridgeDriver } from '../create-bridge'
 
 const THREAD = toThreadId('brn_authorize')
