@@ -23,6 +23,7 @@ export function NoticeBlock(props: {
   expanded?: boolean
   onToggle?: () => void
   pending?: boolean
+  quiet?: boolean
 }): React.ReactNode {
   const inner = Math.max(NARROWEST_BAND, props.width - TRANSCRIPT_INSET)
   const body = props.body?.trimEnd() ?? ''
@@ -42,6 +43,7 @@ export function NoticeBlock(props: {
         hint={props.openHint}
         affordance={body !== '' && props.expanded !== true && props.pending !== true}
         dimmed={props.pending === true}
+        quiet={props.quiet === true}
       />
       {props.pending === true ? (
         <>
@@ -78,8 +80,11 @@ function HeadingRow(props: {
   hint: string
   affordance: boolean
   dimmed: boolean
+  quiet: boolean
 }): React.ReactNode {
-  const mark = props.failed ? theme.error : theme.ok
+  const mark = props.quiet ? theme.dim : props.failed ? theme.error : theme.ok
+  const marker = props.quiet ? glyph.available : glyph.block
+  const heading = props.quiet ? theme.hint : theme.meta
 
   return (
     <text
@@ -88,8 +93,8 @@ function HeadingRow(props: {
       flexShrink={0}
       attributes={props.dimmed ? TextAttributes.DIM : TextAttributes.NONE}
     >
-      <span fg={mark}>{`${glyph.block} `}</span>
-      <span fg={props.hovered ? theme.hover : theme.meta}>{props.text}</span>
+      <span fg={mark}>{`${marker} `}</span>
+      <span fg={props.hovered ? theme.hover : heading}>{props.text}</span>
       {props.affordance ? <span fg={theme.dim}>{`  ${props.hint}`}</span> : null}
       {props.dimmed ? <span fg={theme.dim}>{QUEUED}</span> : null}
     </text>

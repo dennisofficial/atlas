@@ -6,6 +6,7 @@ import type { EMark } from '../tool-marks'
 import { AssistantBlock } from './blocks/assistant-block'
 import { CompactedBlock } from './blocks/compacted-block'
 import { NoticeBlock } from './blocks/notice-block'
+import { SystemContextBlock } from './blocks/system-context-block'
 import { ThinkingBlock } from './blocks/thinking-block'
 import { TldrBlock } from './blocks/tldr-block'
 import { ToolRunBlock } from './blocks/tool-run-block'
@@ -38,7 +39,7 @@ function DerivedEntryView(props: {
    * path the tool was actually handed.
    */
   cwd?: string
-  /** The run's own slice of the expansion set — a tool run owns three levels of it, not one flag. */
+  /** The entry's own slice of the expansion set — a tool run or a context group owns several levels of it, not one flag. */
   opened?: ReadonlySet<string>
   /** Whether the entry above was also a tool run, so this one continues a cluster rather than opening one. */
   continues?: boolean
@@ -240,14 +241,12 @@ function DerivedEntryView(props: {
 
     case EEntryKind.SystemContext:
       return (
-        <NoticeBlock
-          text={`Atlas loaded ${entry.text}${entry.superseded ? ' · superseded' : ''}`}
-          body={entry.content}
-          failed={false}
+        <SystemContextBlock
+          entry={entry}
           width={props.width}
-          openHint={CONTEXT_HINT}
           expanded={props.expanded ?? false}
-          {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
+          {...(props.opened === undefined ? {} : { opened: props.opened })}
+          {...(onToggle ? { onToggle } : {})}
         />
       )
 
@@ -257,6 +256,7 @@ function DerivedEntryView(props: {
           text={`Atlas noticed — ${entry.text}`}
           body={entry.content}
           failed={false}
+          quiet
           width={props.width}
           openHint={CONTEXT_HINT}
           expanded={props.expanded ?? false}

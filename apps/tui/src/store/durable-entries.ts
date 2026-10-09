@@ -15,7 +15,14 @@ import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
 import { attachmentsOf, toolRuns, type ToolRun } from './tool-runs'
 import type { TurnSpend } from '@dltech/atlas-harness'
-import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
+import {
+  EAuthor,
+  EEntryKind,
+  toolsRanEntry,
+  type SystemContextEntry,
+  type SystemContextItem,
+  type TranscriptEntry,
+} from './transcript-model'
 import { turnEndedEntry, turnsBySeq } from './turn-rows'
 
 const shellName = (shell: { command: string; description?: string | undefined }): string => {
@@ -127,17 +134,24 @@ const KNOWN_SLOT_LABELS: ReadonlyMap<string, string> = new Map([
   [EContextSlot.UserInstructions, 'global instructions'],
   [EContextSlot.ProjectInstructions, 'project instructions'],
   [EContextSlot.NestedInstructions, 'directory instructions'],
-  [EContextSlot.Memory, 'memory'],
   [EContextSlot.SkillListing, 'skill listing'],
   [EContextSlot.McpInstructions, 'MCP server instructions'],
 ])
 
 const SKILL_SUGGESTION_NAME = /Relevant to the current request: ([a-z0-9-]+)\./
 
+const memoryLabelOf = (key: string): string => {
+  const segments = key.split('/').filter((segment) => segment.length > 0)
+  const memory = segments.lastIndexOf('memory')
+  if (memory < 0) return 'memory'
+  if (segments[memory - 1] === '.atlas') return 'global memory'
+  return segments.slice(0, memory).includes('projects') ? 'project memory' : 'memory'
+}
+
 const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   const label = KNOWN_SLOT_LABELS.get(event.slot)
   if (label !== undefined) return label
-  if (event.slot === 'memory' && event.key.startsWith('memory-reconcile:')) return 'memory'
+  if (event.slot === EContextSlot.Memory) return memoryLabelOf(event.key)
   if (event.slot === 'skill-suggestion') {
     const name = SKILL_SUGGESTION_NAME.exec(event.content)?.[1]
     return name === undefined ? 'skill suggestion' : `skill suggestion · ${name}`
@@ -147,6 +161,50 @@ const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   if (event.slot === 'pr-transitions') return 'pull-request updates'
   if (event.slot === 'session') return 'session relocation'
   return event.slot.replaceAll('-', ' ')
+}
+
+const injectionsSummary = (items: readonly SystemContextItem[]): string =>
+  items.length === 1 ? (items[0]?.label ?? '') : `${items.length} prompts`
+
+function contextRuns(args: {
+  events: readonly Event[]
+  isHidden: (id: EventId) => boolean
+  current: ReadonlySet<EventId>
+}): ReadonlyMap<EventId, SystemContextEntry> {
+  const runs = new Map<EventId, SystemContextEntry>()
+  let open: { anchor: EventId; items: SystemContextItem[] } | undefined
+
+  const close = (): void => {
+    if (open === undefined) return
+    runs.set(open.anchor, {
+      kind: EEntryKind.SystemContext,
+      author: EAuthor.Model,
+      key: open.anchor,
+      text: injectionsSummary(open.items),
+      items: open.items,
+    })
+    open = undefined
+  }
+
+  for (const event of args.events) {
+    if (event.type !== 'context-loaded') {
+      close()
+      continue
+    }
+    if (args.isHidden(event.id)) continue
+
+    const item: SystemContextItem = {
+      key: event.id,
+      label: slotLabelOf(event),
+      content: event.content,
+      superseded: !args.current.has(event.id),
+    }
+    if (open === undefined) open = { anchor: event.id, items: [item] }
+    else open.items.push(item)
+  }
+  close()
+
+  return runs
 }
 
 function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
@@ -211,6 +269,11 @@ export function durableEntries(args: {
       attachments.map((attachment) => attachment.id),
     ),
   )
+  const contextByAnchor = contextRuns({
+    events,
+    isHidden: (id) => folded.has(id) || pinnedToCalls.has(id),
+    current: currentContext,
+  })
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
 
@@ -279,18 +342,8 @@ export function durableEntries(args: {
     if (event.type === 'assistant-said') return entriesOfAssistantEvent(event)
 
     if (event.type === 'context-loaded') {
-      if (folded.has(event.id) || pinnedToCalls.has(event.id)) return []
-      return [
-        {
-          kind: EEntryKind.SystemContext,
-          author: EAuthor.Model,
-          key: event.id,
-          text: slotLabelOf(event),
-          slot: event.slot,
-          content: event.content,
-          superseded: !currentContext.has(event.id),
-        },
-      ]
+      const run = contextByAnchor.get(event.id)
+      return run === undefined ? [] : [run]
     }
 
     if (event.type === 'nudge') {

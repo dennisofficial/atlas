@@ -221,14 +221,19 @@ export type OperatorInputEntry = {
   text: string
 }
 
+export type SystemContextItem = {
+  key: string
+  label: string
+  content: string
+  superseded: boolean
+}
+
 export type SystemContextEntry = {
   kind: EEntryKind.SystemContext
   author: EAuthor.Model
   key: string
   text: string
-  slot: string
-  content: string
-  superseded: boolean
+  items: readonly SystemContextItem[]
 }
 
 export type SystemNoticeEntry = {

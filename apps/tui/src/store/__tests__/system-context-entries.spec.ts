@@ -4,6 +4,11 @@ import { describe, expect, it } from 'bun:test'
 import { durableEntries } from '../durable-entries'
 import { EEntryKind, type SystemContextEntry, type SystemNoticeEntry } from '../transcript-model'
 
+const GLOBAL_MEMORY_DIR = '/home/me/.atlas/memory'
+const GLOBAL_MEMORY = `${GLOBAL_MEMORY_DIR}/MEMORY.md`
+const PROJECT_MEMORY_DIR = '/home/me/.atlas/projects/github.com/org/repo/memory'
+const PROJECT_MEMORY = `${PROJECT_MEMORY_DIR}/MEMORY.md`
+
 let seq = 0
 
 const envelope = () => {
@@ -46,10 +51,11 @@ describe('system context entries', () => {
     ])
 
     expect(entries).toHaveLength(1)
-    expect(entries[0]?.slot).toBe('skill-suggestion')
+    expect(entries[0]?.items).toHaveLength(1)
     expect(entries[0]?.text).toBe('skill suggestion · aws-deployment')
-    expect(entries[0]?.content).toContain('aws-deployment')
-    expect(entries[0]?.superseded).toBe(false)
+    expect(entries[0]?.items[0]?.label).toBe('skill suggestion · aws-deployment')
+    expect(entries[0]?.items[0]?.content).toContain('aws-deployment')
+    expect(entries[0]?.items[0]?.superseded).toBe(false)
   })
 
   it('falls back to the bare label when the suggestion names no skill', () => {
@@ -61,21 +67,76 @@ describe('system context entries', () => {
       }),
     ])
 
-    expect(entries[0]?.text).toBe('skill suggestion')
+    expect(entries[0]?.items[0]?.label).toBe('skill suggestion')
   })
 
   it('labels known slots by name', () => {
     const entries = systemContexts([
       contextLoaded({ slot: EContextSlot.UserInstructions, key: '/home/.atlas/ATLAS.md', content: 'x' }),
       contextLoaded({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.md', content: 'x' }),
-      contextLoaded({ slot: EContextSlot.Memory, key: '/m/MEMORY.md', content: 'x' }),
+      contextLoaded({ slot: EContextSlot.Memory, key: GLOBAL_MEMORY, content: 'x' }),
     ])
 
-    expect(entries.map((entry) => entry.text)).toEqual([
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.items.map((item) => item.label)).toEqual([
       'global instructions',
       'project instructions',
-      'memory',
+      'global memory',
     ])
+  })
+
+  it('tells the global memory index from the project one by its path', () => {
+    const entries = systemContexts([
+      contextLoaded({ slot: EContextSlot.Memory, key: GLOBAL_MEMORY, content: 'g' }),
+      contextLoaded({ slot: EContextSlot.Memory, key: PROJECT_MEMORY, content: 'p' }),
+    ])
+
+    expect(entries[0]?.items.map((item) => item.label)).toEqual(['global memory', 'project memory'])
+  })
+
+  it('labels a memory reconcile notice by the tier of its directory', () => {
+    const entries = systemContexts([
+      contextLoaded({ slot: EContextSlot.Memory, key: `memory-reconcile:${PROJECT_MEMORY_DIR}`, content: 'x' }),
+      said('hi'),
+      contextLoaded({ slot: EContextSlot.Memory, key: `memory-reconcile:${GLOBAL_MEMORY_DIR}`, content: 'x' }),
+    ])
+
+    expect(entries.map((entry) => entry.text)).toEqual(['project memory', 'global memory'])
+  })
+
+  it('keeps a global index global even when the home sits under a directory named projects', () => {
+    const entries = systemContexts([
+      contextLoaded({ slot: EContextSlot.Memory, key: '/work/projects/app/.atlas/memory/MEMORY.md', content: 'x' }),
+    ])
+
+    expect(entries[0]?.text).toBe('global memory')
+  })
+
+  it('aggregates a run of consecutive loads into one entry', () => {
+    const entries = systemContexts([
+      contextLoaded({ slot: EContextSlot.UserInstructions, key: 'a', content: 'a' }),
+      contextLoaded({ slot: EContextSlot.ProjectInstructions, key: 'b', content: 'b' }),
+      contextLoaded({ slot: EContextSlot.Memory, key: 'c', content: 'c' }),
+      contextLoaded({ slot: EContextSlot.Memory, key: 'd', content: 'd' }),
+      contextLoaded({ slot: 'skill-suggestion', key: 'e', content: 'e' }),
+    ])
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.items).toHaveLength(5)
+    expect(entries[0]?.text).toBe('5 prompts')
+  })
+
+  it('splits two runs when another event sits between them', () => {
+    const first = contextLoaded({ slot: EContextSlot.UserInstructions, key: 'a', content: 'a' })
+    const second = contextLoaded({ slot: EContextSlot.Memory, key: GLOBAL_MEMORY, content: 'b' })
+    const third = contextLoaded({ slot: EContextSlot.Memory, key: GLOBAL_MEMORY, content: 'c' })
+    const entries = systemContexts([first, second, said('hello'), third])
+
+    expect(entries).toHaveLength(2)
+    expect(entries[0]?.items).toHaveLength(2)
+    expect(entries[0]?.key).toBe(first.id)
+    expect(entries[1]?.items).toHaveLength(1)
+    expect(entries[1]?.text).toBe('global memory')
   })
 
   it('marks an injection superseded when a newer event shares its slot and key', () => {
@@ -84,8 +145,8 @@ describe('system context entries', () => {
       contextLoaded({ slot: 'memory', key: '/m/MEMORY.md', content: 'new index' }),
     ])
 
-    expect(entries[0]?.superseded).toBe(true)
-    expect(entries[1]?.superseded).toBe(false)
+    expect(entries[0]?.items[0]?.superseded).toBe(true)
+    expect(entries[0]?.items[1]?.superseded).toBe(false)
   })
 
   it('renders instruction loads that arrive before any tool call', () => {
@@ -115,6 +176,17 @@ describe('system context entries', () => {
     ])
 
     expect(entries).toHaveLength(1)
+  })
+
+  it('keeps a folded skill load from breaking the run around it', () => {
+    const entries = systemContexts([
+      contextLoaded({ slot: EContextSlot.UserInstructions, key: 'a', content: 'a' }),
+      contextLoaded({ slot: EContextSlot.Skill, key: 'pirate', content: 'body' }),
+      contextLoaded({ slot: EContextSlot.Memory, key: 'c', content: 'c' }),
+    ])
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.items).toHaveLength(3)
   })
 })
 
