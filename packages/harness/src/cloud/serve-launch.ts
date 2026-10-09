@@ -220,7 +220,11 @@ export function createServeLauncher(args?: {
         return
       }
       args?.log?.(
-        `sandbox ${sandbox.name} runs serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), stale against "${desiredVersion ?? 'latest'}" — stopping it to swap in place`,
+        `sandbox ${sandbox.name} runs serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), stale against "${desiredVersion ?? 'latest'}" — downloading the replacement first so a failed download leaves it serving`,
+      )
+      await install({ sandbox, version: desiredVersion, log: args?.log })
+      args?.log?.(
+        `sandbox ${sandbox.name} carries serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), needs "${desiredVersion ?? 'latest'}" — stopping it to swap in place`,
       )
       await stopServe(sandbox)
       if (await serveAlive(sandbox)) {
@@ -228,10 +232,6 @@ export function createServeLauncher(args?: {
           `atlas serve refused to stop for its in-place swap; the sandbox was left running the old serve rather than destroyed`,
         )
       }
-      args?.log?.(
-        `sandbox ${sandbox.name} carries serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), needs "${desiredVersion ?? 'latest'}" — downloading it in place`,
-      )
-      await install({ sandbox, version: desiredVersion, log: args?.log })
     }
 
     if (

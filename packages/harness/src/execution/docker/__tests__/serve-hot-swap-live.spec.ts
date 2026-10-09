@@ -211,7 +211,7 @@ chown 501:20 ${SENTINEL_PATH} ${TMP_PATH} /atlas/home/operational`,
     expect(await health()).toContain('"stub":"old-serve"')
   }, 2 * 60_000)
 
-  it('keeps the old binary, stamp, sandbox and operator state when the download is dead', async () => {
+  it('keeps the old serve running and its binary, stamp, sandbox and operator state intact when the download is dead', async () => {
     const oldSha = await plantOldServe()
 
     source.base = `http://${gateway}:1/release`
@@ -221,7 +221,8 @@ chown 501:20 ${SENTINEL_PATH} ${TMP_PATH} /atlas/home/operational`,
     expect(await binarySha()).toBe(oldSha)
     expect(await script(`cat ${SERVE_VERSION_PATH}`)).toBe(OLD_VERSION)
     expect(await script(`ls ${SERVE_HOME}`)).not.toContain('.next')
-    console.info(`old serve still running after a failed download: ${await serveAlive()}`)
+    expect(await serveAlive()).toBe(true)
+    expect(await health()).toContain('"stub":"old-serve"')
     await expectOperatorStateIntact()
     await expectContainerSurvived()
   }, 2 * 60_000)
@@ -273,7 +274,10 @@ chown 501:20 ${SENTINEL_PATH} ${TMP_PATH} /atlas/home/operational`,
       `live-drift hot-swap (stop + download + install + boot + healthy): ${Math.round(performance.now() - startedAt)}ms for ${newServeBytes} bytes`,
     )
 
-    expect(logs.join('\n')).toContain('stale against "9.9.9" — stopping it to swap in place')
+    expect(logs.join('\n')).toContain(
+      'stale against "9.9.9" — downloading the replacement first so a failed download leaves it serving',
+    )
+    expect(logs.join('\n')).toContain('needs "9.9.9" — stopping it to swap in place')
     await expectSwapped()
   }, 5 * 60_000)
 
