@@ -44,7 +44,6 @@ export enum EServeEvent {
   PortableStateFailed = 'serve.portable-state-failed',
   SettingsDropped = 'serve.settings-dropped',
   RotationFailed = 'serve.rotation-failed',
-  RotationActivationSkipped = 'serve.rotation-activation-skipped',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

@@ -76,6 +76,7 @@ export function createRotationRequests(args: {
   const drive = (driving: {
     rotation: RotationPort
     instructions: string
+    predecessor: ThreadId
     release: () => void
   }): { verdict: Promise<RotateReply>; finished: Promise<void> } => {
     let began = false
@@ -97,7 +98,7 @@ export function createRotationRequests(args: {
       try {
         const outcome = await driving.rotation.request({
           sessionId: args.threadId,
-          predecessor: args.threadId,
+          predecessor: driving.predecessor,
           instructions: driving.instructions,
           settle: args.driver.beginRotation(),
         })
@@ -151,7 +152,9 @@ export function createRotationRequests(args: {
       return refused(frame, reasonOf(error))
     }
 
-    const driving = drive({ rotation: args.rotation, instructions: params.instructions ?? '', release })
+    const activeMain = (await args.authority?.activeMainOf({ sessionId: args.threadId })) ?? args.threadId
+
+    const driving = drive({ rotation: args.rotation, instructions: params.instructions ?? '', predecessor: activeMain, release })
     finished = driving.finished
     void driving.finished.then(() => {
       if (finished === driving.finished) finished = undefined
