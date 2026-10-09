@@ -27,12 +27,37 @@ interface RecordedWrite {
   mode?: number
 }
 
+type CheckpointFixture =
+  | { kind: 'parked'; sandboxSessionId: string }
+  | { kind: 'running' }
+  | { kind: 'absent' }
+  | { kind: 'fails' }
+
+const checkpointExitCode = (args: {
+  fixture: CheckpointFixture
+  script: string
+  launchedSessionId: string | undefined
+}): number => {
+  if (args.fixture.kind === 'absent') {
+    return args.script.startsWith('test -f') ? 1 : 0
+  }
+  if (args.fixture.kind === 'running') {
+    return args.script.includes('"parked"') ? 1 : 0
+  }
+  if (args.fixture.kind === 'parked' && args.script.includes('"sandboxSessionId"')) {
+    // The probe chain ends in `|| exit 42` on the session-id grep, so a mismatch exits 42.
+    return args.fixture.sandboxSessionId === args.launchedSessionId ? 0 : 42
+  }
+  return 0
+}
+
 const fakeSandbox = (args: {
   healthy: boolean
   alive?: boolean
   tokenMatches?: boolean
-  checkpointParked?: boolean
-  checkpointFails?: boolean
+  checkpoint?: CheckpointFixture
+  /** The sandboxSessionId the launcher is called with, so the probe can model grep against it. */
+  launchedSessionId?: string
   waitSucceeds?: boolean
   logTail?: string
 }) => {
@@ -57,8 +82,9 @@ const fakeSandbox = (args: {
         return { exitCode: args.tokenMatches === false ? 1 : 0 }
       }
       if (script.includes(SERVE_CHECKPOINT_PATH)) {
-        if (args.checkpointFails === true) throw new Error('command unavailable')
-        return { exitCode: args.checkpointParked === true ? 42 : 0 }
+        const fixture = args.checkpoint ?? { kind: 'absent' }
+        if (fixture.kind === 'fails') throw new Error('command unavailable')
+        return { exitCode: checkpointExitCode({ fixture, script, launchedSessionId: args.launchedSessionId }) }
       }
       if (script.startsWith('for i in')) {
         return { exitCode: args.waitSucceeds === false ? 1 : 0 }
@@ -228,25 +254,12 @@ describe('createServeLauncher', () => {
     expect(launchesOf(commands)[0]?.env).toEqual({})
   })
 
-  it('refuses to boot against a checkpoint that parked this very session', async () => {
+  it('boots past the checkpoint that parked this very session — the normal wake-from-park', async () => {
     const { sandbox, commands } = fakeSandbox({
       healthy: false,
       alive: false,
-      checkpointParked: true,
-    })
-
-    await expect(
-      createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' }),
-    ).rejects.toThrow('parked')
-
-    expect(launchesOf(commands)).toHaveLength(0)
-  })
-
-  it('boots past a checkpoint that names a different session or none at all', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpointParked: false,
+      checkpoint: { kind: 'parked', sandboxSessionId: 'vsn_42' },
+      launchedSessionId: 'vsn_42',
     })
 
     await createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })
@@ -254,11 +267,40 @@ describe('createServeLauncher', () => {
     expect(launchesOf(commands)).toHaveLength(1)
   })
 
-  it('preserves an unreadable checkpoint rather than risking a same-session relaunch', async () => {
+  it('refuses to boot over a parked checkpoint from a different sandbox session', async () => {
     const { sandbox, commands } = fakeSandbox({
       healthy: false,
       alive: false,
-      checkpointFails: true,
+      checkpoint: { kind: 'parked', sandboxSessionId: 'vsn_earlier' },
+      launchedSessionId: 'vsn_42',
+    })
+
+    await expect(
+      createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' }),
+    ).rejects.toThrow('parked checkpoint from a different sandbox session')
+
+    expect(launchesOf(commands)).toHaveLength(0)
+  })
+
+  it('boots past a checkpoint that is not parked', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: false,
+      alive: false,
+      checkpoint: { kind: 'running' },
+      launchedSessionId: 'vsn_42',
+    })
+
+    await createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })
+
+    expect(launchesOf(commands)).toHaveLength(1)
+  })
+
+  it('preserves an unreadable checkpoint rather than risking a boot over a foreign park proof', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: false,
+      alive: false,
+      checkpoint: { kind: 'fails' },
+      launchedSessionId: 'vsn_42',
     })
 
     await expect(createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })).rejects.toThrow('command unavailable')

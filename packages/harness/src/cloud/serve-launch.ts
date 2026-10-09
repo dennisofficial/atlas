@@ -147,7 +147,7 @@ const tokenFileMatches = async (args: { sandbox: Sandbox; token: string }): Prom
   return probe !== null && probe.exitCode === 0
 }
 
-const parkedCheckpointNames = async (args: {
+const parkedCheckpointBlocks = async (args: {
   sandbox: Sandbox
   sandboxSessionId: string | undefined
 }): Promise<boolean> => {
@@ -155,9 +155,9 @@ const parkedCheckpointNames = async (args: {
   const probe = await sh({
     sandbox: args.sandbox,
     script:
-      `test -f ${SERVE_CHECKPOINT_PATH} && ` +
-      `grep -q '"phase"[[:space:]]*:[[:space:]]*"parked"' ${SERVE_CHECKPOINT_PATH} && ` +
-      `grep -q '"sandboxSessionId"[[:space:]]*:[[:space:]]*"${args.sandboxSessionId}"' ${SERVE_CHECKPOINT_PATH} && exit 42; exit 0`,
+      `test -f ${SERVE_CHECKPOINT_PATH} || exit 0; ` +
+      `grep -q '"phase"[[:space:]]*:[[:space:]]*"parked"' ${SERVE_CHECKPOINT_PATH} || exit 0; ` +
+      `grep -q '"sandboxSessionId"[[:space:]]*:[[:space:]]*"${args.sandboxSessionId}"' ${SERVE_CHECKPOINT_PATH} || exit 42; exit 0`,
     timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
   })
   return probe.exitCode === 42
@@ -235,10 +235,10 @@ export function createServeLauncher(args?: {
     }
 
     if (
-      await parkedCheckpointNames({ sandbox, sandboxSessionId })
+      await parkedCheckpointBlocks({ sandbox, sandboxSessionId })
     ) {
       throw new Error(
-        `sandbox ${sandbox.name} holds a checkpoint that parked this very session ${sandboxSessionId ?? ''} — refusing to boot a new serve over its park proof`,
+        `sandbox ${sandbox.name} holds a parked checkpoint from a different sandbox session than ${sandboxSessionId ?? ''} — refusing to boot a new serve over another runtime's park proof`,
       )
     }
 
