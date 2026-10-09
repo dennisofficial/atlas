@@ -11,6 +11,7 @@ import { CloudSessionStore, type CloudSession } from '../cloud-session'
 import type { CloudLoginTicket } from '../device-login'
 
 const directories: string[] = []
+const realAtlasHome = process.env['ATLAS_HOME']
 const clock: ClockPort = { now: () => '2026-10-05T12:00:00.000Z' }
 const ticket: CloudLoginTicket = {
   url: 'https://cloud.test',
@@ -24,6 +25,7 @@ const ticket: CloudLoginTicket = {
 const setup = (handoffOauth: (session: CloudSession) => Promise<void>) => {
   const directory = mkdtempSync(join(tmpdir(), 'atlas-oauth-signin-'))
   directories.push(directory)
+  process.env['ATLAS_HOME'] = directory
   const sessions = new CloudSessionStore({ file: join(directory, 'cloud.json'), keyFile: join(directory, 'key') })
   const local = memoryAccountStore({ clock })
   const fetchFn: typeof fetch = Object.assign(
@@ -41,6 +43,8 @@ const setup = (handoffOauth: (session: CloudSession) => Promise<void>) => {
 }
 
 afterEach(() => {
+  if (realAtlasHome === undefined) delete process.env['ATLAS_HOME']
+  else process.env['ATLAS_HOME'] = realAtlasHome
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
 })
 
