@@ -69,6 +69,7 @@ export enum ESettingId {
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
   GrillingCeremony = 'experimental.grillingCeremony',
+  PrVerdictTiming = 'github.prEvents.verdictTiming',
   QualityEnabled = 'quality.enabled',
   QualityRecordExamples = 'quality.recordExamples',
 }
@@ -748,6 +749,21 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_EXPERIMENTAL_GRILLING_CEREMONY',
     kind: ESettingKind.Toggle,
     fallback: false,
+  },
+  {
+    id: ESettingId.PrVerdictTiming,
+    page: ESettingPage.Experimental,
+    group: 'Pull requests',
+    label: 'CI verdict timing',
+    description:
+      'When Atlas Cloud counts a pull request\u2019s checks as a verdict worth waking a parked sandbox for. Fail fast reports the first failed check the moment it lands, so a conversation parked on a green-or-nothing gate wakes as early as possible; settled waits until every check has finished and reports the outcome once. Fail fast is the default and matches what a live client already sees.',
+    environmentVariable: 'ATLAS_PR_VERDICT_TIMING',
+    kind: ESettingKind.Choice,
+    fallback: 'fail-fast',
+    options: [
+      { value: 'fail-fast', label: 'fail fast', detail: 'shipped' },
+      { value: 'settled', label: 'settled', detail: 'wait for every check' },
+    ],
   },
   {
     id: ESettingId.QualityEnabled,
