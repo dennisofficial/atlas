@@ -139,7 +139,7 @@ describe('environment profile known hosts', () => {
 })
 
 describe('environment profile toolchain', () => {
-  it('runs mise, the repo hook and bun install in order for a fully-triggered repo', async () => {
+  it('runs mise and the repo hook in order for a fully-triggered repo', async () => {
     const { apply, commands } = harness({
       present: [`${CWD}/.mise.toml`, `${CWD}/.atlas/sandbox-setup.sh`, `${CWD}/bun.lock`],
       runAnswers: seededScan,
@@ -152,8 +152,32 @@ describe('environment profile toolchain', () => {
       commands
         .filter((attempt) => attempt.command[0] !== 'ssh-keyscan' && attempt.command[0] !== 'docker')
         .map((attempt) => [...attempt.command]),
-    ).toEqual([['mise', 'install'], ['sh', '.atlas/sandbox-setup.sh'], ['bun', 'install']])
+    ).toEqual([['mise', 'install'], ['sh', '.atlas/sandbox-setup.sh']])
     expect(commands.every((attempt) => attempt.cwd === CWD)).toBe(true)
+  })
+
+  it('never runs bun install at boot for a repo that only has a bun lockfile', async () => {
+    const { apply, commands } = harness({
+      present: [`${CWD}/bun.lock`],
+      runAnswers: seededScan,
+    })
+
+    const profile = await apply({ cwd: CWD, spec: spec() })
+
+    expect(outcomeOf(profile, EProfileStep.Toolchain).state).toBe(EProfileStepState.Skipped)
+    expect(commands.some((attempt) => attempt.command[0] === 'bun')).toBe(false)
+  })
+
+  it('never runs bun install at boot for a repo that only has a bun.lockb', async () => {
+    const { apply, commands } = harness({
+      present: [`${CWD}/bun.lockb`],
+      runAnswers: seededScan,
+    })
+
+    const profile = await apply({ cwd: CWD, spec: spec() })
+
+    expect(outcomeOf(profile, EProfileStep.Toolchain).state).toBe(EProfileStepState.Skipped)
+    expect(commands.some((attempt) => attempt.command[0] === 'bun')).toBe(false)
   })
 
   it('skips an empty directory', async () => {
@@ -171,16 +195,16 @@ describe('environment profile toolchain', () => {
 
   it('reports a failing sub-step with its command and trimmed stderr', async () => {
     const { apply } = harness({
-      present: [`${CWD}/bun.lock`],
+      present: [`${CWD}/.atlas/sandbox-setup.sh`],
       runAnswers: seededScan,
       runFails: (attempt) =>
-        attempt.command[0] === 'bun' ? { stderr: 'lockfile mismatch\n' } : undefined,
+        attempt.command[0] === 'sh' ? { stderr: 'setup script exploded\n' } : undefined,
     })
 
     const profile = await apply({ cwd: CWD, spec: spec() })
 
     const outcome = outcomeOf(profile, EProfileStep.Toolchain)
     expect(outcome.state).toBe(EProfileStepState.Failed)
-    expect(outcome.detail).toBe('bun install: lockfile mismatch')
+    expect(outcome.detail).toBe('sh .atlas/sandbox-setup.sh: setup script exploded')
   })
 })

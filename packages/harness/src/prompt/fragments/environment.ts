@@ -36,6 +36,7 @@ export class ExecutionLocationFragment extends PromptFragment {
       'Clone additional repositories beside it under /atlas/workspaces and use explicit workdir or absolute paths to work in them.',
       'Lift and descend transfer only the primary repository and its session worktree.',
       'Adjacent clones are ephemeral: descend leaves them behind, and sandbox cleanup deletes them.',
+      'Gitignored content (node_modules, .env) does not travel on lift, so run the project\'s own install before building, testing, or running it there.',
     ].join(' ')
   }
 }

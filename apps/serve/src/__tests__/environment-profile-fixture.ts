@@ -42,6 +42,7 @@ export const harness = (args: {
   gitAnswers?: ((attempt: GitAttempt) => string | undefined) | undefined
   serviceTtlSeconds?: number | undefined
   gitConfigDelayMs?: number | undefined
+  runDelay?: ((attempt: CommandAttempt) => number | undefined) | undefined
 }) => {
   const env: Record<string, string | undefined> = args.env ?? {}
   const contents = new Map(Object.entries(args.contents ?? {}))
@@ -71,6 +72,10 @@ export const harness = (args: {
   const run: CommandRunner = async (attempt) => {
     commands.push(attempt)
     events.push(attempt.command.join(' '))
+    const delay = args.runDelay?.(attempt)
+    if (delay !== undefined) {
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
     const failure = args.runFails?.(attempt)
     if (failure !== undefined) return { ok: false, stdout: '', stderr: failure.stderr }
     const answer = args.runAnswers?.(attempt)

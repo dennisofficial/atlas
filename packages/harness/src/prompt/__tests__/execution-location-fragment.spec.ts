@@ -27,6 +27,13 @@ describe('stable execution topology', () => {
     expect(text).toContain('sandbox cleanup deletes them')
   })
 
+  it('tells the model gitignored content does not lift and to install on demand', () => {
+    const text = new ExecutionLocationFragment().text()
+    expect(text).toContain('Gitignored content')
+    expect(text).toContain('does not travel')
+    expect(text).toContain("project's own install")
+  })
+
   it('keeps current placement and preview procedures outside system text', () => {
     const text = new ExecutionLocationFragment().text()
     expect(text).not.toContain('This session')
@@ -34,6 +41,6 @@ describe('stable execution topology', () => {
     expect(text).not.toContain('sandbox.localhost')
     expect(text).not.toContain('cookies')
     expect(text).not.toContain('Commit freely')
-    expect(text.length).toBeLessThan(750)
+    expect(text.length).toBeLessThan(900)
   })
 })

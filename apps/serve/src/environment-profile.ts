@@ -61,22 +61,33 @@ const gpgSecrets = (raw: string | null | undefined): string[] => {
 }
 
 const MISE_CONFIGS = ['.mise.toml', 'mise.toml', '.tool-versions'] as const
-const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'] as const
 const SETUP_HOOK = '.atlas/sandbox-setup.sh'
 // Bounded so a wedged dockerd answers "no" fast instead of stalling session boot; the shimmed
 // `docker` on the sandbox image starts the baked daemon on this very call when none is running.
 const DOCKER_PROBE_TIMEOUT_MS = 30_000
+// Cold microVM dockerd startups exceed any budget the boot profile can afford, so an unanswered
+// probe reports docker unavailable and the daemon finishes booting in the background; the shim
+// execs the real binary on first use.
+const DOCKER_PROBE_BUDGET_MS = 3_000
 
 const probeDocker = async (run: CommandRunner, cwd: string): Promise<boolean> => {
   const probe = run({ command: ['docker', 'info'], cwd })
     .then((outcome) => outcome.ok)
     .catch(() => false)
-  return await Promise.race([
+  const answered = await Promise.race([
+    probe.then((available) => ({ answered: true, available })),
+    new Promise<{ answered: false; available: false }>((resolve) => {
+      setTimeout(() => resolve({ answered: false, available: false }), DOCKER_PROBE_BUDGET_MS)
+    }),
+  ])
+  if (answered.answered) return answered.available
+  void Promise.race([
     probe,
     new Promise<boolean>((resolve) => {
       setTimeout(() => resolve(false), DOCKER_PROBE_TIMEOUT_MS)
     }),
-  ])
+  ]).then(() => undefined, () => undefined)
+  return false
 }
 
 export function createEnvironmentProfile(args: {
@@ -217,8 +228,7 @@ export function createEnvironmentProfile(args: {
       guard(EProfileStep.Toolchain, async () => {
         const mise = await anyExists(MISE_CONFIGS)
         const hook = await files.exists(join(cwd, SETUP_HOOK))
-        const lockfile = await anyExists(BUN_LOCKFILES)
-        if (!mise && !hook && !lockfile) {
+        if (!mise && !hook) {
           return { step: EProfileStep.Toolchain, state: EProfileStepState.Skipped }
         }
         const failures: string[] = []
@@ -230,7 +240,6 @@ export function createEnvironmentProfile(args: {
         }
         if (mise) await attempt(['mise', 'install'])
         if (hook) await attempt(['sh', SETUP_HOOK])
-        if (lockfile) await attempt(['bun', 'install'])
         if (failures.length > 0) {
           return {
             step: EProfileStep.Toolchain,
