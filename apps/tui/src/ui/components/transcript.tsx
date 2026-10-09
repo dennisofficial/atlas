@@ -14,6 +14,7 @@ import { applyTranscriptBounds } from '../viewport-rows-store'
 import { ErrorBlock } from './blocks/error-block'
 import { PendingBlock } from './blocks/pending-block'
 import { ResumeBlock } from './blocks/resume-block'
+import { openedInjectionsOf, type OpenedInjections } from './blocks/system-context-expansion'
 import { openedSubsetOf, type OpenedSubsets } from './blocks/tool-run-expansion'
 import { EntryView } from './entry-view'
 import { JumpToBottom, NewDivider, UNSEEN_ANCHOR_ID } from './new-divider'
@@ -118,6 +119,7 @@ function DerivedTranscript(props: {
   const opened = props.opened ?? ownOpened
   const handleToggle = props.onToggle ?? handleOwnToggle
   const openedSubsets = useMemo((): OpenedSubsets => new WeakMap(), [])
+  const openedInjections = useMemo((): OpenedInjections => new WeakMap(), [])
 
   const peekLine =
     viewport.tailing || peeked === null ? null : (
@@ -155,6 +157,9 @@ function DerivedTranscript(props: {
             expanded={opened.has(entry.key)}
             {...(entry.kind === EEntryKind.ToolsRan
               ? { opened: openedSubsetOf({ cache: openedSubsets, run: entry.run, opened }) }
+              : {})}
+            {...(entry.kind === EEntryKind.SystemContext
+              ? { opened: openedInjectionsOf({ cache: openedInjections, entry, opened }) }
               : {})}
             onToggle={handleToggle}
             cwd={props.cwd}

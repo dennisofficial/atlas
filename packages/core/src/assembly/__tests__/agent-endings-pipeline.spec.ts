@@ -9,7 +9,7 @@ import { ANTHROPIC_PROVIDER_ID } from '../annotators/cache-breakpoints'
 import { assemble } from '../assemble'
 import { exchangeFaults } from '../exchange-shape'
 import { defaultPipeline, defaultRules } from '../pipeline'
-import { contextFor, log } from './log-fixture'
+import { contextFor, log, operatorSaidAs } from './log-fixture'
 
 const PROJECT_DIRECTORY = '/w'
 
@@ -60,7 +60,7 @@ const textsOf = (assembled: ReturnType<typeof assembledFrom>['assembled']): read
 
 const endingBlocksOf = (
   assembled: ReturnType<typeof assembledFrom>['assembled'],
-): readonly string[] => textsOf(assembled).filter((text) => text.startsWith('<agents-ended>'))
+): readonly string[] => textsOf(assembled).filter((text) => text.startsWith('<system-notice kind="agents-ended"'))
 
 const CONVERSATION: readonly EventDraft[] = [
   { type: 'user-said', text: 'find every caller of assemble' },
@@ -87,7 +87,7 @@ describe('the report of a delegate the parent was woken by', () => {
       'user',
       'user',
     ])
-    expect(textsOf(assembled)[2]).toStartWith('<agents-ended>')
+    expect(textsOf(assembled)[2]).toStartWith('<system-notice kind="agents-ended"')
     expect(textsOf(assembled).at(-1)).toContain('Project directory: /w.')
   })
 
@@ -99,7 +99,7 @@ describe('the report of a delegate the parent was woken by', () => {
 
     expect(endingBlocksOf(assembled)).toEqual([])
     expect(assembled.messages).toHaveLength(2)
-    expect(textsOf(assembled)).toEqual(['count the call sites of assemble', 'four'])
+    expect(textsOf(assembled)).toEqual([operatorSaidAs('count the call sites of assemble'), 'four'])
   })
 })
 
@@ -122,7 +122,7 @@ describe('a bare tool call answering a delegate report', () => {
       'tool',
       'user',
     ])
-    expect(textsOf(assembled)[2]).toStartWith('<agents-ended>')
+    expect(textsOf(assembled)[2]).toStartWith('<system-notice kind="agents-ended"')
   })
 
   it('assembles without an exchange fault, so the prompt is one Atlas may send', () => {

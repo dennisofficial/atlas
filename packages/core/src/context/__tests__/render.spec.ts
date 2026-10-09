@@ -6,7 +6,7 @@ import { contextBlock, wrapInSystemReminder } from '../render'
 describe('wrapInSystemReminder', () => {
   it('fences the text so the model can tell it apart from what a human typed', () => {
     expect(wrapInSystemReminder('be careful')).toBe(
-      '<system-reminder>\nbe careful\n</system-reminder>',
+      '<system-context>\nbe careful\n</system-context>',
     )
   })
 })
@@ -52,27 +52,29 @@ describe('contextBlock provenance', () => {
     expect(block).toContain('a tool touched a file beneath it')
   })
 
-  it('wraps every block in a system reminder', () => {
+  it('wraps every block in a reserved system-context envelope naming its source', () => {
     const block = blockFor({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.md' })
 
-    expect(block.startsWith('<system-reminder>\n')).toBe(true)
-    expect(block.endsWith('\n</system-reminder>')).toBe(true)
+    expect(block.startsWith('<system-context source="project-instructions">\n')).toBe(true)
+    expect(block.endsWith('\n</system-context>')).toBe(true)
     expect(block).toContain('# rules')
   })
 
-  it('leaves a listing to describe itself, having no path to attribute', () => {
+  it('attributes a listing without a path to the harness', () => {
     const block = contextBlock({
       slot: EContextSlot.SkillListing,
       key: 'skills',
       content: 'The following skills are available',
     })
 
-    expect(block).toBe('<system-reminder>\nThe following skills are available\n</system-reminder>')
+    expect(block).toContain('Skills available to load:')
+    expect(block.startsWith('<system-context source="skill-listing">\n')).toBe(true)
   })
 
-  it('leaves an unrecognised slot unattributed rather than guessing', () => {
-    expect(contextBlock({ slot: 'something-new', key: '/repo/x', content: 'body' })).toBe(
-      '<system-reminder>\nbody\n</system-reminder>',
-    )
+  it('attributes an unrecognised slot to the harness rather than leaving it bare', () => {
+    const block = contextBlock({ slot: 'something-new', key: '/repo/x', content: 'body' })
+
+    expect(block).toContain('(source: something-new)')
+    expect(block).toContain('The operator did not write this')
   })
 })

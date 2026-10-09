@@ -10,7 +10,9 @@ import { messagesFromEvents } from '../messages-from-events'
 
 const empty: Assembled = { system: [], messages: [] }
 
-const started = (over: { shellId?: string; bootId?: string; outputPath?: string } = {}): EventDraft => ({
+const started = (
+  over: { shellId?: string; bootId?: string; outputPath?: string } = {},
+): EventDraft => ({
   type: 'background-shell-started',
   shellId: 'bash_1',
   command: 'bun test',
@@ -63,14 +65,14 @@ describe('a watch match and the ending recorded in the same step', () => {
   const texts = render([started(), matched(), ended()])
 
   it('states the match as a fact without freezing the shell as alive', () => {
-    expect(texts[0]).toContain('<background-shell-matched>')
+    expect(texts[0]).toContain('<system-notice kind="background-shell-matched"')
     expect(texts[0]).toContain('watch matched 1 line')
     expect(texts[0]).not.toContain('still running')
     expect(texts[0]).not.toContain('has not ended')
   })
 
   it('still hands the model the ending as its own message', () => {
-    expect(texts[1]).toContain('<background-shell-ended>')
+    expect(texts[1]).toContain('<system-notice kind="background-shell-ended"')
     expect(texts[1]).toContain('finished successfully')
   })
 })
@@ -142,7 +144,9 @@ describe('where the full output lives', () => {
 
   it('gives an ending the path and tells the model to read or grep it', () => {
     const block = backgroundShellBlock(
-      log([ended({ outputPath: path, outputStart: 0, outputEnd: 9 })])[0] as Parameters<typeof backgroundShellBlock>[0],
+      log([ended({ outputPath: path, outputStart: 0, outputEnd: 9 })])[0] as Parameters<
+        typeof backgroundShellBlock
+      >[0],
     )
 
     expect(block).toContain(path)
@@ -187,13 +191,17 @@ describe('a shell that is waiting on input', () => {
       log([awaiting()])[0] as Parameters<typeof backgroundShellAwaitingInputBlock>[0],
     )
 
-    expect(block).toContain('Use shell_input when input is supported; otherwise re-run it noninteractively')
+    expect(block).toContain(
+      'Use shell_input when input is supported; otherwise re-run it noninteractively',
+    )
     expect(block).not.toContain('Kill it with shell_kill and start it again')
   })
 
   it('tells a shell that supports input to answer it with shell_input', () => {
     const block = backgroundShellAwaitingInputBlock(
-      log([awaiting({ inputSupported: true })])[0] as Parameters<typeof backgroundShellAwaitingInputBlock>[0],
+      log([awaiting({ inputSupported: true })])[0] as Parameters<
+        typeof backgroundShellAwaitingInputBlock
+      >[0],
     )
 
     expect(block).toContain('shell_input')
@@ -219,7 +227,9 @@ describe('contexts keyed by event id', () => {
 
     const inheritedMatch = inherited[2]
     const ownMatch = own[1]
-    expect(inheritedMatch !== undefined && contexts.get(inheritedMatch.id)?.endedBefore).toBeTruthy()
+    expect(
+      inheritedMatch !== undefined && contexts.get(inheritedMatch.id)?.endedBefore,
+    ).toBeTruthy()
     expect(ownMatch !== undefined && contexts.get(ownMatch.id)?.started).toBeTruthy()
     expect(contexts.size).toBe(3)
   })

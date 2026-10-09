@@ -4,6 +4,7 @@ import { SkillRegistryPort } from '../skills/port'
 import { GrillingCeremonyEnabledToken } from '../container/tokens'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { DelegationFragment } from './fragments/agents'
+import { EnvelopeContractFragment } from './fragments/envelope-contract'
 import { ContextFolderFragment } from './fragments/context-folder'
 import { ExecutionLocationFragment, SessionPathsFragment, TodayFragment } from './fragments/environment'
 import { GrillingCeremonyFragment } from './fragments/grilling'
@@ -36,6 +37,7 @@ export function registerBuiltinPromptFragments({
 }): void {
   const fragments = [
     AtlasIdentityFragment,
+    EnvelopeContractFragment,
     ConcernThenBuildFragment,
     AnswerHonestlyFragment,
     InvestigateThenExplainFragment,

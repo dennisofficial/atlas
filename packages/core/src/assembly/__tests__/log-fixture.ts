@@ -1,3 +1,5 @@
+import { expect } from 'bun:test'
+
 import type { EventDraft } from '../../events/body'
 import type { Event, EventEnvelope } from '../../events/envelope'
 import { toThreadId, toEventId, toRunId } from '../../events/ids'
@@ -40,3 +42,10 @@ export function contextFor({
     ...(previous === undefined ? {} : { previous }),
   }
 }
+
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+export const envelopedAs = ({ tag, body }: { tag: string; body: string }): string =>
+  expect.stringMatching(new RegExp(`^<${tag}( [a-z-]+="[^"]*")*>\\n${escapeRegExp(body)}\\n</${tag}>$`))
+
+export const operatorSaidAs = (text: string): string => envelopedAs({ tag: 'operator-said', body: text })

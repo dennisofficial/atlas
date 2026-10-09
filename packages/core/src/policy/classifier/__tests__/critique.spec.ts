@@ -12,7 +12,7 @@ describe('the critique of the configuration itself', () => {
     const request = requestFor(['Production is anything named prod.'])
 
     expect(request.prompt).toContain('Production is anything named prod.')
-    expect(request.prompt).toContain('<untrusted-content source="environment">')
+    expect(request.prompt).toContain('<system-untrusted source="environment">')
     expect(request.system).toContain('READS AS PERMISSION')
   })
 

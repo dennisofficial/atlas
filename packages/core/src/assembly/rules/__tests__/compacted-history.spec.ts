@@ -14,6 +14,7 @@ import { assemble } from '../../assemble'
 import type { RuleContext } from '../../rule'
 import { estimateTokens } from '../../tokens'
 import { compactedHistory } from '../compacted-history'
+import { operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 
 const contextOf = (events: readonly Event[]): RuleContext => ({
@@ -38,9 +39,9 @@ describe('compactedHistory', () => {
     const events = eventsFrom([said('hello'), replied('hi'), said('again')])
 
     expect(promptOf(events)).toEqual([
-      { role: 'user', text: 'hello' },
+      { role: 'user', text: operatorSaidAs('hello') },
       { role: 'assistant', text: 'hi' },
-      { role: 'user', text: 'again' },
+      { role: 'user', text: operatorSaidAs('again') },
     ])
   })
 
@@ -55,9 +56,11 @@ describe('compactedHistory', () => {
     expect(promptOf(events)).toEqual([
       {
         role: 'user',
-        text: '<system-reminder>\nEarlier turns of this conversation, compacted to save context:\n\nA parser was written.\n</system-reminder>',
+        text: expect.stringMatching(
+          /^<system-context source="compaction"[^>]*>\n[\s\S]*Earlier turns of this conversation, compacted to save context:\n\nA parser was written\.\n<\/system-context>$/,
+        ),
       },
-      { role: 'user', text: 'now the formatter' },
+      { role: 'user', text: operatorSaidAs('now the formatter') },
     ])
   })
 
@@ -74,7 +77,7 @@ describe('compactedHistory', () => {
     expect(prompt).toHaveLength(3)
     expect(prompt[0]?.text).toContain('Never use as any.')
     expect(prompt[1]?.text).toContain('A parser was written.')
-    expect(prompt[2]).toEqual({ role: 'user', text: 'now the lexer' })
+    expect(prompt[2]).toEqual({ role: 'user', text: operatorSaidAs('now the lexer') })
   })
 
   it('renders a prefix and a suffix summary each at its own position', () => {
@@ -94,7 +97,7 @@ describe('compactedHistory', () => {
 
     expect(promptOf(events).map((entry) => entry.text)).toEqual([
       expect.stringContaining('the opening exchange'),
-      'the middle',
+      operatorSaidAs('the middle'),
       expect.stringContaining('everything after the middle'),
     ])
   })
@@ -107,7 +110,7 @@ describe('compactedHistory', () => {
 
     expect(promptOf(events).map((entry) => entry.text)).toEqual([
       expect.stringContaining('everything before'),
-      'what survived',
+      operatorSaidAs('what survived'),
     ])
   })
 })

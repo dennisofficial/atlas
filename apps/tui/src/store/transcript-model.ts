@@ -28,6 +28,8 @@ export enum EEntryKind {
   LocationChanged = 'location-changed',
   Rotated = 'rotated',
   OperatorInput = 'operator-input',
+  SystemContext = 'system-context',
+  SystemNotice = 'system-notice',
   PrEvent = 'pr-event',
 }
 
@@ -220,6 +222,29 @@ export type OperatorInputEntry = {
   text: string
 }
 
+export type SystemContextItem = {
+  key: string
+  label: string
+  content: string
+  superseded: boolean
+}
+
+export type SystemContextEntry = {
+  kind: EEntryKind.SystemContext
+  author: EAuthor.Model
+  key: string
+  text: string
+  items: readonly SystemContextItem[]
+}
+
+export type SystemNoticeEntry = {
+  kind: EEntryKind.SystemNotice
+  author: EAuthor.Model
+  key: string
+  text: string
+  content: string
+}
+
 export type PrEventEntry = {
   kind: EEntryKind.PrEvent
   author: EAuthor.Model
@@ -249,6 +274,8 @@ export type TranscriptEntry =
   | LocationChangedEntry
   | RotatedEntry
   | OperatorInputEntry
+  | SystemContextEntry
+  | SystemNoticeEntry
   | PrEventEntry
 
 export type StepFailure = { message: string | null }

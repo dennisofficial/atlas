@@ -94,6 +94,7 @@ describe('a finished turn in the transcript', () => {
     const entries = durableEntries({ events, turns: [spend()] })
 
     expect(entries.map((entry) => entry.kind)).toEqual([
+      EEntryKind.SystemContext,
       EEntryKind.HistoryCompacted,
       EEntryKind.OperatorSaid,
     ])

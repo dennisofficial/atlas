@@ -1,4 +1,4 @@
-import { wrapUntrusted } from '../web/untrusted'
+import { untrustedEnvelope } from '../context/envelope'
 import { EPrEventKind, type EventDraft } from './body'
 import type { Event } from './envelope'
 
@@ -200,7 +200,7 @@ export function loopWatchWindow({
 export function renderLoopWatchSteps({ steps }: { steps: readonly LoopWatchStep[] }): string {
   return [
     "The agent's steps since the last user message or harness nudge, oldest first, each numbered with its sequence:",
-    wrapUntrusted({
+    untrustedEnvelope({
       source: 'agent-steps',
       body: steps.map((step) => `- [${step.seq}] ${step.line}`).join('\n'),
     }),

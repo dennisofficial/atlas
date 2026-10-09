@@ -1,10 +1,8 @@
+import { systemNotice } from '../../context/envelope'
 import type { EventOfType } from '../../events/envelope'
 import { serviceEnding } from '../../services/status'
 import { shellLabel } from '../../shells/label'
 import { EKilledBy } from '../../shells/status'
-
-const OPEN = '<service-ended>'
-const CLOSE = '</service-ended>'
 
 const PRINTED_NOTHING = 'Its log is empty.'
 
@@ -28,5 +26,5 @@ export function serviceEndedBlock(event: EventOfType<'service-ended'>): string {
 
   if (event.logPath !== undefined) sections.push(NOT_WORK)
 
-  return [OPEN, sections.join('\n\n'), CLOSE].join('\n')
+  return systemNotice({ kind: 'service-ended', content: sections.join('\n\n') })
 }

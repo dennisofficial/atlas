@@ -28,7 +28,7 @@ describe('renderFetchedPage', () => {
   it('always hands the body over inside the envelope', () => {
     const rendered = renderFetchedPage({ ...page, title: 'A Title' })
     expect(rendered).toContain('Title: A Title')
-    expect(rendered).toContain('<untrusted-content source="https://example.com/">')
+    expect(rendered).toContain('<system-untrusted source="https://example.com/">')
     expect(rendered).toContain('the body')
   })
 })
@@ -50,12 +50,12 @@ describe('renderFindings', () => {
     expect(rendered).toContain('native globbing')
     expect(rendered).toContain('2. Ref')
     expect(rendered).toContain('the whole page text')
-    expect(rendered.split('<untrusted-content').length - 1).toBe(1)
+    expect(rendered.split('<system-untrusted').length - 1).toBe(1)
   })
 
   it('says plainly when a search found nothing, without an empty envelope', () => {
     const rendered = renderFindings({ ...findings, results: [] })
     expect(rendered).toContain('No results')
-    expect(rendered).not.toContain('untrusted-content')
+    expect(rendered).not.toContain('system-untrusted')
   })
 })

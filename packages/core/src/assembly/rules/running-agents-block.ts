@@ -1,6 +1,6 @@
 import { TEAMMATE_AGENT_TYPE } from '../../agents/kind'
 import { agentLabel } from '../../agents/label'
-import { wrapInSystemReminder } from '../../context/render'
+import { systemContext } from '../../context/envelope'
 import type { ThreadId } from '../../events/ids'
 import { defineRule, type Rule } from '../rule'
 import { appendedAtTail } from './tail-block'
@@ -30,13 +30,13 @@ const guidanceFor = (agents: readonly RunningAgent[]): string =>
 const lineFor = (agent: RunningAgent): string => `${agent.agentId}  ${agentLabel(agent)}`
 
 export function runningAgentsReminder(agents: readonly RunningAgent[]): string {
-  return wrapInSystemReminder(
+  return systemContext({ slot: 'running-agents', key: 'roster', content: 
     [
       'These sub-agents you spawned are still running:',
       agents.map(lineFor).join('\n'),
       guidanceFor(agents),
     ].join('\n\n'),
-  )
+  })
 }
 
 export function runningAgentsBlock({

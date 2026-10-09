@@ -7,7 +7,7 @@ import { EKilledBy } from '../../../shells/status'
 import type { EventDraft } from '../../../events/body'
 import { toCallId, toThreadId } from '../../../events/ids'
 import { exchangeFaults } from '../../exchange-shape'
-import { contextFor, fixtureThreadId, log } from '../../__tests__/log-fixture'
+import { contextFor, fixtureThreadId, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { agentEndingsBlock } from '../agent-endings-block'
 import { messagesFromEvents } from '../messages-from-events'
 
@@ -49,7 +49,7 @@ const textsOf = (assembled: ReturnType<typeof assembleWith>): string[] =>
   )
 
 const blocksOf = (assembled: ReturnType<typeof assembleWith>): string[] =>
-  textsOf(assembled).filter((text) => text.startsWith('<agents-ended>'))
+  textsOf(assembled).filter((text) => text.startsWith('<system-notice kind="agents-ended"'))
 
 describe('handing a finished delegate to the parent that spawned it', () => {
   it('names the delegate, counts its work, and hands over its report', () => {
@@ -93,9 +93,9 @@ describe('handing a finished delegate to the parent that spawned it', () => {
       }),
     )
 
-    expect(texts[0]).toBe('go')
-    expect(texts[1]).toStartWith('<agents-ended>')
-    expect(texts[2]).toBe('later')
+    expect(texts[0]).toEqual(operatorSaidAs('go'))
+    expect(texts[1]).toStartWith('<system-notice kind="agents-ended"')
+    expect(texts[2]).toEqual(operatorSaidAs('later'))
   })
 
   it('spells out that the delegate steps are not coming', () => {
@@ -109,7 +109,7 @@ describe('a spawned delegate', () => {
   it('renders as nothing at all: the tool result already said it started', () => {
     const assembled = assembleWith({ drafts: [{ type: 'user-said', text: 'go' }, spawned()] })
 
-    expect(textsOf(assembled)).toEqual(['go'])
+    expect(textsOf(assembled)).toEqual([operatorSaidAs('go')])
   })
 })
 
@@ -203,7 +203,7 @@ describe('two waves separated by the parent working', () => {
 
     expect(texts).toHaveLength(3)
     expect(texts[0]).toContain('first wave')
-    expect(texts[1]).toBe('carry on')
+    expect(texts[1]).toEqual(operatorSaidAs('carry on'))
     expect(texts[2]).toContain('second wave')
   })
 
@@ -243,7 +243,7 @@ describe('a delegate ending that lands while a tool call is still open', () => {
     const assembled = assembleWith({ drafts: lateSettledCall() })
 
     const endingsAt = assembled.messages.findIndex((entry) =>
-      entry.message.content.some((part) => part.type === 'text' && part.text.startsWith('<agents-ended>')),
+      entry.message.content.some((part) => part.type === 'text' && part.text.startsWith('<system-notice kind="agents-ended"')),
     )
     const resultAt = assembled.messages.findIndex((entry) => entry.message.role === 'tool')
 
@@ -288,7 +288,7 @@ describe('a restart the parent did not cause', () => {
       drafts: [{ type: 'user-said', text: 'go' }, restarted(EAgentRestart.Wake)],
     })
 
-    expect(textsOf(assembled)).toEqual(['go'])
+    expect(textsOf(assembled)).toEqual([operatorSaidAs('go')])
   })
 
   it('still tells the parent about the restarts it did cause', () => {
@@ -296,7 +296,7 @@ describe('a restart the parent did not cause', () => {
       const texts = textsOf(assembleWith({ drafts: [restarted(via)] }))
 
       expect(texts).toHaveLength(1)
-      expect(texts[0]).toStartWith('<agent-restarted>')
+      expect(texts[0]).toStartWith('<system-notice kind="agent-restarted"')
     }
   })
 })

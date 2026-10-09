@@ -164,7 +164,7 @@ describe('a child taking its first step', () => {
     const prompt = spawned.model.doStreamCalls[0]?.prompt ?? []
     expect(prompt.some((message) => message.role === 'user' &&
       Array.isArray(message.content) && message.content.some((part) =>
-        part.type === 'text' && part.text === 'count the call sites of assemble',
+        part.type === 'text' && /^<operator-said[^>]*>\ncount the call sites of assemble\n<\/operator-said>$/.test(part.text),
       ),
     )).toBe(true)
     const runtime = prompt.at(-1)

@@ -1,5 +1,5 @@
 import { compactionWatermarks, type CompactionWatermark } from '../../compaction/watermark'
-import { wrapInSystemReminder } from '../../context/render'
+import { systemContext } from '../../context/envelope'
 import type { Event } from '../../events/envelope'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
@@ -7,7 +7,7 @@ import { defineRule, type Rule } from '../rule'
 const COMPACTION_PREFACE = 'Earlier turns of this conversation, compacted to save context:'
 
 const compactionBlock = (summary: string): string =>
-  wrapInSystemReminder(`${COMPACTION_PREFACE}\n\n${summary}`)
+  systemContext({ slot: 'compaction', key: 'summary', content: `${COMPACTION_PREFACE}\n\n${summary}` })
 
 const summaryMessage = (watermark: CompactionWatermark): AssembledMessage => ({
   message: { role: 'user', content: [{ type: 'text', text: compactionBlock(watermark.summary) }] },

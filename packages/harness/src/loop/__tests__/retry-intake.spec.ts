@@ -127,7 +127,7 @@ describe('a retry that runs after input arrived while the first request was fail
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(model.doStreamCalls).toHaveLength(1)
-    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContain('actually, do Y')
+    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContainEqual(expect.stringContaining('actually, do Y'))
   })
 
   it('acknowledges the drained batch once it is durable, not before', async () => {
@@ -208,7 +208,7 @@ describe('input that lands while a retry is backing off', () => {
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(model.doStreamCalls).toHaveLength(1)
-    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContain('actually, do Y')
+    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContainEqual(expect.stringContaining('actually, do Y'))
     const events = await harnessLog(harness, threadId)
     expect(events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y')).toHaveLength(1)
   })

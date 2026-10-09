@@ -80,8 +80,8 @@ describe('handing an ended service to the model', () => {
   it('wraps the block so the model can tell it from something a human typed', () => {
     const block = serviceEndedBlock(ended())
 
-    expect(block.startsWith('<service-ended>')).toBe(true)
-    expect(block.endsWith('</service-ended>')).toBe(true)
+    expect(block.startsWith('<system-notice kind="service-ended"')).toBe(true)
+    expect(block.endsWith('</system-notice>')).toBe(true)
   })
 })
 

@@ -1,5 +1,5 @@
 import type { WebSearchFindings } from './search'
-import { wrapUntrusted } from './untrusted'
+import { untrustedEnvelope } from '../context/envelope'
 
 const SNIPPET_CELLS = 400
 
@@ -22,7 +22,7 @@ export function renderFetchedPage(page: FetchedPage): string {
     page.truncated ? 'The page was longer than the limit and has been cut off.' : undefined,
   ].filter((line): line is string => line !== undefined)
 
-  const envelope = wrapUntrusted({ source: page.finalUrl, body: page.body })
+  const envelope = untrustedEnvelope({ source: page.finalUrl, body: page.body })
   return heading.length === 0 ? envelope : [heading.join('\n'), envelope].join('\n\n')
 }
 
@@ -45,5 +45,5 @@ export function renderFindings(findings: WebSearchFindings): string {
     })
     .join('\n\n')
 
-  return wrapUntrusted({ source: `${findings.backend} search: ${findings.query}`, body })
+  return untrustedEnvelope({ source: `${findings.backend} search: ${findings.query}`, body })
 }

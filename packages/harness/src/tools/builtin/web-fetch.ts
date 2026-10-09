@@ -5,7 +5,7 @@ import {
   renderFound,
   SchemaTool,
   TAKES_NO_PATHS,
-  wrapUntrusted,
+  untrustedEnvelope,
   type FetchedPage,
   type ToolOutcome,
   type ToolRun,
@@ -93,7 +93,7 @@ export class WebFetchTool extends SchemaTool<typeof inputSchema> {
     if (!found.ok) return { ok: false, reason: found.reason }
 
     const heading = renderFound({ found: found.found, pattern })
-    const envelope = wrapUntrusted({ source: page.finalUrl, body: found.found.excerpt })
+    const envelope = untrustedEnvelope({ source: page.finalUrl, body: found.found.excerpt })
 
     return {
       ok: true,

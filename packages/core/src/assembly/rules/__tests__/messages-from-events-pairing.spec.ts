@@ -4,7 +4,7 @@ import { EDecision, type EventDraft } from '../../../events/body'
 import { toCallId, toEventId } from '../../../events/ids'
 import type { Assembled } from '../../assembled'
 import { exchangeFaults } from '../../exchange-shape'
-import { contextFor, log } from '../../__tests__/log-fixture'
+import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 
 const empty: Assembled = { system: [], messages: [] }
@@ -28,7 +28,7 @@ describe('messagesFromEvents pairing every call with a result', () => {
 
     expect(assembled.messages).toEqual([
       {
-        message: { role: 'user', content: [{ type: 'text', text: 'find and fix it' }] },
+        message: { role: 'user', content: [{ type: 'text', text: operatorSaidAs('find and fix it') }] },
         origin: { eventId: toEventId('event-1'), seq: 1 },
       },
       {
