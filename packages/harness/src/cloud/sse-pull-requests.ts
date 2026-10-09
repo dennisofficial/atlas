@@ -8,6 +8,7 @@ import {
 } from '../plugins/github/pure'
 import type { CloudSession } from './cloud-session'
 import { CloudError, type TransportRetryLog } from './cloud-transport'
+import { deliverPrEvent, type PrEventFrame } from './pr-event-frame'
 import { runSseStream, SseRefused } from './sse-client'
 import {
   PrSubscriptionClient,
@@ -49,6 +50,7 @@ export class SsePullRequestPort extends PullRequestPort {
   private sessionDead = false
   private readonly silenceTimeoutMs: number | undefined
   private readonly log: TransportRetryLog | undefined
+  private readonly onPrEvent: ((frame: PrEventFrame) => void) | undefined
   private catchingUp: { generation: number; pending: Promise<void> } | null = null
   private generation = 0
   private disposed = false
@@ -57,12 +59,14 @@ export class SsePullRequestPort extends PullRequestPort {
     session: CloudSession
     clientVersion: string
     onReading: (args: { key: string; reading: PullRequestReading }) => void
+    onPrEvent?: (frame: PrEventFrame) => void
     clock?: SsePullRequestClock
     silenceTimeoutMs?: number
     log?: TransportRetryLog
   }) {
     super()
     this.log = args.log
+    this.onPrEvent = args.onPrEvent
     this.silenceTimeoutMs = args.silenceTimeoutMs
     this.clock = {
       now: args.clock?.now ?? Date.now,
@@ -181,6 +185,10 @@ export class SsePullRequestPort extends PullRequestPort {
           return this.catchUp({ controller, generation: this.generation })
         },
         onFrame: (frame) => {
+          if (frame.event === 'pr-event') {
+            deliverPrEvent({ data: frame.data, onPrEvent: this.onPrEvent, log: this.log })
+            return
+          }
           if (frame.event !== 'pr-state') return
           this.book.applyFrame({ data: frame.data })
         },

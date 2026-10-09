@@ -1,5 +1,5 @@
 import { wrapUntrusted } from '../web/untrusted'
-import type { EventDraft } from './body'
+import { EPrEventKind, type EventDraft } from './body'
 import type { Event } from './envelope'
 
 export const LOOP_WATCH_MIN_SPEECHES = 3
@@ -21,6 +21,19 @@ const clip = (text: string, limit: number): string =>
 
 const labelOf = (event: { description?: string | undefined; command: string }): string =>
   event.description ?? clip(event.command, 80)
+
+const prEventLabel = (event: Event & { type: 'pr-event' }): string => {
+  const author = event.authorLogin === undefined ? '' : ` from ${event.authorLogin}`
+  if (event.kind === EPrEventKind.Comment) return `comment${author}`
+  if (event.kind === EPrEventKind.ReviewComment) return `review comment${author}`
+  if (event.kind === EPrEventKind.Review) return `review${author}`
+  if (event.kind === EPrEventKind.Verdict) return `checks ${event.verdict ?? 'reported'}`
+  if (event.kind === EPrEventKind.Mergeability) {
+    if (event.mergeable === undefined) return 'mergeability unknown'
+    return event.mergeable ? 'now mergeable' : 'now has merge conflicts'
+  }
+  return `state ${event.state ?? 'changed'}`
+}
 
 const speechOf = (event: Event & { type: 'assistant-said' }): string =>
   event.parts
@@ -65,6 +78,9 @@ const lineOf = (event: Event): string | undefined => {
   }
   if (event.type === 'service-ended') {
     return `service "${labelOf(event)}" ended (${event.status})`
+  }
+  if (event.type === 'pr-event') {
+    return `PR #${event.prNumber}: ${prEventLabel(event)}`
   }
   return undefined
 }

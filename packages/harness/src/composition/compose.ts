@@ -201,6 +201,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     prompts,
     declarations: () => container.resolve(portToken(ToolRegistry)).declarations(),
     pending,
+    pluginSources: plugins.intakeSources,
     channel,
     notice,
     summarise: utility.summarise,

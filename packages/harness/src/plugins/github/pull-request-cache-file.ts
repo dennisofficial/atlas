@@ -28,6 +28,7 @@ type EntryJson = {
     state: string
     checks: string
     tally: ChecksTally
+    mergeable?: boolean | null
   }
 }
 
@@ -49,6 +50,7 @@ export const entryToJson = (entry: CacheEntry): EntryJson | null => {
       state: pullRequest.state,
       checks: pullRequest.checks,
       tally: pullRequest.tally,
+      mergeable: pullRequest.mergeable,
     },
   }
 }
@@ -90,6 +92,9 @@ const parsePullRequest = (raw: unknown): PullRequest | null => {
     state: pullRequest.state as EPullRequestState,
     checks: pullRequest.checks as EChecksState,
     tally,
+    mergeable: typeof pullRequest.mergeable === 'boolean' ? pullRequest.mergeable : null,
+    comments: [],
+    reviews: [],
   }
 }
 

@@ -124,7 +124,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   }
 
   const { intake, recordTeardownEndings } = bindIntake({
-    pending, shells, agents, services, log, ids, stopSandbox: args.stopSandbox,
+    pending, shells, agents, services, log, ids, stopSandbox: args.stopSandbox, pluginSources: args.pluginSources,
   })
 
   const { runningShells, runningAgents, runningServices } = turnBackgroundState({ agents, shells, services })

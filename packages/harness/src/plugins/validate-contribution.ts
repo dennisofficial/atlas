@@ -90,6 +90,29 @@ const validateProjection = (args: {
   return undefined
 }
 
+const validateIntakeSource = (args: {
+  source: unknown
+  pluginId: string
+}): { refusal: EPluginRefusal; detail: string } | undefined => {
+  if (!isRecord(args.source)) {
+    return {
+      refusal: EPluginRefusal.IntakeSourceCannotIntake,
+      detail: `${args.pluginId} contributed an intake source of type ${typeof args.source}`,
+    }
+  }
+
+  for (const member of ['prepare', 'subscribe', 'threadsAwaitingInput']) {
+    if (typeof args.source[member] !== 'function') {
+      return {
+        refusal: EPluginRefusal.IntakeSourceCannotIntake,
+        detail: `${args.pluginId} contributed an intake source whose ${member} is ${typeof args.source[member]} rather than a function`,
+      }
+    }
+  }
+
+  return undefined
+}
+
 export function validatePluginContribution(args: {
   contribution: unknown
   pluginId: string
@@ -130,6 +153,22 @@ export function validatePluginContribution(args: {
 
     for (const projection of projections) {
       const failed = validateProjection({ projection, pluginId: args.pluginId })
+      if (failed !== undefined) return { ok: false, ...failed }
+    }
+  }
+
+  const intakeSources = args.contribution['intakeSources']
+  if (intakeSources !== undefined) {
+    if (!Array.isArray(intakeSources)) {
+      return {
+        ok: false,
+        refusal: EPluginRefusal.IntakeSourcesNotAnArray,
+        detail: `${args.pluginId} contributed intakeSources of type ${typeof intakeSources} rather than an array`,
+      }
+    }
+
+    for (const source of intakeSources) {
+      const failed = validateIntakeSource({ source, pluginId: args.pluginId })
       if (failed !== undefined) return { ok: false, ...failed }
     }
   }

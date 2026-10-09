@@ -20,6 +20,7 @@ import {
 import { agentReportedBlock } from './agent-reported-block'
 import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
+import { prEventBlock } from './pr-event-block'
 import { serviceEndedBlock } from './service-ended-block'
 import { endingsToldByKill } from './shell-kill-coverage'
 
@@ -267,6 +268,14 @@ function walkEvents(events: readonly Event[]): Walk {
           role: 'user',
           content: [{ type: 'text', text: serviceEndedBlock(event) }],
         },
+        origin: originOf(event),
+      })
+      continue
+    }
+
+    if (event.type === 'pr-event') {
+      groups.push({
+        message: { role: 'user', content: [{ type: 'text', text: prEventBlock(event) }] },
         origin: originOf(event),
       })
       continue

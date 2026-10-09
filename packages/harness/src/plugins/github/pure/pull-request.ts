@@ -13,6 +13,21 @@ export type ChecksTally = { running: number; passed: number; failed: number }
 
 export const NO_CHECKS: ChecksTally = { running: 0, passed: 0, failed: 0 }
 
+export type PrComment = {
+  id: string
+  authorLogin: string | null
+  body: string
+  url: string
+  createdAt: string
+}
+
+export type PrReview = {
+  id: string
+  authorLogin: string | null
+  state: string
+  body: string
+}
+
 export type PullRequest = {
   number: number
   title: string
@@ -20,6 +35,9 @@ export type PullRequest = {
   state: EPullRequestState
   checks: EChecksState
   tally: ChecksTally
+  mergeable: boolean | null
+  comments: readonly PrComment[]
+  reviews: readonly PrReview[]
 }
 
 export type PullRequestBadge = {

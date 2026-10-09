@@ -9,6 +9,8 @@ import {
   NO_CHECKS,
   PullRequestPort,
   type ChecksTally,
+  type PrComment,
+  type PrReview,
   type PullRequest,
   type PullRequestReading,
   type RepositoryCheckout,
@@ -147,7 +149,14 @@ export const aLink = (args?: {
   }
 }
 
-export type PullRequestShape = { number?: number; checks?: EChecksState; tally?: ChecksTally }
+export type PullRequestShape = {
+  number?: number
+  checks?: EChecksState
+  tally?: ChecksTally
+  mergeable?: boolean | null
+  comments?: readonly PrComment[]
+  reviews?: readonly PrReview[]
+}
 
 export const aPullRequest = (args?: PullRequestShape): PullRequest => ({
   number: args?.number ?? 42,
@@ -156,6 +165,9 @@ export const aPullRequest = (args?: PullRequestShape): PullRequest => ({
   state: EPullRequestState.Open,
   checks: args?.checks ?? EChecksState.Passing,
   tally: args?.tally ?? NO_CHECKS,
+  mergeable: args?.mergeable ?? null,
+  comments: args?.comments ?? [],
+  reviews: args?.reviews ?? [],
 })
 
 export const wasFound = (args?: PullRequestShape): PullRequestReading => ({

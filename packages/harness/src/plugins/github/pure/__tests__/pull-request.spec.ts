@@ -15,6 +15,7 @@ const pullRequest = (args: { state: EPullRequestState; checks: EChecksState }): 
   state: args.state,
   checks: args.checks,
   tally: NO_CHECKS,
+  mergeable: null, comments: [], reviews: [],
 })
 
 describe('pullRequestBadge', () => {

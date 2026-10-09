@@ -81,6 +81,7 @@ const found = (args: { number: number }): PullRequestReading => ({
     state: EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
+    mergeable: null, comments: [], reviews: [],
   },
 })
 

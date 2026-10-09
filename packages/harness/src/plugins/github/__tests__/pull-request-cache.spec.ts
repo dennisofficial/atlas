@@ -27,6 +27,7 @@ const found = (args: { number: number; state?: EPullRequestState }): PullRequest
     state: args.state ?? EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
+    mergeable: null, comments: [], reviews: [],
   },
 })
 

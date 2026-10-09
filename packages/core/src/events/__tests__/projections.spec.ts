@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAgentStatus } from '../../agents/status'
-import { EDecision, type EventDraft } from '../body'
+import { EDecision, EPrEventKind, type EventDraft } from '../body'
 import type { Event } from '../envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
 import {
@@ -335,6 +335,26 @@ describe('whose turn it is', () => {
 
   it('reads an ending as turn-taking even when it is the only row', () => {
     expect(awaitsReply(eventsFrom([ENDED_CHILD]))).toBe(true)
+  })
+
+  it('is the assistant to answer when a PR event lands after it spoke', () => {
+    const prEvent: EventDraft = {
+      type: 'pr-event',
+      repo: 'github.com/owner/repo',
+      prNumber: 12,
+      kind: EPrEventKind.Comment,
+      url: 'https://github.com/owner/repo/pull/12#issuecomment-1',
+    }
+
+    expect(
+      awaitsReply(
+        eventsFrom([
+          { type: 'user-said', text: 'push it' },
+          { type: 'assistant-said', parts: [{ type: 'text', text: 'pushed' }] },
+          prEvent,
+        ]),
+      ),
+    ).toBe(true)
   })
 
   it('is the assistant to answer when a background shell watch matches mid-run', () => {
