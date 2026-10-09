@@ -1,7 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '../../../db'
-import { dtoOf } from './github-delivery-routing'
+import { dtoOf, subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { RepoAccessChecker } from './github-repo-access'
 import type { GithubPrStateDto, GithubSubscriptionDto } from './github-realtime.types'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
@@ -10,7 +11,7 @@ const SUBSCRIPTION_TTL_MS = 5 * 60 * 1_000
 
 @Injectable()
 export class GithubSubscriptionsService {
-  private readonly access = new Map<string, Promise<boolean>>()
+  private readonly access = new RepoAccessChecker((args) => this.requireToken(args))
 
   constructor(
     private readonly github: GithubService,
@@ -23,9 +24,11 @@ export class GithubSubscriptionsService {
     repoFullName: string
     prNumber?: number
     branch?: string
+    threadId?: string
+    sandboxId?: string
   }): Promise<GithubSubscriptionDto> {
     const { owner, repo } = parseRepo({ repoFullName: args.repoFullName })
-    await this.requireRepoAccess({ userId: args.userId, owner, repo })
+    await this.access.require({ userId: args.userId, owner, repo })
 
     const prNumber = await this.resolvePrNumber({
       userId: args.userId,
@@ -61,8 +64,16 @@ export class GithubSubscriptionsService {
         branch,
         pollBacked,
         expiresAt: nextExpiry(),
+        threadId: args.threadId ?? null,
+        sandboxId: args.sandboxId ?? null,
       },
-      update: { prNumber, pollBacked, expiresAt: nextExpiry() },
+      update: {
+        prNumber,
+        pollBacked,
+        expiresAt: nextExpiry(),
+        threadId: args.threadId ?? null,
+        sandboxId: args.sandboxId ?? null,
+      },
     })
     await db.githubRepoHook.updateMany({
       where: { repoFullName: args.repoFullName },
@@ -96,6 +107,8 @@ export class GithubSubscriptionsService {
   async heartbeat(args: {
     userId: string
     subscriptionId: string
+    threadId?: string
+    sandboxId?: string
   }): Promise<{ expiresAt: string }> {
     const subscription = await db.githubSubscription.findUnique({
       where: { id: args.subscriptionId },
@@ -105,7 +118,11 @@ export class GithubSubscriptionsService {
     }
     const updated = await db.githubSubscription.update({
       where: { id: subscription.id },
-      data: { expiresAt: nextExpiry() },
+      data: {
+        expiresAt: nextExpiry(),
+        ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
+        ...(args.sandboxId === undefined ? {} : { sandboxId: args.sandboxId }),
+      },
     })
     return { expiresAt: updated.expiresAt.toISOString() }
   }
@@ -114,7 +131,10 @@ export class GithubSubscriptionsService {
     userId: string
   }): Promise<Array<{ repoFullName: string; prNumber: number | null; branch: string }>> {
     const rows = await db.githubSubscription.findMany({
-      where: { userId: args.userId, expiresAt: { gt: new Date() } },
+      where: {
+        userId: args.userId,
+        AND: [subscriptionLiveWhere({ now: new Date() })],
+      },
     })
     return rows.map((row) => ({
       repoFullName: row.repoFullName,
@@ -125,7 +145,11 @@ export class GithubSubscriptionsService {
 
   async currentStates(args: { userId: string }): Promise<GithubPrStateDto[]> {
     const subscriptions = await db.githubSubscription.findMany({
-      where: { userId: args.userId, expiresAt: { gt: new Date() }, prNumber: { not: null } },
+      where: {
+        userId: args.userId,
+        prNumber: { not: null },
+        AND: [subscriptionLiveWhere({ now: new Date() })],
+      },
     })
     const states: GithubPrStateDto[] = []
     for (const subscription of subscriptions) {
@@ -215,7 +239,10 @@ export class GithubSubscriptionsService {
           })
     for (const hook of hooks) {
       const live = await db.githubSubscription.findMany({
-        where: { repoFullName: hook.repoFullName, expiresAt: { gt: now } },
+        where: {
+          repoFullName: hook.repoFullName,
+          AND: [subscriptionLiveWhere({ now })],
+        },
       })
       if (live.length === 0) {
         await db.githubRepoHook.updateMany({
@@ -234,52 +261,6 @@ export class GithubSubscriptionsService {
     return token
   }
 
-  private requireRepoAccess(args: {
-    userId: string
-    owner: string
-    repo: string
-  }): Promise<boolean> {
-    const key = `${args.userId}:${args.owner}/${args.repo}`
-    const held = this.access.get(key)
-    if (held !== undefined) return held
-
-    const asked = this.checkRepoAccess(args).catch((failure: unknown) => {
-      this.access.delete(key)
-      throw failure
-    })
-    this.access.set(key, asked)
-    return asked
-  }
-
-  private async checkRepoAccess(args: {
-    userId: string
-    owner: string
-    repo: string
-  }): Promise<boolean> {
-    const token = await this.requireToken({ userId: args.userId })
-    const response = await fetch(`https://api.github.com/repos/${args.owner}/${args.repo}`, {
-      headers: {
-        authorization: `Bearer ${token}`,
-        accept: 'application/vnd.github+json',
-        'x-github-api-version': '2022-11-28',
-      },
-    })
-    if (response.status === 401) {
-      this.access.delete(`${args.userId}:${args.owner}/${args.repo}`)
-      throw new ForbiddenException(
-        'the stored github token was rejected (expired or revoked) — reconnect github in settings',
-      )
-    }
-    if (response.status === 404) {
-      throw new ForbiddenException(`no access to ${args.owner}/${args.repo}`)
-    }
-    if (!response.ok) {
-      throw new ForbiddenException(
-        `github answered ${response.status} checking access to ${args.owner}/${args.repo}`,
-      )
-    }
-    return true
-  }
 }
 
 function parseRepo(args: { repoFullName: string }): { owner: string; repo: string } {

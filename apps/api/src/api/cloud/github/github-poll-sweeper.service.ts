@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Interval } from '@nestjs/schedule'
 import { db } from '../../../db'
-import { dtoOf, subscriberWhereOf } from './github-delivery-routing'
+import { dtoOf, subscriberWhereOf, subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
@@ -34,7 +34,10 @@ export class GithubPollSweeperService {
     const repos = await db.githubRepoHook.findMany({ where: { idleSince: null } })
     for (const hook of repos) {
       const live = await db.githubSubscription.findMany({
-        where: { repoFullName: hook.repoFullName, expiresAt: { gt: now } },
+        where: {
+          repoFullName: hook.repoFullName,
+          AND: [subscriptionLiveWhere({ now })],
+        },
       })
       if (live.length === 0) {
         await db.githubRepoHook.updateMany({
@@ -45,7 +48,7 @@ export class GithubPollSweeperService {
     }
 
     const pollBacked = await db.githubSubscription.findMany({
-      where: { pollBacked: true, expiresAt: { gt: now } },
+      where: { pollBacked: true, AND: [subscriptionLiveWhere({ now })] },
     })
     for (const subscription of pollBacked) {
       const prNumber = await this.resolvePrNumber({
@@ -64,7 +67,11 @@ export class GithubPollSweeperService {
     }
 
     const hookBacked = await db.githubSubscription.findMany({
-      where: { pollBacked: false, expiresAt: { gt: now }, prNumber: { not: null } },
+      where: {
+        pollBacked: false,
+        prNumber: { not: null },
+        AND: [subscriptionLiveWhere({ now })],
+      },
     })
     for (const subscription of hookBacked) {
       if (subscription.prNumber === null) continue

@@ -6,7 +6,7 @@ vi.mock('../../../db', async () => {
   return { db: fakeGithubDb().db as unknown as PrismaClient }
 })
 
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { fakeGithubDb, seedCloudSandbox } from '../../../../test/fake-github-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
@@ -115,6 +115,8 @@ function seedSubscription(args: {
     branch: args.branch ?? '',
     pollBacked: false,
     expiresAt: new Date(Date.now() + 60_000),
+    threadId: null,
+    sandboxId: null,
     createdAt: new Date(),
   })
 }
@@ -920,5 +922,150 @@ describe('GithubDeliveryService', () => {
     expect(readPullRequest).not.toHaveBeenCalled()
     expect(fake.prStates).toHaveLength(1)
     expect(fake.prEvents).toHaveLength(0)
+  })
+})
+
+describe('GithubDeliveryService parked-subscription survival', () => {
+  beforeEach(() => {
+    fake.reset()
+    vi.useRealTimers()
+  })
+
+  const parkSubscription = (args: {
+    userId: string
+    threadId: string | null
+    sandboxId: string | null
+    expiresAt: Date
+  }): void => {
+    fake.subscriptions.push({
+      id: `sub-parked-${args.userId}`,
+      userId: args.userId,
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      branch: '',
+      pollBacked: false,
+      expiresAt: args.expiresAt,
+      threadId: args.threadId,
+      sandboxId: args.sandboxId,
+      createdAt: new Date(),
+    })
+  }
+
+  const sandboxWithinWindow = (): void => {
+    seedCloudSandbox({
+      id: 'sbx_row_1',
+      threadId: 'thr_1',
+      userId: 'usr-parked',
+      sandboxId: 'sbx_1',
+      name: 'atlas-thr_1',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000).toISOString(),
+    })
+  }
+
+  it('a delivery fans out to an expired subscription whose sandbox is inside the wake window', async () => {
+    const { service, fanout } = serviceWith({ tokens: { 'usr-parked': 'ghu_1' } })
+    const pushes: GithubPrStateDto[] = []
+    fanout.openStream({
+      userId: 'usr-parked',
+      handler: (state) => pushes.push(state),
+      eventHandler: () => {},
+      onClosed: () => {},
+    })
+    sandboxWithinWindow()
+    parkSubscription({
+      userId: 'usr-parked',
+      threadId: 'thr_1',
+      sandboxId: 'sbx_1',
+      expiresAt: new Date(Date.now() - 60_000),
+    })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+
+    expect(pushes).toHaveLength(1)
+    expect(fake.prEvents.filter((row) => row.userId === 'usr-parked')).toHaveLength(0)
+  })
+
+  it('a delivery skips an expired subscription whose sandbox fell out of the wake window', async () => {
+    const { service, fanout } = serviceWith({ tokens: { 'usr-stale': 'ghu_1' } })
+    const pushes: GithubPrStateDto[] = []
+    fanout.openStream({
+      userId: 'usr-stale',
+      handler: (state) => pushes.push(state),
+      eventHandler: () => {},
+      onClosed: () => {},
+    })
+    seedCloudSandbox({
+      id: 'sbx_row_1',
+      threadId: 'thr_1',
+      userId: 'usr-stale',
+      sandboxId: 'sbx_1',
+      name: 'atlas-thr_1',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000).toISOString(),
+    })
+    parkSubscription({
+      userId: 'usr-stale',
+      threadId: 'thr_1',
+      sandboxId: 'sbx_1',
+      expiresAt: new Date(Date.now() - 60_000),
+    })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+
+    expect(pushes).toHaveLength(0)
+    expect(fake.prEvents.filter((row) => row.userId === 'usr-stale')).toHaveLength(0)
+  })
+
+  it('a delivery skips an expired subscription with a threadId but no sandbox row', async () => {
+    const { service, fanout } = serviceWith({ tokens: { 'usr-gone': 'ghu_1' } })
+    const pushes: GithubPrStateDto[] = []
+    fanout.openStream({
+      userId: 'usr-gone',
+      handler: (state) => pushes.push(state),
+      eventHandler: () => {},
+      onClosed: () => {},
+    })
+    parkSubscription({
+      userId: 'usr-gone',
+      threadId: 'thr_gone',
+      sandboxId: 'sbx_gone',
+      expiresAt: new Date(Date.now() - 60_000),
+    })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+
+    expect(pushes).toHaveLength(0)
+  })
+
+  it('a discussion delivery records a mailbox row for an in-window parked subscriber', async () => {
+    const { service } = serviceWith({ tokens: { 'usr-parked': 'ghu_1' } })
+    sandboxWithinWindow()
+    parkSubscription({
+      userId: 'usr-parked',
+      threadId: 'thr_1',
+      sandboxId: 'sbx_1',
+      expiresAt: new Date(Date.now() - 60_000),
+    })
+
+    await service.handle({
+      event: 'issue_comment',
+      payload: {
+        action: 'created',
+        issue: { number: 42, pull_request: {} },
+        comment: {
+          id: 9001,
+          body: 'looks good',
+          html_url: 'https://github.com/compai/app/pull/42#issuecomment-9001',
+          user: { login: 'reviewer' },
+        },
+        sender: { login: 'reviewer' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(fake.prEvents.filter((row) => row.userId === 'usr-parked')).toHaveLength(1)
   })
 })

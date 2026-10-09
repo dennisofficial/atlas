@@ -8,7 +8,7 @@ import { transitionsOf, type PrVerdictTiming } from './github-pr-event-transitio
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { payloadFieldsOf } from './github-pr-payload'
 import { carryChecks, provisionalFieldsOf, stateFieldsOf, type CheckTarget } from './github-pr-state-fields'
-import { branchRoutingOf, checkTargetOf, dtoOf, subscriberWhereOf } from './github-delivery-routing'
+import { branchRoutingOf, checkTargetOf, dtoOf, subscriberWhereOf, subscriptionLiveWhere } from './github-delivery-routing'
 import { type GithubPrStateRecord } from './github-realtime.types'
 import type { PrTransitionSnapshot } from './github-pr-event-transitions'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
@@ -150,7 +150,10 @@ export class GithubDeliveryService {
     }
 
     const subscribers = await db.githubSubscription.findMany({
-      where: { repoFullName: args.repoFullName, expiresAt: { gt: new Date() } },
+      where: {
+        repoFullName: args.repoFullName,
+        AND: [subscriptionLiveWhere({ now: new Date() })],
+      },
     })
     for (const subscriber of subscribers) {
       const token = await this.github.findToken({ userId: subscriber.userId })

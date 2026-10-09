@@ -6,7 +6,7 @@ vi.mock('../../../db', async () => {
   return { db: fakeGithubDb().db as unknown as PrismaClient }
 })
 
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { fakeGithubDb, seedCloudSandbox } from '../../../../test/fake-github-db'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -55,6 +55,8 @@ function seedSubscription(overrides: Partial<(typeof fake.subscriptions)[number]
     branch: '',
     pollBacked: true,
     expiresAt: new Date(Date.now() + 60_000),
+    threadId: null,
+    sandboxId: null,
     createdAt: new Date(),
     ...overrides,
   })
@@ -263,6 +265,8 @@ describe('GithubPollSweeperService', () => {
       branch: 'dennis/add-the-thing',
       pollBacked: false,
       expiresAt: new Date(Date.now() + 60_000),
+      threadId: null,
+      sandboxId: null,
       createdAt: new Date(),
     })
 
@@ -311,5 +315,69 @@ describe('GithubPollSweeperService', () => {
     await service.handlePoll()
 
     expect(fake.repoHooks[0]?.idleSince).toBeNull()
+  })
+})
+
+describe('GithubPollSweeperService parked-subscription survival', () => {
+  beforeEach(() => {
+    fake.reset()
+    vi.useRealTimers()
+  })
+
+  it('polls an expired subscription whose sandbox is inside the wake window', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    seedCloudSandbox({
+      id: 'sbx_row_1',
+      threadId: 'thr_1',
+      userId: 'usr_1',
+      sandboxId: 'sbx_1',
+      name: 'atlas-thr_1',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000).toISOString(),
+    })
+    seedSubscription({
+      id: 'sub-parked',
+      prNumber: 7,
+      expiresAt: new Date(Date.now() - 60_000),
+      threadId: 'thr_1',
+      sandboxId: 'sbx_1',
+    })
+
+    await service.handlePoll()
+
+    expect(readPullRequest).toHaveBeenCalledWith({
+      token: 'ghu_1',
+      owner: 'compai',
+      repo: 'app',
+      number: 7,
+    })
+  })
+
+  it('skips an expired subscription whose sandbox fell out of the wake window', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    seedCloudSandbox({
+      id: 'sbx_row_1',
+      threadId: 'thr_1',
+      userId: 'usr_1',
+      sandboxId: 'sbx_1',
+      name: 'atlas-thr_1',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000).toISOString(),
+    })
+    seedSubscription({
+      id: 'sub-stale',
+      prNumber: 7,
+      expiresAt: new Date(Date.now() - 60_000),
+      threadId: 'thr_1',
+      sandboxId: 'sbx_1',
+    })
+
+    await service.handlePoll()
+
+    expect(readPullRequest).not.toHaveBeenCalled()
   })
 })
