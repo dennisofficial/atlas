@@ -10,6 +10,7 @@ export enum ESandboxProbe {
   Kept = 'kept',
   Replaced = 'replaced',
   RotationNeeded = 'rotation-needed',
+  Swapped = 'swapped',
 }
 
 export const UNSTAMPED_PROTOCOL = 0
@@ -182,6 +183,7 @@ export async function probeSandboxForResume(args: {
   serveAlive?: ServeAliveProbe | undefined
   waitForDriveDetached?: DetachWait | undefined
   drain?: ServeDrain | undefined
+  swapServe?: ((sandbox: Sandbox) => Promise<void>) | undefined
   onRotationStarted?: (() => void) | undefined
   log?: ((line: string) => void) | undefined
   isMissing: (failure: unknown) => boolean
@@ -209,11 +211,16 @@ export async function probeSandboxForResume(args: {
   const providerStatus = sandbox.status
   if (providerStatus === 'stopped') {
     if (pinned === undefined) return { probe: ESandboxProbe.Kept }
-    args.log?.(`sandbox ${args.name} is confirmed stopped — recreating it from the pinned image without waking its old runtime`)
-    await deleteSandbox(sandbox)
-    const detached = await (args.waitForDriveDetached?.() ?? true)
-    if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
-    return { probe: ESandboxProbe.Replaced }
+    if (args.swapServe === undefined) {
+      args.log?.(`sandbox ${args.name} is confirmed stopped — recreating it from the pinned image without waking its old runtime`)
+      await deleteSandbox(sandbox)
+      const detached = await (args.waitForDriveDetached?.() ?? true)
+      if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
+      return { probe: ESandboxProbe.Replaced }
+    }
+    args.log?.(`sandbox ${args.name} is stopped — resuming it in place to swap serve without losing its filesystem`)
+    await args.swapServe(sandbox)
+    return { probe: ESandboxProbe.Swapped }
   }
   if (providerStatus !== 'running' && providerStatus !== 'pending') {
     args.log?.(`sandbox ${args.name} runtime is ${providerStatus} — keeping it without executing a probe`)
@@ -239,7 +246,7 @@ export async function probeSandboxForResume(args: {
     throw new Error(`the sandbox speaks newer wire protocol ${installedProtocol} — update Atlas before attaching; nothing was destroyed`)
   }
 
-  const rotate = async (line: string): Promise<void> => {
+  const rotate = async (line: string): Promise<ESandboxProbe> => {
     notifyRotationStarted({ onRotationStarted: args.onRotationStarted, log: args.log })
     args.log?.(line)
     const url = routedUrlOf(sandbox, args.servePort)
@@ -249,26 +256,31 @@ export async function probeSandboxForResume(args: {
     const health = await args.runtimeHealth({ sandbox, url }).catch(() => undefined)
     const idle = runtimeIdleOf(health)
     if (idle === ERuntimeIdle.Idle) {
-      args.log?.(`sandbox ${args.name} reports no work in flight — recreating without draining`)
+      args.log?.(`sandbox ${args.name} reports no work in flight — replacing serve without draining`)
     } else {
       const serveAlive = args.serveAlive ?? (({ sandbox: s }: { sandbox: Sandbox }) => probeServeAlive(s))
       const alive = idle === ERuntimeIdle.Unknown && (await serveAlive({ sandbox }))
       if (idle === ERuntimeIdle.Unknown && !alive) {
-        args.log?.(`sandbox ${args.name}'s serve process is gone — nothing left to drain, recreating directly`)
+        args.log?.(`sandbox ${args.name}'s serve process is gone — nothing left to drain, replacing serve directly`)
       } else {
         await (args.drain ?? drainServe)({ sandbox, url })
       }
     }
+    if (args.swapServe !== undefined) {
+      await args.swapServe(sandbox)
+      return ESandboxProbe.Swapped
+    }
     await deleteSandbox(sandbox)
     const detached = await (args.waitForDriveDetached?.() ?? true)
     if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
+    return ESandboxProbe.RotationNeeded
   }
 
   if (installedProtocol !== CHANNEL_PROTOCOL_VERSION) {
-    await rotate(
-      `sandbox ${args.name} speaks wire protocol ${installedProtocol === UNSTAMPED_PROTOCOL ? 'none (unstamped)' : installedProtocol}, this build speaks ${CHANNEL_PROTOCOL_VERSION} — draining the old serve and recreating the sandbox from the pinned image`,
+    const outcome = await rotate(
+      `sandbox ${args.name} speaks wire protocol ${installedProtocol === UNSTAMPED_PROTOCOL ? 'none (unstamped)' : installedProtocol}, this build speaks ${CHANNEL_PROTOCOL_VERSION} — draining the old serve and replacing it in place`,
     )
-    return { probe: ESandboxProbe.RotationNeeded, outdatedProtocol: installedProtocol }
+    return { probe: outcome, outdatedProtocol: installedProtocol }
   }
 
   if (pinned === undefined) return { probe: ESandboxProbe.Kept }
@@ -281,8 +293,8 @@ export async function probeSandboxForResume(args: {
     return { probe: ESandboxProbe.Kept }
   }
 
-  await rotate(
-    `sandbox ${args.name} carries serve "${installed === '' ? 'none' : installed}", outdated against this build's pinned "${pinned}" — draining the old serve and recreating the sandbox from the pinned image`,
+  const outcome = await rotate(
+    `sandbox ${args.name} carries serve "${installed === '' ? 'none' : installed}", outdated against this build's pinned "${pinned}" — draining the old serve and replacing it in place`,
   )
-  return { probe: ESandboxProbe.RotationNeeded, rotatedFrom: installed }
+  return { probe: outcome, rotatedFrom: installed }
 }

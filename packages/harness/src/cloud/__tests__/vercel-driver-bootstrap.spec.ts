@@ -42,7 +42,7 @@ describe('createOrResume', () => {
     expect(calls).toEqual(['boot', 'put-context'])
   })
 
-  it('writes the bootstrap onto a drift-replaced sandbox after it exists, before serve launches', async () => {
+  it('swaps serve on a drifted sandbox in place, re-uploading context without recreating it', async () => {
     const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
     const calls: string[] = []
     const driver = new VercelDriver({
@@ -78,7 +78,7 @@ describe('createOrResume', () => {
       },
     })
 
-    expect(stale.deleted).toBe(true)
+    expect(stale.deleted).toBe(false)
     expect(calls).toEqual(['boot', 'put-context'])
   })
 

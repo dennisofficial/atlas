@@ -43,17 +43,17 @@ export function requireVercelCredentials(args: {
 export type SandboxImageChoice = {
   image: string
   /**
-   * The serve version a released Atlas pins — the same number the image tag carries, so the
-   * sandbox's serve is this build's own by construction. Undefined for dev and source builds,
-   * which trust whatever the image baked.
+   * The serve version a released Atlas pins — this build's own release version, independent of
+   * the image, since serve is downloaded into the sandbox at boot. Undefined for dev and source
+   * builds, which trust whatever serve the sandbox already runs.
    */
   serveVersion?: string | undefined
 }
 
 /**
  * The image a cloud sandbox boots. An operator-set image always wins verbatim and pins nothing;
- * an unset one pins a release build to its own tag, so the serve baked into that image is the
- * TUI's own by construction.
+ * an unset one boots the latest runtime image, and a release build's own version rides along as
+ * the serve pin.
  */
 export function sandboxImageOf(args: {
   settings: SettingsService
@@ -64,5 +64,5 @@ export function sandboxImageOf(args: {
   const image = textValueOf({ resolution, id: ESettingId.SandboxImage })
   if (held?.layer !== ESettingsLayer.Default) return { image }
   if (args.release === undefined) return { image }
-  return { image: `atlas-sandbox:${args.release.version}`, serveVersion: args.release.version }
+  return { image, serveVersion: args.release.version }
 }

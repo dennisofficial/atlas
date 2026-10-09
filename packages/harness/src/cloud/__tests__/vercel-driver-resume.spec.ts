@@ -195,7 +195,7 @@ describe('createOrResume', () => {
       token: 't',
     })
 
-    expect(stale.deleted).toBe(true)
+    expect(stale.deleted).toBe(false)
     expect(placement.rotatedFrom).toBe('1.19.1')
     expect(
       lines.some(

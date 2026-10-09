@@ -39,7 +39,7 @@ export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     group: 'Cloud sandboxes',
     label: 'Sandbox image',
     description:
-      'The sandbox image a cloud conversation boots. Left unset, a released Atlas pins the published image to its own version so the sandbox’s serve matches it; point this at your own build of the image when your Vercel team cannot pull the published one.',
+      'The sandbox image a cloud conversation boots. Left unset, a released Atlas uses the published latest runtime image; serve is downloaded into the sandbox pinned to the client’s own release, so the image carries no version. Point this at your own build of the image when your Vercel team cannot pull the published one.',
     environmentVariable: 'ATLAS_SANDBOX_IMAGE',
     kind: ESettingKind.Text,
     fallback: 'atlas-sandbox:latest',
