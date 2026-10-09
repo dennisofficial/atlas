@@ -40,6 +40,7 @@ export abstract class ServiceRegistryPort {
    */
   abstract removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   abstract list(): readonly ServiceSnapshot[]
+  hasRunningFor?(args: { threadId: ThreadId }): boolean
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
   settling?(): boolean

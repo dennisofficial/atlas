@@ -6,12 +6,13 @@ import {
   createServeLauncher,
   HEALTH_PROBE,
   SERVE_BINARY_PATH,
-  SERVE_CHECKPOINT_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
   SERVE_TOKEN_PATH,
+  SERVE_VERSION_PATH,
 } from '../serve-launch'
+import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 
 interface RecordedCommand {
   cmd: string
@@ -27,43 +28,19 @@ interface RecordedWrite {
   mode?: number
 }
 
-type CheckpointFixture =
-  | { kind: 'parked'; sandboxSessionId: string }
-  | { kind: 'running' }
-  | { kind: 'absent' }
-  | { kind: 'fails' }
-
-const checkpointExitCode = (args: {
-  fixture: CheckpointFixture
-  script: string
-  launchedSessionId: string | undefined
-}): number => {
-  if (args.fixture.kind === 'absent') {
-    return args.script.startsWith('test -f') ? 1 : 0
-  }
-  if (args.fixture.kind === 'running') {
-    return args.script.includes('"parked"') ? 1 : 0
-  }
-  if (args.fixture.kind === 'parked' && args.script.includes('"sandboxSessionId"')) {
-    // The probe chain ends in `|| exit 42` on the session-id grep, so a mismatch exits 42.
-    return args.fixture.sandboxSessionId === args.launchedSessionId ? 0 : 42
-  }
-  return 0
-}
-
 const fakeSandbox = (args: {
   healthy: boolean
   alive?: boolean
   tokenMatches?: boolean
-  checkpoint?: CheckpointFixture
-  /** The sandboxSessionId the launcher is called with, so the probe can model grep against it. */
-  launchedSessionId?: string
   waitSucceeds?: boolean
   logTail?: string
+  serveVersion?: string
+  stopLeavesCorpse?: boolean
 }) => {
   const commands: RecordedCommand[] = []
   const writes: RecordedWrite[] = []
   const ops: string[] = []
+  let alive = args.alive === true
   const sandbox = {
     name: 'atlas-thread-x',
     writeFiles: async (files: RecordedWrite[]) => {
@@ -76,15 +53,18 @@ const fakeSandbox = (args: {
       const script = params.args?.[1] ?? ''
       if (params.detached === true) return { cmdId: 'cmd_1' }
       if (script.startsWith('kill -0')) {
-        return { exitCode: args.alive === true ? 0 : 1 }
+        return { exitCode: alive ? 0 : 1 }
+      }
+      if (script.includes('kill "$_pid"')) {
+        alive = args.stopLeavesCorpse === true
+        return { exitCode: 0 }
+      }
+      if (script.startsWith('printf') && script.includes(SERVE_VERSION_PATH)) {
+        const version = args.serveVersion ?? ''
+        return { exitCode: 0, stdout: async () => `${version}\n${version === '' ? '' : String(CHANNEL_PROTOCOL_VERSION)}\n` }
       }
       if (script.startsWith('[ ! -s') && script.includes(SERVE_TOKEN_PATH)) {
         return { exitCode: args.tokenMatches === false ? 1 : 0 }
-      }
-      if (script.includes(SERVE_CHECKPOINT_PATH)) {
-        const fixture = args.checkpoint ?? { kind: 'absent' }
-        if (fixture.kind === 'fails') throw new Error('command unavailable')
-        return { exitCode: checkpointExitCode({ fixture, script, launchedSessionId: args.launchedSessionId }) }
       }
       if (script.startsWith('for i in')) {
         return { exitCode: args.waitSucceeds === false ? 1 : 0 }
@@ -254,58 +234,22 @@ describe('createServeLauncher', () => {
     expect(launchesOf(commands)[0]?.env).toEqual({})
   })
 
-  it('boots past the checkpoint that parked this very session — the normal wake-from-park', async () => {
+  it('swaps a drifted serve in place and boots the replacement', async () => {
     const { sandbox, commands } = fakeSandbox({
       healthy: false,
-      alive: false,
-      checkpoint: { kind: 'parked', sandboxSessionId: 'vsn_42' },
-      launchedSessionId: 'vsn_42',
+      alive: true,
+      serveVersion: '1.88.0',
     })
 
-    await createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })
+    await createServeLauncher({ installServe: async () => undefined })({
+      sandbox,
+      token: 'tok_fresh',
+      sandboxSessionId: 'vsn_42',
+      desiredVersion: '1.89.1',
+    })
 
+    expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(true)
     expect(launchesOf(commands)).toHaveLength(1)
-  })
-
-  it('refuses to boot over a parked checkpoint from a different sandbox session', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpoint: { kind: 'parked', sandboxSessionId: 'vsn_earlier' },
-      launchedSessionId: 'vsn_42',
-    })
-
-    await expect(
-      createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' }),
-    ).rejects.toThrow('parked checkpoint from a different sandbox session')
-
-    expect(launchesOf(commands)).toHaveLength(0)
-  })
-
-  it('boots past a checkpoint that is not parked', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpoint: { kind: 'running' },
-      launchedSessionId: 'vsn_42',
-    })
-
-    await createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })
-
-    expect(launchesOf(commands)).toHaveLength(1)
-  })
-
-  it('preserves an unreadable checkpoint rather than risking a boot over a foreign park proof', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpoint: { kind: 'fails' },
-      launchedSessionId: 'vsn_42',
-    })
-
-    await expect(createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })).rejects.toThrow('command unavailable')
-
-    expect(launchesOf(commands)).toHaveLength(0)
   })
 
   it('includes the serve log tail when a fresh boot never answers', async () => {

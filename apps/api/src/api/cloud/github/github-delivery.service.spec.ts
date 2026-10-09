@@ -786,16 +786,16 @@ describe('GithubDeliveryService', () => {
   })
 
   it('records a mergeability flip but not a repeated mergeable value', async () => {
-    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, mergeable: true }))
+    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, checksRunning: 0, checksPassed: 3, mergeable: true }))
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
     seedHook({ createdBy: 'usr-creator' })
     seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE, mergeable: false })
+    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 3, mergeable: false })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     const flips = fake.prEvents.filter((row) => row.kind === 'mergeability')
     expect(flips.length).toBeGreaterThan(0)
     expect(flips[flips.length - 1]).toMatchObject({ payload: { mergeable: true } })
@@ -803,7 +803,7 @@ describe('GithubDeliveryService', () => {
     expect(settled).toMatchObject({ mergeable: true })
 
     const before = fake.prEvents.filter((row) => row.kind === 'mergeability').length
-    readPullRequest.mockImplementation(async () => ({ ...REST_FIELDS, mergeable: true }))
+    readPullRequest.mockImplementation(async () => ({ ...REST_FIELDS, checksRunning: 0, checksPassed: 3, mergeable: true }))
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     expect(fake.prEvents.filter((row) => row.kind === 'mergeability')).toHaveLength(before)
   })
@@ -826,6 +826,88 @@ describe('GithubDeliveryService', () => {
     const stateEvents = fake.prEvents.filter((row) => row.kind === 'state')
     expect(stateEvents).toHaveLength(1)
     expect(stateEvents[0]).toMatchObject({ payload: { state: 'merged' } })
+  })
+
+  it('records verdicts per subscriber verdict timing: fail-fast fires mid-run, settled waits', async () => {
+    let running = true
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      checksRunning: running ? 9 : 0,
+      checksPassed: running ? 0 : 9,
+      checksFailed: 1,
+    }))
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-fast', prNumber: 42 })
+    seedSubscription({ userId: 'usr-settled', prNumber: 42 })
+    fake.cloudSettings.push({
+      id: 'set-usr-settled',
+      userId: 'usr-settled',
+      key: 'github.prEvents.verdictTiming',
+      value: 'atlas-setting:v1:"settled"',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 10, checksPassed: 0, checksFailed: 0 })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    const midRun = fake.prEvents.filter((row) => row.kind === 'verdict')
+    expect(midRun).toHaveLength(1)
+    expect(midRun[0]).toMatchObject({ userId: 'usr-fast', payload: { verdict: 'failed' } })
+
+    running = false
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    const settled = fake.prEvents.filter(
+      (row) => row.kind === 'verdict' && row.userId === 'usr-settled',
+    )
+    expect(settled).toHaveLength(1)
+    expect(settled[0]).toMatchObject({ payload: { verdict: 'failed' } })
+    expect(
+      fake.prEvents.filter((row) => row.kind === 'verdict' && row.userId === 'usr-fast'),
+    ).toHaveLength(1)
+  })
+
+  it('suppresses the mid-run mergeability flip and bundles it with the settled verdict', async () => {
+    let running = true
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      checksRunning: running ? 5 : 0,
+      checksPassed: running ? 3 : 10,
+      checksFailed: 0,
+      mergeable: true,
+    }))
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({
+      ...FILLED_PR_STATE,
+      checksRunning: 10,
+      checksPassed: 0,
+      checksFailed: 0,
+      mergeable: null,
+    })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    expect(fake.prEvents.filter((row) => row.kind === 'mergeability')).toHaveLength(0)
+
+    running = false
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    const kinds = fake.prEvents.map((row) => row.kind)
+    expect(kinds.filter((kind) => kind === 'verdict')).toHaveLength(1)
+    expect(kinds.filter((kind) => kind === 'mergeability')).toHaveLength(1)
+    expect(fake.prEvents.find((row) => row.kind === 'mergeability')).toMatchObject({
+      payload: { mergeable: true },
+    })
   })
 
   it('records no transition events for a brand-new PR row', async () => {

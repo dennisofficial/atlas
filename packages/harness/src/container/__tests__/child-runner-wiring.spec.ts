@@ -19,6 +19,7 @@ import { subAgentPrompt } from '../../agents/registry/child-prompt'
 import type { ChildRunnerDeps } from '../../agents/registry/child-runner'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
+import { ServiceRegistryPort } from '../../services/service-registry'
 import { ThreadStorePort } from '../../store'
 import { PromptRegistry } from '../../prompt/registry'
 import { ToolRegistry } from '../../tools/registry'
@@ -39,10 +40,15 @@ const CHILD_MODEL: PromptModel = { contextWindow: 1_000_000 }
 
 const CHILD_REPLY = 'The vault reads its key file exactly once.'
 
-const opened: { temp: TempHome; previousHome: string | undefined }[] = []
+const opened: {
+  temp: TempHome
+  previousHome: string | undefined
+  services?: ServiceRegistryPort
+}[] = []
 
-afterEach(() => {
+afterEach(async () => {
   for (const entry of opened.splice(0)) {
+    await entry.services?.closeAll()
     if (entry.previousHome === undefined) delete process.env['ATLAS_HOME']
     else process.env['ATLAS_HOME'] = entry.previousHome
     entry.temp.discard()
@@ -102,10 +108,12 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
   })
 }
 
-async function composed(args: { bind: boolean }): Promise<{
+async function composed(args: { bind: boolean; model?: ReturnType<typeof scriptedModel> }): Promise<{
   agents: AgentRegistryPort
+  services: ServiceRegistryPort
   threads: ThreadStorePort
   parent: ThreadId
+  cwd: string
 }> {
   const temp = createTempHome()
   const previousHome = process.env['ATLAS_HOME']
@@ -114,18 +122,25 @@ async function composed(args: { bind: boolean }): Promise<{
   const container = createHarnessContainer()
   container.register(WorkspaceRoot, { useValue: ROOT })
   container.register(LanguageModelToken, {
-    useValue: scriptedModel({ script: [{ text: CHILD_REPLY }] }),
+    useValue: args.model ?? scriptedModel({ script: [{ text: CHILD_REPLY }] }),
   })
   container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
   container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
   if (args.bind) bindChildRunner({ container })
 
-  opened.push({ temp, previousHome })
+  const services = container.resolve(portToken(ServiceRegistryPort))
+  opened.push({ temp, previousHome, services })
 
   const threads = container.resolve(portToken(ThreadStorePort))
   const parent = (await threads.create({ workspace: ROOT, repo: null })).id
 
-  return { agents: container.resolve(portToken(AgentRegistryPort)), threads, parent }
+  return {
+    agents: container.resolve(portToken(AgentRegistryPort)),
+    services,
+    threads,
+    parent,
+    cwd: temp.home,
+  }
 }
 
 const settled = async (agents: AgentRegistryPort, agentId: ThreadId): Promise<EAgentStatus> => {
@@ -214,5 +229,67 @@ describe('the ending a parent is meant to be woken by', () => {
 
     expect(agents.drainNotifications({ threadId: parent }).wakesTurn).toBe(true)
     expect(agents.pendingNotices({ threadId: parent })).toHaveLength(0)
+  }, 30_000)
+})
+
+function gatedModel(): { model: ReturnType<typeof scriptedModel>; release: () => void } {
+  const model = scriptedModel({ script: [{ text: CHILD_REPLY }] })
+  const streamed = model.doStream
+  let release: () => void = () => undefined
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  model.doStream = async (options) => {
+    await gate
+    return streamed.call(model, options)
+  }
+  return { model, release }
+}
+
+const nolongerRunning = async (agents: AgentRegistryPort, agentId: ThreadId): Promise<void> => {
+  const deadline = Date.now() + 5_000
+  while (Date.now() < deadline) {
+    const found = agents.listEverywhere().find((one) => one.agentId === agentId)
+    if (found !== undefined && found.status !== EAgentStatus.Running) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  throw new Error('the child never stopped running')
+}
+
+const ENDING_RECORD_GRACE_MS = 200
+
+describe('live work that decides whether a child ending is queued to its parent', () => {
+  async function endWithServiceOwnedBy(args: { owner: 'child' | 'parent' }): Promise<number> {
+    const { model, release } = gatedModel()
+    const { agents, services, parent, cwd } = await composed({ bind: true, model })
+
+    const outcome = await agents.spawn({
+      threadId: parent,
+      agentType: 'explore',
+      brief: 'audit the credential vault',
+      intent: 'vault audit',
+    })
+    if (!outcome.ok) throw new Error('the child never spawned')
+
+    const started = await services.start({
+      threadId: args.owner === 'child' ? outcome.snapshot.agentId : parent,
+      command: 'sleep 30',
+      description: 'a long-lived dev server',
+      cwd,
+    })
+    expect(started.ok).toBe(true)
+
+    release()
+    await nolongerRunning(agents, outcome.snapshot.agentId)
+    await new Promise((resolve) => setTimeout(resolve, ENDING_RECORD_GRACE_MS))
+    return agents.pendingNotices({ threadId: parent }).length
+  }
+
+  it('still queues the ending when the running service belongs to a different thread', async () => {
+    expect(await endWithServiceOwnedBy({ owner: 'parent' })).toBe(1)
+  }, 30_000)
+
+  it('holds the ending back while the running service belongs to the ending child itself', async () => {
+    expect(await endWithServiceOwnedBy({ owner: 'child' })).toBe(0)
   }, 30_000)
 })

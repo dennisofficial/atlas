@@ -205,6 +205,53 @@ describe('shared thread intake', () => {
     intake.dispose()
   })
 
+  it('does not spend wake attempts on wakes that are blocked when they fire', async () => {
+    const notices = source()
+    const intake = new MessageIntake({ sources: [notices.input] })
+    let checks = 0
+    let wakes = 0
+    let woke = false
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => {
+          checks += 1
+          const blockedWhenFiring = checks % 2 === 0 && checks <= 6
+          return woke || blockedWhenFiring
+        },
+        wake: () => { wakes += 1; woke = true },
+      },
+    })
+    notices.enqueue({ threadId: MAIN, draft: said('report') })
+    await flush()
+    expect(wakes).toBe(1)
+    intake.dispose()
+  })
+
+  it('bounds fired wakes at the attempt limit even after a skipped wake', async () => {
+    const notices = source()
+    const intake = new MessageIntake({ sources: [notices.input] })
+    let checks = 0
+    let wakes = 0
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => {
+          checks += 1
+          return checks === 2
+        },
+        wake: () => { wakes += 1; throw new Error('failed') },
+      },
+    })
+    notices.enqueue({ threadId: MAIN, draft: said('report') })
+    await flush()
+    expect(wakes).toBe(3)
+    intake.changed()
+    await flush()
+    expect(wakes).toBe(3)
+    intake.dispose()
+  })
+
   it('releases earlier source reservations when a later source cannot prepare', async () => {
     const pending = createPendingQueues()
     const queue = pending.forThread({ threadId: MAIN })

@@ -202,6 +202,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   return {
     open({ socket }) {
       live.add(socket)
+      if (socket.data.bootHeld.length === 0) return
+      for (const raw of socket.data.bootHeld.splice(0)) this.message({ socket, message: raw })
     },
 
     message({ socket, message }) {

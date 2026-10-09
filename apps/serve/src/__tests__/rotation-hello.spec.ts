@@ -48,7 +48,7 @@ const rig = (withAuthority = true) => {
   const sent: string[] = []
   let closed = false
   const socket = {
-    data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [] },
+    data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [], bootHeld: [] },
     send: (payload: string) => void sent.push(payload),
     close: () => {
       closed = true
@@ -137,7 +137,7 @@ describe('hello admission under session authority', () => {
     const attach = async () => {
       const sent: string[] = []
       const socket = {
-        data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [] },
+        data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [], bootHeld: [] },
         send: (payload: string) => void sent.push(payload),
         close: () => undefined,
         terminate: () => undefined,

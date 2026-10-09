@@ -22,7 +22,7 @@ export const summarizeSamples = (samples: readonly SummarySample[]) => {
   const first = samples[0]
   if (first === undefined) throw new Error('cannot summarize an empty benchmark')
   const runtimeKey = (runtime: BakedRuntime) =>
-    JSON.stringify([runtime.version, runtime.protocol, runtime.bakeId])
+    JSON.stringify([runtime.version, runtime.protocol])
   const runtimeDrift = samples.some(
     (sample) => runtimeKey(sample.runtime) !== runtimeKey(first.runtime),
   )
