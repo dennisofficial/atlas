@@ -5,6 +5,7 @@ import type {
   RestCommitStatus,
   RestPullRequest,
 } from './github-pull-request-mapping'
+import { HOOK_EVENTS } from './github-hook-events'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 
 const GITHUB_API = 'https://api.github.com'
@@ -95,7 +96,7 @@ export class GithubUserReads {
       body: JSON.stringify({
         name: 'web',
         active: true,
-        events: ['pull_request', 'check_suite', 'check_run', 'push'],
+        events: HOOK_EVENTS,
         config: {
           url: args.config.url,
           content_type: 'json',
@@ -135,6 +136,43 @@ export class GithubUserReads {
       `github answered ${response.status} reading hook ${args.hookId}: ${detail}`,
       response.status,
     )
+  }
+
+  async getHookEvents(args: {
+    token: string
+    owner: string
+    repo: string
+    hookId: number
+  }): Promise<string[]> {
+    const hook = await this.get<{ events?: string[] }>({
+      token: args.token,
+      path: `/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+    })
+    return hook.events ?? []
+  }
+
+  async updateHook(args: {
+    token: string
+    owner: string
+    repo: string
+    hookId: number
+    events: string[]
+  }): Promise<void> {
+    const response = await fetch(
+      `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      {
+        method: 'PATCH',
+        headers: this.headers({ token: args.token }),
+        body: JSON.stringify({ events: args.events }),
+      },
+    )
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, DETAIL_CAP)
+      throw new GithubUserReadFailed(
+        `github answered ${response.status} updating hook ${args.hookId}: ${detail}`,
+        response.status,
+      )
+    }
   }
 
   async deleteHook(args: {

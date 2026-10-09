@@ -20,6 +20,9 @@ import {
   ELocationChangeCause,
   EMessageOrigin,
   EOperatorInputOutcome,
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
   EWorktreeExit,
   type EventBody,
 } from './body'
@@ -253,7 +256,19 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     repo: z.string().min(1),
     branch: z.string().min(1),
   }),
-
+  z.object({
+    type: z.literal('pr-event'),
+    repo: z.string().min(1),
+    prNumber: z.number().int().positive(),
+    kind: z.enum(EPrEventKind),
+    url: z.string().min(1),
+    authorLogin: z.string().optional(),
+    body: z.string().optional(),
+    verdict: z.enum(EPrVerdict).optional(),
+    mergeable: z.boolean().optional(),
+    state: z.string().optional(),
+    reviewState: z.enum(EPrReviewState).optional(),
+  }),
   z.object({
     type: z.literal('background-shell-started'),
     shellId: z.string().min(1),

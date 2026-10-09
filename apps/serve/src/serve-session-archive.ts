@@ -6,7 +6,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import { MEMORY_DIRECTORY_NAME } from '@dltech/atlas-core'
 import { SESSION_EXPORT_DIRECTORY_NAME, type SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
-import { buildContextArchive, type ArchiveFileSource } from '@dltech/atlas-harness'
+import { buildContextArchive, type ArchiveBuildReporter, type ArchiveFileSource } from '@dltech/atlas-harness'
 import { buildSessionArchive } from '@dltech/atlas-harness'
 import { atlasDirectory } from '@dltech/atlas-harness'
 import { memoryDirectoriesFor } from '@dltech/atlas-harness'
@@ -18,6 +18,7 @@ const SAFE_THREAD_ID = /^[A-Za-z0-9_-]+$/
 export async function serveSessionArchive(args: {
   threadId: ThreadId
   endFamilyShells?: (() => Promise<void>) | undefined
+  onBuildProgress?: ArchiveBuildReporter | undefined
 }): Promise<SessionArchiveDescriptor | null> {
   if (!SAFE_THREAD_ID.test(args.threadId)) {
     throw new Error(`thread ${args.threadId} cannot name a session export`)
@@ -30,6 +31,7 @@ export async function serveSessionArchive(args: {
   const archive = await buildSessionArchive({
     sessionDir: sessionDirectory({ home: atlasDirectory(), sessionId: args.threadId }),
     archivePath: join(directory, `${prefix}${randomBytes(6).toString('hex')}.tar.gz`),
+    onBuildProgress: args.onBuildProgress,
   })
   if (archive === undefined) return null
   return { path: archive.path, size: archive.size, sha256: archive.sha256, threadId: args.threadId }

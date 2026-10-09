@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus } from '../../agents/status'
 import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
-import type { EventDraft } from '../body'
+import { EPrEventKind, EPrVerdict, type EventDraft } from '../body'
 import type { Event } from '../envelope'
 import { toCallId, toEventId, toRunId, toThreadId } from '../ids'
 import {
@@ -113,6 +113,15 @@ const serviceEnded = (): EventDraft => ({
   tail: '',
 })
 
+const prEvent = (over: Partial<Extract<EventDraft, { type: 'pr-event' }>>): EventDraft => ({
+  type: 'pr-event',
+  repo: 'github.com/owner/repo',
+  prNumber: 12,
+  kind: EPrEventKind.Comment,
+  url: 'https://github.com/owner/repo/pull/12',
+  ...over,
+})
+
 describe('loopWatchState', () => {
   it('stays silent below three agent speeches, where there is no pattern to judge', () => {
     const events = eventsFrom([heard('ship it'), ...round(1), ...round(2)])
@@ -174,6 +183,32 @@ describe('loopWatchState', () => {
     expect(state).toContain('- [7] shell "ssh prod" is waiting for input')
     expect(state).toContain('- [8] shell "Watch CI run" matched its watch (1 lines)')
     expect(state).toContain('- [9] service "api dev server" ended (exited)')
+  })
+
+  it('renders each PR event kind as new information arriving', () => {
+    const events = eventsFrom([
+      heard('push it'),
+      ...round(1),
+      prEvent({ authorLogin: 'octocat', body: 'please rebase' }),
+      prEvent({ kind: EPrEventKind.ReviewComment, authorLogin: 'octocat' }),
+      prEvent({ kind: EPrEventKind.Review, authorLogin: 'octocat', state: 'approved' }),
+      prEvent({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green }),
+      prEvent({ kind: EPrEventKind.Mergeability, mergeable: true }),
+      prEvent({ kind: EPrEventKind.Mergeability, mergeable: false }),
+      prEvent({ kind: EPrEventKind.State, state: 'merged' }),
+      ...round(2),
+      ...round(3),
+    ])
+
+    const state = loopWatchState({ events }) ?? ''
+
+    expect(state).toContain('- [5] PR #12: comment from octocat')
+    expect(state).toContain('- [6] PR #12: review comment from octocat')
+    expect(state).toContain('- [7] PR #12: review from octocat')
+    expect(state).toContain('- [8] PR #12: checks green')
+    expect(state).toContain('- [9] PR #12: now mergeable')
+    expect(state).toContain('- [10] PR #12: now has merge conflicts')
+    expect(state).toContain('- [11] PR #12: state merged')
   })
 
   it('clips long speeches and inputs rather than handing the model a whole transcript', () => {

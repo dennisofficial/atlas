@@ -181,7 +181,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     workspace: app.workspace,
     pending: app.pending,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
-    sessionArchive: () => serveSessionArchive({ threadId: args.threadId, endFamilyShells: workspaceHooks.endFamilyShells }),
+    sessionArchive: (options) => serveSessionArchive({ threadId: args.threadId, endFamilyShells: workspaceHooks.endFamilyShells, onBuildProgress: options?.onBuildProgress }),
     memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity: args.identity ?? null }),
     adoptChildren: async ({ threadId, resumeChildren }) => {
       await adoptTransferredChildren({ agents: app.agents, threadId })

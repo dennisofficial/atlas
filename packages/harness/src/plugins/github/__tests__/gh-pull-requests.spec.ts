@@ -16,7 +16,7 @@ const PAYLOAD = JSON.stringify({
 })
 
 describe('GhPullRequestPort', () => {
-  it('asks gh for exactly the six fields, in the checkout directory', async () => {
+  it('asks gh for exactly the nine fields, in the checkout directory', async () => {
     const run = ghAnswering({ stdout: PAYLOAD })
     const port = new GhPullRequestPort({ run })
 
@@ -24,7 +24,7 @@ describe('GhPullRequestPort', () => {
 
     expect(run.calls).toEqual([
       {
-        argv: ['gh', 'pr', 'view', '--json', 'number,state,isDraft,url,statusCheckRollup,title'],
+        argv: ['gh', 'pr', 'view', '--json', 'number,state,isDraft,url,statusCheckRollup,title,mergeable,comments,reviews'],
         cwd: '/work/atlas/.claude/worktrees/thing',
         timeoutMs: GH_TIMEOUT_MS,
       },
@@ -185,7 +185,7 @@ describe('GhPullRequestPort.readLinked', () => {
           '--repo',
           'github.com/dennisofficial/atlas',
           '--json',
-          'number,state,isDraft,url,statusCheckRollup,title',
+          'number,state,isDraft,url,statusCheckRollup,title,mergeable,comments,reviews',
         ],
         cwd: process.cwd(),
         timeoutMs: GH_TIMEOUT_MS,

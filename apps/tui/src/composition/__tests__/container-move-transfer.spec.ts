@@ -116,6 +116,41 @@ describe('transfer progress on a running row', () => {
   })
 })
 
+describe('archive build progress on a running row', () => {
+  const build = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress =>
+    reading({
+      transferId: 'archive-build-workspace',
+      label: 'packing the workspace',
+      transferredBytes: 2048,
+      totalBytes: undefined,
+      ...over,
+    })
+
+  it('folds a build with no total into the active row', () => {
+    const move = updateMoveTransfer({ move: started(), progress: build() })
+
+    expect(move.rows[0]?.transfers).toEqual([
+      {
+        nodeId: 'captureWorkspace',
+        transferId: 'archive-build-workspace',
+        label: 'packing the workspace',
+        transferredBytes: 2048,
+        totalBytes: undefined,
+        complete: false,
+      },
+    ])
+  })
+
+  it('advances the label and count in place as the phases change', () => {
+    const first = updateMoveTransfer({ move: started(), progress: build({ label: 'scanning the workspace', transferredBytes: 0 }) })
+
+    const move = updateMoveTransfer({ move: first, progress: build({ label: 'compressing the workspace', transferredBytes: 9000 }) })
+
+    expect(move.rows[0]?.transfers).toHaveLength(1)
+    expect(move.rows[0]?.transfers?.[0]).toMatchObject({ label: 'compressing the workspace', transferredBytes: 9000 })
+  })
+})
+
 describe('transfer progress that has nowhere to land', () => {
   it('ignores a node no row holds', () => {
     const before = started()

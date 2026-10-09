@@ -30,6 +30,7 @@ export enum EEntryKind {
   OperatorInput = 'operator-input',
   SystemContext = 'system-context',
   SystemNotice = 'system-notice',
+  PrEvent = 'pr-event',
 }
 
 export type OperatorSaidEntry = {
@@ -244,6 +245,15 @@ export type SystemNoticeEntry = {
   content: string
 }
 
+export type PrEventEntry = {
+  kind: EEntryKind.PrEvent
+  author: EAuthor.Model
+  key: string
+  text: string
+  body: string
+  failed: boolean
+}
+
 export type TranscriptEntry =
   | OperatorSaidEntry
   | ModelSaidEntry
@@ -266,6 +276,7 @@ export type TranscriptEntry =
   | OperatorInputEntry
   | SystemContextEntry
   | SystemNoticeEntry
+  | PrEventEntry
 
 export type StepFailure = { message: string | null }
 

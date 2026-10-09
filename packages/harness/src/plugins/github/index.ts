@@ -1,6 +1,7 @@
 import { EHookPhase, EStage, LogPort, type HookOrder } from '@dltech/atlas-core'
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
 import { portToken, type DependencyContainer } from '../../container/injection'
+import type { PrEventFrame } from '../../cloud/pr-event-frame'
 import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
 import {
   AtlasHomeToken,
@@ -11,10 +12,16 @@ import {
 } from '../../container/tokens'
 
 import { NativePlugin, type PluginContribution } from '../plugin'
+import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
+import { CiFeedFragment } from './ci-feed-fragment'
 import { createCloudCheckout } from './cloud-checkout'
 import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks } from './links'
+import { createPollDiffer } from './pr-event-diff'
+import { createPrEventRouting, type PrEventRouting } from './pr-event-routing'
+import { PrEventNoticeQueue, prEventIntakeSource } from './pr-event-queue'
+import { MutablePrEventSink, PrEventFrameSink } from './pr-event-sink'
 import { CachedPullRequestPort } from './pull-request-cache-port'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
 import { createPullRequestTransitions } from './pr-transitions'
@@ -63,13 +70,17 @@ export default class GithubPlugin extends NativePlugin {
    * keeps the `gh` poller as degraded mode. The SSE port's `onReading` closes over the service
    * built after it — the deferred indirection is what lets the port outlive its own construction.
    */
-  private port(onReading: (args: { key: string; reading: PullRequestReading }) => void): PullRequestPort {
+  private port(
+    onReading: (args: { key: string; reading: PullRequestReading }) => void,
+    onPrEvent: (frame: PrEventFrame) => void,
+  ): PullRequestPort {
     const session = this.args.serve ?? this.args.sessions.read()
     if (session !== null) {
       return new SsePullRequestPort({
         session,
         clientVersion: this.args.clientVersion,
         onReading,
+        onPrEvent,
         ...(this.args.log === null ? {} : { log: { port: this.args.log } }),
       })
     }
@@ -80,13 +91,22 @@ export default class GithubPlugin extends NativePlugin {
   contribute(): PluginContribution {
     let service: PullRequestService | null = null
     let cached: CachedPullRequestPort | null = null
-    const raw = this.port((pushed) => {
-      service?.ingest(pushed)
-      cached?.ingest(pushed)
-    })
+    let routing: PrEventRouting | null = null
+    const sink = new MutablePrEventSink()
+    const raw = this.port(
+      (pushed) => {
+        service?.ingest(pushed)
+        cached?.ingest(pushed)
+      },
+      (frame) => {
+        routing?.onPrEvent(frame)
+        sink.onPrEvent(frame)
+      },
+    )
     const adapter = new CachedPullRequestPort({ inner: raw, directory: this.args.cacheDirectory })
     cached = adapter
-    service = createPullRequestService({ pullRequests: adapter })
+    const pollDiffer = createPollDiffer({ emit: (frame) => routing?.onPrEvent(frame) })
+    service = createPullRequestService({ pullRequests: adapter, onPolled: pollDiffer.onPolled })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const links = createPullRequestLinks({ service })
     const cloudCheckout = createCloudCheckout()
@@ -94,10 +114,19 @@ export default class GithubPlugin extends NativePlugin {
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({ pullRequests: service })
     const transitions = createPullRequestTransitions({ service })
+    const blockCiWatch = new BlockCiWatchBeforeToolHook({ pullRequests: service })
+
+    const prEvents = new PrEventNoticeQueue()
+    routing = createPrEventRouting({
+      service,
+      links: () => links.projection.current(),
+      queue: prEvents,
+    })
 
     links.projection.subscribe(() => service.watch({ links: links.projection.current() }))
 
     return {
+      promptFragments: [new CiFeedFragment()],
       hooks: [
         {
           phase: EHookPhase.BeforeTurn,
@@ -165,15 +194,35 @@ export default class GithubPlugin extends NativePlugin {
           order: OBSERVE,
           run: transitions.beforeTurn,
         },
+        {
+          phase: EHookPhase.BeforeTool,
+          name: blockCiWatch.name,
+          order: blockCiWatch.order,
+          run: blockCiWatch.run,
+        },
+        {
+          phase: EHookPhase.BeforeTurn,
+          name: 'route-pr-events',
+          order: OBSERVE,
+          run: routing.beforeTurn,
+        },
+        {
+          phase: EHookPhase.OnThreadOpen,
+          name: 'route-pr-events-thread',
+          order: OBSERVE,
+          run: routing.threadOpened,
+        },
       ],
       ports: [
         { token: PullRequestPort, use: adapter },
+        { token: PrEventFrameSink, use: sink },
         {
           token: GithubUiBridgePort,
           use: { service, facts, links: links.projection, cloudCheckout, badges: adapter },
         },
       ],
       projections: [links.projection, cloudCheckout],
+      intakeSources: [prEventIntakeSource(prEvents)],
       dispose: () => {
         if (raw instanceof SsePullRequestPort) raw.dispose()
         cached?.dispose()

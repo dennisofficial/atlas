@@ -5,8 +5,9 @@ import {
   type RestoreTranscriptParams,
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
-import type { RotationStateWire, SessionArchiveDescriptor } from '@dltech/atlas-wire'
+import type { RotationStateWire } from '@dltech/atlas-wire'
 
+import { archiveProgressReporter, type ArchiveProgressFields, type SessionArchiveReader } from './archive-progress'
 import { answerArchiveRead, isArchiveReadOp } from './archive-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
 import { routeOperatorInput } from './operator-input'
@@ -51,6 +52,7 @@ export function createRequestRouter(args: {
   rotation?: import('@dltech/atlas-harness').RotationPort | undefined
   authority?: ServeSessionAuthority | undefined
   broadcastRotation?: ((rotation: RotationStateWire) => void) | undefined
+  broadcastArchiveProgress?: ((progress: ArchiveProgressFields) => void) | undefined
   historyChanged?: (() => void) | undefined
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<import('@dltech/atlas-harness').OperatorInputPort, 'answer'> | undefined
@@ -58,7 +60,7 @@ export function createRequestRouter(args: {
   mentions?: MentionRouting | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
-  sessionArchive?: (() => Promise<SessionArchiveDescriptor | null>) | undefined
+  sessionArchive?: SessionArchiveReader | undefined
   memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   restoreTranscript?: ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<RestoreOutcome>) | undefined
   workspace?: WorkspaceOps | undefined
@@ -68,6 +70,8 @@ export function createRequestRouter(args: {
   const context = args.context
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
+  const reporterFor = (archive: ArchiveProgressFields['archive']) =>
+    archiveProgressReporter({ archive, broadcast: args.broadcastArchiveProgress })
   const edits = createHistoryMutations()
   const restore = createRestoreRequests({ driver, restoreTranscript })
   const state = restore.state
@@ -240,7 +244,12 @@ export function createRequestRouter(args: {
   }
 
   if (isWorkspaceTransferOp(frame.op)) {
-    void edits.run(() => answerWorkspaceTransfer({ frame, busy: () => driver.busy(), ...workspaceOps }))
+    const prepareWorkspace = workspaceOps?.prepare
+    const ops = {
+      ...workspaceOps,
+      ...(prepareWorkspace === undefined ? {} : { prepare: () => prepareWorkspace({ onBuildProgress: reporterFor('workspace') }) }),
+    }
+    void edits.run(() => answerWorkspaceTransfer({ frame, busy: () => driver.busy(), ...ops }))
       .then((reply) => send({ socket, frame: reply }))
     return
   }
@@ -251,7 +260,11 @@ export function createRequestRouter(args: {
   }
 
   if (isArchiveReadOp(frame.op)) {
-    void answerArchiveRead({ frame, sessionArchive, memoryArchive })
+    void answerArchiveRead({
+      frame,
+      sessionArchive: sessionArchive === undefined ? undefined : () => sessionArchive({ onBuildProgress: reporterFor('transcript') }),
+      memoryArchive,
+    })
       .then((reply) => send({ socket, frame: reply }))
     return
   }

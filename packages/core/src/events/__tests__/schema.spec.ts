@@ -8,7 +8,7 @@ import { EGrantScope } from '../../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../../policy/classifier/triage'
 import { EJudgment } from '../../policy/classifier/verdict'
 import { EKilledBy } from '../../shells/status'
-import { EDecision, EMessageOrigin, type EventDraft } from '../body'
+import { EDecision, EMessageOrigin, EPrEventKind, EPrReviewState, EPrVerdict, type EventDraft } from '../body'
 import type { EventEnvelope } from '../envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
 import { eventBodySchema, eventEnvelopeSchema } from '../schema'
@@ -30,6 +30,57 @@ const bodies: EventDraft[] = [
     from: EExecutionLocation.Host,
     to: EExecutionLocation.Cloud,
     cwd: '/workspace',
+  },
+  {
+    type: 'pr-event',
+    repo: 'github.com/owner/repo',
+    prNumber: 12,
+    kind: EPrEventKind.Comment,
+    url: 'https://github.com/owner/repo/pull/12#issuecomment-1',
+    authorLogin: 'octocat',
+    body: 'please rebase',
+  },
+  {
+    type: 'pr-event',
+    repo: 'github.com/owner/repo',
+    prNumber: 12,
+    kind: EPrEventKind.Review,
+    url: 'https://github.com/owner/repo/pull/12#pullrequestreview-1',
+    authorLogin: 'octocat',
+    reviewState: EPrReviewState.Approved,
+  },
+  {
+    type: 'pr-event',
+    repo: 'github.com/owner/repo',
+    prNumber: 12,
+    kind: EPrEventKind.ReviewComment,
+    url: 'https://github.com/owner/repo/pull/12#discussion_r1',
+    authorLogin: 'octocat',
+    body: 'nit',
+  },
+  {
+    type: 'pr-event',
+    repo: 'github.com/owner/repo',
+    prNumber: 12,
+    kind: EPrEventKind.Verdict,
+    url: 'https://github.com/owner/repo/pull/12',
+    verdict: EPrVerdict.Failed,
+  },
+  {
+    type: 'pr-event',
+    repo: 'github.com/owner/repo',
+    prNumber: 12,
+    kind: EPrEventKind.Mergeability,
+    url: 'https://github.com/owner/repo/pull/12',
+    mergeable: false,
+  },
+  {
+    type: 'pr-event',
+    repo: 'github.com/owner/repo',
+    prNumber: 12,
+    kind: EPrEventKind.State,
+    url: 'https://github.com/owner/repo/pull/12',
+    state: 'merged',
   },
   { type: 'rotated', predecessor: toThreadId('thread-1'), handoffPath: '/handoff.md' },
   {
@@ -206,6 +257,38 @@ describe('eventBodySchema', () => {
     }
 
     expect(eventBodySchema.parse(JSON.parse(JSON.stringify(body)))).toEqual(body)
+  })
+
+  it('rejects a PR event whose kind is outside the enum', () => {
+    const body = {
+      type: 'pr-event',
+      repo: 'github.com/owner/repo',
+      prNumber: 12,
+      kind: 'reaction',
+      url: 'https://github.com/owner/repo/pull/12',
+    }
+
+    expect(eventBodySchema.safeParse(body).success).toBe(false)
+  })
+
+  it('rejects a PR event with a non-positive PR number or an empty url', () => {
+    const base = { type: 'pr-event', repo: 'github.com/owner/repo', kind: EPrEventKind.Verdict }
+
+    expect(eventBodySchema.safeParse({ ...base, prNumber: 0, url: 'https://x' }).success).toBe(false)
+    expect(eventBodySchema.safeParse({ ...base, prNumber: 1, url: '' }).success).toBe(false)
+  })
+
+  it('rejects a PR event whose verdict is outside the enum', () => {
+    const body = {
+      type: 'pr-event',
+      repo: 'github.com/owner/repo',
+      prNumber: 12,
+      kind: EPrEventKind.Verdict,
+      url: 'https://github.com/owner/repo/pull/12',
+      verdict: 'pending',
+    }
+
+    expect(eventBodySchema.safeParse(body).success).toBe(false)
   })
 
   it('rejects a kind that is not in the union', () => {

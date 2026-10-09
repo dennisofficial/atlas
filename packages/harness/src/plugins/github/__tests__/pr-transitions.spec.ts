@@ -27,6 +27,9 @@ const found = (over: Partial<PullRequest> = {}): PullRequestReading => ({
     state: EPullRequestState.Open,
     checks: EChecksState.Running,
     tally: { running: 2, passed: 1, failed: 0 },
+    mergeable: null,
+    comments: [],
+    reviews: [],
     ...over,
   },
 })

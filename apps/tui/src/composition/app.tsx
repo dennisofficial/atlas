@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import type { ThreadId } from '@dltech/atlas-core'
+import { projectOf, type ThreadId } from '@dltech/atlas-core'
 import type { CaptureContext, LiftWorkspaceCapture, WorkspaceRestorer } from '@dltech/atlas-harness'
+
+import { cloudListing } from './cloud/cloud-listing'
+import { createPrEventForwarder } from './cloud/pr-event-forwarder'
 
 import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-image'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
@@ -60,6 +63,25 @@ export function App(props: {
     reaped.current = true
     props.reapOnBoot?.(props.app)
   }, [props.app, props.reapOnBoot])
+
+  const forwarder = useRef<ReturnType<typeof createPrEventForwarder> | null>(null)
+  const createBridge = props.createBridge ?? liveBridgeFor(props.app)
+  useEffect(() => {
+    const sink = props.app.prEventSink
+    if (sink === null) return
+    if (forwarder.current === null) {
+      const listing = cloudListing(props.app)
+      forwarder.current = createPrEventForwarder({
+        listThreads: (listArgs) => listing.list(listArgs),
+        project: projectOf(props.app.workspace),
+        bridge: createBridge,
+        activeThreadId: () => owner.snapshot().threadId,
+      })
+    }
+    const current = forwarder.current
+    sink.set((frame) => void current.onPrEvent(frame))
+    return () => sink.set(null)
+  }, [props.app, createBridge, owner])
 
   const reloading = useRef(false)
   const reloadPending = useRef(false)

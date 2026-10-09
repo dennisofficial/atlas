@@ -12,11 +12,11 @@ import {
 } from '../index'
 
 describe('mention wire schemas', () => {
-  it('names the ops and speaks protocol 21', () => {
+  it('names the ops and speaks protocol 22', () => {
     expect(String(EClientRequest.ListMentionFiles)).toBe('list-mention-files')
     expect(String(EClientRequest.MentionFileExists)).toBe('mention-file-exists')
     expect(String(EClientRequest.ReadMentionFile)).toBe('read-mention-file')
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(21)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(22)
   })
 
   it('wants exactly a thread and a directory or path', () => {

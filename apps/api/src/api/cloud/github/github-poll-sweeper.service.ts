@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Interval } from '@nestjs/schedule'
 import { db } from '../../../db'
-import { dtoOf, subscriberWhereOf } from './github-delivery.service'
+import { dtoOf, subscriberWhereOf } from './github-delivery-routing'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'

@@ -11,6 +11,7 @@ import {
 } from './agent-ended-line'
 import { deliberateAgentRestart } from './notice-barriers'
 import { modelEntries } from './model-entries'
+import { prEventFailed, prEventLine } from './pr-event-line'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
 import { attachmentsOf, toolRuns, type ToolRun } from './tool-runs'
@@ -456,6 +457,19 @@ export function durableEntries(args: {
           text: agentReportedLine(event),
           agentId: event.agentId,
           report: event.prose,
+        },
+      ]
+    }
+
+    if (event.type === 'pr-event') {
+      return [
+        {
+          kind: EEntryKind.PrEvent,
+          author: EAuthor.Model,
+          key: event.id,
+          text: prEventLine(event),
+          body: event.body ?? '',
+          failed: prEventFailed(event),
         },
       ]
     }

@@ -1,7 +1,7 @@
 import { EAgentStatus, EShellStatus, type EventLogPort, type IdPort } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
-import { MessageIntake, noticeSources, operatorSource } from '../intake'
+import { MessageIntake, noticeSources, operatorSource, type IntakeSource } from '../intake'
 import type { PendingQueues } from '../pending'
 import type { ServiceRegistryPort } from '../services/service-registry'
 import type { ShellRegistryPort } from '../shells/shell-registry'
@@ -15,10 +15,15 @@ export function bindIntake<Command>(args: {
   log: EventLogPort
   ids: IdPort
   stopSandbox: () => Promise<boolean>
+  pluginSources?: readonly IntakeSource[] | undefined
 }): { intake: MessageIntake; recordTeardownEndings: () => Promise<void> } {
   const { agents, shells, services, pending, log, ids } = args
   const intake = new MessageIntake({
-    sources: [...noticeSources({ shells, agents, services }), operatorSource(pending)],
+    sources: [
+      ...noticeSources({ shells, agents, services }),
+      ...(args.pluginSources ?? []),
+      operatorSource(pending),
+    ],
     submit: ({ threadId, ...said }) => pending.forThread({ threadId }).enqueue(said),
   })
   intake.registerFallback(({ threadId }) => {

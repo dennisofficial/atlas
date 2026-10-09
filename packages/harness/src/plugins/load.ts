@@ -26,6 +26,7 @@ import {
   type PluginHost,
   type RepoPlugin,
 } from './plugin'
+import type { IntakeSource } from '../intake/message-intake'
 import type { ContributedProjection } from './projection'
 import type { ContributedSurface } from './surface'
 import { validatePluginContribution } from './validate-contribution'
@@ -45,6 +46,7 @@ export type LoadedPlugins = {
   refused: readonly PluginRefusal[]
   projections: readonly ContributedProjection[]
   surfaces: readonly ContributedSurface[]
+  intakeSources: readonly IntakeSource[]
 }
 
 type RegisteredHookLike = { name: string; order: HookOrder; run: unknown }
@@ -150,6 +152,7 @@ export async function loadPlugins(args: {
   const refused: PluginRefusal[] = []
   const projections: ContributedProjection[] = []
   const surfaces: ContributedSurface[] = []
+  const intakeSources: IntakeSource[] = []
 
   for (const entry of winners) {
     const identity = identityOf(entry)
@@ -183,6 +186,7 @@ export async function loadPlugins(args: {
     for (const use of checked.contribution.surfaces ?? []) {
       surfaces.push({ pluginId: label, use })
     }
+    intakeSources.push(...(checked.contribution.intakeSources ?? []))
     loaded.push(identity)
   }
 
@@ -192,5 +196,6 @@ export async function loadPlugins(args: {
     refused,
     projections,
     surfaces,
+    intakeSources,
   }
 }

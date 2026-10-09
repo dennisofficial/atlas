@@ -10,6 +10,8 @@ import { fakeGithubDb } from '../../../../test/fake-github-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
+import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
+import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { GithubPrStateDto } from './github-realtime.types'
 import type { GithubUserReads } from './github-user-reads'
@@ -79,7 +81,12 @@ function serviceWith(args: {
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const cipher = {} as SecretCipherService
-  return { service: new GithubDeliveryService(github, reads, fanout, cipher), fanout }
+  const mailbox = new GithubPrEventMailboxService(fanout)
+  const discussion = new GithubPrDiscussionDeliveryService(mailbox)
+  return {
+    service: new GithubDeliveryService(github, reads, fanout, cipher, mailbox, discussion),
+    fanout,
+  }
 }
 
 function seedHook(args: { createdBy: string }): void {
@@ -488,5 +495,348 @@ describe('GithubDeliveryService', () => {
     await vi.advanceTimersByTimeAsync(1_100)
 
     expect(receivedBranch.length).toBeGreaterThan(0)
+  })
+
+  it('a PR issue_comment delivery writes a mailbox row per subscriber and pushes a live frame', async () => {
+    const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    seedSubscription({ userId: 'usr-b', prNumber: 42 })
+    seedSubscription({ userId: 'usr-c', prNumber: 7 })
+
+    const received: unknown[] = []
+    fanout.openStream({
+      userId: 'usr-a',
+      handler: () => undefined,
+      eventHandler: (event) => received.push(event),
+    })
+
+    const outcome = await service.handle({
+      event: 'issue_comment',
+      payload: {
+        action: 'created',
+        issue: {
+          number: 42,
+          html_url: 'https://github.com/compai/app/pull/42',
+          pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
+        },
+        comment: {
+          body: 'ship it',
+          html_url: 'https://github.com/compai/app/pull/42#issuecomment-1',
+        },
+        sender: { login: 'dennis' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(outcome.handled).toBe(true)
+    expect(fake.prEvents).toHaveLength(2)
+    const userIds = fake.prEvents.map((row) => row.userId).sort()
+    expect(userIds).toEqual(['usr-a', 'usr-b'])
+    expect(fake.prEvents[0]).toMatchObject({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      kind: 'comment',
+      deliveredAt: null,
+      payload: {
+        url: 'https://github.com/compai/app/pull/42#issuecomment-1',
+        authorLogin: 'dennis',
+        body: 'ship it',
+      },
+    })
+    expect(
+      (fake.prEvents[0]?.payload as Record<string, unknown>).headSha,
+    ).toBeUndefined()
+    expect(received).toHaveLength(1)
+    expect(received[0]).toMatchObject({ kind: 'comment', prNumber: 42 })
+  })
+
+  it('ignores an issue_comment on a plain issue and non-created actions', async () => {
+    const { service } = serviceWith({ tokens: {} })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+
+    await service.handle({
+      event: 'issue_comment',
+      payload: {
+        action: 'created',
+        issue: { number: 42, html_url: 'https://github.com/compai/app/issues/42' },
+        comment: { body: 'not a pr', html_url: 'https://github.com/compai/app/issues/42#issuecomment-2' },
+        sender: { login: 'dennis' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+    await service.handle({
+      event: 'issue_comment',
+      payload: {
+        action: 'edited',
+        issue: {
+          number: 42,
+          html_url: 'https://github.com/compai/app/pull/42',
+          pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
+        },
+        comment: { body: 'edited', html_url: 'https://github.com/compai/app/pull/42#issuecomment-3' },
+        sender: { login: 'dennis' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(fake.prEvents).toHaveLength(0)
+  })
+
+  it('records an approved review with its body and state', async () => {
+    const { service } = serviceWith({ tokens: {} })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+
+    const outcome = await service.handle({
+      event: 'pull_request_review',
+      payload: {
+        action: 'submitted',
+        pull_request: PULL_REQUEST_PAYLOAD.pull_request,
+        review: {
+          state: 'approved',
+          body: 'looks good',
+          html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-1',
+        },
+        sender: { login: 'reviewer' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(outcome.handled).toBe(true)
+    expect(fake.prEvents).toHaveLength(1)
+    expect(fake.prEvents[0]).toMatchObject({
+      kind: 'review',
+      payload: {
+        url: 'https://github.com/compai/app/pull/42#pullrequestreview-1',
+        authorLogin: 'reviewer',
+        body: 'looks good',
+        reviewState: 'approved',
+        headSha: 'abc123',
+      },
+    })
+  })
+
+  it('skips review states that are not recorded and non-submitted actions', async () => {
+    const { service } = serviceWith({ tokens: {} })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+
+    await service.handle({
+      event: 'pull_request_review',
+      payload: {
+        action: 'submitted',
+        pull_request: PULL_REQUEST_PAYLOAD.pull_request,
+        review: { state: 'dismissed', body: null, html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-9' },
+        sender: { login: 'reviewer' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+    await service.handle({
+      event: 'pull_request_review',
+      payload: {
+        action: 'edited',
+        pull_request: PULL_REQUEST_PAYLOAD.pull_request,
+        review: { state: 'approved', body: null, html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-1' },
+        sender: { login: 'reviewer' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(fake.prEvents).toHaveLength(0)
+  })
+
+  it('records an inline review comment', async () => {
+    const { service } = serviceWith({ tokens: {} })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+
+    await service.handle({
+      event: 'pull_request_review_comment',
+      payload: {
+        action: 'created',
+        pull_request: PULL_REQUEST_PAYLOAD.pull_request,
+        comment: {
+          body: 'nit: rename this',
+          html_url: 'https://github.com/compai/app/pull/42#discussion_r1',
+        },
+        sender: { login: 'reviewer' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(fake.prEvents).toHaveLength(1)
+    expect(fake.prEvents[0]).toMatchObject({
+      kind: 'review-comment',
+      payload: {
+        url: 'https://github.com/compai/app/pull/42#discussion_r1',
+        authorLogin: 'reviewer',
+        body: 'nit: rename this',
+        headSha: 'abc123',
+      },
+    })
+  })
+
+  it('a comment delivery reaches a branch subscriber through the recorded head branch', async () => {
+    const { service } = serviceWith({ tokens: {} })
+    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    fake.prStates.push({ ...FILLED_PR_STATE })
+
+    await service.handle({
+      event: 'issue_comment',
+      payload: {
+        action: 'created',
+        issue: {
+          number: 42,
+          html_url: 'https://github.com/compai/app/pull/42',
+          pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
+        },
+        comment: { body: 'nice', html_url: 'https://github.com/compai/app/pull/42#issuecomment-4' },
+        sender: { login: 'dennis' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(fake.prEvents).toHaveLength(1)
+    expect(fake.prEvents[0]?.userId).toBe('usr-branch')
+  })
+
+  it('records no mailbox row when nobody subscribes', async () => {
+    const { service } = serviceWith({ tokens: {} })
+
+    await service.handle({
+      event: 'issue_comment',
+      payload: {
+        action: 'created',
+        issue: {
+          number: 42,
+          html_url: 'https://github.com/compai/app/pull/42',
+          pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
+        },
+        comment: { body: 'hello', html_url: 'https://github.com/compai/app/pull/42#issuecomment-5' },
+        sender: { login: 'dennis' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(fake.prEvents).toHaveLength(0)
+  })
+
+  it('records a failed verdict when a check failure first appears', async () => {
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest: async () => ({
+        ...REST_FIELDS,
+        checksRunning: 0,
+        checksPassed: 2,
+        checksFailed: 1,
+      }),
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({ ...FILLED_PR_STATE })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    const verdicts = fake.prEvents.filter((row) => row.kind === 'verdict')
+    expect(verdicts).toHaveLength(1)
+    expect(verdicts[0]).toMatchObject({
+      userId: 'usr-a',
+      payload: { verdict: 'failed', headSha: 'abc123', url: 'https://github.com/compai/app/pull/42' },
+    })
+    expect(
+      (verdicts[0]?.payload as Record<string, unknown>).authorLogin,
+    ).toBeUndefined()
+  })
+
+  it('records a green verdict when checks settle passing after running', async () => {
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest: async () => ({
+        ...REST_FIELDS,
+        checksRunning: 0,
+        checksPassed: 3,
+        checksFailed: 0,
+      }),
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    const verdicts = fake.prEvents.filter((row) => row.kind === 'verdict')
+    expect(verdicts).toHaveLength(1)
+    expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green' } })
+  })
+
+  it('records no verdict on a steady-state re-read', async () => {
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest: async () => ({
+        ...REST_FIELDS,
+        checksRunning: 0,
+        checksPassed: 2,
+        checksFailed: 1,
+      }),
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 2, checksFailed: 1 })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    expect(fake.prEvents.filter((row) => row.kind === 'verdict')).toHaveLength(0)
+  })
+
+  it('records a mergeability flip but not a repeated mergeable value', async () => {
+    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, mergeable: true }))
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({ ...FILLED_PR_STATE, mergeable: false })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    const flips = fake.prEvents.filter((row) => row.kind === 'mergeability')
+    expect(flips.length).toBeGreaterThan(0)
+    expect(flips[flips.length - 1]).toMatchObject({ payload: { mergeable: true } })
+    const settled = fake.prStates[0]
+    expect(settled).toMatchObject({ mergeable: true })
+
+    const before = fake.prEvents.filter((row) => row.kind === 'mergeability').length
+    readPullRequest.mockImplementation(async () => ({ ...REST_FIELDS, mergeable: true }))
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    expect(fake.prEvents.filter((row) => row.kind === 'mergeability')).toHaveLength(before)
+  })
+
+  it('records a merged state transition when the fill first reports merged', async () => {
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      state: 'merged',
+    }))
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({ ...FILLED_PR_STATE })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    const stateEvents = fake.prEvents.filter((row) => row.kind === 'state')
+    expect(stateEvents).toHaveLength(1)
+    expect(stateEvents[0]).toMatchObject({ payload: { state: 'merged' } })
+  })
+
+  it('records no transition events for a brand-new PR row', async () => {
+    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS }))
+    const { service } = serviceWith({ tokens: {}, readPullRequest })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+
+    expect(readPullRequest).not.toHaveBeenCalled()
+    expect(fake.prStates).toHaveLength(1)
+    expect(fake.prEvents).toHaveLength(0)
   })
 })

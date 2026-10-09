@@ -1,4 +1,4 @@
-import { EHookPhase } from '@dltech/atlas-core'
+import { EHookPhase, EPromptAgent, type PromptContext } from '@dltech/atlas-core'
 import { afterAll, describe, expect, it } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -19,7 +19,15 @@ import { NativePlugin } from '../../plugin'
 import { CachedPullRequestPort } from '../pull-request-cache-port'
 import GithubPlugin, { registerPlugin } from '../index'
 import { PullRequestPort } from '../pure'
+import { PrEventFrameSink } from '../pr-event-sink'
 import { GithubUiBridgePort } from '../ui-bridge'
+
+const CONTEXT: PromptContext = {
+  agent: EPromptAgent.Main,
+  provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
+  model: { contextWindow: 1_000_000 },
+  projectDirectory: '/w',
+}
 
 const made: string[] = []
 
@@ -120,6 +128,9 @@ describe('the github plugin as the loader sees it', () => {
       `${EHookPhase.AfterTool}:refresh-pull-request`,
       `${EHookPhase.AfterShell}:refresh-pull-request-after-shell`,
       `${EHookPhase.BeforeTurn}:seed-pull-request-transitions`,
+      `${EHookPhase.BeforeTool}:block-ci-watch`,
+      `${EHookPhase.BeforeTurn}:route-pr-events`,
+      `${EHookPhase.OnThreadOpen}:route-pr-events-thread`,
     ])
     expect(contribution.surfaces ?? []).toEqual([])
     expect((contribution.projections ?? []).map((projection) => projection.id)).toEqual([
@@ -128,9 +139,32 @@ describe('the github plugin as the loader sees it', () => {
     ])
     expect((contribution.ports ?? []).map((binding) => binding.token)).toEqual([
       PullRequestPort,
+      PrEventFrameSink,
       GithubUiBridgePort,
     ])
     expect(contribution.tools ?? []).toEqual([])
+    expect(contribution.intakeSources ?? []).toHaveLength(1)
+
+    await contribution.dispose?.()
+  })
+
+  it('contributes the CI-feed fragment that tells the model check state is pushed, not pulled', async () => {
+    const { contribution } = await resolved()
+
+    const fragments = contribution.promptFragments ?? []
+    expect(fragments.map((fragment) => fragment.id)).toContain('github.ci-feed')
+
+    const text =
+      fragments.find((fragment) => fragment.id === 'github.ci-feed')?.text(CONTEXT) ?? ''
+    expect(text).toContain('Pull request updates')
+    expect(text).toContain('end your turn')
+    for (const kind of ['comment', 'review', 'verdict', 'mergeability', 'merged or closed']) {
+      expect(text).toContain(kind)
+    }
+    expect(text).toContain('wakes an idle session')
+    expect(text).toContain('between steps')
+    expect(text).toContain('`gh run watch`')
+    expect(text).toContain('One-shot reads')
 
     await contribution.dispose?.()
   })

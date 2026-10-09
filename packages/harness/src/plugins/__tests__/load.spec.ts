@@ -287,6 +287,30 @@ describe('projections', () => {
   })
 })
 
+describe('intake sources', () => {
+  const source = {
+    prepare: () => ({ drafts: [], wakesTurn: false, acknowledge: () => undefined }),
+    subscribe: () => () => undefined,
+    threadsAwaitingInput: () => [],
+  }
+
+  it('collects every contributed intake source in plugin order', async () => {
+    const { result } = await load([
+      native('github', { intakeSources: [source] }),
+      native('quiet', {}),
+      native('shells', { intakeSources: [source, source] }),
+    ])
+
+    expect(result.intakeSources).toHaveLength(3)
+  })
+
+  it('collects none from a plugin that was refused', async () => {
+    const { result } = await load([native('broken', () => Promise.reject(new Error('boom')))])
+
+    expect(result.intakeSources).toEqual([])
+  })
+})
+
 describe('surfaces', () => {
   it('collects each contributed surface hook against the plugin that gave it', async () => {
     const paint = () => ({})

@@ -18,6 +18,8 @@ describe('channelSignalSchema', () => {
       { type: 'retry-cleared' },
       { type: 'operator-input', request: { requestId: 'r1', description: 'paste the code', path: '/tmp/atlas-login-in', url: 'https://example.com' } },
       { type: 'operator-input', request: null },
+      { type: 'archive-progress', archive: 'transcript', phase: 'staging', files: 3, bytes: 1024 },
+      { type: 'archive-progress', archive: 'workspace', phase: 'compressing', files: 40, bytes: 9000, totalBytes: 12000 },
     ]
     for (const value of cases) {
       expect(channelSignalSchema.safeParse(value).success).toBe(true)

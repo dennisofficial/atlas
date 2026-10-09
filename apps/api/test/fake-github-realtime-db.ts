@@ -38,6 +38,17 @@ export type FakePrStateRow = {
   updatedAt: Date
 }
 
+export type FakePrEventRow = {
+  id: string
+  userId: string
+  repoFullName: string
+  prNumber: number
+  kind: string
+  payload: unknown
+  deliveredAt: Date | null
+  createdAt: Date
+}
+
 export type MatchesWhere = <Row>(row: Row, where: Where | undefined) => boolean
 
 export function createFakeSubscriptionTable(args: {
@@ -163,6 +174,56 @@ export function createFakeRepoHookTable(args: {
       return { count: held.length }
     },
   }
+}
+
+export function createFakePrEventTable(args: {
+  matchesWhere: MatchesWhere
+  rows: () => FakePrEventRow[]
+  setRows: (rows: FakePrEventRow[]) => void
+}) {
+  let sequence = 0
+  const table = {
+    create: async (query: {
+      data: Omit<FakePrEventRow, 'id' | 'deliveredAt' | 'createdAt'> & {
+        id?: string
+        deliveredAt?: Date | null
+        createdAt?: Date
+      }
+    }) => {
+      sequence += 1
+      const row: FakePrEventRow = {
+        id: query.data.id ?? `evt_${sequence}`,
+        deliveredAt: query.data.deliveredAt ?? null,
+        createdAt: query.data.createdAt ?? new Date(),
+        ...query.data,
+      }
+      args.setRows([...args.rows(), row])
+      return row
+    },
+    findMany: async (query: { where?: Where; orderBy?: Where } = {}) => {
+      const matched = args.rows().filter((row) => args.matchesWhere(row, query.where))
+      const ordered =
+        query.orderBy === undefined
+          ? matched
+          : [...matched].sort((left, right) => {
+              const [field, direction] = Object.entries(query.orderBy ?? {})[0] ?? ['createdAt', 'asc']
+              const a = (left as unknown as Where)[field] as Date
+              const b = (right as unknown as Where)[field] as Date
+              const compare = a.getTime() - b.getTime()
+              return direction === 'desc' ? -compare : compare
+            })
+      return ordered
+    },
+    updateMany: async (query: { where?: Where; data: Partial<FakePrEventRow> }) => {
+      const matched = args.rows().filter((row) => args.matchesWhere(row, query.where))
+      for (const row of matched) Object.assign(row, query.data)
+      return { count: matched.length }
+    },
+    resetSequence: () => {
+      sequence = 0
+    },
+  }
+  return table
 }
 
 export function createFakePrStateTable(args: {

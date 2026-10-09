@@ -11,7 +11,7 @@ const settledChecks = { running: 0, passed: 4, failed: 1 }
 describe('pull request states snapshot for the channel', () => {
   it('enumerates the tracked checkout and watched links as wire states', async () => {
     const port = pullRequestsAnswering(
-      found({ number: 7, tally: settledChecks }),
+      found({ number: 7, tally: settledChecks, mergeable: false }),
       found({ number: 42 }),
     )
     const service = createPullRequestService({ pullRequests: port })
@@ -28,7 +28,7 @@ describe('pull request states snapshot for the channel', () => {
     expect(tracked?.state).toBe(EPullRequestStateWire.Open)
     expect(tracked?.checksPassed).toBe(4)
     expect(tracked?.checksFailed).toBe(1)
-    expect(tracked?.mergeable).toBeNull()
+    expect(tracked?.mergeable).toBe(false)
     const linked = states.find((state) => state.number === 42)
     expect(linked?.repo).toBe('github.com/dennisofficial/atlas')
     service.dispose()

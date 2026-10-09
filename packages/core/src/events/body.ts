@@ -52,6 +52,26 @@ export enum EPullRequestState {
   Closed = 'closed',
 }
 
+export enum EPrEventKind {
+  Comment = 'comment',
+  Review = 'review',
+  ReviewComment = 'review-comment',
+  Verdict = 'verdict',
+  Mergeability = 'mergeability',
+  State = 'state',
+}
+
+export enum EPrReviewState {
+  Approved = 'approved',
+  ChangesRequested = 'changes_requested',
+  Commented = 'commented',
+}
+
+export enum EPrVerdict {
+  Green = 'green',
+  Failed = 'failed',
+}
+
 export const saidBy = (said: { via?: EMessageOrigin | undefined }): EMessageOrigin =>
   said.via ?? EMessageOrigin.Operator
 
@@ -163,6 +183,19 @@ export type EventBody =
       url: string
       repo: string
       branch: string
+    }
+  | {
+      type: 'pr-event'
+      repo: string
+      prNumber: number
+      kind: EPrEventKind
+      url: string
+      authorLogin?: string | undefined
+      body?: string | undefined
+      verdict?: EPrVerdict | undefined
+      mergeable?: boolean | undefined
+      state?: string | undefined
+      reviewState?: EPrReviewState | undefined
     }
   | BackgroundShellEventBody
   | {

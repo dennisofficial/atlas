@@ -120,6 +120,7 @@ export async function mountLive(args: {
     pluginProjections: harness.pluginProjections,
     pluginSurfaces: surfaces,
     pullRequests: null,
+    prEventSink: null,
     config: {
       model: undefined,
       executionLocation: undefined,

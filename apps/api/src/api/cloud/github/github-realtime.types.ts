@@ -6,7 +6,37 @@ export enum ERepoHookStatus {
 
 export enum EPrRealtimeEvent {
   PrState = 'pr-state',
+  PrEvent = 'pr-event',
   Heartbeat = 'heartbeat',
+}
+
+export enum EPrEventKind {
+  Comment = 'comment',
+  Review = 'review',
+  ReviewComment = 'review-comment',
+  Verdict = 'verdict',
+  Mergeability = 'mergeability',
+  State = 'state',
+}
+
+export type GithubPrEventPayload = {
+  url: string
+  authorLogin?: string
+  body?: string
+  reviewState?: string
+  verdict?: 'green' | 'failed'
+  mergeable?: boolean
+  state?: 'merged' | 'closed'
+  headSha?: string
+}
+
+export interface GithubPrEventDto {
+  id: string
+  repoFullName: string
+  prNumber: number
+  kind: EPrEventKind
+  payload: GithubPrEventPayload
+  createdAt: string
 }
 
 export interface GithubPrStateDto {

@@ -7,6 +7,8 @@ import {
   EPullRequestState,
   latestAttemptOutcomes,
   type CheckAttempt,
+  type PrComment,
+  type PrReview,
   type PullRequest,
 } from './pure'
 
@@ -46,6 +48,41 @@ const UNRECOGNISED_ENTRY = { __typename: 'unrecognised', state: '', context: nul
 
 const RollupEntrySchema = z.union([CheckRunSchema, StatusContextSchema]).catch(UNRECOGNISED_ENTRY)
 
+/**
+ * Observed from `gh pr view --json mergeable,comments,reviews`: `mergeable` is the GraphQL enum
+ * string (`MERGEABLE`, `CONFLICTING`, `UNKNOWN`); a comment carries `id`, `author.login`, `body`,
+ * `url`, `createdAt`; a review carries `id`, `author.login`, `body`, `state`,
+ * `submittedAt` and no `url`. gh exports every comment and review — `(last:N)` is not available
+ * through `--json` — so the window is cut here. `author` is `null` for a deleted account. Entries that do not parse are dropped on their
+ * own so one odd comment cannot cost the pull request its checks.
+ */
+const AuthorSchema = z.object({ login: z.string() }).nullable().catch(null)
+
+const CommentSchema = z.object({
+  id: z.string(),
+  author: AuthorSchema,
+  body: z.string().catch(''),
+  url: z.string(),
+  createdAt: z.string(),
+})
+
+const ReviewSchema = z.object({
+  id: z.string(),
+  author: AuthorSchema,
+  state: z.string(),
+  body: z.string().catch(''),
+})
+
+export const GH_ENTRY_WINDOW = 20
+
+const DROPPED = Symbol('dropped')
+
+const droppingEntry = <T extends z.ZodType>(schema: T) =>
+  z
+    .array(schema.catch(DROPPED as never))
+    .catch([])
+    .transform((entries) => entries.filter((entry) => entry !== DROPPED))
+
 export const GhPullRequestSchema = z.object({
   number: z.number().int(),
   title: z.string(),
@@ -53,6 +90,9 @@ export const GhPullRequestSchema = z.object({
   state: z.string(),
   isDraft: z.boolean(),
   statusCheckRollup: z.array(RollupEntrySchema).nullable().catch(null),
+  mergeable: z.string().nullable().catch(null),
+  comments: droppingEntry(CommentSchema),
+  reviews: droppingEntry(ReviewSchema),
 })
 
 const COMPLETED = 'COMPLETED'
@@ -99,6 +139,23 @@ const attemptOf = (entry: RollupEntry): CheckAttempt => {
   return { name: entry.name, startedAt: entry.startedAt, outcome: outcomeOf(entry) }
 }
 
+const MERGEABLE: Record<string, boolean> = { MERGEABLE: true, CONFLICTING: false }
+
+const commentOf = (entry: z.infer<typeof CommentSchema>): PrComment => ({
+  id: entry.id,
+  authorLogin: entry.author?.login ?? null,
+  body: entry.body,
+  url: entry.url,
+  createdAt: entry.createdAt,
+})
+
+const reviewOf = (entry: z.infer<typeof ReviewSchema>): PrReview => ({
+  id: entry.id,
+  authorLogin: entry.author?.login ?? null,
+  state: entry.state,
+  body: entry.body,
+})
+
 const stateOf = (args: { state: string; isDraft: boolean }): EPullRequestState | null => {
   const settled = PULL_REQUEST_STATES[args.state]
   if (settled !== undefined) return settled
@@ -123,5 +180,8 @@ export function parseGhPullRequest(value: unknown): PullRequest | null {
     state,
     checks: checksRollup(outcomes),
     tally: checksTally(outcomes),
+    mergeable: MERGEABLE[parsed.data.mergeable ?? ''] ?? null,
+    comments: parsed.data.comments.slice(-GH_ENTRY_WINDOW).map(commentOf),
+    reviews: parsed.data.reviews.slice(-GH_ENTRY_WINDOW).map(reviewOf),
   }
 }

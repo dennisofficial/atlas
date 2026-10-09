@@ -82,6 +82,9 @@ const wireReading = (state: PrStateWire): PullRequestReading => ({
     state: wireStateOf(state.state),
     checks: wireChecksOf(state),
     tally: { running: state.checksRunning, passed: state.checksPassed, failed: state.checksFailed },
+    mergeable: state.mergeable,
+    comments: [],
+    reviews: [],
   },
 })
 

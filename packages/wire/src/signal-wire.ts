@@ -131,6 +131,12 @@ export const operatorInputRequestWireSchema = z.object({
 
 export type OperatorInputRequestWire = z.infer<typeof operatorInputRequestWireSchema>
 
+export enum EArchivePhase {
+  Walking = 'walking',
+  Staging = 'staging',
+  Compressing = 'compressing',
+}
+
 export const channelSignalSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('turn-working'), working: z.boolean() }),
   z.object({ type: z.literal('step-started'), stepId: stepIdWireSchema }),
@@ -158,6 +164,15 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
     request: operatorInputRequestWireSchema.nullable(),
   }),
   z.object({ type: z.literal('rotation-changed'), rotation: rotationStateWireSchema }),
+  z.object({
+    type: z.literal('archive-progress'),
+    archive: z.enum(['transcript', 'workspace']),
+    phase: z.enum(EArchivePhase),
+    files: z.number().int().nonnegative(),
+    bytes: z.number().nonnegative(),
+    totalBytes: z.number().nonnegative().optional(),
+  }),
 ])
 
 export type ChannelSignal = z.infer<typeof channelSignalSchema>
+export type ArchiveProgressSignal = Extract<ChannelSignal, { type: 'archive-progress' }>
