@@ -6,6 +6,8 @@ import {
   createUrlOpener,
   portToken,
   GithubUiBridgePort,
+  MutablePrEventSink,
+  PrEventFrameSink,
   PullRequestPort,
   type ContributedProjection,
   type HarnessApp,
@@ -31,6 +33,7 @@ export type { SandboxControl, SessionTitler }
 type TuiSurface = {
   pullRequests: PullRequestPort | null
   githubSurface: ContributedSurface | null
+  prEventSink: MutablePrEventSink | null
 }
 
 export type AtlasApp = Omit<
@@ -40,6 +43,8 @@ export type AtlasApp = Omit<
   pluginProjections: readonly ContributedProjection[]
   pluginSurfaces: readonly ContributedSurface[]
   pullRequests: PullRequestPort | null
+  /** The read tap on the pull-request event stream; the parked-cloud forwarder attaches here. */
+  prEventSink: MutablePrEventSink | null
   /** Absent for a local session, where rewind cleans up through the local registries. */
   rewindMachinery?: RewindMachineryPort | undefined
   rotation?: RotationPort | undefined
@@ -116,7 +121,16 @@ export async function composeAtlas(args: {
           }
         })()
 
-        return { pullRequests, githubSurface }
+        const prEventSink = ((): MutablePrEventSink | null => {
+          try {
+            const sink = container.resolve(portToken(PrEventFrameSink))
+            return sink instanceof MutablePrEventSink ? sink : null
+          } catch {
+            return null
+          }
+        })()
+
+        return { pullRequests, githubSurface, prEventSink }
       },
     },
   })
@@ -131,5 +145,6 @@ export async function composeAtlas(args: {
     pluginSurfaces:
       surface.githubSurface === null ? pluginSurfaces : [...pluginSurfaces, surface.githubSurface],
     pullRequests: surface.pullRequests,
+    prEventSink: surface.prEventSink,
   }
 }

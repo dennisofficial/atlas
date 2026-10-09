@@ -79,5 +79,12 @@ const stubInto = async (args: { app: ListingApp; wire: WireThread }): Promise<Th
     repo: args.wire.repo,
     executionLocation: EExecutionLocation.Cloud,
   })
-  return { ...created, createdAt: args.wire.createdAt, updatedAt: args.wire.updatedAt }
+  return {
+    ...created,
+    createdAt: args.wire.createdAt,
+    updatedAt: args.wire.updatedAt,
+    // The stub's transcript holds no pull-request-linked events, so `list` cannot fold the links
+    // out of it; the wire row already carries them, and the parked-cloud forwarder matches on them.
+    ...(args.wire.pullRequests === undefined ? {} : { pullRequests: args.wire.pullRequests }),
+  }
 }

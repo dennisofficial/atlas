@@ -111,6 +111,7 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.AgentRestarted }
       | { kind: EEntryKind.AgentReported }
       | { kind: EEntryKind.OperatorInput }
+      | { kind: EEntryKind.PrEvent }
     > =>
       entry.kind !== EEntryKind.OperatorSaid &&
       entry.kind !== EEntryKind.HistoryCompacted &&
@@ -127,7 +128,8 @@ export const fromTheModel = (model: TranscriptModel) =>
       entry.kind !== EEntryKind.Rotated &&
       entry.kind !== EEntryKind.AgentRestarted &&
       entry.kind !== EEntryKind.AgentReported &&
-      entry.kind !== EEntryKind.OperatorInput,
+      entry.kind !== EEntryKind.OperatorInput &&
+      entry.kind !== EEntryKind.PrEvent,
   )
 
 export const fromTheOperator = (model: TranscriptModel) =>

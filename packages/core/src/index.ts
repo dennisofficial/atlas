@@ -78,6 +78,7 @@ export * from './assembly/rules/running-agents-block'
 export * from './assembly/rules/running-services-block'
 export * from './assembly/rules/running-shells-block'
 export * from './assembly/rules/service-ended-block'
+export * from './assembly/rules/pr-event-block'
 export * from './assembly/rules/system-prompt'
 
 export * from './context/slot'

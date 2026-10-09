@@ -21,6 +21,7 @@ import { createPullRequestLinks } from './links'
 import { createPollDiffer } from './pr-event-diff'
 import { createPrEventRouting, type PrEventRouting } from './pr-event-routing'
 import { PrEventNoticeQueue, prEventIntakeSource } from './pr-event-queue'
+import { MutablePrEventSink, PrEventFrameSink } from './pr-event-sink'
 import { CachedPullRequestPort } from './pull-request-cache-port'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
 import { createPullRequestTransitions } from './pr-transitions'
@@ -91,12 +92,16 @@ export default class GithubPlugin extends NativePlugin {
     let service: PullRequestService | null = null
     let cached: CachedPullRequestPort | null = null
     let routing: PrEventRouting | null = null
+    const sink = new MutablePrEventSink()
     const raw = this.port(
       (pushed) => {
         service?.ingest(pushed)
         cached?.ingest(pushed)
       },
-      (frame) => routing?.onPrEvent(frame),
+      (frame) => {
+        routing?.onPrEvent(frame)
+        sink.onPrEvent(frame)
+      },
     )
     const adapter = new CachedPullRequestPort({ inner: raw, directory: this.args.cacheDirectory })
     cached = adapter
@@ -210,6 +215,7 @@ export default class GithubPlugin extends NativePlugin {
       ],
       ports: [
         { token: PullRequestPort, use: adapter },
+        { token: PrEventFrameSink, use: sink },
         {
           token: GithubUiBridgePort,
           use: { service, facts, links: links.projection, cloudCheckout, badges: adapter },

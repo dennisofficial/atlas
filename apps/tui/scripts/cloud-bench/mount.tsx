@@ -100,6 +100,7 @@ export async function mountCloudBenchmark(args: {
     pluginProjections: harness.pluginProjections,
     pluginSurfaces: surfaces,
     pullRequests: null,
+    prEventSink: null,
     config: { model: undefined, executionLocation: undefined, open: { mode: EOpenMode.New }, cwd },
     command: SERVE_COMMAND,
   }
