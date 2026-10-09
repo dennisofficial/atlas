@@ -113,9 +113,9 @@ describe('sandboxImageOf', () => {
     })
   })
 
-  it('pins a release build to its own tag, trusting the serve baked into it by construction', () => {
+  it('boots the latest image for a release build and pins serve to the release version', () => {
     expect(sandboxImageOf({ settings: settingsWith({}), release })).toEqual({
-      image: 'atlas-sandbox:1.4.2',
+      image: 'atlas-sandbox:latest',
       serveVersion: '1.4.2',
     })
   })

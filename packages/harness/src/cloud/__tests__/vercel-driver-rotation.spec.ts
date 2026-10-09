@@ -2,154 +2,136 @@ import { describe, expect, it } from 'bun:test'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 import { VercelDriver } from '../vercel-driver'
+import type { FakeSandbox } from './vercel-driver-sandbox-fixture'
 import { CREDENTIALS, PINNED_VERSION, fakeSandbox, fakeDriveSdk } from './vercel-driver-fixture'
 
-describe('createOrResume', () => {
-  it('rotates a live running sandbox whose baked serve predates the pinned version: delete, recreate, no drain when nothing is in flight', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running', alive: true })
-    const fresh = fakeSandbox()
-    const events: string[] = []
-    Object.assign(stale, {
-      delete: async () => {
-        events.push('delete')
-      },
-      runCommand: ((original) => async (params: { cmd: string; args?: string[] }) => {
-        if (params.args?.[1]?.includes('/v1/drain')) events.push('drain')
-        return original(params)
-      })(
-        stale.runCommand.bind(stale) as (params: {
-          cmd: string
-          args?: string[]
-        }) => Promise<unknown>,
-      ),
-    })
-    const driver = new VercelDriver({
-      credentials: CREDENTIALS,
-      cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
-      image: `atlas-sandbox:${PINNED_VERSION}`,
-      serveVersion: PINNED_VERSION,
-      runtimeHealth: async () => ({
-        busy: false,
-        childrenRunning: 0,
-        shellsRunning: 0,
-        servicesRunning: 0,
-        pendingInput: false,
-        settlingWork: false,
-        clients: 0,
-      }),
-      sdk: {
-        get: async () => stale,
-        getOrCreate: async (params) => {
-          events.push('recreate')
-          await params?.onCreate?.(fresh)
-          return fresh
-        },
-      },
-    })
+const IDLE_HEALTH = async () => ({
+  busy: false,
+  childrenRunning: 0,
+  shellsRunning: 0,
+  servicesRunning: 0,
+  pendingInput: false,
+  settlingWork: false,
+  clients: 0,
+})
 
-    const placement = await driver.createOrResume({
-      name: 'atlas-thread-x',
-      threadId: 'brn_cloud',
-      token: 't',
+type RunParams = { cmd: string; args?: string[] }
+
+const trackSwap = ({
+  sandbox,
+  events,
+  serveRetired,
+}: {
+  sandbox: FakeSandbox
+  events: string[]
+  serveRetired: boolean
+}) => {
+  let retired = serveRetired
+  let downloaded = false
+  const run = sandbox.runCommand.bind(sandbox) as (params: RunParams) => Promise<unknown>
+  const remove = sandbox.delete.bind(sandbox)
+  Object.assign(sandbox, {
+    delete: async (...params: Parameters<FakeSandbox['delete']>) => {
+      events.push('delete')
+      return remove(...params)
+    },
+    runCommand: async (params: RunParams) => {
+      const script = params.args?.[1] ?? ''
+      if (script.includes('/v1/drain')) {
+        events.push('drain')
+        retired = true
+      }
+      if (script.includes('atlas-serve.pid') && script.includes('kill')) retired = true
+      if (script.includes('atlas-serve-linux-x64')) {
+        events.push('download')
+        downloaded = true
+        retired = false
+      }
+      const healthProbe = script.includes('/v1/health') && script.includes('-o /dev/null')
+      if (retired && !downloaded && healthProbe) return { exitCode: 1 }
+      if (retired && script.startsWith('kill -0')) return { exitCode: 1 }
+      return run(params)
+    },
+  })
+}
+
+const swapDriver = ({
+  sandbox,
+  runtimeHealth,
+}: {
+  sandbox: FakeSandbox
+  runtimeHealth: () => Promise<Record<string, unknown>>
+}) =>
+  new VercelDriver({
+    credentials: CREDENTIALS,
+    cloudUrl: 'https://api.example.com',
+    driveSdk: fakeDriveSdk().sdk,
+    image: `atlas-sandbox:${PINNED_VERSION}`,
+    serveVersion: PINNED_VERSION,
+    runtimeHealth,
+    sdk: { get: async () => sandbox, getOrCreate: async () => sandbox },
+  })
+
+const request = { name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' }
+
+describe('createOrResume', () => {
+  it('swaps serve in place on a live running sandbox whose baked serve predates the pin — no delete, no recreate, no drain when idle', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running', alive: true })
+    const events: string[] = []
+    trackSwap({ sandbox: stale, events, serveRetired: true })
+
+    const placement = await swapDriver({
+      sandbox: stale,
+      runtimeHealth: IDLE_HEALTH,
+    }).createOrResume({
+      ...request,
       onRotationStarted: () => {
         events.push('rotation-started')
       },
     })
 
-    expect(events).toEqual(['rotation-started', 'delete', 'recreate'])
-    expect(placement.created).toBe(true)
+    expect(events).not.toContain('delete')
+    expect(events).not.toContain('drain')
+    expect(events).toContain('download')
+    expect(stale.deleted).toBe(false)
+    expect(placement.created).toBe(false)
     expect(placement.rotatedFrom).toBe('1.19.1')
     expect(placement.rotatedProtocol).toBeUndefined()
   })
 
-  it('recreates a stopped sandbox whose baked serve predates the pin without waking its runtime', async () => {
+  it('swaps a stopped sandbox whose baked serve predates the pin in place — resumed, not deleted, no drain', async () => {
     const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
-    const fresh = fakeSandbox({ installedVersion: PINNED_VERSION })
-    let getOrCreateParams: Record<string, unknown> | undefined
-    const driver = new VercelDriver({
-      credentials: CREDENTIALS,
-      cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
-      image: `atlas-sandbox:${PINNED_VERSION}`,
-      serveVersion: PINNED_VERSION,
-      runtimeHealth: async () => ({
-        busy: false,
-        childrenRunning: 0,
-        shellsRunning: 0,
-        servicesRunning: 0,
-        pendingInput: false,
-        settlingWork: false,
-        clients: 0,
-      }),
-      sdk: {
-        get: async () => stale,
-        getOrCreate: async (params) => {
-          getOrCreateParams = params as Record<string, unknown>
-          return fresh
-        },
-      },
-    })
+    const events: string[] = []
+    trackSwap({ sandbox: stale, events, serveRetired: true })
 
-    await driver.createOrResume({
-      name: 'atlas-thread-x',
-      threadId: 'brn_cloud',
-      token: 't',
-    })
+    const placement = await swapDriver({ sandbox: stale, runtimeHealth: IDLE_HEALTH }).createOrResume(request)
 
-    expect(stale.deleted).toBe(true)
-    expect(getOrCreateParams?.image).toBe(`atlas-sandbox:${PINNED_VERSION}`)
+    expect(events).toEqual(['download'])
+    expect(stale.deleted).toBe(false)
+    expect(placement.created).toBe(false)
   })
 
-  it('rotates a running sandbox whose serve speaks another wire protocol: drain, delete, recreate', async () => {
+  it('swaps a running sandbox whose serve speaks another wire protocol in place: drain, then download, never delete', async () => {
     const stale = fakeSandbox({
       installedProtocol: String(CHANNEL_PROTOCOL_VERSION - 1),
       status: 'running',
     })
-    const fresh = fakeSandbox()
     const events: string[] = []
-    Object.assign(stale, {
-      delete: async () => {
-        events.push('delete')
-      },
-      runCommand: ((original) => async (params: { cmd: string; args?: string[] }) => {
-        if (params.args?.[1]?.includes('/v1/drain')) events.push('drain')
-        return original(params)
-      })(
-        stale.runCommand.bind(stale) as (params: {
-          cmd: string
-          args?: string[]
-        }) => Promise<unknown>,
-      ),
-    })
-    const driver = new VercelDriver({
-      credentials: CREDENTIALS,
-      cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
-      image: `atlas-sandbox:${PINNED_VERSION}`,
-      serveVersion: PINNED_VERSION,
-      runtimeHealth: async () => ({ busy: true, clients: 1 }),
-      sdk: {
-        get: async () => stale,
-        getOrCreate: async (params) => {
-          events.push('recreate')
-          await params?.onCreate?.(fresh)
-          return fresh
-        },
-      },
-    })
+    trackSwap({ sandbox: stale, events, serveRetired: false })
 
-    const placement = await driver.createOrResume({
-      name: 'atlas-thread-x',
-      threadId: 'brn_cloud',
-      token: 't',
+    const placement = await swapDriver({
+      sandbox: stale,
+      runtimeHealth: async () => ({ busy: true, clients: 1 }),
+    }).createOrResume({
+      ...request,
       onRotationStarted: () => {
         events.push('rotation-started')
       },
     })
 
-    expect(events).toEqual(['rotation-started', 'drain', 'delete', 'recreate'])
-    expect(placement.created).toBe(true)
+    expect(events).toEqual(['rotation-started', 'drain', 'download'])
+    expect(stale.deleted).toBe(false)
+    expect(placement.created).toBe(false)
     expect(placement.rotatedProtocol).toBe(CHANNEL_PROTOCOL_VERSION - 1)
     expect(placement.rotatedFrom).toBeUndefined()
   })
@@ -175,58 +157,31 @@ describe('createOrResume', () => {
     expect(fresh.commands).toHaveLength(0)
   })
 
-  it('recreates an idle sandbox whose serve is too old to confirm preparation — there is nothing in flight for the drain to lose', async () => {
-    const stale = fakeSandbox({ installedProtocol: '', drainStatus: '404' })
-    const fresh = fakeSandbox()
-    const driver = new VercelDriver({
-      credentials: CREDENTIALS,
-      cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
-      image: `atlas-sandbox:${PINNED_VERSION}`,
-      serveVersion: PINNED_VERSION,
-      runtimeHealth: async () => ({
-        busy: false,
-        childrenRunning: 0,
-        shellsRunning: 0,
-        servicesRunning: 0,
-        pendingInput: false,
-        settlingWork: false,
-        clients: 0,
-      }),
-      sdk: { get: async () => stale, getOrCreate: async () => fresh },
+  it('swaps an idle sandbox whose serve is too old to confirm preparation in place — nothing in flight, so no drain and no delete', async () => {
+    const stale = fakeSandbox({
+      installedVersion: '1.19.1',
+      installedProtocol: '',
+      drainStatus: '404',
     })
+    const events: string[] = []
+    trackSwap({ sandbox: stale, events, serveRetired: true })
 
-    await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+    const placement = await swapDriver({ sandbox: stale, runtimeHealth: IDLE_HEALTH }).createOrResume(request)
 
-    expect(stale.deleted).toBe(true)
+    expect(events).toEqual(['download'])
+    expect(stale.deleted).toBe(false)
+    expect(placement.created).toBe(false)
   })
 
-  it('recreates a stopped sandbox whose version file is missing — the file ships with the image, so its absence means an older bake', async () => {
+  it('swaps a stopped sandbox whose version file is missing in place — the file ships with the image, so its absence means an older bake', async () => {
     const ancient = fakeSandbox({ installedVersion: '', status: 'stopped' })
-    const driver = new VercelDriver({
-      credentials: CREDENTIALS,
-      cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
-      image: `atlas-sandbox:${PINNED_VERSION}`,
-      serveVersion: PINNED_VERSION,
-      runtimeHealth: async () => ({
-        busy: false,
-        childrenRunning: 0,
-        shellsRunning: 0,
-        servicesRunning: 0,
-        pendingInput: false,
-        settlingWork: false,
-        clients: 0,
-      }),
-      sdk: { get: async () => ancient, getOrCreate: async () => fakeSandbox() },
-    })
+    const events: string[] = []
+    trackSwap({ sandbox: ancient, events, serveRetired: true })
 
-    await driver.createOrResume({
-      name: 'atlas-thread-x',
-      threadId: 'brn_cloud',
-      token: 't',
-    })
+    const placement = await swapDriver({ sandbox: ancient, runtimeHealth: IDLE_HEALTH }).createOrResume(request)
 
-    expect(ancient.deleted).toBe(true)
+    expect(events).toEqual(['download'])
+    expect(ancient.deleted).toBe(false)
+    expect(placement.created).toBe(false)
   })
 })

@@ -161,6 +161,15 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       log: deps.config.log,
       isMissing: isSandboxMissing,
       toFailure: asVercelFailure,
+      swapServe: async (live: Sandbox) => {
+        await deps.launchServe({
+          sandbox: live,
+          token: serveToken,
+          sandboxSessionId: live.currentSession().sessionId,
+          cloudUrl: deps.config.cloudUrl,
+          desiredVersion: deps.config.serveVersion,
+        })
+      },
     })
     const freshBoot =
       probe === ESandboxProbe.Missing ||

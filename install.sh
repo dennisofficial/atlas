@@ -6,28 +6,68 @@ set -eu
 
 REPO=dennisofficial/atlas
 
+usage() {
+  printf 'usage: install.sh [tui|serve] [VERSION]\n' >&2
+  exit 2
+}
+
+flavor=tui
+if [ $# -gt 0 ]; then
+  case "$1" in
+    tui | serve)
+      flavor=$1
+      shift
+      ;;
+    *) usage ;;
+  esac
+fi
+[ $# -le 1 ] || usage
+version=${1:-latest}
+
 if ! command -v curl >/dev/null 2>&1; then
   printf 'install.sh: curl is required\n' >&2
   exit 1
 fi
 
-case "$(uname -s)-$(uname -m)" in
-  Darwin-arm64) asset=atlas-darwin-arm64 ;;
-  Darwin-x86_64) asset=atlas-darwin-x64 ;;
-  Linux-x86_64) asset=atlas-linux-x64 ;;
-  *)
-    printf 'install.sh: no prebuilt binary for %s-%s\n' "$(uname -s)" "$(uname -m)" >&2
-    exit 1
+platform="$(uname -s)-$(uname -m)"
+
+case "$flavor" in
+  serve)
+    if [ "$platform" != Linux-x86_64 ]; then
+      printf 'install.sh: serve ships linux-x64 only, not %s\n' "$platform" >&2
+      exit 1
+    fi
+    asset=atlas-serve-linux-x64
+    binary=atlas-serve
+    ;;
+  tui)
+    case "$platform" in
+      Darwin-arm64) asset=atlas-darwin-arm64 ;;
+      Darwin-x86_64) asset=atlas-darwin-x64 ;;
+      Linux-x86_64) asset=atlas-linux-x64 ;;
+      *)
+        printf 'install.sh: no prebuilt binary for %s\n' "$platform" >&2
+        exit 1
+        ;;
+    esac
+    binary=atlas
     ;;
 esac
 
 dest_dir=${ATLAS_INSTALL_DIR:-"$HOME/.local/bin"}
-dest="$dest_dir/atlas"
+dest="$dest_dir/$binary"
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-install.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
-base="https://github.com/$REPO/releases/latest/download"
+if [ "$version" = latest ]; then
+  base="https://github.com/$REPO/releases/latest/download"
+else
+  version=${version#tui-v}
+  version=${version#v}
+  [ -n "$version" ] || usage
+  base="https://github.com/$REPO/releases/download/tui-v$version"
+fi
 
 if [ -t 2 ]; then
   printf 'downloading %s (about 100MB)\n' "$asset" >&2

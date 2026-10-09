@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { createServeLauncher, LEGACY_SERVE_LOG_PATH, SERVE_LOG_PATH } from '../serve-launch'
+import { createServeLauncher, LEGACY_SERVE_LOG_PATH, SERVE_LOG_PATH, SERVE_VERSION_PATH } from '../serve-launch'
 import { tailServeLog } from '../vercel-driver-probes'
 
 const directories: string[] = []
@@ -42,6 +42,10 @@ describe('serve diagnostic log filesystem behavior', () => {
         if (args.detached) {
           launch = script
           return { exitCode: 0 }
+        }
+        if (script.startsWith('test -x')) return { exitCode: 1 }
+        if (script.includes(SERVE_VERSION_PATH)) {
+          return { exitCode: 0, stdout: async () => '\n' }
         }
         return { exitCode: script.startsWith('for i in') ? 0 : 1 }
       },

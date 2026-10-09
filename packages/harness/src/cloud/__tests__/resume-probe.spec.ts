@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { APIError } from '@vercel/sandbox'
+import { APIError, type Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 import { SERVE_PROTOCOL_PATH, SERVE_VERSION_PATH } from '../serve-launch'
@@ -366,5 +366,75 @@ describe('probeSandboxForResume', () => {
 
     expect(result.probe).toBe(ESandboxProbe.Kept)
     expect(failing.deleted()).toBe(false)
+  })
+
+  it('swaps a stale running sandbox in place instead of deleting it when a swap is wired', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+    const swapped: Sandbox[] = []
+
+    const result = await probeOf({
+      sandbox,
+      health: FULL_IDLE,
+      swapServe: async (live) => {
+        swapped.push(live)
+      },
+    })
+
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(result.rotatedFrom).toBe(STALE)
+    expect(swapped).toEqual([sandbox])
+    expect(sandbox.deleted()).toBe(false)
+  })
+
+  it('drains a busy stale sandbox, then swaps it in place', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+    const order: string[] = []
+
+    const result = await probeOf({
+      sandbox,
+      health: { ...FULL_IDLE, turnRunning: true },
+      drain: async () => {
+        order.push('drain')
+      },
+      swapServe: async () => {
+        order.push('swap')
+      },
+    })
+
+    expect(order).toEqual(['drain', 'swap'])
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(sandbox.deleted()).toBe(false)
+  })
+
+  it('resumes a confirmed stopped sandbox in place to swap serve, preserving its filesystem', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+    let swaps = 0
+
+    const result = await probeOf({
+      sandbox,
+      swapServe: async () => {
+        swaps += 1
+      },
+    })
+
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(swaps).toBe(1)
+    expect(sandbox.deleted()).toBe(false)
+  })
+
+  it('leaves the sandbox intact when the in-place swap fails', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+
+    await expect(
+      probeOf({
+        sandbox,
+        health: FULL_IDLE,
+        swapServe: async () => {
+          throw new Error('atlas-serve 2.0.0 failed to install into the sandbox (exit 1): curl: 404')
+        },
+      }),
+    ).rejects.toThrow('failed to install')
+
+    expect(sandbox.deleted()).toBe(false)
   })
 })

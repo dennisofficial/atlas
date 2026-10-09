@@ -261,12 +261,9 @@ operator's global instructions: the rule stays "produce a preview", this is the 
 The sandbox image lives in two registries. GHCR (`ghcr.io/<owner>/atlas-sandbox`) is the private
 canonical listing — multi-arch, `sha-<7>` + `latest` per merge, used by local Docker sandboxes and
 as the build cache; access rides on GitHub. VCR (`vcr.vercel.com`) is the delivery mechanism Vercel
-Sandbox requires — `linux/amd64` only, and **only one tag per release** (the semver a released TUI
-pins); per-merge sha/latest pushes were removed because nothing consumed them and each cost ~1.4–2 GB
-of billable storage. After each release's tag is verified, `apps/serve/scripts/prune-vcr-images.ts`
-deletes release tags older than 7 days (a parked terminal on an older version must still boot its
-pinned image mid-session) plus any non-semver leftovers; an image a live sandbox booted from is
-always spared.
+Sandbox requires — `linux/amd64` only, `latest` only: no per-release tag, because the image is a pure
+runtime toolkit with nothing Atlas-versioned in it. Serve is delivered by an in-sandbox download at
+boot, pinned to the client's own release version.
 
 ## Triage labels
 

@@ -81,6 +81,7 @@ export class VercelDriver {
             token: launchArgs.token,
             sandboxSessionId: launchArgs.sandboxSessionId,
             cloudUrl: launchArgs.cloudUrl,
+            desiredVersion: launchArgs.desiredVersion ?? this.args.serveVersion,
           }),
       },
       args,
@@ -272,6 +273,7 @@ export class VercelDriver {
     token?: string | undefined
     sandboxSessionId?: string | undefined
     cloudUrl?: string | undefined
+    desiredVersion?: string | undefined
   }): Promise<void> {
     const existing = this.inflightLaunches.get(args.sandbox)
     if (existing !== undefined) return existing
@@ -281,6 +283,7 @@ export class VercelDriver {
         ...(args.token === undefined ? {} : { token: args.token }),
         ...(args.sandboxSessionId === undefined ? {} : { sandboxSessionId: args.sandboxSessionId }),
         ...(args.cloudUrl === undefined ? {} : { cloudUrl: args.cloudUrl }),
+        ...(args.desiredVersion === undefined ? {} : { desiredVersion: args.desiredVersion }),
       })
       .finally(() => {
         this.inflightLaunches.delete(args.sandbox)

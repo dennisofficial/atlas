@@ -221,6 +221,14 @@ jobs:
             shasum -a 256 "dist/${asset}" > "dist/${asset}.sha256"
           done
 
+      - name: build serve binary
+        if: steps.version.outputs.skip != 'true'
+        working-directory: apps/serve
+        run: |
+          set -euo pipefail
+          bun run build:serve -- --target bun-linux-x64 --outfile dist/atlas-serve-linux-x64
+          shasum -a 256 dist/atlas-serve-linux-x64 > dist/atlas-serve-linux-x64.sha256
+
       - name: create release
         if: steps.version.outputs.skip != 'true'
         working-directory: apps/tui
@@ -236,7 +244,9 @@ jobs:
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
-          gh release create "tui-v${VERSION}" dist/* "${args[@]}"
+          gh release create "tui-v${VERSION}" dist/* \
+            ../serve/dist/atlas-serve-linux-x64 ../serve/dist/atlas-serve-linux-x64.sha256 \
+            "${args[@]}"
 
       - name: dispatch sandbox image retag
         if: steps.version.outputs.skip != 'true'

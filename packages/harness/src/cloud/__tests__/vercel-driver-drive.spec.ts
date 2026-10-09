@@ -132,17 +132,13 @@ describe('createOrResume', () => {
     expect(lines.some((line) => line.includes('still attached'))).toBe(true)
   })
 
-  it('waits out a drive that stays attached for a few polls after the stale sandbox is deleted', async () => {
+  it('swaps a stopped stale sandbox in place — no delete, so no drive detach lag to ride out', async () => {
     const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
     let listCalls = 0
     const drives = fakeDriveSdk({
       list: async () =>
         (async function* () {
           listCalls += 1
-          if (listCalls < 3) {
-            yield { name: 'other-drive', currentSandboxName: 'atlas-thread-y' } as never
-            return
-          }
           yield* [] as never[]
         })(),
     })
@@ -174,8 +170,8 @@ describe('createOrResume', () => {
 
     await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
 
-    expect(stale.deleted).toBe(true)
-    expect(listCalls).toBe(2)
+    expect(stale.deleted).toBe(false)
+    expect(listCalls).toBe(1)
     expect(mounts).toBe(1)
   })
 

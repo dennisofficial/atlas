@@ -21,12 +21,11 @@ permissions:
 
 # No concurrency group, deliberately: a group keeps one running + one pending run and cancels
 # older pending runs, so merges landing close together silently skipped publishing their
-# sha-<commit> tags — and every merge can be a release whose retag polls for exactly that tag.
-# Runs must stack up and each publish its own sha tag; latest is last-writer-wins and self-heals.
+# sha-<commit> tags. Runs must stack up and each publish its own sha tag; latest is
+# last-writer-wins and self-heals.
 #
-# VCR gets no per-merge push: released TUIs pin atlas-sandbox:<own-version> and the retag job
-# below rebuilds that tag from the release commit, so sha/latest tags on VCR would only
-# accumulate billable storage nothing reads.
+# VCR gets no per-merge push: the retag job below pushes `latest` only, once per release.
+# Serve is not baked in, so nothing about the image is version-specific.
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-sandbox
@@ -53,16 +52,6 @@ jobs:
         id: meta
         run: echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
-      # Docker sandboxes never run serve, so the GHCR image bakes 0-byte placeholders rather
-      # than the real ~109MB binary per arch.
-      - name: generate serve placeholders
-        run: |
-          touch apps/serve/sandbox-image/atlas-serve \
-            apps/serve/sandbox-image/atlas-serve.version \
-            apps/serve/sandbox-image/atlas-serve.protocol
-          printf '%s-%s' "$(date -u +%s)" "${{ github.run_attempt }}" \
-            > apps/serve/sandbox-image/atlas-serve.bake-id
-
       - uses: docker/build-push-action@v7
         with:
           context: apps/serve/sandbox-image
@@ -85,7 +74,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.release_sha }}
-          fetch-depth: 0
 
       - uses: docker/setup-buildx-action@v4
 
@@ -95,44 +83,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: compute tags
-        env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          RELEASE_SHA: ${{ inputs.release_sha }}
-        run: |
-          echo "VERSION=${RELEASE_TAG#tui-v}" >> "$GITHUB_ENV"
-          echo "SHA_TAG=sha-$(echo "$RELEASE_SHA" | cut -c1-7)" >> "$GITHUB_ENV"
-
-      # The released TUI pins its sandbox image to its own version, so the tag must come from
-      # this commit's real sha tag — the publish job for this commit may still be building when
-      # the release fires, so poll rather than ever fall back to latest.
-      - name: retag existing image
-        run: |
-          set -euo pipefail
-
-          # The release fires right after the push that triggered it, while this same
-          # commit's publish job may still be building its own sha tag; a stale latest
-          # fallback would retag the PREVIOUS commit's image under the new version, and
-          # released binaries pin their sandbox image to that version, so wrong here is
-          # load-bearing. Poll for the real tag instead of ever falling back to latest.
-          attempts=40
-          for ((i = 1; i <= attempts; i++)); do
-            if docker buildx imagetools inspect "${IMAGE}:${SHA_TAG}" >/dev/null 2>&1; then
-              docker buildx imagetools create -t "${IMAGE}:${VERSION}" "${IMAGE}:${SHA_TAG}"
-              echo "Tagged \`${IMAGE}:${VERSION}\` from \`${IMAGE}:${SHA_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            echo "waiting for ${IMAGE}:${SHA_TAG} to publish (attempt ${i}/${attempts})"
-            sleep 30
-          done
-
-          echo "::error::${IMAGE}:${SHA_TAG} never appeared after 20 minutes -- the publish job for this commit likely failed" >&2
-          exit 1
-
-      # The GHCR tag is a manifest copy, but the VCR bake carries the version file the drift
-      # probe reads, which a retag cannot change — so the version tag on VCR comes from a
-      # rebuild of the release commit with the version stamped into the serve's sidecar. Same
-      # source the sha tag already built; the registry cache makes the recompile the only cost.
       - uses: docker/login-action@v4
         if: vars.VERCEL_VCR_ENABLED == 'true'
         with:
@@ -140,55 +90,13 @@ jobs:
           username: team_GR4aCzLIY5D3YYWgITz3Tere
           password: ${{ secrets.VERCEL_TOKEN }}
 
-      - uses: oven-sh/setup-bun@v2.2.0
-        if: vars.VERCEL_VCR_ENABLED == 'true'
-
-      - run: bun install
-        if: vars.VERCEL_VCR_ENABLED == 'true'
-
-      - name: rebuild serve with the release version and protocol stamped
-        if: vars.VERCEL_VCR_ENABLED == 'true'
-        working-directory: apps/serve
-        run: |
-          bun run build:serve -- --target bun-linux-x64 --outfile sandbox-image/atlas-serve
-          printf '%s' "$VERSION" > sandbox-image/atlas-serve.version
-          sed -nE 's/^export const CHANNEL_PROTOCOL_VERSION = ([0-9]+).*/\1/p' ../../packages/wire/src/channel-wire.ts | tr -d '\n' > sandbox-image/atlas-serve.protocol
-          test -s sandbox-image/atlas-serve.protocol
-          printf '%s-%s' "$(date -u +%s)" "${{ github.run_attempt }}" > sandbox-image/atlas-serve.bake-id
-
-      - name: publish the version-tagged VCR image
+      - name: publish the latest VCR image
         if: vars.VERCEL_VCR_ENABLED == 'true'
         uses: docker/build-push-action@v7
         with:
           context: apps/serve/sandbox-image
           platforms: linux/amd64
           provenance: false
-          tags: ${{ env.VCR_IMAGE }}:${{ env.VERSION }}
+          tags: ${{ env.VCR_IMAGE }}:latest
           outputs: type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
-
-      # Boot a throwaway sandbox against the just-published tag: the create is what triggers
-      # Vercel's optimization, so this both proves the image and pre-warms it — clients that pin
-      # the release never wait on a cold digest. A failed optimization is cached against the
-      # digest, and the script heals it by republishing under a fresh one, so a green retag run
-      # means a released TUI can boot this tag.
-      - name: verify the published image boots
-        if: vars.VERCEL_VCR_ENABLED == 'true'
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
-          VERCEL_PROJECT_ID: prj_sYzDU4qVdx0jaSuYprH3QaZb1vIF
-        run: bun apps/serve/scripts/verify-vcr-image.ts "atlas-sandbox:${{ env.VERSION }}"
-
-      # Prune after the new tag is verified, never before: the registry gains an image only when
-      # this job succeeds, so this is the one moment the window can shrink. A release tag survives
-      # for 7 days so a parked terminal on an older version can still boot its pinned image;
-      # anything a live sandbox booted from is spared regardless of age.
-      - name: prune stale VCR images
-        if: vars.VERCEL_VCR_ENABLED == 'true'
-        continue-on-error: true
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
-          VERCEL_PROJECT_ID: prj_sYzDU4qVdx0jaSuYprH3QaZb1vIF
-        run: bun apps/serve/scripts/prune-vcr-images.ts

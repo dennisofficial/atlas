@@ -2,6 +2,9 @@ import { dirname } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { DRIVE_HOME_PATH } from './drive-names'
+import { CHANNEL_PROTOCOL_VERSION } from './channel-wire'
+import { UNSTAMPED_PROTOCOL } from './resume-probe'
+import { installServe, type ServeInstaller } from './serve-install'
 import {
   SERVE_BINARY_PATH,
   LEGACY_SERVE_LOG_PATH,
@@ -25,6 +28,56 @@ export {
 }
 
 export const SERVE_CHECKPOINT_PATH = `${DRIVE_HOME_PATH}/operational/runtime-checkpoint.json`
+
+type InstalledStamps = { version: string | undefined; protocol: number }
+
+const installedStampsOf = async (sandbox: Sandbox): Promise<InstalledStamps> => {
+  const read = await sh({
+    sandbox,
+    script: `printf '%s\\n' "$(cat ${SERVE_VERSION_PATH} 2>/dev/null)"; printf '%s\\n' "$(cat ${SERVE_PROTOCOL_PATH} 2>/dev/null)"`,
+    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
+  }).catch(() => null)
+  if (read === null || read.exitCode !== 0 || typeof read.stdout !== 'function') {
+    return { version: undefined, protocol: UNSTAMPED_PROTOCOL }
+  }
+  const [versionLine, protocolLine] = (await read.stdout()).split('\n')
+  const version = (versionLine ?? '').trim()
+  const protocolText = (protocolLine ?? '').trim()
+  return {
+    version: version === '' ? undefined : version,
+    protocol: /^\d+$/.test(protocolText) ? Number(protocolText) : UNSTAMPED_PROTOCOL,
+  }
+}
+
+const serveStaleFor = (args: {
+  present: boolean
+  stamps: InstalledStamps
+  desiredVersion: string | undefined
+}): boolean => {
+  if (!args.present) return true
+  return serveDriftedFor(args) || args.stamps.version !== args.desiredVersion
+}
+
+// Stopping a live serve needs positive drift evidence: a stamped protocol mismatch, or a stamped
+// version the pin disagrees with. An unstamped or unreadable stamp predates stamping and a wedged
+// process is preserved and waited on, never killed on suspicion.
+const serveDriftedFor = (args: {
+  stamps: InstalledStamps
+  desiredVersion: string | undefined
+}): boolean => {
+  if (args.stamps.protocol !== UNSTAMPED_PROTOCOL && args.stamps.protocol !== CHANNEL_PROTOCOL_VERSION) return true
+  if (args.desiredVersion === undefined) return false
+  return args.stamps.version !== undefined && args.stamps.version !== args.desiredVersion
+}
+
+const serveBinaryPresent = async (sandbox: Sandbox): Promise<boolean> => {
+  const probe = await sh({
+    sandbox,
+    script: `test -x ${SERVE_BINARY_PATH}`,
+    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
+  }).catch(() => null)
+  return probe !== null && probe.exitCode === 0
+}
 
 const HEALTH_ATTEMPTS = 90
 const HEALTH_INTERVAL_SECONDS = 2
@@ -67,6 +120,22 @@ export const probeServeAlive = async (sandbox: Sandbox): Promise<boolean> => {
 }
 
 const serveAlive = probeServeAlive
+
+const SERVE_STOP_TIMEOUT_MS = 30_000
+
+const stopServe = async (sandbox: Sandbox): Promise<void> => {
+  await sh({
+    sandbox,
+    script:
+      `_pid=$(cat ${SERVE_HOME}/atlas-serve.pid 2>/dev/null || true); ` +
+      `[ -n "$_pid" ] && kill "$_pid" 2>/dev/null || true; ` +
+      `for i in $(seq 10); do ` +
+      `kill -0 "$_pid" 2>/dev/null || exit 0; sleep 1; ` +
+      `done; ` +
+      `[ -n "$_pid" ] && kill -9 "$_pid" 2>/dev/null || true; exit 0`,
+    timeoutMs: SERVE_STOP_TIMEOUT_MS,
+  }).catch(() => null)
+}
 
 const tokenFileMatches = async (args: { sandbox: Sandbox; token: string }): Promise<boolean> => {
   const probe = await sh({
@@ -119,30 +188,50 @@ export type ServeLauncher = (args: {
   token?: string | undefined
   sandboxSessionId?: string | undefined
   cloudUrl?: string | undefined
+  desiredVersion?: string | undefined
 }) => Promise<void>
 
 export function createServeLauncher(args?: {
   log?: ((line: string) => void) | undefined
+  installServe?: ServeInstaller | undefined
 }): ServeLauncher {
-  return async ({ sandbox, token, sandboxSessionId, cloudUrl }) => {
+  const install = args?.installServe ?? installServe
+  return async ({ sandbox, token, sandboxSessionId, cloudUrl, desiredVersion }) => {
     if (await serveAlive(sandbox)) {
       if (token !== undefined && !(await tokenFileMatches({ sandbox, token }))) {
         throw new Error('atlas serve is already running under a different token; refusing to rotate its live credentials')
       }
-      if (await serveHealthy(sandbox)) {
-        args?.log?.(`sandbox ${sandbox.name} has a live serve answering /v1/health — keeping it`)
+      const stamps = await installedStampsOf(sandbox)
+      const drifted = serveDriftedFor({ stamps, desiredVersion })
+      if (!drifted) {
+        if (await serveHealthy(sandbox)) {
+          args?.log?.(`sandbox ${sandbox.name} has a live serve answering /v1/health — keeping it`)
+          return
+        }
+        args?.log?.(
+          `sandbox ${sandbox.name} has a live serve that is not answering /v1/health — the process is preserved rather than killed; waiting for it`,
+        )
+        if (!(await waitForHealth(sandbox))) {
+          const tail = await serveLogTail(sandbox)
+          throw new Error(
+            `atlas serve is running but did not answer /v1/health within ${HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS}s; the live process was preserved rather than killed, and its log is at ${SERVE_LOG_PATH} in the sandbox, tail:\n${tail}`,
+          )
+        }
         return
       }
       args?.log?.(
-        `sandbox ${sandbox.name} has a live serve that is not answering /v1/health — the process is preserved rather than killed; waiting for it`,
+        `sandbox ${sandbox.name} runs serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), stale against "${desiredVersion ?? 'latest'}" — stopping it to swap in place`,
       )
-      if (!(await waitForHealth(sandbox))) {
-        const tail = await serveLogTail(sandbox)
+      await stopServe(sandbox)
+      if (await serveAlive(sandbox)) {
         throw new Error(
-          `atlas serve is running but did not answer /v1/health within ${HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS}s; the live process was preserved rather than killed, and its log is at ${SERVE_LOG_PATH} in the sandbox, tail:\n${tail}`,
+          `atlas serve refused to stop for its in-place swap; the sandbox was left running the old serve rather than destroyed`,
         )
       }
-      return
+      args?.log?.(
+        `sandbox ${sandbox.name} carries serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), needs "${desiredVersion ?? 'latest'}" — downloading it in place`,
+      )
+      await install({ sandbox, version: desiredVersion, log: args?.log })
     }
 
     if (
@@ -165,6 +254,15 @@ export function createServeLauncher(args?: {
     if (await serveHealthy(sandbox)) {
       args?.log?.(`sandbox ${sandbox.name} has a serve answering /v1/health — keeping it`)
       return
+    }
+
+    const present = await serveBinaryPresent(sandbox)
+    const stamps = await installedStampsOf(sandbox)
+    if (serveStaleFor({ present, stamps, desiredVersion })) {
+      args?.log?.(
+        `sandbox ${sandbox.name} carries serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), needs "${desiredVersion ?? 'latest'}" — downloading it in place`,
+      )
+      await install({ sandbox, version: desiredVersion, log: args?.log })
     }
 
     args?.log?.(`sandbox ${sandbox.name} has no live serve — booting it under the flock`)
