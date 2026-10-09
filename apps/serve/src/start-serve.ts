@@ -6,7 +6,7 @@ import { settleDirectArrival } from './direct-arrival'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
 import { startServeIdleStop } from './idle-stop'
 import { hydrateCloudPlacement } from './placement-hydration'
-import { EWorkspaceState, workspaceRefusalOf } from './materialize-workspace'
+import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
 import { runtimeWork } from './runtime-work'
@@ -15,6 +15,7 @@ import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
 import { recoverRotation } from './rotation-recover'
 import { bootServeFiles } from './serve-boot'
+import { listenWhileBooting } from './serve-boot-listener'
 import { composeBootApp } from './serve-compose-boot'
 import { serveConfig } from './serve-config'
 import { bindServeDrain } from './serve-drain-binding'
@@ -26,7 +27,6 @@ import { createTranscriptRestorer } from './serve-restore'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
 import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
-import { startSessionServer } from './session-server'
 import { createSessionHandlers } from './socket-session'
 import { createServeWorkspaceSession } from './serve-workspace-session'
 
@@ -38,9 +38,10 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const notice = new LoggingNoticePort({ log })
   const fetchFn = args.fetchFn ?? fetch
   const driveHome = atlasDirectory()
-  const recovery = await createServeRotationRecovery({
-    atlasHome: driveHome, threadId, sandboxSessionId: env.ATLAS_SANDBOX_SESSION_ID, log,
-  })
+  const sandboxSessionId = env.ATLAS_SANDBOX_SESSION_ID ?? ''
+  const boot = listenWhileBooting({ port: wanted, token, threadId, sandboxSessionId, startedAt, log })
+  const { server, port } = boot
+  const recovery = await createServeRotationRecovery({ atlasHome: driveHome, threadId, sandboxSessionId, log })
   const admission = { closed: false }
   const { direct, directBoot, workspace, activeCwd, bootDormant, spec, context } =
     await bootServeFiles({
@@ -223,7 +224,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     driver,
     threadId,
     atlasHome: driveHome,
-    sandboxSessionId: env.ATLAS_SANDBOX_SESSION_ID ?? '',
+    sandboxSessionId,
     admission,
     haltIdle: () => idleStop.halt(),
     whenMutationsSettled: async () => { await session.whenStarted(); await handlers.whenSettled() },
@@ -233,26 +234,12 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log,
   })
 
-  const server = startSessionServer({
-    port: wanted,
-    token,
+  boot.complete({
     handlers,
     drain: (given) => recovery.drain({ drain, ...given }),
-    health: () => ({
-      ok: workspace.state !== EWorkspaceState.Failed,
-      rotationPreparationVersion: 1,
-      sandboxSessionId: env.ATLAS_SANDBOX_SESSION_ID ?? '',
-      threadId,
-      uptimeMs: Date.now() - startedAt,
-      clients: handlers.clients(),
-      ...work(),
-      nextSeq: buffer.nextSeq(),
-      resumable,
-      workspace,
-    }),
+    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable },
   })
 
-  const port = server.port ?? wanted
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
 
   const lifecycle = createServeLifecycle({
@@ -294,7 +281,9 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     onDue: () => void lifecycle.park(),
   }) : idleStop
 
-  return { port, close: async (shutdown) => {
-    await lifecycle.close({ reason: shutdown?.reason ?? 'owner-shutdown' }); await recovery.settled()
-  } }
+  const close = async (shutdown?: { reason: string }): Promise<void> => {
+    await lifecycle.close({ reason: shutdown?.reason ?? 'owner-shutdown' })
+    await recovery.settled()
+  }
+  return { port, close }
 }
