@@ -22,7 +22,7 @@ afterEach(() => {
 })
 
 describe('liveSkillRegistry with an unusable bundled-skill cache', () => {
-  it('keeps text-only built-ins and posts one warning notice for the bundled skill', async () => {
+  it('keeps text-only built-ins and posts one warning notice per bundled skill', async () => {
     writeFileSync(join(atlasHome, 'bin'), 'a file where the cache directory must go')
     const notices = recordingNotices()
 
@@ -36,13 +36,13 @@ describe('liveSkillRegistry with an unusable bundled-skill cache', () => {
     const names = registry.all().map((skill) => skill.spec.name)
     expect(names).toEqual(expect.arrayContaining(['commit', 'resolving-merge-conflicts']))
     expect(names).not.toContain('ui-design')
-    expect(notices.posts).toHaveLength(1)
-    expect(notices.posts[0]).toMatchObject({
-      key: 'bundled-skill:ui-design',
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-    })
-    expect(notices.posts[0]?.text).toContain('ui-design')
+    expect(names).not.toContain('video')
+    expect(notices.posts).toHaveLength(2)
+    for (const bundled of ['ui-design', 'video']) {
+      const post = notices.posts.find((entry) => entry.key === `bundled-skill:${bundled}`)
+      expect(post).toMatchObject({ tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+      expect(post?.text).toContain(bundled)
+    }
   })
 
   it('loads the bundled skill and posts nothing when the cache is usable', async () => {
