@@ -18,6 +18,8 @@ const MAX_IDLE_SECONDS = 255
 
 const unauthorized = (): Response => new Response('unauthorized', { status: 401 })
 
+const booting = (): Response => new Response('serve is still booting', { status: 503 })
+
 const reasonOf = async (request: Request): Promise<string | null> => {
   let body: unknown
   try {
@@ -41,11 +43,11 @@ const reasonedPost = async (args: { request: Request; token: string }): Promise<
 export function startSessionServer(args: {
   port: number
   token: string
-  handlers: SessionHandlers
-  drain: ServeDrain
+  handlers: () => SessionHandlers | undefined
+  drain: () => ServeDrain | undefined
   health: () => unknown
 }): Server<SocketState> {
-  const { token, handlers } = args
+  const { token } = args
 
   return Bun.serve<SocketState, never>({
     port: args.port,
@@ -61,6 +63,8 @@ export function startSessionServer(args: {
       }
 
       if (pathname === PARK_PATH) {
+        const handlers = args.handlers()
+        if (handlers === undefined) return booting()
         const reason = await reasonedPost({ request, token })
         if (reason instanceof Response) return reason
         handlers.park({ reason })
@@ -68,10 +72,12 @@ export function startSessionServer(args: {
       }
 
       if (pathname === DRAIN_PATH) {
+        const drain = args.drain()
+        if (drain === undefined) return booting()
         const reason = await reasonedPost({ request, token })
         if (reason instanceof Response) return reason
         try {
-          return Response.json(await args.drain({ reason }))
+          return Response.json(await drain({ reason }))
         } catch (failure) {
           return Response.json({
             ok: false,
@@ -81,6 +87,9 @@ export function startSessionServer(args: {
       }
 
       if (pathname !== SESSION_PATH) return new Response('not found', { status: 404 })
+
+      const handlers = args.handlers()
+      if (handlers === undefined) return booting()
 
       const offered = offeredSubprotocols(request.headers.get('sec-websocket-protocol'))
       if (!offered.includes(CHANNEL_SUBPROTOCOL)) {
@@ -102,9 +111,9 @@ export function startSessionServer(args: {
       /** A parked client is attached and silent for as long as it likes: pings keep it, and only it, honest. */
       sendPings: true,
       idleTimeout: MAX_IDLE_SECONDS,
-      open: (socket) => handlers.open({ socket }),
-      message: (socket, message) => handlers.message({ socket, message }),
-      close: (socket) => handlers.close({ socket }),
+      open: (socket) => args.handlers()?.open({ socket }),
+      message: (socket, message) => args.handlers()?.message({ socket, message }),
+      close: (socket) => args.handlers()?.close({ socket }),
     },
   })
 }

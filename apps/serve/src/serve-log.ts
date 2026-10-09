@@ -1,6 +1,7 @@
 import { NoticePort, type NoticePost } from '@dltech/atlas-core'
 
 export enum EServeEvent {
+  Listening = 'serve.listening',
   Started = 'serve.started',
   Stopped = 'serve.stopped',
   Notice = 'serve.notice',
