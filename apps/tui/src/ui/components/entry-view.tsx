@@ -241,7 +241,7 @@ function DerivedEntryView(props: {
     case EEntryKind.SystemContext:
       return (
         <NoticeBlock
-          text={`system context — ${entry.superseded ? `${entry.text} (superseded)` : entry.text}`}
+          text={`Atlas loaded ${entry.text}${entry.superseded ? ' · superseded' : ''}`}
           body={entry.content}
           failed={false}
           width={props.width}
@@ -254,7 +254,7 @@ function DerivedEntryView(props: {
     case EEntryKind.SystemNotice:
       return (
         <NoticeBlock
-          text={`system notice — ${entry.text}`}
+          text={`Atlas noticed — ${entry.text}`}
           body={entry.content}
           failed={false}
           width={props.width}

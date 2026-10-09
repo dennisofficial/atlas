@@ -36,7 +36,7 @@ const systemNotices = (events: readonly Event[]): SystemNoticeEntry[] =>
   )
 
 describe('system context entries', () => {
-  it('renders a hook injection with its slot and a preview line', () => {
+  it('names a hook injection by identity, not a content preview', () => {
     const entries = systemContexts([
       contextLoaded({
         slot: 'skill-suggestion',
@@ -47,9 +47,35 @@ describe('system context entries', () => {
 
     expect(entries).toHaveLength(1)
     expect(entries[0]?.slot).toBe('skill-suggestion')
-    expect(entries[0]?.text).toContain('skill-suggestion')
+    expect(entries[0]?.text).toBe('skill suggestion · aws-deployment')
     expect(entries[0]?.content).toContain('aws-deployment')
     expect(entries[0]?.superseded).toBe(false)
+  })
+
+  it('falls back to the bare label when the suggestion names no skill', () => {
+    const entries = systemContexts([
+      contextLoaded({
+        slot: 'skill-suggestion',
+        key: 'additional-context',
+        content: '<skill_relevance>\nNo skill in the roster appears relevant.\n</skill_relevance>',
+      }),
+    ])
+
+    expect(entries[0]?.text).toBe('skill suggestion')
+  })
+
+  it('labels known slots by name', () => {
+    const entries = systemContexts([
+      contextLoaded({ slot: EContextSlot.UserInstructions, key: '/home/.atlas/ATLAS.md', content: 'x' }),
+      contextLoaded({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.md', content: 'x' }),
+      contextLoaded({ slot: EContextSlot.Memory, key: '/m/MEMORY.md', content: 'x' }),
+    ])
+
+    expect(entries.map((entry) => entry.text)).toEqual([
+      'global instructions',
+      'project instructions',
+      'memory',
+    ])
   })
 
   it('marks an injection superseded when a newer event shares its slot and key', () => {

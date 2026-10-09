@@ -123,9 +123,30 @@ const NOTHING_PICTURED: readonly SaidImage[] = Object.freeze([])
 
 const FOLDED_ELSEWHERE_SLOTS: ReadonlySet<string> = new Set([EContextSlot.Skill, EContextSlot.File])
 
-const firstLineOf = (content: string): string => {
-  const line = content.trim().split('\n')[0] ?? ''
-  return line.length <= 80 ? line : `${line.slice(0, 80)}…`
+const KNOWN_SLOT_LABELS: ReadonlyMap<string, string> = new Map([
+  [EContextSlot.UserInstructions, 'global instructions'],
+  [EContextSlot.ProjectInstructions, 'project instructions'],
+  [EContextSlot.NestedInstructions, 'directory instructions'],
+  [EContextSlot.Memory, 'memory'],
+  [EContextSlot.SkillListing, 'skill listing'],
+  [EContextSlot.McpInstructions, 'MCP server instructions'],
+])
+
+const SKILL_SUGGESTION_NAME = /Relevant to the current request: ([a-z0-9-]+)\./
+
+const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
+  const label = KNOWN_SLOT_LABELS.get(event.slot)
+  if (label !== undefined) return label
+  if (event.slot === 'memory' && event.key.startsWith('memory-reconcile:')) return 'memory'
+  if (event.slot === 'skill-suggestion') {
+    const name = SKILL_SUGGESTION_NAME.exec(event.content)?.[1]
+    return name === undefined ? 'skill suggestion' : `skill suggestion · ${name}`
+  }
+  if (event.slot === 'plan') return 'plan mirror'
+  if (event.slot === 'outside-project') return 'outside-project warning'
+  if (event.slot === 'pr-transitions') return 'pull-request updates'
+  if (event.slot === 'session') return 'session relocation'
+  return event.slot.replaceAll('-', ' ')
 }
 
 function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
@@ -264,7 +285,7 @@ export function durableEntries(args: {
           kind: EEntryKind.SystemContext,
           author: EAuthor.Model,
           key: event.id,
-          text: `${event.slot} · ${firstLineOf(event.content)}`,
+          text: slotLabelOf(event),
           slot: event.slot,
           content: event.content,
           superseded: !currentContext.has(event.id),
@@ -278,7 +299,7 @@ export function durableEntries(args: {
           kind: EEntryKind.SystemNotice,
           author: EAuthor.Model,
           key: event.id,
-          text: `nudge · ${firstLineOf(event.text)}`,
+          text: 'nudge',
           content: event.text,
         },
       ]
