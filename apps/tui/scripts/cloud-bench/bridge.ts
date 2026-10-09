@@ -97,7 +97,7 @@ export const benchmarkBridge = (args: {
         cmd: 'sh',
         args: [
           '-c',
-          `printf 'version=%s\\nprotocol=%s\\nbakeId=%s\\n' "$(cat /opt/atlas/atlas-serve.version)" "$(cat /opt/atlas/atlas-serve.protocol)" "$(cat /opt/atlas/atlas-serve.bake-id)"`,
+          `printf 'version=%s\\nprotocol=%s\\n' "$(cat /opt/atlas/atlas-serve.version)" "$(cat /opt/atlas/atlas-serve.protocol)"`,
         ],
         timeoutMs: 15_000,
       })
