@@ -78,6 +78,7 @@ export type FakeCloudSandboxRow = {
   driveMode?: string | null
   pinnedModel?: string | null
   serveUrl?: string | null
+  serveVersion?: string | null
   runtimeCheckpoint?: unknown
   runtimeCheckpointRevision?: number | null
   createdAt: string

@@ -2,9 +2,11 @@ import { createHash, randomBytes } from 'node:crypto'
 import { open, stat } from 'node:fs/promises'
 import { posix } from 'node:path'
 
-import { WORKSPACE_EXPORT_DIRECTORY_NAME, WORKSPACE_EXPORT_FILE_PATTERN } from '@dltech/atlas-wire'
-
-import { DRIVE_HOME_PATH } from './drive-names'
+import {
+  DRIVE_HOME_PATH,
+  WORKSPACE_EXPORT_DIRECTORY_NAME,
+  WORKSPACE_EXPORT_FILE_PATTERN,
+} from '@dltech/atlas-wire'
 import { downloadArchiveFile } from './archive-download'
 import type { TransferProgress } from './transfer-progress'
 

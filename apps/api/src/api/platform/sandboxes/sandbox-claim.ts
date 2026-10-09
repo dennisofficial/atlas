@@ -13,6 +13,7 @@ export async function registerSandboxRow(args: {
   sealedToken: string
   serveUrl: string
   driveName?: string | null | undefined
+  serveVersion?: string | null | undefined
 }): Promise<Pick<CloudSandboxModel, 'name' | 'serveUrl'>> {
   const at = new Date().toISOString()
   return db.cloudSandbox.upsert({
@@ -32,6 +33,7 @@ export async function registerSandboxRow(args: {
       contextPending: false,
       serveUrl: args.serveUrl,
       ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+      ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
       createdAt: at,
       updatedAt: at,
     },
@@ -44,6 +46,7 @@ export async function registerSandboxRow(args: {
       updatedAt: at,
       serveUrl: args.serveUrl,
       ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+      ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
     },
   })
 }

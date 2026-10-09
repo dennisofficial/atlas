@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { CLOUD_WORKSPACE_PATH, toRunId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { toRunId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 
 import type { RestoredWorkspace } from '../../../workspace/transfer/manifest'
 import { useAtlasHome } from './descend-fixture'

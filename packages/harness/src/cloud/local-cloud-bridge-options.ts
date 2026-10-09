@@ -1,9 +1,8 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { PortableState, RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type { PortableState, RuntimeCheckpoint, VercelSandboxConfig } from '@dltech/atlas-wire'
 
 import type { SettingsService } from '../settings/service'
 import type { MirrorLocalLog } from './transcript-syncer'
-import type { VercelSandboxConfig } from './vercel-driver'
 import type {
   BridgeDriver,
   GitTokenReader,

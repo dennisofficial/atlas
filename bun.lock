@@ -208,6 +208,7 @@
       "name": "@dltech/atlas-wire",
       "version": "0.1.0",
       "dependencies": {
+        "@vercel/sandbox": "^3.3.0",
         "zod": "^4.4.3",
       },
       "devDependencies": {

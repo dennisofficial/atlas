@@ -3,9 +3,13 @@ import { describe, expect, it } from 'bun:test'
 import { APIError, type Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
-import { SERVE_PROTOCOL_PATH, SERVE_VERSION_PATH } from '../serve-launch'
+import {
+  SERVE_PROTOCOL_PATH,
+  SERVE_VERSION_PATH,
+  asVercelFailure,
+  isSandboxMissing,
+} from '@dltech/atlas-wire'
 import { ESandboxProbe, probeSandboxForResume, type ServeRuntimeHealth } from '../resume-probe'
-import { asVercelFailure, isSandboxMissing } from '../vercel-errors'
 import { PINNED, STALE, FULL_IDLE, fakeSandbox, probeOf } from './resume-probe-fixture'
 
 describe('probeSandboxForResume', () => {

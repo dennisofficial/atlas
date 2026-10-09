@@ -116,6 +116,7 @@ export class SandboxClient {
     token: string
     serveUrl: string
     driveName?: string | undefined
+    serveVersion?: string | undefined
     metadata?: { title?: string; repo?: string; model?: string } | undefined
   }): Promise<WireSandboxRegistration> {
     const body = await this.request({
@@ -126,6 +127,7 @@ export class SandboxClient {
         clientToken: args.token,
         serveUrl: args.serveUrl,
         ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+        ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
         ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
       },
     })

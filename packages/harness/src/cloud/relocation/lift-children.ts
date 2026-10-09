@@ -1,5 +1,5 @@
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import {
-  CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
   projectDirectoryOf,
   type EventLogPort,

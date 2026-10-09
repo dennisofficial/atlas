@@ -3,7 +3,13 @@ import { z } from 'zod'
 
 import { CHANNEL_PROTOCOL_VERSION } from './channel-wire'
 import { drainServe, type ServeDrain } from './serve-drain-client'
-import { probeServeAlive, SERVE_PROTOCOL_PATH, SERVE_TOKEN_PATH, SERVE_VERSION_PATH } from './serve-launch'
+import {
+  probeServeAlive,
+  SERVE_PROTOCOL_PATH,
+  SERVE_TOKEN_PATH,
+  SERVE_VERSION_PATH,
+  UNSTAMPED_PROTOCOL,
+} from '@dltech/atlas-wire'
 
 export enum ESandboxProbe {
   Missing = 'missing',
@@ -12,8 +18,6 @@ export enum ESandboxProbe {
   RotationNeeded = 'rotation-needed',
   Swapped = 'swapped',
 }
-
-export const UNSTAMPED_PROTOCOL = 0
 
 export type SandboxProbeResult = {
   probe: ESandboxProbe

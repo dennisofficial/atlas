@@ -14,8 +14,8 @@ import {
   type SessionRuntime,
   type TurnRunner,
 } from '@dltech/atlas-harness'
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import {
-  CLOUD_WORKSPACE_PATH,
   projectDirectoryOf,
   repoOf,
   type ThreadId,

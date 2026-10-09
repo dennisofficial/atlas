@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { createServeLauncher, LEGACY_SERVE_LOG_PATH, SERVE_LOG_PATH, SERVE_VERSION_PATH } from '../serve-launch'
+import {
+  createServeLauncher,
+  LEGACY_SERVE_LOG_PATH,
+  SERVE_LOG_PATH,
+  SERVE_VERSION_PATH,
+} from '@dltech/atlas-wire'
 import { tailServeLog } from '../vercel-driver-probes'
 
 const directories: string[] = []

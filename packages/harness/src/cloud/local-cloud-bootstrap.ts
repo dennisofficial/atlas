@@ -1,10 +1,9 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { PortableState } from '@dltech/atlas-wire'
 
-import { DRIVE_HOME_PATH } from './drive-names'
+import { DRIVE_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { EReconnectEscalation } from './remote-delta-channel'
 import { ECloudSandboxState } from './sandbox-client'
-import { VercelDriver, type VercelSandboxConfig } from './vercel-driver'
+import { VercelDriver } from './vercel-driver'
 import type { CloudSandboxes, LiftedWorkspace } from './relocation/cloud-bridge'
 
 export type LiveSandbox = Parameters<
@@ -64,6 +63,7 @@ export type RegistrationSender = (args: {
     token: string
     serveUrl: string
     driveName: string
+    serveVersion?: string | undefined
     metadata?: { title?: string; repo?: string; model?: string } | undefined
   }
 }) => unknown

@@ -1,15 +1,12 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import {
   createLocalCloudBridge,
-  driveNameFor,
-  liveSdk,
   sandboxNameFor,
   type CloudAttachment,
   type CloudBridge,
   type VercelDriver,
-  type VercelSandboxConfig,
 } from '@dltech/atlas-harness'
-import { liveDriveSdk } from '../../../../packages/harness/src/cloud/drive-lifecycle'
+import { driveNameFor, liveDriveSdk, liveSdk, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { liveBridgeOptionsFor } from '../../src/composition/live-cloud'
 import type { AtlasApp } from '../../src/composition/compose'
 import { BenchmarkDriver } from './bench-driver'

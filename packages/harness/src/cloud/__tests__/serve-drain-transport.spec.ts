@@ -4,10 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_HOME_PATH } from '../drive-names'
+import { DRIVE_HOME_PATH, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
 import { drainServe } from '../serve-drain-client'
 import { persistSandboxRotationReceipt } from '../sandbox-rotation-receipt'
-import { SERVE_TOKEN_PATH } from '../serve-launch'
 import { rotationReceipt } from './rotation-fixture'
 
 const fixture = async () => {

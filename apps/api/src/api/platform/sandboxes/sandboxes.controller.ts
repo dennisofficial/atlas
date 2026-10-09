@@ -47,6 +47,7 @@ export class SandboxesController {
       contextPending: body.contextPending,
       ...(body.clientToken === undefined ? {} : { clientToken: body.clientToken }),
       ...(body.serveUrl === undefined ? {} : { serveUrl: body.serveUrl }),
+      ...(body.serveVersion === undefined ? {} : { serveVersion: body.serveVersion }),
       ...(body.metadata === undefined ? {} : { metadata: body.metadata }),
     })
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { DRIVE_HOME_PATH } from '../drive-names'
+import { DRIVE_HOME_PATH } from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'
 import {
   CREDENTIALS,

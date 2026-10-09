@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { SERVE_TOKEN_PATH } from '../serve-launch'
+import { SERVE_TOKEN_PATH, EVercelFailure, VercelFailure } from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'
-import { EVercelFailure, VercelFailure } from '../vercel-errors'
 import {
   CREDENTIALS,
   PINNED_VERSION,

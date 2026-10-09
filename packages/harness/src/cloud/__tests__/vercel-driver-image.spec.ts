@@ -2,9 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { APIError } from '@vercel/sandbox'
 
-import { driveNameFor } from '../drive-names'
+import { driveNameFor, EVercelFailure, VercelFailure } from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'
-import { EVercelFailure, VercelFailure } from '../vercel-errors'
 import {
   CREDENTIALS,
   PINNED_VERSION,

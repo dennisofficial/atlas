@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ENoticeTone, type ThreadId } from '@dltech/atlas-core'
-import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
-import type { RetryPolicy } from '../../retry-policy'
+import type { RetryPolicy, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { cloudArchiveOf, descend, fakeSurface, useDescendHome } from './descend-fixture'
 import { RESTORED_HOME } from './workspace-fixture'

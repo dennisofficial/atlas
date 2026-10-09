@@ -1,5 +1,6 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import { ESettleWait, RemoteTurnRunner, type CaptureContext, type SettleWaitNotice } from '@dltech/atlas-harness'
+import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
+import { ESettleWait, type SettleWaitNotice } from '@dltech/atlas-wire'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import { WAKE_HEADING } from '../container-move'

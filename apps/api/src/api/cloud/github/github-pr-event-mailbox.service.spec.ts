@@ -12,6 +12,7 @@ import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { EPrEventKind } from './github-realtime.types'
+import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 
 const fake = fakeGithubDb()
 
@@ -20,7 +21,8 @@ function serviceWith(): {
   fanout: GithubPrFanoutService
 } {
   const fanout = new GithubPrFanoutService(new DrainStateService())
-  return { mailbox: new GithubPrEventMailboxService(fanout), fanout }
+  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
+  return { mailbox: new GithubPrEventMailboxService(fanout, wake), fanout }
 }
 
 describe('GithubPrEventMailboxService', () => {

@@ -2,7 +2,7 @@ import type { Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 import { probeSandboxForResume, type ServeRuntimeHealth } from '../resume-probe'
-import { asVercelFailure, isSandboxMissing } from '../vercel-errors'
+import { asVercelFailure, isSandboxMissing } from '@dltech/atlas-wire'
 
 export const PINNED = '2.0.0'
 

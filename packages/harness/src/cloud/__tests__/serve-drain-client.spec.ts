@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { DRAIN_COMMAND_TIMEOUT_MS, DRAIN_REASON, drainServe } from '../serve-drain-client'
-import { SERVE_TOKEN_PATH } from '../serve-launch'
+import { SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
 import { rotationReceipt } from './rotation-fixture'
 
 const receipt = rotationReceipt()

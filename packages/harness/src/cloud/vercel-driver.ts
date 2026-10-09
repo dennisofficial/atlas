@@ -1,14 +1,14 @@
 import type { Sandbox } from '@vercel/sandbox'
 import { downloadSessionArchive, releaseSessionExport, type SessionDownloadArgs } from './session-archive-transport'
 
-import { liveDriveSdk, type DriveSdk } from './drive-lifecycle'
-import { deleteThreadDrive } from './vercel-driver-destroy'
-import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
-import { attachLagRetry, imageOptimizeRetry, type RetryPolicy } from './retry-policy'
-import { createServeLauncher, type ServeLauncher } from './serve-launch'
-import { tailServeLog, transcriptPresent, writeBootstrapFile } from './vercel-driver-probes'
-import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
 import {
+  liveDriveSdk,
+  type DriveSdk,
+  attachLagRetry,
+  imageOptimizeRetry,
+  type RetryPolicy,
+  createServeLauncher,
+  type ServeLauncher,
   liveSdk,
   assertLiveSession,
   observationOf,
@@ -18,8 +18,14 @@ import {
   type SandboxPlacement,
   type VercelCredentials,
   type VercelSdk,
-} from './vercel-driver-sdk'
-import { asVercelFailure, isSandboxMissing, SandboxMissingError } from './vercel-errors'
+  asVercelFailure,
+  isSandboxMissing,
+  SandboxMissingError,
+} from '@dltech/atlas-wire'
+import { deleteThreadDrive } from './vercel-driver-destroy'
+import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
+import { tailServeLog, transcriptPresent, writeBootstrapFile } from './vercel-driver-probes'
+import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
 import {
   downloadWorkspaceArchive,
   releaseWorkspaceExport,
@@ -27,8 +33,6 @@ import {
   type ArchiveDownloadArgs,
   type ArchiveUploadArgs,
 } from './workspace-archive-transport'
-
-export * from './vercel-driver-sdk'
 
 export class VercelDriver {
   private readonly sdk: VercelSdk

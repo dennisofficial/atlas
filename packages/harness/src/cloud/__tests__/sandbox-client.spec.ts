@@ -195,6 +195,24 @@ describe('registering a client-provisioned sandbox', () => {
     expect(registered).toEqual({ token: TOKEN, url: 'https://box.vercel.run' })
   })
 
+  it('carries the serve version when the caller pins one', async () => {
+    const { client, calls } = harness([{ body: { token: TOKEN } }])
+
+    await client.registerSandbox({
+      threadId: 'brn_cloud',
+      token: TOKEN,
+      serveUrl: 'https://box.vercel.run',
+      serveVersion: '1.42.0',
+    })
+
+    expect(calls[0]?.body).toEqual({
+      threadId: 'brn_cloud',
+      clientToken: TOKEN,
+      serveUrl: 'https://box.vercel.run',
+      serveVersion: '1.42.0',
+    })
+  })
+
   it('omits the optional fields the caller did not pass', async () => {
     const { client, calls } = harness([{ body: { token: TOKEN } }])
 
