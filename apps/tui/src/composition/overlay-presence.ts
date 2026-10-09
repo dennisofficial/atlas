@@ -65,3 +65,12 @@ export const composerBlurred = (overlays: readonly OverlayPresence[]): boolean =
   overlays.some(
     (overlay) => overlay.open && (overlay.coversComposer || overlay.blursComposer === true),
   )
+
+/**
+ * Whether the overlay that currently owns the screen opted into buffering the operator's typing
+ * into the draft (the rotate overlay). Distinct from composerBlurred: a covering overlay that
+ * holds the composer (container-move) blurs it too, but an unhandled printable must be swallowed
+ * there, not echoed — the composer is held, not buffered.
+ */
+export const buffersBlockedTyping = (overlays: readonly OverlayPresence[]): boolean =>
+  overlays.some((overlay) => overlay.open && overlay.blursComposer === true)

@@ -6,6 +6,7 @@ import { applyTranscriptCovered } from '../ui/covered-store'
 import { EKeyGroup, EKeyLayer, useKeyBindings, useKeyRegistry } from '../ui/keys'
 import { globalBindings } from './global-bindings'
 import {
+  buffersBlockedTyping,
   composerBlurred,
   covering,
   keyOwners,
@@ -244,6 +245,13 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
   const blurred = covered || composerBlurred(overlays)
 
+  /**
+   * Only a buffering overlay (rotate) lets an unhandled printable echo into the blurred draft.
+   * A covering overlay that holds the composer (container-move) blurs it too, but there a key is
+   * swallowed, not echoed — the composer is held, not buffered.
+   */
+  const buffering = !covered && buffersBlockedTyping(overlays)
+
   const { draft, focused } = args
 
   /**
@@ -271,7 +279,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     veil,
     owners,
     bindings: registry.snapshot,
-    ...(blurred ? { onBlockedPrintable: echoIntoBlurredDraft } : {}),
+    ...(buffering ? { onBlockedPrintable: echoIntoBlurredDraft } : {}),
     ...(blurred && focused ? { swallowFocusedTextareaKeys: swallowComposerEditKeys } : {}),
   })
 
