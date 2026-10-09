@@ -63,16 +63,22 @@ describe('single responsibility thresholds', () => {
     expect(transitionOf({ concern: 0.9, impact: Introduced, impactP: 0.8 })).toBe(Introduce)
   })
 
-  it('focus probability 0.79 only tracks debt, without evidence, but 0.8 introduces', () => {
+  it('focus probability 0.79 introduces without evidence, but 0.8 attaches it', () => {
     const weak = run({ concern: 0.9, impact: Introduced, focusP: 0.79 })
-    expect(weak.transition).toBe(TrackDebt)
+    expect(weak.transition).toBe(Introduce)
     expect(weak.evidenceIds).toEqual([])
-    expect(transitionOf({ concern: 0.9, impact: Introduced, focusP: 0.8 })).toBe(Introduce)
+    const strong = run({ concern: 0.9, impact: Introduced, focusP: 0.8 })
+    expect(strong.transition).toBe(Introduce)
+    expect(strong.evidenceIds).toEqual(['ev-1'])
   })
 
-  it('recognizes none and uncertain focus and maps them to track debt', () => {
-    expect(transitionOf({ concern: 0.9, impact: Introduced, focus: 'none' })).toBe(TrackDebt)
-    expect(transitionOf({ concern: 0.9, impact: Introduced, focus: 'uncertain' })).toBe(TrackDebt)
+  it('recognizes none and uncertain focus and introduces without evidence', () => {
+    const noneAssessment = run({ concern: 0.9, impact: Introduced, focus: 'none' })
+    expect(noneAssessment.transition).toBe(Introduce)
+    expect(noneAssessment.evidenceIds).toEqual([])
+    const uncertainAssessment = run({ concern: 0.9, impact: Introduced, focus: 'uncertain' })
+    expect(uncertainAssessment.transition).toBe(Introduce)
+    expect(uncertainAssessment.evidenceIds).toEqual([])
   })
 
   it('accepts every supplied candidate id as focus', () => {
