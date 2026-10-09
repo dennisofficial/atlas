@@ -251,10 +251,9 @@ function interpret({ scope, answers }: { scope: QualityScope; answers: Readonly<
     if (!impactConfident || !NEW_OR_WORSENED.includes(impact.impact)) {
       return completed({ transition: EQualityTransition.TrackDebt, evidenceIds: [] })
     }
-    if (focus.candidateId === null || focus.probability < FOCUS_CONFIDENCE_THRESHOLD) {
-      return completed({ transition: EQualityTransition.TrackDebt, evidenceIds: [] })
-    }
-    return completed({ transition: EQualityTransition.Introduce, evidenceIds: [focus.candidateId] })
+    const focused =
+      focus.candidateId !== null && focus.probability >= FOCUS_CONFIDENCE_THRESHOLD ? [focus.candidateId] : []
+    return completed({ transition: EQualityTransition.Introduce, evidenceIds: focused })
   }
   if (concern.probability <= CONCERN_RESOLVE_THRESHOLD && impactConfident && RESOLVING.includes(impact.impact)) {
     return completed({ transition: EQualityTransition.Resolve, evidenceIds: [] })
@@ -264,8 +263,10 @@ function interpret({ scope, answers }: { scope: QualityScope; answers: Readonly<
 
 function guidance({ assessment, scope }: { assessment: QualityAssessment; scope: QualityScope }): string {
   const labels = scope.evidence.filter((evidence) => assessment.evidenceIds.includes(evidence.id)).map((evidence) => evidence.label)
+  const concern = assessment.currentConcernProbability
+  const confidence = concern !== null ? ` (concern ${Math.round(concern * 100)}%)` : ''
   return [
-    `The file was written successfully. "${TITLE}" suggests that ${scope.kind} ${scope.name} may now mix independently changing responsibilities.`,
+    `The file was written successfully. "${TITLE}" suggests that ${scope.kind} ${scope.name} may now mix independently changing responsibilities${confidence}.`,
     `Policy: ${DEFINITION}`,
     ...(labels.length > 0 ? [`Most directly related: ${labels.join(', ')}.`] : []),
     'Consider reviewing where that behavior belongs. If the current structure is justified, leaving the implementation unchanged is fine.',
