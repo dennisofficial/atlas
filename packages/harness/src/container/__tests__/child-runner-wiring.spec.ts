@@ -4,6 +4,7 @@ import {
   defaultPipeline,
   EAgentStatus,
   EPromptAgent,
+  EServiceStatus,
   EventLogPort,
   EWebSearchBackend,
   IdPort,
@@ -14,6 +15,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../../agents/registry/port'
+import { ServiceRegistryPort, type ServiceSnapshot } from '../../services/service-registry'
+import { UnstaffedServices } from '../../store/__tests__/harness'
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { subAgentPrompt } from '../../agents/registry/child-prompt'
 import type { ChildRunnerDeps } from '../../agents/registry/child-runner'
@@ -106,6 +109,7 @@ async function composed(args: { bind: boolean }): Promise<{
   agents: AgentRegistryPort
   threads: ThreadStorePort
   parent: ThreadId
+  container: DependencyContainer
 }> {
   const temp = createTempHome()
   const previousHome = process.env['ATLAS_HOME']
@@ -125,7 +129,7 @@ async function composed(args: { bind: boolean }): Promise<{
   const threads = container.resolve(portToken(ThreadStorePort))
   const parent = (await threads.create({ workspace: ROOT, repo: null })).id
 
-  return { agents: container.resolve(portToken(AgentRegistryPort)), threads, parent }
+  return { agents: container.resolve(portToken(AgentRegistryPort)), threads, parent, container }
 }
 
 const settled = async (agents: AgentRegistryPort, agentId: ThreadId): Promise<EAgentStatus> => {
@@ -214,5 +218,35 @@ describe('the ending a parent is meant to be woken by', () => {
 
     expect(agents.drainNotifications({ threadId: parent }).wakesTurn).toBe(true)
     expect(agents.pendingNotices({ threadId: parent })).toHaveLength(0)
+  }, 30_000)
+
+  it('still wakes the parent when a session service the child never started is running', async () => {
+    const { agents, parent, container } = await composed({ bind: true })
+
+    const runningService = {
+      serviceId: 'svc_1',
+      command: 'bun run dev',
+      description: 'dev server',
+      status: EServiceStatus.Running,
+      logPath: '/tmp/svc_1.log',
+      startedAt: new Date().toISOString(),
+    } satisfies ServiceSnapshot
+    const withService = new (class extends UnstaffedServices {
+      override list(): readonly ServiceSnapshot[] {
+        return [runningService]
+      }
+    })()
+    container.register(portToken(ServiceRegistryPort), { useValue: withService })
+
+    const outcome = await agents.spawn({
+      threadId: parent,
+      agentType: 'explore',
+      brief: 'audit the credential vault',
+      intent: 'vault audit',
+    })
+    if (!outcome.ok) return
+    expect(await settled(agents, outcome.snapshot.agentId)).toBe(EAgentStatus.Finished)
+
+    expect(agents.pendingNotices({ threadId: parent })).toHaveLength(1)
   }, 30_000)
 })

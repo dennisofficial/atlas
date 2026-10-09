@@ -3,7 +3,6 @@ import {
   CredentialPort,
   EDefinitionOrigin,
   EExecutionLocation,
-  EServiceStatus,
   EventLogPort,
   ExecutionLocationSinkPort,
   FileCapabilitiesPort,
@@ -122,8 +121,6 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           if (live === undefined) return false
           const shells = resolver.resolve(portToken(ShellRegistryPort))
           if (shells.list({ threadId }).some((shell) => shell.status === EShellStatus.Running)) return true
-          const services = resolver.resolve(portToken(ServiceRegistryPort))
-          if (services.list().some((service) => service.status === EServiceStatus.Running)) return true
           return live.someChild(threadId, isStepping)
         },
         inheritOrphanedNotices: ({ from, to }) => {
