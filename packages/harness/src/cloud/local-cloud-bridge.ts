@@ -1,17 +1,21 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { EServeEnv, PORTABLE_STATE_PATH, type PortableState } from '@dltech/atlas-wire'
 
 import { uploadBootstrapArchives } from './bootstrap-archive-uploads'
 import { sandboxNameFor } from './sandbox-names'
-import { ECloudSandboxState } from './sandbox-client'
+import { ECloudSandboxState, sandboxStateSchema } from './sandbox-client'
 import type {
   CloudBridge,
   CloudSandbox,
   CloudSandboxes,
   CloudSandboxStatus,
 } from './relocation/cloud-bridge'
-import type { VercelSandboxConfig } from './vercel-driver'
-import { SANDBOX_SERVE_PORT } from './vercel-driver-sdk'
+import {
+  SANDBOX_SERVE_PORT,
+  EServeEnv,
+  PORTABLE_STATE_PATH,
+  type PortableState,
+  type VercelSandboxConfig,
+} from '@dltech/atlas-wire'
 import {
   bootstrapSpecOf,
   CONTEXT_ARCHIVE_PATH,
@@ -170,12 +174,13 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       token,
       serveUrl: placement.url,
       driveName: placement.driveName,
+      serveVersion: config.serveVersion,
     })
 
     return {
       url: placement.url,
       token,
-      state: placement.state,
+      state: sandboxStateSchema.parse(placement.state),
       created: placement.created,
       driveName: placement.driveName,
       ...(placement.rotatedFrom === undefined ? {} : { rotatedFrom: placement.rotatedFrom }),
@@ -191,7 +196,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       args.readCheckpoint?.(findArgs).catch(() => null) ?? null,
     ])
     return {
-      ...(observed ?? { state: ECloudSandboxState.Stopped }),
+      ...(observed == null ? { state: ECloudSandboxState.Stopped } : { ...observed, state: sandboxStateSchema.parse(observed.state) }),
       checkpoint: reported?.threadId === findArgs.threadId ? reported : null,
     }
   }

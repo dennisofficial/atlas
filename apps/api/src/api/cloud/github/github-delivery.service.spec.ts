@@ -13,6 +13,7 @@ import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubPrStateDto } from './github-realtime.types'
 import type { GithubUserReads } from './github-user-reads'
 import { GithubUserReadFailed } from './github-user-reads'
@@ -81,7 +82,8 @@ function serviceWith(args: {
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const cipher = {} as SecretCipherService
-  const mailbox = new GithubPrEventMailboxService(fanout)
+  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
+  const mailbox = new GithubPrEventMailboxService(fanout, wake)
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   return {
     service: new GithubDeliveryService(github, reads, fanout, cipher, mailbox, discussion),

@@ -1,4 +1,4 @@
-import { cloudWorkspacePath } from '@dltech/atlas-core'
+import { cloudWorkspacePath } from '@dltech/atlas-wire'
 
 import type { WorkspaceManifest } from '../../workspace/transfer/manifest'
 import { ELiftNode, type LiftCtx } from './lift-plan'

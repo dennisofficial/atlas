@@ -1,14 +1,15 @@
 import { describe, expect, it, mock } from 'bun:test'
 
-import type { DriveSdk } from '../drive-lifecycle'
 import {
+  type DriveSdk,
   driveNameFor,
   DRIVE_MOUNT_PATH,
   DRIVE_WORKSPACE_PATH,
   DRIVE_HOME_PATH,
-} from '../drive-names'
+  EVercelFailure,
+  VercelFailure,
+} from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'
-import { EVercelFailure, VercelFailure } from '../vercel-errors'
 import {
   CREDENTIALS,
   PINNED_VERSION,

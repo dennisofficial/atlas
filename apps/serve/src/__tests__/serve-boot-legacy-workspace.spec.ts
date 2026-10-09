@@ -3,10 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
-import {
-  CLOUD_WORKSPACE_PATH,
-  toThreadId,
-} from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import {
   readDirectoryEntries,
   type DirectoryEntries,

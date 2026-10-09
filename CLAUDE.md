@@ -34,7 +34,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-core`         | `zod` only     | Events, IDs, context assembly, hook and port contracts. Pure.  |
 | `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
 | `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
-| `@dltech/atlas-wire`         | `zod` only     | The wire contract: channel/session zod schemas, protocol version, serve-env constants. No in-repo deps. |
+| `@dltech/atlas-wire`         | `zod`, `@vercel/sandbox` | The wire contract: channel/session zod schemas, protocol version, serve-env constants — plus the sandbox boot primitives (drive lifecycle, serve install/launch, mount retries) shared by harness and the API. No in-repo deps. |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
 | `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |
 | `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire` only | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |

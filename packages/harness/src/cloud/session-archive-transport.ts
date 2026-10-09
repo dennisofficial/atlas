@@ -1,9 +1,12 @@
 import { posix } from 'node:path'
 
-import { SESSION_EXPORT_DIRECTORY_NAME, SESSION_EXPORT_FILE_PATTERN, type SessionArchiveDescriptor } from '@dltech/atlas-wire'
-
 import { downloadArchiveFile } from './archive-download'
-import { DRIVE_HOME_PATH } from './drive-names'
+import {
+  DRIVE_HOME_PATH,
+  SESSION_EXPORT_DIRECTORY_NAME,
+  SESSION_EXPORT_FILE_PATTERN,
+  type SessionArchiveDescriptor,
+} from '@dltech/atlas-wire'
 import type { TransferProgress } from './transfer-progress'
 import type { ArchiveDownloadSandbox, ArchiveUploadSandbox } from './workspace-archive-transport'
 

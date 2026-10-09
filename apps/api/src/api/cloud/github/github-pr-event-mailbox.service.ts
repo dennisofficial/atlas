@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { db, type GithubPrEventModel } from '../../../db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type {
   EPrEventKind,
   GithubPrEventDto,
@@ -14,7 +15,10 @@ import type {
  */
 @Injectable()
 export class GithubPrEventMailboxService {
-  constructor(private readonly fanout: GithubPrFanoutService) {}
+  constructor(
+    private readonly fanout: GithubPrFanoutService,
+    private readonly wake: GithubSandboxWakeService,
+  ) {}
 
   async record(args: {
     userIds: readonly string[]
@@ -34,6 +38,11 @@ export class GithubPrEventMailboxService {
         },
       })
       this.fanout.pushEvent({ userIds: [userId], event: eventDtoOf(row) })
+      this.wake.notifyEvent({
+        userId,
+        repoFullName: args.repoFullName,
+        prNumber: args.prNumber,
+      })
     }
   }
 

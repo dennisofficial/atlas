@@ -234,7 +234,6 @@ export * from './execution/exposure'
 export * from './execution/location'
 export * from './execution/placement'
 export * from './execution/lifecycle'
-export * from './execution/cloud-paths'
 
 export * from './settings/value'
 export * from './settings/definition'

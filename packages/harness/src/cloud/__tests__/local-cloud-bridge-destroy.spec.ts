@@ -5,7 +5,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import type { BridgeDriver } from '../local-cloud-bootstrap'
 import { createLocalCloudBridge } from '../local-cloud-bridge'
 import { sandboxNameFor } from '../sandbox-names'
-import type { VercelSandboxConfig } from '../vercel-driver'
+import type { VercelSandboxConfig } from '@dltech/atlas-wire'
 
 const threadId = toThreadId('thread-destroy')
 

@@ -1,11 +1,11 @@
 import {
-  CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
   toRunId,
   type EventDraft,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import type { RosterWire, SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import {

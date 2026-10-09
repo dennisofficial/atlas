@@ -1,8 +1,11 @@
 import type { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_HOME_PATH } from './drive-names'
-import { LEGACY_SERVE_LOG_PATH, SERVE_LOG_PATH } from './serve-launch'
-import { SANDBOX_QUICK_TIMEOUT_MS } from './vercel-driver-sdk'
+import {
+  DRIVE_HOME_PATH,
+  LEGACY_SERVE_LOG_PATH,
+  SERVE_LOG_PATH,
+  SANDBOX_QUICK_TIMEOUT_MS,
+} from '@dltech/atlas-wire'
 
 export async function tailServeLog(sandbox: Sandbox): Promise<string> {
   const read = await sandbox.runCommand({

@@ -1,4 +1,4 @@
-import { matchesValue, sortRows, uniqueViolation, type Where } from './fake-db-support'
+import { applyUpdate, matchesValue, sortRows, uniqueViolation, type Where } from './fake-db-support'
 import {
   createFakePrEventTable,
   createFakePrStateTable,
@@ -64,6 +64,11 @@ export type FakeCloudSandboxRow = {
   region: string
   state: string
   lastActivityAt: string
+  driveName?: string | null
+  serveUrl?: string | null
+  serveVersion?: string | null
+  tokenHash?: string
+  sealedToken?: string | null
 }
 
 const matchesWhere = <Row>(row: Row, where: Where | undefined): boolean => {
@@ -188,7 +193,26 @@ function createFakeGithubDb() {
     cloudSandbox: {
       findMany: async (args: { where?: Where } = {}) =>
         cloudSandboxes.filter((row) => matchesWhere(row, args.where)),
+      update: async (args: { where: { threadId: string }; data: Where }) => {
+        const held = cloudSandboxes.find((row) => row.threadId === args.where.threadId)
+        if (held === undefined) throw new Error('fake cloudSandbox.update: no row')
+        applyUpdate(held as unknown as Record<string, unknown>, args.data)
+        return held
+      },
     },
+  }
+
+  const subscriptionFindMany = subscriptionTable.findMany
+  subscriptionTable.findMany = async (query: { where?: Where; include?: Where } = {}) => {
+    const rows = await subscriptionFindMany(query)
+    if (query.include?.sandbox !== true) return rows
+    return rows.map((row) => ({
+      ...row,
+      sandbox:
+        typeof row.threadId === 'string'
+          ? (cloudSandboxes.find((candidate) => candidate.threadId === row.threadId) ?? null)
+          : null,
+    }))
   }
 
   return {
@@ -213,6 +237,9 @@ function createFakeGithubDb() {
     },
     get cloudSettings() {
       return cloudSettings
+    },
+    get cloudSandboxes() {
+      return cloudSandboxes
     },
     reset() {
       events = []

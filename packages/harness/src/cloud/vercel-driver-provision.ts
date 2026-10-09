@@ -8,13 +8,11 @@ import {
   ensureDrive,
   waitForDriveDetached,
   type DriveSdk,
-} from './drive-lifecycle'
-import { driveNameFor } from './drive-names'
-import { ESandboxProbe, probeSandboxForResume, type RuntimeActivityProbe } from './resume-probe'
-import type { RetryPolicy } from './retry-policy'
-import type { ServeLauncher } from './serve-launch'
-import { mountWithRetries, type SettleWaitNotice } from './vercel-driver-mount'
-import {
+  driveNameFor,
+  type RetryPolicy,
+  type ServeLauncher,
+  mountWithRetries,
+  type SettleWaitNotice,
   routedUrlWithRetries,
   SANDBOX_QUICK_TIMEOUT_MS,
   SANDBOX_SERVE_PORT,
@@ -22,14 +20,13 @@ import {
   type SandboxPlacement,
   type VercelCredentials,
   type VercelSdk,
-} from './vercel-driver-sdk'
-import {
   asVercelFailure,
   failureTextOf,
   isSandboxMissing,
   SandboxMissingError,
   VercelFailure,
-} from './vercel-errors'
+} from '@dltech/atlas-wire'
+import { ESandboxProbe, probeSandboxForResume, type RuntimeActivityProbe } from './resume-probe'
 
 /**
  * A failed wake leaves whatever it created unless someone puts it back: the sandbox idles into

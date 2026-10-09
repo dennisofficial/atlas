@@ -16,6 +16,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@vercel/sandbox": "^3.3.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

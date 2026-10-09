@@ -75,6 +75,10 @@ export class ClaimSandboxDto {
   serveUrl?: string
 
   @IsOptional()
+  @IsString()
+  serveVersion?: string
+
+  @IsOptional()
   @IsObject()
   @ValidateNested()
   @Type(() => RegisterSandboxMetadataDto)

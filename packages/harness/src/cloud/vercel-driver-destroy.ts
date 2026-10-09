@@ -1,7 +1,12 @@
-import { deleteDrive, detachThenDeleteDrive, waitForDriveDetached, type DriveSdk } from './drive-lifecycle'
-import { driveNameFor } from './drive-names'
-import type { RetryPolicy } from './retry-policy'
-import type { VercelCredentials } from './vercel-driver-sdk'
+import {
+  deleteDrive,
+  detachThenDeleteDrive,
+  waitForDriveDetached,
+  type DriveSdk,
+  driveNameFor,
+  type RetryPolicy,
+  type VercelCredentials,
+} from '@dltech/atlas-wire'
 
 export async function deleteThreadDrive(args: {
   sdk: DriveSdk

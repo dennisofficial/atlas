@@ -4,7 +4,7 @@ import { APIError } from '@vercel/sandbox'
 
 import { ECloudSandboxState } from '../sandbox-client'
 import { VercelDriver } from '../vercel-driver'
-import { SandboxMissingError } from '../vercel-errors'
+import { SandboxMissingError } from '@dltech/atlas-wire'
 import { CREDENTIALS, fakeSandbox, driverWith, notFound } from './vercel-driver-fixture'
 
 describe('inspect', () => {
