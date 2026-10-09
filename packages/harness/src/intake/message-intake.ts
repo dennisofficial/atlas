@@ -219,11 +219,11 @@ export class MessageIntake {
       const count = prior !== undefined && prior.witness.every((value, index) => value === witness[index])
         ? prior.count : 0
       if (count >= MAX_WAKE_ATTEMPTS) continue
-      this.attempts.set(threadId, { witness, count: count + 1 })
       this.waking.add(threadId)
       this.announceIfBusyChanged()
       void Promise.resolve().then(() => {
         if (driver.blocked() || this.closed || this.suspended || this.heldDrivers.has(threadId)) return
+        this.attempts.set(threadId, { witness, count: count + 1 })
         return driver.wake()
       }).catch(() => undefined).finally(() => {
         this.waking.delete(threadId)
