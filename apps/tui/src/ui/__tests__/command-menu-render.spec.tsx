@@ -100,4 +100,37 @@ describe('the command menu', () => {
       for (const row of frame.split('\n')) expect(cellsOf(row.trimEnd())).toBeLessThanOrEqual(width)
     }
   })
+
+  it('keeps every summary readable when one command has a long argument hint', async () => {
+    const specs: readonly CommandSpec[] = [
+      {
+        name: 'cd',
+        kind: ECommandKind.Local,
+        summary: 'move this session to another directory',
+        group: ECommandGroup.Workspace,
+        argumentHint: '[directory]',
+      },
+      {
+        name: 'container',
+        kind: ECommandKind.Local,
+        summary: 'move this conversation between the host, a docker container and the cloud',
+        group: ECommandGroup.Session,
+        argumentHint: '[off|docker|cloud|resources]',
+      },
+      {
+        name: 'compact',
+        kind: ECommandKind.Local,
+        summary: 'replace the history so far with a summary',
+        group: ECommandGroup.Context,
+        argumentHint: '[all]',
+      },
+    ]
+    const state = openCommandMenu({ text: '/', specs })
+    if (state === null) throw new Error('expected the menu to open')
+
+    const frame = await frameOf(<CommandMenu state={state} width={WIDTH} />, WIDTH)
+
+    expect(frame).toContain('replace the history so far')
+    expect(frame).toContain('move this session to another')
+  })
 })

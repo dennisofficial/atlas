@@ -31,8 +31,26 @@ const labelOf = (spec: CommandSpec): string => {
   return `/${spec.name}${aliases}${hint}`
 }
 
-const labelColumn = (specs: readonly CommandSpec[]): number =>
-  specs.reduce((cells, spec) => Math.max(cells, cellsOf(labelOf(spec))), 0) + GAP_CELLS
+/**
+ * The widest label sets the column for every row, so one command with a long argument hint would
+ * squeeze every summary into an unreadable stub. Cap the column at the longest label that keeps a
+ * usable summary, and truncate the outlier hint instead.
+ */
+const KIND_CELLS = cellsOf(KIND_MARK[ECommandKind.Skill])
+
+/**
+ * The widest label sets the column for every row, so one command with a long argument hint would
+ * squeeze every summary into an unreadable stub. Cap the column at the longest label that keeps a
+ * usable summary, and truncate the outlier hint instead.
+ */
+const LABEL_SUMMARY_FLOOR = 32
+
+const labelColumn = (specs: readonly CommandSpec[], cells: number): number => {
+  const widest = specs.reduce((acc, spec) => Math.max(acc, cellsOf(labelOf(spec))), 0) + GAP_CELLS
+  const budget = (labelCells: number): number => cells - CARET_CELLS - labelCells - GAP_CELLS - KIND_CELLS
+  if (budget(widest) >= LABEL_SUMMARY_FLOOR) return widest
+  return Math.max(GAP_CELLS, widest - (LABEL_SUMMARY_FLOOR - budget(widest)))
+}
 
 const kindColour = (kind: ECommandKind): string =>
   kind === ECommandKind.Skill ? theme.court.external : theme.meta
@@ -44,7 +62,7 @@ function rowSpans(args: {
   selected: boolean
 }): Span[] {
   const band = args.selected ? { bg: theme.hoverBg } : {}
-  const label = labelOf(args.spec)
+  const label = truncateCells({ text: labelOf(args.spec), cells: Math.max(0, args.labelCells - GAP_CELLS) })
   const padded = `${label}${' '.repeat(Math.max(0, args.labelCells - cellsOf(label)))}`
   const kind = KIND_MARK[args.spec.kind]
   const spent = CARET_CELLS + cellsOf(padded) + cellsOf(kind)
@@ -91,7 +109,7 @@ function CommandRow(props: {
 export function CommandMenu(props: { state: CommandMenuState; width: number }): React.ReactNode {
   const cells = Math.max(0, props.width - CHROME_COLUMNS)
   const { start, visible } = commandMenuWindow({ state: props.state, rows: COMMAND_MENU_ROWS })
-  const labelCells = labelColumn(visible)
+  const labelCells = labelColumn(visible, cells)
   const counted = `${props.state.index + 1}/${props.state.matches.length}`
 
   return (
