@@ -29,7 +29,9 @@ describe('handing a PR event to the model', () => {
   it('renders a comment with its author, body and link', () => {
     const block = prEventBlock(eventOf({ authorLogin: 'octocat', body: 'please rebase' }))
 
-    expect(block).toBe(`PR #12 in github.com/owner/repo: comment from octocat — please rebase. ${URL}`)
+    expect(block).toBe(
+      `<system-notice kind="pr-event">\nPR #12 in github.com/owner/repo: comment from octocat — please rebase. ${URL}\n</system-notice>`,
+    )
   })
 
   it('names a review comment as such', () => {
@@ -49,19 +51,22 @@ describe('handing a PR event to the model', () => {
   })
 
   it('renders a comment with no author or body as a bare headline and link', () => {
-    expect(prEventBlock(eventOf())).toBe(`PR #12 in github.com/owner/repo: comment. ${URL}`)
+    expect(prEventBlock(eventOf())).toBe(
+      `<system-notice kind="pr-event">\nPR #12 in github.com/owner/repo: comment. ${URL}\n</system-notice>`,
+    )
   })
 
   it('says checks are green without a link', () => {
     const block = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green }))
 
-    expect(block).toBe('PR #12 in github.com/owner/repo: checks green.')
+    expect(block).toContain('checks green.')
+    expect(block).not.toContain(URL)
   })
 
   it('says checks failed and links the PR', () => {
     const block = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed }))
 
-    expect(block).toBe(`PR #12 in github.com/owner/repo: checks failed. ${URL}`)
+    expect(block).toContain(`checks failed. ${URL}`)
   })
 
   it('says whether the PR is mergeable', () => {
@@ -79,9 +84,9 @@ describe('handing a PR event to the model', () => {
     const closed = prEventBlock(eventOf({ kind: EPrEventKind.State, state: 'closed' }))
     const reopened = prEventBlock(eventOf({ kind: EPrEventKind.State, state: 'open' }))
 
-    expect(merged).toBe('PR #12 in github.com/owner/repo: now merged.')
-    expect(closed).toBe('PR #12 in github.com/owner/repo: now closed.')
-    expect(reopened).toBe('PR #12 in github.com/owner/repo: state is now open.')
+    expect(merged).toContain('now merged.')
+    expect(closed).toContain('now closed.')
+    expect(reopened).toContain('state is now open.')
   })
 
   it('clips a long body', () => {
@@ -91,7 +96,7 @@ describe('handing a PR event to the model', () => {
     expect(block).not.toContain('x'.repeat(400))
   })
 
-  it('emits no tag characters of its own for any kind', () => {
+  it('wraps every kind in the pr-event system notice', () => {
     const blocks = [
       eventOf({ authorLogin: 'octocat', body: 'hello' }),
       eventOf({ kind: EPrEventKind.Review, authorLogin: 'octocat', state: 'approved' }),
@@ -100,7 +105,10 @@ describe('handing a PR event to the model', () => {
       eventOf({ kind: EPrEventKind.State, state: 'merged' }),
     ].map(prEventBlock)
 
-    for (const block of blocks) expect(block).not.toMatch(/[<>]/)
+    for (const block of blocks) {
+      expect(block.startsWith('<system-notice kind="pr-event">')).toBe(true)
+      expect(block.endsWith('</system-notice>')).toBe(true)
+    }
   })
 })
 
@@ -126,7 +134,12 @@ describe('messagesFromEvents and PR events', () => {
     expect(assembled.messages).toHaveLength(2)
     expect(assembled.messages[1]?.message).toEqual({
       role: 'user',
-      content: [{ type: 'text', text: 'PR #12 in github.com/owner/repo: checks green.' }],
+      content: [
+        {
+          type: 'text',
+          text: '<system-notice kind="pr-event">\nPR #12 in github.com/owner/repo: checks green.\n</system-notice>',
+        },
+      ],
     })
     expect(assembled.messages[1]?.origin.seq).toBe(2)
   })

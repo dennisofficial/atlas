@@ -1,4 +1,4 @@
-import { EExecutionLocation, prEventBlock, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, prEventContent, type ThreadId } from '@dltech/atlas-core'
 import {
   ECloudSandboxState,
   prEventNoticeOf,
@@ -68,7 +68,9 @@ export function createPrEventForwarder(args: {
   return {
     async onPrEvent(frame) {
       const targets = await cloudThreadsWatching(frame)
-      const text = prEventBlock(prEventNoticeOf(frame))
+      // Bare content, not prEventBlock: channel.send lands as operator-origin input and the
+      // destination wraps it in <operator-said>, so a pre-wrapped system-notice would nest.
+      const text = prEventContent(prEventNoticeOf(frame))
 
       for (const threadId of targets) {
         if (!(await parkedOrGone(threadId))) continue
