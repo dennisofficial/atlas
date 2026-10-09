@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { CHANNEL_SUBPROTOCOL, EServeFrame } from '@dltech/atlas-harness'
+import { EServeFrame } from '@dltech/atlas-harness'
 import { EServeEvent, EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { connect } from './client'
@@ -118,19 +118,16 @@ describe('booting health listener', () => {
     }
   })
 
-  it('refuses /v1/session with 503 while booting, then upgrades once boot completes', async () => {
+  it('accepts an authorized /v1/session upgrade while booting, then greets once boot completes', async () => {
     const probe = bootingServe()
     const port = await probe.port
 
-    const refused = await fetch(`http://127.0.0.1:${port}/v1/session`, {
-      headers: { 'sec-websocket-protocol': CHANNEL_SUBPROTOCOL },
-    })
-    expect(refused.status).toBe(503)
+    const client = await connect({ port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    expect(client.frames.some((frame) => frame.kind === EServeFrame.Ready)).toBe(false)
 
     probe.openGate()
     await probe.handle
-    const client = await connect({ port, token: TOKEN })
-    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
     client.close()
   })

@@ -57,19 +57,24 @@ export function createServeLifecycle(args: {
     return closing
   }
 
+  const reopenAdmission = (): void => {
+    args.admission.closed = false
+    args.app.intake?.resume()
+    parking = false
+    args.rearmIdle?.()
+  }
+
   const park = async (): Promise<void> => {
     if (parking || closing !== undefined) return
     parking = true
     args.admission.closed = true
     args.app.intake?.suspend()
+    let finalized = false
     try {
       const work = args.work()
       if (runtimeHasWork(work)) {
         args.log({ event: EServeEvent.ParkRefused, threadId: args.threadId, reason: 'work-active', work })
-        args.admission.closed = false
-        args.app.intake?.resume()
-        parking = false
-        args.rearmIdle?.()
+        reopenAdmission()
         return
       }
       args.haltIdle()
@@ -103,6 +108,7 @@ export function createServeLifecycle(args: {
         return
       }
       await args.finalizePark?.()
+      finalized = true
       args.log({ event: EServeEvent.ParkFinalized, threadId: args.threadId })
       args.handlers.park({ reason: 'idle' })
       for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -125,9 +131,13 @@ export function createServeLifecycle(args: {
       args.log({
         event: EServeEvent.ParkStopFailed,
         threadId: args.threadId,
-        admissionClosed: true,
+        admissionClosed: finalized,
         reason: failure instanceof Error ? failure.message : String(failure),
       })
+      // Before finalization nothing has claimed this runtime is parked: the sandbox is still
+      // alive and serving, so admission reopens and the idle timer re-arms. After finalization
+      // the park is on record and admission stays shut on purpose — the runtime said it parked.
+      if (!finalized) reopenAdmission()
     }
   }
 

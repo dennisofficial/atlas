@@ -1,5 +1,6 @@
 import {
   decisionsPresetOfUrl,
+  decisionsProviderOf,
   decisionsTokenNameOf,
   EDecisionsProvider,
   ESettingId,
@@ -19,8 +20,24 @@ export function migrateDecisionsSettings(args: {
   const { settings, secrets } = args
   const { resolution } = settings.snapshot()
 
-  const provider = resolution.settings.get(ESettingId.DecisionsProvider)
-  if (provider !== undefined && provider.layer !== ESettingsLayer.Default) return
+  const providerSetting = resolution.settings.get(ESettingId.DecisionsProvider)
+  const providerSet = providerSetting !== undefined && providerSetting.layer !== ESettingsLayer.Default
+
+  if (providerSet) {
+    if (typeof providerSetting.value !== 'string') return
+    const chosen = decisionsProviderOf(providerSetting.value)
+    if (chosen === undefined) return
+    const url = textValueOf({ resolution, id: ESettingId.DecisionsUrl }).trim()
+    const urlProvider = url.length > 0 ? decisionsPresetOfUrl({ url }) : undefined
+    if (urlProvider !== undefined && urlProvider !== chosen) return
+    const flat = secrets.read(FLAT_TOKEN_NAME)
+    if (flat === undefined) return
+    const target = decisionsTokenNameOf({ provider: chosen })
+    if (secrets.read(target) !== undefined) return
+    secrets.write({ name: target, value: flat })
+    secrets.remove(FLAT_TOKEN_NAME)
+    return
+  }
 
   const url = textValueOf({ resolution, id: ESettingId.DecisionsUrl }).trim()
   if (url.length === 0) return

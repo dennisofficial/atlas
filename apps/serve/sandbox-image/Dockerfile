@@ -18,7 +18,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git git-lfs ripgrep gnupg ca-certificates curl unzip xz-utils openssh-client build-essential sudo procps \
-      jq postgresql-client python3 \
+      jq postgresql-client python3 ffmpeg \
   && install -m 0755 -d /etc/apt/keyrings \
   && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
   && chmod a+r /etc/apt/keyrings/docker.asc \
@@ -52,7 +52,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && gh --version \
   && jq --version \
   && git lfs version \
-  && psql --version
+  && psql --version \
+  && ffmpeg -version >/dev/null
 
 ARG LINEAR_CLI_VERSION=3.0.0
 # schpet/linear-cli, the same CLI the operator runs on macOS; agents in sandboxes reach Linear

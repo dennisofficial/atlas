@@ -40,6 +40,7 @@ const fixture = (over: {
     detach: () => { calls.push('detach') },
     stopSandbox: over.stop,
     finalizePark: over.finalize,
+    rearmIdle: () => { calls.push('rearm-idle') },
     exit: () => { calls.push('exit') },
   })
   return { app, calls, admission, lifecycle }
@@ -127,7 +128,7 @@ describe('sandbox lifecycle ownership', () => {
     test.app.intake?.dispose()
   })
 
-  it('never publishes a finalized park when durable capture fails', async () => {
+  it('reopens admission when durable capture fails before the park was finalized', async () => {
     let stopped = false
     const test = fixture({
       finalize: async () => { throw new Error('disk unavailable') },
@@ -136,7 +137,21 @@ describe('sandbox lifecycle ownership', () => {
     await test.lifecycle.park()
     expect(stopped).toBe(false)
     expect(test.calls).not.toContain('parked')
-    expect(test.admission.closed).toBe(true)
+    expect(test.admission.closed).toBe(false)
+    test.app.intake?.dispose()
+  })
+
+  it('reopens admission and re-arms idle when the pre-finalization park steps fail', async () => {
+    const test = fixture({
+      endProcesses: async () => { throw new Error('processes refused') },
+      finalize: async () => undefined,
+      stop: async () => undefined,
+    })
+    await test.lifecycle.park()
+    expect(test.admission.closed).toBe(false)
+    expect(test.calls).toContain('rearm-idle')
+    expect(test.calls).not.toContain('parked')
+    expect(test.app.closed()).toBe(false)
     test.app.intake?.dispose()
   })
 

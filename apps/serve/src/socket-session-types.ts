@@ -25,7 +25,10 @@ export type SocketState = {
   alias: StepAlias | null
   greeting: number
   greeted: boolean
+  /** Decoded frames the greeter holds until the socket is greeted. */
   held: ClientFrame[]
+  /** Raw frames buffered while the socket is held across a still-running boot. */
+  bootHeld: string[]
 }
 
 export type SessionSocket = ServerWebSocket<SocketState>

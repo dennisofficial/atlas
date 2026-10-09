@@ -25,10 +25,13 @@ const identityOf = (draft: EventDraftDto): Identity | undefined => {
   return { slot: contextSlot, key: contextKey, digest: contextDigest }
 }
 
+// The key (the absolute path) is deliberately out of the match: a relocation re-loads the same
+// file from a new path, and key-bearing identity turned every lift/descend into a duplicate
+// injection of byte-identical instructions. Same slot, same digest is the same context.
+const identityKeyOf = (identity: Identity): string => `${identity.slot} ${identity.digest}`
+
 const sameIdentity = (row: EventModel, identity: Identity): boolean =>
-  row.contextSlot === identity.slot &&
-  row.contextKey === identity.key &&
-  row.contextDigest === identity.digest
+  row.contextSlot === identity.slot && row.contextDigest === identity.digest
 
 async function claimThread(args: {
   tx: Tx
@@ -85,7 +88,7 @@ async function loadReusable(args: {
     for (const row of rows) {
       const identity = wanted.find((one) => sameIdentity(row, one))
       if (identity === undefined) continue
-      reusable.set(`${identity.slot}${identity.key}${identity.digest}`, toEventDto(row))
+      reusable.set(identityKeyOf(identity), toEventDto(row))
     }
   }
   return reusable
@@ -109,7 +112,7 @@ function planAppend(args: {
       continue
     }
 
-    const identityKey = `${identity.slot}${identity.key}${identity.digest}`
+    const identityKey = identityKeyOf(identity)
     const reused = args.reusable.get(identityKey)
     if (reused !== undefined) {
       entries.push({ kind: 'reused', event: reused })
