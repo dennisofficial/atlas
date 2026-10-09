@@ -110,7 +110,8 @@ describe('the command menu', () => {
 
       const first = setup.captureCharFrame()
       expect(first).toContain('/cd')
-      expect(first).toContain('move this session to another')
+      // Summaries truncate when the widest command label grows — assert the prefix, not the budget.
+      expect(first).toContain('move this session')
 
       for (let row = 0; row < 8; row += 1) {
         setup.mockInput.pressArrow('down')
@@ -119,7 +120,7 @@ describe('the command menu', () => {
 
       const frame = setup.captureCharFrame()
       expect(frame).toContain('compact')
-      expect(frame).toContain('replace the history so far')
+      expect(frame).toContain('replace the history')
     } finally {
       await teardown(setup)
     }
