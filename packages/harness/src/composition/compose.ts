@@ -16,10 +16,12 @@ import {
 import { AgentRegistryPort } from '../agents/registry/port'
 import { OperatorInputPort } from '../operator-input/port'
 import { createDeltaChannel } from '../channel/delta-channel'
+import { bindCloudSettingsWriteThrough } from '../cloud/cloud-settings-write-through'
 import { createHarnessContainer } from '../container/create-harness-container'
 import { portToken, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
+  CloudSettingsStoreToken,
   DockerEngineToken,
   HookMishapReporterToken,
   SessionRegistryToken,
@@ -157,6 +159,11 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
 
   bindQuality({ container, settings })
+  bindCloudSettingsWriteThrough({
+    settings,
+    store: () => container.resolve(CloudSettingsStoreToken),
+    log: container.resolve(portToken(LogPort)),
+  })
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
