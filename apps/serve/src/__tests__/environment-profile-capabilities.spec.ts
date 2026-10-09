@@ -66,6 +66,31 @@ describe('environment profile as a whole', () => {
     expect(profile.capabilities.dockerAvailable).toBe(false)
   })
 
+  it('reports docker available when the probe answers inside the profile budget', async () => {
+    const { apply } = harness({
+      runAnswers: seededScan,
+      runDelay: (attempt) => (attempt.command[0] === 'docker' ? 50 : undefined),
+    })
+
+    const profile = await apply({ cwd: CWD, spec: spec() })
+
+    expect(profile.capabilities.dockerAvailable).toBe(true)
+  })
+
+  it('returns without waiting on a cold dockerd and reports docker unavailable honestly', async () => {
+    const { apply } = harness({
+      runAnswers: seededScan,
+      runDelay: (attempt) => (attempt.command[0] === 'docker' ? 5_000 : undefined),
+    })
+
+    const started = Date.now()
+
+    const profile = await apply({ cwd: CWD, spec: spec() })
+
+    expect(Date.now() - started).toBeLessThan(4_000)
+    expect(profile.capabilities.dockerAvailable).toBe(false)
+  })
+
   it('carries the configured service TTL into the capabilities rather than assuming one', async () => {
     const { apply } = harness({ serviceTtlSeconds: 42 * 60 })
 
