@@ -1,6 +1,7 @@
 # Real-time PR/CI: design spec
 
-Status: approved direction, implementing.
+Status: shipped. The PR/CI event stack and the server-side parked-sandbox wake landed as
+#1196, #1201, #1202, #1203, and #1205 on 2026-10-09.
 Supersedes: the webhook-fed Neon cache + app-installation design that the current
 `apps/api/src/api/cloud/github` module implements (see "Migration" below).
 
@@ -240,14 +241,87 @@ per PR, exactly as `pullRequestsOf` folds links.
 - The tile (`use-pull-request.ts`) seeds its first render from the same projection, so the
   sidebar shows the last-known PR state before the first subscribe response lands.
 
-### LLM seeding
+### LLM notification: wake, not just seed
 
-A harness-level hook (github plugin, `AfterTool`/idle-phase — placement decided in
-implementation) injects a context note on PR/CI transitions for the tracked checkout:
-"PR #801: checks failed on head abc123 (2 failing)" — one line, only on transitions, never
-on steady state. This is harness machinery composed into every session kind, per the house
-rule; the TUI does nothing special. Gated to transitions only so a chatty check_run stream
-cannot spam context.
+PR/CI events notify the session through the same notice→wake pipeline as background-shell and
+service endings (`intake/sources.ts`, `composition/intake-binding.ts`): an idle session wakes
+and starts a turn with the event as input; a running session gets a transient nudge mid-turn;
+every event also lands as a transcript notice row so the operator sees what the agent sees.
+The older `BeforeTurn`-only transition seeding (`pr-transitions.ts`) stays — the state
+snapshot for a turn that began without an event — and this replaces agent-spawned
+`gh run watch` babysitting shells.
+
+Event classes, all wake-worthy, dedupe transition-only (never on steady state or re-delivery):
+
+- CI verdict: checks went green or failed on the tracked head
+- Mergeability change — held while checks are still running
+  (`transitionsOf` in the realtime module emits it only when checks are quiet), so it lands
+  bundled with the settled verdict rather than dripping per check; a PR with no checks fires
+  it immediately
+- PR state change (merged / closed)
+- PR comment (`issue_comment`) and reviews (`pull_request_review` verdicts —
+  approved / changes requested / commented — and `pull_request_review_comment` inline);
+  these always fire per event
+
+Comment and review notices carry the full body. The model-facing render marks the text as
+harness-originated so it is never confusable with operator input — through the system
+envelope (`packages/core/src/context/envelope.ts`), which wraps all harness-to-model text:
+`system-notice` for lifecycle notices, `system-context` for injected context, with provenance
+declared per source. Feature code never hand-rolls `<system-*>` tags; this feature declares
+the `pr-event` notice kind.
+
+Verdict timing is an experimental per-user toggle: `github.prEvents.verdictTiming` =
+`fail-fast` (default — red announces on the first failing check, green on settle) | `settled`
+(both verdicts wait for checks to settle). It lives in the API's `CloudSetting` store because
+the recording decision is server-side, is applied when the mailbox record is written (so it
+governs live pushes and wakes alike), is toggled in /settings, and writes through to the API
+immediately (#1203).
+
+### Event mailbox and missed-event replay
+
+Comment/verdict events are ephemeral: unlike `GithubPrState` they cannot be reconstructed by a
+re-pull, so the API stores a durable per-user mailbox (`GithubPrEvent`,
+`github-pr-event-mailbox.service.ts`) in Postgres. Every reconnect/resubscribe replays what
+the session missed, which covers deploys, dead sandboxes, and detached clients uniformly.
+
+Wake is **server-side** (#1205): the moment a mailbox row lands, `GithubSandboxWakeService` in
+the realtime module resolves the subscription's thread link (#1202 stores `threadId`/
+`sandboxId` on the subscription row) to the parked sandbox, and — when its
+`CloudSandbox.lastActivityAt` sits inside the 24h `PARK_WAKE_WINDOW_MS`
+(`github-delivery-routing.ts`) — recreates the sandbox and boots its serve through the shared
+boot machinery in `@dltech/atlas-wire` (delete the stopped container, remount the thread's
+drive, launch serve under a freshly minted token sealed onto the row, at the registry row's
+`serveVersion`). Per-thread debounce makes a check-run storm boot once; a failed wake leaves
+the mailbox row and logs. The TUI forwarder (`pr-event-forwarder.ts`) is the attached-client
+fast path: an open TUI routes the event into the parked thread as ordinary input, which
+unparks without waiting for the boot.
+
+The chain completes on boot: a serve process with no surface resubscribes the tracked PR
+eagerly (#1201) instead of waiting for a turn, and the subscription row itself survives the
+park — the liveness predicate in `github-delivery-routing.ts` treats a row as live when its
+heartbeat is fresh OR it is thread-linked to a sandbox inside the wake window — so the woken
+sandbox's subscriptions are still there and the mailbox replays what arrived while it was
+down. A sandbox older than the 24h window is never woken: its events accumulate in the mailbox
+and replay on the next natural open.
+
+### Signed-out parity
+
+The signed-out `gh` poller gains the same event classes by extending its `gh pr view --json`
+field set (`mergeable`, `comments`, `reviews`) and feeding the same transition detector and
+notice pipeline — degraded cadence, identical behavior. Cloud signed-out remains unreachable,
+unchanged.
+
+### CI watching is blocked, not just discouraged
+
+Native notification replaces agent-spawned CI babysitting (`gh run watch` shells, `--watch`
+flags, hand-rolled `while … sleep` pollers), so the github plugin also carries a
+`BeforeToolHook` that denies those commands outright. The classifier is word-matching over
+command-chain segments in the style of `pure/command-effect.ts` — deterministic, no LLM
+judgment on the bash hot path, quoting keeps `echo "gh run watch"` inert. One-shot reads
+(`gh pr checks`, `gh run view`, `gh pr view --json statusCheckRollup`) are always allowed;
+only waiting is denied. The denial reason is a teaching refusal: it names the native wake,
+permits a one-shot read, and tells the agent to end its turn and wait. Backgrounded bash goes
+through the same BeforeTool phase, so background shells are covered without a second hook.
 
 ## Migration away from the app design
 
@@ -276,6 +350,8 @@ state instead.
 | Direct (never-lifted) cloud arrival | The arrival's `location-changed` carries the restored checkout's `remoteUrl`/`branch` (probed server-side), so the cloud-checkout fold can build a tracked checkout without a lift marker |
 | Cloud session dead (401) | Tile shows last-known state muted; re-sign-in restores |
 | User not repo admin (hook create 403/404) | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream |
+| PR/CI event with the sandbox parked | The API wakes it: `GithubSandboxWakeService` recreates the sandbox and boots serve through the shared `@dltech/atlas-wire` boot machinery under a fresh token; an attached TUI forwards the event as input and wins the race. A boot failure leaves the mailbox row, which replays on the next natural open |
+| Sandbox parked longer than the 24h `PARK_WAKE_WINDOW_MS` | Never woken; events accumulate in the mailbox and replay on the next natural open |
 | Lost webhook delivery (deploy kill, 5xx, GitHub never retries) | Re-anchor sweep: a hook-backed PR whose state row went 10 min without webhook writes (or has none at all) gets one REST read as the subscribing user, which also recreates the missing row that would blind later check events for that PR |
 | Hook deleted on the GitHub side | Next subscribe verifies the row against GitHub (memoized 5 min) and recreates the hook |
 | OAuth token revoked mid-session | Subscriptions keep receiving payload-derived state; computed fields gap until re-auth; next subscribe-pull fails loudly in settings |
