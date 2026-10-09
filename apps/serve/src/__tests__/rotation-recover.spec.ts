@@ -44,11 +44,30 @@ describe('rotation recovery on boot', () => {
     expect(runs).toEqual([successor])
   })
 
-  it('refuses a second turn when the successor already ran', async () => {
+  it('wakes quietly when the successor already ran — the activation is applied, not skipped', async () => {
     const { recover, runs, logged } = rig({ events: [{ type: 'user-said' }, { type: 'assistant-said' }] })
     await recover()
     expect(runs).toEqual([])
-    expect(logged.map((line) => line.event)).toEqual([EServeEvent.RotationActivationSkipped])
+    expect(logged).toEqual([])
+  })
+
+  it('does not re-run a successor that is the served thread while its turn is still pending', async () => {
+    const { app, logged } = rig({ events: [{ type: 'user-said' }] })
+    const driverRuns: unknown[] = []
+    const driver = {
+      run: (options: unknown) => void driverRuns.push(options),
+      running: () => false,
+      outcomePending: () => true,
+    }
+    const selfAuthority = { activeMainOf: async () => served, mainGenerationOf: async () => 1 }
+    await recoverRotation({
+      app: { ...app, authority: selfAuthority },
+      driver,
+      threadId: served,
+      log: (line) => void logged.push(line),
+    })
+    expect(driverRuns).toEqual([])
+    expect(logged).toEqual([])
   })
 
   it('does nothing when the serve has no rotation port', async () => {

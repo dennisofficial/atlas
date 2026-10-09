@@ -30,12 +30,9 @@ export async function recoverRotation(args: {
   const activate = async (): Promise<void> => {
     const successor = await app.authority?.activeMainOf({ sessionId: threadId })
     if (successor === undefined) return
-    if (await successorHasTurn({ app, driver, served: threadId, successor })) {
-      log({ event: EServeEvent.RotationActivationSkipped, successor })
-      return
-    }
+    if (await successorHasTurn({ app, driver, served: threadId, successor })) return
     if (successor === threadId) {
-      driver.run({ onlyIfIdle: true })
+      if (!driver.running() && !driver.outcomePending()) driver.run({ onlyIfIdle: true })
       return
     }
     void app.runner.runTurn({ threadId: successor }).catch((failure: unknown) => {
