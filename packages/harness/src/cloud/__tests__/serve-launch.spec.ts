@@ -6,7 +6,6 @@ import {
   createServeLauncher,
   HEALTH_PROBE,
   SERVE_BINARY_PATH,
-  SERVE_CHECKPOINT_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
@@ -33,8 +32,6 @@ const fakeSandbox = (args: {
   healthy: boolean
   alive?: boolean
   tokenMatches?: boolean
-  checkpointParked?: boolean
-  checkpointFails?: boolean
   waitSucceeds?: boolean
   logTail?: string
   serveVersion?: string
@@ -68,10 +65,6 @@ const fakeSandbox = (args: {
       }
       if (script.startsWith('[ ! -s') && script.includes(SERVE_TOKEN_PATH)) {
         return { exitCode: args.tokenMatches === false ? 1 : 0 }
-      }
-      if (script.includes(SERVE_CHECKPOINT_PATH)) {
-        if (args.checkpointFails === true) throw new Error('command unavailable')
-        return { exitCode: args.checkpointParked === true ? 42 : 0 }
       }
       if (script.startsWith('for i in')) {
         return { exitCode: args.waitSucceeds === false ? 1 : 0 }
@@ -241,25 +234,10 @@ describe('createServeLauncher', () => {
     expect(launchesOf(commands)[0]?.env).toEqual({})
   })
 
-  it('refuses to boot against a checkpoint that parked this very session', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpointParked: true,
-    })
-
-    await expect(
-      createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' }),
-    ).rejects.toThrow('parked')
-
-    expect(launchesOf(commands)).toHaveLength(0)
-  })
-
-  it('boots the new serve after a deliberate swap stop, over a checkpoint parked from this session', async () => {
+  it('swaps a drifted serve in place and boots the replacement', async () => {
     const { sandbox, commands } = fakeSandbox({
       healthy: false,
       alive: true,
-      checkpointParked: true,
       serveVersion: '1.88.0',
     })
 
@@ -270,53 +248,8 @@ describe('createServeLauncher', () => {
       desiredVersion: '1.89.1',
     })
 
-    const scripts = scriptsOf(commands)
-    expect(scripts.some((script) => script.includes('kill "$_pid"'))).toBe(true)
-    expect(scripts.some((script) => script.includes(SERVE_CHECKPOINT_PATH))).toBe(false)
+    expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(true)
     expect(launchesOf(commands)).toHaveLength(1)
-  })
-
-  it('still refuses a parked checkpoint when this launch stopped nothing', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpointParked: true,
-    })
-
-    await expect(
-      createServeLauncher({ installServe: async () => undefined })({
-        sandbox,
-        token: 'tok_fresh',
-        sandboxSessionId: 'vsn_42',
-        desiredVersion: '1.89.1',
-      }),
-    ).rejects.toThrow('parked')
-
-    expect(launchesOf(commands)).toHaveLength(0)
-  })
-
-  it('boots past a checkpoint that names a different session or none at all', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpointParked: false,
-    })
-
-    await createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })
-
-    expect(launchesOf(commands)).toHaveLength(1)
-  })
-
-  it('preserves an unreadable checkpoint rather than risking a same-session relaunch', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: false,
-      alive: false,
-      checkpointFails: true,
-    })
-
-    await expect(createServeLauncher()({ sandbox, sandboxSessionId: 'vsn_42' })).rejects.toThrow('command unavailable')
-
-    expect(launchesOf(commands)).toHaveLength(0)
   })
 
   it('includes the serve log tail when a fresh boot never answers', async () => {
