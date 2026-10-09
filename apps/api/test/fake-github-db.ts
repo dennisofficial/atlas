@@ -19,6 +19,15 @@ export type {
   FakeSubscriptionRow,
 } from './fake-github-realtime-db'
 
+export type FakeCloudSettingRow = {
+  id: string
+  userId: string
+  key: string
+  value: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 export type FakeWebhookEventRow = {
   id: string
   event: string
@@ -63,6 +72,7 @@ function createFakeGithubDb() {
   let repoHooks: FakeRepoHookRow[] = []
   let prStates: FakePrStateRow[] = []
   let prEvents: FakePrEventRow[] = []
+  let cloudSettings: FakeCloudSettingRow[] = []
 
   const subscriptionTable = createFakeSubscriptionTable({
     matchesWhere,
@@ -144,6 +154,10 @@ function createFakeGithubDb() {
       },
     }),
     githubPrEvent: prEventTable,
+    cloudSetting: {
+      findMany: async (args: { where?: Where } = {}) =>
+        cloudSettings.filter((row) => matchesWhere(row, args.where)),
+    },
   }
 
   return {
@@ -166,6 +180,9 @@ function createFakeGithubDb() {
     get prEvents() {
       return prEvents
     },
+    get cloudSettings() {
+      return cloudSettings
+    },
     reset() {
       events = []
       pullRequests = []
@@ -173,6 +190,7 @@ function createFakeGithubDb() {
       repoHooks = []
       prStates = []
       prEvents = []
+      cloudSettings = []
       subscriptionTable.resetSequence()
       prEventTable.resetSequence()
     },
