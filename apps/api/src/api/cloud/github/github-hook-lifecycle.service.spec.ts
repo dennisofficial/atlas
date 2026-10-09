@@ -9,7 +9,7 @@ vi.mock('../../../db', async () => {
 import { fakeGithubDb } from '../../../../test/fake-github-db'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { GithubHookLifecycleService, HOOK_EVENTS } from './github-hook-lifecycle.service'
 import type { CreateHookResult, GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
 
@@ -23,10 +23,18 @@ function serviceWith(args: {
   createHook?: (call: { repo: string }) => Promise<CreateHookResult>
   deleteHook?: () => Promise<'deleted' | 'unauthorized'>
   getHook?: () => Promise<'found' | 'missing' | 'unauthorized'>
-}): { service: GithubHookLifecycleService; created: string[]; deleted: string[]; verified: string[] } {
+  getHookEvents?: () => Promise<string[]>
+}): {
+  service: GithubHookLifecycleService
+  created: string[]
+  deleted: string[]
+  verified: string[]
+  updated: string[][]
+} {
   const created: string[] = []
   const deleted: string[] = []
   const verified: string[] = []
+  const updated: string[][] = []
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
@@ -45,12 +53,17 @@ function serviceWith(args: {
       verified.push(call.repo)
       return (args.getHook ?? (async () => 'found' as const))()
     },
+    getHookEvents: args.getHookEvents ?? (async () => [...HOOK_EVENTS]),
+    updateHook: async (call: { events: string[] }) => {
+      updated.push(call.events)
+    },
   } as unknown as GithubUserReads
   return {
     service: new GithubHookLifecycleService(github, reads, CIPHER, ENV),
     created,
     deleted,
     verified,
+    updated,
   }
 }
 
@@ -115,6 +128,33 @@ describe('GithubHookLifecycleService', () => {
       createdBy: 'usr_2',
       status: 'active',
     })
+  })
+
+  it('patches the hook event list on verify when it has drifted', async () => {
+    const { service, created, updated } = serviceWith({
+      tokens: { 'usr_2': 'ghu_2' },
+      getHookEvents: async () => ['pull_request', 'check_suite', 'check_run', 'push'],
+    })
+    seedHook()
+
+    const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
+
+    expect(result).toBe('existing')
+    expect(created).toHaveLength(0)
+    expect(updated).toEqual([[...HOOK_EVENTS]])
+  })
+
+  it('does not patch the hook when the event list already covers every event', async () => {
+    const { service, updated } = serviceWith({
+      tokens: { 'usr_2': 'ghu_2' },
+      getHookEvents: async () => [...HOOK_EVENTS],
+    })
+    seedHook()
+
+    const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
+
+    expect(result).toBe('existing')
+    expect(updated).toHaveLength(0)
   })
 
   it('trusts the row when the verify token cannot read the hook', async () => {

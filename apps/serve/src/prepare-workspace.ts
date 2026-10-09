@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { projectDirectoryOf, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
 import {
+  type ArchiveBuildReporter,
   captureWorkspaceArchive,
   captureWorkspaceFamily,
   captureSourceCleanupProof,
@@ -38,6 +39,7 @@ export async function prepareWorkspaceExport(args: {
   capture?: WorkspaceCapturer | undefined
   requireCoverage?: SourceCoverageChecker | undefined
   stopProcesses?: (() => Promise<void>) | undefined
+  onBuildProgress?: ArchiveBuildReporter | undefined
 }): Promise<PrepareWorkspaceArchiveReply> {
   const capture = args.capture ?? captureWorkspaceArchive
   const requireCoverage = args.requireCoverage ?? requireCoveredSourceWorktrees
@@ -64,7 +66,7 @@ export async function prepareWorkspaceExport(args: {
   const path = join(directory, `${EXPORT_PREFIX}${randomBytes(8).toString('hex')}.tar.gz`)
   const staging = `${path}.partial`
   try {
-    const manifest = await capture({ cwd, destination: staging, family })
+    const manifest = await capture({ cwd, destination: staging, family, onBuildProgress: args.onBuildProgress })
     if (family === undefined) await requireCoverage({ cwd, manifest })
     const proof = family === undefined ? undefined : await captureSourceCleanupProof({ cwd, manifest, generation: path, sourceSessionId: args.sourceSessionId ?? '' })
     if (proof !== undefined && proof.sessionId.length === 0) proof.retentionReasons.push('the source runtime has no provider-session identity')

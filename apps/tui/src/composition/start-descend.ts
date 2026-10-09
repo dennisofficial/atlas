@@ -5,6 +5,7 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { EOpenMode } from './config'
 import { activateOpenedConversation } from './conversation-claim'
 import { moveFailedNotice } from './container-notices'
+import { followArchiveBuild } from './archive-build-transfer'
 import { messageOf } from './error-text'
 import { wakeSandbox } from './cloud/cloud-runner'
 import { noticePortBinding } from './notice-binding'
@@ -63,6 +64,12 @@ export function startDescend(args: {
     },
   }
 
+  const stopFollowingBuild = followArchiveBuild({
+    channel: cloudSession.channel,
+    threadId: conversation.threadId,
+    onProgress: containerMove.handleTransferProgress,
+  })
+
   void descendFromCloud({
     threadId: conversation.threadId,
     target: EExecutionLocation.Host,
@@ -108,4 +115,5 @@ export function startDescend(args: {
       containerMove.handleFail(reason)
       warn(reason)
     })
+    .finally(stopFollowingBuild)
 }

@@ -8,6 +8,7 @@ export {
   cancelCompactionParamsSchema,
   compactHistoryParamsSchema,
   compactionReplySchema,
+  EArchivePhase,
   EWireCompactionAnchor,
   EWireCompactScope,
   summariseHistoryParamsSchema,
@@ -89,6 +90,7 @@ export {
 
 export type {
   ActivateSessionReply,
+  ArchiveProgressSignal,
   CancelCompactionParams,
   CompactHistoryParams,
   CompactionReply,

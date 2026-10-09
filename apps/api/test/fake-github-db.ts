@@ -1,12 +1,23 @@
 import { matchesValue, sortRows, uniqueViolation, type Where } from './fake-db-support'
 import {
+  createFakePrEventTable,
   createFakePrStateTable,
   createFakeRepoHookTable,
   createFakeSubscriptionTable,
 } from './fake-github-realtime-db'
-import type { FakePrStateRow, FakeRepoHookRow, FakeSubscriptionRow } from './fake-github-realtime-db'
+import type {
+  FakePrEventRow,
+  FakePrStateRow,
+  FakeRepoHookRow,
+  FakeSubscriptionRow,
+} from './fake-github-realtime-db'
 
-export type { FakePrStateRow, FakeRepoHookRow, FakeSubscriptionRow } from './fake-github-realtime-db'
+export type {
+  FakePrEventRow,
+  FakePrStateRow,
+  FakeRepoHookRow,
+  FakeSubscriptionRow,
+} from './fake-github-realtime-db'
 
 export type FakeWebhookEventRow = {
   id: string
@@ -51,12 +62,20 @@ function createFakeGithubDb() {
   let subscriptions: FakeSubscriptionRow[] = []
   let repoHooks: FakeRepoHookRow[] = []
   let prStates: FakePrStateRow[] = []
+  let prEvents: FakePrEventRow[] = []
 
   const subscriptionTable = createFakeSubscriptionTable({
     matchesWhere,
     rows: () => subscriptions,
     setRows: (rows) => {
       subscriptions = rows
+    },
+  })
+  const prEventTable = createFakePrEventTable({
+    matchesWhere,
+    rows: () => prEvents,
+    setRows: (rows) => {
+      prEvents = rows
     },
   })
 
@@ -124,6 +143,7 @@ function createFakeGithubDb() {
         prStates = rows
       },
     }),
+    githubPrEvent: prEventTable,
   }
 
   return {
@@ -143,13 +163,18 @@ function createFakeGithubDb() {
     get prStates() {
       return prStates
     },
+    get prEvents() {
+      return prEvents
+    },
     reset() {
       events = []
       pullRequests = []
       subscriptions = []
       repoHooks = []
       prStates = []
+      prEvents = []
       subscriptionTable.resetSequence()
+      prEventTable.resetSequence()
     },
   }
 }

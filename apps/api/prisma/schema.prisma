@@ -389,3 +389,17 @@ model GithubPrState {
   @@id([repoFullName, prNumber])
   @@index([repoFullName])
 }
+
+model GithubPrEvent {
+  id           String    @id @default(cuid())
+  userId       String
+  repoFullName String
+  prNumber     Int
+  kind         String
+  payload      Json
+  deliveredAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, deliveredAt])
+  @@index([repoFullName, prNumber])
+}

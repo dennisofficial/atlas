@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '../../../db'
-import { dtoOf } from './github-delivery.service'
+import { dtoOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubPrStateDto, GithubSubscriptionDto } from './github-realtime.types'
 import { GithubUserReads } from './github-user-reads'

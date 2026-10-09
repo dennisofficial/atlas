@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { cp, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -9,6 +9,7 @@ import { readMeta, sessionMetaSchema, threadMetaSchema, writeMeta } from '../sto
 import { metaWithPlacement } from '../store/sessions/placement-meta'
 import { sessionMetaFile, threadMetaFile } from '../store/sessions/paths'
 import { openArchiveFile, type SessionArchiveFile } from './archive-file'
+import type { ArchiveBuildReporter } from './archive-build-progress'
 import { assertShellsTerminal, isPortableSessionFile, markShellsImported } from './portable-session-file'
 import { SessionWalkError, walkRegularFiles } from './session-walker'
 
@@ -29,12 +30,13 @@ const runTar = async (args: {
   }
 }
 
-const stageFile = async (args: { sessionDir: string; contentDir: string; key: string }): Promise<void> => {
+const stageFile = async (args: { sessionDir: string; contentDir: string; key: string }): Promise<number> => {
   const source = join(args.sessionDir, args.key)
   const target = join(args.contentDir, args.key)
   try {
     await mkdir(dirname(target), { recursive: true })
     await cp(source, target, { preserveTimestamps: true })
+    return (await stat(source)).size
   } catch (cause) {
     throw new SessionWalkError({ path: source, cause })
   }
@@ -46,27 +48,53 @@ const buildTarball = async (args: {
   stagingDir: string
   output: string
   tarCommand?: string | undefined
+  report?: ArchiveBuildReporter | undefined
 }): Promise<void> => {
   const contentDir = join(args.stagingDir, 'content')
   const listFile = join(args.stagingDir, 'files.list')
   await mkdir(contentDir, { recursive: true })
-  for (const key of args.keys) await stageFile({ sessionDir: args.sessionDir, contentDir, key })
+  let bytes = 0
+  let staged = 0
+  for (const key of args.keys) {
+    bytes += await stageFile({ sessionDir: args.sessionDir, contentDir, key })
+    staged += 1
+    args.report?.({ phase: 'staging', files: staged, bytes })
+  }
   await writeFile(listFile, args.keys.map((key) => `./${key}\0`).join(''))
-  await runTar({
-    argv: ['-czf', args.output, '-C', contentDir, '--null', '-T', listFile],
-    ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
+  args.report?.({ phase: 'compressing', files: staged, bytes, totalBytes: bytes })
+  // Pipe tar to `gzip -1` rather than `tar -czf`: this is a one-shot transfer artifact extracted
+  // with `tar -xzf`, which is compression-level agnostic, so the fastest level wins capture CPU.
+  const tarCommand = args.tarCommand ?? 'tar'
+  const tar = Bun.spawn([tarCommand, '-cf', '-', '-C', contentDir, '--null', '-T', listFile], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+    stdin: 'ignore',
   })
+  const gzip = Bun.spawn(['gzip', '-1'], { stdin: tar.stdout, stdout: Bun.file(args.output), stderr: 'pipe' })
+  const [tarStderr, tarStatus, gzipStderr, gzipStatus] = await Promise.all([
+    new Response(tar.stderr).text(),
+    tar.exited,
+    new Response(gzip.stderr).text(),
+    gzip.exited,
+  ])
+  // gzip turns an empty stdin into a valid empty archive and exits 0, so a tar that died before
+  // writing anything would otherwise read as success. Reject both a nonzero exit and empty output.
+  const produced = (await stat(args.output)).size > 0
+  if (tarStatus !== 0 || !produced) throw new Error(`tar -c failed: ${tarStderr.trim() || `exit code ${tarStatus}`}`)
+  if (gzipStatus !== 0) throw new Error(`gzip failed: ${gzipStderr.trim() || `exit code ${gzipStatus}`}`)
 }
 
 export async function buildSessionArchive(args: {
   sessionDir: string
   archivePath?: string | undefined
   tarCommand?: string | undefined
+  onBuildProgress?: ArchiveBuildReporter | undefined
 }): Promise<SessionArchiveFile | undefined> {
   const found = await walkRegularFiles({ root: args.sessionDir })
   const keys = (found ?? []).filter((key) => isPortableSessionFile({ key }))
   if (keys.length === 0) return undefined
   await assertShellsTerminal({ sessionDir: args.sessionDir, keys })
+  args.onBuildProgress?.({ phase: 'walking', files: keys.length, bytes: 0 })
 
   const stagingDir = await mkdtemp(join(tmpdir(), 'atlas-session-build-'))
   const destination = args.archivePath
@@ -84,6 +112,7 @@ export async function buildSessionArchive(args: {
       stagingDir,
       output,
       ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
+      ...(args.onBuildProgress === undefined ? {} : { report: args.onBuildProgress }),
     })
     if (destination === undefined) {
       const file = await openArchiveFile({ path: output, disposeTarget: stagingDir })

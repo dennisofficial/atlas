@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import { treeMountPath, writeArchive, type ArchiveMount, type Relocation } from './archive'
+import type { ArchiveBuildReporter } from '../../cloud/archive-build-progress'
 import { digestGitAdmin } from './capture-admin'
 import { noIgnoreFilter, resolveIgnoreFilter } from './capture-ignore'
 import { dropExcludedRootWrappers } from './capture-files'
@@ -206,19 +207,25 @@ export async function captureWorkspaceArchive({
   cwd,
   destination,
   family,
+  onBuildProgress,
 }: {
   cwd: string
   destination: string
   family?: WorkspaceFamilyCapture | undefined
+  onBuildProgress?: ArchiveBuildReporter | undefined
 }): Promise<WorkspaceManifest> {
+  onBuildProgress?.({ phase: 'walking', files: 0, bytes: 0 })
   const layout = await discoverLayout({ cwd, family })
   const target = await assertDestinationOutside({ destination, layout })
   const before = await observe({ layout })
   const collected = await Promise.all(layout.trees.map((tree) => collectTree({ tree, layout })))
   const manifest = manifestFor({ layout, observed: before })
+  const files = collected.reduce((sum, item) => sum + item.files.length + item.state.length, 0)
+  onBuildProgress?.({ phase: 'staging', files, bytes: 0 })
 
   const stage = await mkdtemp(join(tmpdir(), 'atlas-capture-stage-'))
   try {
+    onBuildProgress?.({ phase: 'compressing', files, bytes: 0 })
     await stageAndPack({ stage, layout, collected, manifest, destination: target })
     const after = await observe({ layout })
     const moved = changedTree({ layout, before, after })
