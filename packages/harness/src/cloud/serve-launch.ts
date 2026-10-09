@@ -1,7 +1,6 @@
 import { dirname } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_HOME_PATH } from './drive-names'
 import { CHANNEL_PROTOCOL_VERSION } from './channel-wire'
 import { UNSTAMPED_PROTOCOL } from './resume-probe'
 import { installServe, type ServeInstaller } from './serve-install'
@@ -26,8 +25,6 @@ export {
   SERVE_TOKEN_PATH,
   SERVE_VERSION_PATH,
 }
-
-export const SERVE_CHECKPOINT_PATH = `${DRIVE_HOME_PATH}/operational/runtime-checkpoint.json`
 
 type InstalledStamps = { version: string | undefined; protocol: number }
 
@@ -147,22 +144,6 @@ const tokenFileMatches = async (args: { sandbox: Sandbox; token: string }): Prom
   return probe !== null && probe.exitCode === 0
 }
 
-const parkedCheckpointNames = async (args: {
-  sandbox: Sandbox
-  sandboxSessionId: string | undefined
-}): Promise<boolean> => {
-  if (args.sandboxSessionId === undefined) return false
-  const probe = await sh({
-    sandbox: args.sandbox,
-    script:
-      `test -f ${SERVE_CHECKPOINT_PATH} && ` +
-      `grep -q '"phase"[[:space:]]*:[[:space:]]*"parked"' ${SERVE_CHECKPOINT_PATH} && ` +
-      `grep -q '"sandboxSessionId"[[:space:]]*:[[:space:]]*"${args.sandboxSessionId}"' ${SERVE_CHECKPOINT_PATH} && exit 42; exit 0`,
-    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
-  })
-  return probe.exitCode === 42
-}
-
 const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
   const tail = await sh({
     sandbox,
@@ -232,14 +213,6 @@ export function createServeLauncher(args?: {
           `atlas serve refused to stop for its in-place swap; the sandbox was left running the old serve rather than destroyed`,
         )
       }
-    }
-
-    if (
-      await parkedCheckpointNames({ sandbox, sandboxSessionId })
-    ) {
-      throw new Error(
-        `sandbox ${sandbox.name} holds a checkpoint that parked this very session ${sandboxSessionId ?? ''} — refusing to boot a new serve over its park proof`,
-      )
     }
 
     if (token !== undefined) {
