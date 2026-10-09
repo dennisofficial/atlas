@@ -34,7 +34,7 @@ const untouchedDriver = (): ServeTurnDriver =>
 const freshSocket = (): { socket: SessionSocket; sent: string[] } => {
   const sent: string[] = []
   const socket = {
-    data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [] },
+    data: { helloed: false, alias: null, greeting: 0, greeted: false, held: [], bootHeld: [] },
     send: (payload: string) => {
       sent.push(payload)
     },

@@ -20,6 +20,8 @@ export type BootListener = {
   server: Server<SocketState>
   port: number
   complete: (given: { handlers: SessionHandlers; drain: ServeDrain; health: BootedHealthArgs }) => void
+  /** Closes every socket held while booting with an error instead of leaving it hung. */
+  fail: (given: { reason: string }) => void
 }
 
 const bootingHealth = (args: {
@@ -70,7 +72,7 @@ export function listenWhileBooting(args: {
 }): BootListener {
   let installed: { handlers: SessionHandlers; drain: ServeDrain; health: BootedHealthArgs } | undefined
 
-  const server = startSessionServer({
+  const { server, handshake } = startSessionServer({
     port: args.port,
     token: args.token,
     handlers: () => installed?.handlers,
@@ -88,5 +90,13 @@ export function listenWhileBooting(args: {
   const port = server.port ?? args.port
   args.log({ event: EServeEvent.Listening, threadId: args.threadId, port, ms: Date.now() - args.startedAt })
 
-  return { server, port, complete: (given) => { installed = given } }
+  return {
+    server,
+    port,
+    complete: (given) => {
+      installed = given
+      handshake.flush({ handlers: given.handlers })
+    },
+    fail: ({ reason }) => handshake.drop({ reason }),
+  }
 }
