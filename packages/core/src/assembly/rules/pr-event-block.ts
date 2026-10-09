@@ -1,3 +1,4 @@
+import { systemNotice } from '../../context/envelope'
 import { EPrEventKind, EPrVerdict } from '../../events/body'
 import type { DraftOfType } from '../../events/envelope'
 
@@ -53,6 +54,10 @@ const sentenceOf = (event: PrEvent): string => {
   return stateSentence(event)
 }
 
-export function prEventBlock(event: PrEvent): string {
+export function prEventContent(event: PrEvent): string {
   return `PR #${event.prNumber} in ${event.repo}: ${sentenceOf(event)}`
+}
+
+export function prEventBlock(event: PrEvent): string {
+  return systemNotice({ kind: 'pr-event', content: prEventContent(event) })
 }
