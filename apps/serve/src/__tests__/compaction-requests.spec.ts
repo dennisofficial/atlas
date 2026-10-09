@@ -24,7 +24,7 @@ const request = (args: { id: string; op: EClientRequest; params: unknown }): Req
 
 const open = async (summarise: Summariser) => {
   store = await openSeededStore()
-  const admission = createHistoryAdmission({ threadId, intake: null, unavailable: () => false })
+  const admission = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => false })
   const changed: number[] = []
   const requests = createCompactionRequests({
     threadId,

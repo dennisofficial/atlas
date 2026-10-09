@@ -6,12 +6,14 @@ import { applyTranscriptCovered } from '../ui/covered-store'
 import { EKeyGroup, EKeyLayer, useKeyBindings, useKeyRegistry } from '../ui/keys'
 import { globalBindings } from './global-bindings'
 import {
-  composerCovered,
+  buffersBlockedTyping,
+  composerBlurred,
   covering,
   keyOwners,
   transcriptCovered,
   type OverlayPresence,
 } from './overlay-presence'
+import { swallowsFocusedTextareaKey } from './use-overlay-keys'
 import type { useAccounts } from './use-accounts'
 import type { useContextBrowser } from './use-context'
 import type { useAgentView } from './use-agent-view'
@@ -22,6 +24,7 @@ import type { useContainerMove } from './use-container-move'
 import type { useConversation } from './use-conversation'
 import type { useExitGuard } from './use-exit-guard'
 import type { useFooterStrip } from './use-footer-strip'
+import type { DraftControls } from '../ui/hooks/use-draft'
 import type { useOnboarding } from './use-onboarding'
 import { useOverlayKeys } from './use-overlay-keys'
 import type { useRewind } from './use-rewind'
@@ -51,6 +54,12 @@ export type WorkspaceInputArgs = {
   conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'rotating' | 'operatorInput'>
   composer: Pick<ReturnType<typeof useWorkspaceComposer>,
     'draftIsEmpty' | 'handleSubmit' | 'handleTakeBackPending' | 'handleAttachImage' | 'menus'>
+  draft: DraftControls
+  /**
+   * Whether the composer's textarea currently holds the native focus — when it does, the global
+   * layer is responsible for its echo, since the textarea draws every key it sees.
+   */
+  focused: boolean
   agentView: Pick<ReturnType<typeof useAgentView>, 'handleCycle' | 'disarmStop'>
   agents: Pick<ReturnType<typeof useAgents>, 'count'>
   switcher: Pick<ReturnType<typeof useSwitcher>, 'state' | 'handleKey' | 'handleOpen'>
@@ -173,7 +182,13 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
         handleKey: contextBrowser.handleKey, coversComposer: true, coversTranscript: contextBrowser.viewer !== null },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
-      { open: rotating, coversComposer: false, coversTranscript: true, porous: true },
+      {
+        open: rotating,
+        coversComposer: false,
+        coversTranscript: true,
+        porous: true,
+        blursComposer: true,
+      },
       {
         open: moving,
         handleKey: moveFailed ? containerMove.handleKey : undefined,
@@ -228,7 +243,45 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     [handleDismissPanel, panel],
   )
 
-  const handleKey = useOverlayKeys({ veil, owners, bindings: registry.snapshot })
+  const blurred = covered || composerBlurred(overlays)
+
+  /**
+   * Only a buffering overlay (rotate) lets an unhandled printable echo into the blurred draft.
+   * A covering overlay that holds the composer (container-move) blurs it too, but there a key is
+   * swallowed, not echoed — the composer is held, not buffered.
+   */
+  const buffering = !covered && buffersBlockedTyping(overlays)
+
+  const { draft, focused } = args
+
+  /**
+   * The echo into a blurred composer must never re-blur it: a blurred textarea reports a key as
+   * unhandled, so re-blurring it now would make the same key look handled by its native handler
+   * and echo it twice. If it is somehow already focused, the native edit keys must be swallowed
+   * instead — an arrow or backspace acting on a buffer nobody can see is data damage.
+   */
+  const echoIntoBlurredDraft = useCallback(
+    (key: KeyEvent) => {
+      const editor = draft.editor.current
+      if (editor === null || editor.focused) return
+      editor.insertText(key.sequence ?? '')
+      draft.sync(editor.plainText)
+    },
+    [draft],
+  )
+
+  const swallowComposerEditKeys = useCallback(
+    (): boolean => draft.editor.current?.focused === true,
+    [draft],
+  )
+
+  const handleKey = useOverlayKeys({
+    veil,
+    owners,
+    bindings: registry.snapshot,
+    ...(buffering ? { onBlockedPrintable: echoIntoBlurredDraft } : {}),
+    ...(blurred && focused ? { swallowFocusedTextareaKeys: swallowComposerEditKeys } : {}),
+  })
 
   const handleKeyWithMenu = useCallback(
     (key: KeyEvent) => {
@@ -248,13 +301,11 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
   useKeyboard(handleKeyWithMenu)
 
-  const overlaid = covered || composerCovered(overlays)
-
   const picturesCovered = covered || transcriptCovered(overlays)
 
   useEffect(() => {
     applyTranscriptCovered(picturesCovered)
   }, [picturesCovered])
 
-  return { overlaid, picturesCovered }
+  return { overlaid: blurred, picturesCovered }
 }

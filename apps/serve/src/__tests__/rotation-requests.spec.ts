@@ -57,7 +57,7 @@ const rotateFrame = (params: Record<string, unknown>): RequestFrame => ({
 
 const rig = (args?: { rotation?: ScriptedRotation | null; related?: Set<string> }) => {
   const rotation = args?.rotation === null ? undefined : (args?.rotation ?? new ScriptedRotation())
-  const admission = createHistoryAdmission({ threadId: served, intake: null, unavailable: () => false })
+  const admission = createHistoryAdmission({ threadId: () => served, intake: null, unavailable: () => false })
   const broadcasts: RotationStateWire[] = []
   const requests = createRotationRequests({
     threadId: served,
@@ -69,6 +69,7 @@ const rig = (args?: { rotation?: ScriptedRotation | null; related?: Set<string> 
     driver: {
       holdForRotation: admission.holdForRotation,
       beginRotation: () => ({ pause: () => undefined, waitSettled: async () => null }),
+      followActiveMain: () => true,
     },
     broadcast: (state) => void broadcasts.push(state),
     log: () => undefined,

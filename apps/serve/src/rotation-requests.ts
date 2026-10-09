@@ -58,7 +58,7 @@ export function createRotationRequests(args: {
   threadId: ThreadId
   rotation: RotationPort | undefined
   authority: ServeSessionAuthority | undefined
-  driver: Pick<ServeTurnDriver, 'holdForRotation' | 'beginRotation'>
+  driver: Pick<ServeTurnDriver, 'holdForRotation' | 'beginRotation' | 'followActiveMain'>
   broadcast: (rotation: RotationStateWire) => void
   log: ServeLog
 }) {
@@ -106,7 +106,17 @@ export function createRotationRequests(args: {
           return
         }
         decide({ type: 'started' })
-        if (outcome.kind !== 'committed') args.log({ event: EServeEvent.RotationFailed, reason: outcome.reason })
+        if (outcome.kind === 'committed') {
+          // The serve's work moves with the session: pending intake queued for the predecessor
+          // migrates to the successor, and the driver answers sends and drives turns for it from
+          // here on. The settle already guaranteed the driver is idle, so the follow cannot race
+          // a live turn — a false return means that guarantee broke, which is worth a log line.
+          if (!args.driver.followActiveMain({ successor: outcome.successor })) {
+            args.log({ event: EServeEvent.RotationFailed, reason: 'the driver could not follow the committed successor' })
+          }
+        } else {
+          args.log({ event: EServeEvent.RotationFailed, reason: outcome.reason })
+        }
         publish(terminalOf(outcome))
       } catch (error) {
         const reason = reasonOf(error)

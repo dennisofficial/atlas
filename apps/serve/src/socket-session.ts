@@ -115,7 +115,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   }
 
   const greetRest = createSocketGreeter({
-    threadId, buffer, inFlight, liveStepId, driver, pending, operatorInput, checkpointField,
+    threadId: () => driver.servedThread(), buffer, inFlight, liveStepId, driver, pending, operatorInput, checkpointField,
     historyGeneration: () => historyGeneration, refusal, aliaser, attached, send, forSocket,
     drive: (driven) => drive(driven), log, rotation: () => router.rotation.current(),
   })
@@ -127,7 +127,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       return
     }
 
-    void transcript.log.head({ threadId }).then(
+    // The currency vouch answers for the thread the Hello names: after a rotation commits, a
+    // client re-attaching on the successor is vouched against the successor's head, not the
+    // predecessor's frozen one.
+    void transcript.log.head({ threadId: hello.threadId }).then(
       (head) => {
         if (!live.has(socket)) return
         greetRest({ socket, hello, head })
@@ -193,7 +196,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   }
 
   const unsubscribePending = pending?.subscribe(() => {
-    broadcast(buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId }) }))
+    broadcast(buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId: driver.servedThread() }) }))
   })
 
   return {

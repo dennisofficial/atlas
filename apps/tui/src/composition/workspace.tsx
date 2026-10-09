@@ -183,6 +183,8 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     handleQuit,
     conversation,
     composer,
+    draft,
+    focused: draft.editor.current?.focused === true,
     agentView,
     agents,
     switcher,

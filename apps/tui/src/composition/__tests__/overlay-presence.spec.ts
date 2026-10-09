@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  composerBlurred,
   composerCovered,
   covering,
   keyOwners,
@@ -34,6 +35,40 @@ describe('what an open overlay covers', () => {
   it('counts nothing a closed overlay would have covered', () => {
     expect(composerCovered([shut])).toBe(false)
     expect(transcriptCovered([shut])).toBe(false)
+  })
+})
+
+describe('what blurs the composer', () => {
+  const blocking: OverlayPresence = {
+    open: true,
+    coversComposer: false,
+    coversTranscript: true,
+    porous: true,
+    blursComposer: true,
+  }
+
+  it('blurs the composer for anything painted over it', () => {
+    expect(composerBlurred([covering(true, noop)])).toBe(true)
+  })
+
+  it('blurs the composer for a porous overlay that owns the screen without covering it', () => {
+    expect(composerBlurred([blocking])).toBe(true)
+    expect(composerCovered([blocking])).toBe(false)
+  })
+
+  it('restores focus when the blurring overlay closes', () => {
+    expect(composerBlurred([{ ...blocking, open: false }])).toBe(false)
+  })
+
+  it('does not blur the composer for a porous overlay with its own input', () => {
+    const operatorInput: OverlayPresence = {
+      open: true,
+      coversComposer: false,
+      coversTranscript: false,
+      porous: true,
+    }
+
+    expect(composerBlurred([operatorInput])).toBe(false)
   })
 })
 

@@ -23,7 +23,9 @@ import {
   sessionDirectory,
   ThreadStorePort,
   type ChannelConnection,
+  type ChannelListener,
   type ChannelReady,
+  type ChannelSignal,
   type InterruptAck,
   type ThreadModel,
   type SessionArchiveFile,
@@ -31,6 +33,7 @@ import {
   type TurnOutcome,
   type PendingSaid,
 } from '@dltech/atlas-harness'
+import type { RotationStateWire } from '@dltech/atlas-wire'
 
 import {
   fakeEventLog,
@@ -82,6 +85,8 @@ export type FakeCloudChannel = CloudChannel & {
   /** Serve's own titling or another client renamed the thread; the frame lands on every client. */
   pushThreadRenamed(args: { threadId: ThreadId; title: string }): void
   pushThreadModelChanged(args: { threadId: ThreadId; model: ThreadModel }): void
+  /** Serve broadcasts a rotation stage; the fake re-emits it to channel subscribers. */
+  pushRotation(rotation: RotationStateWire): void
   endTurn(outcome: TurnOutcome): void
   onCheckpoint(listener: (checkpoint: RuntimeCheckpoint) => void): () => void
   pushCheckpoint(checkpoint: RuntimeCheckpoint): void
@@ -143,6 +148,7 @@ export function fakeCloudChannel(
     (changed: { threadId: ThreadId; model: ThreadModel }) => void
   >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
+  const signalListeners = new Set<ChannelListener>()
   let resumes = 0
   const checkpoints = new Set<(checkpoint: RuntimeCheckpoint) => void>()
   const pendingChanges = new Set<(entries: readonly PendingEntryWire[]) => void>()
@@ -210,7 +216,12 @@ export function fakeCloudChannel(
       booted = untar
       return untar
     },
-    subscribe: () => () => undefined,
+    subscribe: ({ listener }: { threadId: ThreadId; listener: ChannelListener }) => {
+      signalListeners.add(listener)
+      return () => {
+        signalListeners.delete(listener)
+      }
+    },
     snapshot: () => [],
     publisherFor: () => {
       throw new Error('a cloud channel never publishes from the client')
@@ -263,6 +274,7 @@ export function fakeCloudChannel(
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.PrepareWorkspaceArchive) return { path: ARCHIVE_EXPORT_PATH, manifest: ARCHIVE_MANIFEST }
       if (given.op === EClientRequest.ActivateSession) return { activated: true }
+      if (given.op === EClientRequest.Rotate) return { type: 'started' }
       if (given.op === EClientRequest.TakeBackPending) {
         const taken = heldTakeBack
         heldTakeBack = null
@@ -436,6 +448,7 @@ export function fakeCloudChannel(
       held = { state: EChannelConnection.Waking, detail: null }
       for (const listener of [...connections]) listener(held)
     },
+    attachment: () => undefined,
     reconnect: () => {
       reconnected += 1
     },
@@ -499,6 +512,10 @@ export function fakeCloudChannel(
     },
     pushThreadModelChanged({ threadId, model }) {
       for (const listener of [...threadModelChanges]) listener({ threadId, model })
+    },
+    pushRotation(rotation) {
+      const signal: ChannelSignal = { type: 'rotation-changed', rotation }
+      for (const listener of [...signalListeners]) listener(signal)
     },
     pushPending(entries) {
       heldPending = entries

@@ -119,6 +119,8 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onCheckpoint?(listener: (checkpoint: RuntimeCheckpoint) => void): Unsubscribe
   detach?(): void
   onDetached?(listener: (reason: string) => void): Unsubscribe
+  /** The live attachment coordinates, absent while the channel is parked or never attached. */
+  attachment(): { url: string; token: string } | undefined
   wake(args: { url: string; token: string }): void
   /**
    * Marks the channel as waking its sandbox. The wake itself is a control-plane call the turn
@@ -852,6 +854,11 @@ export function createRemoteDeltaChannel(args: {
     checkpoint: () => heldCheckpoint,
 
     onCheckpoint: (listener) => checkpoints.add(listener),
+
+    attachment() {
+      if (url === undefined || token === undefined) return undefined
+      return { url, token }
+    },
 
     wake({ url: nextUrl, token: nextToken }) {
       if (abandoned) return

@@ -238,6 +238,7 @@ export function fakeCloudChannel(
       held = { state: EChannelConnection.Waking, detail: null }
       for (const listener of [...connections]) listener(held)
     },
+    attachment: () => undefined,
     reconnect: () => undefined,
     close: () => {
       closed = true

@@ -10,7 +10,7 @@ const SUMMARISING = 'the history is being summarised — wait for it to finish'
 const ROTATING = 'the session is rotating — wait for it to finish'
 
 export function createHistoryAdmission(args: {
-  threadId: ThreadId
+  threadId: () => ThreadId
   intake: MessageIntake | null
   unavailable: () => boolean
   relocating?: (() => boolean) | undefined
@@ -27,7 +27,7 @@ export function createHistoryAdmission(args: {
     if (refusal !== undefined) throw new Error(refusal)
     if (taking.blocked !== undefined) throw new Error(taking.blocked)
     holder = taking.kind
-    const release = args.intake?.hold({ threadId: args.threadId })
+    const release = args.intake?.hold({ threadId: args.threadId() })
     return () => {
       holder = null
       release?.()

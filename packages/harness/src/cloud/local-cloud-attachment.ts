@@ -18,8 +18,9 @@ export const attachmentOf =
     options: Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed'>
     sandboxes: CloudSandboxes
   }): CloudBridge['attach'] =>
-  ({ threadId, url, token }: { threadId: ThreadId; url: string; token: string }) => {
+  ({ threadId, url, token, sandboxThreadId }: { threadId: ThreadId; url: string; token: string; sandboxThreadId?: ThreadId | undefined }) => {
     const { options, sandboxes } = args
+    const hosted = sandboxThreadId ?? threadId
     let unbindSettings: (() => void) | undefined
     const channel = createRemoteDeltaChannel({
       threadId,
@@ -28,8 +29,8 @@ export const attachmentOf =
       ...(options.lastEventSeq === undefined
         ? {}
         : { lastEventSeq: () => options.lastEventSeq?.({ threadId }) ?? 0 }),
-      reattach: () => reattachSandbox({ sandboxes, threadId }),
-      lifecycleEscalation: lifecycleEscalationOf({ sandboxes, threadId }),
+      reattach: () => reattachSandbox({ sandboxes, threadId: hosted }),
+      lifecycleEscalation: lifecycleEscalationOf({ sandboxes, threadId: hosted }),
       onFinished: () => unbindSettings?.(),
     })
     if (options.settings !== undefined) {

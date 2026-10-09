@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import {
   EParkedResume,
   MirroredEventLog,
+  type CloudAttachment,
   type CloudBridge,
   type CloudChannel,
   type CloudReload,
@@ -36,6 +37,18 @@ type OpenArgs = {
   onReload: (reload: CloudReload) => Promise<void>
   /** Wake the sandbox before anything renders. Recovery settles on the live channel, so it needs this. */
   wakeFirst?: boolean | undefined
+  /**
+   * A caller that already attached (a rotation swap mints the successor's attachment before the
+   * mirror lands, so its lifetime is the caller's) hands it in rather than letting the open
+   * attach a second one.
+   */
+  parkedAttachment?: CloudAttachment | undefined
+  /**
+   * A caller that already read the conversation off the local mirror (a rotation swap, where the
+   * channel is being torn down under the commit) hands it in rather than letting the open read
+   * the thread over the wire.
+   */
+  opened?: OpenedConversation | undefined
 }
 
 type Composed = {
@@ -77,7 +90,7 @@ async function composeEager(args: OpenArgs): Promise<Composed> {
 }
 
 function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resume: EParkedResume }): Composed {
-  const attachment = args.bridge.attach({ threadId: args.threadId })
+  const attachment = args.parkedAttachment ?? args.bridge.attach({ threadId: args.threadId })
   const { channel } = attachment
   let created = false
   const wake = createCloudWake({
@@ -128,10 +141,22 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
 
   try {
     const renderable = args.wakeFirst === true ? null : await renderableLocally(args)
+    // A handed-in attachment pins the channel and stores the open runs on: falling back to
+    // composeEager would attach a second channel — and on a rotation swap its wake boots a fresh
+    // successor-named sandbox with no transcript. Render what the mirror landed and wake behind
+    // it; an empty local read here means the mirror broke, not that the sandbox needs re-booting.
+    // A handed-in opened conversation short-circuits even the local read: the swap's caller read
+    // the mirror before handing it over.
+    const openedFor =
+      args.opened ?? renderable?.opened ?? (await openCloudConversation({ app, threadId }))
     const composed =
-      renderable === null
+      renderable === null && args.parkedAttachment === undefined && args.opened === undefined
         ? await composeEager(args)
-        : composeRenderFirst({ ...args, opened: renderable.opened, resume: renderable.resume })
+        : composeRenderFirst({
+            ...args,
+            opened: openedFor,
+            resume: renderable?.resume ?? EParkedResume.Unknown,
+          })
     const { channel, stores } = composed
     const mirrored = stores.log instanceof MirroredEventLog ? stores.log : undefined
 
