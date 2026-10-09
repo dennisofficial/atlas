@@ -125,6 +125,15 @@ export default class GithubPlugin extends NativePlugin {
 
     links.projection.subscribe(() => service.watch({ links: links.projection.current() }))
 
+    /**
+     * A serve process boots with no surface and may never take a turn, so the subscriptions the
+     * restored log implies cannot wait for one. The projection seeding happens in the composition
+     * root — it is the one holding the restored events — and this `boot` covers the half the log
+     * cannot answer: which checkout the sandbox's launch directory is on. Only a pushing port is
+     * asked: the signed-out `gh` poller's cadence is deliberate and gains no eager read here.
+     */
+    if (raw instanceof SsePullRequestPort) void tracking.boot()
+
     return {
       promptFragments: [new CiFeedFragment()],
       hooks: [

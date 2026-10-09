@@ -1,4 +1,4 @@
-import type { ModelRef } from '@dltech/atlas-core'
+import type { ModelRef, ThreadId } from '@dltech/atlas-core'
 
 export const DEFAULT_MODEL_REF: ModelRef = {
   providerId: 'anthropic',
@@ -16,4 +16,10 @@ export type HarnessLaunch = {
   /** The model the launch pins, with the effort it was running on when a resumed session carried one. A bare ref string is a model with no opinion on effort. */
   model: { ref: string; effort?: string | undefined } | undefined
   executionLocation: string | undefined
+  /**
+   * The thread whose restored log seeds plugin projections at compose. A launch without a surface
+   * (serve) names its thread so projections fold before the first turn; a launch with a surface
+   * leaves it unset and its surface publishes the live log instead.
+   */
+  threadId?: ThreadId | undefined
 }

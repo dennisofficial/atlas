@@ -54,6 +54,8 @@ import { bindQuality } from './compose-quality'
 import { asPluginSurfaces, localSessionOwner } from './compose-session'
 import { bindUtilityModels } from './compose-utility-models'
 import type { HarnessLaunch } from './config'
+import { publishProjections, type ContributedProjection } from '../plugins/projection'
+
 import { bindInstructionsAndMemory } from './context-bindings'
 import { boundCaptureContext } from './context-archive-binding'
 import { ExecutionLocationToken } from './execution-location-state'
@@ -69,6 +71,28 @@ import { wireTurn } from './turn-wiring'
 import { threadOpenedHandler } from './worktree-claims'
 
 const SERVE_COMMAND = 'serve'
+
+/**
+ * A launch with no surface (serve) boots with a restored transcript and nobody to publish it, so
+ * plugin projections fold the thread's log once here — the subscriptions and tracked state the log
+ * implies cannot wait for the first turn. A launch with a surface leaves this alone: its surface
+ * republishes the same events live. A log that cannot be read is a half-restored session, not a
+ * boot failure, so the read's rejection is swallowed the same way the transcript's later folds
+ * tolerate a missing row.
+ */
+async function seedProjectionsFromRestoredLog(args: {
+  launch: HarnessLaunch
+  log: EventLogPort
+  projections: readonly ContributedProjection[]
+}): Promise<void> {
+  const threadId = args.launch.threadId
+  if (threadId === undefined || args.projections.length === 0) return
+
+  const events = await args.log.read({ threadId }).catch(() => null)
+  if (events === null) return
+
+  publishProjections({ projections: args.projections, events })
+}
 
 export async function composeHarness<TSurface = undefined, Command = never, TPluginSurface = unknown>(args: {
   launch: HarnessLaunch
@@ -158,6 +182,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   bindQuality({ container, settings })
   const log = container.resolve(portToken(EventLogPort))
+  await seedProjectionsFromRestoredLog({ launch, log, projections: plugins.projections })
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
   executionLocation.bind({
