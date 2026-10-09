@@ -26,18 +26,22 @@ const DEFINITION =
   'Gather behavior that changes for the same reasons and separate behavior that changes independently. ' +
   'Merely mentioning several domain nouns, making several calls, or having several methods is not sufficient evidence of a violation.'
 const EXCEPTIONS: readonly string[] = [
-  'Thin delegation or facade code.',
-  'Orchestration that intentionally composes responsibilities.',
+  'Thin delegation or facade code that contains no logic of its own beyond routing calls.',
+  'Orchestration that intentionally composes responsibilities, where the orchestrator only sequences collaborator calls and holds no independent implementation (no schema details, no protocol handling, no filesystem layout, no external-API specifics).',
   'Tightly cohesive methods implementing one business capability.',
   'Temporary refactor states with insufficient evidence.',
 ]
 
 const IMPACT_CRITERIA: Record<EQualityImpact, string> = {
-  [EQualityImpact.Introduced]: 'The edit created a mix of independently changing responsibilities that BEFORE did not have.',
+  [EQualityImpact.Introduced]:
+    'The edit created a mix of independently changing responsibilities that BEFORE did not have. ' +
+    'When BEFORE is null the entire scope is new — choose introduced only if the new code itself mixes independently changing responsibilities.',
   [EQualityImpact.Worsened]: 'BEFORE already mixed responsibilities and the edit made the mix materially worse.',
   [EQualityImpact.Improved]: 'The edit improved the mix but responsibilities are still mixed in AFTER.',
   [EQualityImpact.Resolved]: 'BEFORE mixed responsibilities and AFTER no longer does.',
-  [EQualityImpact.Unchanged]: 'The edit did not materially change the responsibility mix, whether good or bad.',
+  [EQualityImpact.Unchanged]:
+    'The edit did not materially change the responsibility mix, whether good or bad. ' +
+    'For a newly created scope (BEFORE is null), unchanged means the new code is cohesive under this policy — it does not mix independently changing responsibilities.',
   [EQualityImpact.NotApplicable]: 'The policy does not apply to this scope or edit.',
   [EQualityImpact.Uncertain]: 'The supplied state is insufficient to decide.',
 }
@@ -116,6 +120,11 @@ function questions({ scope }: { scope: QualityScope }): Record<string, DecisionQ
       type: 'noul',
       instructions: instructionsFor(
         'Does the complete scope.after mix independently changing responsibilities under this policy? ' +
+          'To decide, enumerate the distinct reasons this class or function would need to change — e.g., a database schema change, an external API change, a protocol change, a routing/policy change. ' +
+          'If two or more of those reasons are genuinely independent (one can change without forcing a change to the other), the scope mixes responsibilities. ' +
+          'A class that merely delegates to collaborators without containing independent logic of its own is not a violation. ' +
+          'A class that sequences collaborator calls AND also directly implements a substantial unrelated concern (e.g., persistence schema details, filesystem layout, protocol handling, external-API specifics, credential handling) IS a violation — the orchestration exception does not cover it. ' +
+          'Wiring, registration, and configuration functions that only wire collaborators together are not violations, even when they reference multiple subsystems. ' +
           'scope.before and scope.diff are comparison context only and are not the target of this question.',
       ),
     },
@@ -123,6 +132,11 @@ function questions({ scope }: { scope: QualityScope }): Record<string, DecisionQ
       type: 'choice',
       instructions: instructionsFor(
         'Compare scope.before, scope.after and the actual scope.diff under this one policy and choose how the edit affected the responsibility mix. ' +
+          'When scope.before is null, the scope was newly created by this edit: judge the new code on its own. ' +
+          'First enumerate the distinct reasons the new code would need to change. If two or more are genuinely independent, the impact is introduced — not unchanged. ' +
+          'Choose unchanged only when the new code is cohesive under this policy. ' +
+          'A class that orchestrates collaborators but also owns detailed implementation of an unrelated concern (e.g., persistence schema, filesystem layout, protocol handling) is introduced, not unchanged. ' +
+          'A class that only delegates to collaborators without containing independent logic is unchanged. ' +
           'Existing debt alone is not introduced. A fix that leaves debt in place but improves it is not worsened.',
       ),
       criteria: { ...IMPACT_CRITERIA },
@@ -237,10 +251,9 @@ function interpret({ scope, answers }: { scope: QualityScope; answers: Readonly<
     if (!impactConfident || !NEW_OR_WORSENED.includes(impact.impact)) {
       return completed({ transition: EQualityTransition.TrackDebt, evidenceIds: [] })
     }
-    if (focus.candidateId === null || focus.probability < FOCUS_CONFIDENCE_THRESHOLD) {
-      return completed({ transition: EQualityTransition.TrackDebt, evidenceIds: [] })
-    }
-    return completed({ transition: EQualityTransition.Introduce, evidenceIds: [focus.candidateId] })
+    const focused =
+      focus.candidateId !== null && focus.probability >= FOCUS_CONFIDENCE_THRESHOLD ? [focus.candidateId] : []
+    return completed({ transition: EQualityTransition.Introduce, evidenceIds: focused })
   }
   if (concern.probability <= CONCERN_RESOLVE_THRESHOLD && impactConfident && RESOLVING.includes(impact.impact)) {
     return completed({ transition: EQualityTransition.Resolve, evidenceIds: [] })
@@ -250,8 +263,10 @@ function interpret({ scope, answers }: { scope: QualityScope; answers: Readonly<
 
 function guidance({ assessment, scope }: { assessment: QualityAssessment; scope: QualityScope }): string {
   const labels = scope.evidence.filter((evidence) => assessment.evidenceIds.includes(evidence.id)).map((evidence) => evidence.label)
+  const concern = assessment.currentConcernProbability
+  const confidence = concern !== null ? ` (concern ${Math.round(concern * 100)}%)` : ''
   return [
-    `The file was written successfully. "${TITLE}" suggests that ${scope.kind} ${scope.name} may now mix independently changing responsibilities.`,
+    `The file was written successfully. "${TITLE}" suggests that ${scope.kind} ${scope.name} may now mix independently changing responsibilities${confidence}.`,
     `Policy: ${DEFINITION}`,
     ...(labels.length > 0 ? [`Most directly related: ${labels.join(', ')}.`] : []),
     'Consider reviewing where that behavior belongs. If the current structure is justified, leaving the implementation unchanged is fine.',

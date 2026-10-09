@@ -80,11 +80,32 @@ describe('secretTargetOf', () => {
     ).toBeUndefined()
   })
 
-  it('seals the decisions token under its own setting id', () => {
+  it.each(['typesafe', 'vercel', 'openai', 'custom'])(
+    'seals the decisions token under the %s provider',
+    (provider) => {
+      expect(
+        secretTargetOf({
+          id: ESettingId.DecisionsToken,
+          resolution: resolveSettings({
+            definitions: ATLAS_SETTINGS,
+            layers: [
+              {
+                layer: ESettingsLayer.User,
+                origin: 'user',
+                values: { [ESettingId.DecisionsProvider]: provider },
+              },
+            ],
+          }),
+        })?.name,
+      ).toBe(`decisions.token.${provider}`)
+    },
+  )
+
+  it('seals the decisions token under the default provider when none is chosen', () => {
     expect(
       secretTargetOf({ id: ESettingId.DecisionsToken, resolution: resolutionOn() }),
     ).toEqual({
-      name: 'decisions.token',
+      name: 'decisions.token.typesafe',
       label: 'decision API key',
       masked: true,
       required: false,

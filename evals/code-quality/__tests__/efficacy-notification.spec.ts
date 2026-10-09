@@ -46,14 +46,14 @@ describe('fresh-episode notification measurement through the real ledger', () =>
     expect(report.notification.actualNotifications).toBe(0)
   })
 
-  test('a function positive without supplied focus reports a coverage limitation', () => {
+  test('a function positive without supplied focus is a true positive, not a coverage limitation', () => {
     const evalCase = makeCase({ id: 'n4', kind: EQualityScopeKind.Function, evidenceIds: [], expected: decided({ impact: EQualityImpact.Introduced, concern: true }) })
     const report = analyzeSrpEfficacy({
       cases: [evalCase],
       rows: [rowOf({ evalCase, assessment: assess({ evalCase, concern: 0.95, impact: EQualityImpact.Introduced }) })],
       judgments: [judgmentFor({ evalCase, warranted: true })],
     })
-    expect(report.notification.confusion.fn).toBe(1)
+    expect(report.notification.confusion.tp).toBe(1)
     expect(report.notification.coverageLimitedCaseIds).toEqual(['n4'])
     expect(report.strata.byScopeKind.function?.independentCases).toBe(1)
   })

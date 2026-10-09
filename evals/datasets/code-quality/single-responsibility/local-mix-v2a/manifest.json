@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "featureId": "code-quality/single-responsibility",
+  "inputSchemaVersion": "1",
+  "expectedSchemaVersion": "1",
+  "rubricVersion": "1",
+  "datasetVersion": "2026-10-07-balanced-v3",
+  "casesFile": "cases.jsonl",
+  "contentHash": "15d054073a744e15ffea57bd3739274b51c69d771ebb334b58f5e574d5119c0f",
+  "split": "development",
+  "caseIds": [
+    "recovered-0190fd251d9cc86a7dc13aea51433ad0ca87399a198195fa02fb9770d8373b2a",
+    "recovered-0691d181b9f2ec75b12f9edcb2a9fb583012e5363a8a201be8db07d46c11d2a2",
+    "recovered-15045c2eca700f9d8b71733aa57c726b201827d5cb3c3b2a98345454a1543660",
+    "recovered-17aab63532ba13820b97da2ec247b8d60b028484de47f91c88f3ae1b4e4327bf",
+    "recovered-19ca8174722a03a2afbf8f5f00418ae33aa5ff6c500ddf09f87be8c0e9e94065",
+    "recovered-19e95711882f963df1507d1e9793f9e88d1f174a3bb239e6d97acede73cc819f",
+    "recovered-1bf5fbdeb5d3fc79b543ad2d7c8f00e31e3d8ddf12d1b73edbb8aa34c696666c",
+    "recovered-21a399c8f08c485d1bc958750a67ab00bee199aa97557dee53bec31d3a2834b2",
+    "recovered-2600674a9005cdb86f6836da8ce47180115505190dee2ae1a6f8cdcc6092db8c",
+    "recovered-268d2243543e0793a3037ee32f2e75b392f14048bed476dd06d98255032bab2a",
+    "recovered-27a856be32a9507f6765e0f4275650aa39592a03b244f215edad5383ddc581f2",
+    "recovered-28b99bcb989a8b22b9e835700c342b9740835c7cc1b733ed506d40b7f775fad3",
+    "recovered-3190d783f47927ecebd0a374f41a1193730ec1b841c5c14785d250fad13fbc88",
+    "recovered-34932d6f3466afc49129b9eb95218cf3a72fed772256eefb87e99c7d1323641d",
+    "recovered-38a37e737d7afcb7ce010fd178aef7b9a88d814c86ff779df62869446945edcf",
+    "recovered-407e35776f586739601598188ca39c69affe07d7d46a966fb7b2d7c557cdd356",
+    "recovered-4d1cb402e44ca8df293e002b7293c0f35e28cea52c35fac1a29cf0f8539077e7",
+    "recovered-512df781653154d6f353e10fef97aac6b08c41cd02fa23e8a5b2d664f974dba0",
+    "recovered-538b0af97685721789993a5d00a4f632119f1d9c0a8c7248b5dc223063f7eb8b",
+    "recovered-564b729521af7b810b7fece3b41fb5b67fd459418be1020819614f0dc948c054",
+    "recovered-5cac683c5393b4d98445c7357cb32bd7caf9118c1d783c4bdc26ae6e5c520bbe",
+    "recovered-6fbc6d5dca36802e2148a54d5a6d85973bcf56bed7c2aff4542ccfe7d2f00440",
+    "recovered-705e455f139dab89b42d8ec094896dfddb8d8c15e66620532bc5cd7f34f0fab6",
+    "recovered-71d2364a5e67ba5ec4545d23f1a9aabed0eed632a938bddb90d1f7e6f2f1abd8",
+    "recovered-78c2e7a215adb6c767385ce54b20910719d74ab2d9d955e4cfbf16bc34bed0df",
+    "recovered-79fc85e8299727032cedf39eab33f715cd1b241782d6f07dfbde3bd33bb66447",
+    "recovered-816eec9775f71190cec4cb6974dbdf501a38417ebb9dfe42a41b57d6a98d91bf",
+    "recovered-89be2e50f49f3cdf5465fadfbba4343ead67b49214026e01972a4cd64c127cab",
+    "recovered-8a3526730772c8b9428b07d3518fcaa64192d1f70a00e7787aa3b922511f7605",
+    "recovered-8ccadb1732347c2c4ef15d676f4bd6bee3128efb1ec42c61ab6cf72804a52495",
+    "recovered-8e53d3f3dd69476b33d7064e99cd982ebff37bb5d6b050b312b80e008966e3f3",
+    "recovered-9364d0bcc40efd40bec2467def16f9f3b89d77a8c3e86cc582b06f81d60b7465",
+    "recovered-96cfe72e98da1087738d40db39f43c38f173eb09297a1caa4f3fb67ca5ec2719",
+    "recovered-b46eb09d5e7240672585c0e0b6c1533681d9f368b0b8c560412e349b0b54be08",
+    "recovered-b9c8b3b16708b0f66c4e6bd8216a5b80e5d7ba96fe582870be666112dbf69780",
+    "recovered-c500ec821dce8c67cf70496fd1952c2e7e3845a9475e23451dc60a9366af3e29",
+    "recovered-c89deb062527512355a2b306df6f06a685bb0919cff53c00aff03c75b5346235",
+    "recovered-d17f1a35fdef142d9b1f99e7d96a265fa7a35c7d6708f46c68704a238f36fc36",
+    "recovered-d55f6d78550bf272e6dcc8530cc48c5846956339e2110ef688aa914a3dc30b9e",
+    "recovered-da2091acf10325cdf1561f1fd6caa4d7eb47e391de1980dfe83ad58711b11aeb",
+    "recovered-e502cc56e4e15ae3b50b248d44738ae2184e9634fe0f2a0c3a6f228b53efdb1e",
+    "recovered-ec5eb1ecf59ffc0fbcee5a0402ee143605d460ad267343ec6e6eb8327ef23dde",
+    "recovered-efb6ce94c6d95fa5a083a3c460bf753f259d6f57d0f24c227a12da46b1ed1827",
+    "recovered-efc50f9d342e88fa7c38f6bff9f1682e3d91fbd4868b8b2be89eb9b9877447cb",
+    "recovered-f07ccd6dca7dcfe9ad42e3822a0810c9b7b4f05c5f4f3c45d1b1b8959478e2ed",
+    "recovered-f17a66f4c8764b0b76cbe8428580719bccc4a8a135a5fd32205400c17f4b89a6",
+    "recovered-f56aba8c171e5b0e04e2550f77848b3a82e9d08c9b24f61c4a2e22b674a0616b",
+    "recovered-f7ac4df13146d11edc61dca16f6f39313d591419f4dc309096bac746b630910a"
+  ],
+  "counts": {
+    "accepted": 48,
+    "rejected": 0
+  },
+  "metricGates": [
+    {
+      "metricId": "srp-impact",
+      "min": 0.9
+    },
+    {
+      "metricId": "srp-current-concern",
+      "min": 0.9
+    },
+    {
+      "metricId": "srp-evidence-ids",
+      "min": 0.95
+    },
+    {
+      "metricId": "srp-exact-tuple",
+      "min": 0.9
+    }
+  ]
+}

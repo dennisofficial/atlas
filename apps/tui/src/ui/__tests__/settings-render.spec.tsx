@@ -5,7 +5,7 @@ import { cellsOf } from '../hint-layout'
 import { OPTION_SEPARATOR, RANGE_HINT, TEXT_HINT, TOGGLE_HINT } from '../settings-format'
 import { CHOSEN, COMPOSER_DRAFT, DIFF_PATH, UNCHOSEN } from '../components/settings/previews'
 import { glyph, SIDEBAR_WIDTH } from '../theme'
-import { WIDE, NARROW, ORIGIN, page, rowsOf, stateOf, ACCENT_ROW, SIDEBAR_ROW, DENSITY_ROW, COMPOSER_ROW, BAND_EDGE, BAND_TOP_LEFT, BAND_TOP_RIGHT, BAND_BOTTOM_LEFT, rowWith } from './settings-render-fixture'
+import { CUSTOM_DECISIONS, WIDE, NARROW, ORIGIN, page, rowsOf, stateOf, ACCENT_ROW, SIDEBAR_ROW, DENSITY_ROW, COMPOSER_ROW, BAND_EDGE, BAND_TOP_LEFT, BAND_TOP_RIGHT, BAND_BOTTOM_LEFT, rowWith } from './settings-render-fixture'
 
 describe('the settings page', () => {
   it('names itself and the page it is on', async () => {
@@ -33,9 +33,9 @@ describe('the settings page', () => {
     expect(rowWith(rows, 'Sidebar width')).toContain(RANGE_HINT)
     expect(rowWith(rows, 'Accent')).toBe('')
 
-    const textOnly = ATLAS_SETTINGS.filter((row) => row.id === ESettingId.DecisionsUrl)
-    const textRows = await rowsOf(page({ definitions: textOnly }), WIDE)
-    expect(rowWith(textRows, 'Decision model')).toContain(TEXT_HINT)
+    const textOnly = ATLAS_SETTINGS.filter((row) => row.id === ESettingId.DecisionsUrl || row.id === ESettingId.DecisionsProvider)
+    const textRows = await rowsOf(page({ definitions: textOnly, layers: CUSTOM_DECISIONS }), WIDE)
+    expect(rowWith(textRows, 'Decision endpoint')).toContain(TEXT_HINT)
   })
 
   it('lists the options a choice offers', async () => {

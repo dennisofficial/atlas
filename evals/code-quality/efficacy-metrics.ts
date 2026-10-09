@@ -110,8 +110,8 @@ export function summarizeEvidence({ rows }: { rows: readonly InterpretableRow[] 
   const notified = rows.filter((row) => row.notified)
   const wronglyGrounded = notified.filter((row) => {
     const expected = expectedEvidenceOf(row)
-    if (expected === null) return true
-    return row.assessment.evidenceIds.length === 0 || !row.assessment.evidenceIds.every((id) => expected.includes(id))
+    if (expected === null) return false
+    return row.assessment.evidenceIds.length > 0 && !row.assessment.evidenceIds.every((id) => expected.includes(id))
   })
   return {
     exactTuple: {

@@ -59,7 +59,16 @@ export const valueOf = (app: FakeApp, id: ESettingId): unknown =>
 
 export const SIDEBAR_WIDTH_ROW = 7
 
-export const DECISIONS_URL_ROW = 20
+export const DECISIONS_URL_ROW = 6
+
+export const CUSTOM_DECISIONS_SETTINGS: SettingsDocument = {
+  values: { [ESettingId.DecisionsProvider]: 'custom' },
+}
+
+export async function toModelsPage(setup: Mounted): Promise<void> {
+  setup.mockInput.pressTab()
+  await landed(setup)
+}
 
 export async function downTo(args: { setup: Mounted; row: number }): Promise<void> {
   for (let step = 0; step < args.row; step += 1) {

@@ -12,6 +12,7 @@ import {
   textValueOf,
   toggleValueOf,
   type CredentialPort,
+  type SecretsPort,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
@@ -23,17 +24,20 @@ import {
   WorktreeDirectoryToken,
 } from '../container/tokens'
 import type { DependencyContainer } from '../container/injection'
+import { liveDecisionsEndpoint } from '../classifier/decision-backend'
 import type { SettingsService } from '../settings/service'
 import { remotesOf } from '../workspace/probe'
 
 export async function bindSettingsPolicy(args: {
   container: DependencyContainer
   settings: SettingsService
+  secrets: SecretsPort
   workspace: WorkspaceIdentity
   credentials: CredentialPort
   cwd: string
 }): Promise<void> {
   const { container, settings, workspace } = args
+  const decisionsEndpoint = liveDecisionsEndpoint({ settings, secrets: args.secrets })
 
   container.register(WorktreeDirectoryToken, {
     useValue: () =>
@@ -71,7 +75,7 @@ export async function bindSettingsPolicy(args: {
         ) ?? EClassifierMode.Shadow
       const defaulted =
         resolution.settings.get(ESettingId.ClassifierMode)?.layer === ESettingsLayer.Default
-      const decisionsLive = textValueOf({ resolution, id: ESettingId.DecisionsUrl }).length > 0
+      const decisionsLive = decisionsEndpoint() !== null
 
       return {
         ...DEFAULT_CLASSIFIER_POLICY,
@@ -84,10 +88,7 @@ export async function bindSettingsPolicy(args: {
   container.register(SkillSuggestionEnabledToken, {
     useValue: () => {
       const resolution = settings.snapshot().resolution
-      return (
-        toggleValueOf({ resolution, id: ESettingId.SkillSuggest }) &&
-        textValueOf({ resolution, id: ESettingId.DecisionsUrl }).length > 0
-      )
+      return toggleValueOf({ resolution, id: ESettingId.SkillSuggest }) && decisionsEndpoint() !== null
     },
   })
 

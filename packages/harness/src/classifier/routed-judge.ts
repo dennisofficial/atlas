@@ -1,31 +1,4 @@
-import {
-  ESettingId,
-  JudgePort,
-  textValueOf,
-  type Brief,
-  type Consultation,
-  type SecretsPort,
-} from '@dltech/atlas-core'
-
-import type { SettingsService } from '../settings/service'
-import type { JevConfig } from './jev-client'
-
-export const DECISIONS_SECRET_NAME: string = ESettingId.DecisionsToken
-
-export function decisionsConfigFrom(args: {
-  settings: SettingsService
-  secrets: SecretsPort
-}): () => JevConfig | undefined {
-  const { settings, secrets } = args
-  return () => {
-    const baseUrl = textValueOf({
-      resolution: settings.snapshot().resolution,
-      id: ESettingId.DecisionsUrl,
-    })
-    if (baseUrl.length === 0) return undefined
-    return { baseUrl, token: secrets.read(DECISIONS_SECRET_NAME) }
-  }
-}
+import { JudgePort, type Brief, type Consultation } from '@dltech/atlas-core'
 
 export type RoutedJudgeDeps = {
   fallback: JudgePort

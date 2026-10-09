@@ -3,6 +3,7 @@ import {
   agentTypeModelGroup,
   DEFAULT_LAYER_ORIGIN,
   definitionsOfPage,
+  isSettingVisible,
   EDefinitionOrigin,
   ESettingKind,
   ESettingPage,
@@ -132,6 +133,7 @@ const resolvedOf = (args: {
   for (const definition of args.definitions) {
     const held = args.resolution.settings.get(definition.id)
     if (held === undefined) continue
+    if (!isSettingVisible({ definition, resolution: args.resolution })) continue
     rows.push(args.writeOriginOf === undefined ? held : { ...held, writeOrigin: args.writeOriginOf(definition.id) })
   }
   return rows

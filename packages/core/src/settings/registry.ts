@@ -3,6 +3,13 @@ import { EFFORT_LADDER, EEffort } from '../models/effort-ladder'
 import { EClassifierMode } from '../policy/classifier/triage'
 import { EWebSearchBackend } from '../web/search'
 import { ESettingPage, type SettingDefinition, type SettingPage } from './definition'
+import {
+  DECISIONS_PRESETS,
+  DEFAULT_DECISIONS_MODEL,
+  DEFAULT_DECISIONS_PROVIDER,
+  EDecisionsProvider,
+} from './decisions-presets'
+import { choiceValueOf, type SettingsResolution } from './resolve'
 import { ESettingKind, type SettingOption } from './value'
 
 export const SETTING_PAGES: readonly SettingPage[] = [
@@ -38,7 +45,9 @@ export enum ESettingId {
   BlockPadding = 'appearance.blockPadding',
   ComposerEdge = 'appearance.composerEdge',
   ClassifierMode = 'classifier.mode',
+  DecisionsProvider = 'decisions.provider',
   DecisionsUrl = 'decisions.url',
+  DecisionsModel = 'decisions.model',
   DecisionsToken = 'decisions.token',
   NoticeSeconds = 'notifications.seconds',
   WebSearchBackend = 'web.searchBackend',
@@ -74,6 +83,13 @@ const EFFORT_OPTIONS: readonly SettingOption[] = EFFORT_LADDER.map((effort) => (
   value: effort,
   label: effort,
 }))
+
+const onCustomDecisions = (args: { resolution: SettingsResolution }): boolean =>
+  choiceValueOf({
+    resolution: args.resolution,
+    id: ESettingId.DecisionsProvider,
+    fallback: DEFAULT_DECISIONS_PROVIDER,
+  }) === EDecisionsProvider.Custom
 
 export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   {
@@ -260,7 +276,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Skills',
     label: 'Suggest a skill per turn',
     description:
-      'Before each turn, the decision model from the Nudges group ranks every skill against your message, re-reads the top three in full, and names at most one to the agent as a hint it is free to ignore — or says that nothing fits, which is what talks the roster out of loads that never should have happened. The roster itself never changes, so prompt caching over it still holds. Without a decision endpoint configured, no ranking happens and turns cost nothing extra.',
+      'Before each turn, the decision model from the Decisions group on the models page ranks every skill against your message, re-reads the top three in full, and names at most one to the agent as a hint it is free to ignore — or says that nothing fits, which is what talks the roster out of loads that never should have happened. The roster itself never changes, so prompt caching over it still holds. Without a decision endpoint configured, no ranking happens and turns cost nothing extra.',
     environmentVariable: 'ATLAS_SKILL_SUGGEST',
     kind: ESettingKind.Toggle,
     fallback: true,
@@ -371,28 +387,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
         note: 'The same pipeline, except that a call the judge says it cannot let pass unseen stops and asks you. Only a model that can name what would be lost is allowed to interrupt.',
       },
     ],
-  },
-  {
-    id: ESettingId.DecisionsUrl,
-    page: ESettingPage.General,
-    group: 'Nudges',
-    label: 'Decision model',
-    description:
-      'Where typed decisions are answered — a System-1 model that judges a flagged tool call by calibrated probability instead of a small generative model reading a brief. Point it at hosted Jev (https://api.typesafe.ai) or at a Laya server of your own — the origin, with or without the /v1/systemone route. Left empty, the judge stays the generative one.',
-    environmentVariable: 'ATLAS_DECISIONS_URL',
-    kind: ESettingKind.Text,
-    fallback: '',
-  },
-  {
-    id: ESettingId.DecisionsToken,
-    page: ESettingPage.General,
-    group: 'Nudges',
-    label: 'Decision key',
-    description:
-      'The bearer key the decision endpoint expects — for the hosted Jev API, the key from your Jev account. A local Laya server ignores it. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
-    kind: ESettingKind.Secret,
-    fallback: '',
-    masked: true,
   },
   {
     id: ESettingId.NoticeSeconds,
@@ -587,6 +581,78 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     kind: ESettingKind.Model,
     fallback: '',
     unsetLabel: 'inherit conversation',
+  },
+  {
+    id: ESettingId.DecisionsProvider,
+    page: ESettingPage.Models,
+    group: 'Decisions',
+    label: 'Decision provider',
+    description:
+      'Who answers typed decisions — the System-1 questions behind the tool-call classifier, skill suggestion and the code-quality review, each judged by calibrated probability instead of a generative model reading a brief. A preset pins the endpoint and model; custom lets you point at your own. Without a key for the chosen provider, the classifier judge stays the generative one and skill suggestion stays off.',
+    environmentVariable: 'ATLAS_DECISIONS_PROVIDER',
+    kind: ESettingKind.Choice,
+    fallback: DEFAULT_DECISIONS_PROVIDER,
+    options: [
+      {
+        value: EDecisionsProvider.Typesafe,
+        label: 'typesafe',
+        detail: 'Typesafe AI',
+        note: `Hosted Jev at ${DECISIONS_PRESETS[EDecisionsProvider.Typesafe].url}, speaking the Jev /v1/systemone protocol on ${DECISIONS_PRESETS[EDecisionsProvider.Typesafe].model}. Takes the key from your Jev account.`,
+      },
+      {
+        value: EDecisionsProvider.Vercel,
+        label: 'vercel',
+        detail: 'Vercel AI Gateway',
+        note: `Jev through the Vercel AI Gateway at ${DECISIONS_PRESETS[EDecisionsProvider.Vercel].url}, speaking the Jev /v1/systemone protocol on ${DECISIONS_PRESETS[EDecisionsProvider.Vercel].model}. Takes an AI Gateway key.`,
+      },
+      {
+        value: EDecisionsProvider.OpenAi,
+        label: 'openai',
+        detail: 'OpenAI Decisions API',
+        note: `OpenAI's Decisions API at ${DECISIONS_PRESETS[EDecisionsProvider.OpenAi].url} on ${DECISIONS_PRESETS[EDecisionsProvider.OpenAi].model}. Takes an OpenAI API key.`,
+      },
+      {
+        value: EDecisionsProvider.Custom,
+        label: 'custom',
+        detail: 'your own endpoint',
+        note: 'An endpoint and model you name below, speaking the Jev /v1/systemone protocol — hosted Jev, a gateway route, or a self-hosted Laya server.',
+      },
+    ],
+  },
+  {
+    id: ESettingId.DecisionsUrl,
+    page: ESettingPage.Models,
+    group: 'Decisions',
+    label: 'Decision endpoint',
+    description:
+      'Where a custom provider answers — the origin of hosted Jev (https://api.typesafe.ai), a gateway route, or a Laya server of your own, with or without the /v1/systemone route. It speaks the Jev /v1/systemone protocol. Left empty, nothing is configured and the judge stays the generative one.',
+    environmentVariable: 'ATLAS_DECISIONS_URL',
+    kind: ESettingKind.Text,
+    fallback: '',
+    visibleWhen: onCustomDecisions,
+  },
+  {
+    id: ESettingId.DecisionsModel,
+    page: ESettingPage.Models,
+    group: 'Decisions',
+    label: 'Decision model',
+    description:
+      'The model a custom endpoint is asked for. A preset pins its own model, so this row only appears for a custom provider.',
+    environmentVariable: 'ATLAS_DECISIONS_MODEL',
+    kind: ESettingKind.Text,
+    fallback: DEFAULT_DECISIONS_MODEL,
+    visibleWhen: onCustomDecisions,
+  },
+  {
+    id: ESettingId.DecisionsToken,
+    page: ESettingPage.Models,
+    group: 'Decisions',
+    label: 'Decision key',
+    description:
+      'The bearer key the chosen provider expects. The key follows the selected provider, and each provider\u2019s key is remembered, so switching back does not ask again. A local Laya server ignores it. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
+    kind: ESettingKind.Secret,
+    fallback: '',
+    masked: true,
   },
   {
     id: ESettingId.ModelFavourites,

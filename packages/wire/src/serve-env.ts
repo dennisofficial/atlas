@@ -11,6 +11,8 @@ export enum EServeEnv {
   WorkspaceDir = 'ATLAS_WORKSPACE_DIR',
   Model = 'ATLAS_MODEL',
   DecisionsUrl = 'ATLAS_DECISIONS_URL',
+  DecisionsProvider = 'ATLAS_DECISIONS_PROVIDER',
+  DecisionsModel = 'ATLAS_DECISIONS_MODEL',
 }
 
 export const SERVE_HOME = '/opt/atlas'

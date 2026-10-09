@@ -21,13 +21,17 @@ describe('the models settings page', () => {
     ])
   })
 
-  it('holds the default pair first, then the background roles', () => {
+  it('holds the default pair first, then the background roles, then the decisions group', () => {
     expect(modelsRows().map((row) => row.id)).toEqual([
       ESettingId.ModelId,
       ESettingId.ModelEffort,
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
+      ESettingId.DecisionsProvider,
+      ESettingId.DecisionsUrl,
+      ESettingId.DecisionsModel,
+      ESettingId.DecisionsToken,
     ])
   })
 
@@ -35,11 +39,15 @@ describe('the models settings page', () => {
     const general = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.General })
 
     expect(general.some((row) => row.kind === ESettingKind.Model)).toBe(false)
-    expect(modelsRows().every((row) => row.kind === ESettingKind.Model || row.id === ESettingId.ModelEffort)).toBe(true)
+    expect(
+      modelsRows()
+        .filter((row) => row.group !== 'Decisions')
+        .every((row) => row.kind === ESettingKind.Model || row.id === ESettingId.ModelEffort),
+    ).toBe(true)
   })
 
   it('gives every model row an environment variable override', () => {
-    for (const row of modelsRows()) {
+    for (const row of modelsRows().filter((one) => one.kind !== ESettingKind.Secret)) {
       expect(row.environmentVariable).toBeDefined()
     }
   })

@@ -50,7 +50,9 @@ export const cloudEnvironmentOf = (resolution: SettingsResolution): Record<strin
     const value = textValueOf({ resolution, id })
     if (value.length > 0) entries[variable] = value
   }
+  carry(ESettingId.DecisionsProvider, 'ATLAS_DECISIONS_PROVIDER')
   carry(ESettingId.DecisionsUrl, 'ATLAS_DECISIONS_URL')
+  carry(ESettingId.DecisionsModel, 'ATLAS_DECISIONS_MODEL')
   carry(ESettingId.ClassifierMode, 'ATLAS_CLASSIFIER_MODE')
   carry(ESettingId.WebSearchBackend, 'ATLAS_SEARCH_BACKEND')
   return entries
