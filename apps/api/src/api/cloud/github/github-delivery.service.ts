@@ -1,24 +1,34 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, type GithubPrStateModel } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
+import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
+import { transitionsOf } from './github-pr-event-transitions'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { payloadFieldsOf } from './github-pr-payload'
 import { carryChecks, provisionalFieldsOf, stateFieldsOf, type CheckTarget } from './github-pr-state-fields'
-import type {
-  GithubBranchRouting,
-  GithubPrStateDto,
-  GithubPrStateRecord,
-} from './github-realtime.types'
+import { branchRoutingOf, checkTargetOf, dtoOf, subscriberWhereOf } from './github-delivery-routing'
+import { type GithubPrStateRecord } from './github-realtime.types'
+import type { PrTransitionSnapshot } from './github-pr-event-transitions'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import type {
-  GithubCheckRunWebhookPayload,
-  GithubCheckSuiteWebhookPayload,
+  GithubIssueCommentWebhookPayload,
+  GithubPullRequestReviewCommentWebhookPayload,
+  GithubPullRequestReviewWebhookPayload,
   GithubPullRequestWebhookPayload,
-  GithubPushWebhookPayload,
 } from './github-webhook.types'
 
-const HANDLED_EVENTS = new Set(['pull_request', 'check_suite', 'check_run', 'push', 'ping'])
+const HANDLED_EVENTS = new Set([
+  'pull_request',
+  'check_suite',
+  'check_run',
+  'push',
+  'ping',
+  'issue_comment',
+  'pull_request_review',
+  'pull_request_review_comment',
+])
 
 @Injectable()
 export class GithubDeliveryService {
@@ -29,6 +39,8 @@ export class GithubDeliveryService {
     private readonly reads: GithubUserReads,
     private readonly fanout: GithubPrFanoutService,
     private readonly cipher: SecretCipherService,
+    private readonly mailbox: GithubPrEventMailboxService,
+    private readonly discussion: GithubPrDiscussionDeliveryService,
   ) {}
 
   async handle(args: { event: string; payload: unknown }): Promise<{ handled: boolean }> {
@@ -37,6 +49,22 @@ export class GithubDeliveryService {
 
     if (args.event === 'pull_request') {
       await this.handlePullRequest(args.payload as GithubPullRequestWebhookPayload)
+      return { handled: true }
+    }
+    if (args.event === 'issue_comment') {
+      await this.discussion.handleIssueComment(args.payload as GithubIssueCommentWebhookPayload)
+      return { handled: true }
+    }
+    if (args.event === 'pull_request_review') {
+      await this.discussion.handlePullRequestReview(
+        args.payload as GithubPullRequestReviewWebhookPayload,
+      )
+      return { handled: true }
+    }
+    if (args.event === 'pull_request_review_comment') {
+      await this.discussion.handleReviewComment(
+        args.payload as GithubPullRequestReviewCommentWebhookPayload,
+      )
       return { handled: true }
     }
 
@@ -158,6 +186,12 @@ export class GithubDeliveryService {
     prNumber: number
     fields: GithubPrStateRecord
   }): Promise<void> {
+    const priorRow = await db.githubPrState.findUnique({
+      where: {
+        repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
+      },
+    })
+    const prior = snapshotOf(priorRow)
     const row = await db.githubPrState.upsert({
       where: {
         repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
@@ -185,86 +219,33 @@ export class GithubDeliveryService {
     if (subscribers.length === 0) return
 
     const state = dtoOf(row)
-    this.fanout.push({
-      userIds: [...new Set(subscribers.map((subscriber) => subscriber.userId))],
-      state,
-    })
+    const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
+    this.fanout.push({ userIds, state })
+
+    const next = snapshotOf(row)
+    if (next === null) return
+    const derived = transitionsOf({ prior, next: { ...next, url: row.url } })
+
+    for (const event of derived) {
+      await this.mailbox.record({
+        userIds,
+        repoFullName: args.repoFullName,
+        prNumber: args.prNumber,
+        kind: event.kind,
+        payload: { ...event.payload, url: row.url },
+      })
+    }
   }
 }
 
-export function subscriberWhereOf(args: {
-  repoFullName: string
-  prNumber: number
-  routing: GithubBranchRouting
-}): Record<string, unknown> {
-  const live = { expiresAt: { gt: new Date() } }
-  const routing = args.routing
-  if (!routing.headRepoMatchesBase || routing.headBranch === '') {
-    return { repoFullName: args.repoFullName, prNumber: args.prNumber, ...live }
-  }
+function snapshotOf(row: GithubPrStateModel | null): PrTransitionSnapshot | null {
+  if (row === null) return null
   return {
-    repoFullName: args.repoFullName,
-    ...live,
-    OR: [{ prNumber: args.prNumber }, { branch: { equals: routing.headBranch, not: '' } }],
-  }
-}
-
-/**
- * A fork-head PR's head.ref is an unqualified branch name, indistinguishable from a same-repo
- * branch, so branch-routing it would fan out to a same-name branch subscriber on the base repo.
- * GitHub nulls head.repo for a deleted fork, and REST rows written before this column existed
- * are null too — both fall to number-routing only, which errs toward silence, never a leak.
- */
-function branchRoutingOf(args: {
-  baseRepoFullName: string
-  headBranch: string
-  headRepoFullName: string | null
-}): GithubBranchRouting {
-  return {
-    headBranch: args.headBranch,
-    headRepoMatchesBase: args.headRepoFullName === args.baseRepoFullName,
-  }
-}
-
-export function dtoOf(row: GithubPrStateModel): GithubPrStateDto {
-  return {
-    repoFullName: row.repoFullName,
-    prNumber: row.prNumber,
-    title: row.title,
-    url: row.url,
     state: row.state,
-    headBranch: row.headBranch,
     headSha: row.headSha,
     checksRunning: row.checksRunning,
     checksPassed: row.checksPassed,
     checksFailed: row.checksFailed,
     mergeable: row.mergeable,
-    updatedAt: row.updatedAt.toISOString(),
   }
-}
-
-function checkTargetOf(args: { event: string; payload: unknown }): CheckTarget | null {
-  if (args.event === 'check_suite') {
-    const payload = args.payload as GithubCheckSuiteWebhookPayload
-    return {
-      repoFullName: payload.repository.full_name,
-      branch: payload.check_suite.head_branch,
-      sha: payload.check_suite.head_sha,
-    }
-  }
-  if (args.event === 'check_run') {
-    const payload = args.payload as GithubCheckRunWebhookPayload
-    return {
-      repoFullName: payload.repository.full_name,
-      branch: payload.check_run.check_suite?.head_branch ?? null,
-      sha: payload.check_run.head_sha,
-    }
-  }
-  if (args.event === 'push') {
-    const payload = args.payload as GithubPushWebhookPayload
-    const branch = payload.ref.replace(/^refs\/heads\//, '')
-    if (branch === payload.ref) return null
-    return { repoFullName: payload.repository.full_name, branch, sha: null }
-  }
-  return null
 }

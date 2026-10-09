@@ -48,3 +48,35 @@ export interface GithubPushWebhookPayload {
   ref: string
   repository: GithubWebhookRepository
 }
+
+export interface GithubWebhookUser {
+  login: string
+}
+
+export interface GithubIssueCommentWebhookPayload {
+  action: string
+  issue: {
+    number: number
+    html_url: string
+    pull_request?: { html_url: string }
+  }
+  comment: { body: string; html_url: string }
+  sender: GithubWebhookUser
+  repository: GithubWebhookRepository
+}
+
+export interface GithubPullRequestReviewWebhookPayload {
+  action: string
+  pull_request: GithubWebhookPullRequest
+  review: { state: string; body: string | null; html_url: string }
+  sender: GithubWebhookUser
+  repository: GithubWebhookRepository
+}
+
+export interface GithubPullRequestReviewCommentWebhookPayload {
+  action: string
+  pull_request: GithubWebhookPullRequest
+  comment: { body: string; html_url: string }
+  sender: GithubWebhookUser
+  repository: GithubWebhookRepository
+}

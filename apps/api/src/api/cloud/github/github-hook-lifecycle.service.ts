@@ -4,12 +4,13 @@ import { Interval } from '@nestjs/schedule'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '../../../db'
+import { HOOK_EVENTS as GITHUB_HOOK_EVENTS } from './github-hook-events'
 import { ERepoHookStatus } from './github-realtime.types'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import { isUniqueViolation } from './unique-violation'
 
-const HOOK_EVENTS = ['pull_request', 'check_suite', 'check_run', 'push']
+export const HOOK_EVENTS = GITHUB_HOOK_EVENTS
 const IDLE_DELETE_AFTER_MS = 24 * 60 * 60 * 1_000
 const SWEEP_LEASE_MS = 5 * 60 * 1_000
 const VERIFY_HOOK_TTL_MS = 5 * 60 * 1_000
@@ -105,6 +106,9 @@ export class GithubHookLifecycleService {
     let result: 'found' | 'missing' | 'unauthorized'
     try {
       result = await this.reads.getHook({ token, owner, repo, hookId: Number(args.hookId) })
+      if (result === 'found') {
+        await this.reconcileEvents({ token, owner, repo, hookId: Number(args.hookId) })
+      }
     } catch (failure) {
       this.logger.warn(`verifying the hook for ${args.repoFullName} failed: ${String(failure)}`)
       return true
@@ -114,6 +118,20 @@ export class GithubHookLifecycleService {
       return true
     }
     return false
+  }
+
+  // Hooks created before an event class shipped keep delivering, so a drifted event list is
+  // patched in place rather than recreating the hook.
+  private async reconcileEvents(args: {
+    token: string
+    owner: string
+    repo: string
+    hookId: number
+  }): Promise<void> {
+    const current = await this.reads.getHookEvents(args)
+    const missing = HOOK_EVENTS.filter((event) => !current.includes(event))
+    if (missing.length === 0) return
+    await this.reads.updateHook({ ...args, events: [...current, ...missing] })
   }
 
   private async reconcile(args: {
