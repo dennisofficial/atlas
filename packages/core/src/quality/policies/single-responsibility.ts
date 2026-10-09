@@ -121,6 +121,7 @@ function questions({ scope }: { scope: QualityScope }): Record<string, DecisionQ
       instructions: instructionsFor(
         'Does the complete scope.after mix independently changing responsibilities under this policy? ' +
           'To decide, enumerate the distinct reasons this class or function would need to change — e.g., a database schema change, an external API change, a protocol change, a routing/policy change. ' +
+          'When scope.before is null (newly created), start from the imports and constructor: what external systems does this class touch? What data formats does it own? What side effects does it perform? Each distinct system, format, or side effect is a potential change reason. ' +
           'If two or more of those reasons are genuinely independent (one can change without forcing a change to the other), the scope mixes responsibilities. ' +
           'A class that merely delegates to collaborators without containing independent logic of its own is not a violation. ' +
           'A class that sequences collaborator calls AND also directly implements a substantial unrelated concern (e.g., persistence schema details, filesystem layout, protocol handling, external-API specifics, credential handling) IS a violation — the orchestration exception does not cover it. ' +
