@@ -8,6 +8,7 @@ import type { SessionFacts } from './session'
 export type CheckoutTracking = {
   beforeTurn: BeforeTurn
   afterTurn: AfterTurn
+  boot: () => Promise<void>
 }
 
 /**
@@ -61,6 +62,17 @@ export function createCheckoutTracking(args: {
   }
 
   return {
+    /**
+     * A clientless serve boot reaches no hook until the first turn, so the launch directory is
+     * probed once at compose — the same probe the turn hooks use, restricted to the caller that
+     * only fires it when a pushing port is in play. A directory that is not a checkout is a no-op
+     * rather than a `stopTracking`: boot must not undo tracking a live surface set up.
+     */
+    boot: async () => {
+      if (args.service.current() !== null) return
+
+      await follow({ directory: args.facts.directory() })
+    },
     beforeTurn: async ({ projectDirectory }) => {
       if (args.service.current() !== null) return {}
 
