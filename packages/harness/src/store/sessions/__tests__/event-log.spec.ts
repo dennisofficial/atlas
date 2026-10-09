@@ -68,6 +68,66 @@ describe('JsonlEventLog', () => {
     expect(await log.head({ threadId: mainThread })).toBe(1)
   })
 
+  it('reuses a context-loaded event whose content is unchanged at a new path, the relocation case', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    const first = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/Users/d/Developer/comp-v2/CLAUDE.md', content: 'same bytes' }],
+    })
+    const second = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/atlas/workspaces/comp-v2/CLAUDE.md', content: 'same bytes' }],
+    })
+
+    expect(second[0]?.id).toBe(first[0]?.id)
+    const reused = second[0]
+    if (reused?.type !== 'context-loaded') throw new Error('expected a context-loaded event')
+    expect(reused.key).toBe('/Users/d/Developer/comp-v2/CLAUDE.md')
+    expect(await log.head({ threadId: mainThread })).toBe(1)
+  })
+
+  it('appends fresh when the same path loads with changed content', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'old' }],
+    })
+    const second = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'new' }],
+    })
+
+    const reloaded = second[0]
+    if (reloaded?.type !== 'context-loaded') throw new Error('expected a context-loaded event')
+    expect(reloaded.content).toBe('new')
+    expect(await log.head({ threadId: mainThread })).toBe(2)
+  })
+
+  it('keeps identical content in different slots apart', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    const stamped = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [
+        { type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'same bytes' },
+        { type: 'context-loaded', slot: 'nested-instructions', key: '/repo/CLAUDE.md', content: 'same bytes' },
+      ],
+    })
+
+    expect(stamped.map((event) => event.id)).toHaveLength(2)
+    expect(await log.head({ threadId: mainThread })).toBe(2)
+  })
+
   it('replace rewrites the log with fresh ids and seqs from 1', async () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
