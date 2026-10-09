@@ -92,17 +92,40 @@ describe('migrateDecisionsSettings', () => {
     expect(held.secrets.read('decisions.token')).toBeUndefined()
   })
 
-  it('is a no-op the second time', () => {
+  it('moves a flat token when the provider was set but the token was not migrated', () => {
+    const held = rig({
+      values: { [ESettingId.DecisionsProvider]: 'vercel' },
+      secrets: { 'decisions.token': 'sk-flat' },
+    })
+    held.run()
+
+    expect(held.secrets.read('decisions.token.vercel')).toBe('sk-flat')
+    expect(held.secrets.read('decisions.token')).toBeUndefined()
+  })
+
+  it('is a no-op the second time when nothing is left to migrate', () => {
     const held = rig({
       values: { [ESettingId.DecisionsUrl]: 'https://api.typesafe.ai' },
       secrets: { 'decisions.token': 'sk-flat' },
     })
     held.run()
     const settingsAfterFirst = JSON.stringify(held.user.document())
-    held.secrets.write({ name: 'decisions.token', value: 'typed-after' })
     held.run()
 
     expect(JSON.stringify(held.user.document())).toBe(settingsAfterFirst)
+    expect(held.secrets.read('decisions.token.typesafe')).toBe('sk-flat')
+    expect(held.secrets.read('decisions.token')).toBeUndefined()
+  })
+
+  it('does not overwrite a migrated token when a new flat token arrives later', () => {
+    const held = rig({
+      values: { [ESettingId.DecisionsUrl]: 'https://api.typesafe.ai' },
+      secrets: { 'decisions.token': 'sk-flat' },
+    })
+    held.run()
+    held.secrets.write({ name: 'decisions.token', value: 'typed-after' })
+    held.run()
+
     expect(held.secrets.read('decisions.token.typesafe')).toBe('sk-flat')
     expect(held.secrets.read('decisions.token')).toBe('typed-after')
   })
