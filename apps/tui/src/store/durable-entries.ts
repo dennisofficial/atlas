@@ -139,7 +139,7 @@ const KNOWN_SLOT_LABELS: ReadonlyMap<string, string> = new Map([
   [EContextSlot.McpInstructions, 'MCP server instructions'],
 ])
 
-const SKILL_SUGGESTION_NAME = /Relevant to the current request: ([a-z0-9-]+)\./
+const SKILL_SUGGESTION_NAME = /skill classifier picked '([a-z0-9-]+)' as relevant/
 
 const memoryLabelOf = (key: string): string => {
   const segments = key.split('/').filter((segment) => segment.length > 0)
