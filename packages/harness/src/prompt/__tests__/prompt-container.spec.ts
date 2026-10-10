@@ -4,7 +4,7 @@ import { PromptFragment } from '@dltech/atlas-core'
 
 import {
   createIsolatedContainer,
-  portToken,
+  portToken, registeredPortToken,
   resolveSet,
   type DependencyContainer,
 } from '../../container/injection'
@@ -36,7 +36,7 @@ const containerHolding = (
   for (const fragment of fragments) {
     container.register(portToken(PromptFragment), { useClass: fragment })
   }
-  container.register(portToken(PromptRegistry), {
+  container.register(registeredPortToken(PromptRegistry), {
     useFactory: (resolver) =>
       new InMemoryPromptRegistry(resolver.resolveAll(portToken(PromptFragment))),
   })
@@ -57,7 +57,7 @@ describe('prompt fragments resolved from the container', () => {
   it('keeps registration order through the registry, so the file reads as the prompt', () => {
     const container = containerHolding([ThirdFragment, FirstFragment, SecondFragment])
 
-    const registry = container.resolve(portToken(PromptRegistry))
+    const registry = container.resolve(registeredPortToken(PromptRegistry))
 
     expect(registry.compile(CONTEXT).blocks).toEqual([{ text: 'third\n\nfirst\n\nsecond' }])
   })
@@ -67,7 +67,7 @@ describe('prompt fragments resolved from the container', () => {
     const child = parent.createChildContainer()
     child.register(portToken(PromptFragment), { useClass: ThirdFragment })
 
-    const registry = child.resolve(portToken(PromptRegistry))
+    const registry = child.resolve(registeredPortToken(PromptRegistry))
 
     expect(registry.compile(CONTEXT).blocks).toEqual([{ text: 'third' }])
   })

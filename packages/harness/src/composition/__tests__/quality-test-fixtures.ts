@@ -19,7 +19,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { portToken, type DependencyContainer } from '../../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { ToolDispatcher } from '../../tools/dispatch'
@@ -128,9 +128,9 @@ export class QualityRig {
         notice: recordingNotices().port,
         bind: ({ container }) => {
           captured = container
-          facts.decisionPortWasRegistered = container.isRegistered(portToken(DecisionPort), true)
-          facts.qualityPortWasRegistered = container.isRegistered(portToken(QualityReviewPort), true)
-          container.register(portToken(DecisionPort), { useValue: decisions })
+          facts.decisionPortWasRegistered = container.isRegistered(registeredPortToken(DecisionPort), true)
+          facts.qualityPortWasRegistered = container.isRegistered(registeredPortToken(QualityReviewPort), true)
+          container.register(registeredPortToken(DecisionPort), { useValue: decisions })
           bindQuality({ container, settings: settings.service })
           return undefined
         },
@@ -169,7 +169,7 @@ export class QualityRig {
 
   async dispatchWrite(args: { threadId: ThreadId; relative: string; content: string }): Promise<readonly EventDraft[]> {
     this.callCount += 1
-    const dispatcher = this.container.resolve(portToken(ToolDispatcher))
+    const dispatcher = this.container.resolve(registeredPortToken(ToolDispatcher))
     return dispatcher.dispatch({
       call: {
         callId: toCallId(`call-${this.callCount}`),

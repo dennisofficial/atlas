@@ -8,7 +8,7 @@ import {
   type SecretsPort,
 } from '@dltech/atlas-core'
 
-import { portToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import { HaikuJudge } from '../classifier/judge'
 import { createDecisionClient, liveDecisionsEndpoint } from '../classifier/decision-backend'
 import { JevJudge } from '../classifier/jev-judge'
@@ -43,7 +43,7 @@ export function bindUtilityModels(args: {
 
   const decisionsEndpoint = liveDecisionsEndpoint({ settings, secrets: args.secrets })
   const decisions = createDecisionClient({ settings, secrets: args.secrets })
-  container.register(portToken(DecisionPort), { useValue: decisions })
+  container.register(registeredPortToken(DecisionPort), { useValue: decisions })
 
   const fallback = (): LanguageModelV4 | undefined => {
     const choice = model.choice()
@@ -56,7 +56,7 @@ export function bindUtilityModels(args: {
   const utility = (role: EUtilityModelRole): LanguageModelV4 =>
     createUtilityModel({ role, settings, catalogue: models, notice, fallback })
 
-  container.register(portToken(JudgePort), {
+  container.register(registeredPortToken(JudgePort), {
     useValue: new RoutedJudge({
       fallback: new HaikuJudge({ model: utility(EUtilityModelRole.Judge) }),
       jev: new JevJudge({ decisions }),

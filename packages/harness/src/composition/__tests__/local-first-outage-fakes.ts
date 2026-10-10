@@ -7,7 +7,7 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
-import { portToken, type DependencyContainer } from '../../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../../container/injection'
 
 // The fake cloud and the fake provider are deliberately the same shape of dead: every socket a
 // local turn might open is refused before any bytes leave, and every refusal is recorded so the
@@ -65,5 +65,5 @@ export const registerModel = (args: {
   container: DependencyContainer
   model: ModelPort
 }): void => {
-  args.container.register(portToken(ModelPort), { useValue: args.model })
+  args.container.register(registeredPortToken(ModelPort), { useValue: args.model })
 }

@@ -17,7 +17,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { registerDisposable } from '../container/disposal'
-import { portToken, type DependencyContainer } from '../container/injection'
+import { portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
 import { DockerFileSystemPort } from '../execution/docker/docker-filesystem'
 import { DockerProcessPort } from '../execution/docker/docker-process'
 import type { DockerEngine } from '../execution/docker/engine'
@@ -173,7 +173,7 @@ export async function bindSandbox(args: {
     if (resolved !== undefined || removed) status.mark({ state: ESandboxState.Stopped })
   }
 
-  container.register(portToken(ProcessPort), {
+  container.register(registeredPortToken(ProcessPort), {
     useValue: new SessionEnvironmentProcessPort({
       sessions: container.resolve(SessionRegistryToken),
       inner: new RoutedProcessPort({
@@ -186,16 +186,16 @@ export async function bindSandbox(args: {
     }),
   })
 
-  container.register(portToken(ExecutionLocationSinkPort), {
+  container.register(registeredPortToken(ExecutionLocationSinkPort), {
     useValue: {
       refresh: ({ threadId }) => executionLocation.refresh({ threadId }),
     },
   })
 
-  container.register(portToken(AgentFileSystemPort), {
+  container.register(registeredPortToken(AgentFileSystemPort), {
     useFactory: (resolver) =>
       new RoutedFileSystemPort({
-        local: resolver.resolve(portToken(FileSystemPort)),
+        local: resolver.resolve(registeredPortToken(FileSystemPort)),
         dockerFor: () => new DockerFileSystemPort({ processes: new DelegatingProcessPort(docker) }),
         locationOf: (threadId) =>
           (threadId === undefined ? undefined : executionLocation.of(threadId)) ??
@@ -213,12 +213,12 @@ export async function bindSandbox(args: {
     session: () => boundSession,
     runningShells: () =>
       container
-        .resolve(portToken(ShellRegistryPort))
+        .resolve(registeredPortToken(ShellRegistryPort))
         .listEverywhere()
         .filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       container
-        .resolve(portToken(ServiceRegistryPort))
+        .resolve(registeredPortToken(ServiceRegistryPort))
         .list()
         .filter((service) => service.status === EServiceStatus.Running).length,
     idleMinutes: () =>

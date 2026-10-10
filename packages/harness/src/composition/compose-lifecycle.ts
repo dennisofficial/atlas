@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { disposeAll, registerDisposable } from '../container/disposal'
-import { portToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import { SleepPreventionToken, WakeSignalToken, WorkspaceRoot } from '../container/tokens'
 import { SleepPrevention } from '../power/sleep-prevention'
 import { registerBuiltinPromptFragments } from '../prompt/register-prompt-fragments'
@@ -46,7 +46,7 @@ export function bindProcessServices(args: {
   registerBuiltinPromptFragments({ container })
   container.register(WorkspaceRoot, { useValue: args.workspace.workspace })
   container.register(SleepPreventionToken, {
-    useValue: new SleepPrevention({ log: container.resolve(portToken(LogPort)) }),
+    useValue: new SleepPrevention({ log: container.resolve(registeredPortToken(LogPort)) }),
   })
 
   const wakeSignals = new WakeSignalSource()
@@ -79,7 +79,7 @@ export async function closeSession(args: {
   if (args.request?.stopShells === true) await args.stopShells?.().catch(warn)
   await args.recordTeardownEndings().catch(warn)
   await disposeAll({ container: args.container })
-  await args.container.resolve(portToken(TelemetryPort)).flush()
+  await args.container.resolve(registeredPortToken(TelemetryPort)).flush()
 }
 
 export const hookMishapNotice =

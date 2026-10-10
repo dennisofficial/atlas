@@ -14,7 +14,7 @@ import {
   type ToolCall,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, resolveSet } from '../../container/injection'
+import { createIsolatedContainer, portToken, registeredPortToken, resolveSet } from '../../container/injection'
 import {
   ClassifierPolicyToken,
   HookMishapReporterToken,
@@ -52,11 +52,11 @@ export function chainWith(args: {
 }): ClassifierChain {
   const container = createIsolatedContainer()
   container.register(portToken(ToolDefinition), { useValue: bashTool })
-  container.register(portToken(WorkspaceFactsPort), {
+  container.register(registeredPortToken(WorkspaceFactsPort), {
     useValue: new RecordingFacts(factsInAWorktree({ siblingChangedCount: 12 })),
   })
   container.register(WorkspaceRoot, { useValue: REPO })
-  if (args.judge !== undefined) container.register(portToken(JudgePort), { useValue: args.judge })
+  if (args.judge !== undefined) container.register(registeredPortToken(JudgePort), { useValue: args.judge })
 
   registerClassifier({ container })
   container.register(ClassifierPolicyToken, {
@@ -78,7 +78,7 @@ export function chainWith(args: {
   return {
     mishaps,
     bind: (judge: JudgePort) => {
-      container.register(portToken(JudgePort), { useValue: judge })
+      container.register(registeredPortToken(JudgePort), { useValue: judge })
     },
     weigh: () =>
       classifier.run({

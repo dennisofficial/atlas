@@ -5,7 +5,7 @@ import { EDefinitionOrigin, EFinishReason, EQualityReviewStatus, QualityReviewPo
 import { buildChildRunner, drainedSteering } from '../../agents/registry/child-runner'
 import type { AgentType } from '../../agents/types'
 import { ChildRunnerDepsToken } from '../../container/create-harness-container'
-import { portToken } from '../../container/injection'
+import { registeredPortToken } from '../../container/injection'
 import { AiSdkModelPort } from '../../model/ai-sdk-model-port'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { QualityRig, WIDGET_SOURCE, reviewsOf, typesOf } from './quality-test-fixtures'
@@ -71,7 +71,7 @@ describe.each([
 ])('quality parity on the $surface composition', ({ command }) => {
   it('hands the dispatcher root, sub-agents and teammates the one configured quality port', async () => {
     const rig = await rigFor(command)
-    const port = rig.container.resolve(portToken(QualityReviewPort))
+    const port = rig.container.resolve(registeredPortToken(QualityReviewPort))
 
     expect(rig.container.resolve(ChildRunnerDepsToken)().quality).toBe(port)
 
@@ -90,7 +90,7 @@ describe.each([
 
       const { deps, events } = await runChildWrite({ rig, agentType: childType(name) })
 
-      expect(deps.quality).toBe(rig.container.resolve(portToken(QualityReviewPort)))
+      expect(deps.quality).toBe(rig.container.resolve(registeredPortToken(QualityReviewPort)))
       expect(await rig.onDisk('child.ts')).toBe(WIDGET_SOURCE)
       expect(rig.decisions.calls[0]?.questionKeys).toContain('single-responsibility:currentConcern')
       const record = events

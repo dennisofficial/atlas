@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { ESettingId, EQualityReviewStatus, QualityReviewPort } from '@dltech/atlas-core'
 
-import { portToken } from '../../container/injection'
+import { registeredPortToken } from '../../container/injection'
 import { CodeQualityReview } from '../../quality/engine'
 import { FakeDecisions, QualityRig, WIDGET_SOURCE, reviewsOf, typesOf } from './quality-test-fixtures'
 
@@ -25,7 +25,7 @@ const reviewedStatuses = (drafts: Awaited<ReturnType<QualityRig['dispatchWrite']
 describe('bindQuality in the shared root', () => {
   it('registers the quality port after the DecisionPort and before the surface binds, and descriptors reach settings', () => {
     expect(rig.facts).toEqual({ decisionPortWasRegistered: true, qualityPortWasRegistered: true })
-    expect(rig.container.resolve(portToken(QualityReviewPort))).toBeInstanceOf(CodeQualityReview)
+    expect(rig.container.resolve(registeredPortToken(QualityReviewPort))).toBeInstanceOf(CodeQualityReview)
 
     const definition = rig.app.settings.definitions.find((one) => one.id === POLICY_SETTING)
     expect(definition?.fallback).toBe(true)
@@ -34,7 +34,7 @@ describe('bindQuality in the shared root', () => {
 
   it('stays off by default: no decision call, no review record, the write still lands', async () => {
     const threadId = await rig.newThread()
-    const port = rig.container.resolve(portToken(QualityReviewPort))
+    const port = rig.container.resolve(registeredPortToken(QualityReviewPort))
     expect(port.captureEnabled()).toBe(false)
 
     const drafts = await rig.dispatchWrite({ threadId, relative: 'off.ts', content: WIDGET_SOURCE })

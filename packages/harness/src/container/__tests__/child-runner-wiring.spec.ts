@@ -25,7 +25,7 @@ import { PromptRegistry } from '../../prompt/registry'
 import { ToolRegistry } from '../../tools/registry'
 import { ToolDispatcher } from '../../tools/dispatch'
 import { ChildRunnerDepsToken, createHarnessContainer } from '../create-harness-container'
-import { portToken, type DependencyContainer } from '../injection'
+import { registeredPortToken, type DependencyContainer } from '../injection'
 import {
   HookChainToken,
   LanguageModelToken,
@@ -63,14 +63,14 @@ afterEach(async () => {
 function bindChildRunner({ container }: { container: DependencyContainer }): void {
   container.register(ChildRunnerDepsToken, {
     useValue: (): ChildRunnerDeps => {
-      const modelPort = container.resolve(portToken(ModelPort))
-      const prompts = container.resolve(portToken(PromptRegistry))
+      const modelPort = container.resolve(registeredPortToken(ModelPort))
+      const prompts = container.resolve(registeredPortToken(PromptRegistry))
 
       return {
         turn: {
-          log: container.resolve(portToken(EventLogPort)),
+          log: container.resolve(registeredPortToken(EventLogPort)),
           model: modelPort,
-          ids: container.resolve(portToken(IdPort)),
+          ids: container.resolve(registeredPortToken(IdPort)),
           assembly: defaultPipeline({
             prompt: () =>
               prompts.compile(
@@ -84,10 +84,10 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
             launchDirectory: ROOT,
           }),
           launchDirectory: ROOT,
-          dispatch: container.resolve(portToken(ToolDispatcher)),
+          dispatch: container.resolve(registeredPortToken(ToolDispatcher)),
           hooks: container.resolve(HookChainToken),
         },
-        tools: container.resolve(portToken(ToolRegistry)),
+        tools: container.resolve(registeredPortToken(ToolRegistry)),
         hooks: container.resolve(HookChainToken),
         channel: createDeltaChannel(),
         drainNotices: async () => ({ drafts: [], wakesTurn: false }),
@@ -129,14 +129,14 @@ async function composed(args: { bind: boolean; model?: ReturnType<typeof scripte
   container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
   if (args.bind) bindChildRunner({ container })
 
-  const services = container.resolve(portToken(ServiceRegistryPort))
+  const services = container.resolve(registeredPortToken(ServiceRegistryPort))
   opened.push({ temp, previousHome, services })
 
-  const threads = container.resolve(portToken(ThreadStorePort))
+  const threads = container.resolve(registeredPortToken(ThreadStorePort))
   const parent = (await threads.create({ workspace: ROOT, repo: null })).id
 
   return {
-    agents: container.resolve(portToken(AgentRegistryPort)),
+    agents: container.resolve(registeredPortToken(AgentRegistryPort)),
     services,
     threads,
     parent,

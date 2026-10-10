@@ -9,7 +9,7 @@ import {
 
 import { CloudService } from '../cloud/cloud-service'
 import type { CloudSession } from '../cloud/cloud-session'
-import { portToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
   CloudSessionStoreToken,
   LocalAccountStoreToken,
@@ -38,8 +38,8 @@ export async function bindAccounts(args: {
 }> {
   const { container } = args
 
-  const credentials = container.resolve(portToken(CredentialPort))
-  const accountStore = container.resolve(portToken(AccountStorePort))
+  const credentials = container.resolve(registeredPortToken(CredentialPort))
+  const accountStore = container.resolve(registeredPortToken(AccountStorePort))
 
   const cloud = new CloudService({
     sessions: container.resolve(CloudSessionStoreToken),
@@ -61,7 +61,7 @@ export async function bindAccounts(args: {
 
   const accounts = new AccountsService({
     accounts: accountStore,
-    clients: builtinOauthClients({ clock: container.resolve(portToken(ClockPort)) }),
+    clients: builtinOauthClients({ clock: container.resolve(registeredPortToken(ClockPort)) }),
     ...(credentials instanceof CloudManagedCredentialPort ? {
       onOauthLogin: (account: Account) =>
         credentials.read({ provider: account.provider, accountId: account.id }).then(() => undefined),

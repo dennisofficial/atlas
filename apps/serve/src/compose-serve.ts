@@ -17,7 +17,7 @@ import { SelectableModelToken } from '@dltech/atlas-harness'
 import { VercelDriver } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
-import { portToken, GithubUiBridgePort } from '@dltech/atlas-harness'
+import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
@@ -100,14 +100,14 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     surface: {
       notice: args.notice,
       bind: ({ container }) => {
-        const log = container.resolve(portToken(EventLogPort))
-        const threads = container.resolve(portToken(ThreadStorePort))
+        const log = container.resolve(registeredPortToken(EventLogPort))
+        const threads = container.resolve(registeredPortToken(ThreadStorePort))
         const model = container.resolve(SelectableModelToken)
-        const prStates = container.isRegistered(portToken(GithubUiBridgePort), true)
+        const prStates = container.isRegistered(registeredPortToken(GithubUiBridgePort), true)
           ? {
-              snapshot: () => container.resolve(portToken(GithubUiBridgePort)).service.states(),
+              snapshot: () => container.resolve(registeredPortToken(GithubUiBridgePort)).service.states(),
               subscribe: (listener: () => void) =>
-                container.resolve(portToken(GithubUiBridgePort)).service.subscribe(listener),
+                container.resolve(registeredPortToken(GithubUiBridgePort)).service.subscribe(listener),
             }
           : undefined
         const modelBridge: ServeModelBridge = {
@@ -121,7 +121,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         }
 
         const credentials = vercelCredentialsOf(args.env)
-        container.register(portToken(ProcessPort), {
+        container.register(registeredPortToken(ProcessPort), {
           useValue: new SessionEnvironmentProcessPort({
             sessions: container.resolve(SessionRegistryToken),
             inner: new ServeProcessPort(
@@ -138,11 +138,11 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           }),
         })
 
-        const authority = container.isRegistered(portToken(SessionAuthorityPort), true)
-          ? container.resolve(portToken(SessionAuthorityPort))
+        const authority = container.isRegistered(registeredPortToken(SessionAuthorityPort), true)
+          ? container.resolve(registeredPortToken(SessionAuthorityPort))
           : undefined
-        const rotation = container.isRegistered(portToken(RotationPort), true)
-          ? container.resolve(portToken(RotationPort))
+        const rotation = container.isRegistered(registeredPortToken(RotationPort), true)
+          ? container.resolve(registeredPortToken(RotationPort))
           : undefined
         return { log, threads, modelBridge, authority, rotation, ...(prStates === undefined ? {} : { prStates }) }
       },

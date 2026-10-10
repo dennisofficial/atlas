@@ -13,7 +13,7 @@ import {
   type EventDraft,
 } from '@dltech/atlas-core'
 
-import { portToken } from '../../container/injection'
+import { registeredPortToken } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
@@ -49,7 +49,7 @@ const settingsBinding = (): SettingsBinding => {
 }
 
 const dispatchWrite = (args: { container: DependencyContainer; path: string }): Promise<readonly EventDraft[]> => {
-  const dispatcher = args.container.resolve(portToken(ToolDispatcher))
+  const dispatcher = args.container.resolve(registeredPortToken(ToolDispatcher))
   const call: DispatchableCall = {
     callId: toCallId('call-1'),
     name: 'write',

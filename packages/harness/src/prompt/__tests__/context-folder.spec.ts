@@ -9,7 +9,7 @@ import {
   type PromptContext,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, resolveSet } from '../../container/injection'
+import { createIsolatedContainer, portToken, registeredPortToken, resolveSet } from '../../container/injection'
 import { GrillingCeremonyEnabledToken } from '../../container/tokens'
 import { SkillRegistryPort } from '../../skills/port'
 import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
@@ -28,7 +28,7 @@ const SUB: PromptContext = { ...MAIN, agent: EPromptAgent.Sub }
 const registered = ({ grilling = false }: { grilling?: boolean } = {}) => {
   const container = createIsolatedContainer()
   container.register(GrillingCeremonyEnabledToken, { useValue: () => grilling })
-  container.register(portToken(SkillRegistryPort), {
+  container.register(registeredPortToken(SkillRegistryPort), {
     useValue: new FakeSkillRegistry({ skills: [] }),
   })
   registerBuiltinPromptFragments({ container })
@@ -36,7 +36,7 @@ const registered = ({ grilling = false }: { grilling?: boolean } = {}) => {
 }
 
 const compiled = (args?: { grilling?: boolean }) =>
-  registered(args).resolve(portToken(PromptRegistry)).compile(MAIN)
+  registered(args).resolve(registeredPortToken(PromptRegistry)).compile(MAIN)
 
 describe('the context folder contract', () => {
   it('assigns ATLAS_CONTEXT_DIR its job to the main agent', () => {
@@ -49,7 +49,7 @@ describe('the context folder contract', () => {
   })
 
   it('never compiles into a sub-agent prompt', () => {
-    const prompt = registered().resolve(portToken(PromptRegistry)).compile(SUB)
+    const prompt = registered().resolve(registeredPortToken(PromptRegistry)).compile(SUB)
     expect(prompt.parts.some((part) => part.id === 'environment.context-folder')).toBe(false)
   })
 
@@ -79,7 +79,7 @@ describe('the grilling ceremony flag', () => {
   })
 
   it('never compiles into a sub-agent prompt even when on', () => {
-    const prompt = registered({ grilling: true }).resolve(portToken(PromptRegistry)).compile(SUB)
+    const prompt = registered({ grilling: true }).resolve(registeredPortToken(PromptRegistry)).compile(SUB)
     expect(prompt.parts.some((part) => part.id === 'plan.grilling-ceremony')).toBe(false)
   })
 
@@ -87,11 +87,11 @@ describe('the grilling ceremony flag', () => {
     let on = false
     const container = createIsolatedContainer()
     container.register(GrillingCeremonyEnabledToken, { useValue: () => on })
-    container.register(portToken(SkillRegistryPort), {
+    container.register(registeredPortToken(SkillRegistryPort), {
       useValue: new FakeSkillRegistry({ skills: [] }),
     })
     registerBuiltinPromptFragments({ container })
-    const registry = container.resolve(portToken(PromptRegistry))
+    const registry = container.resolve(registeredPortToken(PromptRegistry))
 
     const off = registry.compile(MAIN)
     expect(off.parts.some((part) => part.id === 'plan.grilling-ceremony')).toBe(false)

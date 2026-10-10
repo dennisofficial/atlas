@@ -7,7 +7,7 @@ import {
   type ClassifierPolicy,
 } from '@dltech/atlas-core'
 
-import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
+import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../container/injection'
 import { EHookMishapKind } from '../hooks/budget'
 import { ClassifierPolicyToken, HookMishapReporterToken, WorkspaceRoot } from '../container/tokens'
 import { ClassifyCallHook, type JudgeSource } from './classify-call'
@@ -22,10 +22,10 @@ function judgeReachableFrom({ resolver }: { resolver: DependencyContainer }): Ju
   let memo: JudgeMemo | undefined
 
   return () => {
-    if (!resolver.isRegistered(portToken(JudgePort), true)) return undefined
+    if (!resolver.isRegistered(registeredPortToken(JudgePort), true)) return undefined
 
     memo ??= new JudgeMemo({
-      judge: resolver.resolve(portToken(JudgePort)),
+      judge: resolver.resolve(registeredPortToken(JudgePort)),
       policy: livePolicy({ resolver }),
     })
     return memo
@@ -51,7 +51,7 @@ export function registerClassifier({ container }: { container: DependencyContain
     useFactory: (resolver) =>
       new ClassifyCallHook({
         tools: resolveSet({ container: resolver, token: portToken(ToolDefinition) }),
-        facts: resolver.resolve(portToken(WorkspaceFactsPort)),
+        facts: resolver.resolve(registeredPortToken(WorkspaceFactsPort)),
         launchDirectory: resolver.resolve(WorkspaceRoot),
         policy: livePolicy({ resolver }),
         judge: judgeReachableFrom({ resolver }),

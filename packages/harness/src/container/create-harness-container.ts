@@ -67,7 +67,7 @@ import { registerCloudManagedCredentials } from './register-cloud-managed-creden
 import {
   createIsolatedContainer,
   instanceCachingFactory,
-  portToken,
+  registeredPortToken,
   type DependencyContainer,
   type InjectionToken,
 } from './injection'
@@ -96,41 +96,41 @@ function registerAgents({ container }: { container: DependencyContainer }): void
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
 
-  container.register(portToken(ExecutionLocationSinkPort), { useClass: NoopExecutionLocationSink })
+  container.register(registeredPortToken(ExecutionLocationSinkPort), { useClass: NoopExecutionLocationSink })
 
-  container.register(portToken(AgentRegistryPort), {
+  container.register(registeredPortToken(AgentRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       live = new AgentSupervisor({
-        log: resolver.resolve(portToken(EventLogPort)),
-        threads: resolver.resolve(portToken(ThreadStorePort)),
-        ids: resolver.resolve(portToken(IdPort)),
-        clock: resolver.resolve(portToken(ClockPort)),
+        log: resolver.resolve(registeredPortToken(EventLogPort)),
+        threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+        ids: resolver.resolve(registeredPortToken(IdPort)),
+        clock: resolver.resolve(registeredPortToken(ClockPort)),
         agentTypes: resolver.resolve(AgentTypesToken),
         runners: childRunnerSource({ deps: () => resolver.resolve(ChildRunnerDepsToken)() }),
         modelAtSpawn: async (args) => resolver.isRegistered(ChildRunnerDepsToken, true)
           ? resolver.resolve(ChildRunnerDepsToken)().modelAtSpawn?.(args)
           : undefined,
         launchDirectory: resolver.resolve(WorkspaceRoot),
-        sink: resolver.resolve(portToken(ExecutionLocationSinkPort)),
-        telemetry: resolver.resolve(portToken(TelemetryPort)),
+        sink: resolver.resolve(registeredPortToken(ExecutionLocationSinkPort)),
+        telemetry: resolver.resolve(registeredPortToken(TelemetryPort)),
         input: () => {
           if (!resolver.isRegistered(ChildRunnerDepsToken, true)) return undefined
           return resolver.resolve(ChildRunnerDepsToken)().intake
         },
         hasLiveWork: (threadId) => {
           if (live === undefined) return false
-          const shells = resolver.resolve(portToken(ShellRegistryPort))
+          const shells = resolver.resolve(registeredPortToken(ShellRegistryPort))
           if (shells.list({ threadId }).some((shell) => shell.status === EShellStatus.Running)) return true
           return live.someChild(threadId, isStepping)
         },
         inheritOrphanedNotices: ({ from, to }) => {
-          resolver.resolve(portToken(ShellRegistryPort)).reassignNotices({ from, to })
-          resolver.resolve(portToken(ServiceRegistryPort)).reassignNotices({ from, to })
+          resolver.resolve(registeredPortToken(ShellRegistryPort)).reassignNotices({ from, to })
+          resolver.resolve(registeredPortToken(ServiceRegistryPort)).reassignNotices({ from, to })
         },
         onChildEnded: (threadId) => {
           void releaseEndedWorktree({
-            threads: resolver.resolve(portToken(ThreadStorePort)),
-            log: resolver.resolve(portToken(EventLogPort)),
+            threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+            log: resolver.resolve(registeredPortToken(EventLogPort)),
             threadId,
           }).catch(() => undefined)
         },
@@ -140,7 +140,7 @@ function registerAgents({ container }: { container: DependencyContainer }): void
   })
 
   container.register(AgentRegistrySourceToken, {
-    useValue: () => container.resolve(portToken(AgentRegistryPort)),
+    useValue: () => container.resolve(registeredPortToken(AgentRegistryPort)),
   })
 
   registerDisposable({
@@ -162,19 +162,19 @@ export function createHarnessContainer(): DependencyContainer {
   const home = atlasDirectory()
   harness.register(AtlasHomeToken, { useValue: home })
   harness.register(SessionRegistryToken, { useValue: registryFor({ home }) })
-  harness.register(portToken(SessionAuthorityPort), {
+  harness.register(registeredPortToken(SessionAuthorityPort), {
     useFactory: instanceCachingFactory(
       (resolver) =>
         new JsonlSessionAuthority({
           registry: resolver.resolve(SessionRegistryToken),
-          clock: resolver.resolve(portToken(ClockPort)),
+          clock: resolver.resolve(registeredPortToken(ClockPort)),
         }),
     ),
   })
 
-  harness.register(portToken(ClockPort), { useClass: SystemClock })
-  harness.register(portToken(IdPort), { useClass: RandomIds })
-  harness.register(portToken(TelemetryPort), {
+  harness.register(registeredPortToken(ClockPort), { useClass: SystemClock })
+  harness.register(registeredPortToken(IdPort), { useClass: RandomIds })
+  harness.register(registeredPortToken(TelemetryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       if (!telemetryEnabled(process.env)) return new NullTelemetry()
       try {
@@ -187,38 +187,38 @@ export function createHarnessContainer(): DependencyContainer {
       }
     }),
   })
-  harness.register(portToken(EventLogPort), {
+  harness.register(registeredPortToken(EventLogPort), {
     useFactory: (resolver) =>
       new JsonlEventLog(
         home,
         resolver.resolve(SessionRegistryToken),
-        resolver.resolve(portToken(ClockPort)),
-        resolver.resolve(portToken(IdPort)),
+        resolver.resolve(registeredPortToken(ClockPort)),
+        resolver.resolve(registeredPortToken(IdPort)),
       ),
   })
-  harness.register(portToken(TurnLedgerPort), {
+  harness.register(registeredPortToken(TurnLedgerPort), {
     useFactory: (resolver) =>
       new JsonlTurnLedger({ home, registry: resolver.resolve(SessionRegistryToken) }),
   })
-  harness.register(portToken(LogPort), {
+  harness.register(registeredPortToken(LogPort), {
     useFactory: instanceCachingFactory(
       (resolver) =>
         new JsonlLog({
           home,
           registry: resolver.resolve(SessionRegistryToken),
-          clock: resolver.resolve(portToken(ClockPort)),
+          clock: resolver.resolve(registeredPortToken(ClockPort)),
         }),
     ),
   })
-  harness.register(portToken(ThreadStorePort), {
+  harness.register(registeredPortToken(ThreadStorePort), {
     useFactory: instanceCachingFactory((resolver) =>
       new JsonlThreadStore(
         home,
         resolver.resolve(SessionRegistryToken),
-        resolver.resolve(portToken(ClockPort)),
-        resolver.resolve(portToken(IdPort)),
-        resolver.resolve(portToken(EventLogPort)),
-        resolver.resolve(portToken(LogPort)),
+        resolver.resolve(registeredPortToken(ClockPort)),
+        resolver.resolve(registeredPortToken(IdPort)),
+        resolver.resolve(registeredPortToken(EventLogPort)),
+        resolver.resolve(registeredPortToken(LogPort)),
       ),
     ),
   })
@@ -237,11 +237,11 @@ export function createHarnessContainer(): DependencyContainer {
     useFactory: instanceCachingFactory((resolver) => {
       const state = createExecutionLocationState({ initial: EExecutionLocation.Host })
       state.bind({
-        threads: resolver.resolve(portToken(ThreadStorePort)),
+        threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
         workspace: resolver.isRegistered(WorkspaceRoot, true) ? resolver.resolve(WorkspaceRoot) : home,
         repo: null,
-        authority: resolver.isRegistered(portToken(SessionAuthorityPort), true)
-          ? resolver.resolve(portToken(SessionAuthorityPort))
+        authority: resolver.isRegistered(registeredPortToken(SessionAuthorityPort), true)
+          ? resolver.resolve(registeredPortToken(SessionAuthorityPort))
           : undefined,
       })
       return { state, pinned: false }
@@ -254,21 +254,21 @@ export function createHarnessContainer(): DependencyContainer {
     useFactory: instanceCachingFactory((resolver) => resolveHookChain({ container: resolver })),
   })
 
-  harness.register(portToken(ToolDispatcher), {
+  harness.register(registeredPortToken(ToolDispatcher), {
     useFactory: (resolver) =>
       new ObservingToolDispatcher({
         inner: new HookedToolDispatcher({
-          registry: resolver.resolve(portToken(ToolRegistry)),
+          registry: resolver.resolve(registeredPortToken(ToolRegistry)),
           hooks: resolver.resolve(HookChainToken),
-          logPort: resolver.resolve(portToken(LogPort)),
-          quality: resolver.isRegistered(portToken(QualityReviewPort), true)
-            ? resolver.resolve(portToken(QualityReviewPort)) : undefined,
+          logPort: resolver.resolve(registeredPortToken(LogPort)),
+          quality: resolver.isRegistered(registeredPortToken(QualityReviewPort), true)
+            ? resolver.resolve(registeredPortToken(QualityReviewPort)) : undefined,
         }),
-        telemetry: resolver.resolve(portToken(TelemetryPort)),
+        telemetry: resolver.resolve(registeredPortToken(TelemetryPort)),
       }),
   })
 
-  harness.register(portToken(FileCapabilitiesPort), {
+  harness.register(registeredPortToken(FileCapabilitiesPort), {
     useFactory: (resolver) =>
       new CardFileCapabilities({
         ...(resolver.isRegistered(ModelCardSourceToken, true)
@@ -277,7 +277,7 @@ export function createHarnessContainer(): DependencyContainer {
       }),
   })
 
-  harness.register(portToken(ModelPort), {
+  harness.register(registeredPortToken(ModelPort), {
     useFactory: (resolver) => {
       const model = resolver.resolve(LanguageModelToken)
       const card = resolver.isRegistered(ModelCardSourceToken, true)

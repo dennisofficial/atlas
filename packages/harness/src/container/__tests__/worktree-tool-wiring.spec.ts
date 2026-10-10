@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EWebSearchBackend } from '@dltech/atlas-core'
 
 import { createHarnessContainer } from '../create-harness-container'
-import { portToken } from '../injection'
+import { registeredPortToken } from '../injection'
 import { WebSearchBackendToken, WorkspaceRoot, WorktreeDirectoryToken } from '../tokens'
 import { ToolRegistry } from '../../tools/registry'
 
@@ -15,7 +15,7 @@ describe('resolving the toolset the composition root builds', () => {
     container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
 
     const names = container
-      .resolve(portToken(ToolRegistry))
+      .resolve(registeredPortToken(ToolRegistry))
       .declarations()
       .map((declaration) => declaration.name)
 
@@ -30,6 +30,6 @@ describe('resolving the toolset the composition root builds', () => {
     const container = createHarnessContainer()
     container.register(WorkspaceRoot, { useValue: '/w' })
 
-    expect(() => container.resolve(portToken(ToolRegistry))).toThrow(/WorktreeDirectory/)
+    expect(() => container.resolve(registeredPortToken(ToolRegistry))).toThrow(/WorktreeDirectory/)
   })
 })

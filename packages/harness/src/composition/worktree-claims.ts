@@ -1,6 +1,6 @@
 import { ENoticeTone, NOTICE_WARN_MS, projectDirectoryOf, type IdPort, type NoticePort, type ThreadId, type WorkspaceIdentity } from '@dltech/atlas-core'
 
-import { portToken, resolveIfPossible, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, resolveIfPossible, type DependencyContainer } from '../container/injection'
 import { EventLogPort } from '@dltech/atlas-core'
 import { registerDisposable } from '../container/disposal'
 import { HookChainToken } from '../container/tokens'
@@ -93,7 +93,7 @@ export async function claimOpenedWorktree(args: {
   projectDirectory: string
   notice: NoticePort
 }): Promise<void> {
-  const log = args.log ?? resolveIfPossible({ container: args.container, token: portToken(EventLogPort) })
+  const log = args.log ?? resolveIfPossible({ container: args.container, token: registeredPortToken(EventLogPort) })
   if (await sharesSpawnerWorktree({ ...args, log })) return
 
   const claimed = await claimWorktreeAt({

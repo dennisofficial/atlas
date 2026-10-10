@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
 import { LiveSkillRegistry } from '../live-registry'
 import { ESkillOrigin } from '../skill'
 import { SkillRegistryPort } from '../port'
@@ -9,7 +9,7 @@ import { registerSkills } from '../register-skills'
 const registryIn = (sources?: Parameters<typeof registerSkills>[0]['sources']) => {
   const container = createIsolatedContainer()
   registerSkills({ container, sources })
-  return container.resolve(portToken(SkillRegistryPort))
+  return container.resolve(registeredPortToken(SkillRegistryPort))
 }
 
 describe('registerSkills', () => {
@@ -34,10 +34,10 @@ describe('registerSkills', () => {
     const container = createIsolatedContainer()
     registerSkills({ container })
 
-    const first = container.resolve(portToken(SkillRegistryPort))
+    const first = container.resolve(registeredPortToken(SkillRegistryPort))
     await first.reload()
 
-    expect(container.resolve(portToken(SkillRegistryPort)).all()).toHaveLength(
+    expect(container.resolve(registeredPortToken(SkillRegistryPort)).all()).toHaveLength(
       first.all().length,
     )
   })

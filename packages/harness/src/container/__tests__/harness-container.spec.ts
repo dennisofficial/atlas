@@ -13,7 +13,7 @@ import { JsonlEventLog } from '../../store/sessions/event-log'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { createHarnessContainer } from '../create-harness-container'
-import { portToken, type DependencyContainer } from '../injection'
+import { registeredPortToken, type DependencyContainer } from '../injection'
 import { LocalAccountStoreToken, SecretsStoreToken, WorkspaceRoot } from '../tokens'
 
 let temporary: TempHome
@@ -39,31 +39,31 @@ describe('createHarnessContainer', () => {
   })
 
   it('resolves the clock port to the system clock', () => {
-    expect(harness.resolve(portToken(ClockPort))).toBeInstanceOf(SystemClock)
+    expect(harness.resolve(registeredPortToken(ClockPort))).toBeInstanceOf(SystemClock)
   })
 
   it('resolves the id port to random ids', () => {
-    expect(harness.resolve(portToken(IdPort))).toBeInstanceOf(RandomIds)
+    expect(harness.resolve(registeredPortToken(IdPort))).toBeInstanceOf(RandomIds)
   })
 
   it('resolves the event log port to the jsonl event log', () => {
-    expect(harness.resolve(portToken(EventLogPort))).toBeInstanceOf(JsonlEventLog)
+    expect(harness.resolve(registeredPortToken(EventLogPort))).toBeInstanceOf(JsonlEventLog)
   })
 
   it('resolves the thread store port to the jsonl thread store', () => {
-    expect(harness.resolve(portToken(ThreadStorePort))).toBeInstanceOf(JsonlThreadStore)
+    expect(harness.resolve(registeredPortToken(ThreadStorePort))).toBeInstanceOf(JsonlThreadStore)
   })
 
   it('resolves the thread store port to one instance, so a rename echo reaches every subscriber', () => {
-    expect(harness.resolve(portToken(ThreadStorePort))).toBe(harness.resolve(portToken(ThreadStorePort)))
+    expect(harness.resolve(registeredPortToken(ThreadStorePort))).toBe(harness.resolve(registeredPortToken(ThreadStorePort)))
   })
 
   it('resolves the credential port to the persistent OAuth ownership adapter', () => {
-    expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CloudManagedCredentialPort)
+    expect(harness.resolve(registeredPortToken(CredentialPort))).toBeInstanceOf(CloudManagedCredentialPort)
   })
 
   it('resolves the account store to the local vault file store', () => {
-    const accounts = harness.resolve(portToken(AccountStorePort))
+    const accounts = harness.resolve(registeredPortToken(AccountStorePort))
     expect(accounts).toBe(harness.resolve(LocalAccountStoreToken))
   })
 
@@ -73,18 +73,18 @@ describe('createHarnessContainer', () => {
   })
 
   it('resolves telemetry to the null adapter under the test runner, never PostHog', () => {
-    expect(harness.resolve(portToken(TelemetryPort))).toBeInstanceOf(NullTelemetry)
+    expect(harness.resolve(registeredPortToken(TelemetryPort))).toBeInstanceOf(NullTelemetry)
   })
 
   it('resolves the process port to the session-scoped local adapter', () => {
-    expect(harness.resolve(portToken(ProcessPort))).toBeInstanceOf(SessionEnvironmentProcessPort)
+    expect(harness.resolve(registeredPortToken(ProcessPort))).toBeInstanceOf(SessionEnvironmentProcessPort)
   })
 
   it('runs real commands with shared session and distinct thread directory scoping', async () => {
-    const threads = harness.resolve(portToken(ThreadStorePort))
+    const threads = harness.resolve(registeredPortToken(ThreadStorePort))
     const main = await threads.create({})
     const child = await threads.create({ agent: { spawnedBy: main.id, type: 'explore' } })
-    const processes = harness.resolve(portToken(ProcessPort))
+    const processes = harness.resolve(registeredPortToken(ProcessPort))
     const sessionDir = sessionDirectory({ home: temporary.home, sessionId: main.id })
 
     for (const thread of [main, child]) {
@@ -108,16 +108,16 @@ describe('createHarnessContainer', () => {
   })
 
   it('resolves the filesystem port to the local adapter', () => {
-    expect(harness.resolve(portToken(FileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
+    expect(harness.resolve(registeredPortToken(FileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
   })
 
   it('answers head zero for a thread the event log has never seen', async () => {
-    const log = harness.resolve(portToken(EventLogPort))
+    const log = harness.resolve(registeredPortToken(EventLogPort))
     expect(await log.head({ threadId: toThreadId('brn_absent') })).toBe(0)
   })
 
   it('injects the registered clock and ids into the thread store it builds', async () => {
-    const threads = harness.resolve(portToken(ThreadStorePort))
+    const threads = harness.resolve(registeredPortToken(ThreadStorePort))
     const created = await threads.create({ title: 'resolved through the container' })
     expect(created.id).toStartWith('brn_')
     expect(created.head).toBe(0)
@@ -145,16 +145,16 @@ describe('container isolation', () => {
     const first = createHarnessContainer()
     const second = createHarnessContainer()
 
-    first.register(portToken(ClockPort), { useClass: FrozenClock })
+    first.register(registeredPortToken(ClockPort), { useClass: FrozenClock })
 
-    expect(first.resolve(portToken(ClockPort))).toBeInstanceOf(FrozenClock)
-    expect(second.resolve(portToken(ClockPort))).toBeInstanceOf(SystemClock)
+    expect(first.resolve(registeredPortToken(ClockPort))).toBeInstanceOf(FrozenClock)
+    expect(second.resolve(registeredPortToken(ClockPort))).toBeInstanceOf(SystemClock)
   })
 
   it('gives each container its own instance of a resolved port', () => {
     const first = createHarnessContainer()
     const second = createHarnessContainer()
 
-    expect(first.resolve(portToken(IdPort))).not.toBe(second.resolve(portToken(IdPort)))
+    expect(first.resolve(registeredPortToken(IdPort))).not.toBe(second.resolve(registeredPortToken(IdPort)))
   })
 })

@@ -8,7 +8,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { ATLAS_ALLOW_REAL_HOME_ENV, ModelPort, toThreadId } from '@dltech/atlas-core'
 import {
   composeHarness,
-  portToken,
+  registeredPortToken,
   runGit,
   type CloudBridge,
   type SettingsBinding,
@@ -107,7 +107,7 @@ export async function mountLive(args: {
       ? {}
       : {
           bindPorts: ({ container }) => {
-            container.register(portToken(ModelPort), {
+            container.register(registeredPortToken(ModelPort), {
               useValue: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
             })
           },

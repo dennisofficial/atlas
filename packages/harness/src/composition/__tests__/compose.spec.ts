@@ -11,7 +11,7 @@ import { z } from 'zod'
 
 import { CloudSessionStore } from '../../cloud/cloud-session'
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../../cloud/settings-definitions'
-import { portToken } from '../../container/injection'
+import { portToken, registeredPortToken } from '../../container/injection'
 import { UserSettingsStoreToken } from '../../container/tokens'
 import { RotationPort } from '../../rotation'
 import { MemorySettingsStore } from '../../settings/memory-store'
@@ -114,8 +114,8 @@ describe('composeHarness', () => {
     let resolved: RotationPort | undefined
     const app = await compose<undefined>({
       bind: ({ container }) => {
-        expect(container.isRegistered(portToken(RotationPort), true)).toBe(true)
-        resolved = container.resolve(portToken(RotationPort))
+        expect(container.isRegistered(registeredPortToken(RotationPort), true)).toBe(true)
+        resolved = container.resolve(registeredPortToken(RotationPort))
         return undefined
       },
     })

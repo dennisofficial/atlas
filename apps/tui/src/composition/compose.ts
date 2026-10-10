@@ -4,7 +4,7 @@ import { OnThreadOpenHook } from '@dltech/atlas-core'
 import {
   composeHarness,
   createUrlOpener,
-  portToken,
+  portToken, registeredPortToken,
   GithubUiBridgePort,
   MutablePrEventSink,
   PrEventFrameSink,
@@ -111,7 +111,7 @@ export async function composeAtlas(args: {
          */
         const pullRequests = ((): PullRequestPort | null => {
           try {
-            return container.resolve(portToken(PullRequestPort))
+            return container.resolve(registeredPortToken(PullRequestPort))
           } catch {
             return null
           }
@@ -119,7 +119,7 @@ export async function composeAtlas(args: {
 
         const githubSurface = ((): ContributedSurface | null => {
           try {
-            return resolveGithubSurface({ bridge: container.resolve(portToken(GithubUiBridgePort)) })
+            return resolveGithubSurface({ bridge: container.resolve(registeredPortToken(GithubUiBridgePort)) })
           } catch {
             return null
           }
@@ -127,7 +127,7 @@ export async function composeAtlas(args: {
 
         const crewPullRequests = ((): CrewPullRequests | null => {
           try {
-            const bridge = container.resolve(portToken(GithubUiBridgePort))
+            const bridge = container.resolve(registeredPortToken(GithubUiBridgePort))
             return { service: bridge.service, checkoutFor: bridge.checkoutFor }
           } catch {
             return null
@@ -136,7 +136,7 @@ export async function composeAtlas(args: {
 
         const prEventSink = ((): MutablePrEventSink | null => {
           try {
-            const sink = container.resolve(portToken(PrEventFrameSink))
+            const sink = container.resolve(registeredPortToken(PrEventFrameSink))
             return sink instanceof MutablePrEventSink ? sink : null
           } catch {
             return null

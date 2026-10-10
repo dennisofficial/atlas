@@ -33,7 +33,7 @@ import { subAgentPrompt } from '../agents/registry/child-prompt'
 import type { ChildRunnerDeps } from '../agents/registry/child-runner'
 import { isTeammateType } from '../agents/types'
 import { ChildRunnerDepsToken } from '../container/create-harness-container'
-import { portToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import { ToolRegistry } from '../tools/registry'
 import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
@@ -103,14 +103,14 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
 
   container.register(DeltaChannelToken, { useValue: args.channel })
 
-  const log = container.resolve(portToken(EventLogPort))
-  const logPort = container.resolve(portToken(LogPort))
-  const ids = container.resolve(portToken(IdPort))
-  const threads = container.resolve(portToken(ThreadStorePort))
-  const ledger = container.resolve(portToken(TurnLedgerPort))
-  const shells = container.resolve(portToken(ShellRegistryPort))
-  const agents = container.resolve(portToken(AgentRegistryPort))
-  const services = container.resolve(portToken(ServiceRegistryPort))
+  const log = container.resolve(registeredPortToken(EventLogPort))
+  const logPort = container.resolve(registeredPortToken(LogPort))
+  const ids = container.resolve(registeredPortToken(IdPort))
+  const threads = container.resolve(registeredPortToken(ThreadStorePort))
+  const ledger = container.resolve(registeredPortToken(TurnLedgerPort))
+  const shells = container.resolve(registeredPortToken(ShellRegistryPort))
+  const agents = container.resolve(registeredPortToken(AgentRegistryPort))
+  const services = container.resolve(registeredPortToken(ServiceRegistryPort))
 
   const compactBeforeOverflow = async ({ threadId }: { threadId: ThreadId }): Promise<boolean> => {
     const compaction = await compactTurn({
@@ -155,23 +155,23 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     }),
     launchDirectory: workspace.workspace,
     tools: args.declarations,
-    dispatch: container.resolve(portToken(ToolDispatcher)),
+    dispatch: container.resolve(registeredPortToken(ToolDispatcher)),
     hooks: container.resolve(HookChainToken),
     drainPending: (args) => intake.prepare(args),
     spend: {
       ledger,
-      clock: container.resolve(portToken(ClockPort)),
-      telemetry: container.resolve(portToken(TelemetryPort)),
+      clock: container.resolve(registeredPortToken(ClockPort)),
+      telemetry: container.resolve(registeredPortToken(TelemetryPort)),
     },
     compact: compactBeforeOverflow,
     applyLoopCut: createLoopCut({
       log,
       registry: container.resolve(SessionRegistryToken),
-      clock: container.resolve(portToken(ClockPort)),
+      clock: container.resolve(registeredPortToken(ClockPort)),
       ids,
     }),
     watchLoop: jevLoopWatch({
-      decisions: container.resolve(portToken(DecisionPort)),
+      decisions: container.resolve(registeredPortToken(DecisionPort)),
       enabled: args.decisionsEnabled,
     }),
     onLoopWatch: () =>
@@ -214,16 +214,16 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   container.register(ChildRunnerDepsToken, {
     useValue: (): ChildRunnerDeps => ({
       turn,
-      tools: container.resolve(portToken(ToolRegistry)),
+      tools: container.resolve(registeredPortToken(ToolRegistry)),
       hooks: container.resolve(HookChainToken),
-      quality: container.isRegistered(portToken(QualityReviewPort), true)
-        ? container.resolve(portToken(QualityReviewPort)) : undefined,
+      quality: container.isRegistered(registeredPortToken(QualityReviewPort), true)
+        ? container.resolve(registeredPortToken(QualityReviewPort)) : undefined,
       channel: args.channel,
       drainNotices: (request) => intake.prepare(request),
       intake,
       modelFor,
       modelAtSpawn,
-      telemetry: container.resolve(portToken(TelemetryPort)),
+      telemetry: container.resolve(registeredPortToken(TelemetryPort)),
       hydratePlacement: async ({ threadId }) => {
         await executionLocation.load({ threadId })
       },

@@ -18,7 +18,7 @@ import { OperatorInputPort } from '../operator-input/port'
 import { createDeltaChannel } from '../channel/delta-channel'
 import { bindCloudSettingsWriteThrough } from '../cloud/cloud-settings-write-through'
 import { createHarnessContainer } from '../container/create-harness-container'
-import { portToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
   CloudSettingsStoreToken,
@@ -111,7 +111,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const notice = surface.notice
   const container = createHarnessContainer()
   container.register(ClientVersionToken, { useValue: args.clientVersion })
-  container.register(portToken(NoticePort), { useValue: notice })
+  container.register(registeredPortToken(NoticePort), { useValue: notice })
   args.bindPorts?.({ container })
 
   const { anchor, workspace } = await claimLaunchWorkspace({ container, launch })
@@ -186,37 +186,37 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   bindCloudSettingsWriteThrough({
     settings,
     store: () => container.resolve(CloudSettingsStoreToken),
-    log: container.resolve(portToken(LogPort)),
+    log: container.resolve(registeredPortToken(LogPort)),
   })
-  const log = container.resolve(portToken(EventLogPort))
+  const log = container.resolve(registeredPortToken(EventLogPort))
   await seedProjectionsFromRestoredLog({ launch, log, projections: plugins.projections })
-  const ids = container.resolve(portToken(IdPort))
-  const threads = container.resolve(portToken(ThreadStorePort))
+  const ids = container.resolve(registeredPortToken(IdPort))
+  const threads = container.resolve(registeredPortToken(ThreadStorePort))
   executionLocation.bind({
     threads,
     workspace: workspace.workspace,
     repo: workspace.repo,
-    authority: container.isRegistered(portToken(SessionAuthorityPort), true)
-      ? container.resolve(portToken(SessionAuthorityPort))
+    authority: container.isRegistered(registeredPortToken(SessionAuthorityPort), true)
+      ? container.resolve(registeredPortToken(SessionAuthorityPort))
       : undefined,
   })
-  const ledger = container.resolve(portToken(TurnLedgerPort))
+  const ledger = container.resolve(registeredPortToken(TurnLedgerPort))
 
   const lateRotation = new LateRotation()
-  container.register(portToken(RotationPort), { useValue: lateRotation })
+  container.register(registeredPortToken(RotationPort), { useValue: lateRotation })
 
   container.register(HookMishapReporterToken, { useValue: hookMishapNotice(notice) })
   const bound = surface.bind === undefined ? undefined : await surface.bind({ container })
 
-  const modelPort = faultInjected(container.resolve(portToken(ModelPort)))
-  const prompts = container.resolve(portToken(PromptRegistry))
-  const shells = container.resolve(portToken(ShellRegistryPort))
-  const agents = container.resolve(portToken(AgentRegistryPort))
-  const services = container.resolve(portToken(ServiceRegistryPort))
-  const operatorInput = container.resolve(portToken(OperatorInputPort))
+  const modelPort = faultInjected(container.resolve(registeredPortToken(ModelPort)))
+  const prompts = container.resolve(registeredPortToken(PromptRegistry))
+  const shells = container.resolve(registeredPortToken(ShellRegistryPort))
+  const agents = container.resolve(registeredPortToken(AgentRegistryPort))
+  const services = container.resolve(registeredPortToken(ServiceRegistryPort))
+  const operatorInput = container.resolve(registeredPortToken(OperatorInputPort))
 
   const channel = createDeltaChannel({
-    onListenerError: (cause) => container.resolve(portToken(LogPort)).error({
+    onListenerError: (cause) => container.resolve(registeredPortToken(LogPort)).error({
       source: 'channel.listener',
       message: cause instanceof Error ? cause.message : 'channel listener failed',
     }),
@@ -231,7 +231,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     model,
     modelPort,
     prompts,
-    declarations: () => container.resolve(portToken(ToolRegistry)).declarations(),
+    declarations: () => container.resolve(registeredPortToken(ToolRegistry)).declarations(),
     pending,
     pluginSources: plugins.intakeSources,
     channel,
@@ -249,12 +249,12 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const compaction = new LocalCompaction({ log, threads, agents, summarise: utility.summarise })
   const rotation = new LocalRotation({
-    authority: container.resolve(portToken(SessionAuthorityPort)),
+    authority: container.resolve(registeredPortToken(SessionAuthorityPort)),
     registry: container.resolve(SessionRegistryToken),
     threads,
     log,
     ids,
-    clock: container.resolve(portToken(ClockPort)),
+    clock: container.resolve(registeredPortToken(ClockPort)),
     agents,
     shells,
     services,
@@ -286,7 +286,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   return {
     launch,
     workspace,
-    tools: container.resolve(portToken(ToolRegistry)),
+    tools: container.resolve(registeredPortToken(ToolRegistry)),
     markActiveThread: (active) => {
       activeThread = active
     },

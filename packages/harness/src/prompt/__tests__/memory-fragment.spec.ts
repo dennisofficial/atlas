@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EPromptAgent, PromptFragment } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, portToken, registeredPortToken } from '../../container/injection'
 import { MemoryFragment } from '../fragments/memory'
 import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
 import { PromptRegistry } from '../registry'
@@ -17,7 +17,7 @@ const mainContext = contextFor({ modelId: 'claude-opus-5' })
 describe('the memory fragment in the composed prompt', () => {
   it('reaches the compiled prompt even though it registers after the builtins', () => {
     const container = createIsolatedContainer()
-    container.register(portToken(SkillRegistryPort), {
+    container.register(registeredPortToken(SkillRegistryPort), {
       useValue: new FakeSkillRegistry({ skills: [] }),
     })
     registerBuiltinPromptFragments({ container })
@@ -25,7 +25,7 @@ describe('the memory fragment in the composed prompt', () => {
       useValue: new MemoryFragment({ directories: DIRECTORIES }),
     })
 
-    const compiled = container.resolve(portToken(PromptRegistry)).compile(mainContext)
+    const compiled = container.resolve(registeredPortToken(PromptRegistry)).compile(mainContext)
 
     expect(compiled.parts.map((part) => part.id)).toContain('memory.instructions')
     expect(compiled.blocks[0]?.text).toContain(DIRECTORIES.project)

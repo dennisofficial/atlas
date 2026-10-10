@@ -4,7 +4,7 @@ import { EDefinitionOrigin, EPromptAgent, promptContextFor, type PromptContext }
 
 import { subAgentPrompt } from '../../agents/registry/child-prompt'
 import { BUILT_IN_AGENT_TYPES } from '../../agents/types/built-ins'
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
 import { GrillingCeremonyEnabledToken } from '../../container/tokens'
 import { SkillRegistryPort } from '../../skills/port'
 import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
@@ -29,8 +29,8 @@ const promptsOver = (skills: FakeSkillRegistry): PromptRegistry => {
   const container = createIsolatedContainer()
   container.register(GrillingCeremonyEnabledToken, { useValue: () => false })
   registerBuiltinPromptFragments({ container })
-  container.register(portToken(SkillRegistryPort), { useValue: skills })
-  return container.resolve(portToken(PromptRegistry))
+  container.register(registeredPortToken(SkillRegistryPort), { useValue: skills })
+  return container.resolve(registeredPortToken(PromptRegistry))
 }
 
 const withUiDesign = (): FakeSkillRegistry =>

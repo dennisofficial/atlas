@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { AgentFileSystemPort, FileSystemPort, ProcessPort } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
 import { DockerEngineToken } from '../../container/tokens'
 import { DockerEngine } from '../docker/engine'
 import { LocalFileSystemPort } from '../local-filesystem'
@@ -17,15 +17,15 @@ const wired = () => {
 
 describe('registerExecution', () => {
   it('binds the process port to the login-resolving local adapter', () => {
-    expect(wired().resolve(portToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
+    expect(wired().resolve(registeredPortToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
   })
 
   it('binds the filesystem port to the local adapter', () => {
-    expect(wired().resolve(portToken(FileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
+    expect(wired().resolve(registeredPortToken(FileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
   })
 
   it('aliases the agent filesystem port to the local adapter until a router overrides it', () => {
-    expect(wired().resolve(portToken(AgentFileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
+    expect(wired().resolve(registeredPortToken(AgentFileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
   })
 
   it('registers one shared docker engine for the container', () => {
@@ -47,9 +47,9 @@ describe('registerExecution', () => {
 
     const first = wired()
     const second = wired()
-    second.register(portToken(ProcessPort), { useClass: OtherProcesses })
+    second.register(registeredPortToken(ProcessPort), { useClass: OtherProcesses })
 
-    expect(second.resolve(portToken(ProcessPort))).toBeInstanceOf(OtherProcesses)
-    expect(first.resolve(portToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
+    expect(second.resolve(registeredPortToken(ProcessPort))).toBeInstanceOf(OtherProcesses)
+    expect(first.resolve(registeredPortToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
   })
 })

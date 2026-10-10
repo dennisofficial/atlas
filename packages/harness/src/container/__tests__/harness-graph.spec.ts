@@ -9,7 +9,7 @@ import { ToolDispatcher } from '../../tools/dispatch'
 import { ToolRegistry } from '../../tools/registry'
 import { JsonlEventLog } from '../../store/sessions/event-log'
 import { createHarnessContainer } from '../create-harness-container'
-import { portToken, type DependencyContainer } from '../injection'
+import { registeredPortToken, type DependencyContainer } from '../injection'
 import {
   HookChainToken,
   WebSearchBackendToken,
@@ -36,7 +36,7 @@ const rooted = (): DependencyContainer => {
 describe('the harness container graph', () => {
   it('resolves the builtin tools as one registry', () => {
     const names = rooted()
-      .resolve(portToken(ToolRegistry))
+      .resolve(registeredPortToken(ToolRegistry))
       .declarations()
       .map((declaration) => declaration.name)
       .sort()
@@ -105,7 +105,7 @@ describe('the harness container graph', () => {
   })
 
   it('lets a tool call reach outside the root, which no longer walls the filesystem off', async () => {
-    const dispatcher = rooted().resolve(portToken(ToolDispatcher))
+    const dispatcher = rooted().resolve(registeredPortToken(ToolDispatcher))
 
     const drafts = await dispatcher.dispatch({
       call: {
@@ -124,11 +124,11 @@ describe('the harness container graph', () => {
   })
 
   it('resolves the event log straight from the atlas home, no database to open first', () => {
-    expect(rooted().resolve(portToken(EventLogPort))).toBeInstanceOf(JsonlEventLog)
+    expect(rooted().resolve(registeredPortToken(EventLogPort))).toBeInstanceOf(JsonlEventLog)
   })
 
   it('answers the execution-location sink with a no-op until an app registers a real one', () => {
-    const sink = rooted().resolve(portToken(ExecutionLocationSinkPort))
+    const sink = rooted().resolve(registeredPortToken(ExecutionLocationSinkPort))
 
     expect(() => sink.refresh({ threadId: toThreadId('thread-1') })).not.toThrow()
   })

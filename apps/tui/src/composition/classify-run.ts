@@ -30,7 +30,7 @@ import {
   HaikuJudge,
   JudgeMemo,
   messageOf,
-  portToken,
+  registeredPortToken,
   probeWorkspace,
   remotesOf,
   replayThread,
@@ -139,7 +139,7 @@ const judgeOver = ({ bench }: { bench: Bench }): JudgeMemo => {
       model: createNotifyingModel({
         model: judgeModel({
           ref: bench.judgeRef,
-          credentials: bench.container.resolve(portToken(CredentialPort)),
+          credentials: bench.container.resolve(registeredPortToken(CredentialPort)),
         }),
         onFault: ({ providerId, modelId, fault }) => {
           if (reported) return
@@ -174,7 +174,7 @@ async function runReplay({
 }): Promise<number> {
   const threadId = toThreadId(request.threadId)
   const events: readonly Event[] = await bench.container
-    .resolve(portToken(EventLogPort))
+    .resolve(registeredPortToken(EventLogPort))
     .read({ threadId })
 
   if (events.length === 0) {
@@ -189,8 +189,8 @@ async function runReplay({
     threadId,
     projectDirectory: bench.projectDirectory,
     launchDirectory: bench.launchDirectory,
-    tools: bench.container.resolve(portToken(ToolRegistry)).declarations(),
-    facts: bench.container.resolve(portToken(WorkspaceFactsPort)),
+    tools: bench.container.resolve(registeredPortToken(ToolRegistry)).declarations(),
+    facts: bench.container.resolve(registeredPortToken(WorkspaceFactsPort)),
     policy: bench.policy,
     ...(request.judge ? { judge: judgeOver({ bench }) } : {}),
   })
@@ -246,7 +246,7 @@ async function runCritique({ bench }: { bench: Bench }): Promise<number> {
   const critique = await critiqueConfiguration({
     model: judgeModel({
       ref: bench.judgeRef,
-      credentials: bench.container.resolve(portToken(CredentialPort)),
+      credentials: bench.container.resolve(registeredPortToken(CredentialPort)),
     }),
     policy: bench.policy,
   })

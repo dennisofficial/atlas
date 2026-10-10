@@ -17,7 +17,7 @@ import { CloudSessionStore } from '../../cloud/cloud-session'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { createHarnessContainer } from '../../container/create-harness-container'
 import { disposeAll } from '../../container/disposal'
-import { portToken } from '../../container/injection'
+import { registeredPortToken } from '../../container/injection'
 import { SecretsStoreToken } from '../../container/tokens'
 import { atlasVaultFile, atlasVaultKeyFile } from '../../credentials/paths'
 import { fileAccountStore } from '../../credentials/account-store'
@@ -96,7 +96,7 @@ describe('bindAccounts', () => {
       clientVersion: 'account-bindings-spec',
     })
 
-    const listed = await container.resolve(portToken(AccountStorePort)).list()
+    const listed = await container.resolve(registeredPortToken(AccountStorePort)).list()
     expect(listed).toHaveLength(1)
     expect(listed[0]?.origin).toBe(EAccountOrigin.Environment)
     expect(listed[0]?.importedFrom).toBe('environment:ANTHROPIC_API_KEY')
@@ -114,7 +114,7 @@ describe('bindAccounts', () => {
       clientVersion: 'account-bindings-spec',
     })
 
-    expect(await container.resolve(portToken(AccountStorePort)).list()).toEqual([])
+    expect(await container.resolve(registeredPortToken(AccountStorePort)).list()).toEqual([])
 
     await disposeAll({ container })
   })
@@ -131,7 +131,7 @@ describe('bindAccounts', () => {
       reconcileHostSources: false,
     })
 
-    const listed = await container.resolve(portToken(AccountStorePort)).list()
+    const listed = await container.resolve(registeredPortToken(AccountStorePort)).list()
     expect(listed.map((held) => held.id)).toEqual([account.id])
     expect(listed.every((held) => held.origin === EAccountOrigin.Login)).toBe(true)
 
@@ -152,7 +152,7 @@ describe('bindAccounts', () => {
         clientVersion: 'account-bindings-spec',
       })
 
-      const listed = await container.resolve(portToken(AccountStorePort)).list()
+      const listed = await container.resolve(registeredPortToken(AccountStorePort)).list()
       expect(listed.map((held) => held.id)).toEqual([account.id])
       expect(fetches).toEqual([])
 
@@ -185,7 +185,7 @@ describe('bindAccounts', () => {
       expect(credential).toMatchObject({ kind: EAuthKind.Oauth, accessToken: 'fake-cloud-access' })
       expect(fetches).toHaveLength(1)
       expect(fetches[0]).toContain('/v1/oauth-connections/oauth_')
-      const stored = await container.resolve(portToken(AccountStorePort)).read(account.id)
+      const stored = await container.resolve(registeredPortToken(AccountStorePort)).read(account.id)
       if (stored?.secret.kind !== EAuthKind.Oauth) throw new Error('OAuth account missing')
       expect(stored.secret.tokens.refreshToken).toBe('')
       expect(stored.secret.authority?.url).toBe('http://cloud.test')
@@ -280,7 +280,7 @@ describe('bindAccounts', () => {
         clientVersion: 'account-bindings-spec',
       })
 
-      const listed = await container.resolve(portToken(AccountStorePort)).list()
+      const listed = await container.resolve(registeredPortToken(AccountStorePort)).list()
       expect(listed.map((held) => held.id)).toEqual([account.id])
       expect(fetches).toEqual([])
 

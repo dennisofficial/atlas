@@ -2,7 +2,7 @@ import { PromptFragment } from '@dltech/atlas-core'
 
 import { SkillRegistryPort } from '../skills/port'
 import { GrillingCeremonyEnabledToken } from '../container/tokens'
-import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
+import { instanceCachingFactory, portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
 import { DelegationFragment } from './fragments/agents'
 import { EnvelopeContractFragment } from './fragments/envelope-contract'
 import { ContextFolderFragment } from './fragments/context-folder'
@@ -67,7 +67,7 @@ export function registerBuiltinPromptFragments({
     if (fragment === SkillListingFragment) {
       container.register(portToken(PromptFragment), {
         useFactory: (resolver) =>
-          new SkillListingFragment(resolver.resolve(portToken(SkillRegistryPort))),
+          new SkillListingFragment(resolver.resolve(registeredPortToken(SkillRegistryPort))),
       })
       continue
     }
@@ -83,7 +83,7 @@ export function registerBuiltinPromptFragments({
       }),
   })
 
-  container.register(portToken(PromptRegistry), {
+  container.register(registeredPortToken(PromptRegistry), {
     useFactory: instanceCachingFactory(
       (resolver) => new InMemoryPromptRegistry(resolver.resolveAll(portToken(PromptFragment))),
     ),

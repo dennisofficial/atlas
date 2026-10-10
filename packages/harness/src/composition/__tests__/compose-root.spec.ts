@@ -13,7 +13,7 @@ import {
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
 import { registerDisposable } from '../../container/disposal'
 import type { AccountUsageService } from '../../usage/account-usage-service'
 import { bindBrowser } from '../compose-browser'
@@ -85,7 +85,7 @@ describe('closeSession', () => {
   it('disposes usage, then registered disposables, then flushes telemetry, and reports a failed teardown', async () => {
     const order: string[] = []
     const container = createIsolatedContainer()
-    container.register(portToken(TelemetryPort), {
+    container.register(registeredPortToken(TelemetryPort), {
       useValue: { flush: async () => void order.push('flush') } as unknown as TelemetryPort,
     })
     registerDisposable({ container, close: async () => void order.push('disposable') })

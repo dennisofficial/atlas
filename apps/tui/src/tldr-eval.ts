@@ -27,7 +27,7 @@ import {
   createAnthropicOauthModel,
   createHarnessContainer,
   disposeAll,
-  portToken,
+  registeredPortToken,
   readSessionMetaSync,
   TurnLedgerPort,
   sessionMetaFile,
@@ -152,10 +152,10 @@ async function judge(args: {
 async function main(): Promise<void> {
   const container = createHarnessContainer()
   try {
-    const log = container.resolve(portToken(EventLogPort))
-    const ledger = container.resolve(portToken(TurnLedgerPort))
+    const log = container.resolve(registeredPortToken(EventLogPort))
+    const ledger = container.resolve(registeredPortToken(TurnLedgerPort))
     const model = createAnthropicOauthModel({
-      credentials: container.resolve(portToken(CredentialPort)),
+      credentials: container.resolve(registeredPortToken(CredentialPort)),
       modelId: TLDR_MODEL_ID,
     })
 

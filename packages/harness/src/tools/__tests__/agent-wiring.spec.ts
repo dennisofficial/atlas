@@ -7,7 +7,7 @@ import { EDefinitionOrigin, EWebSearchBackend, ToolDefinition } from '@dltech/at
 import { AgentRegistryPort } from '../../agents/registry/port'
 import type { AgentType } from '../../agents/types/agent-type'
 import { createHarnessContainer } from '../../container/create-harness-container'
-import { portToken, resolveSet, type DependencyContainer } from '../../container/injection'
+import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../../container/injection'
 import {
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -73,7 +73,7 @@ describe('the agent tools the container hands out', () => {
 
   it('resolves the whole tool registry without a database, as every other tool does', () => {
     const declared = wired()
-      .resolve(portToken(ToolRegistry))
+      .resolve(registeredPortToken(ToolRegistry))
       .declarations()
       .map((declaration) => declaration.name)
 
@@ -111,15 +111,15 @@ describe('the agent tools the container hands out', () => {
   it('hands every tool the same supervisor once a database exists', async () => {
     const container = await withDatabase()
 
-    expect(container.resolve(portToken(AgentRegistryPort))).toBe(
-      container.resolve(portToken(AgentRegistryPort)),
+    expect(container.resolve(registeredPortToken(AgentRegistryPort))).toBe(
+      container.resolve(registeredPortToken(AgentRegistryPort)),
     )
   })
 
   it('gives that supervisor the agent types the container registered', async () => {
     const container = await withDatabase()
 
-    expect(container.resolve(portToken(AgentRegistryPort)).types()).toEqual(
+    expect(container.resolve(registeredPortToken(AgentRegistryPort)).types()).toEqual(
       container.resolve(AgentTypesToken),
     )
   })

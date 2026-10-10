@@ -7,7 +7,7 @@ import {
   ToolDefinition,
 } from '@dltech/atlas-core'
 
-import { portToken, type DependencyContainer } from '../container/injection'
+import { portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
 import { FileReadStatePort } from '../files/read-state'
 import { LoadInstructionsHook } from '../hooks/load-instructions'
 import { LoadMemoryHook } from '../hooks/load-memory'
@@ -33,7 +33,7 @@ export async function bindInstructionsAndMemory(args: {
     useFactory: (resolver) =>
       new LoadInstructionsHook({
         source: ({ projectDirectory }) => instructionPlanOf({ settings, projectDirectory }),
-        readState: resolver.resolve(portToken(FileReadStatePort)),
+        readState: resolver.resolve(registeredPortToken(FileReadStatePort)),
       }),
   })
 
@@ -42,7 +42,7 @@ export async function bindInstructionsAndMemory(args: {
       new NestedInstructionsHook({
         source: ({ projectDirectory }) => nestedInstructionPlanOf({ settings, projectDirectory }),
         tools: resolver.resolveAll(portToken(ToolDefinition)),
-        readState: resolver.resolve(portToken(FileReadStatePort)),
+        readState: resolver.resolve(registeredPortToken(FileReadStatePort)),
       }),
   })
 
@@ -68,14 +68,14 @@ export async function bindInstructionsAndMemory(args: {
     useFactory: (resolver) =>
       new LoadMemoryHook({
         directories: memoryDirectories,
-        readState: resolver.resolve(portToken(FileReadStatePort)),
+        readState: resolver.resolve(registeredPortToken(FileReadStatePort)),
       }),
   })
 
   container.register(portToken(BeforeToolHook), {
     useValue: new StampMemoryHook({
       directories: [memoryDirectories.user, memoryDirectories.project],
-      clock: container.resolve(portToken(ClockPort)),
+      clock: container.resolve(registeredPortToken(ClockPort)),
     }),
   })
 }

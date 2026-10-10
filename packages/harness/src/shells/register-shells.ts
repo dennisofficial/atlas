@@ -4,7 +4,7 @@ import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { registerDisposable } from '../container/disposal'
 import {
   instanceCachingFactory,
-  portToken,
+  registeredPortToken,
   type DependencyContainer,
   type InjectionToken,
 } from '../container/injection'
@@ -32,12 +32,12 @@ export function registerShells({ container }: { container: DependencyContainer }
     useValue: () => container.resolve(HookChainToken),
   })
 
-  container.register(portToken(ShellRegistryPort), {
+  container.register(registeredPortToken(ShellRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       const optional = <T>(token: InjectionToken<T>): T | undefined =>
         resolver.isRegistered(token, true) ? resolver.resolve(token) : undefined
-      const operations = optional(portToken(LogPort))
-      const registered = optional(portToken(EventLogPort))
+      const operations = optional(registeredPortToken(LogPort))
+      const registered = optional(registeredPortToken(EventLogPort))
       const log =
         registered === undefined
           ? undefined
@@ -57,7 +57,7 @@ export function registerShells({ container }: { container: DependencyContainer }
                     : {}),
                 }),
             })
-      const clock = resolver.resolve(portToken(ClockPort))
+      const clock = resolver.resolve(registeredPortToken(ClockPort))
       live = new BunShellRegistry({
         root: resolver.resolve(WorkspaceRoot),
         clock,
@@ -65,9 +65,9 @@ export function registerShells({ container }: { container: DependencyContainer }
         launcher: durableLauncher({ container: resolver, clock }),
         sleepPrevention: optional(SleepPreventionToken),
         log,
-        ids: optional(portToken(IdPort)),
+        ids: optional(registeredPortToken(IdPort)),
         operations,
-        threads: optional(portToken(ThreadStorePort)),
+        threads: optional(registeredPortToken(ThreadStorePort)),
       })
       return live
     }),
@@ -86,12 +86,12 @@ function durableLauncher(args: {
   clock: ClockPort
 }): ShellLauncherPort | undefined {
   const { container, clock } = args
-  if (container.isRegistered(portToken(ShellLauncherPort), true)) {
-    return container.resolve(portToken(ShellLauncherPort))
+  if (container.isRegistered(registeredPortToken(ShellLauncherPort), true)) {
+    return container.resolve(registeredPortToken(ShellLauncherPort))
   }
   if (!container.isRegistered(SessionRegistryToken, true)) return undefined
   if (!container.isRegistered(AtlasHomeToken, true)) return undefined
-  if (!container.isRegistered(portToken(ProcessPort), true)) return undefined
+  if (!container.isRegistered(registeredPortToken(ProcessPort), true)) return undefined
 
   const sessions = container.resolve(SessionRegistryToken)
   const home = container.resolve(AtlasHomeToken)
@@ -99,7 +99,7 @@ function durableLauncher(args: {
   return new DurableShellLauncher({
     storage: new ShellStorage({ sessions }),
     sessions,
-    processes: container.resolve(portToken(ProcessPort)),
+    processes: container.resolve(registeredPortToken(ProcessPort)),
     supervisor: () => {
       supervisor ??= prepareSupervisorLauncher({ home }).catch((error: unknown) => {
         supervisor = undefined

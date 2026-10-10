@@ -17,7 +17,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, type DependencyContainer } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken, type DependencyContainer } from '../../container/injection'
 import {
   AtlasHomeToken,
   DeltaChannelToken,
@@ -62,8 +62,8 @@ const opened: { container: DependencyContainer; root: string; home: string }[] =
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
-    if (entry.container.isRegistered(portToken(ShellRegistryPort), true)) {
-      await entry.container.resolve(portToken(ShellRegistryPort)).closeAll()
+    if (entry.container.isRegistered(registeredPortToken(ShellRegistryPort), true)) {
+      await entry.container.resolve(registeredPortToken(ShellRegistryPort)).closeAll()
     }
     rmSync(entry.root, { recursive: true, force: true })
     rmSync(entry.home, { recursive: true, force: true })
@@ -117,13 +117,13 @@ async function openContainer(): Promise<{
   const home = mkdtempSync(join(tmpdir(), 'atlas-shell-publishing-home-'))
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: root })
-  container.register(portToken(ClockPort), { useClass: FixedClock })
+  container.register(registeredPortToken(ClockPort), { useClass: FixedClock })
   const log = fakeLog()
-  container.register(portToken(EventLogPort), { useValue: log })
-  container.register(portToken(IdPort), { useClass: StubIds })
+  container.register(registeredPortToken(EventLogPort), { useValue: log })
+  container.register(registeredPortToken(IdPort), { useClass: StubIds })
   container.register(AtlasHomeToken, { useValue: home })
   container.register(SessionRegistryToken, { useValue: registryFor({ home }) })
-  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
+  container.register(registeredPortToken(ProcessPort), { useValue: new LocalProcessPort() })
   const clock = new FixedClock()
   const ids = new StubIds()
   await new JsonlThreadStore(
@@ -152,7 +152,7 @@ const untilEnded = async (log: ReturnType<typeof fakeLog>): Promise<void> => {
 describe('registerShells with a channel resolved after the registry', () => {
   it('publishes events-appended to the owning thread when an idle shell ends', async () => {
     const { container, log } = await openContainer()
-    const shells = container.resolve(portToken(ShellRegistryPort))
+    const shells = container.resolve(registeredPortToken(ShellRegistryPort))
 
     const channel = createDeltaChannel()
     container.register(DeltaChannelToken, { useValue: channel })

@@ -10,7 +10,7 @@ import { EWebSearchBackend, ToolDefinition, type ToolOutcome,
 
 import { createHarnessContainer } from '../../container/create-harness-container'
 import { disposeAll } from '../../container/disposal'
-import { portToken, resolveSet, type DependencyContainer } from '../../container/injection'
+import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../../container/injection'
 import {
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -78,7 +78,7 @@ async function containerRootedAt(root: string): Promise<DependencyContainer> {
   container.register(WorkspaceRoot, { useValue: root })
   container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
   container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
-  await container.resolve(portToken(ThreadStorePort)).create({ id: toThreadId('thread-1') })
+  await container.resolve(registeredPortToken(ThreadStorePort)).create({ id: toThreadId('thread-1') })
   return container
 }
 
@@ -121,7 +121,7 @@ describe('the builtin tools resolved from the container', () => {
   })
 
   it('builds a registry that finds every builtin by name', () => {
-    const registry = container.resolve(portToken(ToolRegistry))
+    const registry = container.resolve(registeredPortToken(ToolRegistry))
 
     expect(registry.declarations().map((declaration) => declaration.name)).toEqual(BUILTIN_NAMES)
     expect(registry.find('bash')).toBeInstanceOf(BashTool)
@@ -172,7 +172,7 @@ describe('tool registration across containers', () => {
   it('refuses to build a registry when the workspace root was never registered', () => {
     const container = createHarnessContainer()
 
-    expect(() => container.resolve(portToken(ToolRegistry))).toThrow()
+    expect(() => container.resolve(registeredPortToken(ToolRegistry))).toThrow()
   })
 })
 
@@ -240,7 +240,7 @@ describe('the background shell registry the tools share', () => {
       })
       await Bun.sleep(150)
 
-      const shells = container.resolve(portToken(ShellRegistryPort))
+      const shells = container.resolve(registeredPortToken(ShellRegistryPort))
       await disposeAll({ container })
       await Bun.sleep(2200)
 
