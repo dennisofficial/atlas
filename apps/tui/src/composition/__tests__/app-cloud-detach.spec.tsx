@@ -4,7 +4,7 @@ import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { HEADING } from '../../ui/components/exit-guard'
 import { fakeBridge } from '../cloud/__tests__/fixture'
 import { DETACHED_EXIT_LINE } from '../use-workspace-exit'
-import { mount, slowlySpeaking, speaking } from './app-container-cloud-fixture'
+import { mountInCloud, speaking } from './app-container-cloud-fixture'
 
 await grammarsReady()
 
@@ -14,9 +14,7 @@ describe('leaving a cloud conversation', () => {
   it('detaches without asking, closing the socket and leaving the sandbox alone', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
-
-    await mounted.run('cloud')
+    const mounted = await mountInCloud({ app, bridge })
 
     mounted.pressCtrlC()
     await settle(PRESS_MS)
@@ -28,10 +26,9 @@ describe('leaving a cloud conversation', () => {
   it('never shows the local stop-tasks guard on the way out', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await mounted.run('cloud')
       const before = await mounted.frame()
 
       expect(before).not.toContain(HEADING)
@@ -41,11 +38,10 @@ describe('leaving a cloud conversation', () => {
   }, 60_000)
 
   it('detaches mid-turn rather than interrupting the work on the sandbox', async () => {
-    const app = slowlySpeaking()
+    const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
-    await mounted.run('cloud')
     await mounted.say('take your time with this')
 
     mounted.pressCtrlC()

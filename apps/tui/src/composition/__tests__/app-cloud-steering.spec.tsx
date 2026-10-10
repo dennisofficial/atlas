@@ -5,13 +5,13 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
 import { EImageDelivery, toRunId } from '@dltech/atlas-core'
-import { ETurnStatus } from '@dltech/atlas-harness'
+import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import { until, THREAD } from './app-fixture'
-import { mount, slowlySpeaking } from './app-container-cloud-fixture'
+import { mountInCloud, speaking } from './app-container-cloud-fixture'
 
 await grammarsReady()
 
@@ -45,42 +45,27 @@ const onTheClipboard = (): ClipboardImageReader => {
   })
 }
 
-type Mounted = Awaited<ReturnType<typeof mount>>
+type Mounted = Awaited<ReturnType<typeof mountInCloud>>
 
-const liftMidTurn = async (mounted: Mounted, bridge: FakeBridge): Promise<void> => {
-  await mounted.typeText('keep going')
-  mounted.pressEnter()
+const startCloudTurn = async (mounted: Mounted, bridge: FakeBridge): Promise<void> => {
+  bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+  bridge.channel.ready({ turnInFlight: true })
 
   const working = await until({
     holds: async () => (await mounted.nextFrame()).includes('esc to interrupt'),
     within: 20_000,
   })
   expect(working).toBe(true)
-
-  await mounted.typeText('/container cloud')
-  mounted.pressEnter()
-
-  const attached = await until({
-    holds: async () => bridge.attached.length === 1,
-    within: 20_000,
-  })
-  expect(attached).toBe(true)
-
-  const resumed = await until({
-    holds: async () => bridge.channel.runs === 1,
-    within: 20_000,
-  })
-  expect(resumed).toBe(true)
 }
 
 describe('steering a turn that runs in the cloud', () => {
   it('forwards a message typed mid-turn to the sandbox instead of queueing it locally', async () => {
-    const app = slowlySpeaking()
+    const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await liftMidTurn(mounted, bridge)
+      await startCloudTurn(mounted, bridge)
 
       await mounted.typeText(STEER)
       mounted.pressEnter()
@@ -109,7 +94,7 @@ describe('steering a turn that runs in the cloud', () => {
         within: 20_000,
       })
       expect(saidAgain).toBe(true)
-      expect(bridge.channel.runs).toBe(1)
+      expect(bridge.channel.runs).toBe(0)
 
       bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-2') })
     } finally {
@@ -118,12 +103,12 @@ describe('steering a turn that runs in the cloud', () => {
   }, 60_000)
 
   it('renders a steered message once — the sending placeholder, with no duplicate queued row', async () => {
-    const app = slowlySpeaking()
+    const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await liftMidTurn(mounted, bridge)
+      await startCloudTurn(mounted, bridge)
 
       await mounted.typeText(STEER)
       mounted.pressEnter()
@@ -170,12 +155,12 @@ describe('steering a turn that runs in the cloud', () => {
   }, 60_000)
 
   it('steers a running cloud turn with an image attached, forwarding it to the sandbox', async () => {
-    const app = slowlySpeaking()
+    const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge, clipboard: onTheClipboard() })
+    const mounted = await mountInCloud({ app, bridge, clipboard: onTheClipboard() })
 
     try {
-      await liftMidTurn(mounted, bridge)
+      await startCloudTurn(mounted, bridge)
 
       mounted.pressCtrl('v')
       const tagged = await until({
@@ -206,12 +191,12 @@ describe('steering a turn that runs in the cloud', () => {
   }, 60_000)
 
   it('renders the sandbox queue the channel broadcasts, and ↑ takes the last entry back into the draft', async () => {
-    const app = slowlySpeaking()
+    const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await liftMidTurn(mounted, bridge)
+      await startCloudTurn(mounted, bridge)
 
       bridge.channel.pushPending([
         { id: 'pending-1', text: STEER, reserved: false },
@@ -248,12 +233,12 @@ describe('steering a turn that runs in the cloud', () => {
   }, 60_000)
 
   it('leaves the row and the draft alone when the sandbox has nothing left to take back', async () => {
-    const app = slowlySpeaking()
+    const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await liftMidTurn(mounted, bridge)
+      await startCloudTurn(mounted, bridge)
 
       bridge.channel.pushPending([
         { id: 'pending-1', text: STEER, reserved: false },

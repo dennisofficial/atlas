@@ -137,8 +137,6 @@ export function useWorkspaceSession(args: {
     return true
   }, [conversation.model.entries, handleToggle])
 
-  const { working } = conversation
-
   const birth = useThreadBirth({
     app: props.localApp,
     owner: props.localApp.sessionOwner,
@@ -150,10 +148,12 @@ export function useWorkspaceSession(args: {
   })
 
   const handleNewConversation = useCallback(() => {
-    if (working) return
+    // A queued /new runs after the turn settles; a live read, not the render's boolean — the
+    // settled-command entry closes over this callback while the turn is still in flight.
+    if (conversation.turnInFlight()) return
     draft.clear()
     birth.handleNewThread()
-  }, [birth, draft, working])
+  }, [birth, conversation, draft])
 
   return {
     draft,

@@ -7,7 +7,7 @@ import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { dismissNotice } from '../../ui/notice-store'
 import { fakeBridge } from '../cloud/__tests__/fixture'
 import { until } from './app-fixture'
-import { mount, speaking } from './app-container-cloud-fixture'
+import { mountInCloud, speaking } from './app-container-cloud-fixture'
 
 await grammarsReady()
 
@@ -19,10 +19,9 @@ describe('pressing escape while the cloud socket is down', () => {
   it('refuses the fake interrupt during a reconnect and lets the turn keep running', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await mounted.run('cloud')
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
 
       mounted.typeText('keep going')
@@ -87,10 +86,9 @@ describe('sending a message to a parked sandbox', () => {
   it('reads as waking rather than working while the sandbox is being woken', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await mounted.run('cloud')
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
 
       bridge.channel.moveTo({ state: EChannelConnection.Parked, detail: 'idle past the TTL' })
@@ -115,10 +113,9 @@ describe('sending a message to a parked sandbox', () => {
   it('reads as reconnecting rather than working while the attachment is being re-created', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await mounted.run('cloud')
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
 
       bridge.channel.moveTo({ state: EChannelConnection.Parked, detail: 'idle past the TTL' })
