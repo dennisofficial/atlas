@@ -47,6 +47,7 @@ export function createCheckoutTracking(args: {
   const tracker = createFamilyTracker({ service: args.service })
   const directories = new Map<ThreadId, string>()
   const homes = new Map<ThreadId, string>()
+  const worktrees = new Map<ThreadId, string>()
   let mainThread: ThreadId | null = null
 
   const resolve = async (request: {
@@ -70,6 +71,9 @@ export function createCheckoutTracking(args: {
     const checkout = await resolve(request)
     return tracker.place({ threadId: request.threadId, checkout })
   }
+
+  const directoryOf = (request: { threadId: ThreadId; projectDirectory: string }): string =>
+    worktrees.get(request.threadId) ?? request.projectDirectory
 
   const adoptMain = (threadId: ThreadId): void => {
     if (mainThread !== null) return
@@ -95,13 +99,13 @@ export function createCheckoutTracking(args: {
     },
     beforeTurn: async ({ threadId, projectDirectory }) => {
       adoptMain(threadId)
-      await follow({ threadId, directory: projectDirectory })
+      await follow({ threadId, directory: directoryOf({ threadId, projectDirectory }) })
       if (!tracker.hasVisibleThread()) tracker.show({ threadId })
       return {}
     },
     threadOpened: async ({ threadId, projectDirectory }) => {
       adoptMain(threadId)
-      await follow({ threadId, directory: projectDirectory })
+      await follow({ threadId, directory: directoryOf({ threadId, projectDirectory }) })
       tracker.show({ threadId })
       return {}
     },
@@ -117,6 +121,9 @@ export function createCheckoutTracking(args: {
             ? (exited.returnTo ?? homes.get(call.threadId))
             : undefined
       if (directory === undefined) return {}
+
+      if (entered !== undefined) worktrees.set(call.threadId, entered.path)
+      else worktrees.delete(call.threadId)
 
       await follow({ threadId: call.threadId, directory })
       return {}

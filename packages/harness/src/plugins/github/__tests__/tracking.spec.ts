@@ -269,3 +269,114 @@ describe('the family of threads', () => {
     service.dispose()
   })
 })
+
+describe('a thread that entered a worktree', () => {
+  const TEAMMATE = toThreadId('thread-teammate')
+
+  const worktreeRig = () => {
+    const places = new Map<string, RepositoryCheckout | null>()
+    const port = pullRequestsByKey({
+      [keyOf(aCheckout({ branch: 'dennis/one' }))]: wasFound({ number: 1 }),
+      [keyOf(aCheckout({ branch: 'dennis/two' }))]: wasFound({ number: 2 }),
+    })
+    const service = createPullRequestService({ pullRequests: port })
+    const probeCalls: string[] = []
+    const tracking = createCheckoutTracking({
+      service,
+      facts: createSessionFacts({ launchDirectory: '/root' }),
+      probe: async ({ directory }) => {
+        probeCalls.push(directory)
+        return places.get(directory) ?? null
+      },
+    })
+    places.set('/root', aCheckout({ branch: 'main', directory: '/root' }))
+    places.set('/tree', aCheckout({ branch: 'dennis/one', directory: '/tree' }))
+
+    return { places, service, tracking, probeCalls }
+  }
+
+  const callOf = (threadId: typeof THREAD, name: string) => ({
+    callId: toCallId(`call-${name}`),
+    name,
+    input: {},
+    effect: EToolEffect.Destructive,
+    threadId,
+  })
+
+  const enter = (tracking: ReturnType<typeof worktreeRig>['tracking'], threadId: typeof THREAD) =>
+    tracking.followWorktree({
+      call: callOf(threadId, 'enter_worktree'),
+      result: {
+        ok: true,
+        output: { enteredWorktree: { path: '/tree', branch: 'dennis/one' } },
+        modelText: 'entered',
+      },
+      projectDirectory: '/root',
+      signal: new AbortController().signal,
+    })
+
+  const exit = (tracking: ReturnType<typeof worktreeRig>['tracking'], threadId: typeof THREAD) =>
+    tracking.followWorktree({
+      call: callOf(threadId, 'exit_worktree'),
+      result: {
+        ok: true,
+        output: { exitedWorktree: { path: '/tree', action: 'keep' } },
+        modelText: 'exited',
+      },
+      projectDirectory: '/root',
+      signal: new AbortController().signal,
+    })
+
+  const branchOf = (tracking: ReturnType<typeof worktreeRig>['tracking'], threadId: typeof THREAD) =>
+    tracking.tracker.checkoutFor({ threadId })?.branch
+
+  for (const [label, threadId] of [
+    ['the main thread', THREAD],
+    ['a teammate', TEAMMATE],
+  ] as const) {
+    it(`keeps ${label}’s worktree against probes that carry the repo root`, async () => {
+      const { service, tracking, probeCalls } = worktreeRig()
+      await tracking.beforeTurn({ threadId, projectDirectory: '/root' })
+      await enter(tracking, threadId)
+      expect(branchOf(tracking, threadId)).toBe('dennis/one')
+
+      await tracking.beforeTurn({ threadId, projectDirectory: '/root' })
+      expect(branchOf(tracking, threadId)).toBe('dennis/one')
+      await tracking.threadOpened({ threadId, projectDirectory: '/root' })
+      expect(branchOf(tracking, threadId)).toBe('dennis/one')
+      await tracking.afterTurn({ threadId })
+      expect(branchOf(tracking, threadId)).toBe('dennis/one')
+
+      expect(probeCalls.slice(2)).toEqual(['/tree', '/tree', '/tree'])
+      service.dispose()
+    })
+
+    it(`returns ${label} to the root on exit and probes projectDirectory again`, async () => {
+      const { service, tracking, probeCalls } = worktreeRig()
+      await tracking.beforeTurn({ threadId, projectDirectory: '/root' })
+      await enter(tracking, threadId)
+
+      await exit(tracking, threadId)
+      expect(branchOf(tracking, threadId)).toBe('main')
+
+      probeCalls.length = 0
+      await tracking.beforeTurn({ threadId, projectDirectory: '/root' })
+      expect(probeCalls).toEqual(['/root'])
+      expect(branchOf(tracking, threadId)).toBe('main')
+      service.dispose()
+    })
+  }
+
+  it('picks up a branch change inside the worktree at turn end', async () => {
+    const { places, service, tracking } = worktreeRig()
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/root' })
+    await enter(tracking, THREAD)
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/root' })
+
+    places.set('/tree', aCheckout({ branch: 'dennis/two', directory: '/tree' }))
+    await tracking.afterTurn({ threadId: THREAD })
+
+    expect(branchOf(tracking, THREAD)).toBe('dennis/two')
+    service.dispose()
+  })
+})
