@@ -57,6 +57,7 @@ describe('the harness container graph', () => {
       'mcp-edit',
       'multi_edit',
       'operator_input',
+      'operator_shell_input',
       'read',
       'report_to_main',
       'service_list',

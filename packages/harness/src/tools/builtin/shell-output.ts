@@ -46,7 +46,7 @@ function renderModelText(args: { snapshot: ShellSnapshot; delta: ShellDelta }): 
 
   if (snapshot.awaitingInput) {
     sections.push(
-      'Its last line looks like a prompt waiting on input. Use shell_input to answer a durable shell, including a newline when the program reads a line.',
+      'It is sitting at a prompt waiting for input — this is a live, answerable state, NOT a closed or dead stdin. Answer it with shell_input (include a trailing newline). Do NOT kill and restart it just because it is waiting.',
     )
   }
 
@@ -105,6 +105,7 @@ export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
         status: read.snapshot.status,
         exitCode: read.snapshot.exitCode,
         awaitingInput: read.snapshot.awaitingInput,
+        inputSupported: read.snapshot.inputSupported,
         outputPath: read.snapshot.outputPath,
         text: read.delta.text,
         droppedCharacters: read.delta.droppedCharacters,

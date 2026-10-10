@@ -22,8 +22,12 @@ const inputSchema = z.strictObject({
 
 export class OperatorInputTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'operator_input'
-  readonly description =
-    'Ask the operator to paste text directly into a new file or a waiting FIFO at path. Text is preserved exactly. Set appendNewline true for a line-oriented CLI prompt; a newline is appended only if the paste has none at its end. Existing regular files are never overwritten. The tool waits for the operator, then reports delivery or failure and the UTF-8 byte count, not the value. The delivered file is yours to keep and reuse: read it, pipe it, or pass it to as many later commands as the work needs rather than asking the operator again. For interactive login, first make a unique FIFO and start the CLI under a background shell with exec 0<>"$fifo" so it can print its URL without waiting for a writer. A plain < FIFO blocks before the URL prints. Read that URL and call this tool with url, path and appendNewline true. CLI setup is yours to choose; this is a pipe, not a terminal. A failed delivery means the reader or destination was unavailable; restart an expired login before requesting a fresh code. The operator can interrupt to cancel.'
+  readonly description = [
+    'Ask the operator to paste text directly into a new file or a waiting FIFO at path. Text is preserved exactly. Set appendNewline true for a line-oriented CLI prompt; a newline is appended only if the paste has none at its end. Existing regular files are never overwritten. The tool waits for the operator, then reports delivery or failure and the UTF-8 byte count, not the value. The delivered file is yours to keep and reuse: read it, pipe it, or pass it to as many later commands as the work needs rather than asking the operator again.',
+    'For interactive login, start the CLI as a background shell (bash with runInBackground) and read its output for the URL or prompt. Call this tool with url, a fresh scratch file path and appendNewline true, then feed the delivered value to the waiting shell with shell_input (or read the file and pipe it). One paste, no FIFO.',
+    'Fall back to a FIFO only for a CLI that refuses a pipe and must read a real file or tty: make a unique FIFO and start the CLI under a background shell with exec 0<>"$fifo" so it can print its URL without waiting for a writer (a plain < FIFO blocks before the URL prints), read the URL, then call this tool with url, the FIFO path and appendNewline true. Once fd 0 is the FIFO, shell_input no longer reaches that shell, and each prompt consumes exactly one write.',
+    'CLI setup is yours to choose; this is a pipe, not a terminal. A failed delivery means the reader or destination was unavailable; restart an expired login before requesting a fresh code. The operator can interrupt to cancel.',
+  ].join(' ')
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
   override readonly pathFields = [

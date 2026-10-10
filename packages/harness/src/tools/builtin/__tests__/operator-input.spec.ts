@@ -81,4 +81,14 @@ describe('operator_input', () => {
     expect((await invoke({ tool, input: { description: 'x', path: '/tmp/x', url: 'javascript:alert(1)' } })).ok).toBe(false)
     expect(requests).toHaveLength(0)
   })
+
+  it('describes the shell_input recipe before the FIFO fallback', () => {
+    const { tool } = fixture()
+    const { description } = tool
+    expect(description).toContain('shell_input')
+    expect(description).toContain('runInBackground')
+    expect(description).toContain('pipe, not a terminal')
+    expect(description.indexOf('shell_input')).toBeLessThan(description.indexOf('FIFO and start'))
+    expect(description).toContain('shell_input no longer reaches that shell')
+  })
 })

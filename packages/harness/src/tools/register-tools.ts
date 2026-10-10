@@ -59,6 +59,7 @@ import { ShellListTool } from './builtin/shell-list'
 import { ShellOutputTool } from './builtin/shell-output'
 import { ShellInputTool } from './builtin/shell-input'
 import { OperatorInputTool } from './builtin/operator-input'
+import { OperatorShellInputTool } from './builtin/operator-shell-input'
 import { SkillTool } from './builtin/skill'
 import { SkillInstallTool } from './builtin/skill-install'
 import { TaskWriteTool } from './builtin/task-write'
@@ -148,6 +149,12 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new OperatorInputTool({
+      operatorInput: resolver.resolve(portToken(OperatorInputPort)),
+      threads: resolver.resolve(portToken(ThreadStorePort)),
+    }),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new OperatorShellInputTool({
       operatorInput: resolver.resolve(portToken(OperatorInputPort)),
       threads: resolver.resolve(portToken(ThreadStorePort)),
     }),

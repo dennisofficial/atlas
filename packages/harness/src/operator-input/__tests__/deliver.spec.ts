@@ -20,6 +20,17 @@ async function fixture() {
   return { root, path, args, close: () => rm(root, { recursive: true }) }
 }
 
+function failingProcesses(args: { code: number; stderr: string }): ProcessPort {
+  const stream = (text: string) => new ReadableStream<Uint8Array>({
+    start: (controller) => {
+      controller.enqueue(new TextEncoder().encode(text))
+      controller.close()
+    },
+  })
+  const handle = (): ProcessHandle => ({ stdout: stream(''), stderr: stream(args.stderr), exited: Promise.resolve(args.code), terminate: () => undefined })
+  return { spawn: handle, which: () => null }
+}
+
 describe('operator input destination', () => {
   it('preserves large multiline UTF-8 text exactly in a new private file', async () => {
     const { path, args, close } = await fixture()
@@ -34,8 +45,52 @@ describe('operator input destination', () => {
     const { path, args, close } = await fixture()
     try {
       await writeFile(path, 'original')
-      expect((await deliverOperatorInput(args)).ok).toBe(false)
+      const result = await deliverOperatorInput(args)
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.reason).toContain('already exists')
+        expect(result.reason).toContain('never overwrites')
+      }
       expect(await readFile(path, 'utf8')).toBe('original')
+    } finally { await close() }
+  })
+
+  it('includes a short stderr tail in a no-clobber failure reason', async () => {
+    const { args, close } = await fixture()
+    try {
+      const stderr = `sh: 1: cannot create ${args.path}: File exists`
+      const result = await deliverOperatorInput({ ...args, processes: failingProcesses({ code: 2, stderr }) })
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.reason).toContain('already exists')
+        expect(result.reason).toContain(stderr)
+      }
+    } finally { await close() }
+  })
+
+  it('includes the exit code and short stderr tail for other failures', async () => {
+    const { args, close } = await fixture()
+    try {
+      const result = await deliverOperatorInput({ ...args, processes: failingProcesses({ code: 1, stderr: 'sh: 1: Permission denied\n' }) })
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.reason).toContain('exit 1')
+        expect(result.reason).toContain('(sh: 1: Permission denied)')
+        expect(result.reason).not.toContain('already exists')
+      }
+    } finally { await close() }
+  })
+
+  it('omits a long stderr from the failure reason', async () => {
+    const { args, close } = await fixture()
+    try {
+      const stderr = 'x'.repeat(300)
+      const result = await deliverOperatorInput({ ...args, processes: failingProcesses({ code: 1, stderr }) })
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.reason).toContain('exit 1')
+        expect(result.reason).not.toContain(stderr)
+      }
     } finally { await close() }
   })
 

@@ -50,6 +50,7 @@ const BUILTIN_NAMES = [
   'shell_kill',
   'shell_input',
   'operator_input',
+  'operator_shell_input',
   'service_start',
   'service_stop',
   'service_list',
