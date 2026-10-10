@@ -6,7 +6,9 @@ import { asVercelFailure, isSandboxMissing } from '@dltech/atlas-wire'
 
 export const PINNED = '2.0.0'
 
-export const STALE = '1.0.0'
+// Drain-capable but stale against the pin, so rotation specs exercise the drain gate rather than
+// the pre-drain-protocol fast path (1.61.0 is the first version with /v1/drain).
+export const STALE = '1.80.0'
 
 export const FULL_IDLE: ServeRuntimeHealth = {
   busy: false,

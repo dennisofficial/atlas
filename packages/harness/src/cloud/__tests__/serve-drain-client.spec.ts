@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { DRAIN_COMMAND_TIMEOUT_MS, DRAIN_REASON, drainServe } from '../serve-drain-client'
-import { SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import { EVercelFailure, SERVE_TOKEN_PATH, VercelFailure } from '@dltech/atlas-wire'
 import { rotationReceipt } from './rotation-fixture'
 
 const receipt = rotationReceipt()
@@ -14,6 +14,7 @@ const sandboxAnswering = (args: {
   exitCode?: number
   legacy?: boolean
   health?: string
+  healthExitCode?: number
   calls?: { script: string; timeoutMs: number }[]
 }) => {
   let requested = false
@@ -24,7 +25,7 @@ const sandboxAnswering = (args: {
       args.calls?.push({ script, timeoutMs: params.timeoutMs ?? 0 })
       if (script.includes('/v1/health')) {
         const ready = args.legacy ? '{"ok":true}' : '{"rotationPreparationVersion":1,"sandboxSessionId":"session-1"}'
-        return { exitCode: 0, stdout: async () => args.health ?? ready }
+        return { exitCode: args.healthExitCode ?? 0, stdout: async () => args.health ?? ready }
       }
       if (script.includes('/v1/drain')) {
         requested = true
@@ -47,9 +48,9 @@ describe('confirmed drainServe', () => {
     expect(call?.timeoutMs).toBe(DRAIN_COMMAND_TIMEOUT_MS)
   })
 
-  it('does not invoke the old unsafe endpoint without the safe-preparation capability', async () => {
+  it('bypasses the drain for a serve that predates the drain protocol, keeping the sandbox intact', async () => {
     const calls: { script: string; timeoutMs: number }[] = []
-    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '200', legacy: true, calls }), url: URL })).rejects.toThrow('sandbox was preserved')
+    await drainServe({ sandbox: sandboxAnswering({ stdout: '200', legacy: true, calls }), url: URL })
     expect(calls.some((call) => call.script.includes('/v1/drain'))).toBe(false)
   })
 
@@ -137,5 +138,27 @@ describe('a wedged serve at the drain seam', () => {
 
   it('preserves when the health body cannot be parsed at all', async () => {
     await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: 'not-json' }), url: URL })).rejects.toThrow('sandbox was preserved')
+  })
+})
+
+describe('a legacy serve at the drain seam', () => {
+  it('still refuses an answered health outside the bare pre-#1025 shape', async () => {
+    const foreign = JSON.stringify({ ok: true, sandboxSessionId: 'session-2' })
+    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '200', health: foreign }), url: URL })).rejects.toThrow('sandbox was preserved')
+  })
+
+  it('still refuses when health is unreachable', async () => {
+    const calls: { script: string; timeoutMs: number }[] = []
+    await expect(
+      drainServe({ sandbox: sandboxAnswering({ stdout: '200', healthExitCode: 7, health: '', calls }), url: URL }),
+    ).rejects.toThrow('sandbox was preserved')
+    expect(calls.some((call) => call.script.includes('/v1/drain'))).toBe(false)
+  })
+
+  it('throws the refusal as a typed DrainRefused failure the wake path can classify', async () => {
+    const foreign = JSON.stringify({ ok: true, sandboxSessionId: 'session-2' })
+    const failure = await drainServe({ sandbox: sandboxAnswering({ stdout: '200', health: foreign }), url: URL }).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(VercelFailure)
+    expect((failure as VercelFailure).kind).toBe(EVercelFailure.DrainRefused)
   })
 })
