@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_HOME_PATH, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import { DRIVE_HOME_PATH, SERVE_TOKEN_PATH, SWAP_LOCK_PATH } from '@dltech/atlas-wire'
 import { drainServe } from '../serve-drain-client'
 import { persistSandboxRotationReceipt } from '../sandbox-rotation-receipt'
 import { rotationReceipt } from './rotation-fixture'
@@ -15,8 +15,20 @@ const fixture = async () => {
   await writeFile(tokenFile, 'test-only-token')
   const sandbox = {
     currentSession: () => ({ sessionId: 'session-1' }),
-    runCommand: async (args: { args: string[] }) => {
+    runCommand: async (args: { args: string[]; detached?: boolean }) => {
       const script = (args.args[1] ?? '').replaceAll(SERVE_TOKEN_PATH, tokenFile).replaceAll(DRIVE_HOME_PATH, home)
+      if (args.detached === true && script.includes(SWAP_LOCK_PATH)) {
+        return {
+          cmdId: 'cmd_lock',
+          exitCode: null,
+          wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
+          kill: async () => undefined,
+        }
+      }
+      if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
+        return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
+      }
+      if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       const process = Bun.spawn(['sh', '-c', script], { stdout: 'pipe', stderr: 'pipe' })
       const [stdout, stderr, exitCode] = await Promise.all([
         new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited,

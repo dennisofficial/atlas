@@ -9,6 +9,7 @@ import {
   LEGACY_SERVE_LOG_PATH,
   SERVE_LOG_PATH,
   SERVE_VERSION_PATH,
+  SWAP_LOCK_PATH,
 } from '@dltech/atlas-wire'
 import { tailServeLog } from '../vercel-driver-probes'
 
@@ -44,6 +45,18 @@ describe('serve diagnostic log filesystem behavior', () => {
       name: 'diagnostic-log-probe',
       runCommand: async (args: { args?: string[]; detached?: boolean }) => {
         const script = args.args?.[1] ?? ''
+        if (args.detached === true && script.includes(SWAP_LOCK_PATH)) {
+          return {
+            cmdId: 'cmd_lock',
+            exitCode: null,
+            wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
+            kill: async () => undefined,
+          }
+        }
+        if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
+          return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
+        }
+        if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0 }
         if (args.detached) {
           launch = script
           return { exitCode: 0 }
