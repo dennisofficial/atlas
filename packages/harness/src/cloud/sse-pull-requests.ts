@@ -14,6 +14,8 @@ import {
   PrSubscriptionClient,
   type SubscriptionHandle,
 } from './pr-subscription-client'
+import { createHeartbeatLoop, type HeartbeatLoop } from './sse-heartbeat-loop'
+import { resolveSseClock, type SsePullRequestClock } from './sse-pull-request-clock'
 import {
   createSseSubscriptionBook,
   type SseSubscriptionBook,
@@ -29,14 +31,6 @@ const unavailable = (retryable: boolean): PullRequestReading => ({
   retryable,
 })
 
-export type SsePullRequestClock = {
-  now?: () => number
-  setIntervalFn?: typeof setInterval
-  clearIntervalFn?: typeof clearInterval
-  setTimeoutFn?: typeof setTimeout
-  clearTimeoutFn?: typeof clearTimeout
-}
-
 export class SsePullRequestPort extends PullRequestPort {
   readonly pushes = true
 
@@ -45,7 +39,7 @@ export class SsePullRequestPort extends PullRequestPort {
   private readonly clock: Required<SsePullRequestClock>
 
   private stream: AbortController | null = null
-  private heartbeat: ReturnType<typeof setInterval> | null = null
+  private readonly heartbeat: HeartbeatLoop
   private disposeTimer: ReturnType<typeof setTimeout> | null = null
   private sessionDead = false
   private readonly silenceTimeoutMs: number | undefined
@@ -68,13 +62,7 @@ export class SsePullRequestPort extends PullRequestPort {
     this.log = args.log
     this.onPrEvent = args.onPrEvent
     this.silenceTimeoutMs = args.silenceTimeoutMs
-    this.clock = {
-      now: args.clock?.now ?? Date.now,
-      setIntervalFn: args.clock?.setIntervalFn ?? setInterval,
-      clearIntervalFn: args.clock?.clearIntervalFn ?? clearInterval,
-      setTimeoutFn: args.clock?.setTimeoutFn ?? setTimeout,
-      clearTimeoutFn: args.clock?.clearTimeoutFn ?? clearTimeout,
-    }
+    this.clock = resolveSseClock(args.clock)
     this.client = new PrSubscriptionClient({
       session: args.session,
       clientVersion: args.clientVersion,
@@ -83,6 +71,14 @@ export class SsePullRequestPort extends PullRequestPort {
     this.book = createSseSubscriptionBook({
       now: this.clock.now,
       onReading: (readingArgs) => args.onReading(readingArgs),
+    })
+    this.heartbeat = createHeartbeatLoop({
+      intervalMs: HEARTBEAT_MS,
+      clock: this.clock,
+      book: this.book,
+      beat: (beatArgs) => this.client.heartbeat(beatArgs),
+      onEmpty: () => this.scheduleDispose(),
+      onNeedsCatchUp: () => this.catchUpFromHeartbeat(),
     })
   }
 
@@ -116,7 +112,7 @@ export class SsePullRequestPort extends PullRequestPort {
       this.clock.clearTimeoutFn(this.disposeTimer)
       this.disposeTimer = null
     }
-    this.stopHeartbeat()
+    this.heartbeat.stop()
     this.stream?.abort()
     this.stream = null
 
@@ -163,7 +159,7 @@ export class SsePullRequestPort extends PullRequestPort {
       state: outcome.state,
     })
     this.ensureStream()
-    this.startHeartbeat()
+    this.heartbeat.start()
     return reading
   }
 
@@ -202,7 +198,7 @@ export class SsePullRequestPort extends PullRequestPort {
       if (controller.signal.aborted || this.stream !== controller) return
       if (failure instanceof SseRefused) {
         this.noteSessionDead()
-        this.stopHeartbeat()
+        this.heartbeat.stop()
       }
       this.book.markAllStale()
     }).finally(() => {
@@ -249,32 +245,18 @@ export class SsePullRequestPort extends PullRequestPort {
     this.noteSessionAlive()
   }
 
-  private startHeartbeat(): void {
-    if (this.heartbeat !== null) return
-
-    this.heartbeat = this.clock.setIntervalFn(() => {
-      if (this.book.size() === 0) {
-        this.stopHeartbeat()
-        this.scheduleDispose()
-        return
-      }
-      for (const entry of this.book.entries()) {
-        void this.client.heartbeat({ id: entry.handle.id }).catch(() => {
-          const controller = this.stream
-          if (controller === null || controller.signal.aborted) return
-          const generation = this.generation
-          void this.catchUp({ controller, generation }).catch((failure: unknown) => {
-            if (!(failure instanceof SseRefused) || this.stream !== controller || generation !== this.generation) return
-            this.noteSessionDead()
-            this.book.markAllStale()
-            this.stopHeartbeat()
-            controller.abort()
-            this.stream = null
-          })
-        })
-      }
-    }, HEARTBEAT_MS)
-    this.heartbeat.unref?.()
+  private catchUpFromHeartbeat(): void {
+    const controller = this.stream
+    if (controller === null || controller.signal.aborted) return
+    const generation = this.generation
+    void this.catchUp({ controller, generation }).catch((failure: unknown) => {
+      if (!(failure instanceof SseRefused) || this.stream !== controller || generation !== this.generation) return
+      this.noteSessionDead()
+      this.book.markAllStale()
+      this.heartbeat.stop()
+      controller.abort()
+      this.stream = null
+    })
   }
 
   private noteSessionDead(): void {
@@ -293,12 +275,6 @@ export class SsePullRequestPort extends PullRequestPort {
       source: 'cloud.pull-requests',
       message: 'the cloud API accepts the pull request session again; realtime tracking resumed',
     })
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeat === null) return
-    this.clock.clearIntervalFn(this.heartbeat)
-    this.heartbeat = null
   }
 
   private scheduleDispose(): void {

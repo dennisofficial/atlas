@@ -104,6 +104,7 @@ export class PrSubscriptionClient {
     await this.transport.request({
       method: 'POST',
       path: `/v1/github/subscriptions/${encodeURIComponent(args.id)}/heartbeat`,
+      retry: true,
     })
   }
 
