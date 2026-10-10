@@ -229,6 +229,42 @@ describe('reading a background shell through shell_output', () => {
     expect(modelTextOf(outcome)).not.toContain('final, complete output')
   }, 30_000)
 
+  it('reads a shell sitting at a prompt as live and answerable, not as a closed stdin', async () => {
+    const suite = await openSuite()
+    const started = outputOf(
+      await runBash(suite, { command: `printf 'Password: '; sleep 30`, runInBackground: true }),
+    )
+    await Bun.sleep(PROMPT_SETTLE_MS + 400)
+
+    const outcome = await invoke(suite.output, { shellId: started.shellId })
+    const text = modelTextOf(outcome)
+
+    expect(outputOf(outcome).awaitingInput).toBe(true)
+    expect(text).toContain('sitting at a prompt waiting for input')
+    expect(text).toContain('NOT a closed or dead stdin')
+    expect(text).toContain('shell_input')
+    expect(text).toContain('trailing newline')
+    expect(text).toContain('Do NOT kill and restart it just because it is waiting')
+  }, 15_000)
+
+  it('reports whether the shell accepts input', async () => {
+    const suite = await openSuite()
+    const started = outputOf(await runBash(suite, { command: 'sleep 30', runInBackground: true }))
+
+    const outcome = await invoke(suite.output, { shellId: started.shellId })
+
+    expect(outputOf(outcome).inputSupported).toBe(true)
+  }, 30_000)
+
+  it('does not call a shell with no prompt awaiting input', async () => {
+    const suite = await openSuite()
+    const started = outputOf(await runBash(suite, { command: 'sleep 30', runInBackground: true }))
+
+    const outcome = await invoke(suite.output, { shellId: started.shellId })
+
+    expect(modelTextOf(outcome)).not.toContain('sitting at a prompt')
+  }, 30_000)
+
   it('fails with a correctable message on an unknown shell id', async () => {
     const suite = await openSuite()
     await runBash(suite, { command: 'sleep 30', runInBackground: true })

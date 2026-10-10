@@ -3,6 +3,7 @@ import { AgentFileSystemPort, EventLogPort, IdPort, LogPort, ProcessPort } from 
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { DeltaChannelToken } from '../container/tokens'
+import { ShellRegistryPort } from '../shells/port'
 
 import { deliverOperatorInput } from './deliver'
 import { InProcessOperatorInput } from './registry'
@@ -28,6 +29,7 @@ export function registerOperatorInput({ container }: { container: DependencyCont
           files: container.resolve(portToken(AgentFileSystemPort)),
           processes: container.resolve(portToken(ProcessPort)),
         }),
+        writeShellInput: (args) => container.resolve(portToken(ShellRegistryPort)).writeInput(args),
       })
     }),
   })

@@ -14,6 +14,7 @@ export type OperatorInputAnswerOutcome =
 export type OperatorInputRequestArgs = OperatorInputPending & {
   threadId: ThreadId
   cwd: string
+  shellId?: string | undefined
   appendNewline: boolean
   signal: AbortSignal
 }

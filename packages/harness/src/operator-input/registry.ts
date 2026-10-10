@@ -7,6 +7,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { DeltaChannel } from '../channel/delta-channel'
+import type { ShellInputOutcome } from '../shells/background-shell'
 import type { DeliverOperatorInputArgs } from './deliver'
 import type {
   OperatorInputAnswerOutcome,
@@ -35,6 +36,7 @@ export class InProcessOperatorInput implements OperatorInputPort {
     ids: IdPort
     channel: () => DeltaChannel | undefined
     deliver: (args: DeliverOperatorInputArgs) => Promise<OperatorInputAnswerOutcome>
+    writeShellInput?: ((args: { threadId: ThreadId; shellId: string; text: string }) => Promise<ShellInputOutcome>) | undefined
     onListenerError?: ((cause: unknown) => void) | undefined
   }) {}
 
@@ -108,12 +110,14 @@ export class InProcessOperatorInput implements OperatorInputPort {
     const value = open.args.appendNewline && !args.value.endsWith('\n') ? `${args.value}\n` : args.value
     let result: OperatorInputAnswerOutcome
     try {
-      result = await this.deps.deliver({
-        path: open.request.path, value,
-        threadId: open.args.threadId,
-        cwd: open.args.cwd,
-        signal: open.args.signal,
-      })
+      result = open.args.shellId === undefined
+        ? await this.deps.deliver({
+          path: open.request.path, value,
+          threadId: open.args.threadId,
+          cwd: open.args.cwd,
+          signal: open.args.signal,
+        })
+        : await this.writeToShell({ shellId: open.args.shellId, threadId: open.args.threadId, value })
     } catch {
       result = { ok: false, reason: 'operator input delivery failed' }
     }
@@ -122,6 +126,19 @@ export class InProcessOperatorInput implements OperatorInputPort {
       ? EOperatorInputOutcome.Cancelled
       : result.ok ? EOperatorInputOutcome.Delivered : EOperatorInputOutcome.Undelivered
     return await this.settle({ open, outcome, result })
+  }
+
+  private async writeToShell(args: {
+    shellId: string
+    threadId: ThreadId
+    value: string
+  }): Promise<OperatorInputAnswerOutcome> {
+    if (this.deps.writeShellInput === undefined) {
+      return { ok: false, reason: 'this session cannot deliver operator input to a shell' }
+    }
+    const written = await this.deps.writeShellInput({ threadId: args.threadId, shellId: args.shellId, text: args.value })
+    if (!written.ok) return { ok: false, reason: `delivery to shell ${args.shellId} failed: ${written.reason}` }
+    return { ok: true, bytes: Buffer.byteLength(args.value) }
   }
 
   private async settle(args: {
