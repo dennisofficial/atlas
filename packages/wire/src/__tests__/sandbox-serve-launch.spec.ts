@@ -85,13 +85,15 @@ const launchesOf = (commands: RecordedCommand[]): RecordedCommand[] =>
   commands.filter((command) => command.detached === true)
 
 describe('createServeLauncher', () => {
-  it('writes the session token before anything else when no serve is alive', async () => {
+  it('writes the session token before the boot probes once the swap lock is held', async () => {
     const { sandbox, writes, ops } = fakeSandbox({ healthy: true, alive: false })
 
     await createServeLauncher()({ sandbox, token: 'tok_fresh' })
 
     expect(writes).toEqual([{ path: SERVE_TOKEN_PATH, content: 'tok_fresh', mode: 0o600 }])
-    expect(ops.slice(0, 3)).toEqual(['command', 'command', 'write'])
+    const writeAt = ops.indexOf('write')
+    expect(writeAt).toBeGreaterThan(-1)
+    expect(ops.slice(0, writeAt).every((op) => op === 'command')).toBe(true)
   })
 
   it('leaves the sandbox filesystem alone when no token is given', async () => {

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_HOME_PATH, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import { DRIVE_HOME_PATH, SERVE_TOKEN_PATH, SWAP_LOCK_PATH } from '@dltech/atlas-wire'
 import { drainServe } from '../serve-drain-client'
 import { persistSandboxRotationReceipt } from '../sandbox-rotation-receipt'
 import { rotationReceipt } from './rotation-fixture'
@@ -17,6 +17,7 @@ const fixture = async () => {
     currentSession: () => ({ sessionId: 'session-1' }),
     runCommand: async (args: { args: string[] }) => {
       const script = (args.args[1] ?? '').replaceAll(SERVE_TOKEN_PATH, tokenFile).replaceAll(DRIVE_HOME_PATH, home)
+      if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       const process = Bun.spawn(['sh', '-c', script], { stdout: 'pipe', stderr: 'pipe' })
       const [stdout, stderr, exitCode] = await Promise.all([
         new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited,

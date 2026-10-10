@@ -6,6 +6,8 @@ import {
   SERVE_TOKEN_PATH,
   sandboxDrainReplySchema,
   sandboxRotationReceiptSchema,
+  sandboxSh,
+  withSwapLock,
   type SandboxRotationReceipt,
 } from '@dltech/atlas-wire'
 import { SANDBOX_ROTATION_RECEIPT_RELATIVE_PATH } from './sandbox-rotation-receipt'
@@ -96,7 +98,12 @@ const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): 
   throw new Error('this serve cannot confirm safe relocation preparation — the sandbox was preserved')
 }
 
-export const drainServe: ServeDrain = async ({ sandbox, url }) => {
+export const drainServe: ServeDrain = ({ sandbox, url }) =>
+  // A second client arriving mid-swap blocks on the winner's lease, then sees the winner's
+  // preparation receipt and returns without draining again.
+  withSwapLock({ sandbox, sh: sandboxSh, run: () => drainServeUnlocked({ sandbox, url }) })
+
+const drainServeUnlocked: ServeDrain = async ({ sandbox, url }) => {
   if (await hasPreparedReceipt(sandbox)) return
   const gate = await requireSafePreparation({ sandbox, url })
   // A wedged serve already ended its own processes when it parked and cannot answer a drain —

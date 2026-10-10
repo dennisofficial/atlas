@@ -3,6 +3,7 @@ import type { Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from './channel-wire.js'
 import { installServe, type ServeInstaller } from './sandbox-serve-install.js'
+import { sandboxSh, withSwapLock } from './sandbox-swap-lock.js'
 import {
   SERVE_BINARY_PATH,
   LEGACY_SERVE_LOG_PATH,
@@ -79,18 +80,7 @@ export const HEALTH_PROBE = withServeToken(
   `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" "http://localhost:$ATLAS_SERVE_PORT/v1/health" -o /dev/null`,
 )
 
-const sh = (args: {
-  sandbox: Sandbox
-  script: string
-  timeoutMs?: number
-  env?: Record<string, string>
-}) =>
-  args.sandbox.runCommand({
-    cmd: 'sh',
-    args: ['-c', args.script],
-    ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
-    ...(args.env === undefined ? {} : { env: args.env }),
-  })
+const sh = sandboxSh
 
 const serveHealthy = async (sandbox: Sandbox): Promise<boolean> =>
   (await sh({ sandbox, script: HEALTH_PROBE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS })).exitCode === 0
@@ -167,7 +157,7 @@ export function createServeLauncher(args?: {
   installServe?: ServeInstaller | undefined
 }): ServeLauncher {
   const install = args?.installServe ?? installServe
-  return async ({ sandbox, token, sandboxSessionId, cloudUrl, desiredVersion }) => {
+  const launchUnlocked: ServeLauncher = async ({ sandbox, token, sandboxSessionId, cloudUrl, desiredVersion }) => {
     if (await serveAlive(sandbox)) {
       if (token !== undefined && !(await tokenFileMatches({ sandbox, token }))) {
         throw new Error('atlas serve is already running under a different token; refusing to rotate its live credentials')
@@ -252,4 +242,12 @@ export function createServeLauncher(args?: {
     }
     args?.log?.(`sandbox ${sandbox.name} answers /v1/health`)
   }
+  // Two clients waking the same sandbox race probe→install→boot; the loser re-reads the stamps
+  // the winner just wrote and keeps the result instead of installing over it.
+  return async (launchArgs) =>
+    withSwapLock({
+      sandbox: launchArgs.sandbox,
+      sh,
+      run: () => launchUnlocked(launchArgs),
+    })
 }

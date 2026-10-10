@@ -9,6 +9,7 @@ import {
   LEGACY_SERVE_LOG_PATH,
   SERVE_LOG_PATH,
   SERVE_VERSION_PATH,
+  SWAP_LOCK_PATH,
 } from '@dltech/atlas-wire'
 import { tailServeLog } from '../vercel-driver-probes'
 
@@ -44,6 +45,7 @@ describe('serve diagnostic log filesystem behavior', () => {
       name: 'diagnostic-log-probe',
       runCommand: async (args: { args?: string[]; detached?: boolean }) => {
         const script = args.args?.[1] ?? ''
+        if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0 }
         if (args.detached) {
           launch = script
           return { exitCode: 0 }

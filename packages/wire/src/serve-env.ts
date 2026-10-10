@@ -30,4 +30,10 @@ export const SERVE_PROTOCOL_PATH = `${SERVE_BINARY_PATH}.protocol`
 export const SERVE_LOG_PATH = '/atlas/home/operational/atlas-serve.log'
 export const LEGACY_SERVE_LOG_PATH = `${SERVE_HOME}/atlas-serve.log`
 export const SERVE_LOCK_PATH = `${SERVE_HOME}/atlas-serve.lock`
+/**
+ * The swap lock guards the whole probe→drain→stop→install→boot sequence across client processes;
+ * SERVE_LOCK_PATH only serializes the boot exec itself. flock's file descriptor must stay on the
+ * sandbox's own filesystem — the drive may be mounted over NFS, where flock does not work.
+ */
+export const SWAP_LOCK_PATH = `${SERVE_HOME}/swap.lock`
 export const SERVE_TOKEN_PATH = `${SERVE_HOME}/atlas-serve.token`
