@@ -36,6 +36,12 @@ export const moveFailedNotice = (args: {
 }): string =>
   `moving ${WHERE_IT_HEADS[args.target]} did not finish — this conversation still runs ${WHERE_IT_RUNS[args.from]}. ${args.detail}`
 
+export const resourcesRefusalNotice = (location: EExecutionLocation): string =>
+  `sandbox resources can only be resized live while this conversation runs in a cloud sandbox — it runs ${whereItRuns(location)}. The default for new sandboxes is in settings (ctrl+o) › cloud`
+
+export const resourcesConnectingNotice =
+  'the sandbox is still connecting — /container resources works once the channel is open'
+
 export const pendingSwitchNotice = (args: {
   target: EExecutionLocation
   count: number

@@ -7,6 +7,7 @@ import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../settings-definit
 import {
   requireVercelCredentials,
   sandboxImageOf,
+  sandboxVcpusOf,
   VercelNotConfiguredError,
 } from '../vercel-credentials'
 
@@ -37,7 +38,7 @@ const definitions = [
   ...CLOUD_SETTING_DEFINITIONS,
 ]
 
-const settingsWith = (values: Record<string, string>) =>
+const settingsWith = (values: Record<string, string | number>) =>
   createSettingsService({
     definitions,
     user: new MemorySettingsStore({ document: { values } }),
@@ -135,5 +136,19 @@ describe('sandboxImageOf', () => {
         release,
       }),
     ).toEqual({ image: 'vcr.vercel.example/team/atlas:v1' })
+  })
+})
+
+describe('sandboxVcpusOf', () => {
+  it('falls back to the provider default of 2', () => {
+    expect(sandboxVcpusOf({ settings: settingsWith({}) })).toBe(2)
+  })
+
+  it('follows the setting when one is pinned', () => {
+    expect(sandboxVcpusOf({ settings: settingsWith({ [ESettingId.SandboxVcpus]: 8 }) })).toBe(8)
+  })
+
+  it('reads a numeric string from the environment layer through coercion', () => {
+    expect(sandboxVcpusOf({ settings: settingsWith({ [ESettingId.SandboxVcpus]: '4' }) })).toBe(4)
   })
 })

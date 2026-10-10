@@ -30,6 +30,8 @@ const sessionOn = (connection?: ChannelConnection): CloudSession => {
       putContext: async () => undefined,
       confirmLanded: async () => ({ landed: true }),
       find: async () => undefined,
+      readResources: async () => ({}),
+      updateResources: async () => {},
       destroy: async () => undefined,
     },
     onReload: async () => undefined,

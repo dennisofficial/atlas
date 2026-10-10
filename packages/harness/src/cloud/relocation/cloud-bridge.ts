@@ -107,6 +107,10 @@ export type CloudSandboxes = {
   }): Promise<void>
   releaseSession?(args: { threadId: ThreadId; path: string }): Promise<void>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
+  /** The live allocation as the provider reports it; fields absent when the provider doesn't say. */
+  readResources(args: { threadId: ThreadId }): Promise<{ vcpus?: number; memoryMb?: number }>
+  /** Resizes the live sandbox. Touches the running sandbox only — never the stored default. */
+  updateResources(args: { threadId: ThreadId; vcpus: number }): Promise<void>
   destroy(args: { threadId: ThreadId; expectedSandboxSessionId?: string | undefined }): Promise<void>
 }
 

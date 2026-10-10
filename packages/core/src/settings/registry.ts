@@ -66,6 +66,7 @@ export enum ESettingId {
   VercelTeamId = 'sandbox.vercelTeamId',
   VercelProjectId = 'sandbox.vercelProjectId',
   SandboxImage = 'sandbox.image',
+  SandboxVcpus = 'sandbox.vcpus',
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
   GrillingCeremony = 'experimental.grillingCeremony',

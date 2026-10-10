@@ -21,6 +21,7 @@ import type { useAgents } from './use-agents'
 import type { useAgentsPicker } from './use-agents-picker'
 import type { useContainerGuard } from './use-container-guard'
 import type { useContainerMove } from './use-container-move'
+import type { useContainerResources } from './use-container-resources'
 import type { useConversation } from './use-conversation'
 import type { useExitGuard } from './use-exit-guard'
 import type { useFooterStrip } from './use-footer-strip'
@@ -76,6 +77,7 @@ export type WorkspaceInputArgs = {
   exitGuard: Pick<ReturnType<typeof useExitGuard>, 'state' | 'handleKey'>
   containerGuard: Pick<ReturnType<typeof useContainerGuard>, 'state' | 'handleKey'>
   containerMove: Pick<ReturnType<typeof useContainerMove>, 'move' | 'handleKey'>
+  containerResources: Pick<ReturnType<typeof useContainerResources>, 'state' | 'handleKey'>
   contextBrowser: Pick<ReturnType<typeof useContextBrowser>, 'viewer' | 'tree' | 'handleKey'>
 }
 
@@ -115,6 +117,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     exitGuard,
     containerGuard,
     containerMove,
+    containerResources,
     contextBrowser,
   } = args
 
@@ -168,6 +171,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       { ...covering(conversation.operatorInput.state !== null, conversation.operatorInput.handleKey), porous: true },
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerGuard.state !== null, containerGuard.handleKey),
+      covering(containerResources.state !== null, containerResources.handleKey),
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
       { ...covering(switcher.state !== null, switcher.handleKey), porous: true },

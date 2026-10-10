@@ -64,6 +64,8 @@ const sessionOn = (
       putContext: async () => undefined,
       confirmLanded: async () => ({ landed: true }),
       find: async () => args.statusRef?.current ?? args.status,
+      readResources: async () => ({}),
+      updateResources: async () => {},
       destroy: async () => undefined,
     },
     onReload: async (reload) => {
@@ -477,6 +479,8 @@ describe('the sandbox lifecycle and transcript freshness', () => {
         find: async () => {
           throw new Error('vercel is down')
         },
+        readResources: async () => ({}),
+        updateResources: async () => {},
         destroy: async () => undefined,
       },
       onReload: async () => undefined,
@@ -513,6 +517,8 @@ describe('the sandbox lifecycle and transcript freshness', () => {
         putContext: async () => undefined,
         confirmLanded: async () => ({ landed: true }),
         find: async () => statusRef.current,
+      readResources: async () => ({}),
+      updateResources: async () => {},
         destroy: async () => undefined,
       },
       onReload: () =>
@@ -731,6 +737,8 @@ describe('a reload that fails before it lands', () => {
         putContext: async () => undefined,
         confirmLanded: async () => ({ landed: true }),
         find: async () => undefined,
+      readResources: async () => ({}),
+      updateResources: async () => {},
         destroy: async () => undefined,
       },
       // The TUI's reload rejects while the lift's binding is still committing; only the second

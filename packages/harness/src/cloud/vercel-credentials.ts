@@ -1,4 +1,4 @@
-import { ESettingId, ESettingsLayer, textValueOf, type SecretsPort } from '@dltech/atlas-core'
+import { ESettingId, ESettingsLayer, rangeValueOf, textValueOf, type SecretsPort } from '@dltech/atlas-core'
 
 import type { SettingsService } from '../settings/service'
 
@@ -65,4 +65,16 @@ export function sandboxImageOf(args: {
   if (held?.layer !== ESettingsLayer.Default) return { image }
   if (args.release === undefined) return { image }
   return { image, serveVersion: args.release.version }
+}
+
+/**
+ * The creation-time size of a new cloud sandbox, from `sandbox.vcpus`. Existing sandboxes never
+ * see it — Vercel ignores create params on resume — so the live resize is `/container resources`.
+ */
+export function sandboxVcpusOf(args: { settings: SettingsService }): number {
+  return rangeValueOf({
+    resolution: args.settings.snapshot().resolution,
+    id: ESettingId.SandboxVcpus,
+    fallback: 2,
+  })
 }

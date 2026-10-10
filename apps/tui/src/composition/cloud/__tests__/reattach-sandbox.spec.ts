@@ -23,6 +23,8 @@ const stubSandboxes = (args: { token?: string; createFails?: unknown }) => {
     putContext: async () => undefined,
     confirmLanded: async () => ({ landed: true }),
     find: async () => undefined,
+    readResources: async () => ({}),
+    updateResources: async () => undefined,
     destroy: async () => undefined,
   }
   return { sandboxes, created }

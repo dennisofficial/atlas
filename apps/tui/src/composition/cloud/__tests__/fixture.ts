@@ -857,6 +857,8 @@ export function fakeBridge(
         if (args.checkpoint === undefined) return status
         return { ...status, checkpoint: args.checkpoint }
       },
+      readResources: async () => ({}),
+      updateResources: async () => {},
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

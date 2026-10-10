@@ -37,6 +37,8 @@ const fixture = (args: {
     downloadSessionArchive: async () => undefined,
     releaseSessionArchive: async () => undefined,
     transcriptLanded: async () => false,
+    readResources: async () => ({}),
+    updateResources: async () => {},
     destroy: async () => { destroys += 1 },
   }
   const bridge = createLocalCloudBridge({

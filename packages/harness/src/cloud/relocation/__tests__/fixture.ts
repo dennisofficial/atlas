@@ -210,6 +210,8 @@ export function fakeBridge(
         if (args.releaseSessionFails !== undefined) throw args.releaseSessionFails
       },
       find: async () => args.status,
+      readResources: async () => ({}),
+      updateResources: async () => {},
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

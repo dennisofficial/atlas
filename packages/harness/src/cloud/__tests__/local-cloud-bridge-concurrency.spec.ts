@@ -89,6 +89,8 @@ const gatedHarness = () => {
     downloadSessionArchive: async () => {},
     releaseSessionArchive: async () => {},
     transcriptLanded: async () => true,
+    readResources: async () => ({}),
+    updateResources: async () => {},
     destroy: async () => {},
   }
   const bridge = createLocalCloudBridge({

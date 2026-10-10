@@ -75,6 +75,7 @@ export type ProvisionDeps = {
     credentials: VercelCredentials
     cloudUrl: string
     image?: string | undefined
+    vcpus?: number | undefined
     serveVersion?: string | undefined
     timeoutMs?: number | undefined
     log?: ((line: string) => void) | undefined
@@ -182,6 +183,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       credentials,
       name: args.name,
       image,
+      vcpus: deps.config.vcpus,
       drive,
       driveName,
       threadId: args.threadId,

@@ -74,6 +74,8 @@ const fakeDriver = (args: { observed: boolean; vaultPresent?: boolean }) => {
       events.push(`release-session:${release.name}:${release.path}`)
     },
     transcriptLanded: async () => true,
+    readResources: async () => ({}),
+    updateResources: async () => {},
     destroy: async () => {},
   }
   return { driver, events, writes }

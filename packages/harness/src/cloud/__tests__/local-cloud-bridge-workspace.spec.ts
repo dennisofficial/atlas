@@ -38,6 +38,8 @@ const bridgeSeeing = (args: { environment?: Record<string, string> }) => {
     downloadSessionArchive: async () => {},
     releaseSessionArchive: async () => {},
     transcriptLanded: async () => true,
+    readResources: async () => ({}),
+    updateResources: async () => {},
     destroy: async () => {},
   }
   const bridge = createLocalCloudBridge({

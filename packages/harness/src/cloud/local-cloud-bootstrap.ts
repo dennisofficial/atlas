@@ -22,6 +22,8 @@ export type BridgeDriver = Pick<
   | 'downloadSessionArchive'
   | 'releaseSessionArchive'
   | 'transcriptLanded'
+  | 'readResources'
+  | 'updateResources'
   | 'destroy'
 >
 
@@ -128,6 +130,7 @@ export const liveDriverWith = (args: {
     credentials: args.config.credentials,
     cloudUrl: args.cloudUrl ?? '',
     image: args.config.image,
+    ...(args.config.vcpus === undefined ? {} : { vcpus: args.config.vcpus }),
     ...(args.config.serveVersion === undefined ? {} : { serveVersion: args.config.serveVersion }),
     ...(args.onDriverLog === undefined ? {} : { log: args.onDriverLog }),
   })
