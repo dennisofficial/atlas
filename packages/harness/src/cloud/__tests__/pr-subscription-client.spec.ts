@@ -111,3 +111,39 @@ describe('PrSubscriptionClient', () => {
     expect((seen as Record<string, unknown>).number).toBeUndefined()
   })
 })
+
+describe('PrSubscriptionClient heartbeat', () => {
+  const realFetch = globalThis.fetch
+  afterEach(() => {
+    globalThis.fetch = realFetch
+  })
+
+  it('retries a transient 5xx so one blip is invisible to the caller', async () => {
+    const statuses = [503, 200]
+    let calls = 0
+    globalThis.fetch = (async () => {
+      const status = statuses[calls++] ?? 200
+      return new Response(status === 200 ? '{}' : '{"message":"sick"}', {
+        status,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    await client.heartbeat({ id: 'sub_1' })
+
+    expect(calls).toBe(2)
+  })
+
+  it('does not retry a terminal 404', async () => {
+    let calls = 0
+    globalThis.fetch = (async () => {
+      calls += 1
+      return new Response('{"message":"gone"}', { status: 404, headers: { 'content-type': 'application/json' } })
+    }) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    await expect(client.heartbeat({ id: 'sub_1' })).rejects.toMatchObject({ status: 404 })
+    expect(calls).toBe(1)
+  })
+})

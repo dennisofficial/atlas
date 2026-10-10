@@ -158,6 +158,43 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(true)
   })
 
+  it('swaps a busy sandbox whose installed serve predates the drain protocol, without touching the gate', async () => {
+    const sandbox = fakeSandbox({ installed: '1.60.3', status: 'running' })
+    const order: string[] = []
+
+    const result = await probeOf({
+      sandbox,
+      health: { ...FULL_IDLE, busy: true },
+      drain: async () => {
+        order.push('drain')
+      },
+      swapServe: async () => {
+        order.push('swap')
+      },
+    })
+
+    expect(order).toEqual(['swap'])
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(sandbox.deleted()).toBe(false)
+  })
+
+  it('falls back to the drain gate when the installed version cannot be parsed', async () => {
+    const sandbox = fakeSandbox({ installed: 'not-a-version', status: 'running' })
+    const order: string[] = []
+
+    const result = await probeOf({
+      sandbox,
+      health: { ...FULL_IDLE, busy: true },
+      drain: async () => {
+        order.push('drain')
+      },
+    })
+
+    expect(order).toEqual(['drain'])
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(sandbox.deleted()).toBe(true)
+  })
+
   it('still drains a stale sandbox whose serve is alive but whose idleness it cannot prove', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     const order: string[] = []

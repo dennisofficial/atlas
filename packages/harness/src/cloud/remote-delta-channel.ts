@@ -591,6 +591,20 @@ export function createRemoteDeltaChannel(args: {
     connect()
   }
 
+  let wakeFailureSignature: string | null = null
+  let wakeFailureCount = 0
+  let wakeRetryStopped = false
+
+  const noteWakeFailure = (signature: string): number => {
+    if (signature === wakeFailureSignature) {
+      wakeFailureCount += 1
+    } else {
+      wakeFailureSignature = signature
+      wakeFailureCount = 1
+    }
+    return wakeFailureCount
+  }
+
   const escalate = (reattach: () => Promise<{ url: string; token: string }>, forQueuedWork = false) => {
     generation += 1
     reattachments += 1
@@ -600,11 +614,27 @@ export function createRemoteDeltaChannel(args: {
     reattach().then(
       (next) => {
         if (abandoned || scheduled !== generation) return
+        wakeFailureSignature = null
+        wakeFailureCount = 0
+        wakeRetryStopped = false
         applyAttachment(next)
       },
       (failure) => {
         if (abandoned || scheduled !== generation) return
         const cause = failure instanceof Error ? failure.message : String(failure)
+        if (forQueuedWork) {
+          const repeats = noteWakeFailure(cause)
+          if (repeats >= maxReattachments) {
+            const detail =
+              `The sandbox wake failed with the same error ${repeats} times in a row: ${cause} ` +
+              'Automatic retries have stopped — investigate the sandbox, then reconnect.'
+            upstream.failUnwritten({ reason: detail })
+            failures.emit({ message: detail })
+            wakeRetryStopped = true
+            moveTo({ state: EChannelConnection.Closed, detail })
+            return
+          }
+        }
         const detail = forQueuedWork
           ? `The sandbox could not be woken for the queued work: ${cause}`
           : `The session socket closed and did not reopen after ${maxAttempts} attempts, ` +
@@ -622,7 +652,7 @@ export function createRemoteDeltaChannel(args: {
    * own wake ceremony, so this exists for everything else — requests and publishes alike.
    */
   const kickWake = () => {
-    if (abandoned) return
+    if (abandoned || wakeRetryStopped) return
     const reattach = args.reattach
     if (reattach === undefined) return
     if (

@@ -55,6 +55,7 @@ function seedSubscription(overrides: Partial<(typeof fake.subscriptions)[number]
     branch: '',
     pollBacked: true,
     expiresAt: new Date(Date.now() + 60_000),
+    liveUntil: new Date(Date.now() + 60_000),
     threadId: null,
     sandboxId: null,
     createdAt: new Date(),
@@ -112,7 +113,12 @@ describe('GithubPollSweeperService', () => {
   it('skips expired subscriptions', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription({ id: 'sub-2', prNumber: 7, expiresAt: new Date(Date.now() - 60_000) })
+    seedSubscription({
+      id: 'sub-2',
+      prNumber: 7,
+      expiresAt: new Date(Date.now() - 60_000),
+      liveUntil: new Date(Date.now() - 60_000),
+    })
 
     await service.handlePoll()
 
@@ -265,6 +271,7 @@ describe('GithubPollSweeperService', () => {
       branch: 'dennis/add-the-thing',
       pollBacked: false,
       expiresAt: new Date(Date.now() + 60_000),
+      liveUntil: new Date(Date.now() + 60_000),
       threadId: null,
       sandboxId: null,
       createdAt: new Date(),
@@ -291,7 +298,11 @@ describe('GithubPollSweeperService', () => {
       sweepLeaseUntil: null,
       createdAt: new Date(),
     })
-    seedSubscription({ pollBacked: false, expiresAt: new Date(Date.now() - 60_000) })
+    seedSubscription({
+      pollBacked: false,
+      expiresAt: new Date(Date.now() - 60_000),
+      liveUntil: new Date(Date.now() - 60_000),
+    })
 
     await service.handlePoll()
 
@@ -372,6 +383,7 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
       id: 'sub-stale',
       prNumber: 7,
       expiresAt: new Date(Date.now() - 60_000),
+      liveUntil: new Date(Date.now() - 60_000),
       threadId: 'thr_1',
       sandboxId: 'sbx_1',
     })

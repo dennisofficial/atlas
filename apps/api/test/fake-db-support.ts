@@ -17,8 +17,11 @@ export const uniqueViolation = (target: readonly string[]): Prisma.PrismaClientK
     },
   )
 
+const comparableOf = (value: unknown): unknown =>
+  value instanceof Date ? value.getTime() : value
+
 export const matchesValue = (value: unknown, condition: unknown): boolean => {
-  if (typeof condition === 'object' && condition !== null) {
+  if (typeof condition === 'object' && condition !== null && !(condition instanceof Date)) {
     const ops = condition as Record<string, unknown>
     if ('in' in ops) return (ops.in as unknown[]).includes(value)
     if ('notIn' in ops) return !(ops.notIn as unknown[]).includes(value)
@@ -27,13 +30,16 @@ export const matchesValue = (value: unknown, condition: unknown): boolean => {
       return typeof value === 'string' && value.includes(ops.contains as string)
     }
     if ('equals' in ops && !matchesValue(value, ops.equals)) return false
-    const range = ops as { gt?: number; gte?: number; lt?: number; lte?: number }
-    const numeric = value as number
-    if (range.gt !== undefined && !(numeric > range.gt)) return false
-    if (range.gte !== undefined && numeric < range.gte) return false
-    if (range.lt !== undefined && !(numeric < range.lt)) return false
-    if (range.lte !== undefined && numeric > range.lte) return false
+    const range = ops as { gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown }
+    const held = comparableOf(value)
+    if (range.gt !== undefined && !((held as number) > (comparableOf(range.gt) as number))) return false
+    if (range.gte !== undefined && (held as number) < (comparableOf(range.gte) as number)) return false
+    if (range.lt !== undefined && !((held as number) < (comparableOf(range.lt) as number))) return false
+    if (range.lte !== undefined && (held as number) > (comparableOf(range.lte) as number)) return false
     return true
+  }
+  if (condition instanceof Date || value instanceof Date) {
+    return comparableOf(value) === comparableOf(condition)
   }
   return value === condition
 }

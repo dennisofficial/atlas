@@ -113,6 +113,7 @@ describe('createOrResume', () => {
 
   it('swaps a running sandbox whose serve speaks another wire protocol in place: drain, then download, never delete', async () => {
     const stale = fakeSandbox({
+      installedVersion: '1.80.0',
       installedProtocol: String(CHANNEL_PROTOCOL_VERSION - 1),
       status: 'running',
     })
@@ -137,7 +138,7 @@ describe('createOrResume', () => {
   })
 
   it('preserves a busy sandbox and its drive when its serve cannot confirm preparation', async () => {
-    const stale = fakeSandbox({ installedProtocol: '', drainStatus: '404', alive: true })
+    const stale = fakeSandbox({ installedVersion: '1.80.0', installedProtocol: '', drainStatus: '404', alive: true })
     const fresh = fakeSandbox()
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
@@ -155,6 +156,27 @@ describe('createOrResume', () => {
 
     expect(stale.deleted).toBe(false)
     expect(fresh.commands).toHaveLength(0)
+  })
+
+  it('swaps a busy sandbox whose legacy serve cannot confirm preparation — the 2026-10-09 wedge replayed: the first attempt replaces it instead of refusing', async () => {
+    const stale = fakeSandbox({
+      installedVersion: '1.60.0',
+      installedProtocol: '',
+      drainStatus: '404',
+      alive: true,
+    })
+    const events: string[] = []
+    trackSwap({ sandbox: stale, events, serveRetired: true })
+
+    const placement = await swapDriver({
+      sandbox: stale,
+      runtimeHealth: async () => ({ busy: true, turnRunning: true, clients: 1 }),
+    }).createOrResume(request)
+
+    expect(events).not.toContain('drain')
+    expect(events).toContain('download')
+    expect(stale.deleted).toBe(false)
+    expect(placement.created).toBe(false)
   })
 
   it('swaps an idle sandbox whose serve is too old to confirm preparation in place — nothing in flight, so no drain and no delete', async () => {

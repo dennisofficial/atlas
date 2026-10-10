@@ -1,5 +1,7 @@
 import { ForbiddenException } from '@nestjs/common'
 
+const GITHUB_REQUEST_TIMEOUT_MS = 8_000
+
 export class RepoAccessChecker {
   private readonly access = new Map<string, Promise<boolean>>()
 
@@ -26,6 +28,7 @@ export class RepoAccessChecker {
         accept: 'application/vnd.github+json',
         'x-github-api-version': '2022-11-28',
       },
+      signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
     })
     if (response.status === 401) {
       this.access.delete(`${args.userId}:${args.owner}/${args.repo}`)

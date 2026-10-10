@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '../../../db'
-import { dtoOf, subscriptionLiveWhere } from './github-delivery-routing'
+import { dtoOf, liveUntilOf, subscriptionLiveWhere } from './github-delivery-routing'
+import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { RepoAccessChecker } from './github-repo-access'
 import type { GithubPrStateDto, GithubSubscriptionDto } from './github-realtime.types'
@@ -48,6 +49,9 @@ export class GithubSubscriptionsService {
     })
     const pollBacked = hook === 'poll-backed'
     const branch = args.branch ?? (prNumber === null ? '' : `#${prNumber}`)
+    const threadId = args.threadId ?? null
+    const expiresAt = nextExpiry()
+    const liveUntil = await this.liveCeiling({ threadId, expiresAt })
 
     const subscription = await db.githubSubscription.upsert({
       where: {
@@ -63,15 +67,17 @@ export class GithubSubscriptionsService {
         prNumber,
         branch,
         pollBacked,
-        expiresAt: nextExpiry(),
-        threadId: args.threadId ?? null,
+        expiresAt,
+        liveUntil,
+        threadId,
         sandboxId: args.sandboxId ?? null,
       },
       update: {
         prNumber,
         pollBacked,
-        expiresAt: nextExpiry(),
-        threadId: args.threadId ?? null,
+        expiresAt,
+        liveUntil,
+        threadId,
         sandboxId: args.sandboxId ?? null,
       },
     })
@@ -116,10 +122,14 @@ export class GithubSubscriptionsService {
     if (subscription === null || subscription.userId !== args.userId) {
       throw new NotFoundException('no such subscription')
     }
+    const threadId = args.threadId ?? subscription.threadId
+    const expiresAt = nextExpiry()
+    const liveUntil = await this.liveCeiling({ threadId, expiresAt })
     const updated = await db.githubSubscription.update({
       where: { id: subscription.id },
       data: {
-        expiresAt: nextExpiry(),
+        expiresAt,
+        liveUntil,
         ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
         ...(args.sandboxId === undefined ? {} : { sandboxId: args.sandboxId }),
       },
@@ -253,6 +263,22 @@ export class GithubSubscriptionsService {
     }
   }
 
+  private async liveCeiling(args: {
+    threadId: string | null
+    expiresAt: Date
+  }): Promise<Date> {
+    if (args.threadId === null) return args.expiresAt
+    const sandbox = await db.cloudSandbox.findUnique({
+      where: { threadId: args.threadId },
+      select: { lastActivityAt: true },
+    })
+    return liveUntilOf({
+      expiresAt: args.expiresAt,
+      sandboxLastActivityAt:
+        sandbox === null ? null : new Date(Date.parse(sandbox.lastActivityAt)),
+    })
+  }
+
   private async requireToken(args: { userId: string }): Promise<string> {
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) {
@@ -263,34 +289,4 @@ export class GithubSubscriptionsService {
 
 }
 
-function parseRepo(args: { repoFullName: string }): { owner: string; repo: string } {
-  const [owner, repo] = args.repoFullName.split('/')
-  if (owner === undefined || repo === undefined || args.repoFullName.split('/').length !== 2) {
-    throw new ForbiddenException('repo must be owner/name')
-  }
-  return { owner, repo }
-}
-
 const nextExpiry = () => new Date(Date.now() + SUBSCRIPTION_TTL_MS)
-
-function subscriptionDtoOf(args: {
-  subscription: {
-    id: string
-    repoFullName: string
-    prNumber: number | null
-    branch: string
-    pollBacked: boolean
-    expiresAt: Date
-  }
-  state: GithubPrStateDto | null
-}): GithubSubscriptionDto {
-  return {
-    id: args.subscription.id,
-    repoFullName: args.subscription.repoFullName,
-    prNumber: args.subscription.prNumber,
-    branch: args.subscription.branch,
-    pollBacked: args.subscription.pollBacked,
-    expiresAt: args.subscription.expiresAt.toISOString(),
-    state: args.state,
-  }
-}

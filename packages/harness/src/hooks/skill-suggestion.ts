@@ -69,7 +69,7 @@ export class SkillSuggestionHook extends BeforeTurnHook {
       request,
       signal: new AbortController().signal,
     })
-    if (!suggestion.ok) return {}
+    if (!suggestion.ok || suggestion.name === undefined) return {}
 
     this.suggested.set(threadId, said.id)
     return { additionalContext: skillSuggestionBlock({ name: suggestion.name }) }

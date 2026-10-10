@@ -117,6 +117,7 @@ function seedSubscription(args: {
     branch: args.branch ?? '',
     pollBacked: false,
     expiresAt: new Date(Date.now() + 60_000),
+    liveUntil: new Date(Date.now() + 60_000),
     threadId: null,
     sandboxId: null,
     createdAt: new Date(),
@@ -938,6 +939,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
     threadId: string | null
     sandboxId: string | null
     expiresAt: Date
+    liveUntil?: Date
   }): void => {
     fake.subscriptions.push({
       id: `sub-parked-${args.userId}`,
@@ -947,6 +949,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       branch: '',
       pollBacked: false,
       expiresAt: args.expiresAt,
+      liveUntil: args.liveUntil ?? args.expiresAt,
       threadId: args.threadId,
       sandboxId: args.sandboxId,
       createdAt: new Date(),
@@ -981,6 +984,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       threadId: 'thr_1',
       sandboxId: 'sbx_1',
       expiresAt: new Date(Date.now() - 60_000),
+      liveUntil: new Date(Date.now() + 60_000),
     })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
@@ -1050,6 +1054,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       threadId: 'thr_1',
       sandboxId: 'sbx_1',
       expiresAt: new Date(Date.now() - 60_000),
+      liveUntil: new Date(Date.now() + 60_000),
     })
 
     await service.handle({

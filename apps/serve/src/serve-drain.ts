@@ -13,6 +13,7 @@ export function createServeDrain(args: {
   threadId: ThreadId
   driver: Pick<ServeTurnDriver, 'beginRelocation' | 'relocationResumable'>
   closeAdmission: () => void
+  reopenAdmission: () => void
   beginPreparation: () => Promise<void>
   endProcesses: (args: { killedBy: EKilledBy }) => Promise<void>
   flushInput: () => Promise<void>
@@ -47,6 +48,7 @@ export function createServeDrain(args: {
   return ({ reason }) => {
     draining ??= run(reason).catch((failure: unknown) => {
       draining = undefined
+      args.reopenAdmission()
       args.log({
         event: EServeEvent.DrainStepFailed,
         threadId: args.threadId,

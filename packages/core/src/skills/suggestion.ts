@@ -130,10 +130,11 @@ export function skillRerankWinner(args: {
   return best < threshold ? undefined : choice
 }
 
-export function skillSuggestionBlock(args: { name: string | undefined }): string {
-  const body =
-    args.name === undefined
-      ? 'No skill in the roster appears relevant to this request.'
-      : `Relevant to the current request: ${args.name}. Ignore this if it does not fit what the user actually asked for.`
-  return `<skill_relevance>\n${body}\n</skill_relevance>`
+export function skillSuggestionBlock(args: { name: string }): string {
+  return (
+    '<skill_relevance>\n' +
+    `The skill classifier picked '${args.name}' as relevant to the user's latest request. ` +
+    'Load it with the skill tool when it genuinely applies; if it does not, ignore this entirely.\n' +
+    '</skill_relevance>'
+  )
 }

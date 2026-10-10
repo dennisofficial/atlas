@@ -15,7 +15,7 @@ const fixture = async () => {
   await writeFile(tokenFile, 'test-only-token')
   const sandbox = {
     currentSession: () => ({ sessionId: 'session-1' }),
-    runCommand: async (args: { args: string[] }) => {
+    runCommand: async (args: { args: string[]; detached?: boolean }) => {
       const script = (args.args[1] ?? '').replaceAll(SERVE_TOKEN_PATH, tokenFile).replaceAll(DRIVE_HOME_PATH, home)
       if (args.detached === true && script.includes(SWAP_LOCK_PATH)) {
         return {

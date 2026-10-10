@@ -157,14 +157,9 @@ describe('skillSuggestionBlock', () => {
   it('names the winner as a hint the agent may ignore', () => {
     expect(skillSuggestionBlock({ name: 'pptx-author' })).toBe(
       '<skill_relevance>\n' +
-        'Relevant to the current request: pptx-author. Ignore this if it does not fit what the user actually asked for.\n' +
+        "The skill classifier picked 'pptx-author' as relevant to the user's latest request. " +
+        'Load it with the skill tool when it genuinely applies; if it does not, ignore this entirely.\n' +
         '</skill_relevance>',
-    )
-  })
-
-  it('says so when nothing fits, so the roster pressure is answered', () => {
-    expect(skillSuggestionBlock({ name: undefined })).toBe(
-      '<skill_relevance>\nNo skill in the roster appears relevant to this request.\n</skill_relevance>',
     )
   })
 })

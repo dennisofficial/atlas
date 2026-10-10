@@ -10,6 +10,7 @@ import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 
 const GITHUB_API = 'https://api.github.com'
 const DETAIL_CAP = 300
+const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 
 export class GithubUserReadFailed extends Error {
   constructor(
@@ -93,6 +94,7 @@ export class GithubUserReads {
     const response = await fetch(`${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`, {
       method: 'POST',
       headers: this.headers({ token: args.token }),
+      signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       body: JSON.stringify({
         name: 'web',
         active: true,
@@ -126,7 +128,10 @@ export class GithubUserReads {
   }): Promise<'found' | 'missing' | 'unauthorized'> {
     const response = await fetch(
       `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
-      { headers: this.headers({ token: args.token }) },
+      {
+        headers: this.headers({ token: args.token }),
+        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+      },
     )
     if (response.ok) return 'found'
     if (response.status === 404) return 'missing'
@@ -163,6 +168,7 @@ export class GithubUserReads {
       {
         method: 'PATCH',
         headers: this.headers({ token: args.token }),
+        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
         body: JSON.stringify({ events: args.events }),
       },
     )
@@ -183,7 +189,11 @@ export class GithubUserReads {
   }): Promise<'deleted' | 'unauthorized'> {
     const response = await fetch(
       `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
-      { method: 'DELETE', headers: this.headers({ token: args.token }) },
+      {
+        method: 'DELETE',
+        headers: this.headers({ token: args.token }),
+        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+      },
     )
     if (response.ok || response.status === 404) return 'deleted'
     if (response.status === 401 || response.status === 403) return 'unauthorized'
@@ -210,6 +220,7 @@ export class GithubUserReads {
   private async get<T>(args: { token: string; path: string }): Promise<T> {
     const response = await fetch(`${this.baseUrl}${args.path}`, {
       headers: this.headers({ token: args.token }),
+      signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
     })
     if (!response.ok) {
       const detail = (await response.text()).slice(0, DETAIL_CAP)

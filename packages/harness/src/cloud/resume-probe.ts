@@ -144,6 +144,11 @@ export enum EServeAge {
   Unknown = 'unknown',
 }
 
+export const DRAIN_CAPABLE_SERVE_VERSION = '1.61.0'
+
+export const servePredatesDrainProtocol = (version: string): boolean =>
+  serveAgeOf({ installed: version, pinned: DRAIN_CAPABLE_SERVE_VERSION }) === EServeAge.Older
+
 export const serveAgeOf = (args: { installed: string; pinned: string }): EServeAge => {
   const parse = (text: string): [number, number, number] | null => {
     const parts = text.trim().split('.')
@@ -261,6 +266,8 @@ export async function probeSandboxForResume(args: {
     const idle = runtimeIdleOf(health)
     if (idle === ERuntimeIdle.Idle) {
       args.log?.(`sandbox ${args.name} reports no work in flight — replacing serve without draining`)
+    } else if (servePredatesDrainProtocol(installed)) {
+      args.log?.(`sandbox ${args.name} carries serve "${installed}", which predates the drain protocol — replacing it directly`)
     } else {
       const serveAlive = args.serveAlive ?? (({ sandbox: s }: { sandbox: Sandbox }) => probeServeAlive(s))
       const alive = idle === ERuntimeIdle.Unknown && (await serveAlive({ sandbox }))

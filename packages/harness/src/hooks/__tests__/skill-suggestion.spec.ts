@@ -160,10 +160,10 @@ describe('SkillSuggestionHook', () => {
     const hook = hookWith({ log, skills: [skill('alpha'), skill('beta')], decisions })
 
     const outcome = await hook.run({ threadId: THREAD, projectDirectory: '/tmp' })
-    expect(outcome.additionalContext).toContain('Relevant to the current request: alpha.')
+    expect(outcome.additionalContext).toContain("classifier picked 'alpha'")
   })
 
-  it('says when nothing fits rather than leaving the roster pressure unanswered', async () => {
+  it('injects nothing when no skill fits', async () => {
     const log = new MemoryLog()
     await say(log, 'what is a monad?')
     const decisions = new ScriptedDecisions([
@@ -179,8 +179,7 @@ describe('SkillSuggestionHook', () => {
     ])
     const hook = hookWith({ log, skills: [skill('alpha')], decisions })
 
-    const outcome = await hook.run({ threadId: THREAD, projectDirectory: '/tmp' })
-    expect(outcome.additionalContext).toContain('No skill in the roster appears relevant')
+    expect(await hook.run({ threadId: THREAD, projectDirectory: '/tmp' })).toEqual({})
   })
 
   it('does not suggest twice for the same message', async () => {
@@ -203,7 +202,7 @@ describe('SkillSuggestionHook', () => {
     await hook.run({ threadId: THREAD, projectDirectory: '/tmp' })
     await say(log, 'now the appendix too')
     const outcome = await hook.run({ threadId: THREAD, projectDirectory: '/tmp' })
-    expect(outcome.additionalContext).toContain('Relevant to the current request: alpha.')
+    expect(outcome.additionalContext).toContain("classifier picked 'alpha'")
     expect(decisions.calls).toBe(4)
   })
 
@@ -219,7 +218,7 @@ describe('SkillSuggestionHook', () => {
 
     expect(await hook.run({ threadId: THREAD, projectDirectory: '/tmp' })).toEqual({})
     const retried = await hook.run({ threadId: THREAD, projectDirectory: '/tmp' })
-    expect(retried.additionalContext).toContain('Relevant to the current request: alpha.')
+    expect(retried.additionalContext).toContain("classifier picked 'alpha'")
   })
 
   it('does nothing without a user message or without skills', async () => {
