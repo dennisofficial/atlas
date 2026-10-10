@@ -356,7 +356,7 @@ describe('the picker badge', () => {
 })
 
 describe('coming back to the host', () => {
-  it('descends when a local conversation is picked from inside a cloud session', async () => {
+  it('leaves the cloud session when a local conversation is picked from inside it', async () => {
     const app = speaking()
     const hostThread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
     await app.threads.rename({ threadId: hostThread.id, title: 'the host thread' })
@@ -365,12 +365,22 @@ describe('coming back to the host', () => {
       runId: toRunId('run-host'),
       drafts: [{ type: 'user-said', text: 'said on the host' }],
     })
+    const cloudThread = await seedCloudThread(app)
     const bridge = fakeBridge({ status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId: cloudThread.threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.command('/container cloud')
-      await mounted.showing('☁ cloud')
+      await mounted.command('/resume')
+      await mounted.typeText('lifted')
+      await mounted.pick()
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      await mounted.showing('said inside the sandbox')
+
       await mounted.command('/resume')
       await mounted.showing('the host thread')
       await mounted.typeText('host')
