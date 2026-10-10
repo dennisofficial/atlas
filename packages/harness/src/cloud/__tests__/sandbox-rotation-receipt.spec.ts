@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { persistSandboxRotationIntent, persistSandboxRotationReceipt, readSandboxRotationReceipt, readSandboxRotationState, sandboxRotationReceiptFile } from '../sandbox-rotation-receipt'
+import { deleteSandboxRotationState, persistSandboxRotationIntent, persistSandboxRotationReceipt, readSandboxRotationReceipt, readSandboxRotationState, sandboxRotationReceiptFile } from '../sandbox-rotation-receipt'
 import { rotationReceipt } from './rotation-fixture'
 
 const homes: string[] = []
@@ -35,6 +35,15 @@ describe('drive-owned sandbox recreation state', () => {
     const atlasHome = await scratch()
     await mkdir(sandboxRotationReceiptFile({ atlasHome }), { recursive: true })
     await expect(persistSandboxRotationReceipt({ atlasHome, receipt: rotationReceipt() })).rejects.toThrow()
+  })
+
+  it('removes a consumed receipt and tolerates its absence', async () => {
+    const atlasHome = await scratch()
+    await persistSandboxRotationReceipt({ atlasHome, receipt: rotationReceipt() })
+    await deleteSandboxRotationState({ atlasHome })
+    expect(await readSandboxRotationState({ atlasHome })).toBeNull()
+    await deleteSandboxRotationState({ atlasHome })
+    expect(await readSandboxRotationState({ atlasHome })).toBeNull()
   })
 
   it('does not mistake corrupt recovery state for an absent ceremony', async () => {

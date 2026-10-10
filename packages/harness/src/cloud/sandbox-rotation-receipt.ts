@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, rename } from 'node:fs/promises'
+import { mkdir, open, readFile, rename, rm } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 
@@ -25,6 +25,10 @@ export async function readSandboxRotationReceipt(args: { atlasHome: string }): P
   const stored = await readSandboxRotationState(args)
   const parsed = sandboxRotationReceiptSchema.safeParse(stored)
   return parsed.success ? parsed.data : null
+}
+
+export async function deleteSandboxRotationState(args: { atlasHome: string }): Promise<void> {
+  await rm(sandboxRotationReceiptFile(args), { force: true })
 }
 
 export async function persistSandboxRotationIntent(args: {

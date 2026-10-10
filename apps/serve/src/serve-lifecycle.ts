@@ -127,6 +127,14 @@ export function createServeLifecycle(args: {
           })
         }
       }
+      parking = false
+      args.rearmIdle?.()
+      args.log({
+        event: EServeEvent.ParkStopFailed,
+        threadId: args.threadId,
+        admissionClosed: true,
+        reason: 'provider stop failed 3 times after the park finalized; the idle timer is re-armed to retry',
+      })
     } catch (failure) {
       args.log({
         event: EServeEvent.ParkStopFailed,

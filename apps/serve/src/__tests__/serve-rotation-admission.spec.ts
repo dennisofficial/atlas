@@ -117,6 +117,22 @@ describe('recovery admission while another rotation starts', () => {
     entry.app.intake?.dispose()
   })
 
+  it('reopens admission and clears the rotation preparation when the drain fails, and a later drain succeeds', async () => {
+    const entry = await rig()
+    await entry.recovery.recover(entry)
+    expect(entry.admission.closed).toBe(false)
+    entry.app.endProcesses = async () => { throw new Error('processes refused to stop') }
+    await expect(entry.recovery.drain({ drain: entry.drain, reason: 'failed rotation' }))
+      .rejects.toThrow('processes refused to stop')
+    expect(entry.admission.closed).toBe(false)
+    entry.app.endProcesses = undefined
+    const proof = await entry.recovery.drain({ drain: entry.drain, reason: 'rotation retry' })
+    expect(proof.ok).toBe(true)
+    expect(entry.admission.closed).toBe(true)
+    entry.recovery.detach()
+    entry.app.intake?.dispose()
+  })
+
   it('cancels accepted activation still waiting on the guard without starting children', async () => {
     const entered = gate()
     const held = gate()
