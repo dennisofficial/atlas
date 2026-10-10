@@ -72,7 +72,7 @@ const wedgeProofOf = (health: unknown, sessionId: string): boolean => {
 
 type PreparationGate = { kind: 'ready' } | { kind: 'wedged' } | { kind: 'legacy' }
 
-const legacyHealthSchema = z.looseObject({ sandboxSessionId: z.string().min(1) })
+const legacyHealthSchema = z.strictObject({ ok: z.boolean() })
 
 const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): Promise<PreparationGate> => {
   const probe = await args.sandbox.runCommand({
@@ -98,15 +98,10 @@ const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): 
   }
   if (wedgeProofOf(body, args.sandbox.currentSession().sessionId)) return { kind: 'wedged' }
   // rotationPreparationVersion and the health sandboxSessionId both first shipped in #1025
-  // (tui-v1.61.0), so a serve that answers an authenticated 200 without the version predates the
-  // drain protocol itself — the bearer token is the identity fence there. An answered health that
-  // names another session is a live-work fence and still refuses.
-  if (probe.exitCode === 0) {
-    const legacy = legacyHealthSchema.safeParse(body)
-    if (legacy.success && legacy.data.sandboxSessionId !== args.sandbox.currentSession().sessionId) {
-      return { kind: 'legacy' }
-    }
-  }
+  // (tui-v1.61.0), whose serve answered health with exactly `{"ok":true}` before the drain
+  // protocol existed — the bearer token is the identity fence there. A drain-capable serve never
+  // answers a bare `{"ok":true}` health, so the strict legacy shape cannot swallow one.
+  if (probe.exitCode === 0 && legacyHealthSchema.safeParse(body).success) return { kind: 'legacy' }
   throw new VercelFailure({
     kind: EVercelFailure.DrainRefused,
     message: 'this serve cannot confirm safe relocation preparation — the sandbox was preserved',

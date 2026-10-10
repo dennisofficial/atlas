@@ -593,6 +593,7 @@ export function createRemoteDeltaChannel(args: {
 
   let wakeFailureSignature: string | null = null
   let wakeFailureCount = 0
+  let wakeRetryStopped = false
 
   const noteWakeFailure = (signature: string): number => {
     if (signature === wakeFailureSignature) {
@@ -615,6 +616,7 @@ export function createRemoteDeltaChannel(args: {
         if (abandoned || scheduled !== generation) return
         wakeFailureSignature = null
         wakeFailureCount = 0
+        wakeRetryStopped = false
         applyAttachment(next)
       },
       (failure) => {
@@ -625,9 +627,10 @@ export function createRemoteDeltaChannel(args: {
           if (repeats >= maxReattachments) {
             const detail =
               `The sandbox wake failed with the same error ${repeats} times in a row: ${cause} ` +
-              'Automatic retries have stopped — investigate the sandbox, then send again or reconnect.'
+              'Automatic retries have stopped — investigate the sandbox, then reconnect.'
             upstream.failUnwritten({ reason: detail })
             failures.emit({ message: detail })
+            wakeRetryStopped = true
             moveTo({ state: EChannelConnection.Closed, detail })
             return
           }
@@ -649,7 +652,7 @@ export function createRemoteDeltaChannel(args: {
    * own wake ceremony, so this exists for everything else — requests and publishes alike.
    */
   const kickWake = () => {
-    if (abandoned) return
+    if (abandoned || wakeRetryStopped) return
     const reattach = args.reattach
     if (reattach === undefined) return
     if (
