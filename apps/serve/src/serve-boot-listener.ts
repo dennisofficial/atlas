@@ -2,6 +2,8 @@ import type { Server } from 'bun'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
+import { SERVE_CAPABILITIES } from '@dltech/atlas-wire'
+
 import { EWorkspaceState, type WorkspaceReadiness } from './materialize-workspace'
 import type { ServeDrain } from './serve-drain'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -32,6 +34,7 @@ const bootingHealth = (args: {
 }): unknown => ({
   ok: true,
   booting: true,
+  capabilities: SERVE_CAPABILITIES,
   rotationPreparationVersion: 1,
   sandboxSessionId: args.sandboxSessionId,
   threadId: args.threadId,
@@ -52,6 +55,7 @@ const bootedHealth = (args: {
   startedAt: number
 }): unknown => ({
   ok: args.base.workspace.state !== EWorkspaceState.Failed,
+  capabilities: SERVE_CAPABILITIES,
   rotationPreparationVersion: 1,
   sandboxSessionId: args.sandboxSessionId,
   threadId: args.threadId,

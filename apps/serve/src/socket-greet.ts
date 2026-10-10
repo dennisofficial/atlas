@@ -1,4 +1,4 @@
-import { CHANNEL_PROTOCOL_VERSION, EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
+import { CHANNEL_PROTOCOL_VERSION, EServeFrame, SERVE_CAPABILITIES, type ServeFrame } from '@dltech/atlas-harness'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { pendingEntriesOf } from './requests'
@@ -44,6 +44,7 @@ export function createSocketGreeter(args: {
         kind: EServeFrame.Ready,
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
+        capabilities: SERVE_CAPABILITIES,
         turnInFlight: driver.outcomePending(),
         ...(head === null ? {} : { transcriptCurrent: head === hello.lastEventSeq && !rewritten }),
         ...args.checkpointField(),
