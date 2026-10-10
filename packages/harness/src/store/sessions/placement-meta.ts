@@ -62,9 +62,10 @@ export function placementRecordOf(meta: ThreadMeta): PlacementRecord {
       placement: placementOf(executionLocationOf(meta.executionLocation) ?? EExecutionLocation.Host),
       revision: 0,
       move: null,
+      born: null,
     }
   }
-  return { placement, revision: stored?.revision ?? 0, move: moveFrom(stored) }
+  return { placement, revision: stored?.revision ?? 0, move: moveFrom(stored), born: stored?.born ?? null }
 }
 
 export function metaWithPlacement(args: { meta: ThreadMeta; record: PlacementRecord }): ThreadMeta {
@@ -83,6 +84,7 @@ export function metaWithPlacement(args: { meta: ThreadMeta; record: PlacementRec
               to: args.record.move.to,
               phase: args.record.move.phase,
             },
+      born: args.record.born ?? null,
     },
   }
 }

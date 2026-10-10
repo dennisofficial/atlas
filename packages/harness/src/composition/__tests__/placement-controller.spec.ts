@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, EPlacementMovePhase, EHarnessPlacement, toThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, EPlacementMovePhase, EHarnessPlacement, EToolEnvironment, toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import { EPlacementMoveKind, PlacementController } from '../placement-controller'
@@ -166,5 +166,64 @@ describe('session placement', () => {
     await controller.activate({ threadId: THREAD })
     await controller.move({ threadId: THREAD, target: EExecutionLocation.Cloud, kind: EPlacementMoveKind.Lift, work: async ({ commit }) => commit() })
     await expect(controller.move({ threadId: THREAD, target: EExecutionLocation.Docker, kind: EPlacementMoveKind.Tools, work: async ({ commit }) => commit() })).rejects.toThrow('cloud harnesses cannot')
+  })
+
+  it('fixes a thread’s placement at creation and refuses every later move', async () => {
+    const { controller, threads } = setup()
+    await controller.placeAtCreation({
+      threadId: THREAD,
+      placement: { harness: EHarnessPlacement.Cloud },
+    })
+
+    const record = await threads.readPlacement({ threadId: THREAD })
+    expect(record?.born).toBe(true)
+    expect(record?.placement).toEqual({ harness: EHarnessPlacement.Cloud })
+    expect(controller.of(THREAD)).toBe(EExecutionLocation.Cloud)
+
+    await expect(
+      controller.move({
+        threadId: THREAD,
+        target: EExecutionLocation.Host,
+        kind: EPlacementMoveKind.Descend,
+        work: async ({ commit }) => commit(),
+      }),
+    ).rejects.toThrow('born with its placement')
+    await expect(
+      controller.move({
+        threadId: THREAD,
+        target: EExecutionLocation.Docker,
+        kind: EPlacementMoveKind.Tools,
+        work: async ({ commit }) => commit(),
+      }),
+    ).rejects.toThrow('born with its placement')
+  })
+
+  it('keeps the first born placement when creation replays', async () => {
+    const { controller, threads } = setup()
+    await controller.placeAtCreation({ threadId: THREAD, placement: { harness: EHarnessPlacement.Cloud } })
+    const again = await controller.placeAtCreation({
+      threadId: THREAD,
+      placement: { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host },
+    })
+    expect(again.placement).toEqual({ harness: EHarnessPlacement.Cloud })
+    expect((await threads.readPlacement({ threadId: THREAD }))?.placement).toEqual({ harness: EHarnessPlacement.Cloud })
+  })
+
+  it('stamps a grandfathered thread’s inferred placement the first time it is placed', async () => {
+    const { controller, threads } = setup()
+    const legacy = await threads.createWithFirstEvents({
+      runId: toRunId('run_grandfathered'),
+      executionLocation: EExecutionLocation.Host,
+      drafts: [{ type: 'user-said', text: 'an old thread' }],
+    })
+    const threadId = legacy.thread.id
+
+    const inferred = await threads.readPlacement({ threadId })
+    expect(inferred?.born).toBeNull()
+
+    await controller.placeAtCreation({ threadId, placement: { harness: EHarnessPlacement.Cloud } })
+    const stamped = await threads.readPlacement({ threadId })
+    expect(stamped?.born).toBe(true)
+    expect(stamped?.placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
   })
 })

@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { recoverSession } from './session-recovery'
-import { startDescend } from './start-descend'
 
 import { isShellRunning } from '../ui/shells-model'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
-import { liftRefusal } from './cloud/lift-plan'
 import { EContainerAsk } from './commands'
 import {
+  bornCloudRefusalNotice,
+  bornLocalRefusalNotice,
   currentLocationNotice,
   movedLocationNotice,
   moveFailedNotice,
@@ -18,7 +18,6 @@ import {
   resourcesRefusalNotice,
 } from './container-notices'
 import { messageOf } from './error-text'
-import { useCloudLift } from './use-cloud-lift'
 import { useContainerGuard, type ContainerGuardControl } from './use-container-guard'
 import type { useContainerMove } from './use-container-move'
 import type { ContainerResourcesControl } from './use-container-resources'
@@ -33,12 +32,14 @@ export type WorkspaceLocation = {
   handleContainerResources: () => string | undefined
 }
 
-type LocationProps = Pick<WorkspaceProps,
-  'app' | 'localApp' | 'cloudSession' | 'cloudBridge' | 'cloudStores' |
-  'opened' | 'createBridge' | 'preflightLift' | 'captureWorkspace' | 'captureArchive' | 'restoreWorkspace' |
-  'captureContext' | 'onReload' | 'onLeaveCloud'
->
+type LocationProps = Pick<WorkspaceProps, 'app' | 'localApp' | 'opened' | 'createBridge' | 'onReload'>
 
+/**
+ * /container. Threads are born-placed: the command reports where this one runs, and the only
+ * switch left is the tool environment of a thread born on the host (host ↔ docker — the same
+ * ground `execution_location` covers). A cloud target on a local-born thread, or any target off
+ * a cloud-born thread, is refused with the placement named: threads do not move anymore.
+ */
 export function useWorkspaceLocation(args: {
   props: LocationProps
   conversation: ReturnType<typeof useConversation>
@@ -55,65 +56,8 @@ export function useWorkspaceLocation(args: {
     [conversation.threadId, props.app],
   )
 
-  const cloudLift = useCloudLift({
-    app: props.app,
-    threadId: conversation.threadId,
-    started: conversation.started,
-    midTurn: conversation.turnInFlight,
-    handleInterrupt: conversation.handleInterruptForMove,
-    handlePause: conversation.handlePauseForMove,
-    handleResumeSource: conversation.handleResumeSource,
-    whenSettled: conversation.whenSettled,
-    projectDirectory: conversation.projectDirectory,
-    owner: props.localApp.sessionOwner,
-    createBridge: props.createBridge,
-    preflightLift: props.preflightLift,
-    capture: props.captureWorkspace,
-    captureArchive: props.captureArchive,
-    captureContext: props.captureContext,
-    move: containerMove,
-    onReload: props.onReload,
-  })
-
-  const applyContainerSwitch = useCallback(
+  const applyToolSwitch = useCallback(
     (target: EExecutionLocation): boolean => {
-      if (target === EExecutionLocation.Cloud) {
-        cloudLift.handleLift()
-        return true
-      }
-
-      if (execution.location === EExecutionLocation.Cloud && !execution.bound) {
-        notify({
-          key: 'container-switch',
-          tone: ENoticeTone.Warn,
-          ttlMs: NOTICE_WARN_MS,
-          text: 'the sandbox is still connecting — /container off works once the channel is open',
-        })
-        return false
-      }
-
-      if (
-        execution.location === EExecutionLocation.Cloud &&
-        props.cloudSession !== null &&
-        props.cloudBridge !== null &&
-        props.cloudStores !== null
-      ) {
-        startDescend({
-          target,
-          props: {
-            localApp: props.localApp,
-            cloudSession: props.cloudSession,
-            cloudBridge: props.cloudBridge,
-            cloudStores: props.cloudStores,
-            restoreWorkspace: props.restoreWorkspace,
-            onLeaveCloud: props.onLeaveCloud,
-          },
-          conversation,
-          containerMove,
-        })
-        return true
-      }
-
       containerMove.handleBegin({
         target,
         rows: [
@@ -131,12 +75,7 @@ export function useWorkspaceLocation(args: {
           if (!moved.ok) {
             const reason = moveFailedNotice({ target, from, detail: moved.reason })
             containerMove.handleFail(reason)
-            notify({
-              key: 'container-switch',
-              tone: ENoticeTone.Warn,
-              ttlMs: NOTICE_WARN_MS,
-              text: reason,
-            })
+            notify({ key: 'container-switch', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: reason })
             return
           }
           containerMove.handleSettle()
@@ -145,37 +84,16 @@ export function useWorkspaceLocation(args: {
         .catch((error: unknown) => {
           const reason = moveFailedNotice({ target, from, detail: messageOf(error) })
           containerMove.handleFail(reason)
-          notify({
-            key: 'container-switch',
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-            text: reason,
-          })
+          notify({ key: 'container-switch', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: reason })
         })
       return true
     },
-    [
-      cloudLift,
-      containerBlockers,
-      containerMove,
-      conversation.refresh,
-      conversation.threadId,
-      conversation.started,
-      conversation.turnInFlight,
-      execution,
-      props.app,
-      props.localApp,
-      props.cloudSession,
-      props.cloudBridge,
-      props.cloudStores,
-      props.onLeaveCloud,
-      props.restoreWorkspace,
-    ],
+    [containerMove, conversation.refresh, conversation.threadId, execution, props.app],
   )
 
   const recovering = useRef(false)
 
-  const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })
+  const containerGuard = useContainerGuard({ onSwitch: applyToolSwitch })
 
   const handleContainer = useCallback(
     (asked: EExecutionLocation | EContainerAsk): string | undefined => {
@@ -183,8 +101,16 @@ export function useWorkspaceLocation(args: {
       // The registry routes Resources to handleContainerResources before this runs.
       if (asked === EContainerAsk.Resources) return undefined
       if (asked === execution.location) return currentLocationNotice(execution.location)
+
       const owner = props.localApp.sessionOwner
-      const unfinished = owner.snapshot().record?.move
+      const record = owner.snapshot().record
+      if (record !== undefined && record.born === true) {
+        return asked === EExecutionLocation.Cloud
+          ? bornLocalRefusalNotice()
+          : bornCloudRefusalNotice(asked)
+      }
+
+      const unfinished = record?.move
       if (unfinished != null && owner.placement.startedHere(unfinished.id)) {
         return 'a move is already underway — wait for it to settle'
       }
@@ -214,12 +140,10 @@ export function useWorkspaceLocation(args: {
         return 'a move is already underway — wait for it to settle'
       }
 
-      if (asked === EExecutionLocation.Cloud) {
-        const refusal = liftRefusal({
-          compacting: conversation.compacting !== null,
-          rotating: conversation.rotating !== null,
-        })
-        if (refusal !== null) return refusal
+      if (asked === EExecutionLocation.Cloud || execution.location === EExecutionLocation.Cloud) {
+        return asked === EExecutionLocation.Cloud
+          ? bornLocalRefusalNotice()
+          : bornCloudRefusalNotice(asked)
       }
 
       const blockers = containerBlockers()
@@ -228,17 +152,13 @@ export function useWorkspaceLocation(args: {
         return pendingSwitchNotice({ target: asked, count: blockers.length })
       }
 
-      const engaged = applyContainerSwitch(asked)
+      const engaged = applyToolSwitch(asked)
       if (!engaged) return undefined
-      if (!conversation.started && asked !== EExecutionLocation.Cloud) {
-        return movedLocationNotice(asked)
-      }
-
-      if (asked === EExecutionLocation.Cloud) return undefined
+      if (!conversation.started) return movedLocationNotice(asked)
       return movingNotice(asked)
     },
     [
-      applyContainerSwitch,
+      applyToolSwitch,
       conversation.threadId,
       containerBlockers,
       containerGuard,
@@ -247,8 +167,6 @@ export function useWorkspaceLocation(args: {
       props.localApp,
       props.onReload,
       props.opened,
-      conversation.compacting,
-      conversation.rotating,
       conversation.started,
       execution,
     ],

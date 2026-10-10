@@ -63,7 +63,7 @@ export const containerAskOfArgument = (
 }
 
 const unknownContainerArgument = (argumentText: string): string =>
-  `/container takes no argument to say where this conversation runs, "off" | "docker" | "cloud" to move it, or "resources" to resize a cloud sandbox — not ${argumentText.trim()}`
+  `/container takes no argument to say where this conversation was born, "off" | "docker" to switch a host-born thread's tool environment, or "resources" to resize a cloud sandbox — threads never move to or from the cloud; not ${argumentText.trim()}`
 
 export type LocalCommandHandlers = {
   onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
@@ -126,8 +126,8 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     }),
     local({
       name: 'container',
-      summary: 'move this conversation between the host, a docker container and the cloud',
-      argumentHint: '[off|docker|cloud|resources]',
+      summary: 'say where this conversation runs; switch a host-born thread between host and docker',
+      argumentHint: '[off|docker|resources]',
       group: ECommandGroup.Session,
       timing: ECommandTiming.Immediate,
       echo: ECommandEcho.Output,

@@ -10,7 +10,7 @@ import { useDraftTokens } from '../ui/hooks/use-draft-tokens'
 import { useSince } from '../ui/hooks/use-since'
 import { channelTakingTurns } from './cloud/channel-ready'
 import { pasteDirectoryOf } from './paste-directory'
-import { unstartedConversation } from './open-conversation'
+import { useThreadBirth } from './use-thread-birth'
 import { useCloudHealth } from './use-cloud-connection'
 import { useContainerMove } from './use-container-move'
 import { useConversation } from './use-conversation'
@@ -37,6 +37,9 @@ type SessionProps = Pick<
   | 'onLeaveCloud'
   | 'onLocalOpened'
   | 'onMoveStep'
+  | 'createBridge'
+  | 'preflightLift'
+  | 'onReload'
 >
 
 export function useWorkspaceSession(args: {
@@ -136,16 +139,21 @@ export function useWorkspaceSession(args: {
 
   const { working } = conversation
 
-  const handleNewConversation = useCallback(() => {
-    draft.clear()
-    if (props.cloudSession === null) {
-      conversation.handleNewConversation()
-      return
-    }
-    if (working) return
+  const birth = useThreadBirth({
+    app: props.localApp,
+    owner: props.localApp.sessionOwner,
+    containerMove,
+    createBridge: props.createBridge,
+    preflightLift: props.preflightLift,
+    adopt: (opened) => props.onLeaveCloud(opened),
+    onReload: props.onReload,
+  })
 
-    props.onLeaveCloud(unstartedConversation({ ids: props.localApp.ids }))
-  }, [conversation, draft, working, props.cloudSession, props.localApp, props.onLeaveCloud])
+  const handleNewConversation = useCallback(() => {
+    if (working) return
+    draft.clear()
+    birth.handleNewThread()
+  }, [birth, draft, working])
 
   return {
     draft,
