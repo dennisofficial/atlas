@@ -245,7 +245,7 @@ export async function finishServeBoot(args: {
   boot.complete({
     handlers,
     drain: (given) => recovery.drain({ drain, ...given }),
-    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable },
+    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable, admissionClosed: () => admission.closed },
   })
 
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
