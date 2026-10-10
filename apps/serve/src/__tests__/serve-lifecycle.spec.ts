@@ -113,7 +113,7 @@ describe('sandbox lifecycle ownership', () => {
     expect(test.calls).toContain('serve.park-finalized')
   })
 
-  it('never reopens admission after finalization even if all provider stop attempts fail', async () => {
+  it('never reopens admission after finalization even if all provider stop attempts fail, and re-arms the idle timer to retry', async () => {
     let attempts = 0
     const test = fixture({
       finalize: async () => undefined,
@@ -125,6 +125,11 @@ describe('sandbox lifecycle ownership', () => {
     expect(test.calls).toContain('parked')
     expect(test.calls).not.toContain('exit')
     expect(test.app.closed()).toBe(false)
+    expect(test.calls).toContain('rearm-idle')
+    expect(test.calls.filter((call) => call === 'serve.park-stop-failed')).toHaveLength(4)
+    expect(test.calls.lastIndexOf('serve.park-stop-failed')).toBeGreaterThan(test.calls.indexOf('rearm-idle'))
+    await test.lifecycle.park()
+    expect(attempts).toBe(6)
     test.app.intake?.dispose()
   })
 

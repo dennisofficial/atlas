@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { access } from 'node:fs/promises'
 
-import { EClientFrame, EServeFrame, readSandboxRotationState, sandboxRotationReceiptFile } from '@dltech/atlas-harness'
+import { EClientFrame, EServeFrame, ETurnStatus, readSandboxRotationState, sandboxRotationReceiptFile } from '@dltech/atlas-harness'
 
 import { connect } from './client'
 import { cleanupRotationFixtures, rotationFixture, sourceSession, threadId, token } from './serve-rotation-fixture'
@@ -20,9 +20,9 @@ describe('same-session restart over its own drain receipt', () => {
     client.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
     client.send({ kind: EClientFrame.Run, resume: true })
-    const reply = await client.waitFor((frame) =>
-      frame.kind === EServeFrame.TurnStarted || frame.kind === EServeFrame.Error)
-    expect(JSON.stringify(reply)).not.toContain('accepts no new work')
+    const ended = await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+    expect(ended.kind === EServeFrame.TurnEnded && ended.outcome.status).toBe(ETurnStatus.Completed)
+    expect(JSON.stringify(client.frames)).not.toContain('accepts no new work')
     client.close()
   }, 20_000)
 
@@ -39,9 +39,9 @@ describe('same-session restart over its own drain receipt', () => {
     client.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
     client.send({ kind: EClientFrame.Run, resume: true })
-    const reply = await client.waitFor((frame) =>
-      frame.kind === EServeFrame.TurnStarted || frame.kind === EServeFrame.Error)
-    expect(JSON.stringify(reply)).not.toContain('accepts no new work')
+    const ended = await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+    expect(ended.kind === EServeFrame.TurnEnded && ended.outcome.status).toBe(ETurnStatus.Completed)
+    expect(JSON.stringify(client.frames)).not.toContain('accepts no new work')
     client.close()
   }, 20_000)
 })

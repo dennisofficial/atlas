@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { access } from 'node:fs/promises'
 import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import {
   EClientFrame, EServeFrame, ETurnStatus,
   persistSandboxRotationIntent, readPersistedRuntimeCheckpoint, readSandboxRotationState,
-  runtimeCheckpointFile, transcriptIdentityDigest,
+  runtimeCheckpointFile, sandboxRotationReceiptFile, transcriptIdentityDigest,
 } from '@dltech/atlas-harness'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
@@ -26,6 +27,9 @@ const owed = async (home: string): Promise<boolean> =>
 
 const checkpointAt = (home: string) =>
   readPersistedRuntimeCheckpoint({ file: runtimeCheckpointFile({ atlasHome: home }) })
+
+const receiptExists = async (home: string): Promise<boolean> =>
+  access(sandboxRotationReceiptFile({ atlasHome: home })).then(() => true, () => false)
 
 afterEach(cleanupRotationFixtures)
 
@@ -68,6 +72,7 @@ describe('serve sandbox rotation recovery without a client', () => {
     model.release()
     await eventually(async () => !(await owed(fixture.home)))
     expect(first.outcomes.map((outcome) => outcome.status)).toEqual([ETurnStatus.Completed])
+    await eventually(async () => !(await receiptExists(fixture.home)))
     await handle.close()
     const second = await fixture.boot()
     await second.starting
@@ -101,7 +106,7 @@ describe('serve sandbox rotation recovery without a client', () => {
     expect((await second.disk.log.read({ threadId })).filter((event) => event.type === 'nudge')).toHaveLength(1)
   }, 20_000)
 
-  it('keeps a preparing source restart frozen and refuses work without replacing the old proof', async () => {
+  it('replaces a same-session preparing intent and boots open without replaying it', async () => {
     const fixture = await rotationFixture()
     await persistSandboxRotationIntent({ atlasHome: fixture.home, threadId, sandboxSessionId: sourceSession, resumeParent: true })
     const order: string[] = []
@@ -114,29 +119,30 @@ describe('serve sandbox rotation recovery without a client', () => {
       },
     })
     const handle = await boot.starting
-    expect(order).toEqual(['guard'])
-    expect(boot.app.adoptions()).toEqual([])
+    expect(order).toEqual([])
+    expect(boot.app.adoptions()).toEqual([threadId])
     expect(boot.resumed()).toBe(0)
     expect(boot.ran()).toBe(0)
-    expect(await checkpointAt(fixture.home)).toEqual(fixture.receipt.checkpoint)
+    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toBeNull()
     const client = await connect({ port: handle.port, token })
     client.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
     client.send({ kind: EClientFrame.Run, resume: true })
-    const refusal = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
-    expect(JSON.stringify(refusal)).toContain('accepts no new work')
+    const ended = await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+    expect(ended.kind === EServeFrame.TurnEnded && ended.outcome.status).toBe(ETurnStatus.Completed)
+    expect(JSON.stringify(client.frames)).not.toContain('accepts no new work')
     client.close()
-    expect(await owed(fixture.home)).toBe(true)
   }, 20_000)
 
-  it('leaves a prepared source restart sealed without adoption or checkpoint rewriting', async () => {
+  it('deletes the receipt on a same-session boot and takes ownership of the checkpoint', async () => {
     const fixture = await rotationFixture()
     const boot = await fixture.boot({ sessionId: sourceSession })
     await boot.starting
     expect(boot.resumed()).toBe(0)
-    expect(boot.app.adoptions()).toEqual([])
-    expect(await checkpointAt(fixture.home)).toEqual(fixture.receipt.checkpoint)
-    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toEqual(fixture.receipt)
+    expect(boot.app.adoptions()).toEqual([threadId])
+    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toBeNull()
+    const checkpoint = await checkpointAt(fixture.home)
+    expect(checkpoint?.sandboxSessionId).toBe(sourceSession)
   }, 20_000)
 
   it('preserves an approval pause instead of forcing the owed parent past it', async () => {

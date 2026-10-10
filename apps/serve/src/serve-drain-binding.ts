@@ -45,6 +45,10 @@ export function bindServeDrain(args: {
       args.haltIdle()
       args.app.intake?.suspend()
     },
+    reopenAdmission: () => {
+      args.admission.closed = false
+      args.app.intake?.resume()
+    },
     beginPreparation: async () => {
       await args.whenMutationsSettled()
       const prior = await readSandboxRotationState({ atlasHome: args.atlasHome })
