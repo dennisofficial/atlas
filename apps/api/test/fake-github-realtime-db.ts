@@ -8,6 +8,7 @@ export type FakeSubscriptionRow = {
   branch: string
   pollBacked: boolean
   expiresAt: Date
+  liveUntil: Date
   threadId: string | null
   sandboxId: string | null
   createdAt: Date

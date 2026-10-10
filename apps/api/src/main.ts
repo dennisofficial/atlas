@@ -1,12 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { ValidationPipe, VersioningType } from '@nestjs/common'
-import { NestFactory } from '@nestjs/core'
+import { HttpAdapterHost, NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Express } from 'express'
 import helmet from 'helmet'
 import { envConfigValidation } from './_core/config/env/validation'
 import { contextArchiveRawParser } from './api/cloud/context-archive/context-archive-http'
 import { MAX_CONTEXT_ARCHIVE_BYTES } from './api/cloud/context-archive/context-archive-limits'
+import { GlobalExceptionFilter } from './api/global-exception.filter'
 import { registerGracefulShutdown } from './api/graceful-shutdown'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
 import { GITHUB_WEBHOOK_BODY_LIMIT, webhookJsonParser } from './_lib/webhook-body-limit'
@@ -49,6 +50,7 @@ async function createApp(): Promise<NestExpressApplication> {
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))
+  app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter))
 
   await app.init()
   return app

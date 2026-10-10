@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
 vi.mock('../../../db', async () => {
@@ -13,9 +13,13 @@ import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import {
   GithubSandboxWakeService,
   WAKE_DEBOUNCE_MS,
+  WAKE_FAILURE_BACKOFF_MS,
   type SandboxWakeBoot,
   type WakeBootArgs,
 } from './github-sandbox-wake.service'
+
+const releaseArtifactCheck = (ok: boolean) =>
+  vi.fn(async () => new Response(null, { status: ok ? 200 : 404 })) as typeof fetch
 
 const fake = fakeGithubDb()
 
@@ -32,6 +36,7 @@ function seedSubscription(args: { userId?: string; threadId?: string | null }): 
     branch: '',
     pollBacked: false,
     expiresAt: new Date(Date.now() - 60_000),
+    liveUntil: new Date(Date.now() - 60_000),
     threadId: args.threadId === undefined ? 'thr-1' : args.threadId,
     sandboxId: null,
     createdAt: new Date(),
@@ -81,6 +86,11 @@ describe('GithubSandboxWakeService', () => {
   beforeEach(() => {
     fake.reset()
     vi.useFakeTimers()
+    vi.stubGlobal('fetch', releaseArtifactCheck(true))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('boots a parked sandbox inside the wake window and updates its row', async () => {
@@ -272,5 +282,143 @@ describe('GithubSandboxWakeService', () => {
 
     expect(calls[0]?.driveName).toMatch(/^atlas-drive-[0-9a-f]{24}$/)
     expect(calls[0]?.serveVersion).toBeUndefined()
+  })
+
+  it('claims the row before booting, so a concurrent second event does not double-boot', async () => {
+    seedSubscription({})
+    seedCloudSandbox({
+      id: 'sbx-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      sandboxId: 'vsbx-1',
+      name: 'atlas-sandbox-abc',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: pastIso(60_000),
+    })
+    const gate: { release: () => void } = { release: () => {} }
+    const held = new Promise<void>((resolve) => {
+      gate.release = resolve
+    })
+    const calls: WakeBootArgs[] = []
+    const boot: SandboxWakeBoot = {
+      boot: async (bootArgs: WakeBootArgs) => {
+        calls.push(bootArgs)
+        await held
+        return { serveUrl: 'https://serve.example.test' }
+      },
+    }
+    const wake = serviceWith({ boot })
+
+    wake.notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
+    await vi.advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
+    expect(calls).toHaveLength(1)
+    expect(fake.cloudSandboxes[0]?.state).toBe('resuming')
+
+    wake.notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
+    await vi.advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
+    expect(calls).toHaveLength(1)
+
+    gate.release()
+    await flushDebounce()
+    expect(calls).toHaveLength(1)
+    expect(fake.cloudSandboxes[0]?.state).toBe('running')
+  })
+
+  it('a boot failure parks the row again and records wakeFailedAt for backoff', async () => {
+    seedSubscription({})
+    seedCloudSandbox({
+      id: 'sbx-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      sandboxId: 'vsbx-1',
+      name: 'atlas-sandbox-abc',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: pastIso(60_000),
+    })
+    const boot: SandboxWakeBoot = {
+      boot: async () => {
+        throw new Error('vercel is down')
+      },
+    }
+    const wake = serviceWith({ boot })
+
+    wake.notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
+    await flushDebounce()
+
+    expect(fake.cloudSandboxes[0]?.state).toBe('parked')
+    expect(fake.cloudSandboxes[0]?.wakeFailedAt).toEqual(expect.any(String))
+  })
+
+  it('a recent wake failure backs the target off until the backoff window passes', async () => {
+    seedSubscription({})
+    seedCloudSandbox({
+      id: 'sbx-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      sandboxId: 'vsbx-1',
+      name: 'atlas-sandbox-abc',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: pastIso(60_000),
+      wakeFailedAt: pastIso(60_000),
+    })
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot }).notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
+    await flushDebounce()
+    expect(calls).toHaveLength(0)
+
+    fake.cloudSandboxes[0]!.wakeFailedAt = pastIso(WAKE_FAILURE_BACKOFF_MS + 60_000)
+    serviceWith({ boot }).notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
+    await flushDebounce()
+    expect(calls).toHaveLength(1)
+  })
+
+  it('wakes with latest serve when the pinned version has no release artifact', async () => {
+    vi.stubGlobal('fetch', releaseArtifactCheck(false))
+    seedSubscription({})
+    seedCloudSandbox({
+      id: 'sbx-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      sandboxId: 'vsbx-1',
+      name: 'atlas-sandbox-abc',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: pastIso(60_000),
+      serveVersion: '9.9.9',
+    })
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot }).notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
+    await flushDebounce()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.serveVersion).toBeUndefined()
+  })
+
+  it('skips the boot when the row left Parked during the debounce window', async () => {
+    seedSubscription({})
+    seedCloudSandbox({
+      id: 'sbx-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      sandboxId: 'vsbx-1',
+      name: 'atlas-sandbox-abc',
+      region: 'iad1',
+      state: 'parked',
+      lastActivityAt: pastIso(60_000),
+    })
+    const { boot, calls } = fakeBoot()
+    const wake = serviceWith({ boot })
+
+    wake.notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
+    fake.cloudSandboxes[0]!.state = 'running'
+    await flushDebounce()
+
+    expect(calls).toHaveLength(0)
+    expect(fake.cloudSandboxes[0]?.state).toBe('running')
   })
 })

@@ -9,6 +9,9 @@ import {
 } from '../../plugins/github/pure'
 import type { SubscriptionPrState } from '../pr-subscription-client'
 import { SsePullRequestPort } from '../sse-pull-requests'
+import { createFakeTimerClock } from './fake-timer-clock'
+
+const TICK_WINDOW_MS = 75_000
 
 const CHECKOUT: RepositoryCheckout = {
   directory: '/repo',
@@ -38,6 +41,7 @@ const createApi = () => {
   let authAccepted = true
   let subscriptionLive = true
   let heartbeats = 0
+  let heartbeatFailures = 0
   let subscribes = 0
   let streamAttempts = 0
   let activeStreams = 0
@@ -50,6 +54,10 @@ const createApi = () => {
       if (!authAccepted) return Response.json({ message: 'token revoked' }, { status: 401 })
       if (path.endsWith('/heartbeat')) {
         heartbeats += 1
+        if (heartbeatFailures > 0) {
+          heartbeatFailures -= 1
+          return Response.json({ message: 'upstream sick' }, { status: 503 })
+        }
         if (!subscriptionLive) {
           return Response.json({ message: 'subscription expired' }, { status: 404 })
         }
@@ -91,6 +99,7 @@ const createApi = () => {
     session: { url: `http://127.0.0.1:${server.port}`, token: 'static-token', email: null },
     setState: (value: SubscriptionPrState) => { current = value },
     expireSubscription: () => { subscriptionLive = false },
+    failNextHeartbeats: (count: number) => { heartbeatFailures = count },
     revoke: () => { authAccepted = false },
     recover: () => { authAccepted = true },
     push: (value: SubscriptionPrState) => {
@@ -103,25 +112,6 @@ const createApi = () => {
     streamAttempts: () => streamAttempts,
     activeStreams: () => activeStreams,
     stop: () => server.stop(true),
-  }
-}
-
-const createClock = () => {
-  const handlers: (() => void)[] = []
-  const setIntervalFn = ((handler: unknown) => {
-    if (typeof handler === 'function') handlers.push(handler as () => void)
-    return { unref: () => undefined } as unknown as ReturnType<typeof setInterval>
-  }) as typeof setInterval
-  return {
-    clock: {
-      now: () => 0,
-      setIntervalFn,
-      clearIntervalFn: (() => undefined) as typeof clearInterval,
-      clearTimeoutFn: (() => undefined) as typeof clearTimeout,
-    },
-    fire: () => {
-      for (const handler of [...handlers]) handler()
-    },
   }
 }
 
@@ -178,7 +168,7 @@ describe('SsePullRequestPort heartbeat failure catch-up', () => {
   it('resubscribes with fresh state when the shared subscription expired, then routes pushes', async () => {
     api = createApi()
     const feed = readingsFeed()
-    const clock = createClock()
+    const clock = createFakeTimerClock()
     port = new SsePullRequestPort({
       session: api.session,
       clientVersion: 'test',
@@ -192,7 +182,7 @@ describe('SsePullRequestPort heartbeat failure catch-up', () => {
 
     api.expireSubscription()
     api.setState(state({ state: 'merged', checksRunning: 0, checksPassed: 8 }))
-    clock.fire()
+    await clock.advance(TICK_WINDOW_MS)
 
     const merged = await feed.next(hasState(EPullRequestState.Merged))
     if (merged.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
@@ -207,10 +197,33 @@ describe('SsePullRequestPort heartbeat failure catch-up', () => {
     expect(api.activeStreams()).toBe(1)
   })
 
+  it('absorbs one transient 5xx through the transport retry without a catch-up sweep', async () => {
+    api = createApi()
+    const clock = createFakeTimerClock()
+    port = new SsePullRequestPort({
+      session: api.session,
+      clientVersion: 'test',
+      onReading: readingsFeed().onReading,
+      clock: clock.clock,
+    })
+
+    await port.read({ checkout: CHECKOUT })
+    await waitFor(() => api!.subscribes() >= 2)
+    const subscribesBefore = api.subscribes()
+
+    api.failNextHeartbeats(1)
+    await clock.advance(TICK_WINDOW_MS)
+    await waitFor(() => api!.heartbeats() >= 2)
+    await Bun.sleep(50)
+
+    expect(api.heartbeats()).toBe(2)
+    expect(api.subscribes()).toBe(subscribesBefore)
+  })
+
   it('marks the reading Unavailable retryable and aborts on revoked token, then recovers on read', async () => {
     api = createApi()
     const feed = readingsFeed()
-    const clock = createClock()
+    const clock = createFakeTimerClock()
     port = new SsePullRequestPort({
       session: api.session,
       clientVersion: 'test',
@@ -223,7 +236,7 @@ describe('SsePullRequestPort heartbeat failure catch-up', () => {
     await waitFor(() => api!.subscribes() >= 2)
 
     api.revoke()
-    clock.fire()
+    await clock.advance(TICK_WINDOW_MS)
 
     const unavailable = await feed.next((reading) => reading.lookup === EPullRequestLookup.Unavailable)
     if (unavailable.lookup !== EPullRequestLookup.Unavailable) throw new Error('expected unavailable')

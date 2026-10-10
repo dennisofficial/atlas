@@ -138,6 +138,7 @@ model CloudSandbox {
   pinnedModel    String?
   serveUrl       String?
   serveVersion   String?
+  wakeFailedAt   String?
   runtimeCheckpoint Json?
   runtimeCheckpointRevision Int?
   createdAt      String
@@ -354,6 +355,7 @@ model GithubSubscription {
   branch       String   @default("")
   pollBacked   Boolean  @default(false)
   expiresAt    DateTime
+  liveUntil    DateTime @default(now())
   threadId     String?
   sandboxId    String?
   createdAt    DateTime @default(now())
@@ -364,6 +366,7 @@ model GithubSubscription {
   @@index([repoFullName, prNumber])
   @@index([repoFullName, branch])
   @@index([expiresAt])
+  @@index([liveUntil])
   @@index([threadId])
 }
 
