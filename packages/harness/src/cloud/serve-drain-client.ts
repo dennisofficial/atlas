@@ -7,6 +7,8 @@ import {
   SERVE_TOKEN_PATH,
   sandboxDrainReplySchema,
   sandboxRotationReceiptSchema,
+  sandboxSh,
+  withSwapLock,
   VercelFailure,
   type SandboxRotationReceipt,
 } from '@dltech/atlas-wire'
@@ -108,7 +110,12 @@ const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): 
   })
 }
 
-export const drainServe: ServeDrain = async ({ sandbox, url }) => {
+export const drainServe: ServeDrain = ({ sandbox, url }) =>
+  // A second client arriving mid-swap blocks until the winner's lock holder releases, then sees
+  // the winner's preparation receipt and returns without draining again.
+  withSwapLock({ sandbox, sh: sandboxSh, run: () => drainServeUnlocked({ sandbox, url }) })
+
+const drainServeUnlocked: ServeDrain = async ({ sandbox, url }) => {
   if (await hasPreparedReceipt(sandbox)) return
   const gate = await requireSafePreparation({ sandbox, url })
   // A wedged serve already ended its own processes when it parked and cannot answer a drain —

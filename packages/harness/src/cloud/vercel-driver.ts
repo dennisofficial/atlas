@@ -36,7 +36,7 @@ import {
 
 export class VercelDriver {
   private readonly sdk: VercelSdk
-  private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
+  private readonly inflightBySandboxName = new Map<string, Promise<unknown>>()
   private readonly runtimeActivity: RuntimeActivityProbe = probeRuntimeActivity
   private readonly attachLagRetry: RetryPolicy
   private readonly imageOptimizeRetry: RetryPolicy
@@ -72,25 +72,32 @@ export class VercelDriver {
   }
 
   createOrResume(args: ProvisionArgs): Promise<SandboxPlacement> {
-    return provisionSandbox(
-      {
-        config: this.args,
-        sdk: this.sdk,
-        drives: this.drives,
-        runtimeHealth: this.runtimeActivity,
-        attachLagRetry: this.attachLagRetry,
-        imageOptimizeRetry: this.imageOptimizeRetry,
-        launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
-          this.dedupedLaunch({
-            sandbox: launchArgs.sandbox,
-            launch: createServeLauncher({ log: this.args.log }),
-            token: launchArgs.token,
-            sandboxSessionId: launchArgs.sandboxSessionId,
-            cloudUrl: launchArgs.cloudUrl,
-            desiredVersion: launchArgs.desiredVersion ?? this.args.serveVersion,
-          }),
-      },
-      args,
+    // Two wakes of the same thread in one process share one provision instead of racing; the
+    // in-sandbox swap lock covers the cross-process case.
+    return this.nameKeyed(args.name, () =>
+      provisionSandbox(
+        {
+          config: this.args,
+          sdk: this.sdk,
+          drives: this.drives,
+          runtimeHealth: this.runtimeActivity,
+          attachLagRetry: this.attachLagRetry,
+          imageOptimizeRetry: this.imageOptimizeRetry,
+          launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
+            this.nameKeyed(`launch:${launchArgs.sandbox.name}`, () =>
+              createServeLauncher({ log: this.args.log })({
+                sandbox: launchArgs.sandbox,
+                ...(launchArgs.token === undefined ? {} : { token: launchArgs.token }),
+                ...(launchArgs.sandboxSessionId === undefined
+                  ? {}
+                  : { sandboxSessionId: launchArgs.sandboxSessionId }),
+                ...(launchArgs.cloudUrl === undefined ? {} : { cloudUrl: launchArgs.cloudUrl }),
+                desiredVersion: launchArgs.desiredVersion ?? this.args.serveVersion,
+              }),
+            ),
+        },
+        args,
+      ),
     )
   }
 
@@ -303,28 +310,13 @@ export class VercelDriver {
     })
   }
 
-  private dedupedLaunch(args: {
-    sandbox: Sandbox
-    launch: ServeLauncher
-    token?: string | undefined
-    sandboxSessionId?: string | undefined
-    cloudUrl?: string | undefined
-    desiredVersion?: string | undefined
-  }): Promise<void> {
-    const existing = this.inflightLaunches.get(args.sandbox)
-    if (existing !== undefined) return existing
-    const attempt = args
-      .launch({
-        sandbox: args.sandbox,
-        ...(args.token === undefined ? {} : { token: args.token }),
-        ...(args.sandboxSessionId === undefined ? {} : { sandboxSessionId: args.sandboxSessionId }),
-        ...(args.cloudUrl === undefined ? {} : { cloudUrl: args.cloudUrl }),
-        ...(args.desiredVersion === undefined ? {} : { desiredVersion: args.desiredVersion }),
-      })
-      .finally(() => {
-        this.inflightLaunches.delete(args.sandbox)
-      })
-    this.inflightLaunches.set(args.sandbox, attempt)
+  private nameKeyed<T>(key: string, run: () => Promise<T>): Promise<T> {
+    const existing = this.inflightBySandboxName.get(key)
+    if (existing !== undefined) return existing as Promise<T>
+    const attempt = run().finally(() => {
+      this.inflightBySandboxName.delete(key)
+    })
+    this.inflightBySandboxName.set(key, attempt)
     return attempt
   }
 }

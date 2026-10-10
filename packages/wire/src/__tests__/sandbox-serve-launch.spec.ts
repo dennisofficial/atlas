@@ -10,6 +10,7 @@ import {
   SERVE_LOG_PATH,
   SERVE_TOKEN_PATH,
   SERVE_VERSION_PATH,
+  SWAP_LOCK_PATH,
 } from '../serve-env.js'
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire.js'
 
@@ -50,7 +51,21 @@ const fakeSandbox = (args: {
       ops.push('command')
       commands.push(params)
       const script = params.args?.[1] ?? ''
+      if (params.detached === true && script.includes(SWAP_LOCK_PATH)) {
+        // The swap-lock holder: a live process the driver kills on release.
+        return {
+          cmdId: 'cmd_lock',
+          exitCode: null,
+          wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
+          kill: async () => undefined,
+        }
+      }
       if (params.detached === true) return { cmdId: 'cmd_1' }
+      if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
+        // The acquire-status probe: this fake always grants the lock immediately.
+        return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
+      }
+      if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       if (script.startsWith('kill -0')) {
         return { exitCode: alive ? 0 : 1 }
       }
@@ -82,16 +97,21 @@ const scriptsOf = (commands: RecordedCommand[]): string[] =>
   commands.map((command) => command.args?.[1] ?? '')
 
 const launchesOf = (commands: RecordedCommand[]): RecordedCommand[] =>
-  commands.filter((command) => command.detached === true)
+  commands.filter(
+    (command) =>
+      command.detached === true && !(command.args?.[1] ?? '').includes(SWAP_LOCK_PATH),
+  )
 
 describe('createServeLauncher', () => {
-  it('writes the session token before anything else when no serve is alive', async () => {
+  it('writes the session token before the boot probes once the swap lock is held', async () => {
     const { sandbox, writes, ops } = fakeSandbox({ healthy: true, alive: false })
 
     await createServeLauncher()({ sandbox, token: 'tok_fresh' })
 
     expect(writes).toEqual([{ path: SERVE_TOKEN_PATH, content: 'tok_fresh', mode: 0o600 }])
-    expect(ops.slice(0, 3)).toEqual(['command', 'command', 'write'])
+    const writeAt = ops.indexOf('write')
+    expect(writeAt).toBeGreaterThan(-1)
+    expect(ops.slice(0, writeAt).every((op) => op === 'command')).toBe(true)
   })
 
   it('leaves the sandbox filesystem alone when no token is given', async () => {
