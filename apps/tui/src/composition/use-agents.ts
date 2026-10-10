@@ -29,6 +29,7 @@ export function useShellSurfaces(shells: readonly ShellSnapshot[]): readonly She
   return held
 }
 
+import { crewPullRequestOf } from '../plugins/github/crew-pull-request'
 import { DEFAULT_CREW_CAP, foldCrew } from '../store/crew-fold'
 import {
   DEFAULT_CREW_GRACE_MS,
@@ -48,6 +49,9 @@ import { modelLabel } from '../ui/model-label'
 import type { AtlasApp } from './compose'
 import type { ShellSnapshot } from '@dltech/atlas-harness'
 import { useTickingNow } from './use-ticking-now'
+
+const NO_SUBSCRIPTION = (): (() => void) => () => undefined
+const NO_VERSION = (): number => 0
 
 export type AgentsControl = {
   sidebar: SidebarModel
@@ -149,6 +153,12 @@ export function useAgents({
   const own = useSyncExternalStore(subscribe, readOwn)
   const everywhere = useSyncExternalStore(subscribe, readEverywhere)
 
+  const crewPullRequests = app.crewPullRequests ?? null
+  const pullRequestVersion = useSyncExternalStore(
+    crewPullRequests?.service.subscribe ?? NO_SUBSCRIPTION,
+    crewPullRequests?.service.version ?? NO_VERSION,
+  )
+
   const visits = useCrewVisits(viewing)
   const surfaces = useShellSurfaces(shells)
   const shellBusy = useMemo(
@@ -177,6 +187,10 @@ export function useAgents({
       modelLabel: nameModel,
       viewing,
       rosters: { shells: surfaces, children: everywhere },
+      pullRequestOf:
+        crewPullRequests === null
+          ? undefined
+          : ({ threadId: teammate }) => crewPullRequestOf({ reader: crewPullRequests, threadId: teammate }),
     })
     const { standings } = partitionCrew({
       crew: members,
@@ -206,7 +220,7 @@ export function useAgents({
       running: subagents.filter(isSubagentWorking).length,
       count: subagents.length,
     }
-  }, [app.models, everywhere, members, now, own, surfaces, viewing])
+  }, [app.models, crewPullRequests, everywhere, members, now, own, pullRequestVersion, surfaces, viewing])
 
   return useMemo(
     () => ({

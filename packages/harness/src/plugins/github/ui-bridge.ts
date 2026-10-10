@@ -1,6 +1,7 @@
 import type { LinkedPullRequest } from '@dltech/atlas-core'
 
 import type { PluginProjection } from '../projection'
+import type { FamilyTracker } from './family-tracker'
 import type { PullRequestService } from './pull-request-service'
 import type { PullRequestPort, RepositoryCheckout } from './pure'
 import type { SessionFacts } from './session'
@@ -20,4 +21,6 @@ export abstract class GithubUiBridgePort {
   abstract readonly cloudCheckout: PluginProjection<RepositoryCheckout | null>
   /** The cache-backed badge port, for the tile's muted fallback when a cloud serve is unreachable. */
   abstract readonly badges: PullRequestPort
+  /** Where a thread of the session family stands, so a teammate's row can show its own pull request. */
+  abstract readonly checkoutFor: FamilyTracker['checkoutFor']
 }

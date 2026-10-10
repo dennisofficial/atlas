@@ -1,10 +1,9 @@
 import type { LinkedPullRequest } from '@dltech/atlas-core'
-import type { PrStateWire } from '@dltech/atlas-wire'
 
+import { createExpectingWindows } from './expecting-windows'
 import {
   checkoutKey,
   EPollDecision,
-  EPullRequestLookup,
   POLL_FLOOR_MS,
   pollDecision,
   type PullRequestPort,
@@ -12,8 +11,14 @@ import {
   type RepositoryCheckout,
 } from './pure'
 import { announcePolled, type PolledPullRequest } from './polled-pull-request'
+import { createInFlightReads } from './in-flight-reads'
 import { createPullRequestReadings } from './pull-request-readings'
+import type { PullRequestService } from './pull-request-service-type'
+import { keyOf, linkKey, readTarget, type PullTarget } from './pull-target'
+import { createTrackedCheckouts } from './tracked-checkouts'
 import { pullRequestStatesWireOf, repoOf, type TrackedReading } from './pull-request-state-wire'
+
+export type { PullRequestService } from './pull-request-service-type'
 
 export const PULL_REQUEST_TICK_MS = 5_000
 
@@ -24,38 +29,6 @@ export const PULL_REQUEST_TICK_MS = 5_000
  * asks at exactly the rate running checks already earn.
  */
 export const EXPECTING_CHECKS_MS = 3 * 60_000
-
-export type PullRequestService = {
-  snapshot: (args: { key: string }) => PullRequestReading
-  version: () => number
-  subscribe: (listener: () => void) => () => void
-  /** A pushing port's frame, keyed exactly as a polled read would be. Arms no schedule. */
-  ingest: (args: { key: string; reading: PullRequestReading }) => void
-  track: (args: { checkout: RepositoryCheckout }) => void
-  stopTracking: () => void
-  watch: (args: { links: readonly LinkedPullRequest[] }) => void
-  current: () => { checkout: RepositoryCheckout; reading: PullRequestReading } | null
-  /** Every currently-Found reading the service holds — the channel snapshot a serve broadcasts. */
-  states: () => readonly PrStateWire[]
-  expectChecks: () => void
-  recheck: () => void
-  refresh: (args: { checkout: RepositoryCheckout; force?: boolean }) => Promise<void>
-  dispose: () => void
-}
-
-type PullTarget =
-  | { kind: 'checkout'; checkout: RepositoryCheckout }
-  | { kind: 'link'; link: LinkedPullRequest }
-
-const CANNOT_ASK: PullRequestReading = {
-  lookup: EPullRequestLookup.Unavailable,
-  retryable: true,
-}
-
-const linkKey = (link: { repo: string; number: number }): string => `${link.repo}#${link.number}`
-
-const keyOf = (target: PullTarget): string =>
-  target.kind === 'checkout' ? checkoutKey(target.checkout) : linkKey(target.link)
 
 export function createPullRequestService(args: {
   pullRequests: PullRequestPort
@@ -71,12 +44,12 @@ export function createPullRequestService(args: {
   const expectingMs = args.expectingMs ?? EXPECTING_CHECKS_MS
 
   const listeners = new Set<() => void>()
-  const inFlight = new Map<string, Promise<void>>()
+  const inFlight = createInFlightReads()
   const watched = new Map<string, LinkedPullRequest>()
 
-  let tracked: RepositoryCheckout | null = null
-  let following = false
-  let expectingUntil: number | null = null
+  const tracked = createTrackedCheckouts()
+  const windows = createExpectingWindows({ now, windowMs: expectingMs })
+
   let version = 0
   let timer: ReturnType<typeof setInterval> | null = null
   let disposed = false
@@ -88,50 +61,32 @@ export function createPullRequestService(args: {
 
   const readings = createPullRequestReadings({ notify })
 
-  /**
-   * A port is allowed to reject — a pushing one loses its socket by throwing — and a rejection that
-   * escaped here would leave the failure uncounted, so the backoff would never start and the tick
-   * would ask again every floor.
-   */
-  const readingOf = async (target: PullTarget): Promise<PullRequestReading> => {
-    try {
-      return target.kind === 'checkout'
-        ? await args.pullRequests.read({ checkout: target.checkout })
-        : await args.pullRequests.readLinked({
-            repo: target.link.repo,
-            number: target.link.number,
-          })
-    } catch {
-      return CANNOT_ASK
-    }
-  }
-
-  const ask = async (request: { key: string; target: PullTarget }): Promise<void> => {
+  const ask = async (request: {
+    key: string
+    target: PullTarget
+    owned: () => boolean
+  }): Promise<void> => {
     readings.markAsked({ key: request.key, at: now() })
-    try {
-      const reading = await readingOf(request.target)
-      if (disposed) return
-      if (request.target.kind === 'link' && !watched.has(request.key)) return
+    const reading = await readTarget({ port: args.pullRequests, target: request.target })
+    if (disposed || !request.owned()) return
+    if (request.target.kind === 'link' && !watched.has(request.key)) return
 
-      readings.record({ key: request.key, reading })
-      if (!args.pullRequests.pushes) {
-        announcePolled({
-          listener: args.onPolled,
-          key: request.key,
-          repo: request.target.kind === 'checkout' ? repoOf(request.target.checkout) : request.target.link.repo,
-          reading,
-        })
-      }
-    } finally {
-      inFlight.delete(request.key)
-    }
+    readings.record({ key: request.key, reading })
+    if (args.pullRequests.pushes) return
+
+    announcePolled({
+      listener: args.onPolled,
+      key: request.key,
+      repo: request.target.kind === 'checkout' ? repoOf(request.target.checkout) : request.target.link.repo,
+      reading,
+    })
   }
 
-  const begin = (request: { key: string; target: PullTarget }): Promise<void> => {
-    const asked = ask(request)
-    inFlight.set(request.key, asked)
-    return asked
-  }
+  const begin = (request: { key: string; target: PullTarget }): Promise<void> =>
+    inFlight.start({
+      key: request.key,
+      run: (owned) => ask({ ...request, owned }),
+    })
 
   const refreshTarget = async (request: {
     target: PullTarget
@@ -140,7 +95,7 @@ export function createPullRequestService(args: {
     if (disposed) return
 
     const key = keyOf(request.target)
-    const running = inFlight.get(key)
+    const running = inFlight.running({ key })
     if (running !== undefined) return running
 
     const schedule = readings.scheduleOf({ key })
@@ -150,7 +105,7 @@ export function createPullRequestService(args: {
       consecutiveFailures: schedule.consecutiveFailures,
       now: now(),
       floorMs,
-      expectingUntil,
+      expectingUntil: windows.untilOf({ key }),
     })
     if (decision === EPollDecision.Hold) return
     if (decision === EPollDecision.Never && request.force !== true) return
@@ -175,7 +130,7 @@ export function createPullRequestService(args: {
    */
   const askNow = async (checkout: RepositoryCheckout): Promise<void> => {
     const key = checkoutKey(checkout)
-    const running = inFlight.get(key)
+    const running = inFlight.running({ key })
     if (running !== undefined) return running
 
     const last = readings.scheduleOf({ key }).lastAskedAt
@@ -191,20 +146,20 @@ export function createPullRequestService(args: {
   }
 
   const tick = (): void => {
-    if (following && tracked !== null) void refresh({ checkout: tracked })
+    for (const checkout of tracked.list()) void refresh({ checkout })
     for (const link of watched.values()) {
       void refreshTarget({ target: { kind: 'link', link } })
     }
   }
 
   /**
-   * One interval serves the tracked checkout and every watched link, so it lives while either
-   * does — `stopTracking` alone cannot be what clears it. A pushing port arms nothing, as before.
+   * One interval serves every tracked checkout and every watched link, so it lives while either
+   * does. A pushing port arms nothing, as before.
    */
   const syncTimer = (): void => {
     untick()
     if (disposed || args.pullRequests.pushes) return
-    if (!(following && tracked !== null) && watched.size === 0) return
+    if (tracked.list().length === 0 && watched.size === 0) return
 
     timer = setInterval(tick, tickMs)
     timer.unref?.()
@@ -223,27 +178,36 @@ export function createPullRequestService(args: {
     },
     refresh,
     /**
-     * The previous key goes in the same tick as the new one arrives, so a worktree hop or a thread
-     * swap cannot leave the last branch's pull request on the footer for a poll interval.
+     * Mirrors `watch`: a key the set loses is forgotten in the same tick and any read still in
+     * flight for it is disowned, so a worktree hop or a thread leaving cannot leave its pull request
+     * on the footer for a poll interval or have a late answer resurrect it.
      */
-    track: ({ checkout }) => {
-      const key = checkoutKey(checkout)
-      const previous = tracked === null ? null : checkoutKey(tracked)
-      if (previous !== null && previous !== key) {
-        readings.forget({ key: previous })
-        notify()
-      }
-      tracked = checkout
-      following = true
+    track: ({ checkouts, visible }) => {
+      if (disposed) return
 
-      void refresh({ checkout, force: true })
+      const { gained, lost, visibleChanged } = tracked.reconcile({
+        checkouts,
+        ...(visible === undefined ? {} : { visible }),
+      })
+      for (const key of lost) {
+        inFlight.disown({ key })
+        windows.forget({ key })
+        readings.forget({ key })
+      }
+      if (lost.length > 0 || visibleChanged) notify()
+
+      for (const checkout of gained) {
+        void refreshTarget({ target: { kind: 'checkout', checkout }, force: true })
+      }
       syncTimer()
     },
-    stopTracking: () => {
-      tracked = null
-      following = false
-      syncTimer()
+    setVisible: ({ checkout }) => {
+      if (disposed) return
+
+      const { visibleChanged } = tracked.reconcile({ checkouts: tracked.list(), visible: checkout })
+      if (visibleChanged) notify()
     },
+    tracked: () => tracked.list(),
     /**
      * The durable link set, mirrored: a key the set gains is asked at once, and a key it loses is
      * forgotten exactly as a hopped-away checkout is — mid-flight reads for it are dropped on
@@ -271,53 +235,49 @@ export function createPullRequestService(args: {
       syncTimer()
     },
     current: () => {
-      if (tracked === null) return null
+      const checkout = tracked.visible()
+      if (checkout === null) return null
 
-      return { checkout: tracked, reading: readings.snapshot({ key: checkoutKey(tracked) }) }
+      return { checkout, reading: readings.snapshot({ key: checkoutKey(checkout) }) }
     },
     states: () => {
-      const readingsHeld: TrackedReading[] = []
-      if (tracked !== null) {
-        readingsHeld.push({
-          key: checkoutKey(tracked),
-          checkout: tracked,
-          reading: readings.snapshot({ key: checkoutKey(tracked) }),
-        })
-      }
+      const readingsHeld: TrackedReading[] = tracked.list().map((checkout) => ({
+        key: checkoutKey(checkout),
+        checkout,
+        reading: readings.snapshot({ key: checkoutKey(checkout) }),
+      }))
       for (const [key, link] of watched) {
         readingsHeld.push({ key, link, reading: readings.snapshot({ key }) })
       }
       return pullRequestStatesWireOf(readingsHeld)
     },
     /**
-     * No argument, because the caller cannot honestly name one: the after-tool phase carries the
-     * call and its result and no project directory, so the only checkout a push can be about is the
-     * one the session is following. A push in some other directory costs the tracked key a few
-     * reads and nothing else.
+     * The window is remembered even before the checkout is tracked, because the hook that hears a
+     * push can run a beat ahead of the tracker that learns the thread stands there.
      */
-    expectChecks: () => {
+    expectChecks: ({ checkout }) => {
       if (disposed) return
 
-      expectingUntil = now() + expectingMs
-      if (tracked === null) return
+      const key = checkoutKey(checkout)
+      windows.arm({ key })
+      if (tracked.get({ key }) === null) return
 
-      void askNow(tracked)
+      void askNow(checkout)
     },
     /**
      * One read and no window. After something that has already settled the pull request there is
      * nothing pending to chase, so staying eager for three minutes would poll a merged branch that
      * the settled cadence would otherwise have quieted.
      */
-    recheck: () => {
-      if (disposed || tracked === null) return
+    recheck: ({ checkout }) => {
+      if (disposed || tracked.get({ key: checkoutKey(checkout) }) === null) return
 
-      void askNow(tracked)
+      void askNow(checkout)
     },
     dispose: () => {
       disposed = true
-      expectingUntil = null
-      tracked = null
-      following = false
+      windows.clear()
+      tracked.clear()
       watched.clear()
       untick()
       listeners.clear()

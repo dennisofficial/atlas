@@ -30,7 +30,7 @@ describe('the window a push opens', () => {
     await service.refresh({ checkout })
     expect(port.asked).toHaveLength(1)
 
-    service.expectChecks()
+    service.expectChecks({ checkout: aCheckout() })
     time.advance(POLL_RUNNING_MS)
     await service.refresh({ checkout })
 
@@ -57,12 +57,12 @@ describe('the window a push opens', () => {
     const time = clock(1_000_000)
     const service = createPullRequestService({ pullRequests: port, now: time.now })
 
-    service.track({ checkout: aCheckout() })
+    service.track({ checkouts: [aCheckout()] })
     await service.refresh({ checkout: aCheckout() })
     expect(port.asked).toHaveLength(1)
 
     time.advance(POLL_FLOOR_MS)
-    service.expectChecks()
+    service.expectChecks({ checkout: aCheckout() })
     await service.refresh({ checkout: aCheckout() })
 
     expect(port.asked).toHaveLength(2)
@@ -74,11 +74,11 @@ describe('the window a push opens', () => {
     const time = clock(1_000_000)
     const service = createPullRequestService({ pullRequests: port, now: time.now })
 
-    service.track({ checkout: aCheckout() })
+    service.track({ checkouts: [aCheckout()] })
     await service.refresh({ checkout: aCheckout() })
 
     time.advance(POLL_FLOOR_MS - 1)
-    service.expectChecks()
+    service.expectChecks({ checkout: aCheckout() })
     await service.refresh({ checkout: aCheckout() })
 
     expect(port.asked).toHaveLength(1)
@@ -92,7 +92,7 @@ describe('the window a push opens', () => {
     const checkout = aCheckout()
 
     await service.refresh({ checkout })
-    service.expectChecks()
+    service.expectChecks({ checkout: aCheckout() })
 
     time.advance(EXPECTING_CHECKS_MS)
     await service.refresh({ checkout })
@@ -111,7 +111,7 @@ describe('the window a push opens', () => {
     const service = createPullRequestService({ pullRequests: port, now: time.now })
     const checkout = aCheckout()
 
-    service.expectChecks()
+    service.expectChecks({ checkout: aCheckout() })
     await service.refresh({ checkout })
     time.advance(POLL_RUNNING_MS)
     await service.refresh({ checkout })
@@ -124,12 +124,12 @@ describe('the window a push opens', () => {
     const port = pullRequestsAnswering(EMPTY_ROLLUP)
     const service = createPullRequestService({ pullRequests: port })
 
-    service.track({ checkout: aCheckout() })
+    service.track({ checkouts: [aCheckout()] })
     await service.refresh({ checkout: aCheckout() })
     const spent = port.asked.length
 
     service.dispose()
-    service.expectChecks()
+    service.expectChecks({ checkout: aCheckout() })
 
     expect(port.asked).toHaveLength(spent)
   })
@@ -143,12 +143,12 @@ describe('a recheck, which opens no window', () => {
     const time = clock(1_000_000)
     const service = createPullRequestService({ pullRequests: port, now: time.now })
 
-    service.track({ checkout: aCheckout() })
+    service.track({ checkouts: [aCheckout()] })
     await service.refresh({ checkout: aCheckout() })
     expect(port.asked).toHaveLength(1)
 
     time.advance(POLL_FLOOR_MS)
-    service.recheck()
+    service.recheck({ checkout: aCheckout() })
     await service.refresh({ checkout: aCheckout() })
 
     expect(port.asked).toHaveLength(2)
@@ -160,11 +160,11 @@ describe('a recheck, which opens no window', () => {
     const time = clock(1_000_000)
     const service = createPullRequestService({ pullRequests: port, now: time.now })
 
-    service.track({ checkout: aCheckout() })
+    service.track({ checkouts: [aCheckout()] })
     await service.refresh({ checkout: aCheckout() })
 
     time.advance(POLL_FLOOR_MS - 1)
-    service.recheck()
+    service.recheck({ checkout: aCheckout() })
     await service.refresh({ checkout: aCheckout() })
 
     expect(port.asked).toHaveLength(1)
@@ -178,10 +178,10 @@ describe('a recheck, which opens no window', () => {
     const service = createPullRequestService({ pullRequests: port, now: time.now })
     const checkout = aCheckout()
 
-    service.track({ checkout })
+    service.track({ checkouts: [checkout] })
     await service.refresh({ checkout })
     time.advance(POLL_FLOOR_MS)
-    service.recheck()
+    service.recheck({ checkout: aCheckout() })
     await service.refresh({ checkout })
     const spent = port.asked.length
 
@@ -196,15 +196,15 @@ describe('a recheck, which opens no window', () => {
     const port = pullRequestsAnswering(EMPTY_ROLLUP)
     const service = createPullRequestService({ pullRequests: port })
 
-    service.recheck()
+    service.recheck({ checkout: aCheckout() })
     expect(port.asked).toHaveLength(0)
 
-    service.track({ checkout: aCheckout() })
+    service.track({ checkouts: [aCheckout()] })
     await service.refresh({ checkout: aCheckout() })
     const spent = port.asked.length
 
     service.dispose()
-    service.recheck()
+    service.recheck({ checkout: aCheckout() })
 
     expect(port.asked).toHaveLength(spent)
   })

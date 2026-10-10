@@ -17,7 +17,7 @@ describe('pull request states snapshot for the channel', () => {
     const service = createPullRequestService({ pullRequests: port })
 
     const checkout = aCheckout({ branch: 'dennis/first' })
-    service.track({ checkout })
+    service.track({ checkouts: [checkout] })
     service.watch({ links: [aLink({ number: 42 })] })
     await service.refresh({ checkout, force: true })
     await new Promise((resolve) => setTimeout(resolve, 10))
@@ -39,7 +39,7 @@ describe('pull request states snapshot for the channel', () => {
     const service = createPullRequestService({ pullRequests: port })
 
     const checkout = aCheckout()
-    service.track({ checkout })
+    service.track({ checkouts: [checkout] })
     await service.refresh({ checkout, force: true })
     await new Promise((resolve) => setTimeout(resolve, 10))
 

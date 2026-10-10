@@ -70,7 +70,7 @@ describe('checkout tracking at boot', () => {
     const service = createPullRequestService({
       pullRequests: pullRequestsByKey({}),
     })
-    service.track({ checkout: aCheckout({ branch: 'dennis/one' }) })
+    service.track({ checkouts: [aCheckout({ branch: 'dennis/one' })] })
     const tracking = createCheckoutTracking({
       service,
       facts: createSessionFacts({ launchDirectory: '/workspace' }),

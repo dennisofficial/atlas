@@ -10,7 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { BlockCiWatchBeforeToolHook, CI_WATCH_DENY_REASON } from '../ci-watch-hook'
-import type { PullRequestReading, RepositoryCheckout } from '../pure'
+import { checkoutKey, type PullRequestReading, type RepositoryCheckout } from '../pure'
 import type { PullRequestService } from '../pull-request-service'
 import { aCheckout, WAS_ABSENT, wasFound, wasUnavailable } from '../testing'
 
@@ -25,18 +25,18 @@ const callOf = (args: { name?: string; input: unknown }): ToolCall => ({
 })
 
 const serviceTracking = (
-  tracked: { checkout: RepositoryCheckout; reading: PullRequestReading } | null,
+  tracked: { checkout: RepositoryCheckout; reading: PullRequestReading }[],
 ): PullRequestService => ({
-  snapshot: () => {
-    throw new Error('unused')
-  },
+  snapshot: ({ key }) =>
+    tracked.find((entry) => checkoutKey(entry.checkout) === key)?.reading ?? WAS_ABSENT,
   version: () => 0,
   subscribe: () => () => undefined,
   ingest: () => undefined,
   track: () => undefined,
-  stopTracking: () => undefined,
+  setVisible: () => undefined,
+  tracked: () => tracked.map((entry) => entry.checkout),
   watch: () => undefined,
-  current: () => tracked,
+  current: () => tracked[0] ?? null,
   states: () => [],
   expectChecks: () => undefined,
   recheck: () => undefined,
@@ -44,17 +44,29 @@ const serviceTracking = (
   dispose: () => undefined,
 })
 
+const MAIN = aCheckout({ directory: '/work/atlas', branch: 'dennis/main' })
+const TEAMMATE = aCheckout({ directory: '/work/teammate', branch: 'dennis/teammate' })
+
 const trackingFound = (): PullRequestService =>
-  serviceTracking({ checkout: aCheckout(), reading: wasFound() })
+  serviceTracking([{ checkout: MAIN, reading: wasFound() }])
+
+const PROBES: Readonly<Record<string, RepositoryCheckout>> = {
+  '/work/atlas': MAIN,
+  '/work/teammate': TEAMMATE,
+}
 
 const ranWith = async (args: {
   service: PullRequestService
   input: unknown
   name?: string
+  directory?: string
 }): Promise<BeforeToolOutcome> =>
-  new BlockCiWatchBeforeToolHook({ pullRequests: args.service }).run({
+  new BlockCiWatchBeforeToolHook({
+    pullRequests: args.service,
+    probe: async ({ directory }) => PROBES[directory] ?? null,
+  }).run({
     call: callOf({ input: args.input, ...(args.name === undefined ? {} : { name: args.name }) }),
-    projectDirectory: '/work/atlas',
+    projectDirectory: args.directory ?? '/work/atlas',
     events: [],
     signal: NEVER_ABORTED,
   })
@@ -110,7 +122,7 @@ describe('the hook that refuses to watch CI', () => {
 
   it('allows a watch when no checkout is tracked', async () => {
     const outcome = await ranWith({
-      service: serviceTracking(null),
+      service: serviceTracking([]),
       input: { command: 'gh run watch 123' },
     })
 
@@ -120,7 +132,7 @@ describe('the hook that refuses to watch CI', () => {
   it('allows a watch when the tracked checkout has no pull request', async () => {
     for (const reading of [WAS_ABSENT, wasUnavailable(true)]) {
       const outcome = await ranWith({
-        service: serviceTracking({ checkout: aCheckout(), reading }),
+        service: serviceTracking([{ checkout: MAIN, reading }]),
         input: { command: 'gh run watch 123' },
       })
 
@@ -142,5 +154,41 @@ describe('the hook that refuses to watch CI', () => {
     for (const input of [{}, null, { command: 42 }, 'gh run watch 123']) {
       expect(denies(await ranWith({ service: trackingFound(), input }))).toBe(false)
     }
+  })
+
+  it('gates a teammate on its own checkout’s pull request, not the main thread’s', async () => {
+    const service = serviceTracking([
+      { checkout: MAIN, reading: wasFound() },
+      { checkout: TEAMMATE, reading: WAS_ABSENT },
+    ])
+    const input = { command: 'gh run watch 123' }
+
+    expect(denies(await ranWith({ service, input, directory: '/work/atlas' }))).toBe(true)
+    expect(denies(await ranWith({ service, input, directory: '/work/teammate' }))).toBe(false)
+  })
+
+  it('denies a teammate whose own checkout has a pull request while the main thread has none', async () => {
+    const service = serviceTracking([
+      { checkout: MAIN, reading: WAS_ABSENT },
+      { checkout: TEAMMATE, reading: wasFound({ number: 9 }) },
+    ])
+
+    const outcome = await ranWith({
+      service,
+      input: { command: 'gh run watch 123' },
+      directory: '/work/teammate',
+    })
+
+    expect(denies(outcome)).toBe(true)
+  })
+
+  it('allows a watch from a directory that is no checkout', async () => {
+    const outcome = await ranWith({
+      service: trackingFound(),
+      input: { command: 'gh run watch 123' },
+      directory: '/tmp/nowhere',
+    })
+
+    expect(denies(outcome)).toBe(false)
   })
 })

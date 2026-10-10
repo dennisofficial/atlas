@@ -10,7 +10,9 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-import { commandEffect, ECommandEffect } from './pure'
+import { probeCheckout } from './checkout-probe'
+import type { FamilyTracker } from './family-tracker'
+import { commandEffect, ECommandEffect, type RepositoryCheckout } from './pure'
 import type { PullRequestService } from './pull-request-service'
 
 export const BASH_TOOL = 'bash'
@@ -27,12 +29,21 @@ const ORDER: HookOrder = { stage: EStage.Observe, nudge: 0 }
 /**
  * A push is waited on and a merge is not. The first opens an eager window because the answer does
  * not exist yet; the second only needs one read, because the state has already changed and the
- * settled cadence is right again the moment it is seen.
+ * settled cadence is right again the moment it is seen. Only the checkout the command ran in is
+ * told: a teammate's push must not arm the main thread's window.
  */
-const tell = (args: { pullRequests: PullRequestService; command: string }): void => {
+const tell = (args: {
+  pullRequests: PullRequestService
+  checkout: RepositoryCheckout
+  command: string
+}): void => {
   const effect = commandEffect({ command: args.command })
-  if (effect === ECommandEffect.StartsWork) return args.pullRequests.expectChecks()
-  if (effect === ECommandEffect.ChangesPullRequest) return args.pullRequests.recheck()
+  if (effect === ECommandEffect.StartsWork) {
+    return args.pullRequests.expectChecks({ checkout: args.checkout })
+  }
+  if (effect === ECommandEffect.ChangesPullRequest) {
+    return args.pullRequests.recheck({ checkout: args.checkout })
+  }
 }
 
 /**
@@ -46,19 +57,25 @@ export class RefreshPullRequestAfterToolHook extends AfterToolHook {
   readonly order = ORDER
 
   private readonly pullRequests: PullRequestService
+  private readonly probe: typeof probeCheckout
 
-  constructor(args: { pullRequests: PullRequestService }) {
+  constructor(args: { pullRequests: PullRequestService; probe?: typeof probeCheckout }) {
     super()
     this.pullRequests = args.pullRequests
+    this.probe = args.probe ?? probeCheckout
   }
 
-  readonly run: AfterTool = async ({ call, result }) => {
+  readonly run: AfterTool = async ({ call, result, projectDirectory }) => {
     if (!result.ok || call.name !== BASH_TOOL) return {}
 
     const command = commandOf(call.input)
     if (command === null) return {}
+    if (commandEffect({ command }) === ECommandEffect.Nothing) return {}
 
-    tell({ pullRequests: this.pullRequests, command })
+    const checkout = await this.probe({ directory: projectDirectory })
+    if (checkout === null) return {}
+
+    tell({ pullRequests: this.pullRequests, checkout, command })
     return {}
   }
 }
@@ -75,17 +92,22 @@ export class RefreshPullRequestAfterShellHook extends AfterShellHook {
   readonly order = ORDER
 
   private readonly pullRequests: PullRequestService
+  private readonly tracker: FamilyTracker
 
-  constructor(args: { pullRequests: PullRequestService }) {
+  constructor(args: { pullRequests: PullRequestService; tracker: FamilyTracker }) {
     super()
     this.pullRequests = args.pullRequests
+    this.tracker = args.tracker
   }
 
-  readonly run: AfterShell = async ({ shell }) => {
+  readonly run: AfterShell = async ({ threadId, shell }) => {
     const failed = shell.status === EShellStatus.Exited && (shell.exitCode ?? 0) !== 0
     if (failed) return {}
 
-    tell({ pullRequests: this.pullRequests, command: shell.command })
+    const checkout = this.tracker.checkoutFor({ threadId })
+    if (checkout === null) return {}
+
+    tell({ pullRequests: this.pullRequests, checkout, command: shell.command })
     return {}
   }
 }

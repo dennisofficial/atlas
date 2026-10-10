@@ -5,7 +5,13 @@ import {
   type ProviderIdentity,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type { AgentSnapshot, ChildContext, ShellSnapshot } from '@dltech/atlas-harness'
+import {
+  TEAMMATE_AGENT_TYPE,
+  type AgentSnapshot,
+  type ChildContext,
+  type PullRequestBadge,
+  type ShellSnapshot,
+} from '@dltech/atlas-harness'
 
 import { truncateCells } from '../ui/components/sidebar/cells'
 import { formatElapsed, formatTokens } from '../ui/theme'
@@ -27,6 +33,7 @@ export type SidebarSubagent = SubagentReadout & {
   selected: boolean
   activity?: CrewActivity | undefined
   failureReason: string | null
+  pullRequest?: PullRequestBadge | undefined
 }
 
 /** What a child still has running: its own shells and its own children, nothing deeper. */
@@ -193,6 +200,7 @@ export function subagentRows(args: {
   modelLabel?: ((model: ProviderIdentity) => string) | undefined
   viewing?: string | null | undefined
   rosters: CrewRosters
+  pullRequestOf?: ((args: { threadId: ThreadId }) => PullRequestBadge | null) | undefined
 }): readonly SidebarSubagent[] {
   return args.snapshots.map((snapshot) => {
     const readout: SubagentReadout = {
@@ -202,6 +210,10 @@ export function subagentRows(args: {
     }
 
     const activity = crewActivityOf({ id: snapshot.agentId, rosters: args.rosters })
+    const pullRequest =
+      snapshot.agentType === TEAMMATE_AGENT_TYPE
+        ? (args.pullRequestOf?.({ threadId: snapshot.agentId }) ?? undefined)
+        : undefined
 
     return {
       ...readout,
@@ -218,6 +230,7 @@ export function subagentRows(args: {
       activity,
       failureReason:
         snapshot.status === EAgentStatus.Failed ? (snapshot.failureCause ?? null) : null,
+      pullRequest,
     }
   })
 }

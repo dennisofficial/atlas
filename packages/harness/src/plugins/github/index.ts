@@ -108,12 +108,15 @@ export default class GithubPlugin extends NativePlugin {
     const pollDiffer = createPollDiffer({ emit: (frame) => routing?.onPrEvent(frame) })
     service = createPullRequestService({ pullRequests: adapter, onPolled: pollDiffer.onPolled })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
-    const links = createPullRequestLinks({ service })
     const cloudCheckout = createCloudCheckout()
     const tracking = createCheckoutTracking({ service, facts, cloud: () => cloudCheckout.current() })
+    const links = createPullRequestLinks({ service, tracker: tracking.tracker })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
-    const afterShell = new RefreshPullRequestAfterShellHook({ pullRequests: service })
-    const transitions = createPullRequestTransitions({ service })
+    const afterShell = new RefreshPullRequestAfterShellHook({
+      pullRequests: service,
+      tracker: tracking.tracker,
+    })
+    const transitions = createPullRequestTransitions({ service, tracker: tracking.tracker })
     const blockCiWatch = new BlockCiWatchBeforeToolHook({ pullRequests: service })
 
     const prEvents = new PrEventNoticeQueue()
@@ -180,10 +183,22 @@ export default class GithubPlugin extends NativePlugin {
           run: links.forgetThread,
         },
         {
+          phase: EHookPhase.OnThreadOpen,
+          name: 'track-thread-checkout',
+          order: OBSERVE,
+          run: tracking.threadOpened,
+        },
+        {
           phase: EHookPhase.AfterTool,
           name: 'follow-worktree',
           order: OBSERVE,
           run: facts.followWorktree,
+        },
+        {
+          phase: EHookPhase.AfterTool,
+          name: 'track-worktree-checkout',
+          order: OBSERVE,
+          run: tracking.followWorktree,
         },
         {
           phase: EHookPhase.AfterTool,
@@ -227,7 +242,14 @@ export default class GithubPlugin extends NativePlugin {
         { token: PrEventFrameSink, use: sink },
         {
           token: GithubUiBridgePort,
-          use: { service, facts, links: links.projection, cloudCheckout, badges: adapter },
+          use: {
+            service,
+            facts,
+            links: links.projection,
+            cloudCheckout,
+            badges: adapter,
+            checkoutFor: tracking.tracker.checkoutFor,
+          },
         },
       ],
       projections: [links.projection, cloudCheckout],
