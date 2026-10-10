@@ -270,6 +270,7 @@ describe('GithubSubscriptionsService', () => {
       branch: '',
       pollBacked: false,
       expiresAt: new Date(Date.now() + 60_000),
+      liveUntil: new Date(Date.now() + 60_000),
       threadId: null,
       sandboxId: null,
       createdAt: new Date(),
@@ -309,6 +310,7 @@ describe('GithubSubscriptionsService', () => {
         branch: '',
         pollBacked: false,
         expiresAt: new Date(Date.now() + 60_000),
+        liveUntil: new Date(Date.now() + 60_000),
         threadId: null,
         sandboxId: null,
         createdAt: new Date(),
@@ -321,6 +323,7 @@ describe('GithubSubscriptionsService', () => {
         branch: 'dennis/fresh-branch',
         pollBacked: false,
         expiresAt: new Date(Date.now() + 60_000),
+        liveUntil: new Date(Date.now() + 60_000),
         threadId: null,
         sandboxId: null,
         createdAt: new Date(),
@@ -333,6 +336,7 @@ describe('GithubSubscriptionsService', () => {
         branch: '',
         pollBacked: false,
         expiresAt: new Date(Date.now() - 60_000),
+        liveUntil: new Date(Date.now() - 60_000),
         threadId: null,
         sandboxId: null,
         createdAt: new Date(),
@@ -345,6 +349,7 @@ describe('GithubSubscriptionsService', () => {
         branch: '',
         pollBacked: false,
         expiresAt: new Date(Date.now() + 60_000),
+        liveUntil: new Date(Date.now() + 60_000),
         threadId: null,
         sandboxId: null,
         createdAt: new Date(),
@@ -389,6 +394,7 @@ describe('sandbox link and park survival', () => {
     branch: '',
     pollBacked: false,
     expiresAt: new Date(Date.now() - 60_000),
+    liveUntil: new Date(Date.now() - 60_000),
     threadId: null,
     sandboxId: null,
     createdAt: new Date(),
@@ -465,10 +471,16 @@ describe('sandbox link and park survival', () => {
     expect(fake.subscriptions[0]).toMatchObject({ threadId: 'thr_1', sandboxId: 'sbx_1' })
   })
 
-  it('an expired subscription linked to a sandbox inside the wake window still counts as live', async () => {
+  it('an expired subscription whose liveUntil covers the wake window still counts as live', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     seedCloudSandbox(sandboxRow())
-    fake.subscriptions.push(expiredRow({ threadId: 'thr_1', sandboxId: 'sbx_1' }))
+    fake.subscriptions.push(
+      expiredRow({
+        threadId: 'thr_1',
+        sandboxId: 'sbx_1',
+        liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),
+      }),
+    )
     fake.prStates.push({
       repoFullName: 'compai/app',
       prNumber: 42,
@@ -516,7 +528,13 @@ describe('sandbox link and park survival', () => {
   it('a parked-linked subscription keeps its repo hook out of the idle drain', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     seedCloudSandbox(sandboxRow())
-    fake.subscriptions.push(expiredRow({ threadId: 'thr_1', sandboxId: 'sbx_1' }))
+    fake.subscriptions.push(
+      expiredRow({
+        threadId: 'thr_1',
+        sandboxId: 'sbx_1',
+        liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),
+      }),
+    )
     fake.repoHooks.push({
       repoFullName: 'compai/app',
       hookId: 101n,

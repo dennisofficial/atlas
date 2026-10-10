@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Interval } from '@nestjs/schedule'
 import { db } from '../../../db'
-import { dtoOf, subscriberWhereOf, subscriptionLiveWhere } from './github-delivery-routing'
+import {
+  dtoOf,
+  liveUntilOf,
+  subscriberWhereOf,
+  subscriptionLiveWhere,
+} from './github-delivery-routing'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
@@ -30,6 +35,8 @@ export class GithubPollSweeperService {
   @Interval(POLL_INTERVAL_MS)
   async handlePoll(): Promise<void> {
     const now = new Date()
+
+    await this.refreshLiveUntil({ now })
 
     const repos = await db.githubRepoHook.findMany({ where: { idleSince: null } })
     for (const hook of repos) {
@@ -90,6 +97,30 @@ export class GithubPollSweeperService {
         userId: subscription.userId,
         repoFullName: subscription.repoFullName,
         prNumber: subscription.prNumber,
+      })
+    }
+  }
+
+  /**
+   * Recomputes the materialized liveness ceiling for thread-linked subscriptions from their
+   * sandbox's current lastActivityAt, so sandbox activity keeps a parked-linked row live without
+   * heartbeats. Rows whose liveUntil already covers the same ceiling are untouched.
+   */
+  private async refreshLiveUntil(args: { now: Date }): Promise<void> {
+    const linked = await db.githubSubscription.findMany({
+      where: { threadId: { not: null } },
+      include: { sandbox: true },
+    })
+    for (const subscription of linked) {
+      if (subscription.sandbox === null) continue
+      const liveUntil = liveUntilOf({
+        expiresAt: subscription.expiresAt,
+        sandboxLastActivityAt: new Date(Date.parse(subscription.sandbox.lastActivityAt)),
+      })
+      if (liveUntil.getTime() <= subscription.liveUntil.getTime()) continue
+      await db.githubSubscription.update({
+        where: { id: subscription.id },
+        data: { liveUntil },
       })
     }
   }

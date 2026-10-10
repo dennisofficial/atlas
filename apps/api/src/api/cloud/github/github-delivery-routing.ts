@@ -14,19 +14,24 @@ import type {
  * A subscription whose heartbeats stopped is still live when it is thread-linked to a sandbox
  * whose lastActivityAt sits inside the park-wake window: the parked sandbox is the wake-routing
  * target, so its rows must survive until the window closes. Unlinked rows (user-session
- * subscribes) keep the bare heartbeat TTL. `CloudSandbox.lastActivityAt` is an ISO string
- * column, so the cutoff compares lexicographically.
+ * subscribes) keep the bare heartbeat TTL. Liveness is materialized on `GithubSubscription.liveUntil`
+ * — the liveness predicate no longer joins CloudSandbox on the hot read paths.
  */
 export const PARK_WAKE_WINDOW_MS = 24 * 60 * 60 * 1_000
 
 export function subscriptionLiveWhere(args: { now: Date }): Record<string, unknown> {
-  const wakeCutoff = new Date(args.now.getTime() - PARK_WAKE_WINDOW_MS).toISOString()
-  return {
-    OR: [
-      { expiresAt: { gt: args.now } },
-      { AND: [{ threadId: { not: null } }, { sandbox: { lastActivityAt: { gt: wakeCutoff } } }] },
-    ],
-  }
+  return { liveUntil: { gt: args.now } }
+}
+
+/**
+ * The materialized liveness ceiling for a subscription: the later of its heartbeat TTL and its
+ * linked sandbox's park-wake window. Written on subscribe/heartbeat; the sweeper recomputes it so
+ * sandbox activity keeps a parked-linked row live without heartbeats.
+ */
+export function liveUntilOf(args: { expiresAt: Date; sandboxLastActivityAt: Date | null }): Date {
+  if (args.sandboxLastActivityAt === null) return args.expiresAt
+  const sandboxCeiling = new Date(args.sandboxLastActivityAt.getTime() + PARK_WAKE_WINDOW_MS)
+  return sandboxCeiling > args.expiresAt ? sandboxCeiling : args.expiresAt
 }
 
 export function subscriberWhereOf(args: {
