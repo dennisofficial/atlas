@@ -1,23 +1,41 @@
-import type { AfterTurn, BeforeTurn } from '@dltech/atlas-core'
+import {
+  enteredWorktreeOf,
+  exitedWorktreeOf,
+  toThreadId,
+  type AfterTool,
+  type AfterTurn,
+  type BeforeTurn,
+  type OnThreadOpen,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { probeCheckout } from './checkout-probe'
-import { checkoutKey, type RepositoryCheckout } from './pure'
+import { createFamilyTracker, type FamilyTracker } from './family-tracker'
+import type { RepositoryCheckout } from './pure'
 import type { PullRequestService } from './pull-request-service'
 import type { SessionFacts } from './session'
 
 export type CheckoutTracking = {
+  tracker: FamilyTracker
   beforeTurn: BeforeTurn
   afterTurn: AfterTurn
+  threadOpened: OnThreadOpen
+  followWorktree: AfterTool
   boot: () => Promise<void>
 }
 
+const BOOT_THREAD = toThreadId('boot')
+
 /**
- * The serve process has no surface to call `track`, so the hooks do it: the first turn probes the
- * directory the session works in (a real checkout inside a sandbox, where `git` answers) and every
+ * The serve process has no surface to call `track`, so the hooks do it: every thread's turn start
+ * probes the directory it works in (a real checkout inside a sandbox, where `git` answers) and its
  * turn end re-probes, because the model can `git checkout -b` mid-turn. The refresh is awaited on
  * a branch hop so `record-pull-request`, which sorts after this hook, reads the new branch's
- * answer rather than an empty slot. Locally the surface has already tracked by the time a turn
- * runs, so both halves no-op.
+ * answer rather than an empty slot.
+ *
+ * Teammates are threads of the same session, so each keeps its own place: a teammate in another
+ * worktree is tracked beside the main thread rather than instead of it. The cloud fold is the main
+ * thread's alone — it is the lift marker's checkout, which no teammate necessarily shares.
  */
 export function createCheckoutTracking(args: {
   service: PullRequestService
@@ -26,62 +44,90 @@ export function createCheckoutTracking(args: {
   probe?: typeof probeCheckout
 }): CheckoutTracking {
   const probe = args.probe ?? probeCheckout
+  const tracker = createFamilyTracker({ service: args.service })
+  const directories = new Map<ThreadId, string>()
+  const homes = new Map<ThreadId, string>()
+  let mainThread: ThreadId | null = null
 
-  const follow = async (request: { directory: string }): Promise<RepositoryCheckout | null> => {
-    if (args.cloud !== undefined) {
+  const resolve = async (request: {
+    threadId: ThreadId
+    directory: string
+  }): Promise<RepositoryCheckout | null> => {
+    if (args.cloud !== undefined && (request.threadId === mainThread || request.threadId === BOOT_THREAD)) {
       // The arrival/lift marker is a snapshot: a thread that reaches the cloud before its
       // worktree exists folds null forever unless the sandbox's real directory is probed.
       const folded = args.cloud()
-      if (folded === null) {
-        const probed = await probe({ directory: request.directory })
-        if (probed === null) {
-          args.service.stopTracking()
-          return null
-        }
-        const tracked = args.service.current()
-        if (tracked !== null && checkoutKey(tracked.checkout) === checkoutKey(probed)) return null
-
-        args.service.track({ checkout: probed })
-        return probed
-      }
-      const tracked = args.service.current()
-      if (tracked !== null && checkoutKey(tracked.checkout) === checkoutKey(folded)) return null
-
-      args.service.track({ checkout: folded })
-      return folded
+      if (folded !== null) return folded
     }
 
-    const probed = await probe({ directory: request.directory })
-    if (probed === null) return null
+    return probe({ directory: request.directory })
+  }
 
-    const tracked = args.service.current()
-    if (tracked !== null && checkoutKey(tracked.checkout) === checkoutKey(probed)) return null
+  const follow = async (request: { threadId: ThreadId; directory: string }): Promise<boolean> => {
+    directories.set(request.threadId, request.directory)
+    if (!homes.has(request.threadId)) homes.set(request.threadId, request.directory)
 
-    args.service.track({ checkout: probed })
-    return probed
+    const checkout = await resolve(request)
+    return tracker.place({ threadId: request.threadId, checkout })
+  }
+
+  const adoptMain = (threadId: ThreadId): void => {
+    if (mainThread !== null) return
+
+    mainThread = threadId
+    tracker.adopt({ from: BOOT_THREAD, to: threadId })
   }
 
   return {
+    tracker,
     /**
      * A clientless serve boot reaches no hook until the first turn, so the launch directory is
-     * probed once at compose — the same probe the turn hooks use, restricted to the caller that
-     * only fires it when a pushing port is in play. A directory that is not a checkout is a no-op
-     * rather than a `stopTracking`: boot must not undo tracking a live surface set up.
+     * probed once at compose, under a placeholder the first real thread takes over. A directory
+     * that is not a checkout places nothing: boot must not undo tracking a live surface set up.
      */
     boot: async () => {
-      if (args.service.current() !== null) return
+      const directory = args.facts.directory()
+      const checkout = await resolve({ threadId: BOOT_THREAD, directory })
+      if (checkout === null) return
 
-      await follow({ directory: args.facts.directory() })
+      tracker.place({ threadId: BOOT_THREAD, checkout })
+      if (!tracker.hasVisibleThread()) tracker.show({ threadId: BOOT_THREAD })
     },
-    beforeTurn: async ({ projectDirectory }) => {
-      if (args.service.current() !== null) return {}
-
-      await follow({ directory: projectDirectory })
+    beforeTurn: async ({ threadId, projectDirectory }) => {
+      adoptMain(threadId)
+      await follow({ threadId, directory: projectDirectory })
+      if (!tracker.hasVisibleThread()) tracker.show({ threadId })
       return {}
     },
-    afterTurn: async () => {
-      const probed = await follow({ directory: args.facts.directory() })
-      if (probed !== null) await args.service.refresh({ checkout: probed, force: true })
+    threadOpened: async ({ threadId, projectDirectory }) => {
+      adoptMain(threadId)
+      await follow({ threadId, directory: projectDirectory })
+      tracker.show({ threadId })
+      return {}
+    },
+    followWorktree: async ({ call, result }) => {
+      if (!result.ok) return {}
+
+      const entered = enteredWorktreeOf(result.output)
+      const exited = exitedWorktreeOf(result.output)
+      const directory =
+        entered !== undefined
+          ? entered.path
+          : exited !== undefined
+            ? (exited.returnTo ?? homes.get(call.threadId))
+            : undefined
+      if (directory === undefined) return {}
+
+      await follow({ threadId: call.threadId, directory })
+      return {}
+    },
+    afterTurn: async ({ threadId }) => {
+      const directory = directories.get(threadId)
+      if (directory === undefined) return {}
+
+      const moved = await follow({ threadId, directory })
+      const checkout = tracker.checkoutFor({ threadId })
+      if (moved && checkout !== null) await args.service.refresh({ checkout, force: true })
 
       return {}
     },

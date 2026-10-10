@@ -82,12 +82,12 @@ describe('watching linked pull requests', () => {
     const time = clock(1_000_000)
     const service = createPullRequestService({ pullRequests: port, now: time.now, tickMs: 1 })
 
-    service.track({ checkout })
+    service.track({ checkouts: [checkout] })
     service.watch({ links: [aLink()] })
     await sleep(10)
     const askedBefore = port.asked.length
 
-    service.stopTracking()
+    service.track({ checkouts: [] })
     time.advance(POLL_SETTLED_MS)
     await sleep(20)
 
@@ -106,11 +106,11 @@ describe('watching linked pull requests', () => {
     })
     const service = createPullRequestService({ pullRequests: port })
 
-    service.track({ checkout: first })
+    service.track({ checkouts: [first] })
     service.watch({ links: [aLink()] })
     await sleep(10)
 
-    service.track({ checkout: second })
+    service.track({ checkouts: [second] })
     await sleep(10)
 
     expect(service.snapshot({ key: checkoutKey(first) })).toEqual(NO_PULL_REQUEST_READING)
@@ -168,12 +168,12 @@ describe('current', () => {
     expect(service.current()).toBeNull()
 
     const checkout = aCheckout()
-    service.track({ checkout })
+    service.track({ checkouts: [checkout] })
     await service.refresh({ checkout })
 
     expect(service.current()).toEqual({ checkout, reading: found() })
 
-    service.stopTracking()
+    service.track({ checkouts: [] })
     expect(service.current()).toBeNull()
     service.dispose()
   })
@@ -184,7 +184,7 @@ describe('current', () => {
     const service = createPullRequestService({ pullRequests: port, now: time.now })
     const checkout = aCheckout()
 
-    service.track({ checkout })
+    service.track({ checkouts: [checkout] })
     await service.refresh({ checkout })
     time.advance(POLL_SETTLED_MS)
     await service.refresh({ checkout })

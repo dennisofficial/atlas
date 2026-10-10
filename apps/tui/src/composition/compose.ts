@@ -19,6 +19,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { clientVersionHeader } from '../build/info'
+import type { CrewPullRequests } from '../plugins/github/crew-pull-request'
 import { pullRequestSurface } from '../plugins/github/surface'
 import type { ContributedSurface, PluginSurface } from '../plugins/surface'
 import { tldrFeed } from '../ui/tldr-feed-store'
@@ -33,6 +34,7 @@ export type { SandboxControl, SessionTitler }
 type TuiSurface = {
   pullRequests: PullRequestPort | null
   githubSurface: ContributedSurface | null
+  crewPullRequests: CrewPullRequests | null
   prEventSink: MutablePrEventSink | null
 }
 
@@ -43,6 +45,8 @@ export type AtlasApp = Omit<
   pluginProjections: readonly ContributedProjection[]
   pluginSurfaces: readonly ContributedSurface[]
   pullRequests: PullRequestPort | null
+  /** Where each teammate thread stands and what its pull request reads; null when the github plugin is shadowed. */
+  crewPullRequests?: CrewPullRequests | null
   /** The read tap on the pull-request event stream; the parked-cloud forwarder attaches here. */
   prEventSink: MutablePrEventSink | null
   /** Absent for a local session, where rewind cleans up through the local registries. */
@@ -121,6 +125,15 @@ export async function composeAtlas(args: {
           }
         })()
 
+        const crewPullRequests = ((): CrewPullRequests | null => {
+          try {
+            const bridge = container.resolve(portToken(GithubUiBridgePort))
+            return { service: bridge.service, checkoutFor: bridge.checkoutFor }
+          } catch {
+            return null
+          }
+        })()
+
         const prEventSink = ((): MutablePrEventSink | null => {
           try {
             const sink = container.resolve(portToken(PrEventFrameSink))
@@ -130,7 +143,7 @@ export async function composeAtlas(args: {
           }
         })()
 
-        return { pullRequests, githubSurface, prEventSink }
+        return { pullRequests, githubSurface, crewPullRequests, prEventSink }
       },
     },
   })
@@ -145,6 +158,7 @@ export async function composeAtlas(args: {
     pluginSurfaces:
       surface.githubSurface === null ? pluginSurfaces : [...pluginSurfaces, surface.githubSurface],
     pullRequests: surface.pullRequests,
+    crewPullRequests: surface.crewPullRequests,
     prEventSink: surface.prEventSink,
   }
 }

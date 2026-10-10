@@ -8,7 +8,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { BASH_TOOL, commandOf } from './hooks'
-import { ciWatchIntent, ECiWatch, EPullRequestLookup } from './pure'
+import { probeCheckout } from './checkout-probe'
+import { checkoutKey, ciWatchIntent, ECiWatch, EPullRequestLookup } from './pure'
 import type { PullRequestService } from './pull-request-service'
 
 export const CI_WATCH_DENY_REASON =
@@ -21,10 +22,9 @@ const ORDER: HookOrder = { stage: EStage.Policy, nudge: 0 }
  * the wake the tracking already delivers makes the wait a second, slower copy of it. The refusal is
  * the teaching moment: it names the one-shot read that stays allowed.
  *
- * The gate is the tracked reading alone, not a comparison of the call's directory with the tracked
- * checkout: the hook is handed the session's project directory rather than the shell's cwd, and a
- * session follows its worktree, so the two legitimately differ. Watching a PR the session does not
- * track (no tracked checkout, or no PR on it) stays legitimate. A backgrounded bash is still a bash
+ * The gate is the reading of the checkout the calling thread's project directory stands on, so a
+ * teammate in its own worktree is gated by its own pull request rather than the main thread's.
+ * Watching a PR the session does not track (no checkout there, or no PR on it) stays legitimate. A backgrounded bash is still a bash
  * call, so it is refused here before its shell is ever spawned.
  */
 export class BlockCiWatchBeforeToolHook extends BeforeToolHook {
@@ -32,25 +32,31 @@ export class BlockCiWatchBeforeToolHook extends BeforeToolHook {
   readonly order = ORDER
 
   private readonly pullRequests: PullRequestService
+  private readonly probe: typeof probeCheckout
 
-  constructor(args: { pullRequests: PullRequestService }) {
+  constructor(args: { pullRequests: PullRequestService; probe?: typeof probeCheckout }) {
     super()
     this.pullRequests = args.pullRequests
+    this.probe = args.probe ?? probeCheckout
   }
 
-  private tracksPullRequest(): boolean {
-    const tracked = this.pullRequests.current()
-    return tracked !== null && tracked.reading.lookup === EPullRequestLookup.Found
+  private async tracksPullRequest(directory: string): Promise<boolean> {
+    const checkout = await this.probe({ directory })
+    if (checkout === null) return false
+
+    const key = checkoutKey(checkout)
+    const held = this.pullRequests.tracked().some((tracked) => checkoutKey(tracked) === key)
+    return held && this.pullRequests.snapshot({ key }).lookup === EPullRequestLookup.Found
   }
 
-  readonly run: BeforeTool = async ({ call }): Promise<BeforeToolOutcome> => {
+  readonly run: BeforeTool = async ({ call, projectDirectory }): Promise<BeforeToolOutcome> => {
     const allow: BeforeToolOutcome = { decision: EBeforeToolDecision.Allow, input: call.input }
     if (call.name !== BASH_TOOL) return allow
 
     const command = commandOf(call.input)
     if (command === null) return allow
     if (ciWatchIntent({ command }) !== ECiWatch.Watching) return allow
-    if (!this.tracksPullRequest()) return allow
+    if (!(await this.tracksPullRequest(projectDirectory))) return allow
 
     return { decision: EBeforeToolDecision.Deny, reason: CI_WATCH_DENY_REASON }
   }

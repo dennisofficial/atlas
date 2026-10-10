@@ -39,11 +39,11 @@ const absentPort = (): PullRequestPort =>
     }
   })()
 
-type Tracked = { directories: string[]; stops: number }
+type Tracked = { directories: (string | null)[] }
 
 /**
- * The service is real; only what it was asked to follow is recorded, because the defect this pins
- * is which directory `track` was last handed rather than what the port answered.
+ * The service is real; only which checkout it was told is visible is recorded, because the defect
+ * this pins is which directory `setVisible` was last handed rather than what the port answered.
  */
 const watchingService = (): {
   service: PullRequestService
@@ -51,17 +51,13 @@ const watchingService = (): {
   tracked: Tracked
 } => {
   const real = createPullRequestService({ pullRequests: absentPort() })
-  const tracked: Tracked = { directories: [], stops: 0 }
+  const tracked: Tracked = { directories: [] }
 
   const service: PullRequestService = {
     ...real,
-    track: (request) => {
-      tracked.directories.push(request.checkout.directory)
-      real.track(request)
-    },
-    stopTracking: () => {
-      tracked.stops += 1
-      real.stopTracking()
+    setVisible: (request) => {
+      tracked.directories.push(request.checkout === null ? null : request.checkout.directory)
+      real.setVisible(request)
     },
   }
 
@@ -206,13 +202,12 @@ describe('what makes usePullRequest ask git again', () => {
     }
   })
 
-  it('stops tracking when the directory is not a repository', async () => {
+  it('clears the visible checkout when the directory is not a repository', async () => {
     const askGit: CheckoutProbe = async () => null
     const { probe, tracked, done } = await mounted({ askGit })
 
     try {
-      expect(tracked.directories).toEqual([])
-      expect(tracked.stops).toBeGreaterThan(0)
+      expect(tracked.directories).toEqual([null])
       expect(probe.control?.footer).toBeNull()
     } finally {
       await done()
@@ -223,10 +218,10 @@ describe('what makes usePullRequest ask git again', () => {
 describe('a probe that lands out of order', () => {
   /**
    * Two `git` calls started against different directories can settle in either order. The slow one
-   * belongs to a directory the session has already left, so it must not re-track it — doing so
-   * re-arms polling on the previous branch and puts its pull request back on the footer.
+   * belongs to a directory the session has already left, so it must not make it visible again —
+   * doing so puts the previous branch's pull request back on the footer.
    */
-  it('never re-tracks the directory the session has left', async () => {
+  it('never makes the directory the session has left visible again', async () => {
     const held: { release: (() => void) | null } = { release: null }
     const askGit: CheckoutProbe = async ({ directory }) => {
       if (directory === '/work/old') {

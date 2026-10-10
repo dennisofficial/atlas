@@ -1,4 +1,5 @@
 import { EAgentStatus } from '@dltech/atlas-core'
+import { EChecksState, EPullRequestState } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -246,5 +247,34 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
     expect(frame).toContain('legacy child')
     expect(frame).toContain('SUB-AGENTS')
     expect(frame).not.toContain('TEAMMATES')
+  })
+})
+
+describe('a teammate row carries its pull request pill', () => {
+  it('puts the pill on the row beside the model, and leaves a row without one bare', async () => {
+    const frame = (
+      await rowsOf({
+        subagents: [
+          row({
+            id: 't1',
+            name: 'feature work',
+            agentType: 'teammate',
+            model: 'sonnet',
+            pullRequest: {
+              label: '#88',
+              url: 'https://github.com/dennisofficial/atlas/pull/88',
+              state: EPullRequestState.Open,
+              checks: EChecksState.Passing,
+            },
+          }),
+          row({ id: 't2', name: 'other work', agentType: 'teammate', model: 'haiku' }),
+        ],
+        cells: WIDTH,
+      })
+    ).join('\n')
+
+    const lines = frame.split('\n')
+    expect(lines.find((line) => line.includes('sonnet'))).toContain('#88')
+    expect(lines.find((line) => line.includes('haiku'))).not.toContain('#')
   })
 })

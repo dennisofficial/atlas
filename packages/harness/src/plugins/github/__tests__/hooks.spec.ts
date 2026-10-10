@@ -8,14 +8,18 @@ import {
   toCallId,
   toThreadId,
   type EndedShell,
+  type ThreadId,
   type ToolCall,
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
 import { createIsolatedContainer, portToken, resolveHookChain } from '@dltech/atlas-harness'
 
+import { createFamilyTracker, type FamilyTracker } from '../family-tracker'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from '../hooks'
+import { checkoutKey, type RepositoryCheckout } from '../pure'
 import type { PullRequestService } from '../pull-request-service'
+import { aCheckout } from '../testing'
 
 const NEVER_ABORTED = new AbortController().signal
 
@@ -31,15 +35,21 @@ const SUCCEEDED: ToolOutcome = { ok: true, output: {}, modelText: 'done' }
 
 const REFUSED: ToolOutcome = { ok: false, reason: 'the command failed' }
 
+const THREAD = toThreadId('thread-fixture')
+const OTHER_THREAD = toThreadId('thread-other')
+
+const HERE = aCheckout({ directory: '/repo', branch: 'dennis/here' })
+const ELSEWHERE = aCheckout({ directory: '/teammate', branch: 'dennis/elsewhere' })
+
 type Counted = {
   service: PullRequestService
-  expected: () => number
-  rechecked: () => number
+  expected: () => readonly string[]
+  rechecked: () => readonly string[]
 }
 
 const countingService = (): Counted => {
-  let expected = 0
-  let rechecked = 0
+  const expected: string[] = []
+  const rechecked: string[] = []
   const service = {
     snapshot: () => {
       throw new Error('unused')
@@ -48,21 +58,35 @@ const countingService = (): Counted => {
     subscribe: () => () => undefined,
     ingest: () => undefined,
     track: () => undefined,
-    stopTracking: () => undefined,
+    setVisible: () => undefined,
+    tracked: () => [],
     watch: () => undefined,
     current: () => null,
     states: () => [],
     refresh: async () => undefined,
     dispose: () => undefined,
-    expectChecks: () => {
-      expected += 1
+    expectChecks: ({ checkout }) => {
+      expected.push(checkoutKey(checkout))
     },
-    recheck: () => {
-      rechecked += 1
+    recheck: ({ checkout }) => {
+      rechecked.push(checkoutKey(checkout))
     },
   } satisfies PullRequestService
 
   return { service, expected: () => expected, rechecked: () => rechecked }
+}
+
+const probing =
+  (answers: Readonly<Record<string, RepositoryCheckout | null>>) =>
+  async ({ directory }: { directory: string }): Promise<RepositoryCheckout | null> =>
+    answers[directory] ?? null
+
+const trackerStanding = (
+  places: readonly { threadId: ThreadId; checkout: RepositoryCheckout }[],
+): FamilyTracker => {
+  const tracker = createFamilyTracker({ service: countingService().service })
+  for (const place of places) tracker.place(place)
+  return tracker
 }
 
 type Told = { expected: number; rechecked: number }
@@ -79,7 +103,10 @@ const toldAfter = async (args: {
   result?: ToolOutcome
 }): Promise<Told> => {
   const { service, expected, rechecked } = countingService()
-  const hook = new RefreshPullRequestAfterToolHook({ pullRequests: service })
+  const hook = new RefreshPullRequestAfterToolHook({
+    pullRequests: service,
+    probe: probing({ '/repo': HERE }),
+  })
 
   await hook.run({
     call: callOf({ input: args.input, ...(args.name === undefined ? {} : { name: args.name }) }),
@@ -88,7 +115,7 @@ const toldAfter = async (args: {
     signal: NEVER_ABORTED,
   })
 
-  return { expected: expected(), rechecked: rechecked() }
+  return { expected: expected().length, rechecked: rechecked().length }
 }
 
 describe('the hook that hears a push', () => {
@@ -121,7 +148,10 @@ describe('the hook that hears a push', () => {
 
   it('writes nothing to the log, because CI is not something the session did', async () => {
     const { service } = countingService()
-    const hook = new RefreshPullRequestAfterToolHook({ pullRequests: service })
+    const hook = new RefreshPullRequestAfterToolHook({
+      pullRequests: service,
+      probe: probing({ '/repo': HERE }),
+    })
 
     const outcome = await hook.run({
       call: callOf({ input: { command: 'git push' } }),
@@ -150,11 +180,14 @@ const ranAfterShell = async (shell: EndedShell): Promise<number> =>
 
 const toldAfterShell = async (shell: EndedShell): Promise<Told> => {
   const { service, expected, rechecked } = countingService()
-  const hook = new RefreshPullRequestAfterShellHook({ pullRequests: service })
+  const hook = new RefreshPullRequestAfterShellHook({
+    pullRequests: service,
+    tracker: trackerStanding([{ threadId: THREAD, checkout: HERE }]),
+  })
 
-  await hook.run({ threadId: toThreadId('thread-fixture'), shell })
+  await hook.run({ threadId: THREAD, shell })
 
-  return { expected: expected(), rechecked: rechecked() }
+  return { expected: expected().length, rechecked: rechecked().length }
 }
 
 describe('the hook that hears a backgrounded push', () => {
@@ -184,10 +217,13 @@ describe('the hook that hears a backgrounded push', () => {
 
   it('writes nothing to the log', async () => {
     const { service } = countingService()
-    const hook = new RefreshPullRequestAfterShellHook({ pullRequests: service })
+    const hook = new RefreshPullRequestAfterShellHook({
+      pullRequests: service,
+      tracker: trackerStanding([{ threadId: THREAD, checkout: HERE }]),
+    })
 
     const outcome = await hook.run({
-      threadId: toThreadId('thread-fixture'),
+      threadId: THREAD,
       shell: endedShell({ command: 'git push', exitCode: 0 }),
     })
 
@@ -234,20 +270,25 @@ describe('the wiring the composition root uses', () => {
     const { service, expected } = countingService()
     const container = createIsolatedContainer()
     container.register(portToken(AfterToolHook), {
-      useValue: new RefreshPullRequestAfterToolHook({ pullRequests: service }),
+      useValue: new RefreshPullRequestAfterToolHook({
+        pullRequests: service,
+        probe: probing({ '/repo': HERE }),
+      }),
     })
     container.register(portToken(AfterShellHook), {
-      useValue: new RefreshPullRequestAfterShellHook({ pullRequests: service }),
+      useValue: new RefreshPullRequestAfterShellHook({
+        pullRequests: service,
+        tracker: trackerStanding([{ threadId: THREAD, checkout: HERE }]),
+      }),
     })
 
     const chain = resolveHookChain({ container })
-    const threadId = toThreadId('thread-fixture')
 
     const call = callOf({ input: { command: 'git push' } })
     for (const hook of chain.afterTool)
       await hook.run({ call, result: SUCCEEDED, projectDirectory: '/repo', signal: NEVER_ABORTED })
-    await chain.afterShell({ threadId, shell: endedShell({ command: 'git push', exitCode: 0 }) })
+    await chain.afterShell({ threadId: THREAD, shell: endedShell({ command: 'git push', exitCode: 0 }) })
 
-    expect(expected()).toBe(2)
+    expect(expected()).toHaveLength(2)
   })
 })

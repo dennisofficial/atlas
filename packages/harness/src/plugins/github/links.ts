@@ -6,7 +6,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { defineProjection, type PluginProjection } from '../projection'
-import { EPullRequestLookup, type RepositoryCheckout } from './pure'
+import { checkoutKey, EPullRequestLookup, type RepositoryCheckout } from './pure'
+import type { FamilyTracker } from './family-tracker'
 import type { PullRequestService } from './pull-request-service'
 
 export type PullRequestLinks = {
@@ -38,12 +39,15 @@ const sameLinks = (
 
 /**
  * The durable half of the pull request story. `recordFound` writes the link: at turn end it takes
- * the tracked checkout's latest reading and drafts the event, so the log accumulates one row per
- * pull request the session has stood on. `projection` reads them back for the surfaces. The
+ * the latest reading of the checkout the ending thread stands on and drafts the event, so the log
+ * accumulates one row per pull request the session family has stood on. `projection` reads them back for the surfaces. The
  * `drafted` set bridges the gap between the two — a draft is not in the fold until the next read
  * publishes it, and without the bridge every turn boundary in between would draft it again.
  */
-export function createPullRequestLinks(args: { service: PullRequestService }): PullRequestLinks {
+export function createPullRequestLinks(args: {
+  service: PullRequestService
+  tracker: FamilyTracker
+}): PullRequestLinks {
   const drafted = new Set<string>()
 
   let folded: readonly LinkedPullRequest[] = []
@@ -60,13 +64,15 @@ export function createPullRequestLinks(args: { service: PullRequestService }): P
 
   return {
     projection,
-    recordFound: async () => {
-      const found = args.service.current()
-      if (found === null) return {}
-      if (found.reading.lookup !== EPullRequestLookup.Found) return {}
+    recordFound: async ({ threadId }) => {
+      const checkout = args.tracker.checkoutFor({ threadId })
+      if (checkout === null) return {}
 
-      const repo = repoOf(found.checkout)
-      const { number, url } = found.reading.pullRequest
+      const reading = args.service.snapshot({ key: checkoutKey(checkout) })
+      if (reading.lookup !== EPullRequestLookup.Found) return {}
+
+      const repo = repoOf(checkout)
+      const { number, url } = reading.pullRequest
       const identity = pullRequestLinkKey({ repo, number })
       const durable = projection.current().some((link) => pullRequestLinkKey(link) === identity)
       if (durable || drafted.has(identity)) return {}
@@ -74,7 +80,7 @@ export function createPullRequestLinks(args: { service: PullRequestService }): P
       drafted.add(identity)
       return {
         drafts: [
-          { type: 'pull-request-linked', number, url, repo, branch: found.checkout.branch },
+          { type: 'pull-request-linked', number, url, repo, branch: checkout.branch },
         ],
       }
     },

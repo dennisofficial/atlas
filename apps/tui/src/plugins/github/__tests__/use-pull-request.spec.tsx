@@ -8,6 +8,7 @@ import React, { act } from 'react'
 import type { LinkedPullRequest } from '@dltech/atlas-core'
 import {
   createPullRequestService,
+  probeCheckout,
   EChecksState,
   EForge,
   EPullRequestLookup,
@@ -20,7 +21,7 @@ import {
 import type { SidebarSection } from '../../surface'
 import type { RepositoryCheckout } from '@dltech/atlas-harness'
 import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
-import { usePullRequest, type PullRequestControl } from '../use-pull-request'
+import { usePullRequest, type CheckoutProbe, type PullRequestControl } from '../use-pull-request'
 
 import { flattenedSpans } from '../../../ui/sidebar-section'
 
@@ -87,8 +88,10 @@ function Watcher(props: {
   projectDirectory: string
   linked: readonly LinkedPullRequest[]
   cloud?: RepositoryCheckout | null
+  askGit?: CheckoutProbe
 }): React.ReactNode {
   const control = usePullRequest({
+    ...(props.askGit === undefined ? {} : { probe: props.askGit }),
     service: props.service,
     projectDirectory: props.projectDirectory,
     working: false,
@@ -138,10 +141,19 @@ async function mounted(args: {
   const projectDirectory = await repoOnBranch(args.branch ?? 'feature-x')
   const service = createPullRequestService({ pullRequests: answering(args.reading) })
   const probe: Probe = { control: null }
+  const cloud = args.cloud ?? null
+  if (cloud !== null) service.track({ checkouts: [cloud], visible: cloud })
+
+  const trackedAsTheFamilyTrackerWould: CheckoutProbe = async ({ directory }) => {
+    const checkout = await probeCheckout({ directory })
+    if (checkout !== null) service.track({ checkouts: [checkout], visible: checkout })
+    return checkout
+  }
 
   const setup = await testRender(
     <Watcher
       probe={probe}
+      askGit={trackedAsTheFamilyTrackerWould}
       service={service}
       projectDirectory={projectDirectory}
       linked={args.linked ?? []}

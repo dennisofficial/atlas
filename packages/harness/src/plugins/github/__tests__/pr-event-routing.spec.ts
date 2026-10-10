@@ -5,6 +5,7 @@ import { prEventFrameSchema, type PrEventFrame } from '../../../cloud/pr-event-f
 import { PrEventNoticeQueue } from '../pr-event-queue'
 import { createPrEventRouting } from '../pr-event-routing'
 import {
+  checkoutKey,
   EChecksState,
   EForge,
   EPullRequestLookup,
@@ -51,11 +52,26 @@ const frame = (over: Record<string, unknown> = {}): PrEventFrame =>
     ...over,
   })
 
-const setup = (args: { tracked?: PullRequestReading | null; links?: readonly LinkedPullRequest[] } = {}) => {
+const setup = (
+  args: {
+    tracked?: PullRequestReading | null
+    links?: readonly LinkedPullRequest[]
+    extra?: readonly { checkout: RepositoryCheckout; reading: PullRequestReading }[]
+  } = {},
+) => {
   const queue = new PrEventNoticeQueue()
   const tracked = args.tracked === undefined ? found(42) : args.tracked
+  const held = [
+    ...(tracked === null ? [] : [{ checkout: CHECKOUT, reading: tracked }]),
+    ...(args.extra ?? []),
+  ]
   const service = {
-    current: () => (tracked === null ? null : { checkout: CHECKOUT, reading: tracked }),
+    tracked: () => held.map((entry) => entry.checkout),
+    snapshot: ({ key }: { key: string }) =>
+      held.find((entry) => checkoutKey(entry.checkout) === key)?.reading ?? {
+        lookup: EPullRequestLookup.Unavailable,
+        retryable: true,
+      },
   } as unknown as PullRequestService
   const routing = createPrEventRouting({ service, links: () => args.links ?? [], queue })
   return { queue, routing }
@@ -155,5 +171,17 @@ describe('createPrEventRouting', () => {
 
     expect(queue.threadsAwaiting()).toEqual([OTHER])
     expect(queue.pending({ threadId: OTHER })).toHaveLength(2)
+  })
+
+  it('admits a frame for the pull request any tracked checkout stands on', async () => {
+    const teammate = { ...CHECKOUT, directory: '/teammate', branch: 'teammate-branch' }
+    const { queue, routing } = setup({ extra: [{ checkout: teammate, reading: found(55) }] })
+    await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
+
+    routing.onPrEvent(frame({ id: 'evt_mate', prNumber: 55 }))
+
+    expect(queue.pending({ threadId: MAIN }).map((notice) => notice.draft)).toMatchObject([
+      { prNumber: 55 },
+    ])
   })
 })

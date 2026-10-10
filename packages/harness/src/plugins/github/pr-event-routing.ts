@@ -2,7 +2,7 @@ import type { BeforeTurn, LinkedPullRequest, OnThreadOpen, ThreadId } from '@dlt
 
 import { prEventNoticeOf, repoOfFrame, type PrEventDraft, type PrEventFrame } from '../../cloud/pr-event-frame'
 import type { PrEventNoticeQueue } from './pr-event-queue'
-import { EPullRequestLookup } from './pure'
+import { checkoutKey, EPullRequestLookup } from './pure'
 import { createPrEventDedupe, type PrEventDedupe } from './pure/pr-event-dedupe'
 import type { PullRequestService } from './pull-request-service'
 
@@ -12,16 +12,21 @@ export type PrEventRouting = {
   threadOpened: OnThreadOpen
 }
 
-const trackedPullRequest = (service: PullRequestService): { repo: string; number: number } | null => {
-  const tracked = service.current()
-  if (tracked === null || tracked.reading.lookup !== EPullRequestLookup.Found) return null
+const trackedPullRequests = (
+  service: PullRequestService,
+): readonly { repo: string; number: number }[] =>
+  service.tracked().flatMap((checkout) => {
+    const reading = service.snapshot({ key: checkoutKey(checkout) })
+    if (reading.lookup !== EPullRequestLookup.Found) return []
 
-  const { remote } = tracked.checkout
-  return {
-    repo: `${remote.host}/${remote.owner}/${remote.repo}`,
-    number: tracked.reading.pullRequest.number,
-  }
-}
+    const { remote } = checkout
+    return [
+      {
+        repo: `${remote.host}/${remote.owner}/${remote.repo}`,
+        number: reading.pullRequest.number,
+      },
+    ]
+  })
 
 /**
  * The session's main thread is the one notices are keyed to. `OnThreadOpen` names it whenever the
@@ -56,8 +61,10 @@ export function createPrEventRouting(args: {
 
   const watching = (frame: PrEventFrame): boolean => {
     const repo = repoOfFrame(frame)
-    const tracked = trackedPullRequest(args.service)
-    if (tracked?.repo === repo && tracked.number === frame.prNumber) return true
+    const onTracked = trackedPullRequests(args.service).some(
+      (tracked) => tracked.repo === repo && tracked.number === frame.prNumber,
+    )
+    if (onTracked) return true
 
     return args.links().some((link) => link.repo === repo && link.number === frame.prNumber)
   }

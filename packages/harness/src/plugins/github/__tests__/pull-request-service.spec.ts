@@ -217,11 +217,11 @@ describe('createPullRequestService', () => {
     const first = aCheckout({ branch: 'main' })
     const second = aCheckout({ branch: 'feature-x' })
 
-    service.track({ checkout: first })
+    service.track({ checkouts: [first] })
     await service.refresh({ checkout: first })
     expect(service.snapshot({ key: checkoutKey(first) })).toEqual(found())
 
-    service.track({ checkout: second })
+    service.track({ checkouts: [second] })
     expect(service.snapshot({ key: checkoutKey(first) }).lookup).toBe(
       EPullRequestLookup.Unavailable,
     )
@@ -268,8 +268,8 @@ describe('createPullRequestService', () => {
     const pushed = createPullRequestService({ pullRequests: pushing, now: time.now, tickMs: 1 })
     const polled = createPullRequestService({ pullRequests: polling, now: time.now, tickMs: 1 })
 
-    pushed.track({ checkout: aCheckout() })
-    polled.track({ checkout: aCheckout() })
+    pushed.track({ checkouts: [aCheckout()] })
+    polled.track({ checkouts: [aCheckout()] })
     time.advance(POLL_SETTLED_MS)
     await sleep(20)
 

@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { pullRequestChip } from '../../../plugins/github/pull-request-pill'
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   crewRowReading,
@@ -94,18 +95,28 @@ function FailureLine(props: { subagent: SidebarSubagent; cells: number }): React
  * blocked and settled alike — but an empty one would spend the height on nothing, which in a
  * panel this narrow is what makes a crew unreadable.
  */
+const pullRequestSpanOf = (subagent: SidebarSubagent): Span | null => {
+  if (subagent.pullRequest === undefined) return null
+
+  const chip = pullRequestChip(subagent.pullRequest)
+  return chipFor({ text: subagent.pullRequest.label, ground: chip.ground })
+}
+
 function FiguresLine(props: { subagent: SidebarSubagent; cells: number }): React.ReactNode {
   const context = subagentContextLabel(props.subagent.context)
-  if (props.subagent.model === null && context === null) return null
+  const pill = pullRequestSpanOf(props.subagent)
+  if (props.subagent.model === null && context === null && pill === null) return null
 
   const model: readonly Span[] =
     props.subagent.model === null
       ? []
       : [{ text: `${TITLE_INDENT}${props.subagent.model}`, fg: theme.dim }]
-  const reading: readonly Span[] =
+  const usage: readonly Span[] =
     context === null || props.subagent.context === undefined
       ? []
       : [{ text: context, fg: contextUsageTone(props.subagent.context.tokens) }]
+  const reading: readonly Span[] =
+    pill === null ? usage : usage.length === 0 ? [pill] : [pill, { text: ' ' }, ...usage]
 
   return (
     <text>
