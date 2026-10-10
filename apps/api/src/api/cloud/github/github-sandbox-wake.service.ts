@@ -1,21 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 
-import {
-  attachLagRetry,
-  imageOptimizeRetry,
-  createServeLauncher,
-  driveNameFor,
-  ensureDrive,
-  isSandboxMissing,
-  liveDriveSdk,
-  liveSdk,
-  mountWithRetries,
-  routedUrlWithRetries,
-  SANDBOX_QUICK_TIMEOUT_MS,
-  waitForDriveDetached,
-  type VercelCredentials,
-} from '@dltech/atlas-wire'
+import { driveNameFor, type VercelCredentials } from '@dltech/atlas-wire'
 
 import { db } from '../../../db'
 import { EnvService } from '../../../_core/config/env/env.service'
@@ -23,33 +9,22 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
+import {
+  failureText,
+  SANDBOX_WAKE_BOOT,
+  type SandboxWakeBoot,
+} from './github-sandbox-wake-boot'
 
 export const WAKE_DEBOUNCE_MS = 5_000
+export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
+const SERVE_INSTALL_TIMEOUT_MS = 8_000
+const RELEASE_REPOSITORY = 'dennisofficial/atlas'
 
-export type WakeBootArgs = {
-  credentials: VercelCredentials
-  name: string
-  driveName: string
-  threadId: string
-  image: string
-  cloudUrl: string
-  serveVersion: string | undefined
-  token: string
-}
-
-export type WakeBootResult = { serveUrl: string }
-
-export interface SandboxWakeBoot {
-  boot(args: WakeBootArgs): Promise<WakeBootResult>
-}
-
-export const SANDBOX_WAKE_BOOT = Symbol('SANDBOX_WAKE_BOOT')
-
-export const sandboxWakeBootProvider = {
-  provide: SANDBOX_WAKE_BOOT,
-  useFactory: (): SandboxWakeBoot =>
-    new VercelSandboxWakeBoot((line) => new Logger('VercelSandboxWakeBoot').log(line)),
-}
+export type {
+  SandboxWakeBoot,
+  WakeBootArgs,
+  WakeBootResult,
+} from './github-sandbox-wake-boot'
 
 type WakeTarget = {
   threadId: string
@@ -59,66 +34,7 @@ type WakeTarget = {
     lastActivityAt: string
     driveName: string | null
     serveVersion: string | null
-  }
-}
-
-/**
- * Recreates a parked sandbox and boots its serve: the stopped Vercel sandbox is deleted, the
- * thread's drive remounts on a fresh container, and serve comes up under a freshly minted token.
- * The row's sealedToken died at park, so the wake mints a new one and seals it onto the row —
- * the session's reconnect path verifies the same token the boot wrote into the sandbox.
- */
-class VercelSandboxWakeBoot implements SandboxWakeBoot {
-  constructor(private readonly log: (line: string) => void) {}
-
-  async boot(args: WakeBootArgs): Promise<WakeBootResult> {
-    const stale = await liveSdk
-      .get({
-        ...args.credentials,
-        name: args.name,
-        resume: false,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      .catch((failure: unknown) => (isSandboxMissing(failure) ? undefined : Promise.reject(failure)))
-    if (stale !== undefined) {
-      await stale.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
-      this.log(`wake deleted parked sandbox ${args.name} before recreating it`)
-    }
-    await waitForDriveDetached({
-      sdk: liveDriveSdk,
-      credentials: args.credentials,
-      name: args.driveName,
-      retry: attachLagRetry,
-    })
-    const drive = await ensureDrive({
-      sdk: liveDriveSdk,
-      credentials: args.credentials,
-      name: args.driveName,
-      driveExisted: true,
-    })
-    const sandbox = await mountWithRetries({
-      sdk: liveSdk,
-      cloudUrl: args.cloudUrl,
-      retry: attachLagRetry,
-      imageOptimize: imageOptimizeRetry,
-      log: this.log,
-      credentials: args.credentials,
-      name: args.name,
-      image: args.image,
-      drive,
-      driveName: args.driveName,
-      threadId: args.threadId,
-      token: args.token,
-      onCreate: () => Promise.resolve(),
-    })
-    const launch = createServeLauncher({ log: this.log })
-    await launch({
-      sandbox,
-      token: args.token,
-      cloudUrl: args.cloudUrl,
-      desiredVersion: args.serveVersion,
-    })
-    return { serveUrl: await routedUrlWithRetries(sandbox) }
+    wakeFailedAt: string | null
   }
 }
 
@@ -127,11 +43,14 @@ class VercelSandboxWakeBoot implements SandboxWakeBoot {
  * the event row lands; resolves the thread through the subscription link, boots only parked
  * sandboxes inside the 24h wake window, and debounces per threadId so a check-run storm boots
  * once. Never throws into the delivery path — a failed wake is logged, the mailbox row stays.
+ * A boot is claimed with a conditional Parked→Resuming updateMany before any Vercel call, so a
+ * second event that lands mid-boot loses the race and retries instead of starting a second boot.
  */
 @Injectable()
 export class GithubSandboxWakeService {
   private readonly logger = new Logger(GithubSandboxWakeService.name)
   private readonly debounce = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly inFlight = new Set<string>()
 
   constructor(
     private readonly env: EnvService,
@@ -141,9 +60,8 @@ export class GithubSandboxWakeService {
 
   notifyEvent(args: { userId: string; repoFullName: string; prNumber: number }): void {
     void this.wakeTargets(args).catch((failure: unknown) => {
-      const message = failure instanceof Error ? failure.message : String(failure)
       this.logger.warn(
-        `sandbox wake for ${args.repoFullName}#${args.prNumber} (user ${args.userId}) failed: ${message}`,
+        `sandbox wake for ${args.repoFullName}#${args.prNumber} (user ${args.userId}) failed: ${failureText(failure)}`,
       )
     })
   }
@@ -163,6 +81,7 @@ export class GithubSandboxWakeService {
       include: { sandbox: true },
     })
     const wakeCutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS).toISOString()
+    const backoffCutoff = new Date(Date.now() - WAKE_FAILURE_BACKOFF_MS).toISOString()
     const targets = subscriptions
       .filter((subscription): subscription is typeof subscription & { threadId: string } => subscription.threadId !== null)
       .flatMap((subscription): WakeTarget[] =>
@@ -173,7 +92,8 @@ export class GithubSandboxWakeService {
       .filter(
         (target) =>
           target.sandbox.state === ESandboxState.Parked &&
-          target.sandbox.lastActivityAt > wakeCutoff,
+          target.sandbox.lastActivityAt > wakeCutoff &&
+          (target.sandbox.wakeFailedAt === null || target.sandbox.wakeFailedAt < backoffCutoff),
       )
     const seen = new Set<string>()
     for (const target of targets) {
@@ -184,6 +104,7 @@ export class GithubSandboxWakeService {
   }
 
   private debounceBoot(target: WakeTarget): void {
+    if (this.inFlight.has(target.threadId)) return
     const pending = this.debounce.get(target.threadId)
     if (pending !== undefined) {
       clearTimeout(pending)
@@ -191,43 +112,108 @@ export class GithubSandboxWakeService {
     }
     const timer = setTimeout(() => {
       this.debounce.delete(target.threadId)
-      void this.bootParkedSandbox(target).catch((failure: unknown) => {
-        const message = failure instanceof Error ? failure.message : String(failure)
+      void this.bootParkedSandbox({ threadId: target.threadId }).catch((failure: unknown) => {
         this.logger.warn(
-          `wake boot of sandbox ${target.sandbox.name} (thread ${target.threadId}) failed: ${message}`,
+          `wake boot of sandbox ${target.sandbox.name} (thread ${target.threadId}) failed: ${failureText(failure)}`,
         )
       })
     }, WAKE_DEBOUNCE_MS)
     this.debounce.set(target.threadId, timer)
   }
 
-  private async bootParkedSandbox(target: WakeTarget): Promise<void> {
+  private async bootParkedSandbox(args: { threadId: string }): Promise<void> {
+    if (this.inFlight.has(args.threadId)) return
+    this.inFlight.add(args.threadId)
+    try {
+      await this.claimAndBoot(args)
+    } finally {
+      this.inFlight.delete(args.threadId)
+    }
+  }
+
+  private async claimAndBoot(args: { threadId: string }): Promise<void> {
+    const claimed = await db.cloudSandbox.updateMany({
+      where: { threadId: args.threadId, state: ESandboxState.Parked },
+      data: { state: ESandboxState.Resuming, updatedAt: new Date().toISOString() },
+    })
+    if (claimed.count === 0) {
+      this.logger.log(`wake of thread ${args.threadId} lost its claim — the row is no longer parked`)
+      return
+    }
+    try {
+      await this.bootClaimed(args)
+    } catch (failure) {
+      await this.releaseClaim(args)
+      throw failure
+    }
+  }
+
+  private async bootClaimed(args: { threadId: string }): Promise<void> {
+    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    if (row === null) throw new Error(`sandbox row for thread ${args.threadId} vanished mid-wake`)
+    const serveVersion = await this.validatedServeVersion({ pinned: row.serveVersion })
     const credentials = this.vercelCredentials()
     const token = randomBytes(32).toString('hex')
     const { serveUrl } = await this.bootAdapter.boot({
       credentials,
-      name: target.sandbox.name,
-      driveName: target.sandbox.driveName ?? driveNameFor({ threadId: target.threadId }),
-      threadId: target.threadId,
+      name: row.name,
+      driveName: row.driveName ?? driveNameFor({ threadId: args.threadId }),
+      threadId: args.threadId,
       image: this.env.get('SANDBOX_IMAGE'),
       cloudUrl: this.env.get('ATLAS_CLOUD_URL') ?? 'https://api.byatlas.io',
-      serveVersion: target.sandbox.serveVersion ?? undefined,
+      serveVersion,
       token,
     })
     await db.cloudSandbox.update({
-      where: { threadId: target.threadId },
+      where: { threadId: args.threadId },
       data: {
         state: ESandboxState.Running,
         serveUrl,
         tokenHash: hashSessionToken(token),
         sealedToken: this.cipher.encrypt(token),
+        wakeFailedAt: null,
         lastActivityAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
     })
-    this.logger.log(
-      `woke sandbox ${target.sandbox.name} for thread ${target.threadId} — serve at ${serveUrl}`,
-    )
+    this.logger.log(`woke sandbox ${row.name} for thread ${args.threadId} — serve at ${serveUrl}`)
+  }
+
+  private async releaseClaim(args: { threadId: string }): Promise<void> {
+    await db.cloudSandbox.updateMany({
+      where: { threadId: args.threadId, state: ESandboxState.Resuming },
+      data: {
+        state: ESandboxState.Parked,
+        wakeFailedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    })
+  }
+
+  /**
+   * The pinned serveVersion is only worth booting when its release artifact still exists — a
+   * boot against a pruned release fails at install and leaves the thread wedged until the next
+   * event. A missing artifact falls back to latest (undefined desiredVersion).
+   */
+  private async validatedServeVersion(args: { pinned: string | null }): Promise<string | undefined> {
+    if (args.pinned === null) return undefined
+    const tag = `tui-v${args.pinned.replace(/^tui-v/, '').replace(/^v/, '')}`
+    try {
+      const response = await fetch(
+        `https://github.com/${RELEASE_REPOSITORY}/releases/download/${tag}/install.sh`,
+        { method: 'HEAD', signal: AbortSignal.timeout(SERVE_INSTALL_TIMEOUT_MS) },
+      )
+      if (response.ok) return args.pinned
+      this.logger.warn(
+        `pinned serve ${args.pinned} has no release artifact (${response.status}) — waking with latest`,
+      )
+      return undefined
+    } catch (failure) {
+      this.logger.warn(
+        `could not validate pinned serve ${args.pinned} — waking with latest: ${failureText(failure)}`,
+      )
+      return undefined
+    }
   }
 
   private vercelCredentials(): VercelCredentials {

@@ -67,6 +67,7 @@ export type FakeCloudSandboxRow = {
   driveName?: string | null
   serveUrl?: string | null
   serveVersion?: string | null
+  wakeFailedAt?: string | null
   tokenHash?: string
   sealedToken?: string | null
 }
@@ -93,7 +94,14 @@ const matchesWhere = <Row>(row: Row, where: Where | undefined): boolean => {
 let cloudSandboxes: FakeCloudSandboxRow[] = []
 
 export function seedCloudSandbox(row: FakeCloudSandboxRow): void {
-  cloudSandboxes = [...cloudSandboxes.filter((held) => held.threadId !== row.threadId), row]
+  const withDefaults = {
+    driveName: null,
+    serveUrl: null,
+    serveVersion: null,
+    wakeFailedAt: null,
+    ...row,
+  }
+  cloudSandboxes = [...cloudSandboxes.filter((held) => held.threadId !== row.threadId), withDefaults]
 }
 
 function createFakeGithubDb() {
@@ -193,11 +201,23 @@ function createFakeGithubDb() {
     cloudSandbox: {
       findMany: async (args: { where?: Where } = {}) =>
         cloudSandboxes.filter((row) => matchesWhere(row, args.where)),
+      findUnique: async (args: { where: { threadId: string }; select?: Where }) => {
+        const held = cloudSandboxes.find((row) => row.threadId === args.where.threadId) ?? null
+        if (held === null || args.select === undefined) return held
+        const picked: Record<string, unknown> = {}
+        for (const key of Object.keys(args.select)) picked[key] = (held as unknown as Where)[key]
+        return picked
+      },
       update: async (args: { where: { threadId: string }; data: Where }) => {
         const held = cloudSandboxes.find((row) => row.threadId === args.where.threadId)
         if (held === undefined) throw new Error('fake cloudSandbox.update: no row')
         applyUpdate(held as unknown as Record<string, unknown>, args.data)
         return held
+      },
+      updateMany: async (args: { where?: Where; data: Where }) => {
+        const matched = cloudSandboxes.filter((row) => matchesWhere(row, args.where))
+        for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return { count: matched.length }
       },
     },
   }
