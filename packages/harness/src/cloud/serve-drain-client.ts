@@ -3,9 +3,11 @@ import { z } from 'zod'
 
 import {
   DRIVE_HOME_PATH,
+  EVercelFailure,
   SERVE_TOKEN_PATH,
   sandboxDrainReplySchema,
   sandboxRotationReceiptSchema,
+  VercelFailure,
   type SandboxRotationReceipt,
 } from '@dltech/atlas-wire'
 import { SANDBOX_ROTATION_RECEIPT_RELATIVE_PATH } from './sandbox-rotation-receipt'
@@ -68,7 +70,9 @@ const wedgeProofOf = (health: unknown, sessionId: string): boolean => {
   return true
 }
 
-type PreparationGate = { kind: 'ready' } | { kind: 'wedged' }
+type PreparationGate = { kind: 'ready' } | { kind: 'wedged' } | { kind: 'legacy' }
+
+const legacyHealthSchema = z.looseObject({ sandboxSessionId: z.string().min(1) })
 
 const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): Promise<PreparationGate> => {
   const probe = await args.sandbox.runCommand({
@@ -93,7 +97,20 @@ const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): 
     return { kind: 'ready' }
   }
   if (wedgeProofOf(body, args.sandbox.currentSession().sessionId)) return { kind: 'wedged' }
-  throw new Error('this serve cannot confirm safe relocation preparation — the sandbox was preserved')
+  // rotationPreparationVersion and the health sandboxSessionId both first shipped in #1025
+  // (tui-v1.61.0), so a serve that answers an authenticated 200 without the version predates the
+  // drain protocol itself — the bearer token is the identity fence there. An answered health that
+  // names another session is a live-work fence and still refuses.
+  if (probe.exitCode === 0) {
+    const legacy = legacyHealthSchema.safeParse(body)
+    if (legacy.success && legacy.data.sandboxSessionId !== args.sandbox.currentSession().sessionId) {
+      return { kind: 'legacy' }
+    }
+  }
+  throw new VercelFailure({
+    kind: EVercelFailure.DrainRefused,
+    message: 'this serve cannot confirm safe relocation preparation — the sandbox was preserved',
+  })
 }
 
 export const drainServe: ServeDrain = async ({ sandbox, url }) => {
@@ -101,8 +118,9 @@ export const drainServe: ServeDrain = async ({ sandbox, url }) => {
   const gate = await requireSafePreparation({ sandbox, url })
   // A wedged serve already ended its own processes when it parked and cannot answer a drain —
   // asking it to is the deadlock. Its durable state is on the drive; bypass the drain and let the
-  // caller replace it.
-  if (gate.kind === 'wedged') return
+  // caller replace it. A legacy serve predates the drain protocol itself — pre-#1025 the harness
+  // always replaced these serves without ceremony, so nothing protected is lost.
+  if (gate.kind === 'wedged' || gate.kind === 'legacy') return
   const body = JSON.stringify({ reason: DRAIN_REASON, preparationVersion: 1 })
   try {
     const run = await sandbox.runCommand({

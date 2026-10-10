@@ -90,6 +90,7 @@ export enum EVercelFailure {
   NameConflict = 'name-conflict',
   ImageOptimize = 'image-optimize',
   ImageNotFound = 'image-not-found',
+  DrainRefused = 'drain-refused',
 }
 
 export class VercelFailure extends Error {
