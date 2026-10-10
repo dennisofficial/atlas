@@ -1,8 +1,9 @@
 name: codex-version
 
 # Tracks the latest openai/codex CLI release (rust-vX.Y.Z tags) and opens a PR when the pinned
-# CODEX_VERSION drifts. It never merges on its own: the codex models endpoint gates models on
-# minimal_client_version, and that gating behavior is reverse-engineered, so a human merges.
+# CODEX_VERSION drifts, then queues it for auto-merge: GitHub lands it once ci is green. The
+# commit is created through the REST git API (api-commit.sh) so GitHub web-signs it — Vercel
+# refuses to build unsigned commits. The automerge workflow unsticks held runs and conflicts.
 on:
   schedule:
     - cron: '17 */6 * * *'
@@ -35,14 +36,11 @@ jobs:
           fi
           version=$(grep -o "CODEX_VERSION = '[^']*'" "$pinned" | cut -d"'" -f2)
           branch="codex-version/$version"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
-          git add "$pinned"
-          git commit -m "fix(harness): bump codex client version to $version"
-          git push origin "$branch"
-          body_file="$(mktemp)"
-          printf 'Automated bump of `CODEX_VERSION` to the latest `openai/codex` CLI release (%s).\n\nMerge by hand — the codex backend gates models on `minimal_client_version` and that behavior is reverse-engineered, so a new release needs a look before it lands.\n' "$version" > "$body_file"
+          .github/scripts/api-commit.sh \
+            --branch "$branch" \
+            --message "fix(harness): bump codex client version to $version" \
+            -- "$pinned"
           gh pr create \
             --title "fix(harness): bump codex client version to $version" \
-            --body-file "$body_file"
+            --body "Automated bump of \`CODEX_VERSION\` to the latest \`openai/codex\` CLI release ($version). Queued for auto-merge; lands once ci is green."
+          gh pr merge --squash --auto "$(gh pr list --head "$branch" --json number --jq '.[0].number')"
