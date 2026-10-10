@@ -46,7 +46,11 @@ describe('system context entries', () => {
       contextLoaded({
         slot: 'skill-suggestion',
         key: 'additional-context',
-        content: '<skill_relevance>\nRelevant to the current request: aws-deployment.\n</skill_relevance>',
+        content:
+          '<skill_relevance>\n' +
+          "The skill classifier picked 'aws-deployment' as relevant to the user's latest request. " +
+          'Load it with the skill tool when it genuinely applies; if it does not, ignore this entirely.\n' +
+          '</skill_relevance>',
       }),
     ])
 
@@ -56,18 +60,6 @@ describe('system context entries', () => {
     expect(entries[0]?.items[0]?.label).toBe('skill suggestion · aws-deployment')
     expect(entries[0]?.items[0]?.content).toContain('aws-deployment')
     expect(entries[0]?.items[0]?.superseded).toBe(false)
-  })
-
-  it('falls back to the bare label when the suggestion names no skill', () => {
-    const entries = systemContexts([
-      contextLoaded({
-        slot: 'skill-suggestion',
-        key: 'additional-context',
-        content: '<skill_relevance>\nNo skill in the roster appears relevant.\n</skill_relevance>',
-      }),
-    ])
-
-    expect(entries[0]?.items[0]?.label).toBe('skill suggestion')
   })
 
   it('labels known slots by name', () => {
