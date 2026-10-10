@@ -17,6 +17,7 @@ import { App } from '../app'
 import { CLEAN_WORKSPACE, fakeBridge } from '../cloud/__tests__/fixture'
 import type { WhatsNewDeps } from '../use-whats-new'
 import { promiseGate, spokenIn, until } from './app-fixture'
+import { cloudOpened } from './app-container-cloud-fixture'
 import { fakeApp, scriptedModelPort } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
 
@@ -55,7 +56,7 @@ const countingDeps = (args: {
   return { deps, calls }
 }
 
-const mount = async (whatsNewDeps: WhatsNewDeps) => {
+const mount = async (whatsNewDeps: WhatsNewDeps, placement: { cloud: boolean } = { cloud: false }) => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-whats-new-spec-'))
   const previousHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home
@@ -65,7 +66,7 @@ const mount = async (whatsNewDeps: WhatsNewDeps) => {
   app.threads.mirrorTo(disk)
   const bridge = fakeBridge()
   bridge.sourceStores({ log: app.log, threads: app.threads, workspace: app.workspace.workspace, disk })
-  const opened = await spokenIn(app)
+  const opened = placement.cloud ? await cloudOpened({ app, bridge }) : await spokenIn(app)
   await disk.writeSessionMeta({ threadId: opened.threadId })
   await disk.stampProvenance({ threadId: opened.threadId, archiveDigest: null })
 
@@ -98,9 +99,7 @@ const mount = async (whatsNewDeps: WhatsNewDeps) => {
     frame,
     showing,
     pressEscape: () => setup.mockInput.pressEscape(),
-    lift: async () => {
-      await setup.mockInput.typeText('/container cloud')
-      setup.mockInput.pressEnter()
+    connectCloud: async () => {
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(true)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
       expect(await showing('CLOUD')).toBe(true)
@@ -119,13 +118,13 @@ const mount = async (whatsNewDeps: WhatsNewDeps) => {
 }
 
 describe('release notes are owned by the app, not the keyed workspace', () => {
-  it('claims and fetches once even though a lift and a reload remount the workspace', async () => {
+  it('claims and fetches once even though a cloud attach and a reload remount the workspace', async () => {
     const claimGate = promiseGate()
     const { deps, calls } = countingDeps({ decision: CHANGED, claimGate: claimGate.gate })
-    const mounted = await mount(deps)
+    const mounted = await mount(deps, { cloud: true })
 
     try {
-      await mounted.lift()
+      await mounted.connectCloud()
       claimGate.release()
       expect(await mounted.showing(HEADING)).toBe(true)
       expect(await mounted.showing('the notes body for thirty-two')).toBe(true)
@@ -142,13 +141,13 @@ describe('release notes are owned by the app, not the keyed workspace', () => {
 
   it('stays dismissed through later reloads', async () => {
     const { deps, calls } = countingDeps({ decision: CHANGED })
-    const mounted = await mount(deps)
+    const mounted = await mount(deps, { cloud: true })
 
     try {
       expect(await mounted.showing(HEADING)).toBe(true)
       mounted.pressEscape()
       expect(await until({ holds: async () => !(await mounted.frame()).includes(HEADING), within: 20_000 })).toBe(true)
-      await mounted.lift()
+      await mounted.connectCloud()
       mounted.reload()
       await settle(500)
       mounted.reload()

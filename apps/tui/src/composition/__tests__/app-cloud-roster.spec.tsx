@@ -6,12 +6,12 @@ import { EChannelConnection, toShellId } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge } from '../cloud/__tests__/fixture'
-import { until, THREAD } from './app-fixture'
-import { mount, speaking } from './app-container-cloud-fixture'
+import { THREAD } from './app-fixture'
+import { mountInCloud, speaking } from './app-container-cloud-fixture'
 
 await grammarsReady()
 
-type Mounted = Awaited<ReturnType<typeof mount>>
+type Mounted = Awaited<ReturnType<typeof mountInCloud>>
 
 const shown = async (mounted: Mounted, text: string): Promise<string> => {
   const deadline = Date.now() + 20_000
@@ -24,11 +24,7 @@ const shown = async (mounted: Mounted, text: string): Promise<string> => {
   throw new Error(`waited past 20000 ms for ${JSON.stringify(text)}\n\n${frame}`)
 }
 
-const lift = async (mounted: Mounted, bridge: ReturnType<typeof fakeBridge>): Promise<void> => {
-  await mounted.run('cloud')
-  expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(
-    true,
-  )
+const pushRoster = async (bridge: ReturnType<typeof fakeBridge>): Promise<void> => {
   bridge.channel.pushRoster(rosterWithShell)
   await new Promise((resolve) => setTimeout(resolve, 500))
   bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
@@ -69,10 +65,10 @@ describe('a cloud session renders the remote roster', () => {
   it('shows the sandbox’s running shell in the sidebar after a roster push', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await lift(mounted, bridge)
+      await pushRoster(bridge)
 
       const frame = await shown(mounted, 'dev server')
       expect(frame).toContain('SHELLS')
@@ -85,10 +81,10 @@ describe('a cloud session renders the remote roster', () => {
   it('shows the sandbox’s sub-agent in the crew after a roster push', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await lift(mounted, bridge)
+      await pushRoster(bridge)
 
       const frame = await shown(mounted, 'map the seam')
       expect(frame).toContain('map the seam')

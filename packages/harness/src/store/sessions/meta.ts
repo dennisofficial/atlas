@@ -122,6 +122,7 @@ export const threadMetaSchema = z.object({
           phase: z.enum(['preparing', 'committed']),
         })
         .nullable(),
+      born: z.boolean().nullish(),
     })
     .nullish(),
   parkedTranscript: z

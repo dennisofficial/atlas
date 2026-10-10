@@ -100,6 +100,7 @@ export class PlacementController {
       placement: placementOf(args.fallback ?? this.initial),
       revision: 0,
       move: null,
+      born: null,
     }
     this.publish({ threadId: args.threadId, record: resolved })
     return resolved
@@ -107,6 +108,43 @@ export class PlacementController {
 
   async refresh({ threadId }: { threadId: ThreadId }): Promise<void> {
     await this.load({ threadId })
+  }
+
+  /**
+   * Records the placement a thread was born with. Not a move: no transaction, no preparation
+   * phase, and no way to change it afterwards — a thread that already holds a born-placed record
+   * keeps it, so creation replays are safe. A grandfathered thread (born before placements were
+   * recorded at creation) gets its inferred placement stamped the first time it is placed.
+   */
+  async placeAtCreation(args: { threadId: ThreadId; placement: SessionPlacement }): Promise<PlacementRecord> {
+    const binding = this.binding
+    if (binding === undefined) throw new Error('placement has no durable store')
+    const known = await binding.threads.find({ threadId: args.threadId })
+    const held = await this.load({ threadId: args.threadId })
+    if (held.born === true) return held
+    // A thread the store already knows is grandfathered, not new: its inferred placement is the
+    // truth, and placing it stamps that inference as born rather than adopting the suggestion.
+    const placement = known !== undefined ? held.placement : args.placement
+    return await this.write({
+      threadId: args.threadId,
+      prior: held,
+      next: { placement, revision: held.revision, move: held.move, born: true },
+    })
+  }
+
+  /**
+   * Stamps the placement a thread was born with once the birth has settled. A cloud birth is the
+   * initial provisioning itself — a placement write, not a move — so the marker lands after the
+   * commit rather than before it; a birth still in flight (a move record) is not born yet.
+   */
+  async markBorn(args: { threadId: ThreadId }): Promise<PlacementRecord> {
+    const held = await this.load({ threadId: args.threadId })
+    if (held.born === true || held.move !== null) return held
+    return await this.write({
+      threadId: args.threadId,
+      prior: held,
+      next: { ...held, born: true },
+    })
   }
 
   async move<T>(args: {
@@ -223,6 +261,9 @@ export class PlacementController {
 
   private validate(args: { kind: EPlacementMoveKind; from: EExecutionLocation; target: EExecutionLocation; record: PlacementRecord }): void {
     if (args.record.move !== null) throw new Error('this session has an unfinished placement move — recover it before moving again')
+    if (args.record.born === true) {
+      throw new Error('this thread was born with its placement and never moves — start a new thread where it should run')
+    }
     if (args.kind === EPlacementMoveKind.Tools && (args.from === EExecutionLocation.Cloud || args.target === EExecutionLocation.Cloud)) {
       throw new Error('cloud harnesses cannot change their tool environment')
     }

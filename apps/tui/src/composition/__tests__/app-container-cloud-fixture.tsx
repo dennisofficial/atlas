@@ -9,8 +9,10 @@ import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import { CLEAN_WORKSPACE, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from '../use-cloud-lift'
-import { editorIn, spokenIn, REPLY, THINKING } from './app-fixture'
-import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
+import type { OpenedConversation } from '../open-conversation'
+import { editorIn, spokenIn, REPLY, THINKING, THREAD, until } from './app-fixture'
+import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
 
 const DIRTY: WorkspaceCapture = async () => ({
@@ -32,9 +34,34 @@ export const slowlySpeaking = (): FakeApp =>
     model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY }, perChunkMs: 300 }),
   })
 
+export const SEEDED = 'what is in here?'
+
+const SANDBOX_WORKSPACE = '/atlas/workspaces/sandbox-checkout'
+
+/**
+ * The /resume picker lists the local store, so a conversation that lives in the cloud is seeded
+ * there as a cloud thread — the row that says where it runs — while its transcript stays in the
+ * sandbox's stores, which the fake bridge serves.
+ */
+export const seedCloudThread = async (args: {
+  app: FakeApp
+  threadId?: ThreadId
+  title?: string
+}): Promise<{ threadId: ThreadId }> => {
+  const thread = await args.app.threads.create({
+    workspace: FAKE_CONFIG.cwd,
+    repo: null,
+    ...(args.threadId === undefined ? {} : { id: args.threadId }),
+  })
+  await args.app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+  await args.app.threads.rename({ threadId: thread.id, title: args.title ?? 'the lifted thread' })
+  return { threadId: thread.id }
+}
+
 export const mount = async (args: {
   app: FakeApp
   bridge: FakeBridge
+  opened?: OpenedConversation
   preflightLift?: LiftPreflight
   clipboard?: ClipboardImageReader
 }) => {
@@ -51,7 +78,7 @@ export const mount = async (args: {
     disk,
   })
   const createBridge: CloudBridgeFactory = () => args.bridge
-  const opened = await spokenIn(args.app)
+  const opened = args.opened ?? (await spokenIn(args.app))
   await disk.writeSessionMeta({ threadId: opened.threadId })
   await disk.stampProvenance({ threadId: opened.threadId, archiveDigest: null })
   const setup = await testRender(
@@ -119,3 +146,73 @@ export const mount = async (args: {
     },
   }
 }
+
+export const cloudOpened = async (args: { app: FakeApp; bridge: FakeBridge }): Promise<OpenedConversation> => {
+  const { threadId } = await seedCloudThread({ app: args.app, threadId: THREAD })
+  await args.bridge.log.append({
+    threadId,
+    runId: toRunId('run-cloud'),
+    drafts: [
+      { type: 'user-said', text: SEEDED },
+      {
+        type: 'location-changed',
+        from: EExecutionLocation.Host,
+        to: EExecutionLocation.Cloud,
+        cwd: SANDBOX_WORKSPACE,
+      },
+    ],
+  })
+  return { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId }
+}
+
+/** A session that opens on a thread born in the cloud, attaching at boot the way a relaunch does. */
+export const mountInCloud = async (args: {
+  app: FakeApp
+  bridge: FakeBridge
+  clipboard?: ClipboardImageReader
+}) => {
+  const opened = await cloudOpened({ app: args.app, bridge: args.bridge })
+  const mounted = await mount({ ...args, opened })
+  const attached = await until({ holds: async () => args.bridge.attached.length === 1, within: 20_000 })
+  if (!attached) {
+    await mounted.done()
+    throw new Error('the boot attach never reached the sandbox')
+  }
+  return mounted
+}
+
+type Mounted = Awaited<ReturnType<typeof mount>>
+
+export const nextFrameOf = async (mounted: Mounted): Promise<string> => {
+  try {
+    return await mounted.nextFrame()
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('visual idle')) return ''
+    throw error
+  }
+}
+
+const frameHolding = async (args: {
+  mounted: Mounted
+  holds: (frame: string) => boolean
+  what: string
+}): Promise<string> => {
+  const deadline = Date.now() + 20_000
+  let frame = ''
+  while (Date.now() < deadline) {
+    frame = await nextFrameOf(args.mounted)
+    if (args.holds(frame)) return frame
+    await settle(10)
+  }
+  throw new Error(`waited past 20000 ms for ${args.what}\n\n${frame}`)
+}
+
+export const shown = (mounted: Mounted, text: string): Promise<string> =>
+  frameHolding({ mounted, holds: (frame) => frame.includes(text), what: JSON.stringify(text) })
+
+export const cleared = (mounted: Mounted, text: string): Promise<string> =>
+  frameHolding({
+    mounted,
+    holds: (frame) => !frame.includes(text),
+    what: `${JSON.stringify(text)} to go away`,
+  })

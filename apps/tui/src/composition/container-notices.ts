@@ -47,3 +47,17 @@ export const pendingSwitchNotice = (args: {
   count: number
 }): string =>
   `moving ${whereItRuns(args.target)} stops ${args.count} running ${args.count === 1 ? 'shell' : 'shells'} — confirm below`
+
+const WHERE_IT_LIVES: Record<EExecutionLocation, string> = {
+  [EExecutionLocation.Host]: 'on the host',
+  [EExecutionLocation.Docker]: 'in a Docker container',
+  [EExecutionLocation.Cloud]: 'in a cloud sandbox',
+}
+
+/** A thread born on the host stays there; the answer to wanting the cloud is a cloud-born thread. */
+export const bornLocalRefusalNotice = (): string =>
+  'this thread was born on the host and stays there — threads keep the placement they were born with, so start a new thread to run in the cloud'
+
+/** A cloud-born thread never comes down; the answer to wanting the host is a local-born thread. */
+export const bornCloudRefusalNotice = (target: EExecutionLocation): string =>
+  `this thread was born in the cloud and stays there — threads keep the placement they were born with, so start a new thread to run ${WHERE_IT_LIVES[target]}`

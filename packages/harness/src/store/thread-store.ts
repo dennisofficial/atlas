@@ -80,6 +80,7 @@ export abstract class ThreadStorePort {
       placement: placementOf(thread.executionLocation ?? EExecutionLocation.Host),
       revision: 0,
       move: null,
+      born: null,
     }
   }
 

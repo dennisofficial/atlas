@@ -6,7 +6,7 @@ import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge } from '../cloud/__tests__/fixture'
 import { open, promiseGate, spokenIn, until } from './app-fixture'
-import { mount, speaking } from './app-container-cloud-fixture'
+import { mountInCloud, speaking } from './app-container-cloud-fixture'
 
 await grammarsReady()
 
@@ -17,10 +17,9 @@ describe('a message waiting on the cloud round trip', () => {
   it('shows the message as sending until the commit lands, then as the durable row', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await mounted.run('cloud')
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
 
       const gated = promiseGate()
@@ -58,10 +57,9 @@ describe('a message waiting on the cloud round trip', () => {
   it('shows a steered message as sending while the turn is running, clearing it when it lands', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await mounted.run('cloud')
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
 
       await mounted.typeText('keep going')
@@ -104,10 +102,9 @@ describe('a message waiting on the cloud round trip', () => {
   it('downgrades the row to a send failure when the socket dies before the commit answers', async () => {
     const app = speaking()
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await mounted.run('cloud')
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
 
       let dropCommit: (error: Error) => void = () => undefined

@@ -49,8 +49,9 @@ export { closeConversation }
 export const unstartedConversation = (args: {
   ids: IdPort
   bootCloudThreadId?: ThreadId | undefined
+  threadId?: ThreadId | undefined
 }): OpenedConversation => ({
-  threadId: args.ids.nextThreadId(),
+  threadId: args.threadId ?? args.ids.nextThreadId(),
   events: [],
   turns: [],
   name: null,

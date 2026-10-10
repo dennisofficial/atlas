@@ -9,7 +9,7 @@ import { createBootProgress, EBootStep } from '../boot-progress'
 import { BootScreen } from '../boot-screen'
 import { ESession } from '../open-session'
 import { fakeBridge } from '../cloud/__tests__/fixture'
-import { mount, speaking } from './app-container-cloud-fixture'
+import { mountInCloud, speaking } from './app-container-cloud-fixture'
 import { editorIn, open, until, THINKING, REPLY, THREAD } from './app-fixture'
 import { fakeApp, fakeSignedOutCloud, scriptedModelPort } from './fake-app'
 
@@ -156,21 +156,13 @@ describe('the startup curtain over the extracted workspace', () => {
 describe('a cloud reload remounting the workspace', () => {
   it('carries the unsent draft over without sending it', async () => {
     const bridge = fakeBridge()
-    const mounted = await mount({ app: speaking(), bridge })
+    const mounted = await mountInCloud({ app: speaking(), bridge })
     const said = 'landed while the stream gapped'
     const draft = 'half a thought about the auth seam'
 
     try {
-      await mounted.typeText('/container cloud')
-      mounted.pressEnter()
-      const attached = await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })
-      expect(attached).toBe(true)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
-      const cleared = await until({
-        holds: async () => !(await mounted.frame()).includes('MOVING TO THE CLOUD'),
-        within: 20_000,
-      })
-      expect(cleared).toBe(true)
+      await mounted.frame()
 
       await mounted.typeText(draft)
       await bridge.log.append({
