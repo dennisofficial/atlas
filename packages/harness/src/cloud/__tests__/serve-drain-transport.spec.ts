@@ -17,6 +17,17 @@ const fixture = async () => {
     currentSession: () => ({ sessionId: 'session-1' }),
     runCommand: async (args: { args: string[] }) => {
       const script = (args.args[1] ?? '').replaceAll(SERVE_TOKEN_PATH, tokenFile).replaceAll(DRIVE_HOME_PATH, home)
+      if (args.detached === true && script.includes(SWAP_LOCK_PATH)) {
+        return {
+          cmdId: 'cmd_lock',
+          exitCode: null,
+          wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
+          kill: async () => undefined,
+        }
+      }
+      if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
+        return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
+      }
       if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       const process = Bun.spawn(['sh', '-c', script], { stdout: 'pipe', stderr: 'pipe' })
       const [stdout, stderr, exitCode] = await Promise.all([

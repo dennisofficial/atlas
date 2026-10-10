@@ -1,6 +1,7 @@
 import type { Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
+import { SWAP_LOCK_PATH } from '@dltech/atlas-wire'
 import { rotationReceipt } from './rotation-fixture'
 
 export const PINNED_VERSION = '1.19.2'
@@ -67,10 +68,26 @@ export const fakeSandbox = (
       }
       return `https://sb-${port}.vercel.run`
     },
-    runCommand: async (params: { cmd: string; args?: string[] }) => {
+    runCommand: async (params: { cmd: string; args?: string[]; detached?: boolean }) => {
       const script = params.args?.[1] ?? params.cmd
       commands.push(script)
       calls?.push({ kind: ERecordedCallKind.Command, script })
+      if (params.detached === true && script.includes(SWAP_LOCK_PATH)) {
+        // The swap-lock holder: a live process the driver kills on release.
+        return {
+          cmdId: 'cmd_lock',
+          exitCode: null,
+          wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
+          kill: async () => undefined,
+        }
+      }
+      if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
+        // The acquire-status probe: this fake grants the lock immediately.
+        return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
+      }
+      if (script.includes(SWAP_LOCK_PATH)) {
+        return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
+      }
       if (script.startsWith('rm -f'))
         return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       if (script.startsWith('kill -0')) {

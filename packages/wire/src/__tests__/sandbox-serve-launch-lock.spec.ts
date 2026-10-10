@@ -5,24 +5,29 @@ import type { Sandbox } from '@vercel/sandbox'
 import { createServeLauncher } from '../sandbox-serve-launch.js'
 import { SWAP_LOCK_PATH } from '../serve-env.js'
 
-const lockAcquireOf = (script: string): boolean => script.includes(`flock -w`) && script.includes(SWAP_LOCK_PATH)
+const lockAcquireOf = (script: string): boolean =>
+  script.includes(`flock -w`) && script.includes(SWAP_LOCK_PATH)
 
-const lockReleaseOf = (script: string): boolean => script.includes(`flock -u`) && script.includes(SWAP_LOCK_PATH)
+const lockReleaseOf = (script: string): boolean =>
+  (script.startsWith('touch ') && script.includes('.release.')) || script.includes('.release.')
+
+const holderProbeOf = (script: string): boolean =>
+  script.includes('.held.') || script.includes('.fail.') || script.includes('.release.')
 
 const unlockedMutationOf = (commands: { args?: string[] }[]): string[] => {
-  let depth = 0
+  let locked = false
   const leaked: string[] = []
   for (const command of commands) {
     const script = command.args?.[1] ?? ''
     if (lockAcquireOf(script)) {
-      depth += 1
+      locked = true
       continue
     }
-    if (lockReleaseOf(script)) {
-      depth = Math.max(0, depth - 1)
+    if (locked && lockReleaseOf(script)) {
+      locked = false
       continue
     }
-    if (depth > 0) continue
+    if (locked || holderProbeOf(script)) continue
     leaked.push(script)
   }
   return leaked
@@ -43,11 +48,28 @@ describe('the swap lock', () => {
   })
 
   it('runs every probe, install, stop, and health-wait between flock acquire and release', async () => {
-    const commands: { args?: string[] }[] = []
+    const commands: { args?: string[]; detached?: boolean }[] = []
     const sandbox = {
       name: 'atlas-thread-x',
-      runCommand: async (params: { args?: string[] }) => {
+      runCommand: async (params: { args?: string[]; detached?: boolean }) => {
         commands.push(params)
+        const script = params.args?.[1] ?? ''
+        if (params.detached === true && script.includes(SWAP_LOCK_PATH)) {
+          // The swap-lock holder: a live process the driver kills on release.
+          return {
+            cmdId: 'cmd_lock',
+            exitCode: null,
+            wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
+            kill: async () => undefined,
+          }
+        }
+        if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
+          // The acquire-status probe: this fake grants the lock immediately.
+          return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
+        }
+        if (script.includes(SWAP_LOCK_PATH)) {
+          return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
+        }
         return { exitCode: 0, stdout: async () => '1.0.0\n' }
       },
       writeFiles: async () => undefined,

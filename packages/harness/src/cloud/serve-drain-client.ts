@@ -99,8 +99,8 @@ const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): 
 }
 
 export const drainServe: ServeDrain = ({ sandbox, url }) =>
-  // A second client arriving mid-swap blocks on the winner's lease, then sees the winner's
-  // preparation receipt and returns without draining again.
+  // A second client arriving mid-swap blocks until the winner's lock holder releases, then sees
+  // the winner's preparation receipt and returns without draining again.
   withSwapLock({ sandbox, sh: sandboxSh, run: () => drainServeUnlocked({ sandbox, url }) })
 
 const drainServeUnlocked: ServeDrain = async ({ sandbox, url }) => {

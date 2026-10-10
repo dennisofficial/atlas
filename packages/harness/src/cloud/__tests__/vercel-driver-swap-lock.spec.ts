@@ -172,9 +172,11 @@ describe('in-sandbox swap lock ordering', () => {
     const acquires = tracked.scripts
       .map((script, index) => ({ script, index }))
       .filter(({ script }) => script.includes('flock -w') && script.includes(SWAP_LOCK_PATH))
+    // The lease releases by touching the holder's release marker (the detached holder then exits,
+    // dropping fd 9), not by a separate `flock -u` command.
     const releases = tracked.scripts
       .map((script, index) => ({ script, index }))
-      .filter(({ script }) => script.includes('flock -u'))
+      .filter(({ script }) => script.startsWith('touch ') && script.includes('.release.'))
     expect(acquires.length).toBeGreaterThan(0)
     expect(releases.length).toBeGreaterThan(0)
     const firstAcquire = acquires[0]?.index ?? -1

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { DRAIN_COMMAND_TIMEOUT_MS, DRAIN_REASON, drainServe } from '../serve-drain-client'
-import { SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import { SERVE_TOKEN_PATH, SWAP_LOCK_PATH } from '@dltech/atlas-wire'
 import { rotationReceipt } from './rotation-fixture'
 
 const receipt = rotationReceipt()
@@ -19,9 +19,23 @@ const sandboxAnswering = (args: {
   let requested = false
   return {
     currentSession: () => ({ sessionId: 'session-1' }),
-    runCommand: async (params: { args?: string[]; timeoutMs?: number }) => {
+    runCommand: async (params: { args?: string[]; timeoutMs?: number; detached?: boolean }) => {
       const script = params.args?.[1] ?? ''
       args.calls?.push({ script, timeoutMs: params.timeoutMs ?? 0 })
+      if (params.detached === true && script.includes(SWAP_LOCK_PATH)) {
+        // The swap-lock holder: a live process the drain kills on release.
+        return {
+          cmdId: 'cmd_lock',
+          exitCode: null,
+          wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
+          kill: async () => undefined,
+        }
+      }
+      if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
+        // The acquire-status probe: this fake grants the lock immediately.
+        return { exitCode: 0, stdout: async () => 'HELD' }
+      }
+      if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0, stdout: async () => '' }
       if (script.includes('/v1/health')) {
         const ready = args.legacy ? '{"ok":true}' : '{"rotationPreparationVersion":1,"sandboxSessionId":"session-1"}'
         return { exitCode: 0, stdout: async () => args.health ?? ready }
