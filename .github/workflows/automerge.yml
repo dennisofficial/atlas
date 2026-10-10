@@ -1,0 +1,122 @@
+name: automerge
+
+# Janitor for the bot-authored refresh PRs (catalogue, codex-version, claude-code-version).
+# They are queued for auto-merge at creation and GitHub lands them once ci is green; this
+# workflow exists to unstick what auto-merge cannot: workflow runs held at action_required
+# (approving them emits no event, so the janitor re-dispatches itself rather than waiting
+# for the next schedule tick), PRs that conflict with main (closed and regenerated fresh
+# from the owning refresh workflow, which keeps every commit API-signed), PRs whose checks
+# failed (closed; the next scheduled refresh opens a fresh one), and a backlog of
+# superseded catalogue PRs (the catalogue diff is cumulative, so only the newest lands).
+on:
+  schedule:
+    - cron: '41 * * * *'
+  workflow_dispatch:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches:
+      - 'catalogue/**'
+      - 'codex-version/**'
+      - 'claude-code-version/**'
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: automerge
+  cancel-in-progress: false
+
+jobs:
+  unstick:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: unstick auto-merge on bot refresh PRs
+        run: |
+          set -euo pipefail
+
+          prs=$(gh pr list --state open --json number,headRefName,createdAt \
+            --jq '[.[] | select(.headRefName | startswith("catalogue/") or startswith("codex-version/") or startswith("claude-code-version/"))] | sort_by(.createdAt) | reverse')
+          count=$(echo "$prs" | jq length)
+          echo "open bot refresh PRs: $count"
+          [ "$count" -eq 0 ] && exit 0
+
+          catalogue=$(echo "$prs" | jq -c '[.[] | select(.headRefName | startswith("catalogue/"))]')
+          others=$(echo "$prs" | jq -c '[.[] | select(.headRefName | startswith("catalogue/") | not)]')
+
+          # A green catalogue PR supersedes every older one: the diff is cumulative, so the
+          # older PRs are closed unmerged and only the newest one lands. Version-bump PRs
+          # never supersede each other — their branch names embed the version.
+          if [ "$(echo "$catalogue" | jq length)" -gt 0 ]; then
+            newest=$(echo "$catalogue" | jq -r '.[0].number')
+            for pr in $(echo "$catalogue" | jq -r '.[1:][].number'); do
+              gh pr close "$pr" --delete-branch \
+                --comment "Superseded by #$newest — the catalogue diff is cumulative, so only the newest refresh merges."
+            done
+            catalogue=$(echo "$catalogue" | jq -c '.[0:1]')
+          fi
+
+          approved_any=
+          for pr_json in $(jq -cs 'add | .[] | @base64' <(echo "$catalogue") <(echo "$others")); do
+            pr_json=$(base64 -d <<<"$pr_json")
+            pr=$(jq -r .number <<<"$pr_json")
+            branch=$(jq -r .headRefName <<<"$pr_json")
+
+            # The fork-PR approval policy holds github-actions[bot] runs at
+            # action_required, and approving them emits no event this workflow listens to.
+            held=$(gh api "repos/$GH_REPO/actions/runs?branch=$branch&event=pull_request" \
+              --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | join(" ")')
+            if [ -n "$held" ]; then
+              for run in $held; do
+                gh api -X POST "repos/$GH_REPO/actions/runs/$run/approve"
+              done
+              approved_any=1
+              echo "PR #$pr had held workflow runs ($held) — approved"
+            fi
+
+            # The branch content is produced, not authored: rather than resolving a
+            # conflict, close the PR and re-dispatch the owning refresh workflow, which
+            # regenerates from latest main into a fresh API-signed commit.
+            mergeable=$(gh pr view "$pr" --json mergeable --jq .mergeable)
+            if [ "$mergeable" = "CONFLICTING" ]; then
+              case "$branch" in
+                catalogue/*) workflow=catalogue.yml ;;
+                codex-version/*) workflow=codex-version.yml ;;
+                *) workflow=claude-code-version.yml ;;
+              esac
+              gh pr close "$pr" --delete-branch \
+                --comment "Conflicts with main — closing; a fresh regeneration is on its way."
+              gh workflow run "$workflow"
+              echo "PR #$pr conflicted with main — closed and re-dispatched $workflow"
+              continue
+            fi
+
+            state=$(gh pr checks "$pr" --json bucket --jq 'map(.bucket) | if any(. == "fail") then "fail" elif any(. == "pending") then "pending" else "pass" end')
+            if [ "$state" = "fail" ]; then
+              gh pr close "$pr" --delete-branch \
+                --comment "ci failed on this refresh — closing; the next scheduled run opens a fresh PR."
+              continue
+            fi
+
+            if gh pr merge --squash --auto "$pr"; then
+              echo "PR #$pr is queued for auto-merge"
+            else
+              echo "::error::PR #$pr would not queue for auto-merge"
+              exit 1
+            fi
+          done
+
+          # Approving held runs emits no event, so re-dispatch ourselves to re-check in
+          # minutes rather than at the next schedule tick.
+          if [ -n "$approved_any" ]; then
+            gh workflow run automerge.yml
+            echo "re-dispatched automerge.yml to follow up on approved runs"
+          fi

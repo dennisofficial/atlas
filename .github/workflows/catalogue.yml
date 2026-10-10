@@ -1,31 +1,22 @@
 name: catalogue
 
 # Keeps main's model catalogue fresh without pushing to main (the ruleset's required ci
-# check makes direct pushes impossible). refresh opens a PR on drift and queues it for
-# auto-merge — the repo allows auto-merge and the ruleset requires only the ci check, so
-# GitHub lands the PR itself once ci is green, with no second pass in the happy path.
-# merge is the janitor: bot-authored PRs can sit at action_required awaiting approval,
-# which never emits the workflow_run event, so the scheduled pass approves held runs,
-# re-dispatches itself rather than waiting up to 6h for the next schedule tick, resolves
-# conflicts in the generated files (the branch's regenerated output always wins there),
-# and closes stale PRs so the backlog never piles up.
+# check makes direct pushes impossible). refresh regenerates the catalogue on drift and
+# commits it through the REST git API (api-commit.sh) so GitHub web-signs the commit —
+# Vercel refuses to build unsigned commits. The PR is queued for auto-merge at creation
+# and GitHub lands it itself once ci is green; the automerge workflow is the janitor for
+# held runs, conflicts, and stale PRs.
 on:
   schedule:
     - cron: '23 */6 * * *'
   workflow_dispatch:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
-    branches: ['catalogue/**']
 
 permissions:
-  actions: write
   contents: write
   pull-requests: write
 
 jobs:
   refresh:
-    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,96 +36,11 @@ jobs:
             exit 0
           fi
           branch="catalogue/$(date -u +%Y%m%d-%H%M)"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
-          git add packages/harness/src/models/generated
-          git commit -m "chore(harness): regenerate model catalogue"
-          git push origin "$branch"
+          .github/scripts/api-commit.sh \
+            --branch "$branch" \
+            --message "chore(harness): regenerate model catalogue" \
+            -- packages/harness/src/models/generated
           gh pr create --title "chore(harness): regenerate model catalogue" \
             --body "Automated refresh from models.dev + api.inference.net. Queued for auto-merge; lands once ci is green."
           pr=$(gh pr list --head "$branch" --json number --jq '.[0].number')
           gh pr merge --squash --auto "$pr"
-
-  merge:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request')
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      # gh resolves the repo from the git remote, so the merge job needs a checkout.
-      - uses: actions/checkout@v7
-
-      # A green catalogue PR supersedes every older one: the diff is cumulative, so the
-      # older PRs are closed unmerged and only the newest one lands. PRs are queued for
-      # auto-merge at creation; this job exists to unstick what auto-merge cannot: held
-      # workflow runs, conflicting generated files, and a backlog of stale PRs.
-      - name: unstick auto-merge on catalogue PRs
-        run: |
-          set -euo pipefail
-
-          prs=$(gh pr list --state open --json number,headRefName,createdAt \
-            --jq '[.[] | select(.headRefName | startswith("catalogue/"))] | sort_by(.createdAt) | reverse')
-          count=$(echo "$prs" | jq length)
-          echo "open catalogue PRs: $count"
-          [ "$count" -eq 0 ] && exit 0
-
-          newest=$(echo "$prs" | jq -r '.[0].number')
-          for pr in $(echo "$prs" | jq -r '.[1:][].number'); do
-            gh pr close "$pr" --delete-branch \
-              --comment "Superseded by #$newest — the catalogue diff is cumulative, so only the newest refresh merges."
-          done
-          [ "$count" -eq 1 ] || echo "closed $((count - 1)) stale catalogue PRs"
-
-          pr="$newest"
-          branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
-
-          # The fork-PR approval policy holds github-actions[bot] runs at action_required,
-          # and approving them emits no event this workflow listens to — re-dispatch
-          # ourselves so the next pass runs minutes from now, not at the next schedule.
-          held=$(gh api "repos/{owner}/{repo}/actions/runs?branch=$branch&event=pull_request" \
-            --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | join(" ")')
-          if [ -n "$held" ]; then
-            for run in $held; do
-              gh api -X POST "repos/{owner}/{repo}/actions/runs/$run/approve"
-            done
-            gh workflow run catalogue.yml
-            echo "PR #$pr had held workflow runs ($held) — approved and re-dispatched this workflow"
-            exit 0
-          fi
-
-          # The generated files are produced, not authored: main moves under a waiting PR
-          # and conflicts there always resolve to the branch's freshly regenerated output.
-          mergeable=$(gh pr view "$pr" --json mergeable --jq .mergeable)
-          if [ "$mergeable" = "CONFLICTING" ]; then
-            git fetch origin main "$branch"
-            git checkout -B "$branch" "origin/$branch"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            if git merge origin/main; then
-              :
-            else
-              git checkout --ours packages/harness/src/models/generated
-              git add packages/harness/src/models/generated
-              git commit --no-edit
-            fi
-            git push origin "$branch"
-            echo "PR #$pr conflicted with main — resolved in favour of the regenerated files"
-            exit 0
-          fi
-
-          state=$(gh pr checks "$pr" --json bucket --jq 'map(.bucket) | if any(. == "fail") then "fail" elif any(. == "pending") then "pending" else "pass" end')
-          if [ "$state" = "fail" ]; then
-            gh pr close "$pr" --delete-branch \
-              --comment "ci failed on this refresh — closing; the next scheduled run opens a fresh PR."
-            exit 0
-          fi
-
-          if gh pr merge --squash --auto "$pr"; then
-            echo "PR #$pr is queued for auto-merge"
-          else
-            echo "::error::catalogue PR #$pr would not queue for auto-merge"
-            exit 1
-          fi
