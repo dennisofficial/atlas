@@ -25,11 +25,11 @@ export type BornCloudArgs = {
 const HOST_PLACEMENT: SessionPlacement = { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host }
 
 const adoptLocally = (args: BornCloudArgs): void => {
-  const opened = unstartedConversation({ ids: args.app.ids })
+  const opened = unstartedConversation({ ids: args.app.ids, threadId: args.threadId })
   args.adopt(opened)
   void args.app.sessionOwner
     .activateLocal({
-      threadId: opened.threadId,
+      threadId: args.threadId,
       binding: localBindingOf({
         local: args.app,
         workspace: localAnchorOf({ local: args.app, opened }),
@@ -41,10 +41,11 @@ const adoptLocally = (args: BornCloudArgs): void => {
 
 /**
  * Where a /new thread is born. The placement is fixed at creation and never moves: a machine
- * that can provision sandboxes starts the thread in the cloud (the same provisioning a bare
- * `/container cloud` drove — the thread simply has no history to transfer); anywhere else the
- * thread starts on the host and says why once. A failed preflight flips the just-recorded
- * placement back to the host rather than stranding a cloud-born thread without a sandbox.
+ * that can provision sandboxes starts the thread in the cloud, and the provisioning itself is
+ * the placement write — the thread simply has no history to transfer. The born marker lands
+ * once the birth settles (`markBorn`), so a crash mid-provision still reads as an unfinished
+ * birth to the recovery path. Anywhere else the thread is placed on the host immediately and
+ * says why once.
  */
 export async function bornWith(args: BornCloudArgs): Promise<void> {
   const { app, threadId } = args
@@ -63,7 +64,6 @@ export async function bornWith(args: BornCloudArgs): Promise<void> {
     return
   }
 
-  await owner.placement.placeAtCreation({ threadId, placement })
   const refusal = (await args.preflightLift?.()) ?? null
   if (refusal !== null) {
     await owner.placement.placeAtCreation({ threadId, placement: HOST_PLACEMENT })
@@ -72,7 +72,7 @@ export async function bornWith(args: BornCloudArgs): Promise<void> {
     return
   }
 
-  const opened = unstartedConversation({ ids: app.ids })
+  const opened = unstartedConversation({ ids: app.ids, threadId })
   args.adopt(opened)
-  args.lift({ threadId: opened.threadId })
+  args.lift({ threadId })
 }

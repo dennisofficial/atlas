@@ -119,13 +119,14 @@ export function useThreadBirth(args: {
         })
       },
     })
-      .then((lifted) => {
+      .then(async (lifted) => {
         if (!lifted.ok) {
           const reason = liftFailedNotice(lifted)
           move.handleFail(reason)
           notify({ key: CLOUD_LIFT_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
           return
         }
+        await owner.placement.markBorn({ threadId }).catch(() => undefined)
         move.handleSettle()
       })
       .catch((error: unknown) => {

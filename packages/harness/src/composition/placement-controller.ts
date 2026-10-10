@@ -132,6 +132,21 @@ export class PlacementController {
     })
   }
 
+  /**
+   * Stamps the placement a thread was born with once the birth has settled. A cloud birth is the
+   * initial provisioning itself — a placement write, not a move — so the marker lands after the
+   * commit rather than before it; a birth still in flight (a move record) is not born yet.
+   */
+  async markBorn(args: { threadId: ThreadId }): Promise<PlacementRecord> {
+    const held = await this.load({ threadId: args.threadId })
+    if (held.born === true || held.move !== null) return held
+    return await this.write({
+      threadId: args.threadId,
+      prior: held,
+      next: { ...held, born: true },
+    })
+  }
+
   async move<T>(args: {
     threadId: ThreadId
     target: EExecutionLocation
