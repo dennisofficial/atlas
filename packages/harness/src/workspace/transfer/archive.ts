@@ -59,11 +59,27 @@ async function stageMount({ stage, mount }: { stage: string; mount: ArchiveMount
   return mount.entries.map((entry) => `${mount.mountPath}/${entry.path}`)
 }
 
-const stillPresent = async ({ stage, name }: { stage: string; name: string }): Promise<boolean> =>
+type Probe = { present: boolean; fileSize: number | null }
+
+const probe = async ({ stage, name }: { stage: string; name: string }): Promise<Probe> =>
   lstat(join(stage, name)).then(
-    () => true,
-    () => false,
+    (stats) => ({ present: true, fileSize: stats.isFile() ? stats.size : null }),
+    () => ({ present: false, fileSize: null }),
   )
+
+const firstResized = async ({
+  stage,
+  packed,
+}: {
+  stage: string
+  packed: ReadonlyMap<string, number>
+}): Promise<string | null> => {
+  for (const [name, size] of packed) {
+    const now = await probe({ stage, name })
+    if (now.fileSize !== size) return name
+  }
+  return null
+}
 
 export async function writeArchive({
   stage,
@@ -79,10 +95,11 @@ export async function writeArchive({
     for (const name of move.names) names.push(`${move.stageDirectory}/${name}`)
   }
   for (const mount of mounts) names.push(...(await stageMount({ stage, mount })))
-  const present = await Promise.all(
-    names.map(async (name) => ({ name, kept: await stillPresent({ stage, name }) })),
-  )
-  const kept = present.filter(({ kept: survives }) => survives).map(({ name }) => name)
+  const probed = await Promise.all(names.map(async (name) => ({ name, ...(await probe({ stage, name })) })))
+  const survivors = probed.filter(({ present }) => present)
+  const kept = survivors.map(({ name }) => name)
+  const packedSizes = new Map<string, number>()
+  for (const { name, fileSize } of survivors) if (fileSize !== null) packedSizes.set(name, fileSize)
   await Bun.write(listPath, kept.map((name) => `${name}\0`).join(''))
   await mkdir(dirname(destination), { recursive: true })
   const gnu = await isGnuTar()
@@ -120,6 +137,10 @@ export async function writeArchive({
         throw new Error(`tar failed while writing ${destination}: ${tarStderr.trim()}`)
       if (gzipStatus !== 0)
         throw new Error(`gzip failed while writing ${destination}: ${gzipStderr.trim()}`)
+      const resized = await firstResized({ stage, packed: packedSizes })
+      if (resized !== null) {
+        throw new Error(`Workspace ${resized} changed while it was being captured; retry once it is quiet`)
+      }
       await rename(partial, destination)
     } finally {
       releaseTar(tar)

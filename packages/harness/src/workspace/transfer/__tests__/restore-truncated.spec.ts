@@ -25,6 +25,7 @@ const manifestEntry = (): TarEntry => ({
 })
 
 const BLOCK = 512
+const manifestBodyLength = manifestEntry().body?.length ?? 0
 
 const scanRaw = async (bytes: Uint8Array): Promise<string[]> => {
   const directory = await mkdtemp(join(tmpdir(), 'atlas-scan-'))
@@ -60,10 +61,7 @@ describe('a truncated archive reaching the scanner', () => {
         { name: 'trees/main/files/big.bin', kind: ETarEntryKind.File, body },
       ],
     })
-    const manifestBlocks = Math.ceil((BLOCK + Math.ceil(manifestEntry().body.length / BLOCK) * BLOCK) / 1)
-    void manifestBlocks
-
-    const fileHeaderStart = BLOCK + Math.ceil(manifestEntry().body.length / BLOCK) * BLOCK
+    const fileHeaderStart = BLOCK + Math.ceil(manifestBodyLength / BLOCK) * BLOCK
     const oneBodyBlock = fileHeaderStart + BLOCK + BLOCK
     const cut = tailBeyond(whole, oneBodyBlock)
 
@@ -83,5 +81,24 @@ describe('a truncated archive reaching the scanner', () => {
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     )
     expect(result === 'accepted' || result.includes('truncated')).toBe(true)
+  })
+
+  it('throws "archive is truncated" at once when a zero block follows a header that still owes its entry', async () => {
+    const longName = 'trees/main/files/owed.txt'
+    const donor = tarEntries({ entries: [{ name: 'donor', body: new TextEncoder().encode(`${longName}\0`) }] })
+    const header = donor.slice(0, BLOCK)
+    header[156] = 'L'.charCodeAt(0)
+    const body = donor.slice(BLOCK, BLOCK * 2)
+    const bytes = new Uint8Array(BLOCK * 4)
+    bytes.set(header, 0)
+    bytes.set(body, BLOCK)
+
+    await expect(scanRaw(bytes)).rejects.toThrow('archive is truncated')
+  })
+
+  it('throws "archive is truncated" when the stream ends at a block boundary with no end-of-archive marker', async () => {
+    const whole = tarEntries({ entries: [manifestEntry(), { name: 'trees/main/files/a.txt', body: new TextEncoder().encode('a') }] })
+
+    await expect(scanRaw(whole.slice(0, whole.length - BLOCK * 2))).rejects.toThrow('archive is truncated')
   })
 })
