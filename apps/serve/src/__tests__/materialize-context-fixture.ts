@@ -5,8 +5,6 @@ import type { WorkspaceFiles } from '../workspace-files'
 import type { WorkspaceSpec } from '../workspace-spec'
 
 export const ATLAS_HOME = '/srv/atlas-home'
-export const CWD = '/srv/workspace'
-export const LEGACY_HOME = '/srv/legacy-home'
 
 export const SPEC: WorkspaceSpec = {
   remoteUrl: null,
@@ -55,7 +53,5 @@ export const materialize = (args: { spec: WorkspaceSpec; files: WorkspaceFiles }
   materializeContext({
     fetchSpec: async () => args.spec,
     atlasHome: ATLAS_HOME,
-    cwd: CWD,
-    home: LEGACY_HOME,
     files: args.files,
   })

@@ -9,7 +9,6 @@ import {
   ATLAS_HOME,
   bundle,
   CONTEXT_STAMP_PATH,
-  CWD,
   fakeFiles,
   materialize,
   SPEC,
@@ -20,7 +19,7 @@ describe('materializeContext with a resume stamp', () => {
     const { files, written } = fakeFiles()
     await files.write({
       path: CONTEXT_STAMP_PATH,
-      text: JSON.stringify({ projectDirectory: '/Users/dennis/dev/atlas', skillLayout: 'persistent-v1' }),
+      text: JSON.stringify({ projectDirectory: '/Users/dennis/dev/atlas' }),
     })
     let specCalls = 0
     let archiveCalls = 0
@@ -35,7 +34,6 @@ describe('materializeContext with a resume stamp', () => {
         return null
       },
       atlasHome: ATLAS_HOME,
-      cwd: CWD,
       files,
     })
 
@@ -54,7 +52,7 @@ describe('materializeContext with a resume stamp', () => {
     const { files, stamped } = fakeFiles()
     const spec: WorkspaceSpec = {
       ...SPEC,
-      contextBundle: bundle({ '.atlas/ATLAS.md': '# global instructions' }),
+      contextBundle: bundle({ '.atlas/mcp.json': '# global instructions' }),
       projectDirectory: '/Users/dennis/dev/atlas',
     }
 
@@ -69,26 +67,34 @@ describe('materializeContext with a resume stamp', () => {
     expect(JSON.parse(stamped.get(CONTEXT_STAMP_PATH) ?? '')).toEqual({
       projectDirectory: '/Users/dennis/dev/atlas',
       identity: null,
-      skillLayout: 'persistent-v1',
     })
   })
 
-  it('writes project memory into the identity-keyed directory the host shares when the spec names a remote', async () => {
-    const { files, written } = fakeFiles()
+  it('keys the readiness identity to the spec’s normalized remote', async () => {
+    const { files } = fakeFiles()
     const spec: WorkspaceSpec = {
       ...SPEC,
       remoteUrl: 'git@github.com:dennisofficial/atlas.git',
-      contextBundle: bundle({ 'project-memory/MEMORY.md': '# project memory' }),
+      contextBundle: bundle({ '.atlas/mcp.json': '{}' }),
     }
 
     const readiness = await materialize({ spec, files })
 
     expect(readiness.identity).toBe('github.com/dennisofficial/atlas')
-    expect(
-      written.get(
-        join(ATLAS_HOME, 'projects', 'github.com', 'dennisofficial', 'atlas', 'memory', 'MEMORY.md'),
-      ),
-    ).toBe('# project memory')
+  })
+
+  it('does not re-materialize a stamp that carries a pre-sync skillLayout field', async () => {
+    const { files, written } = fakeFiles()
+    await files.write({
+      path: CONTEXT_STAMP_PATH,
+      text: JSON.stringify({ projectDirectory: null, identity: null, skillLayout: 'persistent-v1' }),
+    })
+    const spec: WorkspaceSpec = { ...SPEC, contextBundle: bundle({ '.atlas/mcp.json': '{}' }) }
+
+    const readiness = await materialize({ spec, files })
+
+    expect(readiness.written).toBe(0)
+    expect(written.size).toBe(0)
   })
 
   it('treats a stamp that will not parse as though a stamp had never been written', async () => {
@@ -96,13 +102,13 @@ describe('materializeContext with a resume stamp', () => {
     await files.write({ path: CONTEXT_STAMP_PATH, text: 'not json' })
     const spec: WorkspaceSpec = {
       ...SPEC,
-      contextBundle: bundle({ '.atlas/ATLAS.md': '# from the corrupt-stamp boot' }),
+      contextBundle: bundle({ '.atlas/mcp.json': '# from the corrupt-stamp boot' }),
     }
 
     const readiness = await materialize({ spec, files })
 
     expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
-    expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# from the corrupt-stamp boot')
+    expect(written.get(join(ATLAS_HOME, 'mcp.json'))).toBe('# from the corrupt-stamp boot')
   })
 
   it('does not fail the boot when the stamp itself cannot be written', async () => {
@@ -115,13 +121,13 @@ describe('materializeContext with a resume stamp', () => {
     }
     const spec: WorkspaceSpec = {
       ...SPEC,
-      contextBundle: bundle({ '.atlas/ATLAS.md': '# still lands even though the stamp cannot' }),
+      contextBundle: bundle({ '.atlas/mcp.json': '# still lands even though the stamp cannot' }),
     }
 
     const readiness = await materialize({ spec, files: unwritable })
 
     expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
-    expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe(
+    expect(written.get(join(ATLAS_HOME, 'mcp.json'))).toBe(
       '# still lands even though the stamp cannot',
     )
   })

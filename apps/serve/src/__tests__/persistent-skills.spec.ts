@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -59,11 +60,10 @@ const compose = () => composeHarness<undefined, never>({
 })
 
 describe('skills across cloud context recreation', () => {
-  it('loads handoff through the recomposed tool after the old ordinary home is gone', async () => {
+  it('keeps drive-home skills live through a resumed boot and loads them through the recomposed tool', async () => {
     const entries: readonly { key: string; content: string | Buffer }[] = [
-      { key: '.agents/skills/handoff/SKILL.md', content: text({ name: 'handoff', body: 'Initial handoff.' }) },
-      { key: '.agents/skills/handoff/asset.bin', content: Buffer.from([0, 255, 7]) },
-      { key: '.claude/skills/deleted/SKILL.md', content: text({ name: 'deleted', body: 'Remove this skill.' }) },
+      { key: '.atlas/mcp.json', content: '{"mcpServers":{}}' },
+      { key: '.agents/skills/stale/SKILL.md', content: text({ name: 'stale', body: 'Archive must not carry this.' }) },
       { key: '.atlas/memory/MEMORY.md', content: 'Old bootstrap memory.' },
     ]
     const sources = []
@@ -74,24 +74,20 @@ describe('skills across cloud context recreation', () => {
     }
     const archive = await buildContextArchive({ files: sources })
     if (archive === undefined) throw new Error('missing archive')
-    const oldHome = join(root, 'old-ordinary-home')
-    await mkdir(oldHome)
     const restored = await materializeContext({
-      atlasHome: driveHome, cwd, home: oldHome,
-      fetchSpec: async () => SPEC, fetchArchive: async () => archive,
+      atlasHome: driveHome, fetchSpec: async () => SPEC, fetchArchive: async () => archive,
     })
     expect(restored.failed).toBeNull()
-    expect(restored.written).toBe(4)
+    expect(restored.written).toBe(1)
+    expect(await readFile(join(driveHome, 'mcp.json'), 'utf8')).toBe('{"mcpServers":{}}')
+    expect(existsSync(join(driveHome, '.agents/skills/stale'))).toBe(false)
+    expect(existsSync(join(driveHome, 'memory/MEMORY.md'))).toBe(false)
+
     const handoff = join(driveHome, '.agents/skills/handoff/SKILL.md')
     await put({ path: handoff, content: text({ name: 'handoff', body: 'Edited in cloud.' }) })
-    await put({ path: join(driveHome, '.agents/skills/added/SKILL.md'), content: text({ name: 'added', body: 'Added in cloud.' }) })
     await put({ path: join(driveHome, 'memory/MEMORY.md'), content: 'Live memory.' })
-    await rm(join(driveHome, '.claude/skills/deleted'), { recursive: true })
-    await rm(oldHome, { recursive: true })
-    const newHome = join(root, 'new-ordinary-home')
-    await mkdir(newHome)
     const resumed = await materializeContext({
-      atlasHome: driveHome, cwd, home: newHome,
+      atlasHome: driveHome,
       fetchSpec: async () => { throw new Error('must not replay spec') },
       fetchArchive: async () => { throw new Error('must not replay archive') },
     })
@@ -100,8 +96,7 @@ describe('skills across cloud context recreation', () => {
 
     const app = await compose()
     try {
-      expect(app.skillRegistry.byName('added')?.body).toBe('Added in cloud.')
-      expect(app.skillRegistry.byName('deleted')).toBeUndefined()
+      expect(app.skillRegistry.byName('stale')).toBeUndefined()
       const tool = app.tools.find('skill')
       if (tool === undefined) throw new Error('missing skill tool')
       const loaded = await tool.invoke({
@@ -112,7 +107,6 @@ describe('skills across cloud context recreation', () => {
       if (!loaded.ok) throw new Error(loaded.reason)
       expect(loaded.modelText).toContain(dirname(handoff))
       expect(loaded.modelText).toContain('Edited in cloud.')
-      expect(await readFile(join(dirname(handoff), 'asset.bin'))).toEqual(Buffer.from([0, 255, 7]))
       expect(await readFile(join(driveHome, 'memory/MEMORY.md'), 'utf8')).toBe('Live memory.')
     } finally {
       await app.close()
