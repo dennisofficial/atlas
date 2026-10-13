@@ -537,17 +537,21 @@ describe('GithubDeliveryService', () => {
     expect(fake.prEvents).toHaveLength(2)
     const userIds = fake.prEvents.map((row) => row.userId).sort()
     expect(userIds).toEqual(['usr-a', 'usr-b'])
-    expect(fake.prEvents[0]).toMatchObject({
+    const byUser = new Map(fake.prEvents.map((row) => [row.userId, row]))
+    expect(byUser.get('usr-a')).toMatchObject({
       repoFullName: 'compai/app',
       prNumber: 42,
       kind: 'comment',
-      deliveredAt: null,
       payload: {
         url: 'https://github.com/compai/app/pull/42#issuecomment-1',
         authorLogin: 'dennis',
         body: 'ship it',
       },
     })
+    await vi.waitFor(() => {
+      expect(byUser.get('usr-a')?.deliveredAt).not.toBeNull()
+    })
+    expect(byUser.get('usr-b')?.deliveredAt).toBeNull()
     expect(
       (fake.prEvents[0]?.payload as Record<string, unknown>).headSha,
     ).toBeUndefined()

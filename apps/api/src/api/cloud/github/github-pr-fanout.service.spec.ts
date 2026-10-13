@@ -1,7 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import type { GithubPrStateDto } from './github-realtime.types'
+import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
+import { EPrEventKind } from './github-realtime.types'
+
+const EVENT: GithubPrEventDto = {
+  id: 'evt_1',
+  repoFullName: 'compai/app',
+  prNumber: 42,
+  kind: EPrEventKind.Verdict,
+  payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'green', headSha: 'abc123' },
+  createdAt: '2026-09-28T00:00:00.000Z',
+}
 
 const STATE: GithubPrStateDto = {
   repoFullName: 'compai/app',
@@ -96,6 +106,47 @@ describe('GithubPrFanoutService', () => {
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
     fanout.push({ userIds: ['usr_a'], state: STATE })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(received).toHaveLength(1)
+  })
+
+  it('reports onDelivered only for users whose stream actually received the event', async () => {
+    const { fanout } = fanoutWith()
+    const delivered: string[] = []
+    fanout.openStream({
+      userId: 'usr_a',
+      handler: () => {},
+      eventHandler: () => {},
+    })
+    fanout.openStream({ userId: 'usr_b', handler: () => {} })
+
+    fanout.pushEvent({
+      userIds: ['usr_a', 'usr_b', 'usr_c'],
+      event: EVENT,
+      onDelivered: (userId) => delivered.push(userId),
+    })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(delivered).toEqual(['usr_a'])
+  })
+
+  it('a throwing onDelivered hook does not take down the delivery', async () => {
+    const { fanout } = fanoutWith()
+    const received: GithubPrEventDto[] = []
+    fanout.openStream({
+      userId: 'usr_a',
+      handler: () => {},
+      eventHandler: (event) => received.push(event),
+    })
+
+    fanout.pushEvent({
+      userIds: ['usr_a'],
+      event: EVENT,
+      onDelivered: () => {
+        throw new Error('broken hook')
+      },
+    })
     await vi.advanceTimersByTimeAsync(1_100)
 
     expect(received).toHaveLength(1)

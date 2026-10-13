@@ -8,7 +8,12 @@ type PrEventHandler = (event: GithubPrEventDto) => void
 const COALESCE_WINDOW_MS = 1_000
 
 type PendingPush = { state: GithubPrStateDto; userIds: readonly string[]; dirty: boolean }
-type PendingEventPush = { event: GithubPrEventDto; userIds: readonly string[]; dirty: boolean }
+type PendingEventPush = {
+  event: GithubPrEventDto
+  userIds: readonly string[]
+  dirty: boolean
+  onDelivered?: ((userId: string) => void) | undefined
+}
 
 type OpenStream = {
   handler: PrStateHandler
@@ -98,18 +103,32 @@ export class GithubPrFanoutService {
    * immediately, and a burst of the same kind inside the one-second window collapses to the
    * latest — a re-push storm must not turn into an event storm.
    */
-  pushEvent(args: { userIds: readonly string[]; event: GithubPrEventDto }): void {
+  pushEvent(args: {
+    userIds: readonly string[]
+    event: GithubPrEventDto
+    onDelivered?: (userId: string) => void
+  }): void {
     const key = `${args.event.repoFullName}#${args.event.prNumber}#${args.event.kind}#${[...args.userIds].sort().join(',')}`
     const held = this.pendingEvents.get(key)
 
     if (held === undefined) {
-      this.pendingEvents.set(key, { event: args.event, userIds: args.userIds, dirty: false })
+      this.pendingEvents.set(key, {
+        event: args.event,
+        userIds: args.userIds,
+        dirty: false,
+        onDelivered: args.onDelivered,
+      })
       this.flushEvents(args)
       this.openEventWindow({ key })
       return
     }
 
-    this.pendingEvents.set(key, { event: args.event, userIds: args.userIds, dirty: true })
+    this.pendingEvents.set(key, {
+      event: args.event,
+      userIds: args.userIds,
+      dirty: true,
+      onDelivered: args.onDelivered,
+    })
   }
 
   private openEventWindow(args: { key: string }): void {
@@ -119,21 +138,40 @@ export class GithubPrFanoutService {
       this.eventTimers.delete(args.key)
       const held = this.pendingEvents.get(args.key)
       this.pendingEvents.delete(args.key)
-      if (held?.dirty) this.flushEvents({ userIds: held.userIds, event: held.event })
+      if (held?.dirty) {
+        this.flushEvents({
+          userIds: held.userIds,
+          event: held.event,
+          ...(held.onDelivered === undefined ? {} : { onDelivered: held.onDelivered }),
+        })
+      }
     }, COALESCE_WINDOW_MS)
     this.eventTimers.set(args.key, timer)
   }
 
-  private flushEvents(args: { userIds: readonly string[]; event: GithubPrEventDto }): void {
+  private flushEvents(args: {
+    userIds: readonly string[]
+    event: GithubPrEventDto
+    onDelivered?: (userId: string) => void
+  }): void {
     for (const userId of args.userIds) {
       const handlers = this.streams.get(userId)
       if (handlers === undefined) continue
+      let delivered = false
       for (const entry of handlers) {
         if (entry.eventHandler === undefined) continue
         try {
           entry.eventHandler(args.event)
+          delivered = true
         } catch (failure) {
           this.logger.warn(`an event handler failed for ${userId}: ${String(failure)}`)
+        }
+      }
+      if (delivered) {
+        try {
+          args.onDelivered?.(userId)
+        } catch (failure) {
+          this.logger.warn(`an onDelivered hook failed for ${userId}: ${String(failure)}`)
         }
       }
     }
