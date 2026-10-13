@@ -15,7 +15,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 22
+export const CHANNEL_PROTOCOL_VERSION = 23
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -94,6 +94,8 @@ export enum EClientRequest {
   SummariseHistory = 'summarise-history',
   CancelCompaction = 'cancel-compaction',
   Rotate = 'rotate',
+  ReadSessionManifest = 'read-session-manifest',
+  ReadSessionFiles = 'read-session-files',
 }
 
 export enum ETurnStatus {

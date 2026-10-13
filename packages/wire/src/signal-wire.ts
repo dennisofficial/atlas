@@ -151,6 +151,10 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('events-appended') }),
   z.object({ type: z.literal('context-changed') }),
   z.object({
+    type: z.literal('session-files-changed'),
+    revision: z.number().int().positive(),
+  }),
+  z.object({
     type: z.literal('retry-waiting'),
     attempt: z.number().int().positive(),
     maxAttempts: z.number().int().positive(),
