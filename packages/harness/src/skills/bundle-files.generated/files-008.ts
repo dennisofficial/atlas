@@ -3,9 +3,13 @@
 import { embeddedFile, type EmbeddedSkillFile } from "../embedded-bundle"
 
 export const FILES: readonly EmbeddedSkillFile[] = [
-  embeddedFile({ path: "references/assembly.md", digest: "aa9b4a5e6ce3b0a991c8d623ae0870e4d9681d922d62d5c81261748106a0997b", load: () => import("../../../skills/video/references/assembly.md" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/hyperframes.md", digest: "c83985570d95d667cbf8f593b645b754479f56a4e65323f09d2ddd25b2fbb030", load: () => import("../../../skills/video/references/hyperframes.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/assemble.py", digest: "3a3599263d0c883bdc93ca50dc30c21a8e2511f348f5b278375ffbb0ac5591a6", load: () => import("../../../skills/video/assets/assemble.py" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/cursor-inject.js", digest: "435a45a674e2295b31632c80cd78a621e7fc6bf4bd6e436c529364cb6e3eeca9", load: () => import("../../../skills/video/assets/cursor-inject.js" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/recv.py", digest: "8e634bd10fc86e8abe6c3baf6c66641da1e975b432ab6a24fa0ee97490d22c23", load: () => import("../../../skills/video/assets/recv.py" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/assembly.md", digest: "66ac493ec36f10977e875e12f1043dd664ed16d513ce7873a562f8d86899352e", load: () => import("../../../skills/video/references/assembly.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/browser-recording.md", digest: "f871d21acbb09669d25a7a0c0515b1a2b8d73edcf1f16058cfd39aa1df1946f4", load: () => import("../../../skills/video/references/browser-recording.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/hyperframes.md", digest: "d2be7be86e748138db2f55b7da1f8a15e509c108e814d73fd7470b959ee11f71", load: () => import("../../../skills/video/references/hyperframes.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/remotion.md", digest: "a3e8a6f9d1fdd9e68f750e631312826c3d5f6e06df4a87d9ac99eda351819897", load: () => import("../../../skills/video/references/remotion.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/terminal.md", digest: "4490ae6dc8a13a46bd8e0b96ad40ddcde0317bf677590fb55e6cd146be6399fc", load: () => import("../../../skills/video/references/terminal.md" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/workflow.md", digest: "28df58b8971bc24f8f0ed5401fde9578f95c2b0c296871b621e7b341e09d6a2b", load: () => import("../../../skills/video/references/workflow.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/workflow.md", digest: "f966c34766085189e3e7def6a66e57d3fd0a09e2dc30cee7a9517f6b405d9036", load: () => import("../../../skills/video/references/workflow.md" as string, { with: { type: 'file' } }) }),
 ]
