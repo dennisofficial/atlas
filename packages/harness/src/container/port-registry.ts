@@ -17,6 +17,7 @@ import type { SessionAuthorityPort } from '../store/sessions/meta'
 import type { ThreadStorePort } from '../store/thread-store'
 import type { ToolRegistry } from '../tools/registry'
 import type { ToolDispatcher } from '../tools/dispatch'
+import type { UserLayerSyncPort } from '../user-layer-sync/port'
 
 declare module '@dltech/atlas-core' {
   interface PortRegistryEntries {
@@ -50,5 +51,6 @@ declare module '@dltech/atlas-core' {
     }
     readonly PullRequestPort: PortRegistryEntry<PullRequestPort> & { readonly transport: 'none' }
     readonly PrEventFrameSink: PortRegistryEntry<PrEventFrameSink> & { readonly transport: 'none' }
+    readonly UserLayerSyncPort: PortRegistryEntry<UserLayerSyncPort> & { readonly transport: 'none' }
   }
 }

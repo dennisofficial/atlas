@@ -131,10 +131,10 @@ const transcriptArchiveFrom = async (
 }
 
 const contextArchiveFrom = async (source: string): Promise<Uint8Array> => {
-  const instructions = join(source, 'ATLAS.md')
-  await writeFile(instructions, '# global instructions')
+  const instructions = join(source, 'mcp.json')
+  await writeFile(instructions, '{"mcpServers":{}}')
   const archive = await buildContextArchive({
-    files: [{ key: '.atlas/ATLAS.md', path: instructions }],
+    files: [{ key: '.atlas/mcp.json', path: instructions }],
   })
   if (archive === undefined) throw new Error('expected a context archive')
   return archive
@@ -186,7 +186,7 @@ describe('serve on a drive-mounted home and workspace', () => {
     expect(lines.some((line) => line.includes(EServeEvent.TranscriptFailed))).toBe(false)
     expect(lines.some((line) => line.includes(EServeEvent.TranscriptRestored))).toBe(true)
     expect(existsSync(join(drive.home, 'context.stamp'))).toBe(true)
-    expect(existsSync(join(drive.home, 'ATLAS.md'))).toBe(true)
+    expect(existsSync(join(drive.home, 'mcp.json'))).toBe(true)
     expect(
       existsSync(join(sessionDirectory({ home: drive.home, sessionId: threadId }), 'meta.json')),
     ).toBe(true)

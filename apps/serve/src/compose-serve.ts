@@ -82,6 +82,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
   const app = await composeHarness<ServeStores>({
     repoIdentity: args.identity ?? null,
     userSkillHome: atlasDirectory(),
+    userLayerHome: atlasDirectory(),
     bindPorts: ({ container }) => {
       container.register(ServeSessionToken, {
         useValue: { url: args.controlPlaneUrl, token: args.token, email: null },

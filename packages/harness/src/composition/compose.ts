@@ -70,6 +70,7 @@ import type { ActiveConversation } from './resume-hint'
 import { journalResume } from './resume-journal'
 import type { SettingsBinding } from './settings-binding'
 import { bindSkillRegistry, liveSkillRegistry } from './skills-binding'
+import { bindUserLayerSync } from './user-layer-sync-binding'
 import { wireTurn } from './turn-wiring'
 import { threadOpenedHandler } from './worktree-claims'
 
@@ -108,6 +109,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
   repoIdentity?: string | null | undefined
   userSkillHome?: string | undefined
+  /** Serve passes the drive home so user-layer sync resolves `.agents`/`.claude` under it. */
+  userLayerHome?: string | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
   const notice = surface.notice
@@ -148,6 +151,13 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     settings,
     repoRoot: workspace.repo ?? workspace.workspace,
     repoIdentity: args.repoIdentity,
+  })
+
+  const userLayerSync = await bindUserLayerSync({
+    container,
+    clientVersion: args.clientVersion,
+    projectDirectory: workspace.repo ?? workspace.workspace,
+    home: args.userLayerHome,
   })
 
   const {
@@ -291,6 +301,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     tools: container.resolve(registeredPortToken(ToolRegistry)),
     markActiveThread: (active) => {
       activeThread = active
+      userLayerSync.start()
     },
     activeThread: () => activeThread,
     titler: utility.titler,

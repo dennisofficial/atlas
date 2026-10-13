@@ -106,7 +106,6 @@ export async function bootServeFiles(args: {
     fetchSpec: fetchSpecOnce,
     fetchArchive: driveContextArchiveFetcher({ driveHome }),
     atlasHome: driveHome,
-    cwd: activeCwd,
     files: args.contextFiles,
   })
   const contextMs = Date.now() - contextStartedAt

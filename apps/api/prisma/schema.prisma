@@ -30,6 +30,7 @@ model User {
   threads       Thread[]
   cloudSandboxes CloudSandbox[]
   oauthConnections OauthConnection[]
+  userFiles     UserFile[]
 }
 
 model Thread {
@@ -245,6 +246,23 @@ model CloudSetting {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, key])
+}
+
+model UserFile {
+  id           String    @id @default(cuid())
+  userId       String
+  tree         String
+  path         String
+  revision     Int
+  contentHash  String
+  content      Bytes?
+  tombstonedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tree, path])
+  @@index([userId, tree, revision])
 }
 
 model GithubConnection {
