@@ -8,8 +8,7 @@ export const sessionMirrorFileSchema = z.object({
 export type SessionMirrorFile = z.infer<typeof sessionMirrorFileSchema>
 
 export const sessionManifestReplySchema = z.object({
-  revision: z.number().int().positive(),
-  sessionId: z.string().min(1),
+  revision: z.number().int().nonnegative(),
   files: z.array(sessionMirrorFileSchema),
 })
 export type SessionManifestReply = z.infer<typeof sessionManifestReplySchema>

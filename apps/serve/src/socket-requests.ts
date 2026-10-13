@@ -28,6 +28,7 @@ import { createHistoryMutations } from './history-mutations'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import { createRestoreRequests, isRestoreOp, type RestoreOutcome } from './restore-request'
 import { createRotationRequests, isRotationOp } from './rotation-requests'
+import { routeSessionMirrorRead, type SessionMirrorRouting } from './session-mirror-requests'
 import type { ServeAgentSteer, ServeRewind, ServeRoster, ServeSessionAuthority } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionSocket } from './socket-session'
@@ -64,6 +65,7 @@ export function createRequestRouter(args: {
   memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   restoreTranscript?: ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<RestoreOutcome>) | undefined
   workspace?: WorkspaceOps | undefined
+  sessionMirror?: SessionMirrorRouting | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } = args
   const prStates = args.prStates ?? (() => [])
@@ -190,6 +192,8 @@ export function createRequestRouter(args: {
   }
 
   if (routeMentionRead({ frame, root: threadId, mentions: args.mentions, reply: (reply) => send({ socket, frame: reply }) })) return
+
+  if (routeSessionMirrorRead({ frame, mirror: args.sessionMirror, reply: (reply) => send({ socket, frame: reply }) })) return
 
   if (isContextOp(frame.op)) {
     if (context === undefined) {

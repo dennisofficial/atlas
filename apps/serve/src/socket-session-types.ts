@@ -13,6 +13,7 @@ import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
 import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind, ServeSessionAuthority } from './serve-app'
+import type { SessionMirrorRouting } from './session-mirror-requests'
 import type { ServeLog } from './serve-log'
 import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
@@ -91,4 +92,6 @@ export type SessionHandlersArgs = {
   restoreTranscript?:
     | ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<{ restored: boolean; failed: string | null }>)
     | undefined
+  /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
+  sessionMirror?: SessionMirrorRouting | undefined
 }

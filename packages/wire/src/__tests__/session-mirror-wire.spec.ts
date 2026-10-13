@@ -19,7 +19,6 @@ describe('the session-mirror wire contract', () => {
   it('carries a revisioned manifest of hashed files', () => {
     const reply = sessionManifestReplySchema.parse({
       revision: 7,
-      sessionId: 'thr_123',
       files: [
         { path: 'meta.json', bytes: 210, sha256: sha },
         { path: 'threads/thr_123.meta.json', bytes: 88, sha256: sha },
@@ -33,7 +32,6 @@ describe('the session-mirror wire contract', () => {
   it('refuses a manifest entry without a full sha256', () => {
     const parsed = sessionManifestReplySchema.safeParse({
       revision: 1,
-      sessionId: 'thr_123',
       files: [{ path: 'meta.json', bytes: 1, sha256: 'abc' }],
     })
 
