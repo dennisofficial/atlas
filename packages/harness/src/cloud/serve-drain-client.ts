@@ -85,9 +85,12 @@ type PreparationGate = { kind: 'ready' } | { kind: 'wedged' } | { kind: 'legacy'
 const legacyHealthSchema = z.looseObject({
   ok: z.boolean(),
   // A serve that answers for a session — its own or a foreign one — is not legacy: it speaks the
-  // identity greet and its answer must be judged, not bypassed. Legacy is the typed absence of
-  // both the capability set and the session identity.
+  // identity greet and its answer must be judged, not bypassed. Nor is one reporting a lifecycle
+  // state: a bare pre-#1025 health carried only `ok`, so any extra signal means the serve is
+  // newer than the drain protocol's absence implies. Legacy is the typed absence of the
+  // capability set, the session identity, and any lifecycle report.
   sandboxSessionId: z.undefined().optional(),
+  paused: z.undefined().optional(),
 })
 
 const healthGreetSchema = z.looseObject({
