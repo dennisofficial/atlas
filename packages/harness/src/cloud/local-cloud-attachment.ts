@@ -8,6 +8,8 @@ import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
 import { bindChannelSettingsSync } from './settings-channel-sync'
+import { createSessionMirrorSync } from './session-mirror-syncer'
+import { sessionMirrorWriter } from './session-mirror-writer'
 import type { CloudBridge, CloudSandboxes } from './relocation/cloud-bridge'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 import { lifecycleEscalationOf } from './local-cloud-bootstrap'
@@ -15,7 +17,7 @@ import { reattachSandbox } from './local-cloud-reattach'
 
 export const attachmentOf =
   (args: {
-    options: Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed'>
+    options: Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'sessionMirror'>
     sandboxes: CloudSandboxes
   }): CloudBridge['attach'] =>
   ({ threadId, url, token, sandboxThreadId }: { threadId: ThreadId; url: string; token: string; sandboxThreadId?: ThreadId | undefined }) => {
@@ -36,9 +38,19 @@ export const attachmentOf =
     if (options.settings !== undefined) {
       unbindSettings = bindChannelSettingsSync({ channel, settings: options.settings })
     }
+    const sessionMirror =
+      options.sessionMirror === false
+        ? undefined
+        : createSessionMirrorSync({
+            channel,
+            writer: sessionMirrorWriter({ home: atlasDirectory }),
+            threadId,
+            ...(options.onMirrorFailed === undefined ? {} : { onSyncFailed: options.onMirrorFailed }),
+          })
     const localLog = options.localLog
     return {
       channel,
+      ...(sessionMirror === undefined ? {} : { sessionMirror }),
       stores: {
         log:
           localLog === undefined

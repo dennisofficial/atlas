@@ -54,6 +54,13 @@ export type LocalCloudBridgeOptions = {
    * transcript (the live roundtrip script) still gets working reads.
    */
   localLog?: MirrorLocalLog | undefined
+  /**
+   * Attaching streams the cloud session directory (thread metas, context/, ledger, logs —
+   * everything but the event log, which the transcript mirror owns) into the local session dir,
+   * current by construction while the channel is open. Set false to opt out (specs, one-shot
+   * probes that never render).
+   */
+  sessionMirror?: boolean | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
   settings?: SettingsService | undefined
 }
