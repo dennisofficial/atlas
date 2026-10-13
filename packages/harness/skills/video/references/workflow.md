@@ -14,7 +14,9 @@ Each tool achieves it differently, but never mix models inside one composition:
 
 - **HyperFrames / hand-rolled capture**: animation must be *seekable* — every visual property
   is a pure function of time. GSAP timelines, CSS/WAAPI animations, and Lottie all qualify
-  because the renderer pauses them and sets `currentTime` per frame.
+  because the renderer pauses them and sets `currentTime` per frame. For GSAP that means the
+  one registered paused timeline: a free-running tween or `.play()` outside it is not seeked,
+  so it is not seekable (render contract in hyperframes.md).
 - **Remotion**: every visual property derives from `useCurrentFrame()`. CSS transitions,
   CSS animations, and Tailwind animation classes are forbidden — they run on the wall clock
   and render incorrectly.
@@ -27,7 +29,12 @@ Corollaries:
 - **No live fetches during render.** Fetch data beforehand, save it as JSON, and read the
   file from the composition. A network call mid-render makes frames non-reproducible.
 - **Fonts must be local or inlined.** A CDN font that loads late (or 404s a month later)
-  changes the render. Download fonts into the project and `@font-face` them by relative path.
+  changes the render. HyperFrames pre-bundles a fixed set of font families (18 at the time of
+  writing; the list is in its `hyperframes-creative` skill's `typography.md`), so only other
+  families need a local file: download it into the project and `@font-face` it by relative path.
+- **Vendor GSAP.** HyperFrames examples load it from a jsdelivr CDN `<script>`; for
+  determinism, `npm pack gsap@<ver>`, extract `package/dist/gsap.min.js` into the project
+  (e.g. `assets/vendor/`), and load it by relative path.
 
 ## Real data first
 
@@ -52,7 +59,9 @@ Full renders cost minutes; frame probes cost seconds. Structure the work as:
    is one screenshot.
 2. **Motion check** — render a 1–2 second span around each transition at reduced fps and
    check the movement reads correctly.
-3. **Full render** — only after 1 and 2 pass.
+3. **Draft render** — only after 1 and 2 pass: the whole video at 1920×1080, 30 fps, draft
+   quality, for the user to review. Say it is a draft for iteration speed. The final export at
+   full spec happens once, after approval.
 4. **Output check** — extract frames from the *encoded MP4* (not the source page) with
    `ffmpeg -i out.mp4 -vf "select=eq(n\,90)" -vframes 1 frame90.png` and verify text is
    legible at the delivery size. Compression softens small text; bump font sizes and
@@ -73,8 +82,16 @@ and elements positioned for 16:9 that clip at 1:1.
 
 ## Sizes
 
-- **README / docs**: 1280×720 or 1600×900 at 24–30 fps. GitHub scales down, so favor large
-  text over fine detail.
+- **Rendered video**: author at 1920×1080. Drafts render there at 30 fps. The final export
+  defaults to 3840×2160 at 60 fps, upscaled by device-pixel ratio, not by re-layout:
+  HyperFrames `--resolution landscape-4k`, Remotion `--scale=2`, or hand-rolled
+  `deviceScaleFactor: 2`. 30 fps reads as choppy on high-refresh displays. Favor large text
+  over fine detail.
+- 120 fps is an option for high-refresh displays: about 2× the render time of 60, and ~25%
+  more file.
+- In deterministic lanes, resolution and frame rate cost only render time; frames are
+  seeked, never dropped. A 4K/60 export of a 20s clip is ~20 MB, which is over GitHub's
+  attachment limit on many plans, so link it rather than attaching it.
 - **Social clips**: check the target platform; 1080×1080 (1:1) and 1080×1920 (9:16) need
   their own compositions, not a crop of 16:9.
 - **GIF for a README**: 960px wide, 10–12 fps, palette-based (see assembly.md). Above ~5MB,

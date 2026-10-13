@@ -75,4 +75,5 @@ Rules that make this work:
 - Add a `PREVIEW=5000,15000` env check that renders only those timestamps as PNGs — that is
   the iteration loop from workflow.md, in ten lines.
 - Wait two animation frames before each screenshot so style/layout settle.
-- Fixed viewport (e.g. 1600×900) and fixed `deviceScaleFactor`; fonts inlined or local.
+- Fixed viewport (1920×1080) and fixed `deviceScaleFactor` (1 for drafts, 2 for the 4K
+  final); fonts inlined or local.
