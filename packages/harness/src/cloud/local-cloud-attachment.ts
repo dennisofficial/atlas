@@ -38,13 +38,16 @@ export const attachmentOf =
     if (options.settings !== undefined) {
       unbindSettings = bindChannelSettingsSync({ channel, settings: options.settings })
     }
+    // The mirrored directory belongs to the served session, whose root is `hosted` — under a
+    // rotation the attaching `threadId` is the successor, but the serve's session dir (and every
+    // family thread's files in it) lives under the root it was booted for.
     const sessionMirror =
       options.sessionMirror === false
         ? undefined
         : createSessionMirrorSync({
             channel,
             writer: sessionMirrorWriter({ home: atlasDirectory }),
-            threadId,
+            threadId: hosted,
             ...(options.onMirrorFailed === undefined ? {} : { onSyncFailed: options.onMirrorFailed }),
           })
     const localLog = options.localLog

@@ -145,6 +145,9 @@ export async function finishServeBoot(args: {
     buffer.pushLifecycle(frame)
     broadcast(frame)
     captureRunning()
+    // A settled turn is the durable point where shell spools and cached images are final, and
+    // neither has its own signal — bump so the session mirror re-manifests them.
+    if (frame.kind === EServeFrame.TurnEnded) mirrorRevision.bumpAndBroadcast()
   }
 
   const driver = createServeDriver({ app, threadId, workspace, session, admission, log, idleStop: () => idleStop, emitLifecycle })
