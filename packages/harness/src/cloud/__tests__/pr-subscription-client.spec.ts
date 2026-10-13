@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
+import { CloudError, DEFAULT_RETRY_MAX_ATTEMPTS } from '../cloud-transport'
 import { PrSubscriptionClient } from '../pr-subscription-client'
 
 const SESSION = { url: 'https://api.test', token: 'tok', email: null }
@@ -145,5 +146,97 @@ describe('PrSubscriptionClient heartbeat', () => {
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
     await expect(client.heartbeat({ id: 'sub_1' })).rejects.toMatchObject({ status: 404 })
     expect(calls).toBe(1)
+  })
+})
+
+describe('PrSubscriptionClient subscribe retry', () => {
+  const realFetch = globalThis.fetch
+  const realRandom = Math.random
+  const target = { repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' }
+
+  beforeEach(() => {
+    Math.random = () => 0
+  })
+
+  afterEach(() => {
+    globalThis.fetch = realFetch
+    Math.random = realRandom
+  })
+
+  const subscribeResponse = (): Response =>
+    new Response(JSON.stringify(liveSubscribeBody), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    })
+
+  it('retries a network failure and resolves on the next attempt', async () => {
+    let calls = 0
+    globalThis.fetch = (async () => {
+      calls += 1
+      if (calls === 1) throw new TypeError('fetch failed')
+      return subscribeResponse()
+    }) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const outcome = await client.subscribe(target)
+
+    expect(outcome.id).toBe('sub_1')
+    expect(calls).toBe(2)
+  })
+
+  it('rejects with CloudError status 0 only after every attempt has failed', async () => {
+    let calls = 0
+    globalThis.fetch = (async () => {
+      calls += 1
+      throw new TypeError('fetch failed')
+    }) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const failure = await client.subscribe(target).then(
+      () => undefined,
+      (error: unknown) => error,
+    )
+
+    expect(failure).toBeInstanceOf(CloudError)
+    expect(failure).toMatchObject({ status: 0 })
+    expect(calls).toBe(DEFAULT_RETRY_MAX_ATTEMPTS)
+  })
+
+  for (const status of [401, 403]) {
+    it(`does not retry a ${status} refusal`, async () => {
+      let calls = 0
+      globalThis.fetch = (async () => {
+        calls += 1
+        return new Response('{"message":"refused"}', {
+          status,
+          headers: { 'content-type': 'application/json' },
+        })
+      }) as unknown as typeof fetch
+
+      const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+
+      await expect(client.subscribe(target)).rejects.toMatchObject({ status })
+      expect(calls).toBe(1)
+    })
+  }
+
+  it('retries a 500 and resolves when the server recovers', async () => {
+    let calls = 0
+    globalThis.fetch = (async () => {
+      calls += 1
+      if (calls === 1) {
+        return new Response('{"message":"sick"}', {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return subscribeResponse()
+    }) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const outcome = await client.subscribe(target)
+
+    expect(outcome.id).toBe('sub_1')
+    expect(calls).toBe(2)
   })
 })

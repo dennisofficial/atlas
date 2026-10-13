@@ -5,6 +5,7 @@ import {
   EChecksState,
   EPullRequestLookup,
   POLL_SETTLED_MS,
+  PullRequestPort,
   type ChecksTally,
   type PullRequestReading,
 } from '../pure'
@@ -277,5 +278,53 @@ describe('createPullRequestService', () => {
     expect(polling.calls).toBeGreaterThan(1)
     pushed.dispose()
     polled.dispose()
+  })
+
+  it('arms the tick when the port stops pushing mid-session and clears it when it resumes', async () => {
+    const listeners = new Set<() => void>()
+    const flipper = new (class extends PullRequestPort {
+      pushing = true
+      calls = 0
+      get pushes(): boolean {
+        return this.pushing
+      }
+      override onPushesChanged(listener: () => void): () => void {
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      }
+      async read(): Promise<PullRequestReading> {
+        this.calls += 1
+        return ABSENT
+      }
+      async readLinked(): Promise<PullRequestReading> {
+        this.calls += 1
+        return ABSENT
+      }
+      flip(pushing: boolean): void {
+        this.pushing = pushing
+        for (const listener of [...listeners]) listener()
+      }
+    })()
+    const time = clock(1_000_000)
+    const service = createPullRequestService({ pullRequests: flipper, now: time.now, tickMs: 1 })
+
+    service.track({ checkouts: [aCheckout()] })
+    time.advance(POLL_SETTLED_MS)
+    await sleep(20)
+    expect(flipper.calls).toBe(1)
+
+    flipper.flip(false)
+    time.advance(POLL_SETTLED_MS)
+    await sleep(20)
+    const whilePolling = flipper.calls
+    expect(whilePolling).toBeGreaterThan(1)
+
+    flipper.flip(true)
+    time.advance(POLL_SETTLED_MS)
+    await sleep(20)
+    expect(flipper.calls).toBe(whilePolling)
+
+    service.dispose()
+    expect(listeners.size).toBe(0)
   })
 })

@@ -15,6 +15,7 @@ import { NativePlugin, type PluginContribution } from '../plugin'
 import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
 import { CiFeedFragment } from './ci-feed-fragment'
 import { createCloudCheckout } from './cloud-checkout'
+import { FailoverPullRequestPort } from './failover-pull-requests'
 import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks } from './links'
@@ -66,22 +67,28 @@ export default class GithubPlugin extends NativePlugin {
 
   /**
    * A cloud session (serve or signed-in operator) rides the SSE port: the API fans webhook
-   * deliveries out to it in real time, so it pushes rather than polls. A signed-out operator
+   * deliveries out to it in real time, so it pushes rather than polls, and a `gh` poller stands
+   * behind it for as long as the API is unreachable. A signed-out operator
    * keeps the `gh` poller as degraded mode. The SSE port's `onReading` closes over the service
    * built after it — the deferred indirection is what lets the port outlive its own construction.
    */
   private port(
     onReading: (args: { key: string; reading: PullRequestReading }) => void,
     onPrEvent: (frame: PrEventFrame) => void,
-  ): PullRequestPort {
+  ): FailoverPullRequestPort | GhPullRequestPort {
     const session = this.args.serve ?? this.args.sessions.read()
     if (session !== null) {
-      return new SsePullRequestPort({
-        session,
-        clientVersion: this.args.clientVersion,
-        onReading,
-        onPrEvent,
-        ...(this.args.log === null ? {} : { log: { port: this.args.log } }),
+      const log = this.args.log === null ? {} : { log: { port: this.args.log } }
+      return new FailoverPullRequestPort({
+        primary: new SsePullRequestPort({
+          session,
+          clientVersion: this.args.clientVersion,
+          onReading,
+          onPrEvent,
+          ...log,
+        }),
+        fallback: new GhPullRequestPort(),
+        ...log,
       })
     }
 
@@ -135,7 +142,7 @@ export default class GithubPlugin extends NativePlugin {
      * cannot answer: which checkout the sandbox's launch directory is on. Only a pushing port is
      * asked: the signed-out `gh` poller's cadence is deliberate and gains no eager read here.
      */
-    if (raw instanceof SsePullRequestPort) void tracking.boot()
+    if (raw.pushes) void tracking.boot()
 
     return {
       promptFragments: [new CiFeedFragment()],
@@ -255,7 +262,7 @@ export default class GithubPlugin extends NativePlugin {
       projections: [links.projection, cloudCheckout],
       intakeSources: [prEventIntakeSource(prEvents)],
       dispose: () => {
-        if (raw instanceof SsePullRequestPort) raw.dispose()
+        if (raw instanceof FailoverPullRequestPort) raw.dispose()
         cached?.dispose()
         service.dispose()
       },

@@ -18,8 +18,6 @@ import {
 export const PULL_REQUEST_PORT_CONCURRENCY = 4
 
 export class CachedPullRequestPort extends PullRequestPort {
-  readonly pushes: boolean
-
   private readonly cache: PullRequestCache
   private readonly inner: PullRequestPort
   private running = 0
@@ -36,7 +34,6 @@ export class CachedPullRequestPort extends PullRequestPort {
     super()
     const { inner } = args
     this.inner = inner
-    this.pushes = inner.pushes
     if (args?.file === undefined && args?.directory === undefined) {
       throw new Error('CachedPullRequestPort needs the Atlas home it may cache under')
     }
@@ -44,6 +41,14 @@ export class CachedPullRequestPort extends PullRequestPort {
       file: args.file ?? join(args.directory ?? '', PULL_REQUEST_CACHE_FILE_NAME),
       ...(args.now === undefined ? {} : { now: args.now }),
     })
+  }
+
+  get pushes(): boolean {
+    return this.inner.pushes
+  }
+
+  override onPushesChanged(listener: () => void): () => void {
+    return this.inner.onPushesChanged?.(listener) ?? (() => undefined)
   }
 
   async read(request: { checkout: RepositoryCheckout }): Promise<PullRequestReading> {
