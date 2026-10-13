@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { CHANNEL_PROTOCOL_VERSION, EServeFrame, EStepEnd } from '@dltech/atlas-harness'
+import { CHANNEL_PROTOCOL_VERSION, EServeFrame, EStepEnd, SERVE_CAPABILITIES } from '@dltech/atlas-harness'
 
 import { connect } from './client'
 import {
@@ -32,6 +32,7 @@ describe('startServe', () => {
       kind: EServeFrame.Ready,
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      capabilities: SERVE_CAPABILITIES,
       turnInFlight: false,
       transcriptCurrent: false,
     })
@@ -53,6 +54,7 @@ describe('startServe', () => {
       kind: EServeFrame.Ready,
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      capabilities: SERVE_CAPABILITIES,
       turnInFlight: false,
       transcriptCurrent: false,
     })
