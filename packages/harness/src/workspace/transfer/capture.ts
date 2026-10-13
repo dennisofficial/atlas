@@ -221,11 +221,18 @@ export async function captureWorkspaceArchive({
   const collected = await Promise.all(layout.trees.map((tree) => collectTree({ tree, layout })))
   const manifest = manifestFor({ layout, observed: before })
   const files = collected.reduce((sum, item) => sum + item.files.length + item.state.length, 0)
-  onBuildProgress?.({ phase: 'staging', files, bytes: 0 })
+  const totalBytes = collected.reduce(
+    (sum, item) =>
+      sum +
+      item.files.reduce((bytes, entry) => bytes + entry.size, 0) +
+      item.state.reduce((bytes, entry) => bytes + entry.size, 0),
+    0,
+  )
+  onBuildProgress?.({ phase: 'staging', files, bytes: totalBytes, totalBytes })
 
   const stage = await mkdtemp(join(tmpdir(), 'atlas-capture-stage-'))
   try {
-    onBuildProgress?.({ phase: 'compressing', files, bytes: 0 })
+    onBuildProgress?.({ phase: 'compressing', files, bytes: totalBytes, totalBytes })
     await stageAndPack({ stage, layout, collected, manifest, destination: target })
     const after = await observe({ layout })
     const moved = changedTree({ layout, before, after })

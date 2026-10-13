@@ -14,6 +14,8 @@ export type TreeEntry = {
   kind: EEntryKind
   mode: number
   target: string | null
+  /** Byte length for files; directories and symlinks carry 0. */
+  size: number
 }
 
 export type UnportableEntry = { path: string; kind: string }
@@ -100,20 +102,20 @@ export async function walkTree({
         if (dirent.isDirectory()) {
           if (isSkipped({ path, absolute, kind: EEntryKind.Directory })) return
           if (await isSiblingWorktree({ root, absolute })) return
-          entries.push({ path, kind: EEntryKind.Directory, mode: (await lstat(absolute)).mode & PERMISSION_BITS, target: null })
+          entries.push({ path, kind: EEntryKind.Directory, mode: (await lstat(absolute)).mode & PERMISSION_BITS, target: null, size: 0 })
           descend.push(path)
           return
         }
         if (dirent.isSymbolicLink()) {
           if (isSkipped({ path, absolute, kind: EEntryKind.Symlink })) return
           const target = await readlink(absolute)
-          entries.push({ path, kind: EEntryKind.Symlink, mode: 0, target })
+          entries.push({ path, kind: EEntryKind.Symlink, mode: 0, target, size: 0 })
           return
         }
         if (dirent.isFile()) {
           if (isSkipped({ path, absolute, kind: EEntryKind.File })) return
           const info = await lstat(absolute)
-          entries.push({ path, kind: EEntryKind.File, mode: info.mode & PERMISSION_BITS, target: null })
+          entries.push({ path, kind: EEntryKind.File, mode: info.mode & PERMISSION_BITS, target: null, size: info.size })
           return
         }
         unportable.push({ path, kind: unportableKindOf(dirent) })

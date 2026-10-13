@@ -47,7 +47,7 @@ async function packWithTarWrapper({ afterTar }: { afterTar: (args: { file: strin
         {
           mountPath: treeMountPath({ id: 'main', part: 'files' }),
           sourcePath: source,
-          entries: [{ path: 'big.bin', kind: EEntryKind.File, mode: 0o644, target: null }],
+          entries: [{ path: 'big.bin', kind: EEntryKind.File, mode: 0o644, target: null, size: 100_000 }],
         },
       ],
       destination,
