@@ -20,7 +20,7 @@ import { ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
 import { composeHarness } from '../compose'
 import type { DependencyContainer } from '../../container/injection'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 let project: string
 let atlasHome: string
@@ -73,6 +73,7 @@ describe('serve gets the same plugins the TUI gets, because composeHarness loads
       launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'plugin-parity-spec',
       surface: {
         notice: recordingNotices().port,
@@ -101,6 +102,7 @@ describe('serve gets the same plugins the TUI gets, because composeHarness loads
       launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'plugin-parity-spec',
       surface: {
         notice: recordingNotices().port,

@@ -11,11 +11,26 @@ import {
   type ModelCard,
   type NoticePost,
   type NoticePort,
+  type ComposedPortBindings,
 } from '@dltech/atlas-core'
 
 import { ESkillOrigin, parseSkill, type DiscoveredSkill } from '../../skills'
 import { DEFAULT_MODEL_REF } from '../config'
 import type { ModelCatalogue } from '../model-catalogue'
+import { sharedPortBindings } from '../port-bindings'
+
+/**
+ * The spec-side composition manifest: the shared bindings plus the four cloud-registry transport
+ * adapters a detached client would supply, stood in by their harness-side contracts so the fake
+ * composition proves the same full surface a real one must.
+ */
+export const testPortBindings = (): ComposedPortBindings => ({
+  ...sharedPortBindings,
+  RotationPort: { runtime: 'shared', transport: null },
+  ShellRegistryPort: { runtime: 'shared', transport: null },
+  AgentRegistryPort: { runtime: 'shared', transport: null },
+  ServiceRegistryPort: { runtime: 'shared', transport: null },
+})
 
 const CREDENTIAL: Credential = {
   kind: EAuthKind.Oauth,

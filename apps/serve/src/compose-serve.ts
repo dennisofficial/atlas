@@ -15,7 +15,7 @@ import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 import { sandboxNameFor } from '@dltech/atlas-harness'
 import { SelectableModelToken } from '@dltech/atlas-harness'
 import { VercelDriver } from '@dltech/atlas-harness'
-import { atlasDirectory, composeHarness } from '@dltech/atlas-harness'
+import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
@@ -97,6 +97,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     env: args.env,
     settings: loadSettings({ env: args.env, cwd: args.cwd }),
     clientVersion: args.clientVersion,
+    ports: inProcessPortBindings,
     surface: {
       notice: args.notice,
       bind: ({ container }) => {

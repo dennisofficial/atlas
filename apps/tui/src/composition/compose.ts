@@ -4,7 +4,9 @@ import { OnThreadOpenHook } from '@dltech/atlas-core'
 import {
   composeHarness,
   createUrlOpener,
-  portToken, registeredPortToken,
+  portToken,
+  registeredPortToken,
+  sharedPortBindings,
   GithubUiBridgePort,
   MutablePrEventSink,
   PrEventFrameSink,
@@ -24,6 +26,10 @@ import { pullRequestSurface } from '../plugins/github/surface'
 import type { ContributedSurface, PluginSurface } from '../plugins/surface'
 import { tldrFeed } from '../ui/tldr-feed-store'
 
+import { RemoteAgentRegistry } from './cloud/remote-agents'
+import { RemoteRotation } from './cloud/remote-rotation'
+import { RemoteServiceRegistry } from './cloud/remote-services'
+import { RemoteShellRegistry } from './cloud/remote-shells'
 import type { QueuedSettled } from './commands'
 import type { AtlasConfig } from './config'
 import { noticePortBinding } from './notice-binding'
@@ -88,6 +94,13 @@ export async function composeAtlas(args: {
     env: args.env,
     settings: args.settings,
     clientVersion: clientVersionHeader(),
+    ports: {
+      ...sharedPortBindings,
+      RotationPort: { runtime: 'shared', transport: RemoteRotation },
+      ShellRegistryPort: { runtime: 'shared', transport: RemoteShellRegistry },
+      AgentRegistryPort: { runtime: 'shared', transport: RemoteAgentRegistry },
+      ServiceRegistryPort: { runtime: 'shared', transport: RemoteServiceRegistry },
+    },
     surface: {
       notice: noticePortBinding(),
       tldrFeed,

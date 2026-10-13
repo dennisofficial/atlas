@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 import { ATLAS_SETTINGS, NoticePort, toThreadId, type NoticePost } from '@dltech/atlas-core'
-import { buildContextArchive, composeHarness, MemorySettingsStore, createSettingsService } from '@dltech/atlas-harness'
+import { buildContextArchive, composeHarness, inProcessPortBindings, MemorySettingsStore, createSettingsService } from '@dltech/atlas-harness'
 
 import { materializeContext } from '../materialize-context'
 import type { WorkspaceSpec } from '../workspace-spec'
@@ -52,6 +52,7 @@ const compose = () => composeHarness<undefined, never>({
     service: createSettingsService({ definitions: ATLAS_SETTINGS, user: new MemorySettingsStore({ label: 'persistent skill spec' }) }),
     bindTo: () => {},
   },
+  ports: inProcessPortBindings,
   clientVersion: 'persistent-skills-spec',
   userSkillHome: driveHome,
   surface: { notice: new SilentNotices() },

@@ -10,7 +10,7 @@ import { createSettingsService } from '../../settings/service'
 import { composeHarness } from '../compose'
 import type { HarnessApp } from '../harness-app'
 import { liveSkillRegistry } from '../skills-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 let root: string
 let atlasHome: string
@@ -52,6 +52,7 @@ const compose = async (userSkillHome?: string) => {
       }),
       bindTo: () => {},
     },
+    ports: testPortBindings(),
     clientVersion: 'skill-home-spec',
     surface: { notice: recordingNotices().port },
     ...(userSkillHome === undefined ? {} : { userSkillHome }),

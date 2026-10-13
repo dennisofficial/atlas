@@ -7,6 +7,7 @@ import {
   captureLiftWorkspace,
   captureWorkspaceMetadata,
   composeHarness,
+  inProcessPortBindings,
   ELiftNode,
   type CaptureContext,
   type CloudBridge,
@@ -86,6 +87,7 @@ export async function mountCloudBenchmark(args: {
     launch: { cwd, command: SERVE_COMMAND, model: undefined, executionLocation: EExecutionLocation.Host },
     env: process.env,
     settings: args.settings,
+    ports: inProcessPortBindings,
     clientVersion: SERVE_COMMAND,
     surface: { notice: noticePortBinding(), tldrFeed },
   })

@@ -19,7 +19,7 @@ import { createSettingsService } from '../../settings/service'
 import { composeHarness } from '../compose'
 import type { HarnessApp, HarnessSurfaceBinding } from '../harness-app'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 let project: string
 let atlasHome: string
@@ -63,6 +63,7 @@ const compose = <TSurface = undefined>(args?: {
     launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
     env: {},
     settings: settingsBinding(),
+    ports: testPortBindings(),
     clientVersion: 'compose-spec',
     surface: { notice: recordingNotices().port, ...(args?.bind === undefined ? {} : { bind: args.bind }) },
   })
@@ -73,6 +74,7 @@ describe('composeHarness', () => {
       launch: { cwd: undefined, command: 'atlas-test', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'compose-spec',
       surface: { notice: recordingNotices().port },
     })
@@ -181,6 +183,7 @@ describe('composeHarness', () => {
         launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
         env: {},
         settings: settingsBinding(),
+        ports: testPortBindings(),
         clientVersion: 'compose-spec',
         surface: { notice: recordingNotices().port },
       })
@@ -220,6 +223,7 @@ describe('composeHarness', () => {
         launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
         env: {},
         settings: settingsBinding(),
+        ports: testPortBindings(),
         clientVersion: 'compose-spec',
         surface: { notice: notices.port },
       })
@@ -249,6 +253,7 @@ describe('composeHarness', () => {
         launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
         env: {},
         settings: settingsBinding(),
+        ports: testPortBindings(),
         clientVersion: 'compose-spec',
         surface: { notice: notices.port },
       })

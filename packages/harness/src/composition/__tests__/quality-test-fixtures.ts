@@ -27,7 +27,7 @@ import { bindQuality } from '../compose-quality'
 import { composeHarness } from '../compose'
 import type { HarnessApp } from '../harness-app'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 export const WIDGET_SOURCE = [
   'export class Widget {',
@@ -123,6 +123,7 @@ export class QualityRig {
       launch: { cwd: project, command: args.command, model: undefined, executionLocation: undefined },
       env: {},
       settings,
+      ports: testPortBindings(),
       clientVersion: 'quality-spec',
       surface: {
         notice: recordingNotices().port,

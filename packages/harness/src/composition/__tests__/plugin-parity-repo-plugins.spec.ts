@@ -20,7 +20,7 @@ import { createSettingsService } from '../../settings/service'
 import { ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
 import { composeHarness } from '../compose'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 let project: string
 let atlasHome: string
@@ -101,6 +101,7 @@ describe('serve gets the same repo plugins the TUI gets, because composeHarness 
       launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'plugin-parity-repo-plugins-spec',
       surface: {
         notice: notices.port,

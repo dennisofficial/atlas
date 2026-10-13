@@ -11,6 +11,7 @@ import {
   NoticePort,
   textValueOf,
   toThreadId,
+  type ComposedPortBindings,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -102,6 +103,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   settings: SettingsBinding
   clientVersion: string
   surface: HarnessSurfaceBinding<TSurface>
+  ports: ComposedPortBindings
   stores?: HarnessStoreBinding | undefined
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
   repoIdentity?: string | null | undefined
