@@ -10,6 +10,7 @@ import {
 import type { PlacementTransaction } from '../../composition/placement-controller'
 import type { OwnerTransaction, SessionRuntime } from '../../composition/session-owner'
 import type { SessionArchiveFile } from '../archive-file'
+import { createBuildProgressThrottle } from '../archive-build-progress'
 import { buildSessionArchive } from '../session-archive'
 import { activateSessionReplySchema, applyWorkspaceArchiveReplySchema, EClientRequest } from '../channel-wire'
 import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
@@ -117,7 +118,15 @@ export const liftPlan = (args: { midTurn: boolean }): RelocationPlan<LiftCtx> =>
     run: async (ctx) => {
       ctx.workspace = await ctx.args.capture({ cwd: ctx.args.cwd })
       const family = await captureWorkspaceFamily({ threadId: ctx.args.threadId, cwd: ctx.args.cwd, threads: ctx.args.localThreads, log: ctx.args.localLog })
-      ctx.workspaceArchive = await (ctx.args.captureWorkspaceArchive ?? captureLiftWorkspace)({ cwd: ctx.args.cwd, family })
+      const onBuildProgress =
+        ctx.args.onBuildProgress === undefined
+          ? undefined
+          : createBuildProgressThrottle({ report: ctx.args.onBuildProgress })
+      ctx.workspaceArchive = await (ctx.args.captureWorkspaceArchive ?? captureLiftWorkspace)({
+        cwd: ctx.args.cwd,
+        family,
+        ...(onBuildProgress === undefined ? {} : { onBuildProgress }),
+      })
     },
   },
   {

@@ -91,11 +91,13 @@ export function useThreadBirth(args: {
         stopLocalWork({ threadId, shells: app.shells, services: app.services, threads: app.threads }),
       capture: () => Promise.resolve(null),
       captureContext,
+      onBuildProgress: move.handleBuildProgress,
       onBegin: ({ waves }) =>
         move.handleBegin({
           target: EExecutionLocation.Cloud,
           rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })),
           heading: 'STARTING A CLOUD SANDBOX',
+          onCancel: () => fallBackToHost(birthArgs({ threadId })),
         }),
       onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
       onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
