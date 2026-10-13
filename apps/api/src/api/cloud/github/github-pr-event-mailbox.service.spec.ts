@@ -28,7 +28,7 @@ function serviceWith(): {
 describe('GithubPrEventMailboxService', () => {
   beforeEach(() => fake.reset())
 
-  it('records one row per subscriber and pushes a live frame to each', async () => {
+  it('stamps deliveredAt on rows whose live push reached a stream', async () => {
     const { mailbox, fanout } = serviceWith()
     const receivedA: unknown[] = []
     const receivedB: unknown[] = []
@@ -50,12 +50,39 @@ describe('GithubPrEventMailboxService', () => {
       kind: EPrEventKind.Comment,
       payload: { url: 'https://github.com/compai/app/pull/42#issuecomment-1', authorLogin: 'dennis', body: 'hi' },
     })
+    await vi.waitFor(() => {
+      expect(fake.prEvents.every((row) => row.deliveredAt !== null)).toBe(true)
+    })
 
     expect(fake.prEvents).toHaveLength(2)
-    expect(fake.prEvents.every((row) => row.deliveredAt === null)).toBe(true)
     expect(receivedA).toHaveLength(1)
     expect(receivedB).toHaveLength(1)
     expect(receivedA[0]).toMatchObject({ kind: 'comment', repoFullName: 'compai/app', prNumber: 42 })
+  })
+
+  it('stamps only the row a live stream received — an offline subscriber still replays', async () => {
+    const { mailbox, fanout } = serviceWith()
+    fanout.openStream({
+      userId: 'usr-a',
+      handler: () => undefined,
+      eventHandler: () => undefined,
+    })
+
+    await mailbox.record({
+      userIds: ['usr-a', 'usr-offline'],
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      kind: EPrEventKind.Verdict,
+      payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'green', headSha: 'abc' },
+    })
+    await vi.waitFor(() => {
+      expect(fake.prEvents.find((row) => row.userId === 'usr-a')?.deliveredAt).not.toBeNull()
+    })
+
+    expect(fake.prEvents.find((row) => row.userId === 'usr-offline')?.deliveredAt).toBeNull()
+    const replayed = await mailbox.replayUndelivered({ userId: 'usr-offline' })
+    expect(replayed).toHaveLength(1)
+    expect(await mailbox.replayUndelivered({ userId: 'usr-a' })).toHaveLength(0)
   })
 
   it('records without pushing when no stream is open — the row waits for replay', async () => {

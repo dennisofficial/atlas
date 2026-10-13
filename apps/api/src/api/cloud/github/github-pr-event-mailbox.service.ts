@@ -9,8 +9,8 @@ import type {
 } from './github-realtime.types'
 
 /**
- * Durable per-user mailbox for PR events. Every event is one row per subscribing user with
- * `deliveredAt` null until it was pushed to a live stream; a reconnect replays the nulls and
+ * Durable per-user mailbox for PR events. Every event is one row per subscribing user, stamped
+ * `deliveredAt` the moment a live stream actually pushes it; a reconnect replays the nulls and
  * marks them delivered. Rows are never reconstructed from GitHub — the mailbox is the record.
  */
 @Injectable()
@@ -37,7 +37,18 @@ export class GithubPrEventMailboxService {
           payload: args.payload,
         },
       })
-      this.fanout.pushEvent({ userIds: [userId], event: eventDtoOf(row) })
+      this.fanout.pushEvent({
+        userIds: [userId],
+        event: eventDtoOf(row),
+        onDelivered: () => {
+          void db.githubPrEvent
+            .updateMany({
+              where: { id: row.id, deliveredAt: null },
+              data: { deliveredAt: new Date() },
+            })
+            .catch(() => undefined)
+        },
+      })
       this.wake.notifyEvent({
         userId,
         repoFullName: args.repoFullName,
