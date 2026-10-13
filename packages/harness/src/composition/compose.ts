@@ -153,7 +153,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     repoIdentity: args.repoIdentity,
   })
 
-  await bindUserLayerSync({
+  const userLayerSync = await bindUserLayerSync({
     container,
     clientVersion: args.clientVersion,
     projectDirectory: workspace.repo ?? workspace.workspace,
@@ -301,6 +301,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     tools: container.resolve(registeredPortToken(ToolRegistry)),
     markActiveThread: (active) => {
       activeThread = active
+      userLayerSync.start()
     },
     activeThread: () => activeThread,
     titler: utility.titler,

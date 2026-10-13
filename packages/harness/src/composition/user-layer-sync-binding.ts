@@ -20,10 +20,11 @@ const warnStart = (log: LogPort) => (error: unknown) => {
 
 /**
  * The user layer (skills/instructions/memory) syncs only while signed in to Atlas Cloud; a
- * signed-out session composes the no-op port so the registry slot is never unbound. The live
- * engine starts fire-and-forget — sync must never hold boot (decision: silent + non-blocking)
- * — and stops with the container. Serve passes its own home (`driveHome`) and token client via
- * `override`; a surface with no cloud reachability composes the default.
+ * signed-out session composes the no-op port so the registry slot is never unbound. The engine
+ * is registered at compose but NOT started — composing must never open a socket (the
+ * local-first outage contract forbids a signed-in session from touching the cloud when it is
+ * down), so `start` is returned for the caller to fire on the first real activity. Serve passes
+ * its own home (`driveHome`) via `home`.
  */
 export async function bindUserLayerSync(args: {
   container: DependencyContainer
@@ -34,7 +35,7 @@ export async function bindUserLayerSync(args: {
   override?:
     | { home: string; atlasHome: string; client: Parameters<typeof createUserLayerSync>[0]['client'] }
     | undefined
-}): Promise<void> {
+}): Promise<{ start: () => void }> {
   const { container } = args
   const log = container.resolve(registeredPortToken(LogPort))
 
@@ -60,7 +61,7 @@ export async function bindUserLayerSync(args: {
 
   if (binding === null) {
     container.register(registeredPortToken(UserLayerSyncPort), { useValue: new NullUserLayerSync() })
-    return
+    return { start: () => undefined }
   }
 
   const projectMemory = await resolveProjectMemory({
@@ -85,5 +86,5 @@ export async function bindUserLayerSync(args: {
       engine.stop()
     },
   })
-  void engine.start().catch(warnStart(log))
+  return { start: () => void engine.start().catch(warnStart(log)) }
 }
