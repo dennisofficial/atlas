@@ -70,6 +70,17 @@ feature fork. When a surface needs something the harness does not offer, the sur
 or a port, not a reimplementation. `apps/tui` contributes projections and surfaces; `apps/api`
 provisions and configures sessions. Neither reimplements what the loop owns.
 
+A session feature spans three strata, and the vocabulary is canonical. **Feature logic** is the
+location-agnostic harness code that decides what a session does. **Runtime logic** is the port
+implementation where the session executes — the in-process impl local sessions and
+serve-in-sandbox share; the sandbox is a runtime, not a separate stratum. **Transport logic** is
+the wire adapter carrying a port to a detached client. A port with no remote surface declares an
+explicit empty transport slot — "no transport needed" is written down, never an omission. Every
+session port is registered in the type-level registry (`packages/core/src/ports/registry.ts`,
+extended by harness) with its slots, and `composeHarness` requires the full manifest — so a
+feature isn't done when the loop works; it's done when its port is registered with all its
+bindings, and adding one without them breaks typecheck in both apps.
+
 **`api` runs on Node, not Bun, and tests with vitest, not `bun test`.** Nest's dependency
 injection needs legacy decorators with emitted metadata, which Bun's transpiler silently drops —
 this is the same constraint that bars tsyringe decorators elsewhere in the repo, answered the
