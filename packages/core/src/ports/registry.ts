@@ -72,3 +72,38 @@ export type RegisteredPort = PortRegistryEntries[RegisteredPortName]['contract']
 export type DetachedPortNames = {
   [K in RegisteredPortName]: PortRegistryEntries[K]['transport'] extends 'detached' ? K : never
 }[RegisteredPortName]
+
+export type RuntimeBinding = 'shared' | 'surface'
+
+/**
+ * The manifest a composition site passes to prove every registered port has its bindings.
+ * Composing a session means naming, for every registry entry: where its runtime binding lives
+ * ('shared' — the in-process impl local sessions and serve-in-sandbox share; 'surface' — the
+ * composition site overrides it) and, for a detached port, the transport binding's remote
+ * adapter contract. Adding a port to the registry adds a key here, so every composition site
+ * lacking it stops compiling — that breakage is the contract. A 'none' transport carries `null`:
+ * the empty slot is written down, never omitted.
+ */
+export type PortBindings = {
+  readonly [K in RegisteredPortName]: {
+    readonly runtime: RuntimeBinding
+    readonly transport: PortRegistryEntries[K]['transport'] extends 'detached'
+      ? PortContractShape<InstanceType<PortRegistryEntries[K]['contract']>>
+      : null
+  }
+}
+
+/**
+ * What a composition site passes: every registered port's runtime binding, and for a detached
+ * port either the remote adapter (a detached client) or `null` (an in-process session — serve,
+ * a spec fake — declaring the empty slot). Requiring the key for every registered port is what
+ * makes a new port break every composition site until it is bound.
+ */
+export type ComposedPortBindings = {
+  readonly [K in RegisteredPortName]: {
+    readonly runtime: RuntimeBinding
+    readonly transport: PortRegistryEntries[K]['transport'] extends 'detached'
+      ? PortContractShape<InstanceType<PortRegistryEntries[K]['contract']>> | null
+      : null
+  }
+}
