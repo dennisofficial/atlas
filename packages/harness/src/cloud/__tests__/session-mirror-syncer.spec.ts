@@ -65,6 +65,8 @@ type FakeChannel = {
   request(args: { op: string; params: unknown }): Promise<unknown>
   emit(signal: { type: string; revision?: number }): void
   open(): void
+  close(): void
+  reload(): void
 }
 
 function fakeChannel(serve: FakeServe): FakeChannel {
@@ -73,6 +75,10 @@ function fakeChannel(serve: FakeServe): FakeChannel {
   const reloadListeners = new Set<() => void>()
   const readyListeners = new Set<(ready: ChannelReady) => void>()
   let state: ChannelConnection = { state: EChannelConnection.Open, detail: null }
+  const moveTo = (next: ChannelConnection): void => {
+    state = next
+    for (const listener of [...connectionListeners]) listener(state)
+  }
   return {
     connection: () => state,
     onConnection(listener) {
@@ -115,8 +121,13 @@ function fakeChannel(serve: FakeServe): FakeChannel {
       for (const listener of [...listeners]) listener(signal as never)
     },
     open() {
-      state = { state: EChannelConnection.Open, detail: null }
-      for (const listener of [...connectionListeners]) listener(state)
+      moveTo({ state: EChannelConnection.Open, detail: null })
+    },
+    close() {
+      moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+    },
+    reload() {
+      for (const listener of [...reloadListeners]) listener()
     },
   }
 }
@@ -224,6 +235,44 @@ describe('the session-directory mirror', () => {
     await expect(readFile(join(sessionDir, 'lock'), 'utf8')).rejects.toThrow()
     const stamp = await readMirrorStamp({ sessionDir })
     expect(stamp?.files['threads/thr_mirror.events.jsonl']).toBeDefined()
+  })
+
+  it('reconnects and catches up to a remote change made while the channel was down', async () => {
+    const { serve, channel, syncer, sessionDir } = await fixture({
+      files: { 'meta.json': '{"format":1}', 'context/plan.md': '# v1\n' },
+    })
+    syncer.kick()
+    await syncer.converge()
+
+    channel.close()
+    serve.files.set('context/plan.md', { content: '# v2 while down\n' })
+    serve.revision = 2
+    channel.open()
+    await syncer.converge()
+
+    const mirrored = await readFile(join(sessionDir, 'context/plan.md'))
+    expect(mirrored.equals(Buffer.from(serve.files.get('context/plan.md')?.content ?? '', 'utf8'))).toBe(true)
+    const stamp = await readMirrorStamp({ sessionDir })
+    expect(stamp?.revision).toBe(2)
+    expect(stamp?.files['context/plan.md']?.sha256).toBe(sha256Of('# v2 while down\n'))
+  })
+
+  it('re-syncs on a reload after a remote change', async () => {
+    const { serve, channel, syncer, sessionDir } = await fixture({
+      files: { 'meta.json': '{"format":1}', 'context/plan.md': '# v1\n' },
+    })
+    syncer.kick()
+    await syncer.converge()
+
+    serve.files.set('context/plan.md', { content: '# v2 after reload\n' })
+    serve.revision = 2
+    channel.reload()
+    await syncer.converge()
+
+    const mirrored = await readFile(join(sessionDir, 'context/plan.md'))
+    expect(mirrored.equals(Buffer.from(serve.files.get('context/plan.md')?.content ?? '', 'utf8'))).toBe(true)
+    const stamp = await readMirrorStamp({ sessionDir })
+    expect(stamp?.revision).toBe(2)
   })
 
   it('leaves a sibling session directory byte-identical', async () => {

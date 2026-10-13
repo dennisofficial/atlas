@@ -244,7 +244,7 @@ export function createConversationStore(args: {
 
     if (signal.type === "events-appended" || signal.type === "retry-cleared") return;
     if (signal.type === "operator-input" || signal.type === "rotation-changed") return;
-    if (signal.type === "archive-progress") return;
+    if (signal.type === "archive-progress" || signal.type === "session-files-changed") return;
     // Pending rows are rendered from use-conversation's onPendingChanged subscription; the
     // tracker only models step progress.
     if (signal.type === "pending-changed") return;

@@ -55,6 +55,32 @@ describe('the stores of a session that mounted before its channel dialled', () =
     expect(textsOf(await remote.log.read({ threadId: CLOUD_THREAD }))).toEqual(['written there', 'appended'])
   })
 
+  it('reads spend from the mirrored ledger through a socket gap, never the wire', async () => {
+    const { local, remote } = await stores()
+    await local.ledger.record({
+      runId: toRunId('run-local'),
+      threadId: CLOUD_THREAD,
+      status: 'completed',
+      providerId: 'p',
+      modelId: 'm',
+      steps: 1,
+      inputTokens: 1,
+      outputTokens: 1,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      startedAt: '2026-10-13T00:00:00.000Z',
+      endedAt: '2026-10-13T00:00:01.000Z',
+      durationMs: 1000,
+    })
+    const channel = fakeCloudChannel({ connection: { state: EChannelConnection.Open, detail: null } })
+    const held = parkedStoresOf({ channel, local, remote })
+
+    channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+
+    const own = await held.ledger.forThread({ threadId: CLOUD_THREAD })
+    expect(own.map((turn) => turn.runId)).toEqual([toRunId('run-local')])
+  })
+
   it('listens for renames on the sandbox side only', async () => {
     const { local, remote } = await stores()
     const channel = fakeCloudChannel({ connection: { state: EChannelConnection.Parked, detail: null } })
