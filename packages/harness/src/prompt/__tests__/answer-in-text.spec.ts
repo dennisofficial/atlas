@@ -4,7 +4,7 @@ import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-
 
 import {
   createIsolatedContainer,
-  portToken,
+  portToken, registeredPortToken,
   resolveSet,
   type DependencyContainer,
 } from '../../container/injection'
@@ -32,7 +32,7 @@ const contextFor = ({
 const registered = (): DependencyContainer => {
   const container = createIsolatedContainer()
   registerBuiltinPromptFragments({ container })
-  container.register(portToken(SkillRegistryPort), {
+  container.register(registeredPortToken(SkillRegistryPort), {
     useValue: new FakeSkillRegistry({ skills: [] }),
   })
   return container
@@ -40,7 +40,7 @@ const registered = (): DependencyContainer => {
 
 const compiledFor = (ctx: PromptContext): readonly string[] =>
   registered()
-    .resolve(portToken(PromptRegistry))
+    .resolve(registeredPortToken(PromptRegistry))
     .compile(ctx)
     .parts.map((part) => part.id)
 

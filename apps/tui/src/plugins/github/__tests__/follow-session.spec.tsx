@@ -24,7 +24,7 @@ import {
   GithubUiBridgePort,
   loadPlugins,
   NativePlugin,
-  portToken,
+  portToken, registeredPortToken,
   registerGithubPlugin,
   resolveHookChain,
   WorkspaceRoot,
@@ -172,7 +172,7 @@ const composed = async (): Promise<{
   })
 
   const chain = resolveHookChain({ container })
-  const bridge = container.resolve(portToken(GithubUiBridgePort))
+  const bridge = container.resolve(registeredPortToken(GithubUiBridgePort))
   const surface = pullRequestSurface({
     service: bridge.service,
     facts: bridge.facts,

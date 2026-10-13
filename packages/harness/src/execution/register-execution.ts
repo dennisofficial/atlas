@@ -2,7 +2,7 @@ import { AgentFileSystemPort, FileSystemPort, ProcessPort } from '@dltech/atlas-
 
 import {
   instanceCachingFactory,
-  portToken,
+  registeredPortToken,
   resolveIfPossible,
   type DependencyContainer,
 } from '../container/injection'
@@ -15,16 +15,16 @@ import { LoginEnvProcessPort } from './login-env-process'
 import { SessionEnvironmentProcessPort } from './session-environment'
 
 export function registerExecution({ container }: { container: DependencyContainer }): void {
-  container.register(portToken(ProcessPort), {
+  container.register(registeredPortToken(ProcessPort), {
     useFactory: (resolver) => {
       const local = new LoginEnvProcessPort(new LocalProcessPort())
       const sessions = resolveIfPossible({ container: resolver, token: SessionRegistryToken })
       return sessions === undefined ? local : new SessionEnvironmentProcessPort({ inner: local, sessions })
     },
   })
-  container.register(portToken(FileSystemPort), { useClass: LocalFileSystemPort })
-  container.register(portToken(AgentFileSystemPort), {
-    useFactory: (resolver) => resolver.resolve(portToken(FileSystemPort)),
+  container.register(registeredPortToken(FileSystemPort), { useClass: LocalFileSystemPort })
+  container.register(registeredPortToken(AgentFileSystemPort), {
+    useFactory: (resolver) => resolver.resolve(registeredPortToken(FileSystemPort)),
   })
   container.register(DockerEngineToken, {
     useFactory: instanceCachingFactory(

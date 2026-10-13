@@ -5,7 +5,7 @@ import {
   IdPort,
   WorkspacePort,
 } from '@dltech/atlas-core'
-import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
+import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../container/injection'
 import { projectPluginsDirectory, userPluginsDirectory } from '../settings/paths'
 
 import { loadPluginDirectory } from './directory-source'
@@ -85,10 +85,10 @@ export async function assemblePlugins(args: {
     origin: identity.origin,
     projectDirectory: args.cwd,
     atlasHome: args.atlasHome,
-    log: args.container.resolve(portToken(EventLogPort)),
-    workspace: args.container.resolve(portToken(WorkspacePort)),
-    clock: args.container.resolve(portToken(ClockPort)),
-    ids: args.container.resolve(portToken(IdPort)),
+    log: args.container.resolve(registeredPortToken(EventLogPort)),
+    workspace: args.container.resolve(registeredPortToken(WorkspacePort)),
+    clock: args.container.resolve(registeredPortToken(ClockPort)),
+    ids: args.container.resolve(registeredPortToken(IdPort)),
   })
 
   const loaded = await loadPlugins({

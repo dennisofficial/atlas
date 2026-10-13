@@ -2,7 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { DRAIN_COMMAND_TIMEOUT_MS, DRAIN_REASON, drainServe } from '../serve-drain-client'
-import { EVercelFailure, SERVE_TOKEN_PATH, SWAP_LOCK_PATH, VercelFailure } from '@dltech/atlas-wire'
+import {
+  ECapability,
+  EVercelFailure,
+  SERVE_TOKEN_PATH,
+  SWAP_LOCK_PATH,
+  VercelFailure,
+} from '@dltech/atlas-wire'
 import { rotationReceipt } from './rotation-fixture'
 
 const receipt = rotationReceipt()
@@ -38,7 +44,12 @@ const sandboxAnswering = (args: {
       }
       if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0, stdout: async () => '' }
       if (script.includes('/v1/health')) {
-        const ready = args.legacy ? '{"ok":true}' : '{"rotationPreparationVersion":1,"sandboxSessionId":"session-1"}'
+        const ready = args.legacy
+          ? '{"ok":true}'
+          : JSON.stringify({
+              capabilities: [ECapability.RotationPreparation, ECapability.SandboxSessionIdentity],
+              sandboxSessionId: 'session-1',
+            })
         return { exitCode: args.healthExitCode ?? 0, stdout: async () => args.health ?? ready }
       }
       if (script.includes('/v1/drain')) {
@@ -152,6 +163,42 @@ describe('a wedged serve at the drain seam', () => {
 
   it('preserves when the health body cannot be parsed at all', async () => {
     await expect(drainServe({ sandbox: sandboxAnswering({ stdout: '{"ok":false}\n503', health: 'not-json' }), url: URL })).rejects.toThrow('sandbox was preserved')
+  })
+})
+
+describe('capability negotiation at the drain greet', () => {
+  it('treats a capability the peer does not advertise as a typed absence, not a schema failure', async () => {
+    const calls: { script: string; timeoutMs: number }[] = []
+    // A serve that greets with a capability set but without RotationPreparation lacks the
+    // capability — it is preserved, never schema-rejected.
+    const noPreparation = JSON.stringify({
+      capabilities: [ECapability.SandboxSessionIdentity],
+      sandboxSessionId: 'session-1',
+    })
+    await expect(
+      drainServe({ sandbox: sandboxAnswering({ stdout: '200', health: noPreparation, calls }), url: URL }),
+    ).rejects.toThrow('sandbox was preserved')
+    expect(calls.some((call) => call.script.includes('/v1/drain'))).toBe(false)
+  })
+
+  it('preserves a serve that prepares but cannot identify its sandbox session', async () => {
+    const noIdentity = JSON.stringify({
+      capabilities: [ECapability.RotationPreparation],
+      sandboxSessionId: 'session-1',
+    })
+    await expect(
+      drainServe({ sandbox: sandboxAnswering({ stdout: '200', health: noIdentity }), url: URL }),
+    ).rejects.toThrow('sandbox was preserved')
+  })
+
+  it('preserves a capable serve answering for another sandbox session', async () => {
+    const foreign = JSON.stringify({
+      capabilities: [ECapability.RotationPreparation, ECapability.SandboxSessionIdentity],
+      sandboxSessionId: 'session-2',
+    })
+    await expect(
+      drainServe({ sandbox: sandboxAnswering({ stdout: '200', health: foreign }), url: URL }),
+    ).rejects.toThrow('sandbox was preserved')
   })
 })
 

@@ -9,7 +9,7 @@ import {
   type PromptContext,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, resolveSet } from '../../container/injection'
+import { createIsolatedContainer, portToken, registeredPortToken, resolveSet } from '../../container/injection'
 import { GrillingCeremonyEnabledToken } from '../../container/tokens'
 import { ExecutionLocationToken } from '../../composition/execution-location-state'
 import { SkillRegistryPort } from '../../skills/port'
@@ -28,13 +28,13 @@ const registered = () => {
   const container = createIsolatedContainer()
   container.register(GrillingCeremonyEnabledToken, { useValue: () => false })
   registerBuiltinPromptFragments({ container })
-  container.register(portToken(SkillRegistryPort), {
+  container.register(registeredPortToken(SkillRegistryPort), {
     useValue: new FakeSkillRegistry({ skills: [] }),
   })
   return container
 }
 
-const compiled = () => registered().resolve(portToken(PromptRegistry)).compile(CONTEXT)
+const compiled = () => registered().resolve(registeredPortToken(PromptRegistry)).compile(CONTEXT)
 
 const REMOVED_PARTS = [
   'scope.request-ladder',
@@ -59,7 +59,7 @@ describe('the builtin prompt', () => {
   })
 
   it('keeps system text unchanged when the project directory changes', () => {
-    const prompts = registered().resolve(portToken(PromptRegistry))
+    const prompts = registered().resolve(registeredPortToken(PromptRegistry))
     const first = prompts.compile(CONTEXT)
     const moved = prompts.compile({ ...CONTEXT, projectDirectory: `${CONTEXT.projectDirectory}/.atlas/worktrees/feature` })
     expect(moved.blocks).toEqual(first.blocks)
@@ -71,7 +71,7 @@ describe('the builtin prompt', () => {
     container.register(ExecutionLocationToken, {
       useFactory: () => { throw new Error('runtime execution state belongs outside system text') },
     })
-    const parts = container.resolve(portToken(PromptRegistry)).compile(CONTEXT).parts
+    const parts = container.resolve(registeredPortToken(PromptRegistry)).compile(CONTEXT).parts
     expect(parts.some((part) => part.id === 'environment.execution-location')).toBe(true)
   })
 
@@ -133,6 +133,6 @@ describe('builtin registration', () => {
 
   it('holds one registry per container', () => {
     const container = registered()
-    expect(container.resolve(portToken(PromptRegistry))).toBe(container.resolve(portToken(PromptRegistry)))
+    expect(container.resolve(registeredPortToken(PromptRegistry))).toBe(container.resolve(registeredPortToken(PromptRegistry)))
   })
 })

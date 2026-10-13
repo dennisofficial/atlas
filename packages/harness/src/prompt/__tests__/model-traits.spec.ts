@@ -18,7 +18,7 @@ import {
 
 import {
   createIsolatedContainer,
-  portToken,
+  portToken, registeredPortToken,
   resolveSet,
   type DependencyContainer,
 } from '../../container/injection'
@@ -45,7 +45,7 @@ const CROWDED_SKILL_SHELF = Array.from({ length: 60 }, (_, at) =>
 const registered = (): DependencyContainer => {
   const container = createIsolatedContainer()
   registerBuiltinPromptFragments({ container })
-  container.register(portToken(SkillRegistryPort), {
+  container.register(registeredPortToken(SkillRegistryPort), {
     useValue: new FakeSkillRegistry({ skills: CROWDED_SKILL_SHELF }),
   })
   return container

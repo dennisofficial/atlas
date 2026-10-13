@@ -5,6 +5,8 @@ import {
   composeHarness,
   createUrlOpener,
   portToken,
+  registeredPortToken,
+  sharedPortBindings,
   GithubUiBridgePort,
   MutablePrEventSink,
   PrEventFrameSink,
@@ -24,6 +26,10 @@ import { pullRequestSurface } from '../plugins/github/surface'
 import type { ContributedSurface, PluginSurface } from '../plugins/surface'
 import { tldrFeed } from '../ui/tldr-feed-store'
 
+import { RemoteAgentRegistry } from './cloud/remote-agents'
+import { RemoteRotation } from './cloud/remote-rotation'
+import { RemoteServiceRegistry } from './cloud/remote-services'
+import { RemoteShellRegistry } from './cloud/remote-shells'
 import type { QueuedSettled } from './commands'
 import type { AtlasConfig } from './config'
 import { noticePortBinding } from './notice-binding'
@@ -88,6 +94,13 @@ export async function composeAtlas(args: {
     env: args.env,
     settings: args.settings,
     clientVersion: clientVersionHeader(),
+    ports: {
+      ...sharedPortBindings,
+      RotationPort: { runtime: 'shared', transport: RemoteRotation },
+      ShellRegistryPort: { runtime: 'shared', transport: RemoteShellRegistry },
+      AgentRegistryPort: { runtime: 'shared', transport: RemoteAgentRegistry },
+      ServiceRegistryPort: { runtime: 'shared', transport: RemoteServiceRegistry },
+    },
     surface: {
       notice: noticePortBinding(),
       tldrFeed,
@@ -111,7 +124,7 @@ export async function composeAtlas(args: {
          */
         const pullRequests = ((): PullRequestPort | null => {
           try {
-            return container.resolve(portToken(PullRequestPort))
+            return container.resolve(registeredPortToken(PullRequestPort))
           } catch {
             return null
           }
@@ -119,7 +132,7 @@ export async function composeAtlas(args: {
 
         const githubSurface = ((): ContributedSurface | null => {
           try {
-            return resolveGithubSurface({ bridge: container.resolve(portToken(GithubUiBridgePort)) })
+            return resolveGithubSurface({ bridge: container.resolve(registeredPortToken(GithubUiBridgePort)) })
           } catch {
             return null
           }
@@ -127,7 +140,7 @@ export async function composeAtlas(args: {
 
         const crewPullRequests = ((): CrewPullRequests | null => {
           try {
-            const bridge = container.resolve(portToken(GithubUiBridgePort))
+            const bridge = container.resolve(registeredPortToken(GithubUiBridgePort))
             return { service: bridge.service, checkoutFor: bridge.checkoutFor }
           } catch {
             return null
@@ -136,7 +149,7 @@ export async function composeAtlas(args: {
 
         const prEventSink = ((): MutablePrEventSink | null => {
           try {
-            const sink = container.resolve(portToken(PrEventFrameSink))
+            const sink = container.resolve(registeredPortToken(PrEventFrameSink))
             return sink instanceof MutablePrEventSink ? sink : null
           } catch {
             return null

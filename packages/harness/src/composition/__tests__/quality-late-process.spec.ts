@@ -5,7 +5,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { ATLAS_SETTINGS, ProcessPort, WorkspaceIdentityPort, toThreadId, type SpawnCommand } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
 import { LocalProcessPort } from '../../execution/local-process'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
@@ -32,10 +32,10 @@ describe('quality process binding', () => {
       expect(await commit.exited).toBe(0)
       const original = new RecordingProcess()
       const surface = new RecordingProcess()
-      container.register(portToken(ProcessPort), { useValue: original })
+      container.register(registeredPortToken(ProcessPort), { useValue: original })
       bindQuality({ container, settings })
-      container.register(portToken(ProcessPort), { useValue: surface })
-      const identity = await container.resolve(portToken(WorkspaceIdentityPort)).identify({ projectDirectory: directory, threadId: toThreadId('late-process') })
+      container.register(registeredPortToken(ProcessPort), { useValue: surface })
+      const identity = await container.resolve(registeredPortToken(WorkspaceIdentityPort)).identify({ projectDirectory: directory, threadId: toThreadId('late-process') })
       expect(identity.remote).toStartWith('local:')
       expect(original.calls).toBe(0)
       expect(surface.calls).toBeGreaterThan(0)

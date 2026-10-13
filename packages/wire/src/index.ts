@@ -1,3 +1,4 @@
+export * from './capabilities.js'
 export * from './channel-wire.js'
 export * from './compaction-wire.js'
 export * from './runtime-checkpoint.js'

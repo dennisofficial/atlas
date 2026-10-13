@@ -31,7 +31,7 @@ import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import {
   createIsolatedContainer,
   instanceCachingFactory,
-  portToken,
+  portToken, registeredPortToken,
   type DependencyContainer,
 } from '../injection'
 import { AtlasHomeToken, HookChainToken, SessionRegistryToken, WorkspaceRoot } from '../tokens'
@@ -69,7 +69,7 @@ const opened: { container: DependencyContainer; root: string; home: string }[] =
 afterEach(async () => {
   fired.splice(0)
   for (const entry of opened.splice(0)) {
-    await entry.container.resolve(portToken(ShellRegistryPort)).closeAll()
+    await entry.container.resolve(registeredPortToken(ShellRegistryPort)).closeAll()
     rmSync(entry.root, { recursive: true, force: true })
     rmSync(entry.home, { recursive: true, force: true })
   }
@@ -86,12 +86,12 @@ async function openContainer(): Promise<{
   container.register(WorkspaceRoot, { useValue: root })
   container.register(portToken(AfterShellHook), {
     useFactory: (resolver) =>
-      new ListingAfterShellHook(resolver.resolve(portToken(ShellRegistryPort))),
+      new ListingAfterShellHook(resolver.resolve(registeredPortToken(ShellRegistryPort))),
   })
-  container.register(portToken(ClockPort), { useClass: FixedClock })
+  container.register(registeredPortToken(ClockPort), { useClass: FixedClock })
   container.register(AtlasHomeToken, { useValue: home })
   container.register(SessionRegistryToken, { useValue: registryFor({ home }) })
-  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
+  container.register(registeredPortToken(ProcessPort), { useValue: new LocalProcessPort() })
 
   const appended: { threadId: ThreadId; drafts: readonly EventDraft[] }[] = []
   class RecordingLog extends EventLogPort {
@@ -127,19 +127,19 @@ async function openContainer(): Promise<{
       return toCallId('call-test')
     }
   }
-  container.register(portToken(EventLogPort), { useClass: RecordingLog })
-  container.register(portToken(IdPort), { useClass: StubIds })
+  container.register(registeredPortToken(EventLogPort), { useClass: RecordingLog })
+  container.register(registeredPortToken(IdPort), { useClass: StubIds })
 
   await new JsonlThreadStore(
     home,
     registryFor({ home }),
-    container.resolve(portToken(ClockPort)),
-    container.resolve(portToken(IdPort)),
+    container.resolve(registeredPortToken(ClockPort)),
+    container.resolve(registeredPortToken(IdPort)),
     new JsonlEventLog(
       home,
       registryFor({ home }),
-      container.resolve(portToken(ClockPort)),
-      container.resolve(portToken(IdPort)),
+      container.resolve(registeredPortToken(ClockPort)),
+      container.resolve(registeredPortToken(IdPort)),
     ),
   ).create({ id: THREAD })
 
@@ -157,16 +157,16 @@ describe('the shell registry and the hook chain, in a real container', () => {
   it('resolves both ends of the cycle without recursing', async () => {
     const { container } = await openContainer()
 
-    const shells = container.resolve(portToken(ShellRegistryPort))
+    const shells = container.resolve(registeredPortToken(ShellRegistryPort))
     const chain = container.resolve(HookChainToken)
 
-    expect(shells).toBe(container.resolve(portToken(ShellRegistryPort)))
+    expect(shells).toBe(container.resolve(registeredPortToken(ShellRegistryPort)))
     expect(chain).toBe(container.resolve(HookChainToken))
   })
 
   it('reaches a hook that depends on the registry firing it', async () => {
     const { container, appended } = await openContainer()
-    const shells = container.resolve(portToken(ShellRegistryPort))
+    const shells = container.resolve(registeredPortToken(ShellRegistryPort))
 
     const started = await shells.start({
       threadId: THREAD,

@@ -7,7 +7,7 @@ import { afterAll, describe, expect, it } from 'bun:test'
 import { ATLAS_SETTINGS, EExecutionLocation, ProcessPort, toThreadId } from '@dltech/atlas-core'
 import { createHarnessContainer, createSettingsService, DockerEngine, MemorySettingsStore } from '@dltech/atlas-harness'
 
-import { portToken } from '../../container/injection'
+import { registeredPortToken } from '../../container/injection'
 import { dockerUnavailableReason } from '../../execution/docker/__tests__/live-docker'
 import { sessionLabel } from '../../execution/docker/sandbox'
 import { recordingNotices } from './fakes'
@@ -59,7 +59,7 @@ describeDocker('re-anchoring a live sandbox', () => {
       notice: recordingNotices().port,
       atlasHome: join(boot, 'no-atlas-home'),
     })
-    const processes = container.resolve(portToken(ProcessPort))
+    const processes = container.resolve(registeredPortToken(ProcessPort))
     const read = async (cwd: string, path: string): Promise<string> => {
       const handle = processes.spawn({ cmd: ['cat', path], cwd, threadId: THREAD })
       const [text] = await Promise.all([outputOf(handle.stdout), handle.exited])
@@ -104,7 +104,7 @@ describeDocker('re-anchoring a live sandbox', () => {
       notice: recordingNotices().port,
       atlasHome: join(repo, 'no-atlas-home'),
     })
-    const processes = container.resolve(portToken(ProcessPort))
+    const processes = container.resolve(registeredPortToken(ProcessPort))
     const run = async (cwd: string, cmd: string[]): Promise<string> => {
       const handle = processes.spawn({ cmd, cwd, threadId: THREAD })
       const [text] = await Promise.all([outputOf(handle.stdout), handle.exited])

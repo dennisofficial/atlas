@@ -1,7 +1,7 @@
 import type { Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
-import { SWAP_LOCK_PATH } from '@dltech/atlas-wire'
+import { ECapability, SWAP_LOCK_PATH } from '@dltech/atlas-wire'
 import { rotationReceipt } from './rotation-fixture'
 
 export const PINNED_VERSION = '1.19.2'
@@ -98,9 +98,15 @@ export const fakeSandbox = (
         return { exitCode: 0, stdout: async () => preparedReceipt, stderr: async () => '' }
       }
       if (script.includes('/v1/health') && !script.includes('-o /dev/null')) {
+        // A drain-capable serve greets with its capability set; the drain client reads the
+        // RotationPreparation + SandboxSessionIdentity capabilities, not the legacy version field.
         return {
           exitCode: 0,
-          stdout: async () => '{"rotationPreparationVersion":1,"sandboxSessionId":"session-1"}',
+          stdout: async () =>
+            JSON.stringify({
+              capabilities: [ECapability.RotationPreparation, ECapability.SandboxSessionIdentity],
+              sandboxSessionId: 'session-1',
+            }),
           stderr: async () => '',
         }
       }

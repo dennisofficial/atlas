@@ -4,7 +4,7 @@ import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { registerDisposable } from '../container/disposal'
 import {
   instanceCachingFactory,
-  portToken,
+  registeredPortToken,
   type DependencyContainer,
   type InjectionToken,
 } from '../container/injection'
@@ -18,13 +18,13 @@ export function registerServices({ container }: { container: DependencyContainer
 
   tryEnsureAtlasSvcShim({ binDirectory: atlasBinDirectory() })
 
-  container.register(portToken(ServiceRegistryPort), {
+  container.register(registeredPortToken(ServiceRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       const optional = <T>(token: InjectionToken<T>): T | undefined =>
         resolver.isRegistered(token, true) ? resolver.resolve(token) : undefined
-      const operations = optional(portToken(LogPort))
+      const operations = optional(registeredPortToken(LogPort))
       const log = withEventsAppendedPublishing({
-        log: resolver.resolve(portToken(EventLogPort)),
+        log: resolver.resolve(registeredPortToken(EventLogPort)),
         channel: () =>
           container.isRegistered(DeltaChannelToken, true)
             ? container.resolve(DeltaChannelToken)
@@ -38,10 +38,10 @@ export function registerServices({ container }: { container: DependencyContainer
       })
       live = new BunServiceRegistry({
         root: resolver.resolve(WorkspaceRoot),
-        clock: resolver.resolve(portToken(ClockPort)),
+        clock: resolver.resolve(registeredPortToken(ClockPort)),
         logsDirectory: atlasServicesDirectory(),
-        processes: resolver.resolve(portToken(ProcessPort)),
-        recording: { log, ids: resolver.resolve(portToken(IdPort)) },
+        processes: resolver.resolve(registeredPortToken(ProcessPort)),
+        recording: { log, ids: resolver.resolve(registeredPortToken(IdPort)) },
         warn: (message) => operations?.warn({ source: 'services.journal', message }),
       })
       return live

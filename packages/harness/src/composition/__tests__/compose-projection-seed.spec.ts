@@ -20,7 +20,7 @@ import { RandomIds } from '../../store/ids'
 import { SystemClock } from '../../store/clock'
 import { registryFor } from '../../store/sessions/registry'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 let project: string
 let atlasHome: string
@@ -85,6 +85,7 @@ describe('projection seeding from the restored log', () => {
       },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'seed-spec',
       surface: { notice: recordingNotices().port },
     })
@@ -107,6 +108,7 @@ describe('projection seeding from the restored log', () => {
       launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'seed-spec',
       surface: { notice: recordingNotices().port },
     })
@@ -128,6 +130,7 @@ describe('projection seeding from the restored log', () => {
       },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'seed-spec',
       surface: { notice: recordingNotices().port },
     })

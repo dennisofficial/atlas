@@ -26,7 +26,7 @@ import { registryFor } from '../../store/sessions/registry'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import {
   createIsolatedContainer,
-  portToken,
+  registeredPortToken,
   type DependencyContainer,
 } from '../injection'
 import {
@@ -44,8 +44,8 @@ const opened: { container: DependencyContainer; dirs: string[] }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
-    if (entry.container.isRegistered(portToken(ShellRegistryPort), true)) {
-      await entry.container.resolve(portToken(ShellRegistryPort)).closeAll()
+    if (entry.container.isRegistered(registeredPortToken(ShellRegistryPort), true)) {
+      await entry.container.resolve(registeredPortToken(ShellRegistryPort)).closeAll()
     }
     for (const dir of entry.dirs) rmSync(dir, { recursive: true, force: true })
   }
@@ -62,28 +62,28 @@ async function openHarness(args: { withChannel: boolean; operational?: LogPort }
 
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: root })
-  container.register(portToken(ClockPort), { useClass: SystemClock })
-  container.register(portToken(IdPort), { useClass: RandomIds })
+  container.register(registeredPortToken(ClockPort), { useClass: SystemClock })
+  container.register(registeredPortToken(IdPort), { useClass: RandomIds })
   if (args.operational !== undefined) {
-    container.register(portToken(LogPort), { useValue: args.operational })
+    container.register(registeredPortToken(LogPort), { useValue: args.operational })
   }
   container.register(AtlasHomeToken, { useValue: home })
   container.register(SessionRegistryToken, { useValue: registryFor({ home }) })
-  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
-  container.register(portToken(EventLogPort), {
+  container.register(registeredPortToken(ProcessPort), { useValue: new LocalProcessPort() })
+  container.register(registeredPortToken(EventLogPort), {
     useFactory: (resolver) =>
       new JsonlEventLog(
         home,
         registryFor({ home }),
-        resolver.resolve(portToken(ClockPort)),
-        resolver.resolve(portToken(IdPort)),
+        resolver.resolve(registeredPortToken(ClockPort)),
+        resolver.resolve(registeredPortToken(IdPort)),
       ),
   })
 
   registerShells({ container })
   container.register(HookChainToken, { useValue: new HookChain({}) })
 
-  const shells = container.resolve(portToken(ShellRegistryPort))
+  const shells = container.resolve(registeredPortToken(ShellRegistryPort))
 
   const { seen, listener } = recorder()
   let channel: ReturnType<typeof createDeltaChannel> | undefined
@@ -93,12 +93,12 @@ async function openHarness(args: { withChannel: boolean; operational?: LogPort }
     channel.subscribe({ threadId: THREAD, listener })
   }
 
-  const log = container.resolve(portToken(EventLogPort))
+  const log = container.resolve(registeredPortToken(EventLogPort))
   await new JsonlThreadStore(
     home,
     registryFor({ home }),
-    container.resolve(portToken(ClockPort)),
-    container.resolve(portToken(IdPort)),
+    container.resolve(registeredPortToken(ClockPort)),
+    container.resolve(registeredPortToken(IdPort)),
     log,
   ).create({ id: THREAD })
   opened.push({ container, dirs: [home, root] })

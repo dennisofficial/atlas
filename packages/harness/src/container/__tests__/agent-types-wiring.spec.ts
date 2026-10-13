@@ -17,7 +17,7 @@ import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { ToolRegistry } from '../../tools/registry'
 import { createHarnessContainer } from '../create-harness-container'
-import { portToken, type DependencyContainer } from '../injection'
+import { registeredPortToken, type DependencyContainer } from '../injection'
 import {
   LanguageModelToken,
   WebSearchBackendToken,
@@ -83,10 +83,10 @@ async function harnessContainer(): Promise<DependencyContainer> {
 }
 
 const spawnDescription = (container: DependencyContainer): string =>
-  container.resolve(portToken(ToolRegistry)).find(AGENT_SPAWN_TOOL_NAME)?.description ?? ''
+  container.resolve(registeredPortToken(ToolRegistry)).find(AGENT_SPAWN_TOOL_NAME)?.description ?? ''
 
 const spawnableTypes = (container: DependencyContainer): readonly AgentType[] =>
-  container.resolve(portToken(AgentRegistryPort)).types()
+  container.resolve(registeredPortToken(AgentRegistryPort)).types()
 
 describe('agent types loaded from a directory', () => {
   it('reaches the description agent_spawn shows the model', async () => {

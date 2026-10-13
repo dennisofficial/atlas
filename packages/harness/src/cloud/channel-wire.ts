@@ -5,6 +5,12 @@ import type { TurnOutcome } from '../loop/turn-outcome'
 
 export {
   bearerSubprotocolOf,
+  capabilitiesSchema,
+  capabilitySchema,
+  capabilitySetOf,
+  ECapability,
+  SERVE_CAPABILITIES,
+  supports,
   cancelCompactionParamsSchema,
   compactHistoryParamsSchema,
   compactionReplySchema,
@@ -89,6 +95,7 @@ export {
 } from '@dltech/atlas-wire'
 
 export type {
+  CapabilitySet,
   ActivateSessionReply,
   ArchiveProgressSignal,
   CancelCompactionParams,

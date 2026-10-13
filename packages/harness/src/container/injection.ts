@@ -5,6 +5,8 @@ import 'reflect-metadata'
 
 import { container, type DependencyContainer, type InjectionToken } from 'tsyringe'
 
+import type { RegisteredPort } from '@dltech/atlas-core'
+
 export { instanceCachingFactory } from 'tsyringe'
 export type { DependencyContainer, InjectionToken } from 'tsyringe'
 
@@ -14,6 +16,17 @@ export type PortConstructor<T> = abstract new (...args: never[]) => T
 // constructor is not assignable to, so a port cannot be handed to `register`/`resolve`/`inject`
 // unaided. https://github.com/microsoft/tsyringe/blob/master/src/providers/injection-token.ts
 export const portToken = <T>(port: PortConstructor<T>): InjectionToken<T> => port as InjectionToken<T>
+
+/**
+ * The token a session port resolves through. Only contracts the core port registry names produce
+ * one — an unregistered port cannot reach a composition site through this seam, which is what
+ * makes the registry the only way a port exists. Multi-binding extension points (hooks,
+ * ToolDefinition, PromptFragment, NativePlugin, Disposable) are not registry ports and keep
+ * `portToken`.
+ */
+export const registeredPortToken = <P extends RegisteredPort>(
+  port: P,
+): InjectionToken<InstanceType<P>> => port as InjectionToken<InstanceType<P>>
 
 export const createIsolatedContainer = (): DependencyContainer => container.createChildContainer()
 

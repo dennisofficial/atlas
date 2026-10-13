@@ -13,14 +13,14 @@ import {
   type EventDraft,
 } from '@dltech/atlas-core'
 
-import { portToken } from '../../container/injection'
+import { registeredPortToken } from '../../container/injection'
 import type { DependencyContainer } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
 import { composeHarness } from '../compose'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 let project: string
 let atlasHome: string
@@ -75,7 +75,7 @@ const settingsBinding = (): SettingsBinding => {
 }
 
 const dispatchWrite = (args: { container: DependencyContainer; path: string }): Promise<readonly EventDraft[]> => {
-  const dispatcher = args.container.resolve(portToken(ToolDispatcher))
+  const dispatcher = args.container.resolve(registeredPortToken(ToolDispatcher))
   const call: DispatchableCall = {
     callId: toCallId('call-1'),
     name: 'write',
@@ -101,6 +101,7 @@ describe('serve gets the same repo plugins the TUI gets, because composeHarness 
       launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
+      ports: testPortBindings(),
       clientVersion: 'plugin-parity-repo-plugins-spec',
       surface: {
         notice: notices.port,

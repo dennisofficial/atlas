@@ -2,12 +2,16 @@ import type { Sandbox } from '@vercel/sandbox'
 import { z } from 'zod'
 
 import {
+  capabilitiesSchema,
   DRIVE_HOME_PATH,
+  ECapability,
   EVercelFailure,
   SERVE_TOKEN_PATH,
   sandboxDrainReplySchema,
   sandboxRotationReceiptSchema,
   sandboxSh,
+  supports,
+  capabilitySetOf,
   withSwapLock,
   VercelFailure,
   type SandboxRotationReceipt,
@@ -74,7 +78,25 @@ const wedgeProofOf = (health: unknown, sessionId: string): boolean => {
 
 type PreparationGate = { kind: 'ready' } | { kind: 'wedged' } | { kind: 'legacy' }
 
-const legacyHealthSchema = z.strictObject({ ok: z.boolean() })
+// Pre-#1025 (tui-v1.61.0) serves predate the drain protocol: they answered health with exactly
+// `{"ok":true}` and carry no capability set. The bearer token is the identity fence there. A
+// capability-advertising serve always names RotationPreparation, so an absent capability is a
+// typed absence — never a schema failure.
+const legacyHealthSchema = z.looseObject({
+  ok: z.boolean(),
+  // A serve that answers for a session — its own or a foreign one — is not legacy: it speaks the
+  // identity greet and its answer must be judged, not bypassed. Nor is one reporting a lifecycle
+  // state: a bare pre-#1025 health carried only `ok`, so any extra signal means the serve is
+  // newer than the drain protocol's absence implies. Legacy is the typed absence of the
+  // capability set, the session identity, and any lifecycle report.
+  sandboxSessionId: z.undefined().optional(),
+  paused: z.undefined().optional(),
+})
+
+const healthGreetSchema = z.looseObject({
+  capabilities: capabilitiesSchema.optional(),
+  sandboxSessionId: z.string().min(1).optional(),
+})
 
 const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): Promise<PreparationGate> => {
   const probe = await args.sandbox.runCommand({
@@ -93,17 +115,21 @@ const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): 
       body = null
     }
   }
-  const schema = z.looseObject({ rotationPreparationVersion: z.literal(1), sandboxSessionId: z.string().min(1) })
-  const health = schema.safeParse(body)
-  if (probe.exitCode === 0 && health.success && health.data.sandboxSessionId === args.sandbox.currentSession().sessionId) {
+  const greet = healthGreetSchema.safeParse(body)
+  const capabilities = greet.success ? capabilitySetOf(greet.data.capabilities) : capabilitySetOf(undefined)
+  const canPrepare = supports({ capabilities, capability: ECapability.RotationPreparation })
+  const identifiesSession = supports({ capabilities, capability: ECapability.SandboxSessionIdentity })
+  const sessionMatches =
+    greet.success &&
+    greet.data.sandboxSessionId !== undefined &&
+    greet.data.sandboxSessionId === args.sandbox.currentSession().sessionId
+  if (probe.exitCode === 0 && canPrepare && identifiesSession && sessionMatches) {
     return { kind: 'ready' }
   }
   if (wedgeProofOf(body, args.sandbox.currentSession().sessionId)) return { kind: 'wedged' }
-  // rotationPreparationVersion and the health sandboxSessionId both first shipped in #1025
-  // (tui-v1.61.0), whose serve answered health with exactly `{"ok":true}` before the drain
-  // protocol existed — the bearer token is the identity fence there. A drain-capable serve never
-  // answers a bare `{"ok":true}` health, so the strict legacy shape cannot swallow one.
-  if (probe.exitCode === 0 && legacyHealthSchema.safeParse(body).success) return { kind: 'legacy' }
+  if (probe.exitCode === 0 && !canPrepare && legacyHealthSchema.safeParse(body).success) {
+    return { kind: 'legacy' }
+  }
   throw new VercelFailure({
     kind: EVercelFailure.DrainRefused,
     message: 'this serve cannot confirm safe relocation preparation — the sandbox was preserved',

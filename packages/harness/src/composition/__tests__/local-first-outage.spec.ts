@@ -30,7 +30,7 @@ import { SystemClock } from '../../store/clock'
 import { composeHarness } from '../compose'
 import type { HarnessApp } from '../harness-app'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 import {
   CLOUD_URL,
   PROVIDER_URL,
@@ -117,6 +117,7 @@ const compose = async (args: {
     launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
     env: {},
     settings: settingsBinding(),
+    ports: testPortBindings(),
     clientVersion: 'local-first-outage-spec',
     surface: { notice: recordingNotices().port },
     bindPorts: (bindArgs) => {

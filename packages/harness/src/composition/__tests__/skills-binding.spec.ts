@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import {
   createHarnessContainer,
-  portToken,
+  registeredPortToken,
   PromptRegistry,
   SkillRegistryPort,
   ToolRegistry,
@@ -20,7 +20,7 @@ const registryOf = (...names: readonly string[]) =>
 
 describe('the skill registry the container ships with', () => {
   it('answers as a working registry, so a binding that never lands fails quietly', () => {
-    const shipped = createHarnessContainer().resolve(portToken(SkillRegistryPort))
+    const shipped = createHarnessContainer().resolve(registeredPortToken(SkillRegistryPort))
 
     expect(typeof shipped.all).toBe('function')
     expect(shipped.byName('pirate')).toBeUndefined()
@@ -28,7 +28,7 @@ describe('the skill registry the container ships with', () => {
 
   it('is what anything resolved before the binding keeps holding', () => {
     const container = createHarnessContainer()
-    const early = container.resolve(portToken(SkillRegistryPort))
+    const early = container.resolve(registeredPortToken(SkillRegistryPort))
     const registry = registryOf('pirate')
 
     bindSkillRegistry({ container, registry })
@@ -43,7 +43,7 @@ describe('the skill registry the container ships with', () => {
 
     bindSkillRegistry({ container, registry })
 
-    expect(container.resolve(portToken(SkillRegistryPort))).toBe(registry)
+    expect(container.resolve(registeredPortToken(SkillRegistryPort))).toBe(registry)
   })
 })
 
@@ -65,7 +65,7 @@ describe('bindSkillRegistry', () => {
 
     expect(
       container
-        .resolve(portToken(SkillRegistryPort))
+        .resolve(registeredPortToken(SkillRegistryPort))
         .all()
         .map((one) => one.spec.name),
     ).toEqual(['pirate'])
@@ -77,9 +77,9 @@ describe('bindSkillRegistry', () => {
     bindSkillRegistry({ container, registry })
 
     registry.place(fakeSkill({ name: 'shanty' }))
-    await container.resolve(portToken(SkillRegistryPort)).reload()
+    await container.resolve(registeredPortToken(SkillRegistryPort)).reload()
 
-    expect(container.resolve(portToken(SkillRegistryPort)).byName('shanty')).toBeDefined()
+    expect(container.resolve(registeredPortToken(SkillRegistryPort)).byName('shanty')).toBeDefined()
   })
 
   it('refuses a container that hands back something other than what was bound', () => {
@@ -112,8 +112,8 @@ describe('composeAtlas', () => {
     const source = await readFile(COMPOSE, 'utf8')
 
     const bound = source.indexOf('bindSkillRegistry({')
-    const tools = source.indexOf('portToken(ToolRegistry)')
-    const prompts = source.indexOf('portToken(PromptRegistry)')
+    const tools = source.indexOf('registeredPortToken(ToolRegistry)')
+    const prompts = source.indexOf('registeredPortToken(PromptRegistry)')
 
     expect(bound).toBeGreaterThan(-1)
     expect(tools).toBeGreaterThan(bound)

@@ -1,6 +1,6 @@
 import { ENoticeTone, NOTICE_WARN_MS, skillRootPlan, type NoticePort } from '@dltech/atlas-core'
 
-import { portToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import { EmbeddedSkillSource, type EmbeddedSkillFailure } from '../skills/embedded-source'
 import { LiveSkillRegistry } from '../skills/live-registry'
 import { SkillRegistryPort } from '../skills/port'
@@ -20,7 +20,7 @@ export function bindSkillRegistry(args: {
   container: DependencyContainer
   registry: SkillRegistryPort
 }): SkillRegistryPort {
-  const token = portToken(SkillRegistryPort)
+  const token = registeredPortToken(SkillRegistryPort)
   args.container.register(token, { useValue: args.registry })
 
   if (!args.container.isRegistered(token, true)) throw new SkillRegistryNotBound()

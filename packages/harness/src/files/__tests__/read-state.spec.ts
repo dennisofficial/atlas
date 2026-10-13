@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
 import { FileReadStatePort, InMemoryFileReadState } from '../read-state'
 import { registerFileState } from '../register-file-state'
 
@@ -102,8 +102,8 @@ describe('registerFileState', () => {
     const container = createIsolatedContainer()
     registerFileState({ container })
 
-    const first = container.resolve(portToken(FileReadStatePort))
-    const second = container.resolve(portToken(FileReadStatePort))
+    const first = container.resolve(registeredPortToken(FileReadStatePort))
+    const second = container.resolve(registeredPortToken(FileReadStatePort))
 
     first.record({ threadId: parent, path: '/tmp/x/f.ts', view: { mtimeMs: 3, size: 7, wholeFile: true, digest: 'd1' } })
 
@@ -120,7 +120,7 @@ describe('registerFileState', () => {
     const container = createIsolatedContainer()
     registerFileState({ container })
 
-    const store = container.resolve(portToken(FileReadStatePort))
+    const store = container.resolve(registeredPortToken(FileReadStatePort))
     store.record({ threadId: child, path: '/tmp/x/f.ts', view: { mtimeMs: 3, size: 7, wholeFile: true, digest: 'd1' } })
 
     expect(store.viewOf({ threadId: parent, path: '/tmp/x/f.ts' })).toBeUndefined()

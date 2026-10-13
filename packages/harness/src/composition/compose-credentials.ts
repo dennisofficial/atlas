@@ -12,7 +12,7 @@ import {
 
 import type { CloudService } from '../cloud/cloud-service'
 import { registerDisposable } from '../container/disposal'
-import { portToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import { SecretsStoreToken } from '../container/tokens'
 import { migrateDecisionsSettings } from '../settings/migrate-decisions'
 import type { AccountsService } from '../credentials/accounts-service'
@@ -48,7 +48,7 @@ export async function bindCredentials(args: {
 }): Promise<CredentialsBinding> {
   const { container, notice } = args
 
-  const accountStore = container.resolve(portToken(AccountStorePort))
+  const accountStore = container.resolve(registeredPortToken(AccountStorePort))
   args.settings.bindTo(container)
   registerDisposable({
     container,

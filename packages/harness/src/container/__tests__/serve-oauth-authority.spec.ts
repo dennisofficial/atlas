@@ -4,7 +4,7 @@ import { AccountStorePort, CredentialPort, EAccountOrigin, EAuthKind, EAuthProvi
 
 import { createHarnessContainer } from '../create-harness-container'
 import { disposeAll } from '../disposal'
-import { portToken } from '../injection'
+import { registeredPortToken } from '../injection'
 import { CloudSessionStoreToken, ServeSessionToken } from '../tokens'
 
 it('resolves cloud-owned OAuth through the served sandbox principal without uploading or storing a user session', async () => {
@@ -17,12 +17,12 @@ it('resolves cloud-owned OAuth through the served sandbox principal without uplo
   const container = createHarnessContainer()
   container.register(ServeSessionToken, { useValue: { url: 'https://api.test', token: 'fake-sandbox-principal', email: null } })
   try {
-    const accounts = container.resolve(portToken(AccountStorePort))
+    const accounts = container.resolve(registeredPortToken(AccountStorePort))
     const account = await accounts.add({
       provider: EAuthProvider.Anthropic, label: 'served', origin: EAccountOrigin.Login,
       secret: { kind: EAuthKind.Oauth, tokens: { accessToken: 'fake-expired', refreshToken: '', expiresAt: '2000-01-01T00:00:00.000Z' }, authority: { url: 'https://api.test', connectionId: 'oauth-served' } },
     })
-    const credential = await container.resolve(portToken(CredentialPort)).read({ accountId: account.id, provider: EAuthProvider.Anthropic })
+    const credential = await container.resolve(registeredPortToken(CredentialPort)).read({ accountId: account.id, provider: EAuthProvider.Anthropic })
     expect(credential).toMatchObject({ accountId: account.id, accessToken: 'fake-served-access' })
     expect(calls).toEqual([{ url: 'https://api.test/v1/oauth-connections/oauth-served/access-token', method: 'POST', authorization: 'Bearer fake-sandbox-principal' }])
     expect(container.resolve(CloudSessionStoreToken).read()).toBeNull()

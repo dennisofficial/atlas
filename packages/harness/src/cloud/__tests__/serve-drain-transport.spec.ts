@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_HOME_PATH, SERVE_TOKEN_PATH, SWAP_LOCK_PATH } from '@dltech/atlas-wire'
+import { DRIVE_HOME_PATH, ECapability, SERVE_TOKEN_PATH, SWAP_LOCK_PATH } from '@dltech/atlas-wire'
 import { drainServe } from '../serve-drain-client'
 import { persistSandboxRotationReceipt } from '../sandbox-rotation-receipt'
 import { rotationReceipt } from './rotation-fixture'
@@ -49,7 +49,10 @@ describe('rotation preparation over real HTTP and curl', () => {
       port: 0,
       async fetch(request) {
         if (new URL(request.url).pathname === '/v1/health') {
-          return Response.json({ rotationPreparationVersion: 1, sandboxSessionId: 'session-1' })
+          return Response.json({
+            capabilities: [ECapability.RotationPreparation, ECapability.SandboxSessionIdentity],
+            sandboxSessionId: 'session-1',
+          })
         }
         requests += 1
         observed.push({ authorization: request.headers.get('authorization'), body: await request.json() })

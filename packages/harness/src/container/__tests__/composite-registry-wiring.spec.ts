@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 import { DynamicToolSource, EToolEffect, EWebSearchBackend, type ToolDefinition } from '@dltech/atlas-core'
 
-import { portToken } from '../injection'
+import { portToken, registeredPortToken } from '../injection'
 import { WebSearchBackendToken, WorktreeDirectoryToken, WorkspaceRoot } from '../tokens'
 import { createHarnessContainer } from '../create-harness-container'
 import { ToolRegistry } from '../../tools/registry'
@@ -52,7 +52,7 @@ const rooted = () => {
 
 describe('the ToolRegistry the container hands out', () => {
   it('composes over an empty dynamic slot by default, so the builtin set is exactly what resolves', () => {
-    const registry = rooted().resolve(portToken(ToolRegistry))
+    const registry = rooted().resolve(registeredPortToken(ToolRegistry))
 
     const names = registry.declarations().map((declaration) => declaration.name)
     expect(names).toContain('read')
@@ -67,7 +67,7 @@ describe('the ToolRegistry the container hands out', () => {
       useValue: new FakeSource([definition('mcp__fs__read')]),
     })
 
-    const registry = container.resolve(portToken(ToolRegistry))
+    const registry = container.resolve(registeredPortToken(ToolRegistry))
 
     expect(registry.declarations().map((declaration) => declaration.name)).toContain('mcp__fs__read')
     expect(registry.find('mcp__fs__read')?.description).toBe('the mcp__fs__read tool')
@@ -75,14 +75,14 @@ describe('the ToolRegistry the container hands out', () => {
 
   it('admits a source registered after the first resolve, because the slot is read per resolve', () => {
     const container = rooted()
-    const before = container.resolve(portToken(ToolRegistry))
+    const before = container.resolve(registeredPortToken(ToolRegistry))
     expect(before.find('mcp__fs__read')).toBeUndefined()
 
     container.register(portToken(DynamicToolSource), {
       useValue: new FakeSource([definition('mcp__fs__read')]),
     })
 
-    const after = container.resolve(portToken(ToolRegistry))
+    const after = container.resolve(registeredPortToken(ToolRegistry))
     expect(after.find('mcp__fs__read')).toBeDefined()
   })
 })

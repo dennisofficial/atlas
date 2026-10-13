@@ -8,7 +8,7 @@ import { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasSecretsFile } from '../secrets/paths'
 import { builtinOauthClients } from '../credentials/oauth'
 import { RefreshingCredentialPort } from '../credentials/refreshing-credential-port'
-import { instanceCachingFactory, portToken, type DependencyContainer } from './injection'
+import { instanceCachingFactory, registeredPortToken, type DependencyContainer } from './injection'
 import { CloudSessionStoreToken, LocalAccountStoreToken, LocalSecretsStoreToken, SecretsStoreToken, ServeSessionToken } from './tokens'
 
 export function registerCloudManagedCredentials(args: {
@@ -18,10 +18,10 @@ export function registerCloudManagedCredentials(args: {
   const { container } = args
   container.register(LocalAccountStoreToken, {
     useFactory: instanceCachingFactory((resolver) => fileAccountStore({
-      file: atlasVaultFile(), keyFile: atlasVaultKeyFile(), clock: resolver.resolve(portToken(ClockPort)),
+      file: atlasVaultFile(), keyFile: atlasVaultKeyFile(), clock: resolver.resolve(registeredPortToken(ClockPort)),
     })),
   })
-  container.register(portToken(AccountStorePort), {
+  container.register(registeredPortToken(AccountStorePort), {
     useFactory: instanceCachingFactory((resolver) => resolver.resolve(LocalAccountStoreToken)),
   })
   container.register(LocalSecretsStoreToken, {
@@ -32,10 +32,10 @@ export function registerCloudManagedCredentials(args: {
   container.register(SecretsStoreToken, {
     useFactory: instanceCachingFactory((resolver) => resolver.resolve(LocalSecretsStoreToken)),
   })
-  container.register(portToken(CredentialPort), {
+  container.register(registeredPortToken(CredentialPort), {
     useFactory: instanceCachingFactory((resolver) => {
-      const accounts = resolver.resolve(portToken(AccountStorePort))
-      const clock = resolver.resolve(portToken(ClockPort))
+      const accounts = resolver.resolve(registeredPortToken(AccountStorePort))
+      const clock = resolver.resolve(registeredPortToken(ClockPort))
       const local = new RefreshingCredentialPort({ accounts, clients: builtinOauthClients({ clock }), clock })
       return new CloudManagedCredentialPort({
         accounts,
@@ -43,8 +43,8 @@ export function registerCloudManagedCredentials(args: {
         clock,
         clientVersion: args.clientVersion(resolver),
         onHandoffFailure: (error) => {
-          if (!resolver.isRegistered(portToken(NoticePort), true)) return
-          resolver.resolve(portToken(NoticePort)).notify({
+          if (!resolver.isRegistered(registeredPortToken(NoticePort), true)) return
+          resolver.resolve(registeredPortToken(NoticePort)).notify({
             key: 'cloud:oauth-handoff', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS,
             text: `Signed in to Atlas Cloud; OAuth handoff is pending. ${error.message}`,
           })

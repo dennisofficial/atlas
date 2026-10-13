@@ -18,7 +18,7 @@ import {
   type DockerEngine,
 } from '@dltech/atlas-harness'
 
-import { portToken } from '../../container/injection'
+import { registeredPortToken } from '../../container/injection'
 import { ESandboxState } from '../../execution/docker/status'
 import { worktreeLabel, sessionLabel } from '../../execution/docker/sandbox'
 import { recordingNotices } from './fakes'
@@ -112,7 +112,7 @@ const freshDirectory = async (containerJson?: string): Promise<string> => {
 
 const bindAt = async (args: { cwd: string; engine: DockerEngine }) => {
   const container = createHarnessContainer()
-  await container.resolve(portToken(ThreadStorePort)).create({ id: THREAD })
+  await container.resolve(registeredPortToken(ThreadStorePort)).create({ id: THREAD })
   const bound = await bindSandbox({
     container,
     engine: args.engine,
@@ -126,7 +126,7 @@ const bindAt = async (args: { cwd: string; engine: DockerEngine }) => {
     notice: recordingNotices().port,
     atlasHome: join(args.cwd, 'no-atlas-home-here'),
   })
-  const processes = container.resolve(portToken(ProcessPort))
+  const processes = container.resolve(registeredPortToken(ProcessPort))
   const run = async (cwd: string): Promise<void> => {
     await processes.spawn({ cmd: ['true'], cwd, threadId: THREAD }).exited
   }

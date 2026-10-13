@@ -1,6 +1,6 @@
 import { EHookPhase, EStage, LogPort, type HookOrder } from '@dltech/atlas-core'
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
-import { portToken, type DependencyContainer } from '../../container/injection'
+import { portToken, registeredPortToken, type DependencyContainer } from '../../container/injection'
 import type { PrEventFrame } from '../../cloud/pr-event-frame'
 import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
 import {
@@ -274,8 +274,8 @@ export function registerPlugin({ container }: { container: DependencyContainer }
           : null,
         clientVersion: resolver.resolve(ClientVersionToken),
         cacheDirectory: resolver.resolve(AtlasHomeToken),
-        log: container.isRegistered(portToken(LogPort), true)
-          ? resolver.resolve(portToken(LogPort))
+        log: container.isRegistered(registeredPortToken(LogPort), true)
+          ? resolver.resolve(registeredPortToken(LogPort))
           : null,
       }),
   })

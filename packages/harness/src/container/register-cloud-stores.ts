@@ -4,7 +4,7 @@ import { CloudSessionStore } from '../cloud/cloud-session'
 import { CloudSettingsStore } from '../cloud/cloud-settings-store'
 import { atlasCloudFile, atlasVaultKeyFile } from '../credentials/paths'
 
-import { instanceCachingFactory, portToken, type DependencyContainer } from './injection'
+import { instanceCachingFactory, registeredPortToken, type DependencyContainer } from './injection'
 import { CloudSessionStoreToken, CloudSettingsStoreToken } from './tokens'
 
 export function registerCloudStores(args: {
@@ -24,7 +24,7 @@ export function registerCloudStores(args: {
       (resolver) =>
         new CloudSettingsStore({
           sessions: resolver.resolve(CloudSessionStoreToken),
-          clock: resolver.resolve(portToken(ClockPort)),
+          clock: resolver.resolve(registeredPortToken(ClockPort)),
           clientVersion: args.clientVersion(resolver),
         }),
     ),

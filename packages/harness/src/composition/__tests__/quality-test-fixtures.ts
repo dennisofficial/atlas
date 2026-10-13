@@ -19,7 +19,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { portToken, type DependencyContainer } from '../../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { ToolDispatcher } from '../../tools/dispatch'
@@ -27,7 +27,7 @@ import { bindQuality } from '../compose-quality'
 import { composeHarness } from '../compose'
 import type { HarnessApp } from '../harness-app'
 import type { SettingsBinding } from '../settings-binding'
-import { recordingNotices } from './fakes'
+import { recordingNotices, testPortBindings } from './fakes'
 
 export const WIDGET_SOURCE = [
   'export class Widget {',
@@ -123,14 +123,15 @@ export class QualityRig {
       launch: { cwd: project, command: args.command, model: undefined, executionLocation: undefined },
       env: {},
       settings,
+      ports: testPortBindings(),
       clientVersion: 'quality-spec',
       surface: {
         notice: recordingNotices().port,
         bind: ({ container }) => {
           captured = container
-          facts.decisionPortWasRegistered = container.isRegistered(portToken(DecisionPort), true)
-          facts.qualityPortWasRegistered = container.isRegistered(portToken(QualityReviewPort), true)
-          container.register(portToken(DecisionPort), { useValue: decisions })
+          facts.decisionPortWasRegistered = container.isRegistered(registeredPortToken(DecisionPort), true)
+          facts.qualityPortWasRegistered = container.isRegistered(registeredPortToken(QualityReviewPort), true)
+          container.register(registeredPortToken(DecisionPort), { useValue: decisions })
           bindQuality({ container, settings: settings.service })
           return undefined
         },
@@ -169,7 +170,7 @@ export class QualityRig {
 
   async dispatchWrite(args: { threadId: ThreadId; relative: string; content: string }): Promise<readonly EventDraft[]> {
     this.callCount += 1
-    const dispatcher = this.container.resolve(portToken(ToolDispatcher))
+    const dispatcher = this.container.resolve(registeredPortToken(ToolDispatcher))
     return dispatcher.dispatch({
       call: {
         callId: toCallId(`call-${this.callCount}`),

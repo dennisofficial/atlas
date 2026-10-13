@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { createDeltaChannel, PublishingTurnRunner, type ChannelSignal } from '../../channel'
-import { createIsolatedContainer, portToken } from '../../container/injection'
+import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
 import {
   AtlasHomeToken,
   DeltaChannelToken,
@@ -45,15 +45,15 @@ async function openDelivery() {
   const other = await harness.threads.create({})
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: temp.home })
-  container.register(portToken(ClockPort), { useValue: harness.clock })
-  container.register(portToken(IdPort), { useValue: harness.ids })
-  container.register(portToken(EventLogPort), { useValue: harness.log })
+  container.register(registeredPortToken(ClockPort), { useValue: harness.clock })
+  container.register(registeredPortToken(IdPort), { useValue: harness.ids })
+  container.register(registeredPortToken(EventLogPort), { useValue: harness.log })
   container.register(HookChainToken, { useValue: new HookChain({}) })
   container.register(AtlasHomeToken, { useValue: temp.home })
   container.register(SessionRegistryToken, { useValue: registryFor({ home: temp.home }) })
-  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
+  container.register(registeredPortToken(ProcessPort), { useValue: new LocalProcessPort() })
   registerShells({ container })
-  const shells = container.resolve(portToken(ShellRegistryPort))
+  const shells = container.resolve(registeredPortToken(ShellRegistryPort))
   const channel = createDeltaChannel()
   container.register(DeltaChannelToken, { useValue: channel })
   const prepare = shells.prepareNotifications?.bind(shells)

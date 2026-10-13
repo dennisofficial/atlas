@@ -1,4 +1,4 @@
-import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
+import { instanceCachingFactory, registeredPortToken, type DependencyContainer } from '../container/injection'
 import { EmbeddedSkillSource } from './embedded-source'
 import { LiveSkillRegistry, type SkillSources } from './live-registry'
 import { SkillRegistryPort } from './port'
@@ -11,7 +11,7 @@ export function registerSkills(args: {
 }): void {
   const sources = args.sources ?? embeddedOnly
 
-  args.container.register(portToken(SkillRegistryPort), {
+  args.container.register(registeredPortToken(SkillRegistryPort), {
     useFactory: instanceCachingFactory(() => new LiveSkillRegistry({ sources })),
   })
 }

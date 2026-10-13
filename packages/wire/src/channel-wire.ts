@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { capabilitiesSchema } from './capabilities.js'
 import { prStatesWireSchema } from './pr-state-wire.js'
 import { rosterWireSchema } from './roster-wire.js'
 import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire.js'
@@ -186,6 +187,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     protocol: z.number().int().nonnegative().optional(),
     turnInFlight: z.boolean().optional(),
     transcriptCurrent: z.boolean().optional(),
+    capabilities: capabilitiesSchema.optional(),
     checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional(),
   }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
@@ -225,6 +227,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     channelCursor: seqSchema.nullable(),
     lastEventSeq: seqSchema,
     protocol: z.number().int().nonnegative().optional(),
+    capabilities: capabilitiesSchema.optional(),
   }),
   z.object({
     kind: z.literal(EClientFrame.Send),

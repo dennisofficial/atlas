@@ -7,7 +7,7 @@ import {
   singleResponsibilityPolicy,
 } from '@dltech/atlas-core'
 
-import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
+import { instanceCachingFactory, registeredPortToken, type DependencyContainer } from '../container/injection'
 import { SessionRegistryToken } from '../container/tokens'
 import { CodeQualityReview } from '../quality/engine'
 import { QualityExampleSink } from '../quality/example-sink'
@@ -25,20 +25,20 @@ export function bindQuality(args: {
   const registry = createQualityRegistry({ policies: [singleResponsibilityPolicy] })
   settings.register(qualitySettingDefinitions({ policies: registry.descriptors() }))
 
-  container.register(portToken(WorkspaceIdentityPort), {
+  container.register(registeredPortToken(WorkspaceIdentityPort), {
     useFactory: instanceCachingFactory((resolver) => new GitWorkspaceIdentity({
-      process: resolver.resolve(portToken(ProcessPort)),
+      process: resolver.resolve(registeredPortToken(ProcessPort)),
     })),
   })
-  container.register(portToken(QualityReviewPort), {
+  container.register(registeredPortToken(QualityReviewPort), {
     useFactory: instanceCachingFactory((resolver) => new CodeQualityReview({
-      decisions: resolver.resolve(portToken(DecisionPort)),
+      decisions: resolver.resolve(registeredPortToken(DecisionPort)),
       source: { prepareQualityScopes },
       registry,
       settings: () => Object.fromEntries(
         [...settings.snapshot().resolution.settings].map(([id, held]) => [id, held.value]),
       ),
-      workspaceIdentity: resolver.resolve(portToken(WorkspaceIdentityPort)),
+      workspaceIdentity: resolver.resolve(registeredPortToken(WorkspaceIdentityPort)),
       examples: new QualityExampleSink({ sessions: resolver.resolve(SessionRegistryToken) }),
       clock: () => Date.now(),
       deadlineMs: QUALITY_REVIEW_BUDGET_MS,

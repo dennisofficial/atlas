@@ -14,7 +14,7 @@ import { JevDecisionClient } from '../classifier/jev-client'
 import { GitWorkspaceFacts } from '../classifier/workspace-facts'
 import {
   instanceCachingFactory,
-  portToken,
+  portToken, registeredPortToken,
   resolveIfPossible,
   type DependencyContainer,
 } from '../container/injection'
@@ -38,7 +38,7 @@ import { threadEnvironmentFrom } from './thread-environment'
 import { TrackWorktreeHook } from './track-worktree'
 
 export function registerBuiltinHooks({ container }: { container: DependencyContainer }): void {
-  container.register(portToken(WorkspaceFactsPort), {
+  container.register(registeredPortToken(WorkspaceFactsPort), {
     useFactory: instanceCachingFactory(() => new GitWorkspaceFacts()),
   })
 
@@ -53,34 +53,34 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
   container.register(portToken(BeforeToolHook), {
     useFactory: (resolver) =>
       new ReadBeforeWriteHook(
-        resolver.resolve(portToken(FileReadStatePort)),
+        resolver.resolve(registeredPortToken(FileReadStatePort)),
         resolver.resolveAll(portToken(ToolDefinition)),
-        resolver.resolve(portToken(AgentFileSystemPort)),
+        resolver.resolve(registeredPortToken(AgentFileSystemPort)),
       ),
   })
   registerClassifier({ container })
   container.register(portToken(BeforeToolHook), {
     useFactory: (resolver) =>
       new ServiceShapeHook({
-        decisions: resolver.isRegistered(portToken(DecisionPort), true)
-          ? resolver.resolve(portToken(DecisionPort))
+        decisions: resolver.isRegistered(registeredPortToken(DecisionPort), true)
+          ? resolver.resolve(registeredPortToken(DecisionPort))
           : new JevDecisionClient({ config: () => undefined }),
       }),
   })
   container.register(portToken(BeforeTurnHook), {
     useFactory: (resolver) =>
       new PrewarmFactsHook(
-        resolver.resolve(portToken(WorkspaceFactsPort)),
+        resolver.resolve(registeredPortToken(WorkspaceFactsPort)),
         resolver.resolve(WorkspaceRoot),
       ),
   })
   container.register(portToken(BeforeTurnHook), {
     useFactory: (resolver) =>
       new SkillSuggestionHook({
-        log: resolveIfPossible({ container: resolver, token: portToken(EventLogPort) }),
-        skills: resolveIfPossible({ container: resolver, token: portToken(SkillRegistryPort) }),
-        decisions: resolver.isRegistered(portToken(DecisionPort), true)
-          ? resolver.resolve(portToken(DecisionPort))
+        log: resolveIfPossible({ container: resolver, token: registeredPortToken(EventLogPort) }),
+        skills: resolveIfPossible({ container: resolver, token: registeredPortToken(SkillRegistryPort) }),
+        decisions: resolver.isRegistered(registeredPortToken(DecisionPort), true)
+          ? resolver.resolve(registeredPortToken(DecisionPort))
           : new JevDecisionClient({ config: () => undefined }),
         enabled: resolver.isRegistered(SkillSuggestionEnabledToken, true)
           ? resolver.resolve(SkillSuggestionEnabledToken)
@@ -90,9 +90,9 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
   container.register(portToken(AfterToolHook), {
     useFactory: (resolver) =>
       new RecordFileStateHook(
-        resolver.resolve(portToken(FileReadStatePort)),
+        resolver.resolve(registeredPortToken(FileReadStatePort)),
         resolver.resolveAll(portToken(ToolDefinition)),
-        resolver.resolve(portToken(AgentFileSystemPort)),
+        resolver.resolve(registeredPortToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(AfterToolHook), { useClass: MirrorPlanHook })
@@ -107,6 +107,6 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
   container.register(portToken(AfterToolHook), { useClass: TrackWorktreeHook })
   container.register(portToken(AfterToolHook), {
     useFactory: (resolver) =>
-      new InvalidateFactsHook(resolver.resolve(portToken(WorkspaceFactsPort))),
+      new InvalidateFactsHook(resolver.resolve(registeredPortToken(WorkspaceFactsPort))),
   })
 }

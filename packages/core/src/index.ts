@@ -201,6 +201,7 @@ export * from './ports/judge.port'
 export * from './ports/decision.port'
 export * from './ports/quality-review.port'
 export * from './ports/workspace-identity.port'
+export * from './ports/registry'
 
 export * from './diff/hunk'
 export * from './diff/parse'
