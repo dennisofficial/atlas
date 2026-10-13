@@ -36,6 +36,13 @@ export function useDrivenTurn(args: {
   const { app, threadId, started, pendingMove, view, readClock } = args
   const { onSettled, onUndone, setFailure, remoteRunning, driveRefusal, sending } = args
   const { store, refresh, stamp } = view
+  /**
+   * `useSendingRows` hands back a fresh object each render, so as a `drive` dependency it would
+   * re-create the turn driver on every commit and re-arm the idle wake. The ref keeps the latest
+   * rows without touching the callback's identity.
+   */
+  const sendingRef = useRef(sending)
+  sendingRef.current = sending
   const [working, setWorking] = useState(false)
   const workingRef = useRef(false)
   const abort = useRef<AbortController | null>(null)
@@ -118,11 +125,13 @@ export function useDrivenTurn(args: {
       // failed); reconcile takes over the moment the mirror answers earlier.
       const remoteSendingText = remoteSaid === null ? null : remoteSaid.said.text
       const remoteSendingId =
-        remoteSendingText === null || sending === undefined ? undefined : sending.add(remoteSendingText)
+        remoteSendingText === null || sendingRef.current === undefined
+          ? undefined
+          : sendingRef.current.add(remoteSendingText)
       const settleRemoteSending = (error: unknown): void => {
         if (remoteSendingId === undefined || remoteSendingText === null) return
-        if (error === null) sending?.resolve(remoteSendingText)
-        else sending?.markFailed(remoteSendingId)
+        if (error === null) sendingRef.current?.resolve(remoteSendingText)
+        else sendingRef.current?.markFailed(remoteSendingId)
       }
 
       void (async () => {
@@ -208,7 +217,6 @@ export function useDrivenTurn(args: {
       readClock,
       refresh,
       remoteRunning,
-      sending,
       setFailure,
       stamp,
       store,
