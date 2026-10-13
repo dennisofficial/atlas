@@ -96,7 +96,11 @@ async function* readEntries({ archivePath }: { archivePath: string }): AsyncGene
   let declaredSize: number | null = null
   for (;;) {
     const block = await source.take(BLOCK)
-    if (block === null || block.every((byte) => byte === 0)) return
+    if (block === null) throw new Error('archive is truncated')
+    if (block.every((byte) => byte === 0)) {
+      if (path !== null || linkpath !== null || declaredSize !== null) throw new Error('archive is truncated')
+      return
+    }
     const raw = block[156] ?? 0
     const type = raw === 0 ? '0' : String.fromCharCode(raw)
     const size = type === 'x' || type === 'g' || type === 'L' || type === 'K' ? sizeOf(block) : (declaredSize ?? sizeOf(block))

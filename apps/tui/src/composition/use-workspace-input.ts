@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { applyTranscriptCovered } from '../ui/covered-store'
 import { EKeyGroup, EKeyLayer, useKeyBindings, useKeyRegistry } from '../ui/keys'
 import { globalBindings } from './global-bindings'
+import { moveOverlayPresence } from './container-move-birth'
 import {
   buffersBlockedTyping,
   composerBlurred,
@@ -162,8 +163,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
   const { rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
   const rotating = conversation.rotating !== null
-  const moving = containerMove.move !== null
-  const moveFailed = containerMove.move?.failure != null
 
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
@@ -193,12 +192,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
         porous: true,
         blursComposer: true,
       },
-      {
-        open: moving,
-        handleKey: moveFailed ? containerMove.handleKey : undefined,
-        coversComposer: true,
-        coversTranscript: true,
-      },
+      moveOverlayPresence({ move: containerMove.move, handleKey: containerMove.handleKey }),
       { open: overlay, coversComposer: true, coversTranscript: false },
     ],
     [
@@ -211,14 +205,13 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       contextBrowser.handleKey,
       contextBrowser.viewer,
       containerMove.handleKey,
+      containerMove.move,
       conversation.operatorInput.handleKey,
       conversation.operatorInput.state,
       exitGuard.handleKey,
       exitGuard.state,
       footerStrip.handleKey,
       footerStrip.state,
-      moveFailed,
-      moving,
       onboarding.handleKey,
       onboarding.state,
       whatsNew.handleKey,

@@ -10,6 +10,7 @@ import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-i
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
 import { captureWorkspaceMetadata } from '@dltech/atlas-harness'
 import { cloudReadinessOf } from './cloud/cloud-readiness'
+import { bornPlacementChip } from './cloud/born-placement-chip'
 import { openCloudConversation } from './cloud/cloud-app'
 import type { AtlasApp } from './compose'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -165,6 +166,14 @@ export function App(props: {
   const localOpened = attachment?.kind === 'local' && attachment.opened.threadId === reopened?.threadId ? attachment.opened : undefined
   const openedFor = reloadedHere?.opened ?? cloudOpened ?? localOpened ?? reopened ?? props.opened
   const carried = draftReader.current?.()
+  const pendingChip = bornPlacementChip(props.app).snapshot()
+  const draftText =
+    carried === undefined
+      ? ''
+      : carried.threadId === openedFor.threadId ||
+          (pendingChip?.carriedDraft === true && pendingChip.threadId === openedFor.threadId)
+        ? carried.text
+        : ''
 
   return (
     <KeyRegistryContext.Provider value={registry}>
@@ -179,7 +188,7 @@ export function App(props: {
         opened={openedFor}
         attachment={attachment}
         whatsNew={whatsNew}
-        draftText={carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''}
+        draftText={draftText}
         onDraftSource={handleDraftSource}
         cloudSession={cloud?.session ?? null}
         cloudBridge={cloud?.bridge ?? null}

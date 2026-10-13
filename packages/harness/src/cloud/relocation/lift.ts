@@ -12,6 +12,7 @@ import type { OwnerTransaction, SessionOwner, SessionRuntime } from '../../compo
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
 import type { GpgKeyMaterial } from '../../workspace/gpg-material'
 import type { CaptureContext } from '../context-archive-policy'
+import type { ArchiveBuildReporter } from '../archive-build-progress'
 import type { RelocationTransferProgress } from '../transfer-progress'
 import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { runRelocation } from './dag'
@@ -97,6 +98,8 @@ export type LiftArgs = {
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
   captureWorkspaceArchive?: LiftWorkspaceCapture | undefined
+  /** Live capture progress for the surface — files and bytes as the workspace archive builds. */
+  onBuildProgress?: ArchiveBuildReporter | undefined
   captureGpg?: ((args: { cwd: string }) => Promise<GpgKeyMaterial | null>) | undefined
   /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. The lift has no notice port of its own, so the caller supplies the notice-bound capture. */
   captureContext: CaptureContext

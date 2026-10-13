@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 
 import { cloudConnectionItemOf, isAttaching } from '../ui/cloud-connection-item'
 import type { FooterItem } from '../ui/footer-item'
@@ -6,6 +6,7 @@ import { useShimmerClock } from '../ui/hooks/use-shimmer-clock'
 import { locationPillOf } from '../ui/location-pill'
 import { SPINNER_FRAME_MS } from '../ui/theme'
 import type { CloudConnection } from '@dltech/atlas-harness'
+import { bornPlacementChip } from './cloud/born-placement-chip'
 import type { AtlasApp } from './compose'
 import { useSessionOwner } from './use-session-owner'
 
@@ -13,8 +14,10 @@ export function useLocationItems(args: {
   app: AtlasApp
   connection?: CloudConnection | null | undefined
 }): readonly FooterItem[] {
-  const { location } = useSessionOwner({ app: args.app })
+  const { location, threadId } = useSessionOwner({ app: args.app })
   const connection = args.connection ?? null
+  const chip = bornPlacementChip(args.app)
+  const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
   const now = useShimmerClock({
     active: connection !== null && isAttaching(connection.state),
     intervalMs: SPINNER_FRAME_MS,
@@ -22,7 +25,11 @@ export function useLocationItems(args: {
 
   return useMemo(() => {
     const icon = cloudConnectionItemOf({ connection, now })
-    const pill = locationPillOf({ location })
+    const placement =
+      unplaced === null || unplaced.threadId !== threadId
+        ? null
+        : { harness: unplaced.harness, provisioning: unplaced.provisioning, onFlip: chip.flip }
+    const pill = locationPillOf({ location, placement })
     return [icon, pill].filter((item): item is FooterItem => item !== null)
-  }, [location, connection, now])
+  }, [location, threadId, connection, now, unplaced, chip])
 }

@@ -1,5 +1,5 @@
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { ArchiveBuildProgress, RelocationTransferProgress } from '@dltech/atlas-harness'
 
 export enum EStepMark {
   Pending = 'pending',
@@ -29,6 +29,8 @@ export type ContainerMove = {
   target: EExecutionLocation
   rows: readonly MoveRow[]
   heading?: string | undefined
+  cancellable?: boolean | undefined
+  build?: ArchiveBuildProgress | undefined
   startedAt: number
   activeSince: number
   startedNodeIds: readonly string[]
@@ -51,11 +53,13 @@ export function beginMove(args: {
   now: number
   rows: readonly { id: string; text: string; nodeIds: readonly string[] }[]
   heading?: string | undefined
+  cancellable?: boolean | undefined
 }): ContainerMove {
   return {
     target: args.target,
     rows: args.rows.map((row) => ({ ...row, mark: EStepMark.Pending })),
     ...(args.heading === undefined ? {} : { heading: args.heading }),
+    ...(args.cancellable === true ? { cancellable: true } : {}),
     startedAt: args.now,
     activeSince: args.now,
     startedNodeIds: [],
