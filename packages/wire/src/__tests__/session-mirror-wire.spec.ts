@@ -12,8 +12,8 @@ const sha = 'a'.repeat(64)
 
 describe('the session-mirror wire contract', () => {
   it('names the manifest and file-read ops', () => {
-    expect(EClientRequest.ReadSessionManifest).toBe('read-session-manifest')
-    expect(EClientRequest.ReadSessionFiles).toBe('read-session-files')
+    expect<string>(EClientRequest.ReadSessionManifest).toBe('read-session-manifest')
+    expect<string>(EClientRequest.ReadSessionFiles).toBe('read-session-files')
   })
 
   it('carries a revisioned manifest of hashed files', () => {
