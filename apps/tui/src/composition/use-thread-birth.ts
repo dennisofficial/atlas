@@ -53,10 +53,15 @@ export function useThreadBirth(args: {
   const liftRef = useRef<(liftArgs: { threadId: OpenedConversation['threadId'] }) => void>(() => undefined)
 
   const birthArgs = useCallback(
-    (born: { threadId: OpenedConversation['threadId']; choice?: EHarnessPlacement | undefined }) => ({
+    (born: {
+      threadId: OpenedConversation['threadId']
+      choice?: EHarnessPlacement | undefined
+      carriedDraft?: boolean | undefined
+    }) => ({
       app: latest.current.app,
       threadId: born.threadId,
       ...(born.choice === undefined ? {} : { choice: born.choice }),
+      ...(born.carriedDraft === true ? { carriedDraft: true } : {}),
       preflightLift: latest.current.preflightLift,
       lift: (liftArgs: { threadId: OpenedConversation['threadId'] }) => liftRef.current(liftArgs),
       adopt: latest.current.adopt,
@@ -165,7 +170,11 @@ export function useThreadBirth(args: {
   }, [])
 
   const birth = useCallback(
-    (born: { threadId: OpenedConversation['threadId']; choice?: EHarnessPlacement | undefined }) => {
+    (born: {
+      threadId: OpenedConversation['threadId']
+      choice?: EHarnessPlacement | undefined
+      carriedDraft?: boolean | undefined
+    }) => {
       void bornWith(birthArgs(born)).catch((error: unknown) => {
         notify({
           key: 'born-cloud-failed',
@@ -200,7 +209,7 @@ export function useThreadBirth(args: {
       .createBridge()
       .sandboxes.destroy({ threadId: state.threadId })
       .catch(() => undefined)
-    birth({ threadId: app.ids.nextThreadId(), choice })
+    birth({ threadId: app.ids.nextThreadId(), choice, carriedDraft: true })
   }, [birth])
 
   useEffect(

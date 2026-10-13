@@ -21,6 +21,8 @@ export type BornCloudArgs = {
   app: AtlasApp
   threadId: ThreadId
   choice?: EHarnessPlacement | undefined
+  /** True when this birth is a cloud→host flip rebirth: the operator's draft crosses the id change. */
+  carriedDraft?: boolean | undefined
   preflightLift?: (() => Promise<string | null>) | undefined
   lift: (args: { threadId: ThreadId }) => void
   adopt: (opened: OpenedConversation) => void
@@ -85,7 +87,12 @@ function placeOnFirstSend(args: BornCloudArgs): void {
 }
 
 export function fallBackToHost(args: BornCloudArgs): void {
-  bornPlacementChip(args.app).set({ threadId: args.threadId, harness: EHarnessPlacement.Host, provisioning: false })
+  bornPlacementChip(args.app).set({
+    threadId: args.threadId,
+    harness: EHarnessPlacement.Host,
+    provisioning: false,
+    ...(args.carriedDraft === true ? { carriedDraft: true } : {}),
+  })
   placeOnFirstSend(args)
   adoptLocally(args)
 }

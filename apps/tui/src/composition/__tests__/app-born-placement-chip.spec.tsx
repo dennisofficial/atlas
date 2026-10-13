@@ -139,6 +139,10 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       setup.mockInput.pressEnter()
       return frame()
     },
+    typeDraft: async (text: string) => {
+      await setup.mockInput.typeText(text)
+      return frame()
+    },
     down: () => setup.mockInput.pressArrow('down'),
     enter: () => setup.mockInput.pressEnter(),
     done: async () => {
@@ -252,6 +256,57 @@ describe('the placement chip in the composer footer', () => {
 
       expect(await chipShows(mounted, ' local ')).toBe(true)
       expect(lastChoice(app)).toBe('host')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('keeps the draft across an unsent cloud→host flip', async () => {
+    const app = appOn({ configured: true })
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await newThread(mounted)
+      expect(await chipShows(mounted, '☁ cloud')).toBe(true)
+
+      await mounted.typeDraft('a draft worth keeping')
+      await flipChip(mounted)
+
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+      const threadId = app.sessionOwner.snapshot().threadId!
+      const draftVisible = await until({
+        holds: async () => (await mounted.frame()).includes('a draft worth keeping'),
+        within: 20_000,
+      })
+      expect(draftVisible).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('refuses to flip a thread that has already sent', async () => {
+    const app = appOn({ configured: true })
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await newThread(mounted)
+      await flipChip(mounted)
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+
+      await mounted.command('sent, so the placement is locked')
+      const startedId = app.sessionOwner.snapshot().threadId!
+      expect(await until({
+        holds: async () => app.sessionOwner.placement.snapshot(startedId)?.born === true,
+        within: 20_000,
+      })).toBe(true)
+      expect(app.sessionOwner.placement.snapshot(startedId)?.placement.harness).toBe(EHarnessPlacement.Host)
+
+      await flipChip(mounted)
+
+      expect(app.sessionOwner.placement.snapshot(startedId)?.placement.harness).toBe(EHarnessPlacement.Host)
+      expect(await chipShows(mounted, '☁ cloud')).toBe(false)
     } finally {
       await mounted.done()
     }

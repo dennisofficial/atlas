@@ -16,6 +16,8 @@ export type BornPlacementState = {
   threadId: ThreadId
   harness: EHarnessPlacement
   provisioning: boolean
+  /** Set when a cloud→host flip rebirths the thread: the operator's draft crosses the id change. */
+  carriedDraft?: boolean | undefined
 }
 
 export type BornPlacementChip = {
