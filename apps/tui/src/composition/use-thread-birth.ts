@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
 import {
   liftToCloud,
   stopLocalWork,
@@ -11,7 +11,8 @@ import {
 } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
-import { bornWith } from './cloud/born-cloud'
+import { bornWith, fallBackToHost, rememberPlacement } from './cloud/born-cloud'
+import { bornPlacementChip, startsTheThread } from './cloud/born-placement-chip'
 import { cloudRuntimeParts, openCloudConversation } from './cloud/cloud-app'
 import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
@@ -29,6 +30,7 @@ import type { useContainerMove } from './use-container-move'
 
 export type ThreadBirth = {
   handleNewThread: () => void
+  handleFlipPlacement: () => void
 }
 
 /**
@@ -48,6 +50,19 @@ export function useThreadBirth(args: {
 }): ThreadBirth {
   const latest = useRef(args)
   latest.current = args
+  const liftRef = useRef<(liftArgs: { threadId: OpenedConversation['threadId'] }) => void>(() => undefined)
+
+  const birthArgs = useCallback(
+    (born: { threadId: OpenedConversation['threadId']; choice?: EHarnessPlacement | undefined }) => ({
+      app: latest.current.app,
+      threadId: born.threadId,
+      ...(born.choice === undefined ? {} : { choice: born.choice }),
+      preflightLift: latest.current.preflightLift,
+      lift: (liftArgs: { threadId: OpenedConversation['threadId'] }) => liftRef.current(liftArgs),
+      adopt: latest.current.adopt,
+    }),
+    [],
+  )
 
   const liftNewborn = useCallback((liftArgs: { threadId: OpenedConversation['threadId'] }) => {
     const { app, containerMove: move, createBridge, owner } = latest.current
@@ -87,6 +102,14 @@ export function useThreadBirth(args: {
       onTransferProgress: move.handleTransferProgress,
       onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
       open: async ({ attachment, transaction, restoredWorkspace }) => {
+        const stopWatching = attachment.channel.subscribe({
+          threadId,
+          listener: (signal) => {
+            if (!startsTheThread(signal)) return
+            stopWatching()
+            bornPlacementChip(app).retire(threadId)
+          },
+        })
         const runner = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move })
         const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner }) }
         const opened = await openCloudConversation({ app: base, threadId })
@@ -124,36 +147,64 @@ export function useThreadBirth(args: {
           const reason = liftFailedNotice(lifted)
           move.handleFail(reason)
           notify({ key: CLOUD_LIFT_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+          fallBackToHost(birthArgs({ threadId }))
           return
         }
         await owner.placement.markBorn({ threadId }).catch(() => undefined)
+        bornPlacementChip(app).set({ threadId, harness: EHarnessPlacement.Cloud, provisioning: false })
         move.handleSettle()
       })
       .catch((error: unknown) => {
         const reason = `starting a cloud sandbox failed — ${messageOf(error)}`
         move.handleFail(reason)
         notify({ key: CLOUD_LIFT_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+        fallBackToHost(birthArgs({ threadId }))
       })
   }, [])
+
+  const birth = useCallback(
+    (born: { threadId: OpenedConversation['threadId']; choice?: EHarnessPlacement | undefined }) => {
+      void bornWith(birthArgs(born)).catch((error: unknown) => {
+        notify({
+          key: 'born-cloud-failed',
+          text: `a new thread could not be placed — ${messageOf(error)}`,
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+        })
+      })
+    },
+    [birthArgs],
+  )
+
+  liftRef.current = liftNewborn
 
   const handleNewThread = useCallback(() => {
     const { app, containerMove } = latest.current
     if (containerMove.move !== null) return
-    void bornWith({
-      app,
-      threadId: app.ids.nextThreadId(),
-      preflightLift: latest.current.preflightLift,
-      lift: liftNewborn,
-      adopt: latest.current.adopt,
-    }).catch((error: unknown) => {
-      notify({
-        key: 'born-cloud-failed',
-        text: `a new thread could not be placed — ${messageOf(error)}`,
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-      })
-    })
-  }, [liftNewborn])
+    birth({ threadId: app.ids.nextThreadId() })
+  }, [birth])
 
-  return { handleNewThread }
+  const handleFlipPlacement = useCallback(() => {
+    const { app, containerMove } = latest.current
+    const state = bornPlacementChip(app).snapshot()
+    if (state === null || state.provisioning || containerMove.move !== null) return
+    const choice = state.harness === EHarnessPlacement.Cloud ? EHarnessPlacement.Host : EHarnessPlacement.Cloud
+    rememberPlacement({ app, harness: choice })
+    if (choice === EHarnessPlacement.Cloud) {
+      birth({ threadId: state.threadId, choice })
+      return
+    }
+    void latest.current
+      .createBridge()
+      .sandboxes.destroy({ threadId: state.threadId })
+      .catch(() => undefined)
+    birth({ threadId: app.ids.nextThreadId(), choice })
+  }, [birth])
+
+  useEffect(
+    () => bornPlacementChip(latest.current.app).bindFlip(handleFlipPlacement),
+    [handleFlipPlacement],
+  )
+
+  return { handleNewThread, handleFlipPlacement }
 }

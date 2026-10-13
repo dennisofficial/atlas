@@ -59,6 +59,7 @@ export enum ESettingId {
   ModelFavourites = 'model.favourites',
   SubagentModel = 'agents.subagentModel',
   ExecutionLocation = 'execution.location',
+  LastBornPlacement = 'placement.lastBorn',
   ContainerCpus = 'container.cpus',
   ContainerMemory = 'container.memory',
   ContainerIdleMinutes = 'container.idleMinutes',
@@ -666,6 +667,21 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_MODEL_FAVOURITES',
     kind: ESettingKind.Text,
     fallback: '',
+  },
+  {
+    id: ESettingId.LastBornPlacement,
+    page: ESettingPage.Hidden,
+    group: 'Execution',
+    label: 'Last chosen thread placement',
+    description:
+      'Where the operator last chose to start a new thread, cloud or host. Written by the placement chip in the composer footer rather than set here; automatic until the chip is first flipped.',
+    kind: ESettingKind.Choice,
+    fallback: 'auto',
+    options: [
+      { value: 'auto', label: 'automatic' },
+      { value: 'cloud', label: 'cloud' },
+      { value: 'host', label: 'host' },
+    ],
   },
   {
     id: ESettingId.ExecutionLocation,

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
 
 import { EFooterItemReach } from '../footer-item'
-import { locationPillOf } from '../location-pill'
+import { locationPillOf, PLACEMENT_CHIP_ID } from '../location-pill'
 import { theme } from '../theme'
 
 describe('the execution-location pill', () => {
@@ -17,5 +17,52 @@ describe('the execution-location pill', () => {
     expect(pill?.spans).toEqual([{ text: 'docker', fg: theme.appBg }])
     expect(pill?.ground).toBe(theme.link)
     expect(pill?.reach).toBe(EFooterItemReach.None)
+  })
+})
+
+describe('the placement chip before the first send', () => {
+  const flips: string[] = []
+  const onFlip = (): void => void flips.push('flip')
+
+  it('reads local and flips on activation when the thread will start on the host', () => {
+    const chip = locationPillOf({
+      location: EExecutionLocation.Host,
+      placement: { harness: EHarnessPlacement.Host, provisioning: false, onFlip },
+    })
+
+    expect(chip?.id).toBe(PLACEMENT_CHIP_ID)
+    expect(chip?.spans).toEqual([{ text: ' local ', fg: theme.appBg }])
+    expect(chip?.reach).toBe(EFooterItemReach.Keyboard)
+    chip?.onActivate?.()
+    expect(flips).toEqual(['flip'])
+  })
+
+  it('reads cloud when the thread will start in a sandbox', () => {
+    const chip = locationPillOf({
+      location: EExecutionLocation.Cloud,
+      placement: { harness: EHarnessPlacement.Cloud, provisioning: false, onFlip },
+    })
+
+    expect(chip?.spans).toEqual([{ text: ' ☁ cloud ', fg: theme.appBg }])
+    expect(chip?.ground).toBe(theme.link)
+    expect(chip?.reach).toBe(EFooterItemReach.Keyboard)
+  })
+
+  it('goes inert and warm while the sandbox is still provisioning', () => {
+    const chip = locationPillOf({
+      location: EExecutionLocation.Host,
+      placement: { harness: EHarnessPlacement.Cloud, provisioning: true, onFlip },
+    })
+
+    expect(chip?.ground).toBe(theme.warn)
+    expect(chip?.reach).toBe(EFooterItemReach.None)
+  })
+
+  it('is plain display once the thread has started', () => {
+    const chip = locationPillOf({ location: EExecutionLocation.Cloud })
+
+    expect(chip?.spans).toEqual([{ text: EExecutionLocation.Cloud, fg: theme.appBg }])
+    expect(chip?.reach).toBe(EFooterItemReach.None)
+    expect(chip?.onActivate).toBeUndefined()
   })
 })
