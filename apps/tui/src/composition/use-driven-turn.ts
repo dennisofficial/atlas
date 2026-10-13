@@ -9,6 +9,9 @@ import type { DirectoryMove } from './directory-move'
 import { stoppageOf, turnSettled, turnStarted } from './turn-progress'
 import type { ThreadView } from './use-thread-view'
 import { runnerClaimed } from './use-runner-claim'
+import type { useSendingRows } from './use-sending-rows'
+
+type ConversationSending = ReturnType<typeof useSendingRows>
 
 export type DriveOptions = {
   onCommitFailed?: ((error: unknown) => void) | undefined
@@ -28,9 +31,10 @@ export function useDrivenTurn(args: {
   setFailure: (reason: string | null) => void
   remoteRunning: RefObject<boolean>
   driveRefusal?: (() => string | null) | undefined
+  sending?: ConversationSending | undefined
 }) {
   const { app, threadId, started, pendingMove, view, readClock } = args
-  const { onSettled, onUndone, setFailure, remoteRunning, driveRefusal } = args
+  const { onSettled, onUndone, setFailure, remoteRunning, driveRefusal, sending } = args
   const { store, refresh, stamp } = view
   const [working, setWorking] = useState(false)
   const workingRef = useRef(false)
@@ -109,6 +113,18 @@ export function useDrivenTurn(args: {
           ? { said: saidDraft, context: drafts.filter((_, index) => index !== saidIndex) }
           : null
 
+      // On the remote path the sandbox owns the commit, so this copy never writes the said to the
+      // log — the mirror lands it instead. Hold the placeholder until the send settles (acked or
+      // failed); reconcile takes over the moment the mirror answers earlier.
+      const remoteSendingText = remoteSaid === null ? null : remoteSaid.said.text
+      const remoteSendingId =
+        remoteSendingText === null || sending === undefined ? undefined : sending.add(remoteSendingText)
+      const settleRemoteSending = (error: unknown): void => {
+        if (remoteSendingId === undefined || remoteSendingText === null) return
+        if (error === null) sending?.resolve(remoteSendingText)
+        else sending?.markFailed(remoteSendingId)
+      }
+
       void (async () => {
         try {
           if (remoteSaid === null && drafts.length > 0) {
@@ -139,7 +155,7 @@ export function useDrivenTurn(args: {
                 })
               : await app.runner.say({
                   threadId,
-                  text: typeof remoteSaid.said.text === 'string' ? remoteSaid.said.text : '',
+                  text: remoteSaid.said.text,
                   ...(remoteSaid.said.images === undefined
                     ? {}
                     : { images: remoteSaid.said.images }),
@@ -147,12 +163,14 @@ export function useDrivenTurn(args: {
                   signal: controller.signal,
                   pause: pauseSignal,
                 })
+          settleRemoteSending(null)
           lastOutcome.current = outcome
           setFailure(stoppageOf(outcome))
           await app.turnPolicy.onOutcome({ threadId, outcome })
           const said = app.turnPolicy.undone()
           if (said !== null) onUndone(said)
         } catch (error) {
+          settleRemoteSending(error)
           if (!(error instanceof RemoteTurnDetached)) {
             await app.turnPolicy.onCrashed({ threadId })
             setFailure(
@@ -190,6 +208,7 @@ export function useDrivenTurn(args: {
       readClock,
       refresh,
       remoteRunning,
+      sending,
       setFailure,
       stamp,
       store,

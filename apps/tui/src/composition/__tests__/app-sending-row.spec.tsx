@@ -54,6 +54,46 @@ describe('a message waiting on the cloud round trip', () => {
     }
   }, 60_000)
 
+  it('clears the placeholder when the send settles even though the mirror never lands the said', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mountInCloud({ app, bridge })
+
+    try {
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+      // A real sandbox owns the commit and its log: the mirror only learns the said over the wire.
+      // The fake bridge auto-commits its send into the shared log, which the mirror would pick up —
+      // silence that append so nothing but the send settling can clear the placeholder.
+      const held = bridge.log.append.bind(bridge.log)
+      bridge.log.append = async () => []
+
+      await mounted.typeText('first words to the sandbox')
+      mounted.pressEnter()
+
+      const shown = await until({
+        holds: async () => {
+          const frame = await mounted.nextFrame()
+          return frame.includes('first words to the sandbox') && frame.includes(SENDING)
+        },
+        within: 20_000,
+      })
+      expect(shown).toBe(true)
+
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-send-mirror') })
+
+      const cleared = await until({
+        holds: async () => !(await mounted.nextFrame()).includes(SENDING),
+        within: 20_000,
+      })
+      expect(cleared).toBe(true)
+
+      bridge.log.append = held
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('shows a steered message as sending while the turn is running, clearing it when it lands', async () => {
     const app = speaking()
     const bridge = fakeBridge()

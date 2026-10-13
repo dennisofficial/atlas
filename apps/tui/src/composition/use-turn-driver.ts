@@ -17,6 +17,7 @@ import { discardInterrupted, EDiscard } from './resume-turn'
 import type { TurnDriver } from './turn-driver-types'
 import { IDLE_PROGRESS, turnInterrupting } from './turn-progress'
 import { useDrivenTurn } from './use-driven-turn'
+import type { ConversationSending } from './use-conversation-send'
 import { runnerClaimed, useRunnerClaim } from './use-runner-claim'
 import { useRemoteTurnState, type InterruptChannel } from './use-remote-turn-state'
 import { useRewindConfirm } from './use-rewind-confirm'
@@ -40,6 +41,7 @@ export function useTurnDriver(args: {
   interruptRefusal?: (() => string | null) | undefined
   driveRefusal?: (() => string | null) | undefined
   frozen?: boolean | undefined
+  sending?: ConversationSending | undefined
 }): TurnDriver {
   const { app, threadId, view, readClock } = args
   const { setFailure, forgetUsage, cancelCompaction, interruptRefusal } = args

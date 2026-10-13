@@ -139,6 +139,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     interruptRefusal: args.interruptRefusal,
     driveRefusal,
     frozen: moving,
+    sending,
   })
 
   useResumeOnOpen({ app, opened, turnDriver, moving })

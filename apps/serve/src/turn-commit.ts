@@ -19,11 +19,15 @@ export function createTurnCommit(args: { app: ServeApp; threadId: () => ThreadId
     const existing = await app.threads.find({ threadId })
     if (existing !== undefined) {
       await app.log.append({ threadId, runId, drafts })
-      return
+    } else {
+      await app.threads.createWithFirstEvents({
+        threadId, drafts, runId, workspace: app.workspace.workspace, repo: app.workspace.repo,
+      })
     }
-    await app.threads.createWithFirstEvents({
-      threadId, drafts, runId, workspace: app.workspace.workspace, repo: app.workspace.repo,
-    })
+    // The operator's own words never pass through the runner's publishing log, so nothing else
+    // emits the wake a mirrored client needs to clear its "sending…" placeholder at commit time
+    // rather than at turn settle. This is the same explicit publish the idle-park append uses.
+    app.channel.publisherFor({ threadId }).eventsAppended()
   }
 
   return async (said: Said): Promise<void> => {
