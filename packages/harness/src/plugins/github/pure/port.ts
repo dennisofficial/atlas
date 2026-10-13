@@ -65,6 +65,8 @@ export abstract class PullRequestPort {
   /** A push-fed implementation answers from the last frame it was handed, so it arms no timer. */
   abstract readonly pushes: boolean
 
+  onPushesChanged?(listener: () => void): () => void
+
   peekBadge(args: PullRequestBadgeKey): PullRequestReading | null {
     void args
     return null

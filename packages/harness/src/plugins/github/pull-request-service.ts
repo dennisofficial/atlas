@@ -165,6 +165,8 @@ export function createPullRequestService(args: {
     timer.unref?.()
   }
 
+  const stopWatchingPushes = args.pullRequests.onPushesChanged?.(syncTimer)
+
   return {
     snapshot: readings.snapshot,
     version: () => version,
@@ -280,6 +282,7 @@ export function createPullRequestService(args: {
       tracked.clear()
       watched.clear()
       untick()
+      stopWatchingPushes?.()
       listeners.clear()
       readings.clear()
       inFlight.clear()

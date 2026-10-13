@@ -14,11 +14,11 @@ import {
   WorkspaceRoot,
 } from '../../../container/tokens'
 
-import { SsePullRequestPort } from '../../../cloud/sse-pull-requests'
 import { NativePlugin } from '../../plugin'
 import { CachedPullRequestPort } from '../pull-request-cache-port'
 import GithubPlugin, { registerPlugin } from '../index'
-import { PullRequestPort } from '../pure'
+import { EForge, EPullRequestLookup, PullRequestPort } from '../pure'
+import { aCheckout } from '../testing'
 import { PrEventFrameSink } from '../pr-event-sink'
 import { GithubUiBridgePort } from '../ui-bridge'
 
@@ -190,11 +190,24 @@ describe('the pull request port the plugin selects', () => {
     await contribution.dispose?.()
   })
 
-  it('pushes through SSE for a signed-in session', async () => {
+  it('pushes through the failover composite for a signed-in session', async () => {
     const { contribution } = await resolved({ signedIn: true })
 
     const port = portOf(contribution)
     expect(port).toBeInstanceOf(CachedPullRequestPort)
+    expect(port.pushes).toBe(true)
+    expect(port.onPushesChanged).toBeDefined()
+
+    await contribution.dispose?.()
+  })
+
+  it('answers a read through the composite without failing over for a forge the cloud cannot serve', async () => {
+    const { contribution } = await resolved({ signedIn: true })
+
+    const port = portOf(contribution)
+    const reading = await port.read({ checkout: aCheckout({ forge: EForge.Other }) })
+
+    expect(reading).toEqual({ lookup: EPullRequestLookup.Unavailable, retryable: false })
     expect(port.pushes).toBe(true)
 
     await contribution.dispose?.()

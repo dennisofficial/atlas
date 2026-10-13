@@ -90,6 +90,7 @@ export class PrSubscriptionClient {
         ...(args.branch === undefined ? {} : { branch: args.branch }),
         ...(args.number === undefined ? {} : { prNumber: args.number }),
       },
+      retry: true,
     })
     const parsed = subscribeResponseSchema.parse(body)
     return {
