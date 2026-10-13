@@ -20,21 +20,20 @@ const FAULT_HEAD: Record<ELiftFault, string> = {
   [ELiftFault.GitAuth]: 'git access is not set up',
   [ELiftFault.Unreachable]: 'Atlas Cloud could not be reached',
   [ELiftFault.PatchTooLarge]: 'the uncommitted work is too large to carry',
-  [ELiftFault.Transfer]: 'the conversation could not be transferred',
+  [ELiftFault.Transfer]: 'the workspace could not be captured for the sandbox',
   [ELiftFault.Sandbox]: 'the sandbox would not start',
   [ELiftFault.Context]: 'the context could not reach the sandbox',
 }
 
-const stillHere = (failure: LiftFailure): string => {
+const FELL_BACK = 'this thread started on this machine instead'
+
+const landing = (failure: LiftFailure): string => {
   if (failure.step === ELiftStep.Attaching) {
-    return 'this conversation moved to the cloud, but attaching to it failed — /container cloud again to reconnect'
+    return `the sandbox started but could not be attached — ${FELL_BACK}`
   }
-  if (failure.step === ELiftStep.Transferring) {
-    return 'nothing moved and this conversation still runs here'
-  }
-  return `this conversation still runs here${stoppedTail(failure)}`
+  return `${FELL_BACK}${stoppedTail(failure)}`
 }
 
 export const liftFailedNotice = (failure: LiftFailure): string =>
-  `${FAULT_HEAD[failure.fault]} — ${stillHere(failure)}. ${failure.detail}`
+  `${FAULT_HEAD[failure.fault]} — ${landing(failure)}. ${failure.detail}`
 

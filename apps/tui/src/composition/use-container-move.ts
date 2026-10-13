@@ -1,8 +1,8 @@
 import type { KeyEvent } from '@opentui/core'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { ArchiveBuildProgress, RelocationTransferProgress } from '@dltech/atlas-harness'
 
 import { createAwakeClock } from './awake-clock'
 import {
@@ -16,6 +16,7 @@ import {
   updateMoveTransfer,
   type ContainerMove,
 } from './container-move'
+import { isCancelKey, updateMoveBuild } from './container-move-birth'
 import { useTickingNow } from './use-turn-clock'
 
 export type MoveRowSeed = { id: string; text: string; nodeIds: readonly string[] }
@@ -27,7 +28,10 @@ export type ContainerMoveControl = {
     target: EExecutionLocation
     rows: readonly MoveRowSeed[]
     heading?: string | undefined
+    onCancel?: (() => void) | undefined
   }) => void
+  handleBuildProgress: (progress: ArchiveBuildProgress) => void
+  handleCancel: () => void
   handleNodeStart: (nodeId: string) => void
   handleNodeDone: (nodeId: string) => void
   handleTransferProgress: (progress: RelocationTransferProgress) => void
@@ -48,13 +52,18 @@ export function useContainerMove(args?: {
   const clock = useMemo(() => createAwakeClock(), [])
   const [move, setMove] = useState<ContainerMove | null>(null)
   const now = useTickingNow({ ticking: move !== null && move.failure === null, clock })
+  const cancelling = useRef<(() => void) | undefined>(undefined)
+  const moveRef = useRef<ContainerMove | null>(null)
+  moveRef.current = move
 
   const handleBegin = useCallback(
     (beginArgs: {
       target: EExecutionLocation
       rows: readonly MoveRowSeed[]
       heading?: string | undefined
+      onCancel?: (() => void) | undefined
     }) => {
+      if (beginArgs.onCancel !== undefined && moveRef.current === null) cancelling.current = beginArgs.onCancel
       setMove(
         (current) =>
           current ??
@@ -62,6 +71,7 @@ export function useContainerMove(args?: {
             target: beginArgs.target,
             now: clock.read(),
             rows: beginArgs.rows,
+            cancellable: beginArgs.onCancel !== undefined,
             ...(beginArgs.heading === undefined ? {} : { heading: beginArgs.heading }),
           }),
       )
@@ -122,19 +132,40 @@ export function useContainerMove(args?: {
     [clock],
   )
 
-  const handleSettle = useCallback(() => setMove(null), [])
+  const handleBuildProgress = useCallback((progress: ArchiveBuildProgress) => {
+    setMove((current) => (current === null ? null : updateMoveBuild({ move: current, progress })))
+  }, [])
+
+  const handleSettle = useCallback(() => {
+    cancelling.current = undefined
+    setMove(null)
+  }, [])
 
   const handleFail = useCallback((reason: string) => {
     setMove((current) => (current === null ? null : failMove({ move: current, reason })))
   }, [])
 
-  const handleDismiss = useCallback(() => {
-    setMove((current) => (current?.failure === null ? current : null))
+  const handleCancel = useCallback(() => {
+    const held = moveRef.current
+    if (held === null || held.failure !== null || held.cancellable !== true) return
+    const onCancel = cancelling.current
+    cancelling.current = undefined
+    setMove(null)
+    onCancel?.()
   }, [])
+
+  const handleDismiss = useCallback(() => {
+    if (moveRef.current?.failure === null) {
+      handleCancel()
+      return
+    }
+    setMove(null)
+  }, [handleCancel])
 
   const handleKey = useCallback(
     (key: KeyEvent) => {
-      if (key.name === 'escape') handleDismiss()
+      if (key.eventType === 'release') return
+      if (isCancelKey(key)) handleDismiss()
     },
     [handleDismiss],
   )
@@ -146,6 +177,8 @@ export function useContainerMove(args?: {
       handleBegin,
       handleNodeStart,
       handleNodeDone,
+      handleBuildProgress,
+      handleCancel,
       handleTransferProgress,
       handleRowActive,
       handleRowLabel,
@@ -155,6 +188,6 @@ export function useContainerMove(args?: {
       handleDismiss,
       handleKey,
     }),
-    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleTransferProgress, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
+    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleBuildProgress, handleCancel, handleTransferProgress, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
   )
 }
