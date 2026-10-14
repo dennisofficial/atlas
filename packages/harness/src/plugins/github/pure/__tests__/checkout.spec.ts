@@ -64,6 +64,28 @@ describe('checkoutOf', () => {
     ).toBeNull()
   })
 
+  it('is null on the default branch, like a detached head', () => {
+    expect(
+      checkoutOf({
+        directory: DIRECTORY,
+        branch: 'main',
+        remotes: [{ name: 'origin', url: 'git@github.com:o/r.git' }],
+        defaultBranch: 'main',
+      }),
+    ).toBeNull()
+  })
+
+  it('tracks a feature branch even when the default is known', () => {
+    const checkout = checkoutOf({
+      directory: DIRECTORY,
+      branch: 'feature-x',
+      remotes: [{ name: 'origin', url: 'git@github.com:o/r.git' }],
+      defaultBranch: 'main',
+    })
+
+    expect(checkout?.branch).toBe('feature-x')
+  })
+
   it('reads the forge off the host', () => {
     const gitlab = checkoutOf({
       directory: DIRECTORY,

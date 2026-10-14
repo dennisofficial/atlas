@@ -73,6 +73,32 @@ describe('probeCheckout', () => {
     expect(await probeCheckout({ directory: await scratch() })).toBeNull()
   })
 
+  it('is null on the default branch once origin/HEAD names it', async () => {
+    const root = await repoWithCommit()
+    await git(['remote', 'add', 'origin', 'git@github.com:o/r.git'], root)
+    await git(['update-ref', 'refs/remotes/origin/main', 'HEAD'], root)
+    await git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'], root)
+
+    expect(await probeCheckout({ directory: root })).toBeNull()
+  })
+
+  it('still tracks a feature branch when the default is known', async () => {
+    const root = await repoWithCommit()
+    await git(['remote', 'add', 'origin', 'git@github.com:o/r.git'], root)
+    await git(['update-ref', 'refs/remotes/origin/main', 'HEAD'], root)
+    await git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'], root)
+    await git(['checkout', '-b', 'feature-x'], root)
+
+    expect((await probeCheckout({ directory: root }))?.branch).toBe('feature-x')
+  })
+
+  it('tracks main when only a local main exists and no remote default is known', async () => {
+    const root = await repoWithCommit()
+    await git(['remote', 'add', 'origin', 'git@github.com:o/r.git'], root)
+
+    expect((await probeCheckout({ directory: root }))?.branch).toBe('main')
+  })
+
   it('reads the linked worktree branch, not the one the main checkout is on', async () => {
     const root = await repoWithCommit()
     await git(['remote', 'add', 'origin', 'git@github.com:o/r.git'], root)

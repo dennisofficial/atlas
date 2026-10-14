@@ -1,4 +1,5 @@
 import { runGit } from '../../workspace/run-git'
+import { defaultBranch, EDefaultBranchSource } from '../../workspace/worktrees'
 
 import { checkoutOf, type NamedRemote, type RepositoryCheckout } from './pure'
 
@@ -48,5 +49,14 @@ export async function probeCheckout({
   })
   if (!config.ok) return null
 
-  return checkoutOf({ directory, branch, remotes: remotesOf(config.stdout) })
+  const known = await defaultBranch({ cwd: directory })
+  const remoteDefault =
+    known.ok && known.source !== EDefaultBranchSource.LocalBranch ? known.branch : null
+
+  return checkoutOf({
+    directory,
+    branch,
+    remotes: remotesOf(config.stdout),
+    defaultBranch: remoteDefault,
+  })
 }

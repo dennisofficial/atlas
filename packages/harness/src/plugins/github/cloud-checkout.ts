@@ -4,6 +4,14 @@ import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import { defineProjection, type PluginProjection } from '../projection'
 import { checkoutKey, checkoutOf, type RepositoryCheckout } from './pure'
 
+/**
+ * The lift event records no default branch, so the sandbox cannot distinguish "standing on the
+ * default" from "working on a branch named like one" beyond these names — which is exactly the
+ * case that makes the noise: a cloud session lands on the repo root's default before entering its
+ * worktree.
+ */
+const CLOUD_DEFAULT_BRANCHES: ReadonlySet<string> = new Set(['main', 'master'])
+
 const sameCheckout = (
   left: RepositoryCheckout | null,
   right: RepositoryCheckout | null,
@@ -32,6 +40,7 @@ export function createCloudCheckout(): PluginProjection<RepositoryCheckout | nul
               directory: lifted.cwd ?? CLOUD_WORKSPACE_PATH,
               branch: lifted.branch,
               remotes: [{ name: 'origin', url: lifted.remoteUrl }],
+              defaultBranch: CLOUD_DEFAULT_BRANCHES.has(lifted.branch) ? lifted.branch : null,
             })
 
       if (sameCheckout(folded, next)) return folded
