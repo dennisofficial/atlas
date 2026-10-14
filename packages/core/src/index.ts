@@ -222,6 +222,7 @@ export * from './models/utility-roles'
 
 export * from './usage/window'
 export * from './usage/meter'
+export * from './usage/metering'
 export * from './usage/format'
 
 export * from './web/url'

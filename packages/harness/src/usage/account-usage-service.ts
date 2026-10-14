@@ -1,12 +1,24 @@
-import { NO_USAGE, type AccountId, type AccountUsage, type AccountUsagePort } from '@dltech/atlas-core'
+import {
+  NO_USAGE,
+  UNMETERED,
+  type AccountId,
+  type AccountUsage,
+  type AccountUsagePort,
+  type UsageReading,
+} from '@dltech/atlas-core'
 
 export const USAGE_POLL_FLOOR_MS = 20_000
 
 export const USAGE_POLL_LIVE_MS = 60_000
 
+export interface UsageClient {
+  read(args: { accountId?: AccountId | undefined }): Promise<AccountUsage | null>
+}
+
 export type AccountUsageService = {
   snapshot: () => AccountUsage
   snapshotFor: (args: { accountId: AccountId }) => AccountUsage
+  metered: (args: { accountId: AccountId }) => boolean | undefined
   version: () => number
   subscribe: (listener: () => void) => () => void
   refresh: (args?: { accountId?: AccountId; force?: boolean }) => Promise<void>
@@ -28,13 +40,13 @@ export function createAccountUsageService(args: {
   const WHICHEVER_ANSWERS = '\u0000active'
 
   const listeners = new Set<() => void>()
-  const readings = new Map<string, AccountUsage>()
+  const readings = new Map<string, UsageReading>()
   const polledAt = new Map<string, number>()
   let version = 0
   let timer: ReturnType<typeof setInterval> | null = null
   let disposed = false
 
-  const publish = (args_: { key: string; usage: AccountUsage }): void => {
+  const publish = (args_: { key: string; usage: UsageReading }): void => {
     readings.set(args_.key, args_.usage)
     version += 1
     for (const listener of listeners) listener()
@@ -63,6 +75,11 @@ export function createAccountUsageService(args: {
     publish({ key, usage })
   }
 
+  const usageOf = (key: string): AccountUsage => {
+    const reading = readings.get(key)
+    return reading === undefined || reading === UNMETERED ? NO_USAGE : reading
+  }
+
   const untrack = (): void => {
     if (timer === null) return
     clearInterval(timer)
@@ -70,8 +87,12 @@ export function createAccountUsageService(args: {
   }
 
   return {
-    snapshot: () => readings.get(WHICHEVER_ANSWERS) ?? NO_USAGE,
-    snapshotFor: (request) => readings.get(request.accountId) ?? NO_USAGE,
+    snapshot: () => usageOf(WHICHEVER_ANSWERS),
+    snapshotFor: (request) => usageOf(request.accountId),
+    metered: (request) => {
+      const reading = readings.get(request.accountId)
+      return reading === undefined ? undefined : reading !== UNMETERED
+    },
     version: () => version,
     subscribe: (listener) => {
       listeners.add(listener)

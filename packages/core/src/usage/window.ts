@@ -7,6 +7,10 @@ export type UsageWindow = { utilization: number; resetsAt: string | null }
 
 export type AccountUsage = Record<EUsageWindow, UsageWindow | null>
 
+export const UNMETERED: unique symbol = Symbol('unmetered')
+
+export type UsageReading = AccountUsage | typeof UNMETERED
+
 export const NO_USAGE: AccountUsage = {
   [EUsageWindow.FiveHour]: null,
   [EUsageWindow.SevenDay]: null,

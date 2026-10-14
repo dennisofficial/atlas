@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { MutableRefObject } from 'react'
 
-import { contextPressure, type ModelCard } from '@dltech/atlas-core'
+import {
+  contextPressure,
+  EAuthProvider,
+  type AccountId,
+  type ModelCard,
+} from '@dltech/atlas-core'
 import {
   settingModelRef,
   suggestedModelRef,
@@ -35,6 +40,11 @@ export function useModelChoiceRelay(): ModelChoiceRelay {
   return { open, handleChoose }
 }
 
+export type TrackedAccount = { accountId: AccountId; metered: boolean }
+
+const providerOf = (providerId: string): EAuthProvider | undefined =>
+  Object.values(EAuthProvider).find((candidate) => candidate === providerId)
+
 export function useWorkspaceModels(args: {
   app: AtlasApp
   cloudStores: CloudStores | null
@@ -61,9 +71,34 @@ export function useWorkspaceModels(args: {
 
   const metered = app.models.subscribed(selection.ref.providerId)
 
+  const [activeAccountId, setActiveAccountId] = useState<AccountId | null>(null)
+  const providerId = selection.ref.providerId
+
+  useEffect(() => {
+    const provider = providerOf(providerId)
+    if (!metered || provider === undefined) {
+      setActiveAccountId(null)
+      return
+    }
+
+    let current = true
+    void app.accounts.activeFor(provider).then((id) => {
+      if (current) setActiveAccountId(id ?? null)
+    })
+    return () => {
+      current = false
+    }
+  }, [accountsVersion, app.accounts, metered, providerId])
+
+  const trackedAccount = useMemo<TrackedAccount | null>(
+    () => (activeAccountId === null ? null : { accountId: activeAccountId, metered }),
+    [activeAccountId, metered],
+  )
+
   const meters = useUsageMeters({
     usage: app.usage,
     metered,
+    ...(trackedAccount === null ? {} : { accountId: trackedAccount.accountId }),
     show: settings.footerMeters,
     warn: settings.usageWarn,
   })
@@ -103,7 +138,7 @@ export function useWorkspaceModels(args: {
     }
   }, [openSwitcher, app.settings.definitions])
 
-  return { selection, meters, switcher, viewedPicker }
+  return { selection, meters, switcher, viewedPicker, trackedAccount }
 }
 
 const readoutOf = (args: {

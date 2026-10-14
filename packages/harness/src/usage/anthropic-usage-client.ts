@@ -1,13 +1,14 @@
 import {
-  AccountUsagePort,
   EAuthKind,
+  EAuthProvider,
+  type AccountId,
   type AccountUsage,
-  type AccountUsageRequest,
   type CredentialPort,
 } from '@dltech/atlas-core'
 
 import { ANTHROPIC_OAUTH_BETA } from '../providers/anthropic-oauth'
 import { CLAUDE_CODE_VERSION } from '../providers/anthropic-subscription-attribution'
+import type { UsageClient } from './account-usage-service'
 import { parseAnthropicUsage } from './parse-anthropic-usage'
 
 /**
@@ -20,22 +21,22 @@ export const ANTHROPIC_USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
 
 const REQUEST_TIMEOUT_MS = 10_000
 
-export class AnthropicUsageClient extends AccountUsagePort {
+export class AnthropicUsageClient implements UsageClient {
   private readonly credentials: CredentialPort
   private readonly fetch: typeof globalThis.fetch
 
   constructor(args: { credentials: CredentialPort; fetch?: typeof globalThis.fetch }) {
-    super()
     this.credentials = args.credentials
     this.fetch = args.fetch ?? globalThis.fetch
   }
 
   /** A meter is decoration: losing one must never take a turn, or opening a thread, down. */
-  async read(request?: AccountUsageRequest): Promise<AccountUsage | null> {
+  async read(args: { accountId?: AccountId | undefined }): Promise<AccountUsage | null> {
     try {
-      const credential = await this.credentials.read(
-        request?.accountId === undefined ? undefined : { accountId: request.accountId },
-      )
+      const credential = await this.credentials.read({
+        provider: EAuthProvider.Anthropic,
+        accountId: args.accountId,
+      })
       if (credential.kind !== EAuthKind.Oauth) return null
 
       const response = await this.fetch(ANTHROPIC_USAGE_URL, {

@@ -9,6 +9,7 @@ import type { useConversation } from './use-conversation'
 import type { useServices } from './use-services'
 import type { useShells } from './use-shells'
 import type { useWorkspaceExit } from './use-workspace-exit'
+import type { TrackedAccount } from './use-workspace-models'
 import { useWorkspaceStaleness } from './use-workspace-staleness'
 import type { WorkspaceProps } from './workspace-props'
 
@@ -25,8 +26,9 @@ export function useWorkspaceLifecycle(args: {
   services: ReturnType<typeof useServices>
   exit: ReturnType<typeof useWorkspaceExit>
   autoRestart: boolean
+  trackedAccount: TrackedAccount | null
 }) {
-  const { props, conversation, shells, agents, services, exit } = args
+  const { props, conversation, shells, agents, services, exit, trackedAccount } = args
   const { renderer, restarting, exitGuard } = exit
   const cloud = props.cloudBridge !== null
   const { usage } = props.app
@@ -34,13 +36,17 @@ export function useWorkspaceLifecycle(args: {
 
   useWorkspaceStaleness(args)
 
+  const trackedId = trackedAccount === null ? undefined : trackedAccount.accountId
+  const trackedMetered = trackedAccount !== null && trackedAccount.metered
+
   useEffect(() => {
-    if (working) {
-      usage.track()
+    const request = trackedId === undefined ? undefined : { accountId: trackedId }
+    if (working && trackedMetered) {
+      usage.track(request)
       return
     }
-    usage.stopTracking()
-  }, [usage, working])
+    usage.stopTracking(request)
+  }, [trackedId, trackedMetered, usage, working])
 
   const handleRestart = useCallback(() => {
     if (props.onRestart === null) return

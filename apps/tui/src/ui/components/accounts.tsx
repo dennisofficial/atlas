@@ -66,11 +66,11 @@ function LoginLine(props: {
   account: Account
   active: boolean
   cells: number
-  meters?: ((account: Account) => readonly Span[]) | undefined
+  meters?: ((account: Account) => readonly Span[] | undefined) | undefined
 }): React.ReactNode {
   const detail = accountDetail(props.account)
   const expired = props.account.status !== EAccountStatus.Active
-  const meters = props.meters === undefined ? [] : props.meters(props.account)
+  const meters = props.meters?.(props.account)
 
   return (
     <>
@@ -89,7 +89,7 @@ function LoginLine(props: {
           })}
         />
       </text>
-      {meters.length === 0 ? null : (
+      {meters === undefined || meters.length === 0 ? null : (
         <text>
           <Spans spans={clipSpans({ spans: [{ text: '  ' }, ...meters], cells: props.cells })} />
         </text>
@@ -101,7 +101,7 @@ function LoginLine(props: {
 function DetailPanel(props: {
   row: ProviderRow
   cells: number
-  meters?: ((account: Account) => readonly Span[]) | undefined
+  meters?: ((account: Account) => readonly Span[] | undefined) | undefined
 }): React.ReactNode {
   const active = activeOf(props.row)
   const others = othersOf(props.row)
@@ -188,7 +188,7 @@ function ProviderList(props: {
 }
 
 export function Accounts(props: {
-  meters?: (account: Account) => readonly Span[]
+  meters?: (account: Account) => readonly Span[] | undefined
   width: number
   state: AccountsState
   overlay?: boolean

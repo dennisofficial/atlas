@@ -3,9 +3,11 @@ import {
   AccountUsagePort,
   EUsageWindow,
   NO_USAGE,
+  UNMETERED,
   toAccountId,
   type AccountId,
   type AccountUsage,
+  type UsageReading,
 } from '@dltech/atlas-core'
 
 import { createAccountUsageService, USAGE_POLL_FLOOR_MS } from '../account-usage-service'
@@ -19,9 +21,9 @@ const usageAt = (utilization: number): AccountUsage => ({
 
 class CountingUsage extends AccountUsagePort {
   reads = 0
-  answer: AccountUsage | null = usageAt(34)
+  answer: UsageReading | null = usageAt(34)
 
-  async read(args: { accountId: AccountId }): Promise<AccountUsage | null> {
+  async read(args: { accountId: AccountId }): Promise<UsageReading | null> {
     void args
     this.reads += 1
     return this.answer
@@ -144,5 +146,51 @@ describe('the account usage service', () => {
     await service.refresh({ accountId: ACCOUNT, force: true })
 
     expect(service.version()).toBe(0)
+  })
+
+  it('erases a stale reading when the account turns out to be unmetered', async () => {
+    const port = new CountingUsage()
+    let clock = 0
+    const service = serviceOf({ port, now: () => clock })
+
+    await service.refresh({ accountId: ACCOUNT })
+    expect(service.metered({ accountId: ACCOUNT })).toBe(true)
+
+    port.answer = UNMETERED
+    clock = USAGE_POLL_FLOOR_MS
+    await service.refresh({ accountId: ACCOUNT })
+
+    expect(service.metered({ accountId: ACCOUNT })).toBe(false)
+    expect(service.snapshotFor({ accountId: ACCOUNT })).toEqual(NO_USAGE)
+    expect(service.version()).toBe(2)
+  })
+
+  it('reports an account it has never read as neither metered nor unmetered', () => {
+    const service = serviceOf({ port: new CountingUsage(), now: () => 0 })
+    expect(service.metered({ accountId: ACCOUNT })).toBeUndefined()
+  })
+
+  it('shows no windows for the answering account when it is unmetered', async () => {
+    const port = new CountingUsage()
+    port.answer = UNMETERED
+    const service = serviceOf({ port, now: () => 0 })
+
+    await service.refresh()
+
+    expect(service.snapshot()).toEqual(NO_USAGE)
+  })
+
+  it('keeps an unmetered verdict when a later poll comes back empty', async () => {
+    const port = new CountingUsage()
+    port.answer = UNMETERED
+    let clock = 0
+    const service = serviceOf({ port, now: () => clock })
+
+    await service.refresh({ accountId: ACCOUNT })
+    port.answer = null
+    clock = USAGE_POLL_FLOOR_MS
+    await service.refresh({ accountId: ACCOUNT })
+
+    expect(service.metered({ accountId: ACCOUNT })).toBe(false)
   })
 })

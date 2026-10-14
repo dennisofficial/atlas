@@ -64,6 +64,13 @@ const LOGGED_IN = account({
   origin: EAccountOrigin.Login,
 })
 
+const API_KEY = account({
+  id: 'acc_key',
+  label: 'ci-key',
+  kind: EAuthKind.ApiKey,
+  origin: EAccountOrigin.Login,
+})
+
 const EXPIRED = account({
   id: 'acc_expired',
   label: 'dennis@trycomp.ai',
@@ -90,7 +97,7 @@ const METERED = accountMeterSpans({
 
 async function render(args: {
   state: AccountsState
-  meters?: (account: Account) => readonly (typeof METERED)[number][]
+  meters?: (account: Account) => readonly (typeof METERED)[number][] | undefined
   width?: number
 }): Promise<string[]> {
   const width = args.width ?? TERMINAL_WIDTH
@@ -183,6 +190,28 @@ describe('the detail panel', () => {
     expect(meter).toContain('wk')
     expect(meter).toContain('1h15m')
     expect(meter).toContain('30%')
+  })
+
+  it('draws no meter under an api-key login when the gate answers undefined', async () => {
+    const rows = await render({
+      state: stateOn(rowsOf([API_KEY])),
+      meters: (candidate) => (candidate.kind === EAuthKind.Oauth ? METERED : undefined),
+    })
+    const frame = rows.join('\n')
+
+    expect(lineWith(rows, 'ci-key')).not.toBe('')
+    expect(frame).not.toContain('5h')
+    expect(frame).not.toContain('wk')
+    expect(frame).not.toContain('▰')
+  })
+
+  it('still draws the bars for an oauth login behind the same gate', async () => {
+    const rows = await render({
+      state: stateOn(rowsOf([LOGGED_IN])),
+      meters: (candidate) => (candidate.kind === EAuthKind.Oauth ? METERED : undefined),
+    })
+
+    expect(lineWith(rows, '▰')).toContain('5h')
   })
 
   it('says how a signed-out provider can be reached', async () => {
