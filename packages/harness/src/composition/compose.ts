@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
 import {
-  ClockPort,
   EventLogPort,
   ESettingId,
   IdPort,
@@ -25,7 +24,6 @@ import {
   CloudSettingsStoreToken,
   DockerEngineToken,
   HookMishapReporterToken,
-  SessionRegistryToken,
   SleepPreventionToken,
   WakeSignalToken,
 } from '../container/tokens'
@@ -39,7 +37,7 @@ import { atlasDirectory } from '../store/paths'
 import { SessionAuthorityPort } from '../store/sessions/meta'
 import { ThreadStorePort } from '../store/thread-store'
 import { LocalCompaction } from '../store/local-compaction'
-import { LocalRotation, RotationPort, handoffSummariser } from '../rotation'
+import { LocalRotation, RotationPort, carryOverSummariser } from '../rotation'
 import { LateRotation } from './rotation-binding'
 import { ToolRegistry } from '../tools/registry'
 
@@ -270,19 +268,11 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const compaction = new LocalCompaction({ log, threads, agents, summarise: utility.summarise })
   const rotation = new LocalRotation({
-    authority: container.resolve(registeredPortToken(SessionAuthorityPort)),
-    registry: container.resolve(SessionRegistryToken),
-    threads,
     log,
-    ids,
-    clock: container.resolve(registeredPortToken(ClockPort)),
+    threads,
     agents,
-    shells,
-    services,
-    runner,
-    summarise: handoffSummariser({ model: utility.compactionModel }),
-    workspace: workspace.workspace,
-    repo: workspace.repo,
+    ids,
+    summarise: carryOverSummariser({ model: utility.compactionModel }),
   })
   lateRotation.bind(rotation)
   const browser = bindBrowser({ anchor, settings, executionLocation, mounts })

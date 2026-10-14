@@ -112,7 +112,7 @@ describe('composeHarness', () => {
     await expect(app.close()).resolves.toBeUndefined()
   })
 
-  it('registers the rotation port so surfaces resolve it at bind time, bound to the composed runner', async () => {
+  it('registers the rotation port so surfaces resolve it at bind time, bound to the composed orchestrator', async () => {
     let resolved: RotationPort | undefined
     const app = await compose<undefined>({
       bind: ({ container }) => {
@@ -124,7 +124,7 @@ describe('composeHarness', () => {
 
     expect(resolved).toBeDefined()
     expect(app.rotation).toBeDefined()
-    await expect(resolved!.status({ sessionId: 'compose-spec-unknown-session' })).resolves.toEqual({ kind: 'idle' })
+    expect(resolved!.subscribe(() => undefined)).toBeInstanceOf(Function)
     await expect(app.close()).resolves.toBeUndefined()
   })
 
