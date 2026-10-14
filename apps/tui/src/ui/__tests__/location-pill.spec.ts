@@ -24,38 +24,42 @@ describe('the placement chip before the first send', () => {
   const flips: string[] = []
   const onFlip = (): void => void flips.push('flip')
 
-  it('reads local and flips on activation when the thread will start on the host', () => {
+  it('reads local with a caret and flips on activation when the thread will start on the host', () => {
     const chip = locationPillOf({
       location: EExecutionLocation.Host,
       placement: { harness: EHarnessPlacement.Host, provisioning: false, onFlip },
     })
 
     expect(chip?.id).toBe(PLACEMENT_CHIP_ID)
-    expect(chip?.spans).toEqual([{ text: ' local ', fg: theme.appBg }])
+    expect(chip?.spans).toEqual([{ text: ' local ▾ ', fg: theme.appBg }])
     expect(chip?.reach).toBe(EFooterItemReach.Keyboard)
     chip?.onActivate?.()
     expect(flips).toEqual(['flip'])
   })
 
-  it('reads cloud when the thread will start in a sandbox', () => {
+  it('reads cloud with a caret when the thread will start in a sandbox', () => {
     const chip = locationPillOf({
       location: EExecutionLocation.Cloud,
       placement: { harness: EHarnessPlacement.Cloud, provisioning: false, onFlip },
     })
 
-    expect(chip?.spans).toEqual([{ text: ' ☁ cloud ', fg: theme.appBg }])
+    expect(chip?.spans).toEqual([{ text: ' ☁ cloud ▾ ', fg: theme.appBg }])
     expect(chip?.ground).toBe(theme.link)
     expect(chip?.reach).toBe(EFooterItemReach.Keyboard)
+    chip?.onActivate?.()
+    expect(flips).toEqual(['flip', 'flip'])
   })
 
-  it('goes inert and warm while the sandbox is still provisioning', () => {
+  it('goes inert, warm and caret-free while the sandbox is still provisioning', () => {
     const chip = locationPillOf({
       location: EExecutionLocation.Host,
       placement: { harness: EHarnessPlacement.Cloud, provisioning: true, onFlip },
     })
 
+    expect(chip?.spans).toEqual([{ text: ' ☁ cloud ', fg: theme.appBg }])
     expect(chip?.ground).toBe(theme.warn)
     expect(chip?.reach).toBe(EFooterItemReach.None)
+    expect(chip?.onActivate).toBeUndefined()
   })
 
   it('is plain display once the thread has started', () => {

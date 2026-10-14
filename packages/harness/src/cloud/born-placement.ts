@@ -22,16 +22,14 @@ export function cloudProvisioningConfigured(args: {
 }
 
 /**
- * The placement a brand-new thread is born with: the cloud when this machine can provision a
- * sandbox for it, the host otherwise. A thread born on the host can still switch its tool
- * environment (host/docker) through `execution_location`; neither kind ever moves afterwards.
+ * The placement a brand-new thread is born with: always the host. The cloud is an explicit
+ * per-thread choice made by the surface, never a default. A thread born on the host can still
+ * switch its tool environment (host/docker) through `execution_location`; neither kind ever moves
+ * afterwards.
  */
-export function bornPlacementFor(args: {
+export function bornPlacementFor(_args: {
   settings: SettingsService
   secrets: SecretsPort
 }): SessionPlacement {
-  if (!cloudProvisioningConfigured(args)) {
-    return { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host }
-  }
-  return { harness: EHarnessPlacement.Cloud }
+  return { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host }
 }

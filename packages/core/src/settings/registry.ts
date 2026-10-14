@@ -71,6 +71,7 @@ export enum ESettingId {
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
   GrillingCeremony = 'experimental.grillingCeremony',
+  PlacementChooserShape = 'experimental.placementChooserShape',
   PrVerdictTiming = 'github.prEvents.verdictTiming',
   QualityEnabled = 'quality.enabled',
   QualityRecordExamples = 'quality.recordExamples',
@@ -766,6 +767,21 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_EXPERIMENTAL_GRILLING_CEREMONY',
     kind: ESettingKind.Toggle,
     fallback: false,
+  },
+  {
+    id: ESettingId.PlacementChooserShape,
+    page: ESettingPage.Experimental,
+    group: 'Placement',
+    label: 'placement chooser shape',
+    description:
+      'A new thread is born local by default, and the chip and the hero are two presentations of the same cloud opt-in. Chip is the shipped footer chip in the composer; hero instead surfaces the placement in the welcome hero\u2019s metadata line with a hint, retiring to the footer chip on first send. Off (chip) is the shipped default while the hero shape proves itself.',
+    environmentVariable: 'ATLAS_EXPERIMENTAL_PLACEMENT_CHOOSER_SHAPE',
+    kind: ESettingKind.Choice,
+    fallback: 'chip',
+    options: [
+      { value: 'chip', label: 'chip', detail: 'shipped' },
+      { value: 'hero', label: 'hero', detail: 'placement in the welcome hero' },
+    ],
   },
   {
     id: ESettingId.PrVerdictTiming,

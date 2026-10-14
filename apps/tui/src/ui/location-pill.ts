@@ -16,7 +16,7 @@ function placementChipOf(choice: PlacementChoice): FooterItem {
   const flippable = !choice.provisioning
   return chipItem({
     id: PLACEMENT_CHIP_ID,
-    text: cloud ? ' ☁ cloud ' : ' local ',
+    text: `${cloud ? ' ☁ cloud' : ' local'}${flippable ? ' ▾ ' : ' '}`,
     ground: choice.provisioning ? theme.warn : cloud ? theme.link : theme.hint,
     reach: flippable ? EFooterItemReach.Keyboard : EFooterItemReach.None,
     onActivate: flippable ? choice.onFlip : undefined,

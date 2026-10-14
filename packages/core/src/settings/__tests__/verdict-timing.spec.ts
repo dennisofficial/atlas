@@ -21,10 +21,11 @@ describe('the PR verdict timing setting', () => {
     expect(options.map((option) => option.value)).toEqual(['fail-fast', 'settled'])
   })
 
-  it('joins the grilling ceremony on the experimental page', () => {
+  it('shares the experimental page with the other trials', () => {
     const rows = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.Experimental })
     expect(rows.map((row) => row.id)).toEqual([
       ESettingId.GrillingCeremony,
+      ESettingId.PlacementChooserShape,
       ESettingId.PrVerdictTiming,
     ])
   })

@@ -1,12 +1,13 @@
 import { homedir } from 'node:os'
 
-import React from 'react'
+import React, { useSyncExternalStore } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { EChannelConnection } from '@dltech/atlas-harness'
 
 import { versionLabel } from '../build/info'
 import { useAttachFailure } from './attach-failure'
+import { bornPlacementChip } from './cloud/born-placement-chip'
 import type { EThinkingVisibility } from '../store'
 import type { BackgroundWork } from '../ui/background-wait'
 import { BackPill } from '../ui/components/back-pill'
@@ -26,6 +27,7 @@ export function WorkspaceTranscript(props: {
   wide: boolean
   width: number
   modelId: string
+  placementShape: 'chip' | 'hero'
   thinking: EThinkingVisibility
   agentView: Pick<AgentView, 'selected' | 'scopedTo' | 'backLabel' | 'handleBack'>
   conversation: Pick<
@@ -56,6 +58,12 @@ export function WorkspaceTranscript(props: {
   const { app, welcome, width, thinking, agentView, conversation, cloudHealth, cloudSession } = props
   const { location, threadId } = useSessionOwner({ app })
   const attachFailed = useAttachFailure()
+  const chip = bornPlacementChip(app)
+  const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
+  const placement =
+    unplaced !== null && unplaced.threadId === conversation.threadId
+      ? { harness: unplaced.harness, provisioning: unplaced.provisioning }
+      : null
   const attachClosed =
     cloudSession === null &&
     location === EExecutionLocation.Cloud &&
@@ -77,6 +85,8 @@ export function WorkspaceTranscript(props: {
           modelId={props.modelId}
           version={versionLabel()}
           width={width}
+          shape={props.placementShape}
+          placement={placement}
         />
       ) : agentView.selected !== null ? (
         <SubagentTranscript
