@@ -1,7 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import type { MessageIntake } from '../../intake'
-import type { ThreadStorePort } from '../../store/thread-store'
+import type { MessageIntake } from '../intake'
+import type { ThreadStorePort } from '../store/thread-store'
 
 export async function holdFamilyIntake(args: {
   threadId: ThreadId

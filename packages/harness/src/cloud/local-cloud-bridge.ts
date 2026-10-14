@@ -8,7 +8,7 @@ import type {
   CloudSandbox,
   CloudSandboxes,
   CloudSandboxStatus,
-} from './relocation/cloud-bridge'
+} from './cloud-bridge'
 import {
   SANDBOX_SERVE_PORT,
   EServeEnv,

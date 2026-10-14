@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import type { CloudSandboxes } from './relocation/cloud-bridge'
+import type { CloudSandboxes } from './cloud-bridge'
 
 export async function reattachSandbox(args: {
   sandboxes: CloudSandboxes

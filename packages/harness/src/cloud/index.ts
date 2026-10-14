@@ -1,3 +1,4 @@
+export * from './cloud-bridge'
 export * from './account-store-proxy'
 export * from './cloud-client'
 export * from './cloud-service'

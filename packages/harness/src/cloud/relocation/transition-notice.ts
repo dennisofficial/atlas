@@ -1,6 +1,6 @@
 import type { EventDraft } from '@dltech/atlas-core'
 
-import type { LiftedWorkspace } from './cloud-bridge'
+import type { LiftedWorkspace } from '../cloud-bridge'
 
 export const CLOUD_NOTICE_SLOT = 'session'
 

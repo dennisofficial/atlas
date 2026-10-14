@@ -1,16 +1,16 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
 
-import type { SandboxTransferProgress, TransferProgress } from '../transfer-progress'
+import type { SandboxTransferProgress, TransferProgress } from './transfer-progress'
 
 import type {
   ChannelConnection,
   ChannelReload,
   RemoteDeltaChannel,
-} from '../remote-delta-channel'
-import { ECloudSandboxState, type WorkspaceSpec } from '../sandbox-client'
+} from './remote-delta-channel'
+import { ECloudSandboxState, type WorkspaceSpec } from './sandbox-client'
 import type { SettleWaitNotice, RuntimeCheckpoint, SessionArchiveDescriptor } from '@dltech/atlas-wire'
-import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
-import type { ThreadStorePort } from '../../store/thread-store'
+import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
+import type { ThreadStorePort } from '../store/thread-store'
 
 export { ECloudSandboxState }
 
@@ -139,7 +139,7 @@ export type CloudAttachment = {
    * channel is open. Absent when the attach opted out (specs, probes). Liveness never reads it —
    * turnInFlight is the channel's answer, not the mirror's.
    */
-  sessionMirror?: import('../session-mirror-syncer').SessionMirrorSync | undefined
+  sessionMirror?: import('./session-mirror-syncer').SessionMirrorSync | undefined
 }
 
 /**

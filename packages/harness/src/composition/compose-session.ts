@@ -2,7 +2,7 @@ import type { EventLogPort, WorkspaceIdentity } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { DeltaChannel } from '../channel/delta-channel'
-import { holdFamilyIntake } from '../cloud/relocation/freeze-family'
+import { holdFamilyIntake } from './freeze-family'
 import type { MessageIntake } from '../intake'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { TurnRunner } from '../loop/turn-runner.port'

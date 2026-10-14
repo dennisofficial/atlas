@@ -1,7 +1,7 @@
 import type { Event, ThreadId } from '@dltech/atlas-core'
 import { EClientRequest, transcriptIdentityReplySchema } from '../channel-wire'
 import { transcriptIdentityDigest } from '../event-identity'
-import type { CloudAttachment } from './cloud-bridge'
+import type { CloudAttachment } from '../cloud-bridge'
 
 export async function verifyTranscript(args: {
   attachment: CloudAttachment

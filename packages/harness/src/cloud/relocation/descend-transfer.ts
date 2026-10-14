@@ -9,7 +9,7 @@ import { EClientRequest, readMemoryArchiveReplySchema, readSessionArchiveReplySc
 import { claimSession } from '../../store/sessions/lock'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory, sessionLockFile } from '../../store/sessions/paths'
-import type { CloudBridge, CloudChannel } from './cloud-bridge'
+import type { CloudBridge, CloudChannel } from '../cloud-bridge'
 import { exportedSessionPathOf } from '../session-archive-transport'
 import { replaceSessionDirectoryGuarded } from './descend-preserve'
 import { mergeMemoryArchive } from './session-archive'
