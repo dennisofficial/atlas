@@ -5,26 +5,23 @@ import { LogPort } from '@dltech/atlas-core'
 import { cloudUserFilesClientFor } from '../cloud/user-files-client'
 import { registerDisposable } from '../container/disposal'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
-import { CloudSessionStoreToken } from '../container/tokens'
+import { CloudSessionStoreToken, ServeSessionToken } from '../container/tokens'
 import { resolveProjectMemory } from '../memory/project-memory'
 import { atlasDirectory } from '../store/paths'
 import { createUserLayerSync } from '../user-layer-sync/factory'
 import { NullUserLayerSync, UserLayerSyncPort } from '../user-layer-sync/port'
 
-const warnStart = (log: LogPort) => (error: unknown) => {
-  log.warn({
-    source: 'user-layer-sync',
-    message: `user-layer sync did not start: ${error instanceof Error ? error.message : String(error)}`,
-  })
-}
-
 /**
- * The user layer (skills/instructions/memory) syncs only while signed in to Atlas Cloud; a
- * signed-out session composes the no-op port so the registry slot is never unbound. The engine
- * is registered at compose but NOT started — composing must never open a socket (the
- * local-first outage contract forbids a signed-in session from touching the cloud when it is
- * down), so `start` is returned for the caller to fire on the first real activity. Serve passes
- * its own home (`driveHome`) via `home`.
+ * The user layer (skills/instructions/memory) syncs only while the session has cloud authority; a
+ * signed-out session composes the no-op port so the registry slot is never unbound. That authority
+ * is the stored cloud session on a local launch and the `ServeSessionToken` attachment the
+ * control plane issued on serve — the sandbox never stores a user session (cloud.json), so a
+ * serve launch that read only the store would bind the Null no matter how signed-in the operator
+ * is. The engine is registered at compose but NOT started on local launches — composing must never
+ * open a socket (the local-first outage contract forbids a signed-in session from touching the
+ * cloud when it is down), so `boot` is returned for the caller to fire: serve calls it at compose
+ * (its boot IS the wake), the TUI on the first conversation open. Serve passes its own home
+ * (`driveHome`) via `home`.
  */
 export async function bindUserLayerSync(args: {
   container: DependencyContainer
@@ -35,14 +32,17 @@ export async function bindUserLayerSync(args: {
   override?:
     | { home: string; atlasHome: string; client: Parameters<typeof createUserLayerSync>[0]['client'] }
     | undefined
-}): Promise<{ start: () => void }> {
+}): Promise<{ boot: () => Promise<void> }> {
   const { container } = args
   const log = container.resolve(registeredPortToken(LogPort))
 
-  const sessions = container.isRegistered(CloudSessionStoreToken, true)
-    ? container.resolve(CloudSessionStoreToken)
-    : undefined
-  const session = sessions?.read() ?? null
+  const session =
+    (container.isRegistered(ServeSessionToken, true)
+      ? container.resolve(ServeSessionToken)
+      : undefined) ??
+    (container.isRegistered(CloudSessionStoreToken, true)
+      ? container.resolve(CloudSessionStoreToken).read()
+      : null)
 
   const binding =
     args.override !== undefined
@@ -51,7 +51,7 @@ export async function bindUserLayerSync(args: {
           atlasHome: args.override.atlasHome,
           client: args.override.client,
         }
-      : session === null
+      : session === null || session === undefined
         ? null
         : {
             home: args.home ?? homedir(),
@@ -61,7 +61,7 @@ export async function bindUserLayerSync(args: {
 
   if (binding === null) {
     container.register(registeredPortToken(UserLayerSyncPort), { useValue: new NullUserLayerSync() })
-    return { start: () => undefined }
+    return { boot: async () => undefined }
   }
 
   const projectMemory = await resolveProjectMemory({
@@ -86,5 +86,5 @@ export async function bindUserLayerSync(args: {
       engine.stop()
     },
   })
-  return { start: () => void engine.start().catch(warnStart(log)) }
+  return { boot: () => engine.start() }
 }
