@@ -154,12 +154,32 @@ export class PlacementController {
   /**
    * The one permitted placement change: a host session's tool environment (host shell ↔ docker
    * container). Not a relocation — the harness stays on the host, only where its tools run changes,
-   * so this is a direct rewrite with the store's compare-and-swap, no transaction lifecycle.
+   * so this is a direct rewrite with the store's compare-and-swap, no transaction lifecycle. The
+   * session lock is held for the whole operation, so a concurrent move on the same session is
+   * refused while this one's work (pause, settle, relocate) is still running.
    */
   async setToolEnvironment(args: {
     threadId: ThreadId
     target: EExecutionLocation
   }): Promise<PlacementRecord> {
+    return this.withToolMove({
+      threadId: args.threadId,
+      target: args.target,
+      work: async (commit) => commit(),
+    })
+  }
+
+  /**
+   * Runs a tool-environment move under the session lock, committing the placement rewrite through
+   * the handle the work receives. The work performs the relocation (stopping shells, moving the
+   * session) before it commits; a work that throws before committing leaves the placement where it
+   * was, which is the move's atomicity guarantee.
+   */
+  async withToolMove<T>(args: {
+    threadId: ThreadId
+    target: EExecutionLocation
+    work: (commit: () => Promise<PlacementRecord>) => Promise<T>
+  }): Promise<T> {
     const binding = this.binding
     if (binding === undefined) throw new Error('placement has no durable store')
     if (args.target === EExecutionLocation.Cloud) {
@@ -173,11 +193,13 @@ export class PlacementController {
       if (record.placement.harness === EHarnessPlacement.Cloud) {
         throw new Error('cloud harnesses cannot change their tool environment')
       }
-      return await this.write({
-        threadId: args.threadId,
-        prior: record,
-        next: { placement: placementOf(args.target), revision: record.revision },
-      })
+      const commit = (): Promise<PlacementRecord> =>
+        this.write({
+          threadId: args.threadId,
+          prior: record,
+          next: { placement: placementOf(args.target), revision: record.revision },
+        })
+      return await args.work(commit)
     } finally {
       this.moving.delete(session)
     }

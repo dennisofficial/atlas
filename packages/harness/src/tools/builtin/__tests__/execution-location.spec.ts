@@ -228,7 +228,7 @@ describe('execution_location', () => {
     const services = new FakeServices()
     const agents = new FakeAgents()
     const { tool, fixture, control } = await open({ shells, services, agents })
-    const threadId = (await fixture.threads.create({})).id
+    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Host })).id
     snapshots.push(runningShell({ shellId: 'sh_1', threadId }))
     await control.state.activate({ threadId })
 
@@ -303,7 +303,7 @@ describe('execution_location', () => {
       }
     }
     const { tool, fixture, control } = await open({ agents: new FailingAgents() })
-    const threadId = (await fixture.threads.create({})).id
+    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Host })).id
     await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
