@@ -94,6 +94,18 @@ export const collectMainState = ({ gitDir }: { gitDir: string }): Promise<TreeWa
 export const collectLinkedState = ({ gitDir }: { gitDir: string }): Promise<TreeWalk> =>
   walkTree({ root: gitDir, isSkipped: linkedSkip })
 
+/**
+ * State a concurrent `git fetch` / `gc` / ref update rewrites without the workspace's capturable
+ * content changing: FETCH_HEAD is rewritten per fetch, ORIG_HEAD per operation, logs/ is the
+ * reflog (append-only; restore merges it line-wise), and sharedindex.* is a split-index detail
+ * git regenerates. None of it is restored as-is — refs and objects are repacked logically — so
+ * mid-capture churn here must not fail the archive.
+ */
+export const isVolatileGitState = (path: string): boolean => {
+  const root = path.split('/')[0] ?? path
+  return root === 'FETCH_HEAD' || root === 'ORIG_HEAD' || root === 'logs' || root.startsWith('sharedindex.')
+}
+
 export const indexPathIfPresent = async ({ gitDir }: { gitDir: string }): Promise<string | null> => {
   const path = join(gitDir, 'index')
   return (await exists(path)) ? path : null
@@ -114,15 +126,10 @@ export async function mergeStateSeeds({ gitDir }: { gitDir: string }): Promise<s
 
 const DIGEST_COMMON_ROOTS = new Set(['config', 'shallow', 'info'])
 
-const volatileRoot = (path: string): boolean => {
-  const root = path.split('/')[0] ?? path
-  return root === 'logs' || root.startsWith('sharedindex.')
-}
-
 export const commonDigestSkip: SkipRule = ({ path }) =>
   isTransient(path) || !DIGEST_COMMON_ROOTS.has(path.split('/')[0] ?? path)
 
 export const stateDigestSkip = ({ isMain }: { isMain: boolean }): SkipRule => {
   const base = isMain ? mainStateSkip : linkedSkip
-  return (args) => volatileRoot(args.path) || base(args)
+  return (args) => isVolatileGitState(args.path) || base(args)
 }

@@ -18,7 +18,18 @@ const describeRoot = async ({ root, isSkipped }: { root: string; isSkipped: Skip
   return lines
 }
 
-export async function digestGitAdmin({ trees }: { trees: readonly CoveredTree[] }): Promise<string> {
+export async function digestGitAdmin({
+  trees,
+  includeReflogs = true,
+}: {
+  trees: readonly CoveredTree[]
+  /**
+   * Reflogs churn under any concurrent git operation without the capturable content changing.
+   * The capture quiet-check passes false so a mid-pack fetch does not false-positive; the
+   * cleanup proof keeps the default because reflog drift matters for it.
+   */
+  includeReflogs?: boolean | undefined
+}): Promise<string> {
   const sections = new Map<string, string[]>()
   const byCommon = new Map<string, (CoveredTree & { isMain: boolean })[]>()
   for (const tree of trees) {
@@ -32,13 +43,15 @@ export async function digestGitAdmin({ trees }: { trees: readonly CoveredTree[] 
     sections.set(`refs:${gitDir}`, digestLines({ refs: await listCoveredRefs({ trees: [tree] }) }))
     if (!sections.has(`state:${gitDir}`)) {
       sections.set(`state:${gitDir}`, await describeRoot({ root: gitDir, isSkipped: stateDigestSkip({ isMain }) }))
-      if (!isMain) sections.set(`reflogs:${gitDir}`, await describeLinkedReflogs({ gitDir }))
+      if (includeReflogs && !isMain) sections.set(`reflogs:${gitDir}`, await describeLinkedReflogs({ gitDir }))
     }
     byCommon.set(commonDir, [...(byCommon.get(commonDir) ?? []), { ...tree, isMain }])
   }
-  for (const [commonDir, members] of byCommon) {
-    const covered = new Set(commonRefsOf({ sets: await listTreeRefSets({ trees: members }) }).map((ref) => ref.name))
-    sections.set(`reflogs-common:${commonDir}`, await describeCommonReflogs({ commonDir, covered }))
+  if (includeReflogs) {
+    for (const [commonDir, members] of byCommon) {
+      const covered = new Set(commonRefsOf({ sets: await listTreeRefSets({ trees: members }) }).map((ref) => ref.name))
+      sections.set(`reflogs-common:${commonDir}`, await describeCommonReflogs({ commonDir, covered }))
+    }
   }
   const hash = createHash('sha256')
   for (const key of [...sections.keys()].sort()) {

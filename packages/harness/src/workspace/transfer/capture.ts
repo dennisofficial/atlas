@@ -30,7 +30,7 @@ type Collected = {
   indexSource: string | null
 }
 
-type Observation = { snapshots: TreeSnapshot[]; admin: string | null; paths: string[] }
+type Observation = { snapshots: TreeSnapshot[]; admin: string | null; quiet: string | null; paths: string[] }
 
 const isInside = ({ parent, child }: { parent: string; child: string }): boolean =>
   child === parent || child.startsWith(`${parent}${sep}`)
@@ -60,8 +60,12 @@ async function observe({ layout }: { layout: WorkspaceLayout }): Promise<Observa
     ),
   )
   const roots = layout.trees.map((tree) => tree.sourcePath)
-  const admin = layout.commonDir === null ? null : await digestGitAdmin({ trees: layout.trees })
-  return { snapshots, admin, paths: roots }
+  const admin = layout.commonDir === null ? null : await digestGitAdmin({ trees: layout.trees, includeReflogs: true })
+  const quiet =
+    layout.commonDir === null
+      ? null
+      : await digestGitAdmin({ trees: layout.trees, includeReflogs: false })
+  return { snapshots, admin, quiet, paths: roots }
 }
 
 async function collectTree({
@@ -199,7 +203,7 @@ const changedTree = ({
       before.snapshots[position]?.branch !== after.snapshots[position]?.branch,
   )
   if (index >= 0) return layout.trees[index]?.sourcePath ?? null
-  if (before.admin !== after.admin) return layout.commonDir
+  if (before.quiet !== after.quiet) return layout.commonDir
   return null
 }
 

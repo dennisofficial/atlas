@@ -2,6 +2,26 @@ import { lstat, mkdir, rename, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import type { TreeEntry } from './capture-files'
+import { isVolatileGitState } from './git-state'
+
+const GIT_STATE_MOUNT = 'git-state'
+const COMMON_GIT_MOUNT = 'git'
+
+/**
+ * The size-drift re-stat guards the truncated-archive bug: a tree file rewritten under tar reads
+ * short and silently corrupts the stream. Volatile git-internal metadata (reflogs, FETCH_HEAD,
+ * ORIG_HEAD) churns under any concurrent git operation without the workspace's capturable content
+ * changing, and is never restored as-is — so it stays in the archive but out of the re-stat.
+ */
+const isExemptFromResized = (name: string): boolean => {
+  if (name === COMMON_GIT_MOUNT || name.startsWith(`${COMMON_GIT_MOUNT}/`)) {
+    return isVolatileGitState(name.slice(COMMON_GIT_MOUNT.length + 1))
+  }
+  const marker = `/${GIT_STATE_MOUNT}/`
+  const at = name.indexOf(marker)
+  if (at < 0) return false
+  return isVolatileGitState(name.slice(at + marker.length))
+}
 
 const liveTars = new Set<{ kill: () => void }>()
 let exitHookArmed = false
@@ -99,7 +119,8 @@ export async function writeArchive({
   const survivors = probed.filter(({ present }) => present)
   const kept = survivors.map(({ name }) => name)
   const packedSizes = new Map<string, number>()
-  for (const { name, fileSize } of survivors) if (fileSize !== null) packedSizes.set(name, fileSize)
+  for (const { name, fileSize } of survivors)
+    if (fileSize !== null && !isExemptFromResized(name)) packedSizes.set(name, fileSize)
   await Bun.write(listPath, kept.map((name) => `${name}\0`).join(''))
   await mkdir(dirname(destination), { recursive: true })
   const gnu = await isGnuTar()

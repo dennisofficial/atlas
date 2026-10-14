@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { chmod, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { digestGitAdmin } from '../capture-admin'
 import { captureWorkspaceArchive } from '../capture'
 import { createFixture, createScratch, git, type Fixture } from './capture-fixture'
 
@@ -70,6 +71,53 @@ describe('a workspace changing during archive creation', () => {
 
     expect(await stat(destination).then(() => true, () => false)).toBe(true)
     expect((result as { trees: unknown[] }).trees).toHaveLength(1)
+  })
+
+  it('ships the capture when a concurrent fetch churns volatile git metadata', async () => {
+    const fixture = await createFixture()
+    fixtures.push(fixture)
+    const output = await createScratch()
+    directories.push(output)
+    const destination = join(output, 'workspace.tar.gz')
+    const gitDir = join(fixture.main, '.git')
+    const head = await git({ cwd: fixture.main, args: ['rev-parse', 'HEAD'] })
+    const churn = [
+      `printf '%s\\n' ${quoted(head)} > ${quoted(join(gitDir, 'FETCH_HEAD'))}`,
+      `printf '%s\\n' ${quoted(head)} > ${quoted(join(gitDir, 'ORIG_HEAD'))}`,
+      `printf '%s\\tchurn\\n' ${quoted(`${head} ${head}`)} >> ${quoted(join(gitDir, 'logs', 'HEAD'))}`,
+      `mkdir -p ${quoted(join(gitDir, 'worktrees'))} 2>/dev/null || true`,
+      `printf '%s\\n' ${quoted(head)} > ${quoted(join(gitDir, 'worktrees', 'churn-fetch-head'))} 2>/dev/null || true`,
+    ].join('; ')
+
+    const result = await mutateDuringPacking({
+      command: churn,
+      capture: () => captureWorkspaceArchive({ cwd: fixture.main, destination }),
+    })
+
+    expect(await stat(destination).then(() => true, () => false)).toBe(true)
+    expect((result as { trees: unknown[] }).trees).toHaveLength(1)
+  })
+
+  it('still refuses the capture when a real workspace file changes while volatile git metadata churns', async () => {
+    const fixture = await createFixture()
+    fixtures.push(fixture)
+    const output = await createScratch()
+    directories.push(output)
+    const destination = join(output, 'workspace.tar.gz')
+    const gitDir = join(fixture.main, '.git')
+    const head = await git({ cwd: fixture.main, args: ['rev-parse', 'HEAD'] })
+    const churn = [
+      `printf '%s\\n' ${quoted(head)} > ${quoted(join(gitDir, 'FETCH_HEAD'))}`,
+      `printf '%s\\tchurn\\n' ${quoted(`${head} ${head}`)} >> ${quoted(join(gitDir, 'logs', 'HEAD'))}`,
+      `printf 'real edit\\n' >> ${quoted(join(fixture.main, 'README.md'))}`,
+    ].join('; ')
+
+    await expect(mutateDuringPacking({
+      command: churn,
+      capture: () => captureWorkspaceArchive({ cwd: fixture.main, destination }),
+    })).rejects.toThrow('changed while it was being captured')
+
+    expect(await stat(destination).then(() => true, () => false)).toBe(false)
   })
 
   it('refuses a capture when an untracked file appears after the file listing was collected', async () => {
