@@ -167,6 +167,8 @@ describe('the github plugin as the loader sees it', () => {
     expect(text).toContain('between steps')
     expect(text).toContain('`gh run watch`')
     expect(text).toContain('One-shot reads')
+    expect(text).toContain('session stands in is tracked')
+    expect(text).toContain('a read-only review included')
 
     await contribution.dispose?.()
   })

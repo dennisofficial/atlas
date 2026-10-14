@@ -43,7 +43,7 @@ const NOW_THE_PROJECT_DIRECTORY =
 
 const description = [
   'Create a git worktree and move the session into it.',
-  'Use it when the developer asks for a worktree, the project instructions say work happens in one, or your agent contract calls for one; a request to fix something or start a branch is not by itself a request for a worktree.',
+  'Use it when the developer asks for a worktree, the project instructions say work happens in one, or your agent contract calls for one; a request to fix something or start a branch is not by itself a request for a worktree. Working a pull request is: reviewing, addressing feedback on, or watching over a PR calls for a worktree on its branch - even a read-only review - because Atlas tracks the pull request of the checkout the session stands in, and a review run from the main checkout is untracked.',
   'name creates a new worktree on a new branch of that name, cut from a freshly fetched origin default branch, under the worktree directory this project is configured to use.',
   'path enters a worktree that already exists instead, given absolutely or relative, and must name one git already lists for this repository - not its main checkout, and not one that is bare, prunable or on a detached HEAD. A relative path is resolved against the session directory first and, when that does not match a listed worktree, against the repository root, so a session already inside a worktree can pass the repository-root-relative path.',
   'Entering that way adopts a worktree Atlas did not create: the reply reports the branch it is on, its upstream, and what is uncommitted or unpushed there, and exit_worktree will not remove it however it is called.',
