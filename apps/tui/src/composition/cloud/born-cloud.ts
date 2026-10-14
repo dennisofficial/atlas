@@ -1,5 +1,4 @@
 import {
-  choiceValueOf,
   EHarnessPlacement,
   EToolEnvironment,
   ESettingId,
@@ -15,7 +14,7 @@ import { localAnchorOf, localBindingOf } from '../session-binding'
 import { bornPlacementChip, startsTheThread } from './born-placement-chip'
 
 export const CLOUD_NOT_CONFIGURED_NOTICE =
-  'cloud sandboxes are not configured yet — this thread was born on the host; set up your Vercel account under settings (ctrl+o) › cloud, and new threads will start in the cloud'
+  'cloud sandboxes are not configured yet — this thread was born on the host; set up your Vercel account under settings (ctrl+o) › cloud to choose the cloud for a thread'
 
 export type BornCloudArgs = {
   app: AtlasApp
@@ -30,19 +29,11 @@ export type BornCloudArgs = {
 
 const HOST_PLACEMENT: SessionPlacement = { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host }
 
-const LAST_AUTO = 'auto'
-
 type BornChoice = { harness: EHarnessPlacement; unconfigured: boolean }
 
 function bornChoiceOf(args: { app: AtlasApp; explicit: EHarnessPlacement | undefined }): BornChoice {
   const { app } = args
-  const last = choiceValueOf({
-    resolution: app.settings.snapshot().resolution,
-    id: ESettingId.LastBornPlacement,
-    fallback: LAST_AUTO,
-  })
-  const wanted =
-    args.explicit ?? (last === EHarnessPlacement.Host ? EHarnessPlacement.Host : EHarnessPlacement.Cloud)
+  const wanted = args.explicit ?? EHarnessPlacement.Host
   if (wanted === EHarnessPlacement.Host) return { harness: EHarnessPlacement.Host, unconfigured: false }
   if (cloudProvisioningConfigured({ settings: app.settings, secrets: app.secrets })) {
     return { harness: EHarnessPlacement.Cloud, unconfigured: false }
@@ -99,12 +90,12 @@ export function fallBackToHost(args: BornCloudArgs): void {
 
 /**
  * Where a /new thread is born. The placement is fixed at the first send and never moves after it:
- * the operator's chip choice (else the last one, else the cloud when this machine can provision
- * sandboxes) decides it. Choosing the cloud starts provisioning right away — the provisioning is
+ * the host is the default and the cloud is always an explicit chip choice — never assumed and never
+ * carried over from the last thread. Choosing the cloud starts provisioning right away — the provisioning is
  * the placement write, and the thread has no history to transfer. The born marker lands once the
  * birth settles (`markBorn`), so a crash mid-provision still reads as an unfinished birth to the
- * recovery path. Anywhere else the thread runs on the host and, when the cloud was wanted but is
- * not set up, says why once.
+ * recovery path. Anywhere else the thread runs on the host and, when the cloud was explicitly chosen
+ * but is not set up, says why once.
  */
 export async function bornWith(args: BornCloudArgs): Promise<void> {
   const { app, threadId } = args

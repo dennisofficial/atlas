@@ -22,7 +22,7 @@ afterEach(() => dismissNotice())
 
 const workspaceRoot = (): string => mkdtempSync(join(tmpdir(), 'atlas-chip-spec-'))
 
-const appOn = (args: { configured: boolean; last?: string }): FakeApp =>
+const appOn = (args: { configured: boolean }): FakeApp =>
   fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
     cwd: workspaceRoot(),
@@ -33,7 +33,6 @@ const appOn = (args: { configured: boolean; last?: string }): FakeApp =>
         ...(args.configured
           ? { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1' }
           : {}),
-        ...(args.last === undefined ? {} : { [ESettingId.LastBornPlacement]: args.last }),
       },
     },
   })
@@ -156,7 +155,7 @@ const newThread = async (mounted: Mounted): Promise<void> => {
 }
 
 const chipShows = async (mounted: Mounted, text: string): Promise<boolean> =>
-  until({ holds: async () => (await mounted.frame()).includes(text), within: 20_000 })
+  until({ holds: async () => (await mounted.frame()).includes(`${text.trim()} ▾`), within: 20_000 })
 
 const flipChip = async (mounted: Mounted): Promise<void> => {
   mounted.down()
@@ -169,7 +168,7 @@ const lastChoice = (app: FakeApp): unknown =>
   app.settings.snapshot().document.values[ESettingId.LastBornPlacement]
 
 describe('the placement chip in the composer footer', () => {
-  it('shows where a new thread will start, defaulting to the cloud on a configured machine', async () => {
+  it('starts a new thread local on a configured machine, without provisioning a sandbox', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
@@ -177,15 +176,15 @@ describe('the placement chip in the composer footer', () => {
     try {
       await newThread(mounted)
 
-      expect(await chipShows(mounted, '☁ cloud')).toBe(true)
-      expect(bridge.created.length).toBe(1)
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(bridge.created.length).toBe(0)
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
   it('births a cloud-born thread when the first message is sent after choosing the cloud', async () => {
-    const app = appOn({ configured: true, last: 'host' })
+    const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
 
@@ -217,6 +216,7 @@ describe('the placement chip in the composer footer', () => {
 
     try {
       await newThread(mounted)
+      await flipChip(mounted)
       expect(await chipShows(mounted, '☁ cloud')).toBe(true)
 
       await flipChip(mounted)
@@ -237,21 +237,22 @@ describe('the placement chip in the composer footer', () => {
     }
   }, 60_000)
 
-  it('starts the next /new where the operator last chose', async () => {
+  it('starts every /new local, even right after the operator chose the cloud', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
 
     try {
       await newThread(mounted)
-      await chipShows(mounted, '☁ cloud')
-      await flipChip(mounted)
       expect(await chipShows(mounted, ' local ')).toBe(true)
+      await flipChip(mounted)
+      expect(await until({ holds: async () => bridge.created.length === 1, within: 20_000 })).toBe(true)
+      expect(await chipShows(mounted, '☁ cloud')).toBe(true)
 
       await newThread(mounted)
 
       expect(await chipShows(mounted, ' local ')).toBe(true)
-      expect(lastChoice(app)).toBe('host')
+      expect(bridge.created.length).toBe(1)
     } finally {
       await mounted.done()
     }
@@ -264,6 +265,7 @@ describe('the placement chip in the composer footer', () => {
 
     try {
       await newThread(mounted)
+      await flipChip(mounted)
       expect(await chipShows(mounted, '☁ cloud')).toBe(true)
 
       await mounted.typeDraft('a draft worth keeping')
@@ -288,7 +290,6 @@ describe('the placement chip in the composer footer', () => {
 
     try {
       await newThread(mounted)
-      await flipChip(mounted)
       expect(await chipShows(mounted, ' local ')).toBe(true)
 
       await mounted.command('sent, so the placement is locked')
@@ -308,7 +309,7 @@ describe('the placement chip in the composer footer', () => {
     }
   }, 60_000)
 
-  it('falls back to the host with the existing notice on a machine without a Vercel token', async () => {
+  it('starts local without any notice on a machine without a Vercel token', async () => {
     const app = appOn({ configured: false })
     const mounted = await mount({ app, bridge: fakeBridge() })
 
@@ -316,7 +317,30 @@ describe('the placement chip in the composer footer', () => {
       await newThread(mounted)
 
       expect(await chipShows(mounted, ' local ')).toBe(true)
-      expect(currentNotices().map((notice) => notice.text)).toContain(CLOUD_NOT_CONFIGURED_NOTICE)
+      expect(currentNotices().map((notice) => notice.text)).not.toContain(CLOUD_NOT_CONFIGURED_NOTICE)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('explains the fallback when the cloud is chosen on a machine without a Vercel token', async () => {
+    const app = appOn({ configured: false })
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await newThread(mounted)
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+
+      await flipChip(mounted)
+
+      const noticed = await until({
+        holds: async () => currentNotices().some((notice) => notice.text === CLOUD_NOT_CONFIGURED_NOTICE),
+        within: 20_000,
+      })
+      expect(noticed).toBe(true)
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(bridge.created.length).toBe(0)
     } finally {
       await mounted.done()
     }
