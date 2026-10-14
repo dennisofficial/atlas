@@ -28,8 +28,9 @@ export function useExecutionLocation(args: {
   app: AtlasApp
   threadId: ThreadId
   stored: EExecutionLocation | undefined
+  started: boolean
 }): ExecutionLocationControl {
-  const { app, threadId, stored } = args
+  const { app, threadId, stored, started } = args
 
   const { location, bound } = useSessionOwner({ app })
 
@@ -42,6 +43,7 @@ export function useExecutionLocation(args: {
   }, [app, stored, threadId])
 
   useEffect(() => {
+    if (started) return
     const chip = bornPlacementChip(app)
     const held = chip.snapshot()
     if (held !== null && held.threadId === threadId) return
@@ -63,7 +65,7 @@ export function useExecutionLocation(args: {
       },
     })
     return stop
-  }, [app, threadId])
+  }, [app, threadId, started])
 
   return { location, bound }
 }
