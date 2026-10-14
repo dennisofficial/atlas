@@ -232,6 +232,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           wide={frame.wide}
           width={layout.contentWidth}
           modelId={selection.ref.modelId}
+          placementShape={settings.placementChooserShape}
           thinking={settings.thinking}
           agentView={agentView}
           conversation={conversation}

@@ -24,7 +24,7 @@ import {
 import type { Span } from '../ui/components/spans'
 import type { CloudSyncState } from '../ui/components/settings/cloud'
 import type { AtlasApp } from './compose'
-import { preferencesOf } from './settings-preferences'
+import { preferencesOf, type PlacementChooserShape } from './settings-preferences'
 import { type CloudPageControl } from './use-cloud-page'
 import { useSecretPrompt } from './use-secret-prompt'
 import { type SettingsGithubControl } from './use-settings-github'
@@ -66,6 +66,7 @@ export type SettingsControl = {
   footerMeters: EFooterMeters
   usageWarn: Record<EUsageWindow, number>
   modelFavourites: readonly string[]
+  placementChooserShape: PlacementChooserShape
   handlePinModels: (favourites: readonly string[]) => void
   handleOpen: () => void
   handleDismiss: () => void

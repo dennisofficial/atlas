@@ -23,6 +23,12 @@ const AUTO_COMPACT_AT_PERCENT = 90
 
 const NOTICE_SECONDS = 4
 
+export type PlacementChooserShape = 'chip' | 'hero'
+
+export function placementChooserShapeOf(value: string): PlacementChooserShape {
+  return value === 'hero' ? 'hero' : 'chip'
+}
+
 export type SettingsPreferences = {
   sidebarWidth: number
   sidebarFoldBelow: number
@@ -35,6 +41,7 @@ export type SettingsPreferences = {
   footerMeters: EFooterMeters
   usageWarn: Record<EUsageWindow, number>
   modelFavourites: readonly string[]
+  placementChooserShape: PlacementChooserShape
 }
 
 export function preferencesOf(resolution: SettingsResolution): SettingsPreferences {
@@ -73,5 +80,8 @@ export function preferencesOf(resolution: SettingsResolution): SettingsPreferenc
     ),
     tldrStatus: toggleValueOf({ resolution, id: ESettingId.TldrStatus }),
     modelFavourites: parseFavourites(textValueOf({ resolution, id: ESettingId.ModelFavourites })),
+    placementChooserShape: placementChooserShapeOf(
+      choiceValueOf({ resolution, id: ESettingId.PlacementChooserShape, fallback: 'chip' }),
+    ),
   }
 }
