@@ -55,16 +55,14 @@ describe('the container command', () => {
       expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
 
       const settled = await until({
-        holds: async () => app.threads.chosenLocations.length === 4,
+        holds: async () => app.threads.chosenLocations.length === 2,
         within: WITHIN_MS,
       })
 
-      // One durable write per move phase: the recorded intent, the relocation flip, the commit,
-      // the cleared record — where there used to be the single legacy column flip.
+      // A host↔docker switch is one direct rewrite now, not a move transaction: the relocation's
+      // own column flip plus the placement commit's write — no intent/cleared-record phases.
       expect(settled).toBe(true)
       expect(app.threads.chosenLocations).toEqual([
-        { threadId: THREAD, location: EExecutionLocation.Host },
-        { threadId: THREAD, location: EExecutionLocation.Docker },
         { threadId: THREAD, location: EExecutionLocation.Docker },
         { threadId: THREAD, location: EExecutionLocation.Docker },
       ])
@@ -127,14 +125,12 @@ describe('the container command', () => {
       await switchTo(mounted, 'docker')
 
       const settled = await until({
-        holds: async () => app.threads.chosenLocations.length === 4,
+        holds: async () => app.threads.chosenLocations.length === 2,
         within: WITHIN_MS,
       })
 
       expect(settled).toBe(true)
       expect(app.threads.chosenLocations).toEqual([
-        { threadId: THREAD, location: EExecutionLocation.Host },
-        { threadId: THREAD, location: EExecutionLocation.Docker },
         { threadId: THREAD, location: EExecutionLocation.Docker },
         { threadId: THREAD, location: EExecutionLocation.Docker },
       ])
