@@ -167,7 +167,6 @@ export function createHarnessContainer(): DependencyContainer {
       (resolver) =>
         new JsonlSessionAuthority({
           registry: resolver.resolve(SessionRegistryToken),
-          clock: resolver.resolve(registeredPortToken(ClockPort)),
         }),
     ),
   })

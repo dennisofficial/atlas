@@ -5,19 +5,18 @@ import {
   type RotationOutcome,
   type RotationSettle,
   type RotationStage,
-  type RotationStatus,
 } from '@dltech/atlas-harness'
 
 export type RotationRequest = {
   sessionId: string
-  predecessor: ThreadId
+  threadId: ThreadId
   instructions: string
   settle: RotationSettle
+  signal?: AbortSignal | undefined
 }
 
 export class ControlledRotation extends RotationPort {
   readonly requests: RotationRequest[] = []
-  readonly recovers: string[] = []
   private readonly listeners = new Set<RotationListener>()
   private finish: (outcome: RotationOutcome) => void = () => undefined
 
@@ -31,15 +30,6 @@ export class ControlledRotation extends RotationPort {
     return new Promise((resolve) => {
       this.finish = resolve
     })
-  }
-
-  async status(): Promise<RotationStatus> {
-    return { kind: 'idle' }
-  }
-
-  async recover(args: { sessionId: string }): Promise<RotationStatus> {
-    this.recovers.push(args.sessionId)
-    return { kind: 'idle' }
   }
 
   stage(stage: Pick<RotationStage, 'phase'> & { sessionId: string }): void {

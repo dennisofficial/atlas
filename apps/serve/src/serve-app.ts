@@ -20,9 +20,7 @@ import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { TurnRunner } from '@dltech/atlas-harness'
 import type { LostService, LostShell } from '@dltech/atlas-harness'
-import type { ThreadStorePort, CompactionPort, RotationPort, SessionAuthorityPort } from '@dltech/atlas-harness'
-
-export type ServeSessionAuthority = Pick<SessionAuthorityPort, 'mainGenerationOf' | 'activeMainOf'>
+import type { ThreadStorePort, CompactionPort, RotationPort } from '@dltech/atlas-harness'
 
 /**
  * The registries' notice queues narrowed to what the idle wake reads: whether the served thread has
@@ -193,7 +191,6 @@ export type ServeApp = {
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   compaction?: CompactionPort | undefined
   rotation?: RotationPort | undefined
-  authority?: ServeSessionAuthority | undefined
   /** The session's placement controller; serve hydrates it to cloud after transcript restore. */
   executionLocation?: PlacementController | undefined
   close: () => Promise<void>

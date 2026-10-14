@@ -36,6 +36,7 @@ export function useConversation(args: ConversationArgs): Conversation {
   const startedRef = useRef(args.opened.started)
 
   const forgetUsage = useCallback(() => setReported(null), [])
+  const cancelRotationRef = useRef<() => boolean>(() => false)
 
   const threadId = opened.threadId
   const moving = usePlacementMoving({ app, threadId })
@@ -135,7 +136,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     onUndone,
     setFailure: setTurnFailure,
     forgetUsage,
-    cancelCompaction: compaction.cancel,
+    cancelCompaction: () => compaction.cancel() || cancelRotationRef.current(),
     interruptRefusal: args.interruptRefusal,
     driveRefusal,
     frozen: moving,
@@ -176,27 +177,30 @@ export function useConversation(args: ConversationArgs): Conversation {
     },
     [args.onLocalOpened, holdMove, setEvents, setName, turnDriver],
   )
-  const { handleNewConversation, handleOpenThread, handleOpenSuccessor } = useThreadSwap({
+  const { handleNewConversation, handleOpenThread } = useThreadSwap({
     app,
     threadId,
     working: turnDriver.workingRef,
     adopt,
     onFailure: setFailure,
   })
-  const { rotating, handleRotate, handleSend, handleTakeBackPending } = useConversationRotation({
-    app,
-    threadId,
-    readClock,
-    compacting: compacting !== null,
-    moving,
-    working,
-    pending,
-    sending,
-    cloudRunner,
-    driver: turnDriver,
-    setFailure,
-    onRotated: handleOpenSuccessor,
-  })
+  const { rotating, handleRotate, cancelRotation, handleSend, handleTakeBackPending } =
+    useConversationRotation({
+      app,
+      threadId,
+      readClock,
+      compacting: compacting !== null,
+      moving,
+      working,
+      pending,
+      sending,
+      cloudRunner,
+      driver: turnDriver,
+      refresh,
+      setFailure,
+      onRotated: forgetUsage,
+    })
+  cancelRotationRef.current = cancelRotation
   const now = useTickingNow({
     ticking: !frozen && (derived.streaming || working || compacting !== null || rotating !== null),
     clock,
@@ -225,9 +229,6 @@ export function useConversation(args: ConversationArgs): Conversation {
     (): Promise<readonly Event[]> => app.log.read({ threadId }),
     [app.log, threadId],
   )
-  // Reported usage belongs to the thread whose step emitted it: after a rotation the predecessor's
-  // last report must not read as the successor's window, so it only counts while it names the
-  // active thread — otherwise the fresh thread's own log estimate stands until its first step.
   const used = useMemo(
     () =>
       reported === null || reported.threadId !== threadId

@@ -35,6 +35,7 @@ export function WorkspaceTranscript(props: {
     | 'now'
     | 'projectDirectory'
     | 'turn'
+    | 'rotating'
     | 'pending'
     | 'handleRetry'
     | 'handleDismissFailure'
@@ -106,6 +107,7 @@ export function WorkspaceTranscript(props: {
           now={conversation.now}
           cwd={conversation.projectDirectory}
           turn={conversation.turn}
+          rotating={conversation.rotating}
           waking={connection === EChannelConnection.Waking}
           reconnecting={
             connection === EChannelConnection.Reconnecting ||

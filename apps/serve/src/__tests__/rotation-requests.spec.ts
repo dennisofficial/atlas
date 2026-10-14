@@ -17,27 +17,20 @@ import type { RequestFrame } from '../request-reply'
 import { createRotationRequests } from '../rotation-requests'
 
 const served = toThreadId('rotation-served')
-const successor = toThreadId('rotation-successor')
 const stranger = toThreadId('rotation-stranger')
 
 class ScriptedRotation extends RotationPort {
   listeners = new Set<RotationListener>()
-  requests: { sessionId: string; predecessor: ThreadId; instructions: string; settle: RotationSettle }[] = []
+  requests: { sessionId: string; threadId: ThreadId; instructions: string; settle: RotationSettle }[] = []
   finish: (outcome: RotationOutcome) => void = () => undefined
   busy = false
 
-  async request(args: { sessionId: string; predecessor: ThreadId; instructions: string; settle: RotationSettle }) {
+  async request(args: { sessionId: string; threadId: ThreadId; instructions: string; settle: RotationSettle }) {
     if (this.busy) throw new RotationBusy({ sessionId: args.sessionId })
     this.requests.push(args)
     return new Promise<RotationOutcome>((resolve) => {
       this.finish = resolve
     })
-  }
-  async status() {
-    return { kind: 'idle' as const }
-  }
-  async recover() {
-    return { kind: 'idle' as const }
   }
   subscribe(listener: RotationListener) {
     this.listeners.add(listener)
@@ -55,41 +48,38 @@ const rotateFrame = (params: Record<string, unknown>): RequestFrame => ({
   params,
 })
 
-const rig = (args?: { rotation?: ScriptedRotation | null; related?: Set<string>; activeMain?: ThreadId }) => {
+const rig = (args?: { rotation?: ScriptedRotation | null }) => {
   const rotation = args?.rotation === null ? undefined : (args?.rotation ?? new ScriptedRotation())
   const admission = createHistoryAdmission({ threadId: () => served, intake: null, unavailable: () => false })
   const broadcasts: RotationStateWire[] = []
+  let changes = 0
   const requests = createRotationRequests({
     threadId: served,
     rotation,
-    authority: {
-      mainGenerationOf: async ({ threadId }) => (args?.related?.has(threadId) === true ? 0 : undefined),
-      activeMainOf: async () => args?.activeMain,
-    },
     driver: {
       holdForRotation: admission.holdForRotation,
       beginRotation: () => ({ pause: () => undefined, waitSettled: async () => null }),
-      followActiveMain: () => true,
     },
     broadcast: (state) => void broadcasts.push(state),
+    changed: () => void (changes += 1),
     log: () => undefined,
   })
-  return { rotation, requests, admission, broadcasts }
+  return { rotation, requests, admission, broadcasts, changes: () => changes }
 }
 
 const params = { threadId: served, operationId: 'op-1', instructions: 'keep going' }
 
 describe('rotation requests', () => {
-  it('answers started on the first stage and passes the settle and instructions through', async () => {
+  it('answers started on the first stage and passes the thread, settle and instructions through', async () => {
     const { rotation, requests, admission } = rig()
     const reply = requests.answer(rotateFrame(params))
     await Promise.resolve()
     await Promise.resolve()
     rotation!.stage(ERotationPhase.Settling)
     expect(await reply).toMatchObject({ ok: true, data: { type: 'started' } })
-    expect(rotation!.requests[0]).toMatchObject({ sessionId: served, predecessor: served, instructions: 'keep going' })
+    expect(rotation!.requests[0]).toMatchObject({ sessionId: served, threadId: served, instructions: 'keep going' })
     expect(admission.held()).toBe(true)
-    rotation!.finish({ kind: 'failed', sessionId: served, operationId: 'op', reason: 'x' })
+    rotation!.finish({ kind: 'failed', reason: 'x' })
     await requests.whenSettled()
   })
 
@@ -101,75 +91,73 @@ describe('rotation requests', () => {
     expect(admission.held()).toBe(false)
   })
 
-  it('refuses a thread that is neither served nor a session main', async () => {
+  it('refuses a thread the serve does not serve', async () => {
     const { rotation, requests, admission } = rig()
     const reply = await requests.answer(rotateFrame({ ...params, threadId: stranger }))
-    expect(reply).toMatchObject({ data: { type: 'refused' } })
+    expect(reply).toMatchObject({ data: { type: 'refused', reason: 'this sandbox serves one thread' } })
     expect(rotation!.requests).toHaveLength(0)
     expect(admission.held()).toBe(false)
   })
 
-  it('accepts a related session main by authority', async () => {
-    const { rotation, requests } = rig({ related: new Set([successor]) })
-    const reply = requests.answer(rotateFrame({ ...params, threadId: successor }))
-    await Promise.resolve()
-    await Promise.resolve()
-    rotation!.stage(ERotationPhase.Settling)
-    expect(await reply).toMatchObject({ data: { type: 'started' } })
-    rotation!.finish({ kind: 'aborted', sessionId: served, operationId: 'op', reason: 'x' })
-    await requests.whenSettled()
-  })
-
-  it('maps stages to wire phases and ends with the successor on commit, then releases the hold', async () => {
-    const { rotation, requests, admission, broadcasts } = rig()
+  it('maps stages to wire phases and ends with a done frame carrying the watermark, then releases the hold', async () => {
+    const { rotation, requests, admission, broadcasts, changes } = rig()
     const reply = requests.answer(rotateFrame(params))
     await Promise.resolve()
     await Promise.resolve()
     for (const phase of [
       ERotationPhase.Settling,
       ERotationPhase.Summarising,
-      ERotationPhase.Preparing,
-      ERotationPhase.Committing,
-      ERotationPhase.Activating,
-      ERotationPhase.Committed,
+      ERotationPhase.Compacting,
+      ERotationPhase.Done,
+      ERotationPhase.Failed,
     ])
       rotation!.stage(phase)
     await reply
     rotation!.finish({
-      kind: 'committed',
+      kind: 'rotated',
       sessionId: served,
       operationId: 'op',
-      predecessor: served,
-      successor,
-      handoffPath: '/h.md',
+      threadId: served,
       watermarkSeq: 3,
+      replaced: 3,
     })
     await requests.whenSettled()
-    expect(broadcasts.map((state) => state.phase)).toEqual([
-      EWireRotationPhase.Settling,
-      EWireRotationPhase.Preparing,
-      EWireRotationPhase.Preparing,
-      EWireRotationPhase.Writing,
-      EWireRotationPhase.Activating,
-      EWireRotationPhase.Activating,
+    expect(broadcasts).toEqual([
+      { phase: EWireRotationPhase.Settling },
+      { phase: EWireRotationPhase.Summarising },
+      { phase: EWireRotationPhase.Compacting },
+      { phase: EWireRotationPhase.Done, watermarkSeq: 3 },
     ])
-    expect(broadcasts.at(-1)).toEqual({ phase: EWireRotationPhase.Activating, successor })
+    expect(changes()).toBe(1)
     expect(admission.held()).toBe(false)
     expect(requests.current()).toBeUndefined()
   })
 
-  it('broadcasts a failed terminal with the reason and releases the hold', async () => {
-    const { rotation, requests, admission, broadcasts } = rig()
+  it('broadcasts a failed terminal with the reason, leaves history alone, and releases the hold', async () => {
+    const { rotation, requests, admission, broadcasts, changes } = rig()
     const reply = requests.answer(rotateFrame(params))
     await Promise.resolve()
     await Promise.resolve()
     rotation!.stage(ERotationPhase.Settling)
     await reply
-    rotation!.finish({ kind: 'failed', sessionId: served, operationId: 'op', reason: 'summary came back empty' })
+    rotation!.finish({ kind: 'failed', reason: 'summary came back empty' })
     await requests.whenSettled()
     expect(broadcasts.at(-1)).toEqual({ phase: EWireRotationPhase.Failed, reason: 'summary came back empty' })
+    expect(changes()).toBe(0)
     expect(admission.held()).toBe(false)
     expect(() => admission.hold()()).not.toThrow()
+  })
+
+  it('answers refused when the port refuses before any stage', async () => {
+    const { rotation, requests, admission, broadcasts } = rig()
+    const reply = requests.answer(rotateFrame(params))
+    await Promise.resolve()
+    await Promise.resolve()
+    rotation!.finish({ kind: 'refused', reason: 'nothing to rotate' })
+    expect(await reply).toMatchObject({ data: { type: 'refused', reason: 'nothing to rotate' } })
+    await requests.whenSettled()
+    expect(broadcasts).toEqual([])
+    expect(admission.held()).toBe(false)
   })
 
   it('refuses on RotationBusy and releases the hold', async () => {
@@ -194,33 +182,5 @@ describe('rotation requests', () => {
   it('refuses malformed params', async () => {
     const { requests } = rig()
     expect(await requests.answer(rotateFrame({}))).toMatchObject({ ok: false })
-  })
-
-  it('drives the session’s active main, not the boot thread, so a rotate after a wake from a rotated session does not refuse', async () => {
-    // The woken sandbox boots for the session’s original thread while the session meta’s active
-    // main is the committed successor of a pre-park rotation. The drive must follow the active
-    // main — passing the boot thread as predecessor is what the orchestrator fence refused with
-    // "the thread is not the session’s active main".
-    const { rotation, requests } = rig({ activeMain: successor })
-    const reply = requests.answer(rotateFrame(params))
-    await Promise.resolve()
-    await Promise.resolve()
-    rotation!.stage(ERotationPhase.Settling)
-    expect(await reply).toMatchObject({ data: { type: 'started' } })
-    expect(rotation!.requests[0]).toMatchObject({ sessionId: served, predecessor: successor })
-    rotation!.finish({ kind: 'failed', sessionId: served, operationId: 'op', reason: 'x' })
-    await requests.whenSettled()
-  })
-
-  it('drives the served thread while it is still the active main', async () => {
-    const { rotation, requests } = rig({ activeMain: served })
-    const reply = requests.answer(rotateFrame(params))
-    await Promise.resolve()
-    await Promise.resolve()
-    rotation!.stage(ERotationPhase.Settling)
-    expect(await reply).toMatchObject({ data: { type: 'started' } })
-    expect(rotation!.requests[0]).toMatchObject({ sessionId: served, predecessor: served })
-    rotation!.finish({ kind: 'failed', sessionId: served, operationId: 'op', reason: 'x' })
-    await requests.whenSettled()
   })
 })

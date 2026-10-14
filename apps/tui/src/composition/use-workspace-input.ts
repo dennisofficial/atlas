@@ -7,8 +7,7 @@ import { EKeyGroup, EKeyLayer, useKeyBindings, useKeyRegistry } from '../ui/keys
 import { globalBindings } from './global-bindings'
 import { moveOverlayPresence } from './container-move-birth'
 import {
-  buffersBlockedTyping,
-  composerBlurred,
+  composerCovered,
   covering,
   keyOwners,
   transcriptCovered,
@@ -52,7 +51,7 @@ export type WorkspaceInputArgs = {
   handleNewConversation: () => void
   handleOpenAccounts: () => void
   handleQuit: () => void
-  conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'rotating' | 'operatorInput'>
+  conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'operatorInput'>
   composer: Pick<ReturnType<typeof useWorkspaceComposer>,
     'draftIsEmpty' | 'handleSubmit' | 'handleTakeBackPending' | 'handleAttachImage' | 'menus'>
   draft: DraftControls
@@ -159,7 +158,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
   const { rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
-  const rotating = conversation.rotating !== null
 
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
@@ -181,13 +179,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
         handleKey: contextBrowser.handleKey, coversComposer: true, coversTranscript: contextBrowser.viewer !== null },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
-      {
-        open: rotating,
-        coversComposer: false,
-        coversTranscript: true,
-        porous: true,
-        blursComposer: true,
-      },
       moveOverlayPresence({ move: containerMove.move, handleKey: containerMove.handleKey }),
       { open: overlay, coversComposer: true, coversTranscript: false },
     ],
@@ -195,7 +186,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       accounts.handleKey,
       accounts.state,
       compacting,
-      rotating,
       contextBrowser.handleKey,
       contextBrowser.viewer,
       containerMove.handleKey,
@@ -234,32 +224,9 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     [handleDismissPanel, panel],
   )
 
-  const blurred = covered || composerBlurred(overlays)
-
-  /**
-   * Only a buffering overlay (rotate) lets an unhandled printable echo into the blurred draft.
-   * A covering overlay that holds the composer (container-move) blurs it too, but there a key is
-   * swallowed, not echoed — the composer is held, not buffered.
-   */
-  const buffering = !covered && buffersBlockedTyping(overlays)
+  const blurred = covered || composerCovered(overlays)
 
   const { draft, focused } = args
-
-  /**
-   * The echo into a blurred composer must never re-blur it: a blurred textarea reports a key as
-   * unhandled, so re-blurring it now would make the same key look handled by its native handler
-   * and echo it twice. If it is somehow already focused, the native edit keys must be swallowed
-   * instead — an arrow or backspace acting on a buffer nobody can see is data damage.
-   */
-  const echoIntoBlurredDraft = useCallback(
-    (key: KeyEvent) => {
-      const editor = draft.editor.current
-      if (editor === null || editor.focused) return
-      editor.insertText(key.sequence ?? '')
-      draft.sync(editor.plainText)
-    },
-    [draft],
-  )
 
   const swallowComposerEditKeys = useCallback(
     (): boolean => draft.editor.current?.focused === true,
@@ -270,7 +237,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     veil,
     owners,
     bindings: registry.snapshot,
-    ...(buffering ? { onBlockedPrintable: echoIntoBlurredDraft } : {}),
     ...(blurred && focused ? { swallowFocusedTextareaKeys: swallowComposerEditKeys } : {}),
   })
 

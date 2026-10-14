@@ -9,7 +9,7 @@ import {
   type ServeFrame,
 } from '@dltech/atlas-harness'
 
-import { admitsThread, protocolRefusal } from './hello-admission'
+import { protocolRefusal } from './hello-admission'
 import { pendingEntriesOf, refusedRequest } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
@@ -68,7 +68,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     rewind,
     compaction: args.compaction,
     rotation: args.rotation,
-    authority: args.authority,
     broadcastRotation: (rotation) => broadcast(buffer.push({ type: 'rotation-changed', rotation })),
     broadcastArchiveProgress: (progress) => {
       try {
@@ -112,7 +111,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   }
 
   const greetRest = createSocketGreeter({
-    threadId: () => driver.servedThread(), buffer, inFlight, liveStepId, driver, pending, operatorInput, checkpointField,
+    threadId: () => threadId, buffer, inFlight, liveStepId, driver, pending, operatorInput, checkpointField,
     historyGeneration: () => historyGeneration, refusal, aliaser, attached, send, forSocket,
     drive: (driven) => drive(driven), log, rotation: () => router.rotation.current(),
   })
@@ -124,9 +123,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       return
     }
 
-    // The currency vouch answers for the thread the Hello names: after a rotation commits, a
-    // client re-attaching on the successor is vouched against the successor's head, not the
-    // predecessor's frozen one.
     void transcript.log.head({ threadId: hello.threadId }).then(
       (head) => {
         if (!live.has(socket)) return
@@ -176,7 +172,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   }
 
   const unsubscribePending = pending?.subscribe(() => {
-    broadcast(buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId: driver.servedThread() }) }))
+    broadcast(buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId }) }))
   })
 
   return {
@@ -204,15 +200,11 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
           return
         }
         socket.data.helloed = true
-        if (frame.threadId === threadId) {
-          void greet({ socket, hello: frame })
+        if (frame.threadId !== threadId) {
+          refuse({ socket, reason: 'this sandbox serves one thread' })
           return
         }
-        void admitsThread({ served: threadId, requested: frame.threadId, authority: args.authority }).then((admitted) => {
-          if (!live.has(socket)) return
-          if (admitted) greet({ socket, hello: frame })
-          else refuse({ socket, reason: 'this sandbox serves one thread' })
-        })
+        greet({ socket, hello: frame })
         return
       }
 

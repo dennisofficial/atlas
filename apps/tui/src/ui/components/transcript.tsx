@@ -21,6 +21,7 @@ import { JumpToBottom, NewDivider, UNSEEN_ANCHOR_ID } from './new-divider'
 import { PeekLine } from './peek-line'
 import type { RetryWait } from '../retry-countdown'
 import { IDLE_TURN, type TurnClock } from '../turn-clock'
+import { RotatingLine, type Rotating } from './rotating-line'
 import { EWorkingVerb, WaitingLine, WorkingLine } from './working-line'
 
 export type { RetryWait }
@@ -35,6 +36,7 @@ function DerivedTranscript(props: {
   now: number
   cwd: string
   turn?: TurnClock
+  rotating?: Rotating | null
   cloudConnected?: boolean
   reconnecting?: boolean
   waking?: boolean
@@ -207,7 +209,11 @@ function DerivedTranscript(props: {
           <ResumeBlock onResume={props.onResume} />
         )}
 
-        {model.failure === null && props.disconnected === true ? (
+        {model.failure === null && props.rotating !== null && props.rotating !== undefined ? (
+          <box flexDirection="row" marginTop={1} marginBottom={1}>
+            <RotatingLine rotating={props.rotating} now={props.now} />
+          </box>
+        ) : model.failure === null && props.disconnected === true ? (
           <box flexDirection="row" marginTop={1} marginBottom={1}>
             <WorkingLine
               elapsedMs={0}

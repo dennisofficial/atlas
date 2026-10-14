@@ -14,7 +14,6 @@ import { runtimeWork } from './runtime-work'
 import { sandboxPark } from './sandbox-park'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
-import { recoverRotation } from './rotation-recover'
 import { bootServeFiles } from './serve-boot'
 import type { BootListener } from './serve-boot-listener'
 import { composeBootApp } from './serve-compose-boot'
@@ -225,7 +224,6 @@ export async function finishServeBoot(args: {
   })
 
   await recovery.recover({ session, driver })
-  await recoverRotation({ app, driver, threadId, log })
   const exit = serveArgs.exit ?? process.exit
   const drain = bindServeDrain({
     app,

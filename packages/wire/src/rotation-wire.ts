@@ -3,16 +3,16 @@ import { z } from 'zod'
 import { threadIdWireSchema } from './request-wire.js'
 
 export enum EWireRotationPhase {
-  Preparing = 'preparing',
   Settling = 'settling',
-  Writing = 'writing',
-  Activating = 'activating',
+  Summarising = 'summarising',
+  Compacting = 'compacting',
+  Done = 'done',
   Failed = 'failed',
 }
 
 export const rotationStateWireSchema = z.object({
   phase: z.nativeEnum(EWireRotationPhase),
-  successor: threadIdWireSchema.optional(),
+  watermarkSeq: z.number().int().nonnegative().optional(),
   reason: z.string().nullish(),
 })
 export type RotationStateWire = z.infer<typeof rotationStateWireSchema>

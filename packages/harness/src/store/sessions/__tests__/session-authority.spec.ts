@@ -7,10 +7,10 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
-import { ERotationStatus, readMetaSync, sessionMetaSchema, type RotationRecord } from '../meta'
+import { readMetaSync, sessionMetaSchema, writeMeta } from '../meta'
 import { sessionDirectory, sessionMetaFile } from '../paths'
 import { SessionRegistry } from '../registry'
-import { JsonlSessionAuthority, MainConflict } from '../session-authority'
+import { JsonlSessionAuthority } from '../session-authority'
 import { JsonlThreadStore } from '../thread-store'
 
 const directories: string[] = []
@@ -36,20 +36,10 @@ function openStore({ home }: { home: string }): {
   const ids = new CountingIds('spec')
   const log = new JsonlEventLog(home, registry, clock, ids)
   return {
-    authority: new JsonlSessionAuthority({ registry, clock }),
+    authority: new JsonlSessionAuthority({ registry }),
     clock,
     ids,
     threads: new JsonlThreadStore(home, registry, clock, ids, log),
-  }
-}
-
-function rotation(args: Partial<RotationRecord> & Pick<RotationRecord, 'predecessor' | 'successor'>): RotationRecord {
-  return {
-    handoffPath: null,
-    watermarkSeq: 42,
-    status: ERotationStatus.Preparing,
-    updatedAt: '2026-10-07T00:00:00.000Z',
-    ...args,
   }
 }
 
@@ -97,184 +87,20 @@ describe('JsonlSessionAuthority reads', () => {
   })
 })
 
-describe('JsonlSessionAuthority rotation writes', () => {
-  it('commits a rotation and fences the predecessor out', async () => {
+describe('JsonlSessionAuthority with a committed active main', () => {
+  it('reads and fences the committed active main from disk', async () => {
     const home = await tempHome()
     const { authority, threads } = openStore({ home })
     const main = await threads.create({})
     const successor = await threads.create({ sessionId: main.id })
+    const file = sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) })
+    const meta = readMetaSync({ file, schema: sessionMetaSchema })
+    await writeMeta({ file, meta: { ...meta, activeMainThreadId: successor.id } })
 
-    await authority.writeRotation({
-      sessionId: main.id,
-      write: {
-        rotation: rotation({ predecessor: main.id, successor: successor.id, status: ERotationStatus.Committed }),
-        expectedActiveMain: main.id,
-        nextActiveMain: successor.id,
-      },
-    })
-
-    expect(await authority.activeMainOf({ sessionId: main.id })).toBe(successor.id)
-    expect(await authority.fenceMainThread({ threadId: successor.id })).toEqual({ allowed: true, generation: 1 })
-    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({ allowed: false, activeMain: successor.id })
-    expect(await authority.mainGenerationOf({ threadId: main.id })).toBe(0)
-
-    const meta = readMetaSync({
-      file: sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) }),
-      schema: sessionMetaSchema,
-    })
-    expect(meta?.activeMainThreadId).toBe(successor.id)
-    expect(meta?.rotation).toMatchObject({ predecessor: main.id, successor: successor.id, status: 'committed' })
-  })
-
-  it('refuses to write against an expected main that no longer holds authority', async () => {
-    const home = await tempHome()
-    const { authority, threads } = openStore({ home })
-    const main = await threads.create({})
-    const successor = await threads.create({ sessionId: main.id })
-    const third = await threads.create({ sessionId: main.id })
-
-    await authority.writeRotation({
-      sessionId: main.id,
-      write: {
-        rotation: rotation({ predecessor: main.id, successor: successor.id, status: ERotationStatus.Committed }),
-        expectedActiveMain: main.id,
-        nextActiveMain: successor.id,
-      },
-    })
-
-    await expect(
-      authority.writeRotation({
-        sessionId: main.id,
-        write: {
-          rotation: rotation({ predecessor: main.id, successor: third.id }),
-          expectedActiveMain: main.id,
-          nextActiveMain: third.id,
-        },
-      }),
-    ).rejects.toBeInstanceOf(MainConflict)
-
-    expect(await authority.activeMainOf({ sessionId: main.id })).toBe(successor.id)
-  })
-
-  it('records a preparing rotation without moving authority', async () => {
-    const home = await tempHome()
-    const { authority, threads } = openStore({ home })
-    const main = await threads.create({})
-    const successor = await threads.create({ sessionId: main.id })
-
-    await authority.writeRotation({
-      sessionId: main.id,
-      write: {
-        rotation: rotation({ predecessor: main.id, successor: successor.id, status: ERotationStatus.Preparing }),
-        expectedActiveMain: main.id,
-      },
-    })
-
-    expect(await authority.activeMainOf({ sessionId: main.id })).toBe(main.id)
-    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({ allowed: true, generation: 1 })
-    const meta = readMetaSync({
-      file: sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) }),
-      schema: sessionMetaSchema,
-    })
-    expect(meta?.rotation?.status).toBe(ERotationStatus.Preparing)
-    expect(meta?.rotation?.watermarkSeq).toBe(42)
-  })
-
-  it('serializes two concurrent commits and lets exactly one through', async () => {
-    const home = await tempHome()
-    const { authority, threads } = openStore({ home })
-    const main = await threads.create({})
-    const successor = await threads.create({ sessionId: main.id })
-    const third = await threads.create({ sessionId: main.id })
-
-    const attempt = (successorId: string) =>
-      authority.writeRotation({
-        sessionId: main.id,
-        write: {
-          rotation: rotation({ predecessor: main.id, successor: successorId, status: ERotationStatus.Committed }),
-          expectedActiveMain: main.id,
-          nextActiveMain: toThreadId(successorId),
-        },
-      })
-    const results = await Promise.allSettled([attempt(successor.id), attempt(third.id)])
-
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
-    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1)
-    const rejected = results.find((r) => r.status === 'rejected')
-    expect(rejected?.status === 'rejected' && rejected.reason).toBeInstanceOf(MainConflict)
-    const final = await authority.activeMainOf({ sessionId: main.id })
-    if (final === undefined) throw new Error('the session lost its active main')
-    expect([successor.id, third.id]).toContain(final)
-  })
-})
-
-describe('JsonlSessionAuthority recovery', () => {
-  it('resolves an interrupted preparing rotation back to the predecessor', async () => {
-    const home = await tempHome()
-    const { authority, threads } = openStore({ home })
-    const main = await threads.create({})
-    const successor = await threads.create({ sessionId: main.id })
-
-    await authority.writeRotation({
-      sessionId: main.id,
-      write: {
-        rotation: rotation({ predecessor: main.id, successor: successor.id }),
-        expectedActiveMain: main.id,
-      },
-    })
-    await authority.recoverInterruptedRotation({ sessionId: main.id })
-
-    const meta = readMetaSync({
-      file: sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) }),
-      schema: sessionMetaSchema,
-    })
-    expect(meta?.rotation?.status).toBe(ERotationStatus.Aborted)
-    expect(await authority.activeMainOf({ sessionId: main.id })).toBe(main.id)
-    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({ allowed: true, generation: 1 })
-  })
-
-  it('leaves a committed rotation untouched during recovery', async () => {
-    const home = await tempHome()
-    const { authority, threads } = openStore({ home })
-    const main = await threads.create({})
-    const successor = await threads.create({ sessionId: main.id })
-
-    await authority.writeRotation({
-      sessionId: main.id,
-      write: {
-        rotation: rotation({ predecessor: main.id, successor: successor.id, status: ERotationStatus.Committed }),
-        expectedActiveMain: main.id,
-        nextActiveMain: successor.id,
-      },
-    })
-    await authority.recoverInterruptedRotation({ sessionId: main.id })
-
-    const meta = readMetaSync({
-      file: sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) }),
-      schema: sessionMetaSchema,
-    })
-    expect(meta?.rotation?.status).toBe(ERotationStatus.Committed)
-    expect(await authority.activeMainOf({ sessionId: main.id })).toBe(successor.id)
-  })
-
-  it('rebuilds the committed active main from disk after a fresh registry scan', async () => {
-    const home = await tempHome()
-    const first = openStore({ home })
-    const main = await first.threads.create({})
-    const successor = await first.threads.create({ sessionId: main.id })
-    await first.authority.writeRotation({
-      sessionId: main.id,
-      write: {
-        rotation: rotation({ predecessor: main.id, successor: successor.id, status: ERotationStatus.Committed }),
-        expectedActiveMain: main.id,
-        nextActiveMain: successor.id,
-      },
-    })
-
-    const reopened = openStore({ home })
-    expect(await reopened.authority.activeMainOf({ sessionId: main.id })).toBe(successor.id)
-    expect(await reopened.authority.fenceMainThread({ threadId: main.id })).toEqual({ allowed: false, activeMain: successor.id })
-    expect(await reopened.authority.fenceMainThread({ threadId: successor.id })).toEqual({ allowed: true, generation: 1 })
+    const reopened = openStore({ home }).authority
+    expect(await reopened.activeMainOf({ sessionId: main.id })).toBe(successor.id)
+    expect(await reopened.fenceMainThread({ threadId: main.id })).toEqual({ allowed: false, activeMain: successor.id })
+    expect(await reopened.fenceMainThread({ threadId: successor.id })).toEqual({ allowed: true, generation: 1 })
   })
 })
 
@@ -287,9 +113,39 @@ describe('session meta backward compatibility', () => {
     const file = sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) })
     const meta = readMetaSync({ file, schema: sessionMetaSchema })
     expect(meta?.activeMainThreadId).toBeUndefined()
-    expect(meta?.rotation).toBeUndefined()
 
     const authority = openStore({ home }).authority
     expect(await authority.activeMainOf({ sessionId: main.id })).toBe(main.id)
+  })
+})
+
+describe('session meta written by a rotating Atlas', () => {
+  const OLD_ROTATION = {
+    predecessor: 'old-main',
+    successor: 'old-successor',
+    handoffPath: '/tmp/handoff.md',
+    watermarkSeq: 42,
+    operationId: 'op-1',
+    status: 'committed',
+    updatedAt: '2026-10-07T00:00:00.000Z',
+  }
+
+  it('still parses a meta that carries the retired rotation record', async () => {
+    const home = await tempHome()
+    const { authority, threads } = openStore({ home })
+    const main = await threads.create({})
+    const file = sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) })
+    const meta = readMetaSync({ file, schema: sessionMetaSchema })
+    await writeMeta({ file, meta: { ...meta, activeMainThreadId: 'old-successor', rotation: OLD_ROTATION } })
+
+    const parsed = readMetaSync({ file, schema: sessionMetaSchema })
+    expect(parsed?.id).toBe(main.id)
+    expect(parsed?.activeMainThreadId).toBe('old-successor')
+    expect(parsed).not.toHaveProperty('rotation')
+    expect(await authority.activeMainOf({ sessionId: main.id })).toBe(toThreadId('old-successor'))
+    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({
+      allowed: false,
+      activeMain: toThreadId('old-successor'),
+    })
   })
 })

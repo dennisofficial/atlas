@@ -5,7 +5,6 @@ import { Accounts } from '../ui/components/accounts'
 import type { Span } from '../ui/components/spans'
 import type { ProviderRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
-import { RotatingOverlay, type Rotating } from '../ui/components/rotating'
 import { ContainerGuard } from '../ui/components/container-guard'
 import { ContainerMoveOverlay } from '../ui/components/container-move'
 import { ContainerResources } from '../ui/components/container-resources'
@@ -66,7 +65,6 @@ function DerivedOverlayStack(props: {
   containerGuard: ContainerGuardControl
   containerResources: ContainerResourcesControl
   compacting: Compacting | null
-  rotating: Rotating | null
   containerMove: ContainerMove | null
   containerMoveNow: number
   onDismissContainerMove: () => void
@@ -106,9 +104,6 @@ function DerivedOverlayStack(props: {
       )}
       {props.compacting === null ? null : (
         <CompactingOverlay compacting={props.compacting} now={props.now} width={props.width} />
-      )}
-      {props.rotating === null ? null : (
-        <RotatingOverlay rotating={props.rotating} now={props.now} width={props.width} />
       )}
       {props.operatorInput.state === null ? null : (
         <OperatorInputOverlay

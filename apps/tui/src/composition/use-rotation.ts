@@ -1,12 +1,14 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { ERotationPhase, RotationBusy, type RotationSettle } from '@dltech/atlas-harness'
-import { EWireRotationPhase } from '@dltech/atlas-wire'
+import {
+  ERotationPhase,
+  RotationBusy,
+  type RotationOutcome,
+  type RotationSettle,
+} from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { Rotating } from '../ui/components/rotating'
+import type { Rotating } from '../ui/components/rotating-line'
 import type { AtlasApp } from './compose'
-import { displayPhaseOf } from './rotation-phase'
-import { guardedActivation } from './rotation-recovery'
 import type { TurnDriver } from './use-turn-driver'
 
 const BUSY = 'a rotation is already underway'
@@ -19,62 +21,45 @@ const UNAVAILABLE = 'this session cannot rotate its main thread'
 
 const incomplete = (reason: string): string => `the rotation did not complete: ${reason}`
 
+const failureOf = (outcome: Exclude<RotationOutcome, { kind: 'rotated' }>): string =>
+  outcome.kind === 'refused' ? outcome.reason : incomplete(outcome.reason)
+
 export type RotationControl = {
   rotating: Rotating | null
   handleRotate: (instructions: string | undefined) => void
+  cancel: () => boolean
 }
 
 export function useRotation(args: {
-  app: Pick<AtlasApp, 'rotation' | 'pending' | 'log' | 'runner' | 'channel'>
+  app: Pick<AtlasApp, 'rotation' | 'intake'>
   threadId: ThreadId
   readClock: () => number
   compacting: boolean
   moving: boolean
   driver: Pick<TurnDriver, 'handlePauseForMove' | 'whenSettled' | 'turnInFlight' | 'lastOutcome'>
+  refresh: () => Promise<void>
   onFailure: (reason: string) => void
-  onRotated: (args: { successor: ThreadId }) => void
+  onRotated: () => void
 }): RotationControl {
-  const { app, threadId, readClock, compacting, moving, driver, onFailure, onRotated } = args
+  const { app, threadId, readClock, compacting, moving, driver, refresh, onFailure, onRotated } =
+    args
   const port = app.rotation
   const [rotating, setRotating] = useState<Rotating | null>(null)
-  const inFlight = useRef(false)
+  const rotation = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (port === undefined) return undefined
 
     return port.subscribe((stage) => {
-      if (!inFlight.current || stage.sessionId !== threadId) return
+      if (rotation.current === null || stage.sessionId !== threadId) return
 
-      const phase = displayPhaseOf(stage.phase)
-      if (phase === null) return
-
-      setRotating((current) => (current === null ? null : { ...current, phase }))
+      setRotating((current) => (current === null ? null : { ...current, phase: stage.phase }))
     })
   }, [port, threadId])
 
-  useEffect(() => {
-    if (port === undefined || inFlight.current) return
-
-    void (async () => {
-      const held = await port.status({ sessionId: threadId })
-      const committed = held.kind === 'active' && held.phase === ERotationPhase.Committed
-      const successor = held.kind === 'active' ? held.successor : undefined
-
-      if (committed && successor !== undefined) {
-        await port.recover({
-          sessionId: threadId,
-          activate: guardedActivation({ app, successor, turnInFlight: driver.turnInFlight }),
-        })
-        if (held.predecessor === threadId) onRotated({ successor })
-        return
-      }
-      await port.recover({ sessionId: threadId })
-    })().catch(() => undefined)
-  }, [app, driver.turnInFlight, onRotated, port, threadId])
-
   const handleRotate = useCallback(
     (instructions: string | undefined) => {
-      if (inFlight.current) return onFailure(BUSY)
+      if (rotation.current !== null) return onFailure(BUSY)
       if (compacting) return onFailure(COMPACTING)
       if (moving) return onFailure(MOVING)
       if (port === undefined) return onFailure(UNAVAILABLE)
@@ -88,33 +73,49 @@ export function useRotation(args: {
         },
       }
 
-      inFlight.current = true
-      setRotating({ startedAt: readClock(), phase: EWireRotationPhase.Settling })
+      const controller = new AbortController()
+      rotation.current = controller
+      const releaseIntake = app.intake?.hold({ threadId })
+      setRotating({ startedAt: readClock(), phase: ERotationPhase.Settling })
 
-      void port
-        .request({ sessionId: threadId, predecessor: threadId, instructions: instructions ?? '', settle })
-        .then((outcome) => {
-          if (outcome.kind !== 'committed') return onFailure(incomplete(outcome.reason))
+      void (async () => {
+        try {
+          const outcome = await port.request({
+            sessionId: threadId,
+            threadId,
+            instructions: instructions ?? '',
+            settle,
+            signal: controller.signal,
+          })
+          if (controller.signal.aborted) return
+          if (outcome.kind !== 'rotated') return onFailure(failureOf(outcome))
 
-          const carried = app.pending.forThread({ threadId }).drain()
-          const successor = app.pending.forThread({ threadId: outcome.successor })
-          for (const said of carried) successor.enqueue(said)
-          onRotated({ successor: outcome.successor })
-        })
-        .catch((fault: unknown) =>
+          onRotated()
+          await refresh()
+        } catch (fault) {
+          if (controller.signal.aborted) return
           onFailure(
             fault instanceof RotationBusy
               ? BUSY
               : incomplete(fault instanceof Error ? fault.message : String(fault)),
-          ),
-        )
-        .finally(() => {
-          inFlight.current = false
+          )
+        } finally {
+          rotation.current = null
           setRotating(null)
-        })
+          releaseIntake?.()
+        }
+      })()
     },
-    [app.pending, compacting, driver, moving, onFailure, onRotated, port, readClock, threadId],
+    [app.intake, compacting, driver, moving, onFailure, onRotated, port, readClock, refresh, threadId],
   )
 
-  return { rotating, handleRotate }
+  const cancel = useCallback((): boolean => {
+    const running = rotation.current
+    if (running === null) return false
+
+    running.abort()
+    return true
+  }, [])
+
+  return { rotating, handleRotate, cancel }
 }

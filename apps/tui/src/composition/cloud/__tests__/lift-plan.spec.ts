@@ -16,7 +16,7 @@ describe('when a lift may happen', () => {
     expect(liftRefusal({ ...SETTLED, compacting: true })).toContain('summary')
   })
 
-  it('waits for a rotation, which is moving the session onto a new main thread', () => {
+  it('waits for a rotation, which rewrites the log the lift would transfer', () => {
     expect(liftRefusal({ ...SETTLED, rotating: true })).toContain('rotation')
   })
 })

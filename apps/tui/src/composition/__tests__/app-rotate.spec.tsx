@@ -1,4 +1,5 @@
-import { EFinishReason, toRunId, toThreadId } from '@dltech/atlas-core'
+import { EFinishReason, toRunId } from '@dltech/atlas-core'
+import { ECompactionAnchor } from '@dltech/atlas-core'
 import { ERotationPhase, EStepEnd } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
@@ -8,16 +9,16 @@ import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import { THREAD, spokenIn, until } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { ControlledRotation } from './rotation-fixture'
 
 await grammarsReady()
 
 const WIDE = { width: 150, height: 40 }
 
-const HEADING = 'ROTATING'
+const ROW = 'Rotating'
 
-const SUCCESSOR_SEED = 'You are the successor main agent; the handoff note is on disk.'
+const BRIEF = 'Carry-over brief: the auth work is mid-flight.'
 
 type Mounted = Awaited<ReturnType<typeof testRender>>
 
@@ -27,14 +28,24 @@ const appWith = (rotation: ControlledRotation): FakeApp =>
     rotation,
   })
 
-async function seedSuccessor(app: FakeApp): Promise<ReturnType<typeof toThreadId>> {
-  const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+async function landWatermark(app: FakeApp): Promise<number> {
+  const events = await app.log.read({ threadId: THREAD })
+  const head = events.at(-1)?.seq ?? 1
   await app.log.append({
-    threadId: thread.id,
-    runId: toRunId('run-successor'),
-    drafts: [{ type: 'user-said', text: SUCCESSOR_SEED }],
+    threadId: THREAD,
+    runId: toRunId('run-rotation'),
+    drafts: [
+      {
+        type: 'history-compacted',
+        anchor: ECompactionAnchor.Prefix,
+        fromSeq: 1,
+        throughSeq: head,
+        summary: BRIEF,
+        replaced: events.length,
+      },
+    ],
   })
-  return thread.id
+  return head
 }
 
 async function mounted(app: FakeApp): Promise<Mounted> {
@@ -54,18 +65,30 @@ async function ran(setup: Mounted, typed: string): Promise<void> {
 }
 
 describe('/rotate', () => {
-  it('opens the blocking overlay and hands the port the instructions and a settle', async () => {
+  it('shows an inline progress row and hands the port the thread, instructions and a settle', async () => {
     const rotation = new ControlledRotation()
     const setup = await mounted(appWith(rotation))
     try {
       await ran(setup, '/rotate keep the auth work')
 
-      const frame = await frameShowing({ setup, text: HEADING })
-      expect(frame).toContain('Rotating')
+      await frameShowing({ setup, text: ROW })
       expect(rotation.requests).toHaveLength(1)
       expect(rotation.requests[0]?.sessionId).toBe(THREAD)
-      expect(rotation.requests[0]?.predecessor).toBe(THREAD)
+      expect(rotation.requests[0]?.threadId).toBe(THREAD)
       expect(rotation.requests[0]?.instructions).toBe('keep the auth work')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('keeps the transcript on screen while rotating — it is a row, not an overlay', async () => {
+    const rotation = new ControlledRotation()
+    const setup = await mounted(appWith(rotation))
+    try {
+      await ran(setup, '/rotate')
+
+      const frame = await frameShowing({ setup, text: ROW })
+      expect(frame).toContain('what is in here?')
     } finally {
       await teardown(setup)
     }
@@ -76,7 +99,7 @@ describe('/rotate', () => {
     const setup = await mounted(appWith(rotation))
     try {
       await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
+      await frameShowing({ setup, text: ROW })
 
       const request = rotation.requests[0]
       expect(request?.instructions).toBe('')
@@ -91,81 +114,100 @@ describe('/rotate', () => {
     const setup = await mounted(appWith(rotation))
     try {
       await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
+      await frameShowing({ setup, text: ROW })
 
       rotation.stage({ sessionId: THREAD, phase: ERotationPhase.Summarising })
-      await frameShowing({ setup, text: 'Writing the handoff summary' })
+      await frameShowing({ setup, text: 'writing the carry-over brief' })
 
-      rotation.stage({ sessionId: THREAD, phase: ERotationPhase.Activating })
-      await frameShowing({ setup, text: 'Starting the new main thread' })
+      rotation.stage({ sessionId: THREAD, phase: ERotationPhase.Compacting })
+      await frameShowing({ setup, text: 'folding it into the window' })
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('queues a message sent while the overlay is up instead of driving the predecessor', async () => {
+  it('queues a message sent while rotating on the same thread instead of driving a turn', async () => {
     const rotation = new ControlledRotation()
     const app = appWith(rotation)
     const setup = await mounted(app)
     try {
       await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
+      await frameShowing({ setup, text: ROW })
       const driven = app.turnsDriven
 
       await ran(setup, 'and then run the tests')
 
-      const queued = app.pending.forThread({ threadId: THREAD }).getSnapshot()
-      expect(queued.map((entry) => ('text' in entry ? entry.text : ''))).toContain('and then run the tests')
+      const queued = () =>
+        app.pending
+          .forThread({ threadId: THREAD })
+          .getSnapshot()
+          .map((entry) => ('text' in entry ? entry.text : ''))
+      expect(queued()).toContain('and then run the tests')
       expect(app.turnsDriven).toBe(driven)
-      expect(rotation.requests).toHaveLength(1)
+
+      rotation.resolve({
+        kind: 'rotated',
+        sessionId: THREAD,
+        operationId: 'op',
+        threadId: THREAD,
+        watermarkSeq: await landWatermark(app),
+        replaced: 1,
+      })
+      await frameWhen({
+        setup,
+        holds: (drawn) => !drawn.includes(ROW),
+        describe: 'the progress row cleared',
+      })
+      expect(queued()).toContain('and then run the tests')
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('swaps to the successor on commit and closes the overlay', async () => {
+  it('stays on the same thread, clears the row and draws the watermark divider when it lands', async () => {
     const rotation = new ControlledRotation()
     const app = appWith(rotation)
-    const successor = await seedSuccessor(app)
     const setup = await mounted(app)
     try {
       await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
+      await frameShowing({ setup, text: ROW })
 
       rotation.resolve({
-        kind: 'committed',
+        kind: 'rotated',
         sessionId: THREAD,
         operationId: 'op',
-        predecessor: THREAD,
-        successor,
-        handoffPath: '/tmp/handoff.md',
-        watermarkSeq: 1,
+        threadId: THREAD,
+        watermarkSeq: await landWatermark(app),
+        replaced: 1,
       })
 
       const frame = await frameWhen({
         setup,
-        holds: (drawn) => drawn.includes(SUCCESSOR_SEED) && !drawn.includes(HEADING),
-        describe: 'the successor transcript with the overlay closed',
+        holds: (drawn) => drawn.includes('context compacted') && !drawn.includes(ROW),
+        describe: 'the compaction divider with the row cleared',
       })
-      expect(frame).not.toContain('what is in here?')
+      expect(frame).toContain('what is in here?')
+      expect(rotation.requests).toHaveLength(1)
+      const events = await app.log.read({ threadId: THREAD })
+      expect(events.some((event) => event.type === 'history-compacted')).toBe(true)
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('surfaces a notice and stays on the predecessor when the rotation fails', async () => {
+  it('surfaces a notice and clears the row when the rotation fails', async () => {
     const rotation = new ControlledRotation()
     const setup = await mounted(appWith(rotation))
     try {
       await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
+      await frameShowing({ setup, text: ROW })
 
-      rotation.resolve({ kind: 'failed', sessionId: THREAD, operationId: 'op', reason: 'the summary came back empty' })
+      rotation.resolve({ kind: 'failed', reason: 'the summary came back empty' })
 
       const frame = await frameWhen({
         setup,
-        holds: (drawn) => drawn.includes('the summary came back empty') && !drawn.includes(HEADING),
-        describe: 'the failure notice with the overlay closed',
+        holds: (drawn) => drawn.includes('the summary came back empty') && !drawn.includes(ROW),
+        describe: 'the failure notice with the row cleared',
       })
       expect(frame).toContain('what is in here?')
     } finally {
@@ -173,16 +215,49 @@ describe('/rotate', () => {
     }
   }, 60_000)
 
-  it('drops the predecessor’s reported usage from the context gauge when the successor opens', async () => {
+  it('surfaces the reason when the port refuses', async () => {
+    const rotation = new ControlledRotation()
+    const setup = await mounted(appWith(rotation))
+    try {
+      await ran(setup, '/rotate')
+      await frameShowing({ setup, text: ROW })
+
+      rotation.resolve({ kind: 'refused', reason: 'nothing to rotate' })
+
+      await frameWhen({
+        setup,
+        holds: (drawn) => drawn.includes('nothing to rotate') && !drawn.includes(ROW),
+        describe: 'the refusal with the row cleared',
+      })
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('aborts the request when the operator presses escape', async () => {
+    const rotation = new ControlledRotation()
+    const setup = await mounted(appWith(rotation))
+    try {
+      await ran(setup, '/rotate')
+      await frameShowing({ setup, text: ROW })
+      expect(rotation.requests[0]?.signal?.aborted).toBe(false)
+
+      setup.mockInput.pressEscape()
+      await setup.flush()
+
+      expect(
+        await until({ holds: async () => rotation.requests[0]?.signal?.aborted === true, within: 2_000 }),
+      ).toBe(true)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('drops the reported usage from the context gauge once the rotation lands', async () => {
     const rotation = new ControlledRotation()
     const app = appWith(rotation)
-    const successor = await seedSuccessor(app)
     const setup = await mounted(app)
     try {
-      // The predecessor's last step reported a window past the warn line, the way the ~298k
-      // reading did in the live run: the gauge takes a provider count over the log estimate.
-      // (62% sits under the warn threshold so the footer spells the tokens, which is what the
-      // assertion reads.)
       const publisher = app.channel.publisherFor({ threadId: THREAD })
       publisher.onChunk({
         type: 'finish',
@@ -193,87 +268,21 @@ describe('/rotate', () => {
       publisher.close({ end: EStepEnd.Completed })
 
       await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
+      await frameShowing({ setup, text: ROW })
       rotation.resolve({
-        kind: 'committed',
+        kind: 'rotated',
         sessionId: THREAD,
         operationId: 'op',
-        predecessor: THREAD,
-        successor,
-        handoffPath: '/tmp/handoff.md',
-        watermarkSeq: 1,
-      })
-
-      const frame = await frameWhen({
-        setup,
-        holds: (drawn) => drawn.includes(SUCCESSOR_SEED) && !drawn.includes('124.0k'),
-        describe: 'the successor transcript with the gauge on the fresh window',
-      })
-      expect(frame).not.toContain('124.0k')
-
-      // A predecessor usage landing after the swap — the settle-before-commit race the live run
-      // hit — must not move the successor's gauge either: the reading belongs to the thread that
-      // measured it, not to whatever conversation happens to be on screen.
-      const stale = app.channel.publisherFor({ threadId: THREAD })
-      stale.onChunk({
-        type: 'finish',
-        reason: EFinishReason.Stop,
-        usage: { inputTokens: 180_000, outputTokens: 4_000 },
-      })
-      stale.close({ end: EStepEnd.Completed })
-      await settle(150)
-      await setup.flush()
-      expect(await setup.captureCharFrame()).not.toContain('184.0k')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('keeps the session cost accumulating across the swap while the context gauge resets', async () => {
-    const rotation = new ControlledRotation()
-    const app = appWith(rotation)
-    const successor = await seedSuccessor(app)
-    const setup = await mounted(app)
-    try {
-      // A settled predecessor turn on the ledger: the session cost line must survive the swap
-      // (the ledger tree is the session's), even as the context gauge leaves the old window.
-      await app.ledger.record({
-        runId: toRunId('run-spent'),
         threadId: THREAD,
-        status: 'completed',
-        providerId: 'anthropic',
-        modelId: 'claude-opus-5',
-        steps: 1,
-        inputTokens: 290_000,
-        outputTokens: 7_500,
-        cacheReadTokens: 0,
-        cacheWriteTokens: 0,
-        startedAt: new Date(0).toISOString(),
-        endedAt: new Date(0).toISOString(),
-        durationMs: 1,
+        watermarkSeq: await landWatermark(app),
+        replaced: 1,
       })
 
-      await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
-      rotation.resolve({
-        kind: 'committed',
-        sessionId: THREAD,
-        operationId: 'op',
-        predecessor: THREAD,
-        successor,
-        handoffPath: '/tmp/handoff.md',
-        watermarkSeq: 1,
-      })
-
-      const frame = await frameWhen({
+      await frameWhen({
         setup,
-        holds: (drawn) => drawn.includes(SUCCESSOR_SEED),
-        describe: 'the successor transcript',
+        holds: (drawn) => !drawn.includes('124.0k') && !drawn.includes(ROW),
+        describe: 'the gauge off the old window',
       })
-      // The session spend row survives the swap: the successor's open read the ledger tree, so
-      // the store now holds that spend even though the gauge left the predecessor's window.
-      expect(app.ledger.rows).toHaveLength(1)
-      expect(frame).not.toContain('297.5k')
     } finally {
       await teardown(setup)
     }
@@ -284,7 +293,7 @@ describe('/rotate', () => {
     const setup = await mounted(appWith(rotation))
     try {
       await ran(setup, '/rotate')
-      await frameShowing({ setup, text: HEADING })
+      await frameShowing({ setup, text: ROW })
       await ran(setup, '/rotate')
 
       expect(rotation.requests).toHaveLength(1)
