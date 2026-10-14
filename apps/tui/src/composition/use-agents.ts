@@ -161,15 +161,22 @@ export function useAgents({
 
   const visits = useCrewVisits(viewing)
   const surfaces = useShellSurfaces(shells)
-  const shellBusy = useMemo(
-    () =>
-      new Set(
-        surfaces
-          .filter((shell) => shell.status === EShellStatus.Running)
-          .map((shell) => shell.threadId),
-      ),
-    [surfaces],
-  )
+  const shellBusy = useMemo(() => {
+    const busy = new Set(
+      surfaces
+        .filter((shell) => shell.status === EShellStatus.Running)
+        .map((shell) => shell.threadId),
+    )
+    const parentOf = new Map(everywhere.map((child) => [child.agentId, child.spawnedBy]))
+    for (const threadId of [...busy]) {
+      let ancestor = parentOf.get(threadId)
+      while (ancestor !== undefined && !busy.has(ancestor)) {
+        busy.add(ancestor)
+        ancestor = parentOf.get(ancestor)
+      }
+    }
+    return busy
+  }, [surfaces, everywhere])
   const members = useMemo(
     () => crewMembersOf({ snapshots: own, visits, shellBusy }),
     [own, shellBusy, visits],

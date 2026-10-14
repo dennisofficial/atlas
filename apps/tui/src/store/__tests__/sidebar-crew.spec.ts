@@ -350,6 +350,46 @@ describe('what a child still has running under it', () => {
     expect(crewActivityOf({ id: CHILD, rosters: EMPTY_ROSTERS })).toBeUndefined()
   })
 
+  it('propagates a grandchild shell up to the settled teammate that owns the child', () => {
+    const activity = crewActivityOf({
+      id: CHILD,
+      rosters: {
+        shells: [shell({ threadId: toThreadId('thr_grand') })],
+        children: [
+          snapshot({
+            agentId: toThreadId('thr_grand'),
+            spawnedBy: CHILD,
+            status: EAgentStatus.Finished,
+            endedAt: STARTED,
+          }),
+        ],
+      },
+    })
+
+    expect(activity).toEqual({ shells: 0, subagents: 1 })
+  })
+
+  it('reads a settled teammate as live while a shell under its sub-agent still runs', () => {
+    const busy = subagentRows({
+      snapshots: [snapshot({ status: EAgentStatus.Finished, endedAt: '2026-01-01T00:00:30.000Z' })],
+      now: NOW,
+      rosters: {
+        shells: [shell({ threadId: toThreadId('thr_grand') })],
+        children: [
+          snapshot({
+            agentId: toThreadId('thr_grand'),
+            spawnedBy: CHILD,
+            status: EAgentStatus.Finished,
+            endedAt: '2026-01-01T00:00:30.000Z',
+          }),
+        ],
+      },
+    })[0]
+
+    expect(crewRowReading(busy!)).toBe(ESubagentReading.Live)
+    expect(isSubagentWorking(busy!)).toBe(true)
+  })
+
   it('keeps the counts off the row when nothing under it is running', () => {
     expect(rows()[0]?.activity).toBeUndefined()
   })

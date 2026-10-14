@@ -171,6 +171,12 @@ export function subagentContextLabel(context: ChildContext | undefined): string 
   return formatTokens(context.tokens)
 }
 
+/**
+ * A child's activity is transitive: a shell or a child that itself still has live work counts
+ * toward its owner, so a teammate whose sub-agent is running a bash shell reads as working on the
+ * parent's sidebar — main waits on teammate, teammate waits on sub-agent, sub-agent waits on the
+ * shell, and the activity propagates up the whole chain rather than lighting only the deepest row.
+ */
 export function crewActivityOf(args: {
   id: ThreadId
   rosters: CrewRosters
@@ -179,7 +185,10 @@ export function crewActivityOf(args: {
     (shell) => shell.threadId === args.id && shell.status === EShellStatus.Running,
   ).length
   const subagents = args.rosters.children.filter(
-    (child) => child.spawnedBy === args.id && isSubagentAlive(child),
+    (child) =>
+      child.spawnedBy === args.id &&
+      (isSubagentAlive(child) ||
+        crewActivityOf({ id: child.agentId, rosters: args.rosters }) !== undefined),
   ).length
 
   if (shells === 0 && subagents === 0) return undefined

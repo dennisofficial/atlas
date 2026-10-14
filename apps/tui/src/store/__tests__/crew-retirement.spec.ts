@@ -88,6 +88,12 @@ describe('crewStanding', () => {
     expect(standingOf({ member: member({ holdingShells: true }) })).toBe(ECrewStanding.Held)
   })
 
+  it('holds a settled teammate whose sub-agent owns a running shell, by propagated busyness', () => {
+    const teammate = member({ agentId: 'thr_teammate', spawnedBy: ROOT, holdingShells: true })
+
+    expect(standingOf({ member: teammate })).toBe(ECrewStanding.Held)
+  })
+
   it('holds an ancestor whose grandchild is still running', () => {
     const parent = member({ agentId: 'thr_parent', spawnedBy: ROOT })
     const child = member({ agentId: 'thr_middle', spawnedBy: 'thr_parent' })
