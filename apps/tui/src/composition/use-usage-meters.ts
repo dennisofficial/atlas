@@ -1,4 +1,4 @@
-import { EMeterBand, type EUsageWindow } from '@dltech/atlas-core'
+import { EMeterBand, type AccountId, type EUsageWindow } from '@dltech/atlas-core'
 import type { AccountUsageService } from '@dltech/atlas-harness'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -21,19 +21,21 @@ const minuteOf = (now: number): number => Math.floor(now / MINUTE_MS)
 export function useUsageMeters(args: {
   usage: AccountUsageService
   metered: boolean
+  accountId?: AccountId
   show: EFooterMeters
   warn: Record<EUsageWindow, number>
 }): readonly FooterMeter[] {
-  const { usage, metered, show, warn } = args
+  const { usage, metered, accountId, show, warn } = args
   const version = useSyncExternalStore(usage.subscribe, usage.version)
   const [minute, setMinute] = useState(() => minuteOf(Date.now()))
   const held = useRef(minute)
 
-  const meters = useMemo(
-    () =>
-      metered ? usageMeters({ usage: usage.snapshot(), show, warn, now: Date.now() }) : NO_METERS,
-    [metered, minute, show, usage, version, warn],
-  )
+  const meters = useMemo(() => {
+    if (!metered) return NO_METERS
+
+    const reading = accountId === undefined ? usage.snapshot() : usage.snapshotFor({ accountId })
+    return usageMeters({ usage: reading, show, warn, now: Date.now() })
+  }, [accountId, metered, minute, show, usage, version, warn])
 
   const countingDown = meters.some((meter) => meter.band === EMeterBand.Spent)
 

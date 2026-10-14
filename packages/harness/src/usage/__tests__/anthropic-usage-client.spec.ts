@@ -2,9 +2,11 @@ import { describe, expect, it } from 'bun:test'
 import {
   CredentialPort,
   EAuthKind,
+  EAuthProvider,
   EUsageWindow,
   toAccountId,
   type Credential,
+  type CredentialRequest,
 } from '@dltech/atlas-core'
 
 import { ANTHROPIC_USAGE_URL, AnthropicUsageClient } from '../anthropic-usage-client'
@@ -19,11 +21,14 @@ const OAUTH: Credential = {
 }
 
 class StubCredentials extends CredentialPort {
+  readonly requests: (CredentialRequest | undefined)[] = []
+
   constructor(private readonly answer: () => Promise<Credential>) {
     super()
   }
 
-  read(): Promise<Credential> {
+  read(request?: CredentialRequest): Promise<Credential> {
+    this.requests.push(request)
     return this.answer()
   }
 
@@ -40,9 +45,10 @@ const respondingWith = (body: unknown, status = 200): typeof globalThis.fetch =>
 const clientOf = (args: {
   fetch: typeof globalThis.fetch
   credential?: () => Promise<Credential>
+  credentials?: StubCredentials
 }): AnthropicUsageClient =>
   new AnthropicUsageClient({
-    credentials: new StubCredentials(args.credential ?? (async () => OAUTH)),
+    credentials: args.credentials ?? new StubCredentials(args.credential ?? (async () => OAUTH)),
     fetch: args.fetch,
   })
 
@@ -59,6 +65,24 @@ describe('AnthropicUsageClient', () => {
 
     expect(usage?.[EUsageWindow.FiveHour]?.utilization).toBe(34)
     expect(usage?.[EUsageWindow.SevenDay]?.utilization).toBe(61)
+  })
+
+  it('scopes the credential read to the Anthropic provider and the asked account', async () => {
+    const credentials = new StubCredentials(async () => OAUTH)
+    const client = clientOf({ fetch: respondingWith({}), credentials })
+
+    await client.read({ accountId: ACCOUNT })
+
+    expect(credentials.requests).toEqual([{ provider: EAuthProvider.Anthropic, accountId: ACCOUNT }])
+  })
+
+  it('scopes the credential read to the Anthropic provider when no account is named', async () => {
+    const credentials = new StubCredentials(async () => OAUTH)
+    const client = clientOf({ fetch: respondingWith({}), credentials })
+
+    await client.read({})
+
+    expect(credentials.requests[0]?.provider).toBe(EAuthProvider.Anthropic)
   })
 
   it('presents the bearer token and the headers the endpoint expects', async () => {

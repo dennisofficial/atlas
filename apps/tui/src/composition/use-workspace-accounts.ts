@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 
-import type { Account } from '@dltech/atlas-core'
+import { isMetered, type Account } from '@dltech/atlas-core'
 
 import { accountMeterSpans } from '../ui/account-meters'
 import type { Span } from '../ui/components/spans'
@@ -40,12 +40,14 @@ export function useWorkspaceAccounts(args: {
 
   const accountMeters = useMemo(
     () =>
-      (account: Account): readonly Span[] =>
-        accountMeterSpans({
-          usage: usage.snapshotFor({ accountId: account.id }),
-          warn: usageWarn,
-          now: Date.now(),
-        }),
+      (account: Account): readonly Span[] | undefined =>
+        isMetered(account)
+          ? accountMeterSpans({
+              usage: usage.snapshotFor({ accountId: account.id }),
+              warn: usageWarn,
+              now: Date.now(),
+            })
+          : undefined,
     [usageWarn, usage, usageVersion],
   )
 

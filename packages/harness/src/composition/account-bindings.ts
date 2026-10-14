@@ -2,6 +2,7 @@ import {
   AccountStorePort,
   ClockPort,
   CredentialPort,
+  EAuthProvider,
   type Account,
   type AccountId,
   type AccountSecret,
@@ -21,7 +22,9 @@ import { CloudManagedCredentialPort } from '../credentials/cloud-managed-credent
 import { syncEnvironmentAccounts } from '../credentials/environment-accounts'
 import { builtinOauthClients } from '../credentials/oauth/refresh-client'
 import { AnthropicUsageClient } from '../usage/anthropic-usage-client'
+import { CodexUsageClient } from '../usage/codex-usage-client'
 import { createAccountUsageService, type AccountUsageService } from '../usage/account-usage-service'
+import { RoutedAccountUsage } from '../usage/routed-account-usage'
 
 export async function bindAccounts(args: {
   container: DependencyContainer
@@ -69,7 +72,15 @@ export async function bindAccounts(args: {
         credentials.prepareReplacement(replacement),
     } : {}),
   })
-  const usage = createAccountUsageService({ usage: new AnthropicUsageClient({ credentials }) })
+  const usage = createAccountUsageService({
+    usage: new RoutedAccountUsage({
+      accounts: accountStore,
+      clients: {
+        [EAuthProvider.Anthropic]: new AnthropicUsageClient({ credentials }),
+        [EAuthProvider.OpenAI]: new CodexUsageClient({ credentials }),
+      },
+    }),
+  })
 
   return { credentials, accounts, cloud, usage }
 }

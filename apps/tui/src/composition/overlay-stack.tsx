@@ -62,7 +62,7 @@ function DerivedOverlayStack(props: {
   whatsNew: WhatsNewControl
   accounts: AccountsControl
   threads: ThreadsControl
-  accountMeters: (account: Account) => readonly Span[]
+  accountMeters: (account: Account) => readonly Span[] | undefined
   rewind: RewindControl
   rewindConfirm: RewindConfirmControl
   exitGuard: ExitGuardControl

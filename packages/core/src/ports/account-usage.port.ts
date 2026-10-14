@@ -1,8 +1,8 @@
 import type { AccountId } from '../credentials/account'
-import type { AccountUsage } from '../usage/window'
+import type { UsageReading } from '../usage/window'
 
 export type AccountUsageRequest = { accountId?: AccountId | undefined }
 
 export abstract class AccountUsagePort {
-  abstract read(request?: AccountUsageRequest): Promise<AccountUsage | null>
+  abstract read(request?: AccountUsageRequest): Promise<UsageReading | null>
 }

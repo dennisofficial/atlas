@@ -137,6 +137,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     services,
     exit,
     autoRestart: settings.autoRestart,
+    trackedAccount: models.trackedAccount,
   })
   const { commands, loadedSkills } = useWorkspaceCommands({
     app: props.app,
