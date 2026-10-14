@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
-import { EPrEventKind, toThreadId, type LinkedPullRequest } from '@dltech/atlas-core'
+import { EPrEventKind, toThreadId, type LinkedPullRequest, type ThreadId } from '@dltech/atlas-core'
 
 import { prEventFrameSchema, type PrEventFrame } from '../../../cloud/pr-event-frame'
+import { createFamilyTracker } from '../family-tracker'
 import { PrEventNoticeQueue } from '../pr-event-queue'
 import { createPrEventRouting } from '../pr-event-routing'
 import {
@@ -18,6 +19,7 @@ import type { PullRequestService } from '../pull-request-service'
 
 const MAIN = toThreadId('main')
 const OTHER = toThreadId('other')
+const TEAMMATE = toThreadId('teammate')
 
 const CHECKOUT: RepositoryCheckout = {
   directory: '/repo',
@@ -57,6 +59,7 @@ const setup = (
     tracked?: PullRequestReading | null
     links?: readonly LinkedPullRequest[]
     extra?: readonly { checkout: RepositoryCheckout; reading: PullRequestReading }[]
+    places?: readonly { threadId: ThreadId; checkout: RepositoryCheckout }[]
   } = {},
 ) => {
   const queue = new PrEventNoticeQueue()
@@ -66,6 +69,7 @@ const setup = (
     ...(args.extra ?? []),
   ]
   const service = {
+    track: () => undefined,
     tracked: () => held.map((entry) => entry.checkout),
     snapshot: ({ key }: { key: string }) =>
       held.find((entry) => checkoutKey(entry.checkout) === key)?.reading ?? {
@@ -73,7 +77,9 @@ const setup = (
         retryable: true,
       },
   } as unknown as PullRequestService
-  const routing = createPrEventRouting({ service, links: () => args.links ?? [], queue })
+  const tracker = createFamilyTracker({ service })
+  for (const place of args.places ?? []) tracker.place(place)
+  const routing = createPrEventRouting({ service, tracker, links: () => args.links ?? [], queue })
   return { queue, routing }
 }
 
@@ -82,11 +88,14 @@ const LINK: LinkedPullRequest = {
   number: 77,
   branch: 'other',
   url: 'https://github.com/owner/repo/pull/77',
+  linkedBy: undefined,
 }
+
+const MAIN_ON_CHECKOUT = { threadId: MAIN, checkout: CHECKOUT }
 
 describe('createPrEventRouting', () => {
   it('queues a frame for the tracked checkout’s pull request on the main thread', async () => {
-    const { queue, routing } = setup()
+    const { queue, routing } = setup({ places: [MAIN_ON_CHECKOUT] })
     await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
 
     routing.onPrEvent(frame())
@@ -140,10 +149,10 @@ describe('createPrEventRouting', () => {
     expect(queue.pending({ threadId: MAIN })).toHaveLength(4)
   })
 
-  it('holds frames that arrive before any thread is known and delivers on the first turn', async () => {
-    const { queue, routing } = setup()
+  it('holds frames no thread owns until a thread is known, then delivers on the first turn', async () => {
+    const { queue, routing } = setup({ tracked: null, links: [LINK] })
 
-    routing.onPrEvent(frame())
+    routing.onPrEvent(frame({ prNumber: 77 }))
     expect(queue.threadsAwaiting()).toEqual([])
 
     await routing.beforeTurn({ threadId: MAIN, projectDirectory: '/repo' })
@@ -173,15 +182,88 @@ describe('createPrEventRouting', () => {
     expect(queue.pending({ threadId: OTHER })).toHaveLength(2)
   })
 
-  it('admits a frame for the pull request any tracked checkout stands on', async () => {
-    const teammate = { ...CHECKOUT, directory: '/teammate', branch: 'teammate-branch' }
-    const { queue, routing } = setup({ extra: [{ checkout: teammate, reading: found(55) }] })
-    await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
+  describe('owner-aware delivery', () => {
+    const teammateCheckout = { ...CHECKOUT, directory: '/teammate', branch: 'teammate-branch' }
+    const withTeammate = (over: Parameters<typeof setup>[0] = {}) =>
+      setup({
+        extra: [{ checkout: teammateCheckout, reading: found(55) }],
+        places: [MAIN_ON_CHECKOUT, { threadId: TEAMMATE, checkout: teammateCheckout }],
+        ...over,
+      })
 
-    routing.onPrEvent(frame({ id: 'evt_mate', prNumber: 55 }))
+    it('queues a frame for a teammate’s checkout to the teammate, not the main thread', async () => {
+      const { queue, routing } = withTeammate()
+      await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
 
-    expect(queue.pending({ threadId: MAIN }).map((notice) => notice.draft)).toMatchObject([
-      { prNumber: 55 },
-    ])
+      routing.onPrEvent(frame({ id: 'evt_mate', prNumber: 55 }))
+
+      expect(queue.threadsAwaiting()).toEqual([TEAMMATE])
+      expect(queue.pending({ threadId: TEAMMATE }).map((notice) => notice.draft)).toMatchObject([
+        { prNumber: 55 },
+      ])
+    })
+
+    it('still queues a frame for the main thread’s checkout to the main thread', async () => {
+      const { queue, routing } = withTeammate()
+      await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
+
+      routing.onPrEvent(frame())
+
+      expect(queue.threadsAwaiting()).toEqual([MAIN])
+    })
+
+    it('queues a frame to every thread standing on the checkout once each', async () => {
+      const { queue, routing } = setup({
+        places: [MAIN_ON_CHECKOUT, { threadId: TEAMMATE, checkout: CHECKOUT }],
+      })
+      await routing.threadOpened({ threadId: OTHER, projectDirectory: '/repo' })
+
+      routing.onPrEvent(frame())
+
+      expect([...queue.threadsAwaiting()].sort()).toEqual([MAIN, TEAMMATE].sort())
+      expect(queue.pending({ threadId: MAIN })).toHaveLength(1)
+      expect(queue.pending({ threadId: TEAMMATE })).toHaveLength(1)
+    })
+
+    it('queues straight to the owning thread before any thread has been adopted', () => {
+      const { queue, routing } = withTeammate()
+
+      routing.onPrEvent(frame({ prNumber: 55 }))
+
+      expect(queue.threadsAwaiting()).toEqual([TEAMMATE])
+    })
+
+    it('queues a linked pull request with no live checkout to the thread that linked it', async () => {
+      const { queue, routing } = setup({
+        tracked: null,
+        links: [{ ...LINK, linkedBy: TEAMMATE }],
+      })
+      await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
+
+      routing.onPrEvent(frame({ prNumber: 77 }))
+
+      expect(queue.threadsAwaiting()).toEqual([TEAMMATE])
+    })
+
+    it('falls back to the visible thread for a linked pull request with no linking thread', async () => {
+      const { queue, routing } = setup({ tracked: null, links: [LINK] })
+      await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
+
+      routing.onPrEvent(frame({ prNumber: 77 }))
+
+      expect(queue.threadsAwaiting()).toEqual([MAIN])
+    })
+
+    it('prefers the thread standing on the checkout over the thread that linked it', async () => {
+      const { queue, routing } = setup({
+        places: [MAIN_ON_CHECKOUT],
+        links: [{ ...LINK, number: 42, linkedBy: TEAMMATE }],
+      })
+      await routing.threadOpened({ threadId: OTHER, projectDirectory: '/repo' })
+
+      routing.onPrEvent(frame())
+
+      expect(queue.threadsAwaiting()).toEqual([MAIN])
+    })
   })
 })

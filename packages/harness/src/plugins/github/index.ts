@@ -129,6 +129,7 @@ export default class GithubPlugin extends NativePlugin {
     const prEvents = new PrEventNoticeQueue()
     routing = createPrEventRouting({
       service,
+      tracker: tracking.tracker,
       links: () => links.projection.current(),
       queue: prEvents,
     })

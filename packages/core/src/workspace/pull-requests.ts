@@ -1,11 +1,13 @@
 import type { EventDraft } from '../events/body'
 import type { Event } from '../events/envelope'
+import type { ThreadId } from '../events/ids'
 
 export type LinkedPullRequest = {
   number: number
   url: string
   repo: string
   branch: string
+  linkedBy?: ThreadId | undefined
 }
 
 type Link = {
@@ -14,6 +16,7 @@ type Link = {
   url: string
   repo: string
   branch: string
+  threadId?: ThreadId | undefined
 }
 
 const linked = (link: Link): LinkedPullRequest => ({
@@ -21,6 +24,7 @@ const linked = (link: Link): LinkedPullRequest => ({
   url: link.url,
   repo: link.repo,
   branch: link.branch,
+  linkedBy: link.threadId,
 })
 
 const identityOf = (link: { repo: string; number: number }): string =>
