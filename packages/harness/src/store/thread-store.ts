@@ -79,8 +79,6 @@ export abstract class ThreadStorePort {
     return {
       placement: placementOf(thread.executionLocation ?? EExecutionLocation.Host),
       revision: 0,
-      move: null,
-      born: null,
     }
   }
 

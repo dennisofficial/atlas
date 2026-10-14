@@ -28,7 +28,7 @@ export function usePlacementMoving(args: { app: AtlasApp; threadId: ThreadId }):
   const { app, threadId } = args
   return useSyncExternalStore(
     app.executionLocation.subscribe,
-    () => app.executionLocation.moveFor(threadId) !== null,
+    () => false,
   )
 }
 

@@ -84,8 +84,6 @@ const gatedHarness = () => {
       }
       events.push(`finish:${upload.destination}`)
     },
-    downloadWorkspaceArchive: async () => {},
-    releaseWorkspaceArchive: async () => {},
     downloadSessionArchive: async () => {},
     releaseSessionArchive: async () => {},
     transcriptLanded: async () => true,

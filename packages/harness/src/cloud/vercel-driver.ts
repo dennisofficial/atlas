@@ -26,13 +26,7 @@ import { deleteThreadDrive } from './vercel-driver-destroy'
 import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
 import { tailServeLog, transcriptPresent, writeBootstrapFile } from './vercel-driver-probes'
 import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
-import {
-  downloadWorkspaceArchive,
-  releaseWorkspaceExport,
-  uploadWorkspaceArchive,
-  type ArchiveDownloadArgs,
-  type ArchiveUploadArgs,
-} from './workspace-archive-transport'
+import { uploadWorkspaceArchive, type ArchiveUploadArgs } from './workspace-archive-transport'
 
 export class VercelDriver {
   private readonly sdk: VercelSdk
@@ -230,23 +224,6 @@ export class VercelDriver {
     args: Omit<ArchiveUploadArgs, 'sandbox' | 'chunkBytes' | 'batchParts'> & { sandbox: Sandbox },
   ): Promise<void> {
     await this.guarded(args.sandbox.name, () => uploadWorkspaceArchive(args))
-  }
-
-  async downloadWorkspaceArchive(
-    args: Omit<ArchiveDownloadArgs, 'sandbox'> & { name: string },
-  ): Promise<void> {
-    const { name, ...transfer } = args
-    await this.guarded(name, async () =>
-      downloadWorkspaceArchive({ ...transfer, sandbox: await this.sandboxNamed(name) }),
-    )
-  }
-
-  async releaseWorkspaceArchive(args: { name: string; path: string }): Promise<void> {
-    try {
-      await releaseWorkspaceExport({ sandbox: await this.sandboxNamed(args.name), path: args.path })
-    } catch (failure) {
-      if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
-    }
   }
 
   async downloadSessionArchive(

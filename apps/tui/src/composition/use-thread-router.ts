@@ -8,13 +8,12 @@ import { cloudListing } from './cloud/cloud-listing'
 import { openCloudThread } from './cloud/cloud-open'
 import { clearAttachFailure, recordAttachFailure } from './attach-failure'
 import { cloudAttachmentOf } from './session-binding'
-import { settleOnChannel } from './session-recovery'
 import type { CloudBridge, CloudReload, CloudSandboxes } from '@dltech/atlas-harness'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
 import { openConversation, type OpenedConversation } from './open-conversation'
-import type { CloudBridgeFactory } from './use-cloud-lift'
+import type { CloudBridgeFactory } from './cloud/bridge-factory'
 import type { ContainerMoveControl } from './use-container-move'
 
 export type ThreadRouter = {
@@ -74,13 +73,9 @@ export function useThreadRouter(args: {
         ...(projectDirectory === undefined ? {} : { projectDirectory }),
       }).then(async (binding) => {
         try {
-          const channel = cloudAttachmentOf(binding)?.session.channel
           await localApp.sessionOwner.adopt({
             threadId: toThreadId(threadId),
             binding,
-            settle: async ({ action }) => {
-              if (channel !== undefined) await settleOnChannel({ channel, action })
-            },
           })
         } catch (error) {
           binding.close?.()

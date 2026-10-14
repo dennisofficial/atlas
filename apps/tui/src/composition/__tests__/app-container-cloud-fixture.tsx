@@ -7,20 +7,13 @@ import { testRender } from '@opentui/react/test-utils'
 import type { ClipboardImageReader } from '../../ui/clipboard-image'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { CLEAN_WORKSPACE, type FakeBridge } from '../cloud/__tests__/fixture'
-import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from '../use-cloud-lift'
+import type { FakeBridge } from '../cloud/__tests__/fixture'
+import type { CloudBridgeFactory, LiftPreflight } from '../cloud/bridge-factory'
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 import type { OpenedConversation } from '../open-conversation'
 import { editorIn, spokenIn, REPLY, THINKING, THREAD, until } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
-
-const DIRTY: WorkspaceCapture = async () => ({
-  ...CLEAN_WORKSPACE,
-  patch: 'diff --git a/src/app.ts b/src/app.ts\n',
-})
-
-const STUB_CONTEXT = async (): Promise<Buffer> => Buffer.from('stub-context-archive')
 
 export const speaking = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
@@ -87,10 +80,6 @@ export const mount = async (args: {
       opened={opened}
       createBridge={createBridge}
       preflightLift={args.preflightLift ?? (async () => null)}
-      captureWorkspace={DIRTY}
-      captureArchive={async () => undefined}
-      restoreWorkspace={async () => ({ cwd: args.app.workspace.workspace, repository: args.app.workspace.workspace, trees: [] })}
-      captureContext={STUB_CONTEXT}
       {...(args.clipboard === undefined ? {} : { clipboard: args.clipboard })}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },

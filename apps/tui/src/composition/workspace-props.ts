@@ -1,4 +1,4 @@
-import type { CaptureContext, CloudBridge, CloudReload, CloudStores, LiftWorkspaceCapture, WorkspaceRestorer } from '@dltech/atlas-harness'
+import type { CloudBridge, CloudReload, CloudStores } from '@dltech/atlas-harness'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ClipboardImageReader } from '../ui/clipboard-image'
@@ -6,7 +6,7 @@ import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
 import type { SurfaceAttachment } from './session-binding'
-import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
+import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
 import type { MoveStepTiming } from './use-container-move'
 import type { WhatsNewControl } from './use-whats-new'
 
@@ -25,10 +25,6 @@ export type WorkspaceProps = {
   cloudStores: CloudStores | null
   createBridge: CloudBridgeFactory
   preflightLift: LiftPreflight
-  captureWorkspace: WorkspaceCapture
-  captureArchive: LiftWorkspaceCapture | undefined
-  restoreWorkspace: WorkspaceRestorer | undefined
-  captureContext: CaptureContext | undefined
   onReload: (reload: CloudReload) => Promise<void>
   onLeaveCloud: (opened: OpenedConversation) => void
   onLocalOpened: (opened: OpenedConversation) => void

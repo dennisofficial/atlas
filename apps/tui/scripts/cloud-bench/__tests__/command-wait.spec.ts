@@ -11,12 +11,11 @@ import {
   type OwnerView,
 } from '../command-wait'
 
-const LIFT_STEPS = ['flipOwnership', 'activateFamily', 'destroyLocalWorktree'] as const
+const BIRTH_STEPS = ['flipOwnership', 'activate'] as const
 
 type OwnerState = {
   location: EExecutionLocation
   bound: boolean
-  move: unknown
 }
 
 const fakeOwner = (initial: OwnerState) => {
@@ -27,7 +26,7 @@ const fakeOwner = (initial: OwnerState) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    snapshot: () => ({ location: state.location, bound: state.bound, record: { move: state.move } }),
+    snapshot: () => ({ location: state.location, bound: state.bound, record: undefined }),
   }
   return {
     view,
@@ -81,7 +80,7 @@ const isSettled = (promise: Promise<unknown>): Promise<boolean> =>
     new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5)),
   ])
 
-const liftWait = (args: {
+const birthWait = (args: {
   owner: ReturnType<typeof fakeOwner>
   notices?: ReturnType<typeof fakeNotices>
   timeoutMs?: number
@@ -90,7 +89,7 @@ const liftWait = (args: {
   const notices = args.notices ?? fakeNotices()
   const wait = createCommandWait({
     target: EExecutionLocation.Cloud,
-    requiredSteps: LIFT_STEPS,
+    requiredSteps: BIRTH_STEPS,
     owner: args.owner.view,
     notices: notices.view,
     failureOf: moveFailureOf,
@@ -100,78 +99,68 @@ const liftWait = (args: {
   return { wait, notices }
 }
 
-const cloudOwner = () => fakeOwner({ location: EExecutionLocation.Cloud, bound: true, move: null })
+const cloudOwner = () => fakeOwner({ location: EExecutionLocation.Cloud, bound: true })
 
 describe('command completion wait', () => {
-  it('does not succeed when the ownership flip lands before activation and cleanup', async () => {
+  it('does not succeed when the ownership flip lands before activation', async () => {
     const owner = cloudOwner()
-    const { wait } = liftWait({ owner })
+    const { wait } = birthWait({ owner })
     wait.start()
 
     wait.step('flipOwnership')
     expect(await isSettled(wait.completion)).toBe(false)
 
-    wait.step('activateFamily')
-    expect(await isSettled(wait.completion)).toBe(false)
-
-    wait.step('destroyLocalWorktree')
-    expect((await wait.completion).timings.map((timing) => timing.step)).toEqual([...LIFT_STEPS])
+    wait.step('activate')
+    expect((await wait.completion).timings.map((timing) => timing.step)).toEqual([...BIRTH_STEPS])
   })
 
-  it('holds after the terminal step until the owner is bound at the target with no move open', async () => {
-    const owner = fakeOwner({ location: EExecutionLocation.Host, bound: false, move: { phase: 'committed' } })
-    const { wait } = liftWait({ owner })
+  it('holds after the terminal step until the owner is bound at the target', async () => {
+    const owner = fakeOwner({ location: EExecutionLocation.Host, bound: false })
+    const { wait } = birthWait({ owner })
     wait.start()
-    for (const step of LIFT_STEPS) wait.step(step)
+    for (const step of BIRTH_STEPS) wait.step(step)
     expect(await isSettled(wait.completion)).toBe(false)
 
     owner.set({ location: EExecutionLocation.Cloud })
     expect(await isSettled(wait.completion)).toBe(false)
 
     owner.set({ bound: true })
-    expect(await isSettled(wait.completion)).toBe(false)
-
-    owner.set({ move: null })
     await expect(wait.completion).resolves.toBeDefined()
   })
 
   it('reports step offsets and elapsed time from the monotonic clock taken at start', async () => {
     const time = clock()
-    const { wait } = liftWait({ owner: cloudOwner(), now: time.now })
+    const { wait } = birthWait({ owner: cloudOwner(), now: time.now })
 
     time.advance(50_000)
     wait.start()
     time.advance(120)
     wait.step('flipOwnership')
     time.advance(30)
-    wait.step('activateFamily')
-    time.advance(400)
-    wait.step('destroyLocalWorktree')
+    wait.step('activate')
 
     expect(await wait.completion).toEqual({
-      elapsedMs: 550,
+      elapsedMs: 150,
       timings: [
         { step: 'flipOwnership', elapsedMs: 120 },
-        { step: 'activateFamily', elapsedMs: 150 },
-        { step: 'destroyLocalWorktree', elapsedMs: 550 },
+        { step: 'activate', elapsedMs: 150 },
       ],
     })
   })
 
   it('ignores steps that arrive before the command starts', async () => {
-    const { wait } = liftWait({ owner: cloudOwner() })
+    const { wait } = birthWait({ owner: cloudOwner() })
 
     wait.step('flipOwnership')
     wait.start()
-    wait.step('activateFamily')
-    wait.step('destroyLocalWorktree')
+    wait.step('activate')
 
     expect(await isSettled(wait.completion)).toBe(false)
   })
 
   it('rejects at once on a move-failure notice, naming the failure without any transcript', async () => {
     const owner = cloudOwner()
-    const { wait, notices } = liftWait({ owner })
+    const { wait, notices } = birthWait({ owner })
     wait.start()
     wait.step('flipOwnership')
 
@@ -196,28 +185,28 @@ describe('command completion wait', () => {
 
   it('ignores a failure notice that was already standing when the command started', async () => {
     const stale = noticeAt({ key: 'container-cloud', text: 'moving to the cloud failed — earlier attempt' })
-    const { wait, notices } = liftWait({ owner: cloudOwner(), notices: fakeNotices([stale]) })
+    const { wait, notices } = birthWait({ owner: cloudOwner(), notices: fakeNotices([stale]) })
     wait.start()
     notices.post(noticeAt({ key: 'unrelated', text: 'something else', tone: ENoticeTone.Info }))
-    for (const step of LIFT_STEPS) wait.step(step)
+    for (const step of BIRTH_STEPS) wait.step(step)
 
     await expect(wait.completion).resolves.toBeDefined()
   })
 
   it('does not abort on a success-with-warning notice', async () => {
-    const { wait, notices } = liftWait({ owner: cloudOwner() })
+    const { wait, notices } = birthWait({ owner: cloudOwner() })
     wait.start()
     notices.post(
       noticeAt({ key: 'container-cloud', text: 'this conversation is in the cloud, but the context was skipped' }),
     )
-    for (const step of LIFT_STEPS) wait.step(step)
+    for (const step of BIRTH_STEPS) wait.step(step)
 
     await expect(wait.completion).resolves.toBeDefined()
   })
 
   it('rejects on timeout, naming the steps seen, the steps missing and the owner state', async () => {
-    const owner = fakeOwner({ location: EExecutionLocation.Host, bound: true, move: { phase: 'prepared' } })
-    const { wait } = liftWait({ owner, timeoutMs: 15 })
+    const owner = fakeOwner({ location: EExecutionLocation.Host, bound: true })
+    const { wait } = birthWait({ owner, timeoutMs: 15 })
     wait.start()
     wait.step('flipOwnership')
 
@@ -225,17 +214,15 @@ describe('command completion wait', () => {
     expect(failure).toBeInstanceOf(CommandWaitError)
     if (!(failure instanceof CommandWaitError)) return
     expect(failure.reason).toBe(ECommandWaitFailure.TimedOut)
-    expect(failure.message).toContain('activateFamily')
-    expect(failure.message).toContain('destroyLocalWorktree')
+    expect(failure.message).toContain('activate')
     expect(failure.message).toContain('location=host')
-    expect(failure.message).toContain('move=open')
   })
 
   it('leaves no listener or timer behind after success, failure, timeout or disposal', async () => {
     const outcomes: Array<
-      (args: { wait: ReturnType<typeof liftWait>['wait']; notices: ReturnType<typeof fakeNotices> }) => void
+      (args: { wait: ReturnType<typeof birthWait>['wait']; notices: ReturnType<typeof fakeNotices> }) => void
     > = [
-      ({ wait }) => LIFT_STEPS.forEach((step) => wait.step(step)),
+      ({ wait }) => BIRTH_STEPS.forEach((step) => wait.step(step)),
       ({ notices }) =>
         notices.post(noticeAt({ key: 'container-switch', text: 'moving back to the host did not finish' })),
       () => undefined,
@@ -244,7 +231,7 @@ describe('command completion wait', () => {
 
     for (const [index, outcome] of outcomes.entries()) {
       const owner = cloudOwner()
-      const { wait, notices } = liftWait({ owner, timeoutMs: index === 2 ? 10 : 60_000 })
+      const { wait, notices } = birthWait({ owner, timeoutMs: index === 2 ? 10 : 60_000 })
       wait.start()
       expect(owner.listeners.size).toBe(1)
       expect(notices.listeners.size).toBe(1)
@@ -258,7 +245,7 @@ describe('command completion wait', () => {
   })
 
   it('rejects a disposed wait as cancelled instead of leaving the caller hanging', async () => {
-    const { wait } = liftWait({ owner: cloudOwner() })
+    const { wait } = birthWait({ owner: cloudOwner() })
     wait.start()
     wait.dispose()
 

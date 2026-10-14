@@ -4,7 +4,7 @@ import { DRIVE_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@
 import { EReconnectEscalation } from './remote-delta-channel'
 import { ECloudSandboxState } from './sandbox-client'
 import { VercelDriver } from './vercel-driver'
-import type { CloudSandboxes, LiftedWorkspace } from './relocation/cloud-bridge'
+import type { CloudSandboxes, LiftedWorkspace } from './cloud-bridge'
 
 export type LiveSandbox = Parameters<
   NonNullable<Parameters<VercelDriver['createOrResume']>[0]['putContextOnFreshBoot']>
@@ -17,8 +17,6 @@ export type BridgeDriver = Pick<
   | 'writeBootstrapFileToSandbox'
   | 'writeBootstrapFile'
   | 'uploadWorkspaceArchive'
-  | 'downloadWorkspaceArchive'
-  | 'releaseWorkspaceArchive'
   | 'downloadSessionArchive'
   | 'releaseSessionArchive'
   | 'transcriptLanded'

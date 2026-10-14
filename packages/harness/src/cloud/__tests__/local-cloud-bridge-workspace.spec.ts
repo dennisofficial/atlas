@@ -33,8 +33,6 @@ const bridgeSeeing = (args: { environment?: Record<string, string> }) => {
     writeBootstrapFileToSandbox: async () => {},
     writeBootstrapFile: async () => {},
     uploadWorkspaceArchive: async () => {},
-    downloadWorkspaceArchive: async () => {},
-    releaseWorkspaceArchive: async () => {},
     downloadSessionArchive: async () => {},
     releaseSessionArchive: async () => {},
     transcriptLanded: async () => true,

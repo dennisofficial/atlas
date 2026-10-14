@@ -76,23 +76,6 @@ export const setThreadModelParamsSchema = z.object({
 })
 export type SetThreadModelParams = z.infer<typeof setThreadModelParamsSchema>
 
-/**
- * The lift's `location-changed` marker, carried on the restore op so the sandbox pins it on its own
- * log as part of the restore. The values mirror core's EExecutionLocation, which wire cannot import.
- */
-export const restoreTranscriptParamsSchema = z.object({
-  locationChanged: z
-    .object({
-      from: z.enum(['host', 'docker', 'cloud']),
-      to: z.enum(['host', 'docker', 'cloud']),
-      cwd: z.string().min(1).optional(),
-      remoteUrl: z.string().min(1).nullable().optional(),
-      branch: z.string().min(1).nullable().optional(),
-    })
-    .optional(),
-})
-export type RestoreTranscriptParams = z.infer<typeof restoreTranscriptParamsSchema>
-
 export const listContextFilesParamsSchema = z.object({ directory: z.string().optional() })
 export type ListContextFilesParams = z.infer<typeof listContextFilesParamsSchema>
 
@@ -141,9 +124,6 @@ export type SessionArchiveDescriptor = z.infer<typeof sessionArchiveDescriptorSc
 export const readSessionArchiveReplySchema = z.object({
   archive: sessionArchiveDescriptorSchema.nullable(),
 })
-
-/** The sandbox's memory roots as a base64 tar.gz — '' when the sandbox holds none. */
-export const readMemoryArchiveReplySchema = z.object({ archive: z.string() })
 
 export const publishedWorkspaceWireSchema = z
   .object({

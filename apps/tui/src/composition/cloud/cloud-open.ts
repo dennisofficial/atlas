@@ -215,7 +215,7 @@ async function renderableLocally(
   const { app, threadId } = args
   try {
     const placement = await app.threads.readPlacement({ threadId })
-    if (placement?.move != null) return null
+    if (placement === undefined) return null
 
     const opened = await openCloudConversation({ app, threadId })
     if (opened.events.length === 0) return null

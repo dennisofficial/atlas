@@ -1,7 +1,7 @@
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot, type Root } from '@opentui/react'
 import { afterEach, describe, expect, it } from 'bun:test'
-import { EExecutionLocation, placementOf, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
   EChannelConnection,
   ECloudSandboxState,
@@ -13,7 +13,7 @@ import React, { act } from 'react'
 import type { CloudSession } from '../cloud/cloud-session'
 import { createCloudSession } from '../cloud/cloud-session'
 import { fakeCloudChannel } from '../cloud/__tests__/fixture'
-import { EPlacementMoveKind, ERuntimeKind } from '@dltech/atlas-harness'
+import { ERuntimeKind } from '@dltech/atlas-harness'
 import { useCloudConnection, useCloudHealth } from '../use-cloud-connection'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -21,14 +21,19 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const THREAD: ThreadId = 'thread-under-test' as ThreadId
 
+const HOST_THREAD: ThreadId = 'host-thread-under-test' as ThreadId
+
+const switchToHostThread = async (app: FakeApp): Promise<void> => {
+  await app.threads.create({ id: HOST_THREAD, executionLocation: EExecutionLocation.Host })
+  await app.sessionOwner.activateLocal({ threadId: HOST_THREAD, fallback: EExecutionLocation.Host })
+}
+
 const sessionOn = (connection?: ChannelConnection): CloudSession => {
   const channel = fakeCloudChannel({ connection })
   return createCloudSession({
     channel,
     sandboxes: {
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
-      putContext: async () => undefined,
-      confirmLanded: async () => ({ landed: true }),
       find: async () => undefined,
       readResources: async () => ({}),
       updateResources: async () => {},
@@ -108,7 +113,7 @@ describe('the connection the cloud chrome reads', () => {
     expect(probe.current?.state).toBe(EChannelConnection.Open)
   })
 
-  it('is absent once the placement says the session is home, even over a stale open socket', async () => {
+  it('is absent once the active thread is placed at home, even over a stale open socket', async () => {
     const app = appFor()
     const session = sessionOn({ state: EChannelConnection.Open, detail: null })
     const { probe, root } = await mount({ app, location: EExecutionLocation.Cloud, session })
@@ -122,7 +127,7 @@ describe('the connection the cloud chrome reads', () => {
     expect(probe.current).toBeNull()
   })
 
-  it('drops a lingering open socket the moment the placement flips home', async () => {
+  it('drops a lingering open socket once the active thread is placed at home', async () => {
     const app = appFor()
     const session = sessionOn({ state: EChannelConnection.Open, detail: null })
     const { probe } = await mount({ app, location: EExecutionLocation.Cloud, session })
@@ -130,14 +135,7 @@ describe('the connection the cloud chrome reads', () => {
     expect(probe.current?.state).toBe(EChannelConnection.Open)
 
     await act(async () => {
-      await app.executionLocation.move({
-        threadId: THREAD,
-        target: EExecutionLocation.Host,
-        kind: EPlacementMoveKind.Descend,
-        work: async (transaction) => {
-          await transaction.commit(placementOf(EExecutionLocation.Host))
-        },
-      })
+      await switchToHostThread(app)
     })
 
     expect(probe.current).toBeNull()
@@ -174,7 +172,7 @@ describe('the connection the cloud chrome reads', () => {
 })
 
 describe('the full health the transcript reads', () => {
-  it('dims nothing once the placement says the session is home, however stale the last cloud health', async () => {
+  it('dims nothing once the active thread is placed at home, however stale the last cloud health', async () => {
     const app = appFor()
     const session = sessionOn({ state: EChannelConnection.Closed, detail: 'gave up after 8 attempts' })
     const { probe, root } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
@@ -185,14 +183,7 @@ describe('the full health the transcript reads', () => {
     expect(probe.current?.stale).toBe(true)
 
     await act(async () => {
-      await app.executionLocation.move({
-        threadId: THREAD,
-        target: EExecutionLocation.Host,
-        kind: EPlacementMoveKind.Descend,
-        work: async (transaction) => {
-          await transaction.commit(placementOf(EExecutionLocation.Host))
-        },
-      })
+      await switchToHostThread(app)
     })
 
     expect(probe.current).toBeNull()

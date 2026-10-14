@@ -18,8 +18,7 @@ import type { ThreadStorePort } from '../store/thread-store'
 import type { CompactionPort } from '../store/compaction-port'
 import type { MentionReader } from '../files/mention-reader'
 
-import type { ERecoveryAction } from './session-recovery'
-import type { EPlacementMoveKind, PlacementController, PlacementTransaction } from './placement-controller'
+import type { PlacementCommit, PlacementController } from './placement-controller'
 
 export enum ERuntimeKind {
   Local = 'local',
@@ -60,8 +59,8 @@ export type OwnerSnapshot<Adapters> = {
   bound: boolean
 }
 
-export type OwnerTransaction<Adapters> = PlacementTransaction & {
-  prepareRuntime: (binding?: RuntimeBinding<Adapters>) => void
+export type BirthInstall<Adapters> = PlacementCommit & {
+  prepareRuntime: (binding: RuntimeBinding<Adapters>) => void
 }
 
 export type SessionOwner<Adapters> = {
@@ -71,16 +70,20 @@ export type SessionOwner<Adapters> = {
   attaching: (threadId: ThreadId) => boolean
   current: () => EExecutionLocation
   subscribe: (listener: () => void) => () => void
-  move: <T>(args: {
+  /**
+   * Installs the binding a fresh cloud birth provisioned and commits the born-placed record in one
+   * step: `work` stages the runtime through the handle's `prepareRuntime` and commits the
+   * placement through its `commit`; the commit's publish installs the staged binding, so the
+   * durable write and the runtime install land together. Birth is the only writer of a cloud
+   * placement; there is no move transaction to ride.
+   */
+  install: <T>(args: {
     threadId: ThreadId
-    target: EExecutionLocation
-    kind: EPlacementMoveKind
-    work: (transaction: OwnerTransaction<Adapters>) => Promise<T>
+    work: (handle: BirthInstall<Adapters>) => Promise<T>
   }) => Promise<T>
   adopt: (args: {
     threadId: ThreadId
     binding: RuntimeBinding<Adapters>
-    settle?: ((args: { record: PlacementRecord; action: ERecoveryAction }) => Promise<void>) | undefined
   }) => Promise<void>
   activateLocal: (args: {
     threadId: ThreadId
@@ -88,8 +91,4 @@ export type SessionOwner<Adapters> = {
     fallback?: EExecutionLocation | undefined
   }) => Promise<void>
   detach: (args: { threadId: ThreadId }) => void
-  recover: (args: {
-    threadId: ThreadId
-    prepare?: ((args: { record: PlacementRecord; action: ERecoveryAction }) => Promise<RuntimeBinding<Adapters>>) | undefined
-  }) => Promise<PlacementRecord>
 }

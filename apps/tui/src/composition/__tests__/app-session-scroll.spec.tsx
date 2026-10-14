@@ -14,8 +14,8 @@ import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/har
 import { dismissNotice } from '../../ui/notice-store'
 import { clearAttachFailure } from '../attach-failure'
 import { App } from '../app'
-import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
-import type { CloudBridgeFactory } from '../use-cloud-lift'
+import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
+import type { CloudBridgeFactory } from '../cloud/bridge-factory'
 import { THREAD } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
@@ -217,10 +217,6 @@ async function mountCloudThread(args: { pairs: number }) {
       opened={opened}
       createBridge={createBridge}
       preflightLift={async () => null}
-      captureWorkspace={async () => CLEAN_WORKSPACE}
-      captureArchive={async () => undefined}
-      captureContext={async () => undefined}
-      restoreWorkspace={async () => ({ cwd: app.workspace.workspace, repository: app.workspace.workspace, trees: [] })}
     />,
     SIZE,
   )

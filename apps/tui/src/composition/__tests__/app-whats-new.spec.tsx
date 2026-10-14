@@ -14,7 +14,7 @@ import { EBuildKind } from '../../build/info'
 import type { ReleaseNotesFetch } from '../../build/release-notes'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { CLEAN_WORKSPACE, fakeBridge } from '../cloud/__tests__/fixture'
+import { fakeBridge } from '../cloud/__tests__/fixture'
 import type { WhatsNewDeps } from '../use-whats-new'
 import { promiseGate, spokenIn, until } from './app-fixture'
 import { cloudOpened } from './app-container-cloud-fixture'
@@ -76,9 +76,6 @@ const mount = async (whatsNewDeps: WhatsNewDeps, placement: { cloud: boolean } =
       opened={opened}
       createBridge={() => bridge}
       preflightLift={async () => null}
-      captureWorkspace={async () => CLEAN_WORKSPACE}
-      captureArchive={async () => undefined}
-      captureContext={async () => Buffer.from('stub-context-archive')}
       whatsNewDeps={whatsNewDeps}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },

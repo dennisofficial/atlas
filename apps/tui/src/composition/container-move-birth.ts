@@ -1,4 +1,4 @@
-import { ELiftNode, type ArchiveBuildProgress } from '@dltech/atlas-harness'
+import { EBirthNode, type ArchiveBuildProgress } from '@dltech/atlas-harness'
 
 import { EStepMark, type ContainerMove, type MoveRow } from './container-move'
 import type { OverlayPresence } from './overlay-presence'
@@ -18,7 +18,7 @@ export function updateMoveBuild(args: {
   const { move, progress } = args
   if (move.failure !== null) return move
 
-  const row = move.rows.find((candidate) => candidate.nodeIds.includes(ELiftNode.CaptureWorkspace))
+  const row = move.rows.find((candidate) => candidate.nodeIds.includes(EBirthNode.CaptureWorkspace))
   if (row === undefined || row.mark !== EStepMark.Active) return move
   if (move.build !== undefined && sameBuild({ a: move.build, b: progress })) return move
 
@@ -26,7 +26,7 @@ export function updateMoveBuild(args: {
 }
 
 export function serveStageOf(row: MoveRow): string | null {
-  if (row.mark !== EStepMark.Active || !row.nodeIds.includes(ELiftNode.Provision)) return null
+  if (row.mark !== EStepMark.Active || !row.nodeIds.includes(EBirthNode.Provision)) return null
   if (row.text !== PROVISION_IDLE_LABEL) return null
 
   const transfers = row.transfers ?? []

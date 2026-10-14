@@ -7,7 +7,6 @@ import { DEFAULT_DRAIN_DEADLINE_MS } from './drain-deadline'
 import { settleDirectArrival } from './direct-arrival'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
 import { startServeIdleStop } from './idle-stop'
-import { hydrateCloudPlacement } from './placement-hydration'
 import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
@@ -24,7 +23,6 @@ import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
 import { handlerOptionsOf } from './serve-handler-options'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
-import { createTranscriptRestorer } from './serve-restore'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
 import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
@@ -83,7 +81,6 @@ export async function finishServeBoot(args: {
   })
 
   await recovery.guard({ app, admission })
-  await hydrateCloudPlacement({ app, threadId })
   const bootReceipt = directBoot.kind === 'ready' ? await direct.receipt() : null
   if (bootReceipt?.arrivalPending === true) {
     await settleDirectArrival({
@@ -101,12 +98,8 @@ export async function finishServeBoot(args: {
   const note = (): void => idleStop.note()
   const session = createServeWorkspaceSession({
     direct,
-    driveHome,
     threadId,
-    activeCwd,
     app,
-    capture: serveArgs.captureWorkspace,
-    sourceSessionId: env.ATLAS_SANDBOX_SESSION_ID,
     dormant: bootDormant,
     deferStartChildren: recovery.deferred,
     resumeChildren: recovery.resumeChildren,
@@ -176,7 +169,7 @@ export async function finishServeBoot(args: {
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),
     refusal: () => workspaceRefusalOf(workspace) ?? null,
-    workspace: { prepare: session.prepare, apply: session.apply, confirmCleanup: session.confirmCleanup, activate: () => recovery.activate({ session, driver }) },
+    workspace: { apply: session.apply, activate: () => recovery.activate({ session, driver }) },
     log,
     roster: app.roster,
     prStates: app.prStates,
@@ -192,18 +185,6 @@ export async function finishServeBoot(args: {
       revision: mirrorRevision.current,
     },
     ...handlerOptionsOf({ app, log }),
-    restoreTranscript: createTranscriptRestorer({
-      app,
-      threadId,
-      driveHome,
-      direct,
-      activeCwd,
-      log,
-      settling,
-      dormant: session.dormant,
-      note,
-      fetchTranscriptArchive: serveArgs.fetchTranscriptArchive,
-    }),
   })
 
   const detachSubscriptions = bindServeSubscriptions({

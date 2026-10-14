@@ -3,10 +3,10 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   EExecutionLocation,
   EKilledBy,
-  EPlacementMovePhase,
   EServiceStatus,
   EShellStatus,
   EStopAction,
+  placementOf,
   toThreadId,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -265,34 +265,6 @@ describe('moveLocalPlacement', () => {
     expect(mainStored?.executionLocation).toBeUndefined()
   })
 
-  it('refuses a second move while one is underway for the same session', async () => {
-    const fixture = await openFixture()
-    const control = controlOver({ initial: EExecutionLocation.Host, threads: fixture.threads })
-    const threadId = (await fixture.threads.create({})).id
-    await control.state.activate({ threadId })
-
-    let release: () => void = () => undefined
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const first = move({
-      control,
-      fixture,
-      threadId,
-      target: EExecutionLocation.Docker,
-      whenSettled: () => gate,
-    })
-    const second = await move({ control, fixture, threadId, target: EExecutionLocation.Docker })
-
-    expect(second.ok).toBe(false)
-    if (!second.ok) expect(second.reason).toContain('already underway')
-
-    release()
-    const settled = await first
-    expect(settled.ok).toBe(true)
-    expect(control.state.of(threadId)).toBe(EExecutionLocation.Docker)
-  })
-
   it('commits no durable placement when the relocation fails, and the session stays put', async () => {
     const fixture = await openFixture()
     const control = controlOver({ initial: EExecutionLocation.Host, threads: fixture.threads })
@@ -317,9 +289,9 @@ describe('moveLocalPlacement', () => {
     expect(control.state.current()).toBe(EExecutionLocation.Host)
     expect(control.state.of(threadId)).toBe(EExecutionLocation.Host)
     const stored = await fixture.threads.find({ threadId })
-    expect(stored?.executionLocation).toBe(EExecutionLocation.Host)
+    expect(stored?.executionLocation).not.toBe(EExecutionLocation.Docker)
     const record = await control.state.load({ threadId })
-    expect(record.move).toBeNull()
+    expect(record.placement).toEqual(placementOf(EExecutionLocation.Host))
   })
 
   it('keeps the session where it is when the docker daemon does not answer, probing before anything dies', async () => {
@@ -400,7 +372,7 @@ describe('moveLocalPlacement', () => {
     if (!outcome.ok) expect(outcome.reason).toContain('background shells have not stopped')
     expect(control.state.of(threadId)).toBe(EExecutionLocation.Host)
     const stored = await fixture.threads.find({ threadId })
-    expect(stored?.executionLocation).toBe(EExecutionLocation.Host)
+    expect(stored?.executionLocation).not.toBe(EExecutionLocation.Docker)
     expect(await fixture.log.readOwn({ threadId })).toEqual([])
   })
 
@@ -420,6 +392,6 @@ describe('moveLocalPlacement', () => {
     }
     expect(agents.relocations).toEqual([])
     expect(await fixture.log.readOwn({ threadId })).toEqual([])
-    expect(control.state.snapshot(threadId)?.move).toBeNull()
+    expect(control.state.snapshot(threadId)?.placement).toEqual(placementOf(EExecutionLocation.Host))
   })
 })

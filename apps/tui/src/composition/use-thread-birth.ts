@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
 import {
-  liftToCloud,
-  stopLocalWork,
+  birthInCloud,
   storedModel,
   type CloudReload,
   type SessionOwner,
@@ -25,7 +24,7 @@ import { durableOpLog } from './durable-op-log'
 import { messageOf } from './error-text'
 import type { OpenedConversation } from './open-conversation'
 import { cloudAnchorOf, cloudBindingOf, prepareOn } from './session-binding'
-import type { CloudBridgeFactory, LiftPreflight } from './use-cloud-lift'
+import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
 import type { useContainerMove } from './use-container-move'
 
 export type ThreadBirth = {
@@ -75,26 +74,17 @@ export function useThreadBirth(args: {
     const bridge = createBridge()
     const captureContext = () => app.captureContext({ cwd: app.workspace.workspace })
 
-    void liftToCloud({
+    void birthInCloud({
       threadId,
       cwd: app.workspace.workspace,
-      started: false,
-      midTurn: false,
-      interrupt: () => undefined,
-      whenSettled: () => Promise.resolve(),
       identity: app.workspace,
-      title: null,
       model: storedModel(app.model.choice()),
       bridge,
       localThreads: app.threads,
       localLog: app.log,
-      agents: app.agents,
       ids: app.ids,
       logPort: durableOpLog() ?? undefined,
       placement: owner,
-      stopLocal: async () =>
-        stopLocalWork({ threadId, shells: app.shells, services: app.services, threads: app.threads }),
-      capture: () => Promise.resolve(null),
       captureContext,
       onBuildProgress: move.handleBuildProgress,
       onBegin: ({ waves }) =>
@@ -108,7 +98,7 @@ export function useThreadBirth(args: {
       onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
       onTransferProgress: move.handleTransferProgress,
       onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
-      open: async ({ attachment, transaction, restoredWorkspace }) => {
+      open: async ({ attachment, prepareRuntime, restoredWorkspace }) => {
         const stopWatching = attachment.channel.subscribe({
           threadId,
           listener: (signal) => {
@@ -135,7 +125,7 @@ export function useThreadBirth(args: {
           },
         })
         prepareOn({
-          transaction,
+          prepareRuntime,
           binding: cloudBindingOf({
             local: app,
             anchor,
@@ -158,7 +148,6 @@ export function useThreadBirth(args: {
           fallBackToHost(birthArgs({ threadId }))
           return
         }
-        await owner.placement.markBorn({ threadId }).catch(() => undefined)
         bornPlacementChip(app).set({ threadId, harness: EHarnessPlacement.Cloud, provisioning: false })
         move.handleSettle()
       })

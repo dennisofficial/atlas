@@ -1,0 +1,53 @@
+import { EAgentRestart, EAgentStatus, isResumable, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
+
+import type { AgentRegistryPort } from './port'
+import { resumableAfterTransfer } from './transferred-family'
+
+export type TransferredAgentsPort = Pick<AgentRegistryPort, 'hydrate' | 'list' | 'resume'> &
+  Partial<Pick<AgentRegistryPort, 'hydrateTransferred' | 'wake'>>
+
+export async function adoptTransferredChildren(args: {
+  agents: TransferredAgentsPort
+  threadId: ThreadId
+}): Promise<void> {
+  if (args.agents.hydrateTransferred === undefined) {
+    await args.agents.hydrate({ threadId: args.threadId })
+    return
+  }
+  await args.agents.hydrateTransferred({ threadId: args.threadId })
+}
+
+export async function activateTransferredChildren(args: {
+  agents: TransferredAgentsPort
+  log: Pick<EventLogPort, 'readOwn'>
+  threadId: ThreadId
+  resumeChildren?: readonly ThreadId[] | undefined
+}): Promise<readonly ThreadId[]> {
+  const { agents, log } = args
+  const resumed: ThreadId[] = []
+  const visited = new Set<ThreadId>()
+  const owners: ThreadId[] = [args.threadId]
+  const owed = new Set(args.resumeChildren ?? [])
+
+  for (let owner = owners.shift(); owner !== undefined; owner = owners.shift()) {
+    if (visited.has(owner)) continue
+    visited.add(owner)
+
+    for (const child of agents.list({ threadId: owner })) {
+      owners.push(child.agentId)
+      const queuedContinuation = owed.has(child.agentId) && child.status !== EAgentStatus.Running &&
+        child.killedBy === undefined && !resumableAfterTransfer(child)
+      if (!queuedContinuation && !resumableAfterTransfer(child)) continue
+      if (!isResumable(await log.readOwn({ threadId: child.agentId }))) continue
+      if (queuedContinuation && agents.wake === undefined) {
+        throw new Error(`this registry cannot continue queued work for child ${child.agentId}`)
+      }
+      const outcome = queuedContinuation && agents.wake !== undefined
+        ? await agents.wake({ agentId: child.agentId })
+        : await agents.resume({ agentId: child.agentId, threadId: owner, via: EAgentRestart.Relocation })
+      if (outcome.ok) resumed.push(child.agentId)
+    }
+  }
+
+  return resumed
+}

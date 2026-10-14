@@ -203,8 +203,7 @@ export function useWorkspaceComposer(args: {
       if (dispatched.type !== EDispatch.Send || preparing.current !== attempt) return
       if (
         currentFiles.current !== files ||
-        app.sessionOwner.snapshot().binding !== ownerBinding ||
-        app.sessionOwner.placement.moveFor(conversation.threadId) !== null
+        app.sessionOwner.snapshot().binding !== ownerBinding
       ) {
         conversation.handleReportProblem(
           'The session filesystem changed while preparing your message. Send it again from the current runtime.',

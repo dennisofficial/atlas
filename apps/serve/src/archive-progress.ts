@@ -5,15 +5,13 @@ import {
   type ArchiveBuildReporter,
   type ArchiveProgressSignal,
 } from '@dltech/atlas-harness'
-import type { PrepareWorkspaceArchiveReply, SessionArchiveDescriptor } from '@dltech/atlas-wire'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 export type ArchiveProgressFields = Omit<ArchiveProgressSignal, 'type'>
 
 export type ArchiveBuildOptions = { onBuildProgress?: ArchiveBuildReporter | undefined }
 
 export type SessionArchiveReader = (options?: ArchiveBuildOptions) => Promise<SessionArchiveDescriptor | null>
-
-export type WorkspacePreparer = (options?: ArchiveBuildOptions) => Promise<PrepareWorkspaceArchiveReply>
 
 const PHASES = {
   walking: EArchivePhase.Walking,

@@ -7,15 +7,15 @@ import { join } from 'node:path'
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EExecutionLocation, EPlacementMovePhase, placementOf, toRunId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, placementOf, toRunId, type ThreadId } from '@dltech/atlas-core'
 
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import { ECloudSandboxState, SessionsClient } from '@dltech/atlas-harness'
-import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
-import type { CloudBridgeFactory } from '../use-cloud-lift'
+import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
+import type { CloudBridgeFactory } from '../cloud/bridge-factory'
 import { spokenIn, THREAD, until } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, fakeCloud, scriptedModelPort, type FakeApp } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
@@ -88,9 +88,6 @@ const mount = async (args: {
       opened={opened}
       createBridge={createBridge}
       preflightLift={async () => null}
-      captureWorkspace={async () => CLEAN_WORKSPACE}
-      captureArchive={async () => undefined}
-      captureContext={async () => undefined}
       {...(args.onRestart === undefined ? {} : { onRestart: args.onRestart })}
     />,
     WIDE,
@@ -291,44 +288,6 @@ describe('opening a conversation that lives in the cloud', () => {
       expect(attached.bound).toBe(true)
       expect(attached.threadId).toBe(threadId)
       expect(await mounted.showing('said inside the sandbox')).toContain('said inside the sandbox')
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
-
-  it('resumes a source that a crashed descend left frozen before it attaches an unfinished record', async () => {
-    const app = speaking()
-    const { threadId } = await seedCloudThread(app)
-    await app.threads.writePlacement({
-      threadId,
-      expectedRevision: 0,
-      record: {
-        placement: placementOf(EExecutionLocation.Cloud),
-        revision: 1,
-        move: {
-          id: 'crashed-descend',
-          from: placementOf(EExecutionLocation.Cloud),
-          to: placementOf(EExecutionLocation.Host),
-          phase: EPlacementMovePhase.Preparing,
-        },
-      },
-    })
-    const bridge = fakeBridge({ status: RUNNING_STATUS })
-    await bridge.log.append({
-      threadId,
-      runId: toRunId('run-cloud'),
-      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
-    })
-    const mounted = await mount({ app, bridge })
-
-    try {
-      await mounted.command('/resume')
-      await mounted.typeText('lifted')
-      await mounted.pick()
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
-      expect(await until({ holds: async () => app.sessionOwner.snapshot().bound, within: 10_000 })).toBe(true)
-      expect(bridge.channel.resumed).toBeGreaterThan(0)
-      expect(app.sessionOwner.snapshot().record?.move).toBeNull()
     } finally {
       await mounted.done()
     }

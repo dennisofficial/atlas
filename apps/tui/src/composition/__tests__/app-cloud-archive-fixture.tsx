@@ -1,49 +1,20 @@
 import React from 'react'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EClientRequest, type LiftWorkspaceCapture } from '@dltech/atlas-harness'
+import { EClientRequest } from '@dltech/atlas-harness'
 
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { CLEAN_WORKSPACE, type FakeBridge } from '../cloud/__tests__/fixture'
+import type { FakeBridge } from '../cloud/__tests__/fixture'
 import type { OpenedConversation } from '../open-conversation'
-import type { CloudBridgeFactory } from '../use-cloud-lift'
+import type { CloudBridgeFactory } from '../cloud/bridge-factory'
 import { spokenIn, until } from './app-fixture'
 import type { FakeApp } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
-
-type Archive = NonNullable<Awaited<ReturnType<LiftWorkspaceCapture>>>
-
-const MANIFEST: Archive['manifest'] = {
-  version: 1,
-  repository: { sourcePath: '/atlas/workspace', originPath: '/work' },
-  activeId: 'main',
-  activeRelativePath: '',
-  trees: [
-    {
-      id: 'main',
-      name: 'main',
-      sourcePath: '/atlas/workspace',
-      originPath: '/work',
-      branch: 'main',
-      head: null,
-      baseline: null,
-      fingerprint: 'fake',
-      isMain: true,
-    },
-  ],
-}
-
-export const dummyArchive: LiftWorkspaceCapture = async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'atlas-spec-archive-'))
-  const path = join(directory, 'workspace.tar.gz')
-  writeFileSync(path, 'a dummy workspace archive')
-  return { path, manifest: MANIFEST, release: () => rm(directory, { recursive: true, force: true }) }
-}
 
 export const activatingAs = (args: { bridge: FakeBridge; cwd: string; replies: readonly boolean[] }): EClientRequest[] => {
   const seen: EClientRequest[] = []
@@ -73,7 +44,6 @@ export const mountCloud = async (args: {
   app: FakeApp
   bridge: FakeBridge
   opened?: OpenedConversation
-  withArchive: boolean
 }) => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-cloud-archive-spec-'))
   const previousHome = process.env.ATLAS_HOME
@@ -97,14 +67,6 @@ export const mountCloud = async (args: {
       opened={opened}
       createBridge={createBridge}
       preflightLift={async () => null}
-      captureWorkspace={async () => CLEAN_WORKSPACE}
-      captureArchive={args.withArchive ? dummyArchive : async () => undefined}
-      captureContext={async () => undefined}
-      restoreWorkspace={async () => ({
-        cwd: args.app.workspace.workspace,
-        repository: args.app.workspace.workspace,
-        trees: [],
-      })}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )

@@ -8,7 +8,7 @@ export type CommandOutcome = { elapsedMs: number; timings: readonly StepTiming[]
 
 export type OwnerView = {
   subscribe: (listener: () => void) => () => void
-  snapshot: () => { location: EExecutionLocation; bound: boolean; record: { move: unknown } | undefined }
+  snapshot: () => { location: EExecutionLocation; bound: boolean; record: unknown }
 }
 
 export type NoticeView = {
@@ -88,8 +88,7 @@ export function createCommandWait(args: {
 
   const ownerState = (): string => {
     const view = args.owner.snapshot()
-    const move = view.record?.move == null ? 'none' : 'open'
-    return `location=${view.location} bound=${view.bound} move=${move}`
+    return `location=${view.location} bound=${view.bound}`
   }
 
   const finish = (): void => {
@@ -106,7 +105,7 @@ export function createCommandWait(args: {
 
   const owned = (): boolean => {
     const view = args.owner.snapshot()
-    return view.location === args.target && view.bound && view.record?.move == null
+    return view.location === args.target && view.bound
   }
 
   const check = (): void => {

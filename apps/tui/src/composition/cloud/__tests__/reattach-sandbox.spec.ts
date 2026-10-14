@@ -20,8 +20,6 @@ const stubSandboxes = (args: { token?: string; createFails?: unknown }) => {
         created: false,
       }
     },
-    putContext: async () => undefined,
-    confirmLanded: async () => ({ landed: true }),
     find: async () => undefined,
     readResources: async () => ({}),
     updateResources: async () => undefined,

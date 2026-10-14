@@ -2,7 +2,6 @@ import { prStatesWireSchema, rosterWireSchema, type RuntimeCheckpoint } from '@d
 
 import {
   EClientFrame,
-  EClientRequest,
   EServeFrame,
   decodeClientFrame,
   encodeFrame,
@@ -41,7 +40,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const prStatesSnapshot = args.prStates?.snapshot ?? EMPTY_PR_STATES
   const { rewind, agents, operatorInput, pending, transcript, selectModel } = args
-  const { sessionArchive, memoryArchive, restoreTranscript } = args
+  const { sessionArchive } = args
   const { admissionClosed, checkpoint, checkpointChanged, workspace: workspaceOps } = args
   const mutations = createMutationTracker({ changed: checkpointChanged })
   const live = new Set<SessionSocket>()
@@ -89,8 +88,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     transcript,
     selectModel,
     sessionArchive,
-    memoryArchive,
-    restoreTranscript,
     workspace: workspaceOps,
   })
 
@@ -157,23 +154,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
 
     if (admissionClosed?.() === true && !isReadOnlyFrame(frame)) {
       refuseDeferred({ socket, frame, message: 'this sandbox is parking and accepts no new work' })
-      return
-    }
-
-    const isRestoreOp = frame.kind === EClientFrame.Request && frame.op === EClientRequest.RestoreTranscript
-    if (router.state.restoring !== null && !isRestoreOp) {
-      const held = router.state.restoring
-      void held
-        .then((result) => {
-          if (result.failed !== null) {
-            refuseDeferred({ ...args, message: `the transcript restore failed: ${result.failed}` })
-            return
-          }
-          drive({ socket, frame })
-        })
-        .catch((error: unknown) => {
-          refuseDeferred({ ...args, message: messageOf(error, 'the transcript restore failed') })
-        })
       return
     }
 
@@ -301,9 +281,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     abortHistory: () => router.compaction.abortAll(),
 
     clients: () => attached.size,
-    settling: () => router.state.restoring !== null || mutations.active(),
+    settling: () => mutations.active(),
     whenSettled: async () => {
-      await router.state.restoring
       await router.compaction.whenSettled()
       await router.rotation.whenSettled()
       await mutations.whenSettled()

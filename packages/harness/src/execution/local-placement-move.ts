@@ -7,7 +7,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
-import { EPlacementMoveKind, PlacementBusy } from '../composition/placement-controller'
+import { PlacementBusy } from '../composition/placement-controller'
 import type { AnchoringControl } from '../composition/sandbox-reanchor'
 import type { DockerEngine } from './docker/engine'
 import type { ServiceRegistryPort } from '../services/service-registry'
@@ -89,11 +89,10 @@ export async function moveLocalPlacement(args: {
   }
 
   try {
-    return await control.state.move({
+    return await control.state.withToolMove({
       threadId: owner,
       target,
-      kind: EPlacementMoveKind.Tools,
-      work: async (transaction) => {
+      work: async (commit) => {
         const cwd = args.cwd ?? (await derivedCwd({ control, threadId: owner, log: stores.log }))
 
         if (args.pause !== undefined) {
@@ -121,7 +120,7 @@ export async function moveLocalPlacement(args: {
         try {
           moved = await relocateSession({
             threadId: owner,
-            from: transaction.from,
+            from,
             location: target,
             cwd,
             caller: args.caller,
@@ -135,18 +134,18 @@ export async function moveLocalPlacement(args: {
             source: 'execution-location',
             message: `the move to ${target} failed (${messageOf(error)}) — no placement was committed`,
             threadId: owner,
-            data: { from: transaction.from, to: target },
+            data: { from, to: target },
             ...logFieldsOf({ error }),
           })
           throw error
         }
 
         await stores.threads.chooseExecutionLocation({ threadId: owner, location: target })
-        await transaction.commit()
+        await commit()
 
-        return { from: transaction.from, to: target, killedShells, moved, stillDying: moved.stillStopping }
+        return { ok: true as const, from, to: target, killedShells, moved, stillDying: moved.stillStopping }
       },
-    }).then((moved) => ({ ok: true as const, ...moved }))
+    })
   } catch (error) {
     if (error instanceof PlacementBusy) {
       return { ok: false, reason: error.message }

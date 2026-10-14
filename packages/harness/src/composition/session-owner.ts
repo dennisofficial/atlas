@@ -1,17 +1,15 @@
 import {
   EExecutionLocation,
-  EPlacementMovePhase,
   locationOfPlacement,
-  type PlacementRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { PlacementController } from './placement-controller'
 import { createSessionFreezes } from './session-freezes'
-import { recoveryActionOf } from './session-recovery'
 import { createRetirementQueue } from './session-retirement'
 import {
   ERuntimeKind,
+  type BirthInstall,
   type OwnerSnapshot,
   type RuntimeBinding,
   type SessionOwner,
@@ -19,8 +17,8 @@ import {
 
 export { ERuntimeKind } from './session-owner-types'
 export type {
+  BirthInstall,
   OwnerSnapshot,
-  OwnerTransaction,
   RuntimeBinding,
   SessionOwner,
   SessionRuntime,
@@ -84,10 +82,11 @@ export function createSessionOwner<Adapters>(args: {
     releaseFreeze(held.threadId)
   }
 
+  // A committed cloud birth publishes its placement; the staged binding rides that publish so the
+  // durable write and the runtime install land together.
   placement.beforePublish(({ threadId, record }) => {
     const location = locationOfPlacement(record.placement)
-    const committed = record.move?.phase === EPlacementMovePhase.Committed
-    if (staged !== undefined && staged.threadId === threadId && committed && staged.target === location) {
+    if (staged !== undefined && staged.threadId === threadId && staged.target === location) {
       const held = staged
       staged = undefined
       install(held)
@@ -126,68 +125,6 @@ export function createSessionOwner<Adapters>(args: {
     return view.binding
   }
 
-  const move: SessionOwner<Adapters>['move'] = async (moveArgs) => {
-    let prepared: RuntimeBinding<Adapters> | undefined
-    let committed = false
-    let froze = false
-    const releaseRetirement = retiring.hold()
-    const offSettled = placement.onMoveSettled(({ threadId }) => {
-      if (threadId === moveArgs.threadId) releaseRetirement()
-    })
-    const discard = (): void => {
-      const dropped = prepared
-      prepared = undefined
-      if (dropped !== undefined && dropped !== local) dropped.close?.()
-    }
-    try {
-      return await placement.move({
-        threadId: moveArgs.threadId,
-        target: moveArgs.target,
-        kind: moveArgs.kind,
-        work: async (transaction) => {
-          if (moveArgs.target === EExecutionLocation.Cloud && !freezes.has(moveArgs.threadId)) {
-            await holdFreeze(moveArgs.threadId)
-            froze = true
-          }
-          return moveArgs.work({
-            ...transaction,
-            prepareRuntime: (binding) => {
-              discard()
-              prepared = binding
-            },
-            commit: async (placementArg) => {
-              if (committed) return
-              if (prepared === undefined && moveArgs.target === EExecutionLocation.Cloud) {
-                throw new Error('a cloud move needs a prepared runtime before it commits')
-              }
-              if (prepared !== undefined && !kindFits({ target: moveArgs.target, kind: prepared.kind })) {
-                throw new Error('the prepared runtime does not fit the move target')
-              }
-              staged = { threadId: moveArgs.threadId, target: moveArgs.target, binding: prepared }
-              try {
-                await transaction.commit(placementArg)
-              } finally {
-                if (transaction.committed()) {
-                  committed = true
-                  prepared = undefined
-                }
-                staged = undefined
-              }
-            },
-          })
-        },
-      })
-    } finally {
-      staged = undefined
-      if (!committed) {
-        discard()
-        if (froze) releaseFreeze(moveArgs.threadId)
-      }
-      offSettled()
-      releaseRetirement()
-    }
-  }
-
   return {
     placement,
     snapshot,
@@ -198,14 +135,59 @@ export function createSessionOwner<Adapters>(args: {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    move,
-    adopt: async ({ threadId, binding, settle }) => {
+    install: async <T>(installArgs: {
+      threadId: ThreadId
+      work: (handle: BirthInstall<Adapters>) => Promise<T>
+    }): Promise<T> => {
+      const { threadId } = installArgs
+      if (!freezes.has(threadId)) await holdFreeze(threadId)
+      let prepared: RuntimeBinding<Adapters> | undefined
+      const discard = (): void => {
+        const dropped = prepared
+        prepared = undefined
+        if (dropped !== undefined) dropped.close?.()
+      }
+      return placement.birth<T>({
+        threadId,
+        work: async (commit) => {
+          const handle: BirthInstall<Adapters> = {
+            committed: commit.committed,
+            prepareRuntime: (binding) => {
+              if (!kindFits({ target: EExecutionLocation.Cloud, kind: binding.kind })) {
+                throw new Error('the prepared runtime does not fit a cloud birth')
+              }
+              discard()
+              prepared = binding
+            },
+            commit: async (next) => {
+              if (commit.committed()) return
+              if (prepared === undefined) {
+                throw new Error('a cloud birth needs a prepared runtime before it commits')
+              }
+              staged = { threadId, target: EExecutionLocation.Cloud, binding: prepared }
+              try {
+                await commit.commit(next)
+              } finally {
+                if (commit.committed()) prepared = undefined
+                staged = undefined
+              }
+            },
+          }
+          try {
+            return await installArgs.work(handle)
+          } finally {
+            if (!commit.committed()) {
+              discard()
+              releaseFreeze(threadId)
+            }
+          }
+        },
+      })
+    },
+    adopt: async ({ threadId, binding }) => {
       const record = await placement.load({ threadId })
       if (locationOfPlacement(record.placement) !== EExecutionLocation.Cloud) {
         throw new Error('this session is not in the cloud — a cloud runtime cannot be adopted')
-      }
-      if (record.move !== null && settle === undefined) {
-        throw new Error('this session has an unfinished move — recover it before attaching')
       }
       const prior = cloud
       cloud = { threadId, binding }
@@ -213,10 +195,6 @@ export function createSessionOwner<Adapters>(args: {
       try {
         await holdFreeze(threadId)
         await placement.activate({ threadId })
-        if (record.move !== null && settle !== undefined) {
-          await settle({ record, action: recoveryActionOf(record) })
-          await placement.recover({ threadId, reconcile: async (held) => held.placement })
-        }
       } catch (error) {
         if (cloud?.binding === binding) cloud = prior
         try {
@@ -237,51 +215,6 @@ export function createSessionOwner<Adapters>(args: {
       if (cloud?.threadId === threadId && placement.of(threadId) !== EExecutionLocation.Cloud) retireCloud()
       if (placement.of(threadId) !== EExecutionLocation.Cloud) releaseFreeze(threadId)
       notify()
-    },
-    recover: async ({ threadId, prepare }) => {
-      const priorCloud = cloud
-      const priorLocal = local
-      let installed: RuntimeBinding<Adapters> | undefined
-      try {
-        const settled = await placement.recover({
-          threadId,
-          reconcile: async (record) => {
-            const target = locationOfPlacement(record.placement)
-            const action = recoveryActionOf(record)
-            if (target === EExecutionLocation.Cloud) {
-              if (prepare === undefined) throw new Error('the cloud runtime could not be prepared — the move stays unfinished')
-              const prepared = await prepare({ record, action })
-              installed = prepared
-              if (prepared.kind !== ERuntimeKind.Cloud) throw new Error('the prepared runtime does not fit the move target')
-              cloud = { threadId, binding: prepared }
-              await holdFreeze(threadId)
-              return record.placement
-            }
-            if (prepare !== undefined) {
-              const prepared = await prepare({ record, action })
-              installed = prepared
-              if (prepared.kind !== ERuntimeKind.Local) throw new Error('the prepared runtime does not fit the move target')
-              local = prepared
-            }
-            return record.placement
-          },
-        })
-        if (priorCloud !== undefined && priorCloud.binding !== cloud?.binding) retiring.push(priorCloud.binding)
-        if (locationOfPlacement(settled.placement) !== EExecutionLocation.Cloud) releaseFreeze(threadId)
-        notify()
-        return settled
-      } catch (error) {
-        cloud = priorCloud
-        local = priorLocal
-        if (installed !== undefined && installed !== priorCloud?.binding && installed !== priorLocal) {
-          try {
-            installed.close?.()
-          } catch {
-            installed = undefined
-          }
-        }
-        throw error
-      }
     },
     detach: ({ threadId }) => {
       if (cloud?.threadId !== threadId) return

@@ -8,7 +8,7 @@ import type {
   CloudSandbox,
   CloudSandboxes,
   CloudSandboxStatus,
-} from './relocation/cloud-bridge'
+} from './cloud-bridge'
 import {
   SANDBOX_SERVE_PORT,
   EServeEnv,
@@ -220,25 +220,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
 
   const bridgeSandboxes: CloudSandboxes = {
     create,
-    putContext: ({ threadId, archive }) =>
-      driverWith(args.vercel()).writeBootstrapFile({
-        name: sandboxNameFor({ threadId }),
-        path: CONTEXT_ARCHIVE_PATH,
-        content: archive,
-      }),
-    downloadWorkspace: ({ threadId, path, destination, totalBytes, onProgress }) =>
-      driverWith(args.vercel()).downloadWorkspaceArchive({
-        name: sandboxNameFor({ threadId }),
-        path,
-        destination,
-        totalBytes,
-        onProgress,
-      }),
-    releaseWorkspace: ({ threadId, path }) =>
-      driverWith(args.vercel()).releaseWorkspaceArchive({
-        name: sandboxNameFor({ threadId }),
-        path,
-      }),
     downloadSession: ({ threadId, archive, destination, onProgress }) =>
       driverWith(args.vercel()).downloadSessionArchive({
         name: sandboxNameFor({ threadId }),
@@ -253,11 +234,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         threadId,
         path,
       }),
-    confirmLanded: async ({ threadId }) => ({
-      landed: await driverWith(args.vercel()).transcriptLanded({
-        name: sandboxNameFor({ threadId }),
-      }),
-    }),
     readResources: ({ threadId }) =>
       driverWith(args.vercel()).readResources({ name: sandboxNameFor({ threadId }) }),
     updateResources: ({ threadId, vcpus }) =>

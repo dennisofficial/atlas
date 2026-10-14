@@ -4,7 +4,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { StepId } from '@dltech/atlas-harness'
-import type { ClientFrame, EClientFrame, RestoreTranscriptParams, ServeFrame } from '@dltech/atlas-harness'
+import type { ClientFrame, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 
 import type { ArchiveProgressFields, SessionArchiveReader } from './archive-progress'
@@ -19,7 +19,7 @@ import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
 import type { answerWorkspaceTransfer } from './workspace-ops'
 
-type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate' | 'confirmCleanup'>
+type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'apply' | 'activate'>
 
 export type SocketState = {
   helloed: boolean
@@ -84,14 +84,8 @@ export type SessionHandlersArgs = {
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   sessionArchive?: SessionArchiveReader | undefined
-  /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
-  memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   /** The workspace-transfer ops; absent in fakes, which refuse them. */
   workspace?: WorkspaceOps | undefined
-  /** The lift's late transcript restore; absent in fakes, which refuse the op. The marker is the lift's `location-changed` draft, pinned on the restored log. */
-  restoreTranscript?:
-    | ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<{ restored: boolean; failed: string | null }>)
-    | undefined
   /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
   sessionMirror?: SessionMirrorRouting | undefined
 }

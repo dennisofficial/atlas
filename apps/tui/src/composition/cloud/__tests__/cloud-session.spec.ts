@@ -61,8 +61,6 @@ const sessionOn = (
     channel,
     sandboxes: {
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
-      putContext: async () => undefined,
-      confirmLanded: async () => ({ landed: true }),
       find: async () => args.statusRef?.current ?? args.status,
       readResources: async () => ({}),
       updateResources: async () => {},
@@ -474,8 +472,6 @@ describe('the sandbox lifecycle and transcript freshness', () => {
       channel,
       sandboxes: {
         create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
-        putContext: async () => undefined,
-        confirmLanded: async () => ({ landed: true }),
         find: async () => {
           throw new Error('vercel is down')
         },
@@ -514,8 +510,6 @@ describe('the sandbox lifecycle and transcript freshness', () => {
       channel,
       sandboxes: {
         create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
-        putContext: async () => undefined,
-        confirmLanded: async () => ({ landed: true }),
         find: async () => statusRef.current,
       readResources: async () => ({}),
       updateResources: async () => {},
@@ -734,8 +728,6 @@ describe('a reload that fails before it lands', () => {
       channel,
       sandboxes: {
         create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
-        putContext: async () => undefined,
-        confirmLanded: async () => ({ landed: true }),
         find: async () => undefined,
       readResources: async () => ({}),
       updateResources: async () => {},

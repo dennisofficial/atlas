@@ -142,13 +142,6 @@ export type ServeApp = {
   recordLostAgents?: ((args: { threadId: ThreadId }) => Promise<RecoveredAgents>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   sessionArchive?: SessionArchiveReader | undefined
-  /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
-  memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
-  /**
-   * The lift's late transcript restore: extracts the archive the client shipped to the drive and
-   * refreshes the store so the read ops serve it. Absent in fakes, which refuse the op.
-   */
-  restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
   /**
    * Appends the arrival events for a restored workspace to every family thread and re-points their
    * stored workspace at the restored paths, without rewriting history. Absent in fakes.

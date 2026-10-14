@@ -4,17 +4,13 @@ import { testRender } from '@opentui/react/test-utils'
 
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
-  captureLiftWorkspace,
-  captureWorkspaceMetadata,
   composeHarness,
   inProcessPortBindings,
-  ELiftNode,
-  type CaptureContext,
+  EBirthNode,
   type CloudBridge,
   type SettingsBinding,
 } from '@dltech/atlas-harness'
 
-import { EDescendNode } from '../../../../packages/harness/src/cloud/relocation/descend-plan'
 import { App } from '../../src/composition/app'
 import type { AtlasApp } from '../../src/composition/compose'
 import { EOpenMode } from '../../src/composition/config'
@@ -45,17 +41,16 @@ const PUMP_MS = 25
 const BUSY_RENDERER = 'visual idle'
 
 const LIFT_STEPS: readonly string[] = [
-  ELiftNode.FlipOwnership,
-  ELiftNode.ActivateFamily,
-  ELiftNode.DestroyLocalWorktree,
+  EBirthNode.FlipOwnership,
+  EBirthNode.Activate,
 ]
 
 const DESCEND_STEPS: readonly string[] = [
-  EDescendNode.PrepareWorkspace,
-  EDescendNode.ReopenLocal,
-  EDescendNode.FlipHome,
-  EDescendNode.ActivateChildren,
-  EDescendNode.DestroySandbox,
+  'prepareWorkspace',
+  'reopenLocal',
+  'flipHome',
+  'activateChildren',
+  'destroySandbox',
 ]
 
 const COMMANDS: Record<BenchmarkCommand, { target: EExecutionLocation; steps: readonly string[] }> = {
@@ -80,7 +75,6 @@ export async function mountCloudBenchmark(args: {
   settings: SettingsBinding
   bridgeFor: (app: AtlasApp) => CloudBridge
   record: (entry: BenchmarkEntry) => void
-  captureContext?: CaptureContext | undefined
 }): Promise<CloudBenchmark> {
   const { cwd, record } = args
   const harness = await composeHarness<undefined, never, PluginSurface>({
@@ -139,13 +133,6 @@ export async function mountCloudBenchmark(args: {
         app={app}
         opened={opened}
         createBridge={() => bridge}
-        captureWorkspace={(capture) =>
-          measured({ name: 'capture-workspace-metadata', record, run: () => captureWorkspaceMetadata(capture) })
-        }
-        captureArchive={(capture) =>
-          measured({ name: 'capture-workspace-archive', record, run: () => captureLiftWorkspace(capture) })
-        }
-        {...(args.captureContext === undefined ? {} : { captureContext: args.captureContext })}
         onMoveStep={(timing) => {
           const recorded = active?.step(timing.step)
           if (recorded !== undefined) record({ phase: 'step-completed', ...recorded })

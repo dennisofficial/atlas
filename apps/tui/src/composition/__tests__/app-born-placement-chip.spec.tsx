@@ -119,10 +119,6 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       opened={await spokenIn(args.app)}
       createBridge={() => args.bridge}
       preflightLift={async () => null}
-      captureWorkspace={async () => null}
-      captureArchive={async () => undefined}
-      restoreWorkspace={async () => ({ cwd: args.app.workspace.workspace, repository: args.app.workspace.workspace, trees: [] })}
-      captureContext={async () => Buffer.from('stub-context-archive')}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )
@@ -204,7 +200,7 @@ describe('the placement chip in the composer footer', () => {
       const threadId = bridge.created[0]?.threadId
       expect(threadId).toBeDefined()
       const record = await until({
-        holds: async () => app.sessionOwner.placement.snapshot(threadId!)?.born === true,
+        holds: async () => app.sessionOwner.placement.snapshot(threadId!)?.placement.harness === EHarnessPlacement.Cloud,
         within: 20_000,
       })
       expect(record).toBe(true)
@@ -229,7 +225,7 @@ describe('the placement chip in the composer footer', () => {
       await mounted.command('hello from the host')
       const threadId = app.sessionOwner.snapshot().threadId!
       const placed = await until({
-        holds: async () => app.sessionOwner.placement.snapshot(threadId)?.born === true,
+        holds: async () => app.sessionOwner.placement.snapshot(threadId)?.placement.harness === EHarnessPlacement.Host,
         within: 20_000,
       })
 
@@ -298,7 +294,7 @@ describe('the placement chip in the composer footer', () => {
       await mounted.command('sent, so the placement is locked')
       const startedId = app.sessionOwner.snapshot().threadId!
       expect(await until({
-        holds: async () => app.sessionOwner.placement.snapshot(startedId)?.born === true,
+        holds: async () => app.sessionOwner.placement.snapshot(startedId)?.placement.harness === EHarnessPlacement.Host,
         within: 20_000,
       })).toBe(true)
       expect(app.sessionOwner.placement.snapshot(startedId)?.placement.harness).toBe(EHarnessPlacement.Host)

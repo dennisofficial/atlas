@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import { EArchivePhase, EClientFrame, EClientRequest, type ServeFrame } from '@dltech/atlas-harness'
-import type { PrepareWorkspaceArchiveReply, SessionArchiveDescriptor } from '@dltech/atlas-wire'
+import type { SessionArchiveDescriptor } from '@dltech/atlas-wire'
 
 import { archiveProgressReporter, type ArchiveProgressFields } from '../archive-progress'
 import { createRequestRouter } from '../socket-requests'
@@ -18,16 +18,9 @@ const descriptor: SessionArchiveDescriptor = {
   threadId,
 }
 
-const prepared = {
-  path: '/atlas/home/exports/workspace-abc.tar.gz',
-  totalBytes: 9,
-  sha256: 'c'.repeat(64),
-} as unknown as PrepareWorkspaceArchiveReply
-
 const routerFixture = (args: {
   broadcastArchiveProgress: (progress: ArchiveProgressFields) => void
   sessionArchive?: Parameters<typeof createRequestRouter>[0]['sessionArchive']
-  prepare?: NonNullable<Parameters<typeof createRequestRouter>[0]['workspace']>['prepare']
 }) => {
   const app = fakeServeApp({ threadId, root: '/workspace' })
   const driver = createTurnDriver({
@@ -50,7 +43,6 @@ const routerFixture = (args: {
     },
     broadcastArchiveProgress: args.broadcastArchiveProgress,
     sessionArchive: args.sessionArchive,
-    ...(args.prepare === undefined ? {} : { workspace: { prepare: args.prepare } }),
   })
   return (op: EClientRequest): Promise<ServeFrame> =>
     new Promise((resolve) => {
@@ -117,26 +109,6 @@ describe('the router and archive progress', () => {
     })
   })
 
-  it('broadcasts workspace progress while the workspace archive prepares', async () => {
-    const seen: ArchiveProgressFields[] = []
-    const ask = routerFixture({
-      broadcastArchiveProgress: (p) => seen.push(p),
-      prepare: async (options) => {
-        options?.onBuildProgress?.({ phase: 'walking', files: 0, bytes: 0 })
-        options?.onBuildProgress?.({ phase: 'staging', files: 7, bytes: 0 })
-        return prepared
-      },
-    })
-
-    const reply = await ask(EClientRequest.PrepareWorkspaceArchive)
-
-    expect(reply).toMatchObject({ ok: true })
-    expect(seen).toEqual([
-      { archive: 'workspace', phase: EArchivePhase.Walking, files: 0, bytes: 0 },
-      { archive: 'workspace', phase: EArchivePhase.Staging, files: 7, bytes: 0 },
-    ])
-  })
-
   it('answers the archive even when every progress broadcast throws', async () => {
     const ask = routerFixture({
       broadcastArchiveProgress: () => {
@@ -149,39 +121,5 @@ describe('the router and archive progress', () => {
     })
 
     expect(await ask(EClientRequest.ReadSessionArchive)).toMatchObject({ ok: true, data: { archive: descriptor } })
-  })
-
-  it('leaves the memory archive silent', async () => {
-    const seen: ArchiveProgressFields[] = []
-    const app = fakeServeApp({ threadId, root: '/workspace' })
-    const driver = createTurnDriver({
-      app,
-      threadId,
-      onTurnStarted: () => undefined,
-      onTurnEnded: () => undefined,
-      onOutcome: () => undefined,
-      onFailure: () => undefined,
-    })
-    let reply: ServeFrame | undefined
-    const router = createRequestRouter({
-      threadId,
-      driver,
-      files: app.files,
-      log: () => undefined,
-      snapshot: () => ({ shells: [], agents: [], services: [] }),
-      send: ({ frame }) => {
-        reply = frame
-      },
-      broadcastArchiveProgress: (p) => seen.push(p),
-      memoryArchive: async () => new Uint8Array([1]),
-    })
-    router.route({
-      socket: {} as SessionSocket,
-      frame: { kind: EClientFrame.Request, id: 'm', op: EClientRequest.ReadMemoryArchive, params: {} },
-    })
-    await Bun.sleep(10)
-
-    expect(reply).toMatchObject({ ok: true })
-    expect(seen).toEqual([])
   })
 })
