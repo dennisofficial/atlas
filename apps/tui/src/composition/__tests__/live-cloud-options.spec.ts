@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
-import { toThreadId } from '@dltech/atlas-core'
+import { ENoticeTone, toThreadId } from '@dltech/atlas-core'
 import type { PortableState } from '@dltech/atlas-wire'
 
+import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { liveBridgeOptionsFor } from '../live-cloud'
 import type { AtlasApp } from '../compose'
+
+afterEach(() => {
+  dismissNotice()
+})
 
 const THREAD = toThreadId('brn_live_options')
 const PORTABLE: PortableState = {
@@ -53,6 +58,7 @@ describe('liveBridgeOptionsFor', () => {
       'localLog',
       'onDriverLog',
       'onMirrorFailed',
+      'onMirrorRecovered',
       'onPortableOmitted',
       'onRegistrationFailed',
       'readGitToken',
@@ -87,5 +93,39 @@ describe('liveBridgeOptionsFor', () => {
     const { app } = fakeApp()
 
     expect(await liveBridgeOptionsFor(app).registration?.({ threadId: THREAD })).toBeUndefined()
+  })
+
+  it('reports the mirror failure under one stable key, so repeats replace rather than stack', () => {
+    const { app } = fakeApp()
+    const options = liveBridgeOptionsFor(app)
+
+    options.onMirrorFailed?.(new Error('wire died'))
+    options.onMirrorFailed?.(new Error('wire died again'))
+
+    const standing = currentNotices().filter((notice) => notice.key === 'mirror-out-of-sync')
+    expect(standing).toHaveLength(1)
+    expect(standing[0]?.tone).toBe(ENoticeTone.Info)
+  })
+
+  it('clears the mirror notice when the mirror reports it recovered', () => {
+    const { app } = fakeApp()
+    const options = liveBridgeOptionsFor(app)
+
+    options.onMirrorFailed?.(new Error('wire died'))
+    expect(currentNotices().some((notice) => notice.key === 'mirror-out-of-sync')).toBe(true)
+
+    options.onMirrorRecovered?.()
+    expect(currentNotices().some((notice) => notice.key === 'mirror-out-of-sync')).toBe(false)
+  })
+
+  it('tells the operator the live conversation is unaffected and the banner clears itself', () => {
+    const { app } = fakeApp()
+
+    liveBridgeOptionsFor(app).onMirrorFailed?.(new Error('wire died'))
+
+    const posted = currentNotices().find((notice) => notice.key === 'mirror-out-of-sync')
+    expect(posted?.text).toContain('briefly behind')
+    expect(posted?.text).toContain('live view is unaffected')
+    expect(posted?.text).toContain('clears itself')
   })
 })

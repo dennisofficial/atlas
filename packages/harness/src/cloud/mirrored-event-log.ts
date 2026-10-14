@@ -27,6 +27,7 @@ export class MirroredEventLog extends EventLogPort {
     writer: MirrorWriter
     threadId: ThreadId
     onSyncFailed?: ((failure: unknown) => void) | undefined
+    onSyncRecovered?: (() => void) | undefined
   }) {
     super()
     this.local = args.localLog
@@ -38,6 +39,7 @@ export class MirroredEventLog extends EventLogPort {
       writer: args.writer,
       threadId: args.threadId,
       ...(args.onSyncFailed === undefined ? {} : { onSyncFailed: args.onSyncFailed }),
+      ...(args.onSyncRecovered === undefined ? {} : { onSyncRecovered: args.onSyncRecovered }),
       onSynced: () => this.emit(),
     })
     this.rootThreadId = args.threadId

@@ -17,7 +17,7 @@ import { reattachSandbox } from './local-cloud-reattach'
 
 export const attachmentOf =
   (args: {
-    options: Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'sessionMirror'>
+    options: Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'onMirrorRecovered' | 'sessionMirror'>
     sandboxes: CloudSandboxes
   }): CloudBridge['attach'] =>
   ({ threadId, url, token, sandboxThreadId }: { threadId: ThreadId; url: string; token: string; sandboxThreadId?: ThreadId | undefined }) => {
@@ -49,6 +49,7 @@ export const attachmentOf =
             writer: sessionMirrorWriter({ home: atlasDirectory }),
             threadId: hosted,
             ...(options.onMirrorFailed === undefined ? {} : { onSyncFailed: options.onMirrorFailed }),
+            ...(options.onMirrorRecovered === undefined ? {} : { onSyncRecovered: options.onMirrorRecovered }),
           })
     const localLog = options.localLog
     return {
@@ -64,6 +65,7 @@ export const attachmentOf =
                 writer: mirrorWriter({ home: atlasDirectory }),
                 threadId,
                 ...(options.onMirrorFailed === undefined ? {} : { onSyncFailed: options.onMirrorFailed }),
+                ...(options.onMirrorRecovered === undefined ? {} : { onSyncRecovered: options.onMirrorRecovered }),
               }),
         threads: new RemoteThreadStore({ channel }),
         ledger: new RemoteTurnLedger({ channel }),
