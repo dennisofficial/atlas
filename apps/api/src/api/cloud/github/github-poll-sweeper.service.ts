@@ -1,13 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Interval } from '@nestjs/schedule'
-import { db } from '../../../db'
+import { db, type GithubPrStateModel } from '../../../db'
 import {
   dtoOf,
   liveUntilOf,
   subscriberWhereOf,
   subscriptionLiveWhere,
 } from './github-delivery-routing'
+import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { pushPrTransitions, snapshotOf } from './github-pr-transition-push'
+import type { PrTransitionSnapshot } from './github-pr-event-transitions'
 import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
@@ -30,6 +33,7 @@ export class GithubPollSweeperService {
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
     private readonly fanout: GithubPrFanoutService,
+    private readonly mailbox: GithubPrEventMailboxService,
   ) {}
 
   @Interval(POLL_INTERVAL_MS)
@@ -166,7 +170,12 @@ export class GithubPollSweeperService {
     if (token === undefined) return
 
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
-    let pushed: { state: GithubPrStateDto; routing: GithubBranchRouting }
+    let pushed: {
+      state: GithubPrStateDto
+      routing: GithubBranchRouting
+      row: GithubPrStateModel
+      prior: PrTransitionSnapshot | null
+    }
     try {
       const fields = await this.reads.readPullRequest({
         token,
@@ -174,6 +183,13 @@ export class GithubPollSweeperService {
         repo,
         number: args.prNumber,
       })
+      const prior = snapshotOf(
+        await db.githubPrState.findUnique({
+          where: {
+            repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
+          },
+        }),
+      )
       const row = await db.githubPrState.upsert({
         where: {
           repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
@@ -192,6 +208,8 @@ export class GithubPollSweeperService {
           headBranch: fields.headBranch,
           headRepoMatchesBase: fields.headRepoFullName === args.repoFullName,
         },
+        row,
+        prior,
       }
     } catch (failure) {
       if (failure instanceof GithubUserReadFailed) return
@@ -205,11 +223,15 @@ export class GithubPollSweeperService {
         routing: pushed.routing,
       }),
     })
-    if (subscribers.length > 0) {
-      this.fanout.push({
-        userIds: [...new Set(subscribers.map((subscriber) => subscriber.userId))],
-        state: pushed.state,
-      })
-    }
+    if (subscribers.length === 0) return
+
+    const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
+    this.fanout.push({ userIds, state: pushed.state })
+    await pushPrTransitions({
+      mailbox: this.mailbox,
+      prior: pushed.prior,
+      row: pushed.row,
+      userIds,
+    })
   }
 }
