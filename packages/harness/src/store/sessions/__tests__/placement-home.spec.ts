@@ -20,7 +20,7 @@ describe('session home after an ownership change', () => {
     })
     await fixture.threads.writePlacement({
       threadId: thread.thread.id,
-      record: { placement: { harness: EHarnessPlacement.Cloud, driveName: 'test-drive' }, revision: 1, move: null },
+      record: { placement: { harness: EHarnessPlacement.Cloud, driveName: 'test-drive' }, revision: 1 },
     })
     const meta: unknown = JSON.parse(await readFile(join(fixture.home, 'sessions', thread.thread.id, 'meta.json'), 'utf8'))
     expect(meta).toMatchObject({ home: EExecutionLocation.Cloud })

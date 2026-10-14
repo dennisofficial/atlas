@@ -19,7 +19,7 @@ export function fakePlacementStore(): FakePlacementStore {
 
   return {
     seed: ({ threadId, location, agent }) => {
-      records.set(threadId, { placement: placementOf(location), revision: 0, move: null })
+      records.set(threadId, { placement: placementOf(location), revision: 0 })
       if (agent !== undefined) agents.set(threadId, agent)
     },
     readPlacement: async ({ threadId }) => records.get(threadId),
