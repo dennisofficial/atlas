@@ -39,6 +39,8 @@ export const WORKING_TITLE_FRAME_MS = 240
 
 export const IDLE_TITLE_GLYPH = '◦'
 
+export const NEEDS_OPERATOR_TITLE_GLYPH = '●'
+
 export function workingTitleFrame(nowMs: number): string {
   const index = Math.floor(nowMs / WORKING_TITLE_FRAME_MS) % WORKING_TITLE_FRAMES.length
   return WORKING_TITLE_FRAMES[index] as string

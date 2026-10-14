@@ -201,6 +201,12 @@ export function useConversation(args: ConversationArgs): Conversation {
     ticking: !frozen && (derived.streaming || working || compacting !== null || rotating !== null),
     clock,
   })
+  const operatorInput = useOperatorInput({
+    app,
+    threadId,
+    cloudRunner,
+    onInterrupt: turnDriver.handleInterrupt,
+  })
   const { workspace, handleChangeDirectory } = useConversationDirectory({
     app,
     threadId,
@@ -208,6 +214,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     name,
     started,
     working,
+    needsOperator: operatorInput.state !== null,
     events,
     logSummary,
     pendingMove,
@@ -234,12 +241,6 @@ export function useConversation(args: ConversationArgs): Conversation {
     remoteEntries: remote.channel === null ? undefined : remote.entries,
     wakeNotices,
     sending: sending.rows,
-  })
-  const operatorInput = useOperatorInput({
-    app,
-    threadId,
-    cloudRunner,
-    onInterrupt: turnDriver.handleInterrupt,
   })
 
   const model = transcriptOfTurn({ model: derived, working, failure })
