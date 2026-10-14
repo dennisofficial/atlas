@@ -58,7 +58,6 @@ describe('liveBridgeOptionsFor', () => {
       'localLog',
       'onDriverLog',
       'onMirrorFailed',
-      'onMirrorRecovered',
       'onPortableOmitted',
       'onRegistrationFailed',
       'readGitToken',
@@ -95,37 +94,14 @@ describe('liveBridgeOptionsFor', () => {
     expect(await liveBridgeOptionsFor(app).registration?.({ threadId: THREAD })).toBeUndefined()
   })
 
-  it('reports the mirror failure under one stable key, so repeats replace rather than stack', () => {
+  it('never banners a mirror blip — the mirror self-repairs and the live view is unaffected, so it is logged, not shown', () => {
     const { app } = fakeApp()
     const options = liveBridgeOptionsFor(app)
 
     options.onMirrorFailed?.(new Error('wire died'))
     options.onMirrorFailed?.(new Error('wire died again'))
 
-    const standing = currentNotices().filter((notice) => notice.key === 'mirror-out-of-sync')
-    expect(standing).toHaveLength(1)
-    expect(standing[0]?.tone).toBe(ENoticeTone.Info)
-  })
-
-  it('clears the mirror notice when the mirror reports it recovered', () => {
-    const { app } = fakeApp()
-    const options = liveBridgeOptionsFor(app)
-
-    options.onMirrorFailed?.(new Error('wire died'))
-    expect(currentNotices().some((notice) => notice.key === 'mirror-out-of-sync')).toBe(true)
-
-    options.onMirrorRecovered?.()
-    expect(currentNotices().some((notice) => notice.key === 'mirror-out-of-sync')).toBe(false)
-  })
-
-  it('tells the operator the live conversation is unaffected and the banner clears itself', () => {
-    const { app } = fakeApp()
-
-    liveBridgeOptionsFor(app).onMirrorFailed?.(new Error('wire died'))
-
-    const posted = currentNotices().find((notice) => notice.key === 'mirror-out-of-sync')
-    expect(posted?.text).toContain('briefly behind')
-    expect(posted?.text).toContain('live view is unaffected')
-    expect(posted?.text).toContain('clears itself')
+    expect(currentNotices().filter((notice) => notice.key === 'mirror-out-of-sync')).toHaveLength(0)
+    expect(currentNotices().some((notice) => /mirror/i.test(notice.text))).toBe(false)
   })
 })

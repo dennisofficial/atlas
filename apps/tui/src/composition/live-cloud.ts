@@ -25,7 +25,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { buildInfo, clientVersionHeader, EBuildKind } from '../build/info'
-import { clearNotice, ENoticeTone } from '../ui/notice-store'
+import { ENoticeTone } from '../ui/notice-store'
 import { createCloudBridge } from './cloud/create-bridge'
 import { durableOpLog } from './durable-op-log'
 import { reapExpiredCloudSandboxes } from './cloud/reaper'
@@ -150,15 +150,14 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
       tone: ENoticeTone.Warn,
     })
   },
-  onMirrorFailed: () => {
-    noticePortBinding().notify({
-      key: 'mirror-out-of-sync',
-      text: 'the local copy of this cloud conversation is briefly behind — the live view is unaffected, and this clears itself the moment the copy catches up',
-      tone: ENoticeTone.Info,
+  // The mirror self-repairs on the next sync and the live view is unaffected, so a transient
+  // sync blip is not operator-facing — log it for diagnostics, never banner it.
+  onMirrorFailed: (failure) => {
+    durableOpLog()?.warn({
+      source: 'cloud-mirror',
+      message: 'cloud session mirror fell out of sync; it self-repairs on the next sync',
+      error: failure instanceof Error ? failure.message : String(failure),
     })
-  },
-  onMirrorRecovered: () => {
-    clearNotice({ key: 'mirror-out-of-sync' })
   },
   environment: () => ({
     ...cloudEnvironmentOf(app.settings.snapshot().resolution),
