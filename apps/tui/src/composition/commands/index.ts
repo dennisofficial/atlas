@@ -8,16 +8,7 @@ export {
   type LocalCommand,
 } from './local-command'
 export {
-  agentChoiceName,
-  agentChoices,
-  agentHasSettled,
-  agentStateLabel,
-  type AgentChoice,
-} from './agent-choices'
-export {
-  agentsAskOfArgument,
   containerAskOfArgument,
-  EAgentsAsk,
   EContainerAsk,
   localCommands,
   type LocalCommandHandlers,

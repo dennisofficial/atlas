@@ -1,17 +1,19 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 import { pullRequestChip } from '../../../plugins/github/pull-request-pill'
+import { foldCrew } from '../../../store/crew-fold'
+import type { ECrewStanding } from '../../../store/crew-retirement'
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   crewRowReading,
   isSubagentWorking,
   subagentContextLabel,
-  type SidebarAgentFold,
-  type SidebarCrewFold,
+  subagentWentWrong,
   type SidebarSubagent,
 } from '../../../store/subagent-row'
 import { plural } from '../../../store/tools/reading'
 import { contextUsageTone } from '../../context-bar'
+import { useClickRegion } from '../../hooks/use-click-region'
 import { usePress } from '../../hooks/use-press'
 import { MARK_OF, NAME_INK_OF, STATE_INK_OF } from '../../subagent-ink'
 import { glyph, theme } from '../../theme'
@@ -126,19 +128,32 @@ function FiguresLine(props: { subagent: SidebarSubagent; cells: number }): React
 }
 
 /**
- * What the panel let go of, kept as one line rather than a heading of its own. The reading names
- * `/agents` because a retired child is still whole — the rows leave the sidebar, nothing leaves
- * the roster or the log.
+ * Settled children fold behind one line per tier rather than leaving the panel: nothing a child
+ * did disappears, it just stops spending rows. The warn marker is the one thing a folded row may
+ * not hide — a failure the operator would otherwise have to expand to learn about.
  */
-function RetiredLine(props: { fold: SidebarCrewFold; cells: number }): React.ReactNode {
+function CollapsedRow(props: {
+  collapsed: number
+  failed: boolean
+  expanded: boolean
+  onToggle: () => void
+}): React.ReactNode {
+  const region = useClickRegion(props.onToggle)
+
   return (
-    <Row
-      label={`${plural(props.fold.hidden, 'more')} in /agents`}
-      labelFg={theme.rule}
-      cells={props.cells}
-      mark={{ text: glyph.active, fg: theme.rule }}
-      {...(props.fold.hiddenFailed ? { value: [{ text: 'one failed', fg: theme.warn }] } : {})}
-    />
+    <text wrapMode="none" flexShrink={0} {...region.handlers}>
+      <span fg={theme.rule} {...region.wash}>
+        {`${glyph.active} `}
+      </span>
+      <span fg={region.hovered ? theme.hover : theme.hint} {...region.wash}>
+        {`${props.collapsed} settled ${props.expanded ? '▾' : '▸'}`}
+      </span>
+      {props.failed ? (
+        <span fg={theme.warn} {...region.wash}>
+          {' · one failed'}
+        </span>
+      ) : null}
+    </text>
   )
 }
 
@@ -179,39 +194,59 @@ function CrewRows(props: {
   )
 }
 
+function CrewTier(props: {
+  label: string
+  rows: readonly SidebarSubagent[]
+  standings: ReadonlyMap<string, ECrewStanding>
+  cells: number
+  onOpen?: ((agentId: string) => void) | undefined
+}): React.ReactNode {
+  const [expanded, setExpanded] = useState(false)
+  if (props.rows.length === 0) return null
+
+  const fold = foldCrew({
+    rows: props.rows,
+    standings: props.standings,
+    expanded,
+    keyOf: (row) => row.id,
+    wentWrong: subagentWentWrong,
+  })
+
+  return (
+    <Section
+      label={props.label}
+      count={`${props.rows.filter(isSubagentWorking).length}/${props.rows.length}`}
+    >
+      <CrewRows subagents={fold.shown} cells={props.cells} onOpen={props.onOpen} />
+      {fold.collapsed.length === 0 ? null : (
+        <CollapsedRow
+          collapsed={fold.collapsed.length}
+          failed={fold.collapsedFailed}
+          expanded={expanded}
+          onToggle={() => setExpanded((value) => !value)}
+        />
+      )}
+    </Section>
+  )
+}
+
+const NO_STANDINGS: ReadonlyMap<string, ECrewStanding> = new Map()
+
 export function SubagentsSection(props: {
   subagents: readonly SidebarSubagent[]
+  standings?: ReadonlyMap<string, ECrewStanding> | undefined
   cells: number
-  fold?: SidebarAgentFold | undefined
   onOpen?: (agentId: string) => void
 }): React.ReactNode {
   if (props.subagents.length === 0) return null
 
   const { teammates, subagents } = crewTiersOf(props.subagents)
-  const hiddenTeammates = props.fold?.hiddenTeammates ?? 0
-  const hiddenSubagents = (props.fold?.hidden ?? 0) - hiddenTeammates
+  const standings = props.standings ?? NO_STANDINGS
 
   return (
     <>
-      {teammates.length === 0 ? null : (
-        <Section
-          label="Teammates"
-          count={`${teammates.filter(isSubagentWorking).length}/${teammates.length + hiddenTeammates}`}
-        >
-          <CrewRows subagents={teammates} cells={props.cells} onOpen={props.onOpen} />
-        </Section>
-      )}
-      {subagents.length === 0 ? null : (
-        <Section
-          label="Sub-agents"
-          count={`${subagents.filter(isSubagentWorking).length}/${subagents.length + hiddenSubagents}`}
-        >
-          <CrewRows subagents={subagents} cells={props.cells} onOpen={props.onOpen} />
-          {props.fold === undefined ? null : (
-            <RetiredLine fold={props.fold} cells={props.cells} />
-          )}
-        </Section>
-      )}
+      <CrewTier label="Teammates" rows={teammates} standings={standings} cells={props.cells} onOpen={props.onOpen} />
+      <CrewTier label="Sub-agents" rows={subagents} standings={standings} cells={props.cells} onOpen={props.onOpen} />
     </>
   )
 }

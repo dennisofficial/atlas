@@ -1,5 +1,10 @@
 import { EShellStatus, type ProviderIdentity, type ThreadId } from '@dltech/atlas-core'
-import { TEAMMATE_AGENT_TYPE, type AgentSnapshot } from '@dltech/atlas-harness'
+import {
+  EPullRequestState,
+  TEAMMATE_AGENT_TYPE,
+  type AgentSnapshot,
+  type PullRequestBadge,
+} from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 export const sameShellSurfaces = (
@@ -30,20 +35,13 @@ export function useShellSurfaces(shells: readonly ShellSnapshot[]): readonly She
 }
 
 import { crewPullRequestOf } from '../plugins/github/crew-pull-request'
-import { DEFAULT_CREW_CAP, foldCrew } from '../store/crew-fold'
-import {
-  DEFAULT_CREW_GRACE_MS,
-  ECrewStanding,
-  partitionCrew,
-  type CrewMember,
-} from '../store/crew-retirement'
+import { standingsOfCrew, type CrewMember } from '../store/crew-retirement'
 import { NO_VISITS, lastVisitOf, recordDeparture, type CrewVisits } from '../store/crew-visits'
 import { withCrew, type SidebarModel } from '../store/sidebar-model'
 import {
   isSubagentWorking,
   subagentRows,
   subagentShowsElapsed,
-  subagentWentWrong,
 } from '../store/subagent-row'
 import { modelLabel } from '../ui/model-label'
 import type { AtlasApp } from './compose'
@@ -64,8 +62,8 @@ export type AgentsControl = {
 
 /**
  * The departure is recorded by the effect's cleanup rather than by watching the next value, so a
- * child that is still open holds no reading at all and its grace clock cannot start while the
- * operator is reading it.
+ * child that is still open holds no reading at all, so a failure counts as acknowledged only once
+ * the operator has actually left it.
  */
 function useCrewVisits(viewing: ThreadId | null): CrewVisits {
   const [visits, setVisits] = useState<CrewVisits>(NO_VISITS)
@@ -83,46 +81,36 @@ function useCrewVisits(viewing: ThreadId | null): CrewVisits {
   return visits
 }
 
+const SETTLED_PULL_REQUESTS: readonly EPullRequestState[] = [
+  EPullRequestState.Merged,
+  EPullRequestState.Closed,
+]
+
+const hasOpenPullRequest = (args: {
+  snapshot: AgentSnapshot
+  pullRequestOf: (args: { threadId: ThreadId }) => PullRequestBadge | null
+}): boolean => {
+  if (args.snapshot.agentType !== TEAMMATE_AGENT_TYPE) return false
+
+  const badge = args.pullRequestOf({ threadId: args.snapshot.agentId })
+  return badge !== null && !SETTLED_PULL_REQUESTS.includes(badge.state)
+}
+
 const crewMembersOf = (args: {
   snapshots: readonly AgentSnapshot[]
   visits: CrewVisits
   shellBusy: ReadonlySet<ThreadId>
+  pullRequestOf: (args: { threadId: ThreadId }) => PullRequestBadge | null
 }): readonly CrewMember[] =>
   args.snapshots.map((snapshot) => ({
     agentId: snapshot.agentId,
     spawnedBy: snapshot.spawnedBy,
     status: snapshot.status,
-    endedAt: snapshot.endedAt ?? null,
     deliveredAt: snapshot.deliveredAt ?? null,
     lastViewedAt: lastVisitOf({ visits: args.visits, id: snapshot.agentId }),
     holdingShells: args.shellBusy.has(snapshot.agentId),
+    hasOpenPullRequest: hasOpenPullRequest({ snapshot, pullRequestOf: args.pullRequestOf }),
   }))
-
-/**
- * A grace window that nothing is watching would never elapse: the elapsed tick stops once the last
- * child settles, and the panel would hold a retired row until some unrelated event redrew it. The
- * reading is taken against the wall clock rather than the ticked one so that the answer is what
- * decides whether to keep ticking at all.
- */
-const graceIsRunning = (args: {
-  members: readonly CrewMember[]
-  viewing: ThreadId | null
-}): boolean => {
-  if (args.members.length === 0) return false
-
-  const { standings } = partitionCrew({
-    crew: args.members,
-    viewing: args.viewing,
-    now: Date.now(),
-    graceMs: DEFAULT_CREW_GRACE_MS,
-  })
-
-  for (const standing of standings.values()) {
-    if (standing === ECrewStanding.Retiring) return true
-  }
-
-  return false
-}
 
 /**
  * Every state change of a child is an event the registry already announces, so the sidebar reads
@@ -177,12 +165,17 @@ export function useAgents({
     }
     return busy
   }, [surfaces, everywhere])
+  const pullRequestOf = useCallback(
+    (args: { threadId: ThreadId }): PullRequestBadge | null =>
+      crewPullRequests === null ? null : crewPullRequestOf({ reader: crewPullRequests, threadId: args.threadId }),
+    [crewPullRequests],
+  )
   const members = useMemo(
-    () => crewMembersOf({ snapshots: own, visits, shellBusy }),
-    [own, shellBusy, visits],
+    () => crewMembersOf({ snapshots: own, visits, shellBusy, pullRequestOf }),
+    [own, pullRequestOf, pullRequestVersion, shellBusy, visits],
   )
 
-  const now = useTickingNow(own.some(subagentShowsElapsed) || graceIsRunning({ members, viewing }))
+  const now = useTickingNow(own.some(subagentShowsElapsed))
 
   const crew = useMemo(() => {
     const nameModel = (model: ProviderIdentity): string =>
@@ -194,49 +187,25 @@ export function useAgents({
       modelLabel: nameModel,
       viewing,
       rosters: { shells: surfaces, children: everywhere },
-      pullRequestOf:
-        crewPullRequests === null
-          ? undefined
-          : ({ threadId: teammate }) => crewPullRequestOf({ reader: crewPullRequests, threadId: teammate }),
+      pullRequestOf,
     })
-    const { standings } = partitionCrew({
-      crew: members,
-      viewing,
-      now,
-      graceMs: DEFAULT_CREW_GRACE_MS,
-    })
-    const folded = foldCrew({
-      rows: subagents,
-      standings,
-      cap: DEFAULT_CREW_CAP,
-      keyOf: (row) => row.id,
-      wentWrong: subagentWentWrong,
-    })
-    const shownIds = new Set(folded.shown.map((row) => row.id))
-    const hiddenTeammates = subagents.filter(
-      (row) => !shownIds.has(row.id) && row.agentType === TEAMMATE_AGENT_TYPE,
-    ).length
+    const standings = standingsOfCrew({ crew: members, viewing })
 
     return {
-      folded,
-      fold: {
-        hidden: folded.hidden,
-        hiddenFailed: folded.hiddenFailed,
-        hiddenTeammates,
-      },
+      standings,
+      subagents,
       running: subagents.filter(isSubagentWorking).length,
-      count: subagents.length,
     }
-  }, [app.models, crewPullRequests, everywhere, members, now, own, pullRequestVersion, surfaces, viewing])
+  }, [app.models, everywhere, members, now, own, pullRequestOf, pullRequestVersion, surfaces, viewing])
 
   return useMemo(
     () => ({
-      sidebar: withCrew({ model: sidebar, subagents: crew.folded.shown, fold: crew.fold }),
+      sidebar: withCrew({ model: sidebar, subagents: crew.subagents, standings: crew.standings }),
       own,
       everywhere,
       visits,
       running: crew.running,
-      count: crew.count,
+      count: crew.subagents.length,
     }),
     [crew, everywhere, own, sidebar, visits],
   )

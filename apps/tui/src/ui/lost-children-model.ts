@@ -40,18 +40,8 @@ export const lostChildRows = (lost: RecoveredAgents | null): readonly LostChildR
 export const hasLostChildren = (lost: RecoveredAgents | null): boolean =>
   lostChildRows(lost).length > 0
 
-export const LOST_CHILDREN_TITLE = 'Sub-agents this conversation has no record of'
-
-export const LOST_CHILDREN_EXPLANATION =
-  'Opened by the last process, which died before it recorded that it had. They ran, and one part-way through a command may have changed files in this workspace — check the tree before you carry on.'
-
-export const LOST_CHILDREN_UNREACHABLE =
-  'Nothing here can be resumed: this conversation holds no record of them, so it cannot address them. Nothing was resumed for you.'
-
-export const NOTHING_WAS_LOST = 'nothing was lost when this conversation was opened'
-
 export const lostChildCount = (rows: readonly LostChildRow[]): string =>
   rows.length === 1 ? '1 sub-agent' : `${rows.length} sub-agents`
 
 export const lostChildrenNotice = (lost: RecoveredAgents | null): string =>
-  `${lostChildCount(lostChildRows(lost))} left no record in this conversation — /agents to view`
+  `${lostChildCount(lostChildRows(lost))} left no record in this conversation — check the tree before carrying on`

@@ -1,12 +1,12 @@
 import { EAgentStatus } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { DEFAULT_CREW_CAP, foldCrew } from '../crew-fold'
+import { foldCrew } from '../crew-fold'
 import { ECrewStanding } from '../crew-retirement'
 
-const row = (id: string, status: EAgentStatus): Row => ({ id, status })
-
 type Row = { id: string; status: EAgentStatus }
+
+const row = (id: string, status: EAgentStatus = EAgentStatus.Finished): Row => ({ id, status })
 
 const WENT_WRONG: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Running]: false,
@@ -23,166 +23,129 @@ const keyOf = (one: Row): string => one.id
 
 const RUNNING = row('running', EAgentStatus.Running)
 
-const HELD = row('held', EAgentStatus.Finished)
+const HELD = row('held')
 
-const FAILED = row('failed', EAgentStatus.Failed)
+const settledRows = (count: number): readonly Row[] =>
+  Array.from({ length: count }, (_, at) => row(`settled-${at}`))
 
 const standings = (
   entries: readonly (readonly [string, ECrewStanding])[],
 ): ReadonlyMap<string, ECrewStanding> => new Map(entries)
 
-const retiring = (count: number): readonly Row[] =>
-  Array.from({ length: count }, (_, at) => row(`settled-${at}`, EAgentStatus.Finished))
+const allSettled = (rows: readonly Row[]): ReadonlyMap<string, ECrewStanding> =>
+  standings(rows.map((one) => [one.id, ECrewStanding.Settled] as const))
 
-const allRetiring = (rows: readonly Row[]): ReadonlyMap<string, ECrewStanding> =>
-  standings(rows.map((one) => [one.id, ECrewStanding.Retiring] as const))
+const ids = (rows: readonly Row[]): readonly string[] => rows.map(keyOf)
+
+const fold = (args: {
+  rows: readonly Row[]
+  standings: ReadonlyMap<string, ECrewStanding>
+  expanded?: boolean
+}) =>
+  foldCrew({
+    rows: args.rows,
+    standings: args.standings,
+    expanded: args.expanded ?? false,
+    keyOf,
+    wentWrong,
+  })
 
 describe('crew fold', () => {
-  it('shows a live row whatever the cap', () => {
-    const folded = foldCrew({
-      rows: [RUNNING],
-      standings: standings([[RUNNING.id, ECrewStanding.Live]]),
-      cap: 0,
-      wentWrong,
-      keyOf,
-    })
-
-    expect(folded.shown).toEqual([RUNNING])
-    expect(folded.hidden).toBe(0)
-  })
-
-  it('shows a held row whatever the cap', () => {
-    const folded = foldCrew({
-      rows: [HELD],
-      standings: standings([[HELD.id, ECrewStanding.Held]]),
-      cap: 0,
-      wentWrong,
-      keyOf,
-    })
-
-    expect(folded.shown).toEqual([HELD])
-  })
-
-  it('hides a retired row and counts it', () => {
-    const folded = foldCrew({
-      rows: [RUNNING, HELD],
-      standings: standings([
-        [RUNNING.id, ECrewStanding.Live],
-        [HELD.id, ECrewStanding.Retired],
-      ]),
-      cap: DEFAULT_CREW_CAP,
-      wentWrong,
-      keyOf,
-    })
-
-    expect(folded.shown).toEqual([RUNNING])
-    expect(folded.hidden).toBe(1)
-  })
-
-  it('caps the retiring rows and counts the overflow', () => {
-    const rows = retiring(5)
-    const folded = foldCrew({ rows, standings: allRetiring(rows), cap: 2, wentWrong, keyOf })
-
-    expect(folded.shown).toHaveLength(2)
-    expect(folded.hidden).toBe(3)
-  })
-
-  it('keeps the most recent of the retiring rows', () => {
-    const rows = retiring(4)
-    const folded = foldCrew({ rows, standings: allRetiring(rows), cap: 2, wentWrong, keyOf })
-
-    expect(folded.shown.map((one) => one.id)).toEqual(['settled-2', 'settled-3'])
-  })
-
-  it('never caps out a held row to make room', () => {
-    const rows = [HELD, ...retiring(3)]
-    const folded = foldCrew({
-      rows,
-      standings: standings([
-        [HELD.id, ECrewStanding.Held],
-        ...retiring(3).map((one) => [one.id, ECrewStanding.Retiring] as const),
-      ]),
-      cap: 1,
-      wentWrong,
-      keyOf,
-    })
-
-    expect(folded.shown.map((one) => one.id)).toContain(HELD.id)
-    expect(folded.shown).toHaveLength(2)
-    expect(folded.hidden).toBe(2)
-  })
-
-  it('holds the crew whole when nothing is retired or capped', () => {
-    const rows = [RUNNING, HELD]
-    const folded = foldCrew({
+  it('shows live and held rows whatever else is settled', () => {
+    const rows = [RUNNING, HELD, ...settledRows(6)]
+    const folded = fold({
       rows,
       standings: standings([
         [RUNNING.id, ECrewStanding.Live],
         [HELD.id, ECrewStanding.Held],
+        ...[...allSettled(settledRows(6))],
       ]),
-      cap: DEFAULT_CREW_CAP,
-      wentWrong,
-      keyOf,
     })
 
-    expect(folded.shown).toEqual(rows)
-    expect(folded.hidden).toBe(0)
-    expect(folded.hiddenFailed).toBe(false)
+    expect(ids(folded.shown)).toEqual(['running', 'held', 'settled-4', 'settled-5'])
+    expect(folded.collapsed).toHaveLength(4)
   })
 
-  it('keeps the shown rows in the order it was given', () => {
-    const rows = [retiring(1)[0] as Row, RUNNING]
-    const folded = foldCrew({
+  it('keeps the newest two settled rows as a tail and collapses the rest', () => {
+    const rows = settledRows(5)
+    const folded = fold({ rows, standings: allSettled(rows) })
+
+    expect(ids(folded.shown)).toEqual(['settled-3', 'settled-4'])
+    expect(ids(folded.collapsed)).toEqual(['settled-0', 'settled-1', 'settled-2'])
+  })
+
+  it('folds nothing when the overflow beyond the tail is a single row', () => {
+    const rows = settledRows(3)
+    const folded = fold({ rows, standings: allSettled(rows) })
+
+    expect(ids(folded.shown)).toEqual(ids(rows))
+    expect(folded.collapsed).toEqual([])
+  })
+
+  it('folds once the overflow beyond the tail reaches two rows', () => {
+    const rows = settledRows(4)
+    const folded = fold({ rows, standings: allSettled(rows) })
+
+    expect(ids(folded.shown)).toEqual(['settled-2', 'settled-3'])
+    expect(ids(folded.collapsed)).toEqual(['settled-0', 'settled-1'])
+  })
+
+  it('brings every row back when expanded, and still reports the count beyond the tail', () => {
+    const rows = settledRows(5)
+    const folded = fold({ rows, standings: allSettled(rows), expanded: true })
+
+    expect(ids(folded.shown)).toEqual(ids(rows))
+    expect(folded.collapsed).toHaveLength(3)
+  })
+
+  it('keeps shown rows in the order it was given', () => {
+    const rows = [...settledRows(4), RUNNING]
+    const folded = fold({
       rows,
       standings: standings([
-        ['settled-0', ECrewStanding.Retiring],
+        ...[...allSettled(settledRows(4))],
         [RUNNING.id, ECrewStanding.Live],
       ]),
-      cap: DEFAULT_CREW_CAP,
-      wentWrong,
-      keyOf,
     })
 
-    expect(folded.shown.map((one) => one.id)).toEqual(['settled-0', RUNNING.id])
-  })
-
-  it('says when a hidden row failed', () => {
-    const folded = foldCrew({
-      rows: [FAILED],
-      standings: standings([[FAILED.id, ECrewStanding.Retired]]),
-      cap: DEFAULT_CREW_CAP,
-      wentWrong,
-      keyOf,
-    })
-
-    expect(folded.hiddenFailed).toBe(true)
-  })
-
-  it('says when a hidden row was stopped', () => {
-    const stopped = row('stopped', EAgentStatus.Stopped)
-    const folded = foldCrew({
-      rows: [stopped],
-      standings: standings([[stopped.id, ECrewStanding.Retired]]),
-      cap: DEFAULT_CREW_CAP,
-      wentWrong,
-      keyOf,
-    })
-
-    expect(folded.hiddenFailed).toBe(true)
-  })
-
-  it('stays quiet when the hidden rows all finished', () => {
-    const rows = retiring(4)
-    const folded = foldCrew({ rows, standings: allRetiring(rows), cap: 1, wentWrong, keyOf })
-
-    expect(folded.hidden).toBe(3)
-    expect(folded.hiddenFailed).toBe(false)
+    expect(ids(folded.shown)).toEqual(['settled-2', 'settled-3', 'running'])
   })
 
   it('reads a row with no recorded standing as live', () => {
-    const folded = foldCrew({ rows: [RUNNING], standings: standings([]), cap: 0, wentWrong, keyOf })
+    const folded = fold({ rows: [RUNNING], standings: standings([]) })
 
     expect(folded.shown).toEqual([RUNNING])
-    expect(folded.hidden).toBe(0)
+    expect(folded.collapsed).toEqual([])
+  })
+
+  it('says when a collapsed row failed', () => {
+    const rows = [row('failed', EAgentStatus.Failed), ...settledRows(3)]
+    const folded = fold({ rows, standings: allSettled(rows) })
+
+    expect(ids(folded.collapsed)).toEqual(['failed', 'settled-0'])
+    expect(folded.collapsedFailed).toBe(true)
+  })
+
+  it('says when a collapsed row was stopped', () => {
+    const rows = [row('stopped', EAgentStatus.Stopped), ...settledRows(3)]
+    const folded = fold({ rows, standings: allSettled(rows) })
+
+    expect(folded.collapsedFailed).toBe(true)
+  })
+
+  it('stays quiet when the collapsed rows all finished', () => {
+    const rows = settledRows(5)
+    const folded = fold({ rows, standings: allSettled(rows) })
+
+    expect(folded.collapsed).toHaveLength(3)
+    expect(folded.collapsedFailed).toBe(false)
+  })
+
+  it('does not call out a failure that sits in the visible tail', () => {
+    const rows = [...settledRows(3), row('failed-tail', EAgentStatus.Failed)]
+    const folded = fold({ rows, standings: allSettled(rows) })
+
+    expect(ids(folded.shown)).toContain('failed-tail')
+    expect(folded.collapsedFailed).toBe(false)
   })
 })

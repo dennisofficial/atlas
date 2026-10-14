@@ -9,7 +9,6 @@ import { densityVersion, subscribeDensity } from '../ui/density-store'
 import { useDiffStat } from '../ui/hooks/use-diff-stat'
 import { useSince } from '../ui/hooks/use-since'
 import { useTerminalFocus } from '../ui/hooks/use-terminal-focus'
-import { clearNotice, NOTICE_KEY_LOST_AGENTS } from '../ui/notice-store'
 import { paletteVersion, subscribePalette } from '../ui/palette-store'
 import {
   chromeWidthOf,
@@ -19,7 +18,6 @@ import {
   sidebarShown,
   ESidebarLayout,
 } from '../ui/sidebar-visibility'
-import { hasLostChildren } from '../ui/lost-children-model'
 import { welcomeCells, welcoming } from '../ui/welcome-state'
 import type { useAgents } from './use-agents'
 import type { Conversation } from './use-conversation'
@@ -67,25 +65,14 @@ export function useWorkspaceFrame(args: {
 
 export type WorkspaceFrame = ReturnType<typeof useWorkspaceFrame>
 
-export function useChromePanel(args: { lost: Conversation['lost'] }) {
-  const { lost } = args
+export function useChromePanel() {
   const [panel, setPanel] = useState<EChromePanel | null>(null)
 
   const handleShortcuts = useCallback(() => setPanel(EChromePanel.Shortcuts), [])
 
-  const handleShowAgentTypes = useCallback(() => setPanel(EChromePanel.AgentTypes), [])
-
   const handleDismissPanel = useCallback(() => setPanel(null), [])
 
-  const handleShowLostAgents = useCallback((): boolean => {
-    if (!hasLostChildren(lost)) return false
-
-    clearNotice({ key: NOTICE_KEY_LOST_AGENTS })
-    setPanel(EChromePanel.LostAgents)
-    return true
-  }, [lost])
-
-  return { panel, handleShortcuts, handleShowAgentTypes, handleDismissPanel, handleShowLostAgents }
+  return { panel, handleShortcuts, handleDismissPanel }
 }
 
 export function useBackgroundWait(args: {

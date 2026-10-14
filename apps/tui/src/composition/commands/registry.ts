@@ -4,7 +4,6 @@ import { ECompactScope, scopeOfArgument } from '@dltech/atlas-harness'
 import { ERenamed } from '../session-rename'
 import type { Renaming } from '../session-rename'
 import { reloadNotice, type SkillsReloaded } from '../skills-reload'
-import { NOTHING_WAS_LOST } from '../../ui/lost-children-model'
 import {
   ECommandEcho,
   ECommandEffect,
@@ -24,26 +23,7 @@ const NOTHING_SAID_YET =
 const NO_NAME_CAME_BACK =
   '/rename could not think of a name for this conversation — say one, as in /rename Doing something cool'
 
-const NO_SUBAGENTS = 'this conversation has spawned no sub-agent to read'
-
-const UNKNOWN_AGENTS_ARGUMENT = (argumentText: string): string =>
-  `/agents takes no argument to read a sub-agent of this conversation, "types" to list the agent types on disk, or "lost" to name the ones this conversation opened without recording — not ${argumentText.trim()}`
-
 const refused = (reason: string): CommandEffect => ({ type: ECommandEffect.Refused, reason })
-
-export enum EAgentsAsk {
-  Children = 'children',
-  Types = 'types',
-  Lost = 'lost',
-}
-
-export const agentsAskOfArgument = (argumentText: string): EAgentsAsk | null => {
-  const asked = argumentText.trim().toLowerCase()
-  if (asked === '') return EAgentsAsk.Children
-  if (asked === 'types') return EAgentsAsk.Types
-  if (asked === 'lost') return EAgentsAsk.Lost
-  return null
-}
 
 export enum EContainerAsk {
   Current = 'current',
@@ -75,9 +55,6 @@ export type LocalCommandHandlers = {
   onShortcuts: () => void
   onOpenSwitcher: () => void
   onOpenShells: () => void
-  onOpenAgents: () => boolean
-  onShowAgentTypes: () => void
-  onShowLostAgents: () => boolean
   onOpenSettings: () => void
   onOpenAccounts: () => void
   onNewConversation: () => void
@@ -158,30 +135,6 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       summary: 'inspect the background shells',
       group: ECommandGroup.Session,
       open: handlers.onOpenShells,
-    }),
-    local({
-      name: 'agents',
-      summary:
-        'read a sub-agent this conversation has spawned, running or finished, or list the agent types on disk',
-      argumentHint: '[types|lost]',
-      group: ECommandGroup.Session,
-      timing: ECommandTiming.Immediate,
-      echo: ECommandEcho.Silent,
-      run: ({ argumentText }) => {
-        const ask = agentsAskOfArgument(argumentText)
-        if (ask === null) return refused(UNKNOWN_AGENTS_ARGUMENT(argumentText))
-
-        if (ask === EAgentsAsk.Types) {
-          handlers.onShowAgentTypes()
-          return RAN
-        }
-
-        if (ask === EAgentsAsk.Lost) {
-          return handlers.onShowLostAgents() ? RAN : refused(NOTHING_WAS_LOST)
-        }
-
-        return handlers.onOpenAgents() ? RAN : refused(NO_SUBAGENTS)
-      },
     }),
     immediate({
       name: 'settings',

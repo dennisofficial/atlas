@@ -27,7 +27,8 @@ import {
   type SidebarSpend,
 } from "./sidebar-spend";
 import { oneLineOf } from "./sidebar-text";
-import type { SidebarAgentFold, SidebarSubagent } from "./subagent-row";
+import type { ECrewStanding } from "./crew-retirement";
+import type { SidebarSubagent } from "./subagent-row";
 
 export enum ESidebarTaskState {
   Done = "done",
@@ -55,7 +56,7 @@ export type SidebarModel = {
   lastActivity: string | null;
   todo?: readonly SidebarTask[];
   subagents?: readonly SidebarSubagent[];
-  crewFold?: SidebarAgentFold;
+  crewStandings?: ReadonlyMap<string, ECrewStanding>;
   teammates?: readonly SidebarTeammate[];
   sections?: readonly SidebarSection[];
   classifier?: ClassifierFold;
@@ -97,7 +98,7 @@ export const sameSidebar = (left: SidebarModel, right: SidebarModel): boolean =>
   left.lastActivity === right.lastActivity &&
   left.todo === right.todo &&
   left.subagents === right.subagents &&
-  left.crewFold === right.crewFold &&
+  left.crewStandings === right.crewStandings &&
   left.teammates === right.teammates &&
   left.sections === right.sections &&
   left.classifier === right.classifier &&
@@ -187,22 +188,21 @@ export function deriveSidebar(args: {
 }
 
 /**
- * A crew with nothing left to show takes its heading with it rather than leaving a tally behind:
- * the whole point of retiring a row is the cells it gives back, and `/agents` is where a settled
- * child is read from once the panel has let it go.
+ * Every child stays in the model: nothing leaves the sidebar, so the rows arrive whole and the
+ * standings ride beside them. The fold itself is the section's to compute — its expanded state is
+ * the section's own, and routing a toggle through the composition layer would rebuild the model
+ * for a purely visual choice.
  */
 export function withCrew(args: {
   model: SidebarModel;
   subagents: readonly SidebarSubagent[];
-  fold?: SidebarAgentFold;
+  standings?: ReadonlyMap<string, ECrewStanding>;
 }): SidebarModel {
-  const { model, subagents } = args;
+  const { model, subagents, standings } = args;
   if (subagents.length === 0) return model;
+  if (standings === undefined) return { ...model, subagents };
 
-  const fold = args.fold;
-  if (fold === undefined || fold.hidden === 0) return { ...model, subagents };
-
-  return { ...model, subagents, crewFold: fold };
+  return { ...model, subagents, crewStandings: standings };
 }
 
 export type CrewTiers = {

@@ -6,7 +6,6 @@ import type { FooterMeter } from '../ui/usage-meters'
 import type { AtlasApp } from './compose'
 import { useAgentView } from './use-agent-view'
 import { useAgents } from './use-agents'
-import { useAgentsPicker } from './use-agents-picker'
 import type { Conversation } from './use-conversation'
 import type { ShellsControl } from './use-shells'
 import type { SwitcherViewed } from './use-switcher'
@@ -38,12 +37,7 @@ export function useWorkspaceAgents(args: {
     viewing: agentView.viewing,
     shells: shells.everywhere,
   })
-  const agentsPicker = useAgentsPicker({
-    app,
-    threadId: conversation.threadId,
-    onPick: agentView.handleSelect,
-  })
   const { background, waitingSince } = useBackgroundWait({ agents, shells })
 
-  return { agentView, viewed, agents, agentsPicker, background, waitingSince }
+  return { agentView, viewed, agents, background, waitingSince }
 }

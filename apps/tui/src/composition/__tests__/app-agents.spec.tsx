@@ -1,15 +1,12 @@
 import {
   EAgentStatus,
-  EDefinitionOrigin,
   toCallId,
   toRunId,
   toThreadId,
   type ProviderIdentity,
 } from '@dltech/atlas-core'
 import {
-  EAgentTypeRefusal,
   EKilledBy,
-  type AgentTypeCatalog,
   type RecoveredAgents,
 } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
@@ -17,7 +14,7 @@ import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { HEADING } from '../../ui/components/exit-guard'
-import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
+import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { until } from './app-fixture'
 import { App } from '../app'
@@ -34,10 +31,6 @@ const CHILD_INTENT = 'vault audit'
 
 const CHILD_SAID = 'The vault reads its key file exactly once.'
 
-const SETTLED_CHILD = toThreadId('thr_settled')
-
-const SETTLED_INTENT = 'rotation sweep'
-
 const PARENT_SAID = 'Delegate the vault audit please.'
 
 const SEEDED = 'what is in here?'
@@ -45,36 +38,6 @@ const SEEDED = 'what is in here?'
 const WIDE = { width: 150, height: 40, exitOnCtrlC: false }
 
 type Mounted = Awaited<ReturnType<typeof testRender>>
-
-const REVIEWER_DETAIL = '"Reviewer" cannot name an agent type'
-
-const CATALOG: AgentTypeCatalog = {
-  types: [
-    {
-      name: 'explore',
-      whenToUse: 'sweep the tree for a thing',
-      prompt: 'go and look',
-      origin: EDefinitionOrigin.BuiltIn,
-    },
-  ],
-  refusals: [
-    {
-      refusal: EAgentTypeRefusal.BadName,
-      name: 'Reviewer',
-      definedIn: '/work/project/.atlas/agents/Reviewer.md',
-      origin: EDefinitionOrigin.Project,
-      detail: `${REVIEWER_DETAIL}: it must be lower case`,
-    },
-  ],
-  shadowed: [
-    {
-      name: 'explore',
-      origin: EDefinitionOrigin.User,
-      definedIn: '/work/home/.atlas/agents/explore.md',
-      shadowedBy: EDefinitionOrigin.Project,
-    },
-  ],
-}
 
 const appWith = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
@@ -93,14 +56,6 @@ const child = (
     spawnedBy: THREAD,
     intent: CHILD_INTENT,
     ...over,
-  })
-
-const settledChild = (status: EAgentStatus) =>
-  fakeAgentSnapshot({
-    agentId: SETTLED_CHILD,
-    spawnedBy: THREAD,
-    intent: SETTLED_INTENT,
-    status,
   })
 
 async function seedChildThread(app: FakeApp): Promise<void> {
@@ -331,132 +286,6 @@ describe('an ending is a wake, not an interrupt', () => {
   }, 60_000)
 })
 
-describe('/agents types', () => {
-  const catalogued = (): FakeApp =>
-    fakeApp({
-      model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
-      agentTypes: CATALOG,
-    })
-
-  async function ask(setup: Mounted, text: string, shows: string): Promise<string> {
-    await setup.mockInput.typeText(text)
-    setup.mockInput.pressEnter()
-    return frameShowing({ setup, text: shows })
-  }
-
-  it('puts the file that would not load on screen, with the reason and the path', async () => {
-    const app = catalogued()
-    const setup = await opened(app)
-
-    try {
-      expect(setup.captureCharFrame()).not.toContain('NOT LOADED')
-
-      const frame = await ask(setup, '/agents types', 'NOT LOADED')
-      expect(frame).toContain('NOT LOADED')
-      expect(frame).toContain('Reviewer')
-      expect(frame).toContain('cannot name an agent type')
-      expect(frame).toContain('Reviewer.md')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('puts the shadowed definition on screen with what displaced it', async () => {
-    const app = catalogued()
-    const setup = await opened(app)
-
-    try {
-      const frame = await ask(setup, '/agents types', 'SHADOWED')
-      expect(frame).toContain('SHADOWED')
-      expect(frame).toContain('explore.md')
-      expect(frame).toContain('project one is loaded instead')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('puts the panel away on the next key, the way the shortcuts list goes away', async () => {
-    const app = catalogued()
-    const setup = await opened(app)
-
-    try {
-      const shown = await ask(setup, '/agents types', 'NOT LOADED')
-      expect(shown).toContain('NOT LOADED')
-
-      setup.mockInput.pressEscape()
-      const frame = await frameWhen({
-        setup,
-        holds: (captured) => !captured.includes('NOT LOADED'),
-      })
-      expect(frame).not.toContain('NOT LOADED')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('says what it takes when the argument is not one it knows', async () => {
-    const app = catalogued()
-    const setup = await opened(app)
-
-    try {
-      const frame = await ask(setup, '/agents kinds', '"types"')
-      expect(frame).toContain('"types"')
-      expect(frame).not.toContain('NOT LOADED')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('offers the running child rather than walking blindly into one', async () => {
-    const app = catalogued()
-    app.agents.place(child())
-    const setup = await opened(app)
-
-    try {
-      const frame = await ask(setup, '/agents', 'SUB-AGENTS')
-      expect(frame).not.toContain('NOT LOADED')
-      expect(frame).toContain('SUB-AGENTS')
-      expect(frame).toContain(CHILD_INTENT)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('offers a child that has settled, saying what became of it', async () => {
-    const app = catalogued()
-    app.agents.place(settledChild(EAgentStatus.Failed))
-    const setup = await opened(app)
-
-    try {
-      const frame = await ask(setup, '/agents', SETTLED_INTENT)
-      expect(frame).toContain(SETTLED_INTENT)
-      expect(frame).toContain('failed')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('reads the settled child the operator picks, the same as picking a running one', async () => {
-    const app = catalogued()
-    app.agents.place(child())
-    app.agents.place(settledChild(EAgentStatus.Stopped))
-    const setup = await opened(app)
-
-    try {
-      await ask(setup, '/agents', SETTLED_INTENT)
-
-      setup.mockInput.pressArrow('down')
-      setup.mockInput.pressEnter()
-
-      expect(await frameShowing({ setup, text: `@${SETTLED_INTENT}` })).toContain(
-        `@${SETTLED_INTENT}`,
-      )
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-})
-
 const ORPHAN = toThreadId('thr_orphan')
 
 const ORPHAN_TITLE = 'explore (rotation sweep)'
@@ -498,12 +327,6 @@ async function openedWith(app: FakeApp, lost?: RecoveredAgents): Promise<Mounted
 }
 
 describe('children the last process lost', () => {
-  async function ask(setup: Mounted, text: string, shows: string): Promise<string> {
-    await setup.mockInput.typeText(text)
-    setup.mockInput.pressEnter()
-    return frameShowing({ setup, text: shows })
-  }
-
   it('announces an unlogged child on open, because nothing else in the app ever will', async () => {
     const setup = await openedWith(appWith(), LOST)
 
@@ -513,36 +336,9 @@ describe('children the last process lost', () => {
         text: '1 sub-agent left no record in this conversation',
       })
       expect(frame).toContain('1 sub-agent left no record in this conversation')
-      expect(frame).toContain('/agents to view')
+      expect(frame).toContain('check the tree before carrying on')
+      expect(frame).not.toContain('/agents')
       expect(frame).not.toContain(ORPHAN_TITLE)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('names the child on the card the notice points at, and clears the notice once it is open', async () => {
-    const setup = await openedWith(appWith(), LOST)
-
-    try {
-      const frame = await ask(setup, '/agents lost', ORPHAN_TITLE)
-      expect(frame).toContain(ORPHAN_TITLE)
-      expect(frame).toContain('no record of')
-      expect(frame).toContain('check the tree')
-      expect(frame).not.toContain('/agents to view')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('says nothing was resumed, and resumes nothing', async () => {
-    const app = appWith()
-    const setup = await openedWith(app, LOST)
-
-    try {
-      const frame = await ask(setup, '/agents lost', 'Nothing was resumed')
-      expect(frame).toContain('Nothing was resumed for you')
-      expect(app.turnsDriven).toBe(0)
-      expect(app.agents.said).toEqual([])
     } finally {
       await teardown(setup)
     }
@@ -556,38 +352,6 @@ describe('children the last process lost', () => {
       expect(frame).not.toContain('no record')
       expect(frame).not.toContain('check the tree')
       expect(frame).not.toContain('sub-agent')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('keeps the card asked for: it goes away on the next key and comes back on /agents lost', async () => {
-    const setup = await openedWith(appWith(), LOST)
-
-    try {
-      const shown = await ask(setup, '/agents lost', ORPHAN_TITLE)
-      expect(shown).toContain(ORPHAN_TITLE)
-
-      setup.mockInput.pressEscape()
-      const cleared = await frameWhen({
-        setup,
-        holds: (captured) => !captured.includes(ORPHAN_TITLE),
-      })
-      expect(cleared).not.toContain(ORPHAN_TITLE)
-
-      const back = await ask(setup, '/agents lost', ORPHAN_TITLE)
-      expect(back).toContain(ORPHAN_TITLE)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('says so when /agents lost is asked of a conversation that lost nothing', async () => {
-    const setup = await openedWith(appWith())
-
-    try {
-      const frame = await ask(setup, '/agents lost', 'nothing was lost')
-      expect(frame).toContain('nothing was lost')
     } finally {
       await teardown(setup)
     }

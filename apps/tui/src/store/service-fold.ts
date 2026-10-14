@@ -1,7 +1,13 @@
 import { EServiceStatus, serviceFailed } from '@dltech/atlas-core'
 import type { ServiceSnapshot } from '@dltech/atlas-harness'
 
-import { DEFAULT_CREW_CAP, type CrewFold } from './crew-fold'
+const SERVICE_CAP = 3
+
+export type ServiceFold = {
+  shown: readonly ServiceSnapshot[]
+  hidden: number
+  hiddenFailed: boolean
+}
 
 /**
  * Services have no viewer and nothing to acknowledge, so the whole retirement policy collapses to
@@ -12,8 +18,8 @@ import { DEFAULT_CREW_CAP, type CrewFold } from './crew-fold'
 export function foldServices(args: {
   services: readonly ServiceSnapshot[]
   cap?: number
-}): CrewFold<ServiceSnapshot> {
-  const cap = args.cap ?? DEFAULT_CREW_CAP
+}): ServiceFold {
+  const cap = args.cap ?? SERVICE_CAP
   const settled = args.services.filter((service) => service.status !== EServiceStatus.Running)
   const spared = new Set(
     settled.slice(Math.max(0, settled.length - cap)).map((service) => service.serviceId),

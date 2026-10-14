@@ -19,7 +19,6 @@ import { Settings } from '../ui/components/settings'
 import { Shells } from '../ui/components/shells'
 import { Switcher } from '../ui/components/switcher'
 import { Threads } from '../ui/components/threads'
-import { AgentsPicker } from '../ui/components/agents-picker'
 import { Onboarding } from '../ui/components/onboarding'
 import { OperatorInputOverlay } from '../ui/components/operator-input'
 import { WhatsNew } from '../ui/components/whats-new'
@@ -29,7 +28,6 @@ import { isShellRunning } from '../ui/shells-model'
 import { isSubagentAlive } from '../store/subagent-row'
 import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
-import type { AgentsPickerControl } from './use-agents-picker'
 import type { ContainerGuardControl } from './use-container-guard'
 import type { ContainerResourcesControl } from './use-container-resources'
 import type { ExitGuardControl } from './use-exit-guard'
@@ -55,7 +53,6 @@ function DerivedOverlayStack(props: {
   shells: ShellsControl
   services: ServicesControl
   agents: AgentsControl
-  agentsPicker: AgentsPickerControl
   settings: SettingsControl
   qualityHealth: QualityHealthStatusProps
   onboarding: OnboardingControl
@@ -80,7 +77,6 @@ function DerivedOverlayStack(props: {
     switcher,
     shells,
     agents,
-    agentsPicker,
     settings,
     onboarding,
     accounts,
@@ -163,15 +159,6 @@ function DerivedOverlayStack(props: {
           onPick={threads.handlePick}
           onDismiss={threads.handleDismiss}
           onQueryChange={threads.handleQuery}
-        />
-      )}
-      {agentsPicker.state === null ? null : (
-        <AgentsPicker
-          width={sidebarWidth}
-          state={agentsPicker.state}
-          overlay
-          onPick={agentsPicker.handlePick}
-          onDismiss={agentsPicker.handleDismiss}
         />
       )}
       {switcher.state === null ? null : (

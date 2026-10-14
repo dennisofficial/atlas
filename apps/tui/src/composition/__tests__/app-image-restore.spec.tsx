@@ -221,7 +221,7 @@ describe('a restored draft with a pasted block', () => {
     const mounted = await open({ app: slowly(), clipboard: nothingOnTheClipboard })
 
     try {
-      await mounted.typeText('/agents ')
+      await mounted.typeText('/container ')
       await mounted.paste('one\ntwo\nthree\nfour\nfive\nsix')
 
       expect(await mounted.frame()).toContain('[Pasted text #1')
@@ -249,7 +249,7 @@ describe('a restored draft with a pasted block', () => {
       })
 
       if (editor === null) throw new Error('the composer never mounted')
-      editor.setSelection(0, '/agents '.length)
+      editor.setSelection(0, '/container '.length)
       editor.deleteSelection()
 
       expect(mounted.draftText()).toBe('[Pasted text #1 +6 lines] ')

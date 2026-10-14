@@ -1,28 +1,15 @@
 import React from 'react'
 
-import type { RecoveredAgents } from '@dltech/atlas-harness'
-
-import { AgentTypes } from '../ui/components/agent-types'
-import { LostChildren } from '../ui/components/lost-children'
 import { Screen } from '../ui/components/screen'
 import { Shortcuts } from '../ui/components/shortcuts'
 import { SelectionSurface } from '../ui/selection/selection-surface'
-import type { AtlasApp } from './compose'
 import { EChromePanel } from './workspace-panels'
 
 export function WorkspacePanel(props: {
   panel: EChromePanel | null
   width: number
-  agentTypes: AtlasApp['agentTypes']
-  lost: RecoveredAgents | null
 }): React.ReactNode {
   if (props.panel === EChromePanel.Shortcuts) return <Shortcuts width={props.width} />
-  if (props.panel === EChromePanel.AgentTypes) {
-    return <AgentTypes width={props.width} catalog={props.agentTypes} />
-  }
-  if (props.panel === EChromePanel.LostAgents) {
-    return <LostChildren width={props.width} lost={props.lost} />
-  }
   return null
 }
 

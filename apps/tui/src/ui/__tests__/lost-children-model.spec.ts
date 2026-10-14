@@ -2,7 +2,13 @@ import { EAgentStatus, toThreadId } from '@dltech/atlas-core'
 import type { RecoveredAgents, UnloggedChild } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
-import { hasLostChildren, lostChildCount, lostChildName, lostChildRows } from '../lost-children-model'
+import {
+  hasLostChildren,
+  lostChildCount,
+  lostChildName,
+  lostChildRows,
+  lostChildrenNotice,
+} from '../lost-children-model'
 
 const AT = '2026-01-01T09:15:00.000Z'
 
@@ -95,5 +101,14 @@ describe('which recovered children are worth reporting', () => {
         ),
       ),
     ).toBe('2 sub-agents')
+  })
+
+  it('words the notice without pointing at a command', () => {
+    const notice = lostChildrenNotice(recovered({ unlogged: [unlogged()] }))
+
+    expect(notice).toBe(
+      '1 sub-agent left no record in this conversation — check the tree before carrying on',
+    )
+    expect(notice).not.toContain('/agents')
   })
 })

@@ -9,10 +9,8 @@ import type { DraftControls } from '../ui/hooks/use-draft'
 import { modelLabel } from '../ui/model-label'
 import { servicesSurface } from './services-surface'
 import { shellsSurface } from './shells-surface'
-import { subagentsSurface } from './agents-surface'
 import type { AtlasApp } from './compose'
 import type { AgentsControl } from './use-agents'
-import type { AgentsPickerControl } from './use-agents-picker'
 import type { ContainerPills } from './use-container-pill'
 import { useFooterStrip } from './use-footer-strip'
 import { usePluginSurfaces } from './use-plugin-surfaces'
@@ -26,7 +24,6 @@ export function useWorkspaceFooter(args: {
   shells: ShellsControl
   services: ServicesControl
   agents: AgentsControl
-  agentsPicker: AgentsPickerControl
   chromeWidth: number
   selection: ModelSelection
   viewed: Pick<ReturnType<typeof useViewedAgent>, 'viewedSelection' | 'viewedCard' | 'readout'>
@@ -39,7 +36,6 @@ export function useWorkspaceFooter(args: {
     shells,
     services,
     agents,
-    agentsPicker,
     chromeWidth,
     selection,
     viewed,
@@ -53,7 +49,6 @@ export function useWorkspaceFooter(args: {
       ...app.pluginSurfaces,
       shellsSurface({ shells }),
       servicesSurface({ services }),
-      subagentsSurface({ agents, picker: agentsPicker }),
     ],
   })
 

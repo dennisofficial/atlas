@@ -1,5 +1,13 @@
 import { EAgentStatus, toRunId, toThreadId } from '@dltech/atlas-core'
-import type { AgentSnapshot } from '@dltech/atlas-harness'
+import {
+  EChecksState,
+  EForge,
+  EPullRequestLookup,
+  EPullRequestState,
+  type AgentSnapshot,
+  type PullRequest,
+  type RepositoryCheckout,
+} from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
@@ -58,7 +66,24 @@ async function opened(app: FakeApp): Promise<Mounted> {
   return setup
 }
 
-describe('a settled sub-agent leaving the sidebar', () => {
+const deliveredSubagents = (count: number): readonly AgentSnapshot[] =>
+  Array.from({ length: count }, (_, at) =>
+    settled({ agentId: `thr_done_${at}`, intent: `audit ${at}`, deliveredAt: LONG_AGO }),
+  )
+
+const pullRequestOf = (state: EPullRequestState): PullRequest => ({
+  number: 88,
+  title: 'a change',
+  url: 'https://github.com/dennisofficial/atlas/pull/88',
+  state,
+  checks: EChecksState.None,
+  tally: { running: 0, passed: 0, failed: 0 },
+  mergeable: null,
+  comments: [],
+  reviews: [],
+})
+
+describe('a settled sub-agent collapsing in the sidebar', () => {
   it('holds a finished child whose result the parent has not read', async () => {
     const app = appWith()
     const setup = await opened(app)
@@ -73,66 +98,58 @@ describe('a settled sub-agent leaving the sidebar', () => {
     }
   }, 60_000)
 
-  it('takes the whole heading with it once every child has been read and retired', async () => {
+  it('keeps a lone delivered child on the panel rather than hiding it', async () => {
     const app = appWith()
     const setup = await opened(app)
 
     try {
-      act(() =>
-        app.agents.place(
-          settled({ agentId: 'thr_read', intent: 'consumed audit', deliveredAt: LONG_AGO }),
-        ),
-      )
+      act(() => app.agents.place(settled({ agentId: 'thr_read', intent: 'consumed audit', deliveredAt: LONG_AGO })))
       await setup.flush()
 
       const frame = setup.captureCharFrame()
-      expect(frame).not.toContain('consumed audit')
-      expect(frame).not.toContain('SUB-AGENTS')
+      expect(frame).toContain('consumed audit')
+      expect(frame).toContain('SUB-AGENTS  0/1')
+      expect(frame).not.toContain('settled ▸')
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('counts what it let go of against the total, beside the rows it kept', async () => {
+  it('folds the older settled children behind a settled line, counting the full tier', async () => {
     const app = appWith()
     const setup = await opened(app)
 
     try {
       act(() => {
-        app.agents.place(settled({ agentId: 'thr_held', intent: 'pending audit' }))
-        app.agents.place(
-          settled({ agentId: 'thr_gone', intent: 'consumed audit', deliveredAt: LONG_AGO }),
-        )
+        for (const child of deliveredSubagents(5)) app.agents.place(child)
       })
       await setup.flush()
 
       const frame = setup.captureCharFrame()
-      expect(frame).toContain('pending audit')
-      expect(frame).not.toContain('consumed audit')
-      expect(frame).toContain('SUB-AGENTS  0/2')
-      expect(frame).toContain('1 more in /agents')
+      expect(frame).toContain('SUB-AGENTS  0/5')
+      expect(frame).toContain('3 settled ▸')
+      expect(frame).not.toContain('audit 0')
+      expect(frame).toContain('audit 4')
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('still walks to a child the panel has let go of, because only the row retired', async () => {
+  it('still walks to a child that has collapsed, because only the row folded', async () => {
     const app = appWith()
     await app.log.append({
-      threadId: toThreadId('thr_gone'),
+      threadId: toThreadId('thr_done_0'),
       runId: toRunId('run-child'),
       drafts: [{ type: 'assistant-said', parts: [{ type: 'text', text: CHILD_SAID }] }],
     })
     const setup = await opened(app)
 
     try {
-      act(() =>
-        app.agents.place(
-          settled({ agentId: 'thr_gone', intent: 'consumed audit', deliveredAt: LONG_AGO }),
-        ),
-      )
+      act(() => {
+        for (const child of deliveredSubagents(5)) app.agents.place(child)
+      })
       await setup.flush()
-      expect(setup.captureCharFrame()).not.toContain('consumed audit')
+      expect(setup.captureCharFrame()).not.toContain('audit 0')
 
       setup.mockInput.pressKey('g', { ctrl: true })
       await setup.flush()
@@ -145,79 +162,122 @@ describe('a settled sub-agent leaving the sidebar', () => {
     }
   }, 60_000)
 
-  it('counts a retired teammate against the teammate tier, not the sub-agent one', async () => {
+  it('folds a teammate tier and a sub-agent tier separately', async () => {
+    const app = appWith()
+    const setup = await opened(app)
+
+    try {
+      act(() => {
+        for (let at = 0; at < 4; at += 1) {
+          app.agents.place(
+            settled({ agentId: `thr_mate_${at}`, intent: `fix ${at}`, agentType: 'teammate', deliveredAt: LONG_AGO }),
+          )
+        }
+        for (const child of deliveredSubagents(5)) app.agents.place(child)
+      })
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('TEAMMATES  0/4')
+      expect(frame).toContain('SUB-AGENTS  0/5')
+      expect(frame).toContain('2 settled ▸')
+      expect(frame).toContain('3 settled ▸')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('never folds a failure the operator has not opened', async () => {
     const app = appWith()
     const setup = await opened(app)
 
     try {
       act(() => {
         app.agents.place(
-          fakeAgentSnapshot({ agentId: 'thr_mate_live', intent: 'live fix', agentType: 'teammate' }),
+          settled({ agentId: 'thr_failed', intent: 'broken audit', status: EAgentStatus.Failed, deliveredAt: LONG_AGO }),
         )
-        app.agents.place(
-          settled({
-            agentId: 'thr_mate_gone',
-            intent: 'consumed fix',
-            agentType: 'teammate',
-            deliveredAt: LONG_AGO,
-          }),
-        )
-        app.agents.place(settled({ agentId: 'thr_held', intent: 'pending audit' }))
-        app.agents.place(
-          settled({ agentId: 'thr_gone', intent: 'consumed audit', deliveredAt: LONG_AGO }),
-        )
+        for (const child of deliveredSubagents(5)) app.agents.place(child)
       })
       await setup.flush()
 
       const frame = setup.captureCharFrame()
-      expect(frame).toContain('TEAMMATES  1/2')
-      expect(frame).toContain('SUB-AGENTS  0/2')
-      expect(frame).toContain('2 mores in /agents')
+      expect(frame).toContain('broken audit')
+      expect(frame).toContain('3 settled ▸')
+      expect(frame).not.toContain('one failed')
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('never reclaims a failure the operator has not opened', async () => {
-    const app = appWith()
-    const setup = await opened(app)
-
-    try {
-      act(() =>
-        app.agents.place(
-          settled({
-            agentId: 'thr_failed',
-            intent: 'broken audit',
-            status: EAgentStatus.Failed,
-            deliveredAt: LONG_AGO,
-          }),
-        ),
-      )
-      await setup.flush()
-
-      expect(setup.captureCharFrame()).toContain('broken audit')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('keeps a running child while its settled siblings retire around it', async () => {
+  it('keeps a running child beside its folded settled siblings', async () => {
     const app = appWith()
     const setup = await opened(app)
 
     try {
       act(() => {
         app.agents.place(fakeAgentSnapshot({ agentId: 'thr_live', intent: 'live audit' }))
-        app.agents.place(
-          settled({ agentId: 'thr_gone', intent: 'consumed audit', deliveredAt: LONG_AGO }),
-        )
+        for (const child of deliveredSubagents(5)) app.agents.place(child)
       })
       await setup.flush()
 
       const frame = setup.captureCharFrame()
       expect(frame).toContain('live audit')
-      expect(frame).not.toContain('consumed audit')
-      expect(frame).toContain('SUB-AGENTS  1/2')
+      expect(frame).toContain('SUB-AGENTS  1/6')
+      expect(frame).toContain('3 settled ▸')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('holds a finished teammate with an open pull request out of the fold until it merges', async () => {
+    const app = appWith()
+    let state = EPullRequestState.Open
+    let version = 0
+    const listeners = new Set<() => void>()
+    const checkout: RepositoryCheckout = {
+      directory: '/work/mate',
+      branch: 'mate-work',
+      forge: EForge.GitHub,
+      remote: { host: 'github.com', owner: 'dennisofficial', repo: 'atlas' },
+    }
+    app.crewPullRequests = {
+      service: {
+        snapshot: () => ({ lookup: EPullRequestLookup.Found, pullRequest: pullRequestOf(state) }),
+        version: () => version,
+        subscribe: (listener) => {
+          listeners.add(listener)
+          return () => listeners.delete(listener)
+        },
+      },
+      checkoutFor: ({ threadId }) => (threadId === toThreadId('thr_mate_0') ? checkout : null),
+    }
+    const setup = await opened(app)
+
+    try {
+      act(() => {
+        for (let at = 0; at < 5; at += 1) {
+          app.agents.place(
+            settled({ agentId: `thr_mate_${at}`, intent: `fix ${at}`, agentType: 'teammate', deliveredAt: LONG_AGO }),
+          )
+        }
+      })
+      await setup.flush()
+
+      const held = setup.captureCharFrame()
+      expect(held).toContain('fix 0')
+      expect(held).toContain('2 settled ▸')
+      expect(held).not.toContain('fix 1')
+
+      act(() => {
+        state = EPullRequestState.Merged
+        version += 1
+        for (const listener of listeners) listener()
+      })
+      await setup.flush()
+
+      const released = setup.captureCharFrame()
+      expect(released).not.toContain('fix 0')
+      expect(released).toContain('3 settled ▸')
     } finally {
       await teardown(setup)
     }
