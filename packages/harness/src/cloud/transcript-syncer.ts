@@ -39,10 +39,12 @@ export class TranscriptSyncer {
     writer: MirrorWriter
     threadId: ThreadId
     onSyncFailed?: ((failure: unknown) => void) | undefined
+    onSyncRecovered?: (() => void) | undefined
     onSynced?: (() => void) | undefined
   }
   private running = false
   private pending: 'tail' | 'verify' | null = null
+  private failed = false
   private connection: ChannelConnection
   private readonly settled = new Set<{
     resolve: () => void
@@ -56,6 +58,7 @@ export class TranscriptSyncer {
     writer: MirrorWriter
     threadId: ThreadId
     onSyncFailed?: ((failure: unknown) => void) | undefined
+    onSyncRecovered?: (() => void) | undefined
     onSynced?: (() => void) | undefined
   }) {
     this.args = args
@@ -148,12 +151,17 @@ export class TranscriptSyncer {
           if (next === 'verify') {
             await this.verify()
             await this.tailSync()
-            continue
+          } else {
+            await this.tailSync()
           }
-          await this.tailSync()
+          if (this.failed) {
+            this.failed = false
+            this.args.onSyncRecovered?.()
+          }
         } catch (error) {
           failure = { cause: error }
           this.pending = null
+          this.failed = true
           this.args.onSyncFailed?.(error)
           return
         }

@@ -25,7 +25,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { buildInfo, clientVersionHeader, EBuildKind } from '../build/info'
-import { ENoticeTone } from '../ui/notice-store'
+import { clearNotice, ENoticeTone } from '../ui/notice-store'
 import { createCloudBridge } from './cloud/create-bridge'
 import { durableOpLog } from './durable-op-log'
 import { reapExpiredCloudSandboxes } from './cloud/reaper'
@@ -152,9 +152,13 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   },
   onMirrorFailed: () => {
     noticePortBinding().notify({
-      text: 'the local transcript mirror fell out of sync — the conversation renders from the sandbox until the next sync lands',
-      tone: ENoticeTone.Warn,
+      key: 'mirror-out-of-sync',
+      text: 'the local copy of this cloud conversation is briefly behind — the live view is unaffected, and this clears itself the moment the copy catches up',
+      tone: ENoticeTone.Info,
     })
+  },
+  onMirrorRecovered: () => {
+    clearNotice({ key: 'mirror-out-of-sync' })
   },
   environment: () => ({
     ...cloudEnvironmentOf(app.settings.snapshot().resolution),

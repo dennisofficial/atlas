@@ -51,11 +51,13 @@ export function createSessionMirrorSync(args: {
   writer: SessionMirrorWriter
   threadId: ThreadId
   onSyncFailed?: ((failure: unknown) => void) | undefined
+  onSyncRecovered?: (() => void) | undefined
 }): SessionMirrorSync {
   const listeners = new Set<() => void>()
   let connection: ChannelConnection = args.channel.connection()
   let running = false
   let dirty = true
+  let failed = false
   let currentRevision: number | undefined
   const settled = new Set<{ resolve: () => void; reject: (failure: unknown) => void }>()
 
@@ -121,9 +123,14 @@ export function createSessionMirrorSync(args: {
         dirty = false
         try {
           await sync()
+          if (failed) {
+            failed = false
+            args.onSyncRecovered?.()
+          }
         } catch (error) {
           failure = error
           dirty = true
+          failed = true
           args.onSyncFailed?.(error)
           return
         }

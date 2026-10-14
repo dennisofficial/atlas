@@ -37,6 +37,12 @@ export type LocalCloudBridgeOptions = {
    * Best-effort by design: the next signal retries, so this is a heads-up, never a thrown error.
    */
   onMirrorFailed?: ((failure: unknown) => void) | undefined
+  /**
+   * A previously reported mirror failure has healed — a sync landed after one threw. Only fires
+   * after an onMirrorFailed, never on steady-state syncs, so the surface clears its warning rather
+   * than churning it.
+   */
+  onMirrorRecovered?: (() => void) | undefined
   onPortableOmitted?: ((omitted: PortableOmissions) => void) | undefined
   environment?: (() => Record<string, string>) | undefined
   cloudUrl?: (() => string) | undefined

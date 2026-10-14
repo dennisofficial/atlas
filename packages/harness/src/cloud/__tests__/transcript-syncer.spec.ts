@@ -74,6 +74,7 @@ const rig = async (args: {
   localTexts: readonly string[]
   transcriptCurrent?: boolean
   writer?: ((real: MirrorWriter) => MirrorWriter) | undefined
+  onSyncRecovered?: (() => void) | undefined
 }) => {
   const fixture = await open()
   const threadId = THREAD
@@ -127,6 +128,7 @@ const rig = async (args: {
     writer: args.writer === undefined ? realWriter : args.writer(realWriter),
     threadId,
     onSyncFailed: (failure) => failures.push(failure),
+    ...(args.onSyncRecovered === undefined ? {} : { onSyncRecovered: args.onSyncRecovered }),
   })
 
   const localTexts = async (): Promise<string[]> =>
@@ -266,6 +268,39 @@ describe('TranscriptSyncer', () => {
     } finally {
       process.off('unhandledRejection', onRejection)
     }
+  })
+
+  it('fires onSyncRecovered once a failed sync lands again, and not on steady-state syncs', async () => {
+    let diskFull = true
+    const recovered: string[] = []
+    const { channel, remote, threadId, localTexts, syncer, failures } = await rig({
+      localTexts: ['stale-one', 'stale-two'],
+      writer: (real) => ({
+        appendDelta: real.appendDelta,
+        rewriteFrom: async (rewriteArgs) => {
+          if (diskFull) throw new Error('disk full')
+          await real.rewriteFrom(rewriteArgs)
+        },
+      }),
+      onSyncRecovered: () => recovered.push('recovered'),
+    })
+    remote.push(
+      remoteEvent({ threadId, seq: 1, text: 'one' }),
+      remoteEvent({ threadId, seq: 2, text: 'two' }),
+    )
+
+    channel.receive({ kind: EServeFrame.Reload, sinceEventSeq: 2 })
+    await syncer.converge()
+    await settled(async () => failures.length === 1)
+    expect(recovered).toEqual([])
+    expect(await localTexts()).toEqual(['stale-one', 'stale-two'])
+
+    diskFull = false
+    syncer.kick()
+    await syncer.converge()
+    await settled(async () => (await localTexts()).join(',') === 'one,two')
+
+    expect(recovered).toEqual(['recovered'])
   })
 
   it('a writer failure reports through onSyncFailed once, stays quiet, and the next kick retries', async () => {

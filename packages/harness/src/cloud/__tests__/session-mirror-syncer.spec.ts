@@ -275,6 +275,78 @@ describe('the session-directory mirror', () => {
     expect(stamp?.revision).toBe(2)
   })
 
+  it('reports recovery only after a reported failure, not on every steady-state sync', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'atlas-mirror-'))
+    homes.push(home)
+    const serve: FakeServe = {
+      files: new Map([['meta.json', { content: '{"format":1}' }]]),
+      revision: 1,
+    }
+    const channel = fakeChannel(serve)
+    const writer = sessionMirrorWriter({ home: () => home })
+    const recovered: string[] = []
+    const failures: unknown[] = []
+    const syncer = createSessionMirrorSync({
+      channel: channel as never,
+      writer,
+      threadId: THREAD,
+      onSyncFailed: (failure) => failures.push(failure),
+      onSyncRecovered: () => recovered.push('recovered'),
+    })
+
+    syncer.kick()
+    await syncer.converge()
+    serve.files.set('context/plan.md', { content: '# v2\n' })
+    serve.revision = 2
+    channel.emit({ type: 'session-files-changed', revision: 2 })
+    await syncer.converge()
+
+    expect(failures).toEqual([])
+    expect(recovered).toEqual([])
+  })
+
+  it('fires onSyncRecovered once a failed sync succeeds again', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'atlas-mirror-'))
+    homes.push(home)
+    const serve: FakeServe = {
+      files: new Map([['meta.json', { content: '{"format":1}' }]]),
+      revision: 1,
+    }
+    const channel = fakeChannel(serve)
+    const writer = sessionMirrorWriter({ home: () => home })
+    const recovered: string[] = []
+    const failures: unknown[] = []
+    let manifestFails = true
+    const flakyChannel = {
+      ...channel,
+      async request(args: { op: string; params: unknown }): Promise<unknown> {
+        if (args.op === 'read-session-manifest' && manifestFails) throw new Error('wire died mid-read')
+        return channel.request(args)
+      },
+    }
+    const syncer = createSessionMirrorSync({
+      channel: flakyChannel as never,
+      writer,
+      threadId: THREAD,
+      onSyncFailed: (failure) => failures.push(failure),
+      onSyncRecovered: () => recovered.push('recovered'),
+    })
+
+    syncer.kick()
+    await syncer.converge().catch(() => undefined)
+    expect(failures).toHaveLength(1)
+    expect(recovered).toEqual([])
+
+    manifestFails = false
+    syncer.kick()
+    await syncer.converge()
+
+    expect(recovered).toEqual(['recovered'])
+    await expect(
+      readFile(join(await writer.sessionDirFor({ threadId: THREAD }), 'meta.json'), 'utf8'),
+    ).resolves.toBe('{"format":1}')
+  })
+
   it('leaves a sibling session directory byte-identical', async () => {
     const home = await mkdtemp(join(tmpdir(), 'atlas-mirror-'))
     homes.push(home)
