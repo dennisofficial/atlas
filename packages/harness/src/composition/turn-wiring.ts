@@ -135,6 +135,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
         provider: modelPort.identity,
         model: promptModelOf(models.cardFor(model.choice().ref)),
         projectDirectory,
+        placement: executionLocation.current(),
       }),
     )
 
@@ -237,6 +238,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
               provider: childModel.identity,
               model: { contextWindow: contextWindowOf(childModel) || promptModelOf(undefined).contextWindow },
               projectDirectory,
+              placement: executionLocation.current(),
             }),
           launchDirectory: working ?? workspace.workspace,
           repoRoot: workspace.repo ?? undefined,

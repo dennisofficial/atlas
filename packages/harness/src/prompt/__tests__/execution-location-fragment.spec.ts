@@ -1,46 +1,54 @@
 import { describe, expect, it } from 'bun:test'
+import { EExecutionLocation, promptContextFor, EPromptAgent, type ProviderIdentity, type PromptModel } from '@dltech/atlas-core'
 
 import { ExecutionLocationFragment } from '../fragments/environment'
 
-describe('stable execution topology', () => {
-  it('describes local host/Docker execution and the remote harness', () => {
-    const text = new ExecutionLocationFragment().text()
-    expect(text).toContain('Atlas runs locally or in cloud.')
-    expect(text).toContain('commands and file operations on the host or in Docker')
-    expect(text).toContain('harness and execution in a Vercel sandbox')
-    expect(text).toContain('terminal is a client')
+const ctx = (placement?: EExecutionLocation) =>
+  promptContextFor({
+    agent: EPromptAgent.Main,
+    provider: { id: 'test', modelId: 'test-model' } as unknown as ProviderIdentity,
+    model: { contextWindow: 100000 } as unknown as PromptModel,
+    projectDirectory: '/repo',
+    placement,
   })
 
-  it('states what each sandboxed location shares with the operator\'s machine', () => {
-    const text = new ExecutionLocationFragment().text()
-    expect(text).toContain("A cloud session's filesystem, /tmp, and localhost are the sandbox's alone")
-    expect(text).toContain('a Docker session shares only the project directory and its declared mounts with the host')
+describe('execution-location fragment', () => {
+  it('states the session placement declaratively so the model never guesses from a path', () => {
+    expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Cloud))).toContain(
+      'This session is running in the cloud',
+    )
+    expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Docker))).toContain(
+      'in a Docker container',
+    )
+    expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Host))).toContain(
+      "running locally on the operator's machine (the host)",
+    )
   })
 
-  it('explains sibling cloning without promising multi-repository transfers', () => {
-    const text = new ExecutionLocationFragment().text()
+  it('defaults to host when placement is absent', () => {
+    expect(new ExecutionLocationFragment().text(ctx(undefined))).toContain(
+      "running locally on the operator's machine (the host)",
+    )
+  })
+
+  it('explains sibling cloning and ephemeral cloud workspaces', () => {
+    const text = new ExecutionLocationFragment().text(ctx())
     expect(text).toContain('/atlas/workspaces/<repo-name>')
     expect(text).toContain('Clone additional repositories beside it')
-    expect(text).toContain('explicit workdir or absolute paths')
-    expect(text).toContain('only the primary repository and its session worktree')
     expect(text).toContain('Adjacent clones are ephemeral')
     expect(text).toContain('sandbox cleanup deletes them')
   })
 
-  it('tells the model gitignored content does not lift and to install on demand', () => {
-    const text = new ExecutionLocationFragment().text()
+  it('tells the model gitignored content does not reach a cloud sandbox and to install on demand', () => {
+    const text = new ExecutionLocationFragment().text(ctx())
     expect(text).toContain('Gitignored content')
-    expect(text).toContain('does not travel')
+    expect(text).toContain('does not reach a cloud sandbox')
     expect(text).toContain("project's own install")
   })
 
-  it('keeps current placement and preview procedures outside system text', () => {
-    const text = new ExecutionLocationFragment().text()
-    expect(text).not.toContain('This session')
-    expect(text).not.toContain('execution_location')
-    expect(text).not.toContain('sandbox.localhost')
-    expect(text).not.toContain('cookies')
-    expect(text).not.toContain('Commit freely')
-    expect(text.length).toBeLessThan(900)
+  it('no longer describes the retired lift/descend machinery', () => {
+    const text = new ExecutionLocationFragment().text(ctx())
+    expect(text).not.toContain('Lift and descend')
+    expect(text).not.toContain('descend leaves them behind')
   })
 })
