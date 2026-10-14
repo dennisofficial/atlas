@@ -11,9 +11,9 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { ThreadStorePort } from '../../store/thread-store'
-import type { RestoredTree, RestoredWorkspace } from '../../workspace/transfer/manifest'
-import { captureWorkspaceMetadata } from '../../workspace/snapshot'
+import type { ThreadStorePort } from '../store/thread-store'
+import type { RestoredTree, RestoredWorkspace } from './transfer/manifest'
+import { captureWorkspaceMetadata } from './snapshot'
 import { recordFamilyOwnershipArrival, validateFamilyArrival } from './family-arrival'
 
 const within = (args: { path: string; root: string }): string | undefined => {

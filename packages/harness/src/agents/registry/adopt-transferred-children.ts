@@ -1,7 +1,7 @@
 import { EAgentRestart, EAgentStatus, isResumable, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
 
-import type { AgentRegistryPort } from '../../agents/registry/port'
-import { resumableAfterTransfer } from '../../agents/registry/transferred-family'
+import type { AgentRegistryPort } from './port'
+import { resumableAfterTransfer } from './transferred-family'
 
 export type TransferredAgentsPort = Pick<AgentRegistryPort, 'hydrate' | 'list' | 'resume'> &
   Partial<Pick<AgentRegistryPort, 'hydrateTransferred' | 'wake'>>

@@ -12,8 +12,8 @@ import type { AgentRegistryPort } from '../../agents/registry/port'
 import { logFieldsOf } from '../../store/logs'
 import type { ThreadStorePort } from '../../store/thread-store'
 import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
-import { restoredDirectoryOf } from './workspace-arrival'
-import { storedFamilyIds } from './family-arrival'
+import { restoredDirectoryOf } from '../../workspace/workspace-arrival'
+import { storedFamilyIds } from '../../workspace/family-arrival'
 
 export type LiftAgentsPort = Pick<
   AgentRegistryPort,

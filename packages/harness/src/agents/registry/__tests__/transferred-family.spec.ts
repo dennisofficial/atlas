@@ -9,7 +9,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { activateTransferredChildren, adoptTransferredChildren } from '../../../cloud/relocation/adopt-transferred-children'
+import { activateTransferredChildren, adoptTransferredChildren } from '../adopt-transferred-children'
 import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { finished, settled, type OpenedSupervisor } from './fixtures'
 import { append, endingFor, openChild, openFamily, snapshotOf } from './transferred-fixture'

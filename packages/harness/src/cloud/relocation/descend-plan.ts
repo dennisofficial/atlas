@@ -11,12 +11,12 @@ import { sessionDirectory } from '../../store/sessions/paths'
 import type { CloudBridge, CloudChannel } from '../cloud-bridge'
 import { transferMemoryDown, transferTranscriptDown } from './descend-transfer'
 import { prepareRelocation } from './prepare-relocation'
-import { adoptTransferredChildren, activateTransferredChildren } from './adopt-transferred-children'
+import { adoptTransferredChildren, activateTransferredChildren } from '../../agents/registry/adopt-transferred-children'
 import { flipChildrenBack } from './lift-children'
 import type { RelocationPlan } from './dag'
 import { restoreCloudWorkspace, type WorkspaceRestorer } from './descend-workspace'
 import { finishSourceCleanup } from './descend-source-cleanup'
-import { recordWorkspaceArrival } from './workspace-arrival'
+import { recordWorkspaceArrival } from '../../workspace/workspace-arrival'
 import {
   type DescendLocalHome,
   type DescendSurface,

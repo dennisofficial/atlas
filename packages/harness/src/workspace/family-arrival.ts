@@ -1,10 +1,10 @@
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 
-import { atlasDirectory } from '../../store/paths'
-import { sessionDirectory } from '../../store/sessions/paths'
-import type { ThreadStorePort } from '../../store/thread-store'
-import { writeFamilyOwnership } from '../../workspace/family-ownership'
-import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
+import { atlasDirectory } from '../store/paths'
+import { sessionDirectory } from '../store/sessions/paths'
+import type { ThreadStorePort } from '../store/thread-store'
+import { writeFamilyOwnership } from './family-ownership'
+import type { RestoredWorkspace } from './transfer/manifest'
 
 export async function storedFamilyIds(args: {
   threadId: ThreadId

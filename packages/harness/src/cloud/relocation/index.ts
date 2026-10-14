@@ -1,4 +1,3 @@
-export * from './adopt-transferred-children'
 export * from './prepare-relocation'
 export * from './descend'
 export * from './lift'
