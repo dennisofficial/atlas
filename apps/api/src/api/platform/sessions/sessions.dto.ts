@@ -144,12 +144,6 @@ export class ChooseModelDto {
   effort!: string
 }
 
-export class ChooseLocationDto {
-  @IsString()
-  @IsNotEmpty()
-  location!: string
-}
-
 export class AdoptThreadDto {
   @IsString()
   @IsNotEmpty()

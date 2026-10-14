@@ -6,7 +6,6 @@ import { threadPullRequests, threadWorktree } from './places'
 import { toEventDto, toThreadDto } from './rows'
 import type {
   AdoptThreadDto,
-  ChooseLocationDto,
   ChooseModelDto,
   CreateThreadDto,
   OpenThreadDto,
@@ -210,18 +209,6 @@ export class ThreadsService {
     await db.thread.update({
       where: { id: args.threadId },
       data: { modelRef: args.draft.ref, modelEffort: args.draft.effort },
-    })
-  }
-
-  async chooseLocation(args: {
-    userId: string
-    threadId: string
-    draft: ChooseLocationDto
-  }): Promise<void> {
-    await this.ownedThread(args)
-    await db.thread.update({
-      where: { id: args.threadId },
-      data: { executionLocation: args.draft.location },
     })
   }
 

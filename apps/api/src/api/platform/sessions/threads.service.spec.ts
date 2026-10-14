@@ -256,7 +256,7 @@ describe('ThreadsService', () => {
     expect(recent?.id).toBe(fresh.id)
   })
 
-  it('rename, chooseModel, chooseLocation and adopt write their fields', async () => {
+  it('rename, chooseModel and adopt write their fields', async () => {
     const created = await service.create({ userId: USER_A, draft: {} })
 
     await service.rename({ userId: USER_A, threadId: created.id, draft: { title: 'renamed' } })
@@ -264,11 +264,6 @@ describe('ThreadsService', () => {
       userId: USER_A,
       threadId: created.id,
       draft: { ref: 'anthropic/claude-opus', effort: 'high' },
-    })
-    await service.chooseLocation({
-      userId: USER_A,
-      threadId: created.id,
-      draft: { location: 'cloud' },
     })
     await service.adopt({
       userId: USER_A,
@@ -282,7 +277,6 @@ describe('ThreadsService', () => {
       workspace: '/adopted',
       repo: null,
       model: { ref: 'anthropic/claude-opus', effort: 'high' },
-      executionLocation: 'cloud',
     })
   })
 

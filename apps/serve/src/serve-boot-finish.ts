@@ -7,7 +7,6 @@ import { DEFAULT_DRAIN_DEADLINE_MS } from './drain-deadline'
 import { settleDirectArrival } from './direct-arrival'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
 import { startServeIdleStop } from './idle-stop'
-import { hydrateCloudPlacement } from './placement-hydration'
 import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
@@ -83,7 +82,6 @@ export async function finishServeBoot(args: {
   })
 
   await recovery.guard({ app, admission })
-  await hydrateCloudPlacement({ app, threadId })
   const bootReceipt = directBoot.kind === 'ready' ? await direct.receipt() : null
   if (bootReceipt?.arrivalPending === true) {
     await settleDirectArrival({

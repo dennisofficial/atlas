@@ -20,7 +20,6 @@ import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import {
   AdoptThreadDto,
-  ChooseLocationDto,
   ChooseModelDto,
   CompactThreadDto,
   CreateThreadDto,
@@ -154,16 +153,6 @@ export class ThreadsController {
     @Body() body: ChooseModelDto,
   ): Promise<void> {
     await this.threads.chooseModel({ userId: userIdOf(request), threadId, draft: body })
-  }
-
-  @Patch(':threadId/location')
-  @HttpCode(204)
-  async handleChooseLocation(
-    @Req() request: AuthenticatedRequest,
-    @Param('threadId') threadId: string,
-    @Body() body: ChooseLocationDto,
-  ): Promise<void> {
-    await this.threads.chooseLocation({ userId: userIdOf(request), threadId, draft: body })
   }
 
   @Patch(':threadId/workspace')
