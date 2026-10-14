@@ -33,7 +33,8 @@ const sameLinks = (
       other !== undefined &&
       pullRequestLinkKey(link) === pullRequestLinkKey(other) &&
       link.branch === other.branch &&
-      link.url === other.url
+      link.url === other.url &&
+      link.linkedBy === other.linkedBy
     )
   })
 

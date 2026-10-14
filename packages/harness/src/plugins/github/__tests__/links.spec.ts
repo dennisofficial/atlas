@@ -62,12 +62,17 @@ const standing = (
 
 let nextSeq = 0
 
-const linkEvent = (args: { number: number; branch: string; repo?: string }): Event => {
+const linkEvent = (args: {
+  number: number
+  branch: string
+  repo?: string
+  threadId?: ThreadId
+}): Event => {
   nextSeq += 1
   return {
     id: `evt_${nextSeq}`,
     seq: nextSeq,
-    threadId: THREAD_A,
+    threadId: args.threadId ?? THREAD_A,
     runId: 'run_1',
     depth: 0,
     at: '2026-09-04T12:00:00.000Z',
@@ -185,6 +190,26 @@ describe('reading links back', () => {
 
     expect(links.projection.current()).toBe(first)
     expect(bumped).toBe(0)
+  })
+
+  it('republishes when the same pull request is linked again by another thread', () => {
+    const links = createPullRequestLinks(standing(null))
+    links.projection.publish({ events: [linkEvent({ number: 401, branch: 'dennis/first' })] })
+    expect(links.projection.current()[0]?.linkedBy).toBe(THREAD_A)
+
+    let bumped = 0
+    links.projection.subscribe(() => {
+      bumped += 1
+    })
+    links.projection.publish({
+      events: [
+        linkEvent({ number: 401, branch: 'dennis/first' }),
+        linkEvent({ number: 401, branch: 'dennis/first', threadId: THREAD_B }),
+      ],
+    })
+
+    expect(links.projection.current()[0]?.linkedBy).toBe(THREAD_B)
+    expect(bumped).toBe(1)
   })
 })
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { Event } from '../../events/envelope'
+import { toThreadId } from '../../events/ids'
 import { pullRequestsAfter, pullRequestsOf } from '../pull-requests'
 
 let nextSeq = 0
@@ -64,8 +65,21 @@ describe('the pull requests a session has linked', () => {
 
     expect(pullRequestsOf(events)).toHaveLength(2)
   })
-})
 
+  it('records the thread whose event linked it', () => {
+    const [folded] = pullRequestsOf([linked({ number: 401, branch: 'dennis/first' })])
+
+    expect(folded?.linkedBy).toBe(toThreadId('br_1'))
+  })
+
+  it('credits a repeat link to the thread that linked it last', () => {
+    const later = { ...linked({ number: 401, branch: 'dennis/first' }), threadId: toThreadId('br_2') }
+
+    const [folded] = pullRequestsOf([linked({ number: 401, branch: 'dennis/first' }), later])
+
+    expect(folded?.linkedBy).toBe(toThreadId('br_2'))
+  })
+})
 
 
 describe('folding drafts that have not been written yet', () => {
@@ -94,5 +108,22 @@ describe('folding drafts that have not been written yet', () => {
     })
 
     expect(folded.map((pr) => pr.number)).toEqual([401, 412])
+  })
+
+  it('leaves a draft link without a linking thread', () => {
+    const folded = pullRequestsAfter({
+      drafts: [
+        {
+          type: 'pull-request-linked',
+          number: 412,
+          url: 'https://github.com/dltech/atlas/pull/412',
+          repo: 'github.com/dltech/atlas',
+          branch: 'dennis/second',
+        },
+      ],
+      linked: [],
+    })
+
+    expect(folded[0]?.linkedBy).toBeUndefined()
   })
 })
