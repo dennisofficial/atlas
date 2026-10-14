@@ -4,7 +4,7 @@ export type LiftBlockers = {
 }
 
 const ROTATING =
-  'a lift waits for the rotation to finish — it is moving the session onto a new main thread'
+  'a lift waits for the rotation to finish — it is rewriting the log the lift is about to transfer'
 
 const COMPACTING =
   'a lift waits for the summary being written — it rewrites the log the lift is about to transfer'

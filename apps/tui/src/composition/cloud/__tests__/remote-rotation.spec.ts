@@ -7,7 +7,6 @@ import { EWireRotationPhase } from '@dltech/atlas-wire'
 import { RemoteRotation } from '../remote-rotation'
 
 const MAIN = toThreadId('thr_main')
-const NEXT = toThreadId('thr_next')
 
 const channel = (reply: unknown) => {
   const listeners = new Set<ChannelListener>()
@@ -30,28 +29,40 @@ const channel = (reply: unknown) => {
 }
 
 describe('the rotation a cloud thread carries', () => {
-  it('asks the sandbox to rotate and resolves committed when a signal names the successor', async () => {
+  it('asks the sandbox to rotate and resolves rotated when a signal reports done', async () => {
     const fake = channel({ type: 'started' })
     const rotation = new RemoteRotation({ channel: fake.port })
 
-    const pending = rotation.request({ sessionId: MAIN, predecessor: MAIN, instructions: 'focus' })
+    const pending = rotation.request({ sessionId: MAIN, threadId: MAIN, instructions: 'focus' })
     await Promise.resolve()
     await Promise.resolve()
-    fake.emit({ type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Activating, successor: NEXT } })
+    fake.emit({ type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Done, watermarkSeq: 7 } })
 
-    expect(await pending).toMatchObject({ kind: 'committed', successor: NEXT, predecessor: MAIN })
+    expect(await pending).toMatchObject({ kind: 'rotated', threadId: MAIN, watermarkSeq: 7 })
     expect(fake.requests[0]).toMatchObject({
       op: EClientRequest.Rotate,
       params: { threadId: MAIN, instructions: 'focus' },
     })
   })
 
-  it('resolves failed when the sandbox refuses', async () => {
+  it('resolves failed when a signal reports the failure', async () => {
+    const fake = channel({ type: 'started' })
+    const rotation = new RemoteRotation({ channel: fake.port })
+
+    const pending = rotation.request({ sessionId: MAIN, threadId: MAIN, instructions: '' })
+    await Promise.resolve()
+    await Promise.resolve()
+    fake.emit({ type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Failed, reason: 'no summary' } })
+
+    expect(await pending).toEqual({ kind: 'failed', reason: 'no summary' })
+  })
+
+  it('resolves refused when the sandbox refuses', async () => {
     const fake = channel({ type: 'refused', reason: 'a rotation is already underway' })
     const rotation = new RemoteRotation({ channel: fake.port })
 
-    expect(await rotation.request({ sessionId: MAIN, predecessor: MAIN, instructions: '' })).toMatchObject({
-      kind: 'failed',
+    expect(await rotation.request({ sessionId: MAIN, threadId: MAIN, instructions: '' })).toEqual({
+      kind: 'refused',
       reason: 'a rotation is already underway',
     })
   })
@@ -62,9 +73,9 @@ describe('the rotation a cloud thread carries', () => {
     const phases: ERotationPhase[] = []
     rotation.subscribe((stage) => phases.push(stage.phase))
 
-    fake.emit({ type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Writing } })
+    fake.emit({ type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Compacting } })
     fake.emit({ type: 'events-appended' })
 
-    expect(phases).toEqual([ERotationPhase.Committing])
+    expect(phases).toEqual([ERotationPhase.Compacting])
   })
 })

@@ -24,7 +24,7 @@ import type {
   TranscriptModel,
 } from '../store'
 import type { Compacting } from '../ui/components/compacting'
-import type { Rotating } from '../ui/components/rotating'
+import type { Rotating } from '../ui/components/rotating-line'
 
 import type { OperatorInputControl } from './use-operator-input'
 import type { TurnClock } from '../ui/turn-clock'
