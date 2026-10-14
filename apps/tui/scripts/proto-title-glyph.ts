@@ -7,8 +7,8 @@
  *   to idle — watch this tile's entry in the terminal's tab/sidebar list, not the tile body.
  *
  * Flags:
- *   --preset <name>   grayscale working-frame set: moon | circle | arc | quarter | shade |
- *                     orbit | braille (default: moon)
+ *   --preset <name>   grayscale working-frame set: braille | moon | circle | arc | quarter |
+ *                     shade | orbit (default: braille)
  *   --idle <glyph>    idle glyph (default: ◦)
  *   --needs <glyph>   needs-you glyph, held between bursts (default: ●)
  *   --needs <s>       seconds the needs-you state holds between bursts (default: 4)
@@ -38,7 +38,7 @@ const flag = <T>(name: string, fallback: T, parse: (raw: string) => T): T => {
   return raw === undefined ? fallback : parse(raw)
 }
 
-const preset = flag('preset', 'moon', (raw) => raw)
+const preset = flag('preset', 'braille', (raw) => raw)
 const presetFrames = PRESETS[preset]
 if (presetFrames === undefined) {
   process.stderr.write(`unknown preset "${preset}" — one of: ${Object.keys(PRESETS).join(', ')}\n`)

@@ -33,9 +33,9 @@ export function spinnerFrame(nowMs: number): string {
   return SPINNER_FRAMES[index] as string
 }
 
-export const WORKING_TITLE_FRAMES = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'] as const
+export const WORKING_TITLE_FRAMES = SPINNER_FRAMES
 
-export const WORKING_TITLE_FRAME_MS = 240
+export const WORKING_TITLE_FRAME_MS = 80
 
 export const IDLE_TITLE_GLYPH = '◦'
 
