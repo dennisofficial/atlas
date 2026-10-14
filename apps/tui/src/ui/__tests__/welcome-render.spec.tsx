@@ -132,6 +132,26 @@ describe('the welcome screen in the hero placement shape', () => {
     expect(frame).toBe(baseline)
     expect(frame).not.toContain('☁')
   })
+
+  it('drops the placement from the metadata line when the terminal is too narrow for it', async () => {
+    const narrow = WORDMARK_CELLS - 10
+    const node = (
+      <WelcomeScreen
+        cwd={CWD}
+        home={HOME}
+        modelId={MODEL_ID}
+        version="v1.2.3"
+        width={narrow}
+        shape="hero"
+        placement={host}
+      />
+    )
+    const frame = await frameOf(node, narrow)
+
+    expect(frame).not.toContain('☁')
+    expect(frame).not.toContain('footer chip')
+    expect(frame.split('\n').every((row) => row.length <= narrow)).toBe(true)
+  })
 })
 
 describe('the welcome screen in the chip placement shape', () => {

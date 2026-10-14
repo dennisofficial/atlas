@@ -35,9 +35,11 @@ export function WelcomeScreen(props: {
   shape?: 'chip' | 'hero'
   placement?: WelcomePlacement | null
 }): React.ReactNode {
-  const hosted =
-    props.shape === 'hero' && props.placement != null ? props.placement.harness === EHarnessPlacement.Host : null
   const marked = props.width >= WORDMARK_CELLS
+  const hosted =
+    marked && props.shape === 'hero' && props.placement != null
+      ? props.placement.harness === EHarnessPlacement.Host
+      : null
   const rows = wordmarkRows({ accent: theme.accent, ground: theme.appBg, bright: theme.bright })
 
   return (
