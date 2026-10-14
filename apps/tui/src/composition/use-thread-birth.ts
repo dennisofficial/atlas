@@ -98,7 +98,7 @@ export function useThreadBirth(args: {
       onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
       onTransferProgress: move.handleTransferProgress,
       onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
-      open: async ({ attachment, transaction, restoredWorkspace }) => {
+      open: async ({ attachment, prepareRuntime, restoredWorkspace }) => {
         const stopWatching = attachment.channel.subscribe({
           threadId,
           listener: (signal) => {
@@ -125,7 +125,7 @@ export function useThreadBirth(args: {
           },
         })
         prepareOn({
-          transaction,
+          prepareRuntime,
           binding: cloudBindingOf({
             local: app,
             anchor,
@@ -148,7 +148,6 @@ export function useThreadBirth(args: {
           fallBackToHost(birthArgs({ threadId }))
           return
         }
-        await owner.placement.markBorn({ threadId }).catch(() => undefined)
         bornPlacementChip(app).set({ threadId, harness: EHarnessPlacement.Cloud, provisioning: false })
         move.handleSettle()
       })

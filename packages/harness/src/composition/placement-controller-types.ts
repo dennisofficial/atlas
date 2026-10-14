@@ -1,4 +1,4 @@
-import type { EExecutionLocation, SessionPlacement, ThreadId } from '@dltech/atlas-core'
+import type { SessionPlacement, ThreadId } from '@dltech/atlas-core'
 
 import type { SessionAuthorityPort } from '../store/sessions/meta'
 import type { ThreadStorePort } from '../store/thread-store'
@@ -10,29 +10,18 @@ export type PlacementStore = Pick<
 
 export type PlacementSessionAuthority = Pick<SessionAuthorityPort, 'activeMainOf'>
 
-export enum EPlacementMoveKind {
-  Tools = 'tools',
-  Lift = 'lift',
-  Descend = 'descend',
-  /** A same-placement fill: the record stays put, only its detail (e.g. drive name) is written. */
-  Correct = 'correct',
-}
-
 export class PlacementBusy extends Error {
   constructor() {
-    super('a placement move is already underway for this session')
+    super('a placement change is already underway for this session')
   }
 }
 
-export type PlacementTransaction = {
-  from: EExecutionLocation
+/**
+ * The handle the cloud-birth path commits through: no move lifecycle, just the durable placement
+ * write the birth's provisioning is the content of. `commit` is the CAS record write; `committed`
+ * lets the caller tell a committed birth from one that failed before the write.
+ */
+export type PlacementCommit = {
   committed: () => boolean
-  commit: (placement?: SessionPlacement) => Promise<void>
-  /**
-   * Ends the move without flipping placement, for work that reports its failure as a value rather
-   * than throwing it. The preparation marker is cleared and the source placement stands.
-   */
-  abandon: () => void
+  commit: (placement: SessionPlacement) => Promise<void>
 }
-
-export type MoveSettledListener = (args: { threadId: ThreadId }) => void

@@ -7,7 +7,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
-import { EPlacementMoveKind, PlacementBusy } from '../composition/placement-controller'
+import { PlacementBusy } from '../composition/placement-controller'
 import type { AnchoringControl } from '../composition/sandbox-reanchor'
 import type { DockerEngine } from './docker/engine'
 import type { ServiceRegistryPort } from '../services/service-registry'
@@ -89,64 +89,57 @@ export async function moveLocalPlacement(args: {
   }
 
   try {
-    return await control.state.move({
-      threadId: owner,
-      target,
-      kind: EPlacementMoveKind.Tools,
-      work: async (transaction) => {
-        const cwd = args.cwd ?? (await derivedCwd({ control, threadId: owner, log: stores.log }))
+    const cwd = args.cwd ?? (await derivedCwd({ control, threadId: owner, log: stores.log }))
 
-        if (args.pause !== undefined) {
-          args.onProgress?.('pausing the session’s agents')
-          await args.pause({ threadId: owner, caller: args.caller })
-        }
+    if (args.pause !== undefined) {
+      args.onProgress?.('pausing the session’s agents')
+      await args.pause({ threadId: owner, caller: args.caller })
+    }
 
-        const killedShells = await stopMovingShells({
-          root: owner,
-          threads: stores.threads,
-          shells: args.shells,
-        })
+    const killedShells = await stopMovingShells({
+      root: owner,
+      threads: stores.threads,
+      shells: args.shells,
+    })
 
-        if (args.whenSettled !== undefined) {
-          args.onProgress?.('waiting for the session’s agents to settle')
-          await args.whenSettled()
-        }
+    if (args.whenSettled !== undefined) {
+      args.onProgress?.('waiting for the session’s agents to settle')
+      await args.whenSettled()
+    }
 
-        if (target === EExecutionLocation.Docker && cwd !== undefined) {
-          args.onProgress?.('anchoring the sandbox to the session’s directory')
-          await control.anchoring?.prepare({ cwd, threadId: owner })
-        }
+    if (target === EExecutionLocation.Docker && cwd !== undefined) {
+      args.onProgress?.('anchoring the sandbox to the session’s directory')
+      await control.anchoring?.prepare({ cwd, threadId: owner })
+    }
 
-        let moved: RelocatedSession
-        try {
-          moved = await relocateSession({
-            threadId: owner,
-            from: transaction.from,
-            location: target,
-            cwd,
-            caller: args.caller,
-            log: stores.log,
-            ids: args.ids,
-            services: args.services,
-            agents: stores.agents,
-          })
-        } catch (error) {
-          args.logPort?.error({
-            source: 'execution-location',
-            message: `the move to ${target} failed (${messageOf(error)}) — no placement was committed`,
-            threadId: owner,
-            data: { from: transaction.from, to: target },
-            ...logFieldsOf({ error }),
-          })
-          throw error
-        }
+    let moved: RelocatedSession
+    try {
+      moved = await relocateSession({
+        threadId: owner,
+        from,
+        location: target,
+        cwd,
+        caller: args.caller,
+        log: stores.log,
+        ids: args.ids,
+        services: args.services,
+        agents: stores.agents,
+      })
+    } catch (error) {
+      args.logPort?.error({
+        source: 'execution-location',
+        message: `the move to ${target} failed (${messageOf(error)}) — no placement was committed`,
+        threadId: owner,
+        data: { from, to: target },
+        ...logFieldsOf({ error }),
+      })
+      throw error
+    }
 
-        await stores.threads.chooseExecutionLocation({ threadId: owner, location: target })
-        await transaction.commit()
+    await stores.threads.chooseExecutionLocation({ threadId: owner, location: target })
+    await control.state.setToolEnvironment({ threadId: owner, target })
 
-        return { from: transaction.from, to: target, killedShells, moved, stillDying: moved.stillStopping }
-      },
-    }).then((moved) => ({ ok: true as const, ...moved }))
+    return { ok: true as const, from, to: target, killedShells, moved, stillDying: moved.stillStopping }
   } catch (error) {
     if (error instanceof PlacementBusy) {
       return { ok: false, reason: error.message }

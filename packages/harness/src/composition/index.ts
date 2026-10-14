@@ -18,7 +18,6 @@ export { createExecutionLocationState, type ExecutionLocationState } from './exe
 export * from './placement-controller'
 export * from './session-owner'
 export { holdFamilyIntake } from './freeze-family'
-export { ERecoveryAction, recoveryActionOf } from './session-recovery'
 export { defaultExecutionLocation, executionPinned, resolveExecutionLocation } from './execution-preference'
 export { faultInjected } from './fault-injection'
 export { instructionPlanOf, nestedInstructionPlanOf } from './instruction-plan'

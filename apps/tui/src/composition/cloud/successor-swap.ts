@@ -7,7 +7,6 @@ import { durableOpLog } from '../durable-op-log'
 import { messageOf } from '../error-text'
 import type { OpenedConversation } from '../open-conversation'
 import { cloudAttachmentOf } from '../session-binding'
-import { settleOnChannel } from '../session-recovery'
 import { readThreadSnapshot } from '../thread-reads'
 import { readThreadSpend } from '../thread-spend'
 import { EThreadRows } from '../use-thread-view'
@@ -126,9 +125,6 @@ export async function swapToCloudSuccessor(args: {
     await localApp.sessionOwner.adopt({
       threadId: successor,
       binding,
-      settle: async ({ action }) => {
-        await settleOnChannel({ channel: parked.channel, action })
-      },
     })
     await mirrored.seal()
     trace('swap adopted and sealed')

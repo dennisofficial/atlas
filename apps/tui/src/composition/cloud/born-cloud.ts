@@ -78,7 +78,7 @@ function placeOnFirstSend(args: BornCloudArgs): void {
       stop()
       bornPlacementChip(app).retire(threadId)
       const held = app.sessionOwner.placement.snapshot(threadId)
-      if (held !== undefined && (held.move !== null || held.placement.harness === EHarnessPlacement.Cloud)) return
+      if (held !== undefined && held.placement.harness === EHarnessPlacement.Cloud) return
       void app.sessionOwner.placement
         .placeAtCreation({ threadId, placement: HOST_PLACEMENT })
         .catch(() => undefined)

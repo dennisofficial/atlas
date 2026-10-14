@@ -1,12 +1,10 @@
 import {
   EHarnessPlacement,
-  EPlacementMovePhase,
   EToolEnvironment,
   executionLocationOf,
   locationOfPlacement,
   placementOf,
   EExecutionLocation,
-  type PlacementMove,
   type PlacementRecord,
   type SessionPlacement,
 } from '@dltech/atlas-core'
@@ -37,23 +35,6 @@ const placementFrom = (value: unknown): SessionPlacement | undefined => {
   }
 }
 
-const moveFrom = (value: ThreadMeta['placement']): PlacementMove | null => {
-  const stored = value?.move
-  if (stored === undefined || stored === null) return null
-  const from = placementFrom(stored.from)
-  const to = placementFrom(stored.to)
-  if (from === undefined || to === undefined) return null
-  return {
-    id: stored.id,
-    from,
-    to,
-    phase:
-      stored.phase === EPlacementMovePhase.Committed
-        ? EPlacementMovePhase.Committed
-        : EPlacementMovePhase.Preparing,
-  }
-}
-
 export function placementRecordOf(meta: ThreadMeta): PlacementRecord {
   const stored = meta.placement
   const placement = stored === undefined || stored === null ? undefined : placementFrom(stored.placement)
@@ -61,11 +42,9 @@ export function placementRecordOf(meta: ThreadMeta): PlacementRecord {
     return {
       placement: placementOf(executionLocationOf(meta.executionLocation) ?? EExecutionLocation.Host),
       revision: 0,
-      move: null,
-      born: null,
     }
   }
-  return { placement, revision: stored?.revision ?? 0, move: moveFrom(stored), born: stored?.born ?? null }
+  return { placement, revision: stored?.revision ?? 0 }
 }
 
 export function metaWithPlacement(args: { meta: ThreadMeta; record: PlacementRecord }): ThreadMeta {
@@ -75,16 +54,6 @@ export function metaWithPlacement(args: { meta: ThreadMeta; record: PlacementRec
     placement: {
       placement: args.record.placement,
       revision: args.record.revision,
-      move:
-        args.record.move === null
-          ? null
-          : {
-              id: args.record.move.id,
-              from: args.record.move.from,
-              to: args.record.move.to,
-              phase: args.record.move.phase,
-            },
-      born: args.record.born ?? null,
     },
   }
 }

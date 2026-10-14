@@ -114,15 +114,6 @@ export const threadMetaSchema = z.object({
         z.object({ harness: z.literal('cloud'), driveName: z.string().optional() }),
       ]),
       revision: z.number(),
-      move: z
-        .object({
-          id: z.string(),
-          from: z.unknown(),
-          to: z.unknown(),
-          phase: z.enum(['preparing', 'committed']),
-        })
-        .nullable(),
-      born: z.boolean().nullish(),
     })
     .nullish(),
   parkedTranscript: z

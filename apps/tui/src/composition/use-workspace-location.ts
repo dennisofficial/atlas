@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { recoverSession } from './session-recovery'
 
 import { isShellRunning } from '../ui/shells-model'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -91,7 +90,6 @@ export function useWorkspaceLocation(args: {
     [containerMove, conversation.refresh, conversation.threadId, execution, props.app],
   )
 
-  const recovering = useRef(false)
 
   const containerGuard = useContainerGuard({ onSwitch: applyToolSwitch })
 
@@ -102,40 +100,6 @@ export function useWorkspaceLocation(args: {
       if (asked === EContainerAsk.Resources) return undefined
       if (asked === execution.location) return currentLocationNotice(execution.location)
 
-      const owner = props.localApp.sessionOwner
-      const record = owner.snapshot().record
-      if (record !== undefined && record.born === true) {
-        return asked === EExecutionLocation.Cloud
-          ? bornLocalRefusalNotice()
-          : bornCloudRefusalNotice(asked)
-      }
-
-      const unfinished = record?.move
-      if (unfinished != null && owner.placement.startedHere(unfinished.id)) {
-        return 'a move is already underway — wait for it to settle'
-      }
-      if (unfinished != null) {
-        if (recovering.current) return 'a recovery is already underway — wait for it to settle'
-        recovering.current = true
-        void recoverSession({
-          owner,
-          app: props.localApp,
-          threadId: conversation.threadId,
-          bridge: props.createBridge,
-          opened: props.opened,
-          onReload: props.onReload,
-        }).then((outcome) => {
-          recovering.current = false
-          if (outcome.recovered) return
-          notify({
-            key: 'container-switch',
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-            text: `this session has an unfinished move that could not be recovered yet — ${outcome.reason}`,
-          })
-        })
-        return 'this session has an unfinished move — recovering it first; ask again once it settles'
-      }
       if (containerMove.move !== null) {
         return 'a move is already underway — wait for it to settle'
       }

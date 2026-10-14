@@ -8,8 +8,6 @@ import {
   type CloudBridge,
   type CloudChannel,
   type CloudStores,
-  type OwnerTransaction,
-  type PlacementTransaction,
   type RestoredWorkspace,
   type RuntimeBinding,
   type SessionMirrorSync,
@@ -196,12 +194,8 @@ export const keyOf = (binding: Binding | undefined): number => {
 }
 
 export function prepareOn(args: {
-  transaction: PlacementTransaction | OwnerTransaction<SessionRuntime>
+  prepareRuntime: (binding: RuntimeBinding<SessionRuntime>) => void
   binding: Binding
 }): void {
-  const { transaction } = args
-  if (!('prepareRuntime' in transaction)) {
-    throw new Error('the move has no session owner to stage the runtime on')
-  }
-  transaction.prepareRuntime(args.binding)
+  args.prepareRuntime(args.binding)
 }

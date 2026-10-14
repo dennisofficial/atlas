@@ -208,7 +208,6 @@ export class JsonlThreadStore implements ThreadStorePort {
       record: {
         placement: placementOf(location),
         revision: held?.revision ?? 0,
-        move: held?.move ?? null,
       },
     })
   }

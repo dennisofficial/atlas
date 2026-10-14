@@ -9,8 +9,8 @@ import {
 } from '@dltech/atlas-core'
 import { cloudWorkspacePath } from '@dltech/atlas-wire'
 
-import { EPlacementMoveKind } from '../composition/placement-controller'
-import type { OwnerTransaction, SessionOwner, SessionRuntime } from '../composition/session-owner'
+import type { PlacementCommit } from '../composition/placement-controller'
+import type { RuntimeBinding, SessionOwner, SessionRuntime } from '../composition/session-owner'
 import { logFieldsOf } from '../store/logs'
 import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
 import { probeWorkspace } from '../workspace/probe'
@@ -86,7 +86,7 @@ export type BirthArgs = {
   onBuildProgress?: ArchiveBuildReporter | undefined
   open?: ((args: {
     attachment: CloudAttachment
-    transaction: OwnerTransaction<SessionRuntime>
+    prepareRuntime: (binding: RuntimeBinding<SessionRuntime>) => void
     restoredWorkspace?: RestoredWorkspace | undefined
   }) => Promise<void>) | undefined
 }
@@ -113,19 +113,21 @@ const workspaceDirectoryOf = (archive: LiftWorkspaceArchive): string | undefined
  * transfer machinery — a newborn has no transcript to carry, no turn to interrupt, no children to
  * flip. The chain mirrors what the old lift DAG did for an unstarted thread: stamp the model,
  * pack the workspace, provision the sandbox, attach, commit the placement, open the conversation,
- * activate the prepared runtime. The placement commit rides the session owner's move transaction
- * so the durable write and the runtime install stay one atomic step.
+ * activate the prepared runtime. The placement commit rides the session owner's install, so the
+ * durable write and the runtime install stay one step.
  */
 export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
   const { threadId } = args
   args.onBegin?.({ waves: BIRTH_WAVES })
 
   try {
-    const born = await args.placement.move<BirthSuccess>({
+    let staged: RuntimeBinding<SessionRuntime> | undefined
+    const born = await args.placement.install<BirthSuccess>({
       threadId,
-      target: EExecutionLocation.Cloud,
-      kind: EPlacementMoveKind.Lift,
-      work: async (transaction) => {
+      prepareRuntime: (binding) => {
+        staged = binding
+      },
+      work: async (commit) => {
         const started = (id: EBirthNode): void => args.onNodeStart?.(id)
         const done = (id: EBirthNode): void => args.onNodeDone?.(id)
 
@@ -188,11 +190,17 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
           }
 
           started(EBirthNode.FlipOwnership)
-          await transaction.commit({ harness: EHarnessPlacement.Cloud, driveName: sandbox.driveName })
+          await commit.commit({ harness: EHarnessPlacement.Cloud, driveName: sandbox.driveName })
           done(EBirthNode.FlipOwnership)
 
           started(EBirthNode.Open)
-          await args.open?.({ attachment, transaction, restoredWorkspace })
+          await args.open?.({
+            attachment,
+            prepareRuntime: (binding) => {
+              staged = binding
+            },
+            restoredWorkspace,
+          })
           done(EBirthNode.Open)
 
           started(EBirthNode.Activate)

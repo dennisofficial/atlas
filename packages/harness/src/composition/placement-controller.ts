@@ -1,10 +1,8 @@
 import {
   EExecutionLocation,
   EHarnessPlacement,
-  EPlacementMovePhase,
   locationOfPlacement,
   placementOf,
-  type PlacementMove,
   type PlacementRecord,
   type SessionPlacement,
   type ThreadId,
@@ -12,31 +10,33 @@ import {
 
 import { isTeammateType } from '../agents/types'
 import {
-  EPlacementMoveKind,
   PlacementBusy,
-  type MoveSettledListener,
+  type PlacementCommit,
   type PlacementSessionAuthority,
   type PlacementStore,
-  type PlacementTransaction,
 } from './placement-controller-types'
 
 export * from './placement-controller-types'
 
+/**
+ * The placement substrate. Placement is fixed at creation and never moves afterwards — the move
+ * engine (lift/descend, the transaction lifecycle, stranded-move recovery) was deleted under
+ * GREENFIELD, so what remains is: the durable record's compare-and-swap write discipline, the
+ * born-at-creation stamp, the one permitted host↔docker tool-environment rewrite, and the cloud
+ * birth's commit handle. Every thread is born-placed; immutability is unconditional.
+ */
 export class PlacementController {
   private active: ThreadId | undefined
   private readonly records = new Map<ThreadId, PlacementRecord>()
   private readonly listeners = new Set<() => void>()
   private readonly moving = new Set<ThreadId>()
-  private readonly startedMoves = new Set<string>()
   private readonly gates = new Set<(args: { threadId: ThreadId; record: PlacementRecord }) => void>()
-  private readonly settleListeners = new Set<MoveSettledListener>()
   private binding: {
     threads: PlacementStore
     workspace: string
     repo: string | null
     authority?: PlacementSessionAuthority | undefined
   } | undefined
-  private sequence = 0
 
   constructor(private readonly initial: EExecutionLocation) {}
 
@@ -48,8 +48,6 @@ export class PlacementController {
     return record === undefined ? undefined : locationOfPlacement(record.placement)
   }
 
-  readonly startedHere = (moveId: string): boolean => this.startedMoves.has(moveId)
-
   readonly activeThread = (): ThreadId | undefined => this.active
 
   readonly beforePublish = (gate: (args: { threadId: ThreadId; record: PlacementRecord }) => void): (() => void) => {
@@ -57,20 +55,7 @@ export class PlacementController {
     return () => this.gates.delete(gate)
   }
 
-  readonly onMoveSettled = (listener: MoveSettledListener): (() => void) => {
-    this.settleListeners.add(listener)
-    return () => this.settleListeners.delete(listener)
-  }
-
   readonly snapshot = (threadId: ThreadId): PlacementRecord | undefined => this.records.get(threadId)
-
-  /**
-   * The move underway on this thread, or null. Surfaces freeze their transcript affordances on
-   * this rather than on any UI-local move state: it is durable from the first write, so a freeze
-   * keyed to it survives the surface remounting across the move.
-   */
-  readonly moveFor = (threadId: ThreadId): PlacementMove | null =>
-    this.records.get(threadId)?.move ?? null
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
@@ -99,8 +84,6 @@ export class PlacementController {
     const resolved = record ?? this.records.get(args.threadId) ?? {
       placement: placementOf(args.fallback ?? this.initial),
       revision: 0,
-      move: null,
-      born: null,
     }
     this.publish({ threadId: args.threadId, record: resolved })
     return resolved
@@ -111,142 +94,93 @@ export class PlacementController {
   }
 
   /**
-   * Records the placement a thread was born with. Not a move: no transaction, no preparation
-   * phase, and no way to change it afterwards — a thread that already holds a born-placed record
-   * keeps it, so creation replays are safe. A grandfathered thread (born before placements were
-   * recorded at creation) gets its inferred placement stamped the first time it is placed.
+   * Records the placement a thread was born with. Not a move: a thread that already holds a record
+   * keeps it, so creation replays are safe.
    */
   async placeAtCreation(args: { threadId: ThreadId; placement: SessionPlacement }): Promise<PlacementRecord> {
     const binding = this.binding
     if (binding === undefined) throw new Error('placement has no durable store')
     const known = await binding.threads.find({ threadId: args.threadId })
     const held = await this.load({ threadId: args.threadId })
-    if (held.born === true) return held
-    // A thread the store already knows is grandfathered, not new: its inferred placement is the
-    // truth, and placing it stamps that inference as born rather than adopting the suggestion.
+    // A thread the store already knows already has its truth: its inferred placement stands rather
+    // than adopting the suggestion.
     const placement = known !== undefined ? held.placement : args.placement
     return await this.write({
       threadId: args.threadId,
       prior: held,
-      next: { placement, revision: held.revision, move: held.move, born: true },
+      next: { placement, revision: held.revision },
     })
   }
 
   /**
-   * Stamps the placement a thread was born with once the birth has settled. A cloud birth is the
-   * initial provisioning itself — a placement write, not a move — so the marker lands after the
-   * commit rather than before it; a birth still in flight (a move record) is not born yet.
+   * Stamps the placement a cloud birth settled on. A cloud birth is the initial provisioning
+   * itself — a placement write, not a move — so the caller drives the provisioning and commits the
+   * resulting placement through the returned handle once it has the drive name.
    */
-  async markBorn(args: { threadId: ThreadId }): Promise<PlacementRecord> {
-    const held = await this.load({ threadId: args.threadId })
-    if (held.born === true || held.move !== null) return held
-    return await this.write({
-      threadId: args.threadId,
-      prior: held,
-      next: { ...held, born: true },
-    })
-  }
-
-  async move<T>(args: {
+  async birth<T>(args: {
     threadId: ThreadId
-    target: EExecutionLocation
-    kind: EPlacementMoveKind
-    work: (transaction: PlacementTransaction) => Promise<T>
+    work: (commit: PlacementCommit) => Promise<T>
   }): Promise<T> {
     const binding = this.binding
     if (binding === undefined) throw new Error('placement has no durable store')
     const session = await this.sessionRoot(args.threadId)
     if (this.moving.has(session)) throw new PlacementBusy()
     this.moving.add(session)
-    let startedId: string | undefined
     try {
-      let record = await this.load({ threadId: args.threadId })
-      const from = locationOfPlacement(record.placement)
-      this.validate({ ...args, from, record })
-      this.sequence += 1
-      const id = `${args.threadId}:${record.revision + 1}:${this.sequence}`
-      this.startedMoves.add(id)
-      startedId = id
-      const move: PlacementMove = {
-        id,
-        from: record.placement,
-        to: placementOf(args.target),
-        phase: EPlacementMovePhase.Preparing,
-      }
-      record = await this.write({
-        threadId: args.threadId,
-        prior: record,
-        next: { ...record, move },
-      })
+      const record = await this.load({ threadId: args.threadId })
       let committed = false
-      let abandoned = false
-      const transaction: PlacementTransaction = {
-        from,
+      let current = record
+      const handle: PlacementCommit = {
         committed: () => committed,
-        abandon: () => {
-          abandoned = true
-        },
-        commit: async (placement = placementOf(args.target)) => {
+        commit: async (placement) => {
           if (committed) return
-          if (locationOfPlacement(placement) !== args.target) throw new Error('the move committed an unexpected placement')
-          record = await this.freshen({ threadId: args.threadId, held: record })
-          const next = { ...record, placement, move: { ...move, to: placement, phase: EPlacementMovePhase.Committed } }
-          try {
-            record = await this.write({ threadId: args.threadId, prior: record, next })
-          } catch (error) {
-            const stored = await binding.threads.readPlacement({ threadId: args.threadId }).catch(() => undefined)
-            if (stored?.move?.id !== move.id || stored.move.phase !== EPlacementMovePhase.Committed) throw error
-            record = stored
-            this.publish({ threadId: args.threadId, record })
+          if (placement.harness !== EHarnessPlacement.Cloud) {
+            throw new Error('a cloud birth commits a cloud placement')
           }
+          current = await this.write({
+            threadId: args.threadId,
+            prior: current,
+            next: { placement, revision: current.revision },
+          })
           committed = true
         },
       }
-      try {
-        const result = await args.work(transaction)
-        if (!committed && !abandoned) throw new Error('the move finished without committing placement')
-        record = await this.freshen({ threadId: args.threadId, held: record })
-        await this.write({ threadId: args.threadId, prior: record, next: { ...record, move: null } })
-        return result
-      } catch (error) {
-        if (!committed) {
-          record = await this.freshen({ threadId: args.threadId, held: record })
-          await this.write({ threadId: args.threadId, prior: record, next: { ...record, move: null } })
-        }
-        throw error
-      }
+      return await args.work(handle)
     } finally {
       this.moving.delete(session)
-      if (startedId !== undefined) this.startedMoves.delete(startedId)
-      this.settled(args.threadId)
     }
   }
 
-  async recover(args: {
+  /**
+   * The one permitted placement change: a host session's tool environment (host shell ↔ docker
+   * container). Not a relocation — the harness stays on the host, only where its tools run changes,
+   * so this is a direct rewrite with the store's compare-and-swap, no transaction lifecycle.
+   */
+  async setToolEnvironment(args: {
     threadId: ThreadId
-    reconcile: (record: PlacementRecord) => Promise<SessionPlacement>
+    target: EExecutionLocation
   }): Promise<PlacementRecord> {
+    const binding = this.binding
+    if (binding === undefined) throw new Error('placement has no durable store')
+    if (args.target === EExecutionLocation.Cloud) {
+      throw new Error('cloud harnesses cannot change their tool environment')
+    }
     const session = await this.sessionRoot(args.threadId)
     if (this.moving.has(session)) throw new PlacementBusy()
     this.moving.add(session)
     try {
       const record = await this.load({ threadId: args.threadId })
-      if (record.move === null) return record
-      const placement = await args.reconcile(record)
-      return await this.write({ threadId: args.threadId, prior: record, next: { ...record, placement, move: null } })
+      if (record.placement.harness === EHarnessPlacement.Cloud) {
+        throw new Error('cloud harnesses cannot change their tool environment')
+      }
+      return await this.write({
+        threadId: args.threadId,
+        prior: record,
+        next: { placement: placementOf(args.target), revision: record.revision },
+      })
     } finally {
       this.moving.delete(session)
     }
-  }
-
-  private async freshen(args: { threadId: ThreadId; held: PlacementRecord }): Promise<PlacementRecord> {
-    const stored = await this.binding?.threads.readPlacement({ threadId: args.threadId })
-    if (stored === undefined) return args.held
-    if (stored.revision < args.held.revision) return { ...args.held, revision: stored.revision }
-    if (stored.move === null && args.held.move !== null) {
-      return { ...stored, move: args.held.move }
-    }
-    return stored
   }
 
   private async write(args: { threadId: ThreadId; prior: PlacementRecord; next: PlacementRecord }): Promise<PlacementRecord> {
@@ -257,19 +191,6 @@ export class PlacementController {
     await binding.threads.writePlacement({ ...binding, threadId: args.threadId, record, expectedRevision: args.prior.revision })
     this.publish({ threadId: args.threadId, record })
     return record
-  }
-
-  private validate(args: { kind: EPlacementMoveKind; from: EExecutionLocation; target: EExecutionLocation; record: PlacementRecord }): void {
-    if (args.record.move !== null) throw new Error('this session has an unfinished placement move — recover it before moving again')
-    if (args.record.born === true) {
-      throw new Error('this thread was born with its placement and never moves — start a new thread where it should run')
-    }
-    if (args.kind === EPlacementMoveKind.Tools && (args.from === EExecutionLocation.Cloud || args.target === EExecutionLocation.Cloud)) {
-      throw new Error('cloud harnesses cannot change their tool environment')
-    }
-    if (args.kind === EPlacementMoveKind.Lift && args.from === EExecutionLocation.Cloud) throw new Error('this session is already in the cloud — reconnect to it')
-    if (args.kind === EPlacementMoveKind.Descend && (args.from !== EExecutionLocation.Cloud || args.target === EExecutionLocation.Cloud)) throw new Error('a descend requires a cloud session and a host destination')
-    if (args.kind === EPlacementMoveKind.Correct && args.from !== args.target) throw new Error('a correction cannot move the session')
   }
 
   private async sessionRoot(threadId: ThreadId): Promise<ThreadId> {
@@ -308,16 +229,6 @@ export class PlacementController {
     for (const gate of this.gates) gate(args)
     this.records.set(args.threadId, args.record)
     this.notify()
-  }
-
-  private settled(threadId: ThreadId): void {
-    for (const listener of [...this.settleListeners]) {
-      try {
-        listener({ threadId })
-      } catch {
-        continue
-      }
-    }
   }
 
   private notify(): void {

@@ -14,27 +14,9 @@ export type SessionPlacement =
   | { harness: EHarnessPlacement.Host; tools: EToolEnvironment }
   | { harness: EHarnessPlacement.Cloud; driveName?: string | undefined }
 
-export enum EPlacementMovePhase {
-  Preparing = 'preparing',
-  Committed = 'committed',
-}
-
-export type PlacementMove = {
-  id: string
-  from: SessionPlacement
-  to: SessionPlacement
-  phase: EPlacementMovePhase
-}
-
 export type PlacementRecord = {
   placement: SessionPlacement
   revision: number
-  move: PlacementMove | null
-  /**
-   * True when the placement was fixed at thread creation and can never move. Null for threads
-   * that predate born-placed sessions — grandfathered, readable from the placement alone.
-   */
-  born?: boolean | null | undefined
 }
 
 export function placementOf(location: EExecutionLocation): SessionPlacement {
