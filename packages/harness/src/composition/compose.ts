@@ -160,6 +160,15 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     home: args.userLayerHome,
   })
 
+  const warnBoot = (error: unknown): void => {
+    container.resolve(registeredPortToken(LogPort)).warn({
+      source: 'user-layer-sync',
+      message: `user-layer sync did not start: ${error instanceof Error ? error.message : String(error)}`,
+    })
+  }
+
+  if (launch.command === SERVE_COMMAND) await userLayerSync.boot().catch(warnBoot)
+
   const {
     models,
     model,
@@ -301,7 +310,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     tools: container.resolve(registeredPortToken(ToolRegistry)),
     markActiveThread: (active) => {
       activeThread = active
-      userLayerSync.start()
+      void userLayerSync.boot().catch(warnBoot)
     },
     activeThread: () => activeThread,
     titler: utility.titler,
