@@ -32,3 +32,14 @@ export function spinnerFrame(nowMs: number): string {
   const index = Math.floor(nowMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length
   return SPINNER_FRAMES[index] as string
 }
+
+export const WORKING_TITLE_FRAMES = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'] as const
+
+export const WORKING_TITLE_FRAME_MS = 240
+
+export const IDLE_TITLE_GLYPH = '◦'
+
+export function workingTitleFrame(nowMs: number): string {
+  const index = Math.floor(nowMs / WORKING_TITLE_FRAME_MS) % WORKING_TITLE_FRAMES.length
+  return WORKING_TITLE_FRAMES[index] as string
+}

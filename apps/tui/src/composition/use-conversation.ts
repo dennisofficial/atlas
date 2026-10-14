@@ -207,6 +207,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     opened,
     name,
     started,
+    working,
     events,
     logSummary,
     pendingMove,

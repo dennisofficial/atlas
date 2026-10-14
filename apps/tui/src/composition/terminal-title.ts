@@ -13,8 +13,10 @@ const basenameOf = (directory: string): string => {
 export function terminalTitleSequence(args: {
   name: string | null
   directory: string
+  glyph?: string | null
 }): string {
   const title = args.name ?? basenameOf(args.directory)
   const clean = title.replace(CONTROL_CHARACTERS, ' ').replace(WHITESPACE_RUNS, ' ').trim()
-  return `${SET_TAB_TITLE}${clean}${TITLE_END}`
+  const glyph = args.glyph ?? null
+  return `${SET_TAB_TITLE}${glyph === null ? '' : `${glyph} `}${clean}${TITLE_END}`
 }
