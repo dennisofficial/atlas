@@ -27,6 +27,7 @@ import { launchLine, launchTitle, sessionIdentityLine } from "./session-identity
 import { resumeHint, type ActiveConversation } from "@dltech/atlas-harness";
 import { createUrlOpener, loadSettings, logFieldsOf, createFileOpener, EEditor } from "@dltech/atlas-harness";
 import { trackTerminalFocus } from "./terminal-focus";
+import { IDLE_TITLE_GLYPH } from "../ui/glyphs";
 import { terminalTitleSequence } from "./terminal-title";
 import { readTerminalSize, settleTerminalSize } from "./terminal-size";
 import { kittyImageTransportOf } from "./terminal-image-transport";
@@ -124,7 +125,7 @@ export async function bootAtlas(args: {
   });
 
   process.stdout.write(
-    terminalTitleSequence({ name: launchTitle(config.open), directory: config.cwd }),
+    terminalTitleSequence({ name: launchTitle(config.open), directory: config.cwd, glyph: IDLE_TITLE_GLYPH }),
   );
 
   const stopSettling = settleTerminalSize({

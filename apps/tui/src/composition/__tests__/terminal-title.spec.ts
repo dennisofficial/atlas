@@ -36,4 +36,16 @@ describe('terminalTitleSequence', () => {
       '\x1b]0;one two three\x07',
     )
   })
+
+  it('prefixes the title with a state glyph when one is given', () => {
+    expect(
+      terminalTitleSequence({ name: 'Refresh token rotation', directory: '/dev/atlas', glyph: '🌒' }),
+    ).toBe('\x1b]0;🌒 Refresh token rotation\x07')
+  })
+
+  it('prefixes the directory fallback with the glyph the same way', () => {
+    expect(terminalTitleSequence({ name: null, directory: '/dev/atlas', glyph: '◦' })).toBe(
+      '\x1b]0;◦ atlas\x07',
+    )
+  })
 })
