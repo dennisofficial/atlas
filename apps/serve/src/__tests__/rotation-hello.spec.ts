@@ -13,18 +13,11 @@ import {
 } from '@dltech/atlas-harness'
 
 import { createFrameBuffer } from '../frame-buffer'
-import type { ServeSessionAuthority } from '../serve-app'
 import { createSessionHandlers, type SessionSocket } from '../socket-session'
 import type { ServeTurnDriver } from '../turn-driver'
 
 const served = toThreadId('hello-served')
-const successor = toThreadId('hello-successor')
 const stranger = toThreadId('hello-stranger')
-
-const authority: ServeSessionAuthority = {
-  mainGenerationOf: async ({ threadId }) => (threadId === successor ? 1 : undefined),
-  activeMainOf: async () => undefined,
-}
 
 const driver = {
   running: () => false,
@@ -33,7 +26,7 @@ const driver = {
   settled: async () => undefined,
 } as unknown as ServeTurnDriver
 
-const rig = (withAuthority = true) => {
+const rig = () => {
   const handlers = createSessionHandlers({
     threadId: served,
     buffer: createFrameBuffer({ capacity: 16 }),
@@ -43,7 +36,6 @@ const rig = (withAuthority = true) => {
     files: { list: async () => [] },
     refusal: () => null,
     log: () => undefined,
-    ...(withAuthority ? { authority } : {}),
   })
   const sent: string[] = []
   let closed = false
@@ -74,36 +66,23 @@ const rig = (withAuthority = true) => {
   return { handlers, socket, hello, kinds, sent, closed: () => closed }
 }
 
-describe('hello admission under session authority', () => {
+describe('hello admission', () => {
   it('admits the served thread', async () => {
-    const { hello, kinds } = rig(false)
+    const { hello, kinds } = rig()
     await hello({ threadId: served })
     expect(kinds()).toContain(EServeFrame.Ready)
   })
 
-  it('admits a successor the authority names', async () => {
-    const { hello, kinds, closed } = rig()
-    await hello({ threadId: successor })
-    expect(kinds()).toContain(EServeFrame.Ready)
-    expect(closed()).toBe(false)
-  })
-
-  it('refuses an unrelated thread', async () => {
+  it('refuses a thread the serve does not serve', async () => {
     const { hello, kinds, closed } = rig()
     await hello({ threadId: stranger })
     expect(kinds()).not.toContain(EServeFrame.Ready)
     expect(closed()).toBe(true)
   })
 
-  it('refuses a successor when the serve has no authority', async () => {
-    const { hello, closed } = rig(false)
-    await hello({ threadId: successor })
-    expect(closed()).toBe(true)
-  })
-
-  it('still refuses a protocol mismatch for an admitted thread', async () => {
+  it('still refuses a protocol mismatch', async () => {
     const { hello, sent, closed } = rig()
-    await hello({ threadId: successor, protocol: CHANNEL_PROTOCOL_VERSION + 1 })
+    await hello({ threadId: served, protocol: CHANNEL_PROTOCOL_VERSION + 1 })
     expect(closed()).toBe(true)
     expect(sent.join()).toContain('newer wire protocol')
   })
@@ -112,8 +91,6 @@ describe('hello admission under session authority', () => {
     const listeners = new Set<RotationListener>()
     const rotation = {
       request: () => new Promise<RotationOutcome>(() => undefined),
-      status: async () => ({ kind: 'idle' as const }),
-      recover: async () => ({ kind: 'idle' as const }),
       subscribe: (listener: RotationListener) => {
         listeners.add(listener)
         return () => void listeners.delete(listener)

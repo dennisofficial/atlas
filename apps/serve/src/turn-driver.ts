@@ -28,14 +28,6 @@ export type ServeTurnDriver = {
   attach: (shared: MessageIntake) => () => void
   holdHistory: () => () => void
   holdForRotation: () => () => void
-  /**
-   * A committed rotation moves the served session's work to the successor: commits, turns, and
-   * queued intake all follow it, and anything pending on the predecessor migrates across.
-   * Returns false when a turn or commit is in flight — the rotation's settle guarantees idle, so
-   * a false return means the caller raced it and must retry after the settle.
-   */
-  followActiveMain: (args: { successor: ThreadId }) => boolean
-  servedThread: () => ThreadId
 }
 
 export type TurnDriverHooks = {
@@ -54,7 +46,7 @@ export function createTurnDriver(args: {
   refusal?: (() => string | undefined) | undefined
 } & TurnDriverHooks): ServeTurnDriver {
   const { app } = args
-  let served = args.threadId
+  const served = args.threadId
   const intake = app.intake ?? null
   const pending = app.pending ?? null
   let abort: AbortController | null = null
@@ -72,7 +64,6 @@ export function createTurnDriver(args: {
   let lastOutcome: TurnOutcome | null = null
   let turnFailure: Error | null = null
   let resumeRelocation = false
-  let attachReregister: (() => void) | undefined
   const history = createHistoryAdmission({ threadId: () => served, intake, refusal: args.refusal, unavailable: () => turning !== null || committing !== null || relocationFrozen, relocating: () => relocationFrozen || relocationSettling !== null })
 
   const commit = createTurnCommit({ app, threadId: () => served, intake })
@@ -269,25 +260,15 @@ export function createTurnDriver(args: {
       })
     },
     attach(shared) {
-      let detachCurrent: (() => void) | undefined
-      const registerServed = (): void => {
-        detachCurrent?.()
-        detachCurrent = shared.register({
-          threadId: served,
-          driver: {
-            blocked: () => turning !== null || committing !== null || relocationFrozen || history.held(),
-            wake: () => {
-              handle.sayOrRun()
-            },
+      return shared.register({
+        threadId: served,
+        driver: {
+          blocked: () => turning !== null || committing !== null || relocationFrozen || history.held(),
+          wake: () => {
+            handle.sayOrRun()
           },
-        })
-      }
-      registerServed()
-      attachReregister = registerServed
-      return () => {
-        detachCurrent?.()
-        attachReregister = undefined
-      }
+        },
+      })
     },
     running: () => turning !== null,
     busy: () => turning !== null || committing !== null || history.held(),
@@ -295,17 +276,6 @@ export function createTurnDriver(args: {
     settled: () => Promise.allSettled([committing, turning, relocationSettling, relocationResuming]).then(() => undefined),
     holdHistory: history.hold,
     holdForRotation: history.holdForRotation,
-    followActiveMain({ successor }) {
-      if (turning !== null || committing !== null) return false
-      const carried = pending?.forThread({ threadId: served }).drain() ?? []
-      served = successor
-      const target = pending?.forThread({ threadId: successor })
-      for (const said of carried) target?.enqueue(said)
-      attachReregister?.()
-      intake?.changed()
-      return true
-    },
-    servedThread: () => served,
   }
   return handle
 }

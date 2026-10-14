@@ -21,11 +21,11 @@ import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
-import { RotationPort, SessionAuthorityPort, ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
+import { RotationPort, ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
 
 import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
 import { EPortableStateBoot, installPortableState } from './portable-state'
-import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates, ServeSessionAuthority } from './serve-app'
+import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
 import { ServeProcessPort } from './serve-process'
 import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
 import { vercelCredentialsOf } from './vercel-credentials'
@@ -37,7 +37,6 @@ type ServeStores = {
   log: EventLogPort
   threads: ThreadStorePort
   modelBridge: ServeModelBridge
-  authority?: ServeSessionAuthority | undefined
   rotation?: RotationPort | undefined
   prStates?: ServePrStates | undefined
 }
@@ -140,13 +139,10 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           }),
         })
 
-        const authority = container.isRegistered(registeredPortToken(SessionAuthorityPort), true)
-          ? container.resolve(registeredPortToken(SessionAuthorityPort))
-          : undefined
         const rotation = container.isRegistered(registeredPortToken(RotationPort), true)
           ? container.resolve(registeredPortToken(RotationPort))
           : undefined
-        return { log, threads, modelBridge, authority, rotation, ...(prStates === undefined ? {} : { prStates }) }
+        return { log, threads, modelBridge, rotation, ...(prStates === undefined ? {} : { prStates }) }
       },
     },
   })
@@ -289,7 +285,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
     operatorInput: app.operatorInput,
     compaction: app.compaction,
-    authority: app.surface.authority,
     rotation: app.surface.rotation,
     close: app.close,
   }

@@ -14,8 +14,6 @@ import {
   type ServeFrame,
 } from '../index'
 
-const successor = threadIdWireSchema.parse('thread-2')
-
 describe('rotation wire schemas', () => {
   it('names the rotate op', () => {
     expect(String(EClientRequest.Rotate)).toBe('rotate')
@@ -49,7 +47,14 @@ describe('rotation wire schemas', () => {
 
   it('accepts a failed state with a null or absent reason', () => {
     expect(rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Failed, reason: null }).success).toBe(true)
-    expect(rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Preparing }).success).toBe(true)
+    expect(rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Summarising }).success).toBe(true)
+  })
+
+  it('refuses a negative watermark and drops a stale successor field', () => {
+    expect(rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Done, watermarkSeq: -1 }).success).toBe(false)
+    expect(rotationStateWireSchema.parse({ phase: EWireRotationPhase.Done, successor: 'thread-2' })).toEqual({
+      phase: EWireRotationPhase.Done,
+    })
   })
 
   it('refuses a phase outside the enum', () => {
@@ -61,7 +66,7 @@ describe('the rotation-changed signal', () => {
   it('decodes through channelSignalSchema', () => {
     const signal = {
       type: 'rotation-changed' as const,
-      rotation: { phase: EWireRotationPhase.Activating, successor },
+      rotation: { phase: EWireRotationPhase.Done, watermarkSeq: 7 },
     }
 
     expect(channelSignalSchema.parse(JSON.parse(JSON.stringify(signal)))).toEqual(signal)

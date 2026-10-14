@@ -16,7 +16,6 @@ import {
 
 import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
 import { EServeEvent, type ServeLog } from './serve-log'
-import type { ServeSessionAuthority } from './serve-app'
 import type { ServeTurnDriver } from './turn-driver'
 
 export const isRotationOp = (op: EClientRequest): boolean => op === EClientRequest.Rotate
@@ -28,23 +27,17 @@ const wirePhaseOf = (phase: ERotationPhase): EWireRotationPhase | undefined => {
     case ERotationPhase.Settling:
       return EWireRotationPhase.Settling
     case ERotationPhase.Summarising:
-    case ERotationPhase.Preparing:
-      return EWireRotationPhase.Preparing
-    case ERotationPhase.Committing:
-      return EWireRotationPhase.Writing
-    case ERotationPhase.Activating:
-      return EWireRotationPhase.Activating
-    case ERotationPhase.Failed:
-    case ERotationPhase.Aborted:
-      return EWireRotationPhase.Failed
+      return EWireRotationPhase.Summarising
+    case ERotationPhase.Compacting:
+      return EWireRotationPhase.Compacting
     default:
       return undefined
   }
 }
 
 const terminalOf = (outcome: RotationOutcome): RotationStateWire =>
-  outcome.kind === 'committed'
-    ? { phase: EWireRotationPhase.Activating, successor: outcome.successor }
+  outcome.kind === 'rotated'
+    ? { phase: EWireRotationPhase.Done, watermarkSeq: outcome.watermarkSeq }
     : { phase: EWireRotationPhase.Failed, reason: outcome.reason }
 
 const reasonOf = (error: unknown): string =>
@@ -57,9 +50,9 @@ const reasonOf = (error: unknown): string =>
 export function createRotationRequests(args: {
   threadId: ThreadId
   rotation: RotationPort | undefined
-  authority: ServeSessionAuthority | undefined
-  driver: Pick<ServeTurnDriver, 'holdForRotation' | 'beginRotation' | 'followActiveMain'>
+  driver: Pick<ServeTurnDriver, 'holdForRotation' | 'beginRotation'>
   broadcast: (rotation: RotationStateWire) => void
+  changed: () => void
   log: ServeLog
 }) {
   let current: RotationStateWire | undefined
@@ -76,7 +69,6 @@ export function createRotationRequests(args: {
   const drive = (driving: {
     rotation: RotationPort
     instructions: string
-    predecessor: ThreadId
     release: () => void
   }): { verdict: Promise<RotateReply>; finished: Promise<void> } => {
     let began = false
@@ -91,33 +83,24 @@ export function createRotationRequests(args: {
       if (phase === undefined) return
       began = true
       decide({ type: 'started' })
-      publish({ phase, ...(stage.detail === undefined ? {} : { reason: stage.detail }) })
+      publish({ phase })
     })
 
     const settle = async (): Promise<void> => {
       try {
         const outcome = await driving.rotation.request({
           sessionId: args.threadId,
-          predecessor: driving.predecessor,
+          threadId: args.threadId,
           instructions: driving.instructions,
           settle: args.driver.beginRotation(),
         })
-        if (!began && outcome.kind !== 'committed') {
+        if (!began && outcome.kind !== 'rotated') {
           decide({ type: 'refused', reason: outcome.reason })
           return
         }
         decide({ type: 'started' })
-        if (outcome.kind === 'committed') {
-          // The serve's work moves with the session: pending intake queued for the predecessor
-          // migrates to the successor, and the driver answers sends and drives turns for it from
-          // here on. The settle already guaranteed the driver is idle, so the follow cannot race
-          // a live turn — a false return means that guarantee broke, which is worth a log line.
-          if (!args.driver.followActiveMain({ successor: outcome.successor })) {
-            args.log({ event: EServeEvent.RotationFailed, reason: 'the driver could not follow the committed successor' })
-          }
-        } else {
-          args.log({ event: EServeEvent.RotationFailed, reason: outcome.reason })
-        }
+        if (outcome.kind === 'rotated') args.changed()
+        else args.log({ event: EServeEvent.RotationFailed, reason: outcome.reason })
         publish(terminalOf(outcome))
       } catch (error) {
         const reason = reasonOf(error)
@@ -140,10 +123,7 @@ export function createRotationRequests(args: {
     if (!parsed.success) return refusedRequest({ replyTo: frame.id, message: 'invalid rotate request' })
     if (args.rotation === undefined) return refused(frame, 'this serve cannot rotate')
     const params = parsed.data
-    if (params.threadId !== args.threadId) {
-      const generation = await args.authority?.mainGenerationOf({ threadId: params.threadId })
-      if (generation === undefined) return refused(frame, 'this sandbox serves one thread')
-    }
+    if (params.threadId !== args.threadId) return refused(frame, 'this sandbox serves one thread')
 
     let release: () => void
     try {
@@ -152,9 +132,7 @@ export function createRotationRequests(args: {
       return refused(frame, reasonOf(error))
     }
 
-    const activeMain = (await args.authority?.activeMainOf({ sessionId: args.threadId })) ?? args.threadId
-
-    const driving = drive({ rotation: args.rotation, instructions: params.instructions ?? '', predecessor: activeMain, release })
+    const driving = drive({ rotation: args.rotation, instructions: params.instructions ?? '', release })
     finished = driving.finished
     void driving.finished.then(() => {
       if (finished === driving.finished) finished = undefined

@@ -48,8 +48,6 @@ const untouchedDriver = (touched: string[]): ServeTurnDriver => {
     holdHistory: touch('holdHistory'),
     beginRotation: touch('beginRotation'),
     holdForRotation: touch('holdForRotation'),
-    followActiveMain: touch('followActiveMain'),
-    servedThread: () => threadId,
   }
 }
 

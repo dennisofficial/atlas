@@ -24,7 +24,7 @@ import { createHistoryMutations } from './history-mutations'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import { createRotationRequests, isRotationOp } from './rotation-requests'
 import { routeSessionMirrorRead, type SessionMirrorRouting } from './session-mirror-requests'
-import type { ServeAgentSteer, ServeRewind, ServeRoster, ServeSessionAuthority } from './serve-app'
+import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
@@ -46,7 +46,6 @@ export function createRequestRouter(args: {
   rewind?: ServeRewind | undefined
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
   rotation?: import('@dltech/atlas-harness').RotationPort | undefined
-  authority?: ServeSessionAuthority | undefined
   broadcastRotation?: ((rotation: RotationStateWire) => void) | undefined
   broadcastArchiveProgress?: ((progress: ArchiveProgressFields) => void) | undefined
   historyChanged?: (() => void) | undefined
@@ -80,11 +79,10 @@ export function createRequestRouter(args: {
     driver: {
       holdForRotation: () => { edits.assertAvailable(); return driver.holdForRotation() },
       beginRotation: driver.beginRotation,
-      followActiveMain: driver.followActiveMain,
     },
     rotation: args.rotation,
-    authority: args.authority,
     broadcast: args.broadcastRotation ?? (() => undefined),
+    changed: args.historyChanged ?? (() => undefined),
     log,
   })
 
