@@ -120,6 +120,22 @@ describe('a workspace changing during archive creation', () => {
     expect(await stat(destination).then(() => true, () => false)).toBe(false)
   })
 
+  it('still refuses the capture when a reflog is rewritten, not merely appended to', async () => {
+    const fixture = await createFixture()
+    fixtures.push(fixture)
+    const output = await createScratch()
+    directories.push(output)
+    const destination = join(output, 'workspace.tar.gz')
+    const log = join(fixture.main, '.git', 'logs', 'HEAD')
+
+    await expect(mutateDuringPacking({
+      command: `printf 'rewritten\\n' > ${quoted(log)}`,
+      capture: () => captureWorkspaceArchive({ cwd: fixture.main, destination }),
+    })).rejects.toThrow('changed while it was being captured')
+
+    expect(await stat(destination).then(() => true, () => false)).toBe(false)
+  })
+
   it('refuses a capture when an untracked file appears after the file listing was collected', async () => {
     const fixture = await createFixture()
     fixtures.push(fixture)
