@@ -4,7 +4,6 @@ import { Footer } from '../ui/components/footer'
 import { NoticeStack } from '../ui/components/notice-stack'
 import type { NamingState } from '../ui/components/naming-line'
 import type { DraftControls } from '../ui/hooks/use-draft'
-import type { AtlasApp } from './compose'
 import type { AgentView } from './use-agent-view'
 import type { Conversation } from './use-conversation'
 import type { useWorkspaceComposer } from './use-workspace-composer'
@@ -21,11 +20,10 @@ export function WorkspaceChrome(props: {
   welcome: boolean
   focused: boolean
   draft: DraftControls
-  conversation: Pick<Conversation, 'working' | 'turn' | 'handle' | 'lost'>
+  conversation: Pick<Conversation, 'working' | 'turn' | 'handle'>
   agentView: Pick<AgentView, 'addressing' | 'name'>
   composer: Pick<ReturnType<typeof useWorkspaceComposer>, 'menus' | 'highlights' | 'handleCursorMoved'>
   panel: EChromePanel | null
-  agentTypes: AtlasApp['agentTypes']
   naming: NamingState | null
   footer: WorkspaceFooter
   readout: ReturnType<typeof useViewedAgent>['readout']
@@ -35,12 +33,7 @@ export function WorkspaceChrome(props: {
   return (
     <>
       <NoticeStack width={props.width} />
-      <WorkspacePanel
-        panel={props.panel}
-        width={props.width}
-        agentTypes={props.agentTypes}
-        lost={conversation.lost}
-      />
+      <WorkspacePanel panel={props.panel} width={props.width} />
       <WorkspaceComposer
         draft={props.draft}
         menus={composer.menus}

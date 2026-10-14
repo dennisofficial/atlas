@@ -19,7 +19,6 @@ import type { useAccounts } from './use-accounts'
 import type { useContextBrowser } from './use-context'
 import type { useAgentView } from './use-agent-view'
 import type { useAgents } from './use-agents'
-import type { useAgentsPicker } from './use-agents-picker'
 import type { useContainerGuard } from './use-container-guard'
 import type { useContainerMove } from './use-container-move'
 import type { useContainerResources } from './use-container-resources'
@@ -70,7 +69,6 @@ export type WorkspaceInputArgs = {
   settings: Pick<ReturnType<typeof useSettings>, 'state' | 'handleKey' | 'handleOpen'>
   accounts: Pick<ReturnType<typeof useAccounts>, 'state' | 'handleKey'>
   threads: Pick<ReturnType<typeof useThreads>, 'state' | 'handleKey'>
-  agentsPicker: Pick<ReturnType<typeof useAgentsPicker>, 'state' | 'handleKey'>
   onboarding: Pick<ReturnType<typeof useOnboarding>, 'state' | 'handleKey'>
   whatsNew: Pick<ReturnType<typeof useWhatsNew>, 'view' | 'handleKey'>
   footerStrip: Pick<ReturnType<typeof useFooterStrip>, 'state' | 'handleKey' | 'handleEnter'>
@@ -110,7 +108,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     settings,
     accounts,
     threads,
-    agentsPicker,
     onboarding,
     whatsNew,
     footerStrip,
@@ -178,7 +175,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       covering(services.state !== null, services.handleKey),
       covering(accounts.state !== null, accounts.handleKey),
       { ...covering(threads.state !== null, threads.handleKey), porous: true },
-      covering(agentsPicker.state !== null, agentsPicker.handleKey),
       { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
       { open: contextBrowser.viewer !== null,
@@ -198,8 +194,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     [
       accounts.handleKey,
       accounts.state,
-      agentsPicker.handleKey,
-      agentsPicker.state,
       compacting,
       rotating,
       contextBrowser.handleKey,

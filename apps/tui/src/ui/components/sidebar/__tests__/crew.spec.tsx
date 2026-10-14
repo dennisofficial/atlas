@@ -4,6 +4,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { ECrewStanding } from '../../../../store/crew-retirement'
 import type { SidebarSubagent } from '../../../../store/subagent-row'
 import { teardown } from '../../../markdown/__tests__/harness'
 import { SubagentsSection } from '../crew'
@@ -24,15 +25,37 @@ const row = (over: Partial<SidebarSubagent> & { id: string }): SidebarSubagent =
   ...over,
 })
 
-async function rowsOf(
-  props: React.ComponentProps<typeof SubagentsSection>,
-): Promise<readonly string[]> {
-  const setup = await testRender(
+const settledRows = (args: {
+  prefix: string
+  count: number
+  agentType: string
+}): { rows: readonly SidebarSubagent[]; standings: ReadonlyMap<string, ECrewStanding> } => {
+  const rows = Array.from({ length: args.count }, (_, at) =>
+    row({
+      id: `${args.prefix}-${at}`,
+      name: `${args.prefix} ${at}`,
+      agentType: args.agentType,
+      status: EAgentStatus.Finished,
+      endedAt: '2026-01-01T00:01:00.000Z',
+      state: '',
+    }),
+  )
+
+  return { rows, standings: new Map(rows.map((one) => [one.id, ECrewStanding.Settled])) }
+}
+
+const mountCrew = (props: React.ComponentProps<typeof SubagentsSection>) =>
+  testRender(
     <box flexDirection="column" width={WIDTH} height={HEIGHT}>
       <SubagentsSection {...props} />
     </box>,
     { width: WIDTH, height: HEIGHT },
   )
+
+async function rowsOf(
+  props: React.ComponentProps<typeof SubagentsSection>,
+): Promise<readonly string[]> {
+  const setup = await mountCrew(props)
 
   try {
     await setup.flush()
@@ -103,36 +126,96 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
     expect(frame).toContain('Claude Haiku 4.5')
   })
 
-  it('keeps the retirement fold under the sub-agent tier, not the teammate tier', async () => {
+  it('folds each tier behind its own settled line, counting the full tier in its header', async () => {
+    const teammates = settledRows({ prefix: 'mate', count: 4, agentType: 'teammate' })
+    const subagents = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
     const frame = (
       await rowsOf({
-        subagents: [
-          row({ id: 't1', agentType: 'teammate' }),
-          row({ id: 's1', agentType: 'explore' }),
-        ],
-        fold: { hidden: 2, hiddenFailed: false, hiddenTeammates: 0 },
+        subagents: [...teammates.rows, ...subagents.rows],
+        standings: new Map([...teammates.standings, ...subagents.standings]),
         cells: WIDTH,
       })
     ).join('\n')
 
-    expect(frame).toContain('in /agents')
+    expect(frame).toContain('TEAMMATES  0/4')
+    expect(frame).toContain('SUB-AGENTS  0/5')
+    expect(frame).toContain('2 settled ▸')
+    expect(frame).toContain('3 settled ▸')
+    expect(frame).not.toContain('mate 0')
+    expect(frame).toContain('mate 3')
+    expect(frame).not.toContain('sub 2')
+    expect(frame).toContain('sub 4')
   })
 
-  it('counts retired rows against the tier they retired from', async () => {
+  it('keeps a row that is live or held out of the fold however many rows settled around it', async () => {
+    const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
+    const live = row({ id: 'live', name: 'live audit', agentType: 'explore' })
+    const held = row({ id: 'held', name: 'held audit', agentType: 'explore', status: EAgentStatus.Failed })
     const frame = (
       await rowsOf({
-        subagents: [
-          row({ id: 't1', agentType: 'teammate' }),
-          row({ id: 's1', agentType: 'explore' }),
-        ],
-        fold: { hidden: 3, hiddenFailed: false, hiddenTeammates: 2 },
+        subagents: [live, held, ...settled.rows],
+        standings: new Map([
+          ...settled.standings,
+          ['live', ECrewStanding.Live],
+          ['held', ECrewStanding.Held],
+        ]),
         cells: WIDTH,
       })
     ).join('\n')
 
-    expect(frame).toContain('TEAMMATES  1/3')
-    expect(frame).toContain('SUB-AGENTS  1/2')
-    expect(frame).toContain('3 mores in /agents')
+    expect(frame).toContain('live audit')
+    expect(frame).toContain('held audit')
+    expect(frame).toContain('3 settled ▸')
+  })
+
+  it('says one failed on the line when a collapsed row went wrong', async () => {
+    const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
+    const [first, ...rest] = settled.rows
+    const failed = { ...(first as SidebarSubagent), status: EAgentStatus.Failed, name: 'sub failed' }
+    const frame = (
+      await rowsOf({ subagents: [failed, ...rest], standings: settled.standings, cells: WIDTH })
+    ).join('\n')
+
+    expect(frame).not.toContain('sub failed')
+    expect(frame).toContain('3 settled ▸')
+    expect(frame).toContain('one failed')
+  })
+
+  it('shows no settled line when the settled rows all fit in the tail', async () => {
+    const settled = settledRows({ prefix: 'sub', count: 3, agentType: 'explore' })
+    const frame = (
+      await rowsOf({ subagents: settled.rows, standings: settled.standings, cells: WIDTH })
+    ).join('\n')
+
+    expect(frame).not.toContain('settled ▸')
+    expect(frame).toContain('sub 0')
+  })
+
+  it('brings the collapsed rows back when the settled line is clicked, and folds them again on a second click', async () => {
+    const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
+    const setup = await mountCrew({ subagents: settled.rows, standings: settled.standings, cells: WIDTH })
+
+    try {
+      await setup.flush()
+      const lineAt = (): number =>
+        setup.captureCharFrame().split('\n').findIndex((line) => line.includes('settled'))
+      const columnAt = (): number =>
+        setup.captureCharFrame().split('\n')[lineAt()]?.indexOf('settled') ?? -1
+
+      expect(setup.captureCharFrame()).not.toContain('sub 0')
+
+      await setup.mockMouse.click(columnAt(), lineAt())
+      await setup.flush()
+      const open = setup.captureCharFrame()
+      expect(open).toContain('sub 0')
+      expect(open).toContain('3 settled ▾')
+
+      await setup.mockMouse.click(columnAt(), lineAt())
+      await setup.flush()
+      expect(setup.captureCharFrame()).not.toContain('sub 0')
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('lights a row that still runs something of its own, numbers only', async () => {

@@ -1,54 +1,43 @@
 import { ECrewStanding } from './crew-retirement'
 
+export const CREW_SETTLED_TAIL = 2
+
+export const CREW_FOLD_MIN = 2
+
 export type CrewFold<TRow> = {
   shown: readonly TRow[]
-  hidden: number
-  hiddenFailed: boolean
+  collapsed: readonly TRow[]
+  collapsedFailed: boolean
 }
 
-export const DEFAULT_CREW_CAP = 3
-
 /**
- * Only a row already released by the retirement policy may be capped. A live row, and a settled one
- * the policy is still holding — an unread result, an unacknowledged failure, a job something else
- * still depends on — outranks the cap, so narrowing the panel can never be what loses the reading
- * that mattered.
+ * Only a settled row may fold. A live row, and a held one — an unread result, an unacknowledged
+ * failure, a job or an open pull request something still depends on — always shows, so collapsing
+ * a tier can never be what loses the reading that mattered. The newest settled rows stay as a
+ * tail so a just-finished child is still seen finishing; `collapsed` keeps its count when
+ * expanded so the toggle line does not change its number under the cursor.
  */
 export function foldCrew<TRow>(args: {
   rows: readonly TRow[]
   standings: ReadonlyMap<string, ECrewStanding>
-  cap: number
+  expanded: boolean
   keyOf: (row: TRow) => string
   wentWrong: (row: TRow) => boolean
 }): CrewFold<TRow> {
-  const { rows, standings, cap, keyOf, wentWrong } = args
+  const { rows, standings, keyOf } = args
 
-  const standingOf = (row: TRow): ECrewStanding => standings.get(keyOf(row)) ?? ECrewStanding.Live
+  const isSettled = (row: TRow): boolean => standings.get(keyOf(row)) === ECrewStanding.Settled
 
-  const retiring = rows.filter((row) => standingOf(row) === ECrewStanding.Retiring)
-  const spared = new Set(retiring.slice(Math.max(0, retiring.length - cap)).map(keyOf))
+  const settled = rows.filter(isSettled)
+  const beyondTail = settled.length - CREW_SETTLED_TAIL
+  if (beyondTail < CREW_FOLD_MIN) return { shown: rows, collapsed: [], collapsedFailed: false }
 
-  const shown: TRow[] = []
-  const hiddenRows: TRow[] = []
-
-  for (const row of rows) {
-    const standing = standingOf(row)
-    if (standing === ECrewStanding.Retired) {
-      hiddenRows.push(row)
-      continue
-    }
-
-    if (standing === ECrewStanding.Retiring && !spared.has(keyOf(row))) {
-      hiddenRows.push(row)
-      continue
-    }
-
-    shown.push(row)
-  }
+  const collapsed = settled.slice(0, beyondTail)
+  const collapsedKeys = new Set(collapsed.map(keyOf))
 
   return {
-    shown,
-    hidden: hiddenRows.length,
-    hiddenFailed: hiddenRows.some(wentWrong),
+    shown: args.expanded ? rows : rows.filter((row) => !collapsedKeys.has(keyOf(row))),
+    collapsed,
+    collapsedFailed: collapsed.some(args.wentWrong),
   }
 }

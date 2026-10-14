@@ -1,10 +1,10 @@
 // PROTOTYPE — throwaway. The redesigned footer pills: filled chips a single space apart, no
 // separator dots.
 //
-//   gallery  Every pill and state, drawn by the real builders — `pullRequestItem`, `shellsItem`,
-//            `subagentsItem` — stacked so the matrix is visible at once. The services chip is a
-//            preview only: the services registry is still uncommitted work in another session,
-//            so its colour and count here are invented.
+//   gallery  Every pill and state, drawn by the real builders — `pullRequestItem`, `shellsItem` —
+//            stacked so the matrix is visible at once. The services chip is a preview only: the
+//            services registry is still uncommitted work in another session, so its colour and
+//            count here are invented.
 //   live     One footer you can drive: ↓ enters the band, ←/→ walk it, ⏎ fires the pill, esc
 //            leaves. Pointer clicks and hovers behave as they do in the app.
 //   sidebar  Where shells and subagents live in full — the footer only carries their counts.
@@ -20,7 +20,6 @@ import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harne
 import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useState } from 'react'
 
-import { subagentsItem } from '../src/composition/agents-surface'
 import { shellsItem } from '../src/composition/shells-surface'
 import { plural } from '../src/store/tools/reading'
 import { EChecksState, EPullRequestState, type PullRequestBadge } from '@dltech/atlas-harness'
@@ -59,9 +58,6 @@ const pr = (args: { pr: number; state: EPullRequestState; checks: EChecksState }
   }) as FooterItem
 
 const shells = (running: number): FooterItem => shellsItem({ running, onOpen: noop }) as FooterItem
-
-const subagents = (running: number): FooterItem =>
-  subagentsItem({ running, onOpen: noop }) as FooterItem
 
 const services = (running: number): FooterItem =>
   chipItem({
@@ -118,22 +114,17 @@ const GALLERY: readonly GalleryRow[] = [
     items: [shells(2)],
   },
   {
-    label: 'subagents running — same rule',
-    items: [subagents(1)],
-  },
-  {
     label: 'services — preview, the registry has not landed on main',
     items: [services(1)],
   },
   {
-    label: 'the full row, the band resting on subagents',
+    label: 'the full row, the band resting on shells',
     items: [
       pr({ pr: 349, state: EPullRequestState.Open, checks: EChecksState.Failing }),
       shells(2),
-      subagents(1),
       services(1),
     ],
-    strip: { itemId: 'subagents' },
+    strip: { itemId: 'shells' },
   },
 ]
 
@@ -169,7 +160,6 @@ function Gallery(props: { width: number }): React.ReactNode {
 const LIVE_ITEMS: readonly FooterItem[] = [
   pr({ pr: 349, state: EPullRequestState.Open, checks: EChecksState.Failing }),
   shells(2),
-  subagents(1),
   services(1),
 ]
 

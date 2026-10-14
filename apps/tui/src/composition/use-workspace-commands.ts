@@ -6,7 +6,6 @@ import type { AtlasApp } from './compose'
 import { localCommands, type EContainerAsk } from './commands'
 import type { Conversation } from './use-conversation'
 import { reloadedSkills, type SkillsReloaded } from './skills-reload'
-import type { AgentsPickerControl } from './use-agents-picker'
 import type { RewindControl } from './use-rewind'
 import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
@@ -21,12 +20,8 @@ export function useWorkspaceCommands(args: {
   rewind: Pick<RewindControl, 'handleOpen'>
   settings: Pick<SettingsControl, 'handleOpen'>
   shells: ShellsControl
-  agentsPicker: Pick<AgentsPickerControl, 'handleOpen'>
   switcher: Pick<SwitcherControl, 'handleOpen'>
-  chrome: Pick<
-    ReturnType<typeof useChromePanel>,
-    'handleShortcuts' | 'handleShowAgentTypes' | 'handleShowLostAgents'
-  >
+  chrome: Pick<ReturnType<typeof useChromePanel>, 'handleShortcuts'>
   handleContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
   handleContainerResources: () => string | undefined
   handleOpenAccounts: () => void
@@ -42,7 +37,6 @@ export function useWorkspaceCommands(args: {
     rewind,
     settings,
     shells,
-    agentsPicker,
     switcher,
     chrome,
     handleContainer,
@@ -78,9 +72,6 @@ export function useWorkspaceCommands(args: {
       onShortcuts: chrome.handleShortcuts,
       onOpenSwitcher: () => switcher.handleOpen(),
       onOpenShells: () => shells.handleOpen(),
-      onOpenAgents: agentsPicker.handleOpen,
-      onShowAgentTypes: chrome.handleShowAgentTypes,
-      onShowLostAgents: chrome.handleShowLostAgents,
       onOpenSettings: settings.handleOpen,
       onOpenAccounts: handleOpenAccounts,
       onNewConversation: handleNewConversation,
@@ -96,10 +87,7 @@ export function useWorkspaceCommands(args: {
       onQuit: handleQuit,
     })
   }, [
-    agentsPicker.handleOpen,
     chrome.handleShortcuts,
-    chrome.handleShowAgentTypes,
-    chrome.handleShowLostAgents,
     conversation.handleChangeDirectory,
     conversation.handleCompact,
     conversation.handleRename,

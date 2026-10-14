@@ -207,7 +207,7 @@ function DerivedSidebar(props: {
             <SubagentsSection
               subagents={model.subagents ?? []}
               cells={cells}
-              fold={model.crewFold}
+              standings={model.crewStandings}
               {...(props.onSelectSubagent === undefined
                 ? {}
                 : { onOpen: props.onSelectSubagent })}

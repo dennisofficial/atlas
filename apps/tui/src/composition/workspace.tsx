@@ -75,9 +75,9 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     conversation,
     noticeSeconds: settings.noticeSeconds,
   })
-  const chrome = useChromePanel({ lost: conversation.lost })
+  const chrome = useChromePanel()
 
-  const { agentView, viewed, agents, agentsPicker, background, waitingSince } = useWorkspaceAgents({
+  const { agentView, viewed, agents, background, waitingSince } = useWorkspaceAgents({
     app: props.app,
     conversation,
     shells,
@@ -146,7 +146,6 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     rewind,
     settings,
     shells,
-    agentsPicker,
     switcher,
     chrome,
     handleContainer,
@@ -175,7 +174,6 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     shells,
     services,
     agents,
-    agentsPicker,
     chromeWidth: layout.chromeWidth,
     selection,
     viewed,
@@ -207,7 +205,6 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     settings,
     accounts,
     threads,
-    agentsPicker,
     onboarding,
     whatsNew,
     footerStrip: footer.footerStrip,
@@ -261,7 +258,6 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           agentView={agentView}
           composer={composer}
           panel={chrome.panel}
-          agentTypes={props.app.agentTypes}
           naming={sidebarNaming}
           footer={footer}
           readout={viewed.readout}
@@ -299,7 +295,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           active={selection.ref}
           accountMeters={accountMeters}
           {...{ switcher, shells, services, agents, settings, onboarding, whatsNew,
-            accounts, threads, agentsPicker, rewind, qualityHealth }}
+            accounts, threads, rewind, qualityHealth }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
           {...{ exitGuard, containerGuard, containerResources }}

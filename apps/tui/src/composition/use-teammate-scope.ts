@@ -62,7 +62,7 @@ export function useTeammateSidebar(args: {
       ...fold.sidebar,
       title: fold.sidebar.title ?? subagentLabel(teammate),
       ...(crew.subagents === undefined ? {} : { subagents: crew.subagents }),
-      ...(crew.crewFold === undefined ? {} : { crewFold: crew.crewFold }),
+      ...(crew.crewStandings === undefined ? {} : { crewStandings: crew.crewStandings }),
       ...(crew.teammates === undefined ? {} : { teammates: crew.teammates }),
     }),
     [crew, fold.sidebar, teammate],

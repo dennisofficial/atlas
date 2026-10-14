@@ -2,22 +2,11 @@ import { EAgentStatus } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import {
-  DEFAULT_CREW_GRACE_MS,
   ECrewStanding,
   crewStanding,
-  partitionCrew,
+  standingsOfCrew,
   type CrewMember,
 } from '../crew-retirement'
-
-const NOW = Date.parse('2026-01-01T12:00:00.000Z')
-
-const MINUTE_MS = 60_000
-
-const HOUR_MS = 60 * MINUTE_MS
-
-const GRACE_MS = 3 * MINUTE_MS
-
-const ago = (ms: number): string => new Date(NOW - ms).toISOString()
 
 const ROOT = 'thr_root'
 
@@ -27,61 +16,54 @@ const member = (over: Partial<CrewMember> = {}): CrewMember => ({
   agentId: CHILD,
   spawnedBy: ROOT,
   status: EAgentStatus.Finished,
-  endedAt: ago(HOUR_MS),
-  deliveredAt: ago(HOUR_MS),
+  deliveredAt: '2026-01-01T11:00:00.000Z',
   lastViewedAt: null,
   ...over,
 })
+
+const running = (over: Partial<CrewMember> = {}): CrewMember =>
+  member({ status: EAgentStatus.Running, deliveredAt: null, ...over })
 
 const standingOf = (args: {
   member: CrewMember
   crew?: readonly CrewMember[]
   viewing?: string | null
-  now?: number
-  graceMs?: number
 }): ECrewStanding =>
   crewStanding({
     member: args.member,
     crew: args.crew ?? [args.member],
     viewing: args.viewing ?? null,
-    now: args.now ?? NOW,
-    graceMs: args.graceMs ?? GRACE_MS,
   })
 
 describe('crewStanding', () => {
   it('reads a running child as live however stale its other marks are', () => {
-    const running = member({
-      status: EAgentStatus.Running,
-      endedAt: ago(HOUR_MS),
-      deliveredAt: ago(HOUR_MS),
-      lastViewedAt: ago(HOUR_MS),
-    })
+    const stale = running({ deliveredAt: '2020-01-01T00:00:00.000Z', lastViewedAt: '2020-01-01T00:00:00.000Z' })
 
-    expect(standingOf({ member: running })).toBe(ECrewStanding.Live)
+    expect(standingOf({ member: stale })).toBe(ECrewStanding.Live)
   })
 
   it('reads a blocked child as live', () => {
     expect(standingOf({ member: member({ status: EAgentStatus.Blocked }) })).toBe(ECrewStanding.Live)
   })
 
-  it('retires a finished child whose result was delivered long ago', () => {
-    expect(standingOf({ member: member() })).toBe(ECrewStanding.Retired)
+  it('settles a finished child whose result was delivered, with no waiting period', () => {
+    const justDelivered = member({ deliveredAt: new Date().toISOString() })
+
+    expect(standingOf({ member: justDelivered })).toBe(ECrewStanding.Settled)
   })
 
   it('holds an undelivered child however old it is', () => {
-    const undelivered = member({ endedAt: ago(HOUR_MS * 12), deliveredAt: null })
-
-    expect(standingOf({ member: undelivered })).toBe(ECrewStanding.Held)
+    expect(standingOf({ member: member({ deliveredAt: null }) })).toBe(ECrewStanding.Held)
   })
 
   it('holds the child being viewed', () => {
     expect(standingOf({ member: member(), viewing: CHILD })).toBe(ECrewStanding.Held)
   })
 
-  it('restarts the grace clock when viewing ends', () => {
-    const justLeft = member({ lastViewedAt: ago(1_000) })
+  it('settles the child again once viewing ends', () => {
+    const justLeft = member({ lastViewedAt: '2026-01-01T12:00:00.000Z' })
 
-    expect(standingOf({ member: justLeft, viewing: null })).toBe(ECrewStanding.Retiring)
+    expect(standingOf({ member: justLeft, viewing: null })).toBe(ECrewStanding.Settled)
   })
 
   it('holds a finished child whose own shells are still running', () => {
@@ -97,13 +79,7 @@ describe('crewStanding', () => {
   it('holds an ancestor whose grandchild is still running', () => {
     const parent = member({ agentId: 'thr_parent', spawnedBy: ROOT })
     const child = member({ agentId: 'thr_middle', spawnedBy: 'thr_parent' })
-    const grandchild = member({
-      agentId: 'thr_grandchild',
-      spawnedBy: 'thr_middle',
-      status: EAgentStatus.Running,
-      endedAt: null,
-      deliveredAt: null,
-    })
+    const grandchild = running({ agentId: 'thr_grandchild', spawnedBy: 'thr_middle' })
     const crew = [parent, child, grandchild]
 
     expect(standingOf({ member: parent, crew })).toBe(ECrewStanding.Held)
@@ -113,25 +89,13 @@ describe('crewStanding', () => {
 
   it('does not let a live sibling hold a settled member', () => {
     const settled = member({ agentId: 'thr_settled' })
-    const sibling = member({
-      agentId: 'thr_sibling',
-      status: EAgentStatus.Running,
-      endedAt: null,
-      deliveredAt: null,
-    })
+    const sibling = running({ agentId: 'thr_sibling' })
 
-    expect(standingOf({ member: settled, crew: [settled, sibling] })).toBe(ECrewStanding.Retired)
+    expect(standingOf({ member: settled, crew: [settled, sibling] })).toBe(ECrewStanding.Settled)
   })
 
   it('holds an unacknowledged failure forever', () => {
-    const failed = member({
-      status: EAgentStatus.Failed,
-      endedAt: ago(HOUR_MS * 12),
-      deliveredAt: ago(HOUR_MS * 12),
-      lastViewedAt: null,
-    })
-
-    expect(standingOf({ member: failed })).toBe(ECrewStanding.Held)
+    expect(standingOf({ member: member({ status: EAgentStatus.Failed }) })).toBe(ECrewStanding.Held)
   })
 
   it('holds an unacknowledged stop forever', () => {
@@ -140,155 +104,56 @@ describe('crewStanding', () => {
     )
   })
 
-  it('retires a failure once it has been read and released', () => {
+  it('settles a failure once it has been read', () => {
     const acknowledged = member({
       status: EAgentStatus.Failed,
-      lastViewedAt: ago(HOUR_MS),
+      lastViewedAt: '2026-01-01T11:30:00.000Z',
     })
 
-    expect(standingOf({ member: acknowledged })).toBe(ECrewStanding.Retired)
+    expect(standingOf({ member: acknowledged })).toBe(ECrewStanding.Settled)
   })
 
-  it('never retires a member whose end mark cannot be parsed', () => {
-    const garbled = member({ endedAt: 'whenever' })
-
-    expect(standingOf({ member: garbled })).toBe(ECrewStanding.Held)
+  it('holds a finished teammate whose pull request is still open', () => {
+    expect(standingOf({ member: member({ hasOpenPullRequest: true }) })).toBe(ECrewStanding.Held)
   })
 
-  it('never retires a member whose delivery mark cannot be parsed', () => {
-    const garbled = member({ deliveredAt: 'soon' })
-
-    expect(standingOf({ member: garbled })).toBe(ECrewStanding.Held)
-  })
-
-  it('never retires a member whose viewing mark cannot be parsed', () => {
-    const garbled = member({ lastViewedAt: '' })
-
-    expect(standingOf({ member: garbled })).toBe(ECrewStanding.Held)
-  })
-
-  it('never retires a terminal member that recorded no end', () => {
-    expect(standingOf({ member: member({ endedAt: null }) })).toBe(ECrewStanding.Held)
-  })
-
-  it('is still retiring one ms before the grace elapses', () => {
-    const ending = member({ endedAt: ago(GRACE_MS - 1), deliveredAt: ago(GRACE_MS - 1) })
-
-    expect(standingOf({ member: ending })).toBe(ECrewStanding.Retiring)
-  })
-
-  it('retires exactly as the grace elapses', () => {
-    const ending = member({ endedAt: ago(GRACE_MS), deliveredAt: ago(GRACE_MS) })
-
-    expect(standingOf({ member: ending })).toBe(ECrewStanding.Retired)
-  })
-
-  it('retires one ms after the grace elapses', () => {
-    const ending = member({ endedAt: ago(GRACE_MS + 1), deliveredAt: ago(GRACE_MS + 1) })
-
-    expect(standingOf({ member: ending })).toBe(ECrewStanding.Retired)
-  })
-
-  it('counts the grace from the latest mark, not the earliest', () => {
-    const lingering = member({
-      endedAt: ago(HOUR_MS),
-      deliveredAt: ago(HOUR_MS),
-      lastViewedAt: ago(MINUTE_MS),
-    })
-
-    expect(standingOf({ member: lingering })).toBe(ECrewStanding.Retiring)
-  })
-
-  it('prefers delivery over an earlier end when the grace is counted', () => {
-    const lateDelivery = member({ endedAt: ago(HOUR_MS), deliveredAt: ago(MINUTE_MS) })
-
-    expect(standingOf({ member: lateDelivery })).toBe(ECrewStanding.Retiring)
+  it('settles a finished teammate once its pull request is no longer open', () => {
+    expect(standingOf({ member: member({ hasOpenPullRequest: false }) })).toBe(ECrewStanding.Settled)
   })
 })
 
-describe('partitionCrew', () => {
+describe('standingsOfCrew', () => {
   const stale = member({ agentId: 'thr_stale' })
 
   const viewed = member({ agentId: 'thr_viewed' })
 
-  const running = member({
-    agentId: 'thr_running',
-    status: EAgentStatus.Running,
-    endedAt: null,
-    deliveredAt: null,
-  })
+  const live = running({ agentId: 'thr_running' })
 
-  const crew = [stale, viewed, running]
-
-  it('splits the crew in input order', () => {
-    const { shown, retired } = partitionCrew({
-      crew,
-      viewing: 'thr_viewed',
-      now: NOW,
-      graceMs: GRACE_MS,
-    })
-
-    expect(shown.map((row) => row.agentId)).toEqual(['thr_viewed', 'thr_running'])
-    expect(retired.map((row) => row.agentId)).toEqual(['thr_stale'])
-  })
+  const crew = [stale, viewed, live]
 
   it('reports the standing it decided for every member', () => {
-    const { standings } = partitionCrew({
-      crew,
-      viewing: 'thr_viewed',
-      now: NOW,
-      graceMs: GRACE_MS,
-    })
+    const standings = standingsOfCrew({ crew, viewing: 'thr_viewed' })
 
-    expect(standings.get('thr_stale')).toBe(ECrewStanding.Retired)
+    expect(standings.get('thr_stale')).toBe(ECrewStanding.Settled)
     expect(standings.get('thr_viewed')).toBe(ECrewStanding.Held)
     expect(standings.get('thr_running')).toBe(ECrewStanding.Live)
   })
 
   it('agrees with the single-member decision', () => {
-    const { standings } = partitionCrew({ crew, viewing: null, now: NOW, graceMs: GRACE_MS })
+    const standings = standingsOfCrew({ crew, viewing: null })
 
     for (const row of crew) {
       expect(standings.get(row.agentId)).toBe(standingOf({ member: row, crew, viewing: null }))
     }
   })
 
-  it('keeps a crew that carries no retirees whole', () => {
-    const { shown, retired } = partitionCrew({
-      crew: [running],
-      viewing: null,
-      now: NOW,
-      graceMs: GRACE_MS,
-    })
-
-    expect(shown).toEqual([running])
-    expect(retired).toEqual([])
-  })
-
   it('survives a crew whose parent chain loops', () => {
     const first = member({ agentId: 'thr_first', spawnedBy: 'thr_second' })
-    const second = member({
-      agentId: 'thr_second',
-      spawnedBy: 'thr_first',
-      status: EAgentStatus.Running,
-      endedAt: null,
-      deliveredAt: null,
-    })
+    const second = running({ agentId: 'thr_second', spawnedBy: 'thr_first' })
 
-    const { shown, retired } = partitionCrew({
-      crew: [first, second],
-      viewing: null,
-      now: NOW,
-      graceMs: GRACE_MS,
-    })
+    const standings = standingsOfCrew({ crew: [first, second], viewing: null })
 
-    expect(shown.map((row) => row.agentId)).toEqual(['thr_first', 'thr_second'])
-    expect(retired).toEqual([])
-  })
-})
-
-describe('DEFAULT_CREW_GRACE_MS', () => {
-  it('gives peripheral chrome three minutes', () => {
-    expect(DEFAULT_CREW_GRACE_MS).toBe(3 * MINUTE_MS)
+    expect(standings.get('thr_first')).toBe(ECrewStanding.Held)
+    expect(standings.get('thr_second')).toBe(ECrewStanding.Live)
   })
 })
