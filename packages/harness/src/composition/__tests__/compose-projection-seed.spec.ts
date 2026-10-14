@@ -97,6 +97,7 @@ describe('projection seeding from the restored log', () => {
         url: 'https://github.com/dennisofficial/atlas/pull/42',
         repo: 'github.com/dennisofficial/atlas',
         branch: 'dennis/linked-branch',
+        linkedBy: threadId,
       },
     ])
 
