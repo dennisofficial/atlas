@@ -89,24 +89,45 @@ describe('reflogs in the source cleanup proof', () => {
 })
 
 describe('a preserved reflog changing while the archive is written', () => {
-  it('rejects the capture and leaves no archive behind', async () => {
+  const packWhile = async (
+    commandOf: (made: Awaited<ReturnType<typeof createFamilyFixture>>) => string,
+  ): Promise<{ destination: string; threw: boolean }> => {
     const made = await createFamilyFixture()
     const bins = join(await createScratch(), 'bin')
     await mkdir(bins)
     const realTar = Bun.spawnSync(['which', 'tar'], { stdout: 'pipe' }).stdout.toString().trim()
-    const command = `git -C ${quoted(made.main)} checkout -q --detach; git -C ${quoted(made.main)} checkout -q main`
-    await writeFile(join(bins, 'tar'), `#!/bin/sh\nif [ "$1" = "--no-recursion" ]; then ${command}; fi\nexec ${quoted(realTar)} "$@"\n`)
+    await writeFile(join(bins, 'tar'), `#!/bin/sh\nif [ "$1" = "--no-recursion" ]; then ${commandOf(made)}; fi\nexec ${quoted(realTar)} "$@"\n`)
     await chmod(join(bins, 'tar'), 0o755)
     const destination = join(await createScratch(), 'workspace.tar.gz')
     const path = process.env.PATH
     process.env.PATH = `${bins}:${path ?? ''}`
     try {
-      await expect(captureWorkspaceArchive({ cwd: made.main, destination, family: made.family })).rejects.toThrow('changed while it was being captured')
+      const threw = await captureWorkspaceArchive({ cwd: made.main, destination, family: made.family }).then(
+        () => false,
+        () => true,
+      )
+      return { destination, threw }
     } finally {
       if (path === undefined) delete process.env.PATH
       else process.env.PATH = path
     }
+  }
 
+  it('ships when the change is only reflog appends, which restore merges line-wise', async () => {
+    const { destination, threw } = await packWhile(
+      (made) => `git -C ${quoted(made.main)} checkout -q --detach; git -C ${quoted(made.main)} checkout -q main`,
+    )
+
+    expect(threw).toBe(false)
+    expect(await stat(destination).then(() => true, () => false)).toBe(true)
+  })
+
+  it('rejects the capture and leaves no archive behind when the reflog is rewritten', async () => {
+    const { destination, threw } = await packWhile(
+      (made) => `printf 'rewritten\\n' > ${quoted(join(made.main, '.git', 'logs', 'HEAD'))}`,
+    )
+
+    expect(threw).toBe(true)
     expect(await stat(destination).then(() => true, () => false)).toBe(false)
   })
 })

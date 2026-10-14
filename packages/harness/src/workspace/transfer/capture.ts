@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import { treeMountPath, writeArchive, type ArchiveMount, type Relocation } from './archive'
 import type { ArchiveBuildReporter } from '../../cloud/archive-build-progress'
-import { digestGitAdmin } from './capture-admin'
+import { digestGitAdmin, gitAdminQuiet, snapshotGitAdminQuiet, type GitAdminQuiet } from './capture-admin'
 import { noIgnoreFilter, resolveIgnoreFilter } from './capture-ignore'
 import { dropExcludedRootWrappers } from './capture-files'
 import { assertPortable, treeSkipRule, walkTree, type TreeEntry } from './capture-files'
@@ -30,7 +30,12 @@ type Collected = {
   indexSource: string | null
 }
 
-type Observation = { snapshots: TreeSnapshot[]; admin: string | null; paths: string[] }
+type Observation = {
+  snapshots: TreeSnapshot[]
+  admin: string | null
+  quiet: GitAdminQuiet | null
+  paths: string[]
+}
 
 const isInside = ({ parent, child }: { parent: string; child: string }): boolean =>
   child === parent || child.startsWith(`${parent}${sep}`)
@@ -61,7 +66,8 @@ async function observe({ layout }: { layout: WorkspaceLayout }): Promise<Observa
   )
   const roots = layout.trees.map((tree) => tree.sourcePath)
   const admin = layout.commonDir === null ? null : await digestGitAdmin({ trees: layout.trees })
-  return { snapshots, admin, paths: roots }
+  const quiet = layout.commonDir === null ? null : await snapshotGitAdminQuiet({ trees: layout.trees })
+  return { snapshots, admin, quiet, paths: roots }
 }
 
 async function collectTree({
@@ -199,7 +205,8 @@ const changedTree = ({
       before.snapshots[position]?.branch !== after.snapshots[position]?.branch,
   )
   if (index >= 0) return layout.trees[index]?.sourcePath ?? null
-  if (before.admin !== after.admin) return layout.commonDir
+  if (before.quiet !== null && after.quiet !== null && !gitAdminQuiet({ before: before.quiet, after: after.quiet }))
+    return layout.commonDir
   return null
 }
 
