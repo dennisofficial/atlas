@@ -51,11 +51,15 @@ async function setup() {
   return { owner, local, placement }
 }
 
+// install's work stages the birth's runtime through the handle's prepareRuntime before committing,
+// exactly as the real birth's open step does.
 const bornInCloud = async (args: { owner: Awaited<ReturnType<typeof setup>>['owner']; threadId?: ThreadId }) =>
   args.owner.install({
     threadId: args.threadId ?? THREAD,
-    prepareRuntime: () => undefined,
-    work: async (commit) => commit.commit(CLOUD),
+    work: async (handle) => {
+      handle.prepareRuntime(cloudBinding())
+      await handle.commit(CLOUD)
+    },
   })
 
 describe('session owner', () => {
@@ -79,9 +83,9 @@ describe('session owner', () => {
     const { owner } = await setup()
     const out = await owner.install({
       threadId: THREAD,
-      prepareRuntime: () => undefined,
-      work: async (commit) => {
-        await commit.commit(CLOUD)
+      work: async (handle) => {
+        handle.prepareRuntime(cloudBinding())
+        await handle.commit(CLOUD)
         return 'provisioned'
       },
     })
@@ -92,7 +96,6 @@ describe('session owner', () => {
     const { owner, local } = await setup()
     await expect(owner.install({
       threadId: THREAD,
-      prepareRuntime: () => undefined,
       work: async () => {
         throw new Error('sandbox never woke')
       },
@@ -107,9 +110,9 @@ describe('session owner', () => {
     const { owner, local } = await setup()
     await expect(owner.install({
       threadId: THREAD,
-      prepareRuntime: () => undefined,
-      work: async (commit) => {
-        await commit.commit(CLOUD)
+      work: async (handle) => {
+        handle.prepareRuntime(cloudBinding())
+        await handle.commit(CLOUD)
         throw new Error('socket dropped')
       },
     })).rejects.toThrow('socket dropped')
@@ -121,8 +124,10 @@ describe('session owner', () => {
     const { owner } = await setup()
     await expect(owner.install({
       threadId: THREAD,
-      prepareRuntime: () => undefined,
-      work: async (commit) => commit.commit({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host }),
+      work: async (handle) => {
+        handle.prepareRuntime(cloudBinding())
+        await handle.commit({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
+      },
     })).rejects.toThrow('commits a cloud placement')
     expect(owner.snapshot().location).toBe(EExecutionLocation.Host)
   })

@@ -9,8 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import { cloudWorkspacePath } from '@dltech/atlas-wire'
 
-import type { PlacementCommit } from '../composition/placement-controller'
-import type { RuntimeBinding, SessionOwner, SessionRuntime } from '../composition/session-owner'
+import type { BirthInstall, SessionOwner, SessionRuntime } from '../composition/session-owner'
 import { logFieldsOf } from '../store/logs'
 import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
 import { probeWorkspace } from '../workspace/probe'
@@ -86,7 +85,7 @@ export type BirthArgs = {
   onBuildProgress?: ArchiveBuildReporter | undefined
   open?: ((args: {
     attachment: CloudAttachment
-    prepareRuntime: (binding: RuntimeBinding<SessionRuntime>) => void
+    prepareRuntime: BirthInstall<SessionRuntime>['prepareRuntime']
     restoredWorkspace?: RestoredWorkspace | undefined
   }) => Promise<void>) | undefined
 }
@@ -121,13 +120,9 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
   args.onBegin?.({ waves: BIRTH_WAVES })
 
   try {
-    let staged: RuntimeBinding<SessionRuntime> | undefined
     const born = await args.placement.install<BirthSuccess>({
       threadId,
-      prepareRuntime: (binding) => {
-        staged = binding
-      },
-      work: async (commit) => {
+      work: async (handle) => {
         const started = (id: EBirthNode): void => args.onNodeStart?.(id)
         const done = (id: EBirthNode): void => args.onNodeDone?.(id)
 
@@ -189,19 +184,17 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
             await releaseWorktree({ cwd: origin.repo, path: origin.workspace }).catch(() => false)
           }
 
-          started(EBirthNode.FlipOwnership)
-          await commit.commit({ harness: EHarnessPlacement.Cloud, driveName: sandbox.driveName })
-          done(EBirthNode.FlipOwnership)
-
           started(EBirthNode.Open)
           await args.open?.({
             attachment,
-            prepareRuntime: (binding) => {
-              staged = binding
-            },
+            prepareRuntime: handle.prepareRuntime,
             restoredWorkspace,
           })
           done(EBirthNode.Open)
+
+          started(EBirthNode.FlipOwnership)
+          await handle.commit({ harness: EHarnessPlacement.Cloud, driveName: sandbox.driveName })
+          done(EBirthNode.FlipOwnership)
 
           started(EBirthNode.Activate)
           if (workspaceArchive !== undefined) {

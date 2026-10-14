@@ -59,6 +59,10 @@ export type OwnerSnapshot<Adapters> = {
   bound: boolean
 }
 
+export type BirthInstall<Adapters> = PlacementCommit & {
+  prepareRuntime: (binding: RuntimeBinding<Adapters>) => void
+}
+
 export type SessionOwner<Adapters> = {
   placement: PlacementController
   snapshot: () => OwnerSnapshot<Adapters>
@@ -68,14 +72,14 @@ export type SessionOwner<Adapters> = {
   subscribe: (listener: () => void) => () => void
   /**
    * Installs the binding a fresh cloud birth provisioned and commits the born-placed record in one
-   * step: `work` receives the controller's commit handle, stages the binding, and the commit
-   * publishes the placement — which is what installs the staged binding. Birth is the only writer
-   * of a cloud placement; there is no move transaction to ride.
+   * step: `work` stages the runtime through the handle's `prepareRuntime` and commits the
+   * placement through its `commit`; the commit's publish installs the staged binding, so the
+   * durable write and the runtime install land together. Birth is the only writer of a cloud
+   * placement; there is no move transaction to ride.
    */
   install: <T>(args: {
     threadId: ThreadId
-    prepareRuntime: (binding: RuntimeBinding<Adapters>) => void
-    work: (commit: PlacementCommit) => Promise<T>
+    work: (handle: BirthInstall<Adapters>) => Promise<T>
   }) => Promise<T>
   adopt: (args: {
     threadId: ThreadId

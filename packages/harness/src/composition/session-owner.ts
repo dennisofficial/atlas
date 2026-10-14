@@ -4,11 +4,12 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { PlacementCommit, PlacementController } from './placement-controller'
+import type { PlacementController } from './placement-controller'
 import { createSessionFreezes } from './session-freezes'
 import { createRetirementQueue } from './session-retirement'
 import {
   ERuntimeKind,
+  type BirthInstall,
   type OwnerSnapshot,
   type RuntimeBinding,
   type SessionOwner,
@@ -16,6 +17,7 @@ import {
 
 export { ERuntimeKind } from './session-owner-types'
 export type {
+  BirthInstall,
   OwnerSnapshot,
   RuntimeBinding,
   SessionOwner,
@@ -135,21 +137,47 @@ export function createSessionOwner<Adapters>(args: {
     },
     install: async <T>(installArgs: {
       threadId: ThreadId
-      prepareRuntime: (binding: RuntimeBinding<Adapters>) => void
-      work: (commit: PlacementCommit) => Promise<T>
+      work: (handle: BirthInstall<Adapters>) => Promise<T>
     }): Promise<T> => {
       const { threadId } = installArgs
       if (!freezes.has(threadId)) await holdFreeze(threadId)
+      let prepared: RuntimeBinding<Adapters> | undefined
+      const discard = (): void => {
+        const dropped = prepared
+        prepared = undefined
+        if (dropped !== undefined) dropped.close?.()
+      }
       return placement.birth<T>({
         threadId,
         work: async (commit) => {
+          const handle: BirthInstall<Adapters> = {
+            committed: commit.committed,
+            prepareRuntime: (binding) => {
+              if (!kindFits({ target: EExecutionLocation.Cloud, kind: binding.kind })) {
+                throw new Error('the prepared runtime does not fit a cloud birth')
+              }
+              discard()
+              prepared = binding
+            },
+            commit: async (next) => {
+              if (commit.committed()) return
+              if (prepared === undefined) {
+                throw new Error('a cloud birth needs a prepared runtime before it commits')
+              }
+              staged = { threadId, target: EExecutionLocation.Cloud, binding: prepared }
+              try {
+                await commit.commit(next)
+              } finally {
+                if (commit.committed()) prepared = undefined
+                staged = undefined
+              }
+            },
+          }
           try {
-            return await installArgs.work(commit)
+            return await installArgs.work(handle)
           } finally {
             if (!commit.committed()) {
-              const dropped = staged?.binding
-              staged = undefined
-              if (dropped !== undefined) dropped.close?.()
+              discard()
               releaseFreeze(threadId)
             }
           }
