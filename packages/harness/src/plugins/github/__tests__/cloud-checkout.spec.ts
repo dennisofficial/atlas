@@ -77,6 +77,14 @@ describe('the cloud checkout projection', () => {
     expect(projection.current()).toBeNull()
   })
 
+  it('is null for a lift standing on the default branch', () => {
+    const projection = createCloudCheckout()
+
+    projection.publish({ events: [lifted({ branch: 'main' })] })
+
+    expect(projection.current()).toBeNull()
+  })
+
   it('is null for a lift whose remote does not parse', () => {
     const projection = createCloudCheckout()
 

@@ -38,8 +38,10 @@ export function checkoutOf(args: {
   directory: string
   branch: string
   remotes: readonly NamedRemote[]
+  defaultBranch?: string | null
 }): RepositoryCheckout | null {
   if (args.branch.length === 0) return null
+  if (args.defaultBranch != null && args.branch === args.defaultBranch) return null
 
   const remote = remoteOf(args.remotes)
   if (remote === null) return null
