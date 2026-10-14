@@ -8,7 +8,7 @@ import { toRunId, toThreadId, type ClockPort, type EventId, type IdPort, type Ru
 import { buildSessionArchive, JsonlEventLog, SessionRegistry } from '@dltech/atlas-harness'
 import { eventLogFile, sessionDirectory } from '@dltech/atlas-harness'
 
-import { restoreTranscript } from '../restore-transcript'
+import { explicitApply } from './explicit-apply'
 import { applyTranscriptArchive, readTranscriptOrigin } from '../transcript-bootstrap'
 import { rewindThread, RewindMachineryPort, ThreadStorePort } from '@dltech/atlas-harness'
 
@@ -140,12 +140,10 @@ describe('the transcript origin marker and the busy guard', () => {
     const { archive } = await seedArchiveHome({ text: 'first' })
     const log = openLog({ home })
 
-    await restoreTranscript({
+    await explicitApply({
       fetchArchive: async () => archive,
       atlasHome: home,
       threadId: THREAD,
-      log,
-      ids: fixedIds({ prefix: 'spec' }),
     })
     const stamped = await readTranscriptOrigin({
       sessionDir: sessionDirectory({ home, sessionId: THREAD }),
@@ -173,32 +171,26 @@ describe('the transcript origin marker and the busy guard', () => {
   it('a busy guard refuses the replacement but never the digest-matched refresh', async () => {
     const home = freshHome()
     const { archive } = await seedArchiveHome({ text: 'one' })
-    await restoreTranscript({
+    await explicitApply({
       fetchArchive: async () => archive,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
 
     const busy = 'children are resuming'
-    const matched = await restoreTranscript({
+    const matched = await explicitApply({
       fetchArchive: async () => archive,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
       refuseIfBusy: () => busy,
     })
     expect(matched).toEqual({ restored: true, failed: null })
 
     const { archive: updated } = await seedArchiveHome({ text: 'two' })
-    const refused = await restoreTranscript({
+    const refused = await explicitApply({
       fetchArchive: async () => updated,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
       refuseIfBusy: () => busy,
     })
     expect(refused.restored).toBe(false)

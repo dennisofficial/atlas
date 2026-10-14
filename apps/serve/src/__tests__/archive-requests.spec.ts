@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import { EClientRequest } from '@dltech/atlas-harness'
-import { readMemoryArchiveReplySchema, readSessionArchiveReplySchema } from '@dltech/atlas-wire'
+import { readSessionArchiveReplySchema } from '@dltech/atlas-wire'
 
 import { answerArchiveRead } from '../archive-requests'
 import type { RequestFrame } from '../request-reply'
@@ -21,7 +21,6 @@ describe('answering an archive read', () => {
     const reply = await answerArchiveRead({
       frame: frameOf(EClientRequest.ReadSessionArchive),
       sessionArchive: async () => descriptor,
-      memoryArchive: undefined,
     })
 
     expect(reply.ok).toBe(true)
@@ -33,33 +32,15 @@ describe('answering an archive read', () => {
     const reply = await answerArchiveRead({
       frame: frameOf(EClientRequest.ReadSessionArchive),
       sessionArchive: async () => null,
-      memoryArchive: undefined,
     })
 
     expect(reply.data).toEqual({ archive: null })
   })
 
-  it('keeps the memory archive on its own base64 string path', async () => {
-    const reply = await answerArchiveRead({
-      frame: frameOf(EClientRequest.ReadMemoryArchive),
-      sessionArchive: undefined,
-      memoryArchive: async () => new Uint8Array([1, 2, 3]),
-    })
-    const empty = await answerArchiveRead({
-      frame: frameOf(EClientRequest.ReadMemoryArchive),
-      sessionArchive: undefined,
-      memoryArchive: async () => null,
-    })
-
-    expect(readMemoryArchiveReplySchema.parse(reply.data)).toEqual({ archive: 'AQID' })
-    expect(empty.data).toEqual({ archive: '' })
-  })
-
-  it('refuses a transcript read when the serve has no session archive, even with memory present', async () => {
+  it('refuses a transcript read when the serve has no session archive', async () => {
     const reply = await answerArchiveRead({
       frame: frameOf(EClientRequest.ReadSessionArchive),
       sessionArchive: undefined,
-      memoryArchive: async () => new Uint8Array(),
     })
 
     expect(reply.ok).toBe(false)
@@ -72,7 +53,6 @@ describe('answering an archive read', () => {
       sessionArchive: async () => {
         throw new Error('disk full')
       },
-      memoryArchive: undefined,
     })
 
     expect(reply.ok).toBe(false)

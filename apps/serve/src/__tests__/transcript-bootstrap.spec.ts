@@ -8,7 +8,7 @@ import { toRunId, toThreadId, type ClockPort, type EventId, type IdPort, type Ru
 import { buildSessionArchive, JsonlEventLog, SessionRegistry } from '@dltech/atlas-harness'
 import { eventLogFile, sessionDirectory } from '@dltech/atlas-harness'
 
-import { restoreTranscript } from '../restore-transcript'
+import { explicitApply } from './explicit-apply'
 import { applyTranscriptArchive, readTranscriptOrigin } from '../transcript-bootstrap'
 import { rewindThread, RewindMachineryPort, ThreadStorePort } from '@dltech/atlas-harness'
 
@@ -128,12 +128,10 @@ describe('applying a transcript archive generation-aware', () => {
     expect(fetches).toBe(1)
     expect(readFileSync(eventFile({ home }), 'utf8')).toBe('')
 
-    const restore = await restoreTranscript({
+    const restore = await explicitApply({
       fetchArchive: async () => archive,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restore).toEqual({ restored: true, failed: null })
@@ -145,12 +143,10 @@ describe('applying a transcript archive generation-aware', () => {
     const home = freshHome()
     const { archive } = await seedArchiveHome({ text: 'from-the-mac' })
 
-    const first = await restoreTranscript({
+    const first = await explicitApply({
       fetchArchive: async () => archive,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
     expect(first).toEqual({ restored: true, failed: null })
 
@@ -164,12 +160,10 @@ describe('applying a transcript archive generation-aware', () => {
     })
     expect(boot).toEqual({ applied: false, digestMatched: true, fresh: false, failed: null })
 
-    const again = await restoreTranscript({
+    const again = await explicitApply({
       fetchArchive: async () => archive,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
     expect(again).toEqual({ restored: true, failed: null })
 
@@ -179,22 +173,18 @@ describe('applying a transcript archive generation-aware', () => {
   it('an updated tar replaces the old generation and moves the receipt', async () => {
     const home = freshHome()
     const { archive: first } = await seedArchiveHome({ text: 'first-generation' })
-    await restoreTranscript({
+    await explicitApply({
       fetchArchive: async () => first,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
     const firstReceipt = receiptText({ home })
 
     const { archive: second } = await seedArchiveHome({ text: 'second-generation' })
-    const restored = await restoreTranscript({
+    const restored = await explicitApply({
       fetchArchive: async () => second,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restored).toEqual({ restored: true, failed: null })
@@ -240,12 +230,10 @@ describe('applying a transcript archive generation-aware', () => {
     expect(boot.failed).toContain('did not extract')
     expect(receiptText({ home })).toBeNull()
 
-    const restore = await restoreTranscript({
+    const restore = await explicitApply({
       fetchArchive: async () => notATar({ home }),
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restore.restored).toBe(false)
@@ -282,12 +270,10 @@ describe('applying a transcript archive generation-aware', () => {
     expect(boot).toEqual({ applied: false, digestMatched: false, fresh: false, failed: null })
     expect(readFileSync(eventFile({ home }), 'utf8')).toBe(before)
 
-    const restore = await restoreTranscript({
+    const restore = await explicitApply({
       fetchArchive: async () => archivePath,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
     expect(restore.restored).toBe(false)
     expect(restore.failed).toContain('no events for this thread')
@@ -297,12 +283,10 @@ describe('applying a transcript archive generation-aware', () => {
     const home = freshHome()
     capabilityOnlyLog({ home })
 
-    const restore = await restoreTranscript({
+    const restore = await explicitApply({
       fetchArchive: async () => null,
       atlasHome: home,
       threadId: THREAD,
-      log: openLog({ home }),
-      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restore.restored).toBe(false)

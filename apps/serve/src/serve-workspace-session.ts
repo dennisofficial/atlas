@@ -1,7 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { DirectWorkspace } from './direct-workspace'
-import type { WorkspaceCapturer } from './prepare-workspace'
 import type { ServeApp } from './serve-app'
 import { adoptChildrenNow, settleLostShellsInBackground } from './serve-background'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -9,12 +8,8 @@ import { createWorkspaceSession } from './workspace-session'
 
 export function createServeWorkspaceSession(args: {
   direct: DirectWorkspace
-  driveHome: string
   threadId: ThreadId
-  activeCwd: string
-  sourceSessionId?: string | undefined
   app: ServeApp
-  capture?: WorkspaceCapturer | undefined
   dormant: boolean
   deferStartChildren?: boolean | undefined
   resumeChildren?: readonly ThreadId[] | undefined
@@ -48,13 +43,7 @@ export function createServeWorkspaceSession(args: {
   }
   const session = createWorkspaceSession({
     direct: args.direct,
-    driveHome: args.driveHome,
-    threadId,
-    launchDirectory: () => args.direct.activeCwd() ?? args.activeCwd,
-    app,
-    capture: args.capture,
     dormant: args.dormant,
-    sourceSessionId: args.sourceSessionId,
     startChildren,
   })
   if (!session.dormant() && args.deferStartChildren !== true) {

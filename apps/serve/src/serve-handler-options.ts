@@ -6,7 +6,7 @@ import type { SessionHandlersArgs } from './socket-session'
 export const handlerOptionsOf = (args: {
   app: ServeApp
   log: ServeLog
-}): Pick<SessionHandlersArgs, 'transcript' | 'selectModel' | 'sessionArchive' | 'memoryArchive' | 'applyUserSettings' | 'mentions' | 'rotation' | 'authority'> => {
+}): Pick<SessionHandlersArgs, 'transcript' | 'selectModel' | 'sessionArchive' | 'applyUserSettings' | 'mentions' | 'rotation' | 'authority'> => {
   const { app, log } = args
   return {
     rotation: app.rotation,
@@ -17,7 +17,6 @@ export const handlerOptionsOf = (args: {
     ...(app.mentionFiles === undefined ? {} : { mentions: { files: app.mentionFiles, threads: app.threads } }),
     ...(app.modelBridge === undefined ? {} : { selectModel: app.modelBridge.select }),
     ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
-    ...(app.memoryArchive === undefined ? {} : { memoryArchive: app.memoryArchive }),
     ...(app.settings === undefined
       ? {}
       : { applyUserSettings: createUserSettingsApplier({ settings: app.settings, log }) }),

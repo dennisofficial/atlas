@@ -1,16 +1,13 @@
-import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
-import { toThreadId, type Event } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 
 import { EClientFrame, EClientRequest, EServeFrame, type RestoredWorkspace } from '@dltech/atlas-harness'
-import type { WorkspaceManifest } from '@dltech/atlas-harness'
 
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
-import { prepareWorkspaceExport } from '../prepare-workspace'
 import { connect } from './client'
 import { fakeServeApp } from './fakes'
 
@@ -33,107 +30,6 @@ afterEach(async () => {
   else process.env.ATLAS_HOME = heldHome
   heldHome = undefined
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
-})
-
-const manifestFor = (cwd: string): WorkspaceManifest => ({
-  version: 1,
-  repository: null,
-  activeId: 'main',
-  activeRelativePath: '',
-  trees: [
-    {
-      id: 'main',
-      name: 'main',
-      sourcePath: cwd,
-      originPath: cwd,
-      branch: null,
-      head: null,
-      baseline: null,
-      fingerprint: 'f',
-      isMain: true,
-    },
-  ],
-})
-
-const event = (partial: Record<string, unknown>): Event =>
-  ({ id: 'e', seq: 1, threadId, runId: 'r', depth: 0, at: '2026-10-01T00:00:00.000Z', ...partial }) as Event
-
-describe('preparing a workspace export', () => {
-  it('captures the current entered worktree, outside the workspace, in the export directory', async () => {
-    const home = await freshRoot()
-    const captured: string[] = []
-
-    const reply = await prepareWorkspaceExport({
-      driveHome: home,
-      threadId,
-      launchDirectory: '/atlas/workspace',
-      requireCoverage: async () => undefined,
-      log: {
-        readOwn: async () => [
-          event({ type: 'worktree-entered', path: '/atlas/workspace/.atlas/worktrees/feature', branch: 'feature' }),
-        ],
-      },
-      capture: async ({ cwd, destination }) => {
-        captured.push(cwd)
-        await writeFile(destination, 'tar')
-        return manifestFor(cwd)
-      },
-    })
-
-    expect(captured).toEqual(['/atlas/workspace/.atlas/worktrees/feature'])
-    expect(reply.path.startsWith(join(home, 'exports', 'workspace-'))).toBe(true)
-    expect(reply.path.endsWith('.tar.gz')).toBe(true)
-    expect(existsSync(reply.path)).toBe(true)
-    expect(reply.totalBytes).toBe((await stat(reply.path)).size)
-    expect(reply.totalBytes).toBe(3)
-    expect(reply.manifest.trees[0]?.sourcePath).toBe('/atlas/workspace/.atlas/worktrees/feature')
-  })
-
-  it('stops background processes before capturing and clears older exports', async () => {
-    const home = await freshRoot()
-    await mkdir(join(home, 'exports'), { recursive: true })
-    await writeFile(join(home, 'exports', 'workspace-old.tar.gz'), 'stale')
-    const order: string[] = []
-
-    await prepareWorkspaceExport({
-      driveHome: home,
-      threadId,
-      launchDirectory: '/atlas/workspace',
-      requireCoverage: async () => undefined,
-      log: { readOwn: async () => [] },
-      stopProcesses: async () => {
-        order.push('stop')
-      },
-      capture: async ({ cwd, destination }) => {
-        order.push('capture')
-        await writeFile(destination, 'tar')
-        return manifestFor(cwd)
-      },
-    })
-
-    expect(order).toEqual(['stop', 'capture'])
-    expect(await readdir(join(home, 'exports'))).toHaveLength(1)
-  })
-
-  it('leaves no partial export when the capture fails', async () => {
-    const home = await freshRoot()
-
-    await expect(
-      prepareWorkspaceExport({
-        driveHome: home,
-        threadId,
-        launchDirectory: '/atlas/workspace',
-        requireCoverage: async () => undefined,
-        log: { readOwn: async () => [] },
-        capture: async ({ destination }) => {
-          await writeFile(destination, 'half')
-          throw new Error('the tree changed while it was read')
-        },
-      }),
-    ).rejects.toThrow('the tree changed')
-
-    expect(await readdir(join(home, 'exports'))).toEqual([])
-  })
 })
 
 const restoredAt = (cwd: string): RestoredWorkspace => ({
@@ -177,10 +73,6 @@ const bootWith = async (args: { archive: string | null }) => {
     },
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     restoreWorkspace: async () => restoredAt(restoredTo),
-    captureWorkspace: async ({ cwd, destination }) => {
-      await writeFile(destination, 'tar')
-      return manifestFor(cwd)
-    },
     fetchTranscriptArchive: async () => null,
   })
   running.push(handle)
@@ -243,13 +135,8 @@ describe('serving a restored direct workspace', () => {
     await client.waitFor((frame) => frame.kind === EServeFrame.SendAcked)
   }, 15_000)
 
-  it('prepares an export over the wire and applies a new generation on a healthy serve', async () => {
+  it('applies a new generation on a healthy serve', async () => {
     const { client, home } = await bootWith({ archive: null })
-
-    const prepared = await ask(client, 'prep-1', EClientRequest.PrepareWorkspaceArchive)
-    expect(prepared.ok).toBe(true)
-    const path = (prepared.data as { path: string }).path
-    expect(path.startsWith(join(home, 'exports', 'workspace-'))).toBe(true)
 
     const none = await ask(client, 'apply-0', EClientRequest.ApplyWorkspaceArchive)
     expect(none.ok).toBe(false)

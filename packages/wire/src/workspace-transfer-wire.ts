@@ -52,13 +52,6 @@ export const restoredFamilyWireSchema = z.object({
   ),
 })
 
-export const workspaceCleanupWireSchema = z.object({
-  generation: z.string().min(1),
-  sourceSessionId: z.string(),
-  safe: z.boolean(),
-  reasons: z.array(z.string()),
-})
-
 export const workspaceManifestWireSchema = z.object({
   version: z.literal(1),
   repository: z
@@ -69,14 +62,6 @@ export const workspaceManifestWireSchema = z.object({
   trees: z.array(workspaceTreeWireSchema).min(1),
   family: workspaceFamilyWireSchema.optional(),
   administrationFingerprint: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
-})
-
-export const prepareWorkspaceArchiveReplySchema = z.object({
-  path: z.string().min(1),
-  manifest: workspaceManifestWireSchema,
-  totalBytes: z.number().int().nonnegative().optional(),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-  cleanup: workspaceCleanupWireSchema.optional(),
 })
 
 export const restoredWorkspaceWireSchema = z.object({
@@ -101,9 +86,7 @@ export const applyWorkspaceArchiveReplySchema = z.object({
 
 export type WorkspaceFamilyWire = z.infer<typeof workspaceFamilyWireSchema>
 export type RestoredFamilyWire = z.infer<typeof restoredFamilyWireSchema>
-export type WorkspaceCleanupWire = z.infer<typeof workspaceCleanupWireSchema>
 export type WorkspaceManifestWire = z.infer<typeof workspaceManifestWireSchema>
-export type PrepareWorkspaceArchiveReply = z.infer<typeof prepareWorkspaceArchiveReplySchema>
 export type RestoredWorkspaceWire = z.infer<typeof restoredWorkspaceWireSchema>
 export type ApplyWorkspaceArchiveReply = z.infer<typeof applyWorkspaceArchiveReplySchema>
 

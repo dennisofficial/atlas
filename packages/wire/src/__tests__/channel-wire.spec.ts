@@ -7,7 +7,6 @@ import {
   EClientRequest,
   encodeFrame,
   EServeFrame,
-  readMemoryArchiveReplySchema,
   readSessionArchiveReplySchema,
   SESSION_EXPORT_DIRECTORY_NAME,
   SESSION_EXPORT_FILE_PATTERN,
@@ -104,30 +103,6 @@ describe('the ready frame', () => {
     const decoded = decodeServeFrame(encodeFrame(frame))
     expect(decoded).toEqual(frame)
     expect(decoded?.kind === EServeFrame.Ready ? decoded.transcriptCurrent : undefined).toBe(false)
-  })
-})
-
-describe('the memory archive op', () => {
-  it('round-trips a read-memory-archive request through the request frame', () => {
-    const frame: ClientFrame = {
-      kind: EClientFrame.Request,
-      id: 'mem-1',
-      op: EClientRequest.ReadMemoryArchive,
-      params: {},
-    }
-
-    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
-  })
-
-  it('round-trips its reply — a base64 tar, empty when the sandbox holds no memory', () => {
-    const reply = { archive: 'H4sIAAAAAAAAA2NgGAWjYGgH' }
-
-    expect(readMemoryArchiveReplySchema.parse(reply)).toEqual(reply)
-    expect(readMemoryArchiveReplySchema.parse({ archive: '' })).toEqual({ archive: '' })
-  })
-
-  it('drops a reply whose archive is not a string', () => {
-    expect(readMemoryArchiveReplySchema.safeParse({ archive: 42 }).success).toBe(false)
   })
 })
 

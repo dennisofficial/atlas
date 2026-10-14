@@ -11,16 +11,12 @@ const COMPACTION: ReadonlySet<EClientRequest> = new Set([
 ])
 
 const LONG_RUNNING: ReadonlySet<EClientRequest> = new Set([
-  EClientRequest.ReadMemoryArchive,
   EClientRequest.ReadTranscriptIdentity,
   EClientRequest.ProvideOperatorInput,
 ])
 
 const WORKSPACE_TRANSFER: ReadonlySet<EClientRequest> = new Set([
-  EClientRequest.RestoreTranscript,
   EClientRequest.ReadSessionArchive,
-  EClientRequest.PrepareWorkspaceArchive,
-  EClientRequest.ConfirmWorkspaceCleanup,
   EClientRequest.ApplyWorkspaceArchive,
   EClientRequest.ActivateSession,
 ])

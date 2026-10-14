@@ -64,7 +64,7 @@ describe('rotation continuation durability', () => {
     await recovery.guard({ app, admission })
     const session = createServeWorkspaceSession({
       direct: createDirectWorkspace({ driveHome: fixture.home, destination: '/workspace' }),
-      driveHome: fixture.home, threadId, activeCwd: '/workspace', app,
+      threadId, app,
       dormant: true, deferStartChildren: true, log: quietLog, settling: { count: 0 }, note: quietLog,
     })
     const driver = createServeDriver({

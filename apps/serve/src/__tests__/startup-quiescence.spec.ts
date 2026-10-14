@@ -27,7 +27,7 @@ it('waits for startup adoption and recovery admissions, not the children’s ent
   }
   const session = createServeWorkspaceSession({
     direct: createDirectWorkspace({ driveHome: '/tmp/unused-startup-home', destination: '/workspace' }),
-    driveHome: '/tmp/unused-startup-home', threadId, activeCwd: '/workspace', app,
+    threadId, app,
     dormant: false, log: noop, settling: { count: 0 }, note: noop,
   })
   let initialized = false
@@ -51,7 +51,7 @@ it('does not authorize replacement if an initialization write failed', async () 
   }
   const session = createServeWorkspaceSession({
     direct: createDirectWorkspace({ driveHome: '/tmp/unused-startup-home', destination: '/workspace' }),
-    driveHome: '/tmp/unused-startup-home', threadId, activeCwd: '/workspace', app,
+    threadId, app,
     dormant: false, log: noop, settling: { count: 0 }, note: noop,
   })
   await expect(session.whenStarted()).rejects.toThrow('ending persistence failed')
