@@ -64,7 +64,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
     const mounted = await mountCloud({
       app,
       bridge,
-      withArchive: false,
+     
       opened: { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId },
     })
 
@@ -95,7 +95,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
   it('offers a reconnect on the transcript that attaches once clicked', async () => {
     const app = appFor()
     const { threadId, bridge, wakes } = await failingOnce(app)
-    const mounted = await mountCloud({ app, bridge, withArchive: false })
+    const mounted = await mountCloud({ app, bridge })
 
     try {
       await mounted.command('/resume')
@@ -134,7 +134,7 @@ describe('the reconnect the transcript advertises on a failed attach', () => {
   it('attaches when ctrl+r is pressed', async () => {
     const app = appFor()
     const { threadId, bridge, wakes } = await failingOnce(app)
-    const mounted = await mountCloud({ app, bridge, withArchive: false })
+    const mounted = await mountCloud({ app, bridge })
 
     try {
       await mounted.command('/resume')

@@ -64,8 +64,6 @@ const fakeDriver = (args: { observed: boolean; vaultPresent?: boolean }) => {
       upload.onProgress?.({ transferredBytes: 4, totalBytes: 10, complete: false })
       upload.onProgress?.({ transferredBytes: 10, totalBytes: 10, complete: true })
     },
-    downloadWorkspaceArchive: async () => {},
-    releaseWorkspaceArchive: async () => {},
     downloadSessionArchive: async (download) => {
       events.push(`download-session:${download.name}:${download.archive.path}:${download.destination}`)
       download.onProgress?.({ transferredBytes: 1, totalBytes: download.archive.size, complete: false })
@@ -211,24 +209,6 @@ describe('createLocalCloudBridge transcript handoff', () => {
     expect(progress).toHaveLength(1)
     expect(progress[0]?.complete).toBe(false)
     expect(progress[0]?.transferredBytes).toBe(0)
-  })
-
-  it('forwards a download total and byte readings through the driver', async () => {
-    const { driver } = fakeDriver({ observed: true })
-    const progress: TransferProgress[] = []
-    driver.downloadWorkspaceArchive = async (args) => {
-      expect(args.name).toBe(sandboxNameFor({ threadId }))
-      expect(args.totalBytes).toBe(20)
-      args.onProgress?.({ transferredBytes: 5, totalBytes: args.totalBytes, complete: false })
-    }
-    await bridgeWith(driver).sandboxes.downloadWorkspace?.({
-      threadId,
-      path: '/atlas/home/exports/workspace-test.tar.gz',
-      destination: '/tmp/workspace.tar.gz',
-      totalBytes: 20,
-      onProgress: (reading) => progress.push(reading),
-    })
-    expect(progress).toEqual([{ transferredBytes: 5, totalBytes: 20, complete: false }])
   })
 
   it('uploads no workspace archive when none is supplied', async () => {

@@ -93,7 +93,7 @@ describe('resuming a parked cloud thread', () => {
     const record: ParkedTranscriptRecord = { checkpoint: checkpointFor({ threadId, identity }), applied: identity }
     await app.threads.writeParkedTranscript({ threadId, record })
     const bridge = bridgeFor()
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       const frame = await mounted.showing(LOCAL_TEXT)
@@ -120,7 +120,7 @@ describe('resuming a parked cloud thread', () => {
       record: { checkpoint: checkpointFor({ threadId, identity }), applied: identity },
     })
     const bridge = bridgeFor()
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       await mounted.showing(LOCAL_TEXT)
@@ -154,7 +154,7 @@ describe('resuming a parked cloud thread', () => {
       await wakeGate.gate
       return create(given)
     }
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(held.threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(held.threadId) })
 
     try {
       const frame = await mounted.showing(LOCAL_TEXT)
@@ -187,7 +187,7 @@ describe('resuming a parked cloud thread', () => {
       await wakeGate.gate
       return create(given)
     }
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       const frame = await mounted.showing(LOCAL_TEXT)
@@ -212,7 +212,7 @@ describe('resuming a parked cloud thread', () => {
     const app = appFor()
     const { threadId, identity } = await parkedThread(app)
     const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: PARKED.url } })
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       await mounted.showing(LOCAL_TEXT)
@@ -238,7 +238,7 @@ describe('resuming a parked cloud thread', () => {
     const app = appFor()
     const { threadId, identity } = await parkedThread(app)
     const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: PARKED.url } })
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       await mounted.showing(LOCAL_TEXT)

@@ -18,7 +18,6 @@ import {
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { tldrFeed } from '../../ui/tldr-feed-store'
 import { App } from '../app'
-import { captureWorkspace } from '../cloud/workspace-snapshot'
 import type { AtlasApp } from '../compose'
 import { EOpenMode } from '../config'
 import { noticePortBinding } from '../notice-binding'
@@ -147,7 +146,6 @@ export async function mountLive(args: {
       opened={opened}
       createBridge={() => args.bridge}
       preflightLift={async () => null}
-      captureWorkspace={captureWorkspace}
       onMoveStep={(timing) => args.timings.push(timing)}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },

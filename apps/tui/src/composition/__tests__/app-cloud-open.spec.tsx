@@ -14,8 +14,8 @@ import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/har
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import { ECloudSandboxState, SessionsClient } from '@dltech/atlas-harness'
-import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
-import type { CloudBridgeFactory } from '../use-cloud-lift'
+import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
+import type { CloudBridgeFactory } from '../cloud/bridge-factory'
 import { spokenIn, THREAD, until } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, fakeCloud, scriptedModelPort, type FakeApp } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
@@ -88,9 +88,6 @@ const mount = async (args: {
       opened={opened}
       createBridge={createBridge}
       preflightLift={async () => null}
-      captureWorkspace={async () => CLEAN_WORKSPACE}
-      captureArchive={async () => undefined}
-      captureContext={async () => undefined}
       {...(args.onRestart === undefined ? {} : { onRestart: args.onRestart })}
     />,
     WIDE,

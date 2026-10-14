@@ -1,20 +1,19 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ELiftFault, ELiftStep, NOTHING_WAS_STOPPED, type LiftFailure } from '@dltech/atlas-harness'
+import { EBirthFault, EBirthNode, type BirthFailure } from '@dltech/atlas-harness'
 
 import { liftFailedNotice } from '../lift-notices'
 
-const failure = (over: Partial<LiftFailure> = {}): LiftFailure => ({
+const failure = (over: Partial<BirthFailure> = {}): BirthFailure => ({
   ok: false,
-  fault: ELiftFault.Sandbox,
-  step: ELiftStep.Starting,
+  fault: EBirthFault.Sandbox,
+  step: EBirthNode.Provision,
   detail: 'vercel returned 500',
-  stopped: NOTHING_WAS_STOPPED,
   ...over,
 })
 
-const EVERY_STEP = Object.values(ELiftStep)
-const EVERY_FAULT = Object.values(ELiftFault)
+const EVERY_STEP = Object.values(EBirthNode)
+const EVERY_FAULT = Object.values(EBirthFault)
 
 describe('a failed cloud birth', () => {
   it('names the reason and says the thread started on this machine', () => {
@@ -26,7 +25,7 @@ describe('a failed cloud birth', () => {
   })
 
   it('says the sandbox started but could not be attached when attach is what failed', () => {
-    const text = liftFailedNotice(failure({ step: ELiftStep.Attaching, detail: 'channel refused' }))
+    const text = liftFailedNotice(failure({ step: EBirthNode.Attach, detail: 'channel refused' }))
 
     expect(text).toContain('could not be attached')
     expect(text).toContain('this thread started on this machine instead')
@@ -48,7 +47,7 @@ describe('a failed cloud birth', () => {
   })
 
   it('names the capture failure as the workspace, not a conversation transfer', () => {
-    const text = liftFailedNotice(failure({ fault: ELiftFault.Transfer, step: ELiftStep.Capturing, detail: 'archive is truncated' }))
+    const text = liftFailedNotice(failure({ fault: EBirthFault.Transfer, step: EBirthNode.CaptureWorkspace, detail: 'archive is truncated' }))
 
     expect(text).toContain('workspace could not be captured')
     expect(text).toContain('archive is truncated')

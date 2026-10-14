@@ -17,8 +17,6 @@ export type BridgeDriver = Pick<
   | 'writeBootstrapFileToSandbox'
   | 'writeBootstrapFile'
   | 'uploadWorkspaceArchive'
-  | 'downloadWorkspaceArchive'
-  | 'releaseWorkspaceArchive'
   | 'downloadSessionArchive'
   | 'releaseSessionArchive'
   | 'transcriptLanded'

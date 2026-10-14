@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { ELiftNode, type ArchiveBuildProgress } from '@dltech/atlas-harness'
+import { EBirthNode, type ArchiveBuildProgress } from '@dltech/atlas-harness'
 
 import {
   EStepMark,
@@ -70,7 +70,7 @@ export function buildSpans(build: ArchiveBuildProgress): readonly Span[] {
 function ProgressLines(props: { move: ContainerMove; row: MoveRow }): React.ReactNode {
   const { move, row } = props
   if (row.mark !== EStepMark.Active) return null
-  const build = row.nodeIds.includes(ELiftNode.CaptureWorkspace) ? move.build : undefined
+  const build = row.nodeIds.includes(EBirthNode.CaptureWorkspace) ? move.build : undefined
   const serve = serveStageOf(row)
 
   return (

@@ -82,23 +82,6 @@ export type CloudSandboxes = {
      */
     onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
   }): Promise<CloudSandbox>
-  /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
-  putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
-  /**
-   * The anti-blank-log gate: after the transcript uploaded, the lift asks the control plane
-   * whether the sandbox row reports the session present and non-empty before it flips ownership.
-   * The bridge owns how readiness is probed; the lift only reads the verdict.
-   */
-  confirmLanded(args: { threadId: ThreadId }): Promise<{ landed: boolean }>
-  downloadWorkspace?(args: {
-    threadId: ThreadId
-    path: string
-    destination: string
-    totalBytes?: number | undefined
-    onProgress?: ((progress: TransferProgress) => void) | undefined
-  }): Promise<void>
-  /** Deletes one serve-prepared export once it has been downloaded or abandoned. */
-  releaseWorkspace?(args: { threadId: ThreadId; path: string }): Promise<void>
   downloadSession?(args: {
     threadId: ThreadId
     archive: SessionArchiveDescriptor

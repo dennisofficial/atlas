@@ -7,7 +7,7 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
 import { recoverSession } from './session-recovery'
-import type { CloudBridgeFactory } from './use-cloud-lift'
+import type { CloudBridgeFactory } from './cloud/bridge-factory'
 
 export function useSessionRecovery(args: {
   localApp: AtlasApp

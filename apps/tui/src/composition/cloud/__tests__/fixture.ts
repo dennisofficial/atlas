@@ -4,14 +4,13 @@ import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
 import {
-  EExecutionLocation,
   toRunId,
   toThreadId,
   type EventDraft,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { restoreTranscriptParamsSchema, type PendingEntryWire, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type { PendingEntryWire, RosterWire, RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
   buildSessionArchive,
   EChannelConnection,
@@ -162,7 +161,6 @@ export function fakeCloudChannel(
     context?: readonly EventDraft[]
   }[] = []
 
-  let transcriptRestored = false
   let booted: Promise<void> = Promise.resolve()
 
   let held: ChannelConnection =
@@ -208,7 +206,6 @@ export function fakeCloudChannel(
           if (args.disk !== undefined) {
             await args.disk.replaceSessionDir({ threadId: channelThreadId, fromDir: sessionDir })
           }
-          transcriptRestored = true
         } finally {
           await rm(scratch, { recursive: true, force: true }).catch(() => undefined)
         }
@@ -272,7 +269,6 @@ export function fakeCloudChannel(
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
-      if (given.op === EClientRequest.PrepareWorkspaceArchive) return { path: ARCHIVE_EXPORT_PATH, manifest: ARCHIVE_MANIFEST }
       if (given.op === EClientRequest.ActivateSession) return { activated: true }
       if (given.op === EClientRequest.Rotate) return { type: 'started' }
       if (given.op === EClientRequest.TakeBackPending) {
@@ -321,38 +317,11 @@ export function fakeCloudChannel(
         return undefined
       }
       if (
-        given.op === EClientRequest.RestoreTranscript ||
         given.op === EClientRequest.ReadTranscriptIdentity ||
         given.op === EClientRequest.ReadSessionArchive
       ) {
         // Serve has untarred the staged archive by the time it serves requests.
         await booted
-      }
-      if (given.op === EClientRequest.RestoreTranscript) {
-        // Mirror the serve's restore: pin the lift's location-changed marker on the sandbox log,
-        // unless the log already ends at a location-changed with the same `to`.
-        const params = restoreTranscriptParamsSchema.safeParse(given.params ?? {})
-        const marker = params.success ? params.data.locationChanged : undefined
-        if (marker !== undefined && args.log !== undefined) {
-          const last = args.log.peek({ threadId: channelThreadId }).at(-1)
-          if (!(last?.type === 'location-changed' && last.to === marker.to)) {
-            await args.log.append({
-              threadId: channelThreadId,
-              runId: toRunId(`serve-${channelThreadId}`),
-              drafts: [
-                {
-                  type: 'location-changed',
-                  from: marker.from as EExecutionLocation,
-                  to: marker.to as EExecutionLocation,
-                  ...(marker.cwd === undefined ? {} : { cwd: marker.cwd }),
-                  ...(marker.remoteUrl === undefined ? {} : { remoteUrl: marker.remoteUrl }),
-                  ...(marker.branch === undefined ? {} : { branch: marker.branch }),
-                },
-              ],
-            })
-          }
-        }
-        return { restored: transcriptRestored }
       }
       if (given.op === EClientRequest.ReadTranscriptIdentity) {
         const params = given.params as { threadId: ThreadId; upTo?: number | undefined }
@@ -372,9 +341,6 @@ export function fakeCloudChannel(
         const path = `/atlas/home/exports/session-${channelThreadId}-${randomBytes(6).toString('hex')}.tar.gz`
         exportedSessions.set(path, built)
         return { archive: { path, size: built.size, sha256: built.sha256, threadId: channelThreadId } }
-      }
-      if (given.op === EClientRequest.ReadMemoryArchive) {
-        return { archive: '' }
       }
       return { applied: 0 }
     },
@@ -672,28 +638,6 @@ const RUNNING: CloudSandbox = {
   created: true,
 }
 
-const ARCHIVE_EXPORT_PATH = '/tmp/atlas-workspace-export-x/workspace.tar.gz'
-
-const ARCHIVE_MANIFEST = {
-  version: 1,
-  repository: { sourcePath: '/atlas/workspace', originPath: '/work' },
-  activeId: 'main',
-  activeRelativePath: '',
-  trees: [
-    {
-      id: 'main',
-      name: 'main',
-      sourcePath: '/atlas/workspace',
-      originPath: '/work',
-      branch: 'main',
-      head: null,
-      baseline: null,
-      fingerprint: 'fake',
-      isMain: true,
-    },
-  ],
-}
-
 export function fakeBridge(
   args: {
     sandbox?: CloudSandbox
@@ -736,7 +680,6 @@ export function fakeBridge(
   let sourceWorkspace: string | null = null
   let sourceDisk = args.sourceDisk
   let stagedTranscript: string | undefined
-  let transcriptShipped = false
 
   /**
    * The real create stages the uploaded archive next to the serve binary so the bootstrap untars
@@ -750,7 +693,6 @@ export function fakeBridge(
     const staged = join(await mkdtemp(join(tmpdir(), 'atlas-fake-staged-')), 'transcript.tar.gz')
     await copyFile(args.archivePath, staged)
     stagedTranscript = staged
-    transcriptShipped = true
     if (channel !== null) await channel.loadTranscriptArchive(staged)
   }
 
@@ -832,15 +774,6 @@ export function fakeBridge(
         })
         if (args.createFails !== undefined) throw args.createFails
         return sandbox
-      },
-      putContext: async ({ threadId, archive }) => {
-        trail.push('put-context')
-        contextPuts.push({ threadId, archive: Buffer.from(archive) })
-        if (args.putContextFails !== undefined) throw args.putContextFails
-      },
-      confirmLanded: async () => ({ landed: transcriptShipped }),
-      downloadWorkspace: async ({ destination }) => {
-        await writeFile(destination, 'a fake workspace archive')
       },
       downloadSession: async ({ archive, destination }) => {
         const exported = exportedSessions.get(archive.path)

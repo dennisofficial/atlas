@@ -24,7 +24,7 @@ import { durableOpLog } from './durable-op-log'
 import { messageOf } from './error-text'
 import type { OpenedConversation } from './open-conversation'
 import { cloudAnchorOf, cloudBindingOf, prepareOn } from './session-binding'
-import type { CloudBridgeFactory, LiftPreflight } from './use-cloud-lift'
+import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
 import type { useContainerMove } from './use-container-move'
 
 export type ThreadBirth = {

@@ -64,7 +64,7 @@ describe('a restarted running cloud thread', () => {
     const app = appFor()
     const threadId = await runningThread(app)
     const bridge = bridgeFor()
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       const frame = await mounted.showing(LOCAL_TEXT)
@@ -97,7 +97,7 @@ describe('a restarted running cloud thread', () => {
     const app = appFor()
     const threadId = await runningThread(app)
     const bridge = bridgeFor()
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       await mounted.showing(LOCAL_TEXT)
@@ -123,7 +123,7 @@ describe('a restarted running cloud thread', () => {
     const app = appFor()
     const threadId = await runningThread(app)
     const bridge = bridgeFor()
-    const mounted = await mountCloud({ app, bridge, withArchive: false, opened: bootOn(threadId) })
+    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
       await mounted.showing(LOCAL_TEXT)

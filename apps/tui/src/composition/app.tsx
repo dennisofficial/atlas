@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { projectOf, type ThreadId } from '@dltech/atlas-core'
-import type { CaptureContext, LiftWorkspaceCapture, WorkspaceRestorer } from '@dltech/atlas-harness'
 
 import { cloudListing } from './cloud/cloud-listing'
 import { createPrEventForwarder } from './cloud/pr-event-forwarder'
 
 import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-image'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
-import { captureWorkspaceMetadata } from '@dltech/atlas-harness'
 import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { bornPlacementChip } from './cloud/born-placement-chip'
 import { openCloudConversation } from './cloud/cloud-app'
@@ -19,7 +17,7 @@ import { liveBridgeFor, liveLiftPreflightFor } from './live-cloud'
 import type { ReloadedSession } from './lifted-session'
 import type { OpenedConversation } from './open-conversation'
 import { appOf, attachmentOf, cloudAttachmentOf, keyOf, localAnchorOf, localBindingOf } from './session-binding'
-import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
+import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
 import type { MoveStepTiming } from './use-container-move'
 import { Workspace } from './workspace'
 import { LIVE_WHATS_NEW_DEPS, useWhatsNew, type WhatsNewDeps } from './use-whats-new'
@@ -37,10 +35,6 @@ export function App(props: {
   onRestart?: () => void
   createBridge?: CloudBridgeFactory
   preflightLift?: LiftPreflight
-  captureWorkspace?: WorkspaceCapture
-  captureArchive?: LiftWorkspaceCapture
-  restoreWorkspace?: WorkspaceRestorer
-  captureContext?: CaptureContext
   onMoveStep?: ((timing: MoveStepTiming) => void) | undefined
   reapOnBoot?: ((app: AtlasApp) => void) | undefined
   whatsNewDeps?: WhatsNewDeps | undefined
@@ -195,10 +189,6 @@ export function App(props: {
         cloudStores={cloud?.stores ?? null}
         createBridge={props.createBridge ?? liveBridgeFor(props.app)}
         preflightLift={props.preflightLift ?? liveLiftPreflightFor(props.app)}
-        captureWorkspace={props.captureWorkspace ?? captureWorkspaceMetadata}
-        captureArchive={props.captureArchive}
-        restoreWorkspace={props.restoreWorkspace}
-        captureContext={props.captureContext}
         onReload={handleReload}
         onLeaveCloud={handleLeaveCloud}
         onLocalOpened={handleLocalSwap}

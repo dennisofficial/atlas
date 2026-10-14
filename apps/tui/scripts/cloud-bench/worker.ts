@@ -1,8 +1,6 @@
 import { lstat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { captureContextArchive, loadSettings, sandboxNameFor } from '@dltech/atlas-harness'
-import { noticePortBinding } from '../../src/composition/notice-binding'
+import { loadSettings, sandboxNameFor } from '@dltech/atlas-harness'
 import { cloneBenchmarkSession } from './fixture'
 import { benchmarkBridge, type BenchmarkCloud } from './bridge'
 import {
@@ -114,18 +112,6 @@ export const runSample = async (args: SampleArgs): Promise<void> => {
         holder.cloud = benchmarkBridge({ app, image: args.image, record })
         return holder.cloud.bridge
       },
-      captureContext: () =>
-        measured({
-          name: 'capture-context',
-          record,
-          run: () =>
-            captureContextArchive({
-              atlasHome: args.sourceHome,
-              home: homedir(),
-              cwd: args.sourceRepository,
-              notice: noticePortBinding(),
-            }),
-        }),
     })
     const active = mounted
     const cloud = holder.cloud

@@ -119,10 +119,6 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       opened={await spokenIn(args.app)}
       createBridge={() => args.bridge}
       preflightLift={async () => null}
-      captureWorkspace={async () => null}
-      captureArchive={async () => undefined}
-      restoreWorkspace={async () => ({ cwd: args.app.workspace.workspace, repository: args.app.workspace.workspace, trees: [] })}
-      captureContext={async () => Buffer.from('stub-context-archive')}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )

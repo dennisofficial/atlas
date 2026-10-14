@@ -14,7 +14,7 @@ import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
 import { openConversation, type OpenedConversation } from './open-conversation'
-import type { CloudBridgeFactory } from './use-cloud-lift'
+import type { CloudBridgeFactory } from './cloud/bridge-factory'
 import type { ContainerMoveControl } from './use-container-move'
 
 export type ThreadRouter = {

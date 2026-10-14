@@ -27,8 +27,6 @@ const sessionOn = (connection?: ChannelConnection): CloudSession => {
     channel,
     sandboxes: {
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
-      putContext: async () => undefined,
-      confirmLanded: async () => ({ landed: true }),
       find: async () => undefined,
       readResources: async () => ({}),
       updateResources: async () => {},

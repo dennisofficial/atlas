@@ -6,7 +6,7 @@ import { useContainerPill } from './use-container-pill'
 import type { Conversation } from './use-conversation'
 import { useExecutionLocation } from './use-execution-location'
 import { useSessionRecovery } from './use-session-recovery'
-import type { CloudBridgeFactory } from './use-cloud-lift'
+import type { CloudBridgeFactory } from './cloud/bridge-factory'
 import type { OpenedConversation } from './open-conversation'
 import { useLocationItems } from './use-location-items'
 

@@ -33,7 +33,7 @@ import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
 import { noticePortBinding } from './notice-binding'
-import type { CloudBridgeFactory, LiftPreflight } from './use-cloud-lift'
+import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
 
 type RegistryMetadata = { title?: string; repo?: string; model?: string }
 
