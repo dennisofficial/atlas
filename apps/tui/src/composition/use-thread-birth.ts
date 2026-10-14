@@ -145,6 +145,7 @@ export function useThreadBirth(args: {
             runner,
             opened,
             session,
+            sessionMirror: attachment.sessionMirror,
           }),
         })
       },

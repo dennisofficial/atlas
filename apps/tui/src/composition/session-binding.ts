@@ -4,6 +4,7 @@ import {
   ERuntimeKind,
   MirroredContextFiles,
   RemoteContextFiles,
+  SyncedContextFiles,
   type CloudBridge,
   type CloudChannel,
   type CloudStores,
@@ -11,6 +12,7 @@ import {
   type PlacementTransaction,
   type RestoredWorkspace,
   type RuntimeBinding,
+  type SessionMirrorSync,
   type SessionRuntime,
   type TurnRunner,
 } from '@dltech/atlas-harness'
@@ -82,6 +84,17 @@ export async function cloudAnchorOf(args: {
   }
 }
 
+const cloudContextOf = (args: {
+  channel: CloudChannel
+  opened: OpenedConversation
+  sessionMirror?: SessionMirrorSync | undefined
+}): ContextReaders => {
+  const local = createSessionContextReader({ threadId: args.opened.threadId })
+  const remote = new RemoteContextFiles({ channel: args.channel })
+  if (args.sessionMirror !== undefined) return new SyncedContextFiles({ local, remote, mirror: args.sessionMirror })
+  return new MirroredContextFiles({ channel: args.channel, local, remote, threadId: args.opened.threadId })
+}
+
 export const cloudBindingOf = (args: {
   local: AtlasApp
   anchor: WorkspaceIdentity
@@ -91,6 +104,7 @@ export const cloudBindingOf = (args: {
   runner: TurnRunner
   opened: OpenedConversation
   session: CloudSession
+  sessionMirror?: SessionMirrorSync | undefined
   wakeInBackground?: (() => void) | undefined
 }): Binding => ({
   kind: ERuntimeKind.Cloud,
@@ -101,12 +115,7 @@ export const cloudBindingOf = (args: {
     attachment: {
       kind: 'cloud',
       opened: args.opened,
-      context: new MirroredContextFiles({
-        channel: args.channel,
-        local: createSessionContextReader({ threadId: args.opened.threadId }),
-        remote: new RemoteContextFiles({ channel: args.channel }),
-        threadId: args.opened.threadId,
-      }),
+      context: cloudContextOf(args),
       bridge: args.bridge,
       stores: args.stores,
       session: args.session,

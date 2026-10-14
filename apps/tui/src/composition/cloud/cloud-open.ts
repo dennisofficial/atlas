@@ -8,6 +8,7 @@ import {
   type CloudReload,
   type CloudStores,
   type RemoteTurnRunner,
+  type SessionMirrorSync,
 } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
@@ -54,6 +55,7 @@ type OpenArgs = {
 type Composed = {
   channel: CloudChannel
   stores: CloudStores
+  sessionMirror: SessionMirrorSync | undefined
   wake: CloudWake
   created: () => boolean
   parkedResume: EParkedResume | undefined
@@ -73,10 +75,15 @@ const wakeNarrationFor = (args: OpenArgs) => ({
 
 async function composeEager(args: OpenArgs): Promise<Composed> {
   const woken = await wakeSandbox(wakeNarrationFor(args))
-  const { channel, stores } = args.bridge.attach({ threadId: args.threadId, url: woken.url, token: woken.token })
+  const { channel, stores, sessionMirror } = args.bridge.attach({
+    threadId: args.threadId,
+    url: woken.url,
+    token: woken.token,
+  })
   return {
     channel,
     stores,
+    sessionMirror,
     wake: createCloudWake({ ...wakeNarrationFor(args), channel }),
     created: () => woken.created,
     parkedResume: undefined,
@@ -119,6 +126,7 @@ function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resum
   return {
     channel,
     stores,
+    sessionMirror: attachment.sessionMirror,
     wake,
     created: () => created,
     parkedResume: args.resume,
@@ -192,6 +200,7 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
       runner,
       opened,
       session,
+      sessionMirror: composed.sessionMirror,
       wakeInBackground: composed.wakeInBackground,
     })
   } catch (error) {

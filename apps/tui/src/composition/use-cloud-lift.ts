@@ -141,6 +141,7 @@ export function useCloudLift(args: {
                 runner,
                 opened: midTurn ? { ...opened, resumeOnArrival: true } : opened,
                 session,
+                sessionMirror: attachment.sessionMirror,
               }),
             })
           },

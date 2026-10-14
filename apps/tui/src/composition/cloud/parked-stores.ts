@@ -38,9 +38,11 @@ const delegating = <Store extends object>(args: {
 
 /**
  * A parked session mounts before any socket exists, so until its channel first reaches Open the
- * transcript it reads is the local one. From then on the sandbox owns it again and every read goes
- * over the channel; the latch never lets go, because a later Reconnecting is a socket gap, not a
- * hand-back. Writes are never local: the sandbox owns the transcript, so a mutation goes to the
+ * transcript it reads is the local one. The ledger reads stay local past the latch: the session
+ * mirror keeps the mirrored ledger.jsonl current by construction while the channel is open, so a
+ * socket gap never hands spend reads back to the wire. Thread records latch with the channel —
+ * their mutations are channel-round-trips announced back, and the rename mirror keeps the local
+ * meta in step. Writes are never local: the sandbox owns the transcript, so a mutation goes to the
  * remote store and is refused or queued exactly as it would be on a live attachment.
  */
 export function parkedStoresOf(args: {
@@ -66,7 +68,9 @@ export function parkedStoresOf(args: {
       local: args.local.ledger,
       remote: args.remote.ledger,
       reads: LEDGER_READS,
-      engaged,
+      // The mirrored ledger.jsonl is current by construction while the channel is open, and the
+      // last synced state while parked — spend reads never need the wire.
+      engaged: () => false,
     }),
     threads: delegating<ThreadStorePort>({
       local: args.local.threads,

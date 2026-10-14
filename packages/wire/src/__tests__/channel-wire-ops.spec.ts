@@ -15,8 +15,8 @@ import {
 } from '../index'
 
 describe('the protocol stamp', () => {
-  it('speaks the version carrying archive-build progress signals', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(22)
+  it('speaks the version carrying the session-mirror read ops', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(23)
   })
 })
 

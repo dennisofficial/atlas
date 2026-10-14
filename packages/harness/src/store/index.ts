@@ -29,6 +29,8 @@ export { RewindMachineryPort, type RewindRead } from './rewind-machinery'
 export { relocateSession, type RelocatedSession } from './relocate-session'
 export { ATLAS_DIRECTORY_NAME, atlasDirectory } from './paths'
 export {
+  EVENTS_FILE_SUFFIX,
+  THREADS_DIRECTORY_NAME,
   sessionsDirectory,
   sessionDirectory,
   contextDirectory,

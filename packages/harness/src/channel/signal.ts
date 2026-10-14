@@ -43,6 +43,7 @@ export type ChannelSignal =
   | TurnWorkingSignal
   | { type: 'events-appended' }
   | { type: 'context-changed' }
+  | { type: 'session-files-changed'; revision: number }
   | RetryWaitingSignal
   | { type: 'retry-cleared' }
   | { type: 'pending-changed'; entries: PendingEntrySignal[] }
