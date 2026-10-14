@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
 import {
-  liftToCloud,
-  stopLocalWork,
+  birthInCloud,
   storedModel,
   type CloudReload,
   type SessionOwner,
@@ -75,26 +74,17 @@ export function useThreadBirth(args: {
     const bridge = createBridge()
     const captureContext = () => app.captureContext({ cwd: app.workspace.workspace })
 
-    void liftToCloud({
+    void birthInCloud({
       threadId,
       cwd: app.workspace.workspace,
-      started: false,
-      midTurn: false,
-      interrupt: () => undefined,
-      whenSettled: () => Promise.resolve(),
       identity: app.workspace,
-      title: null,
       model: storedModel(app.model.choice()),
       bridge,
       localThreads: app.threads,
       localLog: app.log,
-      agents: app.agents,
       ids: app.ids,
       logPort: durableOpLog() ?? undefined,
       placement: owner,
-      stopLocal: async () =>
-        stopLocalWork({ threadId, shells: app.shells, services: app.services, threads: app.threads }),
-      capture: () => Promise.resolve(null),
       captureContext,
       onBuildProgress: move.handleBuildProgress,
       onBegin: ({ waves }) =>
