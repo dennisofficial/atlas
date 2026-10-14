@@ -16,6 +16,7 @@ export type PullRequestReadings = {
   scheduleOf: (args: { key: string }) => ReadingSchedule
   markAsked: (args: { key: string; at: number }) => void
   record: (args: { key: string; reading: PullRequestReading }) => void
+  seed: (args: { key: string; reading: PullRequestReading }) => void
   forget: (args: { key: string }) => void
   clear: () => void
 }
@@ -55,6 +56,20 @@ export function createPullRequestReadings(args: { notify: () => void }): PullReq
       if (previous !== undefined && samePullRequestReading(previous, next)) return
 
       shown.set(key, next)
+      args.notify()
+    },
+    /**
+     * The badge cache's last-known answer, shown until the first live read lands. A key that has
+     * ever been answered keeps its answer — live beats cached — and the schedule stays unaware of
+     * the seed so the cadence still refetches on its own terms.
+     */
+    seed: ({ key, reading }) => {
+      if (answers.has(key)) return
+
+      const previous = shown.get(key)
+      if (previous !== undefined && samePullRequestReading(previous, reading)) return
+
+      shown.set(key, reading)
       args.notify()
     },
     forget: ({ key }) => {

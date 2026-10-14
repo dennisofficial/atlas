@@ -226,13 +226,20 @@ export function usePullRequest(args: {
       const fromWire = (key: string): PullRequestReading => {
         const state = remoteStates.find((entry) => `${entry.repo}#${entry.number}` === key)
         if (state !== undefined) return wireReading(state)
+        const cached =
+          service.snapshot({ key })
+        if (cached.lookup !== EPullRequestLookup.Unavailable) return cached
         return badges?.peekBadge({ kind: 'linked', repo, number: Number(key.split('#').pop()) }) ?? NO_PULL_REQUEST_READING
       }
       const trackedState = remoteStates.find((entry) => entry.repo === repo && entry.branch === cloud.branch)
       const currentReading =
         trackedState !== undefined
           ? wireReading(trackedState)
-          : (badges?.peekBadge({ kind: 'checkout', checkout: cloud }) ?? NO_PULL_REQUEST_READING)
+          : ((): PullRequestReading => {
+              const cached = service.snapshot({ key: checkoutKey(cloud) })
+              if (cached.lookup !== EPullRequestLookup.Unavailable) return cached
+              return badges?.peekBadge({ kind: 'checkout', checkout: cloud }) ?? NO_PULL_REQUEST_READING
+            })()
       return pullRequestEntries({
         linked,
         read: fromWire,

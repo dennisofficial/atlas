@@ -15,6 +15,7 @@ import { createInFlightReads } from './in-flight-reads'
 import { createPullRequestReadings } from './pull-request-readings'
 import type { PullRequestService } from './pull-request-service-type'
 import { keyOf, linkKey, readTarget, type PullTarget } from './pull-target'
+import type { PullRequestBadgeKey } from './pure'
 import { createTrackedCheckouts } from './tracked-checkouts'
 import { pullRequestStatesWireOf, repoOf, type TrackedReading } from './pull-request-state-wire'
 
@@ -60,6 +61,23 @@ export function createPullRequestService(args: {
   }
 
   const readings = createPullRequestReadings({ notify })
+
+  /**
+   * A key entering view opens with the badge cache's last-known answer instead of an empty slot,
+   * so a reopened session paints the pull request it had when it closed and the first live read
+   * only ever changes what changed. Ports without a cache peek null and seed nothing.
+   */
+  const seed = (target: PullTarget): void => {
+    const badgeKey: PullRequestBadgeKey =
+      target.kind === 'checkout'
+        ? { kind: 'checkout', checkout: target.checkout }
+        : { kind: 'linked', repo: target.link.repo, number: target.link.number }
+
+    const cached = args.pullRequests.peekBadge(badgeKey)
+    if (cached === null) return
+
+    readings.seed({ key: keyOf(target), reading: cached })
+  }
 
   const ask = async (request: {
     key: string
@@ -199,6 +217,7 @@ export function createPullRequestService(args: {
       if (lost.length > 0 || visibleChanged) notify()
 
       for (const checkout of gained) {
+        seed({ kind: 'checkout', checkout })
         void refreshTarget({ target: { kind: 'checkout', checkout }, force: true })
       }
       syncTimer()
@@ -207,7 +226,10 @@ export function createPullRequestService(args: {
       if (disposed) return
 
       const { visibleChanged } = tracked.reconcile({ checkouts: tracked.list(), visible: checkout })
-      if (visibleChanged) notify()
+      if (!visibleChanged) return
+
+      if (checkout !== null) seed({ kind: 'checkout', checkout })
+      notify()
     },
     tracked: () => tracked.list(),
     /**
@@ -231,6 +253,7 @@ export function createPullRequestService(args: {
         if (watched.has(key)) continue
 
         watched.set(key, link)
+        seed({ kind: 'link', link })
         void refreshTarget({ target: { kind: 'link', link }, force: true })
       }
       if (dropped) notify()
