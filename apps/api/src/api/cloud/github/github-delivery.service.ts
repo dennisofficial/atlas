@@ -3,8 +3,7 @@ import { db, type GithubPrStateModel } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { verdictTimingByUser } from './github-pr-event-policy'
-import { transitionsOf, type PrVerdictTiming } from './github-pr-event-transitions'
+import { pushPrTransitions } from './github-pr-transition-push'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { payloadFieldsOf } from './github-pr-payload'
 import { carryChecks, provisionalFieldsOf, stateFieldsOf, type CheckTarget } from './github-pr-state-fields'
@@ -226,29 +225,7 @@ export class GithubDeliveryService {
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
     this.fanout.push({ userIds, state })
 
-    const next = snapshotOf(row)
-    if (next === null) return
-    const nextWithUrl = { ...next, url: row.url }
-    const timings = await verdictTimingByUser({ userIds })
-    const byTiming = new Map<PrVerdictTiming, string[]>()
-    for (const userId of userIds) {
-      const timing = timings.get(userId) ?? 'fail-fast'
-      const group = byTiming.get(timing) ?? []
-      group.push(userId)
-      byTiming.set(timing, group)
-    }
-
-    for (const [verdictTiming, groupUserIds] of byTiming) {
-      for (const event of transitionsOf({ prior, next: nextWithUrl, options: { verdictTiming } })) {
-        await this.mailbox.record({
-          userIds: groupUserIds,
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-          kind: event.kind,
-          payload: { ...event.payload, url: row.url },
-        })
-      }
-    }
+    await pushPrTransitions({ mailbox: this.mailbox, prior, row, userIds })
   }
 }
 

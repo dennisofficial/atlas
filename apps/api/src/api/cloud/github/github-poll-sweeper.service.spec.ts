@@ -9,7 +9,9 @@ vi.mock('../../../db', async () => {
 import { fakeGithubDb, seedCloudSandbox } from '../../../../test/fake-github-db'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
+import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubUserReads } from './github-user-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 import type { GithubService } from './github.service'
@@ -43,7 +45,9 @@ function serviceWith(args: {
     findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => null),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
-  return { service: new GithubPollSweeperService(github, reads, fanout), fanout }
+  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
+  const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  return { service: new GithubPollSweeperService(github, reads, fanout, mailbox), fanout }
 }
 
 function seedSubscription(overrides: Partial<(typeof fake.subscriptions)[number]> = {}): void {
@@ -123,6 +127,63 @@ describe('GithubPollSweeperService', () => {
     await service.handlePoll()
 
     expect(readPullRequest).not.toHaveBeenCalled()
+  })
+
+  it('records a merged state event when a poll-backed read first reports merged', async () => {
+    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
+    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    seedSubscription()
+    seedPrState({ state: 'open' })
+
+    await service.handlePoll()
+
+    const states = fake.prEvents.filter((row) => row.kind === 'state')
+    expect(states).toHaveLength(1)
+    expect(states[0]).toMatchObject({
+      userId: 'usr_1',
+      prNumber: 42,
+      payload: { state: 'merged', url: 'https://github.com/compai/app/pull/42' },
+    })
+  })
+
+  it('records a green verdict when a poll-backed read settles passing after running', async () => {
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      checksRunning: 0,
+      checksPassed: 3,
+      checksFailed: 0,
+      mergeable: true,
+    }))
+    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    seedSubscription()
+    seedPrState({ checksRunning: 2, checksPassed: 1, checksFailed: 0 })
+
+    await service.handlePoll()
+
+    const verdicts = fake.prEvents.filter((row) => row.kind === 'verdict')
+    expect(verdicts).toHaveLength(1)
+    expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green' } })
+  })
+
+  it('records no event on a steady-state re-read of a poll-backed pr', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    seedSubscription()
+    seedPrState()
+
+    await service.handlePoll()
+
+    expect(fake.prEvents).toHaveLength(0)
+  })
+
+  it('records no event when a poll-backed pr row is brand new', async () => {
+    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
+    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    seedSubscription()
+
+    await service.handlePoll()
+
+    expect(fake.prEvents).toHaveLength(0)
   })
 
   it('re-anchors a hook-backed subscription whose state row is missing', async () => {
