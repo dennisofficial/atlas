@@ -13,6 +13,7 @@ import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import { CLOUD_NOT_CONFIGURED_NOTICE } from '../cloud/born-cloud'
+import { unstartedConversation } from '../open-conversation'
 import { spokenIn, until } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -107,7 +108,7 @@ const acceptingTheWorkspace = (bridge: FakeBridge): FakeBridge => {
   return bridge
 }
 
-const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
+const mount = async (args: { app: FakeApp; bridge: FakeBridge; fresh?: boolean | undefined }) => {
   acceptingTheWorkspace(args.bridge)
   const home = mkdtempSync(join(tmpdir(), 'atlas-chip-home-'))
   const previousHome = process.env.ATLAS_HOME
@@ -115,7 +116,9 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
   const setup = await testRender(
     <App
       app={args.app}
-      opened={await spokenIn(args.app)}
+      opened={
+        args.fresh === true ? unstartedConversation({ ids: args.app.ids }) : await spokenIn(args.app)
+      }
       createBridge={() => args.bridge}
       preflightLift={async () => null}
     />,
@@ -166,6 +169,9 @@ const flipChip = async (mounted: Mounted): Promise<void> => {
 
 const lastChoice = (app: FakeApp): unknown =>
   app.settings.snapshot().document.values[ESettingId.LastBornPlacement]
+
+const mountFresh = (args: { app: FakeApp; bridge: FakeBridge }): Promise<Mounted> =>
+  mount({ ...args, fresh: true })
 
 describe('the placement chip in the composer footer', () => {
   it('starts a new thread local on a configured machine, without provisioning a sandbox', async () => {
@@ -340,6 +346,71 @@ describe('the placement chip in the composer footer', () => {
       })
       expect(noticed).toBe(true)
       expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(bridge.created.length).toBe(0)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('the placement chip on a fresh, unsent thread', () => {
+  it('shows the local default with the flip affordance before any /new', async () => {
+    const app = appOn({ configured: true })
+    const bridge = fakeBridge()
+    const mounted = await mountFresh({ app, bridge })
+
+    try {
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(bridge.created.length).toBe(0)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('flips a fresh thread to the cloud and settles on the first send', async () => {
+    const app = appOn({ configured: true })
+    const bridge = fakeBridge()
+    const mounted = await mountFresh({ app, bridge })
+
+    try {
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+
+      await flipChip(mounted)
+      expect(await chipShows(mounted, '☁ cloud')).toBe(true)
+      expect(await until({ holds: async () => bridge.created.length === 1, within: 20_000 })).toBe(true)
+
+      await mounted.command('ship it')
+      const threadId = bridge.created[0]?.threadId
+      expect(threadId).toBeDefined()
+      const settled = await until({
+        holds: async () =>
+          app.sessionOwner.placement.snapshot(threadId!)?.placement.harness === EHarnessPlacement.Cloud,
+        within: 20_000,
+      })
+      expect(settled).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('settles the chip away on the first send of a fresh local thread', async () => {
+    const app = appOn({ configured: true })
+    const bridge = fakeBridge()
+    const mounted = await mountFresh({ app, bridge })
+
+    try {
+      expect(await chipShows(mounted, ' local ')).toBe(true)
+
+      await mounted.command('hello, fresh tile')
+
+      const threadId = app.sessionOwner.snapshot().threadId!
+      const settled = await until({
+        holds: async () =>
+          app.sessionOwner.placement.snapshot(threadId)?.placement.harness === EHarnessPlacement.Host &&
+          !(await mounted.frame()).includes('local ▾'),
+        within: 20_000,
+      })
+      expect(settled).toBe(true)
       expect(bridge.created.length).toBe(0)
     } finally {
       await mounted.done()
