@@ -129,8 +129,12 @@ describe('openSession resuming a thread whose meta says cloud', () => {
     try {
       expect(session.type).toBe(ESession.Ready)
       if (session.type !== ESession.Ready) return
-      expect(session.opened.started).toBe(false)
-      expect(session.opened.bootCloudThreadId).toBe(threadId)
+      // The mirrored transcript opens at once with the attach marked as the workspace's first
+      // act — an unstarted placeholder here is what left the welcome hero up after a /restart.
+      expect(session.opened.started).toBe(true)
+      expect(session.opened.threadId).toBe(threadId)
+      expect(session.opened.attachOnBoot).toBe(true)
+      expect(session.opened.bootCloudThreadId).toBeUndefined()
       expect(existsSync(sessionLockFile({ sessionDir }))).toBe(false)
     } finally {
       if (session.type === ESession.Ready) await session.app.close()

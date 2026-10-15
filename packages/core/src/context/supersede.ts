@@ -16,6 +16,14 @@ const supersedes = (later: ContextLoaded, earlier: ContextLoaded): boolean => {
   return basenameOf(later.key) === basenameOf(earlier.key) && later.content === earlier.content
 }
 
+// The lift-era writers of a session-slot 'execution-location' injection are gone (#1252) — under
+// born-placed placement the thread was born where it runs, so the "your environment is now …"
+// content is never true to say again. Logs written before the cut still carry the event, and it
+// is never superseded because nothing writes that key anymore; replaying it on resume tells the
+// model the session was lifted. It is never current.
+const isRelocationInjection = (event: ContextLoaded): boolean =>
+  event.slot === 'session' && event.key === 'execution-location'
+
 export function currentContextEvents(events: readonly Event[]): readonly ContextLoaded[] {
   const current: ContextLoaded[] = []
   const later: ContextLoaded[] = []
@@ -23,6 +31,7 @@ export function currentContextEvents(events: readonly Event[]): readonly Context
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index]
     if (event === undefined || event.type !== 'context-loaded') continue
+    if (isRelocationInjection(event)) continue
     if (later.some((seen) => supersedes(seen, event))) continue
     later.push(event)
     current.unshift(event)

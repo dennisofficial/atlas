@@ -173,4 +173,35 @@ describe('openConversation on a thread whose meta says cloud', () => {
     expect(await lockHeld(LIFTED)).toBe(false)
     expect(threads.peekRow({ threadId: LIFTED })?.executionLocation).toBe(EExecutionLocation.Cloud)
   })
+
+  it('opens the mirrored transcript at boot and marks it for attach, never the lock', async () => {
+    await closeConversation()
+    const threads = fakeThreadStore({ existing: [LIFTED], workspace: null })
+    await threads.chooseExecutionLocation({ threadId: LIFTED, location: EExecutionLocation.Cloud })
+
+    const outcome = await openConversation({
+      threads,
+      log: fakeEventLog([said('said inside the sandbox')]),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      effects: () => undefined,
+      open: { mode: EOpenMode.Resume, threadId: LIFTED },
+      boot: true,
+    })
+
+    // A /restart relaunch resumes through this path: the transcript renders from the mirror at
+    // once and the attach is the workspace's first act — an unstarted placeholder would leave
+    // the welcome hero up for the whole wake, and forever if the attach fails.
+    expect('cloud' in outcome).toBe(false)
+    if (!('cloud' in outcome) && outcome.ok) {
+      expect(outcome.conversation.threadId).toBe(LIFTED)
+      expect(outcome.conversation.started).toBe(true)
+      expect(outcome.conversation.events.map((event) => event.type)).toEqual(['user-said'])
+      expect(outcome.conversation.attachOnBoot).toBe(true)
+    }
+    expect(await lockHeld(LIFTED)).toBe(false)
+    expect(threads.peekRow({ threadId: LIFTED })?.executionLocation).toBe(EExecutionLocation.Cloud)
+  })
 })

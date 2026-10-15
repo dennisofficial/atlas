@@ -16,22 +16,24 @@ const dividers = (
     )
     .map((entry) => ({ key: entry.key, to: entry.to }))
 
-// The log of a thread that lifted, came home, and said one more thing: every move pinned its own
-// `location-changed` event, so the transcript the operator reads carries the full trail inline.
-const descendedLog = log([
+// The log of a thread that moved between host and docker and said one more thing: every move
+// pinned its own `location-changed` event, so the transcript the operator reads carries the full
+// trail inline. Moves to or from the cloud are relocation artifacts and render nothing — see
+// relocation-artifact-suppression.spec.ts.
+const movedLog = log([
   { type: 'user-said', text: 'get it running' },
-  { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
-  { type: 'user-said', text: 'keep it going from up there' },
-  { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host },
-  { type: 'user-said', text: 'back up it goes' },
+  { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
+  { type: 'user-said', text: 'keep it going in there' },
+  { type: 'location-changed', from: EExecutionLocation.Docker, to: EExecutionLocation.Host },
+  { type: 'user-said', text: 'back in it goes' },
 ])
 
 describe('the location divider as a logged event', () => {
   it('renders exactly the markers the log holds, pinned where each move landed', () => {
-    const shown = dividers(descendedLog)
+    const shown = dividers(movedLog)
 
     expect(shown.map((entry) => entry.to)).toEqual([
-      EExecutionLocation.Cloud,
+      EExecutionLocation.Docker,
       EExecutionLocation.Host,
     ])
     // A logged event's key is its event id — never a synthesized placement key.
@@ -44,14 +46,14 @@ describe('the location divider as a logged event', () => {
     expect(dividers(home)).toHaveLength(0)
   })
 
-  it('keeps a single divider when the log already ends at the cloud', () => {
-    const liftedLog = log([
-      { type: 'user-said', text: 'take it up' },
-      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+  it('keeps a single divider when the log already ends in docker', () => {
+    const movedToDocker = log([
+      { type: 'user-said', text: 'take it in' },
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
     ])
 
-    const shown = dividers(liftedLog)
+    const shown = dividers(movedToDocker)
     expect(shown).toHaveLength(1)
-    expect(shown.at(-1)?.to).toBe(EExecutionLocation.Cloud)
+    expect(shown.at(-1)?.to).toBe(EExecutionLocation.Docker)
   })
 })
