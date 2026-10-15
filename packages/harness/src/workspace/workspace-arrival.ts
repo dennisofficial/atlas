@@ -1,10 +1,9 @@
-import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 import {
   activeWorktreeOf,
   projectDirectoryOf,
   type ActiveWorktree,
-  type EExecutionLocation,
   type EventDraft,
   type EventLogPort,
   type IdPort,
@@ -13,7 +12,6 @@ import {
 
 import type { ThreadStorePort } from '../store/thread-store'
 import type { RestoredTree, RestoredWorkspace } from './transfer/manifest'
-import { captureWorkspaceMetadata } from './snapshot'
 import { recordFamilyOwnershipArrival, validateFamilyArrival } from './family-arrival'
 
 const within = (args: { path: string; root: string }): string | undefined => {
@@ -35,18 +33,13 @@ export function restoredDirectoryOf(args: {
 }
 
 export function workspaceArrivalDrafts(args: {
-  from: EExecutionLocation
-  to: EExecutionLocation
   path: string
   tree?: RestoredTree | undefined
   repository: string | null
-  remoteUrl?: string | null
-  branch?: string | null
   home?: string | undefined
   active?: ActiveWorktree | null | undefined
 }): EventDraft[] {
   const drafts: EventDraft[] = [
-    { type: 'location-changed', from: args.from, to: args.to, cwd: args.path, remoteUrl: args.remoteUrl ?? null, branch: args.branch ?? null },
     { type: 'directory-changed', path: args.home ?? args.path, repo: args.repository },
   ]
   if (args.active !== undefined) {
@@ -55,23 +48,11 @@ export function workspaceArrivalDrafts(args: {
     drafts.push({ type: 'worktree-entered', path: args.tree.path, branch: args.tree.branch ?? 'HEAD', adopted: true })
     if (args.path !== args.tree.path) drafts.push({ type: 'directory-changed', path: args.path, repo: args.repository })
   }
-  const renamed = args.tree?.renamedFrom
-  const detail = renamed === null || renamed === undefined
-    ? 'Your files and Git staging state were transferred without committing or merging them.'
-    : `Your worktree was restored as ${basename(args.tree?.path ?? args.path)} because ${renamed} changed at the destination. The existing checkout was left untouched.`
-  drafts.push({
-    type: 'context-loaded',
-    slot: 'session',
-    key: 'execution-location',
-    content: `Your environment is now ${args.to}. Your project directory is ${args.path}. ${detail}`,
-  })
   return drafts
 }
 
 export async function recordWorkspaceArrival(args: {
   threadId: ThreadId
-  from: EExecutionLocation
-  to: EExecutionLocation
   restored: RestoredWorkspace
   launchDirectory: string
   log: EventLogPort
@@ -96,18 +77,13 @@ export async function recordWorkspaceArrival(args: {
       ? [...args.restored.trees].sort((a, b) => b.path.length - a.path.length).find((item) => within({ path: directory.path, root: item.path }) !== undefined)
       : directory.tree
     await args.threads.adopt({ threadId, workspace: member?.home ?? directory.path, repo: args.restored.repository })
-    const identity = await captureWorkspaceMetadata({ cwd: directory.path }).catch(() => null)
     await args.log.append({
       threadId,
       runId: args.ids.nextRunId(),
       drafts: workspaceArrivalDrafts({
-        from: args.from,
-        to: args.to,
         path: directory.path,
         tree: tree === undefined || (active === undefined && tree.path === args.restored.repository) ? undefined : tree,
         repository: args.restored.repository,
-        remoteUrl: identity?.remoteUrl ?? null,
-        branch: identity?.branch ?? tree?.branch ?? null,
         home: member?.home,
         active: member === undefined ? undefined : member.active === null ? null : { ...member.active, base: member.active.base ?? undefined },
       }),

@@ -27,7 +27,8 @@ describe('SessionPathsFragment', () => {
     expect(compiled).not.toContain('worktree configuration and instructions')
   })
 
-  it('states that session directories move with the session across cloud lifts', () => {
-    expect(text()).toContain('move with it across cloud lifts')
+  it('states that session directories live and die with the session', () => {
+    expect(text()).toContain('live and die with the session')
+    expect(text()).not.toContain('cloud lifts')
   })
 })
