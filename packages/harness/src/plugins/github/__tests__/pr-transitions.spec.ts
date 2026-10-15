@@ -14,6 +14,7 @@ import {
 } from '../pure'
 import type { PullRequestService } from '../pull-request-service'
 import { createPullRequestTransitions } from '../pr-transitions'
+import type { ThreadKinds } from '../thread-kinds'
 
 const checkout: RepositoryCheckout = {
   directory: '/repo',
@@ -43,7 +44,7 @@ const THREAD_B = toThreadId('thread-b')
 
 const mateCheckout: RepositoryCheckout = { ...checkout, directory: '/mate', branch: 'mate' }
 
-const harness = () => {
+const harness = (args: { owners?: ReadonlyMap<ThreadId, ThreadId> } = {}) => {
   let listener: (() => void) | null = null
   const readings = new Map<string, PullRequestReading>()
   const held = new Map<string, RepositoryCheckout>()
@@ -58,12 +59,20 @@ const harness = () => {
     tracked: () => [...held.values()],
     snapshot: ({ key }: { key: string }) => readings.get(key),
   } as unknown as PullRequestService
-  const tracker = createFamilyTracker({ service: { track: () => undefined } as unknown as PullRequestService })
+  const owners = args.owners
+  const threadKinds: ThreadKinds = {
+    ownerOf: async ({ threadId }) => owners?.get(threadId) ?? threadId,
+  }
+  const tracker = createFamilyTracker({
+    service: { track: () => undefined } as unknown as PullRequestService,
+    threadKinds,
+  })
   tracker.place({ threadId: THREAD_A, checkout })
   tracker.place({ threadId: THREAD_B, checkout: mateCheckout })
 
   return {
     transitions: createPullRequestTransitions({ service, tracker }),
+    trackerPlace: tracker.place,
     push: (reading: PullRequestReading, on: RepositoryCheckout = checkout) => {
       held.set(checkoutKey(on), on)
       readings.set(checkoutKey(on), reading)
@@ -138,5 +147,32 @@ describe('createPullRequestTransitions', () => {
 
     expect((await h.transitions.beforeTurn(beforeTurn(THREAD_A))).additionalContext).toContain('failing')
     expect((await h.transitions.beforeTurn(beforeTurn(THREAD_B))).additionalContext).toBeUndefined()
+  })
+
+  it('buffers a subagent’s transition under its owner and drains it on the owner’s turn', async () => {
+    const subagent = toThreadId('subagent-a')
+    const h = harness({ owners: new Map([[subagent, THREAD_A]]) })
+    h.trackerPlace({ threadId: subagent, checkout })
+    h.push(found())
+    h.push(found({ checks: EChecksState.Failing, tally: { running: 0, passed: 0, failed: 1 } }))
+
+    const sub = await h.transitions.beforeTurn(beforeTurn(subagent))
+    expect(sub.additionalContext).toBeUndefined()
+
+    const main = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
+    expect(main.additionalContext).toContain('failing')
+  })
+
+  it('a subagent’s turn after its owner drained finds nothing', async () => {
+    const subagent = toThreadId('subagent-b')
+    const h = harness({ owners: new Map([[subagent, THREAD_A]]) })
+    h.trackerPlace({ threadId: subagent, checkout })
+    h.push(found())
+    h.push(found({ state: EPullRequestState.Merged, checks: EChecksState.None }))
+
+    await h.transitions.beforeTurn(beforeTurn(THREAD_A))
+
+    const sub = await h.transitions.beforeTurn(beforeTurn(subagent))
+    expect(sub.additionalContext).toBeUndefined()
   })
 })

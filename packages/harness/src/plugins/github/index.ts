@@ -12,6 +12,7 @@ import {
   WorkspaceRoot,
 } from '../../container/tokens'
 
+import { ThreadStorePort } from '../../store/thread-store'
 import { NativePlugin, type PluginContribution } from '../plugin'
 import { AppInstallRecommendationSink, MutableAppInstallSink } from './app-install-sink'
 import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
@@ -30,6 +31,7 @@ import { createPullRequestService, type PullRequestService } from './pull-reques
 import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
+import { createThreadKinds } from './thread-kinds'
 
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
@@ -62,6 +64,7 @@ export default class GithubPlugin extends NativePlugin {
       clientVersion: string
       cacheDirectory: string
       log: LogPort | null
+      threads: ThreadStorePort | null
     },
   ) {
     super()
@@ -125,11 +128,14 @@ export default class GithubPlugin extends NativePlugin {
     // The links the tracker drafts on a drop are read through a deferred indirection: tracking
     // holds the family map the links fold needs, and links holds the drafted-set the drop path
     // needs, so neither can be constructed first without one.
+    const threadKinds =
+      this.args.threads === null ? undefined : createThreadKinds({ threads: this.args.threads })
     let links: PullRequestLinks | null = null
     const tracking = createCheckoutTracking({
       service,
       facts,
       cloud: () => cloudCheckout.current(),
+      ...(threadKinds === undefined ? {} : { threadKinds }),
       linkDropped: (dropped) => links?.linkDropped(dropped) ?? [],
     })
     links = createPullRequestLinks({ service, tracker: tracking.tracker })
@@ -300,6 +306,9 @@ export function registerPlugin({ container }: { container: DependencyContainer }
         cacheDirectory: resolver.resolve(AtlasHomeToken),
         log: container.isRegistered(registeredPortToken(LogPort), true)
           ? resolver.resolve(registeredPortToken(LogPort))
+          : null,
+        threads: container.isRegistered(registeredPortToken(ThreadStorePort), true)
+          ? resolver.resolve(registeredPortToken(ThreadStorePort))
           : null,
       }),
   })

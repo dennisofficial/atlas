@@ -8,7 +8,8 @@ import { createPrEventDedupe, type PrEventDedupe } from './pure/pr-event-dedupe'
 import type { PullRequestService } from './pull-request-service'
 
 export type PrEventRouting = {
-  onPrEvent: (frame: PrEventFrame) => void
+  /** Queues the notice asynchronously; the promise settles once it is queued, held, or dropped. */
+  onPrEvent: (frame: PrEventFrame) => Promise<void>
   beforeTurn: BeforeTurn
   threadOpened: OnThreadOpen
 }
@@ -47,15 +48,17 @@ export function createPrEventRouting(args: {
       return reading.pullRequest.number === target.prNumber ? [key] : []
     })
 
-  const owners = (target: { repo: string; prNumber: number }): readonly ThreadId[] => [
-    ...new Set(standingKeys(target).flatMap((key) => args.tracker.threadsOn({ key }))),
+  const owners = async (target: { repo: string; prNumber: number }): Promise<readonly ThreadId[]> => [
+    ...new Set(
+      (await Promise.all(standingKeys(target).map((key) => args.tracker.threadsOwning({ key })))).flat(),
+    ),
   ]
 
   const linkOf = (target: { repo: string; prNumber: number }): LinkedPullRequest | undefined =>
     args.links().find((link) => link.repo === target.repo && link.number === target.prNumber)
 
-  const deliver = (draft: PrEventDraft): void => {
-    const owning = owners(draft)
+  const deliver = async (draft: PrEventDraft): Promise<void> => {
+    const owning = await owners(draft)
     if (owning.length > 0) {
       for (const owner of owning) args.queue.queue({ threadId: owner, draft })
       return
@@ -66,13 +69,13 @@ export function createPrEventRouting(args: {
       held.push(draft)
       return
     }
-    args.queue.queue({ threadId: target, draft })
+    args.queue.queue({ threadId: await args.tracker.ownerOf({ threadId: target }), draft })
   }
 
-  const adopt = (opened: ThreadId): void => {
+  const adopt = async (opened: ThreadId): Promise<void> => {
     if (threadId !== null) args.queue.reassign({ from: threadId, to: opened })
     threadId = opened
-    for (const draft of held.splice(0)) deliver(draft)
+    await Promise.all(held.splice(0).map((draft) => deliver(draft)))
   }
 
   const watching = (frame: PrEventFrame): boolean => {
@@ -82,7 +85,7 @@ export function createPrEventRouting(args: {
 
   return {
     onPrEvent: (frame) => {
-      if (!watching(frame)) return
+      if (!watching(frame)) return Promise.resolve()
 
       const draft = prEventNoticeOf(frame)
       const fresh = dedupe.admit({
@@ -94,14 +97,15 @@ export function createPrEventRouting(args: {
         mergeable: draft.mergeable,
         state: draft.state,
       })
-      if (fresh) deliver(draft)
+      if (!fresh) return Promise.resolve()
+      return deliver(draft)
     },
     beforeTurn: async ({ threadId: running }) => {
-      if (threadId === null) adopt(running)
+      if (threadId === null) await adopt(running)
       return {}
     },
     threadOpened: async ({ threadId: opened }) => {
-      adopt(opened)
+      await adopt(opened)
       return {}
     },
   }
