@@ -13,6 +13,8 @@ export type PullRequestEntry = {
   number: number
   url: string
   branch: string
+  /** Where the checkout that linked it lived — a removed worktree shows the link as detached. */
+  worktreePath: string | undefined
   reading: PullRequestReading | null
   current: boolean
 }
@@ -49,6 +51,7 @@ export function pullRequestEntries(args: {
       number: link.number,
       url: link.url,
       branch: link.branch,
+      worktreePath: link.worktreePath,
       reading: isCurrent ? current.reading : args.read(key),
       current: isCurrent,
     }
@@ -64,6 +67,7 @@ export function pullRequestEntries(args: {
       number: currentFound.pullRequest.number,
       url: currentFound.pullRequest.url,
       branch: current.checkout.branch,
+      worktreePath: current.checkout.directory,
       reading: current.reading,
       current: true,
     },

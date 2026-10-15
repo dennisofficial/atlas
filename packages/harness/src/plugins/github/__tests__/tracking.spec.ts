@@ -273,7 +273,11 @@ describe('the family of threads', () => {
 describe('a thread that entered a worktree', () => {
   const TEAMMATE = toThreadId('thread-teammate')
 
-  const worktreeRig = () => {
+  const worktreeRig = (
+    extras: {
+      linkDropped?: (args: { checkouts: readonly RepositoryCheckout[] }) => readonly import('@dltech/atlas-core').EventDraft[]
+    } = {},
+  ) => {
     const places = new Map<string, RepositoryCheckout | null>()
     const port = pullRequestsByKey({
       [keyOf(aCheckout({ branch: 'dennis/one' }))]: wasFound({ number: 1 }),
@@ -284,6 +288,7 @@ describe('a thread that entered a worktree', () => {
     const tracking = createCheckoutTracking({
       service,
       facts: createSessionFacts({ launchDirectory: '/root' }),
+      ...(extras.linkDropped === undefined ? {} : { linkDropped: extras.linkDropped }),
       probe: async ({ directory }) => {
         probeCalls.push(directory)
         return places.get(directory) ?? null
@@ -377,6 +382,60 @@ describe('a thread that entered a worktree', () => {
     await tracking.afterTurn({ threadId: THREAD })
 
     expect(branchOf(tracking, THREAD)).toBe('dennis/two')
+    service.dispose()
+  })
+
+  it('drafts the departing checkout’s link on exit, before the reading is forgotten', async () => {
+    const seen: RepositoryCheckout[][] = []
+    const { service, tracking } = worktreeRig({
+      linkDropped: ({ checkouts }) => {
+        seen.push([...checkouts])
+        return checkouts.map((checkout) => ({
+          type: 'pull-request-linked' as const,
+          number: 1,
+          url: 'https://github.com/dltech/atlas/pull/1',
+          repo: 'github.com/dltech/atlas',
+          branch: checkout.branch,
+          worktreePath: checkout.directory,
+        }))
+      },
+    })
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/root' })
+    await enter(tracking, THREAD)
+
+    seen.length = 0
+    const outcome = await exit(tracking, THREAD)
+
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.[0]?.branch).toBe('dennis/one')
+    expect(outcome.drafts).toEqual([
+      expect.objectContaining({
+        type: 'pull-request-linked',
+        number: 1,
+        branch: 'dennis/one',
+        worktreePath: '/tree',
+      }),
+    ])
+    service.dispose()
+  })
+
+  it('drafts nothing on exit when another thread still stands on the worktree', async () => {
+    const seen: RepositoryCheckout[][] = []
+    const { service, tracking } = worktreeRig({
+      linkDropped: ({ checkouts }) => {
+        seen.push([...checkouts])
+        return []
+      },
+    })
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/root' })
+    await enter(tracking, THREAD)
+    await enter(tracking, TEAMMATE)
+
+    seen.length = 0
+    const outcome = await exit(tracking, THREAD)
+
+    expect(seen).toEqual([])
+    expect(outcome.drafts).toBeUndefined()
     service.dispose()
   })
 })

@@ -97,6 +97,7 @@ describe('recording a link at turn end', () => {
         url: 'https://github.com/dltech/atlas/pull/401',
         repo: 'github.com/dltech/atlas',
         branch: 'dennis/first',
+        worktreePath: '/repo',
       },
     ])
   })
@@ -158,6 +159,47 @@ describe('recording a link at turn end', () => {
 
     const outcome = await links.recordFound({ threadId: THREAD_B })
     expect(outcome.drafts).toHaveLength(1)
+  })
+})
+
+describe('linking a checkout that was dropped from tracking', () => {
+  it('drafts the pull request from the reading the dropped checkout last held', () => {
+    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+
+    const drafts = links.linkDropped({ checkouts: [CHECKOUT] })
+
+    expect(drafts).toEqual([
+      {
+        type: 'pull-request-linked',
+        number: 401,
+        url: 'https://github.com/dltech/atlas/pull/401',
+        repo: 'github.com/dltech/atlas',
+        branch: 'dennis/first',
+        worktreePath: '/repo',
+      },
+    ])
+  })
+
+  it('drafts nothing for a checkout whose pull request was never found', () => {
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: { lookup: EPullRequestLookup.Absent } }),
+    )
+
+    expect(links.linkDropped({ checkouts: [CHECKOUT] })).toEqual([])
+  })
+
+  it('drafts nothing for a pull request the log already holds', () => {
+    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+    links.projection.publish({ events: [linkEvent({ number: 401, branch: 'dennis/first' })] })
+
+    expect(links.linkDropped({ checkouts: [CHECKOUT] })).toEqual([])
+  })
+
+  it('drafts a dropped pull request only once until the log publishes it', () => {
+    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+
+    links.linkDropped({ checkouts: [CHECKOUT] })
+    expect(links.linkDropped({ checkouts: [CHECKOUT] })).toEqual([])
   })
 })
 
