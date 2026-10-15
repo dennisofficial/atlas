@@ -174,7 +174,7 @@ export function App(props: {
       <Workspace
         key={
           cloud === undefined
-            ? `local:${reopened?.threadId ?? 'boot'}`
+            ? `local:${reopened?.threadId ?? props.opened.threadId}`
             : `cloud:${cloud.opened.threadId}:${keyOf(snapshot.binding)}:${reloadedHere?.reloads ?? 0}`
         }
         app={app}

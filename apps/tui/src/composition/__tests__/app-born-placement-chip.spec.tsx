@@ -88,7 +88,7 @@ const restoredAs = async (archivePath: string) => {
   }
 }
 
-const acceptingTheWorkspace = (bridge: FakeBridge): FakeBridge => {
+export const acceptingTheWorkspace = (bridge: FakeBridge): FakeBridge => {
   let shipped: string | undefined
   const create = bridge.sandboxes.create
   bridge.sandboxes.create = (given) => {
