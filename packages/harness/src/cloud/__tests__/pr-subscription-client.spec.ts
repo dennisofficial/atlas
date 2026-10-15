@@ -239,4 +239,39 @@ describe('PrSubscriptionClient subscribe retry', () => {
     expect(outcome.id).toBe('sub_1')
     expect(calls).toBe(2)
   })
+
+  it('carries the app install recommendation and the poll-backed flag out of the response', async () => {
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          ...liveSubscribeBody,
+          pollBacked: true,
+          recommendAppInstall: {
+            installUrl: 'https://github.com/apps/atlas/installations/new',
+            repoFullName: 'dennisofficial/atlas',
+            extra: 1,
+          },
+        }),
+        { status: 201, headers: { 'content-type': 'application/json' } },
+      )) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'b' })
+
+    expect(outcome.pollBacked).toBe(true)
+    expect(outcome.recommendAppInstall).toEqual({ installUrl: 'https://github.com/apps/atlas/installations/new', repoFullName: 'dennisofficial/atlas' })
+  })
+
+  it('omits the recommendation when the response carries none', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify(liveSubscribeBody), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      })) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'b' })
+
+    expect('recommendAppInstall' in outcome).toBe(false)
+  })
 })

@@ -2,6 +2,7 @@ import { EHookPhase, EStage, LogPort, type HookOrder } from '@dltech/atlas-core'
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
 import { portToken, registeredPortToken, type DependencyContainer } from '../../container/injection'
 import type { PrEventFrame } from '../../cloud/pr-event-frame'
+import type { AppInstallRecommendation } from '../../cloud/pr-subscription-client'
 import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
 import {
   AtlasHomeToken,
@@ -12,6 +13,7 @@ import {
 } from '../../container/tokens'
 
 import { NativePlugin, type PluginContribution } from '../plugin'
+import { AppInstallRecommendationSink, MutableAppInstallSink } from './app-install-sink'
 import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
 import { CiFeedFragment } from './ci-feed-fragment'
 import { createCloudCheckout } from './cloud-checkout'
@@ -75,6 +77,7 @@ export default class GithubPlugin extends NativePlugin {
   private port(
     onReading: (args: { key: string; reading: PullRequestReading }) => void,
     onPrEvent: (frame: PrEventFrame) => void,
+    onAppInstallRecommended: ((recommendation: AppInstallRecommendation) => void) | undefined,
   ): FailoverPullRequestPort | GhPullRequestPort {
     const session = this.args.serve ?? this.args.sessions.read()
     if (session !== null) {
@@ -85,6 +88,7 @@ export default class GithubPlugin extends NativePlugin {
           clientVersion: this.args.clientVersion,
           onReading,
           onPrEvent,
+          ...(onAppInstallRecommended === undefined ? {} : { onAppInstallRecommended }),
           ...log,
         }),
         fallback: new GhPullRequestPort(),
@@ -100,6 +104,7 @@ export default class GithubPlugin extends NativePlugin {
     let cached: CachedPullRequestPort | null = null
     let routing: PrEventRouting | null = null
     const sink = new MutablePrEventSink()
+    const appInstallSink = new MutableAppInstallSink()
     const raw = this.port(
       (pushed) => {
         service?.ingest(pushed)
@@ -109,6 +114,7 @@ export default class GithubPlugin extends NativePlugin {
         routing?.onPrEvent(frame)
         sink.onPrEvent(frame)
       },
+      (recommendation) => appInstallSink.onAppInstallRecommended(recommendation),
     )
     const adapter = new CachedPullRequestPort({ inner: raw, directory: this.args.cacheDirectory })
     cached = adapter
@@ -248,6 +254,7 @@ export default class GithubPlugin extends NativePlugin {
       ports: [
         { token: PullRequestPort, use: adapter },
         { token: PrEventFrameSink, use: sink },
+        { token: AppInstallRecommendationSink, use: appInstallSink },
         {
           token: GithubUiBridgePort,
           use: {

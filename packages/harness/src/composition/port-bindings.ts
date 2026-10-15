@@ -45,6 +45,7 @@ export const sharedPortBindings = {
   GithubUiBridgePort: { runtime: 'shared', transport: null },
   PullRequestPort: { runtime: 'shared', transport: null },
   PrEventFrameSink: { runtime: 'shared', transport: null },
+  AppInstallRecommendationSink: { runtime: 'shared', transport: null },
   UserLayerSyncPort: { runtime: 'shared', transport: null },
 } satisfies Partial<ComposedPortBindings>
 

@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common'
 import { HealthModule } from '../../platform/health/health.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
+import { GithubAppHookController } from './github-app-hook.controller'
+import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
+import { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -18,7 +21,12 @@ import { GithubModule } from './github.module'
 
 @Module({
   imports: [GithubModule, HealthModule, SessionsModule],
-  controllers: [GithubSubscriptionsController, GithubPrStreamController, GithubHookController],
+  controllers: [
+    GithubSubscriptionsController,
+    GithubPrStreamController,
+    GithubHookController,
+    GithubAppHookController,
+  ],
   providers: [
     GithubSubscriptionsService,
     GithubHookLifecycleService,
@@ -28,6 +36,8 @@ import { GithubModule } from './github.module'
     GithubPrEventMailboxService,
     GithubPrFanoutService,
     GithubSandboxWakeService,
+    GithubAppInstallationsService,
+    GithubAppInstallNoticeService,
     sandboxWakeBootProvider,
     GithubUserReads,
   ],

@@ -6,6 +6,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '../../../db'
 import { HOOK_EVENTS as GITHUB_HOOK_EVENTS } from './github-hook-events'
 import { ERepoHookStatus } from './github-realtime.types'
+import { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import { isUniqueViolation } from './unique-violation'
@@ -15,7 +16,7 @@ const IDLE_DELETE_AFTER_MS = 24 * 60 * 60 * 1_000
 const SWEEP_LEASE_MS = 5 * 60 * 1_000
 const VERIFY_HOOK_TTL_MS = 5 * 60 * 1_000
 
-export type EnsureHookResult = 'created' | 'existing' | 'poll-backed'
+export type EnsureHookResult = 'created' | 'existing' | 'app-backed' | 'poll-backed'
 
 @Injectable()
 export class GithubHookLifecycleService {
@@ -27,12 +28,16 @@ export class GithubHookLifecycleService {
     private readonly reads: GithubUserReads,
     private readonly cipher: SecretCipherService,
     private readonly env: EnvService,
+    private readonly installations: GithubAppInstallationsService,
   ) {}
 
   async ensureHook(args: {
     userId: string
     repoFullName: string
   }): Promise<EnsureHookResult> {
+    if (await this.installations.coversRepo({ repoFullName: args.repoFullName })) {
+      return 'app-backed'
+    }
     const hook = await db.githubRepoHook.findUnique({
       where: { repoFullName: args.repoFullName },
     })
