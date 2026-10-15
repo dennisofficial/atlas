@@ -48,6 +48,28 @@ describe('prEventsOfPoll', () => {
     expect(diff({ previous: flipped.memory, current: green }).events).toEqual([])
   })
 
+  it('emits the same verdict again on a new tip, carrying the new sha', () => {
+    const before = aPullRequest({ checks: EChecksState.Passing, headSha: 'aaaaaaa1' })
+    const after = aPullRequest({ checks: EChecksState.Passing, headSha: 'bbbbbbb2' })
+
+    expect(drafts(second(before, after))).toEqual([
+      expect.objectContaining({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: 'bbbbbbb2' }),
+    ])
+  })
+
+  it('emits nothing for a new tip whose checks have not settled', () => {
+    const before = aPullRequest({ checks: EChecksState.Passing, headSha: 'aaaaaaa1' })
+
+    expect(second(before, aPullRequest({ checks: EChecksState.Running, headSha: 'bbbbbbb2' })).events).toEqual([])
+  })
+
+  it('puts the tip on the verdict draft when checks flip on the same tip', () => {
+    const running = aPullRequest({ checks: EChecksState.Running, headSha: 'aaaaaaa1' })
+    const green = aPullRequest({ checks: EChecksState.Passing, headSha: 'aaaaaaa1' })
+
+    expect(drafts(second(running, green))).toEqual([expect.objectContaining({ headSha: 'aaaaaaa1' })])
+  })
+
   it('emits a failed verdict, and nothing on a flip to running', () => {
     const green = aPullRequest({ checks: EChecksState.Passing })
 
@@ -151,7 +173,7 @@ describe('createPollDiffer', () => {
       repoFullName: 'dennisofficial/atlas',
       prNumber: 42,
       kind: EPrEventKind.Verdict,
-      payload: { verdict: EPrVerdict.Green },
+      payload: { verdict: EPrVerdict.Green, headSha: 'abc123' },
       createdAt: '2026-10-08T00:00:00.000Z',
     })
   })

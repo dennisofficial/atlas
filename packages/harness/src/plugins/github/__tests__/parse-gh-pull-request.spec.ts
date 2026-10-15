@@ -45,6 +45,11 @@ describe('parseGhPullRequest', () => {
     expect(pullRequest?.tally).toEqual({ running: 0, passed: 1, failed: 0 })
   })
 
+  it('reads the head sha from headRefOid, and an absent one as empty', () => {
+    expect(parseGhPullRequest({ ...OPEN_WITH_ROLLUP, headRefOid: '0123456789abcdef' })?.headSha).toBe('0123456789abcdef')
+    expect(parseGhPullRequest(OPEN_WITH_ROLLUP)?.headSha).toBe('')
+  })
+
   it('takes a null rollup as no checks rather than as no pull request', () => {
     const pullRequest = parseGhPullRequest({ ...OPEN_WITH_ROLLUP, statusCheckRollup: null })
 

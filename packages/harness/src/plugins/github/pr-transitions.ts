@@ -4,6 +4,11 @@ import type { FamilyTracker } from './family-tracker'
 import type { PullRequestService } from './pull-request-service'
 import { checkoutKey, EPullRequestLookup, type PullRequestReading } from './pure'
 
+const SHORT_SHA_LENGTH = 7
+
+const onTip = (pullRequest: { headSha?: string }): string =>
+  pullRequest.headSha === undefined || pullRequest.headSha === '' ? '' : ` on ${pullRequest.headSha.slice(0, SHORT_SHA_LENGTH)}`
+
 const label = (reading: PullRequestReading): string | null => {
   if (reading.lookup !== EPullRequestLookup.Found) return null
 
@@ -11,11 +16,11 @@ const label = (reading: PullRequestReading): string | null => {
   const { tally } = pullRequest
   const checks =
     tally.failed > 0
-      ? `checks failing (${tally.failed} failed)`
+      ? `checks failing (${tally.failed} failed)${onTip(pullRequest)}`
       : tally.running > 0
         ? `checks running (${tally.running} running, ${tally.passed} passed)`
         : tally.passed > 0
-          ? 'checks passing'
+          ? `checks passing${onTip(pullRequest)}`
           : 'no checks'
   return `PR #${pullRequest.number} (${pullRequest.title}): ${pullRequest.state}, ${checks}`
 }

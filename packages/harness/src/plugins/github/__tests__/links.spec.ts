@@ -30,6 +30,7 @@ const foundReading = (number: number): PullRequestReading => ({
     number,
     title: 'a pull request',
     url: `https://github.com/dltech/atlas/pull/${number}`,
+    headSha: 'abc123',
     state: EPullRequestState.Open,
     checks: EChecksState.Passing,
     tally: NO_CHECKS,

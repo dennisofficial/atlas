@@ -9,6 +9,7 @@ const found = (extra: Partial<PullRequest> = {}): PullRequestReading => ({
     number: 7,
     title: 'a change',
     url: 'https://github.com/o/r/pull/7',
+    headSha: 'abc123',
     state: EPullRequestState.Open,
     checks: EChecksState.Passing,
     tally: NO_CHECKS,

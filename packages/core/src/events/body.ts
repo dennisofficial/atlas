@@ -194,6 +194,7 @@ export type EventBody =
       authorLogin?: string | undefined
       body?: string | undefined
       verdict?: EPrVerdict | undefined
+      headSha?: string | undefined
       mergeable?: boolean | undefined
       state?: string | undefined
       reviewState?: EPrReviewState | undefined

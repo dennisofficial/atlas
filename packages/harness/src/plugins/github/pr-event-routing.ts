@@ -94,6 +94,7 @@ export function createPrEventRouting(args: {
         prNumber: frame.prNumber,
         kind: frame.kind,
         verdict: draft.verdict,
+        headSha: draft.headSha,
         mergeable: draft.mergeable,
         state: draft.state,
       })

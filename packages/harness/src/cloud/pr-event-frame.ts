@@ -46,6 +46,7 @@ export function prEventNoticeOf(frame: PrEventFrame): PrEventDraft {
     ...(payload.authorLogin === undefined ? {} : { authorLogin: payload.authorLogin }),
     ...(payload.body === undefined ? {} : { body: payload.body }),
     ...(payload.verdict === undefined ? {} : { verdict: payload.verdict }),
+    ...(payload.headSha === undefined ? {} : { headSha: payload.headSha }),
     ...(payload.mergeable === undefined ? {} : { mergeable: payload.mergeable }),
     ...(payload.state === undefined ? {} : { state: payload.state }),
     ...(payload.reviewState === undefined ? {} : { reviewState: payload.reviewState }),

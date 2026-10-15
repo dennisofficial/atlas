@@ -18,6 +18,26 @@ describe('createPrEventDedupe', () => {
     expect(dedupe.admit(candidate({ id: 'b', ...green }))).toBe(false)
   })
 
+  it('admits the same verdict on a new tip and drops it on the same tip', () => {
+    const dedupe = createPrEventDedupe()
+    const green = (id: string, headSha: string) =>
+      candidate({ id, kind: EPrEventKind.Verdict, verdict: 'green', headSha })
+
+    expect(dedupe.admit(green('a', 'aaaaaaa1'))).toBe(true)
+    expect(dedupe.admit(green('b', 'aaaaaaa1'))).toBe(false)
+    expect(dedupe.admit(green('c', 'bbbbbbb2'))).toBe(true)
+    expect(dedupe.admit(green('d', 'bbbbbbb2'))).toBe(false)
+  })
+
+  it('admits a same-verdict frame once when the poll and SSE paths both deliver it', () => {
+    const dedupe = createPrEventDedupe()
+    const green = (id: string) =>
+      candidate({ id, kind: EPrEventKind.Verdict, verdict: 'green', headSha: 'bbbbbbb2' })
+
+    expect(dedupe.admit(green('poll:k:verdict:1'))).toBe(true)
+    expect(dedupe.admit(green('evt_9'))).toBe(false)
+  })
+
   it('admits a flip-flop verdict each time it changes', () => {
     const dedupe = createPrEventDedupe()
     const verdict = (id: string, value: string) => candidate({ id, kind: EPrEventKind.Verdict, verdict: value })

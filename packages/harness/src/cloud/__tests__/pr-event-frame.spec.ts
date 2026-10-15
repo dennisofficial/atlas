@@ -85,7 +85,18 @@ describe('prEventNoticeOf', () => {
 
     expect(notice).toMatchObject({ kind: EPrEventKind.Review, reviewState: EPrReviewState.Approved })
     expect(notice).not.toHaveProperty('state')
-    expect(notice).not.toHaveProperty('headSha')
+  })
+
+  it('forwards the head sha a verdict frame carries, and omits it when absent', () => {
+    const tipped = prEventNoticeOf(
+      prEventFrameSchema.parse(frame({ kind: 'verdict', payload: { url: 'u', verdict: 'green', headSha: 'abc1234' } })),
+    )
+    const bare = prEventNoticeOf(
+      prEventFrameSchema.parse(frame({ kind: 'verdict', payload: { url: 'u', verdict: 'green' } })),
+    )
+
+    expect(tipped).toMatchObject({ headSha: 'abc1234' })
+    expect(bare).not.toHaveProperty('headSha')
   })
 })
 

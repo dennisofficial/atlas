@@ -18,6 +18,7 @@ const found = (checks: EChecksState): PullRequestReading => {
     number: 7,
     title: 'a change',
     url: 'https://github.com/o/r/pull/7',
+    headSha: 'abc123',
     state: EPullRequestState.Open,
     checks,
     tally: NO_CHECKS,
