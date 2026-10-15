@@ -1,10 +1,13 @@
 import {
   BadRequestException,
   Controller,
+  Get,
+  Header,
   Headers,
   HttpCode,
   Logger,
   Post,
+  Query,
   Req,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -14,6 +17,7 @@ import { SkipThrottle } from '@nestjs/throttler'
 import { Public } from '../../../_core/decorators/public.decorator'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
+import { installLandingPage } from './github-app-install-landing'
 import { GithubDeliveryService } from './github-delivery.service'
 import { verifyGithubSignature } from './github-webhook.signature'
 import type {
@@ -40,6 +44,22 @@ export class GithubAppHookController {
     private readonly installations: GithubAppInstallationsService,
     private readonly env: EnvService,
   ) {}
+
+  /**
+   * The app's post-install Setup URL lands a browser here (GitHub appends installation_id and
+   * setup_action). It is a browser page, not a webhook, so it carries no signature and reads only
+   * what the webhook already recorded — a missing row means the install webhook has not arrived
+   * yet, not that the install failed.
+   */
+  @Get('callback')
+  @Public()
+  @Header('content-type', 'text/html; charset=utf-8')
+  async handleInstalled(@Query('installation_id') installationId: string | undefined): Promise<string> {
+    const id = installationId === undefined ? null : Number(installationId)
+    const installation =
+      id === null || !Number.isInteger(id) ? null : await this.installations.read({ installationId: BigInt(id) })
+    return installLandingPage({ accountLogin: installation?.accountLogin ?? null })
+  }
 
   @Post('hook')
   @Public()

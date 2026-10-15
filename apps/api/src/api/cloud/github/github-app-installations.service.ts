@@ -21,6 +21,13 @@ export class GithubAppInstallationsService {
     return match !== null
   }
 
+  async read(args: { installationId: bigint }): Promise<{ accountLogin: string } | null> {
+    return db.githubAppInstallation.findUnique({
+      where: { installationId: args.installationId },
+      select: { accountLogin: true },
+    })
+  }
+
   async applyInstallation(payload: GithubAppInstallationWebhookPayload): Promise<void> {
     const { installation } = payload
     const installationId = BigInt(installation.id)
