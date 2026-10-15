@@ -41,6 +41,17 @@ export class ContextBrowser {
       .slice(0, MAX_CONTEXT_ENTRIES)
   }
 
+  /**
+   * The absolute path of a context file that exists and is a file, or null. `resolve` already
+   * confines the answer to the context root, so this stays inside the folder the way `load` does.
+   */
+  async resolveFile(path: string): Promise<string | null> {
+    const full = await this.resolve({ path })
+    if (full === null) return null
+    const found = await stat(full).catch(() => null)
+    return found !== null && found.isFile() ? full : null
+  }
+
   async load(path: string): Promise<ContextFileContent> {
     const full = await this.resolve({ path })
     if (full === null) return { type: 'refused', reason: 'the file is missing or outside the context folder' }

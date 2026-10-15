@@ -1,4 +1,4 @@
-import type { ScrollBoxRenderable } from '@opentui/core'
+import { ScrollBoxRenderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
@@ -54,6 +54,72 @@ describe('the context viewer', () => {
       expect(frame).toContain('first line')
       expect(frame).toContain('second line')
       expect(frame).toContain('pgup/pgdn page · esc to close')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('offers open and copy for a local file', async () => {
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="plan.md"
+        loading={false}
+        content={{ type: 'text', content: 'first line', truncated: false }}
+        localFilePath="/ctx/plan.md"
+        onDismiss={() => undefined}
+        attachScroll={() => undefined}
+      />,
+    )
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('open')
+      expect(frame).toContain('copy')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('hides open for a file that is not local', async () => {
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="plan.md"
+        loading={false}
+        content={{ type: 'text', content: 'first line', truncated: false }}
+        localFilePath={null}
+        onDismiss={() => undefined}
+        attachScroll={() => undefined}
+      />,
+    )
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).not.toContain('open')
+      expect(frame).toContain('copy')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('offers a diagram/source toggle for a mermaid file', async () => {
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="flow.mmd"
+        loading={false}
+        content={{ type: 'text', content: 'flowchart TD\n A-->B', truncated: false }}
+        onDismiss={() => undefined}
+        attachScroll={() => undefined}
+      />,
+    )
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('source')
+      expect(frame).toContain('live')
+      expect(frame).toContain('flow.mmd')
     } finally {
       await teardown(setup)
     }
@@ -169,7 +235,17 @@ describe('the context viewer', () => {
       await setup.flush()
       expect(setup.captureCharFrame()).toContain(lead)
       expect(setup.captureCharFrame()).not.toContain(tail.trim())
-      await act(async () => { held.box?.scrollBy({ x: 200, y: 0 }) })
+      // Overflow rides the inner horizontal scroller, which shows the pan bar.
+      expect(setup.captureCharFrame()).toContain('━')
+      let inner: ScrollBoxRenderable | undefined
+      const find = (node: unknown): void => {
+        const candidate = node as ScrollBoxRenderable
+        if (candidate instanceof ScrollBoxRenderable && candidate !== held.box &&
+          candidate.scrollWidth > candidate.viewport.width) inner = candidate
+        for (const child of (candidate as { getChildren?: () => unknown[] }).getChildren?.() ?? []) find(child)
+      }
+      find(held.box)
+      await act(async () => { inner?.scrollBy({ x: 200, y: 0 }) })
       await setup.flush()
       expect(setup.captureCharFrame()).toContain(tail.trim())
     } finally {

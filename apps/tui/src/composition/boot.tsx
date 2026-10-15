@@ -10,6 +10,7 @@ import { appearanceOf, applyAppearance } from "../ui/appearance";
 import { ENoticeTone, notify } from "../ui/notice-store";
 import { installHeapDumpSignal } from "./heap-dump";
 import { installOutputRedirect } from "./output-redirect";
+import { installFileOpener } from "./file-opener";
 import { installLinkClickOpen } from "./link-click";
 import { bindPathLinks } from "./path-links";
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from "./boot-failure";
@@ -112,16 +113,18 @@ export async function bootAtlas(args: {
   });
   renderer.once("destroy", untrackFocus);
 
+  const openFile = createFileOpener({
+    editor: () => {
+      const held = settings.service.snapshot().resolution.settings.get(ESettingId.Editor)
+      const value = typeof held?.value === 'string' ? held.value : EEditor.Default
+      return Object.values(EEditor).includes(value as EEditor) ? (value as EEditor) : EEditor.Default
+    },
+  });
+  installFileOpener(openFile);
   installLinkClickOpen({
     renderer,
     openUrl: createUrlOpener(),
-    openFile: createFileOpener({
-      editor: () => {
-        const held = settings.service.snapshot().resolution.settings.get(ESettingId.Editor)
-        const value = typeof held?.value === 'string' ? held.value : EEditor.Default
-        return Object.values(EEditor).includes(value as EEditor) ? (value as EEditor) : EEditor.Default
-      },
-    }),
+    openFile,
   });
 
   process.stdout.write(

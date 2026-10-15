@@ -96,6 +96,16 @@ describe('ContextBrowser', () => {
     expect((await browser.load('/etc/hosts')).type).toBe('refused')
   })
 
+  it('resolves an existing file to its absolute path inside the folder', async () => {
+    const browser = await fixture({ 'plan.md': 'p', 'sub/inner.md': 'i' })
+
+    expect(await browser.resolveFile('plan.md')).toMatch(/plan\.md$/)
+    expect(await browser.resolveFile('sub/inner.md')).toMatch(/sub\/inner\.md$/)
+    expect(await browser.resolveFile('nope.md')).toBeNull()
+    expect(await browser.resolveFile('sub')).toBeNull()
+    expect(await browser.resolveFile('../plan.md')).toBeNull()
+  })
+
   it('reads the entire file beyond the mention ceiling', async () => {
     const browser = await fixture({ 'big.txt': 'x'.repeat(MAX_MENTION_BYTES + 100) })
 

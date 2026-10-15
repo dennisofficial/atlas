@@ -67,15 +67,13 @@ describe('short drags across the pane edge', () => {
   it('neither navigates nor opens externally when the press started outside the pane', async () => {
     const { setup, navigated, opened } = await mount()
     const link = linkCell(setup)
-    const release = link.x - 1
     const press = GUTTER - 1
-    expect(release - press).toBeLessThanOrEqual(3)
-    expect(setup.renderer.getLinkAt(release, link.y)).toBe('notes/next.md')
+    expect(setup.renderer.getLinkAt(link.x, link.y)).toBe('notes/next.md')
     await act(async () => {
       await setup.mockMouse.pressDown(press, link.y)
       await setup.mockMouse.emitMouseEvent('drag', press, link.y + 1)
-      await setup.mockMouse.emitMouseEvent('drag', release, link.y)
-      await setup.mockMouse.release(release, link.y)
+      await setup.mockMouse.emitMouseEvent('drag', link.x, link.y)
+      await setup.mockMouse.release(link.x, link.y)
     })
     expect(navigated).toEqual([])
     expect(opened).toEqual([])
