@@ -36,6 +36,7 @@ const fakeSandbox = (args: {
   logTail?: string
   serveVersion?: string
   stopLeavesCorpse?: boolean
+  healthBody?: string
 }) => {
   const commands: RecordedCommand[] = []
   const writes: RecordedWrite[] = []
@@ -80,6 +81,10 @@ const fakeSandbox = (args: {
       if (script.startsWith('[ ! -s') && script.includes(SERVE_TOKEN_PATH)) {
         return { exitCode: args.tokenMatches === false ? 1 : 0 }
       }
+      if (script.includes('kill -9 "$_pid"')) {
+        alive = args.stopLeavesCorpse === true
+        return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
+      }
       if (script.startsWith('for i in')) {
         return { exitCode: args.waitSucceeds === false ? 1 : 0 }
       }
@@ -87,7 +92,14 @@ const fakeSandbox = (args: {
       if (script.startsWith('tail -c')) {
         return { exitCode: 0, stdout: async () => args.logTail ?? '' }
       }
-      return { exitCode: args.healthy ? 0 : 1 }
+      if (script.includes('/v1/health') && !script.includes('-o /dev/null')) {
+        return {
+          exitCode: args.healthy && (args.alive !== true || alive) ? 0 : 1,
+          stdout: async () => args.healthBody ?? '',
+          stderr: async () => '',
+        }
+      }
+      return { exitCode: args.healthy && (args.alive !== true || alive) ? 0 : 1 }
     },
   }
   return { sandbox: sandbox as unknown as Sandbox, commands, writes, ops }
@@ -251,6 +263,72 @@ describe('createServeLauncher', () => {
     await createServeLauncher()({ sandbox })
 
     expect(launchesOf(commands)[0]?.env).toEqual({})
+  })
+
+  it('replaces a healthy-answering serve whose health reports admissionClosed — the keep-seam wedge', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: true,
+      alive: true,
+      serveVersion: '1.89.1',
+      healthBody:
+        '{"ok":true,"sandboxSessionId":"vsn_42","admissionClosed":true,"busy":false,"turnRunning":false,"childrenRunning":0,"shellsRunning":0,"servicesRunning":0,"pendingInput":false,"settlingWork":false,"clients":0}',
+    })
+    const lines: string[] = []
+
+    await createServeLauncher({ log: (line) => lines.push(line) })({
+      sandbox,
+      token: 'tok_fresh',
+      desiredVersion: '1.89.1',
+    })
+
+    expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(true)
+    expect(launchesOf(commands)).toHaveLength(1)
+    expect(lines.some((line) => line.includes('admission is closed'))).toBe(true)
+    expect(lines.some((line) => line.includes('keeping it'))).toBe(false)
+  })
+
+  it('keeps a healthy serve whose health reports admission open', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: true,
+      alive: true,
+      serveVersion: '1.89.1',
+      healthBody:
+        '{"ok":true,"sandboxSessionId":"vsn_42","admissionClosed":false,"busy":false,"turnRunning":false,"childrenRunning":0,"shellsRunning":0,"servicesRunning":0,"pendingInput":false,"settlingWork":false,"clients":1}',
+    })
+
+    await createServeLauncher()({ sandbox, token: 'tok_fresh', desiredVersion: '1.89.1' })
+
+    expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(false)
+    expect(launchesOf(commands)).toHaveLength(0)
+  })
+
+  it('preserves and waits on a live serve whose health body cannot be read as wedged', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: true,
+      alive: true,
+      serveVersion: '1.89.1',
+      healthBody: 'not-json',
+    })
+
+    await createServeLauncher()({ sandbox, token: 'tok_fresh', desiredVersion: '1.89.1' })
+
+    expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(false)
+    expect(launchesOf(commands)).toHaveLength(0)
+  })
+
+  it('refuses to relaunch over a wedged serve that refuses to stop', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: true,
+      alive: true,
+      serveVersion: '1.89.1',
+      stopLeavesCorpse: true,
+      healthBody: '{"ok":true,"sandboxSessionId":"vsn_42","admissionClosed":true}',
+    })
+
+    await expect(
+      createServeLauncher()({ sandbox, token: 'tok_fresh', desiredVersion: '1.89.1' }),
+    ).rejects.toThrow('refused to stop')
+    expect(launchesOf(commands)).toHaveLength(0)
   })
 
   it('swaps a drifted serve in place and boots the replacement', async () => {
