@@ -8,6 +8,12 @@ import { watchContextDirectory } from './watch-context-directory'
 
 export type ContextReader = Pick<ContextBrowser, 'list' | 'load'> & {
   subscribe: (listener: () => void) => () => void
+  /**
+   * The absolute path of a context file on this machine, when the reader is backed by the local
+   * filesystem. Undefined for a reader whose files live elsewhere (a cloud sandbox), which is the
+   * signal that an editor cannot be pointed at them.
+   */
+  localPath?: (path: string) => Promise<string | undefined>
 }
 
 export function createSessionContextReader(args: { threadId: ThreadId; home?: string }): ContextReader {
@@ -18,6 +24,7 @@ export function createSessionContextReader(args: { threadId: ThreadId; home?: st
   return {
     list: async (path) => (await browser()).list(path),
     load: async (path): Promise<ContextFileContent> => (await browser()).load(path),
+    localPath: async (path) => (await (await browser()).resolveFile(path)) ?? undefined,
     subscribe: (listener) => {
       let stopped = false
       let close: () => void = () => {}

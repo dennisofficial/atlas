@@ -9,11 +9,12 @@ export function useWorkspaceContext(args: {
   readers: ContextReader | undefined
   threadId: ThreadId
   onClosePeek: () => void
+  local?: boolean
 }): ContextControl {
   const readers = useMemo(() => args.readers ?? createSessionContextReader({ threadId: args.threadId }),
     [args.readers, args.threadId])
   const folderState = useMemo(() => createSessionContextFolderStateStore({ threadId: args.threadId }), [args.threadId])
-  return useContextBrowser({ readers, folderState, onOpenFile: args.onClosePeek })
+  return useContextBrowser({ readers, folderState, onOpenFile: args.onClosePeek, local: args.local ?? true })
 }
 
 export function WorkspaceContextPane(props: { control: ContextControl; width: number }): React.ReactNode {
@@ -22,6 +23,7 @@ export function WorkspaceContextPane(props: { control: ContextControl; width: nu
   return <ContextViewer key={viewer.path} width={props.width} path={viewer.path}
     loading={viewer.state === EContextView.Loading}
     content={viewer.state === EContextView.Ready ? viewer.content : null}
+    localFilePath={props.control.localFilePath}
     onDismiss={props.control.handleDismiss} onNavigate={props.control.handleNavigate}
     attachScroll={props.control.attachScroll} />
 }

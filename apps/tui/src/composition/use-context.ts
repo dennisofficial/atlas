@@ -19,9 +19,11 @@ export function useContextBrowser(args: {
   readers: ContextReaders | undefined
   folderState?: ContextFolderStateStore | undefined
   onOpenFile?: () => void
+  local?: boolean
 }) {
   const { readers, folderState } = args
   const [opened, setOpened] = useState<{ owner: ContextReaders | undefined; path: string } | null>(null)
+  const [localFile, setLocalFile] = useState<{ owner: ContextReaders | undefined; path: string; absolute: string } | null>(null)
   const [viewerHeld, setViewerHeld] = useState<{ owner: ContextReaders | undefined; viewer: ContextViewer | null }>(
     { owner: readers, viewer: null })
   const path = opened !== null && opened.owner === readers ? opened.path : null
@@ -52,7 +54,21 @@ export function useContextBrowser(args: {
 
   useEffect(() => {
     setOpened((current) => current?.owner === readers ? current : null)
+    setLocalFile(null)
   }, [readers])
+
+  useEffect(() => {
+    if (path === null || readers === undefined || args.local !== true || readers.localPath === undefined) {
+      setLocalFile(null)
+      return
+    }
+    let live = true
+    void readers.localPath(path).then((absolute) => {
+      if (!live || absolute === undefined) return
+      setLocalFile({ owner: readers, path, absolute })
+    })
+    return () => { live = false }
+  }, [readers, path, args.local])
 
   const handleFileOpen = useCallback((next: string) => {
     setOpened({ owner: readers, path: next })
@@ -61,6 +77,7 @@ export function useContextBrowser(args: {
   }, [readers, updateViewer, args.onOpenFile])
   const handleFileClose = useCallback(() => {
     setOpened(null)
+    setLocalFile(null)
     updateViewer(() => null)
   }, [updateViewer])
   const tree = useContextTree({ readers, folderState, revision, opened: path, onOpen: handleFileOpen, onClose: handleFileClose })
@@ -84,7 +101,8 @@ export function useContextBrowser(args: {
   }, [handleFileClose])
 
   return { tree, viewer, handleOpen: tree.handleActivate, handleNavigate: handleFileOpen, handleDismiss: handleFileClose,
-    handleKey, attachScroll }
+    handleKey, attachScroll,
+    localFilePath: localFile !== null && localFile.owner === readers && localFile.path === path ? localFile.absolute : null }
 }
 
 export type ContextControl = ReturnType<typeof useContextBrowser>
