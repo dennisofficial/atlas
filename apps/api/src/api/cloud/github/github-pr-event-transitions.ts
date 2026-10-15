@@ -57,6 +57,21 @@ export function transitionsOf(args: {
     })
   }
 
+  const announcesNewTip =
+    args.prior.headSha !== args.next.headSha &&
+    checksSettled &&
+    !events.some((event) => event.kind === EPrEventKind.Verdict)
+  if (announcesNewTip) {
+    events.push({
+      kind: EPrEventKind.Verdict,
+      payload: {
+        url: args.next.url,
+        verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
+        headSha: args.next.headSha,
+      },
+    })
+  }
+
   const checksQuiet =
     args.next.checksRunning === 0 || args.next.checksPassed + args.next.checksFailed === 0
   if (args.next.mergeable !== null && args.prior.mergeable !== args.next.mergeable && checksQuiet) {

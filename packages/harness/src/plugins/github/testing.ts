@@ -151,6 +151,7 @@ export const aLink = (args?: {
 
 export type PullRequestShape = {
   number?: number
+  headSha?: string
   checks?: EChecksState
   tally?: ChecksTally
   mergeable?: boolean | null
@@ -162,6 +163,7 @@ export const aPullRequest = (args?: PullRequestShape): PullRequest => ({
   number: args?.number ?? 42,
   title: 'a change',
   url: `https://github.com/dennisofficial/atlas/pull/${args?.number ?? 42}`,
+  headSha: args?.headSha ?? 'abc123',
   state: EPullRequestState.Open,
   checks: args?.checks ?? EChecksState.Passing,
   tally: args?.tally ?? NO_CHECKS,

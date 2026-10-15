@@ -32,6 +32,7 @@ export type PullRequest = {
   number: number
   title: string
   url: string
+  headSha?: string
   state: EPullRequestState
   checks: EChecksState
   tally: ChecksTally

@@ -18,9 +18,16 @@ const withBody = ({ lead, event }: { lead: string; event: PrEvent }): string => 
   return `${said} ${event.url}`
 }
 
+const SHORT_SHA_LENGTH = 7
+
+const tipSuffix = (event: PrEvent): string =>
+  event.headSha === undefined || event.headSha.length < SHORT_SHA_LENGTH
+    ? ''
+    : ` on ${event.headSha.slice(0, SHORT_SHA_LENGTH)}`
+
 const verdictSentence = (event: PrEvent): string => {
-  if (event.verdict === EPrVerdict.Green) return 'checks green.'
-  if (event.verdict === EPrVerdict.Failed) return `checks failed. ${event.url}`
+  if (event.verdict === EPrVerdict.Green) return `checks green${tipSuffix(event)}.`
+  if (event.verdict === EPrVerdict.Failed) return `checks failed${tipSuffix(event)}. ${event.url}`
   return `checks reported. ${event.url}`
 }
 

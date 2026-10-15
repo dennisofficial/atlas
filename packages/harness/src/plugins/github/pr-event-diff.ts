@@ -31,7 +31,8 @@ const verdictDrafts = (args: {
   previous: PullRequest
   current: PullRequest
 }): readonly PrEventDraft[] => {
-  if (args.previous.checks === args.current.checks) return []
+  const sameTip = args.previous.headSha === args.current.headSha
+  if (sameTip && args.previous.checks === args.current.checks) return []
 
   const verdict = verdictOf(args.current.checks)
   if (verdict === null) return []
@@ -44,6 +45,7 @@ const verdictDrafts = (args: {
       kind: EPrEventKind.Verdict,
       url: args.current.url,
       verdict,
+      headSha: args.current.headSha,
     },
   ]
 }
@@ -199,6 +201,7 @@ const frameOf = (args: { id: string; event: PollEvent; createdAt: string }): PrE
       authorLogin: draft.authorLogin,
       body: draft.body,
       verdict: draft.verdict,
+      headSha: draft.headSha,
       mergeable: draft.mergeable,
       state: draft.state,
       reviewState: draft.reviewState,
@@ -211,7 +214,8 @@ const frameOf = (args: { id: string; event: PollEvent; createdAt: string }): PrE
  * Poll diffs enter as the same frames the SSE stream delivers, so the router's watch filter,
  * thread handling and dedupe apply to both sources and nothing downstream knows which spoke.
  * Transition frames take a sequence id — a green that follows a failed that followed a green is
- * three notices, and a fixed id would let the id dedupe swallow the third.
+ * three notices, and a fixed id would let the id dedupe swallow the third. A verdict re-announced
+ * because the tip moved is likewise a new notice, told apart downstream by its sha.
  */
 export function createPollDiffer(args: { emit: (frame: PrEventFrame) => void; now?: () => Date }): {
   onPolled: (polled: { key: string; repo: string; pullRequest: PullRequest }) => void

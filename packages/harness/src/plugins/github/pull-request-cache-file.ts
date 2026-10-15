@@ -25,6 +25,7 @@ type EntryJson = {
     number: number
     title: string
     url: string
+    headSha?: string
     state: string
     checks: string
     tally: ChecksTally
@@ -47,6 +48,7 @@ export const entryToJson = (entry: CacheEntry): EntryJson | null => {
       number: pullRequest.number,
       title: pullRequest.title,
       url: pullRequest.url,
+      headSha: pullRequest.headSha ?? '',
       state: pullRequest.state,
       checks: pullRequest.checks,
       tally: pullRequest.tally,
@@ -67,6 +69,8 @@ const parseTally = (raw: unknown): ChecksTally | null => {
   }
   return { running: tally.running, passed: tally.passed, failed: tally.failed }
 }
+
+const headShaOfCached = (raw: unknown): string => (typeof raw === 'string' ? raw : '')
 
 const parsePullRequest = (raw: unknown): PullRequest | null => {
   if (typeof raw !== 'object' || raw === null) return null
@@ -89,6 +93,7 @@ const parsePullRequest = (raw: unknown): PullRequest | null => {
     number: pullRequest.number,
     title: pullRequest.title,
     url: pullRequest.url,
+    headSha: headShaOfCached(pullRequest.headSha),
     state: pullRequest.state as EPullRequestState,
     checks: pullRequest.checks as EChecksState,
     tally,

@@ -29,6 +29,7 @@ const found = (over: Partial<PullRequest> = {}): PullRequestReading => ({
     number: 7,
     title: 'A thing',
     url: 'https://github.com/owner/repo/pull/7',
+    headSha: 'abc123',
     state: EPullRequestState.Open,
     checks: EChecksState.Running,
     tally: { running: 2, passed: 1, failed: 0 },
@@ -97,6 +98,38 @@ describe('createPullRequestTransitions', () => {
     const outcome = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
     expect(outcome.additionalContext).toContain('PR #7')
     expect(outcome.additionalContext).toContain('failing')
+  })
+
+  it('names the tip on a settled checks label', async () => {
+    const h = harness()
+    h.push(found({ headSha: '0123456789abcdef' }))
+    h.push(found({ headSha: '0123456789abcdef', tally: { running: 0, passed: 3, failed: 0 }, checks: EChecksState.Passing }))
+    h.push(found({ headSha: '0123456789abcdef', tally: { running: 0, passed: 2, failed: 1 }, checks: EChecksState.Failing }))
+
+    const outcome = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
+    expect(outcome.additionalContext).toContain('checks passing on 0123456\n')
+    expect(outcome.additionalContext).toContain('checks failing (1 failed) on 0123456')
+  })
+
+  it('announces the same settled checks again when the tip moves', async () => {
+    const h = harness()
+    const passing = { tally: { running: 0, passed: 3, failed: 0 }, checks: EChecksState.Passing }
+    h.push(found({ ...passing, headSha: 'aaaaaaa1' }))
+    h.push(found({ ...passing, headSha: 'bbbbbbb2' }))
+
+    const outcome = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
+    expect(outcome.additionalContext).toContain('checks passing on bbbbbbb')
+  })
+
+  it('leaves the tip off a running label and off an empty sha', async () => {
+    const h = harness()
+    h.push(found({ headSha: '' }))
+    h.push(found({ headSha: '', tally: { running: 0, passed: 3, failed: 0 }, checks: EChecksState.Passing }))
+    h.push(found({ headSha: 'cccccc77', tally: { running: 1, passed: 3, failed: 0 }, checks: EChecksState.Running }))
+
+    const outcome = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
+    expect(outcome.additionalContext).toContain('checks passing\n')
+    expect(outcome.additionalContext).not.toContain('running, 3 passed) on')
   })
 
   it('repeats a steady reading never', async () => {

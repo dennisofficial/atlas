@@ -35,6 +35,7 @@ const found = (number: number): PullRequestReading => ({
     number,
     title: 't',
     url: `https://github.com/owner/repo/pull/${number}`,
+    headSha: 'abc123',
     state: EPullRequestState.Open,
     checks: EChecksState.Passing,
     tally: NO_CHECKS,
@@ -108,6 +109,22 @@ describe('createPrEventRouting', () => {
 
     expect(queue.pending({ threadId: MAIN }).map((notice) => notice.draft)).toMatchObject([
       { type: 'pr-event', repo: 'github.com/owner/repo', prNumber: 42, kind: EPrEventKind.Comment },
+    ])
+  })
+
+  it('admits the same verdict on a new tip and drops a replay of it', async () => {
+    const { queue, routing } = setup({ places: [MAIN_ON_CHECKOUT] })
+    await routing.threadOpened({ threadId: MAIN, projectDirectory: '/repo' })
+    const green = (id: string, headSha: string) =>
+      frame({ id, kind: 'verdict', payload: { url: 'u', verdict: 'green', headSha } })
+
+    await routing.onPrEvent(green('evt_1', 'aaaaaaa1'))
+    await routing.onPrEvent(green('evt_2', 'bbbbbbb2'))
+    await routing.onPrEvent(green('evt_3', 'bbbbbbb2'))
+
+    expect(queue.pending({ threadId: MAIN }).map((notice) => notice.draft)).toMatchObject([
+      { headSha: 'aaaaaaa1' },
+      { headSha: 'bbbbbbb2' },
     ])
   })
 

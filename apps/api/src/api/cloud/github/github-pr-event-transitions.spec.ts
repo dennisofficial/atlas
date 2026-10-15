@@ -143,6 +143,71 @@ describe('transitionsOf', () => {
     expect(steady).toEqual([])
   })
 
+  describe('a new tip', () => {
+    const settledPrior: PrTransitionSnapshot = {
+      state: 'open',
+      headSha: 'aaaaaaa1',
+      checksRunning: 0,
+      checksPassed: 10,
+      checksFailed: 0,
+      mergeable: null,
+    }
+    const newTip = { ...base, headSha: 'bbbbbbb2' }
+
+    it('announces green once when the new tip already reads green, in either timing mode', () => {
+      for (const verdictTiming of ['fail-fast', 'settled'] as const) {
+        const events = transitionsOf({
+          prior: settledPrior,
+          next: { ...newTip, checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: null },
+          options: { verdictTiming },
+        })
+        expect(kindsOf(events)).toEqual([EPrEventKind.Verdict])
+        expect(events[0]?.payload).toMatchObject({ verdict: 'green', headSha: 'bbbbbbb2' })
+      }
+    })
+
+    it('announces failed when the new tip already reads failed, in either timing mode', () => {
+      for (const verdictTiming of ['fail-fast', 'settled'] as const) {
+        const events = transitionsOf({
+          prior: settledPrior,
+          next: { ...newTip, checksRunning: 0, checksPassed: 9, checksFailed: 1, mergeable: null },
+          options: { verdictTiming },
+        })
+        expect(kindsOf(events)).toEqual([EPrEventKind.Verdict])
+        expect(events[0]?.payload).toMatchObject({ verdict: 'failed', headSha: 'bbbbbbb2' })
+      }
+    })
+
+    it('waits for the settle when the new tip is still running', () => {
+      const events = transitionsOf({
+        prior: settledPrior,
+        next: { ...newTip, checksRunning: 4, checksPassed: 6, checksFailed: 0, mergeable: null },
+      })
+      expect(events).toEqual([])
+    })
+
+    it('never emits two verdicts when the crossing logic already announced this transition', () => {
+      for (const verdictTiming of ['fail-fast', 'settled'] as const) {
+        const events = transitionsOf({
+          prior: { ...runningNoMergeable, headSha: 'aaaaaaa1' },
+          next: { ...newTip, checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: null },
+          options: { verdictTiming },
+        })
+        expect(kindsOf(events)).toEqual([EPrEventKind.Verdict])
+        expect(events[0]?.payload.headSha).toBe('bbbbbbb2')
+      }
+    })
+
+    it('says nothing on a steady re-read of the same tip', () => {
+      expect(
+        transitionsOf({
+          prior: settledPrior,
+          next: { ...base, headSha: 'aaaaaaa1', checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: null },
+        }),
+      ).toEqual([])
+    })
+  })
+
   it('emits a state event when the PR merges or closes, regardless of timing', () => {
     for (const timing of ['fail-fast', 'settled'] as const) {
       const events = transitionsOf({

@@ -69,6 +69,23 @@ describe('handing a PR event to the model', () => {
     expect(block).toContain(`checks failed. ${URL}`)
   })
 
+  it('names the tip a verdict belongs to by its first seven characters', () => {
+    const sha = '0123456789abcdef'
+    const green = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: sha }))
+    const failed = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed, headSha: sha }))
+
+    expect(green).toContain('checks green on 0123456.')
+    expect(failed).toContain(`checks failed on 0123456. ${URL}`)
+  })
+
+  it('leaves the tip off a verdict whose sha is absent or shorter than seven characters', () => {
+    const absent = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green }))
+    const short = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: 'abc123' }))
+
+    expect(absent).toContain('checks green.')
+    expect(short).toContain('checks green.')
+  })
+
   it('says whether the PR is mergeable', () => {
     const mergeable = prEventBlock(eventOf({ kind: EPrEventKind.Mergeability, mergeable: true }))
     const conflicted = prEventBlock(eventOf({ kind: EPrEventKind.Mergeability, mergeable: false }))

@@ -12,6 +12,7 @@ const pullRequest = (args: { state: EPullRequestState; checks: EChecksState }): 
   number: 123,
   title: 'a change',
   url: 'https://github.com/o/r/pull/123',
+  headSha: 'abc123',
   state: args.state,
   checks: args.checks,
   tally: NO_CHECKS,

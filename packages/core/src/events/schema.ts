@@ -266,6 +266,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     authorLogin: z.string().optional(),
     body: z.string().optional(),
     verdict: z.enum(EPrVerdict).optional(),
+    headSha: z.string().optional(),
     mergeable: z.boolean().optional(),
     state: z.string().optional(),
     reviewState: z.enum(EPrReviewState).optional(),

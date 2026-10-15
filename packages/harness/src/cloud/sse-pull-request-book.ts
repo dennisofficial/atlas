@@ -51,6 +51,7 @@ export const readingOfState = (args: {
     number: state.prNumber,
     title: state.title,
     url: state.url,
+    headSha: state.headSha,
     state: pullState,
     checks: checksOf(tally),
     tally,

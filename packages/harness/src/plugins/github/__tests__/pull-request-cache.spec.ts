@@ -24,12 +24,19 @@ const found = (args: { number: number; state?: EPullRequestState }): PullRequest
     number: args.number,
     title: 'a pull request',
     url: `https://github.com/dennis/atlas/pull/${args.number}`,
+    headSha: 'abc123',
     state: args.state ?? EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
     mergeable: null, comments: [], reviews: [],
   },
 })
+
+const tipped = (args: { number: number; headSha: string }): PullRequestReading => {
+  const reading = found({ number: args.number })
+  if (reading.lookup !== EPullRequestLookup.Found) return reading
+  return { ...reading, pullRequest: { ...reading.pullRequest, headSha: args.headSha } }
+}
 
 const ABSENT: PullRequestReading = { lookup: EPullRequestLookup.Absent }
 
@@ -146,6 +153,23 @@ describe('createPullRequestCache', () => {
     const second = createPullRequestCache({ file: join(first.dir, 'pull-request-badges.json'), now: () => 1000 })
     expect(second.peek({ key: 'k1' })).toEqual(found({ number: 6 }))
     expect(second.peek({ key: 'k2' })).toEqual(ABSENT)
+  })
+
+  it('round-trips the head sha, and reads a row written before it existed as empty', async () => {
+    const first = cacheIn(() => 1000)
+    first.cache.freshen({ key: 'k1', ask: async () => tipped({ number: 6, headSha: 'deadbeef' }) })
+    await flush()
+
+    const file = join(first.dir, 'pull-request-badges.json')
+    const reloaded = createPullRequestCache({ file, now: () => 1000 }).peek({ key: 'k1' })
+    expect(reloaded).toMatchObject({ pullRequest: { headSha: 'deadbeef' } })
+
+    const old = JSON.parse(readFileSync(file, 'utf8'))
+    delete old.k1.pullRequest.headSha
+    writeFileSync(file, JSON.stringify(old))
+    expect(createPullRequestCache({ file, now: () => 1000 }).peek({ key: 'k1' })).toMatchObject({
+      pullRequest: { headSha: '' },
+    })
   })
 
   it('ignores a corrupt file rather than failing construction', () => {

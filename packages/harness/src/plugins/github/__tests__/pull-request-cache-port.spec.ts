@@ -29,6 +29,7 @@ const found = (args: { number: number }): PullRequestReading => ({
     number: args.number,
     title: 'a pull request',
     url: `https://github.com/dennis/atlas/pull/${args.number}`,
+    headSha: 'abc123',
     state: EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
