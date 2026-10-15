@@ -49,6 +49,16 @@ describe('provenanceOf', () => {
   it('recognises the memory-reconcile key prefix', () => {
     expect(provenanceOf({ slot: 'memory', key: 'memory-reconcile:/x' })).toContain('memory index')
   })
+
+  it('no longer narrates a relocation for the retired session slot', () => {
+    const out = systemContext({
+      slot: 'session',
+      key: 'execution-location',
+      content: 'legacy arrival record',
+    })
+    expect(out).not.toContain('relocated')
+    expect(out).toContain('source: session')
+  })
 })
 
 describe('systemNotice', () => {

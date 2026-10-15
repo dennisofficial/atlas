@@ -180,6 +180,19 @@ describe('system context entries', () => {
     expect(entries).toHaveLength(1)
     expect(entries[0]?.items).toHaveLength(3)
   })
+
+  it('labels a legacy session-slot injection by its slot, never as a relocation', () => {
+    const entries = systemContexts([
+      contextLoaded({
+        slot: 'session',
+        key: 'execution-location',
+        content: 'Your environment is now cloud. Your project directory is /atlas/workspaces/repo.',
+      }),
+    ])
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.items[0]?.label).toBe('session')
+  })
 })
 
 describe('system notice entries', () => {

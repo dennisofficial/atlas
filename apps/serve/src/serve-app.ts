@@ -147,8 +147,6 @@ export type ServeApp = {
   recordWorkspaceArrival?:
     | ((args: {
         restored: RestoredWorkspace
-        from: EExecutionLocation
-        to: EExecutionLocation
         launchDirectory: string
       }) => Promise<void>)
     | undefined
