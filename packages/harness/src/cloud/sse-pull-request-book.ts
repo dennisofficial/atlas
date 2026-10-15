@@ -16,6 +16,7 @@ export type BookEntry = {
   key: string
   handle: SubscriptionHandle
   by: SubscriptionBy
+  pollBacked: boolean
   reading: PullRequestReading
 }
 
@@ -33,7 +34,11 @@ const checksOf = (tally: ChecksTally): EChecksState => {
   return EChecksState.None
 }
 
-export const readingOfState = (state: SubscriptionPrState): PullRequestReading => {
+export const readingOfState = (args: {
+  state: SubscriptionPrState
+  pollBacked: boolean
+}): PullRequestReading => {
+  const { state, pollBacked } = args
   const pullState = PULL_REQUEST_STATES[state.state]
   if (pullState === undefined) return { lookup: EPullRequestLookup.Unavailable, retryable: true }
 
@@ -52,6 +57,7 @@ export const readingOfState = (state: SubscriptionPrState): PullRequestReading =
     mergeable: state.mergeable,
     comments: [],
     reviews: [],
+    ...(pollBacked ? { pollBacked } : {}),
   }
   return { lookup: EPullRequestLookup.Found, pullRequest }
 }
@@ -84,11 +90,13 @@ export type SseSubscriptionBook = {
     handle: SubscriptionHandle
     by: SubscriptionBy
     state: SubscriptionPrState | null
+    pollBacked?: boolean
   }) => PullRequestReading
   recordResubscribe: (args: {
     key: string
     handle: SubscriptionHandle
     state: SubscriptionPrState | null
+    pollBacked?: boolean
   }) => void
   applyFrame: (args: { data: string }) => void
   markAllStale: () => void
@@ -142,20 +150,20 @@ export function createSseSubscriptionBook(args: {
     holding: ({ key }) => entries.get(key) ?? null,
     entries: () => [...entries.values()],
     size: () => entries.size,
-    recordSubscribe: ({ key, handle, by, state }) => {
-      const reading = state === null ? ABSENT : readingOfState(state)
-      entries.set(key, { key, handle, by, reading })
+    recordSubscribe: ({ key, handle, by, state, pollBacked = false }) => {
+      const reading = state === null ? ABSENT : readingOfState({ state, pollBacked })
+      entries.set(key, { key, handle, by, pollBacked, reading })
       indexBranch(key)
       removeNumberRoutes(key)
       if (state !== null) index(state, key)
       args.onReading({ key, reading })
       return reading
     },
-    recordResubscribe: ({ key, handle, state }) => {
+    recordResubscribe: ({ key, handle, state, pollBacked = false }) => {
       const held = entries.get(key)
       if (held === undefined) return
 
-      entries.set(key, { ...held, handle })
+      entries.set(key, { ...held, handle, pollBacked })
       indexBranch(key)
       if (state === null) {
         if (held.reading.lookup === EPullRequestLookup.Found) return
@@ -165,7 +173,7 @@ export function createSseSubscriptionBook(args: {
       }
       removeNumberRoutes(key)
       index(state, key)
-      emit(key, readingOfState(state))
+      emit(key, readingOfState({ state, pollBacked }))
     },
     applyFrame: ({ data }) => {
       let parsed: unknown
@@ -178,7 +186,9 @@ export function createSseSubscriptionBook(args: {
       if (typeof state.repoFullName !== 'string' || typeof state.prNumber !== 'number') return
 
       const known = byIdentity.get(prIdentityOf(state))
-      for (const key of known ?? []) emit(key, readingOfState(state))
+      for (const key of known ?? []) {
+        emit(key, readingOfState({ state, pollBacked: entries.get(key)?.pollBacked ?? false }))
+      }
 
       if (typeof state.headBranch !== 'string') return
       const discovered = byBranch.get(branchIdentityOf({ repoFullName: state.repoFullName, branch: state.headBranch }))
@@ -188,7 +198,7 @@ export function createSseSubscriptionBook(args: {
         if (!adoptsBranchFrame({ reading: entry.reading, prNumber: state.prNumber })) continue
         removeNumberRoutes(key)
         index(state, key)
-        emit(key, readingOfState(state))
+        emit(key, readingOfState({ state, pollBacked: entry.pollBacked }))
       }
     },
     markAllStale: () => {
@@ -217,6 +227,7 @@ const sameShown = (left: PullRequestReading, right: PullRequestReading): boolean
     left.pullRequest.state === right.pullRequest.state &&
     left.pullRequest.checks === right.pullRequest.checks &&
     left.pullRequest.mergeable === right.pullRequest.mergeable &&
+    (left.pullRequest.pollBacked === true) === (right.pullRequest.pollBacked === true) &&
     left.pullRequest.tally.running === right.pullRequest.tally.running &&
     left.pullRequest.tally.passed === right.pullRequest.tally.passed &&
     left.pullRequest.tally.failed === right.pullRequest.tally.failed

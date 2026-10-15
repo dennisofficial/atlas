@@ -72,6 +72,22 @@ export type FakeCloudSandboxRow = {
   sealedToken?: string | null
 }
 
+export type FakeAppInstallationRow = {
+  installationId: bigint
+  accountLogin: string
+  accountType: string
+  repos: string[]
+  suspendedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type FakeAppNoticeDismissalRow = {
+  userId: string
+  repoFullName: string
+  dismissedAt: Date
+}
+
 const matchesWhere = <Row>(row: Row, where: Where | undefined): boolean => {
   if (where === undefined) return true
   return Object.entries(where).every(([key, condition]) => {
@@ -112,6 +128,8 @@ function createFakeGithubDb() {
   let prStates: FakePrStateRow[] = []
   let prEvents: FakePrEventRow[] = []
   let cloudSettings: FakeCloudSettingRow[] = []
+  let appInstallations: FakeAppInstallationRow[] = []
+  let appNoticeDismissals: FakeAppNoticeDismissalRow[] = []
   cloudSandboxes = []
 
   const subscriptionTable = createFakeSubscriptionTable({
@@ -179,6 +197,80 @@ function createFakeGithubDb() {
       },
     },
     githubSubscription: subscriptionTable,
+    githubAppInstallation: {
+      findFirst: async (args: { where?: Where; select?: Where } = {}) => {
+        const matched = appInstallations.filter((row) => matchesWhere(row, args.where))
+        const held = matched[0] ?? null
+        if (held === null || args.select === undefined) return held
+        const picked: Record<string, unknown> = {}
+        for (const key of Object.keys(args.select)) picked[key] = (held as unknown as Where)[key]
+        return picked
+      },
+      findUnique: async (args: { where: { installationId: bigint } }) =>
+        appInstallations.find((row) => row.installationId === args.where.installationId) ?? null,
+      upsert: async (args: {
+        where: { installationId: bigint }
+        create: Omit<FakeAppInstallationRow, 'createdAt' | 'updatedAt'>
+        update: Partial<FakeAppInstallationRow>
+      }) => {
+        const held = appInstallations.find(
+          (row) => row.installationId === args.where.installationId,
+        )
+        if (held === undefined) {
+          const row: FakeAppInstallationRow = {
+            ...args.create,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }
+          appInstallations.push(row)
+          return row
+        }
+        Object.assign(held, args.update, { updatedAt: new Date() })
+        return held
+      },
+      update: async (args: { where: { installationId: bigint }; data: Where }) => {
+        const held = appInstallations.find(
+          (row) => row.installationId === args.where.installationId,
+        )
+        if (held === undefined) throw new Error('fake githubAppInstallation.update: no row')
+        applyUpdate(held as unknown as Record<string, unknown>, args.data)
+        return held
+      },
+      deleteMany: async (args: { where?: Where } = {}) => {
+        const matched = appInstallations.filter((row) => matchesWhere(row, args.where))
+        appInstallations = appInstallations.filter((row) => !matched.includes(row))
+        return { count: matched.length }
+      },
+    },
+    githubAppNoticeDismissal: {
+      findUnique: async (args: {
+        where: { userId_repoFullName: { userId: string; repoFullName: string } }
+      }) => {
+        const key = args.where.userId_repoFullName
+        return (
+          appNoticeDismissals.find(
+            (row) => row.userId === key.userId && row.repoFullName === key.repoFullName,
+          ) ?? null
+        )
+      },
+      upsert: async (args: {
+        where: { userId_repoFullName: { userId: string; repoFullName: string } }
+        create: { userId: string; repoFullName: string }
+        update: { dismissedAt: Date }
+      }) => {
+        const key = args.where.userId_repoFullName
+        const held = appNoticeDismissals.find(
+          (row) => row.userId === key.userId && row.repoFullName === key.repoFullName,
+        )
+        if (held === undefined) {
+          const row: FakeAppNoticeDismissalRow = { ...args.create, dismissedAt: new Date() }
+          appNoticeDismissals.push(row)
+          return row
+        }
+        Object.assign(held, args.update)
+        return held
+      },
+    },
     githubRepoHook: createFakeRepoHookTable({
       matchesWhere,
       rows: () => repoHooks,
@@ -261,6 +353,12 @@ function createFakeGithubDb() {
     get cloudSandboxes() {
       return cloudSandboxes
     },
+    get appInstallations() {
+      return appInstallations
+    },
+    get appNoticeDismissals() {
+      return appNoticeDismissals
+    },
     reset() {
       events = []
       pullRequests = []
@@ -269,6 +367,8 @@ function createFakeGithubDb() {
       prStates = []
       prEvents = []
       cloudSettings = []
+      appInstallations = []
+      appNoticeDismissals = []
       cloudSandboxes = []
       subscriptionTable.resetSequence()
       prEventTable.resetSequence()

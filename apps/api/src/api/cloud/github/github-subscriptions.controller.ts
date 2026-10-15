@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -56,6 +57,21 @@ export class GithubSubscriptionsController {
     @Param('id') id: string,
   ): Promise<void> {
     await this.subscriptions.unsubscribe({ userId: userIdOf(request), subscriptionId: id })
+  }
+
+  @Post('app-install-notice/dismiss')
+  @HttpCode(204)
+  async handleDismissAppInstallNotice(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: { repoFullName?: string },
+  ): Promise<void> {
+    if (body.repoFullName === undefined || body.repoFullName.length === 0) {
+      throw new BadRequestException('repoFullName is required')
+    }
+    await this.subscriptions.dismissAppInstallNotice({
+      userId: userIdOf(request),
+      repoFullName: body.repoFullName,
+    })
   }
 
   @Post(':id/heartbeat')

@@ -399,6 +399,26 @@ model GithubRepoHook {
   createdAt       DateTime  @default(now())
 }
 
+model GithubAppInstallation {
+  installationId BigInt   @id
+  accountLogin   String
+  accountType    String
+  repos          String[]
+  suspendedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([accountLogin])
+}
+
+model GithubAppNoticeDismissal {
+  userId       String
+  repoFullName String
+  dismissedAt  DateTime @default(now())
+
+  @@id([userId, repoFullName])
+}
+
 model GithubPrState {
   repoFullName  String
   prNumber      Int

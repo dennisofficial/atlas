@@ -8,6 +8,7 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeGithubDb, seedCloudSandbox, type FakeSubscriptionRow } from '../../../../test/fake-github-db'
+import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
@@ -33,10 +34,11 @@ const okFetch = async () => new Response('{}', { status: 200 })
 
 function serviceWith(args: {
   token?: string
-  ensureHook?: 'created' | 'existing' | 'poll-backed'
+  ensureHook?: 'created' | 'existing' | 'app-backed' | 'poll-backed'
   readPullRequest?: GithubUserReads['readPullRequest']
   findOpenPrForBranch?: GithubUserReads['findOpenPrForBranch']
   fetchImpl?: typeof fetch
+  shouldRecommend?: () => Promise<boolean>
 }): GithubSubscriptionsService {
   const github = {
     findToken: async () => args.token,
@@ -48,8 +50,13 @@ function serviceWith(args: {
     readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
     findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => ({ number: 42 })),
   } as unknown as GithubUserReads
+  const installNotice = {
+    installUrl: () => 'https://github.com/apps/atlas-by-dl/installations/new',
+    shouldRecommend: args.shouldRecommend ?? (async () => false),
+    dismiss: async () => undefined,
+  } as unknown as GithubAppInstallNoticeService
   vi.stubGlobal('fetch', args.fetchImpl ?? okFetch)
-  return new GithubSubscriptionsService(github, reads, hooks)
+  return new GithubSubscriptionsService(github, reads, hooks, installNotice)
 }
 
 describe('GithubSubscriptionsService', () => {
