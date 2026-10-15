@@ -181,12 +181,12 @@ describe('system context entries', () => {
     expect(entries[0]?.items).toHaveLength(3)
   })
 
-  it('labels a legacy session-slot injection by its slot, never as a relocation', () => {
+  it('labels a legacy session-slot injection by its slot', () => {
     const entries = systemContexts([
       contextLoaded({
         slot: 'session',
-        key: 'execution-location',
-        content: 'Your environment is now cloud. Your project directory is /atlas/workspaces/repo.',
+        key: 'workspace-arrival',
+        content: 'The workspace landed at /atlas/workspaces/repo.',
       }),
     ])
 
