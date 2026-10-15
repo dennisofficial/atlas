@@ -14,6 +14,50 @@ const SENDING = 'sending'
 const DID_NOT_SEND = "didn't send"
 
 describe('a message waiting on the cloud round trip', () => {
+  it('renders an idle send once — one sending placeholder, not two', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mountInCloud({ app, bridge })
+
+    try {
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+      const gated = promiseGate()
+      const held = bridge.log.append.bind(bridge.log)
+      bridge.log.append = async (call: Parameters<typeof held>[0]) => {
+        await gated.gate
+        return held(call)
+      }
+
+      await mounted.typeText('one message, one placeholder')
+      mounted.pressEnter()
+
+      const once = await until({
+        holds: async () => {
+          const frame = await mounted.nextFrame()
+          const occurrences = frame.split('one message, one placeholder').length - 1
+          return frame.includes(SENDING) && occurrences > 0
+        },
+        within: 20_000,
+      })
+      expect(once).toBe(true)
+
+      const frame = await mounted.nextFrame()
+      expect(frame.split('one message, one placeholder').length - 1).toBe(1)
+
+      gated.release()
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-send-dedupe') })
+
+      const settled = await until({
+        holds: async () => !(await mounted.nextFrame()).includes(SENDING),
+        within: 20_000,
+      })
+      expect(settled).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('shows the message as sending until the commit lands, then as the durable row', async () => {
     const app = speaking()
     const bridge = fakeBridge()

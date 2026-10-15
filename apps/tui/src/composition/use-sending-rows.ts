@@ -39,6 +39,9 @@ export function useSendingRows(): {
        * Resending what the transcript already shows as refused is the retry, not a second message:
        * the row flips back to in-flight instead of being stacked beside itself.
        */
+      const duplicate = held.current.find((row) => !row.failed && row.text === text)
+      if (duplicate !== undefined) return duplicate.id
+
       const retry = held.current.find((row) => row.failed && row.text === text)
       if (retry !== undefined) {
         publish(held.current.map((row) => (row.id === retry.id ? { ...row, failed: false } : row)))
