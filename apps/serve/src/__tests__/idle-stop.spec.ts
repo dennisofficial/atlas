@@ -298,6 +298,25 @@ describe('startServeIdleStop', () => {
     test.advance(1)
     test.stop.check()
     expect(test.due).toHaveLength(2)
+  })
+
+  it('restarts the interval on reset after halt, so a failed finalized park is retried', async () => {
+    const test = idleHarness({}, 10)
+    test.stop.check()
+    test.advance(5 * 60_000)
+    test.stop.check()
+    expect(test.due).toHaveLength(1)
+
+    test.stop.halt()
+    test.advance(5 * 60_000)
+    await sleep(60)
+    expect(test.due).toHaveLength(1)
+
+    test.stop.reset()
+    test.stop.check()
+    test.advance(5 * 60_000)
+    await sleep(60)
+    expect(test.due.length).toBeGreaterThanOrEqual(2)
     test.stop.halt()
   })
 

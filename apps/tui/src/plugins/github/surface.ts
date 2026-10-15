@@ -13,6 +13,7 @@ import type {
 import { activePrStateReader } from '../../composition/cloud/pr-state-reader-holder'
 import { EFooterItemReach, type FooterItem } from '../../ui/footer-item'
 import type { ContributedSurface, PluginSurface } from '../surface'
+import { useAppInstallNotice, type AppInstallRecommendationSource } from './app-install-notice'
 import { pullRequestChip, pullRequestFallbackChip } from './pull-request-pill'
 import { usePullRequest, type FooterPullRequest } from './use-pull-request'
 
@@ -51,8 +52,11 @@ export const pullRequestSurface = (args: {
   /** The badge cache behind the muted fallback when a cloud serve is unreachable. */
   badges: PullRequestPort
   openUrl: UrlOpener
+  appInstall?: AppInstallRecommendationSource | null
+  recordAppInstallDismissal?: (args: { repo: string }) => void
 }): ContributedSurface => {
   const { service, facts, links, cloudCheckout, badges, openUrl } = args
+  const appInstall = args.appInstall ?? null
 
   return {
     pluginId: 'github',
@@ -71,6 +75,13 @@ export const pullRequestSurface = (args: {
         remote: activePrStateReader(),
         badges,
         onOpen: openUrl,
+      })
+
+      useAppInstallNotice({
+        source: appInstall,
+        ...(args.recordAppInstallDismissal === undefined
+          ? {}
+          : { recordDismissal: args.recordAppInstallDismissal }),
       })
 
       const footerItem = useMemo(() => pullRequestItem({ footer, onOpen: openUrl }), [footer, openUrl])

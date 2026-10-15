@@ -52,4 +52,20 @@ describe('pullRequestBadge', () => {
       ).checks,
     ).toBe(EChecksState.Running)
   })
+
+  it('reads a pull request with no pollBacked as realtime', () => {
+    expect(
+      pullRequestBadge(pullRequest({ state: EPullRequestState.Open, checks: EChecksState.Passing }))
+        .pollBacked,
+    ).toBe(false)
+  })
+
+  it('carries pollBacked onto the badge', () => {
+    expect(
+      pullRequestBadge({
+        ...pullRequest({ state: EPullRequestState.Open, checks: EChecksState.Passing }),
+        pollBacked: true,
+      }).pollBacked,
+    ).toBe(true)
+  })
 })

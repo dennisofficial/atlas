@@ -133,6 +133,26 @@ describe('sandbox lifecycle ownership', () => {
     test.app.intake?.dispose()
   })
 
+  it('exits instead of latching alive forever when the provider stop keeps failing across bounded re-park cycles', async () => {
+    let attempts = 0
+    const test = fixture({
+      finalize: async () => undefined,
+      stop: async () => { attempts += 1; throw new Error('provider unavailable') },
+    })
+    await test.lifecycle.park()
+    await test.lifecycle.park()
+    expect(test.calls).not.toContain('exit')
+    expect(test.app.closed()).toBe(false)
+    await test.lifecycle.park()
+    expect(attempts).toBe(9)
+    expect(test.calls).toContain('exit')
+    expect(test.app.closed()).toBe(true)
+    const before = attempts
+    await test.lifecycle.park()
+    expect(attempts).toBe(before)
+    test.app.intake?.dispose()
+  })
+
   it('reopens admission when durable capture fails before the park was finalized', async () => {
     let stopped = false
     const test = fixture({

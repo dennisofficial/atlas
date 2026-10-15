@@ -5,13 +5,14 @@ import {
   type AfterTool,
   type AfterTurn,
   type BeforeTurn,
+  type EventDraft,
   type OnThreadOpen,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import { probeCheckout } from './checkout-probe'
 import { createFamilyTracker, type FamilyTracker } from './family-tracker'
-import type { RepositoryCheckout } from './pure'
+import { checkoutKey, type RepositoryCheckout } from './pure'
 import type { ThreadKinds } from './thread-kinds'
 import type { PullRequestService } from './pull-request-service'
 import type { SessionFacts } from './session'
@@ -44,6 +45,7 @@ export function createCheckoutTracking(args: {
   cloud?: () => RepositoryCheckout | null
   probe?: typeof probeCheckout
   threadKinds?: ThreadKinds
+  linkDropped?: (args: { checkouts: readonly RepositoryCheckout[] }) => readonly EventDraft[]
 }): CheckoutTracking {
   const probe = args.probe ?? probeCheckout
   const tracker = createFamilyTracker({
@@ -69,12 +71,28 @@ export function createCheckoutTracking(args: {
     return probe({ directory: request.directory })
   }
 
-  const follow = async (request: { threadId: ThreadId; directory: string }): Promise<boolean> => {
+  const follow = async (request: {
+    threadId: ThreadId
+    directory: string
+  }): Promise<{ moved: boolean; dropped: readonly EventDraft[] }> => {
     directories.set(request.threadId, request.directory)
     if (!homes.has(request.threadId)) homes.set(request.threadId, request.directory)
 
     const checkout = await resolve(request)
-    return tracker.place({ threadId: request.threadId, checkout })
+    const previous = tracker.checkoutFor({ threadId: request.threadId })
+    const departing =
+      previous !== null &&
+      checkout !== null &&
+      checkoutKey(previous) !== checkoutKey(checkout) &&
+      tracker.threadsOn({ key: checkoutKey(previous) }).length === 1
+        ? [previous]
+        : previous !== null && checkout === null && tracker.threadsOn({ key: checkoutKey(previous) }).length === 1
+          ? [previous]
+          : []
+
+    const dropped = departing.length > 0 ? (args.linkDropped?.({ checkouts: departing }) ?? []) : []
+    const moved = tracker.place({ threadId: request.threadId, checkout })
+    return { moved, dropped }
   }
 
   const directoryOf = (request: { threadId: ThreadId; projectDirectory: string }): string =>
@@ -114,6 +132,12 @@ export function createCheckoutTracking(args: {
       tracker.show({ threadId })
       return {}
     },
+    /**
+     * Leaving a worktree drops its checkout from the tracked set, which is exactly when its pull
+     * request would vanish from the sidebar. The departing link is drafted before the place lands
+     * (the service forgets the reading in the same call) and rides back on the hook outcome, so the
+     * durable log keeps the PR the moment the filesystem stops holding it.
+     */
     followWorktree: async ({ call, result }) => {
       if (!result.ok) return {}
 
@@ -130,18 +154,18 @@ export function createCheckoutTracking(args: {
       if (entered !== undefined) worktrees.set(call.threadId, entered.path)
       else worktrees.delete(call.threadId)
 
-      await follow({ threadId: call.threadId, directory })
-      return {}
+      const { dropped } = await follow({ threadId: call.threadId, directory })
+      return dropped.length > 0 ? { drafts: dropped } : {}
     },
     afterTurn: async ({ threadId }) => {
       const directory = directories.get(threadId)
       if (directory === undefined) return {}
 
-      const moved = await follow({ threadId, directory })
+      const { moved, dropped } = await follow({ threadId, directory })
       const checkout = tracker.checkoutFor({ threadId })
       if (moved && checkout !== null) await args.service.refresh({ checkout, force: true })
 
-      return {}
+      return dropped.length > 0 ? { drafts: dropped } : {}
     },
   }
 }

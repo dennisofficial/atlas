@@ -247,6 +247,14 @@ export class CloudClient {
     return githubConnectPollOutcomeFrom(githubConnectPollResponseSchema.parse(body))
   }
 
+  async dismissGithubAppInstallNotice(args: { repoFullName: string }): Promise<void> {
+    await this.request({
+      method: 'POST',
+      path: '/v1/github/subscriptions/app-install-notice/dismiss',
+      body: { repoFullName: args.repoFullName },
+    })
+  }
+
   async githubConnection(): Promise<GithubConnection | null> {
     const body = await this.request({ method: 'GET', path: '/v1/github' })
     const parsed = githubStateResponseSchema.parse(body)

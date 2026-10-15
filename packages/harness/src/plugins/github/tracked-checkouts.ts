@@ -3,6 +3,7 @@ import { checkoutKey, type RepositoryCheckout } from './pure'
 export type Reconciled = {
   gained: readonly RepositoryCheckout[]
   lost: readonly string[]
+  lostCheckouts: readonly RepositoryCheckout[]
   visibleChanged: boolean
 }
 
@@ -26,11 +27,13 @@ export function createTrackedCheckouts(): TrackedCheckouts {
       const next = new Map(checkouts.map((checkout) => [checkoutKey(checkout), checkout]))
 
       const lost: string[] = []
-      for (const key of [...held.keys()]) {
+      const lostCheckouts: RepositoryCheckout[] = []
+      for (const [key, checkout] of [...held.entries()]) {
         if (next.has(key)) continue
 
         held.delete(key)
         lost.push(key)
+        lostCheckouts.push(checkout)
       }
 
       const gained: RepositoryCheckout[] = []
@@ -44,7 +47,7 @@ export function createTrackedCheckouts(): TrackedCheckouts {
       if (visibleKey !== null && !held.has(visibleKey)) visibleKey = null
       if (visibleKey === null && visible === undefined) visibleKey = held.keys().next().value ?? null
 
-      return { gained, lost, visibleChanged: previous !== visibleKey }
+      return { gained, lost, lostCheckouts, visibleChanged: previous !== visibleKey }
     },
     get: ({ key }) => held.get(key) ?? null,
     list: () => [...held.values()],

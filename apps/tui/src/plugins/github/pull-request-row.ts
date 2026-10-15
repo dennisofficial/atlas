@@ -37,14 +37,21 @@ const fits = (rung: SidebarRowSplit, cells: number): boolean => {
 export function pullRequestRow(args: {
   pullRequest: PullRequest
   now: number
+  /** The worktree that linked it is gone — strike the row so the detachment is visible. */
+  gone?: boolean
 }): (cells: number) => SidebarRowSplit {
   const { pullRequest, now } = args
+  const gone = args.gone === true
   const { tally } = pullRequest
 
   const number: Span[] = [
-    { text: `#${pullRequest.number}`, fg: pullRequestStatusColor(pullRequestBadge(pullRequest)) },
+    {
+      text: `#${pullRequest.number}`,
+      fg: pullRequestStatusColor(pullRequestBadge(pullRequest)),
+      strike: gone,
+    },
   ]
-  const titled: Span[] = [...number, { text: ` ${pullRequest.state}`, fg: theme.meta }]
+  const titled: Span[] = [...number, { text: ` ${pullRequest.state}`, fg: theme.meta, strike: gone }]
   const running: Span[] =
     tally.running === 0
       ? []

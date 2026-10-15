@@ -255,6 +255,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     url: z.string().min(1),
     repo: z.string().min(1),
     branch: z.string().min(1),
+    worktreePath: z.string().min(1).optional(),
   }),
   z.object({
     type: z.literal('pr-event'),

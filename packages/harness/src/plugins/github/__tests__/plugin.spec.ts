@@ -19,6 +19,7 @@ import { CachedPullRequestPort } from '../pull-request-cache-port'
 import GithubPlugin, { registerPlugin } from '../index'
 import { EForge, EPullRequestLookup, PullRequestPort } from '../pure'
 import { aCheckout } from '../testing'
+import { AppInstallRecommendationSink } from '../app-install-sink'
 import { PrEventFrameSink } from '../pr-event-sink'
 import { GithubUiBridgePort } from '../ui-bridge'
 
@@ -142,6 +143,7 @@ describe('the github plugin as the loader sees it', () => {
     expect((contribution.ports ?? []).map((binding) => binding.token)).toEqual([
       PullRequestPort,
       PrEventFrameSink,
+      AppInstallRecommendationSink,
       GithubUiBridgePort,
     ])
     expect(contribution.tools ?? []).toEqual([])

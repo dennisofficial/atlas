@@ -4,11 +4,16 @@ import { describe, expect, it } from 'bun:test'
 import { pullRequestChip, pullRequestStatusColor } from '../pull-request-pill'
 import { theme } from '../../../ui/theme'
 
-const badge = (args: { state: EPullRequestState; checks: EChecksState }): PullRequestBadge => ({
+const badge = (args: {
+  state: EPullRequestState
+  checks: EChecksState
+  pollBacked?: boolean
+}): PullRequestBadge => ({
   label: '#123',
   url: 'https://github.com/o/r/pull/123',
   state: args.state,
   checks: args.checks,
+  pollBacked: args.pollBacked ?? false,
 })
 
 const groundOf = (badgeArgs: { state: EPullRequestState; checks: EChecksState }): string =>
@@ -55,6 +60,28 @@ describe('pullRequestChip', () => {
     )
 
     expect(chip.spans.at(0)?.fg).toBe(theme.body)
+  })
+})
+
+describe('pullRequestChip polled marker', () => {
+  it('appends a muted polled span on the same ground when the subscription is poll-backed', () => {
+    const chip = pullRequestChip(
+      badge({ state: EPullRequestState.Open, checks: EChecksState.Passing, pollBacked: true }),
+    )
+
+    expect(chip.spans).toEqual([
+      { text: '#123', fg: theme.appBg },
+      { text: ' polled', fg: theme.hint },
+    ])
+    expect(chip.ground).toBe(theme.ok)
+  })
+
+  it('leaves a realtime chip untouched', () => {
+    const chip = pullRequestChip(
+      badge({ state: EPullRequestState.Open, checks: EChecksState.Passing, pollBacked: false }),
+    )
+
+    expect(chip.spans.map((span) => span.text)).toEqual(['#123'])
   })
 })
 

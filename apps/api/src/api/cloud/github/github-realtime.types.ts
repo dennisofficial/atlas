@@ -74,4 +74,5 @@ export interface GithubSubscriptionDto {
   pollBacked: boolean
   expiresAt: string
   state: GithubPrStateDto | null
+  recommendAppInstall?: { installUrl: string; repoFullName: string }
 }

@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '../../../db'
 import { dtoOf, liveUntilOf, subscriptionLiveWhere } from './github-delivery-routing'
+import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { RepoAccessChecker } from './github-repo-access'
@@ -18,6 +19,7 @@ export class GithubSubscriptionsService {
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
     private readonly hooks: GithubHookLifecycleService,
+    private readonly installNotice: GithubAppInstallNoticeService,
   ) {}
 
   async subscribe(args: {
@@ -48,6 +50,11 @@ export class GithubSubscriptionsService {
       repoFullName: args.repoFullName,
     })
     const pollBacked = hook === 'poll-backed'
+    const recommendAppInstall = await this.recommendationFor({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+      pollBacked,
+    })
     const branch = args.branch ?? (prNumber === null ? '' : `#${prNumber}`)
     const threadId = args.threadId ?? null
     const expiresAt = nextExpiry()
@@ -94,7 +101,26 @@ export class GithubSubscriptionsService {
       prNumber,
     })
 
-    return subscriptionDtoOf({ subscription, state })
+    return subscriptionDtoOf({ subscription, state, recommendAppInstall })
+  }
+
+  private async recommendationFor(args: {
+    userId: string
+    repoFullName: string
+    pollBacked: boolean
+  }): Promise<{ installUrl: string; repoFullName: string } | undefined> {
+    if (!args.pollBacked) return undefined
+    const installUrl = this.installNotice.installUrl()
+    if (installUrl === null) return undefined
+    const recommend = await this.installNotice.shouldRecommend({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+    })
+    return recommend ? { installUrl, repoFullName: args.repoFullName } : undefined
+  }
+
+  async dismissAppInstallNotice(args: { userId: string; repoFullName: string }): Promise<void> {
+    await this.installNotice.dismiss(args)
   }
 
   async unsubscribe(args: { userId: string; subscriptionId: string }): Promise<void> {

@@ -29,6 +29,9 @@ export const matchesValue = (value: unknown, condition: unknown): boolean => {
     if ('contains' in ops) {
       return typeof value === 'string' && value.includes(ops.contains as string)
     }
+    if ('has' in ops) {
+      return Array.isArray(value) && value.includes(ops.has)
+    }
     if ('equals' in ops && !matchesValue(value, ops.equals)) return false
     const range = ops as { gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown }
     const held = comparableOf(value)

@@ -62,7 +62,6 @@ const HOOK_SLOT_PROVENANCE: Record<string, string> = {
     'Atlas noticed a tool call touched a path outside the project directory. The operator did not write this:',
   'pr-transitions':
     'Pull-request updates from GitHub since your last turn, injected by Atlas. The operator did not write this:',
-  session: 'Atlas relocated this session or changed its workspace. The operator did not write this:',
   'memory-reconcile': 'Atlas noticed your memory index needs attention. The operator did not write this:',
   compaction: 'Atlas compacted earlier turns of this conversation to save context. The operator did not write this:',
 }

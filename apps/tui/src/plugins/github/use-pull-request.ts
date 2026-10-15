@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
@@ -91,6 +92,11 @@ const wireReading = (state: PrStateWire): PullRequestReading => ({
 const repoStringOf = (checkout: RepositoryCheckout): string =>
   `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}`
 
+const worktreeGone = (entry: PullRequestEntry): boolean =>
+  entry.current === false &&
+  entry.worktreePath !== undefined &&
+  !existsSync(entry.worktreePath)
+
 const rowOf = (args: {
   entry: PullRequestEntry
   now: number
@@ -98,14 +104,15 @@ const rowOf = (args: {
 }): SidebarSectionRow => {
   const { entry, now, onOpen } = args
   const pullRequest = foundPullRequest(entry)
+  const gone = worktreeGone(entry)
 
   const spans =
     pullRequest !== null
-      ? pullRequestRow({ pullRequest, now })
+      ? pullRequestRow({ pullRequest, now, gone })
       : (): SidebarRowSplit => ({
           left: [
-            { text: `#${entry.number}`, fg: theme.code },
-            { text: ` ${entry.branch}`, fg: theme.hint },
+            { text: `#${entry.number}`, fg: theme.code, strike: gone },
+            { text: ` ${entry.branch}`, fg: theme.hint, strike: gone },
           ],
           right: [],
         })

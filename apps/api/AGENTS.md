@@ -149,16 +149,24 @@ The device-authorization flow is how the TUI logs in. The pages live in `apps/we
 the device `verificationUri` at the web app. The device page must claim the code
 (`GET /api/auth/device?user_code=…`) while signed in before approve/deny will work.
 
-## GitHub identity is an OAuth App
+## GitHub identity is an OAuth App; webhook transport may be a GitHub App
 
-GitHub connect uses the device flow against a plain **OAuth App** (`GITHUB_CLIENT_ID`), never a
-GitHub App. The design is per-user delegation: the API and sandboxes act with the user's own
-permissions, so nothing is ever installed on a repo or org. A GitHub App would invert that —
-user tokens become the intersection of user access, app permissions, and installation coverage
-(repo 404s for an uninstalled repo), the device flow ignores the requested scopes, and
-user-to-server tokens expire after 8 hours. `pollConnect` therefore refuses a grant whose
-`scope` is missing any of `repo read:org admin:repo_hook`, instead of storing a token that can
-only ever see public repos.
+GitHub connect (user auth) uses the device flow against a plain **OAuth App** (`GITHUB_CLIENT_ID`).
+That is per-user delegation: the API and sandboxes act with the user's own permissions, so nothing
+is ever installed on a repo or org for auth. A GitHub App would invert that for auth — user tokens
+become the intersection of user access, app permissions, and installation coverage (repo 404s for
+an uninstalled repo), the device flow ignores the requested scopes, and user-to-server tokens
+expire after 8 hours. `pollConnect` therefore refuses a grant whose `scope` is missing any of
+`repo read:org admin:repo_hook`, instead of storing a token that can only ever see public repos.
+
+**Webhook transport is separate, and there a GitHub App is allowed.** A per-repo personal webhook
+needs the subscribing user to be a repo admin; on an org repo where they are not, PR events
+(`pull_request_review`, `pull_request_review_comment`, `issue_comment`) are degraded to polling and
+inline review comments never arrive. The Atlas GitHub App (`GITHUB_APP_SLUG`, owned by
+`dennisofficial`) fixes that: any org admin installs it once, GitHub delivers the app's webhook to
+`POST /v1/github/app/hook` (verified with `GITHUB_APP_WEBHOOK_SECRET`), and the delivery routes to
+subscribers exactly like a per-repo hook. Routing precedence per repo: app installation > personal
+hook > poll-backed. User auth stays OAuth — the app is transport only, and the two never mix.
 
 ## Env
 

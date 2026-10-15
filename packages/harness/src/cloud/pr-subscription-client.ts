@@ -27,15 +27,19 @@ const subscribeResponseSchema = z.object({
   pollBacked: z.boolean(),
   expiresAt: z.string(),
   state: stateSchema.nullable(),
+  recommendAppInstall: z.object({ installUrl: z.string(), repoFullName: z.string() }).optional(),
 })
 
 export type SubscriptionPrState = z.infer<typeof stateSchema>
+
+export type AppInstallRecommendation = { installUrl: string; repoFullName: string }
 
 export type SubscriptionOutcome = {
   id: string
   pollBacked: boolean
   state: SubscriptionPrState | null
   branch: string | null
+  recommendAppInstall?: AppInstallRecommendation
 }
 
 export type SubscriptionHandle = { id: string; repoFullName: string }
@@ -98,6 +102,14 @@ export class PrSubscriptionClient {
       pollBacked: parsed.pollBacked,
       state: parsed.state,
       branch: parsed.branch ?? null,
+      ...(parsed.recommendAppInstall === undefined
+        ? {}
+        : {
+            recommendAppInstall: {
+              installUrl: parsed.recommendAppInstall.installUrl,
+              repoFullName: parsed.recommendAppInstall.repoFullName,
+            },
+          }),
     }
   }
 

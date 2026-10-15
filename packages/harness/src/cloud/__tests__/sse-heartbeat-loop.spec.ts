@@ -12,6 +12,7 @@ const entryOf = (key: string): BookEntry => ({
   key,
   handle: { id: `sub_${key}`, repoFullName: 'owner/repo' },
   by: { kind: 'branch', branch: key },
+  pollBacked: false,
   reading: { lookup: EPullRequestLookup.Absent },
 })
 

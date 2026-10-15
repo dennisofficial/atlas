@@ -7,6 +7,7 @@ export type LinkedPullRequest = {
   url: string
   repo: string
   branch: string
+  worktreePath?: string | undefined
   linkedBy?: ThreadId | undefined
 }
 
@@ -16,6 +17,7 @@ type Link = {
   url: string
   repo: string
   branch: string
+  worktreePath?: string | undefined
   threadId?: ThreadId | undefined
 }
 
@@ -24,6 +26,7 @@ const linked = (link: Link): LinkedPullRequest => ({
   url: link.url,
   repo: link.repo,
   branch: link.branch,
+  worktreePath: link.worktreePath,
   linkedBy: link.threadId,
 })
 

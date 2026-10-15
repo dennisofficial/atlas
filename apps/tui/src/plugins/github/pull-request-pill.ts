@@ -32,7 +32,8 @@ function chipTone(badge: PullRequestBadge): { ground: string; ink: string } {
 
 export function pullRequestChip(badge: PullRequestBadge): PullRequestChip {
   const { ground, ink } = chipTone(badge)
-  return { spans: [{ text: badge.label, fg: ink }], ground }
+  const label: Span = { text: badge.label, fg: ink }
+  return { spans: badge.pollBacked ? [label, { text: ' polled', fg: theme.hint }] : [label], ground }
 }
 
 /**

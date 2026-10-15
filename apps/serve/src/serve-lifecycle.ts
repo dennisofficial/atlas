@@ -8,6 +8,10 @@ import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionHandlers } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
 
+// A finalized park whose provider stop keeps failing must not latch alive forever: after this
+// many exhausted re-park cycles the serve exits, and the next wake's launcher boots a fresh one.
+export const PARK_STOP_CYCLE_LIMIT = 3
+
 export function createServeLifecycle(args: {
   app: ServeApp
   driver: ServeTurnDriver
@@ -31,6 +35,7 @@ export function createServeLifecycle(args: {
 } {
   let closing: Promise<void> | undefined
   let parking = false
+  let exhaustedParkCycles = 0
 
   const close = (reason: string): Promise<void> => {
     closing ??= (async () => {
@@ -126,6 +131,18 @@ export function createServeLifecycle(args: {
             reason: failure instanceof Error ? failure.message : String(failure),
           })
         }
+      }
+      exhaustedParkCycles += 1
+      if (exhaustedParkCycles >= PARK_STOP_CYCLE_LIMIT) {
+        args.log({
+          event: EServeEvent.ParkStopFailed,
+          threadId: args.threadId,
+          admissionClosed: true,
+          reason: `provider stop failed across ${exhaustedParkCycles} re-park cycles after the park finalized; exiting so the next wake boots a fresh serve`,
+        })
+        await close('park-stop-unrecoverable')
+        args.exit(1)
+        return
       }
       parking = false
       args.rearmIdle?.()

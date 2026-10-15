@@ -1,6 +1,7 @@
 import {
   pullRequestsOf,
   type AfterTurn,
+  type EventDraft,
   type LinkedPullRequest,
   type OnThreadOpen,
 } from '@dltech/atlas-core'
@@ -14,6 +15,7 @@ export type PullRequestLinks = {
   projection: PluginProjection<readonly LinkedPullRequest[]>
   recordFound: AfterTurn
   forgetThread: OnThreadOpen
+  linkDropped: (args: { checkouts: readonly RepositoryCheckout[] }) => readonly EventDraft[]
 }
 
 export const pullRequestLinkKey = (link: { repo: string; number: number }): string =>
@@ -34,6 +36,7 @@ const sameLinks = (
       pullRequestLinkKey(link) === pullRequestLinkKey(other) &&
       link.branch === other.branch &&
       link.url === other.url &&
+      link.worktreePath === other.worktreePath &&
       link.linkedBy === other.linkedBy
     )
   })
@@ -81,13 +84,43 @@ export function createPullRequestLinks(args: {
       drafted.add(identity)
       return {
         drafts: [
-          { type: 'pull-request-linked', number, url, repo, branch: checkout.branch },
+          { type: 'pull-request-linked', number, url, repo, branch: checkout.branch, worktreePath: checkout.directory },
         ],
       }
     },
     forgetThread: async () => {
       drafted.clear()
       return {}
+    },
+    /**
+     * A checkout leaving the tracked set — the worktree was removed, the thread hopped away — is
+     * exactly when its pull request would vanish from the sidebar. The reading still lives until
+     * `track()` forgets it in the same call, so the link is drafted here from the last Found answer
+     * and returned to the hook that caused the drop, which appends it with its own outcome.
+     */
+    linkDropped: ({ checkouts }) => {
+      const drafts: EventDraft[] = []
+      for (const checkout of checkouts) {
+        const reading = args.service.snapshot({ key: checkoutKey(checkout) })
+        if (reading.lookup !== EPullRequestLookup.Found) continue
+
+        const repo = repoOf(checkout)
+        const { number, url } = reading.pullRequest
+        const identity = pullRequestLinkKey({ repo, number })
+        const durable = projection.current().some((link) => pullRequestLinkKey(link) === identity)
+        if (durable || drafted.has(identity)) continue
+
+        drafted.add(identity)
+        drafts.push({
+          type: 'pull-request-linked',
+          number,
+          url,
+          repo,
+          branch: checkout.branch,
+          worktreePath: checkout.directory,
+        })
+      }
+      return drafts
     },
   }
 }

@@ -59,7 +59,7 @@ export class SessionPathsFragment extends PromptFragment {
       'Every command you run sees ATLAS_SESSION_DIR, the directory shared by this conversation and its sub-agents and teammates,',
       'ATLAS_CONTEXT_DIR, a folder inside it for plans, decisions, and working notes durable for the whole session and readable by every thread in it,',
       'and ATLAS_THREAD_DIR, a directory private to your own thread.',
-      'These directories live and die with the session and move with it across cloud lifts.',
+      'These directories live and die with the session.',
       'Keep temporary probes, seed scripts, and one-off downloads in $ATLAS_SESSION_DIR/scratch.',
       'Keep private scratch under ATLAS_THREAD_DIR.',
       'Keep plans, decisions, coordination notes, and supporting artifacts under ATLAS_CONTEXT_DIR.',

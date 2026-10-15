@@ -1,4 +1,4 @@
-import type { EventDraft, ThreadId } from '@dltech/atlas-core'
+import { isTurnTaking, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../../intake/input-batch'
 import type { AgentSnapshot } from './snapshot'
@@ -47,7 +47,7 @@ export class AgentNoticeQueue {
     return {
       notices: captured,
       drafts: unloggedDrafts(captured),
-      wakesTurn: captured.length > 0,
+      wakesTurn: captured.some((notice) => isTurnTaking(notice.draft)),
       acknowledge: () => {
         if (acknowledged) return
         acknowledged = true
@@ -85,7 +85,9 @@ export class AgentNoticeQueue {
   }
 
   threadsAwaiting(): readonly ThreadId[] {
-    return [...this.noticed.keys()]
+    return [...new Set(
+      this.queued.filter((notice) => isTurnTaking(notice.draft)).map((notice) => notice.threadId),
+    )]
   }
 
   threadsQueued(): readonly ThreadId[] {
