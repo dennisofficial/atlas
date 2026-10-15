@@ -150,15 +150,25 @@ and every resume path through recovery reopens it (§1.2). The recurrence is a *
 with a blind spot in front of it**, in two parts:
 
 **Part A — a serve can still wedge itself alive.** The park outcome matrix (§1.3) has live-process
-latched branches that no phase-1 PR closed. The sharpest: `serve-lifecycle.ts:110-113` — a throw
-between a successful `finalizePark()` and the provider-stop retry loop (the `args.log` call or
-`args.handlers.park(...)` — the latter iterates sockets and closes them, plausible on a dying
-socket) leaves `finalized=true`, admission closed, the process-local `parking=true` (which blocks
-`park()` re-entry at `:68`), the idle timer halted, and no re-arm. **Nothing in that process can
-ever reopen admission.** The #1216 re-arm (`:130-137`) covers only `stopSandbox` failures *inside*
-the retry loop, not throws before it. The triple-stop-failure branch (`:114-129`) is a milder
-version: latched by design, dependent on the re-armed timer actually retrying — during a Vercel
-API outage the sandbox sits wedged-but-alive, indistinguishable from the permanent case.
+latched branches that no phase-1 PR closed. The load-bearing one is the **deliberate**
+finalized-park latch: after `finalizePark()` writes `phase: parked`, admission stays closed on
+purpose (`serve-lifecycle.ts:138-149`, comment at `:145-147`: "the park is on record and admission
+stays shut on purpose"; the intent is pinned by spec at
+`apps/serve/src/__tests__/serve-lifecycle.spec.ts:118-134`). Its only in-process repair is the
+#1216 re-arm (`:130-137`): re-fire `park()` after the idle window and retry `stopSandbox()`. That
+heals **transient** stop failures only. Any **persistent** stop failure — a revoked/expired
+`VERCEL_TOKEN` baked into the sandbox env at mount, a provider state `stop()` rejects other than
+missing (`vercel-driver.ts:169-178` swallows only `isSandboxMissing`), a sustained Vercel outage —
+leaves the process alive, admission latched, the checkpoint sealed at `parked`, indefinitely. And
+the retry's bookkeeping is fragile in exactly this state: the re-park re-enters with admission
+already closed, so the whole tick's correctness depends on code paths running under the very gate
+they are trying to escape.
+
+A sharper permanent wedge exists one branch over — a throw between a successful `finalizePark()`
+and the retry loop (`serve-lifecycle.ts:112-113`, e.g. `handlers.park` closing a dying socket)
+leaves `finalized=true`, `parking=true` (which blocks `park()` re-entry at `:68`), the timer
+halted, no re-arm — but it requires a throw in a narrow two-statement window and is not needed to
+explain the fleet-wide recurrence; Part A's designed latch suffices.
 
 The checkpoint seal makes it sticky: once `phase: parked` is captured, `runtime-checkpoint.ts:185`
 seals the capture for the life of the process, so the wedged serve keeps mirroring `parked` to the
@@ -193,7 +203,17 @@ dominant path (recreate-from-image was rejected, decision #1), so a wedged-but-r
 now *preserved across wakes by design* instead of being destroyed and recreated as a side effect
 of an outdated-version rotation. The version stamp is the only swap trigger on the keep path — and
 on v1.106.3 the wedged serve and the pin agree, so nothing ever fires. The wedge didn't get worse;
-the blast containment around it was removed.
+the blast containment around it was removed. And #1245 (merged 2026-10-14, the day before the
+recurrence report) bumped the channel protocol to 24, which forced every sandbox booted before it
+through the rotate/drain path exactly once — mass-exercising the drain/receipt/park machinery
+across the whole fleet at the same moment. A latent per-sandbox wedge became a fleet-wide event.
+
+**The cross-layer crack that keeps it stuck:** the reconnect ladder's escalation verdict reads the
+**API row** (`lifecycleEscalationOf`, `local-cloud-bootstrap.ts:106-120` — row `Running` →
+"Reattach") while the wedge sits in a **serve the row knows nothing about** — a serve-initiated
+idle park never updates `row.state` (§1.1), so the row says Running, Vercel says running, the
+serve is wedged, escalation says reattach, reattach keeps the wedged serve (Part B), and the
+banner persists. Four signals, three layers, no reconciliation pass.
 
 **Verification boundary.** Whether the production wedge cases were provider-`running` (Part B
 applies directly) or provider-`stopped` (the probe's `:221-232` branch does swap the serve — a
@@ -225,8 +245,137 @@ compose — and one consumer (the keep path) doesn't even collect the signal tha
 
 ## 3. Design judgment — sound vs ad hoc
 
-_In progress._
+**Verdict: ad hoc.** Not careless — individual pieces are well-built (the swap lock has provable
+acquisition, the drain gate's ready/wedged/legacy trichotomy is careful, the revision fences are
+right) — but the park/resume lifecycle as a whole fails every deep-module test, and the failure is
+architectural, not local. Applying the codebase-design lens:
+
+### 3.1 There is no module
+
+The sandbox lifecycle — the thing the operator means by "parked" — has **no owner, no interface,
+and no durable record**. Its state is emergent across six independent signals:
+
+1. `admission.closed` — a volatile process-local boolean (`serve-boot-finish.ts:52`), five
+   writers, five reopeners, zero persistence, zero invariants.
+2. The drive checkpoint's `phase` (`runtime-checkpoint.ts:152-188`) — sealed terminal, written
+   only by serve.
+3. The API mirror column (`sandbox-checkpoint.controller.ts:48-97`) — revision-gated, droppable
+   (1000ms flush bound at `runtime-checkpoint-binding.ts:36`), storage-only.
+4. The API row `CloudSandbox.state` — written by API-side actors only (`sandboxes.service.ts:315-318`,
+   `github-sandbox-wake.service.ts`), **never updated by a serve-initiated idle park**.
+5. The Vercel provider status (`driver.inspect`).
+6. The client channel state `EChannelConnection.Parked` (`remote-delta-channel.ts:52-60`), itself
+   an implicit fifth state machine with its own vocabulary (Connecting/Reconnecting/Reattaching/
+   Parked/Waking/Closed) that no other record shares.
+
+Each of the five phase-1 defects, and both halves of this recurrence, live **between** these
+signals: the wedge is precisely the state where #1 says closed, #2/#3 say parked, #4 says Running,
+#5 says running, and #6 says reattach — all true simultaneously, none authoritative, no
+reconciliation pass anywhere. That is the defining symptom of an ad hoc design: correctness
+depends on N independently-maintained inferences happening to agree, and every fix is another
+inference edge (sourceRestart classification, wedge proof, re-arm) on the graph instead of a
+state.
+
+### 3.2 The pieces that exist are shallow at the wrong seams
+
+- **The admission flag is the shallowest possible module**: interface = a mutable boolean shared
+  by reference; implementation = nothing. Every caller must know every writer's pairing rules
+  (close-without-reopen is legal only if the process exits or the checkpoint finalized). The
+  deletion test: delete it and nothing breaks structurally — which proves it carries no
+  abstraction, only convention.
+- **Hot-swap/park/wake is a six-module handshake across three packages** (probe → drain decision →
+  `/v1/drain` → receipt → recovery → launcher), as the arch review already found
+  (`docs/research/cloud-arch-review.md`, §2.1 "six-module handshake"). No forensic question ("was
+  that drain consumed?", "why is admission closed?") has a single place to go.
+- **The wedge detector sits at the wrong seam** — the only code that can *recognize* a wedged
+  serve (`wedgeProofOf`) is reachable only from the drain path, while the keep path (the common
+  case) never collects the signal. A detection capability that its caller can't reach is a seam
+  drawn around the transport operation (drain) instead of the lifecycle question (is this runtime
+  usable?).
+- **`remote-delta-channel.ts` remains the hub god-object** (985 LOC, ~30-method interface, 18
+  factory params — arch review §2.2) and embeds the reconnect ladder as a private state machine
+  with its own Parked vocabulary, disconnected from the serve's.
+
+### 3.3 What is genuinely sound
+
+To be fair to the design: the **rotation receipt's sessionId fence**, the **revision-gated
+checkpoint mirror**, the **swap lock**, and the **capability seam** are all good — small,
+falsifiable, durable. The park *ceremony* itself (transcript marker → checkpoint → client notice →
+provider stop) is the right sequence. What is missing is not quality in the parts but the thing
+they should all be reading and writing: one state.
 
 ## 4. Recommended target design
 
-_In progress._
+Build the arch review's **R2** (`docs/research/cloud-arch-review.md:466-480`), extended with the
+two seam fixes this audit adds. Concretely:
+
+### 4.1 One durable lifecycle record, one owner
+
+A single durable record per sandbox — a file on the drive (`operational/lifecycle.json`, atomic
+write-tmp-rename like the receipt today) mirrored to the API exactly as the checkpoint is today —
+holding one explicit enum:
+
+```
+Provisioning → Serving → Parking → Parked → Waking → Draining → Drained(receipt) → Replacing
+                  ↑         │                    (terminal payloads carry their evidence:
+                  └─────────┘                     receipt, stop-failure reason, retry count)
+                 (failed park returns to Serving — admission follows the state, never leads it)
+```
+
+- **One writer per transition, owned by the layer that performs it**: serve writes
+  Parking/Parked/Draining/Drained (the transitions it executes); the driver writes
+  Provisioning/Waking/Replacing. The rotation receipt survives as the *payload* of `Drained` (its
+  sessionId fence is genuinely good — keep it, as a field, not a separate file).
+- **Admission becomes a pure function of state**: `admissionClosed = state ∈ {Parking, Parked,
+  Draining, Drained}`. The shared mutable boolean is deleted. The five-writer convention becomes a
+  compile-checkable transition table.
+- **Every consumer becomes a read**: `probeSandboxForResume` reads the record first (falling back
+  to inference only for pre-record sandboxes — and under GREENFIELD/#13 there are none); the drain
+  gate reads `Drained(receipt)` instead of re-reading a receipt file; boot recovery reads the
+  record instead of classifying `sourceRestart`; the API row's `state` column becomes a derived
+  read of the mirrored record, deleting the row/checkpoint split that currently hides idle parks
+  from the wake service (§1.1) and misleads `lifecycleEscalationOf` (§2.2).
+- **The checkpoint folds into the record**: `phase` already exists there; the record is the
+  checkpoint promoted to first-class, or the checkpoint's phase promoted to the record. One or the
+  other — not both.
+
+### 4.2 Close the two wedge seams this audit found (independent of 4.1, cheap)
+
+1. **Health must carry admission and the launcher must read it.** `serveHealthy`
+   (`packages/wire/src/sandbox-serve-launch.ts:79-86`) currently checks HTTP 200 only. The wedge
+   proof (`wedgeProofOf`) already defines the shape. Move the wedge check to the **keep seam**:
+   `serveAlive + admissionClosed + empty-work proof` → replace, on every launch, not only during
+   rotation. This alone un-wedges the entire current fleet on next wake.
+2. **A finalized park with a failed provider stop must bound itself.** The designed latch
+   (`serve-lifecycle.ts:138-149`) currently waits forever for a transient failure to heal. Give
+   the retry a terminal: after N failed re-park cycles, the serve exits (the provider sandbox is
+   still running; the next wake's launcher finds no live serve and boots fresh). "Latched alive
+   forever" should not be a reachable state for any process.
+
+### 4.3 What it takes
+
+- **Schema + writers**: one zod schema in `packages/wire` (it already owns the receipt schema and
+  the checkpoint schema), writers at the six existing transition points (all already identified:
+  provision, wake, park finalize, drain seal, boot recovery, swap). Medium.
+- **Deletion of the inference edges**: the stamp-file probe becomes a drift check only (version
+  currency), not a lifecycle probe; `sourceRestart` classification disappears into "record says
+  Drained with my sessionId"; the wedge gate disappears into "record says Parked but provider says
+  running."
+- **No compat window owed** (decision #13, GREENFIELD): pre-record sandboxes are disposable, so
+  the record can be required at boot — boot refuses without it, the launcher recreates.
+- **The reconnect ladder (R4)** stays a separate, later slice — but 4.1's record is what
+  `lifecycleEscalationOf` should read instead of the raw row, so the crack in §2.2 closes without
+  waiting for R4.
+
+**Sequencing recommendation:** 4.2.1 is a one-PR fix that stops the bleeding for the current
+fleet (and is worth shipping ahead of any redesign). 4.2.2 is a second small PR. 4.1 is the
+structural work — medium-sized, mostly deletion plus the schema, and it is the substrate the warm
+pool (decision #10) will need anyway, since a standing sandbox lives permanently in exactly this
+machinery. Doing 4.2 first also *validates* 4.1's premise: if moving wedge detection to the keep
+seam ends the recurrence, the diagnosis (inference graph, wrong seam) is confirmed in production.
+
+**What not to do:** do not add a sixth inference edge (e.g. teaching the probe to curl health on
+the keep path without changing what the launcher keeps). That is exactly the phase-1 move — one
+more conditional on the graph — and it leaves the next wedge class open. The fix has to move the
+detection to where the decision is made, or better, make the decision a read of a state that
+exists.
