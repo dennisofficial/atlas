@@ -39,6 +39,8 @@ export type OpenedConversation = {
   lostShells?: readonly LostShell[] | undefined
   base?: LogAccumulator | undefined
   bootCloudThreadId?: ThreadId | undefined
+  /** The transcript opened from the local mirror; the sandbox attach is the workspace's first act. */
+  attachOnBoot?: boolean | undefined
   resumeOnArrival?: boolean | undefined
   identity?: ThreadIdentity | undefined
   appliedEvents?: readonly Event[] | undefined
@@ -85,6 +87,8 @@ type Opening = {
   shells?: ShellRegistryPort | undefined
   services?: ServiceRegistryPort | undefined
   preparing?: boolean | undefined
+  /** Boot is the only caller that may open a cloud thread's transcript directly. */
+  boot?: boolean | undefined
 }
 
 const unknownThread = (args: { threadId: string; project: string }): string =>
@@ -219,7 +223,19 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   }
 
   if (thread.executionLocation === EExecutionLocation.Cloud) {
-    return { cloud: true, threadId: thread.id }
+    if (args.boot !== true) {
+      return { cloud: true, threadId: thread.id }
+    }
+    // A boot resume opens the mirrored transcript at once and hands the workspace the attach as
+    // its first act — mounting an unstarted placeholder instead would leave the welcome hero up
+    // for the whole wake, and forever if the attach fails.
+    return {
+      ok: true,
+      conversation: {
+        ...(await readOpenedConversation({ thread, log: args.log, ledger: args.ledger, effects: args.effects })),
+        attachOnBoot: true,
+      },
+    }
   }
 
   const refusal = await claimThread({ threadId: thread.id })

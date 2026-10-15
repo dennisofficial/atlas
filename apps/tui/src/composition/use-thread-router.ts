@@ -153,7 +153,9 @@ export function useThreadRouter(args: {
   useEffect(() => {
     if (bootRouted.current) return
     bootRouted.current = true
-    const bootCloud = args.opened.bootCloudThreadId
+    const bootCloud =
+      args.opened.bootCloudThreadId ??
+      (args.opened.attachOnBoot === true ? args.opened.threadId : undefined)
     if (bootCloud === undefined || cloudSession !== null) return
     void attach(bootCloud as string, localApp.workspace.workspace)
   }, [attach, cloudSession, args.opened, localApp])

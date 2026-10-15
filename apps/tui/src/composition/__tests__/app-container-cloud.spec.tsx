@@ -60,15 +60,15 @@ describe('a thread born in the cloud', () => {
     }
   }, 60_000)
 
-  it('renders the cloud divider once attached, pinned by the restore on the served log', async () => {
+  it('renders no relocation divider once attached — a born-placed thread never moved', async () => {
     const app = speaking()
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      await connected(mounted, bridge)
 
-      expect(await shown(mounted, 'cloud sandbox')).toContain('cloud sandbox')
+      expect(await cleared(mounted, 'cloud sandbox')).not.toContain('cloud sandbox')
     } finally {
       await mounted.done()
     }

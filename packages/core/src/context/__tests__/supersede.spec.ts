@@ -111,4 +111,27 @@ describe('currentContextEvents', () => {
 
     expect([...currentContextEvents(events)]).toEqual([])
   })
+
+  it('never replays a lift-era relocation injection — nothing records the slot anymore', () => {
+    const events = log([
+      loaded({
+        slot: 'session',
+        key: 'execution-location',
+        content:
+          'Your environment is now cloud. Your project directory is /atlas/workspaces/repo. Your files and Git staging state were transferred without committing or merging them.',
+      }),
+      { type: 'user-said', text: 'keep it going' },
+    ])
+
+    expect([...currentContextEvents(events)]).toEqual([])
+    expect([...supersededContextIds(events)]).toEqual(['event-1'])
+  })
+
+  it('keeps a session-slot injection under any other key', () => {
+    const events = log([
+      loaded({ slot: 'session', key: 'workspace-arrival', content: 'The workspace landed.' }),
+    ])
+
+    expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1'])
+  })
 })
