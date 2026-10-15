@@ -20,7 +20,7 @@ import { createCloudCheckout } from './cloud-checkout'
 import { FailoverPullRequestPort } from './failover-pull-requests'
 import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
-import { createPullRequestLinks } from './links'
+import { createPullRequestLinks, type PullRequestLinks } from './links'
 import { createPollDiffer } from './pr-event-diff'
 import { createPrEventRouting, type PrEventRouting } from './pr-event-routing'
 import { PrEventNoticeQueue, prEventIntakeSource } from './pr-event-queue'
@@ -122,8 +122,17 @@ export default class GithubPlugin extends NativePlugin {
     service = createPullRequestService({ pullRequests: adapter, onPolled: pollDiffer.onPolled })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const cloudCheckout = createCloudCheckout()
-    const tracking = createCheckoutTracking({ service, facts, cloud: () => cloudCheckout.current() })
-    const links = createPullRequestLinks({ service, tracker: tracking.tracker })
+    // The links the tracker drafts on a drop are read through a deferred indirection: tracking
+    // holds the family map the links fold needs, and links holds the drafted-set the drop path
+    // needs, so neither can be constructed first without one.
+    let links: PullRequestLinks | null = null
+    const tracking = createCheckoutTracking({
+      service,
+      facts,
+      cloud: () => cloudCheckout.current(),
+      linkDropped: (dropped) => links?.linkDropped(dropped) ?? [],
+    })
+    links = createPullRequestLinks({ service, tracker: tracking.tracker })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({
       pullRequests: service,

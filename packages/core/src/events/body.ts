@@ -183,6 +183,7 @@ export type EventBody =
       url: string
       repo: string
       branch: string
+      worktreePath?: string | undefined
     }
   | {
       type: 'pr-event'

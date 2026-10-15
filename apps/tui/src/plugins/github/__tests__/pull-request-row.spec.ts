@@ -127,3 +127,22 @@ describe('the pull request row inks the number with the shared status color', ()
     expect(pullRequestRow({ pullRequest: failing, now: NOW })(1).left.at(0)?.fg).toBe(theme.error)
   })
 })
+
+describe('a pull request whose worktree is gone', () => {
+  it('strikes the number and state so the detachment reads at a glance', () => {
+    const pullRequest = withChecks({ running: 0, passed: 1, failed: 0 })
+
+    const split = pullRequestRow({ pullRequest, now: NOW, gone: true })(WIDE)
+
+    expect(split.left.at(0)?.strike).toBe(true)
+    expect(split.left.at(1)?.strike).toBe(true)
+  })
+
+  it('leaves the spans unstruck while the worktree is still there', () => {
+    const pullRequest = withChecks({ running: 0, passed: 1, failed: 0 })
+
+    const split = pullRequestRow({ pullRequest, now: NOW })(WIDE)
+
+    expect(split.left.at(0)?.strike).toBeFalsy()
+  })
+})
