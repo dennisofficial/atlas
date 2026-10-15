@@ -13,6 +13,7 @@ const badge = (over: Partial<PullRequestBadge> = {}): PullRequestBadge => ({
   url: 'https://github.com/o/r/pull/123',
   state: EPullRequestState.Open,
   checks: EChecksState.Passing,
+  pollBacked: false,
   ...over,
 })
 
@@ -52,6 +53,14 @@ describe('pullRequestItem', () => {
     })
     expect(item?.spans.map((span) => span.text).join('')).toBe('#123')
     expect(item?.ground).toBe(theme.court.external)
+  })
+
+  it('keeps the polled marker after the number, and the overflow count on the number', () => {
+    const item = pullRequestItem({
+      footer: footer({ badge: badge({ pollBacked: true }), overflow: 2 }),
+      onOpen: NEVER,
+    })
+    expect(item?.spans.map((span) => span.text).join('')).toBe('#123 +2 polled')
   })
 
   it('counts the pull requests the pill is summarizing', () => {

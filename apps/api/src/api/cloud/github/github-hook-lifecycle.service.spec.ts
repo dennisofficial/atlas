@@ -9,6 +9,7 @@ vi.mock('../../../db', async () => {
 import { fakeGithubDb } from '../../../../test/fake-github-db'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import type { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubHookLifecycleService, HOOK_EVENTS } from './github-hook-lifecycle.service'
 import type { CreateHookResult, GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
@@ -24,6 +25,7 @@ function serviceWith(args: {
   deleteHook?: () => Promise<'deleted' | 'unauthorized'>
   getHook?: () => Promise<'found' | 'missing' | 'unauthorized'>
   getHookEvents?: () => Promise<string[]>
+  coversRepo?: () => Promise<boolean>
 }): {
   service: GithubHookLifecycleService
   created: string[]
@@ -58,8 +60,11 @@ function serviceWith(args: {
       updated.push(call.events)
     },
   } as unknown as GithubUserReads
+  const installations = {
+    coversRepo: args.coversRepo ?? (async () => false),
+  } as unknown as GithubAppInstallationsService
   return {
-    service: new GithubHookLifecycleService(github, reads, CIPHER, ENV),
+    service: new GithubHookLifecycleService(github, reads, CIPHER, ENV, installations),
     created,
     deleted,
     verified,

@@ -20,6 +20,7 @@ export function subscriptionDtoOf(args: {
     expiresAt: Date
   }
   state: GithubPrStateDto | null
+  recommendAppInstall?: { installUrl: string; repoFullName: string } | undefined
 }): GithubSubscriptionDto {
   return {
     id: args.subscription.id,
@@ -29,5 +30,8 @@ export function subscriptionDtoOf(args: {
     pollBacked: args.subscription.pollBacked,
     expiresAt: args.subscription.expiresAt.toISOString(),
     state: args.state,
+    ...(args.recommendAppInstall === undefined
+      ? {}
+      : { recommendAppInstall: args.recommendAppInstall }),
   }
 }

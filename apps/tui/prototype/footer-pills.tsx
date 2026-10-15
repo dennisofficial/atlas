@@ -44,6 +44,7 @@ const badge = (args: { pr: number; state: EPullRequestState; checks: EChecksStat
   url: 'https://example.invalid/pull/0',
   state: args.state,
   checks: args.checks,
+  pollBacked: false,
 })
 
 const pr = (args: { pr: number; state: EPullRequestState; checks: EChecksState }): FooterItem =>

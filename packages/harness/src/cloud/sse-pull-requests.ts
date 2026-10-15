@@ -10,16 +10,11 @@ import type { CloudSession } from './cloud-session'
 import { CloudError, type TransportRetryLog } from './cloud-transport'
 import { deliverPrEvent, type PrEventFrame } from './pr-event-frame'
 import { runSseStream, SseRefused } from './sse-client'
-import {
-  PrSubscriptionClient,
-  type SubscriptionHandle,
-} from './pr-subscription-client'
+import { PrSubscriptionClient, type SubscriptionHandle } from './pr-subscription-client'
+import { createAppInstallRaiser, type AppInstallRaiser, type AppInstallRecommended } from './app-install-recommendation'
 import { createHeartbeatLoop, type HeartbeatLoop } from './sse-heartbeat-loop'
 import { resolveSseClock, type SsePullRequestClock } from './sse-pull-request-clock'
-import {
-  createSseSubscriptionBook,
-  type SseSubscriptionBook,
-} from './sse-pull-request-book'
+import { createSseSubscriptionBook, type SseSubscriptionBook } from './sse-pull-request-book'
 
 const GITHUB_HOST = 'github.com'
 
@@ -45,6 +40,7 @@ export class SsePullRequestPort extends PullRequestPort {
   private readonly silenceTimeoutMs: number | undefined
   private readonly log: TransportRetryLog | undefined
   private readonly onPrEvent: ((frame: PrEventFrame) => void) | undefined
+  private readonly raiseAppInstall: AppInstallRaiser
   private catchingUp: { generation: number; pending: Promise<void> } | null = null
   private generation = 0
   private disposed = false
@@ -54,6 +50,7 @@ export class SsePullRequestPort extends PullRequestPort {
     clientVersion: string
     onReading: (args: { key: string; reading: PullRequestReading }) => void
     onPrEvent?: (frame: PrEventFrame) => void
+    onAppInstallRecommended?: AppInstallRecommended
     clock?: SsePullRequestClock
     silenceTimeoutMs?: number
     log?: TransportRetryLog
@@ -61,6 +58,7 @@ export class SsePullRequestPort extends PullRequestPort {
     super()
     this.log = args.log
     this.onPrEvent = args.onPrEvent
+    this.raiseAppInstall = createAppInstallRaiser({ onRecommended: args.onAppInstallRecommended, log: args.log })
     this.silenceTimeoutMs = args.silenceTimeoutMs
     this.clock = resolveSseClock(args.clock)
     this.client = new PrSubscriptionClient({
@@ -115,7 +113,6 @@ export class SsePullRequestPort extends PullRequestPort {
     this.heartbeat.stop()
     this.stream?.abort()
     this.stream = null
-
     this.book.clear()
   }
 
@@ -157,7 +154,9 @@ export class SsePullRequestPort extends PullRequestPort {
       handle,
       by: args.by,
       state: outcome.state,
+      pollBacked: outcome.pollBacked,
     })
+    this.raiseAppInstall(outcome)
     this.ensureStream()
     this.heartbeat.start()
     return reading
@@ -233,7 +232,9 @@ export class SsePullRequestPort extends PullRequestPort {
           key: entry.key,
           handle: { id: outcome.id, repoFullName: entry.handle.repoFullName },
           state: outcome.state,
+          pollBacked: outcome.pollBacked,
         })
+        this.raiseAppInstall(outcome)
       } catch (failure) {
         if (controller.signal.aborted || generation !== this.generation) return
         if (failure instanceof CloudError && (failure.status === 401 || failure.status === 403)) {

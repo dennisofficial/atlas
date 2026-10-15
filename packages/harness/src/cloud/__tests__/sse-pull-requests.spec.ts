@@ -30,7 +30,7 @@ const checkout = (over: Partial<RepositoryCheckout['remote']> = {}): RepositoryC
 
 describe('readingOfState', () => {
   it('maps a cloud state into a Found reading', () => {
-    const reading = readingOfState(state())
+    const reading = readingOfState({ state: state(), pollBacked: false })
     expect(reading.lookup).toBe(EPullRequestLookup.Found)
     if (reading.lookup !== EPullRequestLookup.Found) return
     expect(reading.pullRequest.number).toBe(42)
@@ -39,13 +39,16 @@ describe('readingOfState', () => {
   })
 
   it('reads failing checks before running or passing', () => {
-    const reading = readingOfState(state({ checksRunning: 1, checksPassed: 3, checksFailed: 1 }))
+    const reading = readingOfState({
+      state: state({ checksRunning: 1, checksPassed: 3, checksFailed: 1 }),
+      pollBacked: false,
+    })
     if (reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
     expect(reading.pullRequest.checks).toBe(EChecksState.Failing)
   })
 
   it('reads an unknown PR state as retryable Unavailable rather than throwing', () => {
-    const reading = readingOfState(state({ state: 'rebased' }))
+    const reading = readingOfState({ state: state({ state: 'rebased' }), pollBacked: false })
     expect(reading).toEqual({ lookup: EPullRequestLookup.Unavailable, retryable: true })
   })
 })

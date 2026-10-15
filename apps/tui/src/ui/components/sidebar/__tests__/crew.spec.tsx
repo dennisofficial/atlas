@@ -348,6 +348,7 @@ describe('a teammate row carries its pull request pill', () => {
               url: 'https://github.com/dennisofficial/atlas/pull/88',
               state: EPullRequestState.Open,
               checks: EChecksState.Passing,
+              pollBacked: false,
             },
           }),
           row({ id: 't2', name: 'other work', agentType: 'teammate', model: 'haiku' }),

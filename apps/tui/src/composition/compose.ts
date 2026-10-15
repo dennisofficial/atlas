@@ -8,9 +8,13 @@ import {
   registeredPortToken,
   sharedPortBindings,
   GithubUiBridgePort,
+  MutableAppInstallSink,
+  AppInstallRecommendationSink,
   MutablePrEventSink,
   PrEventFrameSink,
   PullRequestPort,
+  cloudClientFor,
+  CloudSessionStoreToken,
   type ContributedProjection,
   type HarnessApp,
   type RewindMachineryPort,
@@ -68,7 +72,11 @@ export type AtlasApp = Omit<
  * and turned into the footer chip and sidebar section, exactly as `composeHarness` handed every
  * other plugin's UI-agnostic contribution straight through.
  */
-const resolveGithubSurface = (args: { bridge: GithubUiBridgePort }): ContributedSurface =>
+const resolveGithubSurface = (args: {
+  bridge: GithubUiBridgePort
+  appInstallSink: MutableAppInstallSink | null
+  recordDismissal: ((args: { repo: string }) => void) | undefined
+}): ContributedSurface =>
   pullRequestSurface({
     service: args.bridge.service,
     facts: args.bridge.facts,
@@ -76,6 +84,18 @@ const resolveGithubSurface = (args: { bridge: GithubUiBridgePort }): Contributed
     cloudCheckout: args.bridge.cloudCheckout,
     badges: args.bridge.badges,
     openUrl: createUrlOpener(),
+    appInstall:
+      args.appInstallSink === null
+        ? null
+        : {
+            subscribe: (listener) => {
+              args.appInstallSink?.set((recommendation) => listener(recommendation))
+              return () => args.appInstallSink?.set(null)
+            },
+          },
+    ...(args.recordDismissal === undefined
+      ? {}
+      : { recordAppInstallDismissal: args.recordDismissal }),
   })
 
 export async function composeAtlas(args: {
@@ -130,9 +150,40 @@ export async function composeAtlas(args: {
           }
         })()
 
+        const appInstallSink = ((): MutableAppInstallSink | null => {
+          try {
+            const sink = container.resolve(registeredPortToken(AppInstallRecommendationSink))
+            return sink instanceof MutableAppInstallSink ? sink : null
+          } catch {
+            return null
+          }
+        })()
+
+        const recordDismissal = ((): ((args: { repo: string }) => void) | undefined => {
+          const store = ((): { read(): { url: string; token: string; email: string | null } | null } | null => {
+            try {
+              return container.resolve(CloudSessionStoreToken)
+            } catch {
+              return null
+            }
+          })()
+          if (store === null) return undefined
+          return ({ repo }) => {
+            const session = store.read()
+            if (session === null) return
+            void cloudClientFor({ session })
+              .dismissGithubAppInstallNotice({ repoFullName: repo })
+              .catch(() => undefined)
+          }
+        })()
+
         const githubSurface = ((): ContributedSurface | null => {
           try {
-            return resolveGithubSurface({ bridge: container.resolve(registeredPortToken(GithubUiBridgePort)) })
+            return resolveGithubSurface({
+              bridge: container.resolve(registeredPortToken(GithubUiBridgePort)),
+              appInstallSink,
+              recordDismissal,
+            })
           } catch {
             return null
           }

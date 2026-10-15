@@ -7,6 +7,7 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeGithubDb } from '../../../../test/fake-github-db'
+import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
@@ -42,8 +43,13 @@ function serviceWith(args: {
     readPullRequest: args.readPullRequest,
     findOpenPrForBranch: args.findOpenPrForBranch,
   } as unknown as GithubUserReads
+  const installNotice = {
+    installUrl: () => 'https://github.com/apps/atlas-by-dl/installations/new',
+    shouldRecommend: async () => false,
+    dismiss: async () => undefined,
+  } as unknown as GithubAppInstallNoticeService
   vi.stubGlobal('fetch', async () => new Response('{}', { status: 200 }))
-  return new GithubSubscriptionsService(github, reads, hooks)
+  return new GithubSubscriptionsService(github, reads, hooks, installNotice)
 }
 
 describe('GithubSubscriptionsService branch catch-up', () => {

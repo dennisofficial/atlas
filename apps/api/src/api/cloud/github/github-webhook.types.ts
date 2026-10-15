@@ -80,3 +80,38 @@ export interface GithubPullRequestReviewCommentWebhookPayload {
   sender: GithubWebhookUser
   repository: GithubWebhookRepository
 }
+
+export interface GithubAppInstallationAccount {
+  login: string
+  type: string
+}
+
+export interface GithubAppInstallationRepository {
+  full_name: string
+}
+
+/**
+ * The `installation` event fires for created/deleted/suspend/unsuspend and carries the full repo
+ * list when the installation covers all repos; `installation_repositories` carries only the delta.
+ */
+export interface GithubAppInstallationWebhookPayload {
+  action: string
+  installation: {
+    id: number
+    account: GithubAppInstallationAccount
+    suspended_at: string | null
+  }
+  repositories?: GithubAppInstallationRepository[]
+}
+
+export interface GithubAppInstallationRepositoriesWebhookPayload {
+  action: string
+  installation: {
+    id: number
+    account: GithubAppInstallationAccount
+    suspended_at: string | null
+  }
+  repositories_added?: GithubAppInstallationRepository[]
+  repositories_removed?: GithubAppInstallationRepository[]
+  repository_selection?: string
+}

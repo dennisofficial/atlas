@@ -38,6 +38,7 @@ export type PullRequest = {
   mergeable: boolean | null
   comments: readonly PrComment[]
   reviews: readonly PrReview[]
+  pollBacked?: boolean
 }
 
 export type PullRequestBadge = {
@@ -45,6 +46,7 @@ export type PullRequestBadge = {
   url: string
   state: EPullRequestState
   checks: EChecksState
+  pollBacked: boolean
 }
 
 const SETTLED_STATES = new Set([EPullRequestState.Merged, EPullRequestState.Closed])
@@ -55,5 +57,6 @@ export function pullRequestBadge(pullRequest: PullRequest): PullRequestBadge {
     url: pullRequest.url,
     state: pullRequest.state,
     checks: SETTLED_STATES.has(pullRequest.state) ? EChecksState.None : pullRequest.checks,
+    pollBacked: pullRequest.pollBacked === true,
   }
 }

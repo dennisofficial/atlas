@@ -6,6 +6,7 @@ import type { FileReadStatePort } from '../files/read-state'
 import type { FileWriteGuardPort } from '../files/write-guard'
 import type { OperatorInputPort } from '../operator-input/port'
 import type { GithubUiBridgePort } from '../plugins/github/ui-bridge'
+import type { AppInstallRecommendationSink } from '../plugins/github/app-install-sink'
 import type { PullRequestPort } from '../plugins/github/pure/port'
 import type { PrEventFrameSink } from '../plugins/github/pr-event-sink'
 import type { PromptRegistry } from '../prompt/registry'
@@ -51,6 +52,9 @@ declare module '@dltech/atlas-core' {
     }
     readonly PullRequestPort: PortRegistryEntry<PullRequestPort> & { readonly transport: 'none' }
     readonly PrEventFrameSink: PortRegistryEntry<PrEventFrameSink> & { readonly transport: 'none' }
+    readonly AppInstallRecommendationSink: PortRegistryEntry<AppInstallRecommendationSink> & {
+      readonly transport: 'none'
+    }
     readonly UserLayerSyncPort: PortRegistryEntry<UserLayerSyncPort> & { readonly transport: 'none' }
   }
 }
