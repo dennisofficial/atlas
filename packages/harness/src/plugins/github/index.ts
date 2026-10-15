@@ -11,6 +11,7 @@ import {
   WorkspaceRoot,
 } from '../../container/tokens'
 
+import { ThreadStorePort } from '../../store/thread-store'
 import { NativePlugin, type PluginContribution } from '../plugin'
 import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
 import { CiFeedFragment } from './ci-feed-fragment'
@@ -28,6 +29,7 @@ import { createPullRequestService, type PullRequestService } from './pull-reques
 import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
+import { createThreadKinds } from './thread-kinds'
 
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
@@ -60,6 +62,7 @@ export default class GithubPlugin extends NativePlugin {
       clientVersion: string
       cacheDirectory: string
       log: LogPort | null
+      threads: ThreadStorePort | null
     },
   ) {
     super()
@@ -116,7 +119,14 @@ export default class GithubPlugin extends NativePlugin {
     service = createPullRequestService({ pullRequests: adapter, onPolled: pollDiffer.onPolled })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const cloudCheckout = createCloudCheckout()
-    const tracking = createCheckoutTracking({ service, facts, cloud: () => cloudCheckout.current() })
+    const threadKinds =
+      this.args.threads === null ? undefined : createThreadKinds({ threads: this.args.threads })
+    const tracking = createCheckoutTracking({
+      service,
+      facts,
+      cloud: () => cloudCheckout.current(),
+      ...(threadKinds === undefined ? {} : { threadKinds }),
+    })
     const links = createPullRequestLinks({ service, tracker: tracking.tracker })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({
@@ -284,6 +294,9 @@ export function registerPlugin({ container }: { container: DependencyContainer }
         cacheDirectory: resolver.resolve(AtlasHomeToken),
         log: container.isRegistered(registeredPortToken(LogPort), true)
           ? resolver.resolve(registeredPortToken(LogPort))
+          : null,
+        threads: container.isRegistered(registeredPortToken(ThreadStorePort), true)
+          ? resolver.resolve(registeredPortToken(ThreadStorePort))
           : null,
       }),
   })

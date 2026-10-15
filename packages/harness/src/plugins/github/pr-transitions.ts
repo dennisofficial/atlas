@@ -60,14 +60,36 @@ export function createPullRequestTransitions(args: {
     for (const key of [...lastLabels.keys()]) {
       if (!held.has(key)) lastLabels.delete(key)
     }
+
+    // The buffer above is keyed by the standing thread because this subscription is synchronous;
+    // a subagent's notes are folded onto its owner as soon as the lookup resolves.
+    void (async () => {
+      for (const checkout of args.service.tracked()) {
+        for (const threadId of args.tracker.threadsOn({ key: checkoutKey(checkout) })) {
+          const owner = await args.tracker.ownerOf({ threadId })
+          if (owner === threadId) continue
+
+          const moved = pending.get(threadId)
+          if (moved === undefined) continue
+          pending.delete(threadId)
+          pending.set(owner, [...(pending.get(owner) ?? []), ...moved])
+        }
+      }
+    })()
   })
 
   return {
     beforeTurn: async ({ threadId }) => {
-      const notes = pending.get(threadId)
+      const owner = await args.tracker.ownerOf({ threadId })
+      if (owner !== threadId) {
+        pending.delete(threadId)
+        return {}
+      }
+
+      const notes = pending.get(owner)
+      pending.delete(owner)
       if (notes === undefined || notes.length === 0) return {}
 
-      pending.delete(threadId)
       return {
         additionalContext: `Pull request updates since your last turn:\n${notes.map((note) => `- ${note}`).join('\n')}`,
       }
