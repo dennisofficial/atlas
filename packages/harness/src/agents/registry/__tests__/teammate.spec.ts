@@ -123,7 +123,7 @@ describe('spawning a teammate', () => {
     expect(fromTeammate.ok ? '' : fromTeammate.reason).toMatch(/only the main session/)
   })
 
-  it('pauses without a word while it still owns live work: no notice is queued for the main session', async () => {
+  it('pauses without a word while it still owns live work: the ending is recorded but not relayed', async () => {
     const temp = createTempHome()
     const harness = await buildHarness({
       home: temp.home,
@@ -162,6 +162,56 @@ describe('spawning a teammate', () => {
     const drained = supervisor.drainNotifications({ threadId: parent })
     expect(drained.wakesTurn).toBe(false)
     expect(drained.drafts).toHaveLength(0)
+
+    expect(await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })).toHaveLength(1)
+  })
+
+  it('records its ending even while live work keeps the relay quiet, so a restart finds no orphan', async () => {
+    const temp = createTempHome()
+    const harness = await buildHarness({
+      home: temp.home,
+      model: scriptedModel({ script: [] }),
+    })
+    opened.push({ harness, temp })
+
+    const runners = fakeRunners()
+    const supervisor = new AgentSupervisor({
+      log: harness.log,
+      threads: harness.threads,
+      ids: harness.ids,
+      clock: harness.clock,
+      agentTypes: [TEAMMATE, BUILDER],
+      runners: runners.source,
+      launchDirectory: '/launch',
+      hasLiveWork: () => true,
+    })
+    const parent = (await harness.threads.create({})).id
+
+    const outcome = await supervisor.spawn({
+      threadId: parent,
+      agentType: TEAMMATE_AGENT_TYPE,
+      brief: 'own the billing workstream',
+      intent: 'billing workstream',
+    })
+    if (!outcome.ok) throw new Error(outcome.reason)
+    await settled()
+
+    runners.started[0]?.settle(finished())
+    await supervisor.whenChildrenSettled({ threadId: parent })
+
+    const reopened = new AgentSupervisor({
+      log: harness.log,
+      threads: harness.threads,
+      ids: harness.ids,
+      clock: harness.clock,
+      agentTypes: [TEAMMATE, BUILDER],
+      runners: fakeRunners().source,
+      launchDirectory: '/launch',
+      hasLiveWork: () => true,
+    })
+    const recovered = await reopened.recordLostAgents({ threadId: parent })
+    expect(recovered.settled).toHaveLength(0)
+    expect(await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })).toHaveLength(1)
   })
 
   it('relays its ending to the main session once nothing it owns can wake it again', async () => {

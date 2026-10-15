@@ -20,7 +20,7 @@ export async function recordEnding({
   notices: AgentNoticeQueue
   roster: AgentRoster
   child: ChildState
-  kind: EAgentNotice
+  kind: EAgentNotice | undefined
 }): Promise<void> {
   const draft = agentEndedDraft(child)
   const snapshot = snapshotOf(child)
@@ -30,6 +30,8 @@ export async function recordEnding({
     ? { recorded: false }
     : await journal.record({ threadId: child.spawnedBy, draft })
   if (roster.find(child.agentId) !== child) return
+
+  if (kind === undefined) return
 
   notices.queue({
     threadId: child.spawnedBy,

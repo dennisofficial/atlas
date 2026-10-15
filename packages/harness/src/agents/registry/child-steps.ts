@@ -201,10 +201,15 @@ export class ChildSteps {
     })
 
     const kind = this.endingKind(child)
-    if (kind !== undefined) {
-      await recordEnding({ journal: this.journal, notices: this.notices, roster: this.roster, child, kind })
-      this.onEnded?.(child.agentId)
-    }
+    const relay = kind !== undefined
+    await recordEnding({
+      journal: this.journal,
+      notices: this.notices,
+      roster: this.roster,
+      child,
+      kind,
+    })
+    if (relay) this.onEnded?.(child.agentId)
 
     this.intake?.changed()
   }
