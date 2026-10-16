@@ -9,8 +9,6 @@ import type {
 } from '@dltech/atlas-core'
 import type { UserSettingsTarget } from './apply-user-settings'
 import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
-import type { SessionArchiveReader } from './archive-progress'
-import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
 import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController, RecoveredAgents } from '@dltech/atlas-harness'
 import type { FileBrowser, MentionReader } from '@dltech/atlas-harness'
@@ -139,17 +137,6 @@ export type ServeApp = {
    */
   recordLostAgents?: ((args: { threadId: ThreadId }) => Promise<RecoveredAgents>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
-  sessionArchive?: SessionArchiveReader | undefined
-  /**
-   * Appends the arrival events for a restored workspace to every family thread and re-points their
-   * stored workspace at the restored paths, without rewriting history. Absent in fakes.
-   */
-  recordWorkspaceArrival?:
-    | ((args: {
-        restored: RestoredWorkspace
-        launchDirectory: string
-      }) => Promise<void>)
-    | undefined
   /**
    * Ends the family's shells and services (attributed to the container switch) and awaits their
    * endings, so a workspace export races no background writer. Absent in fakes.

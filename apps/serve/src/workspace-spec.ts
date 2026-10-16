@@ -58,5 +58,3 @@ export function contextArchiveFetcher(args: {
 
   return () => transport.rawRequest({ method: 'GET', path: '/v1/sandboxes/context', allowMissing: true })
 }
-
-export type FetchTranscriptArchive = () => Promise<string | null>

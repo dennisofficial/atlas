@@ -48,13 +48,9 @@ const recordingDriver = (args: { created: boolean; events: string[] }): BridgeDr
       args.events.push(`write:${write.path.split('/').pop()}`)
     },
     writeBootstrapFile: async () => undefined,
-    transcriptLanded: async () => true,
     readResources: async () => ({}),
     updateResources: async () => undefined,
     destroy: async () => undefined,
-    uploadWorkspaceArchive: async () => undefined,
-    downloadSessionArchive: async () => undefined,
-    releaseSessionArchive: async () => undefined,
   }
 }
 

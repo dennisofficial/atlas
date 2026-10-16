@@ -4,8 +4,6 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import {
   CONTEXT_ARCHIVE_PATH,
-  TRANSCRIPT_ARCHIVE_PATH,
-  WORKSPACE_ARCHIVE_PATH,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
   type LiveSandbox,
@@ -57,12 +55,6 @@ const fakeDriver = (args: { observed: boolean; vaultPresent?: boolean }) => {
       writes.push({ path: write.path, content: write.content })
     },
     writeBootstrapFile: async () => {},
-    uploadWorkspaceArchive: async (upload) => {
-      events.push(`upload:${upload.destination}:${upload.source}`)
-    },
-    downloadSessionArchive: async () => {},
-    releaseSessionArchive: async () => {},
-    transcriptLanded: async () => true,
     readResources: async () => ({}),
     updateResources: async () => {},
     destroy: async () => {},
@@ -98,7 +90,7 @@ describe('createLocalCloudBridge bootstrap writes', () => {
 
     expect(placement.created).toBe(false)
     expect(writes.some((entry) => entry.path === WORKSPACE_SPEC_PATH)).toBe(false)
-    expect(events.some((event) => event.startsWith(`upload:${TRANSCRIPT_ARCHIVE_PATH}`))).toBe(false)
+    expect(events.some((event) => event.startsWith('upload:'))).toBe(false)
   })
 
   it('writes no bootstrap files at all on a healthy resume without context', async () => {
@@ -155,7 +147,6 @@ describe('createLocalCloudBridge bootstrap writes', () => {
     })
 
     expect(writes.some((entry) => entry.path === CONTEXT_ARCHIVE_PATH)).toBe(true)
-    expect(writes.some((entry) => entry.path === WORKSPACE_ARCHIVE_PATH)).toBe(false)
     expect(events.indexOf(`write:${CONTEXT_ARCHIVE_PATH}`)).toBeLessThan(events.indexOf('launch'))
   })
 })

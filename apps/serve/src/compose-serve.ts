@@ -29,7 +29,6 @@ import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './
 import { ServeProcessPort } from './serve-process'
 import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
 import { vercelCredentialsOf } from './vercel-credentials'
-import { serveSessionArchive } from './serve-session-archive'
 
 export const SERVE_COMMAND = 'serve'
 
@@ -180,7 +179,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     workspace: app.workspace,
     pending: app.pending,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
-    sessionArchive: (options) => serveSessionArchive({ threadId: args.threadId, endFamilyShells: workspaceHooks.endFamilyShells, onBuildProgress: options?.onBuildProgress }),
     adoptChildren: async ({ threadId, resumeChildren }) => {
       await adoptTransferredChildren({ agents: app.agents, threadId })
       return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId, resumeChildren })

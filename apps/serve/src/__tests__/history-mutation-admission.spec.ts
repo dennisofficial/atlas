@@ -14,7 +14,6 @@ const threadId = toThreadId('history-edits')
 for (const op of [
   EClientRequest.Rewind,
   EClientRequest.SayToAgent,
-  EClientRequest.ApplyWorkspaceArchive,
 ]) {
   it(`refuses compaction while an earlier ${op} request is still applying`, async () => {
     const entered = gate()
@@ -61,12 +60,6 @@ for (const op of [
         },
         stop: async () => ({ ok: false, reason: 'no child' }),
         resume: async () => ({ ok: false, reason: 'no child' }),
-      },
-      workspace: {
-        apply: async () => {
-          await hold()
-          return null
-        },
       },
     })
     const send = (args: {

@@ -8,7 +8,7 @@ import { createIsolatedContainer } from '../../container/injection'
 import { CountingIds, openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import { startTimeOf } from '../../workspace/process-identity'
 import { listWorktrees, lockWorktree } from '../../workspace/worktrees'
-import { git } from '../../workspace/transfer/__tests__/capture-fixture'
+import { git } from './git-fixture'
 import { claimOpenedWorktree, releaseEndedWorktree } from '../worktree-claims'
 import { recordingNotices } from './fakes'
 

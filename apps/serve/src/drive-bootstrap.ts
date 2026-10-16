@@ -1,20 +1,15 @@
-import { readFile, stat } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import {
   wireWorkspaceSpecSchema,
   type FetchContextArchive,
-  type FetchTranscriptArchive,
   type FetchWorkspaceSpec,
 } from './workspace-spec'
 
 const BOOTSTRAP_DIRECTORY = 'bootstrap'
 const WORKSPACE_SPEC_FILE = 'workspace-spec.json'
 const CONTEXT_ARCHIVE_FILE = 'context.tar.gz'
-const TRANSCRIPT_ARCHIVE_FILE = 'transcript.tar.gz'
-const WORKSPACE_ARCHIVE_FILE = 'workspace.tar.gz'
-const WORKSPACE_RECEIPT_FILE = 'workspace-applied.json'
-const WORKSPACE_EXPORT_DIRECTORY = 'exports'
 
 const ENOENT = 'ENOENT'
 
@@ -54,26 +49,3 @@ export function driveContextArchiveFetcher(args: { driveHome: string }): FetchCo
   const path = join(args.driveHome, BOOTSTRAP_DIRECTORY, CONTEXT_ARCHIVE_FILE)
   return () => readArchiveOrNull({ path })
 }
-
-export function driveTranscriptArchiveFetcher(args: {
-  driveHome: string
-}): FetchTranscriptArchive {
-  const path = join(args.driveHome, BOOTSTRAP_DIRECTORY, TRANSCRIPT_ARCHIVE_FILE)
-  return async () => {
-    try {
-      return (await stat(path)).isFile() ? path : null
-    } catch (error) {
-      if (isMissing(error)) return null
-      throw error
-    }
-  }
-}
-
-export const driveWorkspaceArchivePath = (args: { driveHome: string }): string =>
-  join(args.driveHome, BOOTSTRAP_DIRECTORY, WORKSPACE_ARCHIVE_FILE)
-
-export const driveWorkspaceReceiptPath = (args: { driveHome: string }): string =>
-  join(args.driveHome, BOOTSTRAP_DIRECTORY, WORKSPACE_RECEIPT_FILE)
-
-export const driveWorkspaceExportDirectory = (args: { driveHome: string }): string =>
-  join(args.driveHome, WORKSPACE_EXPORT_DIRECTORY)

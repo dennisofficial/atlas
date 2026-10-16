@@ -101,8 +101,6 @@ const stubArchives = () => {
     writeSandboxArchive: vi.fn(async (a: { threadId: string; archive: Buffer }) => {
       sandboxArchives.set(a.threadId, a.archive)
     }),
-    readSandboxTranscript: vi.fn(async () => null),
-    writeSandboxTranscript: vi.fn(async () => undefined),
     readUserArchive: vi.fn(async () => null),
     writeUserArchive: vi.fn(async () => undefined),
   }

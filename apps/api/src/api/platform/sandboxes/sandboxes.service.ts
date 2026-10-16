@@ -223,20 +223,6 @@ export class SandboxesService {
     return this.archives.readSandboxArchive({ threadId: args.threadId })
   }
 
-  async putTranscriptArchive(args: {
-    userId: string
-    threadId: string
-    archive: Buffer
-  }): Promise<void> {
-    await ownedSandbox({ userId: args.userId, threadId: args.threadId })
-    assertArchiveWithinLimit({ bytes: args.archive.byteLength })
-    await this.archives.writeSandboxTranscript({ threadId: args.threadId, archive: args.archive })
-  }
-
-  getTranscriptArchive(args: { threadId: string }): Promise<Buffer | null> {
-    return this.archives.readSandboxTranscript({ threadId: args.threadId })
-  }
-
   status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
     return this.endpoints.status(args)
   }

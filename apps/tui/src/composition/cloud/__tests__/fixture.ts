@@ -1,7 +1,7 @@
-import { createHash, randomBytes } from 'node:crypto'
-import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, sep } from 'node:path'
+import { join } from 'node:path'
 
 import {
   toRunId,
@@ -12,14 +12,10 @@ import {
 } from '@dltech/atlas-core'
 import type { PendingEntryWire, RosterWire, RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
-  buildSessionArchive,
   EChannelConnection,
   EClientRequest,
   ETurnStatus,
-  extractSessionArchive,
-  parseEventLines,
   RemoteThreadStore,
-  sessionDirectory,
   ThreadStorePort,
   type ChannelConnection,
   type ChannelListener,
@@ -27,7 +23,6 @@ import {
   type ChannelSignal,
   type InterruptAck,
   type ThreadModel,
-  type SessionArchiveFile,
   type ThreadSummary,
   type TurnOutcome,
   type PendingSaid,
@@ -60,14 +55,10 @@ export const CLEAN_WORKSPACE: WorkspaceSpec = {
   remoteUrl: 'git@github.com:comp-ai/atlas.git',
 }
 
-const exportedSessions = new Map<string, SessionArchiveFile>()
-
 export type FakeCloudChannel = CloudChannel & {
   /** What serve does with a send frame: the said lands in the remote log before the turn ends. */
   commitSaid(args: { text: string; images?: readonly SaidImage[] }): void
-  /** Serve untars the lift's upload into its session directory before it answers attach reads. */
-  loadTranscriptArchive(archivePath: string): Promise<void>
-  /** Serve answers attach-time transcript reads only once its boot untar has landed. */
+  /** Serve answers attach-time transcript reads only once its boot has settled. */
   deferUntilBooted(boot: Promise<void>): void
   moveTo(connection: ChannelConnection): void
   /** Re-emits the held connection, for a session that attached before subscribing. */
@@ -181,35 +172,7 @@ export function fakeCloudChannel(
     deferUntilBooted(boot) {
       booted = boot
     },
-    loadTranscriptArchive: (archivePath) => {
-      const untar = (async () => {
-        const scratch = await mkdtemp(join(tmpdir(), 'atlas-fake-serve-'))
-        try {
-        const sessionDir = join(scratch, 'session')
-        await extractSessionArchive({ archivePath, sessionDir })
-        const directory = join(sessionDir, 'threads')
-        const names = await readdir(directory, { recursive: true }).catch(() => [] as string[])
-        for (const name of names) {
-          if (!name.endsWith('.events.jsonl')) continue
-          const threadId = toThreadId(name.slice(0, -'.events.jsonl'.length).split(sep).join('/'))
-          const text = await readFile(join(directory, name), 'utf8')
-          args.log?.seed({
-            threadId,
-            events: parseEventLines({ text, threadId }).events,
-          })
-        }
-          // Serve keeps the extracted directory as the session it serves from, so the descend's
-          // archive read tars that directory back up — not the bytes that arrived.
-          if (args.disk !== undefined) {
-            await args.disk.replaceSessionDir({ threadId: channelThreadId, fromDir: sessionDir })
-          }
-        } finally {
-          await rm(scratch, { recursive: true, force: true }).catch(() => undefined)
-        }
-      })()
-      booted = untar
-      return untar
-    },
+
     subscribe: ({ listener }: { threadId: ThreadId; listener: ChannelListener }) => {
       signalListeners.add(listener)
       return () => {
@@ -266,7 +229,6 @@ export function fakeCloudChannel(
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
-      if (given.op === EClientRequest.ActivateSession) return { activated: true }
       if (given.op === EClientRequest.Rotate) return { type: 'started' }
       if (given.op === EClientRequest.TakeBackPending) {
         const taken = heldTakeBack
@@ -313,11 +275,7 @@ export function fakeCloudChannel(
         })
         return undefined
       }
-      if (
-        given.op === EClientRequest.ReadTranscriptIdentity ||
-        given.op === EClientRequest.ReadSessionArchive
-      ) {
-        // Serve has untarred the staged archive by the time it serves requests.
+      if (given.op === EClientRequest.ReadTranscriptIdentity) {
         await booted
       }
       if (given.op === EClientRequest.ReadTranscriptIdentity) {
@@ -328,16 +286,6 @@ export function fakeCloudChannel(
             ? events
             : events.filter((event) => event.seq <= (params.upTo ?? 0))
         return identityReplyOf(held)
-      }
-      if (given.op === EClientRequest.ReadSessionArchive) {
-        if (args.disk === undefined) return { archive: null }
-        const built = await buildSessionArchive({
-          sessionDir: sessionDirectory({ home: args.disk.home(), sessionId: channelThreadId }),
-        })
-        if (built === undefined) return { archive: null }
-        const path = `/atlas/home/exports/session-${channelThreadId}-${randomBytes(6).toString('hex')}.tar.gz`
-        exportedSessions.set(path, built)
-        return { archive: { path, size: built.size, sha256: built.sha256, threadId: channelThreadId } }
       }
       return { applied: 0 }
     },

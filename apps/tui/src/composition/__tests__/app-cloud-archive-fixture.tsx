@@ -5,8 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EClientRequest } from '@dltech/atlas-harness'
-
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import type { FakeBridge } from '../cloud/__tests__/fixture'
@@ -15,30 +13,6 @@ import type { CloudBridgeFactory } from '../cloud/bridge-factory'
 import { spokenIn, until } from './app-fixture'
 import type { FakeApp } from './fake-app'
 import { FakeSessionDisk } from './fake-session-disk'
-
-export const activatingAs = (args: { bridge: FakeBridge; cwd: string; replies: readonly boolean[] }): EClientRequest[] => {
-  const seen: EClientRequest[] = []
-  let asked = 0
-  const attach = args.bridge.attach
-  args.bridge.attach = (given) => {
-    const attachment = attach(given)
-    const request = attachment.channel.request
-    attachment.channel.request = async (call) => {
-      seen.push(call.op)
-      if (call.op === EClientRequest.ApplyWorkspaceArchive) {
-        return { applied: true, restored: { cwd: args.cwd, repository: args.cwd, trees: [] } }
-      }
-      if (call.op === EClientRequest.ActivateSession) {
-        const reply = args.replies[Math.min(asked, args.replies.length - 1)] ?? true
-        asked += 1
-        return { activated: reply }
-      }
-      return request(call)
-    }
-    return attachment
-  }
-  return seen
-}
 
 export const mountCloud = async (args: {
   app: FakeApp

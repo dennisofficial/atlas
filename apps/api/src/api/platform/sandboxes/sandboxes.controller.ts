@@ -76,19 +76,4 @@ export class SandboxesController {
     })
   }
 
-  @Put(':threadId/transcript')
-  @HttpCode(204)
-  async handlePutTranscript(
-    @Req() request: AuthenticatedRequest,
-    @Param('threadId') threadId: string,
-    @Body() body: unknown,
-    @Headers('content-type') contentType: string | undefined,
-  ): Promise<void> {
-    assertGzipContentType(contentType)
-    await this.sandboxes.putTranscriptArchive({
-      userId: userIdOf(request),
-      threadId,
-      archive: bufferBodyOf(body),
-    })
-  }
 }

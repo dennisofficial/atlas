@@ -129,7 +129,7 @@ describe('currentContextEvents', () => {
 
   it('keeps a session-slot injection under any other key', () => {
     const events = log([
-      loaded({ slot: 'session', key: 'workspace-arrival', content: 'The workspace landed.' }),
+      loaded({ slot: 'session', key: 'workspace-note', content: 'The workspace landed.' }),
     ])
 
     expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1'])

@@ -8,7 +8,6 @@ import {
 } from '@dltech/atlas-core'
 import {
   KILL_SETTLE_MS,
-  recordWorkspaceArrival,
   STOP_SETTLE_MS,
   type ServiceRegistryPort,
   type ShellRegistryPort,
@@ -99,7 +98,7 @@ export function workspaceHooksFor(args: {
   log: EventLogPort
   threads: ThreadStorePort
   ids: IdPort
-}): Pick<ServeApp, 'stopWorkspaceProcesses' | 'recordWorkspaceArrival'> & {
+}): Pick<ServeApp, 'stopWorkspaceProcesses'> & {
   endFamilyShells: () => Promise<void>
 } {
   return {
@@ -116,13 +115,5 @@ export function workspaceHooksFor(args: {
       log: args.log,
       ids: args.ids,
     }),
-    recordWorkspaceArrival: (arrival) =>
-      recordWorkspaceArrival({
-        threadId: args.threadId,
-        ...arrival,
-        log: args.log,
-        threads: args.threads,
-        ids: args.ids,
-      }),
   }
 }

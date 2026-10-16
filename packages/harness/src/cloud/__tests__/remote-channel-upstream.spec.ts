@@ -238,35 +238,34 @@ describe('a request riding the session socket', () => {
       expect(timeouts[0]?.delayMs).toBe(10_000)
     })
 
-    it('gives file archives ten minutes and identity reads two minutes', () => {
+    it('gives identity reads two minutes', () => {
       const { channel, timeouts } = readied()
 
-      void channel.request({ op: EClientRequest.ReadSessionArchive, params: {} }).catch(() => undefined)
       void channel
         .request({ op: EClientRequest.ReadTranscriptIdentity, params: {} })
         .catch(() => undefined)
 
-      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([600_000, 120_000])
+      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([120_000])
     })
 
     it('lets an explicit requestTimeoutMs override the per-op default', () => {
       const { channel, timeouts } = readied({ requestTimeoutMs: 2_500 })
 
-      void channel.request({ op: EClientRequest.ReadSessionArchive, params: {} }).catch(() => undefined)
       void channel.request({ op: EClientRequest.ReadEvents, params: {} }).catch(() => undefined)
+      void channel.request({ op: EClientRequest.ReadThread, params: {} }).catch(() => undefined)
 
       expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([2_500, 2_500])
     })
 
-    it('fails closed when an archive read runs past the budget', async () => {
+    it('fails closed when a read runs past the budget', async () => {
       const { channel, timeouts } = readied()
 
-      const answer = channel.request({ op: EClientRequest.ReadSessionArchive, params: {} })
+      const answer = channel.request({ op: EClientRequest.ReadTranscriptIdentity, params: {} })
       timeouts[0]?.run()
 
       const failure = await answer.catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(RemoteRequestLost)
-      expect((failure as RemoteRequestLost).message).toContain('600000ms')
+      expect((failure as RemoteRequestLost).message).toContain('120000ms')
     })
   })
 
@@ -362,9 +361,9 @@ describe('a request riding the session socket', () => {
     })
   })
 
-  it('never re-drives a session export after a drop, since another build would leave an orphan generation', async () => {
+  it('never re-drives a non-idempotent request after a drop', async () => {
     const { channel, drop, retries, receive, live } = readied()
-    const answer = channel.request({ op: EClientRequest.ReadSessionArchive, params: {} })
+    const answer = channel.request({ op: EClientRequest.CompactHistory, params: {} })
     const failed = answer.catch((error: unknown) => error)
     drop()
     expect(await failed).toBeInstanceOf(RemoteRequestLost)
@@ -383,28 +382,7 @@ describe('a request riding the session socket', () => {
     await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
   })
 
-  describe('an apply or identity request in flight when the socket closes', () => {
-    it('re-drives the apply on the next ready with the same id and op', async () => {
-      const { channel, drop, retries, receive, live } = readied()
-
-      const answer = channel.request({ op: EClientRequest.ApplyWorkspaceArchive, params: {} })
-      const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
-      drop()
-
-      retries[0]?.run()
-      live().handlers.handleOpen()
-      receive({ kind: EServeFrame.Ready, seq: 9 })
-
-      const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
-      expect(resent).toHaveLength(1)
-      expect(resent[0]).toMatchObject({ op: EClientRequest.ApplyWorkspaceArchive, params: {} })
-      const id = resent[0]?.kind === EClientFrame.Request ? resent[0].id : ''
-      expect(id).toBe(first?.kind === EClientFrame.Request ? first.id : '')
-
-      receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { applied: true } })
-      expect(await answer).toEqual({ applied: true })
-    })
-
+  describe('an identity request in flight when the socket closes', () => {
     it('re-drives the transcript-identity read on the next ready with the same id and op', async () => {
       const { channel, drop, retries, receive, live } = readied()
 

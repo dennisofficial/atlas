@@ -16,35 +16,26 @@ const requestFor = (threadId: string | undefined): SandboxAuthenticatedRequest =
   }) as unknown as SandboxAuthenticatedRequest
 
 const controllerWith = (
-  readTranscript: (args: { threadId: string }) => Promise<Buffer | null>,
+  readContext: (args: { threadId: string }) => Promise<Buffer | null>,
 ): SandboxContextController =>
   new SandboxContextController({
-    getContextArchive: vi.fn(async () => null),
-    getTranscriptArchive: vi.fn(readTranscript),
+    getContextArchive: vi.fn(readContext),
   } as unknown as SandboxesService)
 
-describe('SandboxContextController transcript', () => {
-  it('streams the stored transcript archive', async () => {
+describe('SandboxContextController context', () => {
+  it('streams the stored context archive', async () => {
     const archive = Buffer.from('tar-bytes')
     const controller = controllerWith(async () => archive)
 
-    const result = await controller.handleGetTranscript(requestFor(THREAD))
+    const result = await controller.handleGetContext(requestFor(THREAD))
 
     expect(result).toBeInstanceOf(StreamableFile)
   })
 
-  it('404s when no transcript archive has landed', async () => {
+  it('404s when no context archive has landed', async () => {
     const controller = controllerWith(async () => null)
 
-    await expect(controller.handleGetTranscript(requestFor(THREAD))).rejects.toBeInstanceOf(
-      NotFoundException,
-    )
-  })
-
-  it('404s when the stored transcript archive is empty', async () => {
-    const controller = controllerWith(async () => Buffer.alloc(0))
-
-    await expect(controller.handleGetTranscript(requestFor(THREAD))).rejects.toBeInstanceOf(
+    await expect(controller.handleGetContext(requestFor(THREAD))).rejects.toBeInstanceOf(
       NotFoundException,
     )
   })
@@ -52,7 +43,7 @@ describe('SandboxContextController transcript', () => {
   it('404s when the request carries no resolved sandbox', async () => {
     const controller = controllerWith(async () => Buffer.from('tar-bytes'))
 
-    await expect(controller.handleGetTranscript(requestFor(undefined))).rejects.toBeInstanceOf(
+    await expect(controller.handleGetContext(requestFor(undefined))).rejects.toBeInstanceOf(
       NotFoundException,
     )
   })

@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
   driveContextArchiveFetcher,
-  driveTranscriptArchiveFetcher,
   driveWorkspaceSpecFetcher,
 } from '../drive-bootstrap'
 
@@ -95,18 +94,5 @@ describe('the archives the laptop left on the drive', () => {
     const driveHome = freshDriveHome()
 
     await expect(driveContextArchiveFetcher({ driveHome })()).resolves.toBeNull()
-  })
-
-  it('answers the transcript archive path, never its bytes, when the file is there', async () => {
-    const driveHome = freshDriveHome()
-    const path = await writeBootstrap({ driveHome, name: 'transcript.tar.gz', content: new Uint8Array([9, 8, 7]) })
-
-    await expect(driveTranscriptArchiveFetcher({ driveHome })()).resolves.toBe(path)
-  })
-
-  it('answers null when there is no transcript archive on the drive', async () => {
-    const driveHome = freshDriveHome()
-
-    await expect(driveTranscriptArchiveFetcher({ driveHome })()).resolves.toBeNull()
   })
 })

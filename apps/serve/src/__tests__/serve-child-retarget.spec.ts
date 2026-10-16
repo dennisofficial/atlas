@@ -1,16 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import {
   buildHarness,
-  buildSessionArchive,
-  extractSessionArchive,
   EClientRequest,
   scriptedModel,
-  sessionDirectory,
 } from '@dltech/atlas-harness'
 
 import { ORIGINAL, PICKED, openChildModelServe } from './child-model-fixture'
@@ -58,32 +51,6 @@ describe('operator child model retarget over the cloud channel', () => {
       expect(fixture.selected).toEqual([])
     } finally {
       await reopened.close()
-    }
-  })
-
-  it('keeps the retargeted pair through a session archive relocation', async () => {
-    const fixture = await start()
-    const remote = await fixture.connect()
-    await remote.threads.chooseModel({ threadId: fixture.child.id, model: PICKED, retarget: true })
-    const archive = await buildSessionArchive({
-      sessionDir: sessionDirectory({ home: fixture.home, sessionId: fixture.root.id }),
-    })
-    if (archive === undefined) throw new Error('the retargeted session had no archive')
-    const home = await mkdtemp(join(tmpdir(), 'atlas-retarget-relocated-'))
-    try {
-      await extractSessionArchive({
-        archivePath: archive.path,
-        sessionDir: sessionDirectory({ home, sessionId: fixture.root.id }),
-      })
-      const relocated = await buildHarness({ home, model: scriptedModel({ script: [] }) })
-      try {
-        expect((await relocated.threads.find({ threadId: fixture.child.id }))?.model).toEqual(PICKED)
-        expect((await relocated.threads.find({ threadId: fixture.root.id }))?.model).toEqual(ORIGINAL)
-      } finally {
-        await relocated.close()
-      }
-    } finally {
-      await rm(home, { recursive: true, force: true })
     }
   })
 
