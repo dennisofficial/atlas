@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { bindRuntimeCheckpoint } from '../runtime-checkpoint-binding'
 
-const checkpoint = (args: { phase: ERuntimePhase; revision: number }): RuntimeCheckpoint => ({
-  threadId: 'thread', runtimeId: 'runtime', sandboxSessionId: 'session',
-  revision: args.revision, phase: args.phase, reportedAt: '2026-10-01T00:00:00.000Z',
-  transcript: { head: args.revision, count: args.revision, digest: 'a'.repeat(64) },
-})
+const checkpoint = (args: { phase: ERuntimePhase; revision: number }): RuntimeCheckpoint =>
+  runtimeCheckpointSchema.parse({
+    threadId: 'thread', runtimeId: 'runtime', sandboxSessionId: 'session',
+    revision: args.revision, phase: args.phase, reportedAt: '2026-10-01T00:00:00.000Z',
+    transcript: { head: args.revision, count: args.revision, digest: 'a'.repeat(64) },
+  })
 
 const gate = () => {
   let open = (): void => undefined
@@ -44,7 +45,7 @@ describe('serve checkpoint lifecycle binding', () => {
     binding.running()
     held.open()
     await parking
-    expect(phases).toEqual([ERuntimePhase.Running, ERuntimePhase.Running, ERuntimePhase.Parked])
+    expect(phases).toEqual([ERuntimePhase.Serving, ERuntimePhase.Serving, ERuntimePhase.Parked])
     expect(published.map((value) => value.revision)).toEqual([1, 2, 3])
     expect(binding.current()?.phase).toBe(ERuntimePhase.Parked)
     binding.running()
@@ -75,19 +76,45 @@ describe('serve checkpoint lifecycle binding', () => {
       log: () => undefined,
       publish: () => undefined,
       capture: {
-        capture: async ({ phase }) => {
+        capture: async ({ phase, resume }) => {
           revision += 1
           phases.push(phase)
+          if (phase === ERuntimePhase.Updating) {
+            if (resume === undefined) throw new Error('the updating seal must carry its resume payload')
+            const base = {
+              threadId: 'thread', runtimeId: 'runtime', sandboxSessionId: 'session',
+              revision, phase: ERuntimePhase.Updating as const,
+              reportedAt: '2026-10-01T00:00:00.000Z',
+              transcript: { head: revision, count: revision, digest: 'a'.repeat(64) },
+            }
+            const checkpoint = {
+              ...base,
+              receipt: {
+                version: 1 as const,
+                threadId: base.threadId,
+                sandboxSessionId: base.sandboxSessionId,
+                resumeParent: resume.parent,
+                ...(resume.children === undefined ? {} : { resumeChildren: [...resume.children] }),
+                checkpoint: base,
+              },
+            }
+            return runtimeCheckpointSchema.parse(checkpoint)
+          }
           return checkpoint({ phase, revision })
         },
         flush: async () => { flushed += 1 },
       },
     })
     await binding.boot()
-    await binding.finalizeRotation()
+    await binding.finalizeRotation({ resume: { parent: true } })
     binding.running()
-    expect(phases).toEqual([ERuntimePhase.Running, ERuntimePhase.Rotating])
-    expect(binding.current()?.phase).toBe(ERuntimePhase.Rotating)
+    expect(phases).toEqual([ERuntimePhase.Serving, ERuntimePhase.Updating])
+    const sealed = binding.current()
+    expect(sealed?.phase).toBe(ERuntimePhase.Updating)
+    if (sealed?.phase === ERuntimePhase.Updating) {
+      expect(sealed.receipt.checkpoint.revision).toBe(sealed.revision)
+      expect(sealed.receipt.resumeParent).toBe(true)
+    }
     expect(flushed).toBe(1)
   })
 
@@ -97,6 +124,6 @@ describe('serve checkpoint lifecycle binding', () => {
       publish: () => undefined,
       capture: { capture: async () => null, flush: async () => undefined },
     })
-    await expect(binding.finalizeRotation()).rejects.toThrow('no final rotation checkpoint')
+    await expect(binding.finalizeRotation({ resume: { parent: true } })).rejects.toThrow('no final rotation checkpoint')
   })
 })

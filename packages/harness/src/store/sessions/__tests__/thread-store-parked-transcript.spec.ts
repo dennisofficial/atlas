@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { ParkedTranscriptRecord } from '../../../cloud/transcript-freshness'
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
@@ -34,16 +34,17 @@ function openStore({ home }: { home: string }): JsonlThreadStore {
   return new JsonlThreadStore(home, registry, clock, ids, log)
 }
 
-const checkpoint = (overrides: Partial<RuntimeCheckpoint> = {}): RuntimeCheckpoint => ({
-  threadId: 'spec-1',
-  runtimeId: 'runtime-1',
-  sandboxSessionId: 'session-a',
-  revision: 3,
-  phase: ERuntimePhase.Parked,
-  reportedAt: '2026-10-01T00:00:00.000Z',
-  transcript: { head: 42, count: 42, digest: 'a'.repeat(64) },
-  ...overrides,
-})
+const checkpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
+  runtimeCheckpointSchema.parse({
+    threadId: 'spec-1',
+    runtimeId: 'runtime-1',
+    sandboxSessionId: 'session-a',
+    revision: 3,
+    phase: ERuntimePhase.Parked,
+    reportedAt: '2026-10-01T00:00:00.000Z',
+    transcript: { head: 42, count: 42, digest: 'a'.repeat(64) },
+    ...overrides,
+  })
 
 const record = (): ParkedTranscriptRecord => ({
   checkpoint: checkpoint(),

@@ -18,6 +18,7 @@ import {
   sandboxRequest,
   sandboxRow,
   storedInRow,
+  validCheckpoint,
   storedRow,
   THREAD,
 } from '../../../../test/sandbox-checkpoint-fixture'
@@ -126,7 +127,7 @@ describe('SandboxCheckpointController reports', () => {
     const result = await controller.handlePutCheckpoint(
       sandboxRequest({}),
       THREAD,
-      checkpoint({ revision: 3, phase: ERuntimePhase.Running }),
+      checkpoint({ revision: 3, phase: ERuntimePhase.Serving }),
     )
 
     expect(result).toEqual({ checkpoint: parked })
@@ -158,7 +159,7 @@ describe('SandboxCheckpointController reports', () => {
     const result = await controller.handlePutCheckpoint(
       sandboxRequest({}),
       THREAD,
-      checkpoint({ revision: 3, phase: ERuntimePhase.Running }),
+      checkpoint({ revision: 3, phase: ERuntimePhase.Serving }),
     )
 
     expect(result).toEqual({ checkpoint: parked })
@@ -204,5 +205,58 @@ describe('SandboxCheckpointController reports', () => {
     )
 
     expect(fake.cloudSandboxes[0]?.state).toBe('running')
+  })
+
+  it('round-trips an updating checkpoint carrying its rotation receipt through the fence', async () => {
+    fake.cloudSandboxes.push(storedRow(checkpoint({ revision: 3 })))
+    const controller = new SandboxCheckpointController()
+    const base = {
+      threadId: THREAD,
+      runtimeId: 'runtime-abc',
+      sandboxSessionId: 'sandbox-session-xyz',
+      revision: 4,
+      reportedAt: '2026-10-01T12:00:00.000Z',
+      transcript: { head: 42, count: 41, digest: 'c'.repeat(64) },
+      phase: ERuntimePhase.Updating as const,
+    }
+    const updating = validCheckpoint({
+      ...base,
+      receipt: {
+        version: 1,
+        threadId: base.threadId,
+        sandboxSessionId: base.sandboxSessionId,
+        resumeParent: true,
+        checkpoint: base,
+      },
+    })
+
+    const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, updating)
+
+    expect(result).toEqual({ checkpoint: updating })
+    expect(storedInRow()).toEqual(updating)
+  })
+
+  it('rejects an updating checkpoint without its receipt', async () => {
+    fake.cloudSandboxes.push(storedRow(checkpoint({ revision: 3 })))
+    const controller = new SandboxCheckpointController()
+
+    await expect(
+      controller.handlePutCheckpoint(sandboxRequest({}), THREAD, {
+        ...checkpoint({ revision: 4 }),
+        phase: ERuntimePhase.Updating,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+  })
+
+  it('rejects a checkpoint still carrying a retired phase value', async () => {
+    fake.cloudSandboxes.push(storedRow(checkpoint({ revision: 3 })))
+    const controller = new SandboxCheckpointController()
+
+    await expect(
+      controller.handlePutCheckpoint(sandboxRequest({}), THREAD, {
+        ...checkpoint({ revision: 4 }),
+        phase: 'rotating',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException)
   })
 })

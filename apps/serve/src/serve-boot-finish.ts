@@ -1,4 +1,5 @@
 import { EServeFrame, createSessionContextReader, sessionDirectory, type ServeFrame, type StepId } from '@dltech/atlas-harness'
+import { admissionClosedFor } from '@dltech/atlas-wire'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
@@ -48,7 +49,6 @@ export async function finishServeBoot(args: {
   const { server, port } = boot
   const fetchFn = serveArgs.fetchFn ?? fetch
   const recovery = await createServeRotationRecovery({ atlasHome: driveHome, threadId, sandboxSessionId, log })
-  const admission = { closed: false }
   const { workspace, activeCwd, spec, context } = await bootServeFiles({
     env,
     threadId,
@@ -75,7 +75,11 @@ export async function finishServeBoot(args: {
     notice,
   })
 
-  await recovery.guard({ app, admission })
+  const admissionClosed = (): boolean => {
+    if (recovery.admissionLatched) return true
+    const current = checkpoint.current()
+    return current !== null && admissionClosedFor(current.phase)
+  }
 
   const buffer = createFrameBuffer({ capacity: serveArgs.bufferSize ?? DEFAULT_FRAME_BUFFER })
   const settling = { count: 0 }, noop = (): void => undefined
@@ -115,6 +119,7 @@ export async function finishServeBoot(args: {
     publish: (current) => broadcast({ kind: EServeFrame.Checkpoint, checkpoint: current }),
   })
   captureRunning = recovery.checkpointAllowed ? checkpoint.running : noop
+  await recovery.guard({ app, checkpoint })
 
   const emitLifecycle = (frame: LifecycleFrame): void => {
     recovery.consume(frame)
@@ -127,7 +132,7 @@ export async function finishServeBoot(args: {
     if (frame.kind === EServeFrame.TurnEnded) mirrorRevision.bump()
   }
 
-  const driver = createServeDriver({ app, threadId, workspace, admission, log, idleStop: () => idleStop, emitLifecycle })
+  const driver = createServeDriver({ app, threadId, workspace, admissionClosed, log, idleStop: () => idleStop, emitLifecycle })
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({
     app,
@@ -148,7 +153,7 @@ export async function finishServeBoot(args: {
     driver,
     files: app.files,
     context: contextReader,
-    admissionClosed: () => admission.closed,
+    admissionClosed,
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),
     refusal: () => workspaceRefusalOf(workspace) ?? null,
@@ -214,7 +219,6 @@ export async function finishServeBoot(args: {
     threadId,
     atlasHome: driveHome,
     sandboxSessionId,
-    admission,
     haltIdle: () => idleStop.halt(),
     whenMutationsSettled: async () => { await session.whenStarted(); await handlers.whenSettled() },
     checkpoint,
@@ -226,7 +230,7 @@ export async function finishServeBoot(args: {
   boot.complete({
     handlers,
     drain: (given) => recovery.drain({ drain, ...given }),
-    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable, admissionClosed: () => admission.closed },
+    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable, admissionClosed },
   })
 
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
@@ -238,7 +242,7 @@ export async function finishServeBoot(args: {
     server,
     bridge,
     threadId,
-    admission,
+    checkpoint,
     log,
     work,
     haltIdle: () => idleStop.halt(),
@@ -252,7 +256,6 @@ export async function finishServeBoot(args: {
     },
     stopSandbox: serveArgs.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }),
     exit,
-    finalizePark: checkpoint.finalizePark,
   })
 
   idleStop = recovery.checkpointAllowed ? startServeIdleStop({

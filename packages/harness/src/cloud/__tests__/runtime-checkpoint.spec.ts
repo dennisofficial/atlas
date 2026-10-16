@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import {
   acceptsRuntimeCheckpoint,
@@ -25,16 +25,17 @@ afterEach(() => {
   for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true })
 })
 
-const checkpoint = (overrides: Partial<RuntimeCheckpoint> = {}): RuntimeCheckpoint => ({
-  threadId: 'thread-1',
-  runtimeId: 'runtime-1',
-  sandboxSessionId: 'sandbox-session-1',
-  revision: 1,
-  phase: ERuntimePhase.Running,
-  reportedAt: '2026-10-01T12:00:00.000Z',
-  transcript: { head: 3, count: 3, digest: 'a'.repeat(64) },
-  ...overrides,
-})
+const checkpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
+  runtimeCheckpointSchema.parse({
+    threadId: 'thread-1',
+    runtimeId: 'runtime-1',
+    sandboxSessionId: 'sandbox-session-1',
+    revision: 1,
+    phase: ERuntimePhase.Serving,
+    reportedAt: '2026-10-01T12:00:00.000Z',
+    transcript: { head: 3, count: 3, digest: 'a'.repeat(64) },
+    ...overrides,
+  })
 
 describe('runtimeCheckpointFile', () => {
   it('lives under the operational directory, never the event log', () => {
@@ -70,7 +71,7 @@ describe('readPersistedRuntimeCheckpoint', () => {
     const home = scratchHome()
     const file = runtimeCheckpointFile({ atlasHome: home })
     await persistRuntimeCheckpoint({ file, checkpoint: checkpoint() })
-    writeFileSync(file, `${JSON.stringify(checkpoint({ revision: 0 }))}\n`)
+    writeFileSync(file, `${JSON.stringify({ ...checkpoint(), revision: 0 })}\n`)
     await expect(readPersistedRuntimeCheckpoint({ file })).resolves.toBeNull()
   })
 })
@@ -87,10 +88,14 @@ describe('persistRuntimeCheckpoint', () => {
     await persistRuntimeCheckpoint({ file, checkpoint: checkpoint({ revision: 7 }) })
     await persistRuntimeCheckpoint({
       file,
-      checkpoint: checkpoint({ revision: 8, phase: ERuntimePhase.Parked }),
+      checkpoint: checkpoint({ revision: 8, phase: ERuntimePhase.Parking }),
+    })
+    await persistRuntimeCheckpoint({
+      file,
+      checkpoint: checkpoint({ revision: 9, phase: ERuntimePhase.Parked }),
     })
     const persisted = await readPersistedRuntimeCheckpoint({ file })
-    expect(persisted?.revision).toBe(8)
+    expect(persisted?.revision).toBe(9)
     expect(persisted?.phase).toBe(ERuntimePhase.Parked)
   })
 
@@ -105,16 +110,67 @@ describe('persistRuntimeCheckpoint', () => {
 
   it('accepts an exact same-revision duplicate but refuses a changed one', async () => {
     const file = runtimeCheckpointFile({ atlasHome: scratchHome() })
-    const stored = checkpoint({ revision: 9, phase: ERuntimePhase.Parked })
+    const stored = checkpoint({ revision: 9, phase: ERuntimePhase.Serving })
     await persistRuntimeCheckpoint({ file, checkpoint: stored })
     await persistRuntimeCheckpoint({ file, checkpoint: stored })
     await expect(
       persistRuntimeCheckpoint({
         file,
-        checkpoint: checkpoint({ revision: 9, phase: ERuntimePhase.Running }),
+        checkpoint: checkpoint({ revision: 9, phase: ERuntimePhase.Waking }),
       }),
     ).rejects.toThrow(/already taken/)
+    expect((await readPersistedRuntimeCheckpoint({ file }))?.phase).toBe(ERuntimePhase.Serving)
+  })
+
+  it('refuses a phase transition the table does not allow', async () => {
+    const file = runtimeCheckpointFile({ atlasHome: scratchHome() })
+    await persistRuntimeCheckpoint({ file, checkpoint: checkpoint({ revision: 1 }) })
+    await expect(
+      persistRuntimeCheckpoint({
+        file,
+        checkpoint: checkpoint({ revision: 2, phase: ERuntimePhase.Waking }),
+      }),
+    ).rejects.toThrow(/serving -> waking/)
+    expect((await readPersistedRuntimeCheckpoint({ file }))?.phase).toBe(ERuntimePhase.Serving)
+  })
+
+  it('persists a legal chain of transitions in order', async () => {
+    const file = runtimeCheckpointFile({ atlasHome: scratchHome() })
+    const chain: ERuntimePhase[] = [
+      ERuntimePhase.Serving,
+      ERuntimePhase.Parking,
+      ERuntimePhase.Parked,
+    ]
+    for (const [index, phase] of chain.entries()) {
+      await persistRuntimeCheckpoint({ file, checkpoint: checkpoint({ revision: index + 1, phase }) })
+    }
     expect((await readPersistedRuntimeCheckpoint({ file }))?.phase).toBe(ERuntimePhase.Parked)
+  })
+
+  it('repeats the current phase on a cadence capture', async () => {
+    const file = runtimeCheckpointFile({ atlasHome: scratchHome() })
+    await persistRuntimeCheckpoint({ file, checkpoint: checkpoint({ revision: 1 }) })
+    await persistRuntimeCheckpoint({ file, checkpoint: checkpoint({ revision: 2 }) })
+    expect((await readPersistedRuntimeCheckpoint({ file }))?.revision).toBe(2)
+  })
+
+  it('lets a new runtime resume a parked snapshot, but never the parked runtime itself', async () => {
+    const file = runtimeCheckpointFile({ atlasHome: scratchHome() })
+    await persistRuntimeCheckpoint({
+      file,
+      checkpoint: checkpoint({ revision: 1, phase: ERuntimePhase.Parked, runtimeId: 'old-runtime' }),
+    })
+    await expect(
+      persistRuntimeCheckpoint({
+        file,
+        checkpoint: checkpoint({ revision: 2, phase: ERuntimePhase.Serving, runtimeId: 'old-runtime' }),
+      }),
+    ).rejects.toThrow(/parked -> serving/)
+    await persistRuntimeCheckpoint({
+      file,
+      checkpoint: checkpoint({ revision: 2, phase: ERuntimePhase.Serving, runtimeId: 'new-runtime' }),
+    })
+    expect((await readPersistedRuntimeCheckpoint({ file }))?.runtimeId).toBe('new-runtime')
   })
 
   it('refuses to seed a fresh revision over an unreadable file', async () => {
@@ -130,7 +186,7 @@ describe('persistRuntimeCheckpoint', () => {
 
 describe('acceptsRuntimeCheckpoint', () => {
   it('accepts strictly newer revisions only: older, equal, and altered-equal all drop', () => {
-    const stored = checkpoint({ revision: 4, phase: ERuntimePhase.Parked })
+    const stored = checkpoint({ revision: 4, phase: ERuntimePhase.Serving })
     expect(acceptsRuntimeCheckpoint({ stored: null, reported: checkpoint() })).toBe(true)
     expect(
       acceptsRuntimeCheckpoint({ stored, reported: checkpoint({ revision: 5 }) }),
@@ -142,7 +198,7 @@ describe('acceptsRuntimeCheckpoint', () => {
     expect(
       acceptsRuntimeCheckpoint({
         stored,
-        reported: checkpoint({ revision: 4, phase: ERuntimePhase.Running }),
+        reported: checkpoint({ revision: 4, phase: ERuntimePhase.Serving }),
       }),
     ).toBe(false)
   })

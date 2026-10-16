@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toCallId, toRunId } from '@dltech/atlas-core'
+import { ERuntimePhase, runtimeCheckpointSchema } from '@dltech/atlas-wire'
 import { EServeFrame, ETurnStatus, persistSandboxRotationIntent, persistSandboxRotationReceipt, readSandboxRotationState } from '@dltech/atlas-harness'
 
 import { EWorkspaceState } from '../materialize-workspace'
@@ -56,17 +57,31 @@ describe('rotation continuation durability', () => {
     })
     const resume = app.runner.resume
     app.runner.resume = (args) => { order.push('resume'); return resume(args) }
-    const admission = { closed: false }
     const recovery = await createServeRotationRecovery({
       atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: quietLog,
     })
-    await recovery.guard({ app, admission })
+    let opened = false
+    await recovery.guard({
+      app,
+      checkpoint: {
+        current: () =>
+          opened
+            ? runtimeCheckpointSchema.parse({
+                threadId: String(threadId), runtimeId: 'runtime-1',
+                sandboxSessionId: replacementSession, revision: 2,
+                phase: ERuntimePhase.Serving, reportedAt: '2026-10-01T00:00:00.000Z',
+                transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
+              })
+            : null,
+        parkReopened: async () => { opened = true },
+      },
+    })
     const session = createServeWorkspaceSession({
       threadId, app,
       deferStartChildren: true, log: quietLog, settling: { count: 0 }, note: quietLog,
     })
     const driver = createServeDriver({
-      app, threadId, admission, workspace: { state: EWorkspaceState.Skipped },
+      app, threadId, admissionClosed: () => recovery.admissionLatched, workspace: { state: EWorkspaceState.Skipped },
       log: quietLog, idleStop: () => ({ note: quietLog }), emitLifecycle: recovery.consume,
     })
     const detach = app.intake === undefined ? quietLog : driver.attach(app.intake)

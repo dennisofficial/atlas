@@ -67,6 +67,36 @@ const rig = () => {
 }
 
 describe('hello admission', () => {
+  it('closes the mutation gate from the lifecycle record, not a flag', async () => {
+    const { handlers, socket, hello, sent } = rig()
+    await hello({ threadId: served })
+    let closed = false
+    const gated = createSessionHandlers({
+      threadId: served,
+      buffer: createFrameBuffer({ capacity: 16 }),
+      inFlight: () => [],
+      liveStepId: () => null,
+      driver,
+      files: { list: async () => [] },
+      refusal: () => null,
+      log: () => undefined,
+      admissionClosed: () => closed,
+    })
+    const gatedSent: string[] = []
+    const gatedSocket = {
+      data: { helloed: true, alias: null, greeting: 0, greeted: true, held: [], bootHeld: [] },
+      send: (payload: string) => void gatedSent.push(payload),
+      close: () => undefined,
+      terminate: () => undefined,
+    } as unknown as SessionSocket
+    gated.open({ socket: gatedSocket })
+    gated.message({ socket: gatedSocket, message: encodeFrame({ kind: EClientFrame.Run, resume: true }) })
+    closed = true
+    gated.message({ socket: gatedSocket, message: encodeFrame({ kind: EClientFrame.Run, resume: true }) })
+    await Bun.sleep(0)
+    expect(gatedSent.join()).toContain('parking and accepts no new work')
+  })
+
   it('admits the served thread', async () => {
     const { hello, kinds } = rig()
     await hello({ threadId: served })

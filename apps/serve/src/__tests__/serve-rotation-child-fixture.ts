@@ -42,10 +42,11 @@ export async function rotationChildFixture() {
   const checkpoint = await createRuntimeCheckpointCapture({
     threadId, atlasHome: fixture.home, env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
     token, transcript: harness.log, log: () => undefined,
-  }).capture({ phase: ERuntimePhase.Rotating })
-  if (checkpoint === null) throw new Error('the child fixture requires a rotation checkpoint')
-  const receipt = { ...fixture.receipt, checkpoint, resumeParent: false, resumeChildren: [childId] }
-  await persistSandboxRotationReceipt({ atlasHome: fixture.home, receipt })
+  }).capture({ phase: ERuntimePhase.Updating, resume: { parent: false, children: [childId] } })
+  if (checkpoint === null || checkpoint.phase !== ERuntimePhase.Updating) {
+    throw new Error('the child fixture requires a rotation checkpoint')
+  }
+  await persistSandboxRotationReceipt({ atlasHome: fixture.home, receipt: checkpoint.receipt })
   await harness.close()
   const boot = async (modelGate = gate()) => {
     let steps = 0
@@ -84,5 +85,5 @@ export async function rotationChildFixture() {
     const started = await fixture.boot({ configure })
     return { ...started, modelGate, steps: () => steps, supervisor: () => supervisor }
   }
-  return { ...fixture, receipt, boot }
+  return { ...fixture, receipt: checkpoint.receipt, boot }
 }

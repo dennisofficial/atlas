@@ -3,7 +3,7 @@ import type { ExecutionContext, INestApplication } from '@nestjs/common'
 import { UnauthorizedException, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
@@ -53,19 +53,19 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     phase?: ERuntimePhase
     digest?: string
   }): RuntimeCheckpoint {
-    return {
+    return runtimeCheckpointSchema.parse({
       threadId: fixture.threadId,
       runtimeId: `runtime-${runId}`,
       sandboxSessionId: `session-${runId}`,
       revision: args.revision,
-      phase: args.phase ?? ERuntimePhase.Running,
+      phase: args.phase ?? ERuntimePhase.Serving,
       reportedAt: new Date().toISOString(),
       transcript: {
         head: args.revision,
         count: args.revision,
         digest: args.digest ?? args.revision.toString(16).padStart(64, '0'),
       },
-    }
+    })
   }
 
   function put(body: object) {
@@ -187,7 +187,7 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
   it('atomically keeps the highest of 20 concurrent scrambled reports, including its exact digest and phase', async () => {
     const revisions = [11, 4, 18, 1, 15, 8, 3, 19, 6, 13, 2, 17, 10, 5, 20, 7, 16, 9, 14, 12]
     const reports = revisions.map(revision => checkpoint({
-      revision, phase: revision === 20 ? ERuntimePhase.Parked : ERuntimePhase.Running,
+      revision, phase: revision === 20 ? ERuntimePhase.Parked : ERuntimePhase.Serving,
     }))
     await Promise.all(reports.map(report => put(report).expect(200)))
     const highest = reports.find(report => report.revision === 20)

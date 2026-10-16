@@ -18,7 +18,7 @@ import {
   USER_A,
   USER_B,
 } from '../../../../test/sandbox-checkpoint-fixture'
-import { storedCheckpointOf } from './sandbox-checkpoint'
+import { storedCheckpointOf, wakeClaimOf } from './sandbox-checkpoint'
 import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
 
 beforeEach(() => {
@@ -106,10 +106,29 @@ describe('storedCheckpointOf', () => {
     ).toBeNull()
   })
 
-  it('reads a stopped phase as a first-class stored value', () => {
-    const stopped = checkpoint({ phase: ERuntimePhase.Stopped, revision: 9 })
+  it('reads a parked phase as a first-class stored value', () => {
+    const parked = checkpoint({ phase: ERuntimePhase.Parked, revision: 9 })
     expect(
-      storedCheckpointOf({ threadId: THREAD, checkpoint: stopped, revision: 9 }),
-    ).toEqual(stopped)
+      storedCheckpointOf({ threadId: THREAD, checkpoint: parked, revision: 9 }),
+    ).toEqual(parked)
+  })
+
+  it('reads a retired phase value as unparseable rather than serving it', () => {
+    expect(
+      storedCheckpointOf({
+        threadId: THREAD,
+        checkpoint: { ...checkpoint(), phase: 'stopped', revision: 9 },
+        revision: 9,
+      }),
+    ).toBeNull()
+  })
+})
+
+describe('wakeClaimOf', () => {
+  it('reads the API-writable wake claim off a stored record', () => {
+    const claimed = checkpoint({ wakeClaim: 'wake-2026-10-16' })
+    expect(wakeClaimOf(claimed)).toBe('wake-2026-10-16')
+    expect(wakeClaimOf(checkpoint())).toBeNull()
+    expect(wakeClaimOf(null)).toBeNull()
   })
 })

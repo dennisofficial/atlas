@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { ECloudSandboxState } from '../sandbox-client'
 import {
@@ -13,16 +13,17 @@ import {
   transcriptFreshnessOf,
 } from '../transcript-freshness'
 
-const checkpoint = (overrides: Partial<RuntimeCheckpoint> = {}): RuntimeCheckpoint => ({
-  threadId: 'thread-1',
-  runtimeId: 'runtime-1',
-  sandboxSessionId: 'session-a',
-  revision: 3,
-  phase: ERuntimePhase.Parked,
-  reportedAt: '2026-10-01T00:00:00.000Z',
-  transcript: { head: 42, count: 42, digest: 'a'.repeat(64) },
-  ...overrides,
-})
+const checkpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
+  runtimeCheckpointSchema.parse({
+    threadId: 'thread-1',
+    runtimeId: 'runtime-1',
+    sandboxSessionId: 'session-a',
+    revision: 3,
+    phase: ERuntimePhase.Parked,
+    reportedAt: '2026-10-01T00:00:00.000Z',
+    transcript: { head: 42, count: 42, digest: 'a'.repeat(64) },
+    ...overrides,
+  })
 
 const applied = { head: 42, count: 42, digest: 'a'.repeat(64) }
 
@@ -66,8 +67,8 @@ describe('transcriptFreshnessOf', () => {
     ).toBe(ECloudFreshness.Unknown)
   })
 
-  it('reads a running or stopped checkpoint phase as no proof either way', () => {
-    for (const phase of [ERuntimePhase.Running, ERuntimePhase.Stopped]) {
+  it('reads a serving or parking checkpoint phase as no proof either way', () => {
+    for (const phase of [ERuntimePhase.Serving, ERuntimePhase.Parking]) {
       expect(freshness({ checkpoint: checkpoint({ phase }) })).toBe(ECloudFreshness.Unknown)
     }
   })
@@ -113,7 +114,7 @@ describe('parkedResumeOf', () => {
   })
 
   it('reads a checkpoint that is not parked as unknown', () => {
-    for (const phase of [ERuntimePhase.Running, ERuntimePhase.Stopped]) {
+    for (const phase of [ERuntimePhase.Serving, ERuntimePhase.Parking]) {
       expect(
         parkedResumeOf({ record: { checkpoint: checkpoint({ phase }), applied } }),
       ).toBe(EParkedResume.Unknown)

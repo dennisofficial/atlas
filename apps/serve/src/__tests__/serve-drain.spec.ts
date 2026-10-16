@@ -14,7 +14,7 @@ const receipt = (resumeParent: boolean): SandboxRotationReceipt => ({
   version: 1, threadId, sandboxSessionId: 'session-1', resumeParent,
   checkpoint: {
     threadId, sandboxSessionId: 'session-1', runtimeId: 'runtime-1', revision: 1,
-    phase: ERuntimePhase.Rotating, reportedAt: '2026-10-03T00:00:00Z',
+    phase: ERuntimePhase.Updating, reportedAt: '2026-10-03T00:00:00Z',
     transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
   },
 })
@@ -34,6 +34,7 @@ const fixture = (over: {
     },
     closeAdmission: () => { calls.push('close-admission') },
     reopenAdmission: () => { calls.push('reopen-admission') },
+    drainingClosed: () => false,
     beginPreparation: async () => { calls.push('intent') },
     endProcesses: over.endProcesses ?? (async ({ killedBy }) => { calls.push(`endings:${killedBy}`) }),
     flushInput: over.flushInput ?? (async () => { calls.push('input') }),

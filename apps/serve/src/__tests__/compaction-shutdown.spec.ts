@@ -145,7 +145,11 @@ describe('serve lifecycle close ordering', () => {
       app,
       driver,
       threadId: id,
-      admission: { closed: false },
+      checkpoint: {
+        parkBegin: async () => undefined,
+        parkReopened: async () => undefined,
+        finalizePark: async () => undefined,
+      },
       handlers: {
         park: () => undefined,
         hangUp: () => void calls.push('hangup'),

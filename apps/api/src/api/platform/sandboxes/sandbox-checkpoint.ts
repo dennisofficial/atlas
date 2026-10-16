@@ -14,3 +14,7 @@ export function storedCheckpointOf(args: {
   if (parsed.data.threadId !== args.threadId) return null
   return parsed.data
 }
+
+export function wakeClaimOf(checkpoint: RuntimeCheckpoint | null): string | null {
+  return checkpoint?.wakeClaim ?? null
+}

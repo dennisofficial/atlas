@@ -12,6 +12,7 @@ import {
   type CloudSandboxStatus,
   type RuntimeCheckpoint,
 } from '@dltech/atlas-harness'
+import { runtimeCheckpointSchema } from '@dltech/atlas-wire'
 
 import { createCloudSession, type CloudSession } from '../cloud-session'
 import { CLOUD_THREAD, fakeCloudChannel, type FakeCloudChannel } from './fixture'
@@ -56,16 +57,17 @@ const parkedEvent = (args: { seq: number; shellsRunning?: number }): EventOfType
   clientsAttached: 0,
 })
 
-const checkpointOf = (overrides: Partial<RuntimeCheckpoint> = {}): RuntimeCheckpoint => ({
-  threadId: CLOUD_THREAD,
-  runtimeId: 'runtime-1',
-  sandboxSessionId: 'session-a',
-  revision: 2,
-  phase: ERuntimePhase.Parked,
-  reportedAt: '2026-10-01T00:00:00.000Z',
-  transcript: { head: 10, count: 10, digest: 'a'.repeat(64) },
-  ...overrides,
-})
+const checkpointOf = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
+  runtimeCheckpointSchema.parse({
+    threadId: CLOUD_THREAD,
+    runtimeId: 'runtime-1',
+    sandboxSessionId: 'session-a',
+    revision: 2,
+    phase: ERuntimePhase.Parked,
+    reportedAt: '2026-10-01T00:00:00.000Z',
+    transcript: { head: 10, count: 10, digest: 'a'.repeat(64) },
+    ...overrides,
+  })
 
 const sessionOn = (args: {
   channel?: FakeCloudChannel

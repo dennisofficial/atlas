@@ -7,7 +7,7 @@ export const rotationReceipt = (over: Partial<SandboxRotationReceipt> = {}): San
   resumeParent: true,
   checkpoint: {
     threadId: 'brn_cloud', sandboxSessionId: 'session-1', runtimeId: 'runtime-1', revision: 1,
-    phase: ERuntimePhase.Rotating, reportedAt: '2026-10-03T00:00:00Z',
+    phase: ERuntimePhase.Updating, reportedAt: '2026-10-03T00:00:00Z',
     transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
   },
   ...over,

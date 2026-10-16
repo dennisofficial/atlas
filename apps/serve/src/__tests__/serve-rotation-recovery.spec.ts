@@ -53,7 +53,10 @@ describe('serve sandbox rotation recovery without a client', () => {
     await eventually(() => order.includes('guard'))
     expect(first.resumed()).toBe(0)
     expect(first.app.adoptions()).toEqual([])
-    expect(await checkpointAt(fixture.home)).toEqual(fixture.receipt.checkpoint)
+    const storedBefore = await checkpointAt(fixture.home)
+    if (storedBefore?.phase !== ERuntimePhase.Updating) throw new Error('expected the sealed updating record')
+    const { receipt: _embedded, ...recordOnly } = storedBefore
+    expect(recordOnly).toEqual(fixture.receipt.checkpoint)
     guard.release()
     const handle = await first.starting
     await eventually(() => first.resumed() === 1)
@@ -66,7 +69,7 @@ describe('serve sandbox rotation recovery without a client', () => {
     expect(await health.json()).toMatchObject({ rotationPreparationVersion: 1, sandboxSessionId: replacementSession, clients: 0 })
     expect(await owed(fixture.home)).toBe(true)
     const progress = await checkpointAt(fixture.home)
-    expect(progress?.phase).toBe(ERuntimePhase.Running)
+    expect(progress?.phase).toBe(ERuntimePhase.Serving)
     expect(progress?.sandboxSessionId).toBe(replacementSession)
     expect(await readSandboxRotationState({ atlasHome: fixture.home })).toEqual(fixture.receipt)
     model.release()

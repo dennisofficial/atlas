@@ -11,7 +11,7 @@ import {
   type CloudReload,
   type CloudSandboxStatus,
 } from '@dltech/atlas-harness'
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { createCloudSession } from '../cloud-session'
 import { CLOUD_THREAD, fakeCloudChannel } from './fixture'
 
@@ -242,16 +242,17 @@ describe('what the sandbox itself refuses', () => {
 })
 
 describe('the sandbox lifecycle and transcript freshness', () => {
-  const checkpointOf = (overrides: Partial<RuntimeCheckpoint> = {}): RuntimeCheckpoint => ({
-    threadId: CLOUD_THREAD,
-    runtimeId: 'runtime-1',
-    sandboxSessionId: 'session-a',
-    revision: 2,
-    phase: ERuntimePhase.Parked,
-    reportedAt: '2026-10-01T00:00:00.000Z',
-    transcript: { head: 10, count: 10, digest: 'a'.repeat(64) },
-    ...overrides,
-  })
+  const checkpointOf = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
+    runtimeCheckpointSchema.parse({
+      threadId: CLOUD_THREAD,
+      runtimeId: 'runtime-1',
+      sandboxSessionId: 'session-a',
+      revision: 2,
+      phase: ERuntimePhase.Parked,
+      reportedAt: '2026-10-01T00:00:00.000Z',
+      transcript: { head: 10, count: 10, digest: 'a'.repeat(64) },
+      ...overrides,
+    })
 
   const applied = { head: 10, count: 10, digest: 'a'.repeat(64) }
 
@@ -397,7 +398,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
 
     channel.moveTo({ state: EChannelConnection.Open, detail: null })
     channel.pushCheckpoint(
-      checkpointOf({ revision: 3, phase: ERuntimePhase.Running, sandboxSessionId: 'session-b' }),
+      checkpointOf({ revision: 3, phase: ERuntimePhase.Serving, sandboxSessionId: 'session-b' }),
     )
 
     channel.moveTo({ state: EChannelConnection.Parked, detail: null })

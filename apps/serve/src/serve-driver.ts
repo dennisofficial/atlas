@@ -13,7 +13,7 @@ export function createServeDriver(args: {
   app: ServeApp
   threadId: ThreadId
   workspace: WorkspaceReadiness
-  admission: { closed: boolean }
+  admissionClosed: () => boolean
   log: ServeLog
   idleStop: () => Pick<ServeIdleStop, 'note'>
   emitLifecycle: (frame: LifecycleFrame) => void
@@ -23,7 +23,7 @@ export function createServeDriver(args: {
     app,
     threadId: args.threadId,
     refusal: () =>
-      args.admission.closed
+      args.admissionClosed()
         ? PARKING_REFUSAL
         : workspaceRefusalOf(args.workspace),
     onTurnStarted: () => {

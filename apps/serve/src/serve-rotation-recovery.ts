@@ -1,4 +1,5 @@
 import { isResumable, toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { ERuntimePhase } from '@dltech/atlas-wire'
 import {
   EServeFrame,
   ETurnStatus,
@@ -9,6 +10,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import type { LifecycleFrame } from './frame-buffer'
+import type { RuntimeCheckpointBinding } from './runtime-checkpoint-binding'
 import type { ServeApp } from './serve-app'
 import type { ServeDrain } from './serve-drain'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -37,13 +39,15 @@ export async function createServeRotationRecovery(args: {
       args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
     })
     : undefined
-  let guarded: { app: ServeApp; admission: { closed: boolean } } | undefined
+  type GuardedCheckpoint = Pick<RuntimeCheckpointBinding, 'current' | 'parkReopened'>
+  let guarded: { app: ServeApp; checkpoint: GuardedCheckpoint } | undefined
   let continuationStarted = false
   let consumption: Promise<void> | undefined
   let preparingNextRotation = false
   let recovering: Promise<void> | undefined
   let activating: Promise<{ activated: boolean }> | undefined
   let consumedParent = false
+  let admissionLatched = state !== null && !sourceRestart
   let children: Awaited<ReturnType<typeof trackRotationChildren>> | undefined
   const resumeChildren = state?.resumeChildren?.map(toThreadId)
 
@@ -65,14 +69,13 @@ export async function createServeRotationRecovery(args: {
     return writing
   }
 
-  const guard = async (given: { app: ServeApp; admission: { closed: boolean } }): Promise<void> => {
+  const guard = async (given: { app: ServeApp; checkpoint: GuardedCheckpoint }): Promise<void> => {
     guarded = given
     if (state === null) return
     if (sourceRestart) {
       if (sourceConsumption !== undefined) await sourceConsumption
       return
     }
-    given.admission.closed = true
     given.app.intake?.suspend()
     await given.app.family?.freeze?.({ threadId: args.threadId })
     if (children === undefined && (resumeChildren?.length ?? 0) > 0) {
@@ -83,11 +86,21 @@ export async function createServeRotationRecovery(args: {
     }
   }
 
+  const reopenToServing = async (): Promise<void> => {
+    if (guarded === undefined) return
+    if (guarded.checkpoint.current() === null) {
+      await guarded.checkpoint.parkReopened().catch((failure: unknown) => {
+        args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
+      })
+    }
+    if (guarded.checkpoint.current()?.phase === ERuntimePhase.Serving) admissionLatched = false
+  }
+
   const release = async (): Promise<void> => {
     if (guarded === undefined || preparingNextRotation) return
     await guarded.app.family?.resumeChildren?.({ threadId: args.threadId })
     if (preparingNextRotation) return
-    guarded.admission.closed = false
+    await reopenToServing()
     guarded.app.intake?.resume()
   }
 
@@ -95,7 +108,7 @@ export async function createServeRotationRecovery(args: {
     if (guarded === undefined || state === null || preparingNextRotation || !state.resumeParent || continuationStarted) return
     const events = await guarded.app.log.readOwn({ threadId: args.threadId })
     if (preparingNextRotation || !isResumable(events)) return
-    guarded.admission.closed = false
+    await reopenToServing()
     given.driver.run({ resume: true, onlyIfIdle: true })
     continuationStarted = true
   }
@@ -112,6 +125,9 @@ export async function createServeRotationRecovery(args: {
     deferred: state !== null && !sourceRestart,
     resumeChildren: sourceRestart ? undefined : resumeChildren,
     checkpointAllowed: true,
+    get admissionLatched() {
+      return admissionLatched || preparingNextRotation
+    },
     guard,
     recover(given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<void> {
       if (state === null || sourceRestart || preparingNextRotation) return Promise.resolve()
@@ -137,13 +153,11 @@ export async function createServeRotationRecovery(args: {
     async drain(given: { drain: ServeDrain; reason: string }): ReturnType<ServeDrain> {
       preparingNextRotation = true
       if (guarded !== undefined) {
-        guarded.admission.closed = true
         guarded.app.intake?.suspend()
       }
       const releaseFailedDrain = (): void => {
         preparingNextRotation = false
         if (guarded === undefined) return
-        guarded.admission.closed = false
         guarded.app.intake?.resume()
       }
       try {

@@ -33,8 +33,12 @@ it('persists root and finished-child continuation obligations before acknowledgi
       attach: () => () => undefined, holdHistory: () => () => undefined,
       beginRotation: () => ({ pause: () => undefined, waitSettled: async () => null }), holdForRotation: () => () => undefined,
     },
-    admission: { closed: false }, haltIdle: () => undefined, whenMutationsSettled: async () => undefined,
-    checkpoint: { current: () => null, finalizeRotation: async () => { throw new Error('sealing interrupted') } },
+    haltIdle: () => undefined, whenMutationsSettled: async () => undefined,
+    checkpoint: {
+      current: () => null,
+      finalizeRotation: async () => { throw new Error('sealing interrupted') },
+      rotationReopened: async () => undefined,
+    },
     close: async () => { retired = true }, exit: () => { retired = true }, log: () => undefined,
   })
   try {

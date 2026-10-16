@@ -1,21 +1,9 @@
 import { z } from 'zod'
 
-import { ERuntimePhase, runtimeCheckpointSchema } from './runtime-checkpoint.js'
+import { sandboxRotationReceiptSchema } from './runtime-checkpoint.js'
 
-export const sandboxRotationReceiptSchema = z.object({
-  version: z.literal(1),
-  threadId: z.string().min(1),
-  sandboxSessionId: z.string().min(1),
-  resumeParent: z.boolean(),
-  resumeChildren: z.array(z.string().min(1)).optional(),
-  checkpoint: runtimeCheckpointSchema,
-}).refine((receipt) =>
-  receipt.checkpoint.phase === ERuntimePhase.Rotating &&
-  receipt.checkpoint.threadId === receipt.threadId &&
-  receipt.checkpoint.sandboxSessionId === receipt.sandboxSessionId,
-)
-
-export type SandboxRotationReceipt = z.infer<typeof sandboxRotationReceiptSchema>
+export { sandboxRotationReceiptSchema }
+export type { SandboxRotationReceipt } from './runtime-checkpoint.js'
 
 export const sandboxRotationIntentSchema = z.object({
   version: z.literal(1),
