@@ -1,5 +1,6 @@
-import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement, type ThreadId } from '@dltech/atlas-core'
 import {
+  metaWithPlacement,
   newThreadMeta,
   readMetaSync,
   registryFor,
@@ -86,8 +87,12 @@ export async function bootServeFiles(args: {
   const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
   const metaFile = threadMetaFile({ sessionDir, threadId })
   if (readMetaSync({ file: metaFile, schema: threadMetaSchema }) === undefined) {
-    const meta = newThreadMeta({ id: threadId, at: new Date().toISOString() })
-    meta.workspace = cwd
+    const born = newThreadMeta({ id: threadId, at: new Date().toISOString() })
+    born.workspace = cwd
+    const meta = metaWithPlacement({
+      meta: born,
+      record: { placement: { harness: EHarnessPlacement.Cloud }, revision: 0 },
+    })
     await writeMeta({ file: metaFile, meta })
     await writeSessionMetaForRoot({
       registry: registryFor({ home: driveHome }),

@@ -90,7 +90,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       cwd: args.cwd,
       command: SERVE_COMMAND,
       model: args.model,
-      executionLocation: undefined,
+      executionLocation: 'cloud',
       threadId: args.threadId,
     },
     env: args.env,
