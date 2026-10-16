@@ -8,7 +8,7 @@ export enum ELogSeverity {
 
 export type LogEntry = {
   readonly severity: ELogSeverity
-  /** Dot-scoped origin, e.g. `loop.run-turn` or `cloud.lift`. */
+  /** Dot-scoped origin, e.g. `loop.run-turn` or `cloud.birth`. */
   readonly source: string
   readonly message: string
   readonly threadId?: ThreadId | undefined

@@ -39,7 +39,7 @@ const seedCloudThread = async (app: FakeApp): Promise<{ threadId: ThreadId }> =>
     threadId: thread.id,
     location: EExecutionLocation.Cloud,
   })
-  await app.threads.rename({ threadId: thread.id, title: 'the lifted thread' })
+  await app.threads.rename({ threadId: thread.id, title: 'the cloud thread' })
   return { threadId: thread.id }
 }
 
@@ -55,7 +55,7 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       app={args.app}
       opened={await spokenIn(args.app)}
       createBridge={createBridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
     />,
     WIDE,
   )

@@ -20,7 +20,7 @@ export * from './placement-controller-types'
 
 /**
  * The placement substrate. Placement is fixed at creation and never moves afterwards — the move
- * engine (lift/descend, the transaction lifecycle, stranded-move recovery) was deleted under
+ * engine (mid-conversation relocation, the transaction lifecycle, stranded-move recovery) was deleted under
  * GREENFIELD, so what remains is: the durable record's compare-and-swap write discipline, the
  * born-at-creation stamp, the one permitted host↔docker tool-environment rewrite, and the cloud
  * birth's commit handle. Every thread is born-placed; immutability is unconditional.

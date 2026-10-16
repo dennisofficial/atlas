@@ -57,7 +57,7 @@ describe('a cloud conversation opened during an active turn', () => {
     const writes: EventDraft[][] = []
     app.log.append = async ({ drafts }) => {
       writes.push([...drafts])
-      throw new Error('the sandbox owns the transcript while lifted')
+      throw new Error('the sandbox owns the transcript while the session runs there')
     }
     const channel = fakeCloudChannel({
       threadId: THREAD,

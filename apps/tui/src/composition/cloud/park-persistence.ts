@@ -49,7 +49,7 @@ export function createParkPersistence(args: {
   readLog: () => Promise<Parameters<typeof transcriptIdentityDigest>[0]>
   /** Re-registers the sealed applied view so the dim authority reads the tail that parked the session; absent in fakes that never render. */
   seal?: ((snapshot: CloudAppliedSnapshot) => void) | undefined
-  /** A lifted session's mirror: awaited before the swap so the record is written over a file the checkpoint has provably reached. A non-mirrored log has nothing to converge. */
+  /** A cloud session's mirror: awaited before the swap so the record is written over a file the checkpoint has provably reached. A non-mirrored log has nothing to converge. */
   converge?: (() => Promise<void>) | undefined
   refreshApplied?: (() => Promise<void>) | undefined
   appliedWaitMs?: number | undefined

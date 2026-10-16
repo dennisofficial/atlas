@@ -20,7 +20,7 @@ const readPersisted = (file: string): string | undefined => {
 /**
  * The distinct id PostHog sees is a random UUID per Atlas home — never a username, email, or
  * machine name — generated on first capture and stable afterwards. A cloud sandbox boot carries
- * the operator's id in ATLAS_TELEMETRY_IDENTITY so the whole lift reports as the same person
+ * the operator's id in ATLAS_TELEMETRY_IDENTITY so the whole session reports as the same person
  * rather than a fresh user per thread; the value is validated as a UUID before it is trusted.
  */
 export function telemetryDistinctId(args: {

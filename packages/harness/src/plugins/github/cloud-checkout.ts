@@ -1,11 +1,11 @@
-import { liftedWorkspaceOf } from '@dltech/atlas-core'
+import { bornCloudWorkspaceOf } from '@dltech/atlas-core'
 import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
 
 import { defineProjection, type PluginProjection } from '../projection'
 import { checkoutKey, checkoutOf, type RepositoryCheckout } from './pure'
 
 /**
- * The lift event records no default branch, so the sandbox cannot distinguish "standing on the
+ * The birth's location marker records no default branch, so the sandbox cannot distinguish "standing on the
  * default" from "working on a branch named like one" beyond these names — which is exactly the
  * case that makes the noise: a cloud session lands on the repo root's default before entering its
  * worktree.
@@ -21,7 +21,7 @@ const sameCheckout = (
 }
 
 /**
- * The cloud thread's checkout, folded out of the log rather than probed: the lift records
+ * The cloud thread's checkout, folded out of the log rather than probed: the birth records
  * remoteUrl and branch on its `location-changed`, and a host-side probe of a sandbox path can
  * only answer null. The reference is held steady across publishes so a republish of the same log
  * does not re-render the surfaces reading this.
@@ -32,15 +32,15 @@ export function createCloudCheckout(): PluginProjection<RepositoryCheckout | nul
   return defineProjection<RepositoryCheckout | null>({
     id: 'cloud-checkout',
     fold: ({ events }) => {
-      const lifted = liftedWorkspaceOf(events)
+      const born = bornCloudWorkspaceOf(events)
       const next =
-        lifted === null
+        born === null
           ? null
           : checkoutOf({
-              directory: lifted.cwd ?? CLOUD_WORKSPACE_PATH,
-              branch: lifted.branch,
-              remotes: [{ name: 'origin', url: lifted.remoteUrl }],
-              defaultBranch: CLOUD_DEFAULT_BRANCHES.has(lifted.branch) ? lifted.branch : null,
+              directory: born.cwd ?? CLOUD_WORKSPACE_PATH,
+              branch: born.branch,
+              remotes: [{ name: 'origin', url: born.remoteUrl }],
+              defaultBranch: CLOUD_DEFAULT_BRANCHES.has(born.branch) ? born.branch : null,
             })
 
       if (sameCheckout(folded, next)) return folded

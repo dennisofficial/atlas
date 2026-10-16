@@ -7,7 +7,6 @@ import type { StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 
-import type { ArchiveProgressFields, SessionArchiveReader } from './archive-progress'
 import type { ContextReaders } from './context-requests'
 import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
@@ -17,9 +16,6 @@ import type { SessionMirrorRouting } from './session-mirror-requests'
 import type { ServeLog } from './serve-log'
 import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
-import type { answerWorkspaceTransfer } from './workspace-ops'
-
-type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'apply' | 'activate'>
 
 export type SocketState = {
   helloed: boolean
@@ -82,9 +78,6 @@ export type SessionHandlersArgs = {
   transcript?: TranscriptReaders | undefined
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
-  sessionArchive?: SessionArchiveReader | undefined
-  /** The workspace-transfer ops; absent in fakes, which refuse them. */
-  workspace?: WorkspaceOps | undefined
   /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
   sessionMirror?: SessionMirrorRouting | undefined
 }

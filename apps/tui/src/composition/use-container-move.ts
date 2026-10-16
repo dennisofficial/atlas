@@ -2,7 +2,7 @@ import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { EExecutionLocation } from '@dltech/atlas-core'
-import type { ArchiveBuildProgress, RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import { createAwakeClock } from './awake-clock'
 import {
@@ -16,7 +16,7 @@ import {
   updateMoveTransfer,
   type ContainerMove,
 } from './container-move'
-import { isCancelKey, updateMoveBuild } from './container-move-birth'
+import { isCancelKey } from './container-move-birth'
 import { useTickingNow } from './use-turn-clock'
 
 export type MoveRowSeed = { id: string; text: string; nodeIds: readonly string[] }
@@ -30,11 +30,10 @@ export type ContainerMoveControl = {
     heading?: string | undefined
     onCancel?: (() => void) | undefined
   }) => void
-  handleBuildProgress: (progress: ArchiveBuildProgress) => void
   handleCancel: () => void
   handleNodeStart: (nodeId: string) => void
   handleNodeDone: (nodeId: string) => void
-  handleTransferProgress: (progress: RelocationTransferProgress) => void
+  handleTransferProgress: (progress: BirthTransferProgress) => void
   handleRowActive: (id: string) => void
   handleRowLabel: (args: { nodeId: string; text: string }) => void
   handleExpand: (args: { insertBefore: string; row: MoveRowSeed; heading?: string | undefined }) => void
@@ -96,7 +95,7 @@ export function useContainerMove(args?: {
     [clock, args],
   )
 
-  const handleTransferProgress = useCallback((progress: RelocationTransferProgress) => {
+  const handleTransferProgress = useCallback((progress: BirthTransferProgress) => {
     setMove((current) => (current === null ? null : updateMoveTransfer({ move: current, progress })))
   }, [])
 
@@ -131,10 +130,6 @@ export function useContainerMove(args?: {
     },
     [clock],
   )
-
-  const handleBuildProgress = useCallback((progress: ArchiveBuildProgress) => {
-    setMove((current) => (current === null ? null : updateMoveBuild({ move: current, progress })))
-  }, [])
 
   const handleSettle = useCallback(() => {
     cancelling.current = undefined
@@ -177,7 +172,6 @@ export function useContainerMove(args?: {
       handleBegin,
       handleNodeStart,
       handleNodeDone,
-      handleBuildProgress,
       handleCancel,
       handleTransferProgress,
       handleRowActive,
@@ -188,6 +182,6 @@ export function useContainerMove(args?: {
       handleDismiss,
       handleKey,
     }),
-    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleBuildProgress, handleCancel, handleTransferProgress, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
+    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleCancel, handleTransferProgress, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
   )
 }

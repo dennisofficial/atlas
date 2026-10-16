@@ -44,7 +44,7 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       app={args.app}
       opened={await spokenIn(args.app)}
       createBridge={() => args.bridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )

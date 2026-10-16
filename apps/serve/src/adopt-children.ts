@@ -14,7 +14,7 @@ export type ChildAdoptionDeps = {
 }
 
 /**
- * A lift's child transfer leaves every interrupted child's durable log resumable and nobody
+ * A cloud boot leaves every interrupted child's durable log resumable and nobody
  * watching it: the sandbox that starts serving the parent thread must pick each one back up
  * itself, exactly as a restart resumes the parent, because no client ever asks for a child by id.
  *

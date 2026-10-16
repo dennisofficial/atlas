@@ -1,5 +1,5 @@
 import { existsSync, rmSync } from 'node:fs'
-import { copyFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,16 +7,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 
 import { buildContextArchive } from '@dltech/atlas-harness'
-import { buildSessionArchive } from '@dltech/atlas-harness'
 import { sessionDirectory } from '@dltech/atlas-harness'
 import {
   EServeEvent,
   EWorkspaceState,
-  materializeTranscript,
   startServe,
   WORKSPACE_SENTINEL,
   type EnsureWorkspace,
-  type FetchTranscriptArchive,
   type ServeHandle,
 } from '../index'
 
@@ -50,19 +47,11 @@ afterEach(async () => {
   }
 })
 
-const bareSpec = {
-  remoteUrl: null,
-  branch: null,
-  commit: null,
-  patch: '',
-  githubToken: null,
-  contextBundle: null,
-}
+const bareSpec = { remoteUrl: null, githubToken: null }
 
 const writeBootstrap = async (args: {
   home: string
   context: Uint8Array
-  transcript: string | null
   spec?: Record<string, unknown> | undefined
 }): Promise<void> => {
   const dir = join(args.home, 'bootstrap')
@@ -72,7 +61,6 @@ const writeBootstrap = async (args: {
     JSON.stringify({ ...bareSpec, ...args.spec }),
   )
   await writeFile(join(dir, 'context.tar.gz'), args.context)
-  if (args.transcript !== null) await copyFile(args.transcript, join(dir, 'transcript.tar.gz'))
 }
 
 const withAtlasHome = (home: string): void => {
@@ -82,19 +70,13 @@ const withAtlasHome = (home: string): void => {
 
 const bootOn = async (args: {
   drive: Drive
-  archives: { context: Uint8Array; transcript: string | null }
+  context: Uint8Array
   ensureWorkspace: EnsureWorkspace
   spec?: Record<string, unknown> | undefined
-  fetchTranscriptArchive?: FetchTranscriptArchive | undefined
   compose?: ((composeArgs: { model?: { ref: string; effort?: string | undefined } | undefined }) => Promise<ReturnType<typeof fakeServeApp>>) | undefined
 }): Promise<{ handle: ServeHandle; lines: string[] }> => {
   const lines: string[] = []
-  await writeBootstrap({
-    home: args.drive.home,
-    context: args.archives.context,
-    transcript: args.archives.transcript,
-    spec: args.spec,
-  })
+  await writeBootstrap({ home: args.drive.home, context: args.context, spec: args.spec })
   const handle = await startServe({
     env: {},
     threadId,
@@ -105,29 +87,9 @@ const bootOn = async (args: {
     write: (line) => lines.push(line),
     compose: args.compose ?? (async () => fakeServeApp({ threadId, root: args.drive.workspace })),
     ensureWorkspace: args.ensureWorkspace,
-    fetchTranscriptArchive: args.fetchTranscriptArchive,
   })
   running.push(handle)
   return { handle, lines }
-}
-
-const transcriptArchiveFrom = async (
-  source: string,
-  threadMeta?: Record<string, unknown>,
-): Promise<string> => {
-  const sourceSession = sessionDirectory({ home: source, sessionId: threadId })
-  await mkdir(join(sourceSession, 'threads'), { recursive: true })
-  await writeFile(join(sourceSession, 'meta.json'), '{"format":1}')
-  await writeFile(join(sourceSession, 'threads', `${threadId}.events.jsonl`), '')
-  if (threadMeta !== undefined) {
-    await writeFile(
-      join(sourceSession, 'threads', `${threadId}.meta.json`),
-      JSON.stringify(threadMeta),
-    )
-  }
-  const archive = await buildSessionArchive({ sessionDir: sourceSession })
-  if (archive === undefined) throw new Error('expected a transcript archive')
-  return archive.path
 }
 
 const contextArchiveFrom = async (source: string): Promise<Uint8Array> => {
@@ -140,51 +102,21 @@ const contextArchiveFrom = async (source: string): Promise<Uint8Array> => {
   return archive
 }
 
-const freshArchives = async (): Promise<{
-  source: string
-  context: Uint8Array
-  transcript: string
-}> => {
-  const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
-  return {
-    source,
-    context: await contextArchiveFrom(source),
-    transcript: await transcriptArchiveFrom(source),
-  }
-}
-
 describe('serve on a drive-mounted home and workspace', () => {
-  it('resolves its atlas home from the environment the sandbox was created with', async () => {
-    const drive = await freshDrive()
-    withAtlasHome(drive.home)
-
-    const { atlasDirectory } = await import('@dltech/atlas-harness')
-    expect(atlasDirectory()).toBe(drive.home)
-
-    const readiness = await materializeTranscript({
-      fetchArchive: async () => null,
-      atlasHome: atlasDirectory(),
-      threadId,
-    })
-    expect(readiness).toEqual({ restored: false, fresh: true, failed: null })
-  })
-
   it('boots onto a fresh empty drive, creating the workspace, context and transcript roots', async () => {
     const drive = await freshDrive()
-    const { source, context, transcript } = await freshArchives()
-    withAtlasHome(drive.home)
+    const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
     drives.push({ root: source, home: source, workspace: source })
+    withAtlasHome(drive.home)
 
     const { lines } = await bootOn({
       drive,
-      archives: { context, transcript },
+      context: await contextArchiveFrom(source),
       ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     })
 
     expect(lines.some((line) => line.includes(EServeEvent.Started))).toBe(true)
     expect(lines.some((line) => line.includes(EServeEvent.ContextFailed))).toBe(false)
-    expect(lines.some((line) => line.includes(EServeEvent.TranscriptFailed))).toBe(false)
-    expect(lines.some((line) => line.includes(EServeEvent.TranscriptRestored))).toBe(true)
     expect(existsSync(join(drive.home, 'context.stamp'))).toBe(true)
     expect(existsSync(join(drive.home, 'mcp.json'))).toBe(true)
     expect(
@@ -194,29 +126,23 @@ describe('serve on a drive-mounted home and workspace', () => {
 
   it('reboots as a no-op once the drive already holds the stamps', async () => {
     const drive = await freshDrive()
-    const { source, context, transcript } = await freshArchives()
-    withAtlasHome(drive.home)
+    const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
     drives.push({ root: source, home: source, workspace: source })
+    withAtlasHome(drive.home)
 
     const first = await bootOn({
       drive,
-      archives: { context, transcript },
+      context: await contextArchiveFrom(source),
       ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     })
     await first.handle.close()
     running.pop()
 
-    let transcriptFetches = 0
     const second = await bootOn({
       drive,
-      archives: { context: new Uint8Array(), transcript: null },
+      context: new Uint8Array(),
       ensureWorkspace: async () => ({ state: EWorkspaceState.Present }),
-      fetchTranscriptArchive: async () => {
-        transcriptFetches += 1
-        return null
-      },
     })
-    transcriptFetches = 0
 
     expect(
       second.lines.some(
@@ -224,8 +150,6 @@ describe('serve on a drive-mounted home and workspace', () => {
           line.includes(EServeEvent.WorkspaceReady) && line.includes(EWorkspaceState.Present),
       ),
     ).toBe(true)
-    expect(transcriptFetches).toBe(0)
-    expect(second.lines.some((line) => line.includes(EServeEvent.TranscriptRestored))).toBe(false)
     expect(second.lines.some((line) => line.includes(EServeEvent.ContextReady))).toBe(false)
   })
 
@@ -234,29 +158,36 @@ describe('serve on a drive-mounted home and workspace', () => {
     const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
     drives.push({ root: source, home: source, workspace: source })
     withAtlasHome(drive.home)
-    const transcript = await transcriptArchiveFrom(source, {
-      v: 1,
-      id: threadId,
-      title: 'a titled thread',
-      head: 0,
-      createdAt: '2026-09-28T00:00:00.000Z',
-      updatedAt: '2026-09-28T00:00:00.000Z',
-      parentThreadId: null,
-      forkSeq: null,
-      forkMode: null,
-      spawnerThreadId: null,
-      agentType: null,
-      workspace: null,
-      repo: null,
-      modelRef: 'anthropic/claude-opus-5',
-      modelEffort: 'high',
-      executionLocation: null,
-    })
+    const sessionDir = sessionDirectory({ home: drive.home, sessionId: threadId })
+    await mkdir(join(sessionDir, 'threads'), { recursive: true })
+    await writeFile(join(sessionDir, 'meta.json'), '{"format":1}')
+    await writeFile(join(sessionDir, 'threads', `${threadId}.events.jsonl`), '')
+    await writeFile(
+      join(sessionDir, 'threads', `${threadId}.meta.json`),
+      JSON.stringify({
+        v: 1,
+        id: threadId,
+        title: 'a titled thread',
+        head: 0,
+        createdAt: '2026-09-28T00:00:00.000Z',
+        updatedAt: '2026-09-28T00:00:00.000Z',
+        parentThreadId: null,
+        forkSeq: null,
+        forkMode: null,
+        spawnerThreadId: null,
+        agentType: null,
+        workspace: null,
+        repo: null,
+        modelRef: 'anthropic/claude-opus-5',
+        modelEffort: 'high',
+        executionLocation: null,
+      }),
+    )
 
     let composedWith: { ref: string; effort?: string | undefined } | undefined
     await bootOn({
       drive,
-      archives: { context: await contextArchiveFrom(source), transcript },
+      context: await contextArchiveFrom(source),
       ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
       spec: { model: 'inference-net/kimi-k3-fast' },
       compose: async (composeArgs) => {
@@ -273,12 +204,11 @@ describe('serve on a drive-mounted home and workspace', () => {
     const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
     drives.push({ root: source, home: source, workspace: source })
     withAtlasHome(drive.home)
-    const transcript = await transcriptArchiveFrom(source)
 
     let composedWith: { ref: string; effort?: string | undefined } | undefined
     await bootOn({
       drive,
-      archives: { context: await contextArchiveFrom(source), transcript },
+      context: await contextArchiveFrom(source),
       ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
       spec: { model: 'inference-net/kimi-k3-fast' },
       compose: async (composeArgs) => {
@@ -301,12 +231,5 @@ describe('serve on a drive-mounted home and workspace', () => {
 
     expect(readiness.state).toBe(EWorkspaceState.Skipped)
     expect(existsSync(join(drive.workspace, WORKSPACE_SENTINEL))).toBe(false)
-
-    const transcript = await materializeTranscript({
-      fetchArchive: async () => null,
-      atlasHome: drive.home,
-      threadId,
-    })
-    expect(transcript.failed).toBeNull()
   })
 })

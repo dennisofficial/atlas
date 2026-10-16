@@ -185,7 +185,7 @@ describe('system context entries', () => {
     const entries = systemContexts([
       contextLoaded({
         slot: 'session',
-        key: 'workspace-arrival',
+        key: 'workspace-note',
         content: 'The workspace landed at /atlas/workspaces/repo.',
       }),
     ])

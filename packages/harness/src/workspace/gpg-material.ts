@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { gitOneLine } from './git-text'
 import { runGit, type GitRun } from './run-git'
-import type { GitReader } from './snapshot'
+import type { GitReader } from './git-reader'
 
 export const gpgKeyMaterialSchema = z.object({
   keyId: z.string().min(1),
@@ -46,7 +46,7 @@ const textOf = (run: GitRun): string | null => {
  * The operator's signing material, exported for a sandbox to import: the secret half travels
  * only because porting the user's keys into containers is the decided direction. The loopback
  * pinentry with an empty passphrase is what lets an unprotected key export non-interactively; a
- * passphrase-protected key refuses, and the lift carries no gpg material rather than prompting.
+ * passphrase-protected key refuses, and the birth carries no gpg material rather than prompting.
  * https://gnupg.org/documentation/manuals/gnupg/Agent-Options.html#index-pinentry_002dmode
  */
 export async function exportGpgMaterial(args: {

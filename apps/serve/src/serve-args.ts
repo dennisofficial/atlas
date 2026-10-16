@@ -1,12 +1,10 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import type { DirectWorkspaceRestorer } from './direct-workspace'
 import type { ApplyEnvironmentProfile } from './environment-profile'
 import type { EnsureWorkspace } from './materialize-workspace'
 import type { ServeCompose } from './serve-app'
 import type { LogWrite } from './serve-log'
 import type { WorkspaceFiles } from './workspace-files'
-import type { FetchTranscriptArchive } from './workspace-spec'
 
 /** Everything the sandbox is told at creation falls back to its environment variable. */
 export type ServeArgs = {
@@ -32,8 +30,6 @@ export type ServeArgs = {
   ensureWorkspace?: EnsureWorkspace | undefined
   profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
-  fetchTranscriptArchive?: FetchTranscriptArchive | undefined
-  restoreWorkspace?: DirectWorkspaceRestorer | undefined
 }
 
 export type ServeHandle = {

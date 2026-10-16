@@ -124,7 +124,7 @@ function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resum
 
 /**
  * Opening a thread that already lives in the cloud. When this machine holds a transcript worth
- * drawing — with the mirror, that is any lifted session whose local file survived — the
+ * drawing — with the mirror, that is any cloud session whose local file survived — the
  * conversation opens from it at once against a channel that has not dialled yet; the park record
  * decides whether that transcript is trusted (Synced: nothing wakes until the first send) or
  * drawn muted while the wake runs behind it (Behind or Unknown — including a crash-park, which

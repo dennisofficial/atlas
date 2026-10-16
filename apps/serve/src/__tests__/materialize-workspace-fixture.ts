@@ -9,11 +9,7 @@ export const TOKEN = 'gho_secret-token'
 
 export const spec = (partial: Partial<WorkspaceSpec> = {}): WorkspaceSpec => ({
   remoteUrl: 'git@github.com:dennisofficial/atlas.git',
-  branch: 'dennis/container-cloud',
-  commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-  patch: '',
   githubToken: TOKEN,
-  contextBundle: null,
   ...partial,
 })
 
@@ -64,12 +60,7 @@ export const argsOf = (attempts: readonly Attempt[]): string[][] =>
 
 export const TIP = 'ba51e1e0000000000000000000000000000000ff'
 
-export const TREE = '7ee1ab1e000000000000000000000000000000aa'
-
-export const PATCHED_TREE = '1f2e3d4c000000000000000000000000000000bb'
-
 export const revParseAnswers = (attempt: Attempt): string | undefined => {
-  if (attempt.args[0] === 'write-tree') return `${PATCHED_TREE}\n`
   if (attempt.args[0] !== 'rev-parse') return undefined
-  return attempt.args.at(-1) === 'HEAD^{tree}' ? `${TREE}\n` : `${TIP}\n`
+  return `${TIP}\n`
 }

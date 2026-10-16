@@ -10,9 +10,7 @@ import { buildContextArchive, composeHarness, inProcessPortBindings, MemorySetti
 import { materializeContext } from '../materialize-context'
 import type { WorkspaceSpec } from '../workspace-spec'
 
-const SPEC: WorkspaceSpec = {
-  remoteUrl: null, branch: null, commit: null, patch: '', githubToken: null, contextBundle: null,
-}
+const SPEC: WorkspaceSpec = { remoteUrl: null, githubToken: null }
 
 class SilentNotices extends NoticePort {
   notify(_post: NoticePost): void {}

@@ -38,7 +38,7 @@ const appFor = (): FakeApp => fakeApp({ model: scriptedModelPort({ script: { thi
 const failingOnce = async (app: FakeApp) => {
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
   await app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
-  await app.threads.rename({ threadId: thread.id, title: 'the lifted thread' })
+  await app.threads.rename({ threadId: thread.id, title: 'the cloud thread' })
   const bridge: FakeBridge = fakeBridge({ status: RUNNING })
   await bridge.log.append({
     threadId: thread.id,
@@ -99,7 +99,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
 
     try {
       await mounted.command('/resume')
-      await mounted.command('lifted')
+      await mounted.command('cloud thread')
       await mounted.command('')
       expect(await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 })).toBe(true)
       mounted.pressEscape()
@@ -138,7 +138,7 @@ describe('the reconnect the transcript advertises on a failed attach', () => {
 
     try {
       await mounted.command('/resume')
-      await mounted.command('lifted')
+      await mounted.command('cloud thread')
       await mounted.command('')
       expect(await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 })).toBe(true)
       mounted.pressEscape()

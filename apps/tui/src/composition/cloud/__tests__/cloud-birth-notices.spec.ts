@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EBirthFault, EBirthNode, type BirthFailure } from '@dltech/atlas-harness'
 
-import { liftFailedNotice } from '../lift-notices'
+import { birthFailedNotice } from '../cloud-birth-notices'
 
 const failure = (over: Partial<BirthFailure> = {}): BirthFailure => ({
   ok: false,
@@ -17,7 +17,7 @@ const EVERY_FAULT = Object.values(EBirthFault)
 
 describe('a failed cloud birth', () => {
   it('names the reason and says the thread started on this machine', () => {
-    const text = liftFailedNotice(failure())
+    const text = birthFailedNotice(failure())
 
     expect(text).toContain('the sandbox would not start')
     expect(text).toContain('this thread started on this machine instead')
@@ -25,7 +25,7 @@ describe('a failed cloud birth', () => {
   })
 
   it('says the sandbox started but could not be attached when attach is what failed', () => {
-    const text = liftFailedNotice(failure({ step: EBirthNode.Attach, detail: 'channel refused' }))
+    const text = birthFailedNotice(failure({ step: EBirthNode.Attach, detail: 'channel refused' }))
 
     expect(text).toContain('could not be attached')
     expect(text).toContain('this thread started on this machine instead')
@@ -35,7 +35,7 @@ describe('a failed cloud birth', () => {
   it('never claims the thread moved or tells the operator to reconnect', () => {
     for (const step of EVERY_STEP) {
       for (const fault of EVERY_FAULT) {
-        const text = liftFailedNotice(failure({ step, fault }))
+        const text = birthFailedNotice(failure({ step, fault }))
 
         expect(text).not.toContain('moved to the cloud')
         expect(text).not.toContain('/container cloud')
@@ -46,10 +46,4 @@ describe('a failed cloud birth', () => {
     }
   })
 
-  it('names the capture failure as the workspace, not a conversation transfer', () => {
-    const text = liftFailedNotice(failure({ fault: EBirthFault.Transfer, step: EBirthNode.CaptureWorkspace, detail: 'archive is truncated' }))
-
-    expect(text).toContain('workspace could not be captured')
-    expect(text).toContain('archive is truncated')
-  })
 })

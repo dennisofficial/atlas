@@ -35,7 +35,7 @@ export async function materializeContext(args: {
       identity: null,
     }
   }
-  const projectDirectory = spec.projectDirectory ?? null
+  const projectDirectory: string | null = null
   const identity = spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
   const readiness = (args: { written: number; failed: string | null }): ContextReadiness => ({
     written: args.written,
@@ -47,7 +47,7 @@ export async function materializeContext(args: {
   const resolved = await resolveContextSource({
     fetchArchive: args.fetchArchive,
     archiveRetry: args.archiveRetry,
-    legacyBundle: async () => spec.contextBundle,
+    legacyBundle: async () => null,
   })
   if ('failed' in resolved) return readiness({ written: 0, failed: resolved.failed })
   if (resolved.source === null) return readiness({ written: 0, failed: null })

@@ -40,8 +40,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const prStatesSnapshot = args.prStates?.snapshot ?? EMPTY_PR_STATES
   const { rewind, agents, operatorInput, pending, transcript, selectModel } = args
-  const { sessionArchive } = args
-  const { admissionClosed, checkpoint, checkpointChanged, workspace: workspaceOps } = args
+  const { admissionClosed, checkpoint, checkpointChanged } = args
   const mutations = createMutationTracker({ changed: checkpointChanged })
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
@@ -69,13 +68,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     compaction: args.compaction,
     rotation: args.rotation,
     broadcastRotation: (rotation) => broadcast(buffer.push({ type: 'rotation-changed', rotation })),
-    broadcastArchiveProgress: (progress) => {
-      try {
-        broadcast(buffer.push({ type: 'archive-progress', ...progress }))
-      } catch {
-        // Progress is advisory; a socket hiccup must not fail the archive it describes.
-      }
-    },
     historyChanged: () => {
       historyGeneration += 1
       broadcast(buffer.pushLifecycle({ kind: EServeFrame.Reload, sinceEventSeq: 0 }))
@@ -86,8 +78,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     context: args.context, mentions: args.mentions,
     transcript,
     selectModel,
-    sessionArchive,
-    workspace: workspaceOps,
   })
 
   const checkpointField = (): { checkpoint?: RuntimeCheckpoint } => {

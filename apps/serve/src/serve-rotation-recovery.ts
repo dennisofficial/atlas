@@ -92,7 +92,7 @@ export async function createServeRotationRecovery(args: {
   }
 
   const continueParent = async (given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<void> => {
-    if (guarded === undefined || state === null || preparingNextRotation || !state.resumeParent || continuationStarted || given.session.dormant()) return
+    if (guarded === undefined || state === null || preparingNextRotation || !state.resumeParent || continuationStarted) return
     const events = await guarded.app.log.readOwn({ threadId: args.threadId })
     if (preparingNextRotation || !isResumable(events)) return
     guarded.admission.closed = false
@@ -116,7 +116,7 @@ export async function createServeRotationRecovery(args: {
     recover(given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<void> {
       if (state === null || sourceRestart || preparingNextRotation) return Promise.resolve()
       recovering ??= (async () => {
-        if (!given.session.dormant()) await given.session.startChildren()
+        await given.session.startChildren()
         children?.changed()
         await continueParent(given)
         await release()
@@ -126,15 +126,11 @@ export async function createServeRotationRecovery(args: {
     activate(given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<{ activated: boolean }> {
       if (sourceRestart || preparingNextRotation) return Promise.reject(new Error('this sandbox is still preparing rotation and accepts no new work'))
       activating ??= (async () => {
-        const heldForActivation = state !== null && guarded !== undefined && given.session.dormant()
-        if (heldForActivation && guarded !== undefined) await guard(guarded)
         if (preparingNextRotation) return { activated: false }
-        const result = await given.session.activate()
         children?.changed()
         await continueParent(given)
-        if (heldForActivation) await release()
         await discardIfConsumed()
-        return result
+        return { activated: true }
       })().finally(() => { activating = undefined })
       return activating
     },

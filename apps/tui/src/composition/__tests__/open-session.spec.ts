@@ -87,7 +87,7 @@ describe('openSession resuming a thread whose meta says cloud', () => {
   it('settles Ready with the attach pending and never claims the local session lock', async () => {
     grammarsFail = false
 
-    const threadId = toThreadId(`lifted-${process.pid}`)
+    const threadId = toThreadId(`cloud-`)
     const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: threadId })
     const metaFile = threadMetaFile({ sessionDir, threadId })
     mkdirSync(dirname(metaFile), { recursive: true })
@@ -96,7 +96,7 @@ describe('openSession resuming a thread whose meta says cloud', () => {
       JSON.stringify({
         v: THREAD_META_VERSION,
         id: threadId,
-        title: 'the lifted thread',
+        title: 'the cloud thread',
         head: 0,
         createdAt: '2026-09-20T00:00:00.000Z',
         updatedAt: '2026-09-21T00:00:00.000Z',

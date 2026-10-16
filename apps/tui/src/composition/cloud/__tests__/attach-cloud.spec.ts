@@ -24,13 +24,13 @@ import {
 import { attachCloudSession, MissingCloudThreadError } from '../attach-cloud'
 import { FAKE_WORKSPACE, SPEC_SHARD } from '../../__tests__/fake-backend'
 
-const LIFTED = toThreadId(`attach-${SPEC_SHARD}`)
+const REMOTE_THREAD = toThreadId(`attach-${SPEC_SHARD}`)
 
 const AT = '2026-08-24T00:00:00.000Z'
 
 const WIRE_ROW = {
-  id: LIFTED,
-  title: 'lifted conversation',
+  id: REMOTE_THREAD,
+  title: 'cloud conversation',
   head: 2,
   createdAt: AT,
   updatedAt: AT,
@@ -41,7 +41,7 @@ const WIRE_ROW = {
 
 const WIRE_TURN = {
   runId: 'r1',
-  threadId: LIFTED,
+  threadId: REMOTE_THREAD,
   status: 'completed',
   providerId: 'anthropic',
   modelId: 'claude-opus',
@@ -74,7 +74,7 @@ const said = (text: string, seq: number): Event => ({
   text,
   id: toEventId(`e-${seq}`),
   seq,
-  threadId: LIFTED,
+  threadId: REMOTE_THREAD,
   runId: toRunId('r1'),
   depth: 0,
   at: AT,
@@ -86,7 +86,7 @@ const shellStarted = (seq: number): Event => ({
   command: 'bun run build',
   id: toEventId(`e-${seq}`),
   seq,
-  threadId: LIFTED,
+  threadId: REMOTE_THREAD,
   runId: toRunId('r1'),
   depth: 0,
   at: AT,
@@ -112,16 +112,16 @@ const attachOver = (args: { events: readonly Event[] }) => {
     log: new RemoteEventLog({ channel }),
     ledger: new RemoteTurnLedger({ channel }),
   }
-  return attachCloudSession({ stores, threadId: LIFTED, effects: () => undefined })
+  return attachCloudSession({ stores, threadId: REMOTE_THREAD, effects: () => undefined })
 }
 
-describe('attaching to a lifted session', () => {
+describe('attaching to a cloud session', () => {
   it('returns the transcript events, turns, name, and location from the remote stores', async () => {
     const attached = await attachOver({ events: [said('said inside the sandbox', 1)] })
 
-    expect(attached.threadId).toBe(LIFTED)
+    expect(attached.threadId).toBe(REMOTE_THREAD)
     expect(attached.started).toBe(true)
-    expect(attached.name).toBe('lifted conversation')
+    expect(attached.name).toBe('cloud conversation')
     expect(attached.executionLocation).toBe(EExecutionLocation.Cloud)
     expect(attached.events).toHaveLength(1)
     expect(attached.turns).toHaveLength(1)
@@ -136,7 +136,7 @@ describe('attaching to a lifted session', () => {
   it('claims no local session lock for a transcript the sandbox owns', async () => {
     await attachOver({ events: [said('said inside the sandbox', 1)] })
 
-    const dir = sessionDirectory({ home: atlasDirectory(), sessionId: LIFTED })
+    const dir = sessionDirectory({ home: atlasDirectory(), sessionId: REMOTE_THREAD })
     const locked = await stat(sessionLockFile({ sessionDir: dir })).then(
       () => true,
       () => false,
@@ -166,7 +166,7 @@ describe('attaching to a lifted session', () => {
 
     const failure = await attachCloudSession({
       stores,
-      threadId: LIFTED,
+      threadId: REMOTE_THREAD,
       effects: () => undefined,
     }).catch((given: unknown) => given)
 
@@ -188,7 +188,7 @@ describe('attaching to a lifted session', () => {
     }
 
     await expect(
-      attachCloudSession({ stores, threadId: LIFTED, effects: () => undefined }),
+      attachCloudSession({ stores, threadId: REMOTE_THREAD, effects: () => undefined }),
     ).rejects.toThrow('socket dropped mid-read')
   })
 })

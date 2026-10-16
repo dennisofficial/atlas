@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
   driveContextArchiveFetcher,
-  driveTranscriptArchiveFetcher,
   driveWorkspaceSpecFetcher,
 } from '../drive-bootstrap'
 
@@ -44,12 +43,8 @@ describe('the workspace spec the laptop left on the drive', () => {
       name: 'workspace-spec.json',
       content: JSON.stringify({
         remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-        branch: 'dennis/lift-attach',
-        commit: 'abc123',
-        patch: 'diff --git a/x b/x',
         githubToken: 'gho_drive',
         model: 'anthropic/claude-sonnet-4-5',
-        projectDirectory: '/Users/dennis/Developer/atlas',
       }),
     })
 
@@ -58,7 +53,6 @@ describe('the workspace spec the laptop left on the drive', () => {
     expect(spec.remoteUrl).toBe('https://github.com/dennisofficial/atlas.git')
     expect(spec.githubToken).toBe('gho_drive')
     expect(spec.model).toBe('anthropic/claude-sonnet-4-5')
-    expect(spec.projectDirectory).toBe('/Users/dennis/Developer/atlas')
   })
 
   it('rejects when the laptop never wrote the file, naming where it looked', async () => {
@@ -71,7 +65,7 @@ describe('the workspace spec the laptop left on the drive', () => {
 
   it('rejects when the file is not a workspace spec', async () => {
     const driveHome = freshDriveHome()
-    await writeBootstrap({ driveHome, name: 'workspace-spec.json', content: '{"patch": 42}' })
+    await writeBootstrap({ driveHome, name: 'workspace-spec.json', content: '{"remoteUrl": 42}' })
 
     await expect(driveWorkspaceSpecFetcher({ driveHome })()).rejects.toThrow()
   })
@@ -100,18 +94,5 @@ describe('the archives the laptop left on the drive', () => {
     const driveHome = freshDriveHome()
 
     await expect(driveContextArchiveFetcher({ driveHome })()).resolves.toBeNull()
-  })
-
-  it('answers the transcript archive path, never its bytes, when the file is there', async () => {
-    const driveHome = freshDriveHome()
-    const path = await writeBootstrap({ driveHome, name: 'transcript.tar.gz', content: new Uint8Array([9, 8, 7]) })
-
-    await expect(driveTranscriptArchiveFetcher({ driveHome })()).resolves.toBe(path)
-  })
-
-  it('answers null when there is no transcript archive on the drive', async () => {
-    const driveHome = freshDriveHome()
-
-    await expect(driveTranscriptArchiveFetcher({ driveHome })()).resolves.toBeNull()
   })
 })

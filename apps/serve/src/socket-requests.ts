@@ -3,8 +3,6 @@ import { EClientRequest, EServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { RotationStateWire } from '@dltech/atlas-wire'
 
-import { archiveProgressReporter, type ArchiveProgressFields, type SessionArchiveReader } from './archive-progress'
-import { answerArchiveRead, isArchiveReadOp } from './archive-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
 import { routeOperatorInput } from './operator-input'
 import { answerContextRead, isContextOp, type ContextReaders } from './context-requests'
@@ -28,10 +26,6 @@ import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
-import { answerWorkspaceTransfer, isWorkspaceTransferOp } from './workspace-ops'
-
-type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'apply' | 'activate'>
-
 export const messageOf = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback
 
@@ -47,7 +41,6 @@ export function createRequestRouter(args: {
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
   rotation?: import('@dltech/atlas-harness').RotationPort | undefined
   broadcastRotation?: ((rotation: RotationStateWire) => void) | undefined
-  broadcastArchiveProgress?: ((progress: ArchiveProgressFields) => void) | undefined
   historyChanged?: (() => void) | undefined
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<import('@dltech/atlas-harness').OperatorInputPort, 'answer'> | undefined
@@ -55,17 +48,11 @@ export function createRequestRouter(args: {
   mentions?: MentionRouting | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
-  sessionArchive?: SessionArchiveReader | undefined
-  workspace?: WorkspaceOps | undefined
   sessionMirror?: SessionMirrorRouting | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } = args
   const prStates = args.prStates ?? (() => [])
   const context = args.context
-  const { sessionArchive } = args
-  const workspaceOps = args.workspace
-  const reporterFor = (archive: ArchiveProgressFields['archive']) =>
-    archiveProgressReporter({ archive, broadcast: args.broadcastArchiveProgress })
   const edits = createHistoryMutations()
   const compact = createCompactionRequests({
     threadId,
@@ -234,21 +221,6 @@ export function createRequestRouter(args: {
           },
         }),
       )
-    return
-  }
-
-  if (isWorkspaceTransferOp(frame.op)) {
-    void edits.run(() => answerWorkspaceTransfer({ frame, busy: () => driver.busy(), ...workspaceOps }))
-      .then((reply) => send({ socket, frame: reply }))
-    return
-  }
-
-  if (isArchiveReadOp(frame.op)) {
-    void answerArchiveRead({
-      frame,
-      sessionArchive: sessionArchive === undefined ? undefined : () => sessionArchive({ onBuildProgress: reporterFor('transcript') }),
-    })
-      .then((reply) => send({ socket, frame: reply }))
     return
   }
 

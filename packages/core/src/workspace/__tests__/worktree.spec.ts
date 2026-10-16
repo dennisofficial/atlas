@@ -7,7 +7,7 @@ import {
   activeWorktreeOf,
   homeDirectoryAfter,
   homeDirectoryOf,
-  liftedWorkspaceOf,
+  bornCloudWorkspaceOf,
   projectDirectoryOf,
   repoOf,
 } from '../worktree'
@@ -337,8 +337,8 @@ describe('folding drafts that have not been written yet', () => {
   })
 })
 
-describe('the git identity a lift left on its location change', () => {
-  const lifted = (args?: { remoteUrl?: string | null; branch?: string | null }) =>
+describe('the git identity a cloud birth left on its location change', () => {
+  const bornCloud = (args?: { remoteUrl?: string | null; branch?: string | null }) =>
     event({
       type: 'location-changed',
       from: 'host',
@@ -349,82 +349,82 @@ describe('the git identity a lift left on its location change', () => {
     })
 
   it('is null before any location change', () => {
-    expect(liftedWorkspaceOf([said('hello')])).toBeNull()
+    expect(bornCloudWorkspaceOf([said('hello')])).toBeNull()
   })
 
-  it('reads the remote and branch off the lift', () => {
-    expect(liftedWorkspaceOf([said('hello'), lifted()])).toEqual({
+  it('reads the remote and branch off the birth', () => {
+    expect(bornCloudWorkspaceOf([said('hello'), bornCloud()])).toEqual({
       remoteUrl: 'git@github.com:comp-ai/atlas.git',
       branch: 'dennis/thing',
       cwd: '/workspace',
     })
   })
 
-  it('is null for a lift recorded before the identity rode the event', () => {
+  it('is null for a move recorded before the identity rode the event', () => {
     const legacy = event({ type: 'location-changed', from: 'host', to: 'cloud', cwd: '/workspace' })
 
-    expect(liftedWorkspaceOf([legacy])).toBeNull()
+    expect(bornCloudWorkspaceOf([legacy])).toBeNull()
   })
 
   it('clears once the thread comes back to the host', () => {
     const back = event({ type: 'location-changed', from: 'cloud', to: 'host' })
 
-    expect(liftedWorkspaceOf([lifted(), back])).toBeNull()
+    expect(bornCloudWorkspaceOf([bornCloud(), back])).toBeNull()
   })
 
-  it('answers the latest move when the thread lifts twice', () => {
-    const again = lifted({ branch: 'dennis/other' })
+  it('answers the latest move when the thread reaches the cloud twice', () => {
+    const again = bornCloud({ branch: 'dennis/other' })
 
-    expect(liftedWorkspaceOf([lifted(), again])?.branch).toBe('dennis/other')
+    expect(bornCloudWorkspaceOf([bornCloud(), again])?.branch).toBe('dennis/other')
   })
 
-  it('follows a worktree entered after the lift', () => {
+  it('follows a worktree entered after the birth', () => {
     const events = [
-      lifted({ branch: 'main' }),
+      bornCloud({ branch: 'main' }),
       entered({ path: `${TREE}`, branch: 'dennis/eng-327' }),
     ]
 
-    expect(liftedWorkspaceOf(events)).toEqual({
+    expect(bornCloudWorkspaceOf(events)).toEqual({
       remoteUrl: 'git@github.com:comp-ai/atlas.git',
       branch: 'dennis/eng-327',
       cwd: TREE,
     })
   })
 
-  it('returns to the lift identity once the worktree is exited', () => {
+  it('returns to the birth identity once the worktree is exited', () => {
     const events = [
-      lifted({ branch: 'dennis/thing' }),
+      bornCloud({ branch: 'dennis/thing' }),
       entered({ path: TREE, branch: 'dennis/eng-327' }),
       exited({ path: TREE, action: EWorktreeExit.Keep, returnTo: '/workspace' }),
     ]
 
-    expect(liftedWorkspaceOf(events)?.branch).toBe('dennis/thing')
+    expect(bornCloudWorkspaceOf(events)?.branch).toBe('dennis/thing')
   })
 
-  it('answers the latest entry when worktrees come and go after the lift', () => {
+  it('answers the latest entry when worktrees come and go after the birth', () => {
     const events = [
-      lifted({ branch: 'main' }),
+      bornCloud({ branch: 'main' }),
       entered({ path: TREE, branch: 'dennis/eng-327' }),
       exited({ path: TREE, action: EWorktreeExit.Keep, returnTo: '/workspace' }),
       entered({ path: OTHER, branch: 'dennis/eng-401' }),
     ]
 
-    expect(liftedWorkspaceOf(events)?.branch).toBe('dennis/eng-401')
+    expect(bornCloudWorkspaceOf(events)?.branch).toBe('dennis/eng-401')
   })
 
-  it('ignores worktree moves from before the lift', () => {
+  it('ignores worktree moves from before the birth', () => {
     const events = [
       entered({ path: TREE, branch: 'dennis/eng-327' }),
-      lifted({ branch: 'dennis/thing' }),
+      bornCloud({ branch: 'dennis/thing' }),
     ]
 
-    expect(liftedWorkspaceOf(events)?.branch).toBe('dennis/thing')
+    expect(bornCloudWorkspaceOf(events)?.branch).toBe('dennis/thing')
   })
 
-  it('stays null when the lift carried no identity, even inside a worktree', () => {
+  it('stays null when the move carried no identity, even inside a worktree', () => {
     const legacy = event({ type: 'location-changed', from: 'host', to: 'cloud', cwd: '/workspace' })
     const events = [legacy, entered({ path: TREE, branch: 'dennis/eng-327' })]
 
-    expect(liftedWorkspaceOf(events)).toBeNull()
+    expect(bornCloudWorkspaceOf(events)).toBeNull()
   })
 })

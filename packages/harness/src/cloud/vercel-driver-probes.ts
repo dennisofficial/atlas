@@ -28,12 +28,3 @@ export async function writeBootstrapFile(args: {
   })
   await args.sandbox.writeFiles([{ path: args.path, content: args.content, mode: 0o600 }])
 }
-
-export async function transcriptPresent(sandbox: Sandbox): Promise<boolean> {
-  const probe = await sandbox.runCommand({
-    cmd: 'sh',
-    args: ['-c', `test -s ${DRIVE_HOME_PATH}/bootstrap/transcript.tar.gz`],
-    timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
-  })
-  return probe.exitCode === 0
-}

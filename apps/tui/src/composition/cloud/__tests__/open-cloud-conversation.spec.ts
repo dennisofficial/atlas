@@ -17,7 +17,7 @@ import { SPEC_SHARD } from '../../__tests__/fake-backend'
 import { fakeApp, scriptedModelPort } from '../../__tests__/fake-app'
 
 const UNWRITTEN = toThreadId(`never-written-${SPEC_SHARD}`)
-const LIFTED = toThreadId(`lifted-${SPEC_SHARD}`)
+const REMOTE_THREAD = toThreadId(`cloud-`)
 
 const saidOn = (args: { threadId: ThreadId; text: string; seq: number }): Event => ({
   type: 'user-said',
@@ -67,7 +67,7 @@ const withRemoteReads = (args: { app: AtlasApp; channel: CloudChannel }): AtlasA
 })
 
 describe('openCloudConversation on a blank remote thread', () => {
-  it('still answers a cloud conversation — a first lift has nothing in the sandbox store yet', async () => {
+  it('still answers a cloud conversation — a first birth has nothing in the sandbox store yet', async () => {
     const { app } = cloudAppOn({ threadId: UNWRITTEN })
 
     const opened = await openCloudConversation({ app, threadId: UNWRITTEN })
@@ -80,7 +80,7 @@ describe('openCloudConversation on a blank remote thread', () => {
 
 describe('openCloudConversation on a remote read failure', () => {
   it('propagates a dropped thread read to the caller instead of blanking the transcript', async () => {
-    const { app, channel } = cloudAppOn({ threadId: LIFTED })
+    const { app, channel } = cloudAppOn({ threadId: REMOTE_THREAD })
     const transport = channel.request.bind(channel)
     channel.request = async (given) => {
       if (given.op === EClientRequest.ReadThread) throw new Error('socket dropped mid-read')
@@ -88,36 +88,36 @@ describe('openCloudConversation on a remote read failure', () => {
     }
 
     await expect(
-      openCloudConversation({ app: withRemoteReads({ app, channel }), threadId: LIFTED }),
+      openCloudConversation({ app: withRemoteReads({ app, channel }), threadId: REMOTE_THREAD }),
     ).rejects.toThrow('socket dropped mid-read')
   })
 
   it('propagates a dropped event read once the thread exists remotely', async () => {
-    const { app, channel } = cloudAppOn({ threadId: LIFTED })
+    const { app, channel } = cloudAppOn({ threadId: REMOTE_THREAD })
     const transport = channel.request.bind(channel)
     channel.request = async (given) => {
       if (given.op === EClientRequest.ReadThread) {
-        return { thread: wireThreadOf({ threadId: LIFTED }) }
+        return { thread: wireThreadOf({ threadId: REMOTE_THREAD }) }
       }
       if (given.op === EClientRequest.ReadEvents) throw new Error('socket dropped mid-read')
       return transport(given)
     }
 
     await expect(
-      openCloudConversation({ app: withRemoteReads({ app, channel }), threadId: LIFTED }),
+      openCloudConversation({ app: withRemoteReads({ app, channel }), threadId: REMOTE_THREAD }),
     ).rejects.toThrow('socket dropped mid-read')
   })
 
   it('still answers the existing transcript when every read succeeds', async () => {
-    const { app, channel } = cloudAppOn({ threadId: LIFTED })
+    const { app, channel } = cloudAppOn({ threadId: REMOTE_THREAD })
     const events = [
-      saidOn({ threadId: LIFTED, text: 'work done before the failure', seq: 1 }),
-      saidOn({ threadId: LIFTED, text: 'and the follow-up', seq: 2 }),
+      saidOn({ threadId: REMOTE_THREAD, text: 'work done before the failure', seq: 1 }),
+      saidOn({ threadId: REMOTE_THREAD, text: 'and the follow-up', seq: 2 }),
     ]
     const transport = channel.request.bind(channel)
     channel.request = async (given) => {
       if (given.op === EClientRequest.ReadThread) {
-        return { thread: wireThreadOf({ threadId: LIFTED, title: 'kept conversation' }) }
+        return { thread: wireThreadOf({ threadId: REMOTE_THREAD, title: 'kept conversation' }) }
       }
       if (given.op === EClientRequest.ReadEvents) return { events: events.map(wireEventOf) }
       return transport(given)
@@ -125,7 +125,7 @@ describe('openCloudConversation on a remote read failure', () => {
 
     const opened = await openCloudConversation({
       app: withRemoteReads({ app, channel }),
-      threadId: LIFTED,
+      threadId: REMOTE_THREAD,
     })
 
     expect(opened.started).toBe(true)

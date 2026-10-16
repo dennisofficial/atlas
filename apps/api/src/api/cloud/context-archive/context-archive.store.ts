@@ -8,6 +8,4 @@ export const CONTEXT_ARCHIVE_STORE = Symbol('CONTEXT_ARCHIVE_STORE')
 export interface ContextArchiveStore {
   readSandboxArchive(args: { threadId: string }): Promise<Buffer | null>
   writeSandboxArchive(args: { threadId: string; archive: Buffer }): Promise<void>
-  readSandboxTranscript(args: { threadId: string }): Promise<Buffer | null>
-  writeSandboxTranscript(args: { threadId: string; archive: Buffer }): Promise<void>
 }

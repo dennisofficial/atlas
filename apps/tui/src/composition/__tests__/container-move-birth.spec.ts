@@ -1,28 +1,27 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
-import { beginMove, settleMoveNode, startMoveNode, updateMoveTransfer } from '../container-move'
+import { beginMove, startMoveNode, updateMoveTransfer } from '../container-move'
 import {
   isCancelKey,
   moveOverlayPresence,
   SERVE_STAGE_TEXT,
   serveStageOf,
-  updateMoveBuild,
 } from '../container-move-birth'
 
 const AT = 10_000
 
 const ROWS = [
-  { id: 'capture', text: 'packing the uncommitted work', nodeIds: ['captureWorkspace'] },
   { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
+  { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
 ] as const
 
-const upload = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress => ({
+const upload = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'provision',
-  transferId: 'workspace-upload',
-  label: 'uploading workspace',
+  transferId: 'context-upload',
+  label: 'uploading skills and memory',
   transferredBytes: 10,
   totalBytes: 10,
   complete: true,
@@ -31,36 +30,12 @@ const upload = (over: Partial<RelocationTransferProgress> = {}): RelocationTrans
 
 const key = (over: { name: string; ctrl?: boolean; eventType?: string }) => over as never
 
-describe('capture progress on a birth', () => {
-  it('records the build reading on the active capture row', () => {
-    let move = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS })
-    move = startMoveNode({ move, nodeId: 'captureWorkspace', now: AT })
-
-    const next = updateMoveBuild({ move, progress: { phase: 'staging', files: 1204, bytes: 0 } })
-
-    expect(next.build).toEqual({ phase: 'staging', files: 1204, bytes: 0 })
-  })
-
-  it('ignores a reading before capture starts, after it settles, and when nothing changed', () => {
-    const begun = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS })
-    const progress = { phase: 'walking', files: 0, bytes: 0 } as const
-    expect(updateMoveBuild({ move: begun, progress })).toBe(begun)
-
-    const started = startMoveNode({ move: begun, nodeId: 'captureWorkspace', now: AT })
-    const read = updateMoveBuild({ move: started, progress })
-    expect(updateMoveBuild({ move: read, progress })).toBe(read)
-
-    const settled = settleMoveNode({ move: read, nodeId: 'captureWorkspace', now: AT + 1 })
-    expect(updateMoveBuild({ move: settled, progress: { ...progress, files: 9 } })).toBe(settled)
-  })
-})
-
 describe('the serve-launch stage', () => {
-  const provisioning = (progress: RelocationTransferProgress[]) => {
+  const provisioning = (progress: BirthTransferProgress[]) => {
     let move = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS })
     move = startMoveNode({ move, nodeId: 'provision', now: AT })
     for (const reading of progress) move = updateMoveTransfer({ move, progress: reading })
-    return move.rows[1]
+    return move.rows[0]
   }
 
   it('appears once every upload has landed and the row still waits', () => {

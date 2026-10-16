@@ -6,11 +6,11 @@ import { join } from 'node:path'
 
 import { buildContextArchive } from '@dltech/atlas-harness'
 import { materializeContext } from '../materialize-context'
-import type { FetchContextArchive, WorkspaceSpec } from '../workspace-spec'
-import { ATLAS_HOME, bundle, fakeFiles, SPEC } from './materialize-context-fixture'
+import type { FetchContextArchive } from '../workspace-spec'
+import { ATLAS_HOME, fakeFiles, SPEC } from './materialize-context-fixture'
 
 describe('materializeContext with an archive fetcher', () => {
-  it('writes from the archive when the fetcher answers one, without ever touching the legacy bundle', async () => {
+  it('writes from the archive when the fetcher answers one', async () => {
     const { files, written } = fakeFiles()
     const staging = await mkdtemp(join(tmpdir(), 'atlas-materialize-archive-'))
     const source = join(staging, 'mcp.json')
@@ -20,7 +20,7 @@ describe('materializeContext with an archive fetcher', () => {
     const fetchArchive: FetchContextArchive = async () => archive
 
     const readiness = await materializeContext({
-      fetchSpec: async () => ({ ...SPEC, contextBundle: bundle({ '.atlas/mcp.json': '# ignored legacy value' }) }),
+      fetchSpec: async () => SPEC,
       fetchArchive,
       atlasHome: ATLAS_HOME,
       files,
@@ -30,9 +30,8 @@ describe('materializeContext with an archive fetcher', () => {
     expect(written.get(join(ATLAS_HOME, 'mcp.json'))).toBe('# from the archive')
   })
 
-  it('falls back to the legacy contextBundle JSON once a persistent 404 exhausts the retry bound', async () => {
+  it('writes nothing once a persistent 404 exhausts the retry bound', async () => {
     const { files, written } = fakeFiles()
-    const spec: WorkspaceSpec = { ...SPEC, contextBundle: bundle({ '.atlas/mcp.json': '# legacy fallback' }) }
     let calls = 0
     const fetchArchive: FetchContextArchive = async () => {
       calls += 1
@@ -41,15 +40,15 @@ describe('materializeContext with an archive fetcher', () => {
     const slept: number[] = []
 
     const readiness = await materializeContext({
-      fetchSpec: async () => spec,
+      fetchSpec: async () => SPEC,
       fetchArchive,
       archiveRetry: { attempts: 3, intervalMs: 3_000, sleep: async (ms) => void slept.push(ms) },
       atlasHome: ATLAS_HOME,
       files,
     })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
-    expect(written.get(join(ATLAS_HOME, 'mcp.json'))).toBe('# legacy fallback')
+    expect(readiness).toEqual({ written: 0, failed: null, projectDirectory: null, identity: null })
+    expect(written.size).toBe(0)
     expect(calls).toBe(3)
     expect(slept).toEqual([3_000, 3_000])
   })

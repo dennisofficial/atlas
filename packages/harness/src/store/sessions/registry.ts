@@ -92,7 +92,7 @@ export class SessionRegistry {
       return undefined
     }
 
-    // A transcript transfer can drop a thread's meta after the index was already built — a lifted
+    // A transcript transfer can drop a thread's meta after the index was already built — a moved
     // teammate lands in its parent's session dir while this process holds a completed scan. Rescan
     // once on a miss so the thread is found rather than reported absent to the resume path. A
     // thread that has already missed once since the last invalidation is genuinely absent (a

@@ -12,7 +12,7 @@ import type { SessionFacts } from './session'
  * hook phases carry. `contribute()` builds `service`/`facts`/`links` once and this port is how the
  * TUI, which alone renders that surface, reaches the same instances rather than standing up a
  * second poller of its own. `cloudCheckout` is the cloud thread's answer to the probe: the
- * lift-time git identity folded out of the log, null for anything local.
+ * birth-time git identity folded out of the log, null for anything local.
  */
 export abstract class GithubUiBridgePort {
   abstract readonly service: PullRequestService

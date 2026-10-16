@@ -12,7 +12,7 @@ import {
 /**
  * Forwards a pull-request event into a parked cloud conversation as ordinary input. The active
  * local session's own routing already consumes frames for the conversation it tracks; this exists
- * for the thread the operator lifted away, whose sandbox has no live process to receive the event
+ * for the thread the operator left in the cloud, whose sandbox has no live process to receive the event
  * itself. The vehicle is `channel.send` — the same frame operator input travels on — because the
  * agent registry's `say` only ever reaches a roster child, never the conversation's main thread.
  *

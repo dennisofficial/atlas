@@ -24,11 +24,10 @@ import type {
   SandboxListEntryDto,
   SandboxStatusDto,
   SandboxWorkspaceDto,
-  SandboxWorkspaceSpec,
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
-import { assertContextBundleWithinLimit, assertPatchWithinLimit, workspaceSpecOf } from './workspace-spec'
+import { assertContextBundleWithinLimit, workspaceSpecOf } from './workspace-spec'
 
 const nowIso = (): string => new Date().toISOString()
 const messageOf = (failure: unknown): string =>
@@ -58,7 +57,6 @@ export class SandboxesService {
   async claim(args: {
     userId: string
     threadId: string
-    workspace?: SandboxWorkspaceSpec | undefined
     contextBundle?: string | undefined
     gitToken?: string | undefined
     gpgKey?: string | undefined
@@ -85,11 +83,7 @@ export class SandboxesService {
       db,
       userId: args.userId,
       threadId: args.threadId,
-      ...(typeof args.workspace?.projectDirectory === 'string'
-        ? { workspace: args.workspace.projectDirectory }
-        : {}),
     })
-    if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
     if (args.contextBundle !== undefined) {
       assertContextBundleWithinLimit({ bundle: args.contextBundle })
     }
@@ -99,7 +93,6 @@ export class SandboxesService {
       tokenHash: minted.tokenHash,
       sealedToken: this.cipher.encrypt(minted.token),
       rotated: true,
-      workspace: args.workspace,
       contextBundle: args.contextBundle,
       ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.gpgKey === undefined ? {} : { sealedGpgKey: this.cipher.encrypt(args.gpgKey) }),
@@ -161,35 +154,27 @@ export class SandboxesService {
         threadId: true,
         name: true,
         sealedGitToken: true,
-        sealedGpgKey: true,
         workspaceRemoteUrl: true,
-        workspaceBranch: true,
-        workspaceCommit: true,
-        workspacePatch: true,
         workspaceContext: true,
         workspaceSkills: true,
-        workspaceProjectDirectory: true,
-        workspaceGitName: true,
-        workspaceGitEmail: true,
       },
     })
     if (row === null) throw new NotFoundException('sandbox not found')
-    const spec = workspaceSpecOf(row)
     // workspaceSkills is the outgoing column: a row written between this deploy's PRE_DEPLOY
     // migration and its container swap still carries only workspaceSkills.
     const contextBundle = row.workspaceContext ?? row.workspaceSkills ?? null
-    const gpgKey = this.claimedGpgKey({ name: row.name, sealedGpgKey: row.sealedGpgKey })
+    const spec = { ...workspaceSpecOf(row), contextBundle }
     if (spec.remoteUrl === null) {
-      return { ...spec, githubToken: null, gpgKey, contextBundle }
+      return { ...spec, githubToken: null }
     }
     const claimed = this.claimedGitToken({ name: row.name, sealedGitToken: row.sealedGitToken })
-    if (claimed !== null) return { ...spec, githubToken: claimed, gpgKey, contextBundle }
+    if (claimed !== null) return { ...spec, githubToken: claimed }
     const githubToken = await this.gitCredentials.findToken({
       userId: row.userId,
       threadId: row.threadId,
       remoteUrl: spec.remoteUrl,
     })
-    return { ...spec, githubToken, gpgKey, contextBundle }
+    return { ...spec, githubToken }
   }
 
   private claimedGitToken(args: {
@@ -236,20 +221,6 @@ export class SandboxesService {
 
   getContextArchive(args: { threadId: string }): Promise<Buffer | null> {
     return this.archives.readSandboxArchive({ threadId: args.threadId })
-  }
-
-  async putTranscriptArchive(args: {
-    userId: string
-    threadId: string
-    archive: Buffer
-  }): Promise<void> {
-    await ownedSandbox({ userId: args.userId, threadId: args.threadId })
-    assertArchiveWithinLimit({ bytes: args.archive.byteLength })
-    await this.archives.writeSandboxTranscript({ threadId: args.threadId, archive: args.archive })
-  }
-
-  getTranscriptArchive(args: { threadId: string }): Promise<Buffer | null> {
-    return this.archives.readSandboxTranscript({ threadId: args.threadId })
   }
 
   status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {

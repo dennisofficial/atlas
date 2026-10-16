@@ -27,7 +27,7 @@ export type ThreadRouter = {
  * A thread is a thread wherever it runs: picking one routes by the location on its row. A cloud
  * thread attaches render-first — its local transcript draws at once and, unless the park record
  * proves it complete, the sandbox wakes behind it; a host thread picked from inside a cloud session
- * descends back to the local app; anything else is the swap the picker already knew. The picker
+ * returns to the local app; anything else is the swap the picker already knew. The picker
  * itself lists the union of both stores, and the cloud being signed out or down never costs the
  * local list.
  */

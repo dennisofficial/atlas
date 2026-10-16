@@ -17,9 +17,6 @@ const THREAD = 'brn_thread_1'
 
 const SPEC = {
   remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-  branch: 'dennis/container-cloud',
-  commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-  patch: 'diff --git a/file.ts b/file.ts\n+work in progress\n',
 }
 
 const sandboxes = {
@@ -91,16 +88,15 @@ describe('sandbox workspace endpoint', () => {
     sandboxes.workspace.mockClear()
   })
 
-  it('carries the workspace spec on the claim body', async () => {
+  it('claims a sandbox; the workspace remote no longer rides the claim', async () => {
     const response = await request(app.getHttpServer())
       .post('/sandboxes')
-      .send({ threadId: THREAD, workspace: SPEC })
+      .send({ threadId: THREAD })
 
     expect(response.status).toBe(201)
     expect(sandboxes.claim).toHaveBeenCalledWith({
       userId: 'user-a',
       threadId: THREAD,
-      workspace: SPEC,
       contextBundle: undefined,
       gitToken: undefined,
       contextPending: undefined,
@@ -110,36 +106,25 @@ describe('sandbox workspace endpoint', () => {
   it('carries the git token and the context-pending flag on the claim body', async () => {
     await request(app.getHttpServer())
       .post('/sandboxes')
-      .send({ threadId: THREAD, workspace: SPEC, gitToken: 'gho_fresh', contextPending: false })
+      .send({ threadId: THREAD, gitToken: 'gho_fresh', contextPending: false })
       .expect(201)
 
     expect(sandboxes.claim).toHaveBeenCalledWith({
       userId: 'user-a',
       threadId: THREAD,
-      workspace: SPEC,
       contextBundle: undefined,
       gitToken: 'gho_fresh',
       contextPending: false,
     })
   })
 
-  it('claims without a workspace for a session that has no repo', async () => {
-    await request(app.getHttpServer()).post('/sandboxes').send({ threadId: THREAD }).expect(201)
-
-    expect(sandboxes.claim).toHaveBeenCalledWith({
-      userId: 'user-a',
-      threadId: THREAD,
-      workspace: undefined,
-      contextBundle: undefined,
-      gitToken: undefined,
-      contextPending: undefined,
-    })
-  })
-
-  it('rejects a workspace missing its patch', async () => {
+  it('rejects a workspace carrying the descend-era fields', async () => {
     await request(app.getHttpServer())
       .post('/sandboxes')
-      .send({ threadId: THREAD, workspace: { remoteUrl: null, branch: null, commit: null } })
+      .send({
+        threadId: THREAD,
+        workspace: { remoteUrl: null, branch: 'main', commit: 'abc123', patch: 'diff --git' },
+      })
       .expect(400)
   })
 

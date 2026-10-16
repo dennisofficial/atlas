@@ -6,7 +6,7 @@ export type ContextIdentity = string
 
 // The key (the absolute path) is deliberately out of the identity: a relocation re-loads the
 // same file from a new path, and path-bearing identity turned every worktree entry and cloud
-// lift into a duplicate injection of byte-identical instructions. Same slot, same bytes is the
+// birth into a duplicate injection of byte-identical instructions. Same slot, same bytes is the
 // same context, wherever it was read from.
 export function contextIdentityOf(draft: EventDraft): ContextIdentity | undefined {
   if (draft.type !== 'context-loaded') return undefined

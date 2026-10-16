@@ -61,7 +61,7 @@ export function useWorkspaceModels(args: {
   const threadModel = useThreadModel({
     app,
     threads: cloudStores?.threads ?? app.threads,
-    lifted: cloudStores !== null,
+    remote: cloudStores !== null,
     threadId: conversation.threadId,
     stored: conversation.threadModel,
     started: conversation.started,

@@ -1,5 +1,4 @@
 import type { Sandbox } from '@vercel/sandbox'
-import { downloadSessionArchive, releaseSessionExport, type SessionDownloadArgs } from './session-archive-transport'
 
 import {
   liveDriveSdk,
@@ -24,9 +23,8 @@ import {
 } from '@dltech/atlas-wire'
 import { deleteThreadDrive } from './vercel-driver-destroy'
 import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
-import { tailServeLog, transcriptPresent, writeBootstrapFile } from './vercel-driver-probes'
+import { tailServeLog, writeBootstrapFile } from './vercel-driver-probes'
 import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
-import { uploadWorkspaceArchive, type ArchiveUploadArgs } from './workspace-archive-transport'
 
 export class VercelDriver {
   private readonly sdk: VercelSdk
@@ -178,7 +176,7 @@ export class VercelDriver {
   }
 
   /**
-   * The serve log tail from a live sandbox, for a lift that stalled before serve went healthy.
+   * The serve log tail from a live sandbox, for a birth that stalled before serve went healthy.
    * Answers the log's last bytes, or a marker when the sandbox or the log is not there to read.
    */
   async serveLogTail(args: { name: string }): Promise<string> {
@@ -216,40 +214,6 @@ export class VercelDriver {
         content: args.content,
       })
     } catch (failure) {
-      throw asVercelFailure(failure)
-    }
-  }
-
-  async uploadWorkspaceArchive(
-    args: Omit<ArchiveUploadArgs, 'sandbox' | 'chunkBytes' | 'batchParts'> & { sandbox: Sandbox },
-  ): Promise<void> {
-    await this.guarded(args.sandbox.name, () => uploadWorkspaceArchive(args))
-  }
-
-  async downloadSessionArchive(
-    args: Omit<SessionDownloadArgs, 'sandbox'> & { name: string },
-  ): Promise<void> {
-    const { name, ...transfer } = args
-    await this.guarded(name, async () =>
-      downloadSessionArchive({ ...transfer, sandbox: await this.sandboxNamed(name) }),
-    )
-  }
-
-  async releaseSessionArchive(args: { name: string; threadId: string; path: string }): Promise<void> {
-    try {
-      await releaseSessionExport({ ...args, sandbox: await this.sandboxNamed(args.name) })
-    } catch (failure) {
-      if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
-    }
-  }
-
-  /** True once the transcript archive the laptop wrote is present on the drive. */
-  async transcriptLanded(args: { name: string }): Promise<boolean> {
-    try {
-      const sandbox = await this.sandboxNamed(args.name)
-      return await transcriptPresent(sandbox)
-    } catch (failure) {
-      if (isSandboxMissing(failure)) return false
       throw asVercelFailure(failure)
     }
   }

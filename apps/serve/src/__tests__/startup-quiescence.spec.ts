@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 
-import { createDirectWorkspace } from '../direct-workspace'
 import { createServeWorkspaceSession } from '../serve-workspace-session'
 import { fakeServeApp } from './fakes'
 
@@ -26,9 +25,8 @@ it('waits for startup adoption and recovery admissions, not the children’s ent
     recordLostShells: async () => { await recovery.promise; return [] },
   }
   const session = createServeWorkspaceSession({
-    direct: createDirectWorkspace({ driveHome: '/tmp/unused-startup-home', destination: '/workspace' }),
     threadId, app,
-    dormant: false, log: noop, settling: { count: 0 }, note: noop,
+    log: noop, settling: { count: 0 }, note: noop,
   })
   let initialized = false
   const settled = session.whenStarted().then(() => { initialized = true })
@@ -50,9 +48,8 @@ it('does not authorize replacement if an initialization write failed', async () 
     recordLostShells: async (): Promise<never> => { throw new Error('ending persistence failed') },
   }
   const session = createServeWorkspaceSession({
-    direct: createDirectWorkspace({ driveHome: '/tmp/unused-startup-home', destination: '/workspace' }),
     threadId, app,
-    dormant: false, log: noop, settling: { count: 0 }, note: noop,
+    log: noop, settling: { count: 0 }, note: noop,
   })
   await expect(session.whenStarted()).rejects.toThrow('ending persistence failed')
   await app.close()

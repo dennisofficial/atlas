@@ -71,7 +71,7 @@ const relocationPaused = (frame: { kind: EServeFrame; outcome?: unknown }): bool
   frame.kind === EServeFrame.TurnEnded &&
   (frame.outcome as { status: ETurnStatus }).status === ETurnStatus.RelocationPaused
 
-describe('pausing the whole family on a descend', () => {
+describe('pausing the whole family on a drain', () => {
   it('answers a failed pause with a readable error instead of relocation proof', async () => {
     const { handle } = await start({
       family: { pauseChildren: async () => { throw new Error('child ending could not be persisted') } },

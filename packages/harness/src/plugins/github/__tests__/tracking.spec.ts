@@ -137,7 +137,7 @@ describe('the checkout tracking hooks', () => {
     service.dispose()
   })
 
-  it('stops tracking when the cloud fold clears on descend', async () => {
+  it('stops tracking when the cloud fold clears on the move back', async () => {
     let folded: RepositoryCheckout | null = aCheckout({ branch: 'dennis/cloud-branch' })
     const { service, tracking } = rig({ probed: null, cloud: () => folded })
 

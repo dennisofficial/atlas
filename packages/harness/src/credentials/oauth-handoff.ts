@@ -148,7 +148,7 @@ export class OauthHandoff {
         if (current.secret.tokens.refreshToken.length === 0) {
           throw failure({
             failure: ECredentialFailure.Expired,
-            message: `The ${current.label} login has no renewable grant to transfer. Sign in again with /auth, or re-lift the session from the machine that owns its login.`,
+            message: `The ${current.label} login has no renewable grant to transfer. Sign in again with /auth, or birth a new cloud session from the machine that owns its login.`,
           })
         }
 

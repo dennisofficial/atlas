@@ -34,15 +34,15 @@ import {
   SPEC_SHARD,
 } from './fake-backend'
 
-const LIFTED = toThreadId(`lifted-${SPEC_SHARD}`)
+const REMOTE_THREAD = toThreadId(`cloud-${SPEC_SHARD}`)
 
 const HERE: WorkspaceIdentity = { workspace: FAKE_WORKSPACE, repo: null }
 
 const AT = '2026-08-24T00:00:00.000Z'
 
 const WIRE_ROW = {
-  id: LIFTED,
-  title: 'lifted conversation',
+  id: REMOTE_THREAD,
+  title: 'cloud conversation',
   head: 1,
   createdAt: AT,
   updatedAt: AT,
@@ -51,7 +51,7 @@ const WIRE_ROW = {
   executionLocation: EExecutionLocation.Cloud,
 }
 
-const said = (text: string, threadId: ThreadId = LIFTED, seq = 1): Event => ({
+const said = (text: string, threadId: ThreadId = REMOTE_THREAD, seq = 1): Event => ({
   type: 'user-said',
   text,
   id: toEventId(`e-${threadId}-${seq}`),
@@ -112,28 +112,28 @@ const lockHeld = async (threadId: ThreadId): Promise<boolean> => {
   )
 }
 
-describe('attaching to a lifted session through the attach seam', () => {
+describe('attaching to a cloud session through the attach seam', () => {
   it('opens against refusing stores with no adopt, no lock, and no settle', async () => {
     const { stores } = refusingCloudStores({ events: [said('said inside the sandbox')] })
 
     const attached = await attachCloudSession({
       stores,
-      threadId: LIFTED,
+      threadId: REMOTE_THREAD,
       effects: () => undefined,
     })
 
-    expect(attached.threadId).toBe(LIFTED)
+    expect(attached.threadId).toBe(REMOTE_THREAD)
     expect(attached.started).toBe(true)
-    expect(attached.name).toBe('lifted conversation')
+    expect(attached.name).toBe('cloud conversation')
     expect(attached.events).toHaveLength(1)
     expect(attached.events[0]?.type).toBe('user-said')
-    expect(await lockHeld(LIFTED)).toBe(false)
+    expect(await lockHeld(REMOTE_THREAD)).toBe(false)
   })
 })
 
 describe('openConversation after the readOnly stopgap is gone', () => {
   it('resumes a local thread by adopting an unattributed one and claiming its lock', async () => {
-    const threads = fakeThreadStore({ existing: [LIFTED], workspace: null })
+    const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
 
     const outcome = await openConversation({
       threads,
@@ -143,20 +143,20 @@ describe('openConversation after the readOnly stopgap is gone', () => {
       ids: fakeIds(),
       workspace: HERE,
       effects: () => undefined,
-      open: { mode: EOpenMode.Resume, threadId: LIFTED },
+      open: { mode: EOpenMode.Resume, threadId: REMOTE_THREAD },
     })
 
     expect('cloud' in outcome === false && outcome.ok).toBe(true)
-    expect(threads.peekRow({ threadId: LIFTED })?.workspace).toBe(FAKE_WORKSPACE)
-    expect(await lockHeld(LIFTED)).toBe(true)
+    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.workspace).toBe(FAKE_WORKSPACE)
+    expect(await lockHeld(REMOTE_THREAD)).toBe(true)
   })
 })
 
 describe('openConversation on a thread whose meta says cloud', () => {
   it('refuses the local open without claiming the session lock', async () => {
     await closeConversation()
-    const threads = fakeThreadStore({ existing: [LIFTED], workspace: null })
-    await threads.chooseExecutionLocation({ threadId: LIFTED, location: EExecutionLocation.Cloud })
+    const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
+    await threads.chooseExecutionLocation({ threadId: REMOTE_THREAD, location: EExecutionLocation.Cloud })
 
     const outcome = await openConversation({
       threads,
@@ -166,18 +166,18 @@ describe('openConversation on a thread whose meta says cloud', () => {
       ids: fakeIds(),
       workspace: HERE,
       effects: () => undefined,
-      open: { mode: EOpenMode.Resume, threadId: LIFTED },
+      open: { mode: EOpenMode.Resume, threadId: REMOTE_THREAD },
     })
 
-    expect('cloud' in outcome && outcome.threadId === LIFTED).toBe(true)
-    expect(await lockHeld(LIFTED)).toBe(false)
-    expect(threads.peekRow({ threadId: LIFTED })?.executionLocation).toBe(EExecutionLocation.Cloud)
+    expect('cloud' in outcome && outcome.threadId === REMOTE_THREAD).toBe(true)
+    expect(await lockHeld(REMOTE_THREAD)).toBe(false)
+    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.executionLocation).toBe(EExecutionLocation.Cloud)
   })
 
   it('opens the mirrored transcript at boot and marks it for attach, never the lock', async () => {
     await closeConversation()
-    const threads = fakeThreadStore({ existing: [LIFTED], workspace: null })
-    await threads.chooseExecutionLocation({ threadId: LIFTED, location: EExecutionLocation.Cloud })
+    const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
+    await threads.chooseExecutionLocation({ threadId: REMOTE_THREAD, location: EExecutionLocation.Cloud })
 
     const outcome = await openConversation({
       threads,
@@ -187,7 +187,7 @@ describe('openConversation on a thread whose meta says cloud', () => {
       ids: fakeIds(),
       workspace: HERE,
       effects: () => undefined,
-      open: { mode: EOpenMode.Resume, threadId: LIFTED },
+      open: { mode: EOpenMode.Resume, threadId: REMOTE_THREAD },
       boot: true,
     })
 
@@ -196,12 +196,12 @@ describe('openConversation on a thread whose meta says cloud', () => {
     // the welcome hero up for the whole wake, and forever if the attach fails.
     expect('cloud' in outcome).toBe(false)
     if (!('cloud' in outcome) && outcome.ok) {
-      expect(outcome.conversation.threadId).toBe(LIFTED)
+      expect(outcome.conversation.threadId).toBe(REMOTE_THREAD)
       expect(outcome.conversation.started).toBe(true)
       expect(outcome.conversation.events.map((event) => event.type)).toEqual(['user-said'])
       expect(outcome.conversation.attachOnBoot).toBe(true)
     }
-    expect(await lockHeld(LIFTED)).toBe(false)
-    expect(threads.peekRow({ threadId: LIFTED })?.executionLocation).toBe(EExecutionLocation.Cloud)
+    expect(await lockHeld(REMOTE_THREAD)).toBe(false)
+    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.executionLocation).toBe(EExecutionLocation.Cloud)
   })
 })

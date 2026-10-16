@@ -22,8 +22,8 @@ export type BornCloudArgs = {
   choice?: EHarnessPlacement | undefined
   /** True when this birth is a cloud→host flip rebirth: the operator's draft crosses the id change. */
   carriedDraft?: boolean | undefined
-  preflightLift?: (() => Promise<string | null>) | undefined
-  lift: (args: { threadId: ThreadId }) => void
+  preflightBirth?: (() => Promise<string | null>) | undefined
+  birthCloud: (args: { threadId: ThreadId }) => void
   adopt: (opened: OpenedConversation) => void
 }
 
@@ -114,7 +114,7 @@ export async function bornWith(args: BornCloudArgs): Promise<void> {
     return
   }
 
-  const refusal = (await args.preflightLift?.()) ?? null
+  const refusal = (await args.preflightBirth?.()) ?? null
   if (refusal !== null) {
     notify({ key: 'born-cloud-preflight', text: refusal, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
     fallBackToHost(args)
@@ -124,5 +124,5 @@ export async function bornWith(args: BornCloudArgs): Promise<void> {
   bornPlacementChip(app).set({ threadId, harness: EHarnessPlacement.Cloud, provisioning: true })
   const opened = unstartedConversation({ ids: app.ids, threadId })
   args.adopt(opened)
-  args.lift({ threadId })
+  args.birthCloud({ threadId })
 }

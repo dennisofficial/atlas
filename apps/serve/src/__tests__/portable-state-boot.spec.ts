@@ -154,7 +154,7 @@ describe('installPortableState', () => {
 
     expect(boot.kind).toBe(EPortableStateBoot.Failed)
     if (boot.kind === EPortableStateBoot.Failed) {
-      expect(boot.reason).toContain('re-lifts')
+      expect(boot.reason).toContain('re-births')
       expect(boot.reason).not.toContain('not-hex')
     }
     expect(existsSync(join(target, 'auth.json'))).toBe(false)

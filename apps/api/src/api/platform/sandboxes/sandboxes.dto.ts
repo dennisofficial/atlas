@@ -12,38 +12,10 @@ import {
 
 const whenGiven = () => ValidateIf((_object: unknown, value: unknown) => value !== null)
 
-export class GitIdentityDto {
-  @IsString()
-  name!: string
-
-  @IsString()
-  email!: string
-}
-
 export class WorkspaceSpecDto {
   @whenGiven()
   @IsString()
   remoteUrl!: string | null
-
-  @whenGiven()
-  @IsString()
-  branch!: string | null
-
-  @whenGiven()
-  @IsString()
-  commit!: string | null
-
-  @IsString()
-  patch!: string
-
-  @IsOptional()
-  @IsString()
-  projectDirectory?: string | null
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => GitIdentityDto)
-  gitIdentity?: GitIdentityDto | null
 }
 
 export class RegisterSandboxMetadataDto {

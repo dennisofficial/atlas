@@ -1,5 +1,5 @@
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { ArchiveBuildProgress, RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 export enum EStepMark {
   Pending = 'pending',
@@ -30,7 +30,6 @@ export type ContainerMove = {
   rows: readonly MoveRow[]
   heading?: string | undefined
   cancellable?: boolean | undefined
-  build?: ArchiveBuildProgress | undefined
   startedAt: number
   activeSince: number
   startedNodeIds: readonly string[]
@@ -41,9 +40,9 @@ export type ContainerMove = {
 export const WAKE_HEADING = 'WAKING THE SANDBOX'
 
 const HEADING: Record<EExecutionLocation, string> = {
-  [EExecutionLocation.Cloud]: 'MOVING TO THE CLOUD',
+  [EExecutionLocation.Cloud]: 'STARTING A CLOUD SANDBOX',
   [EExecutionLocation.Docker]: 'MOVING INTO A DOCKER CONTAINER',
-  [EExecutionLocation.Host]: 'MOVING BACK TO THE HOST',
+  [EExecutionLocation.Host]: 'RETURNING TO THE HOST',
 }
 
 export const moveHeading = (target: EExecutionLocation): string => HEADING[target]
@@ -141,7 +140,7 @@ const sameTransfer = ({ a, b }: { a: MoveTransfer; b: MoveTransfer }): boolean =
 
 export function updateMoveTransfer(args: {
   move: ContainerMove
-  progress: RelocationTransferProgress
+  progress: BirthTransferProgress
 }): ContainerMove {
   const { move, progress } = args
   if (move.failure !== null) return move

@@ -8,13 +8,13 @@ import { EThreadRows } from '../use-thread-view'
 
 export class MissingCloudThreadError extends Error {
   constructor(threadId: ThreadId) {
-    super(`the lifted session holds no thread "${threadId}"`)
+    super(`the cloud session holds no thread "${threadId}"`)
     this.name = 'MissingCloudThreadError'
   }
 }
 
 /**
- * Attaching to a lifted session is not opening a local conversation: the transcript belongs to
+ * Attaching to a cloud session is not opening a local conversation: the transcript belongs to
  * the sandbox's loop, and the stores that read it refuse every mutation. So the attach binds the
  * UI straight from the remote reads and never touches the local-ownership machinery — no
  * adoption, no session lock, no lost-agent or lost-shell settlement. The window, the base and the

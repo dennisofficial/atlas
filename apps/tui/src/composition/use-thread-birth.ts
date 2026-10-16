@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
 import {
   birthInCloud,
+  EBirthNode,
   storedModel,
   type CloudReload,
   type SessionOwner,
@@ -14,7 +15,7 @@ import { bornWith, fallBackToHost, rememberPlacement } from './cloud/born-cloud'
 import { bornPlacementChip, startsTheThread } from './cloud/born-placement-chip'
 import { cloudRuntimeParts, openCloudConversation } from './cloud/cloud-app'
 import { cloudReadinessOf } from './cloud/cloud-readiness'
-import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
+import { CLOUD_BIRTH_NOTICE_KEY, birthFailedNotice } from './cloud/cloud-birth-notices'
 import { createCloudRunner } from './cloud/cloud-runner'
 import { createCloudSession } from './cloud/cloud-session'
 import { parkHookFor } from './cloud/park-hook'
@@ -24,7 +25,7 @@ import { durableOpLog } from './durable-op-log'
 import { messageOf } from './error-text'
 import type { OpenedConversation } from './open-conversation'
 import { cloudAnchorOf, cloudBindingOf, prepareOn } from './session-binding'
-import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
+import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 import type { useContainerMove } from './use-container-move'
 
 export type ThreadBirth = {
@@ -43,13 +44,13 @@ export function useThreadBirth(args: {
   owner: SessionOwner<SessionRuntime>
   containerMove: ReturnType<typeof useContainerMove>
   createBridge: CloudBridgeFactory
-  preflightLift?: LiftPreflight | undefined
+  preflightBirth?: BirthPreflight | undefined
   adopt: (opened: OpenedConversation) => void
   onReload: (reload: CloudReload) => Promise<void>
 }): ThreadBirth {
   const latest = useRef(args)
   latest.current = args
-  const liftRef = useRef<(liftArgs: { threadId: OpenedConversation['threadId'] }) => void>(() => undefined)
+  const birthCloudRef = useRef<(born: { threadId: OpenedConversation['threadId'] }) => void>(() => undefined)
 
   const birthArgs = useCallback(
     (born: {
@@ -61,16 +62,16 @@ export function useThreadBirth(args: {
       threadId: born.threadId,
       ...(born.choice === undefined ? {} : { choice: born.choice }),
       ...(born.carriedDraft === true ? { carriedDraft: true } : {}),
-      preflightLift: latest.current.preflightLift,
-      lift: (liftArgs: { threadId: OpenedConversation['threadId'] }) => liftRef.current(liftArgs),
+      preflightBirth: latest.current.preflightBirth,
+      birthCloud: (born: { threadId: OpenedConversation['threadId'] }) => birthCloudRef.current(born),
       adopt: latest.current.adopt,
     }),
     [],
   )
 
-  const liftNewborn = useCallback((liftArgs: { threadId: OpenedConversation['threadId'] }) => {
+  const birthNewborn = useCallback((born: { threadId: OpenedConversation['threadId'] }) => {
     const { app, containerMove: move, createBridge, owner } = latest.current
-    const threadId = liftArgs.threadId
+    const threadId = born.threadId
     const bridge = createBridge()
     const captureContext = () => app.captureContext({ cwd: app.workspace.workspace })
 
@@ -86,7 +87,6 @@ export function useThreadBirth(args: {
       logPort: durableOpLog() ?? undefined,
       placement: owner,
       captureContext,
-      onBuildProgress: move.handleBuildProgress,
       onBegin: ({ waves }) =>
         move.handleBegin({
           target: EExecutionLocation.Cloud,
@@ -96,9 +96,10 @@ export function useThreadBirth(args: {
         }),
       onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
       onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
-      onTransferProgress: move.handleTransferProgress,
+      onTransferProgress: (progress) =>
+        move.handleTransferProgress({ ...progress, nodeId: EBirthNode.Provision }),
       onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
-      open: async ({ attachment, prepareRuntime, restoredWorkspace }) => {
+      open: async ({ attachment, prepareRuntime }) => {
         const stopWatching = attachment.channel.subscribe({
           threadId,
           listener: (signal) => {
@@ -110,7 +111,7 @@ export function useThreadBirth(args: {
         const runner = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move })
         const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner }) }
         const opened = await openCloudConversation({ app: base, threadId })
-        const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened, restored: restoredWorkspace })
+        const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })
         const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: attachment.stores.threads })
         const session = createCloudSession({
           channel: attachment.channel,
@@ -140,11 +141,11 @@ export function useThreadBirth(args: {
         })
       },
     })
-      .then(async (lifted) => {
-        if (!lifted.ok) {
-          const reason = liftFailedNotice(lifted)
+      .then(async (born) => {
+        if (!born.ok) {
+          const reason = birthFailedNotice(born)
           move.handleFail(reason)
-          notify({ key: CLOUD_LIFT_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+          notify({ key: CLOUD_BIRTH_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
           fallBackToHost(birthArgs({ threadId }))
           return
         }
@@ -154,7 +155,7 @@ export function useThreadBirth(args: {
       .catch((error: unknown) => {
         const reason = `starting a cloud sandbox failed — ${messageOf(error)}`
         move.handleFail(reason)
-        notify({ key: CLOUD_LIFT_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+        notify({ key: CLOUD_BIRTH_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
         fallBackToHost(birthArgs({ threadId }))
       })
   }, [])
@@ -177,7 +178,7 @@ export function useThreadBirth(args: {
     [birthArgs],
   )
 
-  liftRef.current = liftNewborn
+  birthCloudRef.current = birthNewborn
 
   const handleNewThread = useCallback(() => {
     const { app, containerMove } = latest.current

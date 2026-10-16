@@ -36,11 +36,7 @@ const writeDriveSpec = async (args: {
     join(bootstrap, 'workspace-spec.json'),
     JSON.stringify({
       remoteUrl: null,
-      branch: null,
-      commit: null,
-      patch: '',
       githubToken: null,
-      contextBundle: null,
       ...args.spec,
     }),
   )

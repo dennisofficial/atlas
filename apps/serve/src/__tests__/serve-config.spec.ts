@@ -28,13 +28,6 @@ describe('serveConfig', () => {
     })
   })
 
-  it('serves the workspace directory the sandbox was told to hold it in', () => {
-    const told = { ...injected, [EServeEnv.WorkspaceDir]: '/workspace' }
-
-    expect(serveConfig({ env: told }).cwd).toBe('/workspace')
-    expect(serveConfig({ env: told, cwd: '/given' }).cwd).toBe('/given')
-  })
-
   it('lets an explicit argument win over the environment', () => {
     const config = serveConfig({ env: injected, port: 0, token: 'given' })
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { exportGpgMaterial, type GpgRunner } from '../gpg-material'
 import type { GitRun } from '../run-git'
-import type { GitReader } from '../snapshot'
+import type { GitReader } from '../git-reader'
 
 const ok = (stdout: string): GitRun => ({ ok: true, stdout, stderr: '' })
 

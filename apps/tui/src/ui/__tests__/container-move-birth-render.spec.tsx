@@ -2,10 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import { beginMove, failMove, startMoveNode, updateMoveTransfer, type ContainerMove } from '../../composition/container-move'
-import { updateMoveBuild } from '../../composition/container-move-birth'
 import { ContainerMoveOverlay } from '../components/container-move'
 import { frameOf } from './transcript-fixture'
 
@@ -13,30 +12,28 @@ const STARTED_AT = 10_000
 const MIB = 1024 * 1024
 
 const ROWS = [
-  { id: 'capture', text: 'packing the uncommitted work', nodeIds: ['captureWorkspace'] },
   { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
+  { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
 ] as const
 
-const upload = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress => ({
+const upload = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'provision',
-  transferId: 'workspace-upload',
-  label: 'uploading workspace',
+  transferId: 'context-upload',
+  label: 'uploading skills and memory',
   transferredBytes: 12 * MIB,
   totalBytes: 38 * MIB,
   complete: false,
   ...over,
 })
 
-const birth = (): ContainerMove => {
-  const begun = beginMove({
+const birth = (): ContainerMove =>
+  beginMove({
     target: EExecutionLocation.Cloud,
     now: STARTED_AT,
     rows: ROWS,
     heading: 'STARTING A CLOUD SANDBOX',
     cancellable: true,
   })
-  return startMoveNode({ move: begun, nodeId: 'captureWorkspace', now: STARTED_AT })
-}
 
 const frame = (args: { move: ContainerMove; elapsedMs: number }) =>
   frameOf(
@@ -60,31 +57,12 @@ describe('the birth overlay', () => {
     expect(early).toContain('cancel and keep the draft')
   })
 
-  it('shows what capture is actually moving', async () => {
-    const move = updateMoveBuild({ move: birth(), progress: { phase: 'staging', files: 1204, bytes: 0 } })
-    const text = await frame({ move, elapsedMs: 2_000 })
-
-    expect(text).toContain('capturing workspace')
-    expect(text).toContain('1,204 files')
-  })
-
-  it('shows capture bytes when the build reports them', async () => {
-    const move = updateMoveBuild({
-      move: birth(),
-      progress: { phase: 'compressing', files: 1204, bytes: 8 * MIB, totalBytes: 38 * MIB },
-    })
-    const text = await frame({ move, elapsedMs: 2_000 })
-
-    expect(text).toContain('compressing workspace')
-    expect(text).toContain('8.0 MiB of 38.0 MiB')
-  })
-
   it('shows the upload bytes while provisioning', async () => {
     let move = startMoveNode({ move: birth(), nodeId: 'provision', now: STARTED_AT })
     move = updateMoveTransfer({ move, progress: upload() })
     const text = await frame({ move, elapsedMs: 20_000 })
 
-    expect(text).toContain('uploading workspace')
+    expect(text).toContain('uploading skills and memory')
     expect(text).toContain('12.0 MiB / 38.0 MiB')
   })
 

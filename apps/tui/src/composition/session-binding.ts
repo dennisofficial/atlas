@@ -8,7 +8,6 @@ import {
   type CloudBridge,
   type CloudChannel,
   type CloudStores,
-  type RestoredWorkspace,
   type RuntimeBinding,
   type SessionMirrorSync,
   type SessionRuntime,
@@ -66,9 +65,7 @@ export async function cloudAnchorOf(args: {
   stores: CloudStores
   threadId: ThreadId
   opened: OpenedConversation
-  restored?: RestoredWorkspace | undefined
 }): Promise<WorkspaceIdentity> {
-  if (args.restored !== undefined) return { workspace: args.restored.cwd, repo: args.restored.repository }
   const held = await args.stores.threads.find({ threadId: args.threadId }).catch(() => undefined)
   const events = args.opened.events
   const launch = held?.workspace ?? CLOUD_WORKSPACE_PATH

@@ -1,6 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { uploadBootstrapArchives } from './bootstrap-archive-uploads'
 import { sandboxNameFor } from './sandbox-names'
 import { ECloudSandboxState, sandboxStateSchema } from './sandbox-client'
 import type {
@@ -11,7 +10,6 @@ import type {
 } from './cloud-bridge'
 import {
   SANDBOX_SERVE_PORT,
-  EServeEnv,
   PORTABLE_STATE_PATH,
   type PortableState,
   type VercelSandboxConfig,
@@ -103,7 +101,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         bootstrap ??= bootstrapSpecOf({
           workspace: createArgs.workspace,
           gitToken: await readGitTokenQuietly(),
-          ...(createArgs.gpgKey === undefined ? {} : { gpgKey: createArgs.gpgKey }),
           ...(createArgs.model === undefined ? {} : { model: createArgs.model }),
         })
         await driver.writeBootstrapFileToSandbox({
@@ -112,13 +109,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           content: bootstrap,
         })
       }
-      await uploadBootstrapArchives({
-        driver,
-        sandbox,
-        transcriptArchivePath: createArgs.transcriptArchivePath,
-        workspaceArchivePath: createArgs.workspaceArchivePath,
-        onTransferProgress: createArgs.onTransferProgress,
-      })
       const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
       if (needsPortable) {
         const captured = await captureOnce()
@@ -144,9 +134,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
 
     const environment: Record<string, string> = {
       ...args.environment?.(),
-      ...(createArgs.workspaceDirectory === undefined
-        ? {}
-        : { [EServeEnv.WorkspaceDir]: createArgs.workspaceDirectory }),
     }
 
     const placement = await driver.createOrResume({
@@ -220,20 +207,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
 
   const bridgeSandboxes: CloudSandboxes = {
     create,
-    downloadSession: ({ threadId, archive, destination, onProgress }) =>
-      driverWith(args.vercel()).downloadSessionArchive({
-        name: sandboxNameFor({ threadId }),
-        threadId,
-        archive,
-        destination,
-        onProgress,
-      }),
-    releaseSession: ({ threadId, path }) =>
-      driverWith(args.vercel()).releaseSessionArchive({
-        name: sandboxNameFor({ threadId }),
-        threadId,
-        path,
-      }),
     readResources: ({ threadId }) =>
       driverWith(args.vercel()).readResources({ name: sandboxNameFor({ threadId }) }),
     updateResources: ({ threadId, vcpus }) =>

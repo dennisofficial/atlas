@@ -1,22 +1,16 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
-  legacyWorkspaceDirectoryOf,
   newThreadMeta,
+  readMetaSync,
   registryFor,
   sessionDirectory,
   writeMeta,
   writeSessionMetaForRoot,
   threadMetaFile,
-  type DirectoryEntries,
+  threadMetaSchema,
 } from '@dltech/atlas-harness'
 
-import {
-  driveContextArchiveFetcher,
-  driveTranscriptArchiveFetcher,
-  driveWorkspaceSpecFetcher,
-} from './drive-bootstrap'
-import { createDirectWorkspace, type DirectWorkspaceRestorer } from './direct-workspace'
-import { applyDirectProfile } from './direct-profile'
+import { driveContextArchiveFetcher, driveWorkspaceSpecFetcher } from './drive-bootstrap'
 import {
   createEnvironmentProfile,
   EProfileStepState,
@@ -26,15 +20,12 @@ import { applyGitAccessEnv } from './git-access-env'
 import {
   createEnsureWorkspace,
   EWorkspaceState,
-  EWorkspaceStep,
   type EnsureWorkspace,
   type WorkspaceReadiness,
 } from './materialize-workspace'
 import { materializeContext } from './materialize-context'
-import { materializeTranscript } from './materialize-transcript'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { WorkspaceFiles } from './workspace-files'
-import type { FetchTranscriptArchive } from './workspace-spec'
 
 const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
   let held: Promise<T> | undefined
@@ -48,11 +39,8 @@ export async function bootServeFiles(args: {
   driveHome: string
   log: ServeLog
   ensureWorkspace?: EnsureWorkspace | undefined
-  restoreWorkspace?: DirectWorkspaceRestorer | undefined
   profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
-  fetchTranscriptArchive?: FetchTranscriptArchive | undefined
-  directoryEntries?: DirectoryEntries | undefined
 }) {
   const { env, threadId, cwd, driveHome, log } = args
   const fetchSpecOnce = lazy(driveWorkspaceSpecFetcher({ driveHome }))
@@ -60,27 +48,7 @@ export async function bootServeFiles(args: {
   const workspaceStartedAt = Date.now()
   const profile = args.profile ?? createEnvironmentProfile({ env })
   const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
-  const direct = createDirectWorkspace({ driveHome, destination: cwd, restore: args.restoreWorkspace })
-  const directBoot = await direct.boot()
-  const fallbackCwd =
-    directBoot.kind === 'none'
-      ? await legacyWorkspaceDirectoryOf({ cwd, driveHome, entriesOf: args.directoryEntries })
-      : cwd
-  const workspace: WorkspaceReadiness =
-    directBoot.kind === 'ready'
-      ? {
-          state: EWorkspaceState.Present,
-          profile: await applyDirectProfile({
-            env,
-            cwd: directBoot.result.restored.cwd,
-            fetchSpec: fetchSpecOnce,
-            profile,
-          }),
-        }
-      : directBoot.kind === 'failed'
-        ? { state: EWorkspaceState.Failed, step: EWorkspaceStep.Apply, reason: directBoot.reason }
-        : await ensureWorkspace({ cwd: fallbackCwd, fetchSpec: fetchSpecOnce })
-  const activeCwd = directBoot.kind === 'ready' ? directBoot.result.restored.cwd : fallbackCwd
+  const workspace: WorkspaceReadiness = await ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce })
   const workspaceMs = Date.now() - workspaceStartedAt
 
   if (workspace.state === EWorkspaceState.Failed) {
@@ -91,7 +59,7 @@ export async function bootServeFiles(args: {
       ms: workspaceMs,
     })
   } else {
-    log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd: activeCwd, ms: workspaceMs })
+    log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
     for (const outcome of workspace.profile?.steps ?? []) {
       if (outcome.state !== EProfileStepState.Failed) continue
       log({ event: EServeEvent.ProfileStepFailed, step: outcome.step, detail: outcome.detail })
@@ -99,7 +67,7 @@ export async function bootServeFiles(args: {
   }
 
   const spec = await fetchSpecOnce().catch(() => null)
-  applyGitAccessEnv({ env, cwd: activeCwd, githubToken: spec?.githubToken })
+  applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
 
   const contextStartedAt = Date.now()
   const context = await materializeContext({
@@ -115,23 +83,12 @@ export async function bootServeFiles(args: {
     log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
   }
 
-  const transcriptStartedAt = Date.now()
-  const transcript = await materializeTranscript({
-    fetchArchive: args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome }),
-    atlasHome: driveHome,
-    threadId,
-  })
-  const transcriptMs = Date.now() - transcriptStartedAt
-  if (transcript.failed !== null) {
-    log({ event: EServeEvent.TranscriptFailed, reason: transcript.failed, ms: transcriptMs })
-    throw new Error(`the transcript could not be restored at boot: ${transcript.failed}`)
-  }
-  if (transcript.restored) log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
-  if (transcript.fresh) {
-    const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
+  const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
+  const metaFile = threadMetaFile({ sessionDir, threadId })
+  if (readMetaSync({ file: metaFile, schema: threadMetaSchema }) === undefined) {
     const meta = newThreadMeta({ id: threadId, at: new Date().toISOString() })
-    meta.workspace = activeCwd
-    await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
+    meta.workspace = cwd
+    await writeMeta({ file: metaFile, meta })
     await writeSessionMetaForRoot({
       registry: registryFor({ home: driveHome }),
       sessionDir,
@@ -140,13 +97,5 @@ export async function bootServeFiles(args: {
     })
   }
 
-  return {
-    direct,
-    directBoot,
-    workspace,
-    activeCwd,
-    bootDormant: directBoot.kind === 'ready' && !directBoot.result.activated,
-    spec,
-    context,
-  }
+  return { workspace, activeCwd: cwd, spec, context }
 }

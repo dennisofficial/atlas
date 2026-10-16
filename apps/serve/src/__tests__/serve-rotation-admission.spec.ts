@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
-import { createDirectWorkspace } from '../direct-workspace'
 import { EWorkspaceState } from '../materialize-workspace'
 import { createRuntimeCheckpointCapture } from '../runtime-checkpoint'
 import { bindRuntimeCheckpoint } from '../runtime-checkpoint-binding'
@@ -43,12 +42,11 @@ const rig = async (args: {
   })
   await recovery.guard({ app, admission })
   const session = createServeWorkspaceSession({
-    direct: createDirectWorkspace({ driveHome: fixture.home, destination: '/workspace' }),
     threadId, app,
-    dormant: true, deferStartChildren: true, log: noop, settling: { count: 0 }, note: noop,
+    deferStartChildren: false, log: noop, settling: { count: 0 }, note: noop,
   })
   const driver = createServeDriver({
-    app, threadId, session, admission, workspace: { state: EWorkspaceState.Skipped },
+    app, threadId, admission, workspace: { state: EWorkspaceState.Skipped },
     log: noop, idleStop: () => ({ note: noop }), emitLifecycle: recovery.consume,
   })
   const checkpoint = bindRuntimeCheckpoint({
@@ -69,19 +67,16 @@ const rig = async (args: {
 }
 
 describe('recovery admission while another rotation starts', () => {
-  it('waits for an accepted dormant activation before sealing and never resumes or reopens after the drain starts', async () => {
-    const entered = gate()
-    const held = gate()
-    const entry = await rig({ adopt: async () => { entered.release(); await held.promise } })
+  it('seals once the drain settles and never resumes or reopens after the drain starts', async () => {
+    const entry = await rig()
     await entry.recovery.recover(entry)
     expect(entry.familyResumes()).toBe(1)
+    expect(entry.parentStarts()).toBe(1)
     const activation = entry.recovery.activate(entry)
-    await entered.promise
     const draining = entry.recovery.drain({ drain: entry.drain, reason: 'next rotation' })
     expect(entry.admission.closed).toBe(true)
     expect(entry.sealing()).toBe(0)
     await expect(entry.recovery.activate(entry)).rejects.toThrow('accepts no new work')
-    held.release()
     await activation
     const proof = await draining
     expect(proof.receipt.checkpoint.phase).toBe(ERuntimePhase.Rotating)
@@ -89,11 +84,11 @@ describe('recovery admission while another rotation starts', () => {
     expect(entry.sealing()).toBe(1)
     expect(entry.admission.closed).toBe(true)
     expect(entry.familyResumes()).toBe(1)
-    expect(entry.parentStarts()).toBe(0)
+    expect(entry.parentStarts()).toBe(1)
     entry.app.pending?.forThread({ threadId }).enqueue({ text: 'must stay closed' })
     entry.app.intake?.changed()
     await Bun.sleep(10)
-    expect(entry.parentStarts()).toBe(0)
+    expect(entry.parentStarts()).toBe(1)
     entry.recovery.detach()
     entry.app.intake?.dispose()
   })
@@ -111,7 +106,7 @@ describe('recovery admission while another rotation starts', () => {
     await recovering
     await draining
     expect(entry.admission.closed).toBe(true)
-    expect(entry.parentStarts()).toBe(0)
+    expect(entry.parentStarts()).toBe(1)
     expect(entry.sealing()).toBe(1)
     entry.recovery.detach()
     entry.app.intake?.dispose()
@@ -133,26 +128,15 @@ describe('recovery admission while another rotation starts', () => {
     entry.app.intake?.dispose()
   })
 
-  it('cancels accepted activation still waiting on the guard without starting children', async () => {
-    const entered = gate()
-    const held = gate()
-    let freezes = 0
-    const entry = await rig({ freeze: async () => {
-      freezes += 1
-      if (freezes === 1) return
-      entered.release()
-      await held.promise
-    } })
+  it('refuses an activation that arrives once the next rotation is preparing', async () => {
+    const entry = await rig()
     await entry.recovery.recover(entry)
-    const activation = entry.recovery.activate(entry)
-    await entered.promise
     const draining = entry.recovery.drain({ drain: entry.drain, reason: 'next rotation' })
-    held.release()
-    expect(await activation).toEqual({ activated: false })
-    await draining
-    expect(entry.session.dormant()).toBe(true)
-    expect(entry.adoptions()).toBe(0)
-    expect(entry.parentStarts()).toBe(0)
+    await expect(entry.recovery.activate(entry)).rejects.toThrow('accepts no new work')
+    const proof = await draining
+    expect(proof.ok).toBe(true)
+    expect(entry.adoptions()).toBe(1)
+    expect(entry.parentStarts()).toBe(1)
     expect(entry.familyResumes()).toBe(1)
     expect(entry.admission.closed).toBe(true)
     entry.recovery.detach()

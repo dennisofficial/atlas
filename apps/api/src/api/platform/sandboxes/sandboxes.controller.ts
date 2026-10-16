@@ -39,7 +39,6 @@ export class SandboxesController {
     return this.sandboxes.claim({
       userId: userIdOf(request),
       threadId: body.threadId,
-      workspace: body.workspace,
       contextBundle: body.contextBundle,
       gitToken: body.gitToken,
       gpgKey: body.gpgKey,
@@ -77,19 +76,4 @@ export class SandboxesController {
     })
   }
 
-  @Put(':threadId/transcript')
-  @HttpCode(204)
-  async handlePutTranscript(
-    @Req() request: AuthenticatedRequest,
-    @Param('threadId') threadId: string,
-    @Body() body: unknown,
-    @Headers('content-type') contentType: string | undefined,
-  ): Promise<void> {
-    assertGzipContentType(contentType)
-    await this.sandboxes.putTranscriptArchive({
-      userId: userIdOf(request),
-      threadId,
-      archive: bufferBodyOf(body),
-    })
-  }
 }

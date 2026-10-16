@@ -202,18 +202,6 @@ describe('a thread born in the cloud', () => {
     }
   }, 60_000)
 
-  it.skip('reads a 503 as the cloud not being set up and stays on the host', () => {
-    // slice 08: the create failure message is the lift's; the boot attach failure is covered in
-    // app-cloud-open.spec.tsx.
-  })
-})
-
-describe.skip('the move overview', () => {
-  // slice 08: the move overlay narrating a lift (waiting for the sandbox, the paused stepping
-  // child, the failed step) has no /container entry point anymore.
-  it('narrates each step and holds the composer until the sandbox answers', () => {})
-  it('does not wake a local turn when the move pauses a stepping child', () => {})
-  it('shows the step that failed with the reason, and gives the composer back on esc', () => {})
 })
 
 describe('switching conversations while attached', () => {
@@ -292,11 +280,6 @@ describe('switching conversations while attached', () => {
       await mounted.done()
     }
   }, 60_000)
-})
-
-describe.skip('a descend with a lingering connection', () => {
-  // slice 08: /container host is the descend this guards, and /container no longer moves threads.
-  it('renders neither the sidebar cloud pill nor the footer cloud icon once home', () => {})
 })
 
 describe('a sandbox whose workspace would not materialise', () => {

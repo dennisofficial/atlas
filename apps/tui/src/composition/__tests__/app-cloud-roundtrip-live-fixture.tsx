@@ -26,8 +26,6 @@ import type { MoveStepTiming } from '../use-container-move'
 import type { OpenedConversation } from '../open-conversation'
 import { scriptedModelPort } from './fake-app'
 
-export const LOCAL_EDIT = 'local edit before the lift'
-export const REMOTE_EDIT = 'remote edit made in the sandbox'
 export const FILE = 'roundtrip.txt'
 
 const THINKING = 'Reading the transcript off the event log.'
@@ -38,9 +36,8 @@ export const git = (args: readonly string[], cwd: string) => runGit({ args, cwd 
 export type Scratch = { dir: string; remote: string }
 
 /**
- * A local bare repo stands in for origin: the lift's capture reads the remote URL off it, and the
- * descend's publish pushes to it over the filesystem, so the merge home fetches for real without
- * touching the network.
+ * A local bare repo stands in for origin: the birth's clone reads the remote URL off it over the
+ * filesystem, so the sandbox boots for real without touching the network.
  */
 export async function scratchRepo(): Promise<Scratch> {
   const remote = await mkdtemp(join(tmpdir(), 'atlas-roundtrip-remote-'))
@@ -55,7 +52,6 @@ export async function scratchRepo(): Promise<Scratch> {
   await git(['commit', '-m', 'base'], dir)
   await git(['remote', 'add', 'origin', remote], dir)
   await git(['push', '-u', 'origin', 'main'], dir)
-  await writeFile(join(dir, FILE), `base contents\n${LOCAL_EDIT}\n`)
   return { dir, remote }
 }
 
@@ -145,7 +141,7 @@ export async function mountLive(args: {
       app={app}
       opened={opened}
       createBridge={() => args.bridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
       onMoveStep={(timing) => args.timings.push(timing)}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },

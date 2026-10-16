@@ -72,7 +72,7 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       app={args.app}
       opened={await spokenIn(args.app)}
       createBridge={createBridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
     />,
     WIDE,
   )
@@ -144,20 +144,20 @@ describe('/resume listing local and cloud threads together', () => {
     }
   }, 60_000)
 
-  it('shows one row for a thread both stores know — the lifted local record wins', async () => {
-    const flippedId = toThreadId('the-lifted-thread')
+  it('shows one row for a thread both stores know — the cloud local record wins', async () => {
+    const flippedId = toThreadId('the-cloud-thread')
     const app = speaking({
-      cloud: cloudWithThreads({ threads: [wireThread({ id: flippedId, title: 'the lifted thread' })] }),
+      cloud: cloudWithThreads({ threads: [wireThread({ id: flippedId, title: 'the cloud thread' })] }),
     })
     await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, id: flippedId })
     await app.threads.chooseExecutionLocation({ threadId: flippedId, location: EExecutionLocation.Cloud })
-    await app.threads.rename({ threadId: flippedId, title: 'the lifted thread' })
+    await app.threads.rename({ threadId: flippedId, title: 'the cloud thread' })
     const mounted = await mount({ app, bridge: fakeBridge({ status: RUNNING_STATUS }) })
 
     try {
       const frame = await mounted.command('/resume')
 
-      expect(frame.match(/the lifted thread/g)).toHaveLength(1)
+      expect(frame.match(/the cloud thread/g)).toHaveLength(1)
     } finally {
       await mounted.done()
     }

@@ -8,7 +8,7 @@ import type { AtlasApp } from './compose'
 import { useAttachFailure } from './attach-failure'
 import { useSessionOwner } from './use-session-owner'
 import { clearNotice, ENoticeTone, notify } from '../ui/notice-store'
-import { CLOUD_SANDBOX_NOTICE_KEY } from './cloud/lift-notices'
+import { CLOUD_SANDBOX_NOTICE_KEY } from './cloud/cloud-birth-notices'
 
 const CONNECTING: CloudConnection = { state: EChannelConnection.Connecting, detail: null }
 
@@ -35,8 +35,8 @@ function useCloudState(args: { app: AtlasApp; session: CloudSession | null }): {
 
 /**
  * The one derivation of the cloud channel's connection for chrome: the health the session last
- * announced, gated on the placement record. A descend flips the placement before the remount that
- * drops the session, and the socket may never announce a close (`announce` fires only on change),
+ * announced, gated on the placement record. Leaving a cloud session flips the placement before
+ * the remount that drops the session, and the socket may never announce a close (`announce` fires only on change),
  * so a reader mounted in between would draw a healthy cloud from a stale Open forever — here the
  * placement is the veto, not a second subscription. Closed and Parked still surface while the
  * placement says Cloud, since those are fault and resting renderings of a session that is away.

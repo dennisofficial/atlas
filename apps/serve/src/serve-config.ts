@@ -80,6 +80,6 @@ export function serveConfig(args: {
     port: args.port ?? portFrom(given(env[EServeEnv.Port])) ?? DEFAULT_SERVE_PORT,
     token,
     controlPlaneUrl,
-    cwd: args.cwd ?? given(env[EServeEnv.WorkspaceDir]) ?? process.cwd(),
+    cwd: args.cwd ?? process.cwd(),
   }
 }

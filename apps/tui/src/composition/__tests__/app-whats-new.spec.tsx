@@ -75,7 +75,7 @@ const mount = async (whatsNewDeps: WhatsNewDeps, placement: { cloud: boolean } =
       app={app}
       opened={opened}
       createBridge={() => bridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
       whatsNewDeps={whatsNewDeps}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },

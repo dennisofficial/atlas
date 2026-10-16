@@ -56,7 +56,7 @@ const seedCloudThread = async (
 ): Promise<{ threadId: ThreadId }> => {
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
   await app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
-  await app.threads.rename({ threadId: thread.id, title: 'the lifted thread' })
+  await app.threads.rename({ threadId: thread.id, title: 'the cloud thread' })
   return { threadId: thread.id }
 }
 
@@ -87,7 +87,7 @@ const mount = async (args: {
       app={args.app}
       opened={opened}
       createBridge={createBridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
       {...(args.onRestart === undefined ? {} : { onRestart: args.onRestart })}
     />,
     WIDE,
@@ -136,7 +136,7 @@ describe('opening a conversation that lives in the cloud', () => {
 
     try {
       await mounted.command('/resume')
-      await mounted.typeText('lifted')
+      await mounted.typeText('cloud thread')
       await mounted.pick()
 
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
@@ -164,7 +164,7 @@ describe('opening a conversation that lives in the cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.command('/resume the-lifted-thread')
+      await mounted.command('/resume the-cloud-thread')
 
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
         true,
@@ -281,7 +281,7 @@ describe('opening a conversation that lives in the cloud', () => {
       mounted.pressEscape()
       await settle(300)
       await mounted.command('/resume')
-      await mounted.typeText('lifted')
+      await mounted.typeText('cloud thread')
       await mounted.pick()
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
       const attached = app.sessionOwner.snapshot()
@@ -305,7 +305,7 @@ describe('the picker badge', () => {
     try {
       const frame = await mounted.command('/resume')
 
-      expect(frame).toContain('the lifted thread')
+      expect(frame).toContain('the cloud thread')
       expect(frame).toContain('☁ running')
     } finally {
       await mounted.done()
@@ -335,7 +335,7 @@ describe('coming back to the host', () => {
 
     try {
       await mounted.command('/resume')
-      await mounted.typeText('lifted')
+      await mounted.typeText('cloud thread')
       await mounted.pick()
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
       await mounted.showing('said inside the sandbox')
@@ -375,7 +375,7 @@ describe('/restart on a cloud session', () => {
 
     try {
       await mounted.command('/resume')
-      await mounted.typeText('lifted')
+      await mounted.typeText('cloud thread')
       await mounted.pick()
 
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
@@ -414,7 +414,7 @@ describe('/restart on a cloud session', () => {
 
     try {
       await mounted.command('/resume')
-      await mounted.typeText('lifted')
+      await mounted.typeText('cloud thread')
       await mounted.pick()
 
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(

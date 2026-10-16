@@ -720,7 +720,7 @@ describe('the sticky failure clearing on recovery', () => {
 describe('a reload that fails before it lands', () => {
   const applied = { head: 4, count: 4, digest: 'e'.repeat(64) }
 
-  it('retries a reload whose resync rejected, so a lift-window failure cannot leave the open socket dimmed forever', async () => {
+  it('retries a reload whose resync rejected, so a birth-window failure cannot leave the open socket dimmed forever', async () => {
     let attempts = 0
     const failUntil = 1
     const channel = fakeCloudChannel({ connection: { state: EChannelConnection.Connecting, detail: null } })
@@ -733,7 +733,7 @@ describe('a reload that fails before it lands', () => {
       updateResources: async () => {},
         destroy: async () => undefined,
       },
-      // The TUI's reload rejects while the lift's binding is still committing; only the second
+      // The TUI's reload rejects while the birth's binding is still committing; only the second
       // attempt, once the operator's view exists, succeeds.
       onReload: async () => {
         attempts += 1
@@ -744,7 +744,7 @@ describe('a reload that fails before it lands', () => {
     })
 
     // The serve demands a re-read the moment the socket opens; the first attempt lands in the
-    // lift window and rejects.
+    // birth window and rejects.
     channel.moveTo({ state: EChannelConnection.Open, detail: null })
     channel.reload({ sinceEventSeq: 0 })
     await settled()
@@ -753,7 +753,7 @@ describe('a reload that fails before it lands', () => {
     expect(attempts).toBe(1)
     expect(session.health().stale).toBe(true)
 
-    // Once the lift settles the reload must be retried — not dropped — so synced flips and the
+    // Once the birth settles the reload must be retried — not dropped — so synced flips and the
     // transcript undims. Before the fix the rejection was swallowed and nothing ever retried.
     const retried = await (async () => {
       for (let i = 0; i < 40; i += 1) {

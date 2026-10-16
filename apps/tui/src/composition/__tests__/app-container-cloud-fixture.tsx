@@ -8,7 +8,7 @@ import type { ClipboardImageReader } from '../../ui/clipboard-image'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import type { FakeBridge } from '../cloud/__tests__/fixture'
-import type { CloudBridgeFactory, LiftPreflight } from '../cloud/bridge-factory'
+import type { CloudBridgeFactory, BirthPreflight } from '../cloud/bridge-factory'
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 import type { OpenedConversation } from '../open-conversation'
 import { editorIn, spokenIn, REPLY, THINKING, THREAD, until } from './app-fixture'
@@ -19,7 +19,7 @@ export const speaking = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
 
 /**
- * Streamed slowly enough that a mid-turn lift has a turn to catch: fast enough that `until` still
+ * Streamed slowly enough that a mid-turn birth has a turn to catch: fast enough that `until` still
  * finds it inside the test timeout.
  */
 export const slowlySpeaking = (): FakeApp =>
@@ -47,7 +47,7 @@ export const seedCloudThread = async (args: {
     ...(args.threadId === undefined ? {} : { id: args.threadId }),
   })
   await args.app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
-  await args.app.threads.rename({ threadId: thread.id, title: args.title ?? 'the lifted thread' })
+  await args.app.threads.rename({ threadId: thread.id, title: args.title ?? 'the cloud thread' })
   return { threadId: thread.id }
 }
 
@@ -55,7 +55,7 @@ export const mount = async (args: {
   app: FakeApp
   bridge: FakeBridge
   opened?: OpenedConversation
-  preflightLift?: LiftPreflight
+  preflightBirth?: BirthPreflight
   clipboard?: ClipboardImageReader
 }) => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-cloud-spec-'))
@@ -79,7 +79,7 @@ export const mount = async (args: {
       app={args.app}
       opened={opened}
       createBridge={createBridge}
-      preflightLift={args.preflightLift ?? (async () => null)}
+      preflightBirth={args.preflightBirth ?? (async () => null)}
       {...(args.clipboard === undefined ? {} : { clipboard: args.clipboard })}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },

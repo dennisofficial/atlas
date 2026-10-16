@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { EServeEnv } from '@dltech/atlas-wire'
 
 import type { BridgeDriver } from '../local-cloud-bootstrap'
 import { createLocalCloudBridge } from '../local-cloud-bridge'
@@ -32,10 +31,6 @@ const bridgeSeeing = (args: { environment?: Record<string, string> }) => {
     },
     writeBootstrapFileToSandbox: async () => {},
     writeBootstrapFile: async () => {},
-    uploadWorkspaceArchive: async () => {},
-    downloadSessionArchive: async () => {},
-    releaseSessionArchive: async () => {},
-    transcriptLanded: async () => true,
     readResources: async () => ({}),
     updateResources: async () => {},
     destroy: async () => {},
@@ -49,28 +44,8 @@ const bridgeSeeing = (args: { environment?: Record<string, string> }) => {
   return { bridge, seen }
 }
 
-describe('createLocalCloudBridge workspace directory', () => {
-  it('hands the named primary path to the sandbox as its workspace directory', async () => {
-    const { bridge, seen } = bridgeSeeing({})
-
-    await bridge.sandboxes.create({ threadId, workspace: null, workspaceDirectory: '/atlas/workspaces/atlas' })
-
-    expect(seen).toEqual([{ [EServeEnv.WorkspaceDir]: '/atlas/workspaces/atlas' }])
-  })
-
-  it('lets the supplied primary path win over the operator environment while keeping the rest', async () => {
-    const { bridge, seen } = bridgeSeeing({
-      environment: { [EServeEnv.WorkspaceDir]: '/elsewhere', ATLAS_CLASSIFIER_MODE: 'nudge' },
-    })
-
-    await bridge.sandboxes.create({ threadId, workspace: null, workspaceDirectory: '/atlas/workspaces/atlas' })
-
-    expect(seen).toEqual([
-      { [EServeEnv.WorkspaceDir]: '/atlas/workspaces/atlas', ATLAS_CLASSIFIER_MODE: 'nudge' },
-    ])
-  })
-
-  it('adds no workspace directory when none is supplied, as a reconnect does', async () => {
+describe('createLocalCloudBridge sandbox environment', () => {
+  it('forwards the operator environment as the sandbox boot environment', async () => {
     const { bridge, seen } = bridgeSeeing({ environment: { ATLAS_CLASSIFIER_MODE: 'nudge' } })
 
     await bridge.sandboxes.create({ threadId, workspace: null })

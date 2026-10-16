@@ -110,27 +110,12 @@ export const readTurnsReplySchema = z.object({
   delegated: z.array(wireTurnSchema),
 })
 
-export const SESSION_EXPORT_DIRECTORY_NAME = 'exports'
-export const SESSION_EXPORT_FILE_PATTERN = /^session-[A-Za-z0-9_-]+\.tar\.gz$/
-
-export const sessionArchiveDescriptorSchema = z.object({
-  path: z.string().min(1),
-  size: z.number().int().safe().nonnegative(),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  threadId: threadIdWireSchema,
-})
-export type SessionArchiveDescriptor = z.infer<typeof sessionArchiveDescriptorSchema>
-
-export const readSessionArchiveReplySchema = z.object({
-  archive: sessionArchiveDescriptorSchema.nullable(),
-})
-
 export const publishedWorkspaceWireSchema = z
   .object({
     ref: z.string(),
     commit: z.string(),
     base: z.string().nullable(),
-    /** Absent on a serve built before the tree-merge descend; the host falls back to the base commit. */
+    /** Absent on a serve built before baseTree existed; the host falls back to the base commit. */
     baseTree: z.string().nullish(),
     branch: z.string().nullish(),
   })

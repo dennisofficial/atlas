@@ -10,7 +10,6 @@ import React from 'react'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
-import { acceptingTheWorkspace } from './app-born-placement-chip.spec'
 import { editorIn, promiseGate, until } from './app-fixture'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import { unstartedConversation } from '../open-conversation'
@@ -48,7 +47,6 @@ const holdingProvisioning = (bridge: FakeBridge): { gate: Promise<void>; release
 }
 
 const mountFresh = async (args: { app: FakeApp; bridge: FakeBridge }) => {
-  acceptingTheWorkspace(args.bridge)
   const home = mkdtempSync(join(tmpdir(), 'atlas-birth-overlay-home-'))
   const previousHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home
@@ -57,7 +55,7 @@ const mountFresh = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       app={args.app}
       opened={unstartedConversation({ ids: args.app.ids })}
       createBridge={() => args.bridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )

@@ -39,16 +39,16 @@ export type ThreadModelControl = {
  */
 export function useThreadModel(args: {
   app: AtlasApp
-  /** The store the model write crosses — the cloud attachment's when the thread is lifted. */
+  /** The store the model write crosses — the cloud attachment's when the thread is remote. */
   threads?: AtlasApp['threads'] | undefined
-  /** True when the thread is cloud-lifted: the remote store is the live truth, so a refused write reverts the pick. */
-  lifted?: boolean | undefined
+  /** True when the thread runs in the cloud: the remote store is the live truth, so a refused write reverts the pick. */
+  remote?: boolean | undefined
   threadId: ThreadId
   stored: ThreadModel | undefined
   started: boolean
 }): ThreadModelControl {
   const { app, threadId, stored, started } = args
-  const lifted = args.lifted ?? false
+  const remote = args.remote ?? false
   const threads = args.threads ?? app.threads
   const [selection, setSelection] = useState<ModelSelection>(() => app.model.choice())
   const launching = useRef(true)
@@ -114,12 +114,12 @@ export function useThreadModel(args: {
       .chooseModel({ threadId, model: storedModel(app.model.choice()) })
       .catch(() =>
         notify(
-          lifted
+          remote
             ? cloudModelFailureNotice()
             : modelPersistFailureNotice({ model: refKey(app.model.choice().ref) }),
         ),
       )
-  }, [app, threads, lifted, started, threadId])
+  }, [app, threads, remote, started, threadId])
 
   const handlePicked = useCallback(
     ({ choice, target }: { choice: SwitcherChoice; target: SwitcherTarget }) => {
@@ -150,7 +150,7 @@ export function useThreadModel(args: {
       if (!started) return
 
       void threads.chooseModel({ threadId, model: storedModel(landed) }).catch(() => {
-        if (lifted) {
+        if (remote) {
           app.model.select(prior)
           setSelection(prior)
           notify(cloudModelFailureNotice())
@@ -163,7 +163,7 @@ export function useThreadModel(args: {
         )
       })
     },
-    [app, threads, lifted, started, threadId],
+    [app, threads, remote, started, threadId],
   )
 
   return { selection, fallback, handlePicked }

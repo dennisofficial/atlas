@@ -22,7 +22,7 @@ import type { RemoteDeltaChannel } from './remote-delta-channel'
 import { threadFromWire } from './session-wire'
 
 const WRITE_REFUSAL =
-  'the sandbox owns the transcript while lifted — thread mutations happen in its loop, not over this channel'
+  'the sandbox owns the transcript while the session runs there — thread mutations happen in its loop, not over this channel'
 
 const refuseWrite = (): Promise<never> => Promise.reject(new Error(WRITE_REFUSAL))
 
