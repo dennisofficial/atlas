@@ -347,13 +347,13 @@ describe('what neither operation will do', () => {
 
   it('spares a location-changed marker from a destructive summary, since the move is still true', async () => {
     const threadId = await openThread([
-      said('lift it'),
+      said('move it'),
       { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
       said('keep going'),
       replied('done'),
     ])
 
-    const outcome = await summariseTo({ threadId, throughSeq: 3, summary: 'the lift and the ask' })
+    const outcome = await summariseTo({ threadId, throughSeq: 3, summary: 'the move and the ask' })
 
     expect(outcome.ok).toBe(true)
     expect(await shapeOf(threadId)).toEqual([

@@ -176,7 +176,7 @@ export class VercelDriver {
   }
 
   /**
-   * The serve log tail from a live sandbox, for a lift that stalled before serve went healthy.
+   * The serve log tail from a live sandbox, for a birth that stalled before serve went healthy.
    * Answers the log's last bytes, or a marker when the sandbox or the log is not there to read.
    */
   async serveLogTail(args: { name: string }): Promise<string> {

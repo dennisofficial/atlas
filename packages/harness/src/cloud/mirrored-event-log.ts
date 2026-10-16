@@ -53,7 +53,7 @@ export class MirroredEventLog extends EventLogPort {
     drafts: readonly EventDraft[]
   }): Promise<Event[]> {
     return Promise.reject(
-      new Error('the sandbox owns the transcript while lifted — reads only over the channel'),
+      new Error('the sandbox owns the transcript while the session runs there — reads only over the channel'),
     )
   }
 
@@ -63,7 +63,7 @@ export class MirroredEventLog extends EventLogPort {
     drafts: readonly EventDraft[]
   }): Promise<Event[]> {
     return Promise.reject(
-      new Error('the sandbox owns the transcript while lifted — reads only over the channel'),
+      new Error('the sandbox owns the transcript while the session runs there — reads only over the channel'),
     )
   }
 

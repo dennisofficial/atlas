@@ -37,7 +37,7 @@ const BOOT_THREAD = toThreadId('boot')
  *
  * Teammates are threads of the same session, so each keeps its own place: a teammate in another
  * worktree is tracked beside the main thread rather than instead of it. The cloud fold is the main
- * thread's alone — it is the lift marker's checkout, which no teammate necessarily shares.
+ * thread's alone — it is the birth marker's checkout, which no teammate necessarily shares.
  */
 export function createCheckoutTracking(args: {
   service: PullRequestService
@@ -62,7 +62,7 @@ export function createCheckoutTracking(args: {
     directory: string
   }): Promise<RepositoryCheckout | null> => {
     if (args.cloud !== undefined && (request.threadId === mainThread || request.threadId === BOOT_THREAD)) {
-      // The arrival/lift marker is a snapshot: a thread that reaches the cloud before its
+      // The birth marker is a snapshot: a thread that reaches the cloud before its
       // worktree exists folds null forever unless the sandbox's real directory is probed.
       const folded = args.cloud()
       if (folded !== null) return folded

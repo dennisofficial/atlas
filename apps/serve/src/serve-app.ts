@@ -55,9 +55,9 @@ export type ServePrStates = {
 }
 
 /**
- * The served thread's stepping children narrowed to what a descend pause needs: freeze each one at
- * the loop's seam and resolve only once every step has settled into that halt, so the session
- * archive that follows races no writer. Absent in fakes, where pausing the parent's own turn is
+ * The served thread's stepping children narrowed to what a drain pause needs: freeze each one at
+ * the loop's seam and resolve only once every step has settled into that halt, so the swap that
+ * follows races no writer. Absent in fakes, where pausing the parent's own turn is
  * all there is.
  */
 export type ServeFamily = {
@@ -163,7 +163,7 @@ export type ServeApp = {
    * composed — the client falls back to its own badge cache.
    */
   prStates?: ServePrStates | undefined
-  /** Absent in a fake without registries: a descend pause halts the parent's turn only. */
+  /** Absent in a fake without registries: a drain pause halts the parent's turn only. */
   family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */
   rewind?: ServeRewind | undefined
@@ -176,7 +176,7 @@ export type ServeApp = {
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   compaction?: CompactionPort | undefined
   rotation?: RotationPort | undefined
-  /** The session's placement controller; serve hydrates it to cloud after transcript restore. */
+  /** The session's placement controller; serve hydrates it to cloud once boot settles. */
   executionLocation?: PlacementController | undefined
   close: () => Promise<void>
 }

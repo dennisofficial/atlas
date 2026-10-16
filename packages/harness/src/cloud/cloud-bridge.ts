@@ -93,7 +93,7 @@ export type CloudChannel = RemoteDeltaChannel
 /**
  * What attaching to a live cloud session hands back: the channel to its serve, and the transcript
  * stores that read over it. The stores are per-attachment because they are backed by the channel —
- * the sandbox owns the transcript while lifted, and there is no control-plane copy left to read.
+ * the sandbox owns the transcript while the session runs there, and there is no control-plane copy left to read.
  */
 export type CloudAttachment = {
   channel: CloudChannel

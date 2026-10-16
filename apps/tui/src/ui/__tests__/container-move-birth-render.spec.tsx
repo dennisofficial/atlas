@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import { beginMove, failMove, startMoveNode, updateMoveTransfer, type ContainerMove } from '../../composition/container-move'
 import { ContainerMoveOverlay } from '../components/container-move'
@@ -16,7 +16,7 @@ const ROWS = [
   { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
 ] as const
 
-const upload = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress => ({
+const upload = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'provision',
   transferId: 'context-upload',
   label: 'uploading skills and memory',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import { beginMove, startMoveNode, updateMoveTransfer } from '../container-move'
 import {
@@ -18,7 +18,7 @@ const ROWS = [
   { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
 ] as const
 
-const upload = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress => ({
+const upload = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'provision',
   transferId: 'context-upload',
   label: 'uploading skills and memory',
@@ -31,7 +31,7 @@ const upload = (over: Partial<RelocationTransferProgress> = {}): RelocationTrans
 const key = (over: { name: string; ctrl?: boolean; eventType?: string }) => over as never
 
 describe('the serve-launch stage', () => {
-  const provisioning = (progress: RelocationTransferProgress[]) => {
+  const provisioning = (progress: BirthTransferProgress[]) => {
     let move = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS })
     move = startMoveNode({ move, nodeId: 'provision', now: AT })
     for (const reading of progress) move = updateMoveTransfer({ move, progress: reading })

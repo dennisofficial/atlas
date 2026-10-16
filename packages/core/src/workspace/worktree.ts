@@ -101,20 +101,20 @@ export function projectDirectoryOf(args: {
   return activeWorktreeOf(args.events)?.path ?? homeDirectoryOf(args)
 }
 
-export type LiftedGitIdentity = {
+export type BornCloudGitIdentity = {
   remoteUrl: string
   branch: string
   cwd: string | undefined
 }
 
 /**
- * The git identity a lift recorded on its `location-changed`, or null when the thread is local
- * (or was lifted before the identity rode the event). A later transition back to local clears it,
+ * The git identity a cloud birth recorded on its `location-changed`, or null when the thread is local
+ * (or reached the cloud before the identity rode the event). A later transition back to local clears it,
  * so only the latest move decides. Worktree moves after the latest move to cloud override the
  * recorded branch and directory — the sandbox's session usually enters a worktree after arrival,
  * and the marker is a snapshot of the moment before that happened.
  */
-export function liftedWorkspaceOf(events: readonly Event[]): LiftedGitIdentity | null {
+export function bornCloudWorkspaceOf(events: readonly Event[]): BornCloudGitIdentity | null {
   let anchor = -1
   for (let index = events.length - 1; index >= 0; index -= 1) {
     if (events[index]?.type !== 'location-changed') continue
@@ -123,13 +123,13 @@ export function liftedWorkspaceOf(events: readonly Event[]): LiftedGitIdentity |
   }
   if (anchor === -1) return null
 
-  const lift = events[anchor]
-  if (lift?.type !== 'location-changed') return null
-  if (lift.to !== EExecutionLocation.Cloud) return null
-  if (lift.remoteUrl == null || lift.branch == null) return null
+  const birth = events[anchor]
+  if (birth?.type !== 'location-changed') return null
+  if (birth.to !== EExecutionLocation.Cloud) return null
+  if (birth.remoteUrl == null || birth.branch == null) return null
 
-  let branch = lift.branch
-  let cwd = lift.cwd
+  let branch = birth.branch
+  let cwd = birth.cwd
   for (const event of events.slice(anchor + 1)) {
     if (event.type === 'worktree-entered') {
       branch = event.branch
@@ -137,10 +137,10 @@ export function liftedWorkspaceOf(events: readonly Event[]): LiftedGitIdentity |
       continue
     }
     if (event.type === 'worktree-exited') {
-      branch = lift.branch
-      cwd = event.returnTo ?? lift.cwd
+      branch = birth.branch
+      cwd = event.returnTo ?? birth.cwd
     }
   }
 
-  return { remoteUrl: lift.remoteUrl, branch, cwd }
+  return { remoteUrl: birth.remoteUrl, branch, cwd }
 }

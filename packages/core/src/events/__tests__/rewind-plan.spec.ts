@@ -252,7 +252,7 @@ describe('rewindPlan for location changes', () => {
         anchor: ECompactionAnchor.Prefix,
         fromSeq: 1,
         throughSeq: 2,
-        summary: 'the session lifted',
+        summary: 'the session moved',
         replaced: 1,
       },
       said('msg_2'),

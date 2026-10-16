@@ -78,7 +78,7 @@ const selectedAccountOf = async (args: {
   const blocked = args.excluded.find((account) => account.id === choice.account.id)
   if (blocked === undefined) return choice.account.id
   throw unavailable(
-    `The ${blocked.label} login cannot be lifted because it has no Atlas Cloud authorization. Sign in again with /auth to authorize it, or select an API-key account.`,
+    `The ${blocked.label} login cannot cross to a cloud session because it has no Atlas Cloud authorization. Sign in again with /auth to authorize it, or select an API-key account.`,
   )
 }
 
@@ -103,7 +103,7 @@ export async function prepareSandboxOauth(args: {
     return
   }
   if (session === null || args.handoffOauth === undefined) {
-    throw unavailable('Sign in to Atlas Cloud before lifting OAuth accounts, or select an API-key account.')
+    throw unavailable('Sign in to Atlas Cloud before a cloud birth carries OAuth accounts, or select an API-key account.')
   }
   await args.handoffOauth(session, eligible)
 
@@ -113,10 +113,10 @@ export async function prepareSandboxOauth(args: {
     if (stored?.secret.kind !== EAuthKind.Oauth) continue
     const { authority, tokens } = stored.secret
     if (authority === undefined || tokens.refreshToken.length > 0) {
-      throw unavailable(`The OAuth handoff for ${stored.label} has not completed. Retry Atlas Cloud sign-in before lifting.`)
+      throw unavailable(`The OAuth handoff for ${stored.label} has not completed. Retry Atlas Cloud sign-in before the birth.`)
     }
     if (!sameUrl(authority.url, session.url)) {
-      throw unavailable(`The OAuth account ${stored.label} belongs to a different Atlas Cloud API. Sign in to its authority before lifting.`)
+      throw unavailable(`The OAuth account ${stored.label} belongs to a different Atlas Cloud API. Sign in to its authority before the birth.`)
     }
     connectionIds.add(authority.connectionId)
   }

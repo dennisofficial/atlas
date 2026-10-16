@@ -20,17 +20,17 @@ const event = (body: Record<string, unknown>): Event => {
   } as Event
 }
 
-const lifted = (args?: { remoteUrl?: string; branch?: string }): Event =>
+const bornCloud = (args?: { remoteUrl?: string; branch?: string }): Event =>
   event({
     type: 'location-changed',
     from: EExecutionLocation.Host,
     to: EExecutionLocation.Cloud,
     cwd: '/workspace',
     remoteUrl: args?.remoteUrl ?? 'git@github.com:dennisofficial/atlas.git',
-    branch: args?.branch ?? 'dennis/lifted',
+    branch: args?.branch ?? 'dennis/cloud-born',
   })
 
-const descended = (): Event =>
+const backHome = (): Event =>
   event({ type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host })
 
 describe('the cloud checkout projection', () => {
@@ -42,14 +42,14 @@ describe('the cloud checkout projection', () => {
     expect(projection.current()).toBeNull()
   })
 
-  it('folds the lift-time identity into a checkout on the sandbox path', () => {
+  it('folds the birth-time identity into a checkout on the sandbox path', () => {
     const projection = createCloudCheckout()
 
-    projection.publish({ events: [lifted()] })
+    projection.publish({ events: [bornCloud()] })
 
     expect(projection.current()).toEqual({
       directory: '/workspace',
-      branch: 'dennis/lifted',
+      branch: 'dennis/cloud-born',
       forge: EForge.GitHub,
       remote: { host: 'github.com', owner: 'dennisofficial', repo: 'atlas' },
     })
@@ -57,7 +57,7 @@ describe('the cloud checkout projection', () => {
 
   it('holds the same reference across a republish of the same log', () => {
     const projection = createCloudCheckout()
-    const events = [lifted()]
+    const events = [bornCloud()]
 
     projection.publish({ events })
     const first = projection.current()
@@ -71,24 +71,24 @@ describe('the cloud checkout projection', () => {
   it('clears when the thread comes back to the host', () => {
     const projection = createCloudCheckout()
 
-    projection.publish({ events: [lifted()] })
-    projection.publish({ events: [lifted(), descended()] })
+    projection.publish({ events: [bornCloud()] })
+    projection.publish({ events: [bornCloud(), backHome()] })
 
     expect(projection.current()).toBeNull()
   })
 
-  it('is null for a lift standing on the default branch', () => {
+  it('is null for a birth standing on the default branch', () => {
     const projection = createCloudCheckout()
 
-    projection.publish({ events: [lifted({ branch: 'main' })] })
+    projection.publish({ events: [bornCloud({ branch: 'main' })] })
 
     expect(projection.current()).toBeNull()
   })
 
-  it('is null for a lift whose remote does not parse', () => {
+  it('is null for a birth whose remote does not parse', () => {
     const projection = createCloudCheckout()
 
-    projection.publish({ events: [lifted({ remoteUrl: 'not-a-url' })] })
+    projection.publish({ events: [bornCloud({ remoteUrl: 'not-a-url' })] })
 
     expect(projection.current()).toBeNull()
   })

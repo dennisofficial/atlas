@@ -110,15 +110,15 @@ describe('MirroredEventLog', () => {
     expect(head).toBe(2)
   })
 
-  it('append and replace reject — the sandbox owns the transcript while lifted', async () => {
+  it('append and replace reject — the sandbox owns the transcript while the session runs there', async () => {
     const { log, threadId } = await rig({ localTexts: [] })
 
     await expect(
       log.append({ threadId, runId: toRunId('run_x'), drafts: [{ type: 'user-said', text: 'x' }] }),
-    ).rejects.toThrow('the sandbox owns the transcript while lifted')
+    ).rejects.toThrow('the sandbox owns the transcript while the session runs there')
     await expect(
       log.replace({ threadId, runId: toRunId('run_x'), drafts: [] }),
-    ).rejects.toThrow('the sandbox owns the transcript while lifted')
+    ).rejects.toThrow('the sandbox owns the transcript while the session runs there')
   })
 
   it('a kick after a remote append lands the delta, and a later local read shows it', async () => {

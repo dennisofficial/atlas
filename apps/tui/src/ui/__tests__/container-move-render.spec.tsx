@@ -19,15 +19,9 @@ import { frameOf, mount } from './transcript-fixture'
 
 const STARTED_AT = 10_000
 
-const LIFT_ROWS = [
-  { id: 'pauseLoops', text: 'closing what is running here', nodeIds: ['pauseLoops'] },
-  {
-    id: 'captureWorkspace',
-    text: 'packing the uncommitted work, transferring the conversation',
-    nodeIds: ['captureWorkspace', 'archiveSession'],
-  },
+const BIRTH_ROWS = [
   { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
-  { id: 'restore', text: 'attaching and verifying the conversation', nodeIds: ['restore', 'attach'] },
+  { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
   { id: 'flipOwnership', text: 'handing the conversation over', nodeIds: ['flipOwnership'] },
 ] as const
 
@@ -37,9 +31,9 @@ const WAKE_ROWS = [
 ] as const
 
 const cloudMove = (over: { settleThrough?: number; fail?: string } = {}): ContainerMove => {
-  let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: LIFT_ROWS })
+  let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
   const through = over.settleThrough ?? 0
-  const order = ['pauseLoops', 'captureWorkspace', 'archiveSession', 'provision', 'restore', 'attach', 'flipOwnership']
+  const order = ['provision', 'attach', 'flipOwnership']
   for (const nodeId of order.slice(0, through)) {
     move = settleMoveNode({ move, nodeId, now: STARTED_AT + 1_000 })
   }
@@ -63,23 +57,21 @@ describe('a move while it runs', () => {
   it('names where the conversation is going and lists every row', async () => {
     const frame = await frameOf(overlay({ move: cloudMove() }), 80)
 
-    expect(frame).toContain('MOVING TO THE CLOUD')
+    expect(frame).toContain('STARTING A CLOUD SANDBOX')
     expect(frame).toContain('handing the conversation over')
-    expect(frame).toContain('closing what is running here')
-    expect(frame).toContain('packing the uncommitted work')
     expect(frame).toContain('waiting for the sandbox')
-    expect(frame).toContain('attaching and verifying the conversation')
+    expect(frame).toContain('attaching to the conversation')
   })
 
   it('ticks the row it is on so a long wait reads as work', async () => {
-    const frame = await frameOf(overlay({ move: cloudMove({ settleThrough: 3 }) }), 80)
+    const frame = await frameOf(overlay({ move: cloudMove() }), 80)
 
     expect(frame).toContain('waiting for the sandbox (8s)')
   })
 
   it('never counts backwards when the clock lags the row', async () => {
     const frame = await frameOf(
-      overlay({ move: cloudMove({ settleThrough: 3 }), now: STARTED_AT }),
+      overlay({ move: cloudMove(), now: STARTED_AT }),
       80,
     )
 
@@ -88,10 +80,10 @@ describe('a move while it runs', () => {
   })
 
   it('checks off the rows it finished and dims the ones still coming', async () => {
-    const frame = await frameOf(overlay({ move: cloudMove({ settleThrough: 3 }) }), 80)
+    const frame = await frameOf(overlay({ move: cloudMove({ settleThrough: 1 }) }), 80)
 
-    expect(frame).toContain('✓ packing the uncommitted work, transferring the conversation')
-    expect(frame).toContain('· attaching and verifying the conversation')
+    expect(frame).toContain('✓ waiting for the sandbox')
+    expect(frame).toContain('· handing the conversation over')
   })
 
   it('rises from the bottom ruled off across the whole width', async () => {
@@ -189,11 +181,11 @@ describe('a wake that rotates the sandbox first', () => {
 describe('a move that did not finish', () => {
   it('crosses out the row it died on and says why', async () => {
     const frame = await frameOf(
-      overlay({ move: cloudMove({ settleThrough: 3, fail: 'no capacity in iad1' }) }),
+      overlay({ move: cloudMove({ settleThrough: 1, fail: 'no capacity in iad1' }) }),
       80,
     )
 
-    expect(frame).toContain('✗ waiting for the sandbox')
+    expect(frame).toContain('✗ attaching to the conversation')
     expect(frame).toContain('no capacity in iad1')
   })
 

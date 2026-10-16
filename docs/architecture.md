@@ -1223,8 +1223,8 @@ one case where another agent is actually there.
 Leaving releases the lock, and so does switching straight to another worktree, so the one being left
 does not stay wedged. A thread whose ending is recorded hands back any worktree it claimed of its
 own — in a shared serve process the whole thread family is one pid, so a teammate's claim would
-otherwise outlive the teammate by the lifetime of the process. A committed lift or descend flip
-releases the origin checkout's claim: the session now runs on the other side, and the origin's
+otherwise outlive the teammate by the lifetime of the process. A cloud birth releases the origin
+checkout's claim: the session now runs in the sandbox, and the origin's
 release paths never fire again. Removal releases first because git will not remove a locked
 worktree — which is also the cost of this scheme: a session that dies takes its lock with it, and
 the checkout stays locked until some later Atlas session reclaims it or the developer runs
@@ -1390,22 +1390,24 @@ access token cannot force another rotation. Refresh begins before expiry; the ma
 short-lived tokens. A lost response or crashed attempt is uncertain, not permission to retry the
 same refresh token. Reauthorization recovers a grant whose successor cannot be proven.
 
-**Detached lift carries access-only authority references.** Renewable provider grants never enter
+**A cloud birth carries access-only authority references.** Renewable provider grants never enter
 the portable snapshot. A sandbox receives a narrowly scoped assignment to the carried connections
 before its serve runtime starts; its own sandbox token can request those access tokens, not read the
-operator's account/secret backup endpoints. Provider OAuth lift requires Atlas Cloud handoff. An
-API-key-only lift retains its API-independent path. MCP OAuth credentials remain local and excluded
-from detached snapshots; provider ownership does not silently change the separate MCP OAuth flow.
+operator's account/secret backup endpoints. Provider OAuth across a cloud birth requires Atlas Cloud
+handoff. An API-key-only birth retains its API-independent path. MCP OAuth credentials remain local
+and excluded from detached snapshots; provider ownership does not silently change the separate MCP
+OAuth flow.
 
 **Atlas does not import or synchronize other tools' logins.** Claude Code and Codex credential-store
 readers and token write-back are removed. Atlas uses its own native browser/device sign-in flows.
 Legacy CLI-imported rows require fresh Atlas authorization before cloud management, without deleting
 or revoking the external CLI's credentials. Environment API-key discovery remains supported.
 
-**Upgrade and re-lift older sessions.** The account vault reads version 1 and writes version 2;
+**Upgrade and re-birth older sessions.** The account vault reads version 1 and writes version 2;
 older Atlas builds refuse the newer vault instead of ignoring its ownership marker. Update running
-local clients before handing off OAuth. Existing sandboxes with old access-only snapshots need a
-descend and fresh lift to install authority references. Fresh native logins while signed in replace
+local clients before handing off OAuth. Existing sandboxes with old access-only snapshots install
+authority references on their next rebirth — a session that never returns to the cloud keeps its
+legacy path until the sandbox is retired. Fresh native logins while signed in replace
 the grant behind the same connection using an authorization-ID fence, so current sandbox assignments
 survive and old refresh workers cannot overwrite the new login.
 
@@ -1421,113 +1423,52 @@ not a synced domain.
 
 **Sessions originate on the operator's machine.** An iOS remote-control client asks a connected
 laptop to start a session; an offline laptop cannot receive that request. The laptop provisions
-Vercel sandboxes using its own Vercel credentials and transfers the session's configuration and
-copyable credentials during lift. Atlas Cloud owns identity, remote-control rendezvous, thread discovery,
+Vercel sandboxes using its own Vercel credentials and hands the session's configuration and
+copyable credentials across at birth. Atlas Cloud owns identity, remote-control rendezvous, thread discovery,
 PR/CI webhook delivery and cloud-managed provider OAuth renewal, not sandbox provisioning or the
 model request path. Unsigned local-only accounts and API-key credentials do not require the API.
 
-## Cloud transcript handoff
+## Born-placed sessions and the cloud birth
 
-A lift pauses the local family and captures its session before provisioning serve. The mounted
-drive receives that archive with the rest of the bootstrap, before serve starts composing stores
-or recovering work. The ownership commit requires serve to restore the archive and read back the
-original root and child event identities. An uploaded file or a healthy process is not proof that
-conversation state is ready; a failed verification leaves the local placement unchanged.
+Sessions are born-placed: a thread starts where it is created — the cloud when this machine can
+provision a sandbox, the host otherwise — and it never moves afterwards. There is no lift and no
+descend: the workspace tar capture/upload/restore subsystem, the transcript-archive lane, and the
+move engine that sequenced them are deleted. `/container cloud` on a host-born thread refuses and
+points at `/new`; a cloud-born thread answers every `/container` target the same way. The only
+switch left is the tool environment of a host-born thread (host ↔ docker), which moves no
+conversation state.
 
-The bootstrap receipt identifies the archive that was applied, not the current conversation head.
-Reconnect and idle resume preserve the live event log, including events appended after that archive
-was captured. A new explicit lift supplies a new archive generation. Explicit refresh invalidates
-the entire session's cached logs after an out-of-band directory replacement.
+A cloud birth carries exactly three things, all across machinery that predates the deletion. The
+workspace spec (`workspace-spec.json`) names the repository's remote URL, and the sandbox clones
+the default branch from origin credentialed by the brokered GitHub token (`gh auth token` handed
+over the wire, disarmed from the remote URL once the clone lands). No local files, git state,
+worktrees, or uncommitted work cross: the remote is the only truth at birth, so a stale or dirty
+local checkout cannot leak into the cloud. Portable state (`local-state.json`) carries vault
+accounts, secrets, `settings.json`, and `mcp.json`, staged on the drive and installed into the
+sandbox's Atlas home before serve composes. The OAuth handoff rides the Cloud API as before.
+Skills, instructions, and memory cross through the user-layer sync (`/v1/user-files`); there is no
+transcript at birth — the thread's history starts in the sandbox.
 
-Session archives are files throughout lift, bootstrap, and descend. Serve exports a runtime-owned
-file and replies with only its root identity, path, byte count, and SHA-256. The client accepts only
-that root's generated export path, streams it through the sandbox file API into a private partial
-file, verifies the byte count and digest, and atomically publishes it before extraction. Archive
-bytes never pass through JSON or a whole-archive base64 string; uploads use bounded file chunks.
-Session export requests are not replayed automatically after a socket loss: preparing another
-multi-GB generation is not a side-effect-free read. The source stays authoritative for an explicit retry.
-Export enumeration walks real directories without following symlinks. A genuinely missing session
-is distinct from an unreadable path, which is reported as an error rather than an empty transcript.
+A birth that cannot finish — the credentials missing, the sandbox refusing, the attach failing —
+falls back to a host birth and says why. The cloud chip retires itself the first time the thread
+is spoken into; until then the operator can flip the unstarted thread between host and cloud.
 
-Descend stages and checks the incoming transcript before replacing local data. A missing, invalid,
-or boot-context-only archive cannot erase a local conversation. The local store refreshes before
-adopting the transferred family or reopening. Cloud read failures are errors, never empty conversations.
-Session wire protocol versions must match; an older runtime must upgrade before using this export
-contract. Memory export remains a separate context archive on its existing byte-based path, not
-the session file stream.
+## Workspace layout in the sandbox
 
-## Workspace round trips and runtime ownership
+A cloud birth clones the primary repository at `/atlas/workspaces/<repo-name>`, using the repo's
+directory name, and agents can clone additional repositories beside it under `/atlas/workspaces`.
+Those adjacent clones are ephemeral: sandbox teardown deletes them, so their work must be pushed
+or moved into the primary repository. Worktrees the session creates hang beneath the primary
+repository and live and die with the sandbox's drive.
 
-New cloud lifts place the primary repository at `/atlas/workspaces/<repo-name>`, using the original
-main checkout's directory name, with linked worktrees beneath that repository. Agents can clone
-additional repositories beside it under `/atlas/workspaces`. These adjacent clones are ephemeral:
-only the primary repository and its family-owned worktrees transfer. Adjacent clones are not
-imported on descend; permitted source teardown deletes their cloud copies. Export stays anchored to the primary repository even if the session
-has entered a sibling clone. Reconnect uses saved restoration paths, including legacy layouts,
-rather than relocating an existing workspace to the new default. A populated legacy workspace
-without a receipt is reused when the new unnamed default is empty; an explicit configured directory
-or a saved receipt keeps priority.
-
-Workspace transfer carries physical files and logical Git state directly between the operator's
-machine and its sandbox. It does not require a user commit, flatten the index into a patch, or push
-transport refs to a repository host. The archive carries the primary main checkout and every
-present checkout generation owned by the supervised session family, including finished teammates'
-and retained exited worktrees. Tracked files and nonignored untracked files travel; ignored
-untracked files travel only when selected by that checkout's `.atlas/.cloudinclude`. Each checkout
-is filtered and captured independently. Shared branch and stash refs stay shared; private
-per-worktree refs retain their checkout attribution. Reachable tips and all covered indexes seed
-one shared object pack. Git administration is reconstructed for destination paths rather than
-copying machine-specific worktree registrations.
-
-Family ownership is physical-workspace state, independent of the current-directory fold. A
-session-root `workspace-ownership.json` inventory persists through conversation rewind,
-summarisation and child deletion. Each owned linked checkout has a generation marker in its
-per-worktree Git administration; manual removal and recreation at the same path does not inherit
-ownership. Entry or adoption acquires ownership; keeping, switching or finishing does not release
-it. Removed or absent generations are not reconstructed. Independent forks start their own
-inventories. Historical lifecycle events seed an older family that has no inventory yet.
-
-The manifest carries each thread's home and optional active checkout by tree identity. Restore
-resolves all mappings through actual outcomes, including collision renaming, before placement
-commitment. An omitted checkout cannot masquerade as a subdirectory of a restored ancestor.
-Arrival preserves home separately from active and retains the original creation/adoption policy.
-
-Family export permission is separate from destructive cleanup permission. An unrelated registered
-primary-repository checkout stays outside capture and prevents sandbox/drive teardown, even when
-clean or finished. After host arrival commits, cleanup rechecks the prepared generation's exact
-checkout registry, covered physical/index/HEAD state and relevant Git administration. A mismatch,
-unreadable source or unknown runtime retains the frozen source with a persistent warning; the
-verified local destination remains authoritative. Deletion is fenced to the exported provider
-session and never retries by resolving a reused name. The external-writer race is narrowed by
-rechecking, not made atomic. Legacy exports without a family mapping retain the fail-closed guard
-that refuses when any registered primary checkout would be omitted.
-
-Each checkout carries its original identity and lift-time content fingerprint. An unchanged host
-checkout receives its incoming state in place. A checkout changed independently is left untouched;
-the incoming state is restored into a worktree named after the original with a four-character hex
-suffix, retrying name collisions. No content merge or rebase runs as part of transfer. The arrival
-records the actual directory and branch and tells the model when its worktree was renamed.
+Work that never gets pushed dies with the sandbox. The drive is the only retention — retired
+seven days after the last recorded activity by the startup reaper — and there is no sync-back:
+the agent pushes branches, and the operator pulls them. This is documented, not engineered around.
 
 A harness-owned session owner selects the complete runtime binding: runner, channel, stores,
-registries, workspace anchor, and message intake. Location chrome and move admission read the same
-owner. Preparation constructs and verifies a dormant destination binding; commitment persists the
-ownership decision and installs that binding before publishing its new placement. A refused transfer
-leaves the source authoritative and retryable. The destination is never announced while the source
-runner is still selected.
-
-Handoffs freeze the family before capture and preserve local transcript recovery copies before
-landing remote history. Transferred event identities remain intact; child adoption does not invent
-new spawn records. Source execution stays frozen after commitment, and sandbox destruction is
-post-commit cleanup. Reconnect reads the current remote history without replaying an already-applied
-workspace or transcript bootstrap generation.
-
-Once a lift has proven the whole swap — the workspace archive restored in the cloud, the transcript
-verified, the placement committed, and the channel activated — the local session worktree is
-destroyed. The gate is not git's cleanliness heuristic but the lifted manifest: the tree's current
-fingerprint must match the fingerprint captured for the archive, proving a verified copy of exactly
-this state, dirty files included, is serving in the cloud. A mismatch means someone wrote locally
-after the capture, and the tree stays on disk with a warning; the lift is already complete, so
-nothing else follows. A session living in the main checkout is never destroyed.
+registries, workspace anchor, and message intake. Location chrome reads the same owner. The
+placement record commits at birth and is never rewritten afterwards; a placement flip is not a
+log append, so the TUI republishes on the placement change rather than waiting for an event.
 
 ## Cloud execution lifetime and attachment
 
@@ -1557,10 +1498,9 @@ actual sandbox destruction still stops sandbox processes. Explicit stop
 and rewind remain execution controls, never consequences of transport recovery.
 
 Runtime upgrades are a harness-owned recreation ceremony, not a drift warning. An outdated
-runtime is prepared at the same confirmed family-pause seam used by descend: parent commits and
+runtime is drained at a confirmed family-pause seam: parent commits and
 the current model/tool step finish, every descendant pauses or genuinely completes, and their
-outcomes persist before preparation is acknowledged. The process-stop machinery is also shared
-with descend. Queued inputs and endings are appended before a final checkpoint and preparation
+outcomes persist before preparation is acknowledged. Queued inputs and endings are appended before a final checkpoint and preparation
 receipt are written to the thread's existing drive. Only then may the client destroy the sandbox,
 wait for drive detachment, mount that drive into the replacement image, and attach. Progress is
 projected by the TUI; pause, persistence, and recovery belong to the harness and serve.

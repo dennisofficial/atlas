@@ -157,7 +157,7 @@ describe('telling the model the project directory and any active worktree', () =
     expect(note).not.toContain('Execution location')
   })
 
-  it('asserts the cloud sandbox and its isolation once the session lifted', () => {
+  it('asserts the cloud sandbox and its isolation once the session is in the cloud', () => {
     const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Cloud)])))
 
     expect(note).toContain('Execution location: a cloud sandbox')
@@ -181,7 +181,7 @@ describe('telling the model the project directory and any active worktree', () =
     expect(note).not.toContain('Execution location')
   })
 
-  it('answers the latest move when the session lifted twice', () => {
+  it('answers the latest move when the session reached the cloud twice', () => {
     const note = noteOf(
       assembleWith(
         log([relocated(EExecutionLocation.Docker), { ...relocated(EExecutionLocation.Cloud), from: EExecutionLocation.Docker }]),
@@ -202,7 +202,7 @@ describe('telling the model the project directory and any active worktree', () =
           anchor: ECompactionAnchor.Prefix,
           fromSeq: 1,
           throughSeq: 2,
-          summary: 'The session lifted to the cloud.',
+          summary: 'The session moved to the cloud.',
           replaced: 2,
         },
       ]),

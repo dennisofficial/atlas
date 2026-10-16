@@ -40,7 +40,7 @@ export const mountCloud = async (args: {
       app={args.app}
       opened={opened}
       createBridge={createBridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )

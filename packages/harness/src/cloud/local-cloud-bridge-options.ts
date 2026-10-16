@@ -55,7 +55,7 @@ export type LocalCloudBridgeOptions = {
    */
   lastEventSeq?: ((args: { threadId: ThreadId }) => number | Promise<number>) | undefined
   /**
-   * The client's local transcript log the mirror serves reads from while lifted. Absent, the
+   * The client's local transcript log the mirror serves reads from while the session runs in the cloud. Absent, the
    * attach falls back to the channel-only RemoteEventLog, so a caller that never kept a local
    * transcript (the live roundtrip script) still gets working reads.
    */

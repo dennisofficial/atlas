@@ -219,7 +219,7 @@ export function createCloudSession(args: {
       dirty = false
       sync()
     }).catch(() => {
-      // A resync can fail before it lands — the lift's binding is still committing when the
+      // A resync can fail before it lands — the birth's binding is still committing when the
       // serve's greeting reload arrives, so the TUI's handler rejects. Dropping the reload here
       // would leave the open socket dimmed forever, so it goes back on the pending slot for a
       // settle-timed retry — never an immediate re-flush, which would spin on a persistently

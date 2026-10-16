@@ -33,7 +33,7 @@ import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
 import { noticePortBinding } from './notice-binding'
-import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
+import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 
 type RegistryMetadata = { title?: string; repo?: string; model?: string }
 
@@ -146,7 +146,7 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   },
   onRegistrationFailed: () => {
     noticePortBinding().notify({
-      text: 'the sandbox is up, but Atlas Cloud could not register it — remote control and the cloud listing will miss it until the next lift',
+      text: 'the sandbox is up, but Atlas Cloud could not register it — remote control and the cloud listing will miss it until the next birth',
       tone: ENoticeTone.Warn,
     })
   },
@@ -218,8 +218,8 @@ export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
   )
 }
 
-export const liveLiftPreflightFor =
-  (app: AtlasApp): LiftPreflight =>
+export const liveBirthPreflightFor =
+  (app: AtlasApp): BirthPreflight =>
   async () => {
     try {
       requireVercelCredentials({ settings: app.settings, secrets: app.secrets })

@@ -216,7 +216,7 @@ async function mountCloudThread(args: { pairs: number }) {
       app={app}
       opened={opened}
       createBridge={createBridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
     />,
     SIZE,
   )

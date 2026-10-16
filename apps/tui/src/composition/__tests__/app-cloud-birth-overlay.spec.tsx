@@ -55,7 +55,7 @@ const mountFresh = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       app={args.app}
       opened={unstartedConversation({ ids: args.app.ids })}
       createBridge={() => args.bridge}
-      preflightLift={async () => null}
+      preflightBirth={async () => null}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )

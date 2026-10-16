@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import {
   beginMove,
@@ -24,7 +24,7 @@ const ROWS = [
   { id: 'restore', text: 'attaching and verifying', nodeIds: ['restore'] },
 ] as const
 
-const reading = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress => ({
+const reading = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'captureWorkspace',
   transferId: 'workspace-upload',
   label: 'uploading workspace',
@@ -34,7 +34,7 @@ const reading = (over: Partial<RelocationTransferProgress> = {}): RelocationTran
   ...over,
 })
 
-const moveWith = (...readings: RelocationTransferProgress[]): ContainerMove => {
+const moveWith = (...readings: BirthTransferProgress[]): ContainerMove => {
   let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: ROWS })
   move = startMoveNode({ move, nodeId: 'captureWorkspace', now: STARTED_AT })
   for (const progress of readings) move = updateMoveTransfer({ move, progress })
@@ -212,7 +212,7 @@ describe('a transfer at narrow widths', () => {
 })
 
 describe('the meter arithmetic', () => {
-  const transfer = (over: Partial<RelocationTransferProgress> = {}) => {
+  const transfer = (over: Partial<BirthTransferProgress> = {}) => {
     const { nodeId, transferId, label, transferredBytes, totalBytes, complete } = reading(over)
     return { nodeId, transferId, label, transferredBytes, totalBytes, complete }
   }

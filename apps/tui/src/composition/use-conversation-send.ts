@@ -20,9 +20,9 @@ const NO_FILES: readonly SaidFile[] = Object.freeze([])
 const EMPTY_REMOTE_PENDING: readonly RemotePendingEntry[] = Object.freeze([])
 
 /**
- * A placement move (lift, descend, container switch) freezes the transcript: the loop is paused
- * and the log is mid-transfer, so retry, resume, send, and every log-editing command read this
- * one durable flag rather than any UI-local move state — it survives the remount across a lift.
+ * A placement move (cloud birth, container switch) freezes the transcript: the loop is paused
+ * and the log is mid-handoff, so retry, resume, send, and every log-editing command read this
+ * one durable flag rather than any UI-local move state — it survives the remount across a birth.
  */
 export function usePlacementMoving(args: { app: AtlasApp; threadId: ThreadId }): boolean {
   const { app, threadId } = args

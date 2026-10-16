@@ -164,7 +164,7 @@ describe('JsonlThreadStore field choices', () => {
   it('materializes a never-written thread when it is placed somewhere, so a later boot can route it', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const threadId = toThreadId('lifted-before-first-turn')
+    const threadId = toThreadId('cloud-before-first-turn')
 
     expect(await threads.find({ threadId })).toBeUndefined()
     await threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Cloud })

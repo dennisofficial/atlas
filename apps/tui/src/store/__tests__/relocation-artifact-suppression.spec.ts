@@ -16,13 +16,13 @@ const dividerCount = (events: Parameters<typeof durableEntries>[0]['events']): n
 
 describe('born-placed relocation artifacts in old logs', () => {
   it('suppresses a logged move between host and cloud', () => {
-    const lifted = log([
+    const moved = log([
       { type: 'user-said', text: 'take it up' },
       { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
       { type: 'user-said', text: 'keep it going from up there' },
     ])
 
-    expect(dividerCount(lifted)).toBe(0)
+    expect(dividerCount(moved)).toBe(0)
   })
 
   it('suppresses a logged born-cloud birth arrival', () => {

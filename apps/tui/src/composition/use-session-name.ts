@@ -40,7 +40,7 @@ export type SessionName = {
  */
 export function useSessionName(args: {
   app: AtlasApp
-  /** The store the rename crosses — the cloud attachment's when the thread is lifted. */
+  /** The store the rename crosses — the cloud attachment's when the thread runs in the cloud. */
   threads?: ThreadStorePort | undefined
   threadId: ThreadId
   started: RefObject<boolean>

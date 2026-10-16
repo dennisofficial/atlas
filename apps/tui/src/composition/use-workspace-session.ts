@@ -38,7 +38,7 @@ type SessionProps = Pick<
   | 'onLocalOpened'
   | 'onMoveStep'
   | 'createBridge'
-  | 'preflightLift'
+  | 'preflightBirth'
   | 'onReload'
 >
 
@@ -142,7 +142,7 @@ export function useWorkspaceSession(args: {
     owner: props.localApp.sessionOwner,
     containerMove,
     createBridge: props.createBridge,
-    preflightLift: props.preflightLift,
+    preflightBirth: props.preflightBirth,
     adopt: (opened) => props.onLeaveCloud(opened),
     onReload: props.onReload,
   })

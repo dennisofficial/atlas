@@ -8,4 +8,4 @@ export type CloudBridgeFactory = () => CloudBridge
  * sign-in is never required — provisioning rides the operator's local Vercel credentials and
  * locally minted serve token.
  */
-export type LiftPreflight = () => Promise<string | null>
+export type BirthPreflight = () => Promise<string | null>

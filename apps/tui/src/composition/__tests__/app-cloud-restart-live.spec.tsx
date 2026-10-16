@@ -77,7 +77,7 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
     }
   })
 
-  it('lifts, answers a real message, and a restart reattaches with the pill on', async () => {
+  it('births in the cloud, answers a real message, and a restart reattaches with the pill on', async () => {
     const home = await throwawayHome()
     register({ label: 'throwaway atlas home', run: () => rm(home.dir, { recursive: true, force: true }) })
 
@@ -179,8 +179,8 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
     })
 
     write0('=== repro start === thread', threadId)
-    // The lift resumes the in-flight turn on arrival, so there must be one: send the first message
-    // before lifting and let the scripted reply land, matching the round-trip spec's shape.
+    // The birth resumes the in-flight turn on arrival, so there must be one: send the first message
+    // before the move and let the scripted reply land, matching the round-trip spec's shape.
     await say(mounted, 'round trip me')
     const localReply = await until({ holds: () => mounted.app.log.read({ threadId }).then((events) => JSON.stringify(events).includes(mounted.reply)), within: 60_000 })
     expect(localReply, 'the initial message never got its reply').toBe(true)
@@ -194,25 +194,25 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
       within: 300_000,
     })
     if (!flipped) {
-      write0('LIFT STALLED — move steps:')
+      write0('BIRTH STALLED — move steps:')
       for (const t of timings) write0(`  ${String(t.step)} @ ${t.at}`)
       await dumpNotices()
       await dumpServeLog(threadId)
     }
     expect(flipped, 'the thread never flipped to the cloud').toBe(true)
-    // The placement commits before the channel attach finishes, so a lift is not done until the
+    // The placement commits before the channel attach finishes, so a birth is not done until the
     // move overlay clears — attach is part of the move, and the overlay stays up while it runs.
     const overlayCleared = await until({
-      holds: async () => !(await mounted.setup.captureCharFrame()).includes('MOVING TO THE CLOUD'),
+      holds: async () => !(await mounted.setup.captureCharFrame()).includes('STARTING A CLOUD SANDBOX'),
       within: 120_000,
     })
     write0('phase: move overlay cleared =', overlayCleared, '; channel attached =', cloudChannel !== null)
-    expect(cloudChannel, 'the lift attached without its channel').not.toBeNull()
+    expect(cloudChannel, 'the birth attached without its channel').not.toBeNull()
     if (cloudChannel === null) throw new Error('unreachable: asserted above')
 
-    // The cloud pill must be visible while lifted.
+    // The cloud pill must be visible while the session runs in the cloud.
     const pillFrame = await mounted.setup.captureCharFrame()
-    write0('pill visible while lifted:', pillFrame.includes('CLOUD'))
+    write0('pill visible while cloud-born:', pillFrame.includes('CLOUD'))
     expect(pillFrame).toContain('CLOUD')
 
     // Phase 2: a real message event over the cloud channel, committed to the cloud transcript. The

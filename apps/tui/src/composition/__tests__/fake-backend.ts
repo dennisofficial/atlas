@@ -79,7 +79,7 @@ export function fakeThreadStore(
     workspace?: string | null
     repo?: string | null
     titles?: Readonly<Record<string, string>>
-    /** When set, every mutation also lands on the on-disk session mirror the lift archives. */
+    /** When set, every mutation also lands on the on-disk session mirror a birth uploads. */
     disk?: FakeSessionDisk
   } = {},
 ): FakeThreadStore {
@@ -394,7 +394,7 @@ export function fakeThreadStore(
       disk?.locate({ threadId, location })
       await disk?.writeThreadMeta({ threadId })
       let row = rows.find((held) => held.id === threadId)
-      // A conversation spoken in but never formally opened has log events and no row yet; the lift
+      // A conversation spoken in but never formally opened has log events and no row yet; the birth
       // flips it all the same, so the row is created from the log rather than the flip no-op'ing.
       if (row === undefined && (args.log?.peek({ threadId }).length ?? 0) > 0) {
         const events = args.log?.peek({ threadId }) ?? []

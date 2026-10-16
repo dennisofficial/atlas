@@ -26,7 +26,7 @@ export class RemoteEventLog extends EventLogPort {
     drafts: readonly EventDraft[]
   }): Promise<Event[]> {
     return Promise.reject(
-      new Error('the sandbox owns the transcript while lifted — reads only over the channel'),
+      new Error('the sandbox owns the transcript while the session runs there — reads only over the channel'),
     )
   }
 
@@ -36,7 +36,7 @@ export class RemoteEventLog extends EventLogPort {
     drafts: readonly EventDraft[]
   }): Promise<Event[]> {
     return Promise.reject(
-      new Error('the sandbox owns the transcript while lifted — reads only over the channel'),
+      new Error('the sandbox owns the transcript while the session runs there — reads only over the channel'),
     )
   }
 
@@ -58,7 +58,7 @@ export class RemoteEventLog extends EventLogPort {
 
   async refresh(_args: { threadId: ThreadId }): Promise<void> {
     // The remote log holds no read cache — every read is a fresh channel request — so there is
-    // nothing to invalidate. The restore the lift triggers lands on the serve's own store.
+    // nothing to invalidate. The restore a birth triggers lands on the serve's own store.
   }
 
   async head(args: { threadId: ThreadId }): Promise<number> {

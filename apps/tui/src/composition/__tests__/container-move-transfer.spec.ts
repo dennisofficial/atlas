@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { RelocationTransferProgress } from '@dltech/atlas-harness'
+import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import {
   beginMove,
@@ -20,7 +20,7 @@ const ROWS = [
   { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
 ] as const
 
-const reading = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress => ({
+const reading = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'captureWorkspace',
   transferId: 'workspace-upload',
   label: 'uploading workspace',
@@ -117,7 +117,7 @@ describe('transfer progress on a running row', () => {
 })
 
 describe('archive build progress on a running row', () => {
-  const build = (over: Partial<RelocationTransferProgress> = {}): RelocationTransferProgress =>
+  const build = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress =>
     reading({
       transferId: 'archive-build-workspace',
       label: 'packing the workspace',

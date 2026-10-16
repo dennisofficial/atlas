@@ -53,7 +53,7 @@ describe('claiming a sandbox', () => {
     expect(claim).toEqual({ token: 'tok_1' })
   })
 
-  it('carries the workspace spec when one is being lifted', async () => {
+  it('carries the workspace spec when a birth supplies one', async () => {
     const { client, calls } = harness([{ body: { token: 'tok_1' } }])
     const workspace = {
       remoteUrl: 'https://github.com/compai/atlas',
@@ -104,7 +104,7 @@ describe('claiming a sandbox', () => {
     })
   })
 
-  it('carries the gpg key material when the lift exported one', async () => {
+  it('carries the gpg key material when the birth exported one', async () => {
     const { client, calls } = harness([{ body: { token: 'tok_1' } }])
     const gpgKey = JSON.stringify({
       keyId: 'DEADBEEF1234',

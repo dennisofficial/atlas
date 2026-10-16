@@ -123,8 +123,8 @@ describe('logFieldsOf', () => {
   })
 
   it('folds an Error cause into the message', () => {
-    const fields = logFieldsOf({ error: new Error('lift failed', { cause: new Error('sandbox 504') }) })
-    expect(fields.error).toBe('lift failed — cause: sandbox 504')
+    const fields = logFieldsOf({ error: new Error('birth failed', { cause: new Error('sandbox 504') }) })
+    expect(fields.error).toBe('birth failed — cause: sandbox 504')
   })
 
   it('stringifies non-Error throws', () => {

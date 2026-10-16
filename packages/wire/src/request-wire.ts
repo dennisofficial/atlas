@@ -115,7 +115,7 @@ export const publishedWorkspaceWireSchema = z
     ref: z.string(),
     commit: z.string(),
     base: z.string().nullable(),
-    /** Absent on a serve built before the tree-merge descend; the host falls back to the base commit. */
+    /** Absent on a serve built before baseTree existed; the host falls back to the base commit. */
     baseTree: z.string().nullish(),
     branch: z.string().nullish(),
   })

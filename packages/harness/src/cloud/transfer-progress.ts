@@ -9,6 +9,6 @@ export type SandboxTransferProgress = TransferProgress & {
   label: string
 }
 
-export type RelocationTransferProgress = SandboxTransferProgress & {
+export type BirthTransferProgress = SandboxTransferProgress & {
   nodeId: string
 }

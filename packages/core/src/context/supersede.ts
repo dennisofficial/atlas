@@ -4,7 +4,7 @@ type ContextLoaded = EventOfType<'context-loaded'>
 
 const basenameOf = (key: string): string => key.split('/').pop() ?? key
 
-// A relocation (worktree entry, lift, descend) re-loads the same file from a new absolute path,
+// A relocation (worktree entry, a move between environments) re-loads the same file from a new absolute path,
 // and the harness dedupe keeps the original event, so a same-content re-load only reaches the
 // log from older sessions or a path the writer could not match. Such a pair is one file: the
 // newer reading is where the file lives now, so it supersedes. Same key is the ordinary
@@ -16,11 +16,11 @@ const supersedes = (later: ContextLoaded, earlier: ContextLoaded): boolean => {
   return basenameOf(later.key) === basenameOf(earlier.key) && later.content === earlier.content
 }
 
-// The lift-era writers of a session-slot 'execution-location' injection are gone (#1252) — under
+// The move-era writers of a session-slot 'execution-location' injection are gone (#1252) — under
 // born-placed placement the thread was born where it runs, so the "your environment is now …"
 // content is never true to say again. Logs written before the cut still carry the event, and it
 // is never superseded because nothing writes that key anymore; replaying it on resume tells the
-// model the session was lifted. It is never current.
+// model the session moved. It is never current.
 const isRelocationInjection = (event: ContextLoaded): boolean =>
   event.slot === 'session' && event.key === 'execution-location'
 

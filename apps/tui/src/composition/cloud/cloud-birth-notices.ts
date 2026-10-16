@@ -1,6 +1,6 @@
 import { EBirthFault, EBirthNode, type BirthFailure } from '@dltech/atlas-harness'
 
-export const CLOUD_LIFT_NOTICE_KEY = 'container-cloud'
+export const CLOUD_BIRTH_NOTICE_KEY = 'container-cloud'
 
 export const CLOUD_SANDBOX_NOTICE_KEY = 'container-cloud-sandbox'
 
@@ -21,5 +21,5 @@ const landing = (failure: BirthFailure): string => {
   return FELL_BACK
 }
 
-export const liftFailedNotice = (failure: BirthFailure): string =>
+export const birthFailedNotice = (failure: BirthFailure): string =>
   `${FAULT_HEAD[failure.fault]} — ${landing(failure)}. ${failure.detail}`

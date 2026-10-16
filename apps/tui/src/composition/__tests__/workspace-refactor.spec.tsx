@@ -132,7 +132,7 @@ describe('the startup curtain over the extracted workspace', () => {
       await setup.flush()
       await setup.mockInput.pasteBracketedText(LONG_PASTE)
 
-      const lifted = await until({
+      const pasted = await until({
         holds: async () => {
           await setup.flush()
           await settle(60)
@@ -140,7 +140,7 @@ describe('the startup curtain over the extracted workspace', () => {
         },
         within: 20_000,
       })
-      expect(lifted).toBe(true)
+      expect(pasted).toBe(true)
 
       await settle(250)
       await setup.flush()

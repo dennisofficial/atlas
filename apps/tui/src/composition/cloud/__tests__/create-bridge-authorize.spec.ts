@@ -127,14 +127,14 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
     expect(events.filter((event) => event === 'authorize')).toHaveLength(1)
   })
 
-  it('aborts the lift before serve launches when authorization fails', async () => {
+  it('aborts the birth before serve launches when authorization fails', async () => {
     const events: string[] = []
     const bridge = bridgeWith({
       driver: recordingDriver({ created: true, events }),
       events,
       registration: true,
       authorizeSandbox: async () => {
-        throw new Error('Sign in to Atlas Cloud before lifting OAuth accounts')
+        throw new Error('Sign in to Atlas Cloud before a cloud birth carries OAuth accounts')
       },
     })
 
@@ -180,7 +180,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
     expect(events).toContain('authorize')
   })
 
-  it('keeps an API-key-only lift independent of the callback', async () => {
+  it('keeps an API-key-only birth independent of the callback', async () => {
     const events: string[] = []
     const bridge = bridgeWith({
       driver: recordingDriver({ created: true, events }),

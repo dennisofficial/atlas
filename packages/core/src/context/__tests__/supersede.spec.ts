@@ -112,7 +112,7 @@ describe('currentContextEvents', () => {
     expect([...currentContextEvents(events)]).toEqual([])
   })
 
-  it('never replays a lift-era relocation injection — nothing records the slot anymore', () => {
+  it('never replays a move-era relocation injection — nothing records the slot anymore', () => {
     const events = log([
       loaded({
         slot: 'session',

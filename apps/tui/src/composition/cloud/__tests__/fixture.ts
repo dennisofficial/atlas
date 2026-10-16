@@ -117,7 +117,7 @@ export function fakeCloudChannel(
     onDial?: ((dial: { url: string; token: string }) => void) | undefined
     log?: FakeEventLog | undefined
     threads?: FakeThreadStore | undefined
-    /** The on-disk mirror of the remote session, for the descend's archive read. */
+    /** The on-disk mirror of the remote session the fake serve writes against. */
     disk?: FakeSessionDisk | undefined
     /** The bridge's attach seeds Open, since a real channel has answered its Hello by then. */
     connection?: ChannelConnection | undefined
@@ -458,7 +458,7 @@ export function fakeCloudChannel(
 }
 
 /**
- * The order the lift does things in is the contract, so the two writes that move a thread are named
+ * The order a birth does things in is the contract, so the two writes that move a thread are named
  * as they happen. Delegation rather than a spread: the port is a class, and a spread of one keeps
  * its fields and drops its methods.
  */
@@ -566,7 +566,7 @@ export type FakeBridge = CloudBridge & {
   readonly destroyed: readonly ThreadId[]
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
-  /** Wire the local transcript a lift ships up; the mount fixture sets it once the app exists. */
+  /** Wire the local transcript a birth ships up; the mount fixture sets it once the app exists. */
   sourceStores(args: {
     log: FakeEventLog
     threads: FakeThreadStore
@@ -593,14 +593,14 @@ export function fakeBridge(
     statusRef?: { current: CloudSandboxStatus | undefined } | undefined
     checkpoint?: RuntimeCheckpoint | undefined
     threadStore?: FakeThreadStore
-    /** The local transcript a lift ships up; the fake's stand-in for the sandbox untarring it. */
+    /** The local transcript a birth ships up; the fake's stand-in for the sandbox receiving it. */
     sourceLog?: FakeEventLog | undefined
     sourceThreads?: FakeThreadStore | undefined
     sourceDisk?: FakeSessionDisk | undefined
   } = {},
 ): FakeBridge {
-  // The fake serve's session directory: every remote write lands here so the descend tars up
-  // what the sandbox actually holds, the way serveSessionArchive does.
+  // The fake serve's session directory: every remote write lands here, the way
+  // the sandbox actually holds it.
   const disk = new FakeSessionDisk(join(tmpdir(), `atlas-fake-cloud-${SPEC_SHARD}-${Math.random().toString(36).slice(2)}`))
   const log = fakeEventLog([], { disk })
   const threads = args.threadStore ?? fakeThreadStore({ log, disk })
@@ -625,7 +625,7 @@ export function fakeBridge(
 
   /**
    * A wake reattaches to a transcript the sandbox already serves: the fake's stores were seeded
-   * by the spec directly, so the thread row mirrors them synchronously. A lift's transcript lands
+   * by the spec directly, so the thread row mirrors them synchronously. A birth's transcript lands
    * through the staged archive instead.
    */
   const materialize = (threadId: ThreadId): void => {

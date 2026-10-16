@@ -43,7 +43,7 @@ type ServeStores = {
 /**
  * The shared root, bound for a sandbox: the transcript lives on the sandbox's own disk under its
  * atlas home, in the same JSONL stores a local session composes — and so do the credentials. The
- * portable-state bundle the lift staged on the drive is installed into that home before anything
+ * portable-state bundle the birth staged on the drive is installed into that home before anything
  * reads it, so accounts, secrets, settings and MCP resolve through the container's local stores
  * and never through the API. The container skips host-source reconciliation for a serve launch
  * (see compose.ts), so the transferred vault is what the session runs on.
@@ -69,7 +69,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       key: 'serve:portable-state',
       tone: ENoticeTone.Info,
       ttlMs: NOTICE_WARN_MS,
-      text: `Installed the lifted local state (${state.install.written.length} files${
+      text: `Installed the portable local state (${state.install.written.length} files${
         state.install.skipped.length === 0
           ? ''
           : `, kept ${state.install.skipped.length} live`

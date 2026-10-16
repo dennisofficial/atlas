@@ -103,9 +103,3 @@ describe('the session owner behind a cloud thread', () => {
   }, 60_000)
 })
 
-describe.skip('the session owner behind /container moves', () => {
-  // slice 08: both cases drive the lift (a failed then retried /container cloud) or the descend
-  // (/container off|host) through the owner, and /container no longer moves threads.
-  it('keeps the local runner and host pill after a failed lift, then switches both on the retry', () => {})
-  it('returns to the local runner once home after a descend, and moves /container off through the owner', () => {})
-})

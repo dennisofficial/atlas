@@ -105,7 +105,7 @@ export type ProvisionArgs = {
    */
   putContextOnFreshBoot?: ((sandbox: Sandbox) => Promise<void>) | undefined
   /**
-   * Extra environment for the sandbox process, resolved by the caller at lift time — the
+   * Extra environment for the sandbox process, resolved by the caller at birth time — the
    * settings a cloud session should inherit from the operator's machine (the decision-model
    * URL, classifier mode, search backend). The sandbox is a fresh container with no local
    * settings files, so anything not handed here reads as its fallback there.

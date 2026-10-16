@@ -32,7 +32,7 @@ describe('sandbox OAuth capability preparation', () => {
     await prepareSandboxOauth({ accounts, session: null, handoffOauth: undefined, registration, clientVersion: 'test', fetchFn: neverFetch })
   })
 
-  it('requires Cloud sign-in rather than lifting nonrenewable OAuth copies', async () => {
+  it('requires Cloud sign-in rather than carrying nonrenewable OAuth copies to a cloud session', async () => {
     const accounts = store()
     await addOauth(accounts)
     await expect(prepareSandboxOauth({ accounts, session: null, handoffOauth: undefined, registration, clientVersion: 'test', fetchFn: neverFetch })).rejects.toThrow('Sign in to Atlas Cloud')
@@ -63,7 +63,7 @@ describe('sandbox OAuth capability preparation', () => {
     await expect(prepareSandboxOauth({ accounts, session, handoffOauth: async () => {}, registration, clientVersion: 'test', fetchFn: neverFetch, model: 'anthropic/claude-test' })).rejects.toThrow('/auth')
   })
 
-  it('lets an API-key model lift past unrelated unusable OAuth records without the API', async () => {
+  it('lets an API-key-only birth past unrelated unusable OAuth records without the API', async () => {
     const accounts = store()
     const cli = await accounts.add({ provider: EAuthProvider.Anthropic, origin: EAccountOrigin.Imported, importedFrom: 'claude-code', label: 'cli', secret: { kind: EAuthKind.Oauth, tokens: { accessToken: 'fake-cli', refreshToken: 'fake-cli-refresh', expiresAt: '2026-10-05T13:00:00.000Z' } } })
     await accounts.add({ provider: EAuthProvider.OpenAI, origin: EAccountOrigin.Login, label: 'expired', secret: { kind: EAuthKind.Oauth, tokens: { accessToken: 'fake-old', refreshToken: '', expiresAt: '2026-10-05T13:00:00.000Z' } } })
@@ -77,7 +77,7 @@ describe('sandbox OAuth capability preparation', () => {
     const accounts = store()
     const cli = await accounts.add({ provider: EAuthProvider.OpenAI, origin: EAccountOrigin.Imported, importedFrom: 'codex', label: 'cli', secret: { kind: EAuthKind.Oauth, tokens: { accessToken: 'fake-cli', refreshToken: 'fake-cli-refresh', expiresAt: '2026-10-05T13:00:00.000Z' } } })
     await accounts.setActive({ provider: EAuthProvider.OpenAI, accountId: cli.id })
-    await expect(prepareSandboxOauth({ accounts, session, handoffOauth: async () => {}, registration, clientVersion: 'test', fetchFn: neverFetch, model: 'openai/gpt-test' })).rejects.toThrow('cannot be lifted')
+    await expect(prepareSandboxOauth({ accounts, session, handoffOauth: async () => {}, registration, clientVersion: 'test', fetchFn: neverFetch, model: 'openai/gpt-test' })).rejects.toThrow('cannot cross to a cloud session')
   })
 
   it('hands off only eligible accounts and assigns only their connections', async () => {
@@ -108,7 +108,7 @@ describe('sandbox OAuth capability preparation', () => {
     await expect(prepareSandboxOauth({ accounts, session, handoffOauth: async () => {}, registration, clientVersion: 'test', fetchFn: neverFetch })).rejects.toThrow('has not completed')
   })
 
-  it('propagates assignment failure so lift cannot commit an unauthorized sandbox', async () => {
+  it('propagates assignment failure so the birth cannot commit an unauthorized sandbox', async () => {
     const accounts = store()
     await addOauth(accounts)
     const fetchFn: typeof fetch = Object.assign(async (input: string | URL | Request) => String(input).endsWith('/v1/sandboxes')

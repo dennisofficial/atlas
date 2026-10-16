@@ -220,7 +220,7 @@ describe('usePullRequest', () => {
   it('tracks the cloud checkout without probing the project directory', async () => {
     const cloud: RepositoryCheckout = {
       directory: '/workspace',
-      branch: 'dennis/lifted',
+      branch: 'dennis/cloud-born',
       forge: EForge.GitHub,
       remote: { host: 'github.com', owner: 'dennisofficial', repo: 'atlas' },
     }
@@ -228,7 +228,7 @@ describe('usePullRequest', () => {
 
     try {
       expect(probe.control?.footer?.badge?.label).toBe('#123')
-      expect(textOf(section(), 'branch')).toBe('dennis/lifted')
+      expect(textOf(section(), 'branch')).toBe('dennis/cloud-born')
     } finally {
       await done()
     }

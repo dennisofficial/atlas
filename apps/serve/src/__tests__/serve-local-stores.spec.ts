@@ -48,7 +48,7 @@ const seedSourceHome = async (home: string): Promise<void> => {
   await store.add({
     provider: EAuthProvider.Anthropic,
     label: 'Anthropic (ANTHROPIC_API_KEY)',
-    secret: { kind: EAuthKind.ApiKey, apiKey: 'sk-ant-fake-lifted' },
+    secret: { kind: EAuthKind.ApiKey, apiKey: 'sk-ant-fake-birth' },
     origin: EAccountOrigin.Environment,
     importedFrom: 'environment:ANTHROPIC_API_KEY',
   })
@@ -56,7 +56,7 @@ const seedSourceHome = async (home: string): Promise<void> => {
     file: join(home, 'secrets.json'),
     cipher: new SecretCipher(join(home, 'key')),
   })
-  secrets.write({ name: 'TAVILY_API_KEY', value: 'tvly-fake-lifted' })
+  secrets.write({ name: 'TAVILY_API_KEY', value: 'tvly-fake-birth' })
   writeFileSync(
     join(home, 'settings.json'),
     `${JSON.stringify({ [ESettingId.SidebarWidth]: 42 })}\n`,
@@ -86,7 +86,7 @@ afterEach(() => {
   for (const home of homes.splice(0, homes.length)) rmSync(home, { recursive: true, force: true })
 })
 
-describe('serve local stores after a lift', () => {
+describe('serve local stores after a birth', () => {
   it('reads the transferred environment account as a usable credential', async () => {
     const source = tempHome()
     await seedSourceHome(source)
@@ -113,7 +113,7 @@ describe('serve local stores after a lift', () => {
     expect(credential).toEqual({
       kind: EAuthKind.ApiKey,
       accountId: heldId,
-      apiKey: 'sk-ant-fake-lifted',
+      apiKey: 'sk-ant-fake-birth',
     })
   })
 
@@ -126,7 +126,7 @@ describe('serve local stores after a lift', () => {
       file: join(target, 'secrets.json'),
       cipher: new SecretCipher(join(target, 'key')),
     })
-    expect(secrets.read('TAVILY_API_KEY')).toBe('tvly-fake-lifted')
+    expect(secrets.read('TAVILY_API_KEY')).toBe('tvly-fake-birth')
 
     const previous = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = target

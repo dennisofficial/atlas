@@ -28,7 +28,7 @@ const isMissing = (error: unknown): boolean =>
 /**
  * The staging bundle holds sealed credentials, so once it has been read it is removed whether the
  * install holds or not — a bundle that cannot install can never become installable, and recovery
- * is the host re-lifting, not a stale copy lingering on the drive. Reasons name files, never
+ * is the host re-birthing the sandbox, not a stale copy lingering on the drive. Reasons name files, never
  * payload contents.
  */
 export async function installPortableState(args: {
@@ -73,7 +73,7 @@ export async function installPortableState(args: {
   } catch {
     return {
       kind: EPortableStateBoot.Failed,
-      reason: `the portable state at ${path} was not valid JSON; the staging bundle was removed, and the host re-lifts to replace it`,
+      reason: `the portable state at ${path} was not valid JSON; the staging bundle was removed, and the host re-births the sandbox to replace it`,
     }
   }
 
@@ -83,7 +83,7 @@ export async function installPortableState(args: {
   } catch (error) {
     return {
       kind: EPortableStateBoot.Failed,
-      reason: `the portable state at ${path} did not install (${messageOf(error)}); the staging bundle was removed, and the host re-lifts to replace it`,
+      reason: `the portable state at ${path} did not install (${messageOf(error)}); the staging bundle was removed, and the host re-births the sandbox to replace it`,
     }
   }
 

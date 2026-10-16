@@ -48,7 +48,7 @@ describe('portable state capture', () => {
     expect(activeProviders).toContain('openai')
   })
 
-  it('never clones an attachment token minted before the lift into the sandbox', async () => {
+  it('never clones an attachment token minted before the birth into the sandbox', async () => {
     await seedSource({ source })
     const state = await capturePortableState({ home: source.directory })
 

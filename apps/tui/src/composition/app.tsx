@@ -13,11 +13,11 @@ import { openCloudConversation } from './cloud/cloud-app'
 import type { AtlasApp } from './compose'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { messageOf } from './error-text'
-import { liveBridgeFor, liveLiftPreflightFor } from './live-cloud'
-import type { ReloadedSession } from './lifted-session'
+import { liveBridgeFor, liveBirthPreflightFor } from './live-cloud'
+import type { ReloadedSession } from './reloaded-session'
 import type { OpenedConversation } from './open-conversation'
 import { appOf, attachmentOf, cloudAttachmentOf, keyOf, localAnchorOf, localBindingOf } from './session-binding'
-import type { CloudBridgeFactory, LiftPreflight } from './cloud/bridge-factory'
+import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 import type { MoveStepTiming } from './use-container-move'
 import { Workspace } from './workspace'
 import { LIVE_WHATS_NEW_DEPS, useWhatsNew, type WhatsNewDeps } from './use-whats-new'
@@ -34,7 +34,7 @@ export function App(props: {
   clipboard?: ClipboardImageReader
   onRestart?: () => void
   createBridge?: CloudBridgeFactory
-  preflightLift?: LiftPreflight
+  preflightBirth?: BirthPreflight
   onMoveStep?: ((timing: MoveStepTiming) => void) | undefined
   reapOnBoot?: ((app: AtlasApp) => void) | undefined
   whatsNewDeps?: WhatsNewDeps | undefined
@@ -188,7 +188,7 @@ export function App(props: {
         cloudBridge={cloud?.bridge ?? null}
         cloudStores={cloud?.stores ?? null}
         createBridge={props.createBridge ?? liveBridgeFor(props.app)}
-        preflightLift={props.preflightLift ?? liveLiftPreflightFor(props.app)}
+        preflightBirth={props.preflightBirth ?? liveBirthPreflightFor(props.app)}
         onReload={handleReload}
         onLeaveCloud={handleLeaveCloud}
         onLocalOpened={handleLocalSwap}
