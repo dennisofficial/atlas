@@ -46,47 +46,12 @@ describe('environment profile credentials', () => {
 })
 
 describe('environment profile git identity', () => {
-  it('writes the identity repo-locally and probes it into the capabilities', async () => {
-    const { apply, gitAttempts } = harness({ present: [`${CWD}/.git`] })
-
-    const profile = await apply({
-      cwd: CWD,
-      spec: spec({ gitIdentity: { name: 'Dennis', email: 'dennis@example.com' } }),
-    })
-
-    expect(outcomeOf(profile, EProfileStep.GitIdentity).state).toBe(EProfileStepState.Applied)
-    expect(gitAttempts.map((attempt) => [...attempt.args])).toEqual([
-      ['config', 'user.name', 'Dennis'],
-      ['config', 'user.email', 'dennis@example.com'],
-      ['config', 'user.name'],
-      ['config', 'user.email'],
-    ])
-    expect(gitAttempts.every((attempt) => attempt.cwd === CWD)).toBe(true)
-    expect(profile.capabilities.gitIdentity).toBe('Dennis <dennis@example.com>')
-  })
-
-  it('skips the identity when the workspace is not a git repository', async () => {
-    const { apply, gitAttempts } = harness({})
-
-    const profile = await apply({
-      cwd: CWD,
-      spec: spec({ gitIdentity: { name: 'Dennis', email: 'dennis@example.com' } }),
-    })
-
-    const outcome = outcomeOf(profile, EProfileStep.GitIdentity)
-    expect(outcome.state).toBe(EProfileStepState.Skipped)
-    expect(outcome.detail).toBeDefined()
-    expect(gitAttempts).toEqual([])
-    expect(profile.capabilities.gitIdentity).toBeNull()
-  })
-
-  it('skips the identity when the spec carries none', async () => {
-    const { apply, gitAttempts } = harness({ present: [`${CWD}/.git`] })
+  it('keeps the identity unset: the spec no longer carries one, the sandbox git trusts the host config', async () => {
+    const { apply } = harness({ present: [`${CWD}/.git`] })
 
     const profile = await apply({ cwd: CWD, spec: spec() })
 
-    expect(outcomeOf(profile, EProfileStep.GitIdentity).state).toBe(EProfileStepState.Skipped)
-    expect(gitAttempts).toEqual([])
+    expect(profile.capabilities.gitIdentity).toBeNull()
   })
 })
 

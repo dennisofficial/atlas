@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
 import {
   birthInCloud,
+  EBirthNode,
   storedModel,
   type CloudReload,
   type SessionOwner,
@@ -86,7 +87,6 @@ export function useThreadBirth(args: {
       logPort: durableOpLog() ?? undefined,
       placement: owner,
       captureContext,
-      onBuildProgress: move.handleBuildProgress,
       onBegin: ({ waves }) =>
         move.handleBegin({
           target: EExecutionLocation.Cloud,
@@ -96,9 +96,10 @@ export function useThreadBirth(args: {
         }),
       onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
       onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
-      onTransferProgress: move.handleTransferProgress,
+      onTransferProgress: (progress) =>
+        move.handleTransferProgress({ ...progress, nodeId: EBirthNode.Provision }),
       onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
-      open: async ({ attachment, prepareRuntime, restoredWorkspace }) => {
+      open: async ({ attachment, prepareRuntime }) => {
         const stopWatching = attachment.channel.subscribe({
           threadId,
           listener: (signal) => {
@@ -110,7 +111,7 @@ export function useThreadBirth(args: {
         const runner = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move })
         const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner }) }
         const opened = await openCloudConversation({ app: base, threadId })
-        const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened, restored: restoredWorkspace })
+        const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })
         const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: attachment.stores.threads })
         const session = createCloudSession({
           channel: attachment.channel,

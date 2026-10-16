@@ -1,16 +1,12 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import type { DirectWorkspace } from './direct-workspace'
 import type { ServeApp } from './serve-app'
 import { adoptChildrenNow, settleLostShellsInBackground } from './serve-background'
 import { EServeEvent, type ServeLog } from './serve-log'
-import { createWorkspaceSession } from './workspace-session'
 
 export function createServeWorkspaceSession(args: {
-  direct: DirectWorkspace
   threadId: ThreadId
   app: ServeApp
-  dormant: boolean
   deferStartChildren?: boolean | undefined
   resumeChildren?: readonly ThreadId[] | undefined
   log: ServeLog
@@ -41,15 +37,10 @@ export function createServeWorkspaceSession(args: {
     void captured.then(finished, finished)
     return captured
   }
-  const session = createWorkspaceSession({
-    direct: args.direct,
-    dormant: args.dormant,
-    startChildren,
-  })
-  if (!session.dormant() && args.deferStartChildren !== true) {
+  if (args.deferStartChildren !== true) {
     void startChildren().catch((error: unknown) => {
       log({ event: EServeEvent.ChildAdoptionFailed, reason: error instanceof Error ? error.message : String(error) })
     })
   }
-  return { ...session, startChildren, whenStarted: () => starting }
+  return { startChildren, whenStarted: () => starting }
 }

@@ -4,7 +4,6 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { createChannelBridge } from './channel-bridge'
 import { DEFAULT_DRAIN_DEADLINE_MS } from './drain-deadline'
-import { settleDirectArrival } from './direct-arrival'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
 import { startServeIdleStop } from './idle-stop'
 import { workspaceRefusalOf } from './materialize-workspace'
@@ -50,19 +49,16 @@ export async function finishServeBoot(args: {
   const fetchFn = serveArgs.fetchFn ?? fetch
   const recovery = await createServeRotationRecovery({ atlasHome: driveHome, threadId, sandboxSessionId, log })
   const admission = { closed: false }
-  const { direct, directBoot, workspace, activeCwd, bootDormant, spec, context } =
-    await bootServeFiles({
-      env,
-      threadId,
-      cwd,
-      driveHome,
-      log,
-      ensureWorkspace: serveArgs.ensureWorkspace,
-      restoreWorkspace: serveArgs.restoreWorkspace,
-      profile: serveArgs.profile,
-      contextFiles: serveArgs.contextFiles,
-      fetchTranscriptArchive: serveArgs.fetchTranscriptArchive,
-    })
+  const { workspace, activeCwd, spec, context } = await bootServeFiles({
+    env,
+    threadId,
+    cwd,
+    driveHome,
+    log,
+    ensureWorkspace: serveArgs.ensureWorkspace,
+    profile: serveArgs.profile,
+    contextFiles: serveArgs.contextFiles,
+  })
 
   const app = await composeBootApp({
     compose: serveArgs.compose,
@@ -80,26 +76,14 @@ export async function finishServeBoot(args: {
   })
 
   await recovery.guard({ app, admission })
-  const bootReceipt = directBoot.kind === 'ready' ? await direct.receipt() : null
-  if (bootReceipt?.arrivalPending === true) {
-    await settleDirectArrival({
-      direct,
-      app,
-      threadId,
-      restored: bootReceipt.restored,
-      launchDirectory: activeCwd,
-    })
-  }
 
   const buffer = createFrameBuffer({ capacity: serveArgs.bufferSize ?? DEFAULT_FRAME_BUFFER })
   const settling = { count: 0 }, noop = (): void => undefined
   let idleStop: { note: () => void; halt: () => void; reset: () => void } = { note: noop, halt: noop, reset: noop }
   const note = (): void => idleStop.note()
   const session = createServeWorkspaceSession({
-    direct,
     threadId,
     app,
-    dormant: bootDormant,
     deferStartChildren: recovery.deferred,
     resumeChildren: recovery.resumeChildren,
     log,
@@ -143,7 +127,7 @@ export async function finishServeBoot(args: {
     if (frame.kind === EServeFrame.TurnEnded) mirrorRevision.bump()
   }
 
-  const driver = createServeDriver({ app, threadId, workspace, session, admission, log, idleStop: () => idleStop, emitLifecycle })
+  const driver = createServeDriver({ app, threadId, workspace, admission, log, idleStop: () => idleStop, emitLifecycle })
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({
     app,
@@ -168,7 +152,6 @@ export async function finishServeBoot(args: {
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),
     refusal: () => workspaceRefusalOf(workspace) ?? null,
-    workspace: { apply: session.apply, activate: () => recovery.activate({ session, driver }) },
     log,
     roster: app.roster,
     prStates: app.prStates,

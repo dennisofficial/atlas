@@ -46,10 +46,4 @@ describe('a failed cloud birth', () => {
     }
   })
 
-  it('names the capture failure as the workspace, not a conversation transfer', () => {
-    const text = liftFailedNotice(failure({ fault: EBirthFault.Transfer, step: EBirthNode.CaptureWorkspace, detail: 'archive is truncated' }))
-
-    expect(text).toContain('workspace could not be captured')
-    expect(text).toContain('archive is truncated')
-  })
 })

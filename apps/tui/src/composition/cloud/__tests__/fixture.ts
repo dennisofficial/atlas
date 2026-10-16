@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { copyFile, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
@@ -51,16 +51,13 @@ import {
   type CloudReload,
   type CloudSandbox,
   type CloudSandboxStatus,
-  type LiftedWorkspace,
+  type WorkspaceSpec,
 } from '@dltech/atlas-harness'
 
 export const CLOUD_THREAD = toThreadId(`cloud-thread-${SPEC_SHARD}`)
 
-export const CLEAN_WORKSPACE: LiftedWorkspace = {
+export const CLEAN_WORKSPACE: WorkspaceSpec = {
   remoteUrl: 'git@github.com:comp-ai/atlas.git',
-  branch: 'dennis/container-cloud',
-  commit: 'abc1234',
-  patch: '',
 }
 
 const exportedSessions = new Map<string, SessionArchiveFile>()
@@ -612,8 +609,7 @@ export type FakeBridge = CloudBridge & {
   readonly ledger: FakeLedger
   readonly created: readonly {
     threadId: ThreadId
-    workspace: LiftedWorkspace | null
-    gpgKey?: string | undefined
+    workspace: WorkspaceSpec | null
   }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
@@ -664,8 +660,7 @@ export function fakeBridge(
   let channel: FakeCloudChannel | null = null
   const created: {
     threadId: ThreadId
-    workspace: LiftedWorkspace | null
-    gpgKey?: string | undefined
+    workspace: WorkspaceSpec | null
   }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
@@ -679,22 +674,6 @@ export function fakeBridge(
   let sourceThreads = args.sourceThreads
   let sourceWorkspace: string | null = null
   let sourceDisk = args.sourceDisk
-  let stagedTranscript: string | undefined
-
-  /**
-   * The real create stages the uploaded archive next to the serve binary so the bootstrap untars
-   * it into the session directory before launch; attach untars the staged bytes through the new
-   * channel, so the transcript the plan restores and verifies is the one the lift shipped.
-   */
-  const stageTranscript = async (args: {
-    threadId: ThreadId
-    archivePath: string
-  }): Promise<void> => {
-    const staged = join(await mkdtemp(join(tmpdir(), 'atlas-fake-staged-')), 'transcript.tar.gz')
-    await copyFile(args.archivePath, staged)
-    stagedTranscript = staged
-    if (channel !== null) await channel.loadTranscriptArchive(staged)
-  }
 
   /**
    * A wake reattaches to a transcript the sandbox already serves: the fake's stores were seeded
@@ -746,15 +725,10 @@ export function fakeBridge(
       sourceDisk = disk
     },
     sandboxes: {
-      create: async ({ threadId, workspace, gpgKey, transcriptArchivePath, captureContext, onRotationStarted }) => {
+      create: async ({ threadId, workspace, captureContext, onRotationStarted }) => {
         const sandbox = args.sandbox ?? RUNNING
         if (sandbox.rotatedProtocol !== undefined || sandbox.rotatedFrom !== undefined)
           onRotationStarted?.()
-        // The real create stages the transcript archive next to the serve binary before launch,
-        // so the bootstrap untars it into the session directory the sandbox serves from.
-        if (transcriptArchivePath !== undefined) {
-          await stageTranscript({ threadId, archivePath: transcriptArchivePath })
-        }
         // The real create captures and puts the archive onto the row before booting a fresh
         // sandbox, so the trail records it ahead of the boot; a resumed sandbox already carries
         // its context and never captures. The caller's thunk owns failure semantics, so the fake
@@ -770,19 +744,9 @@ export function fakeBridge(
         created.push({
           threadId,
           workspace,
-          ...(gpgKey === undefined ? {} : { gpgKey }),
         })
         if (args.createFails !== undefined) throw args.createFails
         return sandbox
-      },
-      downloadSession: async ({ archive, destination }) => {
-        const exported = exportedSessions.get(archive.path)
-        if (exported === undefined) throw new Error(`the fixture exported nothing at ${archive.path}`)
-        await copyFile(exported.path, destination)
-      },
-      releaseSession: async ({ path }) => {
-        await exportedSessions.get(path)?.dispose()
-        exportedSessions.delete(path)
       },
       find: async () => {
         const status = args.statusRef?.current ?? args.status
@@ -825,13 +789,6 @@ export function fakeBridge(
             },
       })
       channel = opened
-      // Serve has untarred the staged archive into its session directory by the time a client can
-      // attach; the untar lands here, ahead of the plan's requests, which the channel gates on it.
-      if (stagedTranscript !== undefined) {
-        const archivePath = stagedTranscript
-        stagedTranscript = undefined
-        opened.deferUntilBooted(opened.loadTranscriptArchive(archivePath))
-      }
       const remoteThreads = new RemoteThreadStore({ channel })
       const attachedThreads = new Proxy(watchedThreads, {
         get: (target, property, receiver) => {

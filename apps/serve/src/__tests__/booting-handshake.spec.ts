@@ -9,7 +9,6 @@ import {
   EClientFrame,
   EClientRequest,
   EServeFrame,
-  type RestoredWorkspace,
   type ServeFrame,
 } from '@dltech/atlas-harness'
 
@@ -90,55 +89,6 @@ const bootingServe = (args: { gateOpen?: boolean | undefined } = {}): BootingPro
   }
   if (args.gateOpen === true) workspaceGate.open()
   return register(probe)
-}
-
-const driveHomeWithArchive = (): string => {
-  const home = mkdtempSync(join(tmpdir(), 'atlas-handshake-home-'))
-  homes.push(home)
-  const bootstrap = join(home, 'bootstrap')
-  mkdirSync(bootstrap, { recursive: true })
-  writeFileSync(join(bootstrap, 'workspace.tar.gz'), 'staged')
-  return home
-}
-
-const restoredWorkspace = (): RestoredWorkspace => ({
-  cwd: '/workspace',
-  repository: null,
-  trees: [],
-})
-
-const bootingDirectServe = (): BootingProbe => {
-  const restoreGate = gate()
-  const home = driveHomeWithArchive()
-  const heldAtlasHome = process.env.ATLAS_HOME
-  process.env.ATLAS_HOME = home
-  const lines: string[] = []
-  const handle = startServe({
-    threadId,
-    port: 0,
-    token: TOKEN,
-    controlPlaneUrl: CONTROL_PLANE,
-    env: {},
-    cwd: '/workspace',
-    write: (line) => lines.push(line),
-    compose: async () => fakeServeApp({ threadId, root: '/workspace' }),
-    restoreWorkspace: async () => {
-      await restoreGate.opened
-      return restoredWorkspace()
-    },
-    ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
-    contextFiles: inMemoryContextFiles(),
-  })
-  void handle.finally(() => {
-    if (heldAtlasHome === undefined) delete process.env.ATLAS_HOME
-    else process.env.ATLAS_HOME = heldAtlasHome
-  })
-  return register({
-    port: listeningPort(lines),
-    handle,
-    lines,
-    openGate: restoreGate.open,
-  })
 }
 
 const failingServe = (args: { reason: string }): BootingProbe => {
@@ -262,26 +212,4 @@ describe('websocket upgrade while the serve is still booting', () => {
   })
 })
 
-describe('a workspace apply issued while the serve is still booting', () => {
-  it('resolves after materialize completes instead of being refused', async () => {
-    const probe = bootingDirectServe()
-    const port = await probe.port
 
-    const client = await connect({ port, token: TOKEN })
-    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
-    client.send({
-      kind: EClientFrame.Request,
-      id: 'apply-boot',
-      op: EClientRequest.ApplyWorkspaceArchive,
-      params: {},
-    })
-
-    await Bun.sleep(100)
-    expect(client.frames.some((frame) => frame.kind === EServeFrame.Reply)).toBe(false)
-
-    probe.openGate()
-    const reply = await replyFrom({ client, id: 'apply-boot' })
-    expect(reply.kind === EServeFrame.Reply ? reply.ok : false).toBe(true)
-    client.close()
-  })
-})

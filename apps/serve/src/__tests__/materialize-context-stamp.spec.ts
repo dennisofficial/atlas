@@ -1,18 +1,28 @@
 import { describe, expect, it } from 'bun:test'
 
+import { mkdtemp, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+import { buildContextArchive } from '@dltech/atlas-harness'
 
 import { materializeContext } from '../materialize-context'
 import type { WorkspaceFiles } from '../workspace-files'
-import type { WorkspaceSpec } from '../workspace-spec'
 import {
   ATLAS_HOME,
-  bundle,
   CONTEXT_STAMP_PATH,
   fakeFiles,
-  materialize,
   SPEC,
 } from './materialize-context-fixture'
+
+const archiveWith = async (text: string): Promise<Uint8Array> => {
+  const staging = await mkdtemp(join(tmpdir(), 'atlas-context-stamp-'))
+  const source = join(staging, 'mcp.json')
+  await writeFile(source, text, 'utf8')
+  const archive = await buildContextArchive({ files: [{ key: '.atlas/mcp.json', path: source }] })
+  if (archive === undefined) throw new Error('expected an archive')
+  return archive
+}
 
 describe('materializeContext with a resume stamp', () => {
   it('skips materialization entirely once a resumed sandbox finds its stamp already on disk', async () => {
@@ -48,39 +58,26 @@ describe('materializeContext with a resume stamp', () => {
     expect(written.size).toBe(0)
   })
 
-  it('writes the stamp once a fresh boot materializes its bundle, keyed to the spec’s projectDirectory', async () => {
+  it('writes the stamp once a fresh boot materializes its archive', async () => {
     const { files, stamped } = fakeFiles()
-    const spec: WorkspaceSpec = {
-      ...SPEC,
-      contextBundle: bundle({ '.atlas/mcp.json': '# global instructions' }),
-      projectDirectory: '/Users/dennis/dev/atlas',
-    }
 
-    const readiness = await materialize({ spec, files })
+    const readiness = await materializeContext({
+      fetchSpec: async () => SPEC,
+      fetchArchive: async () => archiveWith('# global instructions'),
+      atlasHome: ATLAS_HOME,
+      files,
+    })
 
     expect(readiness).toEqual({
       written: 1,
       failed: null,
-      projectDirectory: '/Users/dennis/dev/atlas',
+      projectDirectory: null,
       identity: null,
     })
     expect(JSON.parse(stamped.get(CONTEXT_STAMP_PATH) ?? '')).toEqual({
-      projectDirectory: '/Users/dennis/dev/atlas',
+      projectDirectory: null,
       identity: null,
     })
-  })
-
-  it('keys the readiness identity to the spec’s normalized remote', async () => {
-    const { files } = fakeFiles()
-    const spec: WorkspaceSpec = {
-      ...SPEC,
-      remoteUrl: 'git@github.com:dennisofficial/atlas.git',
-      contextBundle: bundle({ '.atlas/mcp.json': '{}' }),
-    }
-
-    const readiness = await materialize({ spec, files })
-
-    expect(readiness.identity).toBe('github.com/dennisofficial/atlas')
   })
 
   it('does not re-materialize a stamp that carries a pre-sync skillLayout field', async () => {
@@ -89,9 +86,13 @@ describe('materializeContext with a resume stamp', () => {
       path: CONTEXT_STAMP_PATH,
       text: JSON.stringify({ projectDirectory: null, identity: null, skillLayout: 'persistent-v1' }),
     })
-    const spec: WorkspaceSpec = { ...SPEC, contextBundle: bundle({ '.atlas/mcp.json': '{}' }) }
 
-    const readiness = await materialize({ spec, files })
+    const readiness = await materializeContext({
+      fetchSpec: async () => SPEC,
+      fetchArchive: async () => archiveWith('# ignored'),
+      atlasHome: ATLAS_HOME,
+      files,
+    })
 
     expect(readiness.written).toBe(0)
     expect(written.size).toBe(0)
@@ -100,12 +101,13 @@ describe('materializeContext with a resume stamp', () => {
   it('treats a stamp that will not parse as though a stamp had never been written', async () => {
     const { files, written } = fakeFiles()
     await files.write({ path: CONTEXT_STAMP_PATH, text: 'not json' })
-    const spec: WorkspaceSpec = {
-      ...SPEC,
-      contextBundle: bundle({ '.atlas/mcp.json': '# from the corrupt-stamp boot' }),
-    }
 
-    const readiness = await materialize({ spec, files })
+    const readiness = await materializeContext({
+      fetchSpec: async () => SPEC,
+      fetchArchive: async () => archiveWith('# from the corrupt-stamp boot'),
+      atlasHome: ATLAS_HOME,
+      files,
+    })
 
     expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'mcp.json'))).toBe('# from the corrupt-stamp boot')
@@ -119,12 +121,13 @@ describe('materializeContext with a resume stamp', () => {
         throw new Error('disk is read-only')
       },
     }
-    const spec: WorkspaceSpec = {
-      ...SPEC,
-      contextBundle: bundle({ '.atlas/mcp.json': '# still lands even though the stamp cannot' }),
-    }
 
-    const readiness = await materialize({ spec, files: unwritable })
+    const readiness = await materializeContext({
+      fetchSpec: async () => SPEC,
+      fetchArchive: async () => archiveWith('# still lands even though the stamp cannot'),
+      atlasHome: ATLAS_HOME,
+      files: unwritable,
+    })
 
     expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'mcp.json'))).toBe(

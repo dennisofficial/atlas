@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { EHarnessPlacement, ESettingId } from '@dltech/atlas-core'
-import { EClientRequest } from '@dltech/atlas-wire'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -38,78 +37,7 @@ const appOn = (args: { configured: boolean }): FakeApp =>
     },
   })
 
-type ShippedManifest = {
-  trees: { id: string; sourcePath: string; branch: string | null }[]
-  family?: {
-    rootId: string
-    checkouts: { id: string; treeId: string; claimedBy: string }[]
-    threads: {
-      threadId: string
-      home: { treeId: string; relativePath: string }
-      active: { treeId: string; base: string | null; adopted: boolean } | null
-    }[]
-  }
-}
-
-const restoredAs = async (archivePath: string) => {
-  const raw = await Bun.$`tar -xzOf ${archivePath} manifest.json`.text()
-  const manifest = JSON.parse(raw) as ShippedManifest
-  const pathOf = (treeId: string): string => manifest.trees.find((tree) => tree.id === treeId)?.sourcePath ?? ''
-  const family = manifest.family
-  return {
-    cwd: pathOf(manifest.trees[0]?.id ?? ''),
-    repository: null,
-    trees: manifest.trees.map((tree) => ({ ...tree, path: tree.sourcePath, renamedFrom: null })),
-    ...(family === undefined
-      ? {}
-      : {
-          family: {
-            rootId: family.rootId,
-            checkouts: family.checkouts.map((checkout) => ({
-              id: checkout.id,
-              path: pathOf(checkout.treeId),
-              claimedBy: checkout.claimedBy,
-            })),
-            threads: family.threads.map((thread) => ({
-              threadId: thread.threadId,
-              home: [pathOf(thread.home.treeId), thread.home.relativePath].filter((part) => part !== '').join('/'),
-              active:
-                thread.active === null
-                  ? null
-                  : {
-                      path: pathOf(thread.active.treeId),
-                      branch: manifest.trees.find((tree) => tree.id === thread.active?.treeId)?.branch ?? 'HEAD',
-                      base: thread.active.base,
-                      adopted: thread.active.adopted,
-                    },
-            })),
-          },
-        }),
-  }
-}
-
-export const acceptingTheWorkspace = (bridge: FakeBridge): FakeBridge => {
-  let shipped: string | undefined
-  const create = bridge.sandboxes.create
-  bridge.sandboxes.create = (given) => {
-    shipped = given.workspaceArchivePath
-    return create(given)
-  }
-  const attach = bridge.attach
-  bridge.attach = (given) => {
-    const attachment = attach(given)
-    const request = attachment.channel.request
-    attachment.channel.request = async (call) =>
-      call.op === EClientRequest.ApplyWorkspaceArchive && shipped !== undefined
-        ? { applied: true, restored: await restoredAs(shipped) }
-        : request(call)
-    return attachment
-  }
-  return bridge
-}
-
 const mount = async (args: { app: FakeApp; bridge: FakeBridge; fresh?: boolean | undefined }) => {
-  acceptingTheWorkspace(args.bridge)
   const home = mkdtempSync(join(tmpdir(), 'atlas-chip-home-'))
   const previousHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home

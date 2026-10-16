@@ -5,6 +5,4 @@ export const wireOutcomeOf = (outcome: TurnOutcome): TurnOutcomeWire => {
   return { status: outcome.status, runId: outcome.runId, message: outcome.message }
 }
 
-export const DORMANT_REFUSAL = 'this session is waiting to be activated by the handoff that prepared it'
-
 export const PARKING_REFUSAL = 'this sandbox is parking and accepts no new work'

@@ -26,24 +26,13 @@ export interface SandboxAttachmentDto extends SandboxStatusDto {
   token: string
 }
 
-/**
- * The local workspace as the sandbox must reproduce it: a commit to check out and a unified diff
- * carrying everything not committed, so lifting a session never asks the operator to commit first.
- */
+/** A cloud-born sandbox clones the repo's default branch from origin; the remote is all it needs. */
 export interface SandboxWorkspaceSpec {
   remoteUrl: string | null
-  branch: string | null
-  commit: string | null
-  patch: string
-  /** The Mac-side project directory of the lifted thread, absent for clients that predate it. */
-  projectDirectory?: string | null
-  /** The operator's git identity, absent for clients that predate it. */
-  gitIdentity?: { name: string; email: string } | null
 }
 
 export interface SandboxWorkspaceDto extends SandboxWorkspaceSpec {
   githubToken: string | null
-  gpgKey: string | null
   /** The operator's user-level context as a JSON map of relative path to base64 content. */
   contextBundle: string | null
 }

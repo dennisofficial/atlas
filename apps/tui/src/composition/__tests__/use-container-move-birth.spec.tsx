@@ -6,7 +6,7 @@ import { EExecutionLocation } from '@dltech/atlas-core'
 
 import { useContainerMove, type ContainerMoveControl } from '../use-container-move'
 
-const ROWS = [{ id: 'capture', text: 'packing', nodeIds: ['captureWorkspace'] }]
+const ROWS = [{ id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] }]
 
 type Probe = { control: ContainerMoveControl | null }
 
@@ -98,12 +98,19 @@ describe('cancelling a cloud birth', () => {
     expect(mounted.control().now - (mounted.control().move?.startedAt ?? 0)).toBeGreaterThanOrEqual(0)
   })
 
-  it('records capture progress through the control surface', async () => {
+  it('records a context upload reading through the control surface', async () => {
     const mounted = await begin({ onCancel: () => undefined })
-    mounted.control().handleNodeStart('captureWorkspace')
-    mounted.control().handleBuildProgress({ phase: 'staging', files: 3, bytes: 0 })
+    mounted.control().handleNodeStart('provision')
+    mounted.control().handleTransferProgress({
+      nodeId: 'provision',
+      transferId: 'context-upload',
+      label: 'uploading skills and memory',
+      transferredBytes: 3,
+      totalBytes: 9,
+      complete: false,
+    })
     await mounted.flush()
 
-    expect(mounted.control().move?.build?.files).toBe(3)
+    expect(mounted.control().move?.rows[0]?.transfers?.[0]?.transferredBytes).toBe(3)
   })
 })

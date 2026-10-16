@@ -3,22 +3,15 @@ import { join } from 'node:path'
 
 import { EPortExposure, type EnvironmentCapabilities } from '@dltech/atlas-core'
 
-import { runGit } from '@dltech/atlas-harness'
-
 import { applyGitAccessEnv } from './git-access-env'
-import type { GitRunner } from './materialize-workspace'
-import { createGpgSigningStep } from './profile-gpg'
-import { verifyGitConfigs, writeGitConfigs } from './profile-git-config'
 import { runCommand, type CommandRunner } from './run-command'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { WorkspaceSpec } from './workspace-spec'
 
 export enum EProfileStep {
   Credentials = 'credentials',
-  GitIdentity = 'git-identity',
   KnownHosts = 'known-hosts',
   Toolchain = 'toolchain',
-  GpgSigning = 'gpg-signing',
 }
 
 export enum EProfileStepState {
@@ -45,20 +38,6 @@ export type ApplyEnvironmentProfile = (args: {
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
-
-const gpgSecrets = (raw: string | null | undefined): string[] => {
-  if (raw === null || raw === undefined) return []
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== 'object' || parsed === null) return []
-    const record = parsed as Record<string, unknown>
-    return [record.secretKey, record.publicKey, record.ownerTrust].filter(
-      (value): value is string => typeof value === 'string' && value !== '',
-    )
-  } catch {
-    return []
-  }
-}
 
 const MISE_CONFIGS = ['.mise.toml', 'mise.toml', '.tool-versions'] as const
 const SETUP_HOOK = '.atlas/sandbox-setup.sh'
@@ -94,27 +73,18 @@ export function createEnvironmentProfile(args: {
   env: Record<string, string | undefined>
   files?: WorkspaceFiles | undefined
   run?: CommandRunner | undefined
-  git?: GitRunner | undefined
   home?: string | undefined
   serviceTtlSeconds?: number | undefined
 }): ApplyEnvironmentProfile {
   const env = args.env
   const files = args.files ?? nodeWorkspaceFiles
   const run = args.run ?? runCommand
-  const git = args.git ?? runGit
   const home = args.home ?? env.HOME ?? homedir()
-
-  const gpg = createGpgSigningStep({ files, run, git })
 
   return async ({ cwd, spec }) => {
     const token = spec.githubToken
-    const scrub = (text: string): string => {
-      let cleaned = token === null || token === '' ? text : text.split(token).join('***')
-      for (const secret of gpgSecrets(spec.gpgKey)) {
-        cleaned = cleaned.split(secret).join('***')
-      }
-      return cleaned
-    }
+    const scrub = (text: string): string =>
+      token === null || token === '' ? text : text.split(token).join('***')
 
     const guard = async (
       step: EProfileStep,
@@ -136,16 +106,6 @@ export function createEnvironmentProfile(args: {
       return false
     }
 
-    let probedIdentity: string | null = null
-    let probedGpg = false
-
-    const gpgSigning = (): Promise<ProfileStepOutcome> =>
-      guard(EProfileStep.GpgSigning, async () => {
-        const result = await gpg({ cwd, spec })
-        probedGpg = result.probed
-        return result.outcome
-      })
-
     const credentials = (): Promise<ProfileStepOutcome> =>
       guard(EProfileStep.Credentials, async () => {
         if (token === null || token === '') {
@@ -162,33 +122,6 @@ export function createEnvironmentProfile(args: {
           state: EProfileStepState.Failed,
           detail: 'the credential environment did not arm',
         }
-      })
-
-    const gitIdentity = (): Promise<ProfileStepOutcome> =>
-      guard(EProfileStep.GitIdentity, async () => {
-        const identity = spec.gitIdentity
-        if (identity === null || identity === undefined) {
-          return { step: EProfileStep.GitIdentity, state: EProfileStepState.Skipped }
-        }
-        if (!(await files.exists(join(cwd, '.git')))) {
-          return {
-            step: EProfileStep.GitIdentity,
-            state: EProfileStepState.Skipped,
-            detail: 'the workspace is not a git repository',
-          }
-        }
-        const entries = [
-          ['user.name', identity.name],
-          ['user.email', identity.email],
-        ] as const
-        const failure =
-          (await writeGitConfigs({ git, cwd, entries })) ??
-          (await verifyGitConfigs({ git, cwd, entries }))
-        if (failure !== null) {
-          return { step: EProfileStep.GitIdentity, state: EProfileStepState.Failed, detail: failure }
-        }
-        probedIdentity = `${identity.name} <${identity.email}>`
-        return { step: EProfileStep.GitIdentity, state: EProfileStepState.Applied }
       })
 
     const knownHosts = (): Promise<ProfileStepOutcome> =>
@@ -250,33 +183,13 @@ export function createEnvironmentProfile(args: {
         return { step: EProfileStep.Toolchain, state: EProfileStepState.Applied }
       })
 
-    const gitChain = async (): Promise<
-      readonly [ProfileStepOutcome, ProfileStepOutcome, ProfileStepOutcome, ProfileStepOutcome]
-    > => {
-      const credentialsOutcome = await credentials()
-      const identityOutcome = await gitIdentity()
-      const gpgOutcome = await gpgSigning()
-      const toolchainOutcome = await toolchain()
-      return [credentialsOutcome, identityOutcome, gpgOutcome, toolchainOutcome]
-    }
-
-    const [chain, knownHostsOutcome, dockerAvailable] = await Promise.all([
-      gitChain(),
-      knownHosts(),
-      probeDocker(run, cwd),
-    ])
-    const [credentialsOutcome, identityOutcome, gpgOutcome, toolchainOutcome] = chain
-    const steps = [
-      credentialsOutcome,
-      identityOutcome,
-      knownHostsOutcome,
-      toolchainOutcome,
-      gpgOutcome,
-    ] as const
+    const [credentialsOutcome, knownHostsOutcome, toolchainOutcome, dockerAvailable] =
+      await Promise.all([credentials(), knownHosts(), toolchain(), probeDocker(run, cwd)])
+    const steps = [credentialsOutcome, knownHostsOutcome, toolchainOutcome] as const
     const capabilities: EnvironmentCapabilities = {
       canPush: credentialsOutcome.state === EProfileStepState.Applied,
-      gitIdentity: probedIdentity,
-      gpgSigning: probedGpg,
+      gitIdentity: null,
+      gpgSigning: false,
       dockerAvailable,
       persistentFs: true,
       serviceTtlSeconds: args.serviceTtlSeconds ?? null,

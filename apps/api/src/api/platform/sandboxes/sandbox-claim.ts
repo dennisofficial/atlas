@@ -3,7 +3,7 @@ import type { CloudSandboxModel, ThreadModel } from '../../../db'
 import { db } from '../../../db'
 import type { PrismaClient } from '../../../generated/prisma/client'
 import { sandboxNameFor } from './sandbox-names'
-import { ESandboxState, type SandboxWorkspaceSpec } from './sandboxes.types'
+import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION } from './vercel-sandbox.client'
 import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 
@@ -100,7 +100,6 @@ const driveRotationOf = (args: {
 }
 
 export function rotationOf(args: {
-  workspace: SandboxWorkspaceSpec | undefined
   contextBundle: string | undefined
   tokenHash: string
   sealedToken: string
@@ -122,16 +121,6 @@ export function rotationOf(args: {
   if (args.sealedGitToken !== undefined) rotation.sealedGitToken = args.sealedGitToken
   if (args.sealedGpgKey !== undefined) rotation.sealedGpgKey = args.sealedGpgKey
   if (args.contextPending !== undefined) rotation.contextPending = args.contextPending
-  if (args.workspace !== undefined) {
-    const columns = workspaceColumnsOf(args.workspace)
-    rotation.workspaceRemoteUrl = columns.workspaceRemoteUrl
-    rotation.workspaceBranch = columns.workspaceBranch
-    rotation.workspaceCommit = columns.workspaceCommit
-    rotation.workspacePatch = columns.workspacePatch
-    rotation.workspaceProjectDirectory = columns.workspaceProjectDirectory
-    rotation.workspaceGitName = columns.workspaceGitName
-    rotation.workspaceGitEmail = columns.workspaceGitEmail
-  }
   if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
   Object.assign(rotation, driveRotationOf({ drive: args.drive, driveName: args.driveName }))
   if (args.pinnedModel !== undefined) rotation.pinnedModel = args.pinnedModel
@@ -151,7 +140,6 @@ export function claimSandboxRow(args: {
   tokenHash: string
   sealedToken: string
   rotated: boolean
-  workspace: SandboxWorkspaceSpec | undefined
   contextBundle: string | undefined
   sealedGitToken?: string | undefined
   sealedGpgKey?: string | undefined
@@ -164,7 +152,7 @@ export function claimSandboxRow(args: {
 }): Promise<ClaimedSandbox> {
   const at = new Date().toISOString()
   const columns: WorkspaceColumns = {
-    ...workspaceColumnsOf(args.workspace),
+    ...workspaceColumnsOf(undefined),
     workspaceContext: args.contextBundle ?? null,
   }
   return (args.writer ?? db).cloudSandbox.upsert({

@@ -44,12 +44,8 @@ describe('the workspace spec the laptop left on the drive', () => {
       name: 'workspace-spec.json',
       content: JSON.stringify({
         remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-        branch: 'dennis/lift-attach',
-        commit: 'abc123',
-        patch: 'diff --git a/x b/x',
         githubToken: 'gho_drive',
         model: 'anthropic/claude-sonnet-4-5',
-        projectDirectory: '/Users/dennis/Developer/atlas',
       }),
     })
 
@@ -58,7 +54,6 @@ describe('the workspace spec the laptop left on the drive', () => {
     expect(spec.remoteUrl).toBe('https://github.com/dennisofficial/atlas.git')
     expect(spec.githubToken).toBe('gho_drive')
     expect(spec.model).toBe('anthropic/claude-sonnet-4-5')
-    expect(spec.projectDirectory).toBe('/Users/dennis/Developer/atlas')
   })
 
   it('rejects when the laptop never wrote the file, naming where it looked', async () => {
@@ -71,7 +66,7 @@ describe('the workspace spec the laptop left on the drive', () => {
 
   it('rejects when the file is not a workspace spec', async () => {
     const driveHome = freshDriveHome()
-    await writeBootstrap({ driveHome, name: 'workspace-spec.json', content: '{"patch": 42}' })
+    await writeBootstrap({ driveHome, name: 'workspace-spec.json', content: '{"remoteUrl": 42}' })
 
     await expect(driveWorkspaceSpecFetcher({ driveHome })()).rejects.toThrow()
   })

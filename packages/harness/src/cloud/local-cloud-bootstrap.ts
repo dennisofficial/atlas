@@ -4,7 +4,7 @@ import { DRIVE_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@
 import { EReconnectEscalation } from './remote-delta-channel'
 import { ECloudSandboxState } from './sandbox-client'
 import { VercelDriver } from './vercel-driver'
-import type { CloudSandboxes, LiftedWorkspace } from './cloud-bridge'
+import type { CloudSandboxes, WorkspaceSpec } from './cloud-bridge'
 
 export type LiveSandbox = Parameters<
   NonNullable<Parameters<VercelDriver['createOrResume']>[0]['putContextOnFreshBoot']>
@@ -69,26 +69,14 @@ export type RegistrationSender = (args: {
 }) => unknown
 
 export const bootstrapSpecOf = (args: {
-  workspace: LiftedWorkspace | null
+  workspace: WorkspaceSpec | null
   gitToken: string | undefined
-  gpgKey?: string | undefined
   model?: string | undefined
 }): string =>
   JSON.stringify({
     remoteUrl: args.workspace?.remoteUrl ?? null,
-    branch: args.workspace?.branch ?? null,
-    commit: args.workspace?.commit ?? null,
-    patch: args.workspace?.patch ?? '',
     githubToken: args.gitToken ?? null,
     ...(args.model === undefined ? {} : { model: args.model }),
-    ...(args.workspace?.gitIdentity === undefined || args.workspace?.gitIdentity === null
-      ? {}
-      : { gitIdentity: args.workspace.gitIdentity }),
-    ...(args.gpgKey === undefined ? {} : { gpgKey: args.gpgKey }),
-    ...(args.workspace?.projectDirectory === undefined ||
-    args.workspace?.projectDirectory === null
-      ? {}
-      : { projectDirectory: args.workspace.projectDirectory }),
   })
 
 export const parkedEscalationOf = (args: {

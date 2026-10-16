@@ -54,7 +54,7 @@ describe('ensureWorkspace environment profile', () => {
 
     const readiness = await ensure({
       cwd: CWD,
-      fetchSpec: async () => spec({ remoteUrl: null, branch: null, commit: null }),
+      fetchSpec: async () => spec({ remoteUrl: null }),
     })
 
     expect(readiness).toEqual({ state: EWorkspaceState.Skipped, profile })

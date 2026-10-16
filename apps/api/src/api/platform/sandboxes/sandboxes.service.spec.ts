@@ -27,7 +27,7 @@ import { SandboxGitCredentials } from './git-credentials'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
 import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
-import { MAX_CONTEXT_BUNDLE_BYTES, MAX_WORKSPACE_PATCH_BYTES } from './workspace-spec'
+import { MAX_CONTEXT_BUNDLE_BYTES } from './workspace-spec'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -84,14 +84,7 @@ const sandboxRow = (
   ...partial,
 })
 
-const PATCH = 'diff --git a/file.ts b/file.ts\n+work in progress\n'
-
-const SPEC = {
-  remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-  branch: 'dennis/container-cloud',
-  commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-  patch: PATCH,
-}
+const REMOTE_URL = 'https://github.com/dennisofficial/atlas.git'
 
 const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
@@ -175,29 +168,16 @@ describe('SandboxesService', () => {
     expect(cipher.decrypt(row?.sealedGitToken ?? '')).toBe('gho_kept')
   })
 
-  it('records the workspace spec and context bundle on the claim', async () => {
+  it('records the context bundle on the claim, writing no workspace columns', async () => {
     await service.claim({
       userId: USER_A,
       threadId: THREAD,
-      workspace: SPEC,
       contextBundle: 'the bundle',
     })
 
     const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
-    expect(row?.workspaceRemoteUrl).toBe(SPEC.remoteUrl)
-    expect(row?.workspaceBranch).toBe(SPEC.branch)
-    expect(row?.workspaceCommit).toBe(SPEC.commit)
-    expect(row?.workspacePatch).toBe(PATCH)
+    expect(row?.workspaceRemoteUrl).toBeNull()
     expect(row?.workspaceContext).toBe('the bundle')
-  })
-
-  it('refuses a patch over the limit instead of truncating it', async () => {
-    const oversized = { ...SPEC, patch: 'x'.repeat(MAX_WORKSPACE_PATCH_BYTES + 1) }
-
-    await expect(
-      service.claim({ userId: USER_A, threadId: THREAD, workspace: oversized }),
-    ).rejects.toBeInstanceOf(PayloadTooLargeException)
-    expect(fake.cloudSandboxes).toHaveLength(0)
   })
 
   it('refuses a context bundle over the limit before claiming anything', async () => {
@@ -359,19 +339,19 @@ describe('SandboxesService', () => {
     ).rejects.toBeInstanceOf(PayloadTooLargeException)
   })
 
-  it('answers the workspace spec the claim recorded, with the claimed git credential and bundle', async () => {
+  it('answers the stored workspace remote with the claimed git credential and bundle', async () => {
     await service.claim({
       userId: USER_A,
       threadId: THREAD,
-      workspace: SPEC,
       contextBundle: 'the bundle',
       gitToken: 'gho_claimed',
     })
+    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+    if (row !== undefined) row.workspaceRemoteUrl = REMOTE_URL
 
     const workspace = await service.workspace({ threadId: THREAD })
 
-    expect(workspace.remoteUrl).toBe(SPEC.remoteUrl)
-    expect(workspace.branch).toBe(SPEC.branch)
+    expect(workspace.remoteUrl).toBe(REMOTE_URL)
     expect(workspace.githubToken).toBe('gho_claimed')
     expect(workspace.contextBundle).toBe('the bundle')
     expect(github.findToken).not.toHaveBeenCalled()
@@ -379,7 +359,7 @@ describe('SandboxesService', () => {
 
   it('answers a workspace spec without a token when github is not connected', async () => {
     github.findToken.mockResolvedValue(null as never)
-    await service.claim({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, workspaceRemoteUrl: REMOTE_URL }))
 
     const workspace = await service.workspace({ threadId: THREAD })
 

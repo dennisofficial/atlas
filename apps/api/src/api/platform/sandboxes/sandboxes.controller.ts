@@ -39,7 +39,6 @@ export class SandboxesController {
     return this.sandboxes.claim({
       userId: userIdOf(request),
       threadId: body.threadId,
-      workspace: body.workspace,
       contextBundle: body.contextBundle,
       gitToken: body.gitToken,
       gpgKey: body.gpgKey,

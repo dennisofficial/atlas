@@ -9,8 +9,6 @@ import type { FetchWorkspaceSpec, WorkspaceSpec } from './workspace-spec'
 
 export const WORKSPACE_SENTINEL = '.git/atlas-materialized'
 
-const PATCH_FILE = '.git/atlas-workspace.patch'
-
 export enum EWorkspaceState {
   Present = 'present',
   Materialized = 'materialized',
@@ -22,9 +20,6 @@ export enum EWorkspaceStep {
   Fetch = 'fetch',
   Clear = 'clear',
   Clone = 'clone',
-  Checkout = 'checkout',
-  Apply = 'apply',
-  Baseline = 'baseline',
   Sentinel = 'sentinel',
 }
 
@@ -67,38 +62,11 @@ export function credentialedRemoteOf(args: { remoteUrl: string; token: string | 
   return https.replace('https://', `https://x-access-token:${args.token}@`)
 }
 
-const checkoutArgsFor = (spec: WorkspaceSpec): readonly string[] | null => {
-  if (spec.branch !== null && spec.commit !== null) {
-    return ['checkout', '-B', spec.branch, spec.commit]
-  }
-  if (spec.branch !== null) return ['checkout', spec.branch]
-  if (spec.commit !== null) return ['checkout', '--detach', spec.commit]
-  return null
-}
-
-const patchedTreeOf = async (args: {
-  git: GitRunner
-  cwd: string
-  scrub: (text: string) => string
-}): Promise<{ tree: string | null } | { failure: WorkspaceReadiness }> => {
-  const staged = await args.git({ args: ['add', '-A'], cwd: args.cwd })
-  if (!staged.ok) return { failure: failed(EWorkspaceStep.Baseline, args.scrub(reasonOf(staged))) }
-  const written = await args.git({ args: ['write-tree'], cwd: args.cwd })
-  if (!written.ok) return { failure: failed(EWorkspaceStep.Baseline, args.scrub(reasonOf(written))) }
-  const unstaged = await args.git({ args: ['reset'], cwd: args.cwd })
-  if (!unstaged.ok) return { failure: failed(EWorkspaceStep.Baseline, args.scrub(reasonOf(unstaged))) }
-  const tree = gitOneLine(written)
-  if (tree === null) return { failure: failed(EWorkspaceStep.Baseline, 'the lifted tree has no id') }
-  return { tree }
-}
-
 /**
- * A lifted session arrives on the branch the operator had checked out, at the commit they were
- * looking at, with their uncommitted work applied as uncommitted changes — git status reads
- * exactly like the machine they left. The sentinel records the branch tip as the baseline and the
- * tree WITH the lifted work applied as the baseline tree: the descend merges by content against
- * that tree, so no scratch commit ever sits in history inviting a rewrite, and a cloud edit
- * touching a lifted line merges against the same base the host will.
+ * A cloud-born sandbox starts from what origin says right now: a full clone of the repo's default
+ * branch, credentialed by the brokered githubToken, with the token scrubbed from the remote once
+ * the clone lands. The sentinel records the clone's HEAD; its presence is the "already
+ * materialized" answer on a resumed boot.
  */
 export function createEnsureWorkspace(args: {
   git?: GitRunner | undefined
@@ -167,40 +135,12 @@ export function createEnsureWorkspace(args: {
     })
     if (!disarmed.ok) return failed(EWorkspaceStep.Clone, scrub(reasonOf(disarmed)))
 
-    const checkout = checkoutArgsFor(spec)
-    if (checkout !== null) {
-      const moved = await git({ args: checkout, cwd })
-      if (!moved.ok) return failed(EWorkspaceStep.Checkout, scrub(reasonOf(moved)))
-    }
-
-    const baseline = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD'], cwd }))
-
-    let baselineTree = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD^{tree}'], cwd }))
-    if (spec.patch.length > 0) {
-      const patchPath = join(cwd, PATCH_FILE)
-      try {
-        await files.write({ path: patchPath, text: spec.patch })
-      } catch (error) {
-        return failed(EWorkspaceStep.Apply, messageOf(error))
-      }
-      const applied = await git({ args: ['apply', '--whitespace=nowarn', patchPath], cwd })
-      if (!applied.ok) return failed(EWorkspaceStep.Apply, scrub(reasonOf(applied)))
-
-      const patched = await patchedTreeOf({ git, cwd, scrub })
-      if ('failure' in patched) return patched.failure
-      baselineTree = patched.tree
-    }
+    const commit = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD'], cwd }))
 
     try {
       await files.write({
         path: sentinel,
-        text: JSON.stringify({
-          at: new Date().toISOString(),
-          commit: spec.commit,
-          baseline,
-          baselineTree,
-          branch: spec.branch,
-        }),
+        text: JSON.stringify({ at: new Date().toISOString(), commit }),
       })
     } catch (error) {
       return failed(EWorkspaceStep.Sentinel, messageOf(error))

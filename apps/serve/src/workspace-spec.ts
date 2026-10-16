@@ -4,22 +4,10 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { CloudTransport, cloudRequest } from '@dltech/atlas-harness'
 
-/**
- * Fetched rather than injected: a patch carrying every uncommitted change outgrows what a process
- * environment will hold, and the sandbox already holds a token that authenticates the read.
- */
 export const wireWorkspaceSpecSchema = z.object({
   remoteUrl: z.string().nullable(),
-  branch: z.string().nullable(),
-  commit: z.string().nullable(),
-  patch: z.string(),
   githubToken: z.string().nullable(),
-  gitIdentity: z.object({ name: z.string(), email: z.string() }).nullable().nullish(),
-  gpgKey: z.string().nullable().nullish(),
-  contextBundle: z.string().nullish(),
-  /** The Mac-side project directory the thread was lifted from, absent on an older control plane. */
-  projectDirectory: z.string().nullish(),
-  /** The model the thread was already on; null when none was picked, absent on an older control plane. */
+  /** The model the thread is on; null when none was picked, absent on an older control plane. */
   model: z.string().nullable().nullish(),
 })
 
@@ -49,12 +37,12 @@ export function workspaceSpecFetcher(args: {
   }
 }
 
-/** `null` on a 404 \u2014 no archive stored yet, so the caller falls back to the spec's legacy bundle. */
+/** `null` on a 404 — no archive stored yet, so the caller falls back to the spec's legacy bundle. */
 export type FetchContextArchive = () => Promise<Uint8Array | null>
 
 /**
  * The sandbox's own token identifies which sandbox row the archive belongs to, so the route it
- * reads from carries no thread id of its own \u2014 unlike the workspace spec route, which the sandbox
+ * reads from carries no thread id of its own — unlike the workspace spec route, which the sandbox
  * shares with every other thread the control plane knows about.
  */
 export function contextArchiveFetcher(args: {

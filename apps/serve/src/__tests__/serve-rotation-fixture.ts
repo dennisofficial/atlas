@@ -46,7 +46,7 @@ export async function rotationFixture() {
   process.env.ATLAS_HOME = home
   await mkdir(join(home, 'bootstrap'), { recursive: true })
   await writeFile(join(home, 'bootstrap', 'workspace-spec.json'), JSON.stringify({
-    remoteUrl: null, branch: null, commit: null, patch: '', githubToken: null, contextBundle: null,
+    remoteUrl: null, githubToken: null,
   }))
   await store.log.append({
     threadId, runId: toRunId('rotation-paused'), drafts: [

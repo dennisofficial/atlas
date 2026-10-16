@@ -28,14 +28,11 @@ describe('environment profile as a whole', () => {
       runAnswers: seededScan,
     })
 
-    const profile = await apply({
-      cwd: CWD,
-      spec: spec({ gitIdentity: { name: 'Dennis', email: 'dennis@example.com' } }),
-    })
+    const profile = await apply({ cwd: CWD, spec: spec() })
 
     expect(profile.capabilities).toEqual({
       canPush: true,
-      gitIdentity: 'Dennis <dennis@example.com>',
+      gitIdentity: null,
       gpgSigning: false,
       dockerAvailable: true,
       persistentFs: true,

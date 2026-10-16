@@ -16,115 +16,26 @@ describe('WORKSPACE_BODY_LIMIT', () => {
 })
 
 describe('workspace spec columns', () => {
-  it('round-trips projectDirectory through the stored columns', () => {
+  it('round-trips remoteUrl through the stored columns', () => {
     const spec: SandboxWorkspaceSpec = {
       remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-      branch: 'dennis/serve-parity',
-      commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-      patch: '',
-      projectDirectory: '/Users/dennis/repos/atlas',
     }
 
     const columns = workspaceColumnsOf(spec)
-    expect(columns.workspaceProjectDirectory).toBe(spec.projectDirectory)
+    expect(columns.workspaceRemoteUrl).toBe(spec.remoteUrl)
 
     const row = {
       workspaceRemoteUrl: columns.workspaceRemoteUrl,
-      workspaceBranch: columns.workspaceBranch,
-      workspaceCommit: columns.workspaceCommit,
-      workspacePatch: columns.workspacePatch,
-      workspaceProjectDirectory: columns.workspaceProjectDirectory,
     } as unknown as CloudSandboxModel
 
-    expect(workspaceSpecOf(row).projectDirectory).toBe(spec.projectDirectory)
+    expect(workspaceSpecOf(row).remoteUrl).toBe(spec.remoteUrl)
   })
 
-  it('defaults projectDirectory to null when the spec omits it', () => {
-    const spec: SandboxWorkspaceSpec = {
-      remoteUrl: null,
-      branch: null,
-      commit: null,
-      patch: '',
-    }
+  it('defaults remoteUrl to null when the spec omits it', () => {
+    expect(workspaceColumnsOf(undefined).workspaceRemoteUrl).toBeNull()
+    expect(workspaceColumnsOf(undefined).workspaceContext).toBeNull()
 
-    expect(workspaceColumnsOf(spec).workspaceProjectDirectory).toBeNull()
-    expect(workspaceColumnsOf(undefined).workspaceProjectDirectory).toBeNull()
-  })
-
-  it('round-trips gitIdentity through the stored columns', () => {
-    const spec: SandboxWorkspaceSpec = {
-      remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-      branch: 'dennis/serve-parity',
-      commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-      patch: '',
-      gitIdentity: { name: 'Dennis Lysenko', email: 'dennis@comp.ai' },
-    }
-
-    const columns = workspaceColumnsOf(spec)
-    expect(columns.workspaceGitName).toBe('Dennis Lysenko')
-    expect(columns.workspaceGitEmail).toBe('dennis@comp.ai')
-
-    const row = {
-      workspaceRemoteUrl: columns.workspaceRemoteUrl,
-      workspaceBranch: columns.workspaceBranch,
-      workspaceCommit: columns.workspaceCommit,
-      workspacePatch: columns.workspacePatch,
-      workspaceProjectDirectory: columns.workspaceProjectDirectory,
-      workspaceGitName: columns.workspaceGitName,
-      workspaceGitEmail: columns.workspaceGitEmail,
-    } as unknown as CloudSandboxModel
-
-    expect(workspaceSpecOf(row).gitIdentity).toEqual(spec.gitIdentity)
-  })
-
-  it('serves gitIdentity as null when the spec omits it', () => {
-    const spec: SandboxWorkspaceSpec = {
-      remoteUrl: null,
-      branch: null,
-      commit: null,
-      patch: '',
-    }
-
-    const columns = workspaceColumnsOf(spec)
-    expect(columns.workspaceGitName).toBeNull()
-    expect(columns.workspaceGitEmail).toBeNull()
-    expect(workspaceColumnsOf(undefined).workspaceGitName).toBeNull()
-    expect(workspaceColumnsOf(undefined).workspaceGitEmail).toBeNull()
-
-    const row = {
-      workspaceRemoteUrl: null,
-      workspaceBranch: null,
-      workspaceCommit: null,
-      workspacePatch: null,
-      workspaceProjectDirectory: null,
-      workspaceGitName: null,
-      workspaceGitEmail: null,
-    } as unknown as CloudSandboxModel
-
-    expect(workspaceSpecOf(row).gitIdentity).toBeNull()
-  })
-
-  it('serves gitIdentity as null when a row holds only one of name and email', () => {
-    const partial = {
-      workspaceRemoteUrl: null,
-      workspaceBranch: null,
-      workspaceCommit: null,
-      workspacePatch: null,
-      workspaceProjectDirectory: null,
-    }
-
-    const nameOnly = {
-      ...partial,
-      workspaceGitName: 'Dennis Lysenko',
-      workspaceGitEmail: null,
-    } as unknown as CloudSandboxModel
-    const emailOnly = {
-      ...partial,
-      workspaceGitName: null,
-      workspaceGitEmail: 'dennis@comp.ai',
-    } as unknown as CloudSandboxModel
-
-    expect(workspaceSpecOf(nameOnly).gitIdentity).toBeNull()
-    expect(workspaceSpecOf(emailOnly).gitIdentity).toBeNull()
+    const row = { workspaceRemoteUrl: null } as unknown as CloudSandboxModel
+    expect(workspaceSpecOf(row).remoteUrl).toBeNull()
   })
 })

@@ -1,7 +1,5 @@
 import React from 'react'
 
-import { EBirthNode, type ArchiveBuildProgress } from '@dltech/atlas-harness'
-
 import {
   EStepMark,
   moveHeading,
@@ -22,7 +20,7 @@ import {
 } from './drawer'
 import { ShimmerLine } from './shimmer-line'
 import { Spans, type Span } from './spans'
-import { formatBytes, transferSpans } from './transfer-meter'
+import { transferSpans } from './transfer-meter'
 
 const NARROWEST = 24
 
@@ -46,42 +44,13 @@ const rowSpans = (row: MoveRow): readonly Span[] => {
   ]
 }
 
-const BUILD_VERB: Record<ArchiveBuildProgress['phase'], string> = {
-  walking: 'scanning workspace',
-  staging: 'capturing workspace',
-  compressing: 'compressing workspace',
-}
-
-export function buildSpans(build: ArchiveBuildProgress): readonly Span[] {
-  const files = `${build.files.toLocaleString('en-US')} ${build.files === 1 ? 'file' : 'files'}`
-  const size =
-    build.totalBytes === undefined
-      ? build.bytes > 0
-        ? ` / ${formatBytes(build.bytes)}`
-        : ''
-      : ` / ${formatBytes(build.bytes)} of ${formatBytes(build.totalBytes)}`
-  return [
-    { text: '    ' },
-    { text: `${BUILD_VERB[build.phase]} — `, fg: theme.meta },
-    { text: `${files}${size}`, fg: theme.dim },
-  ]
-}
-
 function ProgressLines(props: { move: ContainerMove; row: MoveRow }): React.ReactNode {
-  const { move, row } = props
+  const { row } = props
   if (row.mark !== EStepMark.Active) return null
-  const build = row.nodeIds.includes(EBirthNode.CaptureWorkspace) ? move.build : undefined
   const serve = serveStageOf(row)
 
   return (
     <>
-      {build === undefined ? null : (
-        <DrawerLine>
-          <text>
-            <Spans spans={buildSpans(build)} />
-          </text>
-        </DrawerLine>
-      )}
       {serve === null ? null : (
         <DrawerLine>
           <text>

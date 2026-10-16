@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { toCallId, toRunId } from '@dltech/atlas-core'
 import { EServeFrame, ETurnStatus, persistSandboxRotationIntent, persistSandboxRotationReceipt, readSandboxRotationState } from '@dltech/atlas-harness'
 
-import { createDirectWorkspace } from '../direct-workspace'
 import { EWorkspaceState } from '../materialize-workspace'
 import { createServeDriver } from '../serve-driver'
 import { createServeRotationRecovery } from '../serve-rotation-recovery'
@@ -41,7 +40,7 @@ describe('rotation continuation durability', () => {
     }
   })
 
-  it('waits for dormant workspace activation and re-guards adoption before scheduling the parent', async () => {
+  it('adopts the deferred children during recovery, then schedules the parent', async () => {
     const fixture = await rotationFixture()
     const model = gate()
     const order: string[] = []
@@ -63,22 +62,16 @@ describe('rotation continuation durability', () => {
     })
     await recovery.guard({ app, admission })
     const session = createServeWorkspaceSession({
-      direct: createDirectWorkspace({ driveHome: fixture.home, destination: '/workspace' }),
       threadId, app,
-      dormant: true, deferStartChildren: true, log: quietLog, settling: { count: 0 }, note: quietLog,
+      deferStartChildren: true, log: quietLog, settling: { count: 0 }, note: quietLog,
     })
     const driver = createServeDriver({
-      app, threadId, session, admission, workspace: { state: EWorkspaceState.Skipped },
+      app, threadId, admission, workspace: { state: EWorkspaceState.Skipped },
       log: quietLog, idleStop: () => ({ note: quietLog }), emitLifecycle: recovery.consume,
     })
     const detach = app.intake === undefined ? quietLog : driver.attach(app.intake)
     await recovery.recover({ session, driver })
-    expect(order).toEqual(['guard', 'release'])
-    expect(session.dormant()).toBe(true)
-    expect((await readSandboxRotationState({ atlasHome: fixture.home }))?.resumeParent).toBe(true)
-    await recovery.activate({ session, driver })
-    expect(order).toEqual(['guard', 'release', 'guard', 'children', 'resume', 'release'])
-    expect(session.dormant()).toBe(false)
+    expect(order).toEqual(['guard', 'children', 'resume', 'release'])
     expect((await readSandboxRotationState({ atlasHome: fixture.home }))?.resumeParent).toBe(true)
     model.release()
     await driver.settled()

@@ -8,11 +8,7 @@ export const ATLAS_HOME = '/srv/atlas-home'
 
 export const SPEC: WorkspaceSpec = {
   remoteUrl: null,
-  branch: null,
-  commit: null,
-  patch: '',
   githubToken: null,
-  contextBundle: null,
 }
 
 export const fakeFiles = () => {

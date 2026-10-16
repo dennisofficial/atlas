@@ -8,8 +8,6 @@ const FAULT_HEAD: Record<EBirthFault, string> = {
   [EBirthFault.NotConfigured]: 'cloud sandboxes are not set up',
   [EBirthFault.GitAuth]: 'git access is not set up',
   [EBirthFault.Unreachable]: 'Atlas Cloud could not be reached',
-  [EBirthFault.PatchTooLarge]: 'the uncommitted work is too large to carry',
-  [EBirthFault.Transfer]: 'the workspace could not be captured for the sandbox',
   [EBirthFault.Sandbox]: 'the sandbox would not start',
   [EBirthFault.Context]: 'the context could not reach the sandbox',
 }

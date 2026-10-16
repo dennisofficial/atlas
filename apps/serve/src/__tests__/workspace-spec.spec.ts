@@ -22,18 +22,12 @@ describe('workspaceSpecFetcher', () => {
       seen.push({ url, authorization: (init?.headers as Record<string, string>)?.authorization })
       return Response.json({
         remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-        branch: 'main',
-        commit: null,
-        patch: '',
         githubToken: null,
       })
     })
 
     await expect(fetchSpec()).resolves.toEqual({
       remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-      branch: 'main',
-      commit: null,
-      patch: '',
       githubToken: null,
     })
     expect(seen[0]).toEqual({

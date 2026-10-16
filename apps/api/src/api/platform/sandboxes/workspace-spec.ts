@@ -2,8 +2,6 @@ import { PayloadTooLargeException } from '@nestjs/common'
 import type { CloudSandboxModel } from '../../../db'
 import type { SandboxWorkspaceSpec } from './sandboxes.types'
 
-export const MAX_WORKSPACE_PATCH_BYTES = 5 * 1024 * 1024
-
 /**
  * The legacy JSON `contextBundle` field, kept only for clients that predate the context-archive
  * endpoints. Kept in lockstep with `MAX_CONTEXT_BUNDLE_BYTES` in
@@ -24,13 +22,7 @@ const mebibytes = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(
 
 export interface WorkspaceColumns {
   workspaceRemoteUrl: string | null
-  workspaceBranch: string | null
-  workspaceCommit: string | null
-  workspacePatch: string | null
   workspaceContext: string | null
-  workspaceProjectDirectory: string | null
-  workspaceGitName: string | null
-  workspaceGitEmail: string | null
 }
 
 export function assertContextBundleWithinLimit(args: { bundle: string }): void {
@@ -41,62 +33,15 @@ export function assertContextBundleWithinLimit(args: { bundle: string }): void {
   )
 }
 
-export function assertPatchWithinLimit(args: { patch: string }): void {
-  const bytes = Buffer.byteLength(args.patch, 'utf8')
-  if (bytes <= MAX_WORKSPACE_PATCH_BYTES) return
-  throw new PayloadTooLargeException(
-    `the workspace patch is ${mebibytes(bytes)}, over the ${mebibytes(MAX_WORKSPACE_PATCH_BYTES)} limit: commit or discard some of this work before lifting the session`,
-  )
-}
-
 export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): WorkspaceColumns {
   if (spec === undefined) {
-    return {
-      workspaceRemoteUrl: null,
-      workspaceBranch: null,
-      workspaceCommit: null,
-      workspacePatch: null,
-      workspaceContext: null,
-      workspaceProjectDirectory: null,
-      workspaceGitName: null,
-      workspaceGitEmail: null,
-    }
+    return { workspaceRemoteUrl: null, workspaceContext: null }
   }
-  assertPatchWithinLimit({ patch: spec.patch })
-  return {
-    workspaceRemoteUrl: spec.remoteUrl,
-    workspaceBranch: spec.branch,
-    workspaceCommit: spec.commit,
-    workspacePatch: spec.patch,
-    workspaceContext: null,
-    workspaceProjectDirectory: spec.projectDirectory ?? null,
-    workspaceGitName: spec.gitIdentity?.name ?? null,
-    workspaceGitEmail: spec.gitIdentity?.email ?? null,
-  }
+  return { workspaceRemoteUrl: spec.remoteUrl, workspaceContext: null }
 }
 
 export function workspaceSpecOf(
-  row: Pick<
-    CloudSandboxModel,
-    | 'workspaceRemoteUrl'
-    | 'workspaceBranch'
-    | 'workspaceCommit'
-    | 'workspacePatch'
-    | 'workspaceProjectDirectory'
-    | 'workspaceGitName'
-    | 'workspaceGitEmail'
-  >,
+  row: Pick<CloudSandboxModel, 'workspaceRemoteUrl'>,
 ): SandboxWorkspaceSpec {
-  const gitIdentity =
-    row.workspaceGitName !== null && row.workspaceGitEmail !== null
-      ? { name: row.workspaceGitName, email: row.workspaceGitEmail }
-      : null
-  return {
-    remoteUrl: row.workspaceRemoteUrl,
-    branch: row.workspaceBranch,
-    commit: row.workspaceCommit,
-    patch: row.workspacePatch ?? '',
-    projectDirectory: row.workspaceProjectDirectory,
-    gitIdentity,
-  }
+  return { remoteUrl: row.workspaceRemoteUrl }
 }
