@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { toRunId, toThreadId } from '@dltech/atlas-core'
+import { ATLAS_HOME_ENV, EHarnessPlacement, toRunId, toThreadId } from '@dltech/atlas-core'
 
-import { EClientFrame, EServeFrame, ETurnStatus } from '@dltech/atlas-harness'
+import {
+  EClientFrame,
+  EServeFrame,
+  ETurnStatus,
+  placementRecordOf,
+  readMetaSync,
+  sessionDirectory,
+  threadMetaFile,
+  threadMetaSchema,
+} from '@dltech/atlas-harness'
 import {
   EServeEnv,
   EServeEvent,
@@ -172,6 +181,18 @@ describe('startServe', () => {
 
     const started = lines.find((line) => line.includes(EServeEvent.Started))
     expect(JSON.parse(started ?? '{}').ms).toEqual(expect.any(Number))
+  })
+
+  it('stamps the born cloud placement into the thread meta the store infers placement from', async () => {
+    await start({})
+
+    const home = process.env[ATLAS_HOME_ENV] ?? ''
+    const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const meta = readMetaSync({ file, schema: threadMetaSchema })
+
+    expect(meta).toBeDefined()
+    expect(meta?.executionLocation).toBe('cloud')
+    expect(placementRecordOf(meta!).placement).toEqual({ harness: EHarnessPlacement.Cloud })
   })
 
   it("adopts the thread's transferred children on boot, before anyone connects", async () => {
