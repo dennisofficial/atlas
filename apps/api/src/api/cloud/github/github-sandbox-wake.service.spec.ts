@@ -37,7 +37,6 @@ describe('GithubSandboxWakeService', () => {
   beforeEach(() => {
     fake.reset()
     vi.useFakeTimers()
-    vi.stubGlobal('fetch', releaseArtifactCheck(true))
   })
 
   afterEach(() => {
@@ -239,8 +238,9 @@ describe('GithubSandboxWakeService', () => {
     expect(calls).toHaveLength(1)
   })
 
-  it('fails the wake into backoff when the pinned version has no release artifact, never booting latest', async () => {
-    vi.stubGlobal('fetch', releaseArtifactCheck(false))
+  it('boots a release pin with no release artifact without any HEAD-check, leaving the launcher to decide', async () => {
+    const releaseCheck = releaseArtifactCheck(false)
+    vi.stubGlobal('fetch', releaseCheck)
     seedSubscription()
     seedParkedSandbox({ serveVersion: '9.9.9' })
     const { boot, calls } = fakeBoot()
@@ -248,13 +248,15 @@ describe('GithubSandboxWakeService', () => {
     serviceWith({ boot }).notifyEvent(PR_EVENT)
     await flushDebounce()
 
-    expect(calls).toHaveLength(0)
-    expect(row().wakeClaim).toBeNull()
-    expect(row().wakeFailedAt).toEqual(expect.any(String))
+    expect(releaseCheck).not.toHaveBeenCalled()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.serveVersion).toBe('9.9.9')
+    expect(row().wakeFailedAt).toBeNull()
   })
 
-  it('fails the wake when the release artifact cannot be reached', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('offline'))))
+  it('boots the pinned version exactly while GitHub is unreachable', async () => {
+    const offline = vi.fn(async () => Promise.reject(new Error('offline')))
+    vi.stubGlobal('fetch', offline)
     seedSubscription()
     seedParkedSandbox({ serveVersion: '1.92.6' })
     const { boot, calls } = fakeBoot()
@@ -262,8 +264,9 @@ describe('GithubSandboxWakeService', () => {
     serviceWith({ boot }).notifyEvent(PR_EVENT)
     await flushDebounce()
 
-    expect(calls).toHaveLength(0)
-    expect(row().wakeFailedAt).toEqual(expect.any(String))
+    expect(offline).not.toHaveBeenCalled()
+    expect(calls[0]?.serveVersion).toBe('1.92.6')
+    expect(row().wakeFailedAt).toBeNull()
   })
 
   it('boots latest only for a row no released client ever pinned', async () => {

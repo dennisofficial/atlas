@@ -38,7 +38,7 @@ describe('GithubSandboxWakeService with a dev serve pin', () => {
     vi.unstubAllGlobals()
   })
 
-  it('boots the dev pin without checking for a release artifact', async () => {
+  it('boots the dev pin exactly, with no release lookup', async () => {
     const releaseCheck = releaseArtifactCheck(false)
     vi.stubGlobal('fetch', releaseCheck)
     seedSubscription()
@@ -55,7 +55,6 @@ describe('GithubSandboxWakeService with a dev serve pin', () => {
   })
 
   it('a dev pin the snapshot cannot satisfy fails the wake into backoff', async () => {
-    vi.stubGlobal('fetch', releaseArtifactCheck(true))
     seedSubscription()
     seedParkedSandbox({ serveVersion: DEV_PIN })
     const versions: Array<string | undefined> = []

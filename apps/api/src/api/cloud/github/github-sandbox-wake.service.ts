@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 
-import { isDevServeVersion, type VercelCredentials } from '@dltech/atlas-wire'
+import type { VercelCredentials } from '@dltech/atlas-wire'
 
 import { db } from '../../../db'
 import { Prisma } from '../../../generated/prisma/client'
@@ -20,8 +20,6 @@ import {
 
 export const WAKE_DEBOUNCE_MS = 5_000
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
-const SERVE_INSTALL_TIMEOUT_MS = 8_000
-const RELEASE_REPOSITORY = 'dennisofficial/atlas'
 
 export type {
   SandboxWakeBoot,
@@ -162,7 +160,6 @@ export class GithubSandboxWakeService {
 
   private async bootClaimed(args: { row: CloudSandboxModel }): Promise<void> {
     const { row } = args
-    const serveVersion = await this.validatedServeVersion({ pinned: row.serveVersion })
     const freshToken = randomBytes(32).toString('hex')
     const { serveUrl, created } = await this.bootAdapter.boot({
       credentials: this.vercelCredentials(),
@@ -170,7 +167,7 @@ export class GithubSandboxWakeService {
       threadId: row.threadId,
       image: this.env.get('SANDBOX_IMAGE'),
       cloudUrl: this.env.get('ATLAS_CLOUD_URL') ?? 'https://api.byatlas.io',
-      serveVersion,
+      serveVersion: row.serveVersion ?? undefined,
       freshToken,
       resumeToken: this.unsealedToken(row),
       onFreshSandbox: () => this.adoptFreshSandbox({ threadId: row.threadId, token: freshToken }),
@@ -221,29 +218,6 @@ export class GithubSandboxWakeService {
       where: { threadId: args.threadId, wakeClaim: args.wakeClaim },
       data: { wakeClaim: null, wakeFailedAt: at, updatedAt: at },
     })
-  }
-
-  /**
-   * The wake boots the client's pinned version exactly, never latest: booting latest would
-   * manufacture the version drift drain-and-swap exists to correct. A pruned or unreachable
-   * release artifact fails the wake into backoff. A dev pin has no release artifact and passes
-   * through unchecked: only its snapshot's binary can satisfy it, so a stamp mismatch fails the
-   * wake in the launcher. Only a row no client ever pinned boots latest.
-   */
-  private async validatedServeVersion(args: { pinned: string | null }): Promise<string | undefined> {
-    if (args.pinned === null) return undefined
-    if (isDevServeVersion(args.pinned)) return args.pinned
-    const tag = `tui-v${args.pinned.replace(/^tui-v/, '').replace(/^v/, '')}`
-    const response = await fetch(
-      `https://github.com/${RELEASE_REPOSITORY}/releases/download/${tag}/install.sh`,
-      { method: 'HEAD', signal: AbortSignal.timeout(SERVE_INSTALL_TIMEOUT_MS) },
-    ).catch((failure: unknown) => {
-      throw new Error(`could not validate pinned serve ${args.pinned}: ${failureText(failure)}`)
-    })
-    if (!response.ok) {
-      throw new Error(`pinned serve ${args.pinned} has no release artifact (${response.status})`)
-    }
-    return args.pinned
   }
 
   private vercelCredentials(): VercelCredentials {
