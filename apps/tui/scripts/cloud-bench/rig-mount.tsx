@@ -27,6 +27,7 @@ import type { ContributedSurface, PluginSurface } from '../../src/plugins/surfac
 import { frameShowing } from '../../src/ui/__tests__/waiting'
 import { grammarsReady, teardown } from '../../src/ui/markdown/__tests__/harness'
 import { tldrFeed } from '../../src/ui/tldr-feed-store'
+import { bornPlacementChip } from '../../src/composition/cloud/born-placement-chip'
 
 export type RigApp = {
   app: AtlasApp
@@ -85,12 +86,27 @@ const resumedConversation = (threadId: ThreadId): OpenedConversation => ({
   started: true,
 })
 
-const flipChipToCloud = async (setup: Setup): Promise<void> => {
+const KEY_SETTLE_MS = 250
+const KEYED_FLIP_WITHIN_MS = 5_000
+
+const settled = async (setup: Setup): Promise<void> => {
+  await flushTolerant(setup)
+  await Bun.sleep(KEY_SETTLE_MS)
+  await flushTolerant(setup)
+}
+
+const flipChipToCloud = async (args: { setup: Setup; app: AtlasApp }): Promise<void> => {
+  const { setup } = args
   await frameShowing({ setup, text: LOCAL_CHIP, within: CHIP_WITHIN_MS })
   setup.mockInput.pressArrow('down')
-  await flushTolerant(setup)
+  await settled(setup)
   setup.mockInput.pressEnter()
-  await flushTolerant(setup)
+  await settled(setup)
+  const keyed = await frameShowing({ setup, text: CLOUD_CHIP, within: KEYED_FLIP_WITHIN_MS })
+    .then(() => true)
+    .catch(() => false)
+  if (keyed) return
+  bornPlacementChip(args.app).flip()
   await frameShowing({ setup, text: CLOUD_CHIP, within: CHIP_WITHIN_MS })
 }
 
@@ -166,7 +182,7 @@ export async function mountRig(args: {
       exitOnCtrlC: false,
     })
     globalThis.IS_REACT_ACT_ENVIRONMENT = false
-    if (args.resumeThreadId === undefined) await flipChipToCloud(setup)
+    if (args.resumeThreadId === undefined) await flipChipToCloud({ setup, app })
   } catch (error) {
     await close().catch(() => undefined)
     throw error
