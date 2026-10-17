@@ -1,5 +1,5 @@
 import type { Sandbox } from '@vercel/sandbox'
-import type { ServeLauncher, VercelSdk } from '@dltech/atlas-wire'
+import type { ServeInstaller, ServeLauncher, VercelSdk } from '@dltech/atlas-wire'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -7,6 +7,7 @@ import {
   VercelSandboxWakeBoot,
   type WakeBootArgs,
 } from './github-sandbox-wake-boot'
+import { releaseOnlyServeInstaller } from './github-sandbox-wake-installer'
 
 const fakeSandbox = (deleted: string[]): Sandbox =>
   ({
@@ -112,5 +113,28 @@ describe('VercelSandboxWakeBoot', () => {
 
     expect(launch).not.toHaveBeenCalled()
     expect(deleted).toEqual([])
+  })
+})
+
+describe('releaseOnlyServeInstaller', () => {
+  const sandbox = fakeSandbox([])
+
+  it('refuses a dev pin, since only the client that built it can upload it', async () => {
+    const install = vi.fn<ServeInstaller>(async () => undefined)
+
+    await expect(
+      releaseOnlyServeInstaller({ install })({ sandbox, version: 'dev-0123456789ab' }),
+    ).rejects.toThrow(
+      'sandbox atlas-sandbox-abc needs dev serve dev-0123456789ab, which only the client that built it can upload — the wake fails rather than booting a release',
+    )
+    expect(install).not.toHaveBeenCalled()
+  })
+
+  it.each(['1.92.6', undefined])('delegates %s to the release download', async (version) => {
+    const install = vi.fn<ServeInstaller>(async () => undefined)
+
+    await releaseOnlyServeInstaller({ install })({ sandbox, version })
+
+    expect(install).toHaveBeenCalledWith({ sandbox, version })
   })
 })

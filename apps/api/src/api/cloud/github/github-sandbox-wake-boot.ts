@@ -15,6 +15,8 @@ import {
   type VercelSdk,
 } from '@dltech/atlas-wire'
 
+import { releaseOnlyServeInstaller } from './github-sandbox-wake-installer'
+
 export type WakeBootArgs = {
   credentials: VercelCredentials
   name: string
@@ -73,7 +75,8 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
   }) {
     this.sdk = deps.sdk
     this.log = deps.log
-    this.launch = deps.launch ?? createServeLauncher({ log: deps.log })
+    this.launch =
+      deps.launch ?? createServeLauncher({ log: deps.log, installServe: releaseOnlyServeInstaller() })
   }
 
   async boot(args: WakeBootArgs): Promise<WakeBootResult> {

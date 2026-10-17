@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 
-import type { VercelCredentials } from '@dltech/atlas-wire'
+import { isDevServeVersion, type VercelCredentials } from '@dltech/atlas-wire'
 
 import { db } from '../../../db'
 import { Prisma } from '../../../generated/prisma/client'
@@ -226,11 +226,13 @@ export class GithubSandboxWakeService {
   /**
    * The wake boots the client's pinned version exactly, never latest: booting latest would
    * manufacture the version drift drain-and-swap exists to correct. A pruned or unreachable
-   * release artifact fails the wake into backoff. Only a row no released client ever pinned
-   * boots latest.
+   * release artifact fails the wake into backoff. A dev pin has no release artifact and passes
+   * through unchecked: only its snapshot's binary can satisfy it, so a stamp mismatch fails the
+   * wake in the launcher. Only a row no client ever pinned boots latest.
    */
   private async validatedServeVersion(args: { pinned: string | null }): Promise<string | undefined> {
     if (args.pinned === null) return undefined
+    if (isDevServeVersion(args.pinned)) return args.pinned
     const tag = `tui-v${args.pinned.replace(/^tui-v/, '').replace(/^v/, '')}`
     const response = await fetch(
       `https://github.com/${RELEASE_REPOSITORY}/releases/download/${tag}/install.sh`,
