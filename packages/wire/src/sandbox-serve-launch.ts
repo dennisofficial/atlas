@@ -2,6 +2,7 @@ import { dirname } from 'node:path'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from './channel-wire.js'
+import { sandboxSessionIdOf } from './sandbox-sdk.js'
 import { installServe, type ServeInstaller } from './sandbox-serve-install.js'
 import { sandboxSh } from './sandbox-sh.js'
 import {
@@ -147,7 +148,6 @@ const waitForHealth = async (sandbox: Sandbox): Promise<boolean> =>
 export type ServeLauncher = (args: {
   sandbox: Sandbox
   token?: string | undefined
-  sandboxSessionId?: string | undefined
   cloudUrl?: string | undefined
   desiredVersion?: string | undefined
 }) => Promise<void>
@@ -157,7 +157,7 @@ export function createServeLauncher(args?: {
   installServe?: ServeInstaller | undefined
 }): ServeLauncher {
   const install = args?.installServe ?? installServe
-  return async ({ sandbox, token, sandboxSessionId, cloudUrl, desiredVersion }) => {
+  return async ({ sandbox, token, cloudUrl, desiredVersion }) => {
     if (await serveAlive(sandbox)) {
       if (token !== undefined && !(await tokenFileMatches({ sandbox, token }))) {
         throw new Error('atlas serve is already running under a different token; refusing to rotate its live credentials')
@@ -221,6 +221,8 @@ export function createServeLauncher(args?: {
     }
 
     args?.log?.(`sandbox ${sandbox.name} has no live serve — booting it under the flock`)
+    // @vercel/sandbox resumes a stopped sandbox lazily inside its first command and only then swaps currentSession() to the new session.
+    const sandboxSessionId = sandboxSessionIdOf(sandbox)
     await sandbox.runCommand({
       cmd: 'sh',
       args: [

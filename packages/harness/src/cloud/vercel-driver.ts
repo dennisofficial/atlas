@@ -82,9 +82,6 @@ export class VercelDriver {
               })({
                 sandbox: launchArgs.sandbox,
                 ...(launchArgs.token === undefined ? {} : { token: launchArgs.token }),
-                ...(launchArgs.sandboxSessionId === undefined
-                  ? {}
-                  : { sandboxSessionId: launchArgs.sandboxSessionId }),
                 ...(launchArgs.cloudUrl === undefined ? {} : { cloudUrl: launchArgs.cloudUrl }),
                 desiredVersion: launchArgs.desiredVersion ?? serve.version,
               }),

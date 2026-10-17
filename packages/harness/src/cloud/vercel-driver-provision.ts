@@ -131,7 +131,6 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
         await deps.launchServe({
           sandbox: live,
           token: serveToken,
-          sandboxSessionId: live.currentSession().sessionId,
           cloudUrl: deps.config.cloudUrl,
           desiredVersion: deps.config.serveVersion,
         })
@@ -167,7 +166,6 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
     await deps.launchServe({
       sandbox,
       token: serveToken,
-      sandboxSessionId: sandbox.currentSession().sessionId,
       cloudUrl: deps.config.cloudUrl,
       desiredVersion: deps.config.serveVersion,
     })

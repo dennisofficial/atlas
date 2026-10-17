@@ -134,7 +134,7 @@ export const assertLiveSession = (args: {
   )
 }
 
-const sandboxSessionIdOf = (sandbox: Sandbox): string | undefined => {
+export const sandboxSessionIdOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.currentSession().sessionId
   } catch {

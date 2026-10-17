@@ -63,9 +63,9 @@ describe('VercelSandboxWakeBoot', () => {
     expect(launch).toHaveBeenCalledTimes(1)
     expect(launch.mock.calls[0]?.[0]).toMatchObject({
       token: 'stored-token',
-      sandboxSessionId: 'ses-live',
       desiredVersion: '1.92.6',
     })
+    expect(launch.mock.calls[0]?.[0]).not.toHaveProperty('sandboxSessionId')
     expect(onFreshSandbox).not.toHaveBeenCalled()
     expect(deleted).toEqual([])
   })

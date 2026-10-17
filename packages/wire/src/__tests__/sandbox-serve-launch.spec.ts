@@ -37,13 +37,24 @@ const fakeSandbox = (args: {
   serveVersion?: string
   stopLeavesCorpse?: boolean
   healthBody?: string
+  lazyResume?: { staleSessionId: string; resumedSessionId: string }
 }) => {
   const commands: RecordedCommand[] = []
   const writes: RecordedWrite[] = []
   const ops: string[] = []
   let alive = args.alive === true
+  const lazyResume = args.lazyResume
+  const sessionAccessor =
+    lazyResume === undefined
+      ? {}
+      : {
+          currentSession: () => ({
+            sessionId: commands.length === 0 ? lazyResume.staleSessionId : lazyResume.resumedSessionId,
+          }),
+        }
   const sandbox = {
     name: 'atlas-thread-x',
+    ...sessionAccessor,
     writeFiles: async (files: RecordedWrite[]) => {
       ops.push('write')
       writes.push(...files)
@@ -236,13 +247,13 @@ describe('createServeLauncher', () => {
   })
 
   it('hands the sandbox session id and cloud url to the detached boot, not to process env', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: false, alive: false })
-
-    await createServeLauncher()({
-      sandbox,
-      sandboxSessionId: 'vsn_42',
-      cloudUrl: 'https://api.example.com',
+    const { sandbox, commands } = fakeSandbox({
+      healthy: false,
+      alive: false,
+      lazyResume: { staleSessionId: 'vsn_42', resumedSessionId: 'vsn_42' },
     })
+
+    await createServeLauncher()({ sandbox, cloudUrl: 'https://api.example.com' })
 
     const launch = launchesOf(commands)[0]
     expect(launch?.env).toEqual({
@@ -251,7 +262,19 @@ describe('createServeLauncher', () => {
     })
   })
 
-  it('boots with an empty env when no session identity is handed', async () => {
+  it('boots serve under the session a lazy resume swapped in, not the stopped one it was handed', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: false,
+      alive: false,
+      lazyResume: { staleSessionId: 'sbx_parked', resumedSessionId: 'sbx_resumed' },
+    })
+
+    await createServeLauncher()({ sandbox })
+
+    expect(launchesOf(commands)[0]?.env).toEqual({ ATLAS_SANDBOX_SESSION_ID: 'sbx_resumed' })
+  })
+
+  it('boots with an empty env when no session identity is readable', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false, alive: false })
 
     await createServeLauncher()({ sandbox })
@@ -293,17 +316,18 @@ describe('createServeLauncher', () => {
       healthy: false,
       alive: true,
       serveVersion: '1.88.0',
+      lazyResume: { staleSessionId: 'sbx_parked', resumedSessionId: 'sbx_resumed' },
     })
 
     await createServeLauncher({ installServe: async () => undefined })({
       sandbox,
       token: 'tok_fresh',
-      sandboxSessionId: 'vsn_42',
       desiredVersion: '1.89.1',
     })
 
     expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(true)
     expect(launchesOf(commands)).toHaveLength(1)
+    expect(launchesOf(commands)[0]?.env).toEqual({ ATLAS_SANDBOX_SESSION_ID: 'sbx_resumed' })
   })
 
   it('includes the serve log tail when a fresh boot never answers', async () => {

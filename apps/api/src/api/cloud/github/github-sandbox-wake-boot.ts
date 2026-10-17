@@ -113,7 +113,6 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
     await this.launch({
       sandbox: args.sandbox,
       token: args.token,
-      sandboxSessionId: args.sandbox.currentSession().sessionId,
       cloudUrl: args.args.cloudUrl,
       desiredVersion: args.args.serveVersion,
     })
