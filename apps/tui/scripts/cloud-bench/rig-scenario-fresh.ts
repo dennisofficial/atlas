@@ -17,7 +17,7 @@ const REPLY_WITHIN_MS = 5 * 60_000
 const REPLY_EVERY_MS = 5_000
 const PROBE_LOG_LINES = 60
 const SENTINEL_PATH = '/opt/atlas/workspaces/workspace/rig-sentinel.txt'
-const SENTINEL_SCRIPT = `v=rig-$(date +%s%N); printf %s "$v" > ${SENTINEL_PATH}; printf %s "$v"`
+const SENTINEL_SCRIPT = `set -e; v=rig-$(date +%s%N); printf %s "$v" > ${SENTINEL_PATH}; cat ${SENTINEL_PATH}`
 const SENTINEL_PATTERN = /^rig-\d+$/
 
 type Draft = {
