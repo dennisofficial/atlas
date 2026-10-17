@@ -23,7 +23,7 @@ const NOTHING_SAID_YET =
 const NO_NAME_CAME_BACK =
   '/rename could not think of a name for this conversation — say one, as in /rename Doing something cool'
 
-const refused = (reason: string): CommandEffect => ({ type: ECommandEffect.Refused, reason })
+export const refused = (reason: string): CommandEffect => ({ type: ECommandEffect.Refused, reason })
 
 export enum EContainerAsk {
   Current = 'current',
@@ -64,6 +64,7 @@ export type LocalCommandHandlers = {
   onShowMcp: () => string
   onMcpSignIn: ((serverName: string) => Promise<string>) | null
   onRestart: (() => void) | null
+  onWake: () => CommandEffect
   onQuit: () => void
 }
 
@@ -259,6 +260,14 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
             },
           }),
         ]),
+    local({
+      name: 'wake',
+      summary: "wake this conversation's cloud sandbox",
+      group: ECommandGroup.Session,
+      timing: ECommandTiming.Immediate,
+      echo: ECommandEcho.Silent,
+      run: () => handlers.onWake(),
+    }),
     local({
       name: 'mcp',
       summary: 'inspect the MCP servers this workspace is configured with, or sign one in',

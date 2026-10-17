@@ -9,6 +9,7 @@ import type {
   ThreadId,
 } from '@dltech/atlas-core'
 import type {
+  EConnectionView,
   ECompactScope,
   LostShell,
   RecoveredAgents,
@@ -58,6 +59,8 @@ export type ConversationArgs = {
   /** False while the cloud channel is closed or reattaching — a retry or resume can only re-fail. */
   channelReady?: boolean | undefined
   frozen?: boolean
+  cloudView?: EConnectionView | null | undefined
+  wakeCloud?: (() => void) | null | undefined
 }
 
 export type ConversationWorkspace = {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toRunId } from '@dltech/atlas-core'
-import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
+import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { dismissNotice } from '../../ui/notice-store'
@@ -22,7 +22,7 @@ describe('pressing escape while the cloud socket is down', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       mounted.typeText('keep going')
       mounted.pressEnter()
@@ -33,7 +33,7 @@ describe('pressing escape while the cloud socket is down', () => {
       })
       expect(working).toBe(true)
 
-      bridge.channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Reconnecting, detail: null })
 
       const reconnecting = await until({
         holds: async () => (await mounted.nextFrame()).includes('Reconnecting for'),
@@ -51,7 +51,7 @@ describe('pressing escape while the cloud socket is down', () => {
       expect(warned).toBe(true)
       expect(await mounted.nextFrame()).not.toContain('Interrupting…')
 
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       /**
        * The bug this guards: an ungated esc stamps `interrupting` while the label still reads
@@ -82,58 +82,118 @@ describe('pressing escape while the cloud socket is down', () => {
   }, 60_000)
 })
 
-describe('sending a message to a parked sandbox', () => {
-  it('reads as waking rather than working while the sandbox is being woken', async () => {
+describe('pressing escape while the sandbox is updating', () => {
+  it('names the update in the row and refuses the interrupt with the updating text', async () => {
     const app = speaking()
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
-      bridge.channel.moveTo({ state: EChannelConnection.Parked, detail: 'idle past the TTL' })
-
-      mounted.typeText('wake up')
+      mounted.typeText('keep going')
       mounted.pressEnter()
 
-      const waking = await until({
-        holds: async () => {
-          const frame = await mounted.nextFrame()
-          return frame.includes('Waking the sandbox') && !frame.includes('Working for')
-        },
-        within: 20_000,
-      })
-      expect(waking).toBe(true)
-      expect(await mounted.nextFrame()).toContain('waking')
+      expect(
+        await until({
+          holds: async () => (await mounted.nextFrame()).includes('esc to interrupt'),
+          within: 20_000,
+        }),
+      ).toBe(true)
+
+      bridge.channel.moveTo({ state: EConnectionView.Updating, detail: 'updating the cloud sandbox' })
+
+      expect(
+        await until({
+          holds: async () => (await mounted.nextFrame()).includes('Updating the cloud sandbox for'),
+          within: 20_000,
+        }),
+      ).toBe(true)
+
+      mounted.pressEscape()
+
+      expect(
+        await until({
+          holds: async () =>
+            (await mounted.nextFrame()).includes('the sandbox is updating — esc will interrupt once it is back'),
+          within: 20_000,
+        }),
+      ).toBe(true)
+      expect(await mounted.nextFrame()).not.toContain('Interrupting…')
     } finally {
       await mounted.done()
     }
   }, 60_000)
+})
 
-  it('reads as reconnecting rather than working while the attachment is being re-created', async () => {
+describe('sending a message to a parked sandbox', () => {
+  it('queues it here, wakes the sandbox once, and sends nothing until the channel greets', async () => {
     const app = speaking()
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })
+    const create = bridge.sandboxes.create
+    let releaseWake: () => void = () => undefined
+    const wakeHeld = new Promise<void>((resolve) => {
+      releaseWake = resolve
+    })
+    bridge.sandboxes.create = async (args) => {
+      await wakeHeld
+      return create(args)
+    }
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
-
-      bridge.channel.moveTo({ state: EChannelConnection.Parked, detail: 'idle past the TTL' })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Parked, detail: null })
+      expect(
+        await until({ holds: async () => (await mounted.nextFrame()).includes('☾'), within: 20_000 }),
+      ).toBe(true)
+      const createdBefore = bridge.created.length
+      const sentBefore = bridge.channel.sent.length
 
       mounted.typeText('wake up')
       mounted.pressEnter()
 
-      bridge.channel.moveTo({ state: EChannelConnection.Reattaching, detail: null })
+      expect(
+        await until({
+          holds: async () => {
+            const frame = await mounted.nextFrame()
+            return frame.includes('wake up') && frame.includes('waking')
+          },
+          within: 20_000,
+        }),
+      ).toBe(true)
 
-      const reattaching = await until({
-        holds: async () => {
-          const frame = await mounted.nextFrame()
-          return frame.includes('Reconnecting for') && !frame.includes('Working for')
-        },
-        within: 20_000,
-      })
-      expect(reattaching).toBe(true)
+      mounted.typeText('and this too')
+      mounted.pressEnter()
+      expect(
+        await until({ holds: async () => (await mounted.nextFrame()).includes('and this too'), within: 20_000 }),
+      ).toBe(true)
+      expect(bridge.channel.sent.length).toBe(sentBefore)
+
+      const wokenBefore = bridge.channel.woken.length
+      releaseWake()
+      expect(
+        await until({ holds: async () => bridge.channel.woken.length === wokenBefore + 1, within: 20_000 }),
+      ).toBe(true)
+      expect(bridge.channel.sent.length).toBe(sentBefore)
+
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
+
+      expect(
+        await until({
+          holds: async () => {
+            const texts = bridge.channel.sent.flatMap((said) => [
+              said.text,
+              ...(said.context ?? []).flatMap((draft) => (draft.type === 'user-said' ? [draft.text] : [])),
+            ])
+            return texts.includes('wake up') && texts.includes('and this too')
+          },
+          within: 20_000,
+        }),
+      ).toBe(true)
+      expect(bridge.created.length).toBe(createdBefore + 1)
     } finally {
+      releaseWake()
       await mounted.done()
     }
   }, 60_000)

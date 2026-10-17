@@ -9,7 +9,7 @@ import { createRoot } from '@opentui/react'
 import React, { act } from 'react'
 
 import { EExecutionLocation, toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
-import { ECloudSandboxState, EChannelConnection, ERuntimeKind, type CloudConnection } from '@dltech/atlas-harness'
+import { ECloudSandboxState, EConnectionView, ERuntimeKind, type CloudConnection } from '@dltech/atlas-harness'
 
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
@@ -106,7 +106,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
       await settle(300)
 
       const failed = await mounted.showing('○ disconnected')
-      expect(failed).toContain('✗ closed')
+      expect(failed).toContain('✗ disconnected')
       expect(failed).toContain('✗ cloud')
       expect(app.sessionOwner.snapshot().bound).toBe(false)
       expect(bridge.attached).toEqual([])
@@ -191,16 +191,16 @@ describe('the connection the chrome derives from a recorded attach failure', () 
   it('is closed with the reason for the failed thread, and connecting for any other or once cleared', async () => {
     const { probe, app } = await mountProbe()
     expect(app.sessionOwner.snapshot().bound).toBe(false)
-    expect(probe.current?.state).toBe(EChannelConnection.Connecting)
+    expect(probe.current?.state).toBe(EConnectionView.Waking)
 
     await act(async () => recordAttachFailure({ threadId: OTHER, detail: REASON }))
-    expect(probe.current?.state).toBe(EChannelConnection.Connecting)
+    expect(probe.current?.state).toBe(EConnectionView.Waking)
 
     await act(async () => recordAttachFailure({ threadId: THREAD, detail: REASON }))
-    expect(probe.current).toEqual({ state: EChannelConnection.Closed, detail: REASON })
+    expect(probe.current).toEqual({ state: EConnectionView.Disconnected, detail: REASON })
 
     await act(async () => clearAttachFailure())
-    expect(probe.current?.state).toBe(EChannelConnection.Connecting)
+    expect(probe.current?.state).toBe(EConnectionView.Waking)
   })
 })
 

@@ -143,6 +143,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   const { commands, loadedSkills } = useWorkspaceCommands({
     app: props.app,
     onRestart: props.onRestart,
+    cloud: session.cloud,
     conversation,
     rewind,
     settings,

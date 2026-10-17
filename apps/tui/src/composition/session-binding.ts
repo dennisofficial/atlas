@@ -38,8 +38,10 @@ export type CloudAttachment = {
   session: CloudSession
   /** The root local app beneath the cloud binding — the stores that read this machine's log. */
   local: AtlasApp
-  /** Set while the sandbox still has to be woken behind an already-rendered transcript. */
-  wakeInBackground?: (() => void) | undefined
+  /** The quiet background wake: the session's own, joining one already in flight. */
+  wakeInBackground: () => void
+  /** The open-time rule, run once the binding is adopted: a parked record waits for the first send. */
+  settleOpen: () => void
 }
 
 export type LocalAttachment = { kind: 'local'; opened: OpenedConversation; context: ContextReaders }
@@ -86,6 +88,8 @@ const cloudContextOf = (args: {
   return new MirroredContextFiles({ channel: args.channel, local, remote, threadId: args.opened.threadId })
 }
 
+const NOTHING_TO_SETTLE = (): void => undefined
+
 export const cloudBindingOf = (args: {
   local: AtlasApp
   anchor: WorkspaceIdentity
@@ -96,7 +100,7 @@ export const cloudBindingOf = (args: {
   opened: OpenedConversation
   session: CloudSession
   sessionMirror?: SessionMirrorSync | undefined
-  wakeInBackground?: (() => void) | undefined
+  settleOpen?: (() => void) | undefined
 }): Binding => ({
   kind: ERuntimeKind.Cloud,
   cwd: args.anchor.workspace,
@@ -111,7 +115,8 @@ export const cloudBindingOf = (args: {
       stores: args.stores,
       session: args.session,
       local: args.local,
-      ...(args.wakeInBackground === undefined ? {} : { wakeInBackground: args.wakeInBackground }),
+      wakeInBackground: args.session.wake,
+      settleOpen: args.settleOpen ?? NOTHING_TO_SETTLE,
     },
   },
   close: () => args.session.close(),

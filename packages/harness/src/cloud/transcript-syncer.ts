@@ -9,11 +9,11 @@ import type { ChannelListener } from '../channel/delta-channel'
 import { EClientRequest, transcriptIdentityReplySchema } from './channel-wire'
 import type { MirrorWriter } from './mirror-writer'
 import {
-  EChannelConnection,
   type ChannelConnection,
   type ChannelReload,
   type RemoteDeltaChannel,
 } from './remote-delta-channel'
+import { EConnectionView } from './connection-view'
 
 export type MirrorLocalLog = {
   read(args: { threadId: ThreadId; fromSeq?: number | undefined; upTo?: number | undefined }): Promise<Event[]>
@@ -77,7 +77,7 @@ export class TranscriptSyncer {
 
   converge(): Promise<void> {
     this.enqueue({ mode: 'verify' })
-    if (this.connection.state !== EChannelConnection.Open) return Promise.resolve()
+    if (this.connection.state !== EConnectionView.Connected) return Promise.resolve()
     if (!this.running && this.pending === null) return Promise.resolve()
     return new Promise((resolve) => {
       this.settled.add({ resolve })
@@ -93,16 +93,17 @@ export class TranscriptSyncer {
   }
 
   private waitForOpen(): Promise<void> {
-    if (this.connection.state === EChannelConnection.Open) return Promise.resolve()
+    if (this.connection.state === EConnectionView.Connected) return Promise.resolve()
     const unavailable = (): boolean =>
-      this.connection.state === EChannelConnection.Closed ||
-      this.connection.state === EChannelConnection.Parked
+      this.connection.state === EConnectionView.Disconnected ||
+      this.connection.state === EConnectionView.Detached ||
+      this.connection.state === EConnectionView.Parked
     const failure = (): Error =>
       new Error('the cloud transcript cannot synchronize while the channel is not open')
     if (unavailable()) return Promise.reject(failure())
     return new Promise((resolve, reject) => {
       const unsubscribe = this.args.channel.onConnection(() => {
-        if (this.connection.state === EChannelConnection.Open) {
+        if (this.connection.state === EConnectionView.Connected) {
           unsubscribe()
           resolve()
           return
@@ -123,9 +124,9 @@ export class TranscriptSyncer {
   }
 
   private readonly handleConnection = (connection: ChannelConnection): void => {
-    const wasOpen = this.connection.state === EChannelConnection.Open
+    const wasOpen = this.connection.state === EConnectionView.Connected
     this.connection = connection
-    if (connection.state !== EChannelConnection.Open || wasOpen) return
+    if (connection.state !== EConnectionView.Connected || wasOpen) return
     if (this.pending !== null && !this.running) {
       this.running = true
       void this.drain()
@@ -143,7 +144,7 @@ export class TranscriptSyncer {
     let failure: { cause: unknown } | null = null
     try {
       for (;;) {
-        if (this.connection.state !== EChannelConnection.Open) return
+        if (this.connection.state !== EConnectionView.Connected) return
         const next = this.pending
         if (next === null) return
         this.pending = null
@@ -168,7 +169,7 @@ export class TranscriptSyncer {
       }
     } finally {
       this.running = false
-      if (failure === null && this.connection.state !== EChannelConnection.Open) {
+      if (failure === null && this.connection.state !== EConnectionView.Connected) {
         failure = {
           cause: new Error('the cloud channel closed before the transcript synchronized'),
         }

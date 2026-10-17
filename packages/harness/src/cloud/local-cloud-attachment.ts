@@ -12,8 +12,6 @@ import { createSessionMirrorSync } from './session-mirror-syncer'
 import { sessionMirrorWriter } from './session-mirror-writer'
 import type { CloudBridge, CloudSandboxes } from './cloud-bridge'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
-import { lifecycleEscalationOf } from './local-cloud-bootstrap'
-import { reattachSandbox } from './local-cloud-reattach'
 
 export const attachmentOf =
   (args: {
@@ -31,16 +29,13 @@ export const attachmentOf =
       ...(options.lastEventSeq === undefined
         ? {}
         : { lastEventSeq: () => options.lastEventSeq?.({ threadId }) ?? 0 }),
-      reattach: () => reattachSandbox({ sandboxes, threadId: hosted }),
-      lifecycleEscalation: lifecycleEscalationOf({ sandboxes, threadId: hosted }),
+      wakeSandbox: () =>
+        sandboxes.create({ threadId: hosted, workspace: null }).then(({ url: woken, token: minted }) => ({ url: woken, token: minted })),
       onFinished: () => unbindSettings?.(),
     })
     if (options.settings !== undefined) {
       unbindSettings = bindChannelSettingsSync({ channel, settings: options.settings })
     }
-    // The mirrored directory belongs to the served session, whose root is `hosted` — under a
-    // rotation the attaching `threadId` is the successor, but the serve's session dir (and every
-    // family thread's files in it) lives under the root it was booted for.
     const sessionMirror =
       options.sessionMirror === false
         ? undefined

@@ -18,6 +18,8 @@ export enum EWorkingVerb {
 
 const INTERRUPTING = 'Interrupting…'
 
+const sentenceCase = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
+
 const lastSeenLabel = (at: number): string =>
   new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
@@ -31,6 +33,7 @@ export function WorkingLine(props: {
   lastSeenAt?: number | null | undefined
   /** When the reconnect began, held above this mount. See `WaitingLine`'s `since`. */
   since?: number | null | undefined
+  reconnectingAs?: string | undefined
 }): React.ReactNode {
   const { retry } = props
   const onReconnect = props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined
@@ -71,9 +74,10 @@ export function WorkingLine(props: {
 
   if (verb === EWorkingVerb.Reconnecting) {
     const since = props.since ?? null
+    const doing = sentenceCase(props.reconnectingAs ?? EWorkingVerb.Reconnecting)
     const label = since === null
-      ? `Reconnecting for ${formatElapsed(props.elapsedMs)}`
-      : (): string => `Reconnecting for ${formatElapsed(Math.max(0, Date.now() - since))}`
+      ? `${doing} for ${formatElapsed(props.elapsedMs)}`
+      : (): string => `${doing} for ${formatElapsed(Math.max(0, Date.now() - since))}`
     return (
       <box flexDirection="column">
         <ShimmerLine label={label} base={theme.warn} />

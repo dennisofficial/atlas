@@ -94,7 +94,7 @@ export function useThreadRouter(args: {
       })
       if (adopted === null) return
       clearAttachFailure()
-      cloudAttachmentOf(adopted)?.wakeInBackground?.()
+      cloudAttachmentOf(adopted)?.settleOpen()
     },
     [args, cloudSession, containerMove, ensureBridge, localApp],
   )

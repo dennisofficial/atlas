@@ -33,6 +33,7 @@ export const handlers = (
   onShowMcp: () => 'no MCP servers are configured',
   onMcpSignIn: null,
   onRestart: null,
+  onWake: () => RAN,
   onQuit: stub,
   ...overrides,
 })

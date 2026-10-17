@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import React, { useSyncExternalStore } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-harness'
 
 import { versionLabel } from '../build/info'
 import { useAttachFailure } from './attach-failure'
@@ -20,6 +20,8 @@ import { TeammateTranscript } from './teammate-transcript'
 import { useSessionOwner } from './use-session-owner'
 import type { AgentView } from './use-agent-view'
 import type { Conversation } from './use-conversation'
+
+const UPDATING_LABEL = 'updating the cloud sandbox'
 
 export function WorkspaceTranscript(props: {
   app: AtlasApp
@@ -70,7 +72,8 @@ export function WorkspaceTranscript(props: {
     attachFailed !== null &&
     attachFailed.threadId === threadId
   const connection =
-    cloudHealth?.connection?.state ?? (attachClosed ? EChannelConnection.Closed : undefined)
+    cloudHealth?.view.state ?? (attachClosed ? EConnectionView.Disconnected : undefined)
+  const updating = connection === EConnectionView.Updating
 
   return (
     <box flexDirection="column" flexGrow={1} flexShrink={1}>
@@ -111,23 +114,20 @@ export function WorkspaceTranscript(props: {
       ) : (
         <Transcript
           key={conversation.threadId}
-          cloudConnected={connection === EChannelConnection.Open}
+          cloudConnected={connection === EConnectionView.Connected}
           model={conversation.model}
           width={width}
           now={conversation.now}
           cwd={conversation.projectDirectory}
           turn={conversation.turn}
           rotating={conversation.rotating}
-          waking={connection === EChannelConnection.Waking}
-          reconnecting={
-            connection === EChannelConnection.Reconnecting ||
-            connection === EChannelConnection.Connecting ||
-            connection === EChannelConnection.Reattaching
-          }
-          disconnected={connection === EChannelConnection.Closed}
+          waking={connection === EConnectionView.Waking}
+          reconnecting={connection === EConnectionView.Reconnecting || updating}
+          {...(updating ? { updating: cloudHealth?.view.detail ?? UPDATING_LABEL } : {})}
+          disconnected={connection === EConnectionView.Disconnected}
           stale={cloudHealth?.stale === true}
           reconnectingSince={props.reconnectingSince}
-          {...(connection === EChannelConnection.Closed
+          {...(connection === EConnectionView.Disconnected
             ? { onReconnect: () => (cloudSession === null ? props.onRetryAttach() : cloudSession.reconnect()) }
             : {})}
           sends={props.sends}

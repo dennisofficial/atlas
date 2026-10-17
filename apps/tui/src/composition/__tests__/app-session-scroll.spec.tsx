@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { EExecutionLocation, toRunId, type EventDraft } from '@dltech/atlas-core'
-import { EChannelConnection, ECloudSandboxState } from '@dltech/atlas-harness'
+import { EConnectionView, ECloudSandboxState } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -236,16 +236,16 @@ async function mountCloudThread(args: { pairs: number }) {
 const VOUCHED = { turnInFlight: false, transcriptCurrent: true } as const
 
 async function reconnect({ bridge, setup }: { bridge: FakeBridge; setup: Mounted }): Promise<void> {
-  bridge.channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+  bridge.channel.moveTo({ state: EConnectionView.Reconnecting, detail: null })
   await settle(120)
   await setup.flush()
-  bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+  bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   bridge.channel.ready(VOUCHED)
 }
 
 async function attachedAtEnd({ setup, bridge }: { setup: Mounted; bridge: FakeBridge }): Promise<void> {
   await frameShowing({ setup, text: CLOUD_TAIL, within: 20_000 })
-  bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+  bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   bridge.channel.ready(VOUCHED)
   await landedAtEnd({ setup, tail: CLOUD_TAIL })
 }

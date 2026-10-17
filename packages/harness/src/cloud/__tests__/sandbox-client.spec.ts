@@ -178,7 +178,6 @@ describe('registering a client-provisioned sandbox', () => {
       threadId: 'brn_cloud',
       token: TOKEN,
       serveUrl: 'https://box.vercel.run',
-      driveName: 'atlas',
       metadata: { title: 'fix the flake', repo: 'compai/atlas', model: 'claude-opus-4-6' },
     })
 
@@ -189,7 +188,6 @@ describe('registering a client-provisioned sandbox', () => {
       threadId: 'brn_cloud',
       clientToken: TOKEN,
       serveUrl: 'https://box.vercel.run',
-      driveName: 'atlas',
       metadata: { title: 'fix the flake', repo: 'compai/atlas', model: 'claude-opus-4-6' },
     })
     expect(registered).toEqual({ token: TOKEN, url: 'https://box.vercel.run' })

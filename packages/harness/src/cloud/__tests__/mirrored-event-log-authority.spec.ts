@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { EConnectionView } from '../connection-view'
 import { toEventId, toRunId, transcriptIdentityDigest, type Event } from '@dltech/atlas-core'
 import { EServeFrame } from '@dltech/atlas-wire'
 
@@ -6,7 +7,6 @@ import { EClientRequest } from '../channel-wire'
 import { MirroredEventLog } from '../mirrored-event-log'
 import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
-import { EChannelConnection } from '../remote-delta-channel'
 import { harness, readied, THREAD } from './remote-channel-fixture'
 
 const fixtures: StoreFixture[] = []
@@ -87,7 +87,7 @@ describe('authoritative cloud transcript synchronization', () => {
   it('waits for Open when an idle Ready listener starts synchronization before the state transition', async () => {
     const held = await rig({ ready: false })
     held.remote.push(held.answer)
-    let duringReady: EChannelConnection | undefined
+    let duringReady: EConnectionView | undefined
     let syncing: Promise<void> | undefined
     held.channel.channel.onReady(() => {
       duringReady = held.channel.channel.connection().state
@@ -95,7 +95,7 @@ describe('authoritative cloud transcript synchronization', () => {
     })
     held.channel.open()
     held.channel.receive({ kind: EServeFrame.Ready, seq: 1, turnInFlight: false })
-    expect(duringReady).toBe(EChannelConnection.Connecting)
+    expect(duringReady).toBe(EConnectionView.Waking)
     if (syncing === undefined) throw new Error('the Ready listener did not run')
     await syncing
     expect(await held.fixture.log.readOwn({ threadId: THREAD })).toEqual(held.remote)
@@ -105,7 +105,7 @@ describe('authoritative cloud transcript synchronization', () => {
     const held = await rig()
     held.remote.push(held.answer)
     held.channel.drop()
-    expect(held.channel.channel.connection().state).toBe(EChannelConnection.Reconnecting)
+    expect(held.channel.channel.connection().state).toBe(EConnectionView.Reconnecting)
     const syncing = held.log.synchronize()
     expect(held.requests()).toBe(0)
     held.channel.retries[0]?.run()

@@ -12,11 +12,11 @@ import { contextDirectory } from '../store/sessions/paths'
 import { registryFor } from '../store/sessions/registry'
 import { EClientRequest, listContextFilesReplySchema, readContextFileReplySchema } from './channel-wire'
 import {
-  EChannelConnection,
   type ChannelConnection,
   type RemoteDeltaChannel,
   type RuntimeCheckpoint,
 } from './remote-delta-channel'
+import { EConnectionView } from './connection-view'
 
 type MirrorChannel = Pick<RemoteDeltaChannel, 'request'> &
   Partial<
@@ -109,7 +109,7 @@ export class MirroredContextFiles implements ContextReader {
   private remoteReachable(): boolean {
     const connection: ChannelConnection | undefined = this.channel.connection?.()
     if (connection === undefined) return true
-    return connection.state === EChannelConnection.Open
+    return connection.state === EConnectionView.Connected
   }
 
   private ensureSynced(): Promise<boolean> {

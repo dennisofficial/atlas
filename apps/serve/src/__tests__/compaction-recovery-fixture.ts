@@ -6,7 +6,7 @@ import type { Event } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
   decodeServeFrame,
-  EChannelConnection,
+  EConnectionView,
   EServeFrame,
   LocalCompaction,
   mirrorWriter,
@@ -234,7 +234,7 @@ export const attachMirrored = async (args: {
     writer: mirrorWriter({ home: () => mirror.home }),
     threadId,
   })
-  await until({ what: 'the channel to open', condition: () => channel.connection().state === EChannelConnection.Open })
+  await until({ what: 'the channel to open', condition: () => channel.connection().state === EConnectionView.Connected })
   await until({ what: 'the first attach to reload the log', condition: () => reloads.length >= 1 })
   await syncer.converge()
   reloads.length = 0
@@ -254,7 +254,7 @@ export const attachMirrored = async (args: {
       retry()
       await until({
         what: 'the channel to reopen',
-        condition: () => channel.connection().state === EChannelConnection.Open,
+        condition: () => channel.connection().state === EConnectionView.Connected,
       })
     },
     synced: async () => {

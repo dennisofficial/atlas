@@ -15,7 +15,7 @@ describe('a rotate requested against a parked sandbox', () => {
   it('wakes the sandbox and delivers the rotate frame on the fresh socket', async () => {
     let reattached = 0
     const { channel, receive, live } = readied({
-      reattach: async () => {
+      wakeSandbox: async () => {
         reattached += 1
         return { url: 'https://sandbox.test/woken', token: 'tok_woken' }
       },

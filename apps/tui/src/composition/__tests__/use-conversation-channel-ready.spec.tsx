@@ -1,5 +1,5 @@
 import { EExecutionLocation, toThreadId } from '@dltech/atlas-core'
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
@@ -112,13 +112,13 @@ describe('a conversation whose cloud channel is down', () => {
 
 describe.each([
   { name: 'no cloud session at all (local)', connection: undefined, ready: true },
-  { name: 'open', connection: { state: EChannelConnection.Open, detail: null }, ready: true },
-  { name: 'parked, which wakes on demand', connection: { state: EChannelConnection.Parked, detail: null }, ready: true },
-  { name: 'closed', connection: { state: EChannelConnection.Closed, detail: null }, ready: false },
-  { name: 'connecting', connection: { state: EChannelConnection.Connecting, detail: null }, ready: false },
-  { name: 'reconnecting', connection: { state: EChannelConnection.Reconnecting, detail: null }, ready: false },
-  { name: 'reattaching', connection: { state: EChannelConnection.Reattaching, detail: null }, ready: false },
-  { name: 'waking', connection: { state: EChannelConnection.Waking, detail: null }, ready: false },
+  { name: 'connected', connection: { state: EConnectionView.Connected, detail: null }, ready: true },
+  { name: 'parked, which wakes on send', connection: { state: EConnectionView.Parked, detail: null }, ready: true },
+  { name: 'waking, which holds the send', connection: { state: EConnectionView.Waking, detail: null }, ready: true },
+  { name: 'updating, which holds the send', connection: { state: EConnectionView.Updating, detail: null }, ready: true },
+  { name: 'reconnecting', connection: { state: EConnectionView.Reconnecting, detail: null }, ready: false },
+  { name: 'disconnected', connection: { state: EConnectionView.Disconnected, detail: null }, ready: false },
+  { name: 'detached', connection: { state: EConnectionView.Detached, detail: null }, ready: false },
 ])('a channel that is $name', ({ connection, ready }) => {
   it(`takes turns: ${ready}`, () => {
     expect(channelTakingTurns(connection)).toBe(ready)

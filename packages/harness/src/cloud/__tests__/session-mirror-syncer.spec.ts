@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { EConnectionView } from '../connection-view'
 import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,7 +9,7 @@ import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { SessionManifestReply } from '@dltech/atlas-wire'
 
 import type { ChannelListener } from '../../channel/delta-channel'
-import { EChannelConnection, type ChannelConnection, type ChannelReady } from '../remote-delta-channel'
+import { type ChannelConnection, type ChannelReady } from '../remote-delta-channel'
 import { readMirrorStamp } from '../session-mirror-stamp'
 import { createSessionMirrorSync, type SessionMirrorSync } from '../session-mirror-syncer'
 import { sessionMirrorWriter } from '../session-mirror-writer'
@@ -74,7 +75,7 @@ function fakeChannel(serve: FakeServe): FakeChannel {
   const connectionListeners = new Set<(connection: ChannelConnection) => void>()
   const reloadListeners = new Set<() => void>()
   const readyListeners = new Set<(ready: ChannelReady) => void>()
-  let state: ChannelConnection = { state: EChannelConnection.Open, detail: null }
+  let state: ChannelConnection = { state: EConnectionView.Connected, detail: null }
   const moveTo = (next: ChannelConnection): void => {
     state = next
     for (const listener of [...connectionListeners]) listener(state)
@@ -121,10 +122,10 @@ function fakeChannel(serve: FakeServe): FakeChannel {
       for (const listener of [...listeners]) listener(signal as never)
     },
     open() {
-      moveTo({ state: EChannelConnection.Open, detail: null })
+      moveTo({ state: EConnectionView.Connected, detail: null })
     },
     close() {
-      moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+      moveTo({ state: EConnectionView.Reconnecting, detail: null })
     },
     reload() {
       for (const listener of [...reloadListeners]) listener()

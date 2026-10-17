@@ -89,7 +89,6 @@ export class SandboxClient {
     contextPending: boolean
     workspace?: WorkspaceSpec | undefined
     gpgKey?: string | undefined
-    driveName?: string | undefined
   }): Promise<WireSandboxClaim> {
     const body = await this.request({
       method: 'POST',
@@ -100,7 +99,6 @@ export class SandboxClient {
         contextPending: args.contextPending,
         ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
         ...(args.gpgKey === undefined ? {} : { gpgKey: args.gpgKey }),
-        ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
       },
     })
     return wireSandboxClaimSchema.parse(body)
@@ -110,7 +108,6 @@ export class SandboxClient {
     threadId: string
     token: string
     serveUrl: string
-    driveName?: string | undefined
     serveVersion?: string | undefined
     metadata?: { title?: string; repo?: string; model?: string } | undefined
   }): Promise<WireSandboxRegistration> {
@@ -121,7 +118,6 @@ export class SandboxClient {
         threadId: args.threadId,
         clientToken: args.token,
         serveUrl: args.serveUrl,
-        ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
         ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
         ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
       },

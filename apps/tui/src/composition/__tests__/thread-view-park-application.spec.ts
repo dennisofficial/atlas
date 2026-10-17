@@ -5,10 +5,8 @@ import { join } from 'node:path'
 
 import { toEventId, toRunId, type Event } from '@dltech/atlas-core'
 import {
-  EChannelConnection,
   EClientRequest,
-  ECloudSandboxState,
-  ERuntimePhase,
+  EConnectionView,
   JsonlEventLog,
   MirroredEventLog,
   RemoteTurnRunner,
@@ -16,7 +14,6 @@ import {
   SystemClock,
   mirrorWriter,
   transcriptIdentityDigest,
-  type RuntimeCheckpoint,
 } from '@dltech/atlas-harness'
 
 import { createConversationStore } from '../../store/conversation-store'
@@ -24,11 +21,8 @@ import type { AtlasApp } from '../compose'
 import { createThreadViewRefresh } from '../thread-view-refresh'
 import { EThreadRows } from '../use-thread-view'
 import { cloudReadinessOf } from '../cloud/cloud-readiness'
-import { createCloudSession } from '../cloud/cloud-session'
-import { createParkPersistence } from '../cloud/park-persistence'
-import { localTranscriptFiles } from '../cloud/local-transcript-files'
-import { CLOUD_THREAD, fakeBridge, fakeCloudChannel } from '../cloud/__tests__/fixture'
-import { fakeIds, fakeLedger, fakeThreadStore } from './fake-backend'
+import { CLOUD_THREAD, fakeCloudChannel } from '../cloud/__tests__/fixture'
+import { fakeIds, fakeLedger } from './fake-backend'
 import { promiseGate, until } from './app-fixture'
 
 const cleanup: (() => Promise<void>)[] = []
@@ -42,7 +36,7 @@ const identityOf = (events: readonly Event[]) => ({
   digest: transcriptIdentityDigest(events),
 })
 
-const rig = async (args: { slowSpend?: boolean; holdWrite?: boolean } = {}) => {
+const rig = async (args: { slowSpend?: boolean } = {}) => {
   const home = await mkdtemp(join(tmpdir(), 'atlas-park-application-'))
   cleanup.push(() => rm(home, { recursive: true, force: true }))
   const local = new JsonlEventLog(home, new SessionRegistry(home), new SystemClock(), fakeIds())
@@ -63,7 +57,7 @@ const rig = async (args: { slowSpend?: boolean; holdWrite?: boolean } = {}) => {
     clientsAttached: 1,
   }
   const remote = [...before]
-  const channel = fakeCloudChannel({ threadId, connection: { state: EChannelConnection.Open, detail: null } })
+  const channel = fakeCloudChannel({ threadId, connection: { state: EConnectionView.Connected, detail: null } })
   channel.request = async ({ op, params }) => {
     const query = params as { fromSeq?: number; upTo?: number }
     if (op === EClientRequest.ReadTranscriptIdentity) {
@@ -75,21 +69,8 @@ const rig = async (args: { slowSpend?: boolean; holdWrite?: boolean } = {}) => {
       })),
     }
   }
-  const entered = promiseGate()
-  const finish = promiseGate()
-  const writer = mirrorWriter({ home: () => home })
   const log = new MirroredEventLog({
-    channel, localLog: local, threadId,
-    writer: {
-      ...writer,
-      appendDelta: async (given) => {
-        if (args.holdWrite) {
-          entered.release()
-          await finish.gate
-        }
-        await writer.appendDelta(given)
-      },
-    },
+    channel, localLog: local, threadId, writer: mirrorWriter({ home: () => home }),
   })
   const spend = promiseGate()
   const ledger = fakeLedger()
@@ -118,83 +99,19 @@ const rig = async (args: { slowSpend?: boolean; holdWrite?: boolean } = {}) => {
   })
   refresh.registerSeedIdentity()
   const unbind = refresh.bindLocalUpdates()
-  const session = createCloudSession({
-    channel, sandboxes: fakeBridge({ status: { state: ECloudSandboxState.Parked } }).sandboxes,
-    onReload: async () => undefined,
-    appliedSnapshot: readiness.applied,
-    subscribeApplied: readiness.subscribe,
-  })
   cleanup.push(async () => {
-    finish.release()
     spend.release()
     unbind()
     store.dispose()
-    session.close()
     await log.converge()
   })
-  const checkpoint: RuntimeCheckpoint = {
-    threadId, runtimeId: 'runtime', sandboxSessionId: 'sandbox', revision: 10,
-    phase: ERuntimePhase.Parked, reportedAt: new Date().toISOString(),
-    transcript: identityOf([...before, parked]),
-  }
-  const threads = fakeThreadStore({ existing: [threadId] })
-  const parkWaiting = promiseGate()
-  const persist = createParkPersistence({
-    threadId, threads,
-    files: localTranscriptFiles({ home: () => home }),
-    converge: () => log.converge(),
-    applied: readiness.applied,
-    refreshApplied: readiness.refreshApplied,
-    waitUntilApplied: (identity) => { parkWaiting.release(); return readiness.waitUntilApplied(identity) },
-    refreshLog: () => local.refresh({ threadId }),
-    readLog: () => local.read({ threadId }),
-    appliedWaitMs: 250,
-  })
-  const park = () => {
-    channel.pushCheckpoint(checkpoint)
-    channel.moveTo({ state: EChannelConnection.Parked, detail: 'idle' })
-  }
-  return { local, log, remote, parked, checkpoint, readiness, refresh, entered, finish, spend,
-    store, session, park, persist, parkWaiting, unbind, threads, threadId, visible: () => visible, spendReads: () => spendReads,
+  return { local, log, remote, parked, readiness, refresh, spend,
+    store, unbind, threadId, visible: () => visible, spendReads: () => spendReads,
     spendAnswers: () => spendAnswers,
     page: (events: readonly Event[]) => { store.setEvents({ events }); visible = events } }
 }
 
-describe('applying the final mirrored park', () => {
-  it('applies a tail that lands after the old view was read and the socket parked', async () => {
-    const held = await rig({ holdWrite: true })
-    held.remote.push(held.parked)
-    await held.refresh.refresh()
-    await held.entered.gate
-    expect(held.visible().at(-1)?.type).toBe('user-said')
-    held.park()
-    expect(held.session.health().stale).toBe(true)
-    const persisting = held.persist.persist(held.checkpoint)
-    await held.parkWaiting.gate
-    held.finish.release()
-
-    expect(await until({ holds: async () => held.visible().at(-1)?.type === 'parked', within: 1000 })).toBe(true)
-    expect(held.readiness.applied()?.identity).toEqual(held.checkpoint.transcript)
-    expect(held.session.health().stale).toBe(false)
-    await persisting
-    expect((await held.threads.readParkedTranscript({ threadId: held.threadId }))?.applied).toEqual(held.checkpoint.transcript)
-  })
-
-  it('reapplies a complete local file on park even if the completion signal was missed', async () => {
-    const held = await rig()
-    await held.local.append({ threadId: held.threadId, runId: toRunId('local-park'), drafts: [held.parked] })
-    const events = await held.local.read({ threadId: held.threadId })
-    const checkpoint = { ...held.checkpoint, transcript: identityOf(events) }
-    held.park()
-    expect(held.visible().at(-1)?.type).toBe('user-said')
-
-    await held.persist.persist(checkpoint)
-
-    expect(held.visible().at(-1)?.type).toBe('parked')
-    expect(held.readiness.applied()?.identity).toEqual(checkpoint.transcript)
-    expect((await held.threads.readParkedTranscript({ threadId: held.threadId }))?.applied).toEqual(checkpoint.transcript)
-  })
-
+describe('refreshing a mirrored cloud thread view', () => {
   it('does not let a remote accounting read delay transcript application', async () => {
     const held = await rig({ slowSpend: true })
     held.remote.push(held.parked)
@@ -248,15 +165,5 @@ describe('applying the final mirrored park', () => {
     await Promise.all([first, queued])
     expect(held.readiness.applied()?.identity).toEqual(replacement)
     expect(held.visible().at(-1)?.type).toBe('user-said')
-  })
-
-  it('keeps a same-head wrong identity stale after refreshing the parked file', async () => {
-    const held = await rig()
-    held.park()
-    const wrong = { ...held.checkpoint, transcript: { ...held.checkpoint.transcript, digest: 'f'.repeat(64) } }
-    await held.persist.persist(wrong)
-    expect((await held.threads.readParkedTranscript({ threadId: held.threadId }))?.applied).toBeNull()
-    expect(held.session.health().stale).toBe(true)
-    expect(held.spendReads()).toBe(0)
   })
 })

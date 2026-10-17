@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { EConnectionView } from '../connection-view'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,7 +10,7 @@ import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import type { ChannelListener } from '../../channel/delta-channel'
 import type { ContextReader } from '../../files/session-context'
 import { EClientRequest } from '../channel-wire'
-import { EChannelConnection, type ChannelConnection } from '../remote-delta-channel'
+import { type ChannelConnection } from '../remote-delta-channel'
 import { MirroredContextFiles } from '../mirrored-context-files'
 
 const THREAD: ThreadId = toThreadId('context-thread')
@@ -30,7 +31,7 @@ type FakeChannel = {
 }
 
 function fakeChannel(): FakeChannel {
-  let connection: ChannelConnection = { state: EChannelConnection.Open, detail: null }
+  let connection: ChannelConnection = { state: EConnectionView.Connected, detail: null }
   const channel: FakeChannel = {
     threadId: THREAD,
     requests: [],
@@ -42,7 +43,7 @@ function fakeChannel(): FakeChannel {
     setConnection: (next) => { connection = next },
     request: async ({ op, params }) => {
       channel.requests.push({ op, params })
-      if (connection.state !== EChannelConnection.Open) throw new Error('the sandbox is parked')
+      if (connection.state !== EConnectionView.Connected) throw new Error('the sandbox is parked')
       if (op === EClientRequest.ListContextFiles) {
         const directory = (params as { directory?: string }).directory
         return { entries: channel.remoteTree.get(directory) ?? [] }
@@ -172,7 +173,7 @@ describe('MirroredContextFiles', () => {
     const home = await makeHome()
     const channel = fakeChannel()
     seedTree(channel, {})
-    channel.setConnection({ state: EChannelConnection.Parked, detail: null })
+    channel.setConnection({ state: EConnectionView.Parked, detail: null })
     const files = makeFiles({ home, channel })
 
     expect(await files.load('anything.md')).toEqual({ type: 'text', content: 'remote fallback\n', truncated: false })
@@ -204,7 +205,7 @@ describe('MirroredContextFiles', () => {
     const files = makeFiles({ home, channel })
     expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# parked\n', truncated: false })
 
-    channel.setConnection({ state: EChannelConnection.Parked, detail: null })
+    channel.setConnection({ state: EConnectionView.Parked, detail: null })
     channel.listener?.({ type: 'context-changed' })
     await settled()
 

@@ -1,4 +1,5 @@
 import { toThreadId } from '@dltech/atlas-core'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { toStepId, type ChannelSignal } from '../../channel/signal'
 import {
@@ -8,7 +9,7 @@ import {
   type ClientFrame,
   type ServeFrame,
 } from '../channel-wire'
-import { createRemoteDeltaChannel, type EReconnectEscalation } from '../remote-delta-channel'
+import { createRemoteDeltaChannel } from '../remote-delta-channel'
 import type { ChannelSocketHandlers } from '../remote-channel-socket'
 
 export const THREAD = toThreadId('brn_cloud')
@@ -41,12 +42,10 @@ export const harness = (options?: {
   /** A deferred durable-head read, for the Promise path the production store drives. */
   lastEventSeqAsync?: (() => Promise<number>) | undefined
   maxAttempts?: number | undefined
-  maxReattachments?: number | undefined
-  reattach?: (() => Promise<{ url: string; token: string }>) | undefined
+  wakeSandbox?: (() => Promise<{ url: string; token: string }>) | undefined
   requestTimeoutMs?: number | undefined
   unwrittenRequestTimeoutMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
-  lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
   unattached?: boolean | undefined
 }) => {
   const sockets: FakeSocket[] = []
@@ -58,9 +57,7 @@ export const harness = (options?: {
     ...(options?.unattached === true ? {} : { url: 'https://sandbox.test/', token: 'tok_session' }),
     lastEventSeq: options?.lastEventSeqAsync ?? (() => options?.lastEventSeq ?? 0),
     maxAttempts: options?.maxAttempts,
-    maxReattachments: options?.maxReattachments,
-    reattach: options?.reattach,
-    lifecycleEscalation: options?.lifecycleEscalation,
+    wakeSandbox: options?.wakeSandbox,
     requestTimeoutMs: options?.requestTimeoutMs,
     unwrittenRequestTimeoutMs: options?.unwrittenRequestTimeoutMs,
     interruptAckTimeoutMs: options?.interruptAckTimeoutMs,
@@ -104,4 +101,31 @@ export const readied = (options?: Parameters<typeof harness>[0]) => {
   attached.open()
   attached.receive({ kind: EServeFrame.Ready, seq: 1 })
   return attached
+}
+
+export const checkpointOf = (args: { phase: ERuntimePhase; revision: number; threadId?: string | undefined }): RuntimeCheckpoint => {
+  const base = {
+    threadId: args.threadId ?? THREAD,
+    runtimeId: 'runtime-1',
+    sandboxSessionId: 'session-1',
+    revision: args.revision,
+    reportedAt: '2026-10-16T00:00:00.000Z',
+    transcript: { head: 0, count: 0, digest: '0'.repeat(64) },
+    phase: args.phase,
+  }
+  if (args.phase !== ERuntimePhase.Updating) return runtimeCheckpointSchema.parse(base)
+  return runtimeCheckpointSchema.parse({
+    ...base,
+    receipt: { version: 1, threadId: base.threadId, sandboxSessionId: base.sandboxSessionId, resumeParent: false, checkpoint: base },
+  })
+}
+
+export const deferred = <T>() => {
+  let resolve: (value: T) => void = () => undefined
+  let reject: (failure: Error) => void = () => undefined
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
 }

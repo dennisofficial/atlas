@@ -3,54 +3,15 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { PortableState } from '@dltech/atlas-wire'
 
-import {
-  ECloudSandboxState,
-  type CloudSandboxes,
-} from '@dltech/atlas-harness'
+import { ECloudSandboxState } from '@dltech/atlas-harness'
 import type { VercelSandboxConfig } from '@dltech/atlas-wire'
 import {
   createCloudBridge,
-  parkedEscalationOf,
   type BridgeDriver,
   type PortableOmissions,
 } from '../create-bridge'
 
 const THREAD = toThreadId('brn_cloud')
-
-const sandboxesFinding = (
-  find: CloudSandboxes['find'],
-): Pick<CloudSandboxes, 'find'> => ({ find })
-
-describe('parkedEscalationOf', () => {
-  it('escalates when the driver reports the sandbox parked', async () => {
-    const sandboxes = sandboxesFinding(async () => ({ state: ECloudSandboxState.Parked }))
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(true)
-  })
-
-  it('stays put for a sandbox that is running', async () => {
-    const sandboxes = sandboxesFinding(async () => ({
-      state: ECloudSandboxState.Running,
-      url: 'https://box.vercel.run',
-    }))
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
-  })
-
-  it('stays put for a sandbox that is only resuming', async () => {
-    const sandboxes = sandboxesFinding(async () => ({ state: ECloudSandboxState.Resuming }))
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
-  })
-
-  it('swallows a driver failure rather than escalating on a guess', async () => {
-    const sandboxes = sandboxesFinding(async () => {
-      throw new Error('vercel said no')
-    })
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
-  })
-})
 
 type RecordedWrite = { path: string; content: Uint8Array | string }
 

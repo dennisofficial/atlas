@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { ECloudSandboxState, EChannelConnection, ERuntimeKind } from '@dltech/atlas-harness'
+import { ECloudSandboxState, EConnectionView, ERuntimeKind } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge } from '../cloud/__tests__/fixture'
@@ -11,7 +11,7 @@ import { cleared, mountInCloud, shown, speaking } from './app-container-cloud-fi
 await grammarsReady()
 
 const connected = async (mounted: Awaited<ReturnType<typeof mountInCloud>>, bridge: ReturnType<typeof fakeBridge>) => {
-  bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+  bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   await shown(mounted, 'CLOUD')
 }
 
@@ -91,7 +91,7 @@ describe('the session owner behind a cloud thread', () => {
 
       await mounted.command('/resume opened-thread')
       expect(await until({ holds: async () => bridge.attached.length === 2, within: 20_000 })).toBe(true)
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       await shown(mounted, 'CLOUD')
       const back = app.sessionOwner.snapshot()
       expect(back.threadId).toBe(cloudThread)
