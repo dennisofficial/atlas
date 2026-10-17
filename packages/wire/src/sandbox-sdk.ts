@@ -24,6 +24,18 @@ const ROUTE_RETRY_DELAY_MS = 1_000
 
 export type VercelCredentials = { token: string; teamId: string; projectId: string }
 
+/** A linux-x64 serve built from a source checkout, pinned by `version` (`dev-<12 hex>`). */
+export type DevServeBinary = {
+  version: string
+  path: string
+  sha256: string
+  bytes: number
+}
+
+export type DevServeResolver = (args: {
+  log?: ((line: string) => void) | undefined
+}) => Promise<DevServeBinary>
+
 export type VercelSandboxConfig = {
   credentials: VercelCredentials
   image: string
@@ -40,6 +52,11 @@ export type VercelSandboxConfig = {
    * stale. Undefined disables the check (no pinned serve to match against).
    */
   serveVersion?: string | undefined
+  /**
+   * Set only for a non-release build: resolved lazily on the first provision, its version becomes
+   * the serve pin and its binary is uploaded instead of downloaded. Overrides `serveVersion`.
+   */
+  devServe?: DevServeResolver | undefined
 }
 
 export type SandboxPlacement = {
@@ -57,6 +74,8 @@ export type SandboxPlacement = {
   rotatedFrom?: string | undefined
   /** The wire protocol the sandbox's old serve spoke, set when the sandbox was rotated onto the pinned image. */
   rotatedProtocol?: number | undefined
+  /** The serve pin this placement was provisioned against, a resolved dev pin included. */
+  serveVersion?: string | undefined
 }
 
 export type SandboxObservation = {
