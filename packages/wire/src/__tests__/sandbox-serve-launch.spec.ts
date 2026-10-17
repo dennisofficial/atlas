@@ -4,6 +4,7 @@ import type { Sandbox } from '@vercel/sandbox'
 
 import { createServeLauncher, HEALTH_PROBE } from '../sandbox-serve-launch.js'
 import {
+  SANDBOX_WORKSPACE_PATH,
   SERVE_BINARY_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
@@ -207,6 +208,17 @@ describe('createServeLauncher', () => {
     expect(launch).toContain(SERVE_LOCK_PATH)
     expect(launch).toContain(SERVE_BINARY_PATH)
     expect(launch).toContain(SERVE_LOG_PATH)
+  })
+
+  it('starts serve inside the sandbox workspace, never the provider default cwd', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false, alive: false })
+
+    await createServeLauncher()({ sandbox })
+
+    const launch = scriptsOf(launchesOf(commands))[0] ?? ''
+    const changeDirectory = `mkdir -p ${SANDBOX_WORKSPACE_PATH} && cd ${SANDBOX_WORKSPACE_PATH} && `
+    expect(launch).toContain(changeDirectory)
+    expect(launch.indexOf(changeDirectory)).toBeLessThan(launch.indexOf('exec flock'))
   })
 
   it('appends serve diagnostics under the sandbox home after creating their directory privately', async () => {

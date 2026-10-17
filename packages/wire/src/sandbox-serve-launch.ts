@@ -5,6 +5,7 @@ import { CHANNEL_PROTOCOL_VERSION } from './channel-wire.js'
 import { installServe, type ServeInstaller } from './sandbox-serve-install.js'
 import { sandboxSh } from './sandbox-sh.js'
 import {
+  SANDBOX_WORKSPACE_PATH,
   SERVE_BINARY_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
@@ -225,7 +226,7 @@ export function createServeLauncher(args?: {
       args: [
         '-c',
         withServeToken(
-          `(umask 077; mkdir -p ${dirname(SERVE_LOG_PATH)} && : >> ${SERVE_LOG_PATH}) && exec flock -n ${SERVE_LOCK_PATH} sh -c 'echo $$ > ${SERVE_HOME}/atlas-serve.pid; exec ${SERVE_BINARY_PATH}' >> ${SERVE_LOG_PATH} 2>&1`,
+          `(umask 077; mkdir -p ${dirname(SERVE_LOG_PATH)} && : >> ${SERVE_LOG_PATH}) && mkdir -p ${SANDBOX_WORKSPACE_PATH} && cd ${SANDBOX_WORKSPACE_PATH} && exec flock -n ${SERVE_LOCK_PATH} sh -c 'echo $$ > ${SERVE_HOME}/atlas-serve.pid; exec ${SERVE_BINARY_PATH}' >> ${SERVE_LOG_PATH} 2>&1`,
         ),
       ],
       detached: true,

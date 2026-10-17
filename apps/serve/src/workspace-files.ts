@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { homedir } from 'node:os'
+import { dirname, join, parse, resolve } from 'node:path'
 
 export type WorkspaceFiles = {
   exists: (path: string) => Promise<boolean>
@@ -12,6 +13,11 @@ export type WorkspaceFiles = {
 
 export const hasErrorCode = (args: { error: unknown; code: string }): boolean =>
   args.error instanceof Error && 'code' in args.error && args.error.code === args.code
+
+export const refusesToEmpty = (path: string): boolean => {
+  const target = resolve(path)
+  return target === parse(target).root || target === resolve(homedir())
+}
 
 export const nodeWorkspaceFiles: WorkspaceFiles = {
   exists: async (path) => {
@@ -48,6 +54,9 @@ export const nodeWorkspaceFiles: WorkspaceFiles = {
   },
 
   empty: async (path) => {
+    if (refusesToEmpty(path)) {
+      throw new Error(`refusing to empty ${resolve(path)}: it is the filesystem root or the home directory, not a workspace`)
+    }
     await mkdir(path, { recursive: true })
     for (const entry of await readdir(path)) {
       await rm(join(path, entry), { recursive: true, force: true })
