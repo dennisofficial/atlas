@@ -134,6 +134,8 @@ const growthOf = async (ctx: ScenarioContext): Promise<{ before: number; after: 
   return { before, after }
 }
 
+const UNCONFIRMED_DRAIN = 'did not confirm preparation'
+
 const updatingSourceOf = (args: { phases: readonly string[]; views: readonly string[] }): string => {
   const inRecord = args.phases.includes(ERuntimePhase.Updating)
   const inView = args.views.includes(EConnectionView.Updating)
@@ -217,6 +219,10 @@ async function runSwap(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     const updating = updatingSourceOf({ phases: swap.phases, views: watch.views() })
     const sealed = matchingLines({ text: swap.swapLines.join('\n'), pattern: DRAIN_SEALED_LINE }).length
     criteria.check({ name: 'updating seen', expected: 'updating in the box record or the client view', observed: `${updating} (record ${swap.phases.join(' → ') || 'none'}; drain-sealed lines ${sealed})`, held: updating !== 'neither' })
+    criteria.check({ name: 'client view showed updating', expected: 'updating in the resumed channel view timeline', observed: watch.views().join(' → ') || 'none', held: watch.views().includes('updating') })
+    const unconfirmed = rig.driverLines.find((line) => line.includes(UNCONFIRMED_DRAIN))
+    criteria.check({ name: 'drain confirmed', expected: `no "${UNCONFIRMED_DRAIN}" driver line`, observed: unconfirmed ?? 'none', held: unconfirmed === undefined })
+    criteria.check({ name: 'record ends serving', expected: 'serving', observed: pinB.record?.phase ?? pinB.recordError ?? 'unread', held: pinB.record?.phase === 'serving' })
     criteria.check({
       name: 'paused turn resumed',
       expected: 'the swap, then DONE in the transcript (not before it)',
