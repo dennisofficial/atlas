@@ -23,6 +23,7 @@ import {
   type SwapWatch,
 } from './rig-swap-watch'
 import { serveSessionMatchesLive, stopRefusalsInServeLog } from './rig-session-check'
+import { FOLLOW_UP_SEND, replyAfterSwap, turnStartedAfterBoot } from './rig-swap-after'
 import { assistantSaid, transcriptOf } from './rig-transcript'
 
 export enum EMismatch {
@@ -207,8 +208,13 @@ async function runSwap(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     const processes = await ctx.probes
       .sh({ name: ctx.sandboxName(), script: 'ps -eo pid,args' })
       .catch((error: unknown) => `ps failed: ${error instanceof Error ? error.message : String(error)}`)
+    const resumedTurn = await turnStartedAfterBoot(ctx)
+    draft.commands.push(`submitted after the swap: ${FOLLOW_UP_SEND}`)
+    const followUp = await replyAfterSwap(rig)
 
     const criteria = createCriteria({ log: ctx.log })
+    criteria.check({ name: 'turn started after the new serve booted', expected: '≥ 1 serve.turn-started after the last serve.listening', observed: resumedTurn.observed, held: resumedTurn.held })
+    criteria.check({ name: 'a send after the swap gets a reply', expected: 'a normal reply', observed: followUp.observed, held: followUp.held })
     criteria.check({ name: 'serve session id is the live session', expected: 'equal', observed: session.observed, held: session.held })
     criteria.check({ name: 'no stop refusal on any park', expected: '0 park-stop-failed / refusing-to-stop lines', observed: refusals.observed, held: refusals.held })
     const pinChanged =
