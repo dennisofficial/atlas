@@ -31,6 +31,7 @@ export function bindRuntimeCheckpoint(args: {
 }): RuntimeCheckpointBinding {
   let held: RuntimeCheckpoint | null = null
   let finalized = false
+  let parking = false
   let pending: Promise<void> | null = null
   let again = false
 
@@ -59,8 +60,10 @@ export function bindRuntimeCheckpoint(args: {
     await args.capture.flush({ timeoutMs: 1_000 })
   }
 
+  const capturesHeld = (): boolean => finalized || parking
+
   const running = (): void => {
-    if (finalized) return
+    if (capturesHeld()) return
     if (pending !== null) {
       again = true
       return
@@ -69,13 +72,14 @@ export function bindRuntimeCheckpoint(args: {
       do {
         again = false
         await capture({ phase: ERuntimePhase.Serving })
-      } while (again && !finalized)
+      } while (again && !capturesHeld())
     })().catch((failure: unknown) => {
       args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
     }).finally(() => { pending = null })
   }
 
   const reopenToServing = async (): Promise<void> => {
+    parking = false
     await capture({ phase: ERuntimePhase.Serving })
   }
 
@@ -84,6 +88,8 @@ export function bindRuntimeCheckpoint(args: {
     running,
     boot: () => capture({ phase: ERuntimePhase.Serving }),
     parkBegin: async ({ attempts }) => {
+      parking = true
+      await pending
       await capture({ phase: ERuntimePhase.Parking, attempts })
     },
     parkReopened: reopenToServing,

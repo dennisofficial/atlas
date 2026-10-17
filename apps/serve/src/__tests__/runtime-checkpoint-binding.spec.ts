@@ -53,6 +53,87 @@ describe('serve checkpoint lifecycle binding', () => {
     expect(phases).toHaveLength(3)
   })
 
+  it('never writes Serving between Parking and Parked when the park marker publishes mid-park', async () => {
+    const phases: ERuntimePhase[] = []
+    let revision = 0
+    const binding = bindRuntimeCheckpoint({
+      log: () => undefined,
+      publish: () => undefined,
+      capture: {
+        capture: async ({ phase }) => {
+          revision += 1
+          phases.push(phase)
+          return checkpoint({ phase, revision })
+        },
+        flush: async () => undefined,
+        consumeReceipt: async () => undefined,
+      },
+    })
+    await binding.boot()
+    await binding.parkBegin({ attempts: 1 })
+    binding.running()
+    await binding.finalizePark()
+    expect(phases).toEqual([ERuntimePhase.Serving, ERuntimePhase.Parking, ERuntimePhase.Parked])
+    expect(binding.current()?.phase).toBe(ERuntimePhase.Parked)
+  })
+
+  it('lets a Serving capture already in flight land before Parking, then holds the rest', async () => {
+    const entered = gate()
+    const held = gate()
+    const phases: ERuntimePhase[] = []
+    let revision = 0
+    const binding = bindRuntimeCheckpoint({
+      log: () => undefined,
+      publish: () => undefined,
+      capture: {
+        capture: async ({ phase }) => {
+          revision += 1
+          phases.push(phase)
+          if (revision === 2) { entered.open(); await held.done }
+          return checkpoint({ phase, revision })
+        },
+        flush: async () => undefined,
+        consumeReceipt: async () => undefined,
+      },
+    })
+    await binding.boot()
+    binding.running()
+    await entered.done
+    const parkBegan = binding.parkBegin({ attempts: 1 })
+    binding.running()
+    held.open()
+    await parkBegan
+    binding.running()
+    await binding.finalizePark()
+    expect(phases).toEqual([ERuntimePhase.Serving, ERuntimePhase.Serving, ERuntimePhase.Parking, ERuntimePhase.Parked])
+  })
+
+  it('resumes Serving captures after a refused park reopens', async () => {
+    const phases: ERuntimePhase[] = []
+    let revision = 0
+    const binding = bindRuntimeCheckpoint({
+      log: () => undefined,
+      publish: () => undefined,
+      capture: {
+        capture: async ({ phase }) => {
+          revision += 1
+          phases.push(phase)
+          return checkpoint({ phase, revision })
+        },
+        flush: async () => undefined,
+        consumeReceipt: async () => undefined,
+      },
+    })
+    await binding.boot()
+    await binding.parkBegin({ attempts: 1 })
+    binding.running()
+    await binding.parkReopened()
+    binding.running()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(phases).toEqual([ERuntimePhase.Serving, ERuntimePhase.Parking, ERuntimePhase.Serving, ERuntimePhase.Serving])
+  })
+
   it('keeps checkpoint absent when the runtime cannot produce a valid identity', async () => {
     const published: RuntimeCheckpoint[] = []
     const binding = bindRuntimeCheckpoint({
