@@ -86,7 +86,7 @@ const sh = sandboxSh
 const serveHealthy = async (sandbox: Sandbox): Promise<boolean> =>
   (await sh({ sandbox, script: HEALTH_PROBE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS })).exitCode === 0
 
-export const SERVE_ALIVE_PROBE = `kill -0 $(cat ${SERVE_HOME}/atlas-serve.pid 2>/dev/null) 2>/dev/null || { for pid in /proc/[0-9]*; do grep -qa '^${SERVE_BINARY_PATH}' "$pid/cmdline" 2>/dev/null && exit 0; done; exit 1; }`
+export const SERVE_ALIVE_PROBE = `kill -0 $(cat ${SERVE_HOME}/atlas-serve.pid 2>/dev/null) 2>/dev/null || { for pid in /proc/[0-9]*; do [ "$(tr '\\0' '\\n' < "$pid/cmdline" 2>/dev/null)" = '${SERVE_BINARY_PATH}' ] && exit 0; done; exit 1; }`
 
 export const probeServeAlive = async (sandbox: Sandbox): Promise<boolean> => {
   const probe = await sh({
