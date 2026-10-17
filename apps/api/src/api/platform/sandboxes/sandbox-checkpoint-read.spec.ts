@@ -18,7 +18,7 @@ import {
   USER_A,
   USER_B,
 } from '../../../../test/sandbox-checkpoint-fixture'
-import { storedCheckpointOf, wakeClaimOf } from './sandbox-checkpoint'
+import { storedCheckpointOf } from './sandbox-checkpoint'
 import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
 
 beforeEach(() => {
@@ -124,11 +124,3 @@ describe('storedCheckpointOf', () => {
   })
 })
 
-describe('wakeClaimOf', () => {
-  it('reads the API-writable wake claim off a stored record', () => {
-    const claimed = checkpoint({ wakeClaim: 'wake-2026-10-16' })
-    expect(wakeClaimOf(claimed)).toBe('wake-2026-10-16')
-    expect(wakeClaimOf(checkpoint())).toBeNull()
-    expect(wakeClaimOf(null)).toBeNull()
-  })
-})

@@ -23,7 +23,6 @@ const lifecycleBase = {
   revision: z.number().int().min(1).max(2147483647),
   reportedAt: z.iso.datetime(),
   transcript: transcriptCheckpointSchema,
-  wakeClaim: z.string().min(1).optional(),
 }
 
 const updatingLifecycleCheckpointSchema = z.strictObject({

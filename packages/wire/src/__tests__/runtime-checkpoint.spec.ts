@@ -154,27 +154,6 @@ describe('runtimeCheckpointSchema', () => {
   })
 })
 
-describe('the API-writable wake claim', () => {
-  it('carries a wake claim on any phase without disturbing the record', () => {
-    for (const phase of [
-      ERuntimePhase.Provisioning,
-      ERuntimePhase.Serving,
-      ERuntimePhase.Parking,
-      ERuntimePhase.Parked,
-      ERuntimePhase.Waking,
-    ]) {
-      const claimed = { ...servingCheckpoint(), phase, wakeClaim: 'wake-2026-10-16' }
-      const parsed = runtimeCheckpointSchema.parse(claimed)
-      expect(parsed.phase).toBe(phase)
-      expect(parsed.wakeClaim).toBe('wake-2026-10-16')
-    }
-  })
-
-  it('leaves the claim off by default so serve never writes it', () => {
-    expect(runtimeCheckpointSchema.parse(servingCheckpoint())).not.toHaveProperty('wakeClaim')
-  })
-})
-
 describe('RUNTIME_PHASE_SUCCESSORS', () => {
   it('covers every lifecycle phase exactly once', () => {
     expect(Object.keys(RUNTIME_PHASE_SUCCESSORS).sort()).toEqual(
