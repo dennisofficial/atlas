@@ -95,19 +95,40 @@ const settled = async (setup: Setup): Promise<void> => {
   await flushTolerant(setup)
 }
 
-const flipChipToCloud = async (args: { setup: Setup; app: AtlasApp }): Promise<void> => {
+const BIRTH_OVERLAY = 'STARTING A CLOUD SANDBOX'
+const BIRTH_SETTLE_WITHIN_MS = 6 * 60_000
+const BIRTH_POLL_MS = 500
+
+const pollUntil = async (args: { setup: Setup; holds: () => Promise<boolean> | boolean; within: number }): Promise<boolean> => {
+  const deadline = Date.now() + args.within
+  while (Date.now() < deadline) {
+    await flushTolerant(args.setup)
+    if (await args.holds()) return true
+    await Bun.sleep(BIRTH_POLL_MS)
+  }
+  return false
+}
+
+const flipChipToCloud = async (args: { setup: Setup; app: AtlasApp; born: () => boolean }): Promise<void> => {
   const { setup } = args
   await frameShowing({ setup, text: LOCAL_CHIP, within: CHIP_WITHIN_MS })
   setup.mockInput.pressArrow('down')
   await settled(setup)
   setup.mockInput.pressEnter()
   await settled(setup)
-  const keyed = await frameShowing({ setup, text: CLOUD_CHIP, within: KEYED_FLIP_WITHIN_MS })
-    .then(() => true)
-    .catch(() => false)
-  if (keyed) return
+  if (await pollUntil({ setup, holds: args.born, within: KEYED_FLIP_WITHIN_MS })) return
   bornPlacementChip(args.app).flip()
-  await frameShowing({ setup, text: CLOUD_CHIP, within: CHIP_WITHIN_MS })
+  if (await pollUntil({ setup, holds: args.born, within: CHIP_WITHIN_MS })) return
+  throw new Error(`flipping the placement chip to ${CLOUD_CHIP} never started a cloud birth`)
+}
+
+const birthSettled = async (args: { setup: Setup; attached: () => boolean }): Promise<void> => {
+  const settledBirth = await pollUntil({
+    setup: args.setup,
+    within: BIRTH_SETTLE_WITHIN_MS,
+    holds: () => args.attached() && !args.setup.captureCharFrame().includes(BIRTH_OVERLAY),
+  })
+  if (!settledBirth) throw new Error(`the cloud birth never attached a channel and cleared "${BIRTH_OVERLAY}"`)
 }
 
 export async function mountRig(args: {
@@ -182,7 +203,10 @@ export async function mountRig(args: {
       exitOnCtrlC: false,
     })
     globalThis.IS_REACT_ACT_ENVIRONMENT = false
-    if (args.resumeThreadId === undefined) await flipChipToCloud({ setup, app })
+    if (args.resumeThreadId === undefined) {
+      await flipChipToCloud({ setup, app, born: () => bornThreadId !== null })
+      await birthSettled({ setup, attached: () => channel !== null })
+    }
   } catch (error) {
     await close().catch(() => undefined)
     throw error
