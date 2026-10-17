@@ -27,13 +27,10 @@ import {
 } from './local-cloud-bootstrap'
 import { attachmentOf } from './local-cloud-attachment'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
-import { reattachSandbox } from './local-cloud-reattach'
 import { registerInBackground } from './local-cloud-registration'
 import { transferBufferedArchive } from './buffered-transfer'
 
 export type { LocalCloudBridgeOptions, SandboxAuthorizer } from './local-cloud-bridge-options'
-
-export { reattachSandbox }
 
 export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBridge {
   const driverWith =

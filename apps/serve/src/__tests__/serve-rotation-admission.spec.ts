@@ -57,7 +57,7 @@ const rig = async (args: {
   }
   await recovery.guard({ app, checkpoint })
   const driver = createServeDriver({
-    app, threadId, admissionClosed, workspace: { state: EWorkspaceState.Skipped },
+    app, threadId, workspace: { state: EWorkspaceState.Skipped },
     log: noop, idleStop: () => ({ note: noop }), emitLifecycle: recovery.consume,
   })
   const drain = bindServeDrain({

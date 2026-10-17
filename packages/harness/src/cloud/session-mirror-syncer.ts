@@ -8,10 +8,10 @@ import {
   sessionManifestReplySchema,
 } from './channel-wire'
 import {
-  EChannelConnection,
   type ChannelConnection,
   type RemoteDeltaChannel,
 } from './remote-delta-channel'
+import { EConnectionView } from './connection-view'
 import { readMirrorStamp, type MirrorStamp } from './session-mirror-stamp'
 import type { SessionMirrorFileWrite, SessionMirrorWriter } from './session-mirror-writer'
 
@@ -118,7 +118,7 @@ export function createSessionMirrorSync(args: {
     let failure: unknown = null
     try {
       for (;;) {
-        if (connection.state !== EChannelConnection.Open) return
+        if (connection.state !== EConnectionView.Connected) return
         if (!dirty) return
         dirty = false
         try {
@@ -147,7 +147,7 @@ export function createSessionMirrorSync(args: {
 
   const enqueue = (): void => {
     dirty = true
-    if (running || connection.state !== EChannelConnection.Open) return
+    if (running || connection.state !== EConnectionView.Connected) return
     running = true
     void drain()
   }
@@ -164,16 +164,16 @@ export function createSessionMirrorSync(args: {
   args.channel.onReload(() => enqueue())
   args.channel.onReady(() => enqueue())
   args.channel.onConnection((next) => {
-    const wasOpen = connection.state === EChannelConnection.Open
+    const wasOpen = connection.state === EConnectionView.Connected
     connection = next
-    if (next.state === EChannelConnection.Open && !wasOpen) enqueue()
+    if (next.state === EConnectionView.Connected && !wasOpen) enqueue()
   })
 
   return {
     kick: enqueue,
     converge() {
       enqueue()
-      if (connection.state !== EChannelConnection.Open) return Promise.resolve()
+      if (connection.state !== EConnectionView.Connected) return Promise.resolve()
       if (!running && !dirty) return Promise.resolve()
       return new Promise((resolve, reject) => {
         settled.add({ resolve, reject })

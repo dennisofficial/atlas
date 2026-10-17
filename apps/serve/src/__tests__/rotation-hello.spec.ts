@@ -67,16 +67,15 @@ const rig = () => {
 }
 
 describe('hello admission', () => {
-  it('closes the mutation gate from the lifecycle record, not a flag', async () => {
-    const { handlers, socket, hello, sent } = rig()
-    await hello({ threadId: served })
+  it('closes the mutation gate from the lifecycle record, not a flag, and defers rather than refuses', async () => {
     let closed = false
+    const runs: boolean[] = []
     const gated = createSessionHandlers({
       threadId: served,
       buffer: createFrameBuffer({ capacity: 16 }),
       inFlight: () => [],
       liveStepId: () => null,
-      driver,
+      driver: { ...driver, run: (options?: { resume?: boolean | undefined }) => void runs.push(options?.resume === true) },
       files: { list: async () => [] },
       refusal: () => null,
       log: () => undefined,
@@ -91,10 +90,12 @@ describe('hello admission', () => {
     } as unknown as SessionSocket
     gated.open({ socket: gatedSocket })
     gated.message({ socket: gatedSocket, message: encodeFrame({ kind: EClientFrame.Run, resume: true }) })
+    expect(runs).toEqual([true])
     closed = true
-    gated.message({ socket: gatedSocket, message: encodeFrame({ kind: EClientFrame.Run, resume: true }) })
+    gated.message({ socket: gatedSocket, message: encodeFrame({ kind: EClientFrame.Run, resume: false }) })
     await Bun.sleep(0)
-    expect(gatedSent.join()).toContain('parking and accepts no new work')
+    expect(runs).toEqual([true])
+    expect(gatedSent).toEqual([])
   })
 
   it('admits the served thread', async () => {

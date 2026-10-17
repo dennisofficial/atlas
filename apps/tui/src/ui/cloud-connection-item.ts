@@ -1,40 +1,41 @@
-import { EChannelConnection, type ChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView, type ConnectionView } from '@dltech/atlas-harness'
 
 import type { Span } from './components/spans'
 import { EFooterItemReach, type FooterItem } from './footer-item'
 import { glyph, spinnerFrame, theme } from './theme'
 
-const spanFor = (state: EChannelConnection, now: number): Span => {
+const transitionSpans = (args: { label: string; now: number }): readonly Span[] => [
+  { text: spinnerFrame(args.now), fg: theme.warn },
+  { text: ` ${args.label}`, fg: theme.warn },
+]
+
+const spansFor = (state: EConnectionView, now: number): readonly Span[] | null => {
   switch (state) {
-    case EChannelConnection.Connecting:
-    case EChannelConnection.Reconnecting:
-    case EChannelConnection.Reattaching:
-    case EChannelConnection.Waking:
-      return { text: spinnerFrame(now), fg: theme.warn }
-    case EChannelConnection.Open:
-      return { text: '☁', fg: theme.ok }
-    case EChannelConnection.Parked:
-      return { text: '☾', fg: theme.hint }
-    case EChannelConnection.Closed:
-      return { text: glyph.failed, fg: theme.warn }
+    case EConnectionView.Connected:
+      return [{ text: '☁', fg: theme.ok }]
+    case EConnectionView.Waking:
+      return transitionSpans({ label: 'waking', now })
+    case EConnectionView.Reconnecting:
+      return transitionSpans({ label: 'reconnecting', now })
+    case EConnectionView.Updating:
+      return transitionSpans({ label: 'updating', now })
+    case EConnectionView.Parked:
+      return [{ text: '☾', fg: theme.hint }]
+    case EConnectionView.Disconnected:
+      return [{ text: glyph.failed, fg: theme.warn }]
+    case EConnectionView.Detached:
+      return null
   }
 }
 
-export const isAttaching = (state: EChannelConnection): boolean =>
-  state === EChannelConnection.Connecting ||
-  state === EChannelConnection.Reconnecting ||
-  state === EChannelConnection.Reattaching ||
-  state === EChannelConnection.Waking
-
 export function cloudConnectionItemOf(args: {
-  connection: ChannelConnection | null
+  connection: ConnectionView | null
   now: number
 }): FooterItem | null {
   if (args.connection === null) return null
 
-  return {
-    id: 'cloud-connection',
-    spans: [spanFor(args.connection.state, args.now)],
-    reach: EFooterItemReach.None,
-  }
+  const spans = spansFor(args.connection.state, args.now)
+  if (spans === null) return null
+
+  return { id: 'cloud-connection', spans, reach: EFooterItemReach.None }
 }

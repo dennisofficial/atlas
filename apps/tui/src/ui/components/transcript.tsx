@@ -39,6 +39,7 @@ function DerivedTranscript(props: {
   rotating?: Rotating | null
   cloudConnected?: boolean
   reconnecting?: boolean
+  updating?: string
   waking?: boolean
   disconnected?: boolean
   stale?: boolean
@@ -239,6 +240,7 @@ function DerivedTranscript(props: {
                       ? EWorkingVerb.Thinking
                       : EWorkingVerb.Working
               }
+              {...(props.updating === undefined ? {} : { reconnectingAs: props.updating })}
               retry={turn.retry}
             />
           </box>
@@ -249,6 +251,7 @@ function DerivedTranscript(props: {
               outputTokens={0}
               interrupting={false}
               verb={EWorkingVerb.Reconnecting}
+              {...(props.updating === undefined ? {} : { reconnectingAs: props.updating })}
               since={props.reconnectingSince ?? null}
             />
           </box>

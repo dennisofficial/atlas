@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
+import { EConnectionView } from '../connection-view'
 import { toRunId } from '@dltech/atlas-core'
 
 import { ETurnStatus } from '../../loop/turn-outcome'
 import { EClientFrame, EServeFrame } from '../channel-wire'
-import { EChannelConnection } from '../remote-delta-channel'
 import { RemoteTurnRunner } from '../remote-turn-runner'
 import { harness, THREAD } from './remote-channel-fixture'
 
@@ -23,7 +23,7 @@ describe('preparing an attachment before an explicit resume check', () => {
 
     await runner.ensureAttached()
     expect(wakes).toBe(1)
-    expect(held.channel.connection().state).toBe(EChannelConnection.Open)
+    expect(held.channel.connection().state).toBe(EConnectionView.Connected)
     expect(runner.turnInFlight()).toBe(false)
     expect(held.live().sent.filter((frame) => frame.kind === EClientFrame.Run)).toEqual([])
 

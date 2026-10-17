@@ -35,6 +35,7 @@ export type SessionHandlers = {
   message: (args: { socket: SessionSocket; message: string | Buffer }) => void
   close: (args: { socket: SessionSocket }) => void
   broadcast: (frame: ServeFrame) => void
+  replayDeferred: () => void
   broadcastRoster: () => void
   broadcastPrStates: () => void
   park: (args: { reason: string }) => void

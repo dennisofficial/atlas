@@ -1,6 +1,6 @@
 import type { EventLogPort } from '@dltech/atlas-core'
 import {
-  EChannelConnection,
+  EConnectionView,
   type CloudChannel,
   type CloudStores,
   type ThreadStorePort,
@@ -37,7 +37,7 @@ const delegating = <Store extends object>(args: {
   })
 
 /**
- * A parked session mounts before any socket exists, so until its channel first reaches Open the
+ * A parked session mounts before any socket exists, so until its channel first reaches Connected the
  * transcript it reads is the local one. The ledger reads stay local past the latch: the session
  * mirror keeps the mirrored ledger.jsonl current by construction while the channel is open, so a
  * socket gap never hands spend reads back to the wire. Thread records latch with the channel —
@@ -52,7 +52,7 @@ export function parkedStoresOf(args: {
 }): CloudStores {
   let latched = false
   const engaged = (): boolean => {
-    if (!latched && args.channel.connection().state === EChannelConnection.Open) latched = true
+    if (!latched && args.channel.connection().state === EConnectionView.Connected) latched = true
     return latched
   }
   const remoteThreads = args.remote.threads

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
 import { EImageDelivery, toRunId } from '@dltech/atlas-core'
-import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
+import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'
@@ -48,7 +48,7 @@ const onTheClipboard = (): ClipboardImageReader => {
 type Mounted = Awaited<ReturnType<typeof mountInCloud>>
 
 const startCloudTurn = async (mounted: Mounted, bridge: FakeBridge): Promise<void> => {
-  bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+  bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   bridge.channel.ready({ turnInFlight: true })
 
   const working = await until({

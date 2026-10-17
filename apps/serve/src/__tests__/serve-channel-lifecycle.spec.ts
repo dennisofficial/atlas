@@ -5,7 +5,7 @@ import { toRunId, toThreadId } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
   decodeServeFrame,
-  EChannelConnection,
+  EConnectionView,
   EClientFrame,
   EServeFrame,
   ETurnStatus,
@@ -161,7 +161,7 @@ const rig = async (args: {
   channel.onTurnEnded(() => void seen.push('turn-ended'))
   channel.onServerError(({ message }) => void seen.push(`error:${message}`))
   channel.onReload((reload) => void reloads.push(reload))
-  await until(() => channel.connection().state === EChannelConnection.Open)
+  await until(() => channel.connection().state === EConnectionView.Connected)
   await until(() => reloads.length === 1)
   reloads.length = 0
 
@@ -243,7 +243,7 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
     await attached.runTurn()
 
     attached.retries.shift()?.()
-    await until(() => attached.channel.connection().state === EChannelConnection.Open)
+    await until(() => attached.channel.connection().state === EConnectionView.Connected)
     await until(() => attached.seen.length === attached.expectedLines().length)
 
     expect(attached.reloads).toEqual([])
@@ -286,7 +286,7 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
 
     const second = attached.runner.runTurn({ threadId })
     attached.retries.shift()?.()
-    await until(() => attached.channel.connection().state === EChannelConnection.Open)
+    await until(() => attached.channel.connection().state === EConnectionView.Connected)
 
     expect(await second).toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-2') })
     expect(attached.seen.filter((line) => line === 'turn-ended')).toHaveLength(3)

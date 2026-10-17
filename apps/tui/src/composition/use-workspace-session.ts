@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { DEFAULT_IMAGE_TIER } from '@dltech/atlas-core'
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { restoredImages } from '../ui/draft-images'
@@ -20,9 +20,9 @@ import type { WorkspaceProps } from './workspace-props'
 
 const SOCKET_DOWN_REFUSAL = "the sandbox socket is down — esc will interrupt once it's back"
 
-const SANDBOX_PARKED_REFUSAL = 'the sandbox is parked — send a message to wake it first'
-
 const SANDBOX_WAKING_REFUSAL = 'the sandbox is still waking — esc will interrupt once it is up'
+
+const SANDBOX_UPDATING_REFUSAL = 'the sandbox is updating — esc will interrupt once it is back'
 
 type SessionProps = Pick<
   WorkspaceProps,
@@ -69,24 +69,28 @@ export function useWorkspaceSession(args: {
 
   const cloudHealth = useCloudHealth({ app: props.app, session: props.cloudSession })
 
-  const connectionState = cloudHealth?.connection?.state
+  const cloudView = cloudHealth?.view.state ?? null
   const reconnectingSince = useSince(
-    connectionState === EChannelConnection.Connecting ||
-      connectionState === EChannelConnection.Reconnecting ||
-      connectionState === EChannelConnection.Reattaching,
+    cloudView === EConnectionView.Reconnecting || cloudView === EConnectionView.Updating,
   )
 
   const interruptRefusal = useCallback((): string | null => {
-    const state = cloudHealth?.connection?.state
-    if (state === undefined || state === EChannelConnection.Open) return null
-    if (state === EChannelConnection.Parked) return SANDBOX_PARKED_REFUSAL
-    if (state === EChannelConnection.Waking) return SANDBOX_WAKING_REFUSAL
+    const state = cloudHealth?.view.state
+    if (state === undefined || state === EConnectionView.Connected) return null
+    if (state === EConnectionView.Waking) return SANDBOX_WAKING_REFUSAL
+    if (state === EConnectionView.Updating) return SANDBOX_UPDATING_REFUSAL
     return SOCKET_DOWN_REFUSAL
   }, [cloudHealth])
 
+  const cloudSession = props.cloudSession
+  const wakeCloud = useMemo(
+    () => (cloudSession === null ? null : () => cloudSession.wake()),
+    [cloudSession],
+  )
+
   const moveInFlight = containerMove.move !== null && containerMove.move.failure === null
 
-  const channelReady = channelTakingTurns(cloudHealth?.connection)
+  const channelReady = channelTakingTurns(cloudHealth?.view)
 
   const conversation = useConversation({
     app: props.app,
@@ -99,7 +103,9 @@ export function useWorkspaceSession(args: {
     canWake: exit.exitGuard.state === null && !moveInFlight,
     interruptRefusal,
     channelReady,
-    frozen: cloudHealth?.connection?.state === EChannelConnection.Closed,
+    frozen: cloudView === EConnectionView.Disconnected,
+    cloudView,
+    wakeCloud,
     onLocalOpened: props.onLocalOpened,
   })
 
@@ -161,6 +167,7 @@ export function useWorkspaceSession(args: {
     conversation,
     containerMove,
     cloudHealth,
+    cloud: { view: cloudView, wake: wakeCloud },
     reconnectingSince,
     opened,
     handleToggle,

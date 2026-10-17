@@ -1,5 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { PendingQueue, PendingSaid, RemoteTurnRunner } from '@dltech/atlas-harness'
+import type { EConnectionView, PendingQueue, PendingSaid, RemoteTurnRunner } from '@dltech/atlas-harness'
 
 import type { Rotating } from '../ui/components/rotating-line'
 import type { AtlasApp } from './compose'
@@ -27,6 +27,8 @@ export function useConversationRotation(args: {
   pending: PendingQueue<QueuedSettled>
   sending: ConversationSending
   cloudRunner: RemoteTurnRunner | null
+  cloudView: EConnectionView | null
+  wakeCloud: (() => void) | null
   driver: TurnDriver
   refresh: () => Promise<void>
   setFailure: (reason: string) => void
@@ -34,7 +36,7 @@ export function useConversationRotation(args: {
 }): ConversationRotation {
   const { app, threadId, readClock, compacting, moving, working, pending, sending, cloudRunner } =
     args
-  const { driver, refresh, setFailure, onRotated } = args
+  const { driver, refresh, setFailure, onRotated, cloudView, wakeCloud } = args
 
   const { rotating, handleRotate, cancel } = useRotation({
     app,
@@ -58,6 +60,8 @@ export function useConversationRotation(args: {
     moving,
     drive: driver.drive,
     setFailure,
+    cloudView,
+    wakeCloud,
   })
   const handleTakeBackPending = useTakeBackPending({
     threadId,

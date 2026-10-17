@@ -1,10 +1,8 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { SANDBOX_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
-import { EReconnectEscalation } from './remote-delta-channel'
-import { ECloudSandboxState } from './sandbox-client'
 import { VercelDriver } from './vercel-driver'
-import type { CloudSandboxes, WorkspaceSpec } from './cloud-bridge'
+import type { WorkspaceSpec } from './cloud-bridge'
 
 export type LiveSandbox = Parameters<
   NonNullable<Parameters<VercelDriver['createOrResume']>[0]['putContextOnFreshBoot']>
@@ -71,34 +69,6 @@ export const bootstrapSpecOf = (args: {
     githubToken: args.gitToken ?? null,
     ...(args.model === undefined ? {} : { model: args.model }),
   })
-
-export const parkedEscalationOf = (args: {
-  sandboxes: Pick<CloudSandboxes, 'find'>
-  threadId: ThreadId
-}): (() => Promise<boolean>) => {
-  const { sandboxes, threadId } = args
-  return () =>
-    sandboxes.find({ threadId }).then(
-      (status) => status?.state === ECloudSandboxState.Parked,
-      () => false,
-    )
-}
-
-export const lifecycleEscalationOf = (args: {
-  sandboxes: Pick<CloudSandboxes, 'find'>
-  threadId: ThreadId
-}): (() => Promise<EReconnectEscalation>) => async () => {
-  try {
-    const status = await args.sandboxes.find({ threadId: args.threadId })
-    if (status?.state === ECloudSandboxState.Running) return EReconnectEscalation.Reattach
-    if (status === undefined || status.state === ECloudSandboxState.Parked || status.state === ECloudSandboxState.Stopped) {
-      return EReconnectEscalation.Parked
-    }
-    return EReconnectEscalation.Wait
-  } catch {
-    return EReconnectEscalation.Wait
-  }
-}
 
 export const liveDriverWith = (args: {
   config: VercelSandboxConfig

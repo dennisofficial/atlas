@@ -16,9 +16,8 @@ import { bornPlacementChip, startsTheThread } from './cloud/born-placement-chip'
 import { cloudRuntimeParts, openCloudConversation } from './cloud/cloud-app'
 import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { CLOUD_BIRTH_NOTICE_KEY, birthFailedNotice } from './cloud/cloud-birth-notices'
-import { createCloudRunner } from './cloud/cloud-runner'
+import { createCloudRunner, createCloudWake } from './cloud/cloud-runner'
 import { createCloudSession } from './cloud/cloud-session'
-import { parkHookFor } from './cloud/park-hook'
 import { mirrorCloudRenames } from './cloud/rename-mirror'
 import type { AtlasApp } from './compose'
 import { durableOpLog } from './durable-op-log'
@@ -108,7 +107,8 @@ export function useThreadBirth(args: {
             bornPlacementChip(app).retire(threadId)
           },
         })
-        const runner = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move })
+        const wake = createCloudWake({ bridge, channel: attachment.channel, threadId, captureContext, move })
+        const runner = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move, wake })
         const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner }) }
         const opened = await openCloudConversation({ app: base, threadId })
         const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })
@@ -116,10 +116,10 @@ export function useThreadBirth(args: {
         const session = createCloudSession({
           channel: attachment.channel,
           sandboxes: bridge.sandboxes,
+          wake: () => wake({ quiet: true }),
           onReload: latest.current.onReload,
           appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
           subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
-          onParked: parkHookFor({ app, channel: attachment.channel }),
           onClose: () => {
             cloudReadinessOf(attachment.channel).cancelWaiting()
             stopMirroring()

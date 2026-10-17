@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
 import React from 'react'
 
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-harness'
 import type { ReleaseRangeDecision } from '@dltech/atlas-core'
 
 import { EBuildKind } from '../../build/info'
@@ -98,7 +98,7 @@ const mount = async (whatsNewDeps: WhatsNewDeps, placement: { cloud: boolean } =
     pressEscape: () => setup.mockInput.pressEscape(),
     connectCloud: async () => {
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(true)
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       expect(await showing('CLOUD')).toBe(true)
     },
     reload: () => bridge.channel.reload({ sinceEventSeq: 0 }),

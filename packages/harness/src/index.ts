@@ -80,7 +80,7 @@ export * from './cloud/channel-wire'
 export { transcriptIdentityDigest } from './cloud/event-identity'
 export { ERuntimePhase } from '@dltech/atlas-wire'
 export type { RuntimeCheckpoint, TranscriptCheckpoint } from '@dltech/atlas-wire'
-export * from './cloud/transcript-freshness'
+export * from './cloud/connection-view'
 export {
   DEFAULT_REQUEST_TIMEOUT_MS,
   LONG_REQUEST_TIMEOUT_MS,

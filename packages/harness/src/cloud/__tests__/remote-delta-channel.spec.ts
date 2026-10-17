@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { EConnectionView } from '../connection-view'
 
 import { toRunId } from '@dltech/atlas-core'
 
@@ -17,7 +18,6 @@ import {
 } from '../channel-wire'
 import {
   createRemoteDeltaChannel,
-  EChannelConnection,
   RemotePublishRefused,
   STRANDED_STEP_END,
   type ChannelReload,
@@ -43,15 +43,8 @@ type FakeSocket = {
 
 type Keepalive = { intervalMs: number; run: () => void }
 
-/**
- * A local stand-in for the shared `harness()` fixture, threading the escalation-probe and
- * keepalive factory args the shared fixture does not carry.
- */
 const wiredHarness = (options: {
   maxAttempts?: number | undefined
-  maxReattachments?: number | undefined
-  reattach?: (() => Promise<{ url: string; token: string }>) | undefined
-  shouldEscalate?: (() => Promise<boolean>) | undefined
   keepaliveMs?: number | undefined
   scheduleKeepalive?: ((keepalive: Keepalive) => () => void) | undefined
 } = {}) => {
@@ -63,9 +56,6 @@ const wiredHarness = (options: {
     url: 'https://sandbox.test/',
     token: 'tok_session',
     maxAttempts: options.maxAttempts,
-    maxReattachments: options.maxReattachments,
-    reattach: options.reattach,
-    shouldEscalate: options.shouldEscalate,
     keepaliveMs: options.keepaliveMs,
     scheduleKeepalive: options.scheduleKeepalive,
     scheduleRetry: (retry) => void retries.push(retry),
@@ -128,7 +118,7 @@ describe('opening the session socket', () => {
     open()
     receive({ kind: EServeFrame.Ready, seq: 4 })
 
-    expect(channel.connection().state).toBe(EChannelConnection.Open)
+    expect(channel.connection().state).toBe(EConnectionView.Connected)
   })
 })
 
@@ -219,7 +209,7 @@ describe('a durable head that reads off the wire', () => {
     open()
     receive({ kind: EServeFrame.Ready, seq: 4, protocol: CHANNEL_PROTOCOL_VERSION + 1 })
 
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Disconnected)
     expect(channel.connection().detail).toContain('update Atlas')
     expect(failures[0]).toContain('update Atlas')
     expect(live().closed).toBe(true)
@@ -234,22 +224,22 @@ describe('a durable head that reads off the wire', () => {
     open()
     receive({ kind: EServeFrame.Ready, seq: 4, protocol: CHANNEL_PROTOCOL_VERSION - 1 })
 
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Disconnected)
     expect(channel.connection().detail).toContain('re-open the conversation')
     expect(failures[0]).toContain('re-open the conversation')
   })
 
   it('reports itself connecting until the server is ready', () => {
     const { channel, open, receive } = harness()
-    const states: EChannelConnection[] = []
+    const states: EConnectionView[] = []
     channel.onConnection((connection) => void states.push(connection.state))
 
-    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+    expect(channel.connection().state).toBe(EConnectionView.Waking)
     open()
     receive({ kind: EServeFrame.Ready, seq: 4 })
 
-    expect(channel.connection().state).toBe(EChannelConnection.Open)
-    expect(states).toEqual([EChannelConnection.Open])
+    expect(channel.connection().state).toBe(EConnectionView.Connected)
+    expect(states).toEqual([EConnectionView.Connected])
   })
 })
 
@@ -392,7 +382,7 @@ describe('a gap the channel cannot replay', () => {
       { type: 'step-ended', stepId: STEP, end: STRANDED_STEP_END, supersededBy: null },
     ])
     expect(reloads).toEqual([{ sinceEventSeq: 31 }])
-    expect(channel.connection().state).toBe(EChannelConnection.Open)
+    expect(channel.connection().state).toBe(EConnectionView.Connected)
   })
 
   it('resumes the delta stream where a gap reload leaves off, without redelivering', () => {
@@ -446,7 +436,7 @@ describe('losing the socket', () => {
 
     drop()
 
-    expect(channel.connection().state).toBe(EChannelConnection.Reconnecting)
+    expect(channel.connection().state).toBe(EConnectionView.Reconnecting)
   })
 
   it('keeps the step in flight across a drop, so a quick resume is seamless', () => {
@@ -472,7 +462,7 @@ describe('losing the socket', () => {
     drop()
 
     expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Disconnected)
   })
 })
 
@@ -483,10 +473,7 @@ describe('a sandbox that parked', () => {
 
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
 
-    expect(channel.connection()).toEqual({
-      state: EChannelConnection.Parked,
-      detail: 'idle past the ttl',
-    })
+    expect(channel.connection()).toEqual({ state: EConnectionView.Parked, detail: null })
   })
 
   it('does not strand the step it parked in the middle of', () => {
@@ -508,7 +495,7 @@ describe('a sandbox that parked', () => {
 
     drop()
 
-    expect(channel.connection().state).toBe(EChannelConnection.Parked)
+    expect(channel.connection().state).toBe(EConnectionView.Parked)
   })
 })
 
@@ -608,18 +595,18 @@ describe('waking a channel whose socket will not come back', () => {
     open()
     receive({ kind: EServeFrame.Ready, seq: 1 })
     drop()
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Disconnected)
 
     channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
 
     expect(sockets).toHaveLength(2)
     expect(live().url).toBe('wss://fresh.test/v1/session')
     expect(live().protocols).toEqual([CHANNEL_SUBPROTOCOL, bearerSubprotocolOf('tok_fresh')])
-    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+    expect(channel.connection().state).toBe(EConnectionView.Waking)
 
     live().handlers.handleOpen()
     live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Ready, seq: 1 }))
-    expect(channel.connection().state).toBe(EChannelConnection.Open)
+    expect(channel.connection().state).toBe(EConnectionView.Connected)
   })
 
   it('cancels the retry it had scheduled, so the old dial never lands', () => {
@@ -632,7 +619,7 @@ describe('waking a channel whose socket will not come back', () => {
     channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
     retries[0]?.run()
 
-    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+    expect(channel.connection().state).toBe(EConnectionView.Waking)
   })
 
   it('flushes what was queued while it was closed once the fresh socket is ready', () => {
@@ -658,7 +645,7 @@ describe('waking a channel whose socket will not come back', () => {
     channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
 
     expect(sockets).toHaveLength(1)
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Detached)
   })
 })
 
@@ -676,7 +663,7 @@ describe('closing the channel', () => {
 
     expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
     expect(socket.closed).toBe(true)
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Detached)
     expect(retries).toEqual([])
   })
 })
@@ -691,7 +678,7 @@ describe('a stale socket reaching back from an earlier generation', () => {
     channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
     stale?.handlers.handleClose()
 
-    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+    expect(channel.connection().state).toBe(EConnectionView.Waking)
   })
 
   it('ignores a close that arrives after the channel was closed, so nothing reconnects', () => {
@@ -735,7 +722,7 @@ describe('a stale socket reaching back from an earlier generation', () => {
     expect(sockets[0]?.closed).toBe(true)
     live().handlers.handleOpen()
     live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Ready, seq: 1 }))
-    expect(channel.connection().state).toBe(EChannelConnection.Open)
+    expect(channel.connection().state).toBe(EConnectionView.Connected)
   })
 
   it('ignores a scheduled reconnect that fires after close() abandoned the channel', () => {
@@ -749,148 +736,8 @@ describe('a stale socket reaching back from an earlier generation', () => {
     retries[0]?.run()
 
     expect(sockets).toHaveLength(1)
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Detached)
   })
-})
-
-describe('probing for an early escalation', () => {
-  const freshAttachment = { url: 'https://fresh.test/', token: 'tok_fresh' }
-
-  it('asks once a retry cycle begins, and escalates right away when the answer is yes', async () => {
-    const { channel, open, receive, drop, sockets, retries } = wiredHarness({
-      shouldEscalate: () => Promise.resolve(true),
-      reattach: () => Promise.resolve(freshAttachment),
-    })
-    open()
-    receive({ kind: EServeFrame.Ready, seq: 1 })
-
-    drop()
-    expect(channel.connection().state).toBe(EChannelConnection.Reconnecting)
-
-    await Bun.sleep(1)
-
-    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
-    expect(sockets).toHaveLength(2)
-
-    retries[0]?.run()
-    expect(sockets).toHaveLength(2)
-  })
-
-  it('treats a rejecting probe as a no, so the backoff still runs its course', async () => {
-    let reattachCalls = 0
-    const { channel, open, receive, drop, sockets } = wiredHarness({
-      shouldEscalate: () => Promise.reject(new Error('probe unreachable')),
-      reattach: () => {
-        reattachCalls += 1
-        return Promise.resolve(freshAttachment)
-      },
-    })
-    open()
-    receive({ kind: EServeFrame.Ready, seq: 1 })
-
-    drop()
-    await Bun.sleep(1)
-
-    expect(channel.connection().state).toBe(EChannelConnection.Reconnecting)
-    expect(reattachCalls).toBe(0)
-    expect(sockets).toHaveLength(1)
-  })
-
-  it('does not ask again later in the same retry cycle', () => {
-    let probeCalls = 0
-    const { open, receive, drop, retries, live } = wiredHarness({
-      shouldEscalate: () => {
-        probeCalls += 1
-        return new Promise<boolean>(() => undefined)
-      },
-      reattach: () => Promise.resolve(freshAttachment),
-    })
-    open()
-    receive({ kind: EServeFrame.Ready, seq: 1 })
-
-    drop()
-    expect(probeCalls).toBe(1)
-
-    retries[0]?.run()
-    live().handlers.handleClose()
-
-    expect(probeCalls).toBe(1)
-  })
-
-  it('asks again once a fresh retry cycle begins after a clean reconnect', () => {
-    let probeCalls = 0
-    const { open, receive, drop, retries, live } = wiredHarness({
-      shouldEscalate: () => {
-        probeCalls += 1
-        return new Promise<boolean>(() => undefined)
-      },
-      reattach: () => Promise.resolve(freshAttachment),
-    })
-    open()
-    receive({ kind: EServeFrame.Ready, seq: 1 })
-    drop()
-    expect(probeCalls).toBe(1)
-
-    retries[0]?.run()
-    live().handlers.handleOpen()
-    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Ready, seq: 1 }))
-
-    drop()
-    expect(probeCalls).toBe(2)
-  })
-
-  it('never asks when there is no reattach to escalate into', () => {
-    let probeCalls = 0
-    const { open, receive, drop } = wiredHarness({
-      shouldEscalate: () => {
-        probeCalls += 1
-        return Promise.resolve(true)
-      },
-    })
-    open()
-    receive({ kind: EServeFrame.Ready, seq: 1 })
-
-    drop()
-
-    expect(probeCalls).toBe(0)
-  })
-
-  it('never asks once the re-attach budget is already spent', () => {
-    let probeCalls = 0
-    const { open, receive, drop } = wiredHarness({
-      maxReattachments: 0,
-      shouldEscalate: () => {
-        probeCalls += 1
-        return Promise.resolve(true)
-      },
-      reattach: () => Promise.resolve(freshAttachment),
-    })
-    open()
-    receive({ kind: EServeFrame.Ready, seq: 1 })
-
-    drop()
-
-    expect(probeCalls).toBe(0)
-  })
-
-  it('ignores a late yes once a wake already moved the channel on', async () => {
-    let resolveProbe: (escalateNow: boolean) => void = () => undefined
-    const { sockets, open, receive, drop, channel } = wiredHarness({
-      shouldEscalate: () => new Promise<boolean>((resolve) => void (resolveProbe = resolve)),
-      reattach: () => Promise.resolve(freshAttachment),
-    })
-    open()
-    receive({ kind: EServeFrame.Ready, seq: 1 })
-    drop()
-
-    channel.wake({ url: 'https://woken.test/', token: 'tok_woken' })
-    resolveProbe(true)
-    await Bun.sleep(1)
-
-    expect(sockets.some((socket) => socket.url.includes('fresh'))).toBe(false)
-    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
-  })
-
 })
 
 describe('the client-side keepalive', () => {

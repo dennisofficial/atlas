@@ -448,13 +448,14 @@ describe('a request riding the session socket', () => {
 })
 
 describe('a request against a parked channel', () => {
-  it('holds a redrivable read in flight across the park and re-drives it after the wake', async () => {
+  it('holds a redrivable read in flight across the park and re-drives it on the woken socket', async () => {
     const { channel, receive, live } = readied({ requestTimeoutMs: 60_000 })
 
     const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
     const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
 
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+    live().handlers.handleClose()
 
     let settled = false
     void answer.then(
@@ -464,37 +465,37 @@ describe('a request against a parked channel', () => {
     await Bun.sleep(1)
     expect(settled).toBe(false)
 
+    channel.wake({ url: 'https://sandbox.test/woken', token: 'tok_woken' })
     live().handlers.handleOpen()
     receive({ kind: EServeFrame.Ready, seq: 2 })
 
     const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
-    expect(resent).toHaveLength(2)
-    expect(resent[1]).toMatchObject({ op: EClientRequest.ReadEvents })
-    const id = resent[1]?.kind === EClientFrame.Request ? resent[1].id : ''
+    expect(resent).toHaveLength(1)
+    expect(resent[0]).toMatchObject({ op: EClientRequest.ReadEvents })
+    const id = resent[0]?.kind === EClientFrame.Request ? resent[0].id : ''
     expect(id).toBe(first?.kind === EClientFrame.Request ? first.id : '')
 
     receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { events: [] } })
     expect(await answer).toEqual({ events: [] })
   })
 
-  it('fails a non-redrivable request in flight the moment the serve parks, since it may have applied', async () => {
-    const { channel, receive } = readied({ requestTimeoutMs: 60_000 })
+  it('fails a non-redrivable request in flight once the parked socket closes, since it may have applied', async () => {
+    const { channel, receive, live } = readied({ requestTimeoutMs: 60_000 })
 
-    const answer = channel.request({ op: EClientRequest.Rewind, params: {} })
-    const failure = async (): Promise<unknown> => await answer.catch((error: unknown) => error)
+    const answer = channel.request({ op: EClientRequest.Rewind, params: {} }).catch((error: unknown) => error)
 
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+    live().handlers.handleClose()
 
-    const settled = await failure()
+    const settled = await answer
     expect(settled).toBeInstanceOf(RemoteRequestLost)
-    expect((settled as RemoteRequestLost).message).toContain('the sandbox is parked')
-    expect((settled as RemoteRequestLost).message).toContain('idle past the ttl')
+    expect((settled as RemoteRequestLost).message).toContain('the session socket closed')
   })
 
   it('wakes the sandbox for a new request and answers it once the fresh socket greets', async () => {
     let reattached = 0
     const { channel, receive, live } = readied({
-      reattach: async () => {
+      wakeSandbox: async () => {
         reattached += 1
         return { url: 'https://sandbox.test/woken', token: 'tok_woken' }
       },
@@ -522,7 +523,7 @@ describe('a request against a parked channel', () => {
   it('answers a parked-request that takes longer than the reply timeout to wake, since the clock starts on write', async () => {
     const { channel, receive, live, timeouts } = readied({
       requestTimeoutMs: 100,
-      reattach: async () => ({ url: 'https://sandbox.test/woken', token: 'tok_woken' }),
+      wakeSandbox: async () => ({ url: 'https://sandbox.test/woken', token: 'tok_woken' }),
     })
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
     live().handlers.handleClose()

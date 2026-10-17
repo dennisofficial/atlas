@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { ECompactionAnchor } from '@dltech/atlas-core'
 import {
   CHANNEL_PROTOCOL_VERSION,
-  EChannelConnection,
+  EConnectionView,
   EClientFrame,
   EServeFrame,
   ECompaction,
@@ -224,7 +224,7 @@ describe('compaction broadcast survives disconnect and greet', () => {
     const served = await startRecoveryServe({ summariser: probeSummariser().summariser })
     const watcher = await attachMirrored({ port: served.handle.port })
     await watcher.synced()
-    expect(watcher.channel.connection().state).toBe(EChannelConnection.Open)
+    expect(watcher.channel.connection().state).toBe(EConnectionView.Connected)
     expect(watcher.readies()).toEqual([])
     const raw = await connect({ port: served.handle.port, token: TOKEN })
     const head = (await serverEvents(served)).at(-1)!.seq

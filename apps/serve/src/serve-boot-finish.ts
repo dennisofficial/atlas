@@ -137,7 +137,7 @@ export async function finishServeBoot(args: {
     if (frame.kind === EServeFrame.TurnEnded) mirrorRevision.bump()
   }
 
-  const driver = createServeDriver({ app, threadId, workspace, admissionClosed, log, idleStop: () => idleStop, emitLifecycle })
+  const driver = createServeDriver({ app, threadId, workspace, log, idleStop: () => idleStop, emitLifecycle })
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({
     app,
@@ -235,8 +235,8 @@ export async function finishServeBoot(args: {
 
   boot.complete({
     handlers,
-    drain: (given) => recovery.drain({ drain, ...given }),
-    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable, admissionClosed },
+    drain: (given) => recovery.drain({ drain, ...given }).finally(handlers.replayDeferred),
+    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable },
   })
 
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })

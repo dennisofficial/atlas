@@ -181,14 +181,17 @@ describe('settings client frame', () => {
     expect(sent).toEqual([])
   })
 
-  it('takes the mutation path: a parking serve refuses it and leaves the settings alone', () => {
+  it('takes the mutation path: a serve between lifecycle phases drops it, logs it, and leaves the settings alone', () => {
     const home = mkdtempSync(join(tmpdir(), 'atlas-serve-settings-'))
     homes.push(home)
     const service = createSettingsService({
       definitions: ATLAS_SETTINGS,
       user: new FileSettingsStore({ file: join(home, 'settings.json'), label: 'serve' }),
     })
-    const log = (): void => undefined
+    const logged: ServeLogLine[] = []
+    const log = (line: ServeLogLine): void => {
+      logged.push(line)
+    }
     const handlers = createSessionHandlers({
       threadId,
       buffer: createFrameBuffer({ capacity: 16 }),
@@ -209,6 +212,7 @@ describe('settings client frame', () => {
     })
 
     expect(service.snapshot().document.values).toEqual({})
-    expect(sent).toHaveLength(1)
+    expect(sent).toEqual([])
+    expect(logged.map((line) => line.event)).toEqual([EServeEvent.AdmissionDropped])
   })
 })

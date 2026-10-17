@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+import { EConnectionView } from '../connection-view'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
-import { EChannelConnection } from '../remote-delta-channel'
 import { EClientFrame, EServeFrame } from '../channel-wire'
 
 import { harness, started, THREAD } from './remote-channel-fixture'
@@ -61,7 +61,7 @@ describe('a checkpoint the serve reports', () => {
     })
 
     expect(channel.checkpoint?.()?.revision).toBe(7)
-    expect(channel.connection().state).toBe(EChannelConnection.Parked)
+    expect(channel.connection().state).toBe(EConnectionView.Parked)
   })
 
   it('accepts a checkpoint on a frame this build cannot decode, without failing the frame', async () => {
@@ -108,7 +108,7 @@ describe('detaching from a session', () => {
 
     const detached: string[] = []
     channel.onDetached?.((reason) => detached.push(reason))
-    const connections: EChannelConnection[] = []
+    const connections: EConnectionView[] = []
     channel.onConnection((connection) => connections.push(connection.state))
 
     const socket = live()
@@ -119,9 +119,9 @@ describe('detaching from a session', () => {
     expect(detached[0]).toContain('detached')
     expect(channel.snapshot({ threadId: THREAD })).toEqual([])
     expect(socket.closed).toBe(true)
-    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().state).toBe(EConnectionView.Detached)
     expect(retries).toEqual([])
-    expect(connections.at(-1)).toBe(EChannelConnection.Closed)
+    expect(connections.at(-1)).toBe(EConnectionView.Detached)
   })
 
   it('does not answer a further detach', async () => {
@@ -148,7 +148,7 @@ describe('interrupting while the channel is parked', () => {
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
     drop()
 
-    expect(channel.connection().state).toBe(EChannelConnection.Parked)
+    expect(channel.connection().state).toBe(EConnectionView.Parked)
 
     channel.interrupt()
 

@@ -10,11 +10,12 @@ import {
 } from '@dltech/atlas-harness'
 
 import { protocolRefusal } from './hello-admission'
-import { pendingEntriesOf, refusedRequest } from './requests'
+import { pendingEntriesOf } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
 import { createTurnCommands } from './socket-commands'
 import { createRequestRouter, messageOf } from './socket-requests'
+import { createDeferredFrames } from './socket-deferred-frames'
 import { createSocketGreeter } from './socket-greet'
 import type { HelloFrame, SessionHandlers, SessionHandlersArgs, SessionSocket } from './socket-session-types'
 import { createMutationTracker, isReadOnlyFrame, routeStateRequest } from './socket-state-requests'
@@ -125,29 +126,20 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     )
   }
 
-  const refuseDeferred = (args: { socket: SessionSocket; frame: ClientFrame; message: string }): void => {
-    send({
-      socket: args.socket,
-      frame:
-        args.frame.kind === EClientFrame.Request
-          ? refusedRequest({ replyTo: args.frame.id, message: args.message })
-          : { kind: EServeFrame.Error, message: args.message },
-    })
-  }
-
-  const drive = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
+  const admitted = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = args
-
-    if (admissionClosed?.() === true && !isReadOnlyFrame(frame)) {
-      refuseDeferred({ socket, frame, message: 'this sandbox is parking and accepts no new work' })
-      return
-    }
-
     command({ socket, frame })
     if (frame.kind !== EClientFrame.Request) return
     if (routeStateRequest({ socket, frame, send, checkpoint, pending })) return
     if (!isReadOnlyFrame(frame)) mutations.begin(frame.id)
     router.route({ socket, frame })
+  }
+
+  const deferred = createDeferredFrames({ admissionClosed, send, drive: admitted, log })
+
+  const drive = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
+    if (!deferred.admits(args)) return
+    admitted(args)
   }
 
   const broadcast = (frame: ServeFrame): void => {
@@ -159,6 +151,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       }
       socket.send(encodeFrame(forSocket({ socket, frame })))
     }
+    if (frame.kind === EServeFrame.Checkpoint) deferred.replay()
   }
 
   const unsubscribePending = pending?.subscribe(() => {
@@ -213,6 +206,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
 
     close({ socket }) {
       live.delete(socket)
+      deferred.drop({ socket })
       if (!attached.delete(socket)) return
       log({
         event: EServeEvent.ClientDetached,
@@ -224,6 +218,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     },
 
     broadcast,
+
+    replayDeferred: deferred.replay,
 
     broadcastRoster() {
       const frame: ServeFrame = { kind: EServeFrame.Roster, roster: rosterWireSchema.parse(snapshot()) }
@@ -255,6 +251,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
 
     hangUp() {
       unsubscribePending?.()
+      deferred.clear()
       for (const socket of live) socket.terminate()
       live.clear()
       attached.clear()
