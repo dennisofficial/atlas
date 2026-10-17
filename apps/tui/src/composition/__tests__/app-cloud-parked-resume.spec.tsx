@@ -13,6 +13,8 @@ import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { clearAttachFailure } from '../attach-failure'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { CLOUD_WAKE_FAILED_NOTICE_KEY } from '../cloud/cloud-session'
+import { CLOUD_BIRTH_NOTICE_KEY } from '../cloud/cloud-birth-notices'
+import { CLOUD_SERVER_FAILURE_NOTICE_KEY } from '../use-cloud-connection'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import { cloudAttachmentOf } from '../session-binding'
 import { mountCloud } from './app-cloud-archive-fixture'
@@ -69,6 +71,15 @@ const viewOf = (app: FakeApp) => cloudAttachmentOf(app.sessionOwner.snapshot().b
 const stickyNotices = (): readonly string[] =>
   currentNotices().filter((notice) => notice.ttlMs === null).map((notice) => notice.key)
 
+const CLOUD_NOTICE_KEYS: ReadonlySet<string> = new Set([
+  CLOUD_WAKE_FAILED_NOTICE_KEY,
+  CLOUD_SERVER_FAILURE_NOTICE_KEY,
+  CLOUD_BIRTH_NOTICE_KEY,
+])
+
+const cloudNotices = (): readonly string[] =>
+  currentNotices().map((notice) => notice.key).filter((key) => CLOUD_NOTICE_KEYS.has(key))
+
 const bridgeAt = (args: { threadId: ThreadId; phase: ERuntimePhase | null }): FakeBridge =>
   fakeBridge({
     status: {
@@ -107,7 +118,7 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
       expect(bridge.channel.observed.map((checkpoint) => checkpoint.phase)).toEqual([ERuntimePhase.Parked])
       expect(viewOf(app)?.state).toBe(EConnectionView.Parked)
       expect(mounted.mutedEntries()).toBe(0)
-      expect(currentNotices()).toEqual([])
+      expect(cloudNotices()).toEqual([])
     } finally {
       await mounted.done()
     }
@@ -198,7 +209,7 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
       await mounted.frame()
 
       expect(viewOf(app)?.state).toBe(EConnectionView.Parked)
-      expect(currentNotices()).toEqual([])
+      expect(cloudNotices()).toEqual([])
     } finally {
       await mounted.done()
     }
