@@ -68,6 +68,9 @@ export type FakeCloudSandboxRow = {
   serveUrl?: string | null
   serveVersion?: string | null
   wakeFailedAt?: string | null
+  wakeClaim?: string | null
+  runtimeCheckpoint?: unknown
+  runtimeCheckpointRevision?: number | null
   tokenHash?: string
   sealedToken?: string | null
 }
@@ -115,6 +118,10 @@ export function seedCloudSandbox(row: FakeCloudSandboxRow): void {
     serveUrl: null,
     serveVersion: null,
     wakeFailedAt: null,
+    wakeClaim: null,
+    runtimeCheckpoint: null,
+    runtimeCheckpointRevision: null,
+    sealedToken: null,
     ...row,
   }
   cloudSandboxes = [...cloudSandboxes.filter((held) => held.threadId !== row.threadId), withDefaults]

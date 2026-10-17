@@ -4,10 +4,13 @@ import { randomBytes } from 'node:crypto'
 import type { VercelCredentials } from '@dltech/atlas-wire'
 
 import { db } from '../../../db'
+import { Prisma } from '../../../generated/prisma/client'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { wakeableOf, type SandboxLifecycleColumns } from '../../platform/sandboxes/sandbox-lifecycle'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
+import type { CloudSandboxModel } from '../../../db'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import {
   failureText,
@@ -28,12 +31,9 @@ export type {
 
 type WakeTarget = {
   threadId: string
-  sandbox: {
+  sandbox: SandboxLifecycleColumns & {
     name: string
-    state: string
     lastActivityAt: string
-    driveName: string | null
-    serveVersion: string | null
     wakeFailedAt: string | null
   }
 }
@@ -43,8 +43,9 @@ type WakeTarget = {
  * the event row lands; resolves the thread through the subscription link, boots only parked
  * sandboxes inside the 24h wake window, and debounces per threadId so a check-run storm boots
  * once. Never throws into the delivery path — a failed wake is logged, the mailbox row stays.
- * A boot is claimed with a conditional Parked→Resuming updateMany before any Vercel call, so a
- * second event that lands mid-boot loses the race and retries instead of starting a second boot.
+ * A boot is claimed by compare-and-swapping the row's `wakeClaim` against the parked row it read,
+ * before any Vercel call, so a second event — or a second API instance — loses the race instead
+ * of starting a second boot. The claim reads as Resuming until serve's own mirror supersedes it.
  */
 @Injectable()
 export class GithubSandboxWakeService {
@@ -91,7 +92,7 @@ export class GithubSandboxWakeService {
       )
       .filter(
         (target) =>
-          target.sandbox.state === ESandboxState.Parked &&
+          wakeableOf(target.sandbox) &&
           target.sandbox.lastActivityAt > wakeCutoff &&
           (target.sandbox.wakeFailedAt === null || target.sandbox.wakeFailedAt < backoffCutoff),
       )
@@ -132,90 +133,115 @@ export class GithubSandboxWakeService {
   }
 
   private async claimAndBoot(args: { threadId: string }): Promise<void> {
+    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    if (row === null || !wakeableOf(row)) {
+      this.logger.log(`wake of thread ${args.threadId} skipped — the row is no longer parked`)
+      return
+    }
+    const wakeClaim = new Date().toISOString()
     const claimed = await db.cloudSandbox.updateMany({
-      where: { threadId: args.threadId, state: ESandboxState.Parked },
-      data: { state: ESandboxState.Resuming, updatedAt: new Date().toISOString() },
+      where: {
+        threadId: args.threadId,
+        wakeClaim: row.wakeClaim,
+        runtimeCheckpointRevision: row.runtimeCheckpointRevision,
+        state: row.state,
+      },
+      data: { wakeClaim, updatedAt: wakeClaim },
     })
     if (claimed.count === 0) {
-      this.logger.log(`wake of thread ${args.threadId} lost its claim — the row is no longer parked`)
+      this.logger.log(`wake of thread ${args.threadId} lost its claim — the row moved underneath it`)
       return
     }
     try {
-      await this.bootClaimed(args)
+      await this.bootClaimed({ row })
     } catch (failure) {
-      await this.releaseClaim(args)
+      await this.releaseClaim({ threadId: args.threadId, wakeClaim })
       throw failure
     }
   }
 
-  private async bootClaimed(args: { threadId: string }): Promise<void> {
-    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
-    if (row === null) throw new Error(`sandbox row for thread ${args.threadId} vanished mid-wake`)
+  private async bootClaimed(args: { row: CloudSandboxModel }): Promise<void> {
+    const { row } = args
     const serveVersion = await this.validatedServeVersion({ pinned: row.serveVersion })
-    const credentials = this.vercelCredentials()
-    const token = randomBytes(32).toString('hex')
-    const { serveUrl } = await this.bootAdapter.boot({
-      credentials,
+    const freshToken = randomBytes(32).toString('hex')
+    const { serveUrl, created } = await this.bootAdapter.boot({
+      credentials: this.vercelCredentials(),
       name: row.name,
-      // Driveless: the boot no longer mounts a drive; the field stays on the seam until slice 5
-      // rewrites the wake, so an absent drive means the empty string.
-      driveName: row.driveName ?? '',
-      threadId: args.threadId,
+      threadId: row.threadId,
       image: this.env.get('SANDBOX_IMAGE'),
       cloudUrl: this.env.get('ATLAS_CLOUD_URL') ?? 'https://api.byatlas.io',
       serveVersion,
-      token,
+      freshToken,
+      resumeToken: this.unsealedToken(row),
+      onFreshSandbox: () => this.adoptFreshSandbox({ threadId: row.threadId, token: freshToken }),
     })
+    const at = new Date().toISOString()
     await db.cloudSandbox.update({
-      where: { threadId: args.threadId },
+      where: { threadId: row.threadId },
       data: {
         state: ESandboxState.Running,
         serveUrl,
-        tokenHash: hashSessionToken(token),
-        sealedToken: this.cipher.encrypt(token),
         wakeFailedAt: null,
-        lastActivityAt: new Date().toISOString(),
+        lastActivityAt: at,
+        updatedAt: at,
+      },
+    })
+    this.logger.log(
+      `woke sandbox ${row.name} for thread ${row.threadId} (${created ? 'created fresh' : 'resumed from snapshot'}) — serve at ${serveUrl}`,
+    )
+  }
+
+  /** The prior sandbox's lifecycle record died with it; the fresh serve mirrors from revision 1. */
+  private async adoptFreshSandbox(args: { threadId: string; token: string }): Promise<void> {
+    await db.cloudSandbox.update({
+      where: { threadId: args.threadId },
+      data: {
+        tokenHash: hashSessionToken(args.token),
+        sealedToken: this.cipher.encrypt(args.token),
+        runtimeCheckpoint: Prisma.DbNull,
+        runtimeCheckpointRevision: null,
         updatedAt: new Date().toISOString(),
       },
     })
-    this.logger.log(`woke sandbox ${row.name} for thread ${args.threadId} — serve at ${serveUrl}`)
   }
 
-  private async releaseClaim(args: { threadId: string }): Promise<void> {
+  private unsealedToken(row: Pick<CloudSandboxModel, 'name' | 'sealedToken'>): string | undefined {
+    if (row.sealedToken === null) return undefined
+    try {
+      return this.cipher.decrypt(row.sealedToken)
+    } catch (failure) {
+      this.logger.warn(`the sealed token on sandbox ${row.name} does not decrypt: ${failureText(failure)}`)
+      return undefined
+    }
+  }
+
+  private async releaseClaim(args: { threadId: string; wakeClaim: string }): Promise<void> {
+    const at = new Date().toISOString()
     await db.cloudSandbox.updateMany({
-      where: { threadId: args.threadId, state: ESandboxState.Resuming },
-      data: {
-        state: ESandboxState.Parked,
-        wakeFailedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      where: { threadId: args.threadId, wakeClaim: args.wakeClaim },
+      data: { wakeClaim: null, wakeFailedAt: at, updatedAt: at },
     })
   }
 
   /**
-   * The pinned serveVersion is only worth booting when its release artifact still exists — a
-   * boot against a pruned release fails at install and leaves the thread wedged until the next
-   * event. A missing artifact falls back to latest (undefined desiredVersion).
+   * The wake boots the client's pinned version exactly, never latest: booting latest would
+   * manufacture the version drift drain-and-swap exists to correct. A pruned or unreachable
+   * release artifact fails the wake into backoff. Only a row no released client ever pinned
+   * boots latest.
    */
   private async validatedServeVersion(args: { pinned: string | null }): Promise<string | undefined> {
     if (args.pinned === null) return undefined
     const tag = `tui-v${args.pinned.replace(/^tui-v/, '').replace(/^v/, '')}`
-    try {
-      const response = await fetch(
-        `https://github.com/${RELEASE_REPOSITORY}/releases/download/${tag}/install.sh`,
-        { method: 'HEAD', signal: AbortSignal.timeout(SERVE_INSTALL_TIMEOUT_MS) },
-      )
-      if (response.ok) return args.pinned
-      this.logger.warn(
-        `pinned serve ${args.pinned} has no release artifact (${response.status}) — waking with latest`,
-      )
-      return undefined
-    } catch (failure) {
-      this.logger.warn(
-        `could not validate pinned serve ${args.pinned} — waking with latest: ${failureText(failure)}`,
-      )
-      return undefined
+    const response = await fetch(
+      `https://github.com/${RELEASE_REPOSITORY}/releases/download/${tag}/install.sh`,
+      { method: 'HEAD', signal: AbortSignal.timeout(SERVE_INSTALL_TIMEOUT_MS) },
+    ).catch((failure: unknown) => {
+      throw new Error(`could not validate pinned serve ${args.pinned}: ${failureText(failure)}`)
+    })
+    if (!response.ok) {
+      throw new Error(`pinned serve ${args.pinned} has no release artifact (${response.status})`)
     }
+    return args.pinned
   }
 
   private vercelCredentials(): VercelCredentials {
