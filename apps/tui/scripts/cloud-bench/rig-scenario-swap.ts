@@ -204,6 +204,9 @@ async function runSwap(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     const ctlAlive = await aliveIn({ ctx, pid: ctl })
     const session = await serveSessionMatchesLive(ctx)
     const refusals = await stopRefusalsInServeLog(ctx)
+    const processes = await ctx.probes
+      .sh({ name: ctx.sandboxName(), script: 'ps -eo pid,args' })
+      .catch((error: unknown) => `ps failed: ${error instanceof Error ? error.message : String(error)}`)
 
     const criteria = createCriteria({ log: ctx.log })
     criteria.check({ name: 'serve session id is the live session', expected: 'equal', observed: session.observed, held: session.held })
@@ -235,6 +238,7 @@ async function runSwap(ctx: ScenarioContext): Promise<ScenarioEvidence> {
 
     draft.logs.push(
       { label: 'criteria', text: criteria.text() },
+      { label: 'ps -eo pid,args after the swap', text: processes },
       { label: 'view timeline (resumed channel)', text: watch.views().join(' → ') },
       { label: 'serve drain/rotation lines', text: swap.swapLines.join('\n') || '(none)' },
       { label: 'driver drain/rotation lines', text: rig.driverLines.filter((line) => DRIVER_SWAP_LINE.test(line)).join('\n') || '(none)' },
