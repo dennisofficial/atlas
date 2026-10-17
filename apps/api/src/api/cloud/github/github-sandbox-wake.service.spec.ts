@@ -280,7 +280,7 @@ describe('GithubSandboxWakeService', () => {
     serviceWith({ boot }).notifyEvent({ userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 })
     await flushDebounce()
 
-    expect(calls[0]?.driveName).toMatch(/^atlas-drive-[0-9a-f]{24}$/)
+    expect(calls[0]?.driveName).toBe('')
     expect(calls[0]?.serveVersion).toBeUndefined()
   })
 

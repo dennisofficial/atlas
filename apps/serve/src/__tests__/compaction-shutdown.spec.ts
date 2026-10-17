@@ -187,7 +187,7 @@ describe('serve lifecycle close ordering', () => {
       haltIdle: () => undefined,
       drainDeadlineMs: 200,
       detach: () => undefined,
-      stopSandbox: undefined,
+      stopSandbox: async () => undefined,
       exit: () => undefined,
     })
     return { app, calls, lifecycle }

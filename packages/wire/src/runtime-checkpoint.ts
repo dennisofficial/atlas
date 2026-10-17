@@ -47,7 +47,13 @@ export type SandboxRotationReceipt = z.infer<typeof sandboxRotationReceiptSchema
 
 export const runtimeCheckpointSchema = z.discriminatedUnion('phase', [
   z.strictObject({ ...lifecycleBase, phase: z.literal(ERuntimePhase.Provisioning) }),
-  z.strictObject({ ...lifecycleBase, phase: z.literal(ERuntimePhase.Serving) }),
+  z.strictObject({
+    ...lifecycleBase,
+    phase: z.literal(ERuntimePhase.Serving),
+    // A rotation's owed obligations ride the serving record after the swap reopens; each
+    // consumption rewrites it, and the field drops once nothing is owed.
+    receipt: sandboxRotationReceiptSchema.optional(),
+  }),
   z.strictObject({
     ...lifecycleBase,
     phase: z.literal(ERuntimePhase.Parking),

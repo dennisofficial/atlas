@@ -76,12 +76,23 @@ describe('runtimeCheckpointSchema', () => {
     expect(runtimeCheckpointSchema.safeParse(withoutReceipt).success).toBe(false)
   })
 
-  it('rejects a receipt payload on any other phase', () => {
+  it('lets a serving record carry a sealed receipt, but no other phase', () => {
     const updating = updatingCheckpoint()
     if (updating.phase !== ERuntimePhase.Updating) throw new Error('fixture drift')
     expect(
       runtimeCheckpointSchema.safeParse({ ...checkpoint(), receipt: updating.receipt }).success,
-    ).toBe(false)
+    ).toBe(true)
+    for (const phase of [
+      ERuntimePhase.Provisioning,
+      ERuntimePhase.Parking,
+      ERuntimePhase.Parked,
+      ERuntimePhase.Waking,
+    ]) {
+      expect(
+        runtimeCheckpointSchema.safeParse({ ...checkpoint({ phase }), receipt: updating.receipt })
+          .success,
+      ).toBe(false)
+    }
   })
 
   it('rejects a revision that is not a positive integer', () => {

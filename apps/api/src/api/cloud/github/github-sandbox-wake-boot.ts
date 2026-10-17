@@ -1,17 +1,14 @@
 import { Logger } from '@nestjs/common'
 
 import {
-  attachLagRetry,
+  settleRetry,
   imageOptimizeRetry,
   createServeLauncher,
-  ensureDrive,
   isSandboxMissing,
-  liveDriveSdk,
   liveSdk,
   mountWithRetries,
   routedUrlWithRetries,
   SANDBOX_QUICK_TIMEOUT_MS,
-  waitForDriveDetached,
   type VercelCredentials,
 } from '@dltech/atlas-wire'
 
@@ -44,10 +41,11 @@ export const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 /**
- * Recreates a parked sandbox and boots its serve: the stopped Vercel sandbox is deleted, the
- * thread's drive remounts on a fresh container, and serve comes up under a freshly minted token.
- * The row's sealedToken died at park, so the wake mints a new one and seals it onto the row —
- * the session's reconnect path verifies the same token the boot wrote into the sandbox.
+ * Recreates a parked sandbox and boots its serve: the stopped Vercel sandbox is deleted and a
+ * fresh container boots in its place, and serve comes up under a freshly minted token. The
+ * delete+recreate semantics predate the driveless rebuild; the API-side wake rewrite (slice 5)
+ * replaces this with a plain `resume: true` mount. Slice 2 only cut the drive machinery out of
+ * it, so `driveName` rides along unused until then.
  */
 class VercelSandboxWakeBoot implements SandboxWakeBoot {
   constructor(private readonly log: (line: string) => void) {}
@@ -56,29 +54,15 @@ class VercelSandboxWakeBoot implements SandboxWakeBoot {
     let created = false
     try {
       created = await this.replaceStaleSandbox(args)
-      await waitForDriveDetached({
-        sdk: liveDriveSdk,
-        credentials: args.credentials,
-        name: args.driveName,
-        retry: attachLagRetry,
-      })
-      const drive = await ensureDrive({
-        sdk: liveDriveSdk,
-        credentials: args.credentials,
-        name: args.driveName,
-        driveExisted: true,
-      })
       const sandbox = await mountWithRetries({
         sdk: liveSdk,
         cloudUrl: args.cloudUrl,
-        retry: attachLagRetry,
+        retry: settleRetry,
         imageOptimize: imageOptimizeRetry,
         log: this.log,
         credentials: args.credentials,
         name: args.name,
         image: args.image,
-        drive,
-        driveName: args.driveName,
         threadId: args.threadId,
         token: args.token,
         onCreate: () => {
@@ -137,8 +121,8 @@ class VercelSandboxWakeBoot implements SandboxWakeBoot {
 
   /**
    * A failed wake must delete the sandbox it created: leaving it idles into Vercel's reaper and
-   * the next wake's stale-delete can race the replacement. The drive is the thread's workspace —
-   * it stays. Best-effort: a rollback failure must not mask the boot failure that caused it.
+   * the next wake's stale-delete can race the replacement. Best-effort: a rollback failure must
+   * not mask the boot failure that caused it.
    */
   private async rollback(args: { args: WakeBootArgs; created: boolean }): Promise<void> {
     if (!args.created) return

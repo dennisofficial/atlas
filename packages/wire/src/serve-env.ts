@@ -8,15 +8,19 @@ export enum EServeEnv {
   Port = 'ATLAS_SERVE_PORT',
   ThreadId = 'ATLAS_THREAD_ID',
   CloudUrl = 'ATLAS_CLOUD_URL',
-  WorkspaceDir = 'ATLAS_WORKSPACE_DIR',
   Model = 'ATLAS_MODEL',
   DecisionsUrl = 'ATLAS_DECISIONS_URL',
   DecisionsProvider = 'ATLAS_DECISIONS_PROVIDER',
   DecisionsModel = 'ATLAS_DECISIONS_MODEL',
 }
 
-export const CLOUD_WORKSPACES_PATH = '/atlas/workspaces'
-export const CLOUD_WORKSPACE_PATH = `${CLOUD_WORKSPACES_PATH}/workspace`
+/**
+ * Workspace and ATLAS_HOME live on the sandbox's own filesystem under /opt/atlas, which
+ * `persistent: true` snapshots carry between stops — there is no drive and no mount.
+ */
+export const SANDBOX_WORKSPACES_PATH = '/opt/atlas/workspaces'
+export const SANDBOX_WORKSPACE_PATH = `${SANDBOX_WORKSPACES_PATH}/workspace`
+export const SANDBOX_HOME_PATH = '/opt/atlas/home'
 
 export const SERVE_HOME = '/opt/atlas'
 export const SERVE_BINARY_PATH = `${SERVE_HOME}/atlas-serve`
@@ -27,13 +31,6 @@ export const SERVE_BINARY_PATH = `${SERVE_HOME}/atlas-serve`
 export const SERVE_VERSION_PATH = `${SERVE_BINARY_PATH}.version`
 /** The CHANNEL_PROTOCOL_VERSION the baked serve speaks, written by the image build; a mismatch rotates the sandbox. */
 export const SERVE_PROTOCOL_PATH = `${SERVE_BINARY_PATH}.protocol`
-export const SERVE_LOG_PATH = '/atlas/home/operational/atlas-serve.log'
-export const LEGACY_SERVE_LOG_PATH = `${SERVE_HOME}/atlas-serve.log`
+export const SERVE_LOG_PATH = `${SANDBOX_HOME_PATH}/operational/atlas-serve.log`
 export const SERVE_LOCK_PATH = `${SERVE_HOME}/atlas-serve.lock`
-/**
- * The swap lock guards the whole probe→drain→stop→install→boot sequence across client processes;
- * SERVE_LOCK_PATH only serializes the boot exec itself. flock's file descriptor must stay on the
- * sandbox's own filesystem — the drive may be mounted over NFS, where flock does not work.
- */
-export const SWAP_LOCK_PATH = `${SERVE_HOME}/swap.lock`
 export const SERVE_TOKEN_PATH = `${SERVE_HOME}/atlas-serve.token`

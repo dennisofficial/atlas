@@ -3,10 +3,9 @@ import type { Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from './channel-wire.js'
 import { installServe, type ServeInstaller } from './sandbox-serve-install.js'
-import { sandboxSh, withSwapLock } from './sandbox-swap-lock.js'
+import { sandboxSh } from './sandbox-sh.js'
 import {
   SERVE_BINARY_PATH,
-  LEGACY_SERVE_LOG_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
@@ -80,37 +79,10 @@ export const HEALTH_PROBE = withServeToken(
   `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" "http://localhost:$ATLAS_SERVE_PORT/v1/health" -o /dev/null`,
 )
 
-const HEALTH_BODY_PROBE = withServeToken(
-  `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" "http://localhost:$ATLAS_SERVE_PORT/v1/health"`,
-)
-
 const sh = sandboxSh
 
 const serveHealthy = async (sandbox: Sandbox): Promise<boolean> =>
   (await sh({ sandbox, script: HEALTH_PROBE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS })).exitCode === 0
-
-// A serve that parked and finalized stays admission-closed while answering health with 200 —
-// the wedge from docs/research/park-resume-design-audit.md §4.2.1. The keep seam reads the body
-// the drain seam's wedgeProofOf already defines; an unreadable body is not evidence, so it is
-// preserved rather than replaced on suspicion.
-const serveAdmissionClosed = async (sandbox: Sandbox): Promise<boolean> => {
-  const probe = await sh({ sandbox, script: HEALTH_BODY_PROBE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS }).catch(
-    () => null,
-  )
-  if (probe === null || probe.exitCode !== 0 || typeof probe.stdout !== 'function') return false
-  let body: unknown
-  try {
-    body = JSON.parse(await probe.stdout())
-  } catch {
-    return false
-  }
-  return (
-    typeof body === 'object' &&
-    body !== null &&
-    'admissionClosed' in body &&
-    (body as { admissionClosed: unknown }).admissionClosed === true
-  )
-}
 
 export const SERVE_ALIVE_PROBE = `kill -0 $(cat ${SERVE_HOME}/atlas-serve.pid 2>/dev/null) 2>/dev/null || { for pid in /proc/[0-9]*; do grep -qa '^${SERVE_BINARY_PATH}' "$pid/cmdline" 2>/dev/null && exit 0; done; exit 1; }`
 
@@ -154,7 +126,7 @@ const tokenFileMatches = async (args: { sandbox: Sandbox; token: string }): Prom
 const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
   const tail = await sh({
     sandbox,
-    script: `tail -c 16384 ${SERVE_LOG_PATH} 2>/dev/null || tail -c 16384 ${LEGACY_SERVE_LOG_PATH} 2>/dev/null || true`,
+    script: `tail -c 16384 ${SERVE_LOG_PATH} 2>/dev/null || true`,
     timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
   }).catch(() => null)
   if (tail === null) return '<could not read the serve log>'
@@ -184,7 +156,7 @@ export function createServeLauncher(args?: {
   installServe?: ServeInstaller | undefined
 }): ServeLauncher {
   const install = args?.installServe ?? installServe
-  const launchUnlocked: ServeLauncher = async ({ sandbox, token, sandboxSessionId, cloudUrl, desiredVersion }) => {
+  return async ({ sandbox, token, sandboxSessionId, cloudUrl, desiredVersion }) => {
     if (await serveAlive(sandbox)) {
       if (token !== undefined && !(await tokenFileMatches({ sandbox, token }))) {
         throw new Error('atlas serve is already running under a different token; refusing to rotate its live credentials')
@@ -193,19 +165,8 @@ export function createServeLauncher(args?: {
       const drifted = serveDriftedFor({ stamps, desiredVersion })
       if (!drifted) {
         if (await serveHealthy(sandbox)) {
-          if (!(await serveAdmissionClosed(sandbox))) {
-            args?.log?.(`sandbox ${sandbox.name} has a live serve answering /v1/health — keeping it`)
-            return
-          }
-          args?.log?.(
-            `sandbox ${sandbox.name} has a live serve whose health reports admission is closed — a finalized park latched it; stopping it to boot a fresh serve`,
-          )
-          await stopServe(sandbox)
-          if (await serveAlive(sandbox)) {
-            throw new Error(
-              `atlas serve refused to stop for its wedge replacement; the sandbox was left running the wedged serve rather than destroyed`,
-            )
-          }
+          args?.log?.(`sandbox ${sandbox.name} has a live serve answering /v1/health — keeping it`)
+          return
         } else {
           args?.log?.(
             `sandbox ${sandbox.name} has a live serve that is not answering /v1/health — the process is preserved rather than killed; waiting for it`,
@@ -282,12 +243,4 @@ export function createServeLauncher(args?: {
     }
     args?.log?.(`sandbox ${sandbox.name} answers /v1/health`)
   }
-  // Two clients waking the same sandbox race probe→install→boot; the loser re-reads the stamps
-  // the winner just wrote and keeps the result instead of installing over it.
-  return async (launchArgs) =>
-    withSwapLock({
-      sandbox: launchArgs.sandbox,
-      sh,
-      run: () => launchUnlocked(launchArgs),
-    })
 }

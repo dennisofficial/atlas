@@ -6,7 +6,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   activateTransferredChildren, adoptTransferredChildren, AgentSupervisor, buildHarness,
-  persistSandboxRotationReceipt, PublishingTurnRunner,
+  PublishingTurnRunner,
 } from '@dltech/atlas-harness'
 
 import { ERuntimePhase } from '@dltech/atlas-wire'
@@ -46,7 +46,6 @@ export async function rotationChildFixture() {
   if (checkpoint === null || checkpoint.phase !== ERuntimePhase.Updating) {
     throw new Error('the child fixture requires a rotation checkpoint')
   }
-  await persistSandboxRotationReceipt({ atlasHome: fixture.home, receipt: checkpoint.receipt })
   await harness.close()
   const boot = async (modelGate = gate()) => {
     let steps = 0

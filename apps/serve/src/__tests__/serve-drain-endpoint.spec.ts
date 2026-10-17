@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EKilledBy, toRunId } from '@dltech/atlas-core'
+import { toRunId } from '@dltech/atlas-core'
 import { EClientFrame, EServeFrame, ETurnStatus, toSendId, readSandboxRotationReceipt } from '@dltech/atlas-harness'
 import { sandboxDrainReplySchema } from '@dltech/atlas-wire'
 
@@ -35,9 +35,9 @@ afterEach(async () => {
   for (const home of scratchHomes.splice(0)) rmSync(home, { recursive: true, force: true })
 })
 
-const boot = async (over: { holdTurn?: Promise<void>; failChildPause?: boolean; failStop?: boolean } = {}) => {
+const boot = async (over: { holdTurn?: Promise<void>; failChildPause?: boolean } = {}) => {
   const order: string[] = []
-  const endings: EKilledBy[] = []
+  const endings: string[] = []
   let exitCode: number | undefined
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-drain-spec-'))
   scratchHomes.push(home)
@@ -62,9 +62,8 @@ const boot = async (over: { holdTurn?: Promise<void>; failChildPause?: boolean; 
       },
       resumeChildren: async () => undefined,
     },
-    endProcesses: async ({ killedBy }: { killedBy: EKilledBy }) => {
-      if (over.failStop) throw new Error('service still running')
-      endings.push(killedBy)
+    endProcesses: async () => {
+      endings.push('ended')
       order.push('endings')
     },
   }
@@ -98,19 +97,11 @@ const boot = async (over: { holdTurn?: Promise<void>; failChildPause?: boolean; 
 }
 
 describe('POST /v1/drain', () => {
-  it('returns a failed preparation without ending processes or exiting when a child cannot pause', async () => {
+  it('returns a failed preparation without exiting when a child cannot pause', async () => {
     const test = await boot({ failChildPause: true })
     const response = await test.post({ token: TOKEN })
     expect(response.status).toBe(503)
     expect(test.endings).toEqual([])
-    expect(await readSandboxRotationReceipt({ atlasHome: test.home })).toBeNull()
-    expect(test.exitCode()).toBeUndefined()
-  })
-
-  it('returns a failed preparation without a receipt or exit when a process remains running', async () => {
-    const test = await boot({ failStop: true })
-    const response = await test.post({ token: TOKEN })
-    expect(response.status).toBe(503)
     expect(await readSandboxRotationReceipt({ atlasHome: test.home })).toBeNull()
     expect(test.exitCode()).toBeUndefined()
   })
@@ -141,7 +132,7 @@ describe('POST /v1/drain', () => {
     expect(response.status).toBe(405)
   })
 
-  it('answers an idle serve, ends its processes as a rotation, and only then exits', async () => {
+  it('answers an idle serve and leaves its processes running across the swap', async () => {
     const test = await boot()
 
     const response = await test.post({ token: TOKEN })
@@ -150,13 +141,13 @@ describe('POST /v1/drain', () => {
     const proof = sandboxDrainReplySchema.parse(await response.json())
     expect(proof.receipt.resumeParent).toBe(false)
     expect(await readSandboxRotationReceipt({ atlasHome: test.home })).toEqual(proof.receipt)
-    expect(test.endings).toEqual([EKilledBy.Rotation])
+    expect(test.endings).toEqual([])
     expect(test.exitCode()).toBeUndefined()
     await test.exited.opened
     expect(test.exitCode()).toBe(0)
   })
 
-  it('waits for a running turn to pause at its seam before ending processes, and reports it paused', async () => {
+  it('waits for a running turn to pause at its seam and reports it paused', async () => {
     const test = await boot()
     const client = await connect({ port: test.handle.port, token: TOKEN })
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
@@ -170,11 +161,11 @@ describe('POST /v1/drain', () => {
     const proof = sandboxDrainReplySchema.parse(await response.json())
     expect(proof.receipt.resumeParent).toBe(true)
     expect(await readSandboxRotationReceipt({ atlasHome: test.home })).toEqual(proof.receipt)
-    expect(test.order.indexOf('endings')).toBeGreaterThan(test.order.indexOf('turn-started'))
+    expect(test.order.indexOf('endings')).toBe(-1)
     await test.exited.opened
   })
 
-  it('persists an acknowledged queued message before sealing the recreation receipt', async () => {
+  it('persists an acknowledged queued message before sealing the rotation receipt', async () => {
     const holding = gate()
     const test = await boot({ holdTurn: holding.opened })
     const client = await connect({ port: test.handle.port, token: TOKEN })
@@ -196,7 +187,7 @@ describe('POST /v1/drain', () => {
     await test.exited.opened
   })
 
-  it('serves a second request that lands mid-drain the same result and ends processes once', async () => {
+  it('serves a second request that lands mid-drain the same result', async () => {
     const holding = gate()
     const test = await boot({ holdTurn: holding.opened })
     const client = await connect({ port: test.handle.port, token: TOKEN })
@@ -209,14 +200,12 @@ describe('POST /v1/drain', () => {
     await Bun.sleep(10)
     const second = test.post({ token: TOKEN })
     await Bun.sleep(10)
-    expect(test.endings).toEqual([])
     holding.open()
 
     const [one, two] = await Promise.all([first, second])
     const proof = sandboxDrainReplySchema.parse(await one.json())
     expect(proof.receipt.resumeParent).toBe(true)
     expect(await two.json()).toEqual(proof)
-    expect(test.endings).toHaveLength(1)
     await test.exited.opened
   })
 })

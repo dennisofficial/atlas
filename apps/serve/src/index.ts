@@ -1,5 +1,5 @@
 export * from './serve-args'
-export * from './drive-bootstrap'
+export * from './bootstrap-fetchers'
 export * from './channel-bridge'
 export * from './compose-serve'
 export * from './drain-deadline'

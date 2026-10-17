@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toCallId, toRunId } from '@dltech/atlas-core'
-import { ERuntimePhase, runtimeCheckpointSchema } from '@dltech/atlas-wire'
-import { EServeFrame, ETurnStatus, persistSandboxRotationIntent, persistSandboxRotationReceipt, readSandboxRotationState } from '@dltech/atlas-harness'
+import { ERuntimePhase, runtimeCheckpointSchema, type SandboxRotationReceipt } from '@dltech/atlas-wire'
+import { EServeFrame, ETurnStatus, readPersistedRuntimeCheckpoint, readSandboxRotationReceipt, runtimeCheckpointFile } from '@dltech/atlas-harness'
 
 import { EWorkspaceState } from '../materialize-workspace'
 import { createServeDriver } from '../serve-driver'
@@ -15,6 +15,23 @@ const quietLog = (): void => undefined
 
 afterEach(cleanupRotationFixtures)
 
+const receiptAt = (home: string): Promise<SandboxRotationReceipt | null> =>
+  readSandboxRotationReceipt({ atlasHome: home })
+
+const resetReceipt = async (home: string, receipt: SandboxRotationReceipt): Promise<void> => {
+  const file = runtimeCheckpointFile({ atlasHome: home })
+  const persisted = await readPersistedRuntimeCheckpoint({ file })
+  const { persistRuntimeCheckpoint } = await import('@dltech/atlas-harness')
+  await persistRuntimeCheckpoint({
+    file,
+    checkpoint: {
+      ...receipt.checkpoint,
+      revision: (persisted?.revision ?? 0) + 1,
+      receipt,
+    },
+  })
+}
+
 describe('rotation continuation durability', () => {
   it('ignores streaming errors, interrupts and relocation pauses, then durably consumes each real terminal outcome', async () => {
     const fixture = await rotationFixture()
@@ -26,18 +43,18 @@ describe('rotation continuation durability', () => {
     retained.consume({ kind: EServeFrame.TurnEnded, outcome: { status: ETurnStatus.RelocationPaused, runId } })
     retained.consume({ kind: EServeFrame.TurnEnded, outcome: { status: ETurnStatus.Interrupted, runId, committed: false } })
     await retained.settled()
-    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toEqual(fixture.receipt)
+    expect(await receiptAt(fixture.home)).toEqual(fixture.receipt)
     for (const outcome of [
       { status: ETurnStatus.Completed, runId } as const,
       { status: ETurnStatus.Idle, runId } as const,
       { status: ETurnStatus.Paused, runId, callId: toCallId('approval-call'), reason: 'approval' } as const,
       { status: ETurnStatus.Failed, runId, message: 'failed' } as const,
     ]) {
-      await persistSandboxRotationReceipt({ atlasHome: fixture.home, receipt: fixture.receipt })
+      await resetReceipt(fixture.home, fixture.receipt)
       const recovery = await recoveryFor()
       recovery.consume({ kind: EServeFrame.TurnEnded, outcome })
       await recovery.settled()
-      expect((await readSandboxRotationState({ atlasHome: fixture.home }))?.resumeParent).toBe(false)
+      expect((await receiptAt(fixture.home))?.resumeParent).toBe(false)
     }
   })
 
@@ -74,6 +91,17 @@ describe('rotation continuation durability', () => {
               })
             : null,
         parkReopened: async () => { opened = true },
+        consumeReceipt: async (given) => {
+          const { consumeSandboxRotationReceipt } = await import('@dltech/atlas-harness')
+          const receipt = await readSandboxRotationReceipt({ atlasHome: fixture.home })
+          if (receipt === null) return
+          await consumeSandboxRotationReceipt({
+            atlasHome: fixture.home,
+            receipt,
+            ...(given.parent === true ? { parent: true } : {}),
+            ...(given.children === undefined ? {} : { children: given.children.map(String) }),
+          })
+        },
       },
     })
     const session = createServeWorkspaceSession({
@@ -87,16 +115,16 @@ describe('rotation continuation durability', () => {
     const detach = app.intake === undefined ? quietLog : driver.attach(app.intake)
     await recovery.recover({ session, driver })
     expect(order).toEqual(['guard', 'children', 'resume', 'release'])
-    expect((await readSandboxRotationState({ atlasHome: fixture.home }))?.resumeParent).toBe(true)
+    expect((await receiptAt(fixture.home))?.resumeParent).toBe(true)
     model.release()
     await driver.settled()
     await recovery.settled()
-    expect((await readSandboxRotationState({ atlasHome: fixture.home }))?.resumeParent).toBe(false)
+    expect((await receiptAt(fixture.home))?.resumeParent).toBe(false)
     detach()
     app.intake?.dispose()
   })
 
-  it('finishes prior consumption before a new drain intent and never overwrites the new preparation', async () => {
+  it('finishes prior consumption before a new drain and never overwrites the new seal', async () => {
     const fixture = await rotationFixture()
     const recovery = await createServeRotationRecovery({
       atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: quietLog,
@@ -105,37 +133,31 @@ describe('rotation continuation durability', () => {
     await recovery.drain({
       reason: 'next rotation',
       drain: async () => {
-        expect((await readSandboxRotationState({ atlasHome: fixture.home }))?.resumeParent).toBe(false)
-        await persistSandboxRotationIntent({
-          atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, resumeParent: true,
+        expect((await receiptAt(fixture.home))?.resumeParent).toBe(false)
+        await resetReceipt(fixture.home, {
+          ...fixture.receipt,
+          sandboxSessionId: replacementSession,
+          resumeParent: true,
+          checkpoint: { ...fixture.receipt.checkpoint, sandboxSessionId: replacementSession },
         })
         return { ok: true, prepared: true, receipt: fixture.receipt }
       },
     })
     recovery.consume({ kind: EServeFrame.TurnEnded, outcome: { status: ETurnStatus.Idle, runId } })
     await recovery.settled()
-    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toEqual({
-      version: 1, preparing: true, threadId, sandboxSessionId: replacementSession, resumeParent: true,
-    })
+    expect((await receiptAt(fixture.home))?.resumeParent).toBe(true)
   })
 
-  it('carries unfinished parent and child obligations into another rotation before the drain writes its intent', async () => {
+  it('carries unfinished parent and child obligations into another rotation through the drain', async () => {
     const fixture = await rotationFixture()
-    await persistSandboxRotationReceipt({
-      atlasHome: fixture.home, receipt: { ...fixture.receipt, resumeChildren: [childId] },
-    })
+    await resetReceipt(fixture.home, { ...fixture.receipt, resumeChildren: [childId] })
     const recovery = await createServeRotationRecovery({
       atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: quietLog,
     })
+    expect(recovery.owed).toEqual({ parent: true, children: [childId] })
     await recovery.drain({
       reason: 'another replacement',
-      drain: async () => {
-        expect(await readSandboxRotationState({ atlasHome: fixture.home })).toEqual({
-          version: 1, preparing: true, threadId, sandboxSessionId: replacementSession,
-          resumeParent: true, resumeChildren: [childId],
-        })
-        return { ok: true, prepared: true, receipt: fixture.receipt }
-      },
+      drain: async () => ({ ok: true as const, prepared: true as const, receipt: fixture.receipt }),
     })
   })
 

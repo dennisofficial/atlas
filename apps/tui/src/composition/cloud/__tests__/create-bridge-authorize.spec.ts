@@ -40,7 +40,6 @@ const recordingDriver = (args: { created: boolean; events: string[] }): BridgeDr
         url: SERVE_URL,
         state: ECloudSandboxState.Running,
         created: args.created,
-        driveName: 'drive-x',
         token: createArgs.token ?? 'driver-minted',
       }
     },

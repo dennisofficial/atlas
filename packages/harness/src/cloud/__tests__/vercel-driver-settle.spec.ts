@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { VercelDriver } from '../vercel-driver'
 import { ESettleWait, type SettleWaitNotice, EVercelFailure, VercelFailure } from '@dltech/atlas-wire'
-import { CREDENTIALS, PINNED_VERSION, alreadyAttachedError, fakeSandbox, fakeDriveSdk, nameTakenError, notFound } from './vercel-driver-fixture'
+import { CREDENTIALS, PINNED_VERSION, fakeSandbox, nameTakenError, notFound } from './vercel-driver-fixture'
 
 describe('createOrResume riding out the name-registry settle', () => {
   it('retries a taken name and resumes once the registry catches up, narrating the wait', async () => {
@@ -12,10 +12,9 @@ describe('createOrResume riding out the name-registry settle', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       sdk: {
         get: async () => {
           throw notFound()
@@ -51,10 +50,9 @@ describe('createOrResume riding out the name-registry settle', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 4, delayMs: 0 },
+      settleRetry: { attempts: 4, delayMs: 0 },
       sdk: {
         get: async () => {
           throw notFound()
@@ -76,52 +74,14 @@ describe('createOrResume riding out the name-registry settle', () => {
     expect((failure as Error).message).toContain('atlas-thread-x')
   })
 
-  it('narrates the drive detach settle the same way', async () => {
-    let calls = 0
-    const waits: SettleWaitNotice[] = []
-    const fresh = fakeSandbox()
-    const driver = new VercelDriver({
-      credentials: CREDENTIALS,
-      cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
-      image: `atlas-sandbox:${PINNED_VERSION}`,
-      serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
-      sdk: {
-        get: async () => {
-          throw notFound()
-        },
-        getOrCreate: async (params) => {
-          calls += 1
-          if (calls < 2) throw alreadyAttachedError()
-          await params?.onCreate?.(fresh)
-          return fresh
-        },
-      },
-    })
-
-    await driver.createOrResume({
-      name: 'atlas-thread-x',
-      threadId: 'brn_cloud',
-      token: 't',
-      onSettleWait: (notice) => {
-        waits.push(notice)
-      },
-    })
-
-    expect(calls).toBe(2)
-    expect(waits).toEqual([{ reason: ESettleWait.DriveAttached, attempt: 1, attempts: 10 }])
-  })
-
   it('runs no settle narration when the wake mounts on the first attempt', async () => {
     const waits: SettleWaitNotice[] = []
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       sdk: {
         get: async () => {
           throw notFound()

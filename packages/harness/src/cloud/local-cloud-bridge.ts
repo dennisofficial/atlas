@@ -160,7 +160,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       threadId: createArgs.threadId,
       token,
       serveUrl: placement.url,
-      driveName: placement.driveName,
       serveVersion: config.serveVersion,
     })
 
@@ -169,7 +168,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       token,
       state: sandboxStateSchema.parse(placement.state),
       created: placement.created,
-      driveName: placement.driveName,
       ...(placement.rotatedFrom === undefined ? {} : { rotatedFrom: placement.rotatedFrom }),
       ...(placement.rotatedProtocol === undefined ? {} : { rotatedProtocol: placement.rotatedProtocol }),
     }
@@ -200,7 +198,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     }
     await driverWith(config).destroy({
       name,
-      threadId: destroyArgs.threadId,
       sessionId: expectedSandboxSessionId,
     })
   }

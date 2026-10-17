@@ -6,10 +6,8 @@ import type { Sandbox } from '@vercel/sandbox'
 
 import {
   createServeLauncher,
-  LEGACY_SERVE_LOG_PATH,
   SERVE_LOG_PATH,
   SERVE_VERSION_PATH,
-  SWAP_LOCK_PATH,
 } from '@dltech/atlas-wire'
 import { tailServeLog } from '../vercel-driver-probes'
 
@@ -23,10 +21,8 @@ async function fixture() {
   directories.push(directory)
   const mounted = join(directory, 'home', 'operational')
   const log = join(mounted, 'atlas-serve.log')
-  const legacy = join(directory, 'legacy.log')
   const mapScript = (script: string): string =>
-    script.replaceAll(SERVE_LOG_PATH, log).replaceAll(LEGACY_SERVE_LOG_PATH, legacy)
-      .replaceAll('/atlas/home/operational', mounted)
+    script.replaceAll(SERVE_LOG_PATH, log).replaceAll('/opt/atlas/home/operational', mounted)
   const execute = async (script: string) => {
     const process = Bun.spawn(['sh', '-c', mapScript(script)], { stdout: 'pipe', stderr: 'pipe' })
     const [stdout, stderr, exitCode] = await Promise.all([
@@ -34,7 +30,7 @@ async function fixture() {
     ])
     return { stdout, stderr, exitCode }
   }
-  return { directory, mounted, log, legacy, execute }
+  return { directory, mounted, log, execute }
 }
 
 describe('serve diagnostic log filesystem behavior', () => {
@@ -45,18 +41,6 @@ describe('serve diagnostic log filesystem behavior', () => {
       name: 'diagnostic-log-probe',
       runCommand: async (args: { args?: string[]; detached?: boolean }) => {
         const script = args.args?.[1] ?? ''
-        if (args.detached === true && script.includes(SWAP_LOCK_PATH)) {
-          return {
-            cmdId: 'cmd_lock',
-            exitCode: null,
-            wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
-            kill: async () => undefined,
-          }
-        }
-        if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
-          return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
-        }
-        if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0 }
         if (args.detached) {
           launch = script
           return { exitCode: 0 }
@@ -83,16 +67,15 @@ describe('serve diagnostic log filesystem behavior', () => {
     expect(await readFile(held.log, 'utf8')).toBe('earlier boot\n')
   })
 
-  it('tails an older live runtime when the mounted diagnostic log does not exist', async () => {
+  it('tails the serve log from the sandbox home, with a marker when it is missing', async () => {
     const held = await fixture()
-    await writeFile(held.legacy, 'older live runtime\n')
     const sandbox = {
       runCommand: async (args: { args: string[] }) => {
         const result = await held.execute(args.args[1] ?? '')
         return { exitCode: result.exitCode, stdout: async () => result.stdout }
       },
     } as unknown as Sandbox
-    expect(await tailServeLog(sandbox)).toBe('older live runtime')
+    expect(await tailServeLog(sandbox)).toBe('NO-SERVE-LOG')
     await mkdir(held.mounted, { recursive: true })
     await writeFile(held.log, 'mounted runtime\n')
     expect(await tailServeLog(sandbox)).toBe('mounted runtime')

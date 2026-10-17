@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { DRIVE_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { EReconnectEscalation } from './remote-delta-channel'
 import { ECloudSandboxState } from './sandbox-client'
 import { VercelDriver } from './vercel-driver'
@@ -21,10 +21,10 @@ export type BridgeDriver = Pick<
   | 'destroy'
 >
 
-export const BOOTSTRAP_DIRECTORY = `${DRIVE_HOME_PATH}/bootstrap`
+export const BOOTSTRAP_DIRECTORY = `${SANDBOX_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
 export const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
-export const VAULT_PROBE_PATH = `${DRIVE_HOME_PATH}/auth.json`
+export const VAULT_PROBE_PATH = `${SANDBOX_HOME_PATH}/auth.json`
 
 export type GitTokenReader = () => Promise<string>
 
@@ -56,7 +56,6 @@ export type RegistrationSender = (args: {
     threadId: ThreadId
     token: string
     serveUrl: string
-    driveName: string
     serveVersion?: string | undefined
     metadata?: { title?: string; repo?: string; model?: string } | undefined
   }

@@ -109,6 +109,7 @@ export const start = async (args: {
   idleMinutes?: number | undefined
   idleTickMs?: number | undefined
   exit?: ((code: number) => void) | undefined
+  stopSandbox?: (() => Promise<void>) | undefined
   fetchFn?: typeof fetch | undefined
   contextFiles?: WorkspaceFiles | undefined
 }): Promise<Started> => {
@@ -143,6 +144,7 @@ export const start = async (args: {
     idleMinutes: args.idleMinutes,
     idleTickMs: args.idleTickMs,
     exit: args.exit,
+    stopSandbox: args.stopSandbox,
     contextFiles: args.contextFiles ?? inMemoryContextFiles(),
   })
 

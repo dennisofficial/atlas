@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { driveNameFor, DRIVE_WORKSPACE_PATH, DRIVE_HOME_PATH, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
 import { ECloudSandboxState } from '../sandbox-client'
 import { CREDENTIALS, PINNED_VERSION, fakeSandbox, driverWith } from './vercel-driver-fixture'
 
@@ -38,19 +38,18 @@ describe('createOrResume', () => {
         ATLAS_SERVE_PORT: '3000',
         ATLAS_THREAD_ID: 'brn_cloud',
         ATLAS_CLOUD_URL: 'https://api.example.com',
-        ATLAS_WORKSPACE_DIR: DRIVE_WORKSPACE_PATH,
-        ATLAS_HOME: DRIVE_HOME_PATH,
+        ATLAS_HOME: SANDBOX_HOME_PATH,
         VERCEL_TOKEN: CREDENTIALS.token,
         VERCEL_TEAM_ID: CREDENTIALS.teamId,
         VERCEL_PROJECT_ID: CREDENTIALS.projectId,
       },
     })
+    expect(seen).not.toHaveProperty('mounts')
     expect(placement).toEqual({
       sessionId: 'session-1',
       url: 'https://sb-3000.vercel.run',
       state: ECloudSandboxState.Running,
       created: true,
-      driveName: driveNameFor({ threadId: 'brn_cloud' }),
       token: 'serve-token-1',
     })
   })

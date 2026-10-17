@@ -27,8 +27,8 @@ const readArchiveOrNull = async (args: { path: string }): Promise<Uint8Array | n
   }
 }
 
-export function driveWorkspaceSpecFetcher(args: { driveHome: string }): FetchWorkspaceSpec {
-  const path = join(args.driveHome, BOOTSTRAP_DIRECTORY, WORKSPACE_SPEC_FILE)
+export function bootstrapWorkspaceSpecFetcher(args: { atlasHome: string }): FetchWorkspaceSpec {
+  const path = join(args.atlasHome, BOOTSTRAP_DIRECTORY, WORKSPACE_SPEC_FILE)
 
   return async () => {
     let text: string
@@ -36,7 +36,7 @@ export function driveWorkspaceSpecFetcher(args: { driveHome: string }): FetchWor
       text = await readFile(path, 'utf8')
     } catch (error) {
       throw new Error(
-        `the workspace spec the laptop wrote is not on the drive at ${path}: ${
+        `the workspace spec the laptop wrote is not in the sandbox home at ${path}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       )
@@ -45,7 +45,7 @@ export function driveWorkspaceSpecFetcher(args: { driveHome: string }): FetchWor
   }
 }
 
-export function driveContextArchiveFetcher(args: { driveHome: string }): FetchContextArchive {
-  const path = join(args.driveHome, BOOTSTRAP_DIRECTORY, CONTEXT_ARCHIVE_FILE)
+export function bootstrapContextArchiveFetcher(args: { atlasHome: string }): FetchContextArchive {
+  const path = join(args.atlasHome, BOOTSTRAP_DIRECTORY, CONTEXT_ARCHIVE_FILE)
   return () => readArchiveOrNull({ path })
 }

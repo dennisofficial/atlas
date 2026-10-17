@@ -97,7 +97,6 @@ const fakeDriver = (args: { created: boolean; vaultPresent?: boolean }): FakeDri
         url: 'https://sb.vercel.run',
         state: ECloudSandboxState.Running,
         created: args.created,
-        driveName: 'drive-x',
         token: createArgs.token ?? 'driver-minted',
       }
     },
@@ -154,7 +153,6 @@ describe('createCloudBridge sandboxes.create', () => {
     expect(sandbox.token).toBe('stable-serve-token')
     expect(driver.tokens).toEqual(['stable-serve-token'])
     expect(sandbox.created).toBe(true)
-    expect(sandbox.driveName).toBe('drive-x')
   })
 
   it('writes the workspace spec and portable snapshot before launch on a fresh boot', async () => {
@@ -168,8 +166,8 @@ describe('createCloudBridge sandboxes.create', () => {
     await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
 
     const paths = driver.written.map((write) => write.path)
-    expect(paths).toContain('/atlas/home/bootstrap/workspace-spec.json')
-    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
+    expect(paths).toContain('/opt/atlas/home/bootstrap/workspace-spec.json')
+    expect(paths).toContain('/opt/atlas/home/bootstrap/local-state.json')
 
     const spec = driver.written.find((write) => write.path.endsWith('workspace-spec.json'))
     expect(JSON.parse(String(spec?.content))).toMatchObject({ githubToken: 'gho_test_token' })
@@ -191,8 +189,8 @@ describe('createCloudBridge sandboxes.create', () => {
     await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
 
     const paths = driver.written.map((write) => write.path)
-    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
-    expect(paths).not.toContain('/atlas/home/bootstrap/workspace-spec.json')
+    expect(paths).toContain('/opt/atlas/home/bootstrap/local-state.json')
+    expect(paths).not.toContain('/opt/atlas/home/bootstrap/workspace-spec.json')
   })
 
   it('boots without push access when the git token read fails', async () => {
@@ -229,7 +227,6 @@ describe('createCloudBridge sandboxes.create', () => {
         threadId: THREAD,
         token: 'stable-serve-token',
         serveUrl: 'https://sb.vercel.run',
-        driveName: 'drive-x',
       },
     ])
   })
@@ -366,7 +363,7 @@ describe('createCloudBridge sandboxes.create', () => {
 
     expect(captures).toHaveLength(1)
     expect(driver.written.map((write) => write.path)).toContain(
-      '/atlas/home/bootstrap/local-state.json',
+      '/opt/atlas/home/bootstrap/local-state.json',
     )
   })
 })

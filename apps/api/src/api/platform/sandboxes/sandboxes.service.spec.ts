@@ -240,7 +240,7 @@ describe('SandboxesService', () => {
     expect(verified.userId).toBe(USER_A)
   })
 
-  it('stops a sandbox and marks it parked, clearing the sealed token', async () => {
+  it('stops a sandbox and marks it parked, keeping the sealed token for the resume', async () => {
     await service.claim({ userId: USER_A, threadId: THREAD })
 
     await service.stop({ userId: USER_A, threadId: THREAD })
@@ -249,7 +249,7 @@ describe('SandboxesService', () => {
     expect(client.stop).toHaveBeenCalledWith({ name: claimed?.name })
     const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
     expect(row?.state).toBe(ESandboxState.Parked)
-    expect(row?.sealedToken).toBeNull()
+    expect(row?.sealedToken).not.toBeNull()
   })
 
   it('notifies the sandbox before stopping it, with the operator-stop reason', async () => {

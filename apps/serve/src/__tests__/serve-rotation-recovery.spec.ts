@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { access } from 'node:fs/promises'
 import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import {
   EClientFrame, EServeFrame, ETurnStatus,
-  persistSandboxRotationIntent, readPersistedRuntimeCheckpoint, readSandboxRotationState,
-  runtimeCheckpointFile, sandboxRotationReceiptFile, transcriptIdentityDigest,
+  persistSandboxRotationReceipt, readPersistedRuntimeCheckpoint, readSandboxRotationReceipt,
+  runtimeCheckpointFile, transcriptIdentityDigest,
 } from '@dltech/atlas-harness'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
@@ -23,13 +22,10 @@ const eventually = async (predicate: () => boolean | Promise<boolean>): Promise<
 }
 
 const owed = async (home: string): Promise<boolean> =>
-  (await readSandboxRotationState({ atlasHome: home }))?.resumeParent === true
+  (await readSandboxRotationReceipt({ atlasHome: home }))?.resumeParent === true
 
 const checkpointAt = (home: string) =>
   readPersistedRuntimeCheckpoint({ file: runtimeCheckpointFile({ atlasHome: home }) })
-
-const receiptExists = async (home: string): Promise<boolean> =>
-  access(sandboxRotationReceiptFile({ atlasHome: home })).then(() => true, () => false)
 
 afterEach(cleanupRotationFixtures)
 
@@ -71,11 +67,9 @@ describe('serve sandbox rotation recovery without a client', () => {
     const progress = await checkpointAt(fixture.home)
     expect(progress?.phase).toBe(ERuntimePhase.Serving)
     expect(progress?.sandboxSessionId).toBe(replacementSession)
-    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toEqual(fixture.receipt)
     model.release()
     await eventually(async () => !(await owed(fixture.home)))
     expect(first.outcomes.map((outcome) => outcome.status)).toEqual([ETurnStatus.Completed])
-    await eventually(async () => !(await receiptExists(fixture.home)))
     await handle.close()
     const second = await fixture.boot()
     await second.starting
@@ -109,41 +103,13 @@ describe('serve sandbox rotation recovery without a client', () => {
     expect((await second.disk.log.read({ threadId })).filter((event) => event.type === 'nudge')).toHaveLength(1)
   }, 20_000)
 
-  it('replaces a same-session preparing intent and boots open without replaying it', async () => {
-    const fixture = await rotationFixture()
-    await persistSandboxRotationIntent({ atlasHome: fixture.home, threadId, sandboxSessionId: sourceSession, resumeParent: true })
-    const order: string[] = []
-    const boot = await fixture.boot({
-      sessionId: sourceSession,
-      family: {
-        freeze: async () => { order.push('guard') },
-        pauseChildren: async () => undefined,
-        resumeChildren: async () => { order.push('release') },
-      },
-    })
-    const handle = await boot.starting
-    expect(order).toEqual([])
-    expect(boot.app.adoptions()).toEqual([threadId])
-    expect(boot.resumed()).toBe(0)
-    expect(boot.ran()).toBe(0)
-    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toBeNull()
-    const client = await connect({ port: handle.port, token })
-    client.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
-    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Run, resume: true })
-    const ended = await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
-    expect(ended.kind === EServeFrame.TurnEnded && ended.outcome.status).toBe(ETurnStatus.Completed)
-    expect(JSON.stringify(client.frames)).not.toContain('accepts no new work')
-    client.close()
-  }, 20_000)
-
   it('deletes the receipt on a same-session boot and takes ownership of the checkpoint', async () => {
     const fixture = await rotationFixture()
     const boot = await fixture.boot({ sessionId: sourceSession })
     await boot.starting
     expect(boot.resumed()).toBe(0)
     expect(boot.app.adoptions()).toEqual([threadId])
-    expect(await readSandboxRotationState({ atlasHome: fixture.home })).toBeNull()
+    expect(await readSandboxRotationReceipt({ atlasHome: fixture.home })).toBeNull()
     const checkpoint = await checkpointAt(fixture.home)
     expect(checkpoint?.sandboxSessionId).toBe(sourceSession)
   }, 20_000)

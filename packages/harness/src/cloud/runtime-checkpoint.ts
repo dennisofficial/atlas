@@ -8,6 +8,7 @@ import {
   ERuntimePhase,
   runtimeCheckpointSchema,
   type RuntimeCheckpoint,
+  type SandboxRotationReceipt,
 } from '@dltech/atlas-wire'
 
 export const acceptsRuntimeCheckpoint = (args: {
@@ -39,6 +40,99 @@ export const readPersistedRuntimeCheckpoint = async (args: {
     return runtimeCheckpointSchema.parse(JSON.parse(text))
   } catch {
     return null
+  }
+}
+
+export const readSandboxRotationReceipt = async (args: {
+  atlasHome: string
+}): Promise<SandboxRotationReceipt | null> => {
+  const persisted = await readPersistedRuntimeCheckpoint({ file: runtimeCheckpointFile(args) })
+  if (persisted === null) return null
+  if (persisted.phase === ERuntimePhase.Updating) return persisted.receipt
+  if (persisted.phase === ERuntimePhase.Serving) return persisted.receipt ?? null
+  return null
+}
+
+export const persistSandboxRotationReceipt = async (args: {
+  atlasHome: string
+  receipt: SandboxRotationReceipt
+}): Promise<void> => {
+  const file = runtimeCheckpointFile(args)
+  const persisted = await readPersistedRuntimeCheckpoint({ file })
+  const revision =
+    persisted === null
+      ? 1
+      : persisted.phase === ERuntimePhase.Updating
+        ? persisted.revision
+        : persisted.revision + 1
+  await persistRuntimeCheckpoint({
+    file,
+    checkpoint: { ...args.receipt.checkpoint, revision, receipt: args.receipt },
+  })
+}
+
+export const consumeSandboxRotationReceipt = async (args: {
+  atlasHome: string
+  receipt: SandboxRotationReceipt
+  parent?: boolean
+  children?: readonly string[]
+}): Promise<void> => {
+  const file = runtimeCheckpointFile(args)
+  // The checkpoint's own cadence captures write the same file, so the revision fence can reject a
+  // consumption written against a stale read. Re-read and retry; the fence is the guard, not a bug.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const persisted = await readPersistedRuntimeCheckpoint({ file })
+    if (
+      persisted === null ||
+      (persisted.phase !== ERuntimePhase.Updating && persisted.phase !== ERuntimePhase.Serving)
+    ) {
+      return
+    }
+    const owed = persisted.receipt
+    if (owed === undefined) return
+    if (owed.threadId !== args.receipt.threadId || owed.sandboxSessionId !== args.receipt.sandboxSessionId) {
+      return
+    }
+    const consumed = {
+      ...owed,
+      ...(args.parent === true ? { resumeParent: false } : {}),
+      ...(args.children === undefined
+        ? {}
+        : {
+            resumeChildren: (owed.resumeChildren ?? []).filter(
+              (child) => !args.children?.includes(child),
+            ),
+          }),
+    }
+    if (JSON.stringify(consumed) === JSON.stringify(owed)) return
+    const discharged = !consumed.resumeParent && (consumed.resumeChildren ?? []).length === 0
+    const { receipt: _owed, ...rest } = persisted
+    try {
+      if (persisted.phase === ERuntimePhase.Updating) {
+        await persistRuntimeCheckpoint({
+          file,
+          checkpoint: {
+            ...rest,
+            revision: persisted.revision + 1,
+            phase: ERuntimePhase.Updating,
+            receipt: consumed,
+          },
+        })
+        return
+      }
+      await persistRuntimeCheckpoint({
+        file,
+        checkpoint: {
+          ...rest,
+          revision: persisted.revision + 1,
+          phase: ERuntimePhase.Serving,
+          ...(discharged ? {} : { receipt: consumed }),
+        },
+      })
+      return
+    } catch (failure) {
+      if (attempt === 4) throw failure
+    }
   }
 }
 
@@ -92,7 +186,6 @@ export const persistRuntimeCheckpoint = async (args: {
       `refusing the lifecycle transition ${persisted.phase} -> ${checkpoint.phase} at revision ${checkpoint.revision}`,
     )
   }
-
   const directory = dirname(args.file)
   await mkdir(directory, { recursive: true })
   const staging = join(directory, `.${randomUUID()}.tmp`)

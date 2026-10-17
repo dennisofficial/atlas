@@ -17,10 +17,15 @@ export type RuntimeCheckpointBinding = {
   finalizePark: () => Promise<void>
   finalizeRotation: (args: { resume: RotationResume }) => Promise<void>
   rotationReopened: () => Promise<void>
+  /**
+   * Zeroes a sealed rotation receipt's obligations through the capture's serialized write chain,
+   * so it can never lose to a cadence capture writing the same file.
+   */
+  consumeReceipt: (args: { parent?: boolean; children?: readonly string[] | undefined }) => Promise<void>
 }
 
 export function bindRuntimeCheckpoint(args: {
-  capture: Pick<RuntimeCheckpointCapture, 'capture' | 'flush'>
+  capture: Pick<RuntimeCheckpointCapture, 'capture' | 'flush' | 'consumeReceipt'>
   log: ServeLog
   publish: (checkpoint: RuntimeCheckpoint) => void
 }): RuntimeCheckpointBinding {
@@ -85,5 +90,6 @@ export function bindRuntimeCheckpoint(args: {
     finalizePark: () => finalize({ phase: ERuntimePhase.Parked, label: 'park' }),
     finalizeRotation: ({ resume }) => finalize({ phase: ERuntimePhase.Updating, label: 'rotation', resume }),
     rotationReopened: reopenToServing,
+    consumeReceipt: (given) => args.capture.consumeReceipt(given),
   }
 }

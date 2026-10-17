@@ -1,6 +1,6 @@
 import { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_WORKSPACE_PATH } from './sandbox-drive.js'
+import { SANDBOX_WORKSPACE_PATH } from './serve-env.js'
 
 export type SandboxStateWire = 'running' | 'parked' | 'resuming' | 'stopped' | 'unknown'
 
@@ -9,12 +9,10 @@ export const SANDBOX_SERVE_PORT = 3000
 /** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
 export const SANDBOX_MAX_PORTS = 15
 /**
- * The workspace lives on the thread's drive, mounted at the sandbox root — the sandbox's own
- * filesystem holds only the image and whatever the session installs, and `persistent: true`
- * snapshots cover that OS layer between stops. The path is told to serve rather than inferred, so
- * both halves agree.
+ * The workspace lives on the sandbox's own snapshot-persisted filesystem. The path is told to
+ * serve rather than inferred, so both halves agree.
  */
-export const WORKSPACE_PATH = DRIVE_WORKSPACE_PATH
+export const WORKSPACE_PATH = SANDBOX_WORKSPACE_PATH
 
 /** Set once at creation and never extended: an idle sandbox parks itself. */
 export const SANDBOX_TIMEOUT_MS = 4 * 60 * 60 * 1000
@@ -50,8 +48,6 @@ export type SandboxPlacement = {
   state: SandboxStateWire
   /** True only when the SDK's `onCreate` hook fired: a genuinely new sandbox, not a resumed one. */
   created: boolean
-  /** The drive the sandbox mounted, so the claim row can record it. */
-  driveName: string
   /**
    * The serve token the sandbox runs with — minted on this machine unless the caller passed one in.
    * The bridge hands it to the attach so the channel and the sandbox agree without a control plane.

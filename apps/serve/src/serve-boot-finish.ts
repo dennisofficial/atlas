@@ -30,6 +30,11 @@ import { createServeWorkspaceSession } from './serve-workspace-session'
 import { createSessionMirrorReader } from './session-mirror'
 import { createSessionMirrorRevision } from './session-mirror-revision'
 
+// A serve booted without Vercel env (local dev serve) has no provider stop: park fails bounded
+// rather than pretending a legacy exit path exists.
+const missingProviderStop = (): Promise<void> =>
+  Promise.reject(new Error('this runtime has no sandbox to stop'))
+
 export async function finishServeBoot(args: {
   serveArgs: ServeArgs
   env: Record<string, string | undefined>
@@ -40,20 +45,20 @@ export async function finishServeBoot(args: {
   startedAt: number
   log: ServeLog
   notice: LoggingNoticePort
-  driveHome: string
+  atlasHome: string
   sandboxSessionId: string
   boot: BootListener
 }): Promise<ServeHandle> {
   const { serveArgs, env, threadId, token, controlPlaneUrl, cwd, startedAt, log, notice } = args
-  const { driveHome, sandboxSessionId, boot } = args
+  const { atlasHome, sandboxSessionId, boot } = args
   const { server, port } = boot
   const fetchFn = serveArgs.fetchFn ?? fetch
-  const recovery = await createServeRotationRecovery({ atlasHome: driveHome, threadId, sandboxSessionId, log })
+  const recovery = await createServeRotationRecovery({ atlasHome, threadId, sandboxSessionId, log })
   const { workspace, activeCwd, spec, context } = await bootServeFiles({
     env,
     threadId,
     cwd,
-    driveHome,
+    atlasHome,
     log,
     ensureWorkspace: serveArgs.ensureWorkspace,
     profile: serveArgs.profile,
@@ -67,7 +72,7 @@ export async function finishServeBoot(args: {
     context,
     threadId,
     cwd: activeCwd,
-    driveHome,
+    atlasHome,
     controlPlaneUrl,
     token,
     clientVersion: serveArgs.clientVersion ?? 'dev',
@@ -108,7 +113,7 @@ export async function finishServeBoot(args: {
   const checkpoint = bindRuntimeCheckpoint({
     capture: createRuntimeCheckpointCapture({
       threadId,
-      atlasHome: driveHome,
+      atlasHome,
       env,
       token,
       transcript: app.log,
@@ -144,7 +149,7 @@ export async function finishServeBoot(args: {
     },
   })
 
-  const contextReader = createSessionContextReader({ threadId, home: driveHome })
+  const contextReader = createSessionContextReader({ threadId, home: atlasHome })
   const handlers = createSessionHandlers({
     threadId,
     buffer,
@@ -167,7 +172,7 @@ export async function finishServeBoot(args: {
     pending: app.pending,
     sessionMirror: {
       reader: createSessionMirrorReader({
-        sessionDir: () => sessionDirectory({ home: driveHome, sessionId: threadId }),
+        sessionDir: () => sessionDirectory({ home: atlasHome, sessionId: threadId }),
       }),
       revision: mirrorRevision.current,
     },
@@ -217,8 +222,9 @@ export async function finishServeBoot(args: {
     app,
     driver,
     threadId,
-    atlasHome: driveHome,
+    atlasHome,
     sandboxSessionId,
+    owed: recovery.owed,
     haltIdle: () => idleStop.halt(),
     whenMutationsSettled: async () => { await session.whenStarted(); await handlers.whenSettled() },
     checkpoint,
@@ -254,7 +260,7 @@ export async function finishServeBoot(args: {
       unsubscribeWake?.()
       detachSubscriptions()
     },
-    stopSandbox: serveArgs.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }),
+    stopSandbox: serveArgs.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }) ?? missingProviderStop,
     exit,
   })
 

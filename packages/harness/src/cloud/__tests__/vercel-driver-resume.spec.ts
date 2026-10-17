@@ -6,7 +6,6 @@ import {
   CREDENTIALS,
   PINNED_VERSION,
   fakeSandbox,
-  fakeDriveSdk,
   driverWith,
   notFound,
   notFoundForProject,
@@ -19,10 +18,9 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       log: (line) => lines.push(line),
       sdk: {
         get: async () => {
@@ -52,10 +50,9 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       sdk: {
         get: async () => {
           throw notFound()
@@ -85,7 +82,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:custom',
       sdk: { get: async () => unpinned, getOrCreate: async () => unpinned },
     })
@@ -131,7 +127,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       sdk: { get: async () => current, getOrCreate: async () => current },
@@ -151,7 +146,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       sdk: { get: async () => unreadable, getOrCreate: async () => unreadable },
@@ -172,7 +166,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       log: (line) => lines.push(line),
@@ -212,7 +205,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       log: (line) => lines.push(line),

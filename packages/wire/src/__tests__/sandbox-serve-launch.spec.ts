@@ -10,7 +10,6 @@ import {
   SERVE_LOG_PATH,
   SERVE_TOKEN_PATH,
   SERVE_VERSION_PATH,
-  SWAP_LOCK_PATH,
 } from '../serve-env.js'
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire.js'
 
@@ -52,21 +51,7 @@ const fakeSandbox = (args: {
       ops.push('command')
       commands.push(params)
       const script = params.args?.[1] ?? ''
-      if (params.detached === true && script.includes(SWAP_LOCK_PATH)) {
-        // The swap-lock holder: a live process the driver kills on release.
-        return {
-          cmdId: 'cmd_lock',
-          exitCode: null,
-          wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
-          kill: async () => undefined,
-        }
-      }
       if (params.detached === true) return { cmdId: 'cmd_1' }
-      if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
-        // The acquire-status probe: this fake always grants the lock immediately.
-        return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
-      }
-      if (script.includes(SWAP_LOCK_PATH)) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       if (script.startsWith('kill -0')) {
         return { exitCode: alive ? 0 : 1 }
       }
@@ -109,13 +94,10 @@ const scriptsOf = (commands: RecordedCommand[]): string[] =>
   commands.map((command) => command.args?.[1] ?? '')
 
 const launchesOf = (commands: RecordedCommand[]): RecordedCommand[] =>
-  commands.filter(
-    (command) =>
-      command.detached === true && !(command.args?.[1] ?? '').includes(SWAP_LOCK_PATH),
-  )
+  commands.filter((command) => command.detached === true)
 
 describe('createServeLauncher', () => {
-  it('writes the session token before the boot probes once the swap lock is held', async () => {
+  it('writes the session token before the boot probes', async () => {
     const { sandbox, writes, ops } = fakeSandbox({ healthy: true, alive: false })
 
     await createServeLauncher()({ sandbox, token: 'tok_fresh' })
@@ -227,15 +209,15 @@ describe('createServeLauncher', () => {
     expect(launch).toContain(SERVE_LOG_PATH)
   })
 
-  it('appends serve diagnostics on the mounted home after creating their directory privately', async () => {
+  it('appends serve diagnostics under the sandbox home after creating their directory privately', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false, alive: false })
 
     await createServeLauncher()({ sandbox })
 
     const launch = scriptsOf(launchesOf(commands))[0] ?? ''
-    expect(SERVE_LOG_PATH).toBe('/atlas/home/operational/atlas-serve.log')
+    expect(SERVE_LOG_PATH).toBe('/opt/atlas/home/operational/atlas-serve.log')
     expect(launch).toContain('umask 077')
-    expect(launch).toContain('mkdir -p /atlas/home/operational')
+    expect(launch).toContain('mkdir -p /opt/atlas/home/operational')
     expect(launch.indexOf('mkdir -p')).toBeLessThan(launch.indexOf(`>> ${SERVE_LOG_PATH}`))
     expect(launch).toContain(`>> ${SERVE_LOG_PATH} 2>&1`)
     expect(SERVE_TOKEN_PATH).toBe('/opt/atlas/atlas-serve.token')
@@ -265,35 +247,13 @@ describe('createServeLauncher', () => {
     expect(launchesOf(commands)[0]?.env).toEqual({})
   })
 
-  it('replaces a healthy-answering serve whose health reports admissionClosed — the keep-seam wedge', async () => {
+  it('keeps a healthy serve whose stamps match the pin, whatever its health body reports', async () => {
     const { sandbox, commands } = fakeSandbox({
       healthy: true,
       alive: true,
       serveVersion: '1.89.1',
       healthBody:
-        '{"ok":true,"sandboxSessionId":"vsn_42","admissionClosed":true,"busy":false,"turnRunning":false,"childrenRunning":0,"shellsRunning":0,"servicesRunning":0,"pendingInput":false,"settlingWork":false,"clients":0}',
-    })
-    const lines: string[] = []
-
-    await createServeLauncher({ log: (line) => lines.push(line) })({
-      sandbox,
-      token: 'tok_fresh',
-      desiredVersion: '1.89.1',
-    })
-
-    expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(true)
-    expect(launchesOf(commands)).toHaveLength(1)
-    expect(lines.some((line) => line.includes('admission is closed'))).toBe(true)
-    expect(lines.some((line) => line.includes('keeping it'))).toBe(false)
-  })
-
-  it('keeps a healthy serve whose health reports admission open', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: true,
-      alive: true,
-      serveVersion: '1.89.1',
-      healthBody:
-        '{"ok":true,"sandboxSessionId":"vsn_42","admissionClosed":false,"busy":false,"turnRunning":false,"childrenRunning":0,"shellsRunning":0,"servicesRunning":0,"pendingInput":false,"settlingWork":false,"clients":1}',
+        '{"ok":true,"sandboxSessionId":"vsn_42","busy":false,"turnRunning":false,"childrenRunning":0,"shellsRunning":0,"servicesRunning":0,"pendingInput":false,"settlingWork":false,"clients":1}',
     })
 
     await createServeLauncher()({ sandbox, token: 'tok_fresh', desiredVersion: '1.89.1' })
@@ -302,7 +262,7 @@ describe('createServeLauncher', () => {
     expect(launchesOf(commands)).toHaveLength(0)
   })
 
-  it('preserves and waits on a live serve whose health body cannot be read as wedged', async () => {
+  it('keeps a live healthy serve even when its health body cannot be parsed', async () => {
     const { sandbox, commands } = fakeSandbox({
       healthy: true,
       alive: true,
@@ -313,21 +273,6 @@ describe('createServeLauncher', () => {
     await createServeLauncher()({ sandbox, token: 'tok_fresh', desiredVersion: '1.89.1' })
 
     expect(scriptsOf(commands).some((script) => script.includes('kill "$_pid"'))).toBe(false)
-    expect(launchesOf(commands)).toHaveLength(0)
-  })
-
-  it('refuses to relaunch over a wedged serve that refuses to stop', async () => {
-    const { sandbox, commands } = fakeSandbox({
-      healthy: true,
-      alive: true,
-      serveVersion: '1.89.1',
-      stopLeavesCorpse: true,
-      healthBody: '{"ok":true,"sandboxSessionId":"vsn_42","admissionClosed":true}',
-    })
-
-    await expect(
-      createServeLauncher()({ sandbox, token: 'tok_fresh', desiredVersion: '1.89.1' }),
-    ).rejects.toThrow('refused to stop')
     expect(launchesOf(commands)).toHaveLength(0)
   })
 

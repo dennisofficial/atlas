@@ -285,7 +285,7 @@ export class SandboxesService {
     await this.vercel.stop({ name: args.row.name })
     await db.cloudSandbox.update({
       where: { threadId: args.row.threadId },
-      data: { state: ESandboxState.Parked, sealedToken: null, updatedAt: nowIso() },
+      data: { state: ESandboxState.Parked, updatedAt: nowIso() },
     })
   }
 

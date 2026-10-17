@@ -19,6 +19,7 @@ const rig = async (args: {
   adopt?: () => Promise<void>
   freeze?: () => Promise<void>
   release?: () => Promise<void>
+  sealFailsOnce?: boolean
 } = {}) => {
   const fixture = await rotationFixture()
   let parentStarts = 0
@@ -61,10 +62,15 @@ const rig = async (args: {
   })
   const drain = bindServeDrain({
     app, driver, threadId, atlasHome: fixture.home, sandboxSessionId: replacementSession,
+    owed: recovery.owed,
     haltIdle: noop, whenMutationsSettled: async () => undefined,
     checkpoint: {
       ...checkpoint,
-      finalizeRotation: async (given) => { sealing += 1; await checkpoint.finalizeRotation(given) },
+      finalizeRotation: async (given) => {
+        sealing += 1
+        if (args.sealFailsOnce === true && sealing === 1) throw new Error('seal failed')
+        await checkpoint.finalizeRotation(given)
+      },
     },
     close: async () => undefined, exit: noop, log: noop,
   })
@@ -120,15 +126,13 @@ describe('recovery admission while another rotation starts', () => {
     entry.app.intake?.dispose()
   })
 
-  it('reopens admission and clears the rotation preparation when the drain fails, and a later drain succeeds', async () => {
-    const entry = await rig()
+  it('reopens admission when the drain fails, and a later drain succeeds', async () => {
+    const entry = await rig({ sealFailsOnce: true })
     await entry.recovery.recover(entry)
     expect(entry.admissionClosed()).toBe(false)
-    entry.app.endProcesses = async () => { throw new Error('processes refused to stop') }
     await expect(entry.recovery.drain({ drain: entry.drain, reason: 'failed rotation' }))
-      .rejects.toThrow('processes refused to stop')
+      .rejects.toThrow('seal failed')
     expect(entry.admissionClosed()).toBe(false)
-    entry.app.endProcesses = undefined
     const proof = await entry.recovery.drain({ drain: entry.drain, reason: 'rotation retry' })
     expect(proof.ok).toBe(true)
     expect(entry.admissionClosed()).toBe(true)

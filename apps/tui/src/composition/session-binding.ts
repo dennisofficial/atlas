@@ -13,7 +13,7 @@ import {
   type SessionRuntime,
   type TurnRunner,
 } from '@dltech/atlas-harness'
-import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
+import { SANDBOX_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import {
   projectDirectoryOf,
   repoOf,
@@ -68,7 +68,7 @@ export async function cloudAnchorOf(args: {
 }): Promise<WorkspaceIdentity> {
   const held = await args.stores.threads.find({ threadId: args.threadId }).catch(() => undefined)
   const events = args.opened.events
-  const launch = held?.workspace ?? CLOUD_WORKSPACE_PATH
+  const launch = held?.workspace ?? SANDBOX_WORKSPACE_PATH
   return {
     workspace: projectDirectoryOf({ events, launchDirectory: launch }),
     repo: repoOf({ events, launchRepo: held?.repo ?? null }),

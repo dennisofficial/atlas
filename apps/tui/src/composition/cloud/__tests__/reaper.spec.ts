@@ -16,7 +16,6 @@ const NOW = Date.parse('2026-09-26T00:00:00.000Z')
 const rowOf = (args: { threadId: string; lastActivityAt: string }): WireSandboxListEntry => ({
   threadId: args.threadId,
   name: `atlas-sandbox-${args.threadId}`,
-  driveName: `atlas-drive-${args.threadId}`,
   state: ECloudSandboxState.Parked,
   lastActivityAt: args.lastActivityAt,
 })
@@ -35,7 +34,7 @@ type Fixture = {
   threads: Map<string, ReapedThread>
   calls: { kind: string; threadId: string }[]
   notices: string[]
-  failDriveOn?: string[]
+  failDestroyOn?: string[]
   failListWith?: unknown
   mark?: ReaperListFailureMark | null
   clears?: number
@@ -63,11 +62,10 @@ const fixture = (given: Partial<Fixture>) => {
           if (held.failListWith !== undefined) throw held.failListWith
           return held.rows
         },
-        destroyDrive: async ({ name, threadId }) => {
-          record(`drive:${name}`, threadId)
-          if (held.failDriveOn?.includes(threadId) === true) throw new Error('vercel is down')
+        destroySandbox: async ({ threadId }) => {
+          record('row', threadId)
+          if (held.failDestroyOn?.includes(threadId) === true) throw new Error('vercel is down')
         },
-        destroySandbox: async ({ threadId }) => record('row', threadId),
         findThread: async ({ threadId }: { threadId: ThreadId }) =>
           held.threads.get(threadId),
         flipToHost: async ({ threadId }) => record('flip', threadId),
@@ -98,7 +96,6 @@ describe('reapExpiredCloudSandboxes', () => {
     await given.run()
 
     expect(given.calls).toEqual([
-      { kind: `drive:${EXPIRED.name}`, threadId: EXPIRED.threadId },
       { kind: 'row', threadId: EXPIRED.threadId },
       { kind: 'flip', threadId: EXPIRED.threadId },
       { kind: 'expired-event', threadId: EXPIRED.threadId },
@@ -115,21 +112,20 @@ describe('reapExpiredCloudSandboxes', () => {
     expect(given.notices).toEqual([])
   })
 
-  it('skips the row destroy when the drive destroy fails, still reaps the other rows, and notifies the failure', async () => {
+  it('skips the flip when the sandbox destroy fails, still reaps the other rows, and notifies the failure', async () => {
     const other = rowOf({
       threadId: 'brn_also_expired',
       lastActivityAt: EXPIRED.lastActivityAt,
     })
     const given = fixture({
       rows: [EXPIRED, other],
-      failDriveOn: [EXPIRED.threadId],
+      failDestroyOn: [EXPIRED.threadId],
     })
 
     await given.run()
 
     expect(given.calls).toEqual([
-      { kind: `drive:${EXPIRED.name}`, threadId: EXPIRED.threadId },
-      { kind: `drive:${other.name}`, threadId: other.threadId },
+      { kind: 'row', threadId: EXPIRED.threadId },
       { kind: 'row', threadId: other.threadId },
     ])
     expect(given.notices).toEqual([
@@ -142,10 +138,7 @@ describe('reapExpiredCloudSandboxes', () => {
 
     await given.run()
 
-    expect(given.calls).toEqual([
-      { kind: `drive:${EXPIRED.name}`, threadId: EXPIRED.threadId },
-      { kind: 'row', threadId: EXPIRED.threadId },
-    ])
+    expect(given.calls).toEqual([{ kind: 'row', threadId: EXPIRED.threadId }])
   })
 
   it('does not flip or mark a thread that already runs on the host', async () => {
@@ -229,7 +222,7 @@ describe('reapExpiredCloudSandboxes', () => {
   it('still notifies every per-row reap failure regardless of the marker', async () => {
     const given = fixture({
       rows: [EXPIRED],
-      failDriveOn: [EXPIRED.threadId],
+      failDestroyOn: [EXPIRED.threadId],
       mark: { message: 'vercel is down', notifiedAt: NOW - 60_000 },
     })
 

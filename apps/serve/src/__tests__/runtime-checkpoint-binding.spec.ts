@@ -35,6 +35,7 @@ describe('serve checkpoint lifecycle binding', () => {
           return checkpoint({ phase, revision })
         },
         flush: async () => undefined,
+        consumeReceipt: async () => undefined,
       },
     })
     await binding.boot()
@@ -60,6 +61,7 @@ describe('serve checkpoint lifecycle binding', () => {
       capture: {
         capture: async () => null,
         flush: async () => undefined,
+        consumeReceipt: async () => undefined,
       },
     })
     await binding.boot()
@@ -103,6 +105,7 @@ describe('serve checkpoint lifecycle binding', () => {
           return checkpoint({ phase, revision })
         },
         flush: async () => { flushed += 1 },
+        consumeReceipt: async () => undefined,
       },
     })
     await binding.boot()
@@ -122,7 +125,7 @@ describe('serve checkpoint lifecycle binding', () => {
     const binding = bindRuntimeCheckpoint({
       log: () => undefined,
       publish: () => undefined,
-      capture: { capture: async () => null, flush: async () => undefined },
+      capture: { capture: async () => null, flush: async () => undefined, consumeReceipt: async () => undefined },
     })
     await expect(binding.finalizeRotation({ resume: { parent: true } })).rejects.toThrow('no final rotation checkpoint')
   })

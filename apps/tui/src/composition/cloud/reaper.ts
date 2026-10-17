@@ -17,7 +17,6 @@ export type ReaperListFailureMark = {
 export type SandboxReaper = {
   listSandboxes: () => Promise<WireSandboxListEntry[]>
   destroySandbox: (args: { threadId: string }) => Promise<void>
-  destroyDrive: (args: { name: string; threadId: string }) => Promise<void>
   findThread: (args: { threadId: ThreadId }) => Promise<ReapedThread | undefined>
   flipToHost: (args: { threadId: ThreadId }) => Promise<void>
   recordExpired: (args: { threadId: ThreadId }) => Promise<void>
@@ -35,7 +34,6 @@ const reapOne = async (args: {
 }): Promise<void> => {
   const { row, reaper } = args
   try {
-    await reaper.destroyDrive({ name: row.name, threadId: row.threadId })
     await reaper.destroySandbox({ threadId: row.threadId })
     const thread = await reaper.findThread({ threadId: toThreadId(row.threadId) })
     if (thread?.executionLocation === EExecutionLocation.Cloud) {
@@ -84,10 +82,11 @@ const clearListFailureMarkQuietly = async (reaper: SandboxReaper): Promise<void>
 }
 
 /**
- * A thread that went quiet has no terminal event, but its drive bills forever — so the TUI, the
- * one place holding both the operator's Vercel credentials and the cloud session, retires idle
- * sandboxes on startup. Every row is independent and nothing here throws: a reaper failure must
- * never break the boot it rides on.
+ * A thread that went quiet has no terminal event, but a stopped sandbox's snapshot still bills
+ * storage until Vercel's own retention reaps it — so the TUI, the one place holding both the
+ * operator's Vercel credentials and the cloud session, retires idle sandboxes on startup. Every
+ * row is independent and nothing here throws: a reaper failure must never break the boot it
+ * rides on.
  */
 export async function reapExpiredCloudSandboxes(reaper: SandboxReaper): Promise<void> {
   const now = reaper.now ?? Date.now()

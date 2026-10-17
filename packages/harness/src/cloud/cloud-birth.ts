@@ -144,7 +144,7 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
         done(EBirthNode.Open)
 
         started(EBirthNode.FlipOwnership)
-        await handle.commit({ harness: EHarnessPlacement.Cloud, driveName: sandbox.driveName })
+        await handle.commit({ harness: EHarnessPlacement.Cloud })
         done(EBirthNode.FlipOwnership)
 
         return { ok: true as const, sandbox, channel: attachment.channel }

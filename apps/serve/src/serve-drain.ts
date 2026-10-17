@@ -1,4 +1,4 @@
-import { EKilledBy, type ThreadId } from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
 import type { SandboxDrainReply, SandboxRotationReceipt } from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -12,11 +12,8 @@ export type ServeDrain = (args: { reason: string }) => Promise<DrainResult>
 export function createServeDrain(args: {
   threadId: ThreadId
   driver: Pick<ServeTurnDriver, 'beginRelocation' | 'relocationResumable'>
-  closeAdmission: () => void
-  reopenAdmission: () => void
-  drainingClosed: () => boolean
-  beginPreparation: () => Promise<void>
-  endProcesses: (args: { killedBy: EKilledBy }) => Promise<void>
+  suspendIntake: () => void
+  resumeIntake: () => void
   flushInput: () => Promise<void>
   seal: (args: { resumeParent: boolean }) => Promise<SandboxRotationReceipt>
   retire: (args: { reason: string }) => Promise<void>
@@ -26,11 +23,9 @@ export function createServeDrain(args: {
   let draining: Promise<DrainResult> | undefined
 
   const run = async (reason: string): Promise<DrainResult> => {
-    args.closeAdmission()
+    args.suspendIntake()
     args.log({ event: EServeEvent.DrainRequested, threadId: args.threadId, reason })
-    await args.beginPreparation()
     await args.driver.beginRelocation()
-    await args.endProcesses({ killedBy: EKilledBy.Rotation })
     await args.flushInput()
     const receipt = await args.seal({ resumeParent: args.driver.relocationResumable() })
     args.log({ event: EServeEvent.DrainSealed, threadId: args.threadId })
@@ -49,7 +44,7 @@ export function createServeDrain(args: {
   return ({ reason }) => {
     draining ??= run(reason).catch((failure: unknown) => {
       draining = undefined
-      if (!args.drainingClosed()) args.reopenAdmission()
+      args.resumeIntake()
       args.log({
         event: EServeEvent.DrainStepFailed,
         threadId: args.threadId,

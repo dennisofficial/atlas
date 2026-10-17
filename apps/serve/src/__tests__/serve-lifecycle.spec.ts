@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EKilledBy, toThreadId, type EKilledBy as KilledBy } from '@dltech/atlas-core'
 import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
-import { createServeLifecycle } from '../serve-lifecycle'
+import { createServeLifecycle, PARK_STOP_CYCLE_LIMIT } from '../serve-lifecycle'
 import type { RuntimeWork } from '../runtime-work'
 import { fakeServeApp } from './fakes'
 import { createTurnDriver } from '../turn-driver'
@@ -86,7 +86,7 @@ const fixture = (over: {
     haltIdle: () => { calls.push('halt-idle') },
     drainDeadlineMs: 100,
     detach: () => { calls.push('detach') },
-    stopSandbox: over.stop,
+    stopSandbox: over.stop ?? (async () => undefined),
     rearmIdle: () => { calls.push('rearm-idle') },
     exit: () => { calls.push('exit') },
   })
@@ -266,15 +266,6 @@ describe('sandbox lifecycle ownership', () => {
     expect(test.calls).toContain('serve.park-finalized')
   })
 
-  it('legacy idle exit closes without claiming finalized park', async () => {
-    const test = fixture()
-    await test.lifecycle.park()
-    expect(test.calls).not.toContain('serve.park-finalized')
-    expect(test.calls).not.toContain('parked')
-    expect(test.checkpoint.current()?.phase).toBe(ERuntimePhase.Parking)
-    expect(test.app.closed()).toBe(true)
-  })
-
   it('appends the work snapshot as a parked draft between the parking record and finalization', async () => {
     const order: string[] = []
     const checkpoint = fakeCheckpoint()
@@ -326,6 +317,23 @@ describe('sandbox lifecycle ownership', () => {
     expect(stopped).toBe(true)
     expect(test.calls).toContain('parked')
     expect(test.calls.at(-1)).toBe('exit')
+  })
+
+  it('exits bounded after the park finalized, so a wake of the still-live sandbox boots a fresh serve', async () => {
+    let attempts = 0
+    const test = fixture({
+      stop: async () => { attempts += 1; throw new Error('provider unavailable') },
+    })
+
+    for (let cycle = 0; cycle < PARK_STOP_CYCLE_LIMIT; cycle += 1) {
+      await test.lifecycle.park()
+    }
+
+    expect(attempts).toBe(3 * PARK_STOP_CYCLE_LIMIT)
+    expect(test.checkpoint.current()?.phase).toBe(ERuntimePhase.Parked)
+    expect(test.calls).toContain('parked')
+    expect(test.calls.at(-1)).toBe('exit')
+    expect(test.app.closed()).toBe(true)
   })
 
   it('actual shutdown retains cleanup and is idempotent', async () => {

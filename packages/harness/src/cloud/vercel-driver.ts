@@ -1,9 +1,7 @@
 import type { Sandbox } from '@vercel/sandbox'
 
 import {
-  liveDriveSdk,
-  type DriveSdk,
-  attachLagRetry,
+  settleRetry,
   imageOptimizeRetry,
   type RetryPolicy,
   createServeLauncher,
@@ -21,7 +19,6 @@ import {
   isSandboxMissing,
   SandboxMissingError,
 } from '@dltech/atlas-wire'
-import { deleteThreadDrive } from './vercel-driver-destroy'
 import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
 import { tailServeLog, writeBootstrapFile } from './vercel-driver-probes'
 import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
@@ -30,10 +27,8 @@ export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightBySandboxName = new Map<string, Promise<unknown>>()
   private readonly runtimeActivity: RuntimeActivityProbe = probeRuntimeActivity
-  private readonly attachLagRetry: RetryPolicy
+  private readonly settleRetry: RetryPolicy
   private readonly imageOptimizeRetry: RetryPolicy
-
-  private readonly drives: DriveSdk
 
   constructor(
     private readonly args: {
@@ -48,17 +43,15 @@ export class VercelDriver {
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
-      driveSdk?: DriveSdk | undefined
-      /** The attach-detach lag budget the delete and mount retries share; a spec passes zero delays. */
-      attachLagRetry?: RetryPolicy | undefined
+      /** The settle budget the mount's name-conflict retries run on; a spec passes zero delays. */
+      settleRetry?: RetryPolicy | undefined
       /** Budget for waiting out a freshly published image's optimization lag. */
       imageOptimizeRetry?: RetryPolicy | undefined
       runtimeHealth?: RuntimeActivityProbe | undefined
     },
   ) {
     this.sdk = args.sdk ?? liveSdk
-    this.drives = args.driveSdk ?? liveDriveSdk
-    this.attachLagRetry = args.attachLagRetry ?? attachLagRetry
+    this.settleRetry = args.settleRetry ?? settleRetry
     this.imageOptimizeRetry = args.imageOptimizeRetry ?? imageOptimizeRetry
     if (args.runtimeHealth !== undefined) this.runtimeActivity = args.runtimeHealth
   }
@@ -71,9 +64,8 @@ export class VercelDriver {
         {
           config: this.args,
           sdk: this.sdk,
-          drives: this.drives,
           runtimeHealth: this.runtimeActivity,
-          attachLagRetry: this.attachLagRetry,
+          settleRetry: this.settleRetry,
           imageOptimizeRetry: this.imageOptimizeRetry,
           launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
             this.nameKeyed(`launch:${launchArgs.sandbox.name}`, () =>
@@ -218,7 +210,11 @@ export class VercelDriver {
     }
   }
 
-  async destroy(args: { name: string; threadId?: string | undefined; sessionId?: string | undefined }): Promise<void> {
+  /**
+   * The explicit sandbox delete: the TUI reaper past TTL and operator teardown. Wake, park and
+   * drift never reach it — a sandbox is only ever resumed or swapped in place.
+   */
+  async destroy(args: { name: string; sessionId?: string | undefined }): Promise<void> {
     const fenced = args.sessionId !== undefined
     try {
       const sandbox = await this.sandboxNamed(args.name, fenced ? { resume: false } : undefined)
@@ -227,18 +223,6 @@ export class VercelDriver {
     } catch (failure) {
       if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
       if (fenced) throw new SandboxMissingError(args.name)
-    }
-    if (args.threadId === undefined) return
-    const { drives: sdk, attachLagRetry: retry } = this
-    await deleteThreadDrive({ sdk, retry, credentials: this.args.credentials, log: this.args.log, threadId: args.threadId, sandboxName: args.name, fenced })
-  }
-
-  private async guarded(name: string, run: () => Promise<void>): Promise<void> {
-    try {
-      await run()
-    } catch (failure) {
-      if (isSandboxMissing(failure)) throw new SandboxMissingError(name)
-      throw asVercelFailure(failure)
     }
   }
 

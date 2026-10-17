@@ -23,6 +23,7 @@ describe('probeSandboxForResume', () => {
         throw new APIError(new Response(null, { status: 404 }), { message: 'sandbox not found' })
       },
       runtimeHealth: async () => undefined,
+      swapServe: async () => undefined,
       isMissing: isSandboxMissing,
       toFailure: asVercelFailure,
     })
@@ -39,7 +40,7 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(false)
   })
 
-  it('replaces a confirmed stopped sandbox without commands that would auto-wake it', async () => {
+  it('swaps serve on a confirmed stopped sandbox without commands that would auto-wake it', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
     let commands = 0
     Object.assign(sandbox, {
@@ -48,84 +49,25 @@ describe('probeSandboxForResume', () => {
         throw new Error('runCommand would resume the stopped sandbox')
       },
     })
-    let waits = 0
+    let swaps = 0
 
     const result = await probeOf({
       sandbox,
       health: FULL_IDLE,
-      waitForDriveDetached: async () => {
-        waits += 1
-        return true
+      swapServe: async () => {
+        swaps += 1
       },
     })
 
-    expect(sandbox.deleted()).toBe(true)
+    expect(sandbox.deleted()).toBe(false)
     expect(commands).toBe(0)
-    expect(waits).toBe(1)
-    expect(result.probe).toBe(ESandboxProbe.Replaced)
+    expect(swaps).toBe(1)
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
   })
 
-  it('still replaces when the detach lag outlives the wait, logging the pending lag', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
-    const lines: string[] = []
-
-    const result = await probeOf({
-      sandbox,
-      health: FULL_IDLE,
-      waitForDriveDetached: async () => false,
-      lines,
-    })
-
-    expect(result.probe).toBe(ESandboxProbe.Replaced)
-    expect(lines.some((line) => line.includes('drive is still attached'))).toBe(true)
-  })
-
-  it('still replaces when Vercel reports the stopped sandbox gone at delete time', async () => {
-    const sandbox = fakeSandbox({
-      installed: STALE,
-      status: 'stopped',
-      deleteFailure: new APIError(new Response(null, { status: 400 }), {
-        json: { error: { message: "Sandbox 'atlas-thread-x' not found for this project." } },
-      }),
-    })
-    const lines: string[] = []
-    let waits = 0
-
-    const result = await probeOf({
-      sandbox,
-      health: FULL_IDLE,
-      waitForDriveDetached: async () => {
-        waits += 1
-        return true
-      },
-      lines,
-    })
-
-    expect(result.probe).toBe(ESandboxProbe.Replaced)
-    expect(waits).toBe(1)
-    expect(lines.some((line) => line.includes('already gone'))).toBe(true)
-  })
-
-  it('propagates a delete failure that is not the sandbox disappearing', async () => {
-    const sandbox = fakeSandbox({
-      installed: STALE,
-      status: 'stopped',
-      deleteFailure: new APIError(new Response(null, { status: 500 }), {
-        json: { error: { message: 'internal error' } },
-      }),
-    })
-
-    await expect(probeOf({ sandbox })).rejects.toThrow('internal error')
-  })
-
-  it('replaces a stale sandbox that reads fully idle without draining — there is nothing in flight to preserve', async () => {
+  it('swaps a stale sandbox that reads fully idle without draining — there is nothing in flight to preserve', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     const order: string[] = []
-    Object.assign(sandbox, {
-      delete: async () => {
-        order.push('delete')
-      },
-    })
 
     const result = await probeOf({
       sandbox,
@@ -133,14 +75,18 @@ describe('probeSandboxForResume', () => {
       drain: async () => {
         order.push('drain')
       },
+      swapServe: async () => {
+        order.push('swap')
+      },
     })
 
-    expect(order).toEqual(['delete'])
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(order).toEqual(['swap'])
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
     expect(result.rotatedFrom).toBe(STALE)
+    expect(sandbox.deleted()).toBe(false)
   })
 
-  it('replaces a stale sandbox whose serve process is wedged — its exec works but nothing answers its port', async () => {
+  it('swaps a stale sandbox whose serve process is wedged — its exec works but nothing answers its port', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     let drains = 0
 
@@ -153,9 +99,9 @@ describe('probeSandboxForResume', () => {
       },
     })
 
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
     expect(drains).toBe(0)
-    expect(sandbox.deleted()).toBe(true)
+    expect(sandbox.deleted()).toBe(false)
   })
 
   it('swaps a busy sandbox whose installed serve predates the drain protocol, without touching the gate', async () => {
@@ -188,11 +134,14 @@ describe('probeSandboxForResume', () => {
       drain: async () => {
         order.push('drain')
       },
+      swapServe: async () => {
+        order.push('swap')
+      },
     })
 
-    expect(order).toEqual(['drain'])
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
-    expect(sandbox.deleted()).toBe(true)
+    expect(order).toEqual(['drain', 'swap'])
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(sandbox.deleted()).toBe(false)
   })
 
   it('still drains a stale sandbox whose serve is alive but whose idleness it cannot prove', async () => {
@@ -205,14 +154,17 @@ describe('probeSandboxForResume', () => {
       drain: async () => {
         order.push('drain')
       },
+      swapServe: async () => {
+        order.push('swap')
+      },
     })
 
-    expect(order).toEqual(['drain'])
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
-    expect(sandbox.deleted()).toBe(true)
+    expect(order).toEqual(['drain', 'swap'])
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(sandbox.deleted()).toBe(false)
   })
 
-  it('drains and replaces a stale sandbox whose runtime is resuming', async () => {
+  it('drains and swaps a stale sandbox whose runtime is resuming', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'pending' })
 
     const result = await probeOf({
@@ -221,8 +173,8 @@ describe('probeSandboxForResume', () => {
       drain: async () => undefined,
     })
 
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
-    expect(sandbox.deleted()).toBe(true)
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(sandbox.deleted()).toBe(false)
   })
 
   it('drains a stale sandbox that reports any in-flight work, whatever the field', async () => {
@@ -246,10 +198,13 @@ describe('probeSandboxForResume', () => {
         drain: async () => {
           order.push('drain')
         },
+        swapServe: async () => {
+          order.push('swap')
+        },
       })
-      expect(order).toEqual(['drain'])
-      expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
-      expect(sandbox.deleted()).toBe(true)
+      expect(order).toEqual(['drain', 'swap'])
+      expect(result.probe).toBe(ESandboxProbe.Swapped)
+      expect(sandbox.deleted()).toBe(false)
     }
   })
 
@@ -263,11 +218,14 @@ describe('probeSandboxForResume', () => {
       drain: async () => {
         order.push('drain')
       },
+      swapServe: async () => {
+        order.push('swap')
+      },
     })
 
-    expect(order).toEqual(['drain'])
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
-    expect(sandbox.deleted()).toBe(true)
+    expect(order).toEqual(['drain', 'swap'])
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
+    expect(sandbox.deleted()).toBe(false)
   })
 
   it('keeps a stale sandbox whose drain fails while it reports in-flight work', async () => {
@@ -316,21 +274,13 @@ describe('probeSandboxForResume', () => {
     expect(decision).toContain(PINNED)
   })
 
-  it('keeps a sandbox whose serve is newer than the pin, logging why', async () => {
+  it('swaps a sandbox whose serve is newer than the pin down to it, logging the version', async () => {
     const sandbox = fakeSandbox({ installed: '99.0.0', status: 'running' })
     const lines: string[] = []
-    let drains = 0
 
-    const result = await probeOf({
-      sandbox,
-      lines,
-      drain: async () => {
-        drains += 1
-      },
-    })
+    const result = await probeOf({ sandbox, lines, drain: async () => undefined })
 
-    expect(result.probe).toBe(ESandboxProbe.Kept)
-    expect(drains).toBe(0)
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
     expect(sandbox.deleted()).toBe(false)
     expect(lines.some((line) => line.includes('newer than this build'))).toBe(true)
   })
@@ -339,20 +289,20 @@ describe('probeSandboxForResume', () => {
     for (const installed of ['', 'release-branch', '1.2']) {
       const sandbox = fakeSandbox({ installed, status: 'running' })
       const result = await probeOf({ sandbox, drain: async () => undefined })
-      expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
-      expect(sandbox.deleted()).toBe(true)
+      expect(result.probe).toBe(ESandboxProbe.Swapped)
+      expect(sandbox.deleted()).toBe(false)
     }
   })
 
-  it('attributes a replacement to a confirmed provider stop', async () => {
+  it('attributes an in-place serve swap to a confirmed provider stop', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
     const lines: string[] = []
 
     await probeOf({ sandbox, health: FULL_IDLE, lines })
 
-    const decision = lines.find((line) => line.includes('recreating it from the pinned image'))
+    const decision = lines.find((line) => line.includes('resuming it in place to swap serve'))
     expect(decision).toBeDefined()
-    expect(decision).toContain('confirmed stopped')
+    expect(decision).toContain('is stopped')
   })
 
   it('reads a version file that names the pinned serve through the sandbox', async () => {

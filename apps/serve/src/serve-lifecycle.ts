@@ -27,7 +27,7 @@ export function createServeLifecycle(args: {
   rearmIdle?: (() => void) | undefined
   drainDeadlineMs: number
   detach: () => void
-  stopSandbox: (() => Promise<void>) | undefined
+  stopSandbox: () => Promise<void>
   exit: (code: number) => void
 }): {
   close: (args: { reason: string }) => Promise<void>
@@ -113,12 +113,6 @@ export function createServeLifecycle(args: {
       // exists only on the operator-input and shell registrations), so the append emits nothing.
       // The parked marker is the transcript tail the dim rule checks, so publish it explicitly.
       if (parked !== undefined) args.app.channel.publisherFor({ threadId: args.threadId }).eventsAppended()
-      if (args.stopSandbox === undefined) {
-        args.log({ event: EServeEvent.ParkUnfinalized, threadId: args.threadId, reason: 'provider-stop-unavailable' })
-        await close('legacy-idle-exit')
-        args.exit(0)
-        return
-      }
       await args.checkpoint.finalizePark()
       finalized = true
       args.log({ event: EServeEvent.ParkFinalized, threadId: args.threadId })

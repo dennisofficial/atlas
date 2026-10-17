@@ -20,7 +20,6 @@ import {
   sandboxServeTokenFor,
   sandboxVcpusOf,
   storedModel,
-  VercelDriver,
   type LocalCloudBridgeOptions,
 } from '@dltech/atlas-harness'
 
@@ -180,16 +179,10 @@ export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
     clientVersion: clientVersionHeader(),
   })
   const notice = noticePortBinding()
-  const driver = (): VercelDriver =>
-    new VercelDriver({
-      credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
-      cloudUrl: session.url,
-    })
 
   void reapExpiredCloudSandboxes({
     listSandboxes: () => sandboxes.listSandboxes(),
     destroySandbox: ({ threadId }) => sandboxes.destroySandbox({ threadId }),
-    destroyDrive: ({ name, threadId }) => driver().destroy({ name, threadId }),
     findThread: ({ threadId }) => app.threads.find({ threadId }),
     flipToHost: ({ threadId }) =>
       app.threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Host }),

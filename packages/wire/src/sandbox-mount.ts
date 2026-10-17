@@ -1,21 +1,17 @@
 import type { Sandbox } from '@vercel/sandbox'
 
-import type { DriveSdk } from './sandbox-drive-lifecycle.js'
-import { DRIVE_HOME_PATH, DRIVE_MOUNT_PATH } from './sandbox-drive.js'
 import { retrySleep, type RetryPolicy } from './sandbox-retry.js'
 import {
   SANDBOX_LAUNCH_TIMEOUT_MS,
   SANDBOX_REGION,
   SANDBOX_SERVE_PORT,
   SANDBOX_TIMEOUT_MS,
-  WORKSPACE_PATH,
   type VercelCredentials,
   type VercelSdk,
 } from './sandbox-sdk.js'
 import {
   EVercelFailure,
   failureTextOf,
-  isDriveAttachedConflict,
   isImageNotFound,
   isImageOptimizeFailure,
   isImageOptimizeLag,
@@ -23,11 +19,11 @@ import {
   isSandboxNameConflict,
   VercelFailure,
 } from './sandbox-errors.js'
+import { SANDBOX_HOME_PATH } from './serve-env.js'
 
 /** Which provider settle the mount is riding out, so the wake can narrate the wait truthfully. */
 export enum ESettleWait {
   NameConflict = 'name-conflict',
-  DriveAttached = 'drive-attached',
 }
 
 export type SettleWaitNotice = {
@@ -48,8 +44,6 @@ export async function mountWithRetries(args: {
   image: string
   /** Creation-time size; undefined leaves Vercel's default (2 vCPU). Ignored by Vercel on resume. */
   vcpus?: number | undefined
-  drive: Awaited<ReturnType<DriveSdk['getOrCreate']>>
-  driveName: string
   threadId: string
   token: string
   environment?: Record<string, string> | undefined
@@ -69,15 +63,13 @@ export async function mountWithRetries(args: {
         resume: true,
         image: args.image,
         ...(args.vcpus === undefined ? {} : { resources: { vcpus: args.vcpus } }),
-        mounts: { [DRIVE_MOUNT_PATH]: args.drive },
         onCreate: args.onCreate,
         env: {
           ATLAS_SERVE_TOKEN: args.token,
           ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
           ATLAS_THREAD_ID: args.threadId,
           ATLAS_CLOUD_URL: args.cloudUrl,
-          ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
-          ATLAS_HOME: DRIVE_HOME_PATH,
+          ATLAS_HOME: SANDBOX_HOME_PATH,
           VERCEL_TOKEN: args.credentials.token,
           VERCEL_TEAM_ID: args.credentials.teamId,
           VERCEL_PROJECT_ID: args.credentials.projectId,
@@ -119,8 +111,8 @@ export async function mountWithRetries(args: {
         await retrySleep(args.imageOptimize)
         continue
       }
-      // The probe can delete a stale sandbox and the wake's mount land while Vercel still reports
-      // the name gone; the retry budget rides out that settle exactly like the drive detach lag.
+      // Vercel can report a sandbox's name gone mid-create while its registry is still settling;
+      // the retry budget rides out that settle.
       if (isSandboxMissing(failure)) {
         if (attempt >= args.retry.attempts) {
           throw new VercelFailure({
@@ -134,8 +126,8 @@ export async function mountWithRetries(args: {
         await retrySleep(args.retry)
         continue
       }
-      // The mirror race: the probe saw the name free (or deleted the stale sandbox), and the
-      // create 400s because the name registry has not caught up. Same settle, same budget.
+      // The mirror race: the probe saw the name free and the create 400s because the name
+      // registry has not caught up. Same settle, same budget.
       if (isSandboxNameConflict(failure)) {
         if (attempt >= args.retry.attempts) {
           throw new VercelFailure({
@@ -150,19 +142,7 @@ export async function mountWithRetries(args: {
         await retrySleep(args.retry)
         continue
       }
-      if (!isDriveAttachedConflict(failure)) throw failure
-      const retry = args.retry
-      if (attempt >= retry.attempts) {
-        throw new VercelFailure({
-          kind: EVercelFailure.DriveAttached,
-          message: `drive ${args.driveName} is still attached after ${retry.attempts} attempts to mount it on sandbox ${args.name}: ${failureTextOf(failure)}`,
-        })
-      }
-      args.log?.(
-        `drive ${args.driveName} still attached to another sandbox (attempt ${attempt}/${retry.attempts}) — waiting out the detach`,
-      )
-      args.onSettleWait?.({ reason: ESettleWait.DriveAttached, attempt, attempts: retry.attempts })
-      await retrySleep(retry)
+      throw failure
     }
   }
 }

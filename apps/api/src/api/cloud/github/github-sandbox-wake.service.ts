@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 
-import { driveNameFor, type VercelCredentials } from '@dltech/atlas-wire'
+import type { VercelCredentials } from '@dltech/atlas-wire'
 
 import { db } from '../../../db'
 import { EnvService } from '../../../_core/config/env/env.service'
@@ -157,7 +157,9 @@ export class GithubSandboxWakeService {
     const { serveUrl } = await this.bootAdapter.boot({
       credentials,
       name: row.name,
-      driveName: row.driveName ?? driveNameFor({ threadId: args.threadId }),
+      // Driveless: the boot no longer mounts a drive; the field stays on the seam until slice 5
+      // rewrites the wake, so an absent drive means the empty string.
+      driveName: row.driveName ?? '',
       threadId: args.threadId,
       image: this.env.get('SANDBOX_IMAGE'),
       cloudUrl: this.env.get('ATLAS_CLOUD_URL') ?? 'https://api.byatlas.io',

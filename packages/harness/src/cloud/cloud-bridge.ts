@@ -25,8 +25,6 @@ export type CloudSandbox = {
   token: string
   state: ECloudSandboxState
   created: boolean
-  /** The drive the sandbox mounted; the driver always sets it, fakes may omit it. */
-  driveName?: string | undefined
   /** The serve version the wake's rotation replaced, when build drift drove the recreate. */
   rotatedFrom?: string | undefined
   /** The wire protocol the sandbox's old serve spoke when this wake rotated it onto the pinned image. */

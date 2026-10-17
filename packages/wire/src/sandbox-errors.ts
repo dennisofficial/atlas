@@ -86,11 +86,9 @@ export const asVercelFailure = (failure: unknown): Error => {
 
 export enum EVercelFailure {
   Unknown = 'unknown',
-  DriveAttached = 'drive-attached',
   NameConflict = 'name-conflict',
   ImageOptimize = 'image-optimize',
   ImageNotFound = 'image-not-found',
-  DrainRefused = 'drain-refused',
 }
 
 export class VercelFailure extends Error {
@@ -119,18 +117,4 @@ export const isSandboxNameConflict = (failure: unknown): boolean => {
   return SANDBOX_NAME_TAKEN.test(failureTextOf(failure))
 }
 
-export const isDriveAttachedConflict = (failure: unknown): boolean => {
-  const text = failureTextOf(failure)
-  return text.includes('already attached') || text.includes('currently attached')
-}
 
-/**
- * The delete side of the attach conflict. Vercel answers a drive delete that races the detach
- * with a bare 409 whose payload shape is not documented, so the status classifies where the
- * message text cannot. Delete is the only drive operation the lifecycle performs, so a 409 there
- * is always the attach conflict.
- */
-export const isDriveDeleteConflict = (failure: unknown): boolean => {
-  if (failure instanceof APIError && failure.response.status === 409) return true
-  return failureTextOf(failure).includes('currently attached')
-}

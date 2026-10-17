@@ -3,10 +3,8 @@ import { ERuntimePhase } from '@dltech/atlas-wire'
 import {
   EServeFrame,
   ETurnStatus,
-  deleteSandboxRotationState,
-  persistSandboxRotationState,
-  persistSandboxRotationIntent,
-  readSandboxRotationState,
+  consumeSandboxRotationReceipt,
+  readSandboxRotationReceipt,
 } from '@dltech/atlas-harness'
 
 import type { LifecycleFrame } from './frame-buffer'
@@ -26,7 +24,7 @@ export async function createServeRotationRecovery(args: {
   sandboxSessionId: string | undefined
   log: ServeLog
 }) {
-  const state = await readSandboxRotationState({ atlasHome: args.atlasHome })
+  const state = await readSandboxRotationReceipt({ atlasHome: args.atlasHome })
   if (state !== null && state.threadId !== args.threadId) {
     throw new Error(`sandbox rotation belongs to ${state.threadId}, not ${args.threadId}`)
   }
@@ -35,11 +33,11 @@ export async function createServeRotationRecovery(args: {
   }
   const sourceRestart = state !== null && state.sandboxSessionId === args.sandboxSessionId
   const sourceConsumption = sourceRestart
-    ? deleteSandboxRotationState({ atlasHome: args.atlasHome }).catch((failure: unknown) => {
+    ? consumeSandboxRotationReceipt({ atlasHome: args.atlasHome, receipt: state, parent: true, children: state.resumeChildren ?? [] }).catch((failure: unknown) => {
       args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
     })
     : undefined
-  type GuardedCheckpoint = Pick<RuntimeCheckpointBinding, 'current' | 'parkReopened'>
+  type GuardedCheckpoint = Pick<RuntimeCheckpointBinding, 'current' | 'parkReopened' | 'consumeReceipt'>
   let guarded: { app: ServeApp; checkpoint: GuardedCheckpoint } | undefined
   let continuationStarted = false
   let consumption: Promise<void> | undefined
@@ -54,13 +52,19 @@ export async function createServeRotationRecovery(args: {
   const consumeObligations = (given: { parent?: boolean; children?: readonly ThreadId[] }): Promise<void> => {
     if (state === null || sourceRestart || preparingNextRotation) return Promise.resolve()
     const writing = (consumption ?? Promise.resolve()).then(async () => {
-      const current = await readSandboxRotationState({ atlasHome: args.atlasHome })
-      if (current === null || current.threadId !== state.threadId || current.sandboxSessionId !== state.sandboxSessionId) return
-      await persistSandboxRotationState({ atlasHome: args.atlasHome, state: {
-        ...current,
-        ...(given.parent === true ? { resumeParent: false } : {}),
-        ...(given.children === undefined ? {} : { resumeChildren: (current.resumeChildren ?? []).filter((child) => !given.children?.includes(toThreadId(child))) }),
-      } })
+      if (guarded !== undefined) {
+        await guarded.checkpoint.consumeReceipt({
+          ...(given.parent === true ? { parent: true } : {}),
+          ...(given.children === undefined ? {} : { children: given.children.map(String) }),
+        })
+      } else {
+        await consumeSandboxRotationReceipt({
+          atlasHome: args.atlasHome,
+          receipt: state,
+          ...(given.parent === true ? { parent: true } : {}),
+          ...(given.children === undefined ? {} : { children: given.children.map(String) }),
+        })
+      }
       if (given.parent === true) consumedParent = true
     })
     consumption = writing.catch((failure: unknown) => {
@@ -115,16 +119,16 @@ export async function createServeRotationRecovery(args: {
 
   const discardIfConsumed = async (): Promise<void> => {
     if (state === null || sourceRestart || preparingNextRotation) return
-    const current = await readSandboxRotationState({ atlasHome: args.atlasHome })
-    if (current?.sandboxSessionId !== state.sandboxSessionId) return
-    if (current.resumeParent || (current.resumeChildren ?? []).length > 0) return
-    await deleteSandboxRotationState({ atlasHome: args.atlasHome })
+    await consumeObligations({})
   }
 
   return {
     deferred: state !== null && !sourceRestart,
     resumeChildren: sourceRestart ? undefined : resumeChildren,
     checkpointAllowed: true,
+    owed: sourceRestart
+      ? { parent: false, children: [] as readonly ThreadId[] }
+      : { parent: state?.resumeParent ?? false, children: resumeChildren ?? [] as readonly ThreadId[] },
     get admissionLatched() {
       return admissionLatched || preparingNextRotation
     },
@@ -163,13 +167,6 @@ export async function createServeRotationRecovery(args: {
       try {
         await Promise.all([recovering, activating])
         if (consumption !== undefined) await consumption
-        if (state !== null && args.sandboxSessionId !== undefined && state.sandboxSessionId !== args.sandboxSessionId) {
-          const current = await readSandboxRotationState({ atlasHome: args.atlasHome })
-          if (current?.sandboxSessionId === state.sandboxSessionId) await persistSandboxRotationIntent({
-            atlasHome: args.atlasHome, threadId: args.threadId, sandboxSessionId: args.sandboxSessionId,
-            resumeParent: current.resumeParent, resumeChildren: current.resumeChildren ?? [],
-          })
-        }
       } catch (failure) {
         releaseFailedDrain()
         throw failure
