@@ -64,10 +64,10 @@ type SendFrame = Extract<ClientFrame, { kind: EClientFrame.Send }>
 /**
  * A backstop, not a deadline: a queued request whose wake fell through is rejected by
  * `failWaiting` the moment the failure is known, so this only bounds a wake that never
- * resolves. It clears the slowest legitimate wake (a resume that trips image-optimize
- * retries) rather than tuning for the common case.
+ * resolves. It clears the slowest legitimate wake (a serve swap that waits out a drain
+ * behind a ten-minute tool call, then installs and boots) rather than tuning for the common case.
  */
-export const UNWRITTEN_REQUEST_TIMEOUT_MS = 600_000
+export const UNWRITTEN_REQUEST_TIMEOUT_MS = 25 * 60 * 1000
 
 export type UpstreamPipe = {
   send(frame: ClientFrame): void
