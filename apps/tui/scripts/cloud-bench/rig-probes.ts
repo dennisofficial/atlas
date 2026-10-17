@@ -63,7 +63,7 @@ const readsOf = (logLines: number): readonly { section: ESection; command: strin
 
 const probeScriptOf = (logLines: number): string =>
   readsOf(logLines)
-    .map(({ section, command }) => `echo '${SECTION_MARKER}${section}'; ${command} 2>/dev/null`)
+    .map(({ section, command }) => `echo '${SECTION_MARKER}${section}'; ${command} 2>/dev/null; echo`)
     .join('; ')
 
 const sectionsOf = (stdout: string): Map<string, string> => {

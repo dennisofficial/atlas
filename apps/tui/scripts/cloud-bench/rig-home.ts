@@ -47,7 +47,21 @@ const seedFromRealHome = async (home: string): Promise<void> => {
   }
 }
 
+export const NO_REMOTE_REPO = 'none'
+
+const initRemoteless = async (workspace: string): Promise<void> => {
+  const steps: readonly (readonly string[])[] = [
+    ['init', '--initial-branch=main'],
+    ['-c', 'user.name=Atlas Rig', '-c', 'user.email=rig@atlas.dev', 'commit', '--allow-empty', '-m', 'rig base'],
+  ]
+  for (const step of steps) {
+    const run = await runGit({ args: step, cwd: workspace })
+    if (!run.ok) throw new Error(`git ${step.join(' ')} failed: ${run.stderr.trim()}`)
+  }
+}
+
 const cloneInto = async (args: { repo: string; workspace: string }): Promise<void> => {
+  if (args.repo === NO_REMOTE_REPO) return initRemoteless(args.workspace)
   const cloned = await runGit({ args: ['clone', '--depth', '1', args.repo, args.workspace], cwd: tmpdir() })
   if (!cloned.ok) throw new Error(`git clone of ${args.repo} failed: ${cloned.stderr.trim()}`)
 }

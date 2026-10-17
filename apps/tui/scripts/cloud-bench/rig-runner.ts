@@ -58,7 +58,7 @@ export const USAGE = [
   '',
   '  --scenarios=1,2,3    scenario ids to run (default 1,2,3,4,5; 1 is added when 2-5 are asked; 6 always writes NOT RUN)',
   '  --out=<dir>          evidence directory (default $ATLAS_CONTEXT_DIR/evidence/live-rig)',
-  `  --repo=<https url>   workspace to clone (default ${DEFAULT_REPO})`,
+  `  --repo=<https url>   workspace to clone, or none for a remoteless local repo (default ${DEFAULT_REPO})`,
   '  --mismatch=<mode>    scenario 5 mismatch: source-edit (default) or forge-stamp',
   '  --keep               leave the sandboxes running at the end',
   '  --cleanup            destroy every sandbox named in <out>/ledger.json, then exit',
@@ -106,7 +106,7 @@ export function parseRigArgs(args: { argv: readonly string[]; env: Record<string
     else if (arg === '--cleanup') cleanup = true
     else return { ok: false, error: `unknown argument: ${arg}` }
   }
-  if (!repo.startsWith('https://')) return { ok: false, error: `--repo must be an https git url (the sandbox clones it), got ${repo}` }
+  if (repo !== 'none' && !repo.startsWith('https://')) return { ok: false, error: `--repo must be an https git url (the sandbox clones it), got ${repo}` }
   const contextDir = args.env.ATLAS_CONTEXT_DIR
   if (out === null && (contextDir === undefined || contextDir.length === 0)) {
     return { ok: false, error: 'pass --out=<dir>: ATLAS_CONTEXT_DIR is not set' }
