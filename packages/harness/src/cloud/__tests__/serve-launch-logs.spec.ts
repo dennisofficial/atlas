@@ -6,6 +6,7 @@ import type { Sandbox } from '@vercel/sandbox'
 
 import {
   createServeLauncher,
+  SANDBOX_WORKSPACE_PATH,
   SERVE_LOG_PATH,
   SERVE_VERSION_PATH,
 } from '@dltech/atlas-wire'
@@ -21,8 +22,12 @@ async function fixture() {
   directories.push(directory)
   const mounted = join(directory, 'home', 'operational')
   const log = join(mounted, 'atlas-serve.log')
+  const workspace = join(directory, 'workspace')
   const mapScript = (script: string): string =>
-    script.replaceAll(SERVE_LOG_PATH, log).replaceAll('/opt/atlas/home/operational', mounted)
+    script
+      .replaceAll(SERVE_LOG_PATH, log)
+      .replaceAll('/opt/atlas/home/operational', mounted)
+      .replaceAll(SANDBOX_WORKSPACE_PATH, workspace)
   const execute = async (script: string) => {
     const process = Bun.spawn(['sh', '-c', mapScript(script)], { stdout: 'pipe', stderr: 'pipe' })
     const [stdout, stderr, exitCode] = await Promise.all([
@@ -30,7 +35,7 @@ async function fixture() {
     ])
     return { stdout, stderr, exitCode }
   }
-  return { directory, mounted, log, execute }
+  return { directory, mounted, log, workspace, execute }
 }
 
 describe('serve diagnostic log filesystem behavior', () => {
@@ -56,8 +61,10 @@ describe('serve diagnostic log filesystem behavior', () => {
     const prepare = launch.split('&& exec flock')[0]
     expect(prepare).toBeDefined()
     const workspaceFile = join(held.directory, 'workspace-file')
-    const first = await held.execute(`umask 022; ${prepare}; : > '${workspaceFile}'`)
+    const first = await held.execute(`umask 022; ${prepare} && pwd; : > '${workspaceFile}'`)
     expect(first.exitCode).toBe(0)
+    expect(first.stdout.trim().endsWith('/workspace')).toBe(true)
+    expect((await stat(held.workspace)).isDirectory()).toBe(true)
     expect((await stat(held.log)).mode & 0o777).toBe(0o600)
     expect((await stat(held.mounted)).mode & 0o777).toBe(0o700)
     expect((await stat(workspaceFile)).mode & 0o777).toBe(0o644)
