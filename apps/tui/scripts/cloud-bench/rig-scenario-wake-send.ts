@@ -7,6 +7,7 @@ import type { RigApp } from './rig-mount'
 import { waitFor, watchChannel, type ChannelWatch } from './rig-observer'
 import { type Criterion, PARK_WITHIN_MS, concluded, frameNoteOf, messageOf, standardLogs, waitForPark } from './rig-park-wait'
 import type { BoxProbe } from './rig-probes'
+import { serveSessionMatchesLive, stopRefusalsInServeLog } from './rig-session-check'
 import { assistantSaid, transcriptLines, transcriptOf, userSaidCount, type TranscriptEvent } from './rig-transcript'
 
 const ID = 3
@@ -158,6 +159,8 @@ async function runWakeSend(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     commands.push(`cat ${SENTINEL_PATH}`)
     const expectedSentinel = ctx.shared.get('sentinel') ?? null
     const sentinel = await readSentinel(ctx)
+    const session = await serveSessionMatchesLive(ctx)
+    const refusals = await stopRefusalsInServeLog(ctx)
 
     const views = viewsSinceSend()
     const userCount = userSaidCount({ events: transcript.events, text: PROMPT })
@@ -194,6 +197,8 @@ async function runWakeSend(ctx: ScenarioContext): Promise<ScenarioEvidence> {
         observed: sentinel,
         held: expectedSentinel !== null && sentinel === expectedSentinel,
       },
+      { name: 'serve session id is the live session', expected: 'equal', observed: session.observed, held: session.held },
+      { name: 'no stop refusal on any park', expected: '0 park-stop-failed / refusing-to-stop lines', observed: refusals.observed, held: refusals.held },
     ]
 
     return concluded({

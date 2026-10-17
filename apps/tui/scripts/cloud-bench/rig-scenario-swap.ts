@@ -22,6 +22,7 @@ import {
   startSwapWatch,
   type SwapWatch,
 } from './rig-swap-watch'
+import { serveSessionMatchesLive, stopRefusalsInServeLog } from './rig-session-check'
 import { assistantSaid, transcriptOf } from './rig-transcript'
 
 export enum EMismatch {
@@ -199,8 +200,12 @@ async function runSwap(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     const bgAlive = await aliveIn({ ctx, pid: bg })
     const growth = await growthOf(ctx)
     const ctlAlive = await aliveIn({ ctx, pid: ctl })
+    const session = await serveSessionMatchesLive(ctx)
+    const refusals = await stopRefusalsInServeLog(ctx)
 
     const criteria = createCriteria({ log: ctx.log })
+    criteria.check({ name: 'serve session id is the live session', expected: 'equal', observed: session.observed, held: session.held })
+    criteria.check({ name: 'no stop refusal on any park', expected: '0 park-stop-failed / refusing-to-stop lines', observed: refusals.observed, held: refusals.held })
     const pinChanged =
       mode === EMismatch.ForgeStamp ? pinB.version === pinA.version && pinB.version !== FORGED_STAMP : pinB.version !== pinA.version
     const pinExpected =

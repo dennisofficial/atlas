@@ -15,6 +15,7 @@ import {
   standardLogs,
   waitForPark,
 } from './rig-park-wait'
+import { serveSessionMatchesLive, stopRefusalsInServeLog } from './rig-session-check'
 import { transcriptOf } from './rig-transcript'
 
 const ID = 4
@@ -171,6 +172,8 @@ async function runWakeCmd(ctx: ScenarioContext): Promise<ScenarioEvidence> {
       }),
     )
 
+    const session = await serveSessionMatchesLive(ctx)
+    const refusals = await stopRefusalsInServeLog(ctx)
     const userAfter = await userMessageCount(rig)
     const frame = await rig.frame()
     const notices = warnNotices()
@@ -182,6 +185,8 @@ async function runWakeCmd(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     criteria.check({ name: 'user messages', expected: `still ${userBefore} (/wake sends nothing)`, observed: String(userAfter), held: userAfter === userBefore })
     criteria.check({ name: 'warn notices', expected: 'none', observed: noticeText(notices), held: notices.length === 0 })
     criteria.check({ name: 'frame banner', expected: 'none', observed: banner ?? 'none', held: banner === null })
+    criteria.check({ name: 'serve session id is the live session', expected: 'equal', observed: session.observed, held: session.held })
+    criteria.check({ name: 'no stop refusal on any park', expected: '0 park-stop-failed / refusing-to-stop lines', observed: refusals.observed, held: refusals.held })
     draft.logs.unshift({ label: 'criteria', text: criteria.text() })
     draft.logs.push(
       ...standardLogs({ watch, logTail: probe?.logTail ?? null, driverLines: rig.driverLines }),
