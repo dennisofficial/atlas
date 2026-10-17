@@ -262,6 +262,7 @@ const main = async (): Promise<number> => {
   const { SCENARIOS } = await import('./rig-scenarios')
   const shared = new Map<string, string>()
   if (args.mismatch !== undefined) shared.set('mismatch', args.mismatch)
+  shared.set('repo', args.repo)
   const run: Run = {
     args,
     env,

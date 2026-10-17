@@ -21,6 +21,15 @@ const SLUG = 'idle-park'
 const TITLE = 'Idle park'
 const PROVIDER_SETTLE_MS = 90_000
 const STEP = 'idle park'
+const FIRST_ATTEMPT_WITHIN_MS = 7.5 * 60_000
+const REFUSAL = /refusing the lifecycle transition|serve\.park-stop-failed|serve\.park-refused/
+
+const minutesOf = (ms: number): string => `${(ms / 60_000).toFixed(2)} min`
+
+const idleToParkOf = (args: { repliedAt: string | undefined; parkedAtMs: number | null }): number | null => {
+  if (args.repliedAt === undefined || args.parkedAtMs === null) return null
+  return args.parkedAtMs - Number(args.repliedAt)
+}
 
 const noticeText = (notices: readonly { tone: string; text: string }[]): string =>
   notices.length === 0 ? 'none' : notices.map((notice) => `[${notice.tone}] ${notice.text}`).join(' | ')
@@ -51,6 +60,7 @@ async function runPark(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     const notices = warnNotices()
     const banner = bannerIn(frame)
     const sidebar = frameLineFor({ frame, view: EConnectionView.Parked })
+    const idleToPark = idleToParkOf({ repliedAt: ctx.shared.get('turnRepliedAt'), parkedAtMs: park.parkedAtMs })
     const settled: Observation = {
       at: new Date().toISOString(),
       step: park.parkedAtMs === null ? 'park wait timed out' : 'parked',
@@ -73,6 +83,18 @@ async function runPark(ctx: ScenarioContext): Promise<ScenarioEvidence> {
       { name: 'warn notices', expected: 'none', observed: noticeText(notices), held: notices.length === 0 },
       { name: 'frame banner', expected: 'none', observed: banner ?? 'none', held: banner === null },
       { name: 'sidebar shows parked', expected: 'a "○ parked" frame line', observed: sidebar ?? 'no such line', held: sidebar !== null },
+      {
+        name: 'first idle attempt parks',
+        expected: 'no refused or failed park in the serve log',
+        observed: park.lastLogTail?.split('\n').find((line) => REFUSAL.test(line)) ?? 'none',
+        held: park.lastLogTail?.split('\n').some((line) => REFUSAL.test(line)) !== true,
+      },
+      {
+        name: 'idle-to-park time',
+        expected: `≤ ${minutesOf(FIRST_ATTEMPT_WITHIN_MS)} from the last reply to the client seeing parked (5 min window + 30 s tick + 15 s poll)`,
+        observed: idleToPark === null ? 'unmeasured' : minutesOf(idleToPark),
+        held: idleToPark !== null && idleToPark <= FIRST_ATTEMPT_WITHIN_MS,
+      },
     ]
 
     return concluded({

@@ -78,7 +78,10 @@ const waitForReady = async (args: { ctx: ScenarioContext; draft: Draft }): Promi
   })
   args.draft.logs.push({ label: 'cloud transcript', text: transcriptLines(lastEvents) })
   observe({ ctx: args.ctx, draft: args.draft, step: replied ? 'turn replied' : 'reply wait timed out', note: lastError ?? undefined })
-  if (replied) return
+  if (replied) {
+    args.ctx.shared.set('turnRepliedAt', String(Date.now()))
+    return
+  }
   const rig = args.ctx.rig()
   const observed =
     rig.channel() === null
@@ -87,22 +90,47 @@ const waitForReady = async (args: { ctx: ScenarioContext; draft: Draft }): Promi
   fail({ draft: args.draft, step: 'wait for the READY turn', expected: `a ${REPLY_WORD} reply within ${REPLY_WITHIN_MS / 60_000} min`, observed })
 }
 
+const WORKSPACE_FAILED = 'serve.workspace-failed'
+const WORKSPACE_DIR = '/opt/atlas/workspaces/workspace'
+const ROOT_DIRS = ['/opt', '/usr', '/etc'] as const
+const LAYOUT_SCRIPT = [
+  ...ROOT_DIRS.map((dir) => `if test -d ${dir}; then echo "dir ${dir} ok"; else echo "dir ${dir} MISSING"; fi`),
+  `git -C ${WORKSPACE_DIR} remote get-url origin 2>/dev/null | sed 's/^/origin /'`,
+  'true',
+].join('; ')
+
+const layoutMisses = async (ctx: ScenarioContext): Promise<{ out: string; misses: string[] }> => {
+  const out = await ctx.probes
+    .sh({ name: ctx.sandboxName(), script: LAYOUT_SCRIPT })
+    .catch((error: unknown) => `probe failed: ${messageOf(error)}`)
+  const misses = out.split('\n').filter((line) => line.includes('MISSING') || line.startsWith('probe failed'))
+  const repo = ctx.shared.get('repo')
+  if (repo === undefined || repo === 'none') return { out, misses }
+  const origin = out.split('\n').find((line) => line.startsWith('origin '))?.slice('origin '.length).trim()
+  if (origin === repo) return { out, misses }
+  return { out, misses: [...misses, `${WORKSPACE_DIR} origin ${origin ?? 'absent'}, expected ${repo}`] }
+}
+
 const checkServingBox = async (args: { ctx: ScenarioContext; draft: Draft }): Promise<void> => {
   const name = args.ctx.sandboxName()
   const probe = await args.ctx.probes.box({ name, logLines: PROBE_LOG_LINES })
   observe({ ctx: args.ctx, draft: args.draft, step: 'box probe', probe, note: probe.recordError ?? undefined })
   args.draft.logs.push({ label: `serve log tail (${PROBE_LOG_LINES} lines)`, text: probe.logTail ?? '(not read: the box was not running)' })
   const view = args.ctx.rig().channel()?.connection().state ?? 'no channel'
+  const layout = await layoutMisses(args.ctx)
+  args.draft.logs.push({ label: 'sandbox layout', text: layout.out })
   const misses = [
     probe.record?.phase === ERuntimePhase.Serving ? null : `record phase ${probe.record?.phase ?? probe.recordError ?? 'unread'}`,
     view === EConnectionView.Connected ? null : `view ${view}`,
     probe.version !== null && probe.protocol !== null ? null : `stamps ${stampsOf(probe) ?? 'missing'}`,
+    probe.logTail?.includes(WORKSPACE_FAILED) === true ? `serve log has ${WORKSPACE_FAILED}` : null,
+    ...layout.misses,
   ].filter((miss): miss is string => miss !== null)
   if (misses.length === 0) return
   fail({
     draft: args.draft,
     step: 'box serving',
-    expected: `record ${ERuntimePhase.Serving}, view ${EConnectionView.Connected}, version and protocol stamps present (provider ${probe.provider})`,
+    expected: `record ${ERuntimePhase.Serving}, view ${EConnectionView.Connected}, version and protocol stamps present, no ${WORKSPACE_FAILED}, ${ROOT_DIRS.join(' ')} present, workspace cloned from the repo (provider ${probe.provider})`,
     observed: misses.join('; '),
   })
 }
