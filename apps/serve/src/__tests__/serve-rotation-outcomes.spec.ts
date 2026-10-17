@@ -109,7 +109,7 @@ describe('rotation continuation durability', () => {
       deferStartChildren: true, log: quietLog, settling: { count: 0 }, note: quietLog,
     })
     const driver = createServeDriver({
-      app, threadId, admissionClosed: () => recovery.admissionLatched, workspace: { state: EWorkspaceState.Skipped },
+      app, threadId, workspace: { state: EWorkspaceState.Skipped },
       log: quietLog, idleStop: () => ({ note: quietLog }), emitLifecycle: recovery.consume,
     })
     const detach = app.intake === undefined ? quietLog : driver.attach(app.intake)

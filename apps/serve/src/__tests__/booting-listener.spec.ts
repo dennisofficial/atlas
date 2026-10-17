@@ -152,10 +152,10 @@ describe('booting health listener', () => {
     expect(after.status).toBe(200)
     const body = after.body as Record<string, unknown>
     expect(body['booting']).toBeUndefined()
+    expect(body['admissionClosed']).toBeUndefined()
     expect(after.body).toMatchObject({
       ok: true,
       threadId: String(threadId),
-      admissionClosed: false,
       workspace: { state: EWorkspaceState.Skipped },
     })
   })

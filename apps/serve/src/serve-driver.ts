@@ -5,7 +5,7 @@ import type { LifecycleFrame } from './frame-buffer'
 import type { ServeIdleStop } from './idle-stop'
 import { workspaceRefusalOf, type WorkspaceReadiness } from './materialize-workspace'
 import type { ServeApp } from './serve-app'
-import { PARKING_REFUSAL, wireOutcomeOf } from './serve-outcome'
+import { wireOutcomeOf } from './serve-outcome'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { createTurnDriver } from './turn-driver'
 
@@ -13,7 +13,6 @@ export function createServeDriver(args: {
   app: ServeApp
   threadId: ThreadId
   workspace: WorkspaceReadiness
-  admissionClosed: () => boolean
   log: ServeLog
   idleStop: () => Pick<ServeIdleStop, 'note'>
   emitLifecycle: (frame: LifecycleFrame) => void
@@ -22,10 +21,7 @@ export function createServeDriver(args: {
   return createTurnDriver({
     app,
     threadId: args.threadId,
-    refusal: () =>
-      args.admissionClosed()
-        ? PARKING_REFUSAL
-        : workspaceRefusalOf(args.workspace),
+    refusal: () => workspaceRefusalOf(args.workspace),
     onTurnStarted: () => {
       args.idleStop().note()
       log({ event: EServeEvent.TurnStarted })
