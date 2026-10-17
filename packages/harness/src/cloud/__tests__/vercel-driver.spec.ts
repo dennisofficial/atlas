@@ -51,6 +51,7 @@ describe('createOrResume', () => {
       state: ECloudSandboxState.Running,
       created: true,
       token: 'serve-token-1',
+      serveVersion: PINNED_VERSION,
     })
   })
 

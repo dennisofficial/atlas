@@ -169,6 +169,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       token: serveToken,
       sandboxSessionId: sandbox.currentSession().sessionId,
       cloudUrl: deps.config.cloudUrl,
+      desiredVersion: deps.config.serveVersion,
     })
     deps.config.log?.(
       `sandbox ${args.name} provisioned: get-or-create ${createMs}ms, serve launch ${Date.now() - serveStartedAt}ms`,
@@ -181,6 +182,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       token: serveToken,
       ...(rotatedFrom === undefined ? {} : { rotatedFrom }),
       ...(outdatedProtocol === undefined ? {} : { rotatedProtocol: outdatedProtocol }),
+      ...(deps.config.serveVersion === undefined ? {} : { serveVersion: deps.config.serveVersion }),
     }
   } catch (failure) {
     await rollbackProvision(deps, { name: args.name, created })

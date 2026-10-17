@@ -5,7 +5,11 @@ import {
   imageOptimizeRetry,
   type RetryPolicy,
   createServeLauncher,
+  type DevServeBinary,
+  type DevServeResolver,
+  type ServeInstaller,
   type ServeLauncher,
+  uploadServeInstaller,
   liveSdk,
   assertLiveSession,
   observationOf,
@@ -40,6 +44,8 @@ export class VercelDriver {
       vcpus?: number | undefined
       /** Same pin as `VercelSandboxConfig.serveVersion`; a direct driver construction names it here. */
       serveVersion?: string | undefined
+      devServe?: DevServeResolver | undefined
+      uploadServe?: ((binary: DevServeBinary) => ServeInstaller) | undefined
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
@@ -59,30 +65,44 @@ export class VercelDriver {
   createOrResume(args: ProvisionArgs): Promise<SandboxPlacement> {
     // Two wakes of the same thread in one process share one provision instead of racing; the
     // in-sandbox swap lock covers the cross-process case.
-    return this.nameKeyed(args.name, () =>
-      provisionSandbox(
+    return this.nameKeyed(args.name, async () => {
+      const serve = await this.serveToProvision()
+      return provisionSandbox(
         {
-          config: this.args,
+          config: { ...this.args, serveVersion: serve.version },
           sdk: this.sdk,
           runtimeHealth: this.runtimeActivity,
           settleRetry: this.settleRetry,
           imageOptimizeRetry: this.imageOptimizeRetry,
           launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
             this.nameKeyed(`launch:${launchArgs.sandbox.name}`, () =>
-              createServeLauncher({ log: this.args.log })({
+              createServeLauncher({
+                log: this.args.log,
+                ...(serve.installServe === undefined ? {} : { installServe: serve.installServe }),
+              })({
                 sandbox: launchArgs.sandbox,
                 ...(launchArgs.token === undefined ? {} : { token: launchArgs.token }),
                 ...(launchArgs.sandboxSessionId === undefined
                   ? {}
                   : { sandboxSessionId: launchArgs.sandboxSessionId }),
                 ...(launchArgs.cloudUrl === undefined ? {} : { cloudUrl: launchArgs.cloudUrl }),
-                desiredVersion: launchArgs.desiredVersion ?? this.args.serveVersion,
+                desiredVersion: launchArgs.desiredVersion ?? serve.version,
               }),
             ),
         },
         args,
-      ),
-    )
+      )
+    })
+  }
+
+  private async serveToProvision(): Promise<{
+    version: string | undefined
+    installServe?: ServeInstaller
+  }> {
+    if (this.args.devServe === undefined) return { version: this.args.serveVersion }
+    const binary = await this.args.devServe({ log: this.args.log })
+    this.args.log?.(`dev serve ${binary.version} resolved — uploading it instead of downloading a release`)
+    return { version: binary.version, installServe: (this.args.uploadServe ?? uploadServeInstaller)(binary) }
   }
 
   /**

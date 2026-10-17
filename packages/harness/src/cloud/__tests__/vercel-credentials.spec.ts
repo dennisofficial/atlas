@@ -137,6 +137,36 @@ describe('sandboxImageOf', () => {
       }),
     ).toEqual({ image: 'vcr.vercel.example/team/atlas:v1' })
   })
+
+  const devServe = async () => ({
+    version: 'dev-aaaaaaaaaaaa',
+    path: '/tmp/atlas-serve-linux-x64',
+    sha256: 'f'.repeat(64),
+    bytes: 1,
+  })
+
+  it('pins a release build to its version and never hands it a dev serve', () => {
+    const choice = sandboxImageOf({ settings: settingsWith({}), release, devServe })
+
+    expect(choice.serveVersion).toBe('1.4.2')
+    expect(choice.devServe).toBeUndefined()
+  })
+
+  it('hands a source build its dev serve resolver and pins no release version', () => {
+    const choice = sandboxImageOf({ settings: settingsWith({}), devServe })
+
+    expect(choice.devServe).toBe(devServe)
+    expect(choice.serveVersion).toBeUndefined()
+  })
+
+  it('lets an operator-set image win over a dev serve, pinning and uploading nothing', () => {
+    expect(
+      sandboxImageOf({
+        settings: settingsWith({ [ESettingId.SandboxImage]: 'vcr.vercel.example/team/atlas:v1' }),
+        devServe,
+      }),
+    ).toEqual({ image: 'vcr.vercel.example/team/atlas:v1' })
+  })
 })
 
 describe('sandboxVcpusOf', () => {

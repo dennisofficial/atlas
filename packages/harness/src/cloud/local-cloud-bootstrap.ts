@@ -81,6 +81,7 @@ export const liveDriverWith = (args: {
     image: args.config.image,
     ...(args.config.vcpus === undefined ? {} : { vcpus: args.config.vcpus }),
     ...(args.config.serveVersion === undefined ? {} : { serveVersion: args.config.serveVersion }),
+    ...(args.config.devServe === undefined ? {} : { devServe: args.config.devServe }),
     ...(args.onDriverLog === undefined ? {} : { log: args.onDriverLog }),
   })
 

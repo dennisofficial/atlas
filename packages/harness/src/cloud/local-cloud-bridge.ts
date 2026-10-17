@@ -157,7 +157,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       threadId: createArgs.threadId,
       token,
       serveUrl: placement.url,
-      serveVersion: config.serveVersion,
+      serveVersion: placement.serveVersion ?? config.serveVersion,
     })
 
     return {

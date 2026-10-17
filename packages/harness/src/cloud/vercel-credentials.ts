@@ -2,7 +2,7 @@ import { ESettingId, ESettingsLayer, rangeValueOf, textValueOf, type SecretsPort
 
 import type { SettingsService } from '../settings/service'
 
-import type { VercelCredentials } from '@dltech/atlas-wire'
+import type { DevServeResolver, VercelCredentials } from '@dltech/atlas-wire'
 
 const SETTINGS_POINTER = 'settings (ctrl+o) › cloud'
 
@@ -48,6 +48,7 @@ export type SandboxImageChoice = {
    * builds, which trust whatever serve the sandbox already runs.
    */
   serveVersion?: string | undefined
+  devServe?: DevServeResolver | undefined
 }
 
 /**
@@ -58,13 +59,15 @@ export type SandboxImageChoice = {
 export function sandboxImageOf(args: {
   settings: SettingsService
   release?: { version: string } | undefined
+  devServe?: DevServeResolver | undefined
 }): SandboxImageChoice {
   const resolution = args.settings.snapshot().resolution
   const held = resolution.settings.get(ESettingId.SandboxImage)
   const image = textValueOf({ resolution, id: ESettingId.SandboxImage })
   if (held?.layer !== ESettingsLayer.Default) return { image }
-  if (args.release === undefined) return { image }
-  return { image, serveVersion: args.release.version }
+  if (args.release !== undefined) return { image, serveVersion: args.release.version }
+  if (args.devServe !== undefined) return { image, devServe: args.devServe }
+  return { image }
 }
 
 /**
