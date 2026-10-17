@@ -53,7 +53,7 @@ const PID_PATTERN = /^\d+$/
 const tick = (file: string): string => `while true; do date +%s >> ${file}; sleep 2; done`
 
 const BG_PROMPT = `Use the bash tool to start this as a BACKGROUND shell (background mode, not foreground): ${tick(BG_LOG)}   Then reply BGSTARTED.`
-const SLEEP_PROMPT = 'Use the bash tool to run "sleep 150 && echo slept" in the foreground with timeoutMs 300000, then reply DONE.'
+const SLEEP_PROMPT = 'Use the bash tool to run exactly this command in the foreground (not in the background) with timeoutMs 300000: timeout 150 tail -f /dev/null; echo held   Then reply DONE.'
 
 export const mismatchOf = (value: string | undefined): EMismatch =>
   value === EMismatch.ForgeStamp ? EMismatch.ForgeStamp : EMismatch.SourceEdit
@@ -164,8 +164,8 @@ async function runSwap(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     const sleepIndex = await transcriptLength(ctx.rig())
     await ctx.rig().submit(SLEEP_PROMPT)
     draft.commands.push(`submitted: ${SLEEP_PROMPT}`)
-    const sleepSeen = await waitFor({ what: 'sleep 150 running', within: SLEEP_SEEN_WITHIN_MS, every: POLL_MS, holds: async () => (await pgrepFirst({ ctx, pattern: 'sleep 15[0]' })) !== null })
-    if (!sleepSeen) throw new ScenarioFailed({ step: 'foreground sleep', expected: 'sleep 150 running in the box', observed: 'no sleep 150 process within 90 s' })
+    const sleepSeen = await waitFor({ what: 'the foreground hold running', within: SLEEP_SEEN_WITHIN_MS, every: POLL_MS, holds: async () => (await pgrepFirst({ ctx, pattern: 'tail -f /dev/nul[l]' })) !== null })
+    if (!sleepSeen) throw new ScenarioFailed({ step: 'foreground hold', expected: 'timeout 150 tail -f /dev/null running in the box', observed: 'no such process within 90 s' })
 
     await ctx.rig().close()
     draft.commands.push('closed the App (client detached) while the sleep runs', await applyMismatch({ ctx, mode, restores }))
