@@ -24,11 +24,14 @@ export type ConnectionFacts = {
   phase: ERuntimePhase | null
   socket: ESocketLiveness
   waking: boolean
+  rotating: boolean
   failure: string | null
   detached: boolean
 }
 
 const view = (state: EConnectionView, detail: string | null = null): ConnectionView => ({ state, detail })
+
+const UPDATING_DETAIL = 'updating the cloud sandbox'
 
 const restingPhase = (phase: ERuntimePhase | null): boolean =>
   phase === ERuntimePhase.Parked || phase === ERuntimePhase.Parking
@@ -38,13 +41,14 @@ export function connectionViewOf(facts: ConnectionFacts): ConnectionView {
   if (facts.socket === ESocketLiveness.Open) {
     return facts.phase === ERuntimePhase.Parked ? view(EConnectionView.Parked) : view(EConnectionView.Connected)
   }
+  if (facts.rotating) return view(EConnectionView.Updating, UPDATING_DETAIL)
   if (facts.waking) return view(EConnectionView.Waking)
   if (facts.failure !== null) return view(EConnectionView.Disconnected, facts.failure)
   if (restingPhase(facts.phase)) return view(EConnectionView.Parked)
   if (facts.phase === ERuntimePhase.Waking || facts.phase === ERuntimePhase.Provisioning) {
     return view(EConnectionView.Waking)
   }
-  if (facts.phase === ERuntimePhase.Updating) return view(EConnectionView.Updating, 'updating the cloud sandbox')
+  if (facts.phase === ERuntimePhase.Updating) return view(EConnectionView.Updating, UPDATING_DETAIL)
   if (facts.socket === ESocketLiveness.Unattached) return view(EConnectionView.Parked)
   return view(EConnectionView.Reconnecting)
 }

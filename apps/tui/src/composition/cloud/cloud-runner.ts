@@ -40,6 +40,7 @@ export async function wakeSandbox(args: {
   threadId: ThreadId
   captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
+  onRotationStarted?: (() => void) | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
   args.move?.handleBegin({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, heading: WAKE_HEADING })
 
@@ -47,6 +48,7 @@ export async function wakeSandbox(args: {
     threadId: args.threadId,
     workspace: null,
     onRotationStarted: () => {
+      args.onRotationStarted?.()
       args.move?.handleExpand({
         insertBefore: 'attaching',
         row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
@@ -99,6 +101,7 @@ export function createCloudWake(args: {
         threadId: args.threadId,
         captureContext: args.captureContext,
         ...(move === undefined ? {} : { move }),
+        onRotationStarted: () => args.channel.beginRotation(),
       })
       args.onWoken?.({ created: woken.created })
       args.channel.wake({ url: woken.url, token: woken.token })

@@ -9,7 +9,7 @@ import {
   type ClientFrame,
   type ServeFrame,
 } from '../channel-wire'
-import { createRemoteDeltaChannel } from '../remote-delta-channel'
+import { createRemoteDeltaChannel, type SandboxWake } from '../remote-delta-channel'
 import type { ChannelSocketHandlers } from '../remote-channel-socket'
 
 export const THREAD = toThreadId('brn_cloud')
@@ -42,7 +42,7 @@ export const harness = (options?: {
   /** A deferred durable-head read, for the Promise path the production store drives. */
   lastEventSeqAsync?: (() => Promise<number>) | undefined
   maxAttempts?: number | undefined
-  wakeSandbox?: (() => Promise<{ url: string; token: string }>) | undefined
+  wakeSandbox?: SandboxWake | undefined
   requestTimeoutMs?: number | undefined
   unwrittenRequestTimeoutMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined

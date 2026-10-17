@@ -29,8 +29,10 @@ export const attachmentOf =
       ...(options.lastEventSeq === undefined
         ? {}
         : { lastEventSeq: () => options.lastEventSeq?.({ threadId }) ?? 0 }),
-      wakeSandbox: () =>
-        sandboxes.create({ threadId: hosted, workspace: null }).then(({ url: woken, token: minted }) => ({ url: woken, token: minted })),
+      wakeSandbox: ({ onRotationStarted }) =>
+        sandboxes
+          .create({ threadId: hosted, workspace: null, onRotationStarted })
+          .then(({ url: woken, token: minted }) => ({ url: woken, token: minted })),
       onFinished: () => unbindSettings?.(),
     })
     if (options.settings !== undefined) {

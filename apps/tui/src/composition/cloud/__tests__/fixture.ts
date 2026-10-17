@@ -362,6 +362,10 @@ export function fakeCloudChannel(
       held = { state: EConnectionView.Waking, detail: null }
       for (const listener of [...connections]) listener(held)
     },
+    beginRotation: () => {
+      held = { state: EConnectionView.Updating, detail: 'updating the cloud sandbox' }
+      for (const listener of [...connections]) listener(held)
+    },
     failWake: ({ reason }) => {
       held = { state: EConnectionView.Disconnected, detail: reason }
       for (const listener of [...connections]) listener(held)

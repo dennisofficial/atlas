@@ -166,6 +166,8 @@ describe('waking a cloud runner whose channel is not open', () => {
     })
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
+    const views: EConnectionView[] = []
+    channel.onConnection((view) => views.push(view.state))
     const move = fakeMove()
     const runner = createCloudRunner({
       bridge,
@@ -185,6 +187,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       'settle',
     ])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
+    expect(views).toEqual([EConnectionView.Waking, EConnectionView.Updating])
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-5') })

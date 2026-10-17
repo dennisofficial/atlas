@@ -15,6 +15,7 @@ const facts = (overrides: Partial<ConnectionFacts>): ConnectionFacts => ({
   phase: null,
   socket: ESocketLiveness.Closed,
   waking: false,
+  rotating: false,
   failure: null,
   detached: false,
   ...overrides,
@@ -42,6 +43,11 @@ describe('connectionViewOf', () => {
     ['spent retries', { phase: ERuntimePhase.Serving, failure: 'did not reopen' }, EConnectionView.Disconnected],
     ['failure beats a parked record', { phase: ERuntimePhase.Parked, failure: 'wake failed' }, EConnectionView.Disconnected],
     ['detached beats everything', { socket: ESocketLiveness.Open, detached: true }, EConnectionView.Detached],
+    ['rotating wake beats waking', { waking: true, rotating: true }, EConnectionView.Updating],
+    ['rotating beats a serving record', { phase: ERuntimePhase.Serving, waking: true, rotating: true }, EConnectionView.Updating],
+    ['rotating beats a stale failure', { failure: 'gone', rotating: true }, EConnectionView.Updating],
+    ['an open socket beats rotating', { socket: ESocketLiveness.Open, rotating: true }, EConnectionView.Connected],
+    ['detached beats rotating', { rotating: true, waking: true, detached: true }, EConnectionView.Detached],
   ]
 
   for (const [name, given, expected] of table) {
@@ -59,6 +65,13 @@ describe('connectionViewOf', () => {
 
   it('names the swap while updating', () => {
     expect(connectionViewOf(facts({ phase: ERuntimePhase.Updating })).detail).toBe('updating the cloud sandbox')
+  })
+
+  it('names the swap while a wake rotates the sandbox', () => {
+    expect(connectionViewOf(facts({ waking: true, rotating: true }))).toEqual({
+      state: EConnectionView.Updating,
+      detail: 'updating the cloud sandbox',
+    })
   })
 })
 

@@ -33,6 +33,7 @@ import {
   type InterruptAck,
   type RemoteDeltaChannel,
   type SandboxAttachment,
+  type SandboxWake,
   type ThreadModelChangedFrame,
   type ThreadRenamedFrame,
 } from './remote-delta-channel-types'
@@ -84,7 +85,7 @@ export function createRemoteDeltaChannel(args: {
   keepaliveMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
   /** Wakes (or re-attaches to) the sandbox through the control plane; the relaunched serve keeps its own turn. */
-  wakeSandbox?: (() => Promise<SandboxAttachment>) | undefined
+  wakeSandbox?: SandboxWake | undefined
   onFinished?: (() => void) | undefined
 }): RemoteDeltaChannel {
   const lastEventSeq = args.lastEventSeq ?? (() => 0)
@@ -123,6 +124,7 @@ export function createRemoteDeltaChannel(args: {
     phase: null,
     socket: attached ? ESocketLiveness.Dialing : ESocketLiveness.Unattached,
     waking: attached,
+    rotating: false,
     failure: null,
     detached: false,
   })
@@ -209,7 +211,7 @@ export function createRemoteDeltaChannel(args: {
       failures.emit({ message })
       serverErrors.emit({ message })
       endStrandedStep()
-      facts.update({ waking: false, failure: message })
+      facts.update({ waking: false, rotating: false, failure: message })
       socket?.close()
       return
     }
@@ -224,6 +226,7 @@ export function createRemoteDeltaChannel(args: {
       phase: accepted?.phase ?? ERuntimePhase.Serving,
       socket: ESocketLiveness.Open,
       waking: false,
+      rotating: false,
       failure: null,
     })
     if (interruptPending && turnInFlight) requestInterrupt()
@@ -340,7 +343,7 @@ export function createRemoteDeltaChannel(args: {
     if (attempt >= budget) {
       const reason = exhaustedDetailOf(budget)
       endStrandedStep()
-      facts.update({ waking: false, failure: reason })
+      facts.update({ waking: false, rotating: false, failure: reason })
       upstream.failWaiting({ reason })
       return
     }
@@ -400,7 +403,7 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const failWake = (reason: string) => {
-    facts.update({ waking: false, failure: reason })
+    facts.update({ waking: false, rotating: false, failure: reason })
     upstream.failWaiting({ reason })
   }
 
@@ -416,11 +419,16 @@ export function createRemoteDeltaChannel(args: {
     endStrandedStep()
     facts.update({
       waking: true,
+      rotating: false,
       failure: null,
       ...(liveness === ESocketLiveness.Unattached ? {} : { socket: ESocketLiveness.Closed }),
     })
     const scheduled = generation
-    wakeSandbox().then(
+    const onRotationStarted = () => {
+      if (abandoned || scheduled !== generation) return
+      facts.update({ rotating: true })
+    }
+    wakeSandbox({ onRotationStarted }).then(
       (next) => {
         if (abandoned || scheduled !== generation) return
         applyAttachment(next)
@@ -544,6 +552,11 @@ export function createRemoteDeltaChannel(args: {
     beginWake() {
       if (abandoned || facts.facts().socket === ESocketLiveness.Open) return
       facts.update({ waking: true, failure: null })
+    },
+
+    beginRotation() {
+      if (abandoned || facts.facts().socket === ESocketLiveness.Open) return
+      facts.update({ rotating: true })
     },
 
     failWake({ reason }) {

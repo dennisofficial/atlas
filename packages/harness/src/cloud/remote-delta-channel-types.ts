@@ -25,6 +25,9 @@ export type ThreadModelChangedFrame = { threadId: ThreadId; model: { ref: string
 
 export type SandboxAttachment = { url: string; token: string }
 
+/** Wakes the sandbox; `onRotationStarted` fires when the wake turns out to be a serve swap. */
+export type SandboxWake = (wake: { onRotationStarted: () => void }) => Promise<SandboxAttachment>
+
 export const INTERRUPT_ACK_TIMEOUT_MS = 5_000
 
 export const STRANDED_STEP_END = EStepEnd.Detached
@@ -69,6 +72,8 @@ export type RemoteDeltaChannel = DeltaChannel & {
   wake(args: SandboxAttachment): void
   /** The optimistic Waking signal for the gap before a caller-run wake hands over an attachment. */
   beginWake(): void
+  /** A caller-run wake turned out to be a serve swap: the view reads Updating until the wake settles. */
+  beginRotation(): void
   /** A caller-run wake failed: the view reads Disconnected with the reason, and waiting requests fail. */
   failWake(args: { reason: string }): void
   /** Runs the injected sandbox wake from any state but a live socket or a wake already under way. */
