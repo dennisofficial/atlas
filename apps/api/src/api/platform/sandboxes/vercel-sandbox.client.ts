@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common'
-import { Drive, Sandbox } from '@vercel/sandbox'
+import { Sandbox } from '@vercel/sandbox'
 import { SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ESandboxState } from './sandboxes.types'
@@ -63,29 +63,11 @@ const routedUrlOf = (sandbox: Sandbox): string | undefined => {
 /**
  * The read-and-stop surface the API still needs on a BYO sandbox. The harness owns provisioning
  * with the operator's own Vercel token, so nothing here boots, launches, or downloads serve —
- * only inspect, park notification, stop, and the drive sweep a teardown calls.
+ * only inspect, park notification, and stop.
  */
 @Injectable()
 export class VercelSandboxClient {
   constructor(private readonly env: EnvService) {}
-
-  async deleteDrive(args: { name: string }): Promise<void> {
-    try {
-      const drives = await Drive.list({
-        ...this.credentials(),
-        namePrefix: args.name,
-        sortBy: 'name',
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      for await (const drive of drives) {
-        if (drive.name !== args.name) continue
-        await drive.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
-      }
-    } catch (failure) {
-      if (isSandboxMissing(failure)) return
-      throw asBadGateway(failure)
-    }
-  }
 
   async inspect(args: { name: string }): Promise<SandboxObservation> {
     const credentials = this.credentials()

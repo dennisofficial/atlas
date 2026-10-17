@@ -42,7 +42,6 @@ export class SandboxesController {
       contextBundle: body.contextBundle,
       gitToken: body.gitToken,
       gpgKey: body.gpgKey,
-      driveName: body.driveName,
       contextPending: body.contextPending,
       ...(body.clientToken === undefined ? {} : { clientToken: body.clientToken }),
       ...(body.serveUrl === undefined ? {} : { serveUrl: body.serveUrl }),

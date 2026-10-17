@@ -9,9 +9,6 @@ const sdk = vi.hoisted(() => ({
   status: 'running',
   getFailure: null as Error | null,
   runCommandFailure: null as Error | null,
-  driveDeleted: [] as string[],
-  driveListParams: [] as Array<Record<string, unknown> | undefined>,
-  driveStore: new Map<string, { name: string; delete: () => Promise<void> }>(),
 }))
 
 vi.mock('@vercel/sandbox', () => {
@@ -43,30 +40,6 @@ vi.mock('@vercel/sandbox', () => {
   }
   return {
     APIError,
-    Drive: {
-      list: async (params?: Record<string, unknown>) => {
-        sdk.driveListParams.push(params)
-        if (params?.namePrefix !== undefined && params?.sortBy !== 'name') {
-          throw new APIError(new Response(null, { status: 400 }), {
-            json: {
-              error: {
-                code: 'bad_request',
-                message: 'Invalid request: `namePrefix` is only valid when `sortBy` is `name`',
-              },
-            },
-          })
-        }
-        const prefix = String(params?.namePrefix ?? '')
-        const matched = [...sdk.driveStore.values()].filter((drive) =>
-          drive.name.startsWith(prefix),
-        )
-        return {
-          async *[Symbol.asyncIterator]() {
-            for (const drive of matched) yield drive
-          },
-        }
-      },
-    },
     Sandbox: {
       get: async (params: Record<string, unknown>) => {
         sdk.getParams.push(params)
@@ -95,9 +68,6 @@ describe('VercelSandboxClient', () => {
     sdk.getParams.length = 0
     sdk.stopped.length = 0
     sdk.ranCommands.length = 0
-    sdk.driveDeleted.length = 0
-    sdk.driveListParams.length = 0
-    sdk.driveStore.clear()
     sdk.status = 'running'
     sdk.getFailure = null
     sdk.runCommandFailure = null
@@ -156,24 +126,6 @@ describe('VercelSandboxClient', () => {
     await expect(unconfigured.inspect({ name: 'atlas-thread-abc' })).rejects.toThrow(
       'Atlas Cloud sandboxes are not configured on this deployment',
     )
-  })
-
-  it('deletes a drive by name through the SDK, tolerating one already gone', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
-    sdk.driveStore.set('atlas-repo-341', {
-      name: 'atlas-repo-341',
-      delete: async () => {
-        sdk.driveDeleted.push('atlas-repo-341')
-      },
-    })
-
-    await client.deleteDrive({ name: 'atlas-repo-341' })
-
-    expect(sdk.driveListParams[0]).toMatchObject({
-      namePrefix: 'atlas-repo-341',
-      sortBy: 'name',
-    })
-    expect(sdk.driveDeleted).toEqual(['atlas-repo-341'])
   })
 
   it('curls the sandbox-local park endpoint with the reason and a hard timeout', async () => {

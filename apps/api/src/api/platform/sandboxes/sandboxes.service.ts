@@ -13,8 +13,9 @@ import { CONTEXT_ARCHIVE_STORE } from '../../cloud/context-archive/context-archi
 import type { ContextArchiveStore } from '../../cloud/context-archive/context-archive.store'
 import { SandboxGitCredentials } from './git-credentials'
 import { ownedSandbox } from './ownership'
-import { sandboxStateOf, toSandboxDto, type SandboxPrincipal } from './rows'
+import { toSandboxDto, type SandboxPrincipal } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
+import { sandboxStateOf } from './sandbox-lifecycle'
 import { SandboxEndpointService } from './sandbox-endpoint'
 import { registerSandbox, type RegisterSandboxArgs } from './sandbox-register'
 import { findOrCreateClaimThread } from './sandbox-thread'
@@ -60,7 +61,6 @@ export class SandboxesService {
     contextBundle?: string | undefined
     gitToken?: string | undefined
     gpgKey?: string | undefined
-    driveName?: string | null | undefined
     contextPending?: boolean | undefined
     clientToken?: string | undefined
     serveUrl?: string | undefined
@@ -74,7 +74,6 @@ export class SandboxesService {
         threadId: args.threadId,
         clientToken,
         serveUrl: args.serveUrl,
-        ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
         ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
         ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
       })
@@ -96,7 +95,6 @@ export class SandboxesService {
       contextBundle: args.contextBundle,
       ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.gpgKey === undefined ? {} : { sealedGpgKey: this.cipher.encrypt(args.gpgKey) }),
-      ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
     return {
@@ -135,8 +133,7 @@ export class SandboxesService {
     return rows.map((row) => ({
       threadId: row.threadId,
       name: row.name,
-      driveName: row.driveName ?? null,
-      state: sandboxStateOf(row.state),
+      state: sandboxStateOf(row),
       lastActivityAt: row.lastActivityAt,
     }))
   }
