@@ -47,7 +47,7 @@ const RIG_COMMAND = 'atlas-live-rig'
 const BUSY_RENDERER = 'visual idle'
 const CHIP_WITHIN_MS = 20_000
 const LOCAL_CHIP = 'local ▾'
-const CLOUD_CHIP = '☁ cloud ▾'
+const CLOUD_CHIP = '☁ cloud'
 
 const flushTolerant = async (setup: Setup): Promise<void> => {
   try {
