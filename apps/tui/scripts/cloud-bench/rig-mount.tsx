@@ -84,6 +84,7 @@ const resumedConversation = (threadId: ThreadId): OpenedConversation => ({
   turns: [],
   name: null,
   started: true,
+  attachOnBoot: true,
 })
 
 const KEY_SETTLE_MS = 250
