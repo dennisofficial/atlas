@@ -103,13 +103,17 @@ describe('serve sandbox rotation recovery without a client', () => {
     expect((await second.disk.log.read({ threadId })).filter((event) => event.type === 'nudge')).toHaveLength(1)
   }, 20_000)
 
-  it('deletes the receipt on a same-session boot and takes ownership of the checkpoint', async () => {
+  it('resumes the owed parent on a same-session boot and consumes the receipt only on completion', async () => {
     const fixture = await rotationFixture()
-    const boot = await fixture.boot({ sessionId: sourceSession })
+    const model = gate()
+    const boot = await fixture.boot({ sessionId: sourceSession, modelGate: model })
     await boot.starting
-    expect(boot.resumed()).toBe(0)
-    expect(boot.app.adoptions()).toEqual([threadId])
-    expect(await readSandboxRotationReceipt({ atlasHome: fixture.home })).toBeNull()
+    await eventually(() => boot.resumed() === 1)
+    expect(boot.ran()).toBe(0)
+    expect(await owed(fixture.home)).toBe(true)
+    model.release()
+    await eventually(async () => !(await owed(fixture.home)))
+    expect(boot.outcomes.map((outcome) => outcome.status)).toEqual([ETurnStatus.Completed])
     const checkpoint = await checkpointAt(fixture.home)
     expect(checkpoint?.sandboxSessionId).toBe(sourceSession)
   }, 20_000)

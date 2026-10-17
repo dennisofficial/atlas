@@ -31,12 +31,6 @@ export async function createServeRotationRecovery(args: {
   if (state !== null && !args.sandboxSessionId?.trim()) {
     throw new Error('sandbox rotation recovery requires ATLAS_SANDBOX_SESSION_ID')
   }
-  const sourceRestart = state !== null && state.sandboxSessionId === args.sandboxSessionId
-  const sourceConsumption = sourceRestart
-    ? consumeSandboxRotationReceipt({ atlasHome: args.atlasHome, receipt: state, parent: true, children: state.resumeChildren ?? [] }).catch((failure: unknown) => {
-      args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
-    })
-    : undefined
   type GuardedCheckpoint = Pick<RuntimeCheckpointBinding, 'current' | 'parkReopened' | 'consumeReceipt'>
   let guarded: { app: ServeApp; checkpoint: GuardedCheckpoint } | undefined
   let continuationStarted = false
@@ -45,12 +39,12 @@ export async function createServeRotationRecovery(args: {
   let recovering: Promise<void> | undefined
   let activating: Promise<{ activated: boolean }> | undefined
   let consumedParent = false
-  let admissionLatched = state !== null && !sourceRestart
+  let admissionLatched = state !== null
   let children: Awaited<ReturnType<typeof trackRotationChildren>> | undefined
   const resumeChildren = state?.resumeChildren?.map(toThreadId)
 
   const consumeObligations = (given: { parent?: boolean; children?: readonly ThreadId[] }): Promise<void> => {
-    if (state === null || sourceRestart || preparingNextRotation) return Promise.resolve()
+    if (state === null || preparingNextRotation) return Promise.resolve()
     const writing = (consumption ?? Promise.resolve()).then(async () => {
       if (guarded !== undefined) {
         await guarded.checkpoint.consumeReceipt({
@@ -76,10 +70,6 @@ export async function createServeRotationRecovery(args: {
   const guard = async (given: { app: ServeApp; checkpoint: GuardedCheckpoint }): Promise<void> => {
     guarded = given
     if (state === null) return
-    if (sourceRestart) {
-      if (sourceConsumption !== undefined) await sourceConsumption
-      return
-    }
     given.app.intake?.suspend()
     await given.app.family?.freeze?.({ threadId: args.threadId })
     if (children === undefined && (resumeChildren?.length ?? 0) > 0) {
@@ -118,23 +108,21 @@ export async function createServeRotationRecovery(args: {
   }
 
   const discardIfConsumed = async (): Promise<void> => {
-    if (state === null || sourceRestart || preparingNextRotation) return
+    if (state === null || preparingNextRotation) return
     await consumeObligations({})
   }
 
   return {
-    deferred: state !== null && !sourceRestart,
-    resumeChildren: sourceRestart ? undefined : resumeChildren,
+    deferred: state !== null,
+    resumeChildren,
     checkpointAllowed: true,
-    owed: sourceRestart
-      ? { parent: false, children: [] as readonly ThreadId[] }
-      : { parent: state?.resumeParent ?? false, children: resumeChildren ?? [] as readonly ThreadId[] },
+    owed: { parent: state?.resumeParent ?? false, children: resumeChildren ?? [] as readonly ThreadId[] },
     get admissionLatched() {
       return admissionLatched || preparingNextRotation
     },
     guard,
     recover(given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<void> {
-      if (state === null || sourceRestart || preparingNextRotation) return Promise.resolve()
+      if (state === null || preparingNextRotation) return Promise.resolve()
       recovering ??= (async () => {
         await given.session.startChildren()
         children?.changed()
@@ -144,7 +132,7 @@ export async function createServeRotationRecovery(args: {
       return recovering
     },
     activate(given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<{ activated: boolean }> {
-      if (sourceRestart || preparingNextRotation) return Promise.reject(new Error('this sandbox is still preparing rotation and accepts no new work'))
+      if (preparingNextRotation) return Promise.reject(new Error('this sandbox is still preparing rotation and accepts no new work'))
       activating ??= (async () => {
         if (preparingNextRotation) return { activated: false }
         children?.changed()
@@ -177,7 +165,7 @@ export async function createServeRotationRecovery(args: {
       })
     },
     consume(frame: LifecycleFrame): void {
-      if (state === null || sourceRestart || preparingNextRotation || !state.resumeParent || consumedParent) return
+      if (state === null || preparingNextRotation || !state.resumeParent || consumedParent) return
       if (frame.kind !== EServeFrame.TurnEnded) return
       const status = frame.outcome.status
       if (status !== ETurnStatus.Completed && status !== ETurnStatus.Idle && status !== ETurnStatus.Paused && status !== ETurnStatus.Failed) return
