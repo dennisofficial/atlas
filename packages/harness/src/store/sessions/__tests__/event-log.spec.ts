@@ -57,6 +57,82 @@ describe('JsonlEventLog', () => {
     expect(read.map((event) => event.type)).toEqual(['nudge', 'nudge', 'nudge'])
   })
 
+  it('admitting a requestId that already landed returns the existing event instead of re-appending', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    const first = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'user-said', text: 'deploy it', requestId: 'req-1' }],
+    })
+    const retried = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'user-said', text: 'deploy it', requestId: 'req-1' }],
+    })
+
+    expect(retried[0]?.id).toBe(first[0]?.id)
+    expect(await log.head({ threadId: mainThread })).toBe(1)
+    const read = await log.read({ threadId: mainThread })
+    expect(read.filter((event) => event.type === 'user-said')).toHaveLength(1)
+  })
+
+  it('admits two submissions that share text but carry distinct requestIds', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'user-said', text: 'deploy it', requestId: 'req-1' }],
+    })
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'user-said', text: 'deploy it', requestId: 'req-2' }],
+    })
+
+    const read = await log.read({ threadId: mainThread })
+    expect(read.filter((event) => event.type === 'user-said')).toHaveLength(2)
+  })
+
+  it('admits a user-said that carries no requestId every time', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'user-said', text: 'hi' }],
+    })
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'user-said', text: 'hi' }],
+    })
+
+    expect(await log.head({ threadId: mainThread })).toBe(2)
+  })
+
+  it('dedupes a requestId claimed twice within one append batch', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    const stamped = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [
+        { type: 'user-said', text: 'deploy it', requestId: 'req-1' },
+        { type: 'user-said', text: 'deploy it', requestId: 'req-1' },
+      ],
+    })
+
+    expect(stamped[0]?.id).toBe(stamped[1]?.id)
+    const read = await log.read({ threadId: mainThread })
+    expect(read.filter((event) => event.type === 'user-said')).toHaveLength(1)
+  })
+
   it('reuses a matching context-loaded event instead of appending a duplicate', async () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })

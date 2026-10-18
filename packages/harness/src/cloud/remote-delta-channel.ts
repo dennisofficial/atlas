@@ -481,12 +481,12 @@ export function createRemoteDeltaChannel(args: {
       throw new RemotePublishRefused(threadId)
     },
 
-    send: ({ text, images, files, context }) => {
+    send: ({ text, requestId, images, files, context }) => {
       kickWake()
       upstream.send({
         kind: EClientFrame.Send,
         sendId: toSendId(crypto.randomUUID()),
-        ...saidBody({ text, images, files }),
+        ...saidBody({ text, requestId, images, files }),
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
       })
     },

@@ -6,7 +6,8 @@ export function withDeltaPublishing(args: { log: EventLogPort; channel: DeltaCha
   return {
     async append(appendArgs) {
       const events = await args.log.append(appendArgs)
-      args.channel.publisherFor({ threadId: appendArgs.threadId }).settleAppend({ events })
+      const visible = events.filter((event) => event.type !== 'tool-dispatched')
+      if (visible.length > 0) args.channel.publisherFor({ threadId: appendArgs.threadId }).settleAppend({ events: visible })
       return events
     },
 

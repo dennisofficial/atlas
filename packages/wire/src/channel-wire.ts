@@ -228,6 +228,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     kind: z.literal(EClientFrame.Send),
     sendId: sendIdWireSchema,
     text: z.string(),
+    requestId: z.string().min(1).optional(),
     images: z.array(saidImageWireSchema).readonly().optional(),
     files: z.array(saidFileWireSchema).readonly().optional(),
     context: z.array(z.unknown()).readonly().optional(),

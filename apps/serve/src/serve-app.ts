@@ -1,6 +1,7 @@
 import type {
   EExecutionLocation,
   EKilledBy,
+  EToolEffect,
   EventLogPort,
   IdPort,
   NoticePort,
@@ -119,6 +120,8 @@ export type ServeApp = {
   /** The reader a mention op answers from, per thread of the served family; absent in fakes, which refuse the ops. */
   mentionFiles?: ((threadId: ThreadId) => Promise<MentionReader>) | undefined
   workspace: WorkspaceIdentity
+  /** Resolves a tool's declared effect by name for crash recovery; absent in fakes, where nothing runs. */
+  toolEffect?: ((name: string) => EToolEffect | undefined) | undefined
   pending?: PendingQueues | undefined
   /** The shared message intake driving this serve's idle wake; absent in fakes. */
   intake?: MessageIntake | undefined

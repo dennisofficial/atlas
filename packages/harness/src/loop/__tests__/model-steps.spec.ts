@@ -197,6 +197,7 @@ describe('a thinking turn whose text block arrives blank', () => {
     expect(events.map((event) => event.type)).toEqual([
       'user-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])

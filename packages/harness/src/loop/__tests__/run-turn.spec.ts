@@ -219,6 +219,7 @@ describe('a turn that settles its own tool call', () => {
       'user-said',
       'assistant-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])

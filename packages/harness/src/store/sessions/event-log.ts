@@ -16,7 +16,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { trackFamilyOwnership } from '../../workspace/family-ownership'
-import { contextIdentityOf, planAppend, type ContextIdentity } from '../append-plan'
+import { appendIdentityOf, contextIdentityOf, planAppend, type ContextIdentity } from '../append-plan'
 import { EUnreadableReason, type UnreadableRow } from '../decode-events'
 import { planSegments } from './compose'
 import { dropTornTail, encodeEventLine } from './lines'
@@ -251,7 +251,7 @@ export class JsonlEventLog implements EventLogPort {
   }): Promise<ReadonlyMap<ContextIdentity, Event>> {
     const wanted = new Set<ContextIdentity>()
     for (const draft of drafts) {
-      const identity = contextIdentityOf(draft)
+      const identity = appendIdentityOf(draft)
       if (identity !== undefined) wanted.add(identity)
     }
     if (wanted.size === 0) return new Map()
@@ -259,7 +259,7 @@ export class JsonlEventLog implements EventLogPort {
     const reusable = new Map<ContextIdentity, Event>()
     const composed = await this.read({ threadId })
     for (const event of composed) {
-      const identity = contextIdentityOf(event)
+      const identity = appendIdentityOf(event)
       if (identity !== undefined && wanted.has(identity)) reusable.set(identity, event)
     }
     return reusable

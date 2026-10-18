@@ -101,6 +101,7 @@ export type EventBody =
       type: 'user-said'
       text: string
       via?: EMessageOrigin | undefined
+      requestId?: string | undefined
       images?: readonly SaidImage[] | undefined
       files?: readonly SaidFile[] | undefined
     }
@@ -111,6 +112,7 @@ export type EventBody =
       placeholder?: EAssistantPlaceholder | undefined
     }
   | { type: 'tool-called'; callId: CallId; name: string; input?: unknown; ordinal: number }
+  | { type: 'tool-dispatched'; callId: CallId; name: string }
   | {
       type: 'tool-result'
       callId: CallId

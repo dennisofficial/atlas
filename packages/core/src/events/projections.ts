@@ -60,6 +60,34 @@ export function pendingCalls(events: readonly Event[]): PendingCall[] {
     }))
 }
 
+export function submissionWithRequestId({
+  events,
+  requestId,
+}: {
+  events: readonly Event[]
+  requestId: string
+}): Event | undefined {
+  return events.findLast((event) => event.type === 'user-said' && event.requestId === requestId)
+}
+
+export function dispatchedCalls(events: readonly Event[]): Set<CallId> {
+  const dispatched = new Set<CallId>()
+  for (const event of events) {
+    if (event.type === 'tool-called') {
+      dispatched.delete(event.callId)
+      continue
+    }
+    if (event.type === 'tool-dispatched') dispatched.add(event.callId)
+  }
+  return dispatched
+}
+
+export function crashedCalls(events: readonly Event[]): PendingCall[] {
+  const dispatched = dispatchedCalls(events)
+  if (dispatched.size === 0) return []
+  return pendingCalls(events).filter((call) => dispatched.has(call.callId))
+}
+
 export function answeredApproval({
   events,
   callId,

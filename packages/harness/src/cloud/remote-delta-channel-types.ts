@@ -36,6 +36,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   readonly threadId: ThreadId
   send(args: {
     text: string
+    requestId?: string | undefined
     images?: readonly SaidImage[] | undefined
     files?: readonly SaidFile[] | undefined
     context?: readonly EventDraft[] | undefined

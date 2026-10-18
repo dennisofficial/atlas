@@ -134,6 +134,7 @@ export function createTurnDriver(args: {
       if (intake !== null && pending !== null && (turning !== null || committing !== null || history.held())) {
         pending.forThread({ threadId: served }).enqueue({
           text: said.text,
+          ...(said.requestId === undefined ? {} : { requestId: said.requestId }),
           ...(said.images === undefined ? {} : { images: said.images }),
           ...(said.files === undefined ? {} : { files: said.files }),
           ...(said.context === undefined ? {} : { context: said.context }),

@@ -105,6 +105,7 @@ describe('a turn that drives a real builtin tool', () => {
     expect(events.map((event) => event.type)).toEqual([
       'user-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])
@@ -135,8 +136,10 @@ describe('a turn that drives a real builtin tool', () => {
     expect(events.map((event) => event.type)).toEqual([
       'user-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])
@@ -197,8 +200,10 @@ describe('a turn that drives a real builtin tool', () => {
     expect(events.map((event) => event.type)).toEqual([
       'user-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])
@@ -218,6 +223,7 @@ describe('a turn that drives a real builtin tool', () => {
     expect(events.map((event) => event.type)).toEqual([
       'user-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])
@@ -236,6 +242,7 @@ describe('a turn that drives a real builtin tool', () => {
     expect(events.map((event) => event.type)).toEqual([
       'user-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])

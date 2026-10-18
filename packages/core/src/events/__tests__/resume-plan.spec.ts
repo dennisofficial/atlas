@@ -149,4 +149,26 @@ describe('resumePlan', () => {
 
     expect(resumePlan(events)).toEqual({ kind: EResume.Continue, nudge: false })
   })
+
+  it('nudges when a crash-interrupted result was synthesized at session open', () => {
+    const events = log([
+      { type: 'user-said', text: 'run it' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'running' }] },
+      { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: {}, ordinal: 0 },
+      { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-1'),
+        name: 'bash',
+        interrupted: true,
+        error: {
+          message:
+            'bash was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it',
+        },
+      },
+    ])
+
+    expect(resumePlan(events)).toEqual({ kind: EResume.Continue, nudge: true })
+    expect(resumeDrafts(events)).toEqual([{ type: 'nudge', text: RESUME_NUDGE, lifetimeSteps: 1 }])
+  })
 })

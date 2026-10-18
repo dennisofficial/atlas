@@ -35,6 +35,7 @@ export function createTurnCommands(args: {
     void driver
       .say({
         text: frame.text,
+        ...(frame.requestId === undefined ? {} : { requestId: frame.requestId }),
         images: frame.images,
         files: frame.files,
         ...(context === undefined ? {} : { context }),

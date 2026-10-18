@@ -109,6 +109,7 @@ describe('a provider that hands out the same call id twice (kimi numbers calls p
       'user-said',
       'assistant-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'assistant-said',
     ])

@@ -13,6 +13,15 @@ export function contextIdentityOf(draft: EventDraft): ContextIdentity | undefine
   return JSON.stringify([draft.slot, contextDigestOf(draft.content)])
 }
 
+export function submissionIdentityOf(draft: EventDraft): ContextIdentity | undefined {
+  if (draft.type !== 'user-said' || draft.requestId === undefined) return undefined
+  return `requestId:${draft.requestId}`
+}
+
+export function appendIdentityOf(draft: EventDraft): ContextIdentity | undefined {
+  return contextIdentityOf(draft) ?? submissionIdentityOf(draft)
+}
+
 type PlanEntry = { kind: 'reused'; event: Event } | { kind: 'fresh'; position: number }
 
 export type AppendPlan = {
@@ -32,7 +41,7 @@ export function planAppend({
   const claimed = new Map<ContextIdentity, number>()
 
   for (const draft of drafts) {
-    const identity = contextIdentityOf(draft)
+    const identity = appendIdentityOf(draft)
     if (identity === undefined) {
       entries.push({ kind: 'fresh', position: fresh.length })
       fresh.push(draft)

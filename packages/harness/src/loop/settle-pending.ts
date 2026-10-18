@@ -58,6 +58,9 @@ export function createSettlePending(deps: {
       homeDirectory: args.homeDirectory,
       activeWorktree: args.activeWorktree,
       events: args.events,
+      onDispatchStarted: async (draft) => {
+        await deps.log.append({ threadId: call.threadId, runId: call.runId, drafts: [draft] })
+      },
       ...(tap === undefined
         ? {}
         : { onOutput: (chunk: ToolOutputChunk) => tap({ callId: call.callId, ...chunk }) }),

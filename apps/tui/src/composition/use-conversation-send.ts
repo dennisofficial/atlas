@@ -152,6 +152,7 @@ export function useSendMessage(args: {
       if (moving) return
 
       const contextPart = send.context === undefined ? {} : { context: send.context }
+      const requestId = crypto.randomUUID()
 
       if (cloudRunner !== null && cloudView !== null && wakesOnSend(cloudView)) {
         pending.enqueue({ text, images, files, ...contextPart })
@@ -167,18 +168,18 @@ export function useSendMessage(args: {
         }
 
         if (app.intake !== undefined) {
-          app.intake.submit({ threadId, text, images, files, ...contextPart })
+          app.intake.submit({ threadId, text, requestId, images, files, ...contextPart })
           return
         }
 
-        pending.enqueue({ text, images, files, ...contextPart })
+        pending.enqueue({ text, requestId, images, files, ...contextPart })
         return
       }
 
       if (app.intake !== undefined) {
         const shared = app.intake
         const releaseStartup = shared.hold({ threadId })
-        shared.submit({ threadId, text, images, files, ...contextPart })
+        shared.submit({ threadId, text, requestId, images, files, ...contextPart })
         void (async () => {
           let releaseBatch: (() => void) | undefined
           try {
@@ -206,7 +207,7 @@ export function useSendMessage(args: {
       }
 
       drive(
-        [...(send.context ?? []), ...[...drained, { text, images, files }].map(userSaidDraft)],
+        [...(send.context ?? []), ...[...drained, { text, images, files, requestId }].map(userSaidDraft)],
         { onCommitFailed },
       )
     },
