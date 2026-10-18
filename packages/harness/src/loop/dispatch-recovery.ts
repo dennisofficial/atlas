@@ -1,13 +1,14 @@
 import {
   crashedCalls,
   EToolEffect,
+  rowsOwnedBy,
   type EventLogPort,
   type IdPort,
   type PendingCall,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-type CrashLog = Pick<EventLogPort, 'read' | 'append'>
+type CrashLog = Pick<EventLogPort, 'readOwn' | 'append'>
 type CrashIds = Pick<IdPort, 'nextRunId'>
 
 export type ToolEffectResolver = (name: string) => EToolEffect | undefined
@@ -30,8 +31,8 @@ export async function settleCrashedCalls(args: {
   threadId: ThreadId
   effectOf: ToolEffectResolver
 }): Promise<readonly PendingCall[]> {
-  const events = await args.log.read({ threadId: args.threadId })
-  const crashed = crashedCalls(events)
+  const events = await args.log.readOwn({ threadId: args.threadId })
+  const crashed = crashedCalls(rowsOwnedBy({ events, threadId: args.threadId }))
   if (crashed.length === 0) return crashed
 
   const unrecoverable = crashed.filter((call) => args.effectOf(call.name) !== EToolEffect.Read)
