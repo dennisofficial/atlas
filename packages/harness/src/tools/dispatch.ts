@@ -26,6 +26,7 @@ import {
 import { logFieldsOf } from '../store/logs'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain, RegisteredHook } from '../hooks/registry'
+import { invalidInputDraft, markDispatchStarted, markerFailureDraft, unknownToolDraft } from './dispatch-drafts'
 import { outcomeWhenAHookDidNotAnswerInTime } from './hook-silence'
 import { QualityStage } from './quality-dispatch'
 import type { ToolRegistry } from './registry'
@@ -39,16 +40,19 @@ export type DispatchableCall = {
   threadId: ThreadId
 }
 
+export type DispatchArgs = {
+  call: DispatchableCall
+  signal: AbortSignal
+  projectDirectory: string
+  homeDirectory?: string | undefined
+  events: readonly Event[]
+  activeWorktree?: ActiveWorktree | undefined
+  onOutput?: OnToolOutput | undefined
+  onDispatchStarted?: ((draft: EventDraft) => Promise<void>) | undefined
+}
+
 export abstract class ToolDispatcher {
-  abstract dispatch(args: {
-    call: DispatchableCall
-    signal: AbortSignal
-    projectDirectory: string
-    homeDirectory?: string | undefined
-    events: readonly Event[]
-    activeWorktree?: ActiveWorktree | undefined
-    onOutput?: OnToolOutput | undefined
-  }): Promise<readonly EventDraft[]>
+  abstract dispatch(args: DispatchArgs): Promise<readonly EventDraft[]>
 }
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
@@ -57,8 +61,6 @@ const NO_OUTCOME: HookOutcome = {}
 
 const changesTheWorld = (effect: EToolEffect): boolean =>
   effect === EToolEffect.Write || effect === EToolEffect.Destructive
-
-const MAX_REPORTED_ISSUES = 3
 
 export class HookedToolDispatcher extends ToolDispatcher {
   private readonly registry: ToolRegistry
@@ -85,21 +87,16 @@ export class HookedToolDispatcher extends ToolDispatcher {
     this.quality = new QualityStage({ quality: args.quality, logPort: args.logPort })
   }
 
-  async dispatch(args: {
-    call: DispatchableCall
-    signal: AbortSignal
-    projectDirectory: string
-    homeDirectory?: string | undefined
-    events: readonly Event[]
-    activeWorktree?: ActiveWorktree | undefined
-    onOutput?: OnToolOutput | undefined
-  }): Promise<readonly EventDraft[]> {
-    const { call, signal, projectDirectory, homeDirectory, activeWorktree, events, onOutput } = args
+  async dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
+    const { call, signal, projectDirectory, homeDirectory, activeWorktree, events, onOutput, onDispatchStarted } = args
     const definition = this.registry.find(call.name)
-    if (definition === undefined) return [this.unknownToolDraft({ call })]
+    if (definition === undefined) {
+      const available = this.registry.declarations().map((declaration) => declaration.name)
+      return [unknownToolDraft({ call, available })]
+    }
 
     const parsed = definition.inputSchema.safeParse(call.input)
-    if (!parsed.success) return [this.invalidInputDraft({ call, issues: parsed.error.issues })]
+    if (!parsed.success) return [invalidInputDraft({ call, issues: parsed.error.issues })]
 
     const candidate: ToolCall = {
       callId: call.callId,
@@ -123,6 +120,10 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
     const allowed: ToolCall = { ...candidate, input: outcome.input }
     const idempotencyKey = `${call.runId}:${call.callId}`
+    const markerFailure = await markDispatchStarted({ onDispatchStarted, call, logPort: this.logPort })
+    if (markerFailure !== undefined) {
+      return [...drafts, markerFailureDraft({ callId: call.callId, name: call.name, failure: markerFailure })]
+    }
     const result = await this.invokeTool({
       definition,
       call: allowed,
@@ -144,43 +145,6 @@ export class HookedToolDispatcher extends ToolDispatcher {
       ...(await this.observeAfterTool({ call: allowed, result, projectDirectory, signal })),
       ...(qualityOutcome.nudge === undefined ? [] : [qualityOutcome.nudge]),
     ]
-  }
-
-  private unknownToolDraft(args: { call: DispatchableCall }): EventDraft {
-    const available = this.registry.declarations().map((declaration) => declaration.name)
-    const known = available.length === 0 ? 'none' : available.join(', ')
-    return {
-      type: 'tool-result',
-      callId: args.call.callId,
-      name: args.call.name,
-      output: undefined,
-      error: {
-        message: `no tool named "${args.call.name}" is registered; available tools: ${known}`,
-      },
-    }
-  }
-
-  private invalidInputDraft(args: {
-    call: DispatchableCall
-    issues: readonly { path: readonly PropertyKey[]; message: string }[]
-  }): EventDraft {
-    const problems = args.issues
-      .slice(0, MAX_REPORTED_ISSUES)
-      .map((issue) => {
-        const field = issue.path.map(String).join('.')
-        return field === '' ? issue.message : `${field}: ${issue.message}`
-      })
-      .join('; ')
-
-    return {
-      type: 'tool-result',
-      callId: args.call.callId,
-      name: args.call.name,
-      output: undefined,
-      error: {
-        message: `the ${args.call.name} tool rejected this input: ${problems === '' ? 'it does not match the schema' : problems}`,
-      },
-    }
   }
 
   private async outcomeOf(args: {

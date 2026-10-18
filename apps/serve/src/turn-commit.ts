@@ -5,6 +5,7 @@ import type { ServeApp } from './serve-app'
 
 export type Said = {
   text: string
+  requestId?: string | undefined
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
   context?: readonly EventDraft[] | undefined
@@ -35,6 +36,7 @@ export function createTurnCommit(args: { app: ServeApp; threadId: () => ThreadId
     if (intake !== null) {
       intake.submit({
         threadId, text: said.text,
+        ...(said.requestId === undefined ? {} : { requestId: said.requestId }),
         ...(said.images === undefined ? {} : { images: said.images }),
         ...(said.files === undefined ? {} : { files: said.files }),
         ...(said.context === undefined ? {} : { context: said.context }),
@@ -44,7 +46,7 @@ export function createTurnCommit(args: { app: ServeApp; threadId: () => ThreadId
     }
     await writeDrafts([
       ...(said.context ?? []),
-      saidBody({ text: said.text, images: said.images, files: said.files }),
+      saidBody({ text: said.text, requestId: said.requestId, images: said.images, files: said.files }),
     ])
   }
 }

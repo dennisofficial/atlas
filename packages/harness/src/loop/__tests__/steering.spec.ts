@@ -76,6 +76,7 @@ describe('a message typed while a tool call is settling', () => {
       'user-said',
       'assistant-said',
       'tool-called',
+      'tool-dispatched',
       'tool-result',
       'user-said',
       'assistant-said',

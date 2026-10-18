@@ -92,6 +92,7 @@ export class RemoteTurnRunner extends TurnRunner {
   say(args: {
     threadId: ThreadId
     text: string
+    requestId?: string | undefined
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
     context?: readonly EventDraft[]
@@ -103,6 +104,7 @@ export class RemoteTurnRunner extends TurnRunner {
       fire: () =>
         this.channel.send({
           text: args.text,
+          ...(args.requestId === undefined ? {} : { requestId: args.requestId }),
           images: args.images,
           files: args.files,
           ...(args.context === undefined ? {} : { context: args.context }),

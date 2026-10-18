@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EventLogPort, EShellStatus, toThreadId, type EventDraft } from '@dltech/atlas-core'
+import {
+  EAgentStart,
+  ELogSeverity,
+  EventLogPort,
+  EShellStatus,
+  LogPort,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Event,
+  type EventDraft,
+  type LogEntry,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { MessageIntake, RandomIds } from '@dltech/atlas-harness'
 
 import { teardownSession, type TeardownSource } from '../session-teardown'
@@ -154,5 +167,150 @@ describe('teardownSession', () => {
     ).rejects.toThrow('broken would not close')
 
     expect(stopped).toBe(true)
+  })
+})
+
+const liveThreadLog = (threadId: ThreadId, drafts: readonly EventDraft[]): EventLogPort =>
+  new (class extends EventLogPort {
+    async append(): Promise<never[]> {
+      return []
+    }
+
+    async read(): Promise<never[]> {
+      return []
+    }
+
+    async refresh(): Promise<void> {}
+
+    async head(): Promise<number> {
+      return 0
+    }
+
+    async readOwn(): Promise<Event[]> {
+      return drafts.map((draft, index) => ({
+        ...draft,
+        id: toEventId(`teardown-${index + 1}`),
+        seq: index + 1,
+        threadId,
+        runId: toRunId('run-1'),
+        depth: 0,
+        at: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+      }))
+    }
+
+    async replace(): Promise<never[]> {
+      return []
+    }
+  })()
+
+const recordingLogPort = (entries: LogEntry[]): LogPort =>
+  new (class extends LogPort {
+    record(entry: LogEntry): void {
+      entries.push(entry)
+    }
+  })()
+
+const liveUnitsDrafts: readonly EventDraft[] = [
+  { type: 'agent-spawned', agentId: toThreadId('child-1'), agentType: 'builder', intent: 'build', mode: EAgentStart.Fresh },
+  { type: 'background-shell-started', shellId: 'bash_1', command: 'sleep 60' },
+  { type: 'service-started', serviceId: 'svc-1', command: 'bun run dev' },
+]
+
+describe('teardownSession ordered by the ownership projection', () => {
+  const ownedSource = (args: {
+    calls: string[]
+    name: string
+    unitIds: readonly string[]
+  }): TeardownSource => ({
+    closeAll: async () => {
+      args.calls.push(`${args.name}:closeAll`)
+    },
+    threadsAwaitingNotice: () => [],
+    threadsWithPendingInput: () => [THREAD],
+    drainNotifications: () => [],
+    liveUnitIds: () => args.unitIds,
+  })
+
+  it('closes agents, then shells, then services, awaiting each', async () => {
+    const calls: string[] = []
+    const agents = ownedSource({ calls, name: 'agents', unitIds: ['child-1'] })
+    const shells = ownedSource({ calls, name: 'shells', unitIds: ['bash_1'] })
+    const services = ownedSource({ calls, name: 'services', unitIds: ['svc-1'] })
+
+    await teardownSession({
+      sources: [services, agents, shells],
+      log: liveThreadLog(THREAD, liveUnitsDrafts),
+      ids: new RandomIds(),
+      ownedKinds: { agents, shells, services },
+      stopSandbox: async () => {
+        calls.push('sandbox:stop')
+      },
+    })
+
+    expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll', 'sandbox:stop'])
+  })
+
+  it('warns about a live unit the log shows but no registry claims', async () => {
+    const calls: string[] = []
+    const entries: LogEntry[] = []
+    const agents = ownedSource({ calls, name: 'agents', unitIds: ['child-1'] })
+    const shells = ownedSource({ calls, name: 'shells', unitIds: [] })
+    const services = ownedSource({ calls, name: 'services', unitIds: ['svc-1'] })
+
+    await teardownSession({
+      sources: [agents, shells, services],
+      log: liveThreadLog(THREAD, liveUnitsDrafts),
+      ids: new RandomIds(),
+      ownedKinds: { agents, shells, services },
+      logPort: recordingLogPort(entries),
+      stopSandbox: async () => {},
+    })
+
+    const lost = entries.filter(
+      (entry) => entry.severity === ELogSeverity.Warn && entry.source === 'session-teardown.ownership',
+    )
+    expect(lost.map((entry) => entry.data?.['unitId'])).toEqual(['bash_1'])
+    expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll'])
+  })
+
+  it('closes sources with no ownership kind after the owned kinds', async () => {
+    const calls: string[] = []
+    const agents = ownedSource({ calls, name: 'agents', unitIds: ['child-1'] })
+    const services = ownedSource({ calls, name: 'services', unitIds: ['svc-1'] })
+    const misc = recordingSource({ calls, name: 'misc' })
+
+    await teardownSession({
+      sources: [misc, agents, services],
+      log: liveThreadLog(THREAD, liveUnitsDrafts),
+      ids: new RandomIds(),
+      ownedKinds: { agents, services },
+      stopSandbox: async () => {},
+    })
+
+    expect(calls).toEqual(['agents:closeAll', 'services:closeAll', 'misc:closeAll'])
+  })
+
+  it('closes in source order when the log cannot be read, and warns', async () => {
+    const calls: string[] = []
+    const entries: LogEntry[] = []
+    const agents = ownedSource({ calls, name: 'agents', unitIds: ['child-1'] })
+    const shells = ownedSource({ calls, name: 'shells', unitIds: ['bash_1'] })
+    const services = ownedSource({ calls, name: 'services', unitIds: ['svc-1'] })
+    const log = liveThreadLog(THREAD, liveUnitsDrafts)
+    log.readOwn = async () => {
+      throw new Error('log is gone')
+    }
+
+    await teardownSession({
+      sources: [shells, agents, services],
+      log,
+      ids: new RandomIds(),
+      ownedKinds: { agents, shells, services },
+      logPort: recordingLogPort(entries),
+      stopSandbox: async () => {},
+    })
+
+    expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll'])
+    expect(entries.some((entry) => entry.severity === ELogSeverity.Warn)).toBe(true)
   })
 })

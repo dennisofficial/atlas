@@ -93,6 +93,7 @@ export async function finishServeBoot(args: {
   const session = createServeWorkspaceSession({
     threadId,
     app,
+    ...(app.toolEffect === undefined ? {} : { toolEffect: app.toolEffect }),
     deferStartChildren: recovery.deferred,
     resumeChildren: recovery.resumeChildren,
     log,

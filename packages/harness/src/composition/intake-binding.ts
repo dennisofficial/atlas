@@ -1,4 +1,4 @@
-import { EAgentStatus, EShellStatus, type EventLogPort, type IdPort } from '@dltech/atlas-core'
+import { EAgentStatus, EShellStatus, EServiceStatus, type EventLogPort, type IdPort, type LogPort } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
 import { MessageIntake, noticeSources, operatorSource, type IntakeSource } from '../intake'
@@ -15,6 +15,7 @@ export function bindIntake<Command>(args: {
   log: EventLogPort
   ids: IdPort
   stopSandbox: () => Promise<boolean>
+  logPort?: LogPort | undefined
   pluginSources?: readonly IntakeSource[] | undefined
 }): { intake: MessageIntake; recordTeardownEndings: () => Promise<void> } {
   const { agents, shells, services, pending, log, ids } = args
@@ -50,6 +51,8 @@ export function bindIntake<Command>(args: {
         threadsWithPendingInput: () => shells.threadsWithPendingInput?.() ?? shells.threadsAwaitingNotice(),
         prepareNotifications: shells.prepareNotifications?.bind(shells),
         drainNotifications: (request) => shells.drainNotifications(request),
+        liveUnitIds: () =>
+          shells.listEverywhere().flatMap((shell) => (shell.status === EShellStatus.Running ? [shell.shellId] : [])),
       }
       const agentEndings: TeardownSource = {
         closeAll: () => agents.closeAll(),
@@ -57,13 +60,23 @@ export function bindIntake<Command>(args: {
         threadsWithPendingInput: () => agents.threadsWithPendingInput?.() ?? agents.threadsAwaitingNotice(),
         prepareNotifications: prepareAgents,
         drainNotifications: (request) => agents.drainNotifications(request).drafts,
+        liveUnitIds: () => agents.listEverywhere().map((agent) => agent.agentId),
+      }
+      const serviceEndings: TeardownSource = {
+        closeAll: () => services.closeAll(),
+        threadsAwaitingNotice: () => services.threadsAwaitingNotice(),
+        drainNotifications: (request) => services.drainNotifications(request),
+        liveUnitIds: () =>
+          services.list().flatMap((service) => (service.status === EServiceStatus.Running ? [service.serviceId] : [])),
       }
       try {
         await teardownSession({
-          sources: [shellEndings, agentEndings, services],
+          sources: [shellEndings, agentEndings, serviceEndings],
           log,
           ids,
           intake,
+          ownedKinds: { agents: agentEndings, shells: shellEndings, services: serviceEndings },
+          logPort: args.logPort,
           stopSandbox: keepsSandbox ? async () => false : args.stopSandbox,
         })
       } finally {

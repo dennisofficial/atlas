@@ -18,6 +18,7 @@ import type {
   TurnSpend,
 } from '@dltech/atlas-harness'
 import type { LostShell, ServiceRegistryPort, ShellRegistryPort } from '@dltech/atlas-harness'
+import { settleCrashedCalls } from '@dltech/atlas-harness'
 
 import { EOpenMode, type OpenRequest } from './config'
 import { claimThread, closeConversation, recoverLostProcesses } from './conversation-claim'
@@ -241,6 +242,12 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   const refusal = await claimThread({ threadId: thread.id })
   if (refusal !== null) return { ok: false, reason: refusal }
 
+  await settleCrashedCalls({
+    log: args.log,
+    ids: args.ids,
+    threadId: thread.id,
+    effectOf: args.effects,
+  })
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })
   const lostShells = await recoverLostProcesses({
     threadId: thread.id,

@@ -111,6 +111,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     type: z.literal('user-said'),
     text: z.string(),
     via: z.enum(EMessageOrigin).optional(),
+    requestId: z.string().min(1).optional(),
     images: z.array(saidImageSchema).optional(),
     files: z.array(saidFileSchema).optional(),
   }),
@@ -131,6 +132,10 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     ordinal: z.number().int().nonnegative(),
   }),
   z.object({
+    type: z.literal('tool-dispatched'),
+    callId: callIdSchema,
+    name: z.string(),
+  }),  z.object({
     type: z.literal('tool-result'),
     callId: callIdSchema,
     name: z.string(),

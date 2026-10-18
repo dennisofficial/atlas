@@ -171,6 +171,7 @@ export class LoopTurnRunner extends TurnRunner {
   async say({
     threadId,
     text,
+    requestId,
     images,
     files,
     context,
@@ -179,6 +180,7 @@ export class LoopTurnRunner extends TurnRunner {
   }: {
     threadId: ThreadId
     text: string
+    requestId?: string | undefined
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
     context?: readonly EventDraft[]
@@ -190,7 +192,7 @@ export class LoopTurnRunner extends TurnRunner {
       runId: this.ids.nextRunId(),
       drafts: [
         ...(context ?? []),
-        saidBody({ text, images, files }),
+        saidBody({ text, requestId, images, files }),
       ],
     })
     return this.runTurn({

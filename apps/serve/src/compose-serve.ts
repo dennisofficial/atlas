@@ -177,6 +177,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     files: app.files,
     mentionFiles: (id) => threadMentionFiles({ threadId: id, log: app.surface.log, threads: app.surface.threads, launchDirectory: args.cwd }),
     workspace: app.workspace,
+    toolEffect: (name) => app.tools.find(name)?.effect,
     pending: app.pending,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     adoptChildren: async ({ threadId, resumeChildren }) => {

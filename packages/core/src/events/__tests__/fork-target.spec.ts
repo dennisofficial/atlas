@@ -171,4 +171,18 @@ describe('forkTarget', () => {
 
     expect(reference.allowed === false && reference.reason).toContain('reference fork')
   })
+
+  it('refuses a fork at a call marked dispatched but never settled', () => {
+    const events = eventsFrom([
+      said('run it'),
+      replied('running'),
+      called('call-1'),
+      { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
+    ])
+
+    const verdict = forkTarget({ events, seq: events.at(-1)?.seq ?? 0, mode: EForkMode.Copy })
+
+    expect(verdict.allowed).toBe(false)
+    expect(verdict.allowed === false && verdict.refusal).toBe(EForkRefusal.UnsettledToolCall)
+  })
 })

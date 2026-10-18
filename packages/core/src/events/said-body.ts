@@ -3,6 +3,7 @@ import type { SaidFile, SaidImage } from './body'
 export type SaidBody = {
   type: 'user-said'
   text: string
+  requestId?: string | undefined
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
 }
@@ -13,6 +14,7 @@ export type SaidBody = {
  */
 export function saidBody(args: {
   text: string
+  requestId?: string | undefined
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
 }): SaidBody {
@@ -22,6 +24,7 @@ export function saidBody(args: {
   return {
     type: 'user-said',
     text: args.text,
+    ...(args.requestId === undefined ? {} : { requestId: args.requestId }),
     ...(hasImages ? { images: args.images } : {}),
     ...(hasFiles ? { files: args.files } : {}),
   }

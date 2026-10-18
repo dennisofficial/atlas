@@ -111,6 +111,11 @@ function walkRounds(events: readonly Event[]): Item[] {
       continue
     }
 
+    if (event.type === 'tool-dispatched') {
+      if (current !== undefined) current.lastSeq = event.seq
+      continue
+    }
+
     if (event.type === 'tool-result' || event.type === 'tool-denied') {
       if (current === undefined || current.calls.length === 0) {
         closeCurrent()

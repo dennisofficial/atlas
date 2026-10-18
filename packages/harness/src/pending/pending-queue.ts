@@ -7,6 +7,7 @@ export type PendingSaid = {
   files: readonly SaidFile[]
   context?: readonly EventDraft[] | undefined
   via?: EMessageOrigin | undefined
+  requestId?: string | undefined
 }
 
 export type PendingMessage = PendingSaid & { kind: 'message'; id: string }
@@ -24,7 +25,7 @@ export type PendingQueue<Command = never> = {
   subscribe(listener: () => void): () => void
   getSnapshot(): readonly PendingEntry<Command>[]
   reserved(entryId: string): boolean
-  enqueue(args: { text: string; images?: readonly SaidImage[]; files?: readonly SaidFile[]; context?: readonly EventDraft[] | undefined; via?: EMessageOrigin | undefined }): void
+  enqueue(args: { text: string; images?: readonly SaidImage[]; files?: readonly SaidFile[]; context?: readonly EventDraft[] | undefined; via?: EMessageOrigin | undefined; requestId?: string | undefined }): void
   prepare(): InputBatch
   enqueueCommand(args: { text: string; command: Command }): void
   takeBackLast(): PendingSaid | null
@@ -74,11 +75,12 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
 
     reserved: (entryId) => reserved.has(entryId),
 
-    enqueue({ text, images, files, context, via }) {
+    enqueue({ text, images, files, context, via, requestId }) {
       settle([
         ...entries,
         { kind: 'message', id: stamp(), text, images: images ?? NO_IMAGES, files: files ?? NO_FILES,
-          ...(context === undefined ? {} : { context }), ...(via === undefined ? {} : { via }) },
+          ...(context === undefined ? {} : { context }), ...(via === undefined ? {} : { via }),
+          ...(requestId === undefined ? {} : { requestId }) },
       ])
     },
 

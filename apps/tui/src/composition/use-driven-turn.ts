@@ -165,6 +165,9 @@ export function useDrivenTurn(args: {
               : await app.runner.say({
                   threadId,
                   text: remoteSaid.said.text,
+                  ...(remoteSaid.said.requestId === undefined
+                    ? {}
+                    : { requestId: remoteSaid.said.requestId }),
                   ...(remoteSaid.said.images === undefined
                     ? {}
                     : { images: remoteSaid.said.images }),

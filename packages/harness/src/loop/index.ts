@@ -1,4 +1,5 @@
 export * from './build-harness'
+export * from './dispatch-recovery'
 export * from './loop-watchdog'
 export * from './model-step'
 export * from './pause-signal'
