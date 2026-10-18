@@ -24,7 +24,6 @@ const { CloudClient } = await import(`${REPO}/packages/harness/src/cloud/cloud-c
 const { decodeSettingValue } = await import(`${REPO}/packages/harness/src/cloud/sync-settings.ts`)
 const { VercelDriver } = await import(`${REPO}/packages/harness/src/cloud/vercel-driver.ts`)
 const { sandboxNameFor } = await import(`${REPO}/packages/harness/src/cloud/sandbox-names.ts`)
-const { driveNameFor } = wire
 const { sealWith } = await import(`${REPO}/packages/harness/src/cloud/portable-validation.ts`)
 const { vaultFileSchema, VAULT_VERSION } = await import(`${REPO}/packages/harness/src/credentials/vault-file.ts`)
 
@@ -104,11 +103,10 @@ if (serveBytes[0] !== 0x7f || serveBytes[1] !== 0x45 || serveBytes[2] !== 0x4c |
 
 const threadId = `smoke-local-first-${randomUUID()}`
 const sandboxName = sandboxNameFor({ threadId })
-const driveName = driveNameFor({ threadId })
-if (!sandboxName.startsWith('atlas-thread-') || !driveName.startsWith('atlas-drive-')) {
-  fail(`derived names are not thread-derived (sandbox=${sandboxName}, drive=${driveName})`)
+if (!sandboxName.startsWith('atlas-thread-')) {
+  fail(`derived name is not thread-derived (sandbox=${sandboxName})`)
 }
-line(`disposable resources (BEFORE any provider mutation): sandbox=${sandboxName} drive=${driveName}`)
+line(`disposable resource (BEFORE any provider mutation): sandbox=${sandboxName}`)
 
 const vaultKeyHex = randomBytes(32).toString('hex')
 const accountId = `fake-account-${randomUUID().slice(0, 8)}`
@@ -247,8 +245,8 @@ let destroyed = false
 const destroy = async (): Promise<void> => {
   if (destroyed) return
   destroyed = true
-  line(`cleanup: destroying sandbox=${sandboxName} and drive=${driveName}`)
-  await driver.destroy({ name: sandboxName, threadId })
+  line(`cleanup: destroying sandbox=${sandboxName}`)
+  await driver.destroy({ name: sandboxName })
   line('cleanup: destroy returned')
 }
 

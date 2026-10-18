@@ -1,13 +1,14 @@
-import type { SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 import {
-  EChannelConnection,
+  EConnectionView,
   userSaidDraft,
+  wakesOnSend,
   type RemoteDeltaChannel,
   type RemoteTurnRunner,
 } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 
-import { pendingRows, type PendingQueue, type PendingRow, type PendingSaid, type RemotePendingEntry } from '../store'
+import type { PendingQueue, PendingSaid, RemotePendingEntry } from '../store'
 import type { QueuedSettled } from './commands'
 import type { AtlasApp } from './compose'
 import type { SendArgs } from './conversation-types'
@@ -41,8 +42,9 @@ export function usePlacementMoving(args: { app: AtlasApp; threadId: ThreadId }):
 export function useRemotePending(args: {
   app: AtlasApp
   cloudRunner: RemoteTurnRunner | null
+  heldForWake: ReturnType<PendingQueue<QueuedSettled>['getSnapshot']>
 }): { channel: RemoteDeltaChannel | null; entries: readonly RemotePendingEntry[] } {
-  const { app, cloudRunner } = args
+  const { app, cloudRunner, heldForWake } = args
   const channel = useMemo(() => {
     if (cloudRunner === null) return null
     if (!('onPendingChanged' in app.channel)) return null
@@ -53,9 +55,16 @@ export function useRemotePending(args: {
     (listener: () => void) => channel?.onPendingChanged(listener) ?? (() => undefined),
     [channel],
   )
-  const entries = useSyncExternalStore(subscribe, () => channel?.pendingEntries() ?? EMPTY_REMOTE_PENDING)
+  const remote = useSyncExternalStore(subscribe, () => channel?.pendingEntries() ?? EMPTY_REMOTE_PENDING)
 
-  return useMemo(() => ({ channel, entries }), [channel, entries])
+  return useMemo(() => {
+    const held = heldForWake.flatMap((entry): readonly RemotePendingEntry[] =>
+      entry.kind === 'message'
+        ? [{ id: entry.id, text: entry.text, reserved: false, ...(entry.via === undefined ? {} : { via: entry.via }) }]
+        : [],
+    )
+    return { channel, entries: held.length === 0 ? remote : [...remote, ...held] }
+  }, [channel, heldForWake, remote])
 }
 
 /**
@@ -77,7 +86,8 @@ export function useTakeBackPending(args: {
 
   return useCallback((): PendingSaid | null | Promise<PendingSaid | null> => {
     if (moving) return null
-    if (cloudRunner === null) return pending.takeBackLast()
+    const queuedHere = pending.takeBackLast()
+    if (queuedHere !== null || cloudRunner === null) return queuedHere
     /**
      * A recalled steer never commits, so its "sending…" placeholder has nothing to reconcile
      * against and would stick forever. Resolve it as the recall is confirmed.
@@ -108,7 +118,7 @@ export function useSendingChannel(args: {
     if (!('onConnection' in channel)) return undefined
 
     return (channel as RemoteDeltaChannel).onConnection((connection) => {
-      if (connection.state === EChannelConnection.Closed) sending.markAllSendingFailed()
+      if (connection.state === EConnectionView.Disconnected) sending.markAllSendingFailed()
     })
   }, [app.channel, cloudRunner, sending])
 
@@ -125,8 +135,13 @@ export function useSendMessage(args: {
   moving: boolean
   drive: TurnDriver['drive']
   setFailure: (message: string) => void
+  cloudView: EConnectionView | null
+  wakeCloud: (() => void) | null
 }): (send: SendArgs) => void {
   const { app, threadId, pending, sending, cloudRunner, working, moving, drive, setFailure } = args
+  const { cloudView, wakeCloud } = args
+
+  useCloudWakeDrain({ threadId, pending, sending, cloudRunner, cloudView, working, moving, drive })
 
   return useCallback(
     (send: SendArgs) => {
@@ -137,6 +152,12 @@ export function useSendMessage(args: {
       if (moving) return
 
       const contextPart = send.context === undefined ? {} : { context: send.context }
+
+      if (cloudRunner !== null && cloudView !== null && wakesOnSend(cloudView)) {
+        pending.enqueue({ text, images, files, ...contextPart })
+        wakeCloud?.()
+        return
+      }
 
       if (working) {
         if (cloudRunner !== null) {
@@ -189,6 +210,54 @@ export function useSendMessage(args: {
         { onCommitFailed },
       )
     },
-    [app.intake, cloudRunner, drive, moving, pending, sending, setFailure, threadId, working],
+    [app.intake, cloudRunner, cloudView, drive, moving, pending, sending, setFailure, threadId, wakeCloud, working],
   )
+}
+
+const saidDrafts = (said: PendingSaid): readonly EventDraft[] => [...(said.context ?? []), userSaidDraft(said)]
+
+const queuedMessageCount = (queue: ReturnType<PendingQueue<QueuedSettled>['getSnapshot']>): number =>
+  queue.filter((entry) => entry.kind === 'message').length
+
+function useCloudWakeDrain(args: {
+  threadId: ThreadId
+  pending: PendingQueue<QueuedSettled>
+  sending: ConversationSending
+  cloudRunner: RemoteTurnRunner | null
+  cloudView: EConnectionView | null
+  working: boolean
+  moving: boolean
+  drive: TurnDriver['drive']
+}): void {
+  const { threadId, pending, sending, cloudRunner, cloudView, working, moving, drive } = args
+  const queued = useSyncExternalStore(pending.subscribe, pending.getSnapshot)
+  const waiting = queuedMessageCount(queued)
+
+  useEffect(() => {
+    if (cloudRunner === null || cloudView !== EConnectionView.Connected) return
+    if (moving || waiting === 0) return
+
+    const drained = pending.drain()
+    if (drained.length === 0) return
+
+    if (working) {
+      for (const said of drained) {
+        sending.add(said.text)
+        cloudRunner.steer({
+          threadId,
+          text: said.text,
+          images: said.images,
+          files: said.files,
+          ...(said.context === undefined ? {} : { context: said.context }),
+        })
+      }
+      return
+    }
+
+    const sendingIds = drained.map((said) => sending.add(said.text))
+    const onCommitFailed = (): void => {
+      for (const id of sendingIds) sending.markFailed(id)
+    }
+    void drive(drained.flatMap(saidDrafts), { onCommitFailed })
+  }, [cloudRunner, cloudView, drive, moving, pending, sending, threadId, waiting, working])
 }

@@ -3,6 +3,7 @@ import { EKilledBy, type ThreadId } from '@dltech/atlas-core'
 import { withDeadline } from './drain-deadline'
 import type { RuntimeWork } from './runtime-work'
 import { runtimeHasWork } from './runtime-work'
+import type { RuntimeCheckpointBinding } from './runtime-checkpoint-binding'
 import type { ServeApp } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionHandlers } from './socket-session'
@@ -19,27 +20,26 @@ export function createServeLifecycle(args: {
   server: { stop: (closeActiveConnections?: boolean) => Promise<void> }
   bridge: { close: () => void }
   threadId: ThreadId
-  admission: { closed: boolean }
+  checkpoint: Pick<RuntimeCheckpointBinding, 'parkBegin' | 'parkReopened' | 'finalizePark'>
   log: ServeLog
   work: () => RuntimeWork
   haltIdle: () => void
   rearmIdle?: (() => void) | undefined
   drainDeadlineMs: number
   detach: () => void
-  stopSandbox: (() => Promise<void>) | undefined
+  stopSandbox: () => Promise<void>
   exit: (code: number) => void
-  finalizePark?: (() => Promise<void>) | undefined
 }): {
   close: (args: { reason: string }) => Promise<void>
   park: () => Promise<void>
 } {
   let closing: Promise<void> | undefined
   let parking = false
+  let parkAttempts = 0
   let exhaustedParkCycles = 0
 
   const close = (reason: string): Promise<void> => {
     closing ??= (async () => {
-      args.admission.closed = true
       args.haltIdle()
       args.app.intake?.suspend()
       args.log({ event: EServeEvent.ShutdownRequested, threadId: args.threadId, reason, work: args.work() })
@@ -62,8 +62,14 @@ export function createServeLifecycle(args: {
     return closing
   }
 
-  const reopenAdmission = (): void => {
-    args.admission.closed = false
+  const reopenAdmission = async (): Promise<void> => {
+    await args.checkpoint.parkReopened().catch((failure: unknown) => {
+      args.log({
+        event: EServeEvent.CheckpointPersistFailed,
+        threadId: args.threadId,
+        reason: failure instanceof Error ? failure.message : String(failure),
+      })
+    })
     args.app.intake?.resume()
     parking = false
     args.rearmIdle?.()
@@ -72,14 +78,15 @@ export function createServeLifecycle(args: {
   const park = async (): Promise<void> => {
     if (parking || closing !== undefined) return
     parking = true
-    args.admission.closed = true
-    args.app.intake?.suspend()
+    parkAttempts += 1
     let finalized = false
     try {
+      await args.checkpoint.parkBegin({ attempts: parkAttempts })
+      args.app.intake?.suspend()
       const work = args.work()
       if (runtimeHasWork(work)) {
         args.log({ event: EServeEvent.ParkRefused, threadId: args.threadId, reason: 'work-active', work })
-        reopenAdmission()
+        await reopenAdmission()
         return
       }
       args.haltIdle()
@@ -106,13 +113,7 @@ export function createServeLifecycle(args: {
       // exists only on the operator-input and shell registrations), so the append emits nothing.
       // The parked marker is the transcript tail the dim rule checks, so publish it explicitly.
       if (parked !== undefined) args.app.channel.publisherFor({ threadId: args.threadId }).eventsAppended()
-      if (args.stopSandbox === undefined) {
-        args.log({ event: EServeEvent.ParkUnfinalized, threadId: args.threadId, reason: 'provider-stop-unavailable' })
-        await close('legacy-idle-exit')
-        args.exit(0)
-        return
-      }
-      await args.finalizePark?.()
+      await args.checkpoint.finalizePark()
       finalized = true
       args.log({ event: EServeEvent.ParkFinalized, threadId: args.threadId })
       args.handlers.park({ reason: 'idle' })
@@ -162,7 +163,7 @@ export function createServeLifecycle(args: {
       // Before finalization nothing has claimed this runtime is parked: the sandbox is still
       // alive and serving, so admission reopens and the idle timer re-arms. After finalization
       // the park is on record and admission stays shut on purpose — the runtime said it parked.
-      if (!finalized) reopenAdmission()
+      if (!finalized) await reopenAdmission()
     }
   }
 

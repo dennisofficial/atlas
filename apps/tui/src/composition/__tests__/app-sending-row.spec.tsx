@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toRunId } from '@dltech/atlas-core'
-import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
+import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge } from '../cloud/__tests__/fixture'
@@ -20,7 +20,7 @@ describe('a message waiting on the cloud round trip', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       const gated = promiseGate()
       const held = bridge.log.append.bind(bridge.log)
@@ -64,7 +64,7 @@ describe('a message waiting on the cloud round trip', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       const gated = promiseGate()
       const held = bridge.log.append.bind(bridge.log)
@@ -104,7 +104,7 @@ describe('a message waiting on the cloud round trip', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       // A real sandbox owns the commit and its log: the mirror only learns the said over the wire.
       // The fake bridge auto-commits its send into the shared log, which the mirror would pick up —
@@ -144,7 +144,7 @@ describe('a message waiting on the cloud round trip', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       await mounted.typeText('keep going')
       mounted.pressEnter()
@@ -189,7 +189,7 @@ describe('a message waiting on the cloud round trip', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       let dropCommit: (error: Error) => void = () => undefined
       const commitFate = new Promise<never>((_, reject) => {
@@ -215,7 +215,7 @@ describe('a message waiting on the cloud round trip', () => {
       })
       expect(shown).toBe(true)
 
-      bridge.channel.moveTo({ state: EChannelConnection.Closed, detail: 'socket dropped' })
+      bridge.channel.moveTo({ state: EConnectionView.Disconnected, detail: 'socket dropped' })
       dropCommit(new Error('socket dropped'))
 
       const failed = await until({
@@ -227,7 +227,7 @@ describe('a message waiting on the cloud round trip', () => {
       })
       expect(failed).toBe(true)
 
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       await mounted.typeText('this never arrives')
       mounted.pressEnter()
 

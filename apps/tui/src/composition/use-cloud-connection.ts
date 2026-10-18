@@ -1,16 +1,17 @@
 import { useEffect, useSyncExternalStore } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { EChannelConnection, type CloudConnection } from '@dltech/atlas-harness'
+import { EConnectionView, type CloudConnection } from '@dltech/atlas-harness'
 
 import type { CloudHealth, CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { useAttachFailure } from './attach-failure'
 import { useSessionOwner } from './use-session-owner'
-import { clearNotice, ENoticeTone, notify } from '../ui/notice-store'
-import { CLOUD_SANDBOX_NOTICE_KEY } from './cloud/cloud-birth-notices'
+import { clearNotice, ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 
-const CONNECTING: CloudConnection = { state: EChannelConnection.Connecting, detail: null }
+export const CLOUD_SERVER_FAILURE_NOTICE_KEY = 'cloud-server-failure'
+
+const WAKING: CloudConnection = { state: EConnectionView.Waking, detail: null }
 
 const NEVER_CHANGES = (): (() => void) => () => undefined
 
@@ -34,12 +35,13 @@ function useCloudState(args: { app: AtlasApp; session: CloudSession | null }): {
 }
 
 /**
- * The one derivation of the cloud channel's connection for chrome: the health the session last
+ * The one derivation of the cloud channel's connection for chrome: the view the session last
  * announced, gated on the placement record. Leaving a cloud session flips the placement before
- * the remount that drops the session, and the socket may never announce a close (`announce` fires only on change),
- * so a reader mounted in between would draw a healthy cloud from a stale Open forever — here the
- * placement is the veto, not a second subscription. Closed and Parked still surface while the
- * placement says Cloud, since those are fault and resting renderings of a session that is away.
+ * the remount that drops the session, and the socket may never announce a close (`announce` fires
+ * only on change), so a reader mounted in between would draw a healthy cloud from a stale
+ * Connected forever — here the placement is the veto, not a second subscription. Disconnected and
+ * Parked still surface while the placement says Cloud, since those are fault and resting
+ * renderings of a session that is away.
  */
 export function useCloudConnection(args: {
   app: AtlasApp
@@ -49,15 +51,17 @@ export function useCloudConnection(args: {
 
   if (location !== EExecutionLocation.Cloud) return null
   if (!bound) {
-    if (failure !== null && failure.threadId === threadId) return { state: EChannelConnection.Closed, detail: failure.detail }
-    return CONNECTING
+    if (failure !== null && failure.threadId === threadId) {
+      return { state: EConnectionView.Disconnected, detail: failure.detail }
+    }
+    return WAKING
   }
-  return health?.connection ?? null
+  return health?.view ?? null
 }
 
 /**
- * The full cloud health — socket, sandbox lifecycle, and transcript freshness — for the surface
- * that decides whether the transcript on screen can be trusted as current.
+ * The full cloud health — the connection view, whether a reload is in flight, and the latest
+ * server failure — for the surface that decides how the transcript on screen is drawn.
  */
 export function useCloudHealth(args: {
   app: AtlasApp
@@ -68,16 +72,10 @@ export function useCloudHealth(args: {
   const failure = health?.failure ?? null
   useEffect(() => {
     if (failure === null) {
-      clearNotice({ key: CLOUD_SANDBOX_NOTICE_KEY })
+      clearNotice({ key: CLOUD_SERVER_FAILURE_NOTICE_KEY })
       return
     }
-
-    notify({
-      key: CLOUD_SANDBOX_NOTICE_KEY,
-      text: failure,
-      tone: ENoticeTone.Warn,
-      sticky: true,
-    })
+    notify({ key: CLOUD_SERVER_FAILURE_NOTICE_KEY, text: failure, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
   }, [failure])
 
   if (location !== EExecutionLocation.Cloud || !bound) return null

@@ -33,11 +33,11 @@ describe('createRuntimeCheckpointCapture', () => {
     const events = [saidEvent({ id: 'a', seq: 1 }), saidEvent({ id: 'b', seq: 2 })]
     const capture = captureFor({ home, events })
 
-    const checkpoint = await capture.capture({ phase: ERuntimePhase.Running })
+    const checkpoint = await capture.capture({ phase: ERuntimePhase.Serving })
     expect(checkpoint).toMatchObject({
       threadId,
       revision: 1,
-      phase: ERuntimePhase.Running,
+      phase: ERuntimePhase.Serving,
       transcript: { head: 2, count: 2 },
     })
     expect(checkpoint?.transcript.digest).toMatch(/^[0-9a-f]{64}$/)
@@ -47,10 +47,10 @@ describe('createRuntimeCheckpointCapture', () => {
   it('continues the persisted revision across boots with a fresh runtimeId', async () => {
     const home = scratchHome()
     const first = captureFor({ home })
-    const boot1 = await first.capture({ phase: ERuntimePhase.Running })
+    const boot1 = await first.capture({ phase: ERuntimePhase.Serving })
 
     const second = captureFor({ home })
-    const boot2 = await second.capture({ phase: ERuntimePhase.Running })
+    const boot2 = await second.capture({ phase: ERuntimePhase.Serving })
 
     expect(boot1?.revision).toBe(1)
     expect(boot2?.revision).toBe(2)
@@ -64,10 +64,10 @@ describe('createRuntimeCheckpointCapture', () => {
     const parked = await first.capture({ phase: ERuntimePhase.Parked })
 
     const second = captureFor({ home })
-    const running = await second.capture({ phase: ERuntimePhase.Running })
+    const running = await second.capture({ phase: ERuntimePhase.Serving })
 
     expect(parked?.phase).toBe(ERuntimePhase.Parked)
-    expect(running?.phase).toBe(ERuntimePhase.Running)
+    expect(running?.phase).toBe(ERuntimePhase.Serving)
     expect(running?.revision).toBe((parked?.revision ?? 0) + 1)
     expect(await second.readPersisted()).toEqual(running)
   })
@@ -98,10 +98,10 @@ describe('createRuntimeCheckpointCapture', () => {
     const home = scratchHome()
     const full = [saidEvent({ id: 'a', seq: 1 }), saidEvent({ id: 'b', seq: 2 })]
     const capture = captureFor({ home, events: full })
-    const before = await capture.capture({ phase: ERuntimePhase.Running })
+    const before = await capture.capture({ phase: ERuntimePhase.Serving })
 
     const rewound = captureFor({ home, events: [full[0]!] })
-    const afterRewind = await rewound.capture({ phase: ERuntimePhase.Running })
+    const afterRewind = await rewound.capture({ phase: ERuntimePhase.Serving })
     expect(afterRewind?.transcript.head).toBe(1)
     expect(afterRewind?.transcript.digest).not.toBe(before?.transcript.digest)
 
@@ -109,16 +109,37 @@ describe('createRuntimeCheckpointCapture', () => {
       home,
       events: [full[0]!, saidEvent({ id: 'c', seq: 2, text: 'different' })],
     })
-    const afterReplace = await replaced.capture({ phase: ERuntimePhase.Running })
+    const afterReplace = await replaced.capture({ phase: ERuntimePhase.Serving })
     expect(afterReplace?.transcript.head).toBe(before?.transcript.head)
     expect(afterReplace?.transcript.digest).not.toBe(before?.transcript.digest)
+  })
+
+  it('seals on parked and on updating alike: the finalized runtime never captures again', async () => {
+    for (const [finalPhase, extra] of [
+      [ERuntimePhase.Parked, {}],
+      [ERuntimePhase.Updating, { resume: { parent: true } }],
+    ] as const) {
+      const home = scratchHome()
+      const capture = captureFor({ home })
+      await capture.capture({ phase: ERuntimePhase.Serving })
+      if (finalPhase !== ERuntimePhase.Updating) {
+        await capture.capture({ phase: ERuntimePhase.Parking, attempts: 1 })
+      }
+      const sealed = await capture.capture({ phase: finalPhase, ...extra })
+      expect(sealed?.phase).toBe(finalPhase)
+      if (finalPhase === ERuntimePhase.Updating && sealed?.phase === ERuntimePhase.Updating) {
+        expect(sealed.receipt.checkpoint.revision).toBe(sealed.revision)
+        expect(sealed.receipt.threadId).toBe(threadId)
+      }
+      await expect(capture.capture({ phase: ERuntimePhase.Serving })).resolves.toBeNull()
+    }
   })
 
   it('fails safe when the persisted checkpoint is corrupt: no reset, no publish', async () => {
     const home = scratchHome()
     const lines: ServeLogLine[] = []
     const first = captureFor({ home, lines })
-    await first.capture({ phase: ERuntimePhase.Running })
+    await first.capture({ phase: ERuntimePhase.Serving })
     writeFileSync(runtimeCheckpointFile({ atlasHome: home }), '{"revision":')
 
     const second = captureFor({ home, lines })
@@ -141,7 +162,7 @@ describe('createRuntimeCheckpointCapture', () => {
       }),
     })
 
-    await expect(capture.capture({ phase: ERuntimePhase.Running })).resolves.toBeNull()
+    await expect(capture.capture({ phase: ERuntimePhase.Serving })).resolves.toBeNull()
     await expect(capture.capture({ phase: ERuntimePhase.Parked })).resolves.toBeNull()
     expect(await capture.readPersisted()).toBeNull()
     await capture.flush({ timeoutMs: 1_000 })
@@ -152,7 +173,7 @@ describe('createRuntimeCheckpointCapture', () => {
   it('short-circuits before any I/O without a session id: a throwing transcript is never read, prior checkpoint unread', async () => {
     const home = scratchHome()
     const seeded = captureFor({ home })
-    await seeded.capture({ phase: ERuntimePhase.Running })
+    await seeded.capture({ phase: ERuntimePhase.Serving })
     expect(await seeded.readPersisted()).not.toBeNull()
 
     const sessionless = captureFor({
@@ -165,13 +186,13 @@ describe('createRuntimeCheckpointCapture', () => {
       },
     })
     expect(await sessionless.readPersisted()).toBeNull()
-    await expect(sessionless.capture({ phase: ERuntimePhase.Running })).resolves.toBeNull()
+    await expect(sessionless.capture({ phase: ERuntimePhase.Serving })).resolves.toBeNull()
   })
 
   it('leaves no transcript artifacts: the only write is the operational checkpoint file', async () => {
     const home = scratchHome()
     const capture = captureFor({ home, events: [saidEvent({ id: 'a', seq: 1 })] })
-    await capture.capture({ phase: ERuntimePhase.Running })
+    await capture.capture({ phase: ERuntimePhase.Serving })
 
     const fs = await import('node:fs/promises')
     expect(await fs.readdir(home)).toEqual(['operational'])
@@ -182,13 +203,14 @@ describe('createRuntimeCheckpointCapture', () => {
     const home = scratchHome()
     const capture = captureFor({ home })
     const batch = await Promise.all([
-      capture.capture({ phase: ERuntimePhase.Running }),
-      capture.capture({ phase: ERuntimePhase.Running }),
+      capture.capture({ phase: ERuntimePhase.Serving }),
+      capture.capture({ phase: ERuntimePhase.Serving }),
+      capture.capture({ phase: ERuntimePhase.Parking, attempts: 1 }),
       capture.capture({ phase: ERuntimePhase.Parked }),
-      capture.capture({ phase: ERuntimePhase.Running }),
+      capture.capture({ phase: ERuntimePhase.Serving }),
     ])
-    expect(batch.map((c) => c?.revision ?? null)).toEqual([1, 2, 3, null])
-    expect(batch[2]?.phase).toBe(ERuntimePhase.Parked)
-    expect((await capture.readPersisted())?.revision).toBe(3)
+    expect(batch.map((c) => c?.revision ?? null)).toEqual([1, 2, 3, 4, null])
+    expect(batch[3]?.phase).toBe(ERuntimePhase.Parked)
+    expect((await capture.readPersisted())?.revision).toBe(4)
   })
 })

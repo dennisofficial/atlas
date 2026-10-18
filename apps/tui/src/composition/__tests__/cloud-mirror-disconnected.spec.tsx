@@ -1,4 +1,4 @@
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-harness'
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { dismissNotice } from '../../ui/notice-store'
@@ -43,7 +43,7 @@ const synced = async () => {
   return { app, rig, screen }
 }
 
-const connectionOf = (app: FakeApp): EChannelConnection | undefined =>
+const connectionOf = (app: FakeApp): EConnectionView | undefined =>
   cloudChannelOf(app)?.connection().state
 
 const disconnect = (rig: Awaited<ReturnType<typeof synced>>['rig']): void => {
@@ -54,12 +54,12 @@ const disconnect = (rig: Awaited<ReturnType<typeof synced>>['rig']): void => {
 describe('a cloud thread whose channel drops after its mirror synced', () => {
   it('keeps rendering the mirrored transcript while the channel reconnects', async () => {
     const { app, rig, screen } = await synced()
-    expect(connectionOf(app)).toBe(EChannelConnection.Open)
+    expect(connectionOf(app)).toBe(EConnectionView.Connected)
 
     disconnect(rig)
     const frame = await screen.quiet(400)
 
-    expect(connectionOf(app)).toBe(EChannelConnection.Reconnecting)
+    expect(connectionOf(app)).toBe(EConnectionView.Reconnecting)
     expect(frame).toContain(ASKED_TEXT)
     expect(frame).toContain(SYNCED_ANSWER)
     expect(frame).not.toContain(CHANNEL_DOWN)
@@ -78,7 +78,7 @@ describe('a cloud thread whose channel drops after its mirror synced', () => {
       'the mirrored transcript with the channel down',
     )
 
-    expect(connectionOf(app)).toBe(EChannelConnection.Reconnecting)
+    expect(connectionOf(app)).toBe(EConnectionView.Reconnecting)
     expect(frame).not.toContain(CHANNEL_DOWN)
   }, 30_000)
 })

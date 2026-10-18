@@ -3,6 +3,7 @@ import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
+import { SANDBOX_LIFECYCLE_SELECT, sandboxStateOf } from './sandbox-lifecycle'
 import { ESandboxState, type SandboxStatusDto } from './sandboxes.types'
 import {
   SandboxMissingError,
@@ -28,11 +29,11 @@ export class SandboxEndpointService {
   }): Promise<{ token: string; url: string } | null> {
     const row = await db.cloudSandbox.findFirst({
       where: { threadId: args.threadId, userId: args.userId },
-      select: { name: true, sealedToken: true, serveUrl: true, state: true },
+      select: { ...SANDBOX_LIFECYCLE_SELECT, name: true, sealedToken: true, serveUrl: true },
     })
     if (row === null || row.sealedToken === null) return null
     if (row.serveUrl !== null) {
-      if (row.state !== ESandboxState.Running) return null
+      if (sandboxStateOf(row) !== ESandboxState.Running) return null
       const token = this.unsealToken({ name: row.name, sealedToken: row.sealedToken })
       return token === null ? null : { token, url: row.serveUrl }
     }
@@ -53,7 +54,7 @@ export class SandboxEndpointService {
     if (row.serveUrl !== null) {
       return {
         ...toSandboxDto(row),
-        ...(row.state === ESandboxState.Running ? { url: row.serveUrl } : {}),
+        ...(sandboxStateOf(row) === ESandboxState.Running ? { url: row.serveUrl } : {}),
       }
     }
     try {

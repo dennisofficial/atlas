@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'bun:test'
+import { EConnectionView } from '../connection-view'
 
 import { EClientFrame, EServeFrame } from '../channel-wire'
-import { EChannelConnection } from '../remote-delta-channel'
 import { harness } from './remote-channel-fixture'
 
 describe('a remote channel constructed without an attachment', () => {
   it('starts parked and opens no socket, retry, or timeout', () => {
     const detached = harness({ unattached: true })
 
-    expect(detached.channel.connection().state).toBe(EChannelConnection.Parked)
+    expect(detached.channel.connection().state).toBe(EConnectionView.Parked)
     expect(detached.sockets).toHaveLength(0)
     expect(detached.retries).toHaveLength(0)
     expect(detached.timeouts).toHaveLength(0)
@@ -19,13 +19,13 @@ describe('a remote channel constructed without an attachment', () => {
 
     detached.channel.wake({ url: 'https://sandbox.test/', token: 'tok_woken' })
 
-    expect(detached.channel.connection().state).toBe(EChannelConnection.Connecting)
+    expect(detached.channel.connection().state).toBe(EConnectionView.Waking)
     expect(detached.sockets).toHaveLength(1)
 
     detached.open()
     detached.receive({ kind: EServeFrame.Ready, seq: 1 })
 
-    expect(detached.channel.connection().state).toBe(EChannelConnection.Open)
+    expect(detached.channel.connection().state).toBe(EConnectionView.Connected)
     expect(detached.retries).toHaveLength(0)
   })
 
@@ -53,7 +53,7 @@ describe('a remote channel constructed without an attachment', () => {
 
     detached.channel.beginWake()
 
-    expect(detached.channel.connection().state).toBe(EChannelConnection.Waking)
+    expect(detached.channel.connection().state).toBe(EConnectionView.Waking)
     expect(detached.sockets).toHaveLength(0)
   })
 
@@ -62,7 +62,7 @@ describe('a remote channel constructed without an attachment', () => {
 
     detached.channel.close()
 
-    expect(detached.channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(detached.channel.connection().state).toBe(EConnectionView.Detached)
     expect(detached.sockets).toHaveLength(0)
     expect(detached.retries).toHaveLength(0)
   })

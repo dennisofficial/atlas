@@ -7,7 +7,6 @@ export enum ESandboxState {
 export interface SandboxListEntryDto {
   threadId: string
   name: string
-  driveName: string | null
   state: ESandboxState
   lastActivityAt: string
 }

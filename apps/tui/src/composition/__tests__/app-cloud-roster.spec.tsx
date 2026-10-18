@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EAgentStatus, EShellStatus, toThreadId } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
-import { EChannelConnection, toShellId } from '@dltech/atlas-harness'
+import { EConnectionView, toShellId } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge } from '../cloud/__tests__/fixture'
@@ -27,7 +27,7 @@ const shown = async (mounted: Mounted, text: string): Promise<string> => {
 const pushRoster = async (bridge: ReturnType<typeof fakeBridge>): Promise<void> => {
   bridge.channel.pushRoster(rosterWithShell)
   await new Promise((resolve) => setTimeout(resolve, 500))
-  bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+  bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 }
 
 const rosterWithShell: RosterWire = {

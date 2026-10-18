@@ -1,13 +1,15 @@
 import type { Sandbox } from '@vercel/sandbox'
 
 import {
-  liveDriveSdk,
-  type DriveSdk,
-  attachLagRetry,
+  settleRetry,
   imageOptimizeRetry,
   type RetryPolicy,
   createServeLauncher,
+  type DevServeBinary,
+  type DevServeResolver,
+  type ServeInstaller,
   type ServeLauncher,
+  uploadServeInstaller,
   liveSdk,
   assertLiveSession,
   observationOf,
@@ -21,7 +23,6 @@ import {
   isSandboxMissing,
   SandboxMissingError,
 } from '@dltech/atlas-wire'
-import { deleteThreadDrive } from './vercel-driver-destroy'
 import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
 import { tailServeLog, writeBootstrapFile } from './vercel-driver-probes'
 import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
@@ -30,10 +31,8 @@ export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightBySandboxName = new Map<string, Promise<unknown>>()
   private readonly runtimeActivity: RuntimeActivityProbe = probeRuntimeActivity
-  private readonly attachLagRetry: RetryPolicy
+  private readonly settleRetry: RetryPolicy
   private readonly imageOptimizeRetry: RetryPolicy
-
-  private readonly drives: DriveSdk
 
   constructor(
     private readonly args: {
@@ -45,20 +44,20 @@ export class VercelDriver {
       vcpus?: number | undefined
       /** Same pin as `VercelSandboxConfig.serveVersion`; a direct driver construction names it here. */
       serveVersion?: string | undefined
+      devServe?: DevServeResolver | undefined
+      uploadServe?: ((binary: DevServeBinary) => ServeInstaller) | undefined
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
-      driveSdk?: DriveSdk | undefined
-      /** The attach-detach lag budget the delete and mount retries share; a spec passes zero delays. */
-      attachLagRetry?: RetryPolicy | undefined
+      /** The settle budget the mount's name-conflict retries run on; a spec passes zero delays. */
+      settleRetry?: RetryPolicy | undefined
       /** Budget for waiting out a freshly published image's optimization lag. */
       imageOptimizeRetry?: RetryPolicy | undefined
       runtimeHealth?: RuntimeActivityProbe | undefined
     },
   ) {
     this.sdk = args.sdk ?? liveSdk
-    this.drives = args.driveSdk ?? liveDriveSdk
-    this.attachLagRetry = args.attachLagRetry ?? attachLagRetry
+    this.settleRetry = args.settleRetry ?? settleRetry
     this.imageOptimizeRetry = args.imageOptimizeRetry ?? imageOptimizeRetry
     if (args.runtimeHealth !== undefined) this.runtimeActivity = args.runtimeHealth
   }
@@ -66,31 +65,41 @@ export class VercelDriver {
   createOrResume(args: ProvisionArgs): Promise<SandboxPlacement> {
     // Two wakes of the same thread in one process share one provision instead of racing; the
     // in-sandbox swap lock covers the cross-process case.
-    return this.nameKeyed(args.name, () =>
-      provisionSandbox(
+    return this.nameKeyed(args.name, async () => {
+      const serve = await this.serveToProvision()
+      return provisionSandbox(
         {
-          config: this.args,
+          config: { ...this.args, serveVersion: serve.version },
           sdk: this.sdk,
-          drives: this.drives,
           runtimeHealth: this.runtimeActivity,
-          attachLagRetry: this.attachLagRetry,
+          settleRetry: this.settleRetry,
           imageOptimizeRetry: this.imageOptimizeRetry,
           launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
             this.nameKeyed(`launch:${launchArgs.sandbox.name}`, () =>
-              createServeLauncher({ log: this.args.log })({
+              createServeLauncher({
+                log: this.args.log,
+                ...(serve.installServe === undefined ? {} : { installServe: serve.installServe }),
+              })({
                 sandbox: launchArgs.sandbox,
                 ...(launchArgs.token === undefined ? {} : { token: launchArgs.token }),
-                ...(launchArgs.sandboxSessionId === undefined
-                  ? {}
-                  : { sandboxSessionId: launchArgs.sandboxSessionId }),
                 ...(launchArgs.cloudUrl === undefined ? {} : { cloudUrl: launchArgs.cloudUrl }),
-                desiredVersion: launchArgs.desiredVersion ?? this.args.serveVersion,
+                desiredVersion: launchArgs.desiredVersion ?? serve.version,
               }),
             ),
         },
         args,
-      ),
-    )
+      )
+    })
+  }
+
+  private async serveToProvision(): Promise<{
+    version: string | undefined
+    installServe?: ServeInstaller
+  }> {
+    if (this.args.devServe === undefined) return { version: this.args.serveVersion }
+    const binary = await this.args.devServe({ log: this.args.log })
+    this.args.log?.(`dev serve ${binary.version} resolved — uploading it instead of downloading a release`)
+    return { version: binary.version, installServe: (this.args.uploadServe ?? uploadServeInstaller)(binary) }
   }
 
   /**
@@ -218,7 +227,11 @@ export class VercelDriver {
     }
   }
 
-  async destroy(args: { name: string; threadId?: string | undefined; sessionId?: string | undefined }): Promise<void> {
+  /**
+   * The explicit sandbox delete: the TUI reaper past TTL and operator teardown. Wake, park and
+   * drift never reach it — a sandbox is only ever resumed or swapped in place.
+   */
+  async destroy(args: { name: string; sessionId?: string | undefined }): Promise<void> {
     const fenced = args.sessionId !== undefined
     try {
       const sandbox = await this.sandboxNamed(args.name, fenced ? { resume: false } : undefined)
@@ -227,18 +240,6 @@ export class VercelDriver {
     } catch (failure) {
       if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
       if (fenced) throw new SandboxMissingError(args.name)
-    }
-    if (args.threadId === undefined) return
-    const { drives: sdk, attachLagRetry: retry } = this
-    await deleteThreadDrive({ sdk, retry, credentials: this.args.credentials, log: this.args.log, threadId: args.threadId, sandboxName: args.name, fenced })
-  }
-
-  private async guarded(name: string, run: () => Promise<void>): Promise<void> {
-    try {
-      await run()
-    } catch (failure) {
-      if (isSandboxMissing(failure)) throw new SandboxMissingError(name)
-      throw asVercelFailure(failure)
     }
   }
 

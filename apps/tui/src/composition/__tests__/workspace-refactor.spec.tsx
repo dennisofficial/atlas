@@ -1,5 +1,5 @@
 import { toRunId } from '@dltech/atlas-core'
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -161,7 +161,7 @@ describe('a cloud reload remounting the workspace', () => {
     const draft = 'half a thought about the auth seam'
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       await mounted.frame()
 
       await mounted.typeText(draft)

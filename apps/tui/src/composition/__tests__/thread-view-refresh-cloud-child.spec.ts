@@ -8,7 +8,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import {
-  EChannelConnection,
+  EConnectionView,
   RemoteTurnRunner,
   type ChannelConnection,
   type ChannelReady,
@@ -68,7 +68,7 @@ const stubChannelFor = (args: { connection: ChannelConnection }) => ({
   },
 })
 
-const OPEN: ChannelConnection = { state: EChannelConnection.Open, detail: null }
+const OPEN: ChannelConnection = { state: EConnectionView.Connected, detail: null }
 
 const cloudAppFor = (args: {
   connection: ChannelConnection
@@ -178,7 +178,7 @@ describe('a cloud child thread refresh', () => {
   })
 })
 
-const PARKED: ChannelConnection = { state: EChannelConnection.Parked, detail: 'idle' }
+const PARKED: ChannelConnection = { state: EConnectionView.Parked, detail: 'idle' }
 
 const flush = async (): Promise<void> => {
   for (let i = 0; i < 20; i += 1) await Promise.resolve()

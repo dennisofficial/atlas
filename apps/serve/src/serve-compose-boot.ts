@@ -8,12 +8,12 @@ import type { bootServeFiles } from './serve-boot'
 type Booted = Awaited<ReturnType<typeof bootServeFiles>>
 
 const storedThreadModel = (args: {
-  driveHome: string
+  atlasHome: string
   threadId: ThreadId
 }): { ref: string; effort?: string | undefined } | undefined => {
   const meta = readMetaSync({
     file: threadMetaFile({
-      sessionDir: sessionDirectory({ home: args.driveHome, sessionId: args.threadId }),
+      sessionDir: sessionDirectory({ home: args.atlasHome, sessionId: args.threadId }),
       threadId: args.threadId,
     }),
     schema: threadMetaSchema,
@@ -29,7 +29,7 @@ export function composeBootApp(args: {
   context: Booted['context']
   threadId: ThreadId
   cwd: string
-  driveHome: string
+  atlasHome: string
   controlPlaneUrl: string
   token: string
   clientVersion: string

@@ -20,13 +20,13 @@ import {
   sandboxServeTokenFor,
   sandboxVcpusOf,
   storedModel,
-  VercelDriver,
   type LocalCloudBridgeOptions,
 } from '@dltech/atlas-harness'
 
 import { buildInfo, clientVersionHeader, EBuildKind } from '../build/info'
 import { ENoticeTone } from '../ui/notice-store'
 import { createCloudBridge } from './cloud/create-bridge'
+import { devServeResolverFor } from './cloud/dev-serve'
 import { durableOpLog } from './durable-op-log'
 import { reapExpiredCloudSandboxes } from './cloud/reaper'
 import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
@@ -104,7 +104,11 @@ export const cloudUrlOf = (app: {
 export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => ({
   vercel: () => ({
     credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
-    ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
+    ...sandboxImageOf({
+      settings: app.settings,
+      release: releaseBuildOf(),
+      devServe: devServeResolverFor(buildInfo()),
+    }),
     vcpus: sandboxVcpusOf({ settings: app.settings }),
   }),
   // The driver's settle and provision narration is the only record of a wake that failed
@@ -180,16 +184,10 @@ export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
     clientVersion: clientVersionHeader(),
   })
   const notice = noticePortBinding()
-  const driver = (): VercelDriver =>
-    new VercelDriver({
-      credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
-      cloudUrl: session.url,
-    })
 
   void reapExpiredCloudSandboxes({
     listSandboxes: () => sandboxes.listSandboxes(),
     destroySandbox: ({ threadId }) => sandboxes.destroySandbox({ threadId }),
-    destroyDrive: ({ name, threadId }) => driver().destroy({ name, threadId }),
     findThread: ({ threadId }) => app.threads.find({ threadId }),
     flipToHost: ({ threadId }) =>
       app.threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Host }),

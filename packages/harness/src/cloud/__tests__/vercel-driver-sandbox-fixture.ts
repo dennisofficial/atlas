@@ -1,8 +1,13 @@
 import type { Sandbox } from '@vercel/sandbox'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
-import { ECapability, SWAP_LOCK_PATH } from '@dltech/atlas-wire'
+import { ECapability } from '@dltech/atlas-wire'
 import { rotationReceipt } from './rotation-fixture'
+
+const recordOf = (): string => {
+  const receipt = rotationReceipt()
+  return JSON.stringify({ ...receipt.checkpoint, phase: 'updating', receipt })
+}
 
 export const PINNED_VERSION = '1.19.2'
 
@@ -72,34 +77,16 @@ export const fakeSandbox = (
       const script = params.args?.[1] ?? params.cmd
       commands.push(script)
       calls?.push({ kind: ERecordedCallKind.Command, script })
-      if (params.detached === true && script.includes(SWAP_LOCK_PATH)) {
-        // The swap-lock holder: a live process the driver kills on release.
-        return {
-          cmdId: 'cmd_lock',
-          exitCode: null,
-          wait: async () => ({ exitCode: 0, stdout: async () => '', stderr: async () => '' }),
-          kill: async () => undefined,
-        }
-      }
-      if (script.includes(SWAP_LOCK_PATH) && script.includes('.held.')) {
-        // The acquire-status probe: this fake grants the lock immediately.
-        return { exitCode: 0, stdout: async () => 'HELD', stderr: async () => '' }
-      }
-      if (script.includes(SWAP_LOCK_PATH)) {
-        return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
-      }
       if (script.startsWith('rm -f'))
         return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       if (script.startsWith('kill -0')) {
         return { exitCode: args.alive === true ? 0 : 1 }
       }
       if (script.startsWith('[ ! -s')) return { exitCode: 0 }
-      if (script.includes('sandbox-rotation.json')) {
+      if (script.includes('runtime-checkpoint.json')) {
         return { exitCode: 0, stdout: async () => preparedReceipt, stderr: async () => '' }
       }
       if (script.includes('/v1/health') && !script.includes('-o /dev/null')) {
-        // A drain-capable serve greets with its capability set; the drain client reads the
-        // RotationPreparation + SandboxSessionIdentity capabilities, not the legacy version field.
         return {
           exitCode: 0,
           stdout: async () =>
@@ -113,7 +100,7 @@ export const fakeSandbox = (
       if (script.includes('/v1/drain')) {
         const status = args.drainStatus ?? '200'
         const receipt = rotationReceipt()
-        if (status === '200') preparedReceipt = JSON.stringify(receipt)
+        if (status === '200') preparedReceipt = recordOf()
         return {
           exitCode: 0,
           stdout: async () => `${JSON.stringify({ ok: true, prepared: true, receipt })}\n${status}`,

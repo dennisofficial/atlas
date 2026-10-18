@@ -1,5 +1,5 @@
 import { EExecutionLocation, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
-import { EChannelConnection, ETurnStatus, RemoteTurnRunner } from '@dltech/atlas-harness'
+import { EConnectionView, ETurnStatus, RemoteTurnRunner } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
@@ -61,7 +61,7 @@ describe('a cloud conversation opened during an active turn', () => {
     }
     const channel = fakeCloudChannel({
       threadId: THREAD,
-      connection: { state: EChannelConnection.Open, detail: null },
+      connection: { state: EConnectionView.Connected, detail: null },
     })
     channel.snapshot = () => [{ type: 'turn-working', working: true }]
     channel.subscribe = ({ threadId, listener }) => {

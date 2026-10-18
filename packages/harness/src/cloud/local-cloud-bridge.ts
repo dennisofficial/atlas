@@ -27,13 +27,10 @@ import {
 } from './local-cloud-bootstrap'
 import { attachmentOf } from './local-cloud-attachment'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
-import { reattachSandbox } from './local-cloud-reattach'
 import { registerInBackground } from './local-cloud-registration'
 import { transferBufferedArchive } from './buffered-transfer'
 
 export type { LocalCloudBridgeOptions, SandboxAuthorizer } from './local-cloud-bridge-options'
-
-export { reattachSandbox }
 
 export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBridge {
   const driverWith =
@@ -160,8 +157,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       threadId: createArgs.threadId,
       token,
       serveUrl: placement.url,
-      driveName: placement.driveName,
-      serveVersion: config.serveVersion,
+      serveVersion: placement.serveVersion ?? config.serveVersion,
     })
 
     return {
@@ -169,7 +165,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       token,
       state: sandboxStateSchema.parse(placement.state),
       created: placement.created,
-      driveName: placement.driveName,
       ...(placement.rotatedFrom === undefined ? {} : { rotatedFrom: placement.rotatedFrom }),
       ...(placement.rotatedProtocol === undefined ? {} : { rotatedProtocol: placement.rotatedProtocol }),
     }
@@ -200,7 +195,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     }
     await driverWith(config).destroy({
       name,
-      threadId: destroyArgs.threadId,
       sessionId: expectedSandboxSessionId,
     })
   }

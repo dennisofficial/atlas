@@ -1,6 +1,6 @@
 import type { Event, ThreadId } from "@dltech/atlas-core";
 import {
-  EChannelConnection,
+  EConnectionView,
   MirroredEventLog,
   RemoteTurnRunner,
   transcriptIdentityDigest,
@@ -70,6 +70,12 @@ export const cloudChannelOf = (app: AtlasApp): RemoteDeltaChannel | null =>
 
 export const EXTERNAL_DRIVE_POLL_MS = 4000;
 
+const UNREFRESHABLE: ReadonlySet<EConnectionView> = new Set([
+  EConnectionView.Disconnected,
+  EConnectionView.Detached,
+  EConnectionView.Parked,
+]);
+
 export function driveThreadViewExternally(args: {
   cloudChannel: RemoteDeltaChannel | null;
   viewRefresh: ThreadViewRefresh;
@@ -94,7 +100,7 @@ export function driveThreadViewExternally(args: {
 
 export type ThreadViewRefresh = {
   refresh: () => Promise<void>;
-  /** False while a cloud channel is Closed or Parked: a re-read then can never land, so signals stand down. */
+  /** False while a cloud channel is Disconnected, Detached, or Parked: a re-read then can never land, so signals stand down. */
   refreshable: () => boolean;
   /** True when the channel never carries this thread's signals (cloud, non-root), so the view drives its own refreshes. */
   drivesExternally: () => boolean;
@@ -143,7 +149,7 @@ export function createThreadViewRefresh(args: {
   let detached = false;
 
   const refreshSpend = (): void => {
-    if (cloudChannel?.connection().state !== EChannelConnection.Open) return;
+    if (cloudChannel?.connection().state !== EConnectionView.Connected) return;
     if (readingSpend) {
       spendQueued = true;
       return;
@@ -234,8 +240,7 @@ export function createThreadViewRefresh(args: {
     },
     refreshable: () =>
       cloudChannel === null ||
-      (cloudChannel.connection().state !== EChannelConnection.Closed &&
-        cloudChannel.connection().state !== EChannelConnection.Parked),
+      !UNREFRESHABLE.has(cloudChannel.connection().state),
     drivesExternally: () =>
       cloudChannel !== null && threadId !== cloudChannel.threadId,
     gapped: () => tailGapped,

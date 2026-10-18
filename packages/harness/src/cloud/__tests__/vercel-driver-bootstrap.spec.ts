@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { DRIVE_HOME_PATH } from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH } from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'
 import {
   CREDENTIALS,
   PINNED_VERSION,
   fakeSandbox,
-  fakeDriveSdk,
   driverWith,
   notFound,
   ERecordedCallKind,
@@ -21,8 +20,7 @@ describe('createOrResume', () => {
       cloudUrl: 'https://api.example.com',
       image: `atlas-sandbox:${PINNED_VERSION}`,
       vcpus: 4,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
-      driveSdk: fakeDriveSdk().sdk,
+      settleRetry: { attempts: 10, delayMs: 0 },
       sdk: {
         get: async () => {
           throw notFound()
@@ -85,7 +83,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       runtimeHealth: async () => ({
@@ -125,7 +122,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       sdk: { get: async () => current, getOrCreate: async () => current },
@@ -173,7 +169,7 @@ describe('createOrResume', () => {
     )
     const tokenStage = calls.findIndex(
       (call) =>
-        call.kind === ERecordedCallKind.Command && call.script.startsWith('mkdir -p /opt/atlas'),
+        call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
     )
     const health = calls.findIndex(
       (call) => call.kind === ERecordedCallKind.Command && call.script.includes('/v1/health'),
@@ -218,7 +214,7 @@ describe('createOrResume', () => {
     )
     const tokenStage = calls.findIndex(
       (call) =>
-        call.kind === ERecordedCallKind.Command && call.script.startsWith('mkdir -p /opt/atlas'),
+        call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
     )
     const health = calls.findIndex(
       (call) => call.kind === ERecordedCallKind.Command && call.script.includes('/v1/health'),
@@ -256,7 +252,7 @@ describe('createOrResume', () => {
     expect(
       calls.some(
         (call) =>
-          call.kind === ERecordedCallKind.Command && call.script.startsWith('mkdir -p /opt/atlas'),
+          call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
       ),
     ).toBe(false)
     expect(
@@ -296,7 +292,7 @@ describe('createOrResume', () => {
     expect(
       calls.some(
         (call) =>
-          call.kind === ERecordedCallKind.Command && call.script.startsWith('mkdir -p /opt/atlas'),
+          call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
       ),
     ).toBe(false)
     expect(
@@ -306,7 +302,7 @@ describe('createOrResume', () => {
     ).toBe(false)
   })
 
-  it('stages bootstrap files with mode 0600 on the drive bootstrap directory', async () => {
+  it('stages bootstrap files with mode 0600 under the sandbox home bootstrap directory', async () => {
     const sandbox = fakeSandbox()
     const { driver } = driverWith({ sdk: { get: async () => sandbox } })
 
@@ -320,7 +316,7 @@ describe('createOrResume', () => {
       { path: 'workspace-spec.json', content: new Uint8Array([1, 2, 3]), mode: 0o600 },
     ])
     expect(
-      sandbox.commands.some((script) => script === `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`),
+      sandbox.commands.some((script) => script === `mkdir -p ${SANDBOX_HOME_PATH}/bootstrap`),
     ).toBe(true)
   })
 })

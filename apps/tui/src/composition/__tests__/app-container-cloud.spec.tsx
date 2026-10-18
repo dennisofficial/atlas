@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { ECloudSandboxState, EChannelConnection, ERuntimePhase, ETurnStatus, transcriptIdentityDigest } from '@dltech/atlas-harness'
+import { ECloudSandboxState, EConnectionView, ERuntimePhase, ETurnStatus, transcriptIdentityDigest } from '@dltech/atlas-harness'
 
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge } from '../cloud/__tests__/fixture'
@@ -27,7 +27,7 @@ const command = async (mounted: Mounted, text: string): Promise<void> => {
 }
 
 const connected = async (mounted: Mounted, bridge: ReturnType<typeof fakeBridge>): Promise<void> => {
-  bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+  bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   await shown(mounted, 'CLOUD')
 }
 
@@ -52,7 +52,7 @@ describe('a thread born in the cloud', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
 
       expect(await shown(mounted, 'CLOUD')).toContain('CLOUD')
     } finally {
@@ -94,10 +94,6 @@ describe('a thread born in the cloud', () => {
     }
   }, 60_000)
 
-  /**
-   * A parked sandbox is stopped, so no frame ever announces the parking: the socket simply stops
-   * coming back, and the control plane is the only thing that can tell resting from broken.
-   */
   it('renders a parked sandbox as parked rather than as a failure', async () => {
     const app = speaking()
     const bridge = fakeBridge({
@@ -115,10 +111,7 @@ describe('a thread born in the cloud', () => {
     const mounted = await mountInCloud({ app, bridge })
 
     try {
-      bridge.channel.moveTo({
-        state: EChannelConnection.Closed,
-        detail: 'the session socket closed and did not reopen after 8 attempts.',
-      })
+      bridge.channel.moveTo({ state: EConnectionView.Parked, detail: null })
 
       const frame = await shown(mounted, 'parked')
       expect(frame).toContain('parked')
@@ -244,7 +237,7 @@ describe('switching conversations while attached', () => {
       expect(await until({ holds: async () => bridge.attached.length === 2, within: 20_000 })).toBe(true)
       expect(bridge.attached[1]?.threadId).toBe(THREAD)
 
-      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       expect(await shown(mounted, 'CLOUD')).toContain('CLOUD')
     } finally {
       await mounted.done()

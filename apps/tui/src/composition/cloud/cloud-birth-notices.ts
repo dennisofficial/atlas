@@ -2,8 +2,6 @@ import { EBirthFault, EBirthNode, type BirthFailure } from '@dltech/atlas-harnes
 
 export const CLOUD_BIRTH_NOTICE_KEY = 'container-cloud'
 
-export const CLOUD_SANDBOX_NOTICE_KEY = 'container-cloud-sandbox'
-
 const FAULT_HEAD: Record<EBirthFault, string> = {
   [EBirthFault.NotConfigured]: 'cloud sandboxes are not set up',
   [EBirthFault.GitAuth]: 'git access is not set up',

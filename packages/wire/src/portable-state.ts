@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-export const PORTABLE_STATE_PATH = '/atlas/home/bootstrap/local-state.json'
+import { SANDBOX_HOME_PATH } from './serve-env.js'
+
+export const PORTABLE_STATE_PATH = `${SANDBOX_HOME_PATH}/bootstrap/local-state.json`
 
 export const PORTABLE_STATE_VERSION = 1
 

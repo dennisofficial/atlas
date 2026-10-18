@@ -1,31 +1,40 @@
 import type { Sandbox } from '@vercel/sandbox'
-import { z } from 'zod'
 
 import {
-  capabilitiesSchema,
-  DRIVE_HOME_PATH,
-  ECapability,
-  EVercelFailure,
+  ERuntimePhase,
+  SANDBOX_HOME_PATH,
   SERVE_TOKEN_PATH,
+  runtimeCheckpointSchema,
   sandboxDrainReplySchema,
-  sandboxRotationReceiptSchema,
-  sandboxSh,
-  supports,
-  capabilitySetOf,
-  withSwapLock,
-  VercelFailure,
   type SandboxRotationReceipt,
 } from '@dltech/atlas-wire'
-import { SANDBOX_ROTATION_RECEIPT_RELATIVE_PATH } from './sandbox-rotation-receipt'
+import { RUNTIME_CHECKPOINT_RELATIVE_PATH } from './runtime-checkpoint'
 
 export const SERVE_DRAIN_PATH = '/v1/drain'
 export const DRAIN_REASON = 'cloud sandbox update'
 export const DRAIN_COMMAND_TIMEOUT_MS = 45_000
 const DRAIN_CURL_TIMEOUT_SECONDS = 40
 
-export type ServeDrain = (args: { sandbox: Sandbox; url: string }) => Promise<void>
+export const DRAIN_SEAL_DEADLINE_MS = 12 * 60 * 1000
+export const DRAIN_SEAL_POLL_MS = 5_000
+
+export type DrainSealBudget = { deadlineMs: number; pollMs: number }
+
+const DEFAULT_SEAL_BUDGET: DrainSealBudget = { deadlineMs: DRAIN_SEAL_DEADLINE_MS, pollMs: DRAIN_SEAL_POLL_MS }
+
+export type ServeDrain = (args: {
+  sandbox: Sandbox
+  url: string
+  sealBudget?: DrainSealBudget | undefined
+}) => Promise<void>
+
+type DrainAnswer = { status: string; body: string }
+
+const ANSWERED_STATUS = /^[1-5]\d\d$/
 
 const shellQuoted = (text: string): string => `'${text.replaceAll("'", `'\\''`)}'`
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 const verifyReceipt = (args: { sandbox: Sandbox; receipt: SandboxRotationReceipt }): void => {
   if (args.receipt.sandboxSessionId !== args.sandbox.currentSession().sessionId) {
@@ -33,146 +42,84 @@ const verifyReceipt = (args: { sandbox: Sandbox; receipt: SandboxRotationReceipt
   }
 }
 
+const parsedRecordOf = (text: string): unknown => {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
 const hasPreparedReceipt = async (sandbox: Sandbox): Promise<boolean> => {
   const probe = await sandbox.runCommand({
     cmd: 'sh',
-    args: ['-c', `cat ${DRIVE_HOME_PATH}/${SANDBOX_ROTATION_RECEIPT_RELATIVE_PATH} 2>/dev/null || true`],
+    args: ['-c', `cat ${SANDBOX_HOME_PATH}/${RUNTIME_CHECKPOINT_RELATIVE_PATH} 2>/dev/null || true`],
     timeoutMs: 15_000,
   })
   const text = (await probe.stdout()).trim()
   if (probe.exitCode !== 0 || text.length === 0) return false
-  const parsed = sandboxRotationReceiptSchema.safeParse(JSON.parse(text))
-  if (!parsed.success) return false
-  return parsed.data.sandboxSessionId === sandbox.currentSession().sessionId
+  const parsed = runtimeCheckpointSchema.safeParse(parsedRecordOf(text))
+  if (!parsed.success || parsed.data.phase !== ERuntimePhase.Updating) return false
+  return parsed.data.receipt.sandboxSessionId === sandbox.currentSession().sessionId
 }
 
-const wedgeHealthSchema = z.looseObject({
-  sandboxSessionId: z.string().min(1),
-  admissionClosed: z.literal(true),
-  busy: z.boolean().optional(),
-  turnRunning: z.boolean().optional(),
-  childrenRunning: z.number().optional(),
-  shellsRunning: z.number().optional(),
-  servicesRunning: z.number().optional(),
-  pendingInput: z.boolean().optional(),
-  settlingWork: z.boolean().optional(),
-  clients: z.number().optional(),
-})
-
-/**
- * A wedged serve — admission latched, refusing every frame, but process-alive — fails the
- * safe-preparation handshake yet holds nothing worth preserving. It may be replaced only on
- * positive evidence: admission is closed AND every work signal is present and empty. Any work
- * indicator, any missing signal, a closed-but-admitting serve, or a foreign session is preserved.
- */
-const wedgeProofOf = (health: unknown, sessionId: string): boolean => {
-  const parsed = wedgeHealthSchema.safeParse(health)
-  if (!parsed.success) return false
-  const h = parsed.data
-  if (h.sandboxSessionId !== sessionId) return false
-  if (h.busy !== false || h.turnRunning !== false) return false
-  if (h.childrenRunning !== 0 || h.shellsRunning !== 0 || h.servicesRunning !== 0) return false
-  if (h.pendingInput !== false || h.settlingWork !== false) return false
-  return true
-}
-
-type PreparationGate = { kind: 'ready' } | { kind: 'wedged' } | { kind: 'legacy' }
-
-// Pre-#1025 (tui-v1.61.0) serves predate the drain protocol: they answered health with exactly
-// `{"ok":true}` and carry no capability set. The bearer token is the identity fence there. A
-// capability-advertising serve always names RotationPreparation, so an absent capability is a
-// typed absence — never a schema failure.
-const legacyHealthSchema = z.looseObject({
-  ok: z.boolean(),
-  // A serve that answers for a session — its own or a foreign one — is not legacy: it speaks the
-  // identity greet and its answer must be judged, not bypassed. Nor is one reporting a lifecycle
-  // state: a bare pre-#1025 health carried only `ok`, so any extra signal means the serve is
-  // newer than the drain protocol's absence implies. Legacy is the typed absence of the
-  // capability set, the session identity, and any lifecycle report.
-  sandboxSessionId: z.undefined().optional(),
-  paused: z.undefined().optional(),
-})
-
-const healthGreetSchema = z.looseObject({
-  capabilities: capabilitiesSchema.optional(),
-  sandboxSessionId: z.string().min(1).optional(),
-})
-
-const requireSafePreparation = async (args: { sandbox: Sandbox; url: string }): Promise<PreparationGate> => {
-  const probe = await args.sandbox.runCommand({
-    cmd: 'sh',
-    args: ['-c',
-      `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
-      `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $_serve_token" ${shellQuoted(`${args.url}/v1/health`)}`,
-    ],
-    timeoutMs: 15_000,
-  })
-  let body: unknown = null
-  if (probe.exitCode === 0) {
-    try {
-      body = JSON.parse((await probe.stdout()) || 'null')
-    } catch {
-      body = null
-    }
-  }
-  const greet = healthGreetSchema.safeParse(body)
-  const capabilities = greet.success ? capabilitySetOf(greet.data.capabilities) : capabilitySetOf(undefined)
-  const canPrepare = supports({ capabilities, capability: ECapability.RotationPreparation })
-  const identifiesSession = supports({ capabilities, capability: ECapability.SandboxSessionIdentity })
-  const sessionMatches =
-    greet.success &&
-    greet.data.sandboxSessionId !== undefined &&
-    greet.data.sandboxSessionId === args.sandbox.currentSession().sessionId
-  if (probe.exitCode === 0 && canPrepare && identifiesSession && sessionMatches) {
-    return { kind: 'ready' }
-  }
-  if (wedgeProofOf(body, args.sandbox.currentSession().sessionId)) return { kind: 'wedged' }
-  if (probe.exitCode === 0 && !canPrepare && legacyHealthSchema.safeParse(body).success) {
-    return { kind: 'legacy' }
-  }
-  throw new VercelFailure({
-    kind: EVercelFailure.DrainRefused,
-    message: 'this serve cannot confirm safe relocation preparation — the sandbox was preserved',
-  })
-}
-
-export const drainServe: ServeDrain = ({ sandbox, url }) =>
-  // A second client arriving mid-swap blocks until the winner's lock holder releases, then sees
-  // the winner's preparation receipt and returns without draining again.
-  withSwapLock({ sandbox, sh: sandboxSh, run: () => drainServeUnlocked({ sandbox, url }) })
-
-const drainServeUnlocked: ServeDrain = async ({ sandbox, url }) => {
-  if (await hasPreparedReceipt(sandbox)) return
-  const gate = await requireSafePreparation({ sandbox, url })
-  // A wedged serve already ended its own processes when it parked and cannot answer a drain —
-  // asking it to is the deadlock. Its durable state is on the drive; bypass the drain and let the
-  // caller replace it. A legacy serve predates the drain protocol itself — pre-#1025 the harness
-  // always replaced these serves without ceremony, so nothing protected is lost.
-  if (gate.kind === 'wedged' || gate.kind === 'legacy') return
-  const body = JSON.stringify({ reason: DRAIN_REASON, preparationVersion: 1 })
-  try {
-    const run = await sandbox.runCommand({
+const requestDrain = async (args: { sandbox: Sandbox; url: string }): Promise<DrainAnswer | undefined> => {
+  const body = JSON.stringify({ reason: DRAIN_REASON })
+  const run = await args.sandbox
+    .runCommand({
       cmd: 'sh',
       args: [
         '-c',
         `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
           `curl -s -m ${DRAIN_CURL_TIMEOUT_SECONDS} --connect-timeout 2 -w '\\n%{http_code}' -X POST ` +
           `-H "Authorization: Bearer $_serve_token" -H 'Content-Type: application/json' ` +
-          `-d ${shellQuoted(body)} ${shellQuoted(`${url}${SERVE_DRAIN_PATH}`)} 2>/dev/null`,
+          `-d ${shellQuoted(body)} ${shellQuoted(`${args.url}${SERVE_DRAIN_PATH}`)} 2>/dev/null`,
       ],
       timeoutMs: DRAIN_COMMAND_TIMEOUT_MS,
     })
-    const text = (await run.stdout()).trim()
-    const split = text.lastIndexOf('\n')
-    const status = text.slice(split + 1)
-    if (run.exitCode !== 0 || status !== '200') {
-      throw new Error(`the serve did not confirm preparation (HTTP ${status || 'unknown'}) — nothing was destroyed`)
+    .catch(() => undefined)
+  if (run === undefined) return undefined
+  const text = (await run.stdout()).trim()
+  const split = text.lastIndexOf('\n')
+  const status = text.slice(split + 1)
+  if (run.exitCode !== 0 || !ANSWERED_STATUS.test(status)) return undefined
+  return { status, body: text.slice(0, split) }
+}
+
+const awaitSeal = async (args: { sandbox: Sandbox; requestedAt: number; budget: DrainSealBudget }): Promise<void> => {
+  const deadline = args.requestedAt + args.budget.deadlineMs
+  while (!(await hasPreparedReceipt(args.sandbox).catch(() => false))) {
+    const remainingMs = deadline - Date.now()
+    if (remainingMs <= 0) {
+      throw new Error(
+        `the serve did not confirm preparation within ${Math.round(args.budget.deadlineMs / 1000)}s of the drain request (HTTP 000) — nothing was destroyed`,
+      )
     }
-    const reply = sandboxDrainReplySchema.parse(JSON.parse(text.slice(0, split)))
-    verifyReceipt({ sandbox, receipt: reply.receipt })
-    if (!(await hasPreparedReceipt(sandbox))) {
-      throw new Error('the serve answered without durable preparation — nothing was destroyed')
+    await sleep(Math.min(args.budget.pollMs, remainingMs))
+  }
+}
+
+const confirmAnswer = async (args: { sandbox: Sandbox; answer: DrainAnswer }): Promise<void> => {
+  if (args.answer.status !== '200') {
+    throw new Error(`the serve did not confirm preparation (HTTP ${args.answer.status}) — nothing was destroyed`)
+  }
+  const reply = sandboxDrainReplySchema.parse(JSON.parse(args.answer.body))
+  verifyReceipt({ sandbox: args.sandbox, receipt: reply.receipt })
+  if (!(await hasPreparedReceipt(args.sandbox))) {
+    throw new Error('the serve answered without durable preparation — nothing was destroyed')
+  }
+}
+
+export const drainServe: ServeDrain = async ({ sandbox, url, sealBudget }) => {
+  if (await hasPreparedReceipt(sandbox)) return
+  const requestedAt = Date.now()
+  try {
+    const answer = await requestDrain({ sandbox, url })
+    if (answer === undefined) {
+      await awaitSeal({ sandbox, requestedAt, budget: sealBudget ?? DEFAULT_SEAL_BUDGET })
+      return
     }
+    await confirmAnswer({ sandbox, answer })
   } catch (failure) {
     if (await hasPreparedReceipt(sandbox)) return
     throw failure

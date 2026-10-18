@@ -1,4 +1,5 @@
 import { EServeFrame, createSessionContextReader, sessionDirectory, type ServeFrame, type StepId } from '@dltech/atlas-harness'
+import { admissionClosedFor } from '@dltech/atlas-wire'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
@@ -29,6 +30,11 @@ import { createServeWorkspaceSession } from './serve-workspace-session'
 import { createSessionMirrorReader } from './session-mirror'
 import { createSessionMirrorRevision } from './session-mirror-revision'
 
+// A serve booted without Vercel env (local dev serve) has no provider stop: park fails bounded
+// rather than pretending a legacy exit path exists.
+const missingProviderStop = (): Promise<void> =>
+  Promise.reject(new Error('this runtime has no sandbox to stop'))
+
 export async function finishServeBoot(args: {
   serveArgs: ServeArgs
   env: Record<string, string | undefined>
@@ -39,21 +45,20 @@ export async function finishServeBoot(args: {
   startedAt: number
   log: ServeLog
   notice: LoggingNoticePort
-  driveHome: string
+  atlasHome: string
   sandboxSessionId: string
   boot: BootListener
 }): Promise<ServeHandle> {
   const { serveArgs, env, threadId, token, controlPlaneUrl, cwd, startedAt, log, notice } = args
-  const { driveHome, sandboxSessionId, boot } = args
+  const { atlasHome, sandboxSessionId, boot } = args
   const { server, port } = boot
   const fetchFn = serveArgs.fetchFn ?? fetch
-  const recovery = await createServeRotationRecovery({ atlasHome: driveHome, threadId, sandboxSessionId, log })
-  const admission = { closed: false }
+  const recovery = await createServeRotationRecovery({ atlasHome, threadId, sandboxSessionId, log })
   const { workspace, activeCwd, spec, context } = await bootServeFiles({
     env,
     threadId,
     cwd,
-    driveHome,
+    atlasHome,
     log,
     ensureWorkspace: serveArgs.ensureWorkspace,
     profile: serveArgs.profile,
@@ -67,7 +72,7 @@ export async function finishServeBoot(args: {
     context,
     threadId,
     cwd: activeCwd,
-    driveHome,
+    atlasHome,
     controlPlaneUrl,
     token,
     clientVersion: serveArgs.clientVersion ?? 'dev',
@@ -75,7 +80,11 @@ export async function finishServeBoot(args: {
     notice,
   })
 
-  await recovery.guard({ app, admission })
+  const admissionClosed = (): boolean => {
+    if (recovery.admissionLatched) return true
+    const current = checkpoint.current()
+    return current !== null && admissionClosedFor(current.phase)
+  }
 
   const buffer = createFrameBuffer({ capacity: serveArgs.bufferSize ?? DEFAULT_FRAME_BUFFER })
   const settling = { count: 0 }, noop = (): void => undefined
@@ -104,7 +113,7 @@ export async function finishServeBoot(args: {
   const checkpoint = bindRuntimeCheckpoint({
     capture: createRuntimeCheckpointCapture({
       threadId,
-      atlasHome: driveHome,
+      atlasHome,
       env,
       token,
       transcript: app.log,
@@ -115,6 +124,7 @@ export async function finishServeBoot(args: {
     publish: (current) => broadcast({ kind: EServeFrame.Checkpoint, checkpoint: current }),
   })
   captureRunning = recovery.checkpointAllowed ? checkpoint.running : noop
+  await recovery.guard({ app, checkpoint })
 
   const emitLifecycle = (frame: LifecycleFrame): void => {
     recovery.consume(frame)
@@ -127,7 +137,7 @@ export async function finishServeBoot(args: {
     if (frame.kind === EServeFrame.TurnEnded) mirrorRevision.bump()
   }
 
-  const driver = createServeDriver({ app, threadId, workspace, admission, log, idleStop: () => idleStop, emitLifecycle })
+  const driver = createServeDriver({ app, threadId, workspace, log, idleStop: () => idleStop, emitLifecycle })
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({
     app,
@@ -139,7 +149,7 @@ export async function finishServeBoot(args: {
     },
   })
 
-  const contextReader = createSessionContextReader({ threadId, home: driveHome })
+  const contextReader = createSessionContextReader({ threadId, home: atlasHome })
   const handlers = createSessionHandlers({
     threadId,
     buffer,
@@ -148,7 +158,7 @@ export async function finishServeBoot(args: {
     driver,
     files: app.files,
     context: contextReader,
-    admissionClosed: () => admission.closed,
+    admissionClosed,
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),
     refusal: () => workspaceRefusalOf(workspace) ?? null,
@@ -162,7 +172,7 @@ export async function finishServeBoot(args: {
     pending: app.pending,
     sessionMirror: {
       reader: createSessionMirrorReader({
-        sessionDir: () => sessionDirectory({ home: driveHome, sessionId: threadId }),
+        sessionDir: () => sessionDirectory({ home: atlasHome, sessionId: threadId }),
       }),
       revision: mirrorRevision.current,
     },
@@ -212,9 +222,9 @@ export async function finishServeBoot(args: {
     app,
     driver,
     threadId,
-    atlasHome: driveHome,
+    atlasHome,
     sandboxSessionId,
-    admission,
+    owed: recovery.owed,
     haltIdle: () => idleStop.halt(),
     whenMutationsSettled: async () => { await session.whenStarted(); await handlers.whenSettled() },
     checkpoint,
@@ -225,8 +235,8 @@ export async function finishServeBoot(args: {
 
   boot.complete({
     handlers,
-    drain: (given) => recovery.drain({ drain, ...given }),
-    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable, admissionClosed: () => admission.closed },
+    drain: (given) => recovery.drain({ drain, ...given }).finally(handlers.replayDeferred),
+    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable },
   })
 
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
@@ -238,7 +248,7 @@ export async function finishServeBoot(args: {
     server,
     bridge,
     threadId,
-    admission,
+    checkpoint,
     log,
     work,
     haltIdle: () => idleStop.halt(),
@@ -250,9 +260,8 @@ export async function finishServeBoot(args: {
       unsubscribeWake?.()
       detachSubscriptions()
     },
-    stopSandbox: serveArgs.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }),
+    stopSandbox: serveArgs.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }) ?? missingProviderStop,
     exit,
-    finalizePark: checkpoint.finalizePark,
   })
 
   idleStop = recovery.checkpointAllowed ? startServeIdleStop({

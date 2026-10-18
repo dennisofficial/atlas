@@ -12,8 +12,8 @@ import {
 } from '@dltech/atlas-core'
 import type { PendingEntryWire, RosterWire, RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
-  EChannelConnection,
   EClientRequest,
+  EConnectionView,
   ETurnStatus,
   RemoteThreadStore,
   ThreadStorePort,
@@ -93,6 +93,8 @@ export type FakeCloudChannel = CloudChannel & {
   }[]
   readonly requests: readonly { op: EClientRequest; params: unknown }[]
   readonly woken: readonly { url: string; token: string }[]
+  /** Checkpoints the open handed the channel from the sandbox status read. */
+  readonly observed: readonly RuntimeCheckpoint[]
   readonly reconnects: number
 }
 
@@ -142,6 +144,7 @@ export function fakeCloudChannel(
   let heldPending: readonly PendingEntryWire[] = []
   let heldTakeBack: PendingSaid | null = null
   const woken: { url: string; token: string }[] = []
+  const observed: RuntimeCheckpoint[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
     text: string
@@ -152,7 +155,7 @@ export function fakeCloudChannel(
   let booted: Promise<void> = Promise.resolve()
 
   let held: ChannelConnection =
-    args.connection ?? { state: EChannelConnection.Connecting, detail: null }
+    args.connection ?? { state: EConnectionView.Waking, detail: null }
   let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
   let closed = false
   let runs = 0
@@ -356,9 +359,21 @@ export function fakeCloudChannel(
       args.onDial?.({ url, token })
     },
     beginWake: () => {
-      held = { state: EChannelConnection.Waking, detail: null }
+      held = { state: EConnectionView.Waking, detail: null }
       for (const listener of [...connections]) listener(held)
     },
+    beginRotation: () => {
+      held = { state: EConnectionView.Updating, detail: 'updating the cloud sandbox' }
+      for (const listener of [...connections]) listener(held)
+    },
+    failWake: ({ reason }) => {
+      held = { state: EConnectionView.Disconnected, detail: reason }
+      for (const listener of [...connections]) listener(held)
+    },
+    observeCheckpoint: (checkpoint) => {
+      observed.push(checkpoint)
+    },
+    unackedSendCount: () => 0,
     attachment: () => undefined,
     reconnect: () => {
       reconnected += 1
@@ -384,6 +399,10 @@ export function fakeCloudChannel(
 
     get woken() {
       return woken
+    },
+
+    get observed() {
+      return observed
     },
 
     get reconnects() {
@@ -515,14 +534,6 @@ class WatchedThreadStore extends ThreadStorePort {
 
   chooseModel(args: Parameters<ThreadStorePort['chooseModel']>[0]) {
     return this.inner.chooseModel(args)
-  }
-
-  override writeParkedTranscript(args: Parameters<ThreadStorePort['writeParkedTranscript']>[0]) {
-    return this.inner.writeParkedTranscript(args)
-  }
-
-  override readParkedTranscript(args: Parameters<ThreadStorePort['readParkedTranscript']>[0]) {
-    return this.inner.readParkedTranscript(args)
   }
 
   chooseExecutionLocation(args: Parameters<ThreadStorePort['chooseExecutionLocation']>[0]) {
@@ -725,15 +736,15 @@ export function fakeBridge(
         threads,
         disk,
         connection: dialled
-          ? { state: EChannelConnection.Open, detail: null }
-          : { state: EChannelConnection.Parked, detail: null },
+          ? { state: EConnectionView.Connected, detail: null }
+          : { state: EConnectionView.Parked, detail: null },
         onDial: dialled
           ? undefined
           : (dial) => {
               trail.push('attach')
               attached.push({ threadId, ...dial })
               opened.reload({ sinceEventSeq: 0 })
-              opened.moveTo({ state: EChannelConnection.Open, detail: null })
+              opened.moveTo({ state: EConnectionView.Connected, detail: null })
             },
       })
       channel = opened

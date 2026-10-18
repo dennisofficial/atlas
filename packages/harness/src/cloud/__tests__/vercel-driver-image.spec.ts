@@ -2,17 +2,14 @@ import { describe, expect, it } from 'bun:test'
 
 import { APIError } from '@vercel/sandbox'
 
-import { driveNameFor, EVercelFailure, VercelFailure } from '@dltech/atlas-wire'
+import { EVercelFailure, VercelFailure } from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'
 import {
   CREDENTIALS,
   PINNED_VERSION,
   fakeSandbox,
-  fakeDrive,
-  fakeDriveSdk,
   notFound,
   imageNotReady,
-  liveDriveSdk,
   type FakeSandbox,
 } from './vercel-driver-fixture'
 
@@ -22,10 +19,9 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       imageOptimizeRetry: { attempts: 5, delayMs: 0 },
       sdk: {
         get: async () => {
@@ -53,14 +49,12 @@ describe('createOrResume', () => {
 
   it('fails a poisoned image without retrying, naming the republish as the recovery', async () => {
     let calls = 0
-    const drives = liveDriveSdk()
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: drives.sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       imageOptimizeRetry: { attempts: 5, delayMs: 0 },
       sdk: {
         get: async () => {
@@ -81,7 +75,6 @@ describe('createOrResume', () => {
     expect((failure as VercelFailure).kind).toBe(EVercelFailure.ImageOptimize)
     expect((failure as Error).message).toContain('fresh digest')
     expect(calls).toBe(1)
-    expect(drives.deleted).toEqual([driveNameFor({ threadId: 'brn_cloud' })])
   })
 
   it('fails fast on an unpublished image, naming the publish as the recovery', async () => {
@@ -89,10 +82,9 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       imageOptimizeRetry: { attempts: 5, delayMs: 0 },
       sdk: {
         get: async () => {
@@ -117,16 +109,14 @@ describe('createOrResume', () => {
     expect((failure as Error).message).toContain(`atlas-sandbox:${PINNED_VERSION}`)
   })
 
-  it('rolls back the sandbox and the drive a failed wake created', async () => {
-    const drives = liveDriveSdk()
+  it('rolls back the sandbox a failed wake created', async () => {
     let freshBoot: FakeSandbox | undefined
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: drives.sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       imageOptimizeRetry: { attempts: 5, delayMs: 0 },
       sdk: {
         get: async () => {
@@ -153,30 +143,22 @@ describe('createOrResume', () => {
     ).rejects.toThrow('write failed')
 
     expect(freshBoot?.deleted).toBe(true)
-    expect(drives.deleted).toEqual([driveNameFor({ threadId: 'brn_cloud' })])
   })
 
-  it('keeps a pre-existing drive when the failed wake rolls back', async () => {
-    const drives = liveDriveSdk()
-    drives.live.push(fakeDrive({ name: driveNameFor({ threadId: 'brn_cloud' }) }))
-    let freshBoot: FakeSandbox | undefined
+  it('keeps a pre-existing sandbox when the failed wake rolls back', async () => {
+    const existing = fakeSandbox({ installedVersion: PINNED_VERSION })
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: drives.sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
-      attachLagRetry: { attempts: 10, delayMs: 0 },
+      settleRetry: { attempts: 10, delayMs: 0 },
       imageOptimizeRetry: { attempts: 5, delayMs: 0 },
       sdk: {
-        get: async () => {
-          if (freshBoot !== undefined) return freshBoot
-          throw notFound()
-        },
+        get: async () => existing,
         getOrCreate: async (params) => {
-          freshBoot = fakeSandbox()
-          await params?.onCreate?.(freshBoot)
-          return freshBoot
+          await params?.onResume?.(existing)
+          return existing
         },
       },
     })
@@ -192,7 +174,6 @@ describe('createOrResume', () => {
       }),
     ).rejects.toThrow('write failed')
 
-    expect(freshBoot?.deleted).toBe(true)
-    expect(drives.deleted).toEqual([])
+    expect(existing.deleted).toBe(false)
   })
 })

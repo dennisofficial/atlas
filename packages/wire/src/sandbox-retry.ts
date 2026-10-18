@@ -1,19 +1,15 @@
-/**
- * Vercel detaches a drive asynchronously after its sandbox goes away, and both sides of that lag —
- * deleting the drive, mounting it on a new sandbox — retry through it with the same budget. One
- * policy so the two sides can never drift; injectable so a spec passes zero delays rather than
- * sleeping through the real ones.
- */
+/** Injectable so a spec passes zero delays rather than sleeping through the real ones. */
 export type RetryPolicy = {
   attempts: number
   delayMs: number
 }
 
-// 30 × 5s = 150s per consumer (the detach poll, then the delete retry), so the full
-// delete path outlasts the multi-minute detach Vercel actually takes in the slow case —
-// the October 2026 bench teardown flaked on the old 20s budget while a drive sat wedged
-// attached to an already-gone sandbox.
-export const attachLagRetry: RetryPolicy = { attempts: 30, delayMs: 5_000 }
+/**
+ * The sandbox-name settle the mount rides out: a fresh create can land before Vercel's name
+ * registry has caught up. 30 × 5s = 150s, sized for the slow settles observed in the October
+ * 2026 wake probes.
+ */
+export const settleRetry: RetryPolicy = { attempts: 30, delayMs: 5_000 }
 
 /**
  * The first boot of a freshly published image waits on Vercel optimizing that digest — the

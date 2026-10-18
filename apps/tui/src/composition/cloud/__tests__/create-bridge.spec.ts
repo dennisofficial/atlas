@@ -3,54 +3,15 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { PortableState } from '@dltech/atlas-wire'
 
-import {
-  ECloudSandboxState,
-  type CloudSandboxes,
-} from '@dltech/atlas-harness'
+import { ECloudSandboxState } from '@dltech/atlas-harness'
 import type { VercelSandboxConfig } from '@dltech/atlas-wire'
 import {
   createCloudBridge,
-  parkedEscalationOf,
   type BridgeDriver,
   type PortableOmissions,
 } from '../create-bridge'
 
 const THREAD = toThreadId('brn_cloud')
-
-const sandboxesFinding = (
-  find: CloudSandboxes['find'],
-): Pick<CloudSandboxes, 'find'> => ({ find })
-
-describe('parkedEscalationOf', () => {
-  it('escalates when the driver reports the sandbox parked', async () => {
-    const sandboxes = sandboxesFinding(async () => ({ state: ECloudSandboxState.Parked }))
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(true)
-  })
-
-  it('stays put for a sandbox that is running', async () => {
-    const sandboxes = sandboxesFinding(async () => ({
-      state: ECloudSandboxState.Running,
-      url: 'https://box.vercel.run',
-    }))
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
-  })
-
-  it('stays put for a sandbox that is only resuming', async () => {
-    const sandboxes = sandboxesFinding(async () => ({ state: ECloudSandboxState.Resuming }))
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
-  })
-
-  it('swallows a driver failure rather than escalating on a guess', async () => {
-    const sandboxes = sandboxesFinding(async () => {
-      throw new Error('vercel said no')
-    })
-
-    expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
-  })
-})
 
 type RecordedWrite = { path: string; content: Uint8Array | string }
 
@@ -97,7 +58,6 @@ const fakeDriver = (args: { created: boolean; vaultPresent?: boolean }): FakeDri
         url: 'https://sb.vercel.run',
         state: ECloudSandboxState.Running,
         created: args.created,
-        driveName: 'drive-x',
         token: createArgs.token ?? 'driver-minted',
       }
     },
@@ -154,7 +114,6 @@ describe('createCloudBridge sandboxes.create', () => {
     expect(sandbox.token).toBe('stable-serve-token')
     expect(driver.tokens).toEqual(['stable-serve-token'])
     expect(sandbox.created).toBe(true)
-    expect(sandbox.driveName).toBe('drive-x')
   })
 
   it('writes the workspace spec and portable snapshot before launch on a fresh boot', async () => {
@@ -168,8 +127,8 @@ describe('createCloudBridge sandboxes.create', () => {
     await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
 
     const paths = driver.written.map((write) => write.path)
-    expect(paths).toContain('/atlas/home/bootstrap/workspace-spec.json')
-    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
+    expect(paths).toContain('/opt/atlas/home/bootstrap/workspace-spec.json')
+    expect(paths).toContain('/opt/atlas/home/bootstrap/local-state.json')
 
     const spec = driver.written.find((write) => write.path.endsWith('workspace-spec.json'))
     expect(JSON.parse(String(spec?.content))).toMatchObject({ githubToken: 'gho_test_token' })
@@ -191,8 +150,8 @@ describe('createCloudBridge sandboxes.create', () => {
     await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
 
     const paths = driver.written.map((write) => write.path)
-    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
-    expect(paths).not.toContain('/atlas/home/bootstrap/workspace-spec.json')
+    expect(paths).toContain('/opt/atlas/home/bootstrap/local-state.json')
+    expect(paths).not.toContain('/opt/atlas/home/bootstrap/workspace-spec.json')
   })
 
   it('boots without push access when the git token read fails', async () => {
@@ -229,7 +188,6 @@ describe('createCloudBridge sandboxes.create', () => {
         threadId: THREAD,
         token: 'stable-serve-token',
         serveUrl: 'https://sb.vercel.run',
-        driveName: 'drive-x',
       },
     ])
   })
@@ -366,7 +324,7 @@ describe('createCloudBridge sandboxes.create', () => {
 
     expect(captures).toHaveLength(1)
     expect(driver.written.map((write) => write.path)).toContain(
-      '/atlas/home/bootstrap/local-state.json',
+      '/opt/atlas/home/bootstrap/local-state.json',
     )
   })
 })

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
+import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'
 
 import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
 import type { ContainerMoveControl } from '../../use-container-move'
@@ -55,7 +55,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   it('re-provisions and wakes the channel with the fresh url and token', async () => {
     const bridge = fakeBridge({ sandbox: CREATED })
     const channel = fakeCloudChannel()
-    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
     const move = fakeMove()
     const archive = Buffer.from('a fake tar.gz')
     const runner = createCloudRunner({
@@ -85,7 +85,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   it('skips capturing and uploading the context archive when the sandbox resumed with it', async () => {
     const bridge = fakeBridge({ sandbox: RESUMED })
     const channel = fakeCloudChannel()
-    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
     let captureCalls = 0
     const runner = createCloudRunner({
       bridge,
@@ -111,7 +111,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   it('touches nothing move-shaped when no move control was given', async () => {
     const bridge = fakeBridge({ sandbox: CREATED })
     const channel = fakeCloudChannel()
-    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
     const runner = createCloudRunner({
       bridge,
       channel,
@@ -134,7 +134,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       putContextFails: new Error('the control plane fell over'),
     })
     const channel = fakeCloudChannel()
-    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
     const move = fakeMove()
     const archive = Buffer.from('a fake tar.gz')
     const runner = createCloudRunner({
@@ -165,7 +165,9 @@ describe('waking a cloud runner whose channel is not open', () => {
       sandbox: { ...RESUMED, rotatedFrom: '1.19.1' },
     })
     const channel = fakeCloudChannel()
-    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
+    const views: EConnectionView[] = []
+    channel.onConnection((view) => views.push(view.state))
     const move = fakeMove()
     const runner = createCloudRunner({
       bridge,
@@ -185,6 +187,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       'settle',
     ])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
+    expect(views).toEqual([EConnectionView.Waking, EConnectionView.Updating])
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
@@ -195,7 +198,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       sandbox: { ...RESUMED, rotatedProtocol: 11 },
     })
     const channel = fakeCloudChannel()
-    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
     const move = fakeMove()
     const runner = createCloudRunner({
       bridge,
@@ -222,7 +225,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   it('fails the move and propagates the error when waking cannot re-provision the sandbox', async () => {
     const bridge = fakeBridge({ createFails: new Error('no capacity in iad1') })
     const channel = fakeCloudChannel()
-    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
     const move = fakeMove()
     const runner = createCloudRunner({
       bridge,

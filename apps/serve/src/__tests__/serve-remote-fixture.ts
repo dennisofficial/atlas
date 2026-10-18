@@ -8,7 +8,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
   decodeServeFrame,
-  EChannelConnection,
+  EConnectionView,
   EServeFrame,
   type ChannelReload,
   type ChannelSocketFactory,
@@ -171,7 +171,7 @@ export const attach = async (args: {
   channel.onTurnEnded((outcome) => void outcomes.push(outcome))
   await until({
     what: 'the channel to open',
-    condition: () => channel.connection().state === EChannelConnection.Open,
+    condition: () => channel.connection().state === EConnectionView.Connected,
   })
   await until({ what: 'the first attach to reload the log', condition: () => reloads.length === 1 })
   reloads.length = 0

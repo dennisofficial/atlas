@@ -57,6 +57,14 @@ describe('startServe', () => {
       idleMinutes: 0.001,
       idleTickMs: 5,
       exit: (code) => exits.push(code),
+      stopSandbox: async () => undefined,
+      env: {
+        [EServeEnv.Token]: TOKEN,
+        [EServeEnv.Port]: '0',
+        [EServeEnv.ThreadId]: 'thread-serve',
+        [EServeEnv.CloudUrl]: CONTROL_PLANE,
+        ATLAS_SANDBOX_SESSION_ID: 'session-1',
+      },
     })
 
     await Bun.sleep(200)

@@ -1,7 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import {
-  EParkedResume,
-  MirroredEventLog,
   type CloudBridge,
   type CloudChannel,
   type CloudReload,
@@ -10,7 +8,6 @@ import {
   type SessionMirrorSync,
 } from '@dltech/atlas-harness'
 
-import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
 import type { OpenedConversation } from '../open-conversation'
@@ -19,13 +16,9 @@ import type { ContainerMoveControl } from '../use-container-move'
 import { cloudReadinessOf } from './cloud-readiness'
 import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
 import { createCloudRunner, createCloudWake, wakeSandbox, type CloudWake } from './cloud-runner'
-import { createCloudSession } from './cloud-session'
-import { parkHookFor } from './park-hook'
+import { createCloudSession, type CloudSession } from './cloud-session'
 import { parkedStoresOf } from './parked-stores'
-import { readParkedResume } from './parked-resume'
 import { mirrorCloudRenames } from './rename-mirror'
-
-export const CLOUD_WAKE_FAILED_NOTICE_KEY = 'cloud-wake-failed'
 
 type OpenArgs = {
   app: AtlasApp
@@ -44,11 +37,11 @@ type Composed = {
   stores: CloudStores
   sessionMirror: SessionMirrorSync | undefined
   wake: CloudWake
-  created: () => boolean
-  parkedResume: EParkedResume | undefined
-  wakeInBackground: (() => void) | undefined
+  settleOpenOf: (session: CloudSession) => () => void
   openAgainst: (runner: RemoteTurnRunner) => Promise<OpenedConversation>
 }
+
+const ALREADY_SETTLED = (): void => undefined
 
 const captureContextFor = (args: OpenArgs) => () =>
   args.app.captureContext({ cwd: args.projectDirectory ?? args.app.workspace.workspace })
@@ -72,9 +65,7 @@ async function composeEager(args: OpenArgs): Promise<Composed> {
     stores,
     sessionMirror,
     wake: createCloudWake({ ...wakeNarrationFor(args), channel }),
-    created: () => woken.created,
-    parkedResume: undefined,
-    wakeInBackground: undefined,
+    settleOpenOf: () => ALREADY_SETTLED,
     openAgainst: (runner) =>
       openCloudConversation({
         app: { ...args.app, ...cloudRuntimeParts({ channel, stores, runner }) },
@@ -83,41 +74,20 @@ async function composeEager(args: OpenArgs): Promise<Composed> {
   }
 }
 
-function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resume: EParkedResume }): Composed {
+function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation }): Composed {
   const attachment = args.bridge.attach({ threadId: args.threadId })
   const { channel } = attachment
-  let created = false
-  const wake = createCloudWake({
-    ...wakeNarrationFor(args),
-    channel,
-    onWoken: (woken) => {
-      created = woken.created
-    },
-  })
   const stores = parkedStoresOf({
     channel,
     local: { threads: args.app.threads, log: args.app.log, ledger: args.app.ledger },
     remote: attachment.stores,
   })
-  const wakeInBackground = (): void => {
-    channel.beginWake()
-    void wake({ quiet: true }).catch((error: unknown) => {
-      notify({
-        key: CLOUD_WAKE_FAILED_NOTICE_KEY,
-        text: `the sandbox could not be woken — ${messageOf(error)}`,
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-      })
-    })
-  }
   return {
     channel,
     stores,
     sessionMirror: attachment.sessionMirror,
-    wake,
-    created: () => created,
-    parkedResume: args.resume,
-    wakeInBackground: args.resume === EParkedResume.Synced ? undefined : wakeInBackground,
+    wake: createCloudWake({ ...wakeNarrationFor(args), channel }),
+    settleOpenOf: (session) => session.settleOpen,
     openAgainst: async () => args.opened,
   }
 }
@@ -125,28 +95,21 @@ function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resum
 /**
  * Opening a thread that already lives in the cloud. When this machine holds a transcript worth
  * drawing — with the mirror, that is any cloud session whose local file survived — the
- * conversation opens from it at once against a channel that has not dialled yet; the park record
- * decides whether that transcript is trusted (Synced: nothing wakes until the first send) or
- * drawn muted while the wake runs behind it (Behind or Unknown — including a crash-park, which
- * left no record at all). With nothing local to draw, or a half-finished move that settles on
- * the live channel, the wake still comes first.
+ * conversation opens from it at once against a channel that has not dialled yet, and the open
+ * settles behind it: a sandbox whose lifecycle record says parked stays parked until the first
+ * send, anything else wakes in the background. With nothing local to draw, or a half-finished
+ * move that settles on the live channel, the wake comes first.
  */
 export async function openCloudThread(args: OpenArgs): Promise<Binding> {
   const { app, bridge, threadId, move } = args
 
   try {
     const renderable = args.wakeFirst === true ? null : await renderableLocally(args)
-    const openedFor = renderable?.opened ?? (await openCloudConversation({ app, threadId }))
     const composed =
       renderable === null
         ? await composeEager(args)
-        : composeRenderFirst({
-            ...args,
-            opened: openedFor,
-            resume: renderable?.resume ?? EParkedResume.Unknown,
-          })
+        : composeRenderFirst({ ...args, opened: renderable })
     const { channel, stores } = composed
-    const mirrored = stores.log instanceof MirroredEventLog ? stores.log : undefined
 
     const runner = createCloudRunner({ ...wakeNarrationFor(args), channel, wake: composed.wake })
     const opened = await composed.openAgainst(runner)
@@ -155,15 +118,10 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
     const session = createCloudSession({
       channel,
       sandboxes: bridge.sandboxes,
+      wake: () => composed.wake({ quiet: true }),
       onReload: args.onReload,
       appliedSnapshot: () => cloudReadinessOf(channel).applied(),
       subscribeApplied: (listener) => cloudReadinessOf(channel).subscribe(listener),
-      parkedResume: composed.parkedResume,
-      onParked: parkHookFor({
-        app,
-        channel,
-        ...(mirrored === undefined ? {} : { converge: () => mirrored.converge() }),
-      }),
       onClose: () => {
         cloudReadinessOf(channel).cancelWaiting()
         stopMirroring()
@@ -181,7 +139,7 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
       opened,
       session,
       sessionMirror: composed.sessionMirror,
-      wakeInBackground: composed.wakeInBackground,
+      settleOpen: composed.settleOpenOf(session),
     })
   } catch (error) {
     move?.handleFail(messageOf(error))
@@ -189,19 +147,14 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
   }
 }
 
-async function renderableLocally(
-  args: OpenArgs,
-): Promise<{ opened: OpenedConversation; resume: EParkedResume } | null> {
+async function renderableLocally(args: OpenArgs): Promise<OpenedConversation | null> {
   const { app, threadId } = args
   try {
     const placement = await app.threads.readPlacement({ threadId })
     if (placement === undefined) return null
 
     const opened = await openCloudConversation({ app, threadId })
-    if (opened.events.length === 0) return null
-
-    const resume = await readParkedResume({ threads: app.threads, threadId, identity: opened.identity })
-    return { opened, resume }
+    return opened.events.length === 0 ? null : opened
   } catch {
     return null
   }

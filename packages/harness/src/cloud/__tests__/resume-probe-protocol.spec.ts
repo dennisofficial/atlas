@@ -23,14 +23,9 @@ describe('probeSandboxForResume protocol rotation', () => {
     expect(sandbox.deleted()).toBe(false)
   })
 
-  it('drains a live mismatched serve before deleting it, whatever its runtime is doing', async () => {
+  it('drains a live mismatched serve before swapping it, whatever its runtime is doing', async () => {
     const sandbox = fakeSandbox({ installed: PINNED, protocol: STALE_PROTOCOL })
     const order: string[] = []
-    Object.assign(sandbox, {
-      delete: async () => {
-        order.push('delete')
-      },
-    })
     const drained: { url: string }[] = []
 
     const result = await probeOf({
@@ -40,12 +35,15 @@ describe('probeSandboxForResume protocol rotation', () => {
         order.push('drain')
         drained.push({ url })
       },
+      swapServe: async () => {
+        order.push('swap')
+      },
     })
 
-    expect(order).toEqual(['drain', 'delete'])
+    expect(order).toEqual(['drain', 'swap'])
     expect(drained).toEqual([{ url: 'https://sb-3000.vercel.run' }])
     expect(result).toEqual({
-      probe: ESandboxProbe.RotationNeeded,
+      probe: ESandboxProbe.Swapped,
       outdatedProtocol: CHANNEL_PROTOCOL_VERSION - 1,
     })
   })
@@ -62,10 +60,10 @@ describe('probeSandboxForResume protocol rotation', () => {
         },
       })
 
-      expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+      expect(result.probe).toBe(ESandboxProbe.Swapped)
       expect(result.outdatedProtocol).toBe(0)
       expect(drains).toBe(1)
-      expect(sandbox.deleted()).toBe(true)
+      expect(sandbox.deleted()).toBe(false)
     }
   })
 
@@ -74,12 +72,12 @@ describe('probeSandboxForResume protocol rotation', () => {
 
     const result = await probeOf({ sandbox, drain: async () => {} })
 
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
     expect(result.rotatedFrom).toBeUndefined()
-    expect(sandbox.deleted()).toBe(true)
+    expect(sandbox.deleted()).toBe(false)
   })
 
-  it('never deletes or detaches after a failed preparation', async () => {
+  it('never deletes or swaps after a failed preparation', async () => {
     for (const reason of [
       'HTTP 404',
       'HTTP 401',
@@ -88,21 +86,20 @@ describe('probeSandboxForResume protocol rotation', () => {
       'checkpoint failed',
     ]) {
       const sandbox = fakeSandbox({ installed: PINNED, protocol: STALE_PROTOCOL })
-      let detached = false
+      let swaps = 0
       await expect(
         probeOf({
           sandbox,
           drain: async () => {
             throw new Error(reason)
           },
-          waitForDriveDetached: async () => {
-            detached = true
-            return true
+          swapServe: async () => {
+            swaps += 1
           },
         }),
       ).rejects.toThrow(reason)
       expect(sandbox.deleted()).toBe(false)
-      expect(detached).toBe(false)
+      expect(swaps).toBe(0)
     }
   })
 
@@ -138,10 +135,13 @@ describe('probeSandboxForResume protocol rotation', () => {
       drain: async () => {
         order.push('drain')
       },
+      swapServe: async () => {
+        order.push('swap')
+      },
     })
 
-    expect(order).toEqual(['started', 'drain'])
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(order).toEqual(['started', 'drain', 'swap'])
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
     expect(lines.some((line) => line.includes('drawer unmounted'))).toBe(true)
   })
 
@@ -162,7 +162,7 @@ describe('probeSandboxForResume protocol rotation', () => {
     expect(announced).toBe(1)
   })
 
-  it('replaces a stopped sandbox without draining or announcing', async () => {
+  it('swaps a stopped sandbox in place without draining or announcing', async () => {
     const sandbox = fakeSandbox({ installed: STALE, protocol: STALE_PROTOCOL, status: 'stopped' })
     let drains = 0
     let announced = 0
@@ -177,9 +177,10 @@ describe('probeSandboxForResume protocol rotation', () => {
       },
     })
 
-    expect(result.probe).toBe(ESandboxProbe.Replaced)
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
     expect(drains).toBe(0)
     expect(announced).toBe(0)
+    expect(sandbox.deleted()).toBe(false)
   })
 
   it('does not downgrade a sandbox speaking a newer protocol than this client', async () => {
@@ -205,9 +206,9 @@ describe('probeSandboxForResume protocol rotation', () => {
 
     const result = await probeOf({ sandbox, unpinned: true, drain: async () => undefined })
 
-    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(result.probe).toBe(ESandboxProbe.Swapped)
     expect(result.outdatedProtocol).toBe(CHANNEL_PROTOCOL_VERSION - 1)
-    expect(sandbox.deleted()).toBe(true)
+    expect(sandbox.deleted()).toBe(false)
   })
 
   it('keeps a protocol-matching sandbox when the build pins no serve version, whatever version it carries', async () => {

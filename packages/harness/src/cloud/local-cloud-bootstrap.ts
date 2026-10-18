@@ -1,10 +1,8 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { DRIVE_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
-import { EReconnectEscalation } from './remote-delta-channel'
-import { ECloudSandboxState } from './sandbox-client'
+import { SANDBOX_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { VercelDriver } from './vercel-driver'
-import type { CloudSandboxes, WorkspaceSpec } from './cloud-bridge'
+import type { WorkspaceSpec } from './cloud-bridge'
 
 export type LiveSandbox = Parameters<
   NonNullable<Parameters<VercelDriver['createOrResume']>[0]['putContextOnFreshBoot']>
@@ -21,10 +19,10 @@ export type BridgeDriver = Pick<
   | 'destroy'
 >
 
-export const BOOTSTRAP_DIRECTORY = `${DRIVE_HOME_PATH}/bootstrap`
+export const BOOTSTRAP_DIRECTORY = `${SANDBOX_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
 export const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
-export const VAULT_PROBE_PATH = `${DRIVE_HOME_PATH}/auth.json`
+export const VAULT_PROBE_PATH = `${SANDBOX_HOME_PATH}/auth.json`
 
 export type GitTokenReader = () => Promise<string>
 
@@ -56,7 +54,6 @@ export type RegistrationSender = (args: {
     threadId: ThreadId
     token: string
     serveUrl: string
-    driveName: string
     serveVersion?: string | undefined
     metadata?: { title?: string; repo?: string; model?: string } | undefined
   }
@@ -73,34 +70,6 @@ export const bootstrapSpecOf = (args: {
     ...(args.model === undefined ? {} : { model: args.model }),
   })
 
-export const parkedEscalationOf = (args: {
-  sandboxes: Pick<CloudSandboxes, 'find'>
-  threadId: ThreadId
-}): (() => Promise<boolean>) => {
-  const { sandboxes, threadId } = args
-  return () =>
-    sandboxes.find({ threadId }).then(
-      (status) => status?.state === ECloudSandboxState.Parked,
-      () => false,
-    )
-}
-
-export const lifecycleEscalationOf = (args: {
-  sandboxes: Pick<CloudSandboxes, 'find'>
-  threadId: ThreadId
-}): (() => Promise<EReconnectEscalation>) => async () => {
-  try {
-    const status = await args.sandboxes.find({ threadId: args.threadId })
-    if (status?.state === ECloudSandboxState.Running) return EReconnectEscalation.Reattach
-    if (status === undefined || status.state === ECloudSandboxState.Parked || status.state === ECloudSandboxState.Stopped) {
-      return EReconnectEscalation.Parked
-    }
-    return EReconnectEscalation.Wait
-  } catch {
-    return EReconnectEscalation.Wait
-  }
-}
-
 export const liveDriverWith = (args: {
   config: VercelSandboxConfig
   onDriverLog?: ((line: string) => void) | undefined
@@ -112,6 +81,7 @@ export const liveDriverWith = (args: {
     image: args.config.image,
     ...(args.config.vcpus === undefined ? {} : { vcpus: args.config.vcpus }),
     ...(args.config.serveVersion === undefined ? {} : { serveVersion: args.config.serveVersion }),
+    ...(args.config.devServe === undefined ? {} : { devServe: args.config.devServe }),
     ...(args.onDriverLog === undefined ? {} : { log: args.onDriverLog }),
   })
 

@@ -3,7 +3,7 @@ import { createRoot, type Root } from '@opentui/react'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
-  EChannelConnection,
+  EConnectionView,
   ECloudSandboxState,
   type ChannelConnection,
   type CloudConnection,
@@ -15,6 +15,7 @@ import { createCloudSession } from '../cloud/cloud-session'
 import { fakeCloudChannel } from '../cloud/__tests__/fixture'
 import { ERuntimeKind } from '@dltech/atlas-harness'
 import { useCloudConnection, useCloudHealth } from '../use-cloud-connection'
+import { currentNotices } from '../../ui/notice-store'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -28,8 +29,10 @@ const switchToHostThread = async (app: FakeApp): Promise<void> => {
   await app.sessionOwner.activateLocal({ threadId: HOST_THREAD, fallback: EExecutionLocation.Host })
 }
 
-const sessionOn = (connection?: ChannelConnection): CloudSession => {
-  const channel = fakeCloudChannel({ connection })
+const sessionOn = (connection?: ChannelConnection): CloudSession =>
+  sessionOver(fakeCloudChannel({ connection }))
+
+const sessionOver = (channel: ReturnType<typeof fakeCloudChannel>): CloudSession => {
   return createCloudSession({
     channel,
     sandboxes: {
@@ -39,6 +42,7 @@ const sessionOn = (connection?: ChannelConnection): CloudSession => {
       updateResources: async () => {},
       destroy: async () => undefined,
     },
+    wake: async () => undefined,
     onReload: async () => undefined,
   })
 }
@@ -107,18 +111,18 @@ const appFor = (): FakeApp =>
 
 describe('the connection the cloud chrome reads', () => {
   it('is the session health while the placement says cloud', async () => {
-    const session = sessionOn({ state: EChannelConnection.Open, detail: null })
+    const session = sessionOn({ state: EConnectionView.Connected, detail: null })
     const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session })
 
-    expect(probe.current?.state).toBe(EChannelConnection.Open)
+    expect(probe.current?.state).toBe(EConnectionView.Connected)
   })
 
   it('is absent once the active thread is placed at home, even over a stale open socket', async () => {
     const app = appFor()
-    const session = sessionOn({ state: EChannelConnection.Open, detail: null })
+    const session = sessionOn({ state: EConnectionView.Connected, detail: null })
     const { probe, root } = await mount({ app, location: EExecutionLocation.Cloud, session })
 
-    expect(probe.current?.state).toBe(EChannelConnection.Open)
+    expect(probe.current?.state).toBe(EConnectionView.Connected)
 
     await act(async () => {
       root.render(<Harness probe={probe} app={app} session={null} />)
@@ -129,10 +133,10 @@ describe('the connection the cloud chrome reads', () => {
 
   it('drops a lingering open socket once the active thread is placed at home', async () => {
     const app = appFor()
-    const session = sessionOn({ state: EChannelConnection.Open, detail: null })
+    const session = sessionOn({ state: EConnectionView.Connected, detail: null })
     const { probe } = await mount({ app, location: EExecutionLocation.Cloud, session })
 
-    expect(probe.current?.state).toBe(EChannelConnection.Open)
+    expect(probe.current?.state).toBe(EConnectionView.Connected)
 
     await act(async () => {
       await switchToHostThread(app)
@@ -143,8 +147,8 @@ describe('the connection the cloud chrome reads', () => {
 
   it('keeps the fault and resting renderings while the placement still says cloud', async () => {
     for (const connection of [
-      { state: EChannelConnection.Closed, detail: 'gave up after 8 attempts' },
-      { state: EChannelConnection.Parked, detail: null },
+      { state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' },
+      { state: EConnectionView.Parked, detail: null },
     ] as const) {
       const session = sessionOn(connection)
       const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session })
@@ -163,24 +167,39 @@ describe('the connection the cloud chrome reads', () => {
     expect(probe.current).toBeNull()
   })
 
-  it('shows a connecting runtime, never a healthy cloud, while the placement says cloud but nothing is attached', async () => {
-    const session = sessionOn({ state: EChannelConnection.Open, detail: null })
+  it('shows a waking runtime, never a healthy cloud, while the placement says cloud but nothing is attached', async () => {
+    const session = sessionOn({ state: EConnectionView.Connected, detail: null })
     const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session, attached: false })
 
-    expect(probe.current?.state).toBe(EChannelConnection.Connecting)
+    expect(probe.current?.state).toBe(EConnectionView.Waking)
   })
 })
 
 describe('the full health the transcript reads', () => {
-  it('dims nothing once the active thread is placed at home, however stale the last cloud health', async () => {
+  it('raises no sticky banner for a disconnected view or a server failure', async () => {
     const app = appFor()
-    const session = sessionOn({ state: EChannelConnection.Closed, detail: 'gave up after 8 attempts' })
+    const channel = fakeCloudChannel({
+      connection: { state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' },
+    })
+    const session = sessionOver(channel)
+    const { probe } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
+    await act(async () => {
+      channel.fail('workspace failed at git apply')
+    })
+
+    expect(probe.current?.failure).toContain('git apply')
+    expect(currentNotices().filter((notice) => notice.ttlMs === null)).toEqual([])
+  })
+
+  it('reads nothing once the active thread is placed at home, however faulted the last cloud health', async () => {
+    const app = appFor()
+    const session = sessionOn({ state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' })
     const { probe, root } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
     await act(async () => {
       await Promise.resolve()
     })
 
-    expect(probe.current?.stale).toBe(true)
+    expect(probe.current?.view.state).toBe(EConnectionView.Disconnected)
 
     await act(async () => {
       await switchToHostThread(app)

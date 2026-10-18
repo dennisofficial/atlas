@@ -39,7 +39,7 @@ describe('runtime checkpoint mirror', () => {
     servers.push(server)
     const capture = captureFor({ home, events, cloudURL: `http://127.0.0.1:${server.port}` })
 
-    const checkpoint = await capture.capture({ phase: ERuntimePhase.Running })
+    const checkpoint = await capture.capture({ phase: ERuntimePhase.Serving })
     expect(checkpoint?.transcript.digest).toBe(transcriptIdentityDigest(events))
     await capture.flush({ timeoutMs: 1_000 })
     expect(published).toEqual([checkpoint as RuntimeCheckpoint])
@@ -65,7 +65,7 @@ describe('runtime checkpoint mirror', () => {
       }),
     })
 
-    const sent = capture.capture({ phase: ERuntimePhase.Running })
+    const sent = capture.capture({ phase: ERuntimePhase.Serving })
     await fetchEntered
     expect(sawPersistedBeforeSend).toBe(true)
     send.release?.(new Response('{}', { status: 200 }))
@@ -97,14 +97,38 @@ describe('runtime checkpoint mirror', () => {
     })
 
     const batch = Promise.all([
-      capture.capture({ phase: ERuntimePhase.Running }),
-      capture.capture({ phase: ERuntimePhase.Running }),
+      capture.capture({ phase: ERuntimePhase.Serving }),
+      capture.capture({ phase: ERuntimePhase.Parking }),
       capture.capture({ phase: ERuntimePhase.Parked }),
     ])
     await batch
     releaseFirst()
     await capture.flush({ timeoutMs: 1_000 })
     expect(sentRevisions).toEqual([1, 3])
+  })
+
+  it('mirrors a parking capture immediately, ahead of the cadence window', async () => {
+    const home = scratchHome()
+    const clock = 1_000_000
+    const sent: { revision: number; phase: string }[] = []
+    const capture = captureFor({
+      home,
+      cloudURL: 'http://127.0.0.1:9',
+      now: () => clock,
+      fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
+        sent.push({ revision: body.revision, phase: body.phase })
+        return new Response('{}', { status: 200 })
+      }),
+    })
+
+    await capture.capture({ phase: ERuntimePhase.Serving })
+    await capture.capture({ phase: ERuntimePhase.Parking, attempts: 1 })
+    await capture.flush({ timeoutMs: 1_000 })
+    expect(sent).toEqual([
+      { revision: 1, phase: 'serving' },
+      { revision: 2, phase: 'parking' },
+    ])
   })
 
   it('sends a parked mirror immediately, coalescing queued progress into the final report', async () => {
@@ -122,19 +146,18 @@ describe('runtime checkpoint mirror', () => {
       }),
     })
 
-    await capture.capture({ phase: ERuntimePhase.Running })
-    capture.changed()
-    capture.changed()
+    await capture.capture({ phase: ERuntimePhase.Serving })
+    await capture.capture({ phase: ERuntimePhase.Parking, attempts: 1 })
     const parked = await capture.capture({ phase: ERuntimePhase.Parked })
-    capture.changed()
     await capture.flush({ timeoutMs: 1_000 })
     expect(sent).toEqual([
-      { revision: 1, phase: 'running' },
+      { revision: 1, phase: 'serving' },
+      { revision: 2, phase: 'parking' },
       { revision: 3, phase: 'parked' },
     ])
     expect(parked?.phase).toBe(ERuntimePhase.Parked)
     expect(parked?.revision).toBe(3)
-    await expect(capture.capture({ phase: ERuntimePhase.Running })).resolves.toBeNull()
+    await expect(capture.capture({ phase: ERuntimePhase.Serving })).resolves.toBeNull()
     expect((await capture.readPersisted())?.revision).toBe(3)
   })
 
@@ -153,11 +176,11 @@ describe('runtime checkpoint mirror', () => {
       }),
     })
 
-    await capture.capture({ phase: ERuntimePhase.Running })
+    await capture.capture({ phase: ERuntimePhase.Serving })
     await capture.flush({ timeoutMs: 1_000 })
     expect(sent.map((entry) => entry.revision)).toEqual([1])
 
-    await capture.capture({ phase: ERuntimePhase.Running })
+    await capture.capture({ phase: ERuntimePhase.Serving })
     expect(sent.map((entry) => entry.revision)).toEqual([1])
     await new Promise((resolve) => setTimeout(resolve, 1_300))
     expect(sent.map((entry) => entry.revision)).toEqual([1, 2])
@@ -191,10 +214,11 @@ describe('runtime checkpoint mirror', () => {
       events: [saidEvent({ id: 'a', seq: 1 })],
       cloudURL,
     })
-    await capture.capture({ phase: ERuntimePhase.Running })
+    await capture.capture({ phase: ERuntimePhase.Serving })
+    await capture.capture({ phase: ERuntimePhase.Parking, attempts: 1 })
     await capture.capture({ phase: ERuntimePhase.Parked })
     await capture.flush({ timeoutMs: 1_000 })
-    expect(accepted.map((c) => c.revision)).toEqual([1, 2])
+    expect(accepted.map((c) => c.revision)).toEqual([1, 2, 3])
 
     const staleReply = await fetch(`${cloudURL}/v1/sandboxes/${threadId}/checkpoint`, {
       method: 'PUT',
@@ -202,7 +226,7 @@ describe('runtime checkpoint mirror', () => {
       body: JSON.stringify(stale),
     })
     const staleBody = (await staleReply.json()) as { checkpoint: RuntimeCheckpoint | null }
-    expect(staleBody.checkpoint?.revision).toBe(2)
+    expect(staleBody.checkpoint?.revision).toBe(3)
 
     const getReply = await fetch(`${cloudURL}/v1/sandboxes/${threadId}/checkpoint`)
     const getBody = (await getReply.json()) as { checkpoint: RuntimeCheckpoint | null }
@@ -223,11 +247,11 @@ describe('runtime checkpoint mirror', () => {
       cloudURL: `http://127.0.0.1:${server.port}`,
     })
 
-    await capture.capture({ phase: ERuntimePhase.Running })
+    await capture.capture({ phase: ERuntimePhase.Serving })
     await capture.flush({ timeoutMs: 1_000 })
     expect(lines.filter((line) => line.event === 'serve.checkpoint-mirror-failed')).toHaveLength(1)
 
-    await capture.capture({ phase: ERuntimePhase.Running })
+    await capture.capture({ phase: ERuntimePhase.Serving })
     await capture.flush({ timeoutMs: 1_000 })
     expect(lines.filter((line) => line.event === 'serve.checkpoint-mirror-failed')).toHaveLength(2)
   })
@@ -251,7 +275,7 @@ describe('runtime checkpoint mirror', () => {
         ),
       })
 
-      await capture.capture({ phase: ERuntimePhase.Running })
+      await capture.capture({ phase: ERuntimePhase.Serving })
       await expect(capture.flush({ timeoutMs: 20 })).resolves.toBeUndefined()
       await capture.flush({ timeoutMs: 6_000 })
       expect(lines.some((line) => line.event === 'serve.checkpoint-mirror-failed')).toBe(true)

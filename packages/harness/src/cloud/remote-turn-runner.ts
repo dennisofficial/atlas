@@ -4,7 +4,8 @@ import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
 import type { PendingSaid } from '../pending/pending-queue'
 
 import { EClientRequest, takeBackPendingReplySchema } from './channel-wire'
-import { EChannelConnection, type RemoteDeltaChannel } from './remote-delta-channel'
+import { EConnectionView, type ConnectionView } from './connection-view'
+import type { RemoteDeltaChannel } from './remote-delta-channel'
 
 export class RemoteTurnDetached extends Error {
   constructor(reason: string) {
@@ -35,7 +36,7 @@ export class RemoteTurnRunner extends TurnRunner {
   private readonly wake: () => Promise<void>
   private readonly waiters: Waiter[] = []
   private readonly seenOutcomes = new Set<string>()
-  private heldForReattach = false
+  private held = false
   private driving = false
   private readonly claimListeners = new Set<() => void>()
 
@@ -48,33 +49,33 @@ export class RemoteTurnRunner extends TurnRunner {
       if (!this.isFirstSighting(outcome)) return
       this.waiters.shift()?.resolve(outcome)
     })
-    this.channel.onConnection((connection) => {
-      if (connection.state === EChannelConnection.Reattaching) {
-        this.heldForReattach = true
-        return
-      }
-      if (connection.state === EChannelConnection.Parked) {
-        this.heldForReattach = false
-        this.detachAll('The sandbox parked after this client lost its turn outcome.')
-        return
-      }
-      if (connection.state !== EChannelConnection.Closed) return
-      this.heldForReattach = false
-      this.detachAll(connection.detail ?? 'The session socket closed mid-turn.')
-    })
+    this.channel.onConnection((connection) => this.handleConnection(connection))
     this.channel.onReady((ready) => {
-      if (!this.heldForReattach) return
-      this.heldForReattach = false
-      if (ready.turnInFlight) return
+      if (!this.held) return
+      this.held = false
+      if (ready.turnInFlight || this.channel.unackedSendCount() > 0) return
       this.detachAll('The sandbox finished the turn while this client was detached.')
     })
     this.channel.onServerError((failure) => {
       this.waiters.shift()?.reject(new Error(failure.message))
     })
     this.channel.onDetached?.((reason) => {
-      this.heldForReattach = false
+      this.held = false
       this.detachAll(reason)
     })
+  }
+
+  private handleConnection(connection: ConnectionView): void {
+    const { state } = connection
+    if (state === EConnectionView.Waking || state === EConnectionView.Updating || state === EConnectionView.Parked) {
+      if (this.waiters.length === 0) return
+      this.held = true
+      if (state === EConnectionView.Parked) this.ensureAttached().catch(() => undefined)
+      return
+    }
+    if (state !== EConnectionView.Disconnected && state !== EConnectionView.Detached) return
+    this.held = false
+    this.detachAll(connection.detail ?? 'The session socket closed mid-turn.')
   }
 
   turnInFlight(): boolean {
@@ -156,9 +157,9 @@ export class RemoteTurnRunner extends TurnRunner {
 
   private needsAttachment(): boolean {
     const state = this.channel.connection().state
-    return state === EChannelConnection.Closed ||
-      state === EChannelConnection.Parked ||
-      state === EChannelConnection.Waking
+    return state === EConnectionView.Parked ||
+      state === EConnectionView.Waking ||
+      state === EConnectionView.Disconnected
   }
 
   runTurn(args: {

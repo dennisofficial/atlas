@@ -129,17 +129,16 @@ model CloudSandbox {
   workspaceSkills    String? // outgoing column from the release ahead of the workspaceContext rename; drop once every release writes workspaceContext only
   workspaceContext   String?  @db.Text
   workspaceContextArchive Bytes?
-  transcriptArchive Bytes?
   contextPending Boolean @default(true)
   workspaceProjectDirectory String?
   workspaceGitName String?
   workspaceGitEmail String?
   driveName      String?
-  driveMode      String? // outgoing column from the deleted server-side provisioning path; drive lifecycle is harness-owned now — drop once no release reads it
   pinnedModel    String?
   serveUrl       String?
   serveVersion   String?
   wakeFailedAt   String?
+  wakeClaim      String?
   runtimeCheckpoint Json?
   runtimeCheckpointRevision Int?
   createdAt      String

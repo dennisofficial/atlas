@@ -13,7 +13,7 @@ import {
   type SessionRuntime,
   type TurnRunner,
 } from '@dltech/atlas-harness'
-import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
+import { SANDBOX_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import {
   projectDirectoryOf,
   repoOf,
@@ -38,8 +38,10 @@ export type CloudAttachment = {
   session: CloudSession
   /** The root local app beneath the cloud binding — the stores that read this machine's log. */
   local: AtlasApp
-  /** Set while the sandbox still has to be woken behind an already-rendered transcript. */
-  wakeInBackground?: (() => void) | undefined
+  /** The quiet background wake: the session's own, joining one already in flight. */
+  wakeInBackground: () => void
+  /** The open-time rule, run once the binding is adopted: a parked record waits for the first send. */
+  settleOpen: () => void
 }
 
 export type LocalAttachment = { kind: 'local'; opened: OpenedConversation; context: ContextReaders }
@@ -68,7 +70,7 @@ export async function cloudAnchorOf(args: {
 }): Promise<WorkspaceIdentity> {
   const held = await args.stores.threads.find({ threadId: args.threadId }).catch(() => undefined)
   const events = args.opened.events
-  const launch = held?.workspace ?? CLOUD_WORKSPACE_PATH
+  const launch = held?.workspace ?? SANDBOX_WORKSPACE_PATH
   return {
     workspace: projectDirectoryOf({ events, launchDirectory: launch }),
     repo: repoOf({ events, launchRepo: held?.repo ?? null }),
@@ -86,6 +88,8 @@ const cloudContextOf = (args: {
   return new MirroredContextFiles({ channel: args.channel, local, remote, threadId: args.opened.threadId })
 }
 
+const NOTHING_TO_SETTLE = (): void => undefined
+
 export const cloudBindingOf = (args: {
   local: AtlasApp
   anchor: WorkspaceIdentity
@@ -96,7 +100,7 @@ export const cloudBindingOf = (args: {
   opened: OpenedConversation
   session: CloudSession
   sessionMirror?: SessionMirrorSync | undefined
-  wakeInBackground?: (() => void) | undefined
+  settleOpen?: (() => void) | undefined
 }): Binding => ({
   kind: ERuntimeKind.Cloud,
   cwd: args.anchor.workspace,
@@ -111,7 +115,8 @@ export const cloudBindingOf = (args: {
       stores: args.stores,
       session: args.session,
       local: args.local,
-      ...(args.wakeInBackground === undefined ? {} : { wakeInBackground: args.wakeInBackground }),
+      wakeInBackground: args.session.wake,
+      settleOpen: args.settleOpen ?? NOTHING_TO_SETTLE,
     },
   },
   close: () => args.session.close(),

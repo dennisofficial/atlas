@@ -1,6 +1,6 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
-import { ESettleWait, type SettleWaitNotice } from '@dltech/atlas-wire'
+import type { SettleWaitNotice } from '@dltech/atlas-wire'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import { WAKE_HEADING } from '../container-move'
@@ -21,14 +21,10 @@ const WAKE_ROWS = [
 
 /**
  * The provider settle the mount is riding out, said as what it is: the wake row stops reading
- * "waiting for the sandbox" while the real wait is a name the registry has not released or a
- * drive still detaching.
+ * "waiting for the sandbox" while the real wait is a name the registry has not released.
  */
 const settleWaitTextOf = (notice: SettleWaitNotice): string => {
   const attempt = ` (attempt ${notice.attempt}/${notice.attempts})`
-  if (notice.reason === ESettleWait.DriveAttached) {
-    return `reattaching the workspace drive — Vercel is still detaching it${attempt}`
-  }
   return `waiting for Vercel to release the sandbox name${attempt}`
 }
 
@@ -44,6 +40,7 @@ export async function wakeSandbox(args: {
   threadId: ThreadId
   captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
+  onRotationStarted?: (() => void) | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
   args.move?.handleBegin({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, heading: WAKE_HEADING })
 
@@ -51,6 +48,7 @@ export async function wakeSandbox(args: {
     threadId: args.threadId,
     workspace: null,
     onRotationStarted: () => {
+      args.onRotationStarted?.()
       args.move?.handleExpand({
         insertBefore: 'attaching',
         row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
@@ -103,6 +101,7 @@ export function createCloudWake(args: {
         threadId: args.threadId,
         captureContext: args.captureContext,
         ...(move === undefined ? {} : { move }),
+        onRotationStarted: () => args.channel.beginRotation(),
       })
       args.onWoken?.({ created: woken.created })
       args.channel.wake({ url: woken.url, token: woken.token })

@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { EAgentRestart, EAgentStatus } from '@dltech/atlas-core'
-import { persistSandboxRotationReceipt, readSandboxRotationState } from '@dltech/atlas-harness'
+import {
+  persistRuntimeCheckpoint,
+  readPersistedRuntimeCheckpoint,
+  readSandboxRotationReceipt,
+  runtimeCheckpointFile,
+} from '@dltech/atlas-harness'
 
 import { rotationChildFixture } from './serve-rotation-child-fixture'
 import { childId, cleanupRotationFixtures, threadId } from './serve-rotation-fixture'
@@ -17,7 +22,15 @@ const eventually = async (predicate: () => boolean | Promise<boolean>): Promise<
 }
 
 const owedChildren = async (home: string) =>
-  (await readSandboxRotationState({ atlasHome: home }))?.resumeChildren ?? []
+  (await readSandboxRotationReceipt({ atlasHome: home }))?.resumeChildren ?? []
+
+const oweParent = async (home: string): Promise<void> => {
+  const file = runtimeCheckpointFile({ atlasHome: home })
+  const persisted = await readPersistedRuntimeCheckpoint({ file })
+  if (persisted?.phase !== 'updating') throw new Error('the child fixture requires a sealed receipt')
+  const receipt = { ...persisted.receipt, resumeParent: true }
+  await persistRuntimeCheckpoint({ file, checkpoint: { ...persisted, revision: persisted.revision + 1, receipt } })
+}
 
 afterEach(cleanupRotationFixtures)
 
@@ -33,11 +46,14 @@ describe('queued Finished-child continuation across serve boots', () => {
 
   it('wakes the original Finished child without a client or duplicate message and retains its obligation until durable completion', async () => {
     const fixture = await rotationChildFixture()
-    await persistSandboxRotationReceipt({ atlasHome: fixture.home, receipt: { ...fixture.receipt, resumeParent: true } })
+    await oweParent(fixture.home)
     const first = await fixture.boot()
     const handle = await first.starting
     await eventually(() => first.steps() === 1)
-    await eventually(async () => (await readSandboxRotationState({ atlasHome: fixture.home }))?.resumeParent === false)
+    await eventually(async () => {
+      const receipt = await readSandboxRotationReceipt({ atlasHome: fixture.home })
+      return receipt === null || receipt.resumeParent === false
+    })
     expect(first.resumed()).toBe(1)
     expect(first.ran()).toBe(0)
     expect(first.supervisor()?.list({ threadId }).find((child) => child.agentId === childId)?.status).toBe(EAgentStatus.Running)

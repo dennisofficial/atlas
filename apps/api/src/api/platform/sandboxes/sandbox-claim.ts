@@ -12,7 +12,6 @@ export async function registerSandboxRow(args: {
   tokenHash: string
   sealedToken: string
   serveUrl: string
-  driveName?: string | null | undefined
   serveVersion?: string | null | undefined
 }): Promise<Pick<CloudSandboxModel, 'name' | 'serveUrl'>> {
   const at = new Date().toISOString()
@@ -32,7 +31,6 @@ export async function registerSandboxRow(args: {
       sealedToken: args.sealedToken,
       contextPending: false,
       serveUrl: args.serveUrl,
-      ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
       ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
       createdAt: at,
       updatedAt: at,
@@ -45,7 +43,6 @@ export async function registerSandboxRow(args: {
       lastActivityAt: at,
       updatedAt: at,
       serveUrl: args.serveUrl,
-      ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
       ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
     },
   })
@@ -74,7 +71,7 @@ export async function stampRegistrationMetadata(args: {
 /** The columns provisioning reads back; the blob columns written by the upsert never return. */
 export type ClaimedSandbox = Pick<
   CloudSandboxModel,
-  'threadId' | 'name' | 'driveName' | 'pinnedModel' | 'contextPending' | 'serveUrl'
+  'threadId' | 'name' | 'pinnedModel' | 'contextPending' | 'serveUrl'
 >
 
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
@@ -83,20 +80,10 @@ export type ClaimUpdate = Partial<WorkspaceColumns> & {
   sealedGitToken?: string
   sealedGpgKey?: string
   contextPending?: boolean
-  driveName?: string | null
   pinnedModel?: string | null
   serveUrl?: string | null
   lastActivityAt: string
   updatedAt: string
-}
-
-const driveRotationOf = (args: {
-  drive: { name: string } | undefined
-  driveName: string | null | undefined
-}): Pick<ClaimUpdate, 'driveName'> => {
-  if (args.drive !== undefined) return { driveName: args.drive.name }
-  if (args.driveName !== undefined) return { driveName: args.driveName }
-  return {}
 }
 
 export function rotationOf(args: {
@@ -107,8 +94,6 @@ export function rotationOf(args: {
   sealedGitToken?: string | undefined
   sealedGpgKey?: string | undefined
   contextPending?: boolean | undefined
-  drive?: { name: string } | undefined
-  driveName?: string | null | undefined
   pinnedModel?: string | undefined
   serveUrl?: string | undefined
   at: string
@@ -122,7 +107,6 @@ export function rotationOf(args: {
   if (args.sealedGpgKey !== undefined) rotation.sealedGpgKey = args.sealedGpgKey
   if (args.contextPending !== undefined) rotation.contextPending = args.contextPending
   if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
-  Object.assign(rotation, driveRotationOf({ drive: args.drive, driveName: args.driveName }))
   if (args.pinnedModel !== undefined) rotation.pinnedModel = args.pinnedModel
   if (args.serveUrl !== undefined) rotation.serveUrl = args.serveUrl
   return rotation
@@ -145,8 +129,6 @@ export function claimSandboxRow(args: {
   sealedGpgKey?: string | undefined
   contextPending?: boolean | undefined
   name?: string | undefined
-  drive?: { name: string } | undefined
-  driveName?: string | null | undefined
   pinnedModel?: string | undefined
   serveUrl?: string | undefined
 }): Promise<ClaimedSandbox> {
@@ -160,7 +142,6 @@ export function claimSandboxRow(args: {
     select: {
       threadId: true,
       name: true,
-      driveName: true,
       pinnedModel: true,
       contextPending: true,
       serveUrl: true,
@@ -180,7 +161,6 @@ export function claimSandboxRow(args: {
       sealedGpgKey: args.sealedGpgKey ?? null,
       contextPending: args.contextPending ?? true,
       ...columns,
-      driveName: args.drive?.name ?? args.driveName ?? null,
       pinnedModel: args.pinnedModel ?? null,
       serveUrl: args.serveUrl ?? null,
       createdAt: at,

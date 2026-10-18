@@ -75,7 +75,6 @@ export type FakeCloudSandboxRow = {
   contextPending?: boolean
   workspaceProjectDirectory: string | null
   driveName?: string | null
-  driveMode?: string | null
   pinnedModel?: string | null
   serveUrl?: string | null
   serveVersion?: string | null

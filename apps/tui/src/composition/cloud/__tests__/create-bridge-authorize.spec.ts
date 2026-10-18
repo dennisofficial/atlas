@@ -3,10 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import type { PortableState } from '@dltech/atlas-wire'
 
-import {
-  ECloudSandboxState,
-  reattachSandbox,
-} from '@dltech/atlas-harness'
+import { ECloudSandboxState } from '@dltech/atlas-harness'
 import type { VercelSandboxConfig } from '@dltech/atlas-wire'
 import { createCloudBridge, type BridgeDriver } from '../create-bridge'
 
@@ -40,7 +37,6 @@ const recordingDriver = (args: { created: boolean; events: string[] }): BridgeDr
         url: SERVE_URL,
         state: ECloudSandboxState.Running,
         created: args.created,
-        driveName: 'drive-x',
         token: createArgs.token ?? 'driver-minted',
       }
     },
@@ -164,7 +160,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
     expect(events.indexOf('authorize')).toBeLessThan(events.indexOf('launch'))
   })
 
-  it('re-authorizes when a dropped channel reattaches the sandbox', async () => {
+  it('re-authorizes when a wake re-creates a dropped channel\'s sandbox', async () => {
     const events: string[] = []
     const bridge = bridgeWith({
       driver: recordingDriver({ created: false, events }),
@@ -174,9 +170,9 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    const attachment = await reattachSandbox({ sandboxes: bridge.sandboxes, threadId: THREAD })
+    const woken = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
 
-    expect(attachment).toEqual({ url: SERVE_URL, token: 'serve-token' })
+    expect({ url: woken.url, token: woken.token }).toEqual({ url: SERVE_URL, token: 'serve-token' })
     expect(events).toContain('authorize')
   })
 

@@ -39,7 +39,7 @@ describe('bridge destroy forwarding', () => {
 
     await bridge.sandboxes.destroy({ threadId, expectedSandboxSessionId: 'session-1' })
 
-    expect(seen).toEqual([{ name: sandboxNameFor({ threadId }), threadId, sessionId: 'session-1' }])
+    expect(seen).toEqual([{ name: sandboxNameFor({ threadId }), sessionId: 'session-1' }])
   })
 
   it('leaves the driver unfenced when no session is expected', async () => {
@@ -47,7 +47,7 @@ describe('bridge destroy forwarding', () => {
 
     await bridge.sandboxes.destroy({ threadId })
 
-    expect(seen).toEqual([{ name: sandboxNameFor({ threadId }), threadId, sessionId: undefined }])
+    expect(seen).toEqual([{ name: sandboxNameFor({ threadId }), sessionId: undefined }])
   })
 
   it('stays silent without credentials when unfenced', async () => {

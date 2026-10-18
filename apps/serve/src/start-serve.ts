@@ -12,7 +12,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const startedAt = Date.now()
   const log = createServeLog({ write: args.write })
   const notice = new LoggingNoticePort({ log })
-  const driveHome = atlasDirectory()
+  const atlasHome = atlasDirectory()
   const sandboxSessionId = env.ATLAS_SANDBOX_SESSION_ID ?? ''
   const boot = listenWhileBooting({ port: wanted, token, threadId, sandboxSessionId, startedAt, log })
 
@@ -27,7 +27,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       startedAt,
       log,
       notice,
-      driveHome,
+      atlasHome,
       sandboxSessionId,
       boot,
     })

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { ERuntimePhase } from '@dltech/atlas-wire'
+import { admissionClosedFor, ERuntimePhase } from '@dltech/atlas-wire'
 
 import { EWorkspaceState } from '../materialize-workspace'
 import { createRuntimeCheckpointCapture } from '../runtime-checkpoint'
@@ -19,6 +19,7 @@ const rig = async (args: {
   adopt?: () => Promise<void>
   freeze?: () => Promise<void>
   release?: () => Promise<void>
+  sealFailsOnce?: boolean
 } = {}) => {
   const fixture = await rotationFixture()
   let parentStarts = 0
@@ -36,18 +37,12 @@ const rig = async (args: {
   })
   const resume = app.runner.resume
   app.runner.resume = (given) => { parentStarts += 1; return resume(given) }
-  const admission = { closed: false }
   const recovery = await createServeRotationRecovery({
     atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: noop,
   })
-  await recovery.guard({ app, admission })
   const session = createServeWorkspaceSession({
     threadId, app,
     deferStartChildren: false, log: noop, settling: { count: 0 }, note: noop,
-  })
-  const driver = createServeDriver({
-    app, threadId, admission, workspace: { state: EWorkspaceState.Skipped },
-    log: noop, idleStop: () => ({ note: noop }), emitLifecycle: recovery.consume,
   })
   const checkpoint = bindRuntimeCheckpoint({
     capture: createRuntimeCheckpointCapture({
@@ -55,13 +50,31 @@ const rig = async (args: {
       token, transcript: app.log, log: noop,
     }), log: noop, publish: noop,
   })
+  const admissionClosed = (): boolean => {
+    if (recovery.admissionLatched) return true
+    const current = checkpoint.current()
+    return current !== null && admissionClosedFor(current.phase)
+  }
+  await recovery.guard({ app, checkpoint })
+  const driver = createServeDriver({
+    app, threadId, workspace: { state: EWorkspaceState.Skipped },
+    log: noop, idleStop: () => ({ note: noop }), emitLifecycle: recovery.consume,
+  })
   const drain = bindServeDrain({
     app, driver, threadId, atlasHome: fixture.home, sandboxSessionId: replacementSession,
-    admission, haltIdle: noop, whenMutationsSettled: async () => undefined,
-    checkpoint: { ...checkpoint, finalizeRotation: async () => { sealing += 1; await checkpoint.finalizeRotation() } },
+    owed: recovery.owed,
+    haltIdle: noop, whenMutationsSettled: async () => undefined,
+    checkpoint: {
+      ...checkpoint,
+      finalizeRotation: async (given) => {
+        sealing += 1
+        if (args.sealFailsOnce === true && sealing === 1) throw new Error('seal failed')
+        await checkpoint.finalizeRotation(given)
+      },
+    },
     close: async () => undefined, exit: noop, log: noop,
   })
-  return { app, admission, recovery, session, driver, drain,
+  return { app, admissionClosed, checkpoint, recovery, session, driver, drain,
     parentStarts: () => parentStarts, familyResumes: () => familyResumes,
     adoptions: () => adoptions, sealing: () => sealing }
 }
@@ -72,17 +85,18 @@ describe('recovery admission while another rotation starts', () => {
     await entry.recovery.recover(entry)
     expect(entry.familyResumes()).toBe(1)
     expect(entry.parentStarts()).toBe(1)
+    expect(entry.admissionClosed()).toBe(false)
     const activation = entry.recovery.activate(entry)
     const draining = entry.recovery.drain({ drain: entry.drain, reason: 'next rotation' })
-    expect(entry.admission.closed).toBe(true)
+    expect(entry.admissionClosed()).toBe(true)
     expect(entry.sealing()).toBe(0)
     await expect(entry.recovery.activate(entry)).rejects.toThrow('accepts no new work')
     await activation
     const proof = await draining
-    expect(proof.receipt.checkpoint.phase).toBe(ERuntimePhase.Rotating)
+    expect(proof.receipt.checkpoint.phase).toBe(ERuntimePhase.Updating)
     expect(proof.receipt.sandboxSessionId).toBe(replacementSession)
     expect(entry.sealing()).toBe(1)
-    expect(entry.admission.closed).toBe(true)
+    expect(entry.admissionClosed()).toBe(true)
     expect(entry.familyResumes()).toBe(1)
     expect(entry.parentStarts()).toBe(1)
     entry.app.pending?.forThread({ threadId }).enqueue({ text: 'must stay closed' })
@@ -100,30 +114,28 @@ describe('recovery admission while another rotation starts', () => {
     const recovering = entry.recovery.recover(entry)
     await entered.promise
     const draining = entry.recovery.drain({ drain: entry.drain, reason: 'next rotation' })
-    expect(entry.admission.closed).toBe(true)
+    expect(entry.admissionClosed()).toBe(true)
     expect(entry.sealing()).toBe(0)
     held.release()
     await recovering
     await draining
-    expect(entry.admission.closed).toBe(true)
+    expect(entry.admissionClosed()).toBe(true)
     expect(entry.parentStarts()).toBe(1)
     expect(entry.sealing()).toBe(1)
     entry.recovery.detach()
     entry.app.intake?.dispose()
   })
 
-  it('reopens admission and clears the rotation preparation when the drain fails, and a later drain succeeds', async () => {
-    const entry = await rig()
+  it('reopens admission when the drain fails, and a later drain succeeds', async () => {
+    const entry = await rig({ sealFailsOnce: true })
     await entry.recovery.recover(entry)
-    expect(entry.admission.closed).toBe(false)
-    entry.app.endProcesses = async () => { throw new Error('processes refused to stop') }
+    expect(entry.admissionClosed()).toBe(false)
     await expect(entry.recovery.drain({ drain: entry.drain, reason: 'failed rotation' }))
-      .rejects.toThrow('processes refused to stop')
-    expect(entry.admission.closed).toBe(false)
-    entry.app.endProcesses = undefined
+      .rejects.toThrow('seal failed')
+    expect(entry.admissionClosed()).toBe(false)
     const proof = await entry.recovery.drain({ drain: entry.drain, reason: 'rotation retry' })
     expect(proof.ok).toBe(true)
-    expect(entry.admission.closed).toBe(true)
+    expect(entry.admissionClosed()).toBe(true)
     entry.recovery.detach()
     entry.app.intake?.dispose()
   })
@@ -138,7 +150,7 @@ describe('recovery admission while another rotation starts', () => {
     expect(entry.adoptions()).toBe(1)
     expect(entry.parentStarts()).toBe(1)
     expect(entry.familyResumes()).toBe(1)
-    expect(entry.admission.closed).toBe(true)
+    expect(entry.admissionClosed()).toBe(true)
     entry.recovery.detach()
     entry.app.intake?.dispose()
   })

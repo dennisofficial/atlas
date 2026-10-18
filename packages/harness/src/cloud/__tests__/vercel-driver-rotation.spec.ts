@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 import { VercelDriver } from '../vercel-driver'
 import type { FakeSandbox } from './vercel-driver-sandbox-fixture'
-import { CREDENTIALS, PINNED_VERSION, fakeSandbox, fakeDriveSdk } from './vercel-driver-fixture'
+import { CREDENTIALS, PINNED_VERSION, fakeSandbox } from './vercel-driver-fixture'
 
 const IDLE_HEALTH = async () => ({
   busy: false,
@@ -65,7 +65,6 @@ const swapDriver = ({
   new VercelDriver({
     credentials: CREDENTIALS,
     cloudUrl: 'https://api.example.com',
-    driveSdk: fakeDriveSdk().sdk,
     image: `atlas-sandbox:${PINNED_VERSION}`,
     serveVersion: PINNED_VERSION,
     runtimeHealth,
@@ -143,7 +142,6 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
-      driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       runtimeHealth: async () => ({ busy: true, turnRunning: true, clients: 1 }),

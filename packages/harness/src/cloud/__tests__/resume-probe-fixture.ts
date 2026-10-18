@@ -59,7 +59,6 @@ export const probeOf = (args: {
   health?: ServeRuntimeHealth | undefined
   healthThrows?: boolean
   serveAlive?: boolean
-  waitForDriveDetached?: () => Promise<boolean>
   drain?: (args: { sandbox: Sandbox; url: string }) => Promise<void>
   swapServe?: (sandbox: Sandbox) => Promise<void>
   onRotationStarted?: () => void
@@ -77,11 +76,8 @@ export const probeOf = (args: {
     },
     serveAlive: async () => args.serveAlive !== false,
     ...(args.drain === undefined ? {} : { drain: args.drain }),
-    ...(args.swapServe === undefined ? {} : { swapServe: args.swapServe }),
+    swapServe: args.swapServe ?? (async () => undefined),
     ...(args.onRotationStarted === undefined ? {} : { onRotationStarted: args.onRotationStarted }),
-    ...(args.waitForDriveDetached === undefined
-      ? {}
-      : { waitForDriveDetached: args.waitForDriveDetached }),
     log: args.lines === undefined ? undefined : (line) => args.lines?.push(line),
     isMissing: isSandboxMissing,
     toFailure: asVercelFailure,

@@ -1,148 +1,50 @@
-import { saidBody, toThreadId, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { saidBody, toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { ERuntimePhase, type PendingEntryWire, type PrStateWire, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
-import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delta-channel'
-import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
-import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../channel/signal'
+import type { ChannelListener } from '../channel/delta-channel'
+import type { ChannelSignal } from '../channel/signal'
 import type { TurnOutcome } from '../loop/turn-outcome'
-import {
-  runtimeCheckpointSchema,
-  type PendingEntryWire,
-  type PrStateWire,
-  type RosterWire,
-  type RuntimeCheckpoint,
-} from '@dltech/atlas-wire'
-
 import {
   bearerSubprotocolOf,
   CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
   decodeServeFrame,
   EClientFrame,
-  type EClientRequest,
   encodeFrame,
   EServeFrame,
   toSendId,
   turnOutcomeFromWire,
   type ServeFrame,
 } from './channel-wire'
-import {
-  sessionSocketUrlOf,
-  webSocketFactory,
-  type ChannelSocket,
-  type ChannelSocketFactory,
-} from './remote-channel-socket'
+import { EConnectionView, ESocketLiveness } from './connection-view'
+import { DEFAULT_KEEPALIVE_MS, intervalKeepaliveScheduler, type ScheduleKeepalive } from './keepalive'
+import { checkpointFrom, createCheckpointHolder } from './remote-channel-checkpoint'
+import { attemptBudgetFor, createConnectionFacts, DEFAULT_MAX_ATTEMPTS, exhaustedDetailOf } from './remote-channel-facts'
+import { createInFlightReplay, NOTHING_IN_FLIGHT } from './remote-channel-in-flight'
+import { registryOf } from './remote-channel-registry'
+import { sessionSocketUrlOf, webSocketFactory, type ChannelSocket, type ChannelSocketFactory } from './remote-channel-socket'
 import { createUpstreamPipe, RemotePublishRefused, RemoteRequestLost } from './remote-channel-upstream'
 import {
-  DEFAULT_KEEPALIVE_MS,
-  intervalKeepaliveScheduler,
-  type ScheduleKeepalive,
-} from './keepalive'
+  INTERRUPT_ACK_TIMEOUT_MS,
+  STRANDED_STEP_END,
+  type ChannelFailure,
+  type ChannelReady,
+  type ChannelReload,
+  type InterruptAck,
+  type RemoteDeltaChannel,
+  type SandboxAttachment,
+  type SandboxWake,
+  type ThreadModelChangedFrame,
+  type ThreadRenamedFrame,
+} from './remote-delta-channel-types'
 
-export {
-  RemotePublishRefused,
-  RemoteRequestFailed,
-  RemoteRequestLost,
-} from './remote-channel-upstream'
-export type {
-  ChannelSocket,
-  ChannelSocketFactory,
-  ChannelSocketHandlers,
-} from './remote-channel-socket'
-
-export enum EChannelConnection {
-  Connecting = 'connecting',
-  Open = 'open',
-  Reconnecting = 'reconnecting',
-  Reattaching = 'reattaching',
-  Parked = 'parked',
-  Waking = 'waking',
-  Closed = 'closed',
-}
-
-export enum EReconnectEscalation {
-  Reattach = 'reattach',
-  Wait = 'wait',
-  Parked = 'parked',
-}
-
-export type ChannelConnection = { state: EChannelConnection; detail: string | null }
-
-export type ChannelReload = { sinceEventSeq: number }
-
-export type ChannelFailure = { message: string }
-
+export { RemotePublishRefused, RemoteRequestFailed, RemoteRequestLost } from './remote-channel-upstream'
+export type { ChannelSocket, ChannelSocketFactory, ChannelSocketHandlers } from './remote-channel-socket'
+export * from './remote-delta-channel-types'
 export type { RuntimeCheckpoint } from '@dltech/atlas-wire'
-
-/** What the serve said about itself at greet — whether the turn it was running survived, and whether it vouches the client's durable log is whole. */
-export type ChannelReady = { turnInFlight: boolean; transcriptCurrent?: boolean | undefined }
-
-/** The far side received the interrupt frame and aborted the turn it was driving. */
-export type InterruptAck = { turnInFlight: boolean }
-
-export type ThreadRenamedFrame = { threadId: ThreadId; title: string }
-
-export type ThreadModelChangedFrame = { threadId: ThreadId; model: { ref: string; effort: string } }
-
-export const INTERRUPT_ACK_TIMEOUT_MS = 5_000
-
-export const STRANDED_STEP_END = EStepEnd.Detached
-
-export type RemoteDeltaChannel = DeltaChannel & {
-  readonly threadId: ThreadId
-  send(args: {
-    text: string
-    images?: readonly SaidImage[] | undefined
-    files?: readonly SaidFile[] | undefined
-    context?: readonly EventDraft[] | undefined
-  }): void
-  run(args?: { resume?: boolean }): void
-  interrupt(): void
-  pause(): void
-  resume(): void
-  syncSettings(args: { content: string }): void
-  request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
-  connection(): ChannelConnection
-  onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe
-  onReload(listener: (reload: ChannelReload) => void): Unsubscribe
-  onReady(listener: (ready: ChannelReady) => void): Unsubscribe
-  onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
-  onRoster(listener: (roster: RosterWire) => void): Unsubscribe
-  onPrStates(listener: (states: readonly PrStateWire[]) => void): Unsubscribe
-  pendingEntries(): readonly PendingEntryWire[]
-  onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): Unsubscribe
-  onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
-  onThreadModelChanged(listener: (changed: ThreadModelChangedFrame) => void): Unsubscribe
-  onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
-  onError(listener: (failure: ChannelFailure) => void): Unsubscribe
-  onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
-  checkpoint?(): RuntimeCheckpoint | null
-  onCheckpoint?(listener: (checkpoint: RuntimeCheckpoint) => void): Unsubscribe
-  detach?(): void
-  onDetached?(listener: (reason: string) => void): Unsubscribe
-  /** The live attachment coordinates, absent while the channel is parked or never attached. */
-  attachment(): { url: string; token: string } | undefined
-  wake(args: { url: string; token: string }): void
-  /**
-   * Marks the channel as waking its sandbox. The wake itself is a control-plane call the turn
-   * runner awaits before `wake()` has a fresh attachment to apply, and without this state that
-   * whole window still reads as Parked — or worse, Closed — to whoever is watching.
-   */
-  beginWake(): void
-  /**
-   * Re-attach from a stranded Closed state. The operator asked for it, so the reattachment budget
-   * the automatic retries spent does not apply — a manual reconnect always escalates again. No-op
-   * while the channel is anything but Closed, and without a `reattach` configured.
-   */
-  reconnect(): void
-  close(): void
-}
 
 const RETRY_CEILING_MS = 30_000
 const FIRST_RETRY_MS = 500
-const DEFAULT_MAX_ATTEMPTS = 8
-const DEFAULT_MAX_REATTACHMENTS = 3
-
-const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
 
 const NOTHING_PENDING: readonly PendingEntryWire[] = Object.freeze([])
 
@@ -153,32 +55,23 @@ const afterDelay = (task: { delayMs: number; run: () => void }) => {
   setTimeout(task.run, task.delayMs)
 }
 
-const registryOf = <T>() => {
-  const listeners = new Set<(value: T) => void>()
-  return {
-    add(listener: (value: T) => void): Unsubscribe {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    emit(value: T) {
-      for (const listener of [...listeners]) listener(value)
-    },
-  }
-}
+const restingPhase = (phase: ERuntimePhase | null): boolean =>
+  phase === ERuntimePhase.Parked || phase === ERuntimePhase.Parking
+
+const protocolMismatchOf = (protocol: number): string =>
+  protocol > CHANNEL_PROTOCOL_VERSION
+    ? `the sandbox's serve speaks a newer wire protocol (${protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — update Atlas, then re-open the conversation`
+    : `the sandbox's serve speaks an older wire protocol (${protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — re-open the conversation so the sandbox's serve is rebuilt`
 
 export function createRemoteDeltaChannel(args: {
   threadId: ThreadId
-  /** Absent means deferred: start {@link EChannelConnection.Parked} and open nothing until `wake`. */
+  /** Absent means deferred: the view reads Parked and nothing opens until a wake. */
   url?: string | undefined
   token?: string | undefined
   /**
    * The seq of the newest durable event the client holds for the thread, reported on the Hello so
-   * the serve can vouch the log is current. A number sends the Hello synchronously, exactly as
-   * before; a Promise (a durable store read) holds the wire until the head resolves so the Hello
-   * still leads. Absent means 0 — a client with no local source of truth can never be vouched
-   * current.
+   * the serve can vouch the log is current. A Promise holds the wire until the head resolves so the
+   * Hello still leads. Absent means 0.
    */
   lastEventSeq?: (() => number | Promise<number>) | undefined
   socketFactory?: ChannelSocketFactory | undefined
@@ -187,46 +80,24 @@ export function createRemoteDeltaChannel(args: {
   scheduleKeepalive?: ScheduleKeepalive | undefined
   backoffMs?: ((args: { attempt: number }) => number) | undefined
   maxAttempts?: number | undefined
-  lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
   requestTimeoutMs?: number | undefined
-  /**
-   * A request issued while the wire is down queues and its answer clock starts only once the
-   * frame reaches a socket; this bounds how long "queued behind a wake" may last before the
-   * caller is told the request never left.
-   */
   unwrittenRequestTimeoutMs?: number | undefined
   keepaliveMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
-  /**
-   * Once the socket retries are spent, re-attach through the API. The relaunched serve keeps
-   * whatever turn was already running — a re-attach loses the client's own in-flight step (it has
-   * no durable replay), not the turn on the far side, which the reported `Ready.turnInFlight`
-   * settles for the caller.
-   */
-  reattach?: (() => Promise<{ url: string; token: string }>) | undefined
-  maxReattachments?: number | undefined
-  /**
-   * A dead sandbox fails a WS connect in ~150ms and a parked one never answers, so waiting out
-   * the full backoff (~91.5s) before `reattach` is pure waste. Called once per retry cycle; a
-   * settled `true` escalates immediately instead of waiting out the rest of the backoff.
-   */
-  shouldEscalate?: (() => Promise<boolean>) | undefined
+  /** Wakes (or re-attaches to) the sandbox through the control plane; the relaunched serve keeps its own turn. */
+  wakeSandbox?: SandboxWake | undefined
   onFinished?: (() => void) | undefined
 }): RemoteDeltaChannel {
   const lastEventSeq = args.lastEventSeq ?? (() => 0)
   const socketFactory = args.socketFactory ?? webSocketFactory
   const backoffMs = args.backoffMs ?? defaultBackoffMs
   const maxAttempts = args.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
-  const maxReattachments = args.maxReattachments ?? DEFAULT_MAX_REATTACHMENTS
   const scheduleRetry = args.scheduleRetry ?? afterDelay
-  const keepaliveMs = args.keepaliveMs ?? DEFAULT_KEEPALIVE_MS
   const scheduleKeepalive = args.scheduleKeepalive ?? intervalKeepaliveScheduler
-  const interruptAckTimeoutMs = args.interruptAckTimeoutMs ?? INTERRUPT_ACK_TIMEOUT_MS
   const scheduleTimeout = args.scheduleTimeout ?? afterDelay
 
   const listeners = new Set<ChannelListener>()
   const interruptAcks = registryOf<InterruptAck>()
-  const connections = registryOf<ChannelConnection>()
   const reloads = registryOf<ChannelReload>()
   const readies = registryOf<ChannelReady>()
   const rosters = registryOf<RosterWire>()
@@ -234,39 +105,38 @@ export function createRemoteDeltaChannel(args: {
   const pendingChanges = registryOf<readonly PendingEntryWire[]>()
   const threadRenames = registryOf<ThreadRenamedFrame>()
   const threadModelChanges = registryOf<ThreadModelChangedFrame>()
-  const checkpoints = registryOf<RuntimeCheckpoint>()
   const detachments = registryOf<string>()
   const turnEndings = registryOf<TurnOutcome>()
   const failures = registryOf<ChannelFailure>()
   const serverErrors = registryOf<ChannelFailure>()
+  const checkpoints = createCheckpointHolder({ threadId: args.threadId })
+  const inFlight = createInFlightReplay()
   const upstream = createUpstreamPipe({
     timeoutMs: args.requestTimeoutMs,
     unwrittenTimeoutMs: args.unwrittenRequestTimeoutMs,
     scheduleTimeout,
   })
 
-  let inFlight: StepSignal[] = []
-  const toolOutputSlots: InFlightSlots = new Map()
-  let replay: readonly ChannelSignal[] | undefined
-  let operatorInput: Extract<ChannelSignal, { type: 'operator-input' }> | null = null
-  let stepId: StepId | undefined
-  let working = false
+  let url = args.url
+  let token = args.token
+  const attached = url !== undefined && token !== undefined
+  const facts = createConnectionFacts({
+    phase: null,
+    socket: attached ? ESocketLiveness.Dialing : ESocketLiveness.Unattached,
+    waking: attached,
+    rotating: false,
+    failure: null,
+    detached: false,
+  })
+
   let channelCursor: number | null = null
   let attempt = 0
-  let reattachments = 0
   let socket: ChannelSocket | null = null
   let stopKeepalive: (() => void) | null = null
   let abandoned = false
   let generation = 0
-  let url = args.url
-  let token = args.token
-  const attached = url !== undefined && token !== undefined
-  let connection: ChannelConnection = attached
-    ? { state: EChannelConnection.Connecting, detail: null }
-    : { state: EChannelConnection.Parked, detail: null }
   let interruptPending = false
   let interruptSentGeneration = -1
-  let heldCheckpoint: RuntimeCheckpoint | null = null
   let heldPending: readonly PendingEntryWire[] = NOTHING_PENDING
 
   const settlePending = (entries: readonly PendingEntryWire[]): void => {
@@ -275,50 +145,25 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const acceptCheckpoint = (checkpoint: RuntimeCheckpoint | null | undefined): void => {
-    if (checkpoint === null || checkpoint === undefined) return
-    if (checkpoint.threadId !== args.threadId) return
-    if (heldCheckpoint !== null && checkpoint.revision <= heldCheckpoint.revision) return
-    heldCheckpoint = checkpoint
-    checkpoints.emit(heldCheckpoint)
+    const accepted = checkpoints.accept(checkpoint)
+    if (accepted !== null) facts.update({ phase: accepted.phase })
   }
 
-  const checkpointFrom = (raw: string): RuntimeCheckpoint | null | undefined => {
-    let parsed: unknown = null
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      return undefined
-    }
-    if (typeof parsed !== 'object' || parsed === null) return undefined
-    const checkpoint = Reflect.get(parsed, 'checkpoint')
-    if (checkpoint === null) return null
-    const valid = runtimeCheckpointSchema.safeParse(checkpoint)
-    return valid.success ? valid.data : undefined
-  }
-
-  /**
-   * The interrupt frame is fire-and-forget over a socket that can be half-open, so the stamp
-   * survives what the frame may not: the ack bounds it over a live socket, and a Ready arriving
-   * while it stands means the frame was lost to the last connection — re-sent there and then.
-   */
   const requestInterrupt = () => {
     interruptPending = true
     interruptSentGeneration = generation
     upstream.send({ kind: EClientFrame.Interrupt })
     const sentGeneration = generation
     scheduleTimeout({
-      delayMs: interruptAckTimeoutMs,
+      delayMs: args.interruptAckTimeoutMs ?? INTERRUPT_ACK_TIMEOUT_MS,
       run: () => {
         if (!interruptPending || interruptSentGeneration !== sentGeneration) return
-        if (connection.state !== EChannelConnection.Open) return
+        if (facts.facts().socket !== ESocketLiveness.Open) return
         failures.emit({ message: 'The sandbox never acknowledged the interrupt.' })
       },
     })
   }
 
-  // Nothing may reach the socket before its Hello: the serve refuses any earlier frame. On the
-  // Promise path the head is still being read when the socket opens, so the rest of the wire
-  // (keepalive Pong, a queued send) queues behind the Hello and flushes in order once it lands.
   let helloPending = false
   let heldUntilHello: string[] = []
 
@@ -330,7 +175,6 @@ export function createRemoteDeltaChannel(args: {
     const live = socket
     if (live === null) return false
     if (live.isOpen !== undefined && !live.isOpen()) return false
-
     live.send(data)
     return true
   }
@@ -340,65 +184,8 @@ export function createRemoteDeltaChannel(args: {
     stopKeepalive = null
   }
 
-  const startKeepalive = () => {
-    clearKeepalive()
-    stopKeepalive = scheduleKeepalive({
-      intervalMs: keepaliveMs,
-      run: () => write(encodeFrame({ kind: EClientFrame.Pong })),
-    })
-  }
-
-  const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
-
-  const stableReplay = (): readonly ChannelSignal[] => {
-    if (replay !== undefined) return replay
-    if (!working && inFlight.length === 0 && operatorInput === null) return NOTHING_IN_FLIGHT
-    const held: ChannelSignal[] = working ? [WORKING_SIGNAL, ...inFlight] : [...inFlight]
-    if (operatorInput !== null) held.push(operatorInput)
-    replay = Object.freeze(held)
-    return replay
-  }
-
-  const absorb = (signal: ChannelSignal) => {
-    if (signal.type === 'pending-changed') return
-    if (signal.type === 'operator-input') {
-      operatorInput = signal.request === null ? null : signal
-      replay = undefined
-      return
-    }
-    if (signal.type === 'turn-working') {
-      working = signal.working
-      replay = undefined
-      return
-    }
-    if (signal.type === 'step-started') {
-      stepId = signal.stepId
-      inFlight = [signal]
-      toolOutputSlots.clear()
-      replay = undefined
-      return
-    }
-    if (signal.type === 'step-ended') {
-      stepId = undefined
-      inFlight = []
-      toolOutputSlots.clear()
-      replay = undefined
-      return
-    }
-    if (signal.type !== 'chunk' && signal.type !== 'tool-output') return
-
-    if (signal.type === 'chunk' && signal.stepId !== stepId) {
-      stepId = signal.stepId
-      inFlight = []
-      toolOutputSlots.clear()
-    }
-
-    retainReplayable({ inFlight, slots: toolOutputSlots, signal })
-    replay = undefined
-  }
-
   const deliver = (signal: ChannelSignal) => {
-    absorb(signal)
+    inFlight.absorb(signal)
     for (const listener of [...listeners]) {
       try {
         listener(signal)
@@ -412,76 +199,56 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const endStrandedStep = () => {
+    const stepId = inFlight.stepId()
     if (stepId === undefined) return
     deliver({ type: 'step-ended', stepId, end: STRANDED_STEP_END, supersededBy: null })
   }
 
-  const moveTo = (next: ChannelConnection) => {
-    connection = next
-    // A parked serve never answers again, but a park is the sandbox resting, not failing:
-    // redrivable reads hold for the wake and re-drive on the fresh socket's ready; anything
-    // that may have applied fails now rather than at its timeout.
-    if (next.state === EChannelConnection.Parked) {
-      upstream.failWaiting({
-        reason:
-          next.detail === null ? 'the sandbox is parked' : `the sandbox is parked (${next.detail})`,
-        holdRedrivable: true,
-      })
+  const handleReady = (frame: Extract<ServeFrame, { kind: EServeFrame.Ready }>) => {
+    if (frame.protocol !== undefined && frame.protocol !== CHANNEL_PROTOCOL_VERSION) {
+      const message = protocolMismatchOf(frame.protocol)
+      abandoned = true
+      failures.emit({ message })
+      serverErrors.emit({ message })
+      endStrandedStep()
+      facts.update({ waking: false, rotating: false, failure: message })
+      socket?.close()
+      return
     }
-    connections.emit(next)
+    const accepted = checkpoints.accept(frame.checkpoint)
+    attempt = 0
+    upstream.attach({ write })
+    const turnInFlight = frame.turnInFlight === true
+    if (turnInFlight !== inFlight.working()) deliver({ type: 'turn-working', working: turnInFlight })
+    settlePending(NOTHING_PENDING)
+    readies.emit({ turnInFlight, transcriptCurrent: frame.transcriptCurrent })
+    facts.update({
+      phase: accepted?.phase ?? ERuntimePhase.Serving,
+      socket: ESocketLiveness.Open,
+      waking: false,
+      rotating: false,
+      failure: null,
+    })
+    if (interruptPending && turnInFlight) requestInterrupt()
+  }
+
+  const handleSignal = (frame: Extract<ServeFrame, { kind: EServeFrame.Signal }>) => {
+    if (channelCursor !== null && frame.seq > channelCursor + 1) {
+      channelCursor = null
+      endStrandedStep()
+      const head = lastEventSeq()
+      if (typeof head === 'number') reloads.emit({ sinceEventSeq: head })
+      else void Promise.resolve(head).then((seq) => reloads.emit({ sinceEventSeq: seq }))
+      return
+    }
+    deliver(frame.signal)
+    channelCursor = frame.seq
   }
 
   const handleFrame = (frame: ServeFrame) => {
-    if (frame.kind === EServeFrame.Ready) {
-      if (frame.protocol !== undefined && frame.protocol !== CHANNEL_PROTOCOL_VERSION) {
-        const message =
-          frame.protocol > CHANNEL_PROTOCOL_VERSION
-            ? `the sandbox's serve speaks a newer wire protocol (${frame.protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — update Atlas, then re-open the conversation`
-            : `the sandbox's serve speaks an older wire protocol (${frame.protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — re-open the conversation so the sandbox's serve is rebuilt`
-        abandoned = true
-        failures.emit({ message })
-        serverErrors.emit({ message })
-        endStrandedStep()
-        moveTo({ state: EChannelConnection.Closed, detail: message })
-        socket?.close()
-        return
-      }
-      acceptCheckpoint(frame.checkpoint)
-      attempt = 0
-      reattachments = 0
-      upstream.attach({ write })
-      const turnInFlight = frame.turnInFlight === true
-      if (turnInFlight !== working) deliver({ type: 'turn-working', working: turnInFlight })
-      // The serve sends the fresh pending snapshot right after Ready, so an empty list first
-      // clears whatever copy a reconnecting client kept from before it detached.
-      settlePending(NOTHING_PENDING)
-      readies.emit({
-        turnInFlight: frame.turnInFlight === true,
-        transcriptCurrent: frame.transcriptCurrent,
-      })
-      moveTo({ state: EChannelConnection.Open, detail: null })
-      if (interruptPending && frame.turnInFlight === true) requestInterrupt()
-      return
-    }
-    if (frame.kind === EServeFrame.Signal) {
-      // One frame every seq, so a jump means the stream lost what sits between — the live half
-      // of a transcript can never show a gap, so the durable log is re-read instead.
-      if (channelCursor !== null && frame.seq > channelCursor + 1) {
-        channelCursor = null
-        endStrandedStep()
-        const head = lastEventSeq()
-        if (typeof head === 'number') reloads.emit({ sinceEventSeq: head })
-        else void Promise.resolve(head).then((seq) => reloads.emit({ sinceEventSeq: seq }))
-        return
-      }
-      deliver(frame.signal)
-      channelCursor = frame.seq
-      return
-    }
-    if (frame.kind === EServeFrame.Reply) {
-      upstream.settleReply({ replyTo: frame.replyTo, ok: frame.ok, data: frame.data })
-      return
-    }
+    if (frame.kind === EServeFrame.Ready) return handleReady(frame)
+    if (frame.kind === EServeFrame.Signal) return handleSignal(frame)
+    if (frame.kind === EServeFrame.Reply) return upstream.settleReply({ replyTo: frame.replyTo, ok: frame.ok, data: frame.data })
     if (frame.kind === EServeFrame.Reload) {
       channelCursor = null
       endStrandedStep()
@@ -489,15 +256,12 @@ export function createRemoteDeltaChannel(args: {
       return
     }
     if (frame.kind === EServeFrame.Parked) {
-      acceptCheckpoint(frame.checkpoint)
+      checkpoints.accept(frame.checkpoint)
       endStrandedStep()
-      moveTo({ state: EChannelConnection.Parked, detail: frame.reason })
+      facts.update({ phase: ERuntimePhase.Parked, waking: false })
       return
     }
-    if (frame.kind === EServeFrame.Checkpoint) {
-      acceptCheckpoint(frame.checkpoint)
-      return
-    }
+    if (frame.kind === EServeFrame.Checkpoint) return acceptCheckpoint(frame.checkpoint)
     if (frame.kind === EServeFrame.TurnEnded) {
       interruptPending = false
       turnEndings.emit(turnOutcomeFromWire(frame.outcome))
@@ -508,28 +272,17 @@ export function createRemoteDeltaChannel(args: {
       interruptAcks.emit({ turnInFlight: true })
       return
     }
-    if (frame.kind === EServeFrame.SendAcked) {
-      upstream.ackSend({ sendId: frame.sendId })
-      return
-    }
-    if (frame.kind === EServeFrame.Roster) {
-      rosters.emit(frame.roster)
-      return
-    }
-    if (frame.kind === EServeFrame.PrStates) {
-      prStates.emit(frame.states)
-      return
-    }
+    if (frame.kind === EServeFrame.SendAcked) return upstream.ackSend({ sendId: frame.sendId })
+    if (frame.kind === EServeFrame.Roster) return rosters.emit(frame.roster)
+    if (frame.kind === EServeFrame.PrStates) return prStates.emit(frame.states)
     if (frame.kind === EServeFrame.ThreadRenamed) {
-      threadRenames.emit({ threadId: toThreadId(frame.threadId), title: frame.title })
-      return
+      return threadRenames.emit({ threadId: toThreadId(frame.threadId), title: frame.title })
     }
     if (frame.kind === EServeFrame.ThreadModelChanged) {
-      threadModelChanges.emit({
+      return threadModelChanges.emit({
         threadId: toThreadId(frame.threadId),
         model: { ref: frame.model.ref, effort: frame.model.effort },
       })
-      return
     }
     if (frame.kind === EServeFrame.Error) {
       failures.emit({ message: frame.message })
@@ -538,7 +291,11 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const handleOpen = () => {
-    startKeepalive()
+    clearKeepalive()
+    stopKeepalive = scheduleKeepalive({
+      intervalMs: args.keepaliveMs ?? DEFAULT_KEEPALIVE_MS,
+      run: () => write(encodeFrame({ kind: EClientFrame.Pong })),
+    })
     const head = lastEventSeq()
     const hello = (seq: number): string =>
       encodeFrame({
@@ -554,9 +311,6 @@ export function createRemoteDeltaChannel(args: {
       return
     }
 
-    // The durable head reads off the wire's thread, so the Hello must not block the open — but it
-    // still leads: everything else queues behind it until the read lands. A socket superseded
-    // mid-read drops its pending Hello rather than leaking it onto the next socket.
     helloPending = true
     heldUntilHello = []
     const opening = generation
@@ -570,145 +324,32 @@ export function createRemoteDeltaChannel(args: {
 
   const handleMessage = (data: string) => {
     const frame = decodeServeFrame(data)
-    if (frame === null) {
-      const checkpoint = checkpointFrom(data)
-      acceptCheckpoint(checkpoint)
-      if (checkpoint !== undefined) return
-      failures.emit({ message: 'The sandbox sent a frame this client could not read.' })
-      return
-    }
-    handleFrame(frame)
-  }
-
-  const handlePing = () => write(encodeFrame({ kind: EClientFrame.Pong }))
-
-  const applyAttachment = (next: { url: string; token: string }) => {
-    url = next.url
-    token = next.token
-    attempt = 0
-    clearKeepalive()
-    moveTo({ state: EChannelConnection.Connecting, detail: null })
-    connect()
-  }
-
-  let wakeFailureSignature: string | null = null
-  let wakeFailureCount = 0
-  let wakeRetryStopped = false
-
-  const noteWakeFailure = (signature: string): number => {
-    if (signature === wakeFailureSignature) {
-      wakeFailureCount += 1
-    } else {
-      wakeFailureSignature = signature
-      wakeFailureCount = 1
-    }
-    return wakeFailureCount
-  }
-
-  const escalate = (reattach: () => Promise<{ url: string; token: string }>, forQueuedWork = false) => {
-    generation += 1
-    reattachments += 1
-    endStrandedStep()
-    moveTo({ state: EChannelConnection.Reattaching, detail: null })
-    const scheduled = generation
-    reattach().then(
-      (next) => {
-        if (abandoned || scheduled !== generation) return
-        wakeFailureSignature = null
-        wakeFailureCount = 0
-        wakeRetryStopped = false
-        applyAttachment(next)
-      },
-      (failure) => {
-        if (abandoned || scheduled !== generation) return
-        const cause = failure instanceof Error ? failure.message : String(failure)
-        if (forQueuedWork) {
-          const repeats = noteWakeFailure(cause)
-          if (repeats >= maxReattachments) {
-            const detail =
-              `The sandbox wake failed with the same error ${repeats} times in a row: ${cause} ` +
-              'Automatic retries have stopped — investigate the sandbox, then reconnect.'
-            upstream.failUnwritten({ reason: detail })
-            failures.emit({ message: detail })
-            wakeRetryStopped = true
-            moveTo({ state: EChannelConnection.Closed, detail })
-            return
-          }
-        }
-        const detail = forQueuedWork
-          ? `The sandbox could not be woken for the queued work: ${cause}`
-          : `The session socket closed and did not reopen after ${maxAttempts} attempts, ` +
-            `and re-attaching to the sandbox failed: ${cause}`
-        upstream.failUnwritten({ reason: detail })
-        moveTo({ state: EChannelConnection.Closed, detail })
-      },
-    )
-  }
-
-  /**
-   * Operator intent beats a dead wire: any outgoing frame against a parked or closed sandbox
-   * starts the same re-attach the transport recovery escalates to, and the queued pipe delivers
-   * everything once the fresh socket greets. Turn frames reach here through the turn runner's
-   * own wake ceremony, so this exists for everything else — requests and publishes alike.
-   */
-  const kickWake = () => {
-    if (abandoned || wakeRetryStopped) return
-    const reattach = args.reattach
-    if (reattach === undefined) return
-    if (
-      connection.state !== EChannelConnection.Parked &&
-      connection.state !== EChannelConnection.Closed
-    ) {
-      return
-    }
-    reattachments = 0
-    escalate(reattach, true)
+    if (frame !== null) return handleFrame(frame)
+    const checkpoint = checkpointFrom(data)
+    acceptCheckpoint(checkpoint)
+    if (checkpoint !== undefined) return
+    failures.emit({ message: 'The sandbox sent a frame this client could not read.' })
   }
 
   const handleClose = () => {
     clearKeepalive()
     upstream.detach({ reason: 'the session socket closed' })
+    facts.update({ socket: ESocketLiveness.Closed })
     if (abandoned) return
+    const { phase } = facts.facts()
+    if (restingPhase(phase)) return
 
-    // Told in words (EServeFrame.Parked) before the close: the sandbox is gone on purpose, so
-    // retrying its URL is futile — the next wire action wakes it instead (see kickWake).
-    if (connection.state === EChannelConnection.Parked) return
-
-    if (attempt >= maxAttempts) {
-      const reattach = args.reattach
-      if (reattach !== undefined && reattachments < maxReattachments) {
-        if (args.lifecycleEscalation === undefined) {
-          escalate(reattach)
-          return
-        }
-        const inspectedGeneration = generation
-        void args.lifecycleEscalation().then((verdict) => {
-          if (abandoned || inspectedGeneration !== generation || connection.state === EChannelConnection.Open) return
-          if (verdict === EReconnectEscalation.Reattach) {
-            escalate(reattach)
-            return
-          }
-          endStrandedStep()
-          moveTo({ state: verdict === EReconnectEscalation.Parked ? EChannelConnection.Parked : EChannelConnection.Closed, detail: 'the sandbox was not woken by transport recovery' })
-        }).catch(() => {
-          if (abandoned || inspectedGeneration !== generation || connection.state === EChannelConnection.Open) return
-          endStrandedStep()
-          moveTo({ state: EChannelConnection.Closed, detail: 'the sandbox lifecycle could not be read' })
-        })
-        return
-      }
+    const budget = attemptBudgetFor({ phase, maxAttempts })
+    if (attempt >= budget) {
+      const reason = exhaustedDetailOf(budget)
       endStrandedStep()
-      moveTo({
-        state: EChannelConnection.Closed,
-        detail: `The session socket closed and did not reopen after ${maxAttempts} attempts.`,
-      })
+      facts.update({ waking: false, rotating: false, failure: reason })
+      upstream.failWaiting({ reason })
       return
     }
 
-    const startingRetryCycle = attempt === 0
     const delayMs = backoffMs({ attempt })
     attempt += 1
-    moveTo({ state: EChannelConnection.Reconnecting, detail: null })
     const scheduled = generation
     scheduleRetry({
       delayMs,
@@ -717,44 +358,8 @@ export function createRemoteDeltaChannel(args: {
         if (connect() !== null) generation += 1
       },
     })
-
-    const reattach = args.reattach
-    const shouldEscalate = args.shouldEscalate
-    const reattachOnLifecycle = args.reattach
-    const lifecycleEscalation = args.lifecycleEscalation
-    if (
-      startingRetryCycle &&
-      reattachOnLifecycle !== undefined &&
-      reattachments < maxReattachments &&
-      (shouldEscalate !== undefined || lifecycleEscalation !== undefined)
-    ) {
-      const verdict = async (): Promise<EReconnectEscalation> => {
-        if (lifecycleEscalation !== undefined) return lifecycleEscalation()
-        if (shouldEscalate === undefined) return EReconnectEscalation.Wait
-        return await shouldEscalate() ? EReconnectEscalation.Reattach : EReconnectEscalation.Wait
-      }
-      verdict().then(
-        (state) => {
-          if (abandoned || scheduled !== generation || connection.state === EChannelConnection.Open) return
-          if (state === EReconnectEscalation.Parked) {
-            generation += 1
-            endStrandedStep()
-            moveTo({ state: EChannelConnection.Parked, detail: 'the sandbox is parked' })
-            return
-          }
-          if (state === EReconnectEscalation.Reattach) escalate(reattachOnLifecycle)
-        },
-        () => undefined,
-      )
-    }
   }
 
-  const handleError = (message: string) => failures.emit({ message })
-
-  // A fresh attempt takes over from whatever dial preceded it, so the handlers it closes over
-  // never fire again: the old close() could otherwise land while the channel is Connecting
-  // (nothing in `socket` points at the dead socket yet) and start a retry cycle out from under
-  // the live attempt.
   const supersede = () => {
     const stale = socket
     socket = null
@@ -765,10 +370,12 @@ export function createRemoteDeltaChannel(args: {
   const connect = (): ChannelSocket | null => {
     if (abandoned || url === undefined || token === undefined) return null
     supersede()
+    facts.update({ socket: ESocketLiveness.Dialing })
     let mine: ChannelSocket | null = null
-    const guarded = <A extends unknown[]>(handler: (...args: A) => void) =>
-      (...args: A) => {
-        if (mine !== null && socket === mine) handler(...args)
+    const guarded =
+      <A extends unknown[]>(handler: (...args: A) => void) =>
+      (...handlerArgs: A) => {
+        if (mine !== null && socket === mine) handler(...handlerArgs)
       }
     mine = socketFactory({
       url: sessionSocketUrlOf(url),
@@ -776,13 +383,82 @@ export function createRemoteDeltaChannel(args: {
       handlers: {
         handleOpen: guarded(() => handleOpen()),
         handleMessage: guarded((data: string) => handleMessage(data)),
-        handlePing: guarded(() => handlePing()),
+        handlePing: guarded(() => write(encodeFrame({ kind: EClientFrame.Pong }))),
         handleClose: guarded(() => handleClose()),
-        handleError: guarded((message: string) => handleError(message)),
+        handleError: guarded((message: string) => failures.emit({ message })),
       },
     })
     socket = mine
     return mine
+  }
+
+  const applyAttachment = (next: SandboxAttachment) => {
+    url = next.url
+    token = next.token
+    attempt = 0
+    clearKeepalive()
+    const { phase } = facts.facts()
+    facts.update({ waking: true, failure: null, ...(restingPhase(phase) ? { phase: null } : {}) })
+    connect()
+  }
+
+  const failWake = (reason: string) => {
+    facts.update({ waking: false, rotating: false, failure: reason })
+    upstream.failWaiting({ reason })
+  }
+
+  const startWake = () => {
+    const wakeSandbox = args.wakeSandbox
+    if (abandoned || wakeSandbox === undefined) return
+    const { socket: liveness } = facts.facts()
+    supersede()
+    if (liveness === ESocketLiveness.Open || liveness === ESocketLiveness.Dialing) {
+      clearKeepalive()
+      upstream.detach({ reason: 'the sandbox is being woken' })
+    }
+    endStrandedStep()
+    facts.update({
+      waking: true,
+      rotating: false,
+      failure: null,
+      ...(liveness === ESocketLiveness.Unattached ? {} : { socket: ESocketLiveness.Closed }),
+    })
+    const scheduled = generation
+    const onRotationStarted = () => {
+      if (abandoned || scheduled !== generation) return
+      facts.update({ rotating: true })
+    }
+    wakeSandbox({ onRotationStarted }).then(
+      (next) => {
+        if (abandoned || scheduled !== generation) return
+        applyAttachment(next)
+      },
+      (failure: unknown) => {
+        if (abandoned || scheduled !== generation) return
+        const reason = `the sandbox could not be woken: ${failure instanceof Error ? failure.message : String(failure)}`
+        failures.emit({ message: reason })
+        failWake(reason)
+      },
+    )
+  }
+
+  const kickWake = () => {
+    if (facts.facts().waking) return
+    const { state } = facts.view()
+    if (state !== EConnectionView.Parked && state !== EConnectionView.Disconnected) return
+    startWake()
+  }
+
+  const shutDown = (shutdown: { reason: string; beforeAbandon: () => void }) => {
+    deliver({ type: 'operator-input', request: null })
+    abandoned = true
+    interruptPending = false
+    shutdown.beforeAbandon()
+    upstream.abandon({ reason: shutdown.reason })
+    args.onFinished?.()
+    clearKeepalive()
+    socket?.close()
+    socket = null
   }
 
   if (attached) connect()
@@ -792,19 +468,14 @@ export function createRemoteDeltaChannel(args: {
 
     subscribe({ threadId, listener }) {
       if (threadId !== args.threadId) return () => undefined
-
-      for (const signal of stableReplay()) listener(signal)
+      for (const signal of inFlight.replay()) listener(signal)
       listeners.add(listener)
-
       return () => {
         listeners.delete(listener)
       }
     },
 
-    snapshot({ threadId }) {
-      if (threadId !== args.threadId) return NOTHING_IN_FLIGHT
-      return stableReplay()
-    },
+    snapshot: ({ threadId }) => (threadId === args.threadId ? inFlight.replay() : NOTHING_IN_FLIGHT),
 
     publisherFor({ threadId }) {
       throw new RemotePublishRefused(threadId)
@@ -822,16 +493,11 @@ export function createRemoteDeltaChannel(args: {
 
     run: (runArgs) => {
       kickWake()
-      upstream.send({
-        kind: EClientFrame.Run,
-        ...(runArgs?.resume === true ? { resume: true } : {}),
-      })
+      upstream.send({ kind: EClientFrame.Run, ...(runArgs?.resume === true ? { resume: true } : {}) })
     },
 
     interrupt: requestInterrupt,
-
     pause: () => upstream.send({ kind: EClientFrame.Pause }),
-
     resume: () => upstream.send({ kind: EClientFrame.Resume }),
 
     syncSettings({ content }) {
@@ -841,145 +507,90 @@ export function createRemoteDeltaChannel(args: {
 
     request: (request) => {
       if (abandoned) {
-        return Promise.reject(
-          new RemoteRequestLost({ op: request.op, reason: 'the channel is closed' }),
-        )
+        return Promise.reject(new RemoteRequestLost({ op: request.op, reason: 'the channel is closed' }))
       }
-      if (connection.state === EChannelConnection.Parked && args.reattach === undefined) {
-        return Promise.reject(
-          new RemoteRequestLost({ op: request.op, reason: 'the sandbox is parked' }),
-        )
+      const parked = facts.view().state === EConnectionView.Parked
+      if (parked && args.wakeSandbox === undefined) {
+        return Promise.reject(new RemoteRequestLost({ op: request.op, reason: 'the sandbox is parked' }))
       }
       kickWake()
       return upstream.request(request)
     },
 
-    connection: () => connection,
-
-    onConnection: (listener) => connections.add(listener),
-
+    connection: () => facts.view(),
+    onConnection: (listener) => facts.onView(listener),
     onReload: (listener) => reloads.add(listener),
-
     onReady: (listener) => readies.add(listener),
-
     onInterruptAck: (listener) => interruptAcks.add(listener),
-
     onRoster: (listener) => rosters.add(listener),
     onPrStates: (listener) => prStates.add(listener),
-
     pendingEntries: () => heldPending,
-
     onPendingChanged: (listener) => pendingChanges.add(listener),
-
     onThreadRenamed: (listener) => threadRenames.add(listener),
-
     onThreadModelChanged: (listener) => threadModelChanges.add(listener),
-
     onTurnEnded: (listener) => turnEndings.add(listener),
-
     onError: (listener) => failures.add(listener),
-
     onServerError: (listener) => serverErrors.add(listener),
+    checkpoint: () => checkpoints.current(),
+    onCheckpoint: (listener) => checkpoints.onCheckpoint(listener),
 
-    checkpoint: () => heldCheckpoint,
-
-    onCheckpoint: (listener) => checkpoints.add(listener),
+    observeCheckpoint(checkpoint) {
+      if (abandoned) return
+      acceptCheckpoint(checkpoint)
+    },
 
     attachment() {
       if (url === undefined || token === undefined) return undefined
       return { url, token }
     },
 
-    wake({ url: nextUrl, token: nextToken }) {
+    wake(next) {
       if (abandoned) return
-
-      reattachments = 0
-      applyAttachment({ url: nextUrl, token: nextToken })
+      applyAttachment(next)
     },
 
     beginWake() {
+      if (abandoned || facts.facts().socket === ESocketLiveness.Open) return
+      facts.update({ waking: true, failure: null })
+    },
+
+    beginRotation() {
+      if (abandoned || facts.facts().socket === ESocketLiveness.Open) return
+      facts.update({ rotating: true })
+    },
+
+    failWake({ reason }) {
       if (abandoned) return
-      if (
-        connection.state !== EChannelConnection.Parked &&
-        connection.state !== EChannelConnection.Closed
-      ) {
-        return
-      }
-      moveTo({ state: EChannelConnection.Waking, detail: null })
+      failWake(reason)
     },
 
     reconnect() {
       if (abandoned) return
-      if (
-        connection.state !== EChannelConnection.Closed &&
-        connection.state !== EChannelConnection.Parked
-      ) {
-        return
-      }
-      const reattach = args.reattach
-      if (reattach === undefined) return
-
-      if (connection.state === EChannelConnection.Parked) {
-        reattachments = 0
-        escalate(reattach)
-        return
-      }
-      const lifecycleEscalation = args.lifecycleEscalation
-      if (lifecycleEscalation !== undefined) {
-        void lifecycleEscalation().then(
-          (verdict) => {
-            if (abandoned) return
-            if (connection.state !== EChannelConnection.Closed &&
-              connection.state !== EChannelConnection.Parked
-            ) {
-              return
-            }
-            if (verdict !== EReconnectEscalation.Reattach) return
-            reattachments = 0
-            escalate(reattach)
-          },
-          () => undefined,
-        )
-        return
-      }
-
-      reattachments = 0
-      escalate(reattach)
+      const current = facts.facts()
+      if (current.socket === ESocketLiveness.Open || current.waking) return
+      startWake()
     },
+
+    unackedSendCount: () => upstream.unackedSendCount(),
 
     detach() {
       if (abandoned) return
-      deliver({ type: 'operator-input', request: null })
-      abandoned = true
-      interruptPending = false
-      heldCheckpoint = null
-      stepId = undefined
-      inFlight = []
-      toolOutputSlots.clear()
-      working = false
-      replay = undefined
-      upstream.abandon({ reason: 'the channel detached' })
-      args.onFinished?.()
-      clearKeepalive()
-      socket?.close()
-      socket = null
+      shutDown({
+        reason: 'the channel detached',
+        beforeAbandon: () => {
+          checkpoints.forget()
+          inFlight.forget()
+        },
+      })
       detachments.emit('The session detached from the sandbox turn.')
-      moveTo({ state: EChannelConnection.Closed, detail: null })
+      facts.update({ detached: true, waking: false })
     },
 
     onDetached: (listener) => detachments.add(listener),
 
     close() {
-      deliver({ type: 'operator-input', request: null })
-      abandoned = true
-      interruptPending = false
-      endStrandedStep()
-      upstream.abandon({ reason: 'the channel was closed' })
-      args.onFinished?.()
-      clearKeepalive()
-      socket?.close()
-      socket = null
-      moveTo({ state: EChannelConnection.Closed, detail: null })
+      shutDown({ reason: 'the channel was closed', beforeAbandon: endStrandedStep })
+      facts.update({ detached: true, waking: false })
     },
   }
 }

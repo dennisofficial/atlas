@@ -1,5 +1,5 @@
 import { bornCloudWorkspaceOf } from '@dltech/atlas-core'
-import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-wire'
+import { SANDBOX_WORKSPACE_PATH } from '@dltech/atlas-wire'
 
 import { defineProjection, type PluginProjection } from '../projection'
 import { checkoutKey, checkoutOf, type RepositoryCheckout } from './pure'
@@ -37,7 +37,7 @@ export function createCloudCheckout(): PluginProjection<RepositoryCheckout | nul
         born === null
           ? null
           : checkoutOf({
-              directory: born.cwd ?? CLOUD_WORKSPACE_PATH,
+              directory: born.cwd ?? SANDBOX_WORKSPACE_PATH,
               branch: born.branch,
               remotes: [{ name: 'origin', url: born.remoteUrl }],
               defaultBranch: CLOUD_DEFAULT_BRANCHES.has(born.branch) ? born.branch : null,

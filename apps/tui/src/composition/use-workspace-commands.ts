@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 
-import { mcpReport, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { mcpReport, type DiscoveredSkill, type EConnectionView } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from './compose'
 import { localCommands, type EContainerAsk } from './commands'
+import { wakeEffect } from './commands/wake'
 import type { Conversation } from './use-conversation'
 import { reloadedSkills, type SkillsReloaded } from './skills-reload'
 import type { RewindControl } from './use-rewind'
@@ -16,6 +17,7 @@ import type { EExecutionLocation } from '@dltech/atlas-core'
 export function useWorkspaceCommands(args: {
   app: AtlasApp
   onRestart: (() => void) | null
+  cloud: { view: EConnectionView | null; wake: (() => void) | null }
   conversation: Pick<Conversation, 'handleChangeDirectory' | 'handleCompact' | 'handleRename' | 'handleRotate'>
   rewind: Pick<RewindControl, 'handleOpen'>
   settings: Pick<SettingsControl, 'handleOpen'>
@@ -33,6 +35,7 @@ export function useWorkspaceCommands(args: {
   const {
     app,
     onRestart,
+    cloud,
     conversation,
     rewind,
     settings,
@@ -47,6 +50,8 @@ export function useWorkspaceCommands(args: {
     handleRestart,
     handleQuit,
   } = args
+
+  const { view: cloudView, wake: wakeCloud } = cloud
 
   const [loadedSkills, setLoadedSkills] = useState<readonly DiscoveredSkill[]>(() =>
     app.skillRegistry.all(),
@@ -84,6 +89,7 @@ export function useWorkspaceCommands(args: {
           ? null
           : async (serverName: string) => (await mcpSignIn({ serverName })).detail,
       onRestart: onRestart === null ? null : handleRestart,
+      onWake: () => wakeEffect({ view: cloudView, wake: wakeCloud }),
       onQuit: handleQuit,
     })
   }, [
@@ -100,6 +106,8 @@ export function useWorkspaceCommands(args: {
     handleReloadSkills,
     handleRestart,
     app,
+    cloudView,
+    wakeCloud,
     onRestart,
     rewind.handleOpen,
     settings.handleOpen,

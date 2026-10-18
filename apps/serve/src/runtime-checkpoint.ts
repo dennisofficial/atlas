@@ -7,7 +7,13 @@ import {
   runtimeCheckpointFile,
   transcriptIdentityDigest,
 } from '@dltech/atlas-harness'
-import { ERuntimePhase, EServeEnv, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import {
+  ERuntimePhase,
+  EServeEnv,
+  sandboxRotationReceiptSchema,
+  type RuntimeCheckpoint,
+  type SandboxRotationReceipt,
+} from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -30,7 +36,16 @@ export type RuntimeCheckpointDeps = {
 }
 
 export type RuntimeCheckpointCapture = {
-  capture(args: { phase: ERuntimePhase }): Promise<RuntimeCheckpoint | null>
+  capture(args: {
+    phase: ERuntimePhase
+    attempts?: number | undefined
+    resume?: { parent: boolean; children?: readonly string[] | undefined } | undefined
+  }): Promise<RuntimeCheckpoint | null>
+  /**
+   * Zeroes a sealed rotation receipt's obligations through the same serialized write chain as the
+   * captures, so a cadence capture can never clobber a consumption nor the other way around.
+   */
+  consumeReceipt(args: { parent?: boolean; children?: readonly string[] | undefined }): Promise<void>
   changed(): void
   flush(args: { timeoutMs: number }): Promise<void>
   readPersisted(): Promise<RuntimeCheckpoint | null>
@@ -110,6 +125,11 @@ export function createRuntimeCheckpointCapture(
     if (queuedMirror?.phase !== ERuntimePhase.Parked) queuedMirror = checkpoint
   }
 
+  const mirrorImmediately = (phase: ERuntimePhase): boolean =>
+    phase === ERuntimePhase.Parking ||
+    phase === ERuntimePhase.Parked ||
+    phase === ERuntimePhase.Updating
+
   const ensureMirrorLatch = (): void => {
     if (mirrorActive) return
     mirrorActive = true
@@ -137,7 +157,7 @@ export function createRuntimeCheckpointCapture(
   const mirrorNow = (checkpoint: RuntimeCheckpoint): void => {
     if (cloudURL.length === 0) return
     const due =
-      checkpoint.phase === ERuntimePhase.Parked ||
+      mirrorImmediately(checkpoint.phase) ||
       registrationMissing ||
       lastMirrorAt === null ||
       now() - lastMirrorAt >= PROGRESS_MIRROR_CADENCE_MS
@@ -149,8 +169,31 @@ export function createRuntimeCheckpointCapture(
     scheduleDeferredDrain()
   }
 
+  const rotationReceiptOf = (args: {
+    checkpoint: {
+      threadId: string
+      sandboxSessionId: string
+      phase: ERuntimePhase.Updating
+      revision: number
+      runtimeId: string
+      reportedAt: string
+      transcript: RuntimeCheckpoint['transcript']
+    }
+    resume: { parent: boolean; children?: readonly string[] | undefined }
+  }): SandboxRotationReceipt =>
+    sandboxRotationReceiptSchema.parse({
+      version: 1,
+      threadId: args.checkpoint.threadId,
+      sandboxSessionId: args.checkpoint.sandboxSessionId,
+      resumeParent: args.resume.parent,
+      ...(args.resume.children === undefined ? {} : { resumeChildren: [...args.resume.children] }),
+      checkpoint: args.checkpoint,
+    })
+
   const persistCapture = async (args: {
     phase: ERuntimePhase
+    attempts?: number | undefined
+    resume?: { parent: boolean; children?: readonly string[] | undefined } | undefined
   }): Promise<RuntimeCheckpoint | null> => {
     if (sealed) return null
     if (!publishable) {
@@ -159,18 +202,44 @@ export function createRuntimeCheckpointCapture(
     }
     const events = await deps.transcript.read({ threadId: deps.threadId })
     const persisted = await readPersistedRuntimeCheckpoint({ file })
-    const checkpoint: RuntimeCheckpoint = {
+    const base = {
       threadId: deps.threadId,
       runtimeId,
       sandboxSessionId: sessionId,
       revision: (persisted?.revision ?? 0) + 1,
-      phase: args.phase,
       reportedAt: new Date(now()).toISOString(),
       transcript: {
         head: events.at(-1)?.seq ?? 0,
         count: events.length,
         digest: transcriptIdentityDigest(events),
       },
+    }
+    let checkpoint: RuntimeCheckpoint
+    if (args.phase === ERuntimePhase.Parking) {
+      checkpoint = {
+        ...base,
+        phase: ERuntimePhase.Parking,
+        ...(args.attempts === undefined ? {} : { park: { attempts: args.attempts } }),
+      }
+    } else if (args.phase === ERuntimePhase.Updating) {
+      if (args.resume === undefined) {
+        throw new Error('an updating capture requires its rotation resume payload')
+      }
+      const updatingBase = { ...base, phase: ERuntimePhase.Updating as const }
+      checkpoint = {
+        ...updatingBase,
+        receipt: rotationReceiptOf({ checkpoint: updatingBase, resume: args.resume }),
+      }
+    } else {
+      const owedReceipt =
+        persisted?.phase === ERuntimePhase.Updating || persisted?.phase === ERuntimePhase.Serving
+          ? persisted.receipt
+          : undefined
+      const owedCarries =
+        args.phase === ERuntimePhase.Serving &&
+        owedReceipt !== undefined &&
+        (owedReceipt.resumeParent || (owedReceipt.resumeChildren ?? []).length > 0)
+      checkpoint = owedCarries ? { ...base, phase: args.phase, receipt: owedReceipt } : { ...base, phase: args.phase }
     }
     try {
       await persistRuntimeCheckpoint({ file, checkpoint })
@@ -182,12 +251,12 @@ export function createRuntimeCheckpointCapture(
       })
       throw error
     }
-    if (args.phase === ERuntimePhase.Parked || args.phase === ERuntimePhase.Rotating) sealed = true
+    if (args.phase === ERuntimePhase.Parked || args.phase === ERuntimePhase.Updating) sealed = true
     mirrorNow(checkpoint)
     return checkpoint
   }
 
-  const capture = (args: { phase: ERuntimePhase }): Promise<RuntimeCheckpoint | null> => {
+  const capture: RuntimeCheckpointCapture['capture'] = (args) => {
     const capturing = captures.then(() => persistCapture(args))
     captures = capturing.then(
       () => undefined,
@@ -196,14 +265,64 @@ export function createRuntimeCheckpointCapture(
     return capturing
   }
 
+  const persistReceiptConsumption = async (args: {
+    parent?: boolean
+    children?: readonly string[] | undefined
+  }): Promise<void> => {
+    const persisted = await readPersistedRuntimeCheckpoint({ file })
+    if (
+      persisted === null ||
+      (persisted.phase !== ERuntimePhase.Updating && persisted.phase !== ERuntimePhase.Serving)
+    ) {
+      return
+    }
+    const owed = persisted.receipt
+    if (owed === undefined) return
+    const consumed = {
+      ...owed,
+      ...(args.parent === true ? { resumeParent: false } : {}),
+      ...(args.children === undefined
+        ? {}
+        : {
+            resumeChildren: (owed.resumeChildren ?? []).filter(
+              (child) => !args.children?.includes(child),
+            ),
+          }),
+    }
+    if (JSON.stringify(consumed) === JSON.stringify(owed)) return
+    const discharged = !consumed.resumeParent && (consumed.resumeChildren ?? []).length === 0
+    const { receipt: _owed, ...rest } = persisted
+    const next = { ...rest, revision: persisted.revision + 1 }
+    if (persisted.phase === ERuntimePhase.Updating) {
+      await persistRuntimeCheckpoint({
+        file,
+        checkpoint: { ...next, phase: ERuntimePhase.Updating, receipt: consumed },
+      })
+      return
+    }
+    await persistRuntimeCheckpoint({
+      file,
+      checkpoint: discharged ? { ...next, phase: ERuntimePhase.Serving } : { ...next, phase: ERuntimePhase.Serving, receipt: consumed },
+    })
+  }
+
+  const consumeReceipt: RuntimeCheckpointCapture['consumeReceipt'] = (args) => {
+    const consuming = captures.then(() => persistReceiptConsumption(args))
+    captures = consuming.then(
+      () => undefined,
+      () => undefined,
+    )
+    return consuming
+  }
+
   const changed = (): void => {
     if (sealed) return
-    pendingPhase = ERuntimePhase.Running
+    pendingPhase = ERuntimePhase.Serving
     if (capturing !== null) return
     capturing = (async (): Promise<void> => {
       while (pendingPhase !== null) {
         pendingPhase = null
-        await capture({ phase: ERuntimePhase.Running }).catch(() => null)
+        await capture({ phase: ERuntimePhase.Serving }).catch(() => null)
       }
     })().finally(() => {
       capturing = null
@@ -236,5 +355,5 @@ export function createRuntimeCheckpointCapture(
     return persisted
   }
 
-  return { capture, changed, flush, readPersisted }
+  return { capture, consumeReceipt, changed, flush, readPersisted }
 }

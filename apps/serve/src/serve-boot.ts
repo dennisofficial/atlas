@@ -11,7 +11,7 @@ import {
   threadMetaSchema,
 } from '@dltech/atlas-harness'
 
-import { driveContextArchiveFetcher, driveWorkspaceSpecFetcher } from './drive-bootstrap'
+import { bootstrapContextArchiveFetcher, bootstrapWorkspaceSpecFetcher } from './bootstrap-fetchers'
 import {
   createEnvironmentProfile,
   EProfileStepState,
@@ -37,14 +37,14 @@ export async function bootServeFiles(args: {
   env: Record<string, string | undefined>
   threadId: ThreadId
   cwd: string
-  driveHome: string
+  atlasHome: string
   log: ServeLog
   ensureWorkspace?: EnsureWorkspace | undefined
   profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
 }) {
-  const { env, threadId, cwd, driveHome, log } = args
-  const fetchSpecOnce = lazy(driveWorkspaceSpecFetcher({ driveHome }))
+  const { env, threadId, cwd, atlasHome, log } = args
+  const fetchSpecOnce = lazy(bootstrapWorkspaceSpecFetcher({ atlasHome }))
 
   const workspaceStartedAt = Date.now()
   const profile = args.profile ?? createEnvironmentProfile({ env })
@@ -73,8 +73,8 @@ export async function bootServeFiles(args: {
   const contextStartedAt = Date.now()
   const context = await materializeContext({
     fetchSpec: fetchSpecOnce,
-    fetchArchive: driveContextArchiveFetcher({ driveHome }),
-    atlasHome: driveHome,
+    fetchArchive: bootstrapContextArchiveFetcher({ atlasHome }),
+    atlasHome,
     files: args.contextFiles,
   })
   const contextMs = Date.now() - contextStartedAt
@@ -84,7 +84,7 @@ export async function bootServeFiles(args: {
     log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
   }
 
-  const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
+  const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })
   const metaFile = threadMetaFile({ sessionDir, threadId })
   if (readMetaSync({ file: metaFile, schema: threadMetaSchema }) === undefined) {
     const born = newThreadMeta({ id: threadId, at: new Date().toISOString() })
@@ -95,7 +95,7 @@ export async function bootServeFiles(args: {
     })
     await writeMeta({ file: metaFile, meta })
     await writeSessionMetaForRoot({
-      registry: registryFor({ home: driveHome }),
+      registry: registryFor({ home: atlasHome }),
       sessionDir,
       root: meta,
       home: EExecutionLocation.Cloud,

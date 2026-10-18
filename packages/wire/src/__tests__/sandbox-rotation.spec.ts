@@ -6,7 +6,7 @@ const receipt: SandboxRotationReceipt = {
   version: 1, threadId: 'root', sandboxSessionId: 'source-session', resumeParent: true,
   checkpoint: {
     threadId: 'root', sandboxSessionId: 'source-session', runtimeId: 'source-runtime', revision: 1,
-    phase: ERuntimePhase.Rotating, reportedAt: '2026-10-03T00:00:00Z',
+    phase: ERuntimePhase.Updating, reportedAt: '2026-10-03T00:00:00Z',
     transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
   },
 }
@@ -18,7 +18,7 @@ describe('sandbox preparation proof', () => {
   it('rejects legacy success and unsealed or mismatched proof', () => {
     expect(sandboxDrainReplySchema.safeParse({ ok: true, paused: true }).success).toBe(false)
     for (const checkpoint of [
-      { ...receipt.checkpoint, phase: ERuntimePhase.Running },
+      { ...receipt.checkpoint, phase: ERuntimePhase.Serving },
       { ...receipt.checkpoint, threadId: 'other' },
       { ...receipt.checkpoint, sandboxSessionId: 'other' },
     ]) expect(sandboxRotationReceiptSchema.safeParse({ ...receipt, checkpoint }).success).toBe(false)

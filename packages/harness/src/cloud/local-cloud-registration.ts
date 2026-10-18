@@ -7,12 +7,11 @@ export const registerInBackground = (args: {
   threadId: ThreadId
   token: string
   serveUrl: string
-  driveName: string
   serveVersion: string | undefined
 }): void => {
   const { registration, sendRegistration, onRegistrationFailed } = args.options
   if (registration === undefined || sendRegistration === undefined) return
-  const { threadId, token, serveUrl, driveName, serveVersion } = args
+  const { threadId, token, serveUrl, serveVersion } = args
   void Promise.resolve()
     .then(() => registration({ threadId }))
     .then((read) => {
@@ -22,7 +21,6 @@ export const registerInBackground = (args: {
           threadId,
           token,
           serveUrl,
-          driveName,
           ...(serveVersion === undefined ? {} : { serveVersion }),
           ...(read.metadata === undefined ? {} : { metadata: read.metadata }),
         },

@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { toRunId, toThreadId } from '@dltech/atlas-core'
-import { persistSandboxRotationReceipt, type TurnOutcome } from '@dltech/atlas-harness'
+import type { TurnOutcome } from '@dltech/atlas-harness'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
@@ -58,10 +58,14 @@ export async function rotationFixture() {
     threadId, atlasHome: home, env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
     token, transcript: store.log, log: () => undefined,
   })
-  const checkpoint = await capture.capture({ phase: ERuntimePhase.Rotating })
-  if (checkpoint === null) throw new Error('fixture requires a finalized checkpoint')
-  const receipt = { version: 1 as const, threadId, sandboxSessionId: sourceSession, resumeParent: true, checkpoint }
-  await persistSandboxRotationReceipt({ atlasHome: home, receipt })
+  const checkpoint = await capture.capture({
+    phase: ERuntimePhase.Updating,
+    resume: { parent: true },
+  })
+  if (checkpoint === null || checkpoint.phase !== ERuntimePhase.Updating) {
+    throw new Error('fixture requires a finalized checkpoint')
+  }
+  const receipt = checkpoint.receipt
   let boots = 0
   const boot = async (args: {
     sessionId?: string

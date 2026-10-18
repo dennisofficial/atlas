@@ -45,7 +45,6 @@ const fakeDriver = (args: { observed: boolean; vaultPresent?: boolean }) => {
         url: 'https://sb.vercel.run',
         state: ECloudSandboxState.Running,
         created: !args.observed,
-        driveName: 'drive-1',
         token: 'tok',
       }
       return placement

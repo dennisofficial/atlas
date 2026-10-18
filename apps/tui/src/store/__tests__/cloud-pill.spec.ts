@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { EChannelConnection, ESandboxState } from '@dltech/atlas-harness'
+import { EConnectionView, ESandboxState } from '@dltech/atlas-harness'
 
 import { cloudPillOf, isResting } from '../cloud-state'
 import { containerPillOf, IDLE_SIDEBAR, withCloud, type SidebarContainer } from '../sidebar-model'
@@ -21,29 +21,33 @@ describe('the cloud pill', () => {
   it('carries the connection state once attached', () => {
     expect(
       cloudPillOf({
-        connection: { state: EChannelConnection.Parked, detail: 'quiet past the TTL' },
+        connection: { state: EConnectionView.Parked, detail: null },
       }),
-    ).toEqual({ state: EChannelConnection.Parked })
+    ).toEqual({ state: EConnectionView.Parked })
+  })
+
+  it('is hidden once the session has detached', () => {
+    expect(cloudPillOf({ connection: { state: EConnectionView.Detached, detail: null } })).toBeNull()
   })
 
   it('joins the sidebar model only when it is shown', () => {
     const shown = withCloud({
       model: IDLE_SIDEBAR,
-      cloud: cloudPillOf({ connection: { state: EChannelConnection.Open, detail: null } }),
+      cloud: cloudPillOf({ connection: { state: EConnectionView.Connected, detail: null } }),
     })
-    expect(shown.cloud?.state).toBe(EChannelConnection.Open)
+    expect(shown.cloud?.state).toBe(EConnectionView.Connected)
 
     expect(withCloud({ model: IDLE_SIDEBAR, cloud: null }).cloud).toBeUndefined()
   })
 
-  it('treats connecting, reconnecting, reattaching, parked and waking as resting, and closed as not', () => {
-    expect(isResting(EChannelConnection.Connecting)).toBe(true)
-    expect(isResting(EChannelConnection.Reconnecting)).toBe(true)
-    expect(isResting(EChannelConnection.Reattaching)).toBe(true)
-    expect(isResting(EChannelConnection.Parked)).toBe(true)
-    expect(isResting(EChannelConnection.Waking)).toBe(true)
-    expect(isResting(EChannelConnection.Open)).toBe(false)
-    expect(isResting(EChannelConnection.Closed)).toBe(false)
+  it('treats waking, reconnecting, updating and parked as resting — parked is never a fault', () => {
+    expect(isResting(EConnectionView.Waking)).toBe(true)
+    expect(isResting(EConnectionView.Reconnecting)).toBe(true)
+    expect(isResting(EConnectionView.Updating)).toBe(true)
+    expect(isResting(EConnectionView.Parked)).toBe(true)
+    expect(isResting(EConnectionView.Connected)).toBe(false)
+    expect(isResting(EConnectionView.Disconnected)).toBe(false)
+    expect(isResting(EConnectionView.Detached)).toBe(false)
   })
 })
 

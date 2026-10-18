@@ -1,25 +1,26 @@
 import React from 'react'
 
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-harness'
 
 import type { SidebarCloud } from '../../../store/cloud-state'
 import { glyph, theme } from '../../theme'
 import type { Span } from '../spans'
 import { Row, Section } from './row'
 
-const markFor = (state: EChannelConnection): Span => {
+export const markFor = (state: EConnectionView): Span => {
   switch (state) {
-    case EChannelConnection.Open:
+    case EConnectionView.Connected:
       return { text: glyph.active, fg: theme.ok }
-    case EChannelConnection.Connecting:
-    case EChannelConnection.Reconnecting:
-    case EChannelConnection.Reattaching:
-    case EChannelConnection.Waking:
+    case EConnectionView.Waking:
+    case EConnectionView.Reconnecting:
+    case EConnectionView.Updating:
       return { text: glyph.active, fg: theme.warn }
-    case EChannelConnection.Parked:
+    case EConnectionView.Parked:
       return { text: glyph.available, fg: theme.rule }
-    case EChannelConnection.Closed:
+    case EConnectionView.Disconnected:
       return { text: glyph.failed, fg: theme.warn }
+    case EConnectionView.Detached:
+      return { text: glyph.failed, fg: theme.rule }
   }
 }
 

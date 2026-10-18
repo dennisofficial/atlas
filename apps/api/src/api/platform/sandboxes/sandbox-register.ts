@@ -15,7 +15,6 @@ export type RegisterSandboxArgs = {
   threadId: string
   clientToken: string
   serveUrl: string | undefined
-  driveName?: string | null | undefined
   serveVersion?: string | undefined
   metadata?: { title?: string; repo?: string; model?: string } | undefined
 }
@@ -37,7 +36,6 @@ export async function registerSandbox(
     tokenHash: hashSessionToken(args.clientToken),
     sealedToken: cipher.encrypt(args.clientToken),
     serveUrl: args.serveUrl,
-    ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
     ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
   })
   await stampRegistrationMetadata({ thread, metadata: args.metadata })

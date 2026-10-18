@@ -1,6 +1,8 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
-import { cloudConnectionItemOf, isAttaching } from '../ui/cloud-connection-item'
+import { isTransitioning } from '@dltech/atlas-harness'
+
+import { cloudConnectionItemOf } from '../ui/cloud-connection-item'
 import type { FooterItem } from '../ui/footer-item'
 import { useShimmerClock } from '../ui/hooks/use-shimmer-clock'
 import { locationPillOf } from '../ui/location-pill'
@@ -19,7 +21,7 @@ export function useLocationItems(args: {
   const chip = bornPlacementChip(args.app)
   const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
   const now = useShimmerClock({
-    active: connection !== null && isAttaching(connection.state),
+    active: connection !== null && isTransitioning(connection.state),
     intervalMs: SPINNER_FRAME_MS,
   })
 

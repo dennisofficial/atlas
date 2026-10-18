@@ -1,6 +1,6 @@
 import { Sandbox } from '@vercel/sandbox'
 
-import { DRIVE_WORKSPACE_PATH } from './sandbox-drive.js'
+import { SANDBOX_WORKSPACE_PATH } from './serve-env.js'
 
 export type SandboxStateWire = 'running' | 'parked' | 'resuming' | 'stopped' | 'unknown'
 
@@ -9,12 +9,10 @@ export const SANDBOX_SERVE_PORT = 3000
 /** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
 export const SANDBOX_MAX_PORTS = 15
 /**
- * The workspace lives on the thread's drive, mounted at the sandbox root — the sandbox's own
- * filesystem holds only the image and whatever the session installs, and `persistent: true`
- * snapshots cover that OS layer between stops. The path is told to serve rather than inferred, so
- * both halves agree.
+ * The workspace lives on the sandbox's own snapshot-persisted filesystem. The path is told to
+ * serve rather than inferred, so both halves agree.
  */
-export const WORKSPACE_PATH = DRIVE_WORKSPACE_PATH
+export const WORKSPACE_PATH = SANDBOX_WORKSPACE_PATH
 
 /** Set once at creation and never extended: an idle sandbox parks itself. */
 export const SANDBOX_TIMEOUT_MS = 4 * 60 * 60 * 1000
@@ -25,6 +23,18 @@ const ROUTE_RETRY_ATTEMPTS = 3
 const ROUTE_RETRY_DELAY_MS = 1_000
 
 export type VercelCredentials = { token: string; teamId: string; projectId: string }
+
+/** A linux-x64 serve built from a source checkout, pinned by `version` (`dev-<12 hex>`). */
+export type DevServeBinary = {
+  version: string
+  path: string
+  sha256: string
+  bytes: number
+}
+
+export type DevServeResolver = (args: {
+  log?: ((line: string) => void) | undefined
+}) => Promise<DevServeBinary>
 
 export type VercelSandboxConfig = {
   credentials: VercelCredentials
@@ -42,6 +52,11 @@ export type VercelSandboxConfig = {
    * stale. Undefined disables the check (no pinned serve to match against).
    */
   serveVersion?: string | undefined
+  /**
+   * Set only for a non-release build: resolved lazily on the first provision, its version becomes
+   * the serve pin and its binary is uploaded instead of downloaded. Overrides `serveVersion`.
+   */
+  devServe?: DevServeResolver | undefined
 }
 
 export type SandboxPlacement = {
@@ -50,8 +65,6 @@ export type SandboxPlacement = {
   state: SandboxStateWire
   /** True only when the SDK's `onCreate` hook fired: a genuinely new sandbox, not a resumed one. */
   created: boolean
-  /** The drive the sandbox mounted, so the claim row can record it. */
-  driveName: string
   /**
    * The serve token the sandbox runs with — minted on this machine unless the caller passed one in.
    * The bridge hands it to the attach so the channel and the sandbox agree without a control plane.
@@ -61,6 +74,8 @@ export type SandboxPlacement = {
   rotatedFrom?: string | undefined
   /** The wire protocol the sandbox's old serve spoke, set when the sandbox was rotated onto the pinned image. */
   rotatedProtocol?: number | undefined
+  /** The serve pin this placement was provisioned against, a resolved dev pin included. */
+  serveVersion?: string | undefined
 }
 
 export type SandboxObservation = {
@@ -119,7 +134,7 @@ export const assertLiveSession = (args: {
   )
 }
 
-const sandboxSessionIdOf = (sandbox: Sandbox): string | undefined => {
+export const sandboxSessionIdOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.currentSession().sessionId
   } catch {
