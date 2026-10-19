@@ -8,22 +8,26 @@ const STUBBED_PROBES = ['gh', 'gpgconf']
 
 export const stubHostProbes = (): void => {
   let directory: string | undefined
-  let previousPath: string | undefined
+  let replaced: { previousPath: string | undefined } | undefined
 
   beforeAll(() => {
-    directory = mkdtempSync(join(tmpdir(), 'atlas-host-probes-'))
+    const stubs = mkdtempSync(join(tmpdir(), 'atlas-host-probes-'))
+    directory = stubs
     for (const name of STUBBED_PROBES) {
-      const stub = join(directory, name)
+      const stub = join(stubs, name)
       writeFileSync(stub, '#!/bin/sh\nexit 1\n')
       chmodSync(stub, 0o755)
     }
-    previousPath = process.env.PATH
-    process.env.PATH = [directory, previousPath].filter((one) => one !== undefined).join(delimiter)
+    const previousPath = process.env.PATH
+    replaced = { previousPath }
+    process.env.PATH = [stubs, previousPath].filter((one) => one !== undefined).join(delimiter)
   })
 
   afterAll(() => {
-    if (previousPath === undefined) delete process.env.PATH
-    else process.env.PATH = previousPath
+    if (replaced !== undefined) {
+      if (replaced.previousPath === undefined) delete process.env.PATH
+      else process.env.PATH = replaced.previousPath
+    }
     if (directory !== undefined) rmSync(directory, { recursive: true, force: true })
   })
 }
