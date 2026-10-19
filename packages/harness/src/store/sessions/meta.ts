@@ -74,6 +74,7 @@ export const threadMetaSchema = z.object({
   modelRef: z.string().nullable(),
   modelEffort: z.string().nullable(),
   executionLocation: z.string().nullable(),
+  runner: z.string().nullish(),
   placement: z
     .object({
       placement: z.union([
@@ -111,6 +112,7 @@ export function newThreadMeta({ id, at }: { id: string; at: string }): ThreadMet
     modelRef: null,
     modelEffort: null,
     executionLocation: null,
+    runner: null,
     placement: null,
     parkedTranscript: null,
   }

@@ -1,4 +1,4 @@
-import { consumeDaemonProgress } from './image-pull'
+import { pullImageOrFail } from './image-pull'
 import { parseBoundPorts, type BoundPort, type PortBinding } from './ports'
 import { asLabels, asNumber, asRecord, asString, raw, request, EngineRequestFailed } from './engine-http'
 import { DockerImages } from './engine-images'
@@ -162,12 +162,10 @@ export class DockerEngine {
         ) {
           throw error
         }
-        const response = await this.raw({
-          method: 'POST',
-          path: '/images/create',
-          query: { fromImage: args.body.Image },
+        await pullImageOrFail({
+          image: args.body.Image,
+          pull: () => this.raw({ method: 'POST', path: '/images/create', query: { fromImage: args.body.Image } }),
         })
-        await consumeDaemonProgress({ response, what: `Pulling ${args.body.Image}` })
         return create()
       }),
     )

@@ -537,6 +537,10 @@ class WatchedThreadStore extends ThreadStorePort {
     return this.inner.chooseModel(args)
   }
 
+  override chooseRunner(args: Parameters<ThreadStorePort['chooseRunner']>[0]) {
+    return this.inner.chooseRunner(args)
+  }
+
   chooseExecutionLocation(args: Parameters<ThreadStorePort['chooseExecutionLocation']>[0]) {
     this.trail.push('flip')
     return this.inner.chooseExecutionLocation(args)

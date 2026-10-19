@@ -10,6 +10,7 @@ import {
   toCallId,
   toEventId,
   toRunId,
+  type ERunner,
   type IdPort,
   type PlacementRecord,
   type ThreadId,
@@ -64,6 +65,7 @@ export type FakeThreadStore = ThreadStorePort & {
   readonly renames: readonly { threadId: ThreadId; title: string }[]
   readonly chosenModels: readonly { threadId: ThreadId; model: ThreadModel }[]
   readonly chosenLocations: readonly { threadId: ThreadId; location: EExecutionLocation }[]
+  readonly chosenRunners: readonly { threadId: ThreadId; runner: ERunner }[]
   /** Drops an already-known thread row in whole, for a fake serve materializing an uploaded transcript. */
   seedThread(row: ThreadSummary): void
   peekRow(args: { threadId: ThreadId }): ThreadSummary | undefined
@@ -104,6 +106,7 @@ export function fakeThreadStore(
   const renames: { threadId: ThreadId; title: string }[] = []
   const chosenModels: { threadId: ThreadId; model: ThreadModel }[] = []
   const chosenLocations: { threadId: ThreadId; location: EExecutionLocation }[] = []
+  const chosenRunners: { threadId: ThreadId; runner: ERunner }[] = []
   const renameListeners = new Set<RenameListener>()
   const modelChosenListeners = new Set<ModelChosenListener>()
 
@@ -347,6 +350,16 @@ export function fakeThreadStore(
       disk?.chooseModel({ threadId, model })
       await disk?.writeThreadMeta({ threadId })
       for (const listener of [...modelChosenListeners]) listener({ threadId, model })
+    },
+
+    get chosenRunners() {
+      return chosenRunners
+    },
+
+    async chooseRunner({ threadId, runner }) {
+      chosenRunners.push({ threadId, runner })
+      const row = rows.find((held) => held.id === threadId)
+      if (row !== undefined) row.runner = runner
     },
 
     onPlacementChanged() {

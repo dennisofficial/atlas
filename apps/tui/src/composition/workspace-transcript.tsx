@@ -64,7 +64,11 @@ export function WorkspaceTranscript(props: {
   const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
   const placement =
     unplaced !== null && unplaced.threadId === conversation.threadId
-      ? { harness: unplaced.harness, provisioning: unplaced.provisioning }
+      ? {
+          harness: unplaced.harness,
+          runner: unplaced.runner,
+          provisioning: unplaced.provisioning,
+        }
       : null
   const attachClosed =
     cloudSession === null &&

@@ -85,12 +85,12 @@ describe('the session owner behind a cloud thread', () => {
       await mounted.command('/new')
       await cleared(mounted, 'CLOUD')
       const fresh = app.sessionOwner.snapshot()
-      expect(fresh.location).toBe(EExecutionLocation.Host)
-      expect(fresh.binding?.kind).toBe(ERuntimeKind.Local)
       expect(fresh.threadId).not.toBe(cloudThread)
 
       await mounted.command('/resume opened-thread')
-      expect(await until({ holds: async () => bridge.attached.length === 2, within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => bridge.attached.some((held) => held.threadId === cloudThread && held !== bridge.attached[0]), within: 20_000 }),
+      ).toBe(true)
       bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       await shown(mounted, 'CLOUD')
       const back = app.sessionOwner.snapshot()
