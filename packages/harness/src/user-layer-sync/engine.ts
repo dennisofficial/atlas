@@ -8,7 +8,18 @@ import { UserLayerSyncPort } from './port'
 import { pullTree } from './pull'
 import { pushTree } from './push'
 import { UserLayerState } from './state'
-import { watchUserLayer, type UserLayerWatchHandle } from './watcher'
+import { watchUserLayer, type UserLayerWatchHandle, type WatchDirectory } from './watcher'
+
+// macOS fs.watch drops events for a few milliseconds after the watch is created.
+export const ATTACH_RECHECK_DELAY_MS = 50
+
+export type Schedule = (args: { run: () => void; delayMs: number }) => () => void
+
+const scheduleTimeout: Schedule = ({ run, delayMs }) => {
+  const timer = setTimeout(run, delayMs)
+  timer.unref()
+  return () => clearTimeout(timer)
+}
 
 export type UserLayerSyncEngineArgs = {
   client: UserLayerSyncClient
@@ -17,6 +28,8 @@ export type UserLayerSyncEngineArgs = {
   log: LogPort
   notice?: NoticePort | undefined
   debounceMs?: number | undefined
+  watch?: WatchDirectory | undefined
+  schedule?: Schedule | undefined
 }
 
 export class UserLayerSyncEngine extends UserLayerSyncPort {
@@ -27,6 +40,8 @@ export class UserLayerSyncEngine extends UserLayerSyncPort {
   private applying = false
   private missedWhileApplying = false
   private stopped = false
+  private watchDelivered = false
+  private cancelAttachRecheck: (() => void) | null = null
 
   constructor(private readonly args: UserLayerSyncEngineArgs) {
     super()
@@ -47,6 +62,8 @@ export class UserLayerSyncEngine extends UserLayerSyncPort {
 
   stop(): void {
     this.stopped = true
+    this.cancelAttachRecheck?.()
+    this.cancelAttachRecheck = null
     this.watcher?.close()
     this.watcher = null
   }
@@ -59,12 +76,27 @@ export class UserLayerSyncEngine extends UserLayerSyncPort {
       this.watcher = watchUserLayer({
         targets: async () => (await Promise.all(this.args.trees.map((tree) => tree.watchTargets()))).flat(),
         onChange: () => this.handleChange(),
+        onEvent: () => {
+          this.watchDelivered = true
+        },
         debounceMs: this.args.debounceMs,
+        watch: this.args.watch,
       })
       await this.watcher.refresh()
+      if (this.stopped) return
+      this.cancelAttachRecheck = (this.args.schedule ?? scheduleTimeout)({
+        run: () => this.handleAttachRecheck(),
+        delayMs: ATTACH_RECHECK_DELAY_MS,
+      })
+      await this.enqueue(() => this.reconcile())
     } catch (error) {
       warnSync({ log: this.args.log, message: 'user-layer sync did not start', error })
     }
+  }
+
+  private handleAttachRecheck(): void {
+    if (this.watchDelivered) return
+    void this.enqueue(() => this.reconcile())
   }
 
   private handleChange(): void {
