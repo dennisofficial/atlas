@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { hydrateEnvFromTierFile } from '../src/api/hydrate-env'
 
-const DOTENVX = join(__dirname, '..', 'node_modules', '.bin', 'dotenvx')
+const DOTENVX = join(import.meta.dirname, '..', 'node_modules', '.bin', 'dotenvx')
 
 let fixtureDir: string
 let privateKey: string

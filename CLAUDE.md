@@ -81,10 +81,11 @@ extended by harness) with its slots, and `composeHarness` requires the full mani
 feature isn't done when the loop works; it's done when its port is registered with all its
 bindings, and adding one without them breaks typecheck in both apps.
 
-**`api` runs on Node, not Bun, and tests with vitest, not `bun test`.** Nest's dependency
-injection needs legacy decorators with emitted metadata, which Bun's transpiler silently drops —
-this is the same constraint that bars tsyringe decorators elsewhere in the repo, answered the
-other way. `apps/api/AGENTS.md` holds its conventions (env tiers, module layout, testing tiers).
+**`api` runs on Bun (NestJS 12) and tests with vitest, not `bun test`.** Bun executes Nest's
+constructor `@Inject(...)` decorators under the api's tsconfig — `test/bun-runtime.spec.ts` boots
+the real app under `bun` and proves it. vitest stays because its transform needs `unplugin-swc` to
+emit decorator metadata; `bun test` takes a different transpile path (see "Dependency injection"
+below). `apps/api/AGENTS.md` holds its conventions (env tiers, module layout, testing tiers).
 
 ## `deprecated/`
 

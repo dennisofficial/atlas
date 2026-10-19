@@ -6,8 +6,6 @@ on:
     paths:
       # mirrors the build context of apps/api/Dockerfile — update both together
       - apps/api/**
-      - packages/core/**
-      - packages/harness/**
       - packages/wire/**
       - packages/ui/package.json
       - apps/tui/package.json

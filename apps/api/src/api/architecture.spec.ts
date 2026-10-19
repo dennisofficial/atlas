@@ -18,7 +18,7 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
 // still fails.
 const ALLOWED_EXTERNAL = /^@dltech\/atlas-wire(?:\/|$)/
 
-const API_ROOT = __dirname
+const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)
 
 // Edges that existed when the layers were drawn (Phase 0). Each one is real

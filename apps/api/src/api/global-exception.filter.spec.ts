@@ -50,7 +50,11 @@ const THROWERS: Record<string, () => never> = {
     throw new Error('connection string postgres://user:pw@host leaked')
   },
   httperror: () => {
-    throw Object.assign(new Error('request entity too large'), { statusCode: 413 })
+    throw Object.assign(new Error('request entity too large'), {
+      statusCode: 413,
+      status: 413,
+      expose: true,
+    })
   },
 }
 

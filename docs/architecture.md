@@ -1640,9 +1640,8 @@ atlas/
 
 `deprecated/` is not a Bun workspace member. It is read for prior art and never imported.
 
-`api` is the one member that does not run on Bun: Nest's DI needs legacy decorators with
-emitted metadata, which Bun's transpiler silently drops, so `api` compiles with `tsc` (CommonJS,
-NodeNext), runs on Node, and tests with vitest + unplugin-swc. It also performs no model calls —
+`api` runs on Bun like every other member, as ESM with no build step (`bun src/main.ts`, Nest 12),
+and tests with vitest + unplugin-swc, whose transform emits the decorator metadata. It also performs no model calls —
 it holds users, organizations, and sealed credentials, and clients (the TUI first) fetch from it
 over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
 
