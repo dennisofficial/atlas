@@ -1,75 +1,17 @@
-import type { IncomingMessage, ServerResponse } from 'node:http'
-import { ValidationPipe, VersioningType } from '@nestjs/common'
-import { HttpAdapterHost, NestFactory } from '@nestjs/core'
-import type { NestExpressApplication } from '@nestjs/platform-express'
-import type { Express } from 'express'
-import helmet from 'helmet'
-import { envConfigValidation } from './_core/config/env/validation'
-import { GlobalExceptionFilter } from './api/global-exception.filter'
+import { createApp } from './create-app'
 import { registerGracefulShutdown } from './api/graceful-shutdown'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
-import { JSON_BODY_LIMIT, userFileJsonParser } from './_lib/body-limits'
-import { GITHUB_WEBHOOK_BODY_LIMIT, webhookJsonParser } from './_lib/webhook-body-limit'
 import { DrainStateService } from './api/platform/health/drain-state.service'
+import { validateEnvironment } from './api/validate-environment'
 
-const VALIDATION_PIPE_OPTIONS = {
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transform: true,
-  transformOptions: { enableImplicitConversion: true },
-}
+hydrateEnvFromTierFile()
+validateEnvironment()
 
-function validateEnvironment(): void {
-  const { error } = envConfigValidation.validate(process.env, {
-    allowUnknown: true,
-    abortEarly: false,
-  })
-  if (error) {
-    throw new Error(`invalid environment:\n${error.message}`)
-  }
-}
+const app = await createApp()
 
-async function createApp(): Promise<NestExpressApplication> {
-  hydrateEnvFromTierFile()
-  validateEnvironment()
+registerGracefulShutdown({
+  beginDrain: () => app.get(DrainStateService).beginDrain(),
+  closeApp: () => app.close(),
+})
 
-  const { AppModule } = await import('./api/app.module.js')
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true })
-
-  app.use(helmet())
-  // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
-  // verified only after buffering, so anything bigger must be refused before it is read.
-  app.use('/v1/github/webhooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
-  app.use('/v1/github/hooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
-  app.use('/v1/user-files', userFileJsonParser())
-  app.useBodyParser('json', { limit: JSON_BODY_LIMIT })
-  app.set('trust proxy', 1)
-  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-  app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))
-  app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter))
-
-  await app.init()
-  return app
-}
-
-const ready = createApp()
-
-export default async function handler(
-  request: IncomingMessage,
-  response: ServerResponse,
-): Promise<void> {
-  const app = await ready
-  const instance: Express = app.getHttpAdapter().getInstance()
-  instance(request, response)
-}
-
-if (process.env.VERCEL !== '1') {
-  void ready.then(async (app) => {
-    registerGracefulShutdown({
-      beginDrain: () => app.get(DrainStateService).beginDrain(),
-      closeApp: () => app.close(),
-    })
-
-    await app.listen(Number(process.env.PORT ?? 3400))
-  })
-}
+await app.listen(Number(process.env.PORT ?? 3400))

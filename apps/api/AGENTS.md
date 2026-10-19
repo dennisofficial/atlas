@@ -35,8 +35,12 @@ src/
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
   db/         the lazy `db` client proxy + generated-client type re-exports.
-  main.ts     the entrypoint — boots the app, hydrating env from the tier file when a
-              DOTENV_PRIVATE_KEY is present; also default-exports the handler (harmless).
+  create-app.ts  composes the Nest app (parsers, pipes, filters) and inits it; never listens.
+  main.ts     the long-lived server — hydrates env from the tier file when a DOTENV_PRIVATE_KEY
+              is present, validates env, createApp(), graceful shutdown, listen.
+  vercel.ts   the Vercel function entry — decrypts the shipped tier (vercel-tier-env.ts),
+              validates env, createApp(), default-exports the Express instance.
+build.ts      bundles vercel.ts into a Build Output API v3 directory (see "Vercel bundle").
 prisma/       schema + migrations only (the client wrapper moved to src/db).
 envs/         dotenvx tier files (.env.api.<tier>.enc, committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
@@ -145,6 +149,31 @@ no restore to make.
 applied, so drift fails the health check and DO holds the previous release rather than serving
 500s. A database it cannot reach is reported as `unknown` and stays healthy — a cold start is
 not drift.
+
+## Vercel bundle
+
+`bun run build` (`prisma generate`, then `build.ts`) writes `.vercel/output`: `Bun.build` bundles
+`src/vercel.ts` into one `index.js` (`target: 'bun'`, ESM), plus `config.json` routing everything to
+the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). The committed
+`envs/.env.api.production.enc` is copied into the function; Vercel holds only
+`DOTENV_PRIVATE_KEY_API_PRODUCTION`, and `DOTENVX_ENVS_DIR=.` in `.vc-config.json` makes
+`vercel-tier-env.ts` decrypt it at boot (fatal if the file is missing or any value stays
+`encrypted:`). The migration directory names are inlined at build time as
+`__ATLAS_SHIPPED_MIGRATIONS__`, because the bundle has no `prisma/migrations` directory for
+`shippedMigrationNames()` to read.
+
+`OPTIONAL_IMPORTS` in `build.ts` lists only packages that a dependency imports lazily behind a
+feature check and this API never installs; every entry carries its reason, and any other
+unresolved import must fail the build. `class-validator` and `class-transformer` stay bundled.
+
+`src/vercel-bundle.integration.spec.ts` builds the real output, serves it with
+`test/serve-bundle.ts` against a throwaway `postgres:17-alpine` container, and hits health, 401,
+bearer-authenticated, DTO validation, better-auth and the HMAC webhook. It runs only with
+`ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it after adding any module or
+dependency: it is what catches an import the bundle misses.
+
+The Deploy section below is still the live path until cutover; `vercel.json` is inert until the
+`atlas-api` Vercel project is git-connected.
 
 ## Auth
 

@@ -27,7 +27,7 @@ COPY --from=deps /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY apps/api ./apps/api
 COPY tsconfig.base.json ./tsconfig.base.json
 COPY packages/wire ./packages/wire
-RUN cd apps/api && bun run build
+RUN cd apps/api && bun run db:generate
 
 FROM node:22.13.1-slim AS runtime
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
