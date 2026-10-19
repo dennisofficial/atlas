@@ -116,6 +116,7 @@ describeDocker('pod lifecycle against a live daemon', () => {
     serveVersion: undefined,
     provisionLock: fileProvisionLock({ directory: join(tmpdir(), 'atlas-pod-locks') }),
     cloudUrl: 'http://127.0.0.1:1',
+    home: join(tmpdir(), 'atlas-pod-lifecycle-live-home'),
     log: (line) => console.log(`[driver] ${line}`),
   })
   const parkedToken = `live-${randomUUID()}`
