@@ -9,6 +9,7 @@ import { type Criterion, PARK_WITHIN_MS, concluded, frameNoteOf, messageOf, stan
 import type { BoxProbe } from './rig-probes'
 import { serveSessionMatchesLive, stopRefusalsInServeLog } from './rig-session-check'
 import { assistantSaid, transcriptLines, transcriptOf, userSaidCount, type TranscriptEvent } from './rig-transcript'
+import { rigSentinelPath } from './rig-workspace'
 
 const ID = 3
 const SLUG = 'wake-on-send'
@@ -22,7 +23,6 @@ const WAKE_EVERY_MS = 5_000
 const SERVING_WITHIN_MS = 90_000
 const SERVING_EVERY_MS = 5_000
 const PROBE_LOG_LINES = 60
-const SENTINEL_PATH = '/opt/atlas/workspaces/workspace/rig-sentinel.txt'
 const USER_SAID = 'user-said'
 
 type Run = { ctx: ScenarioContext; rig: RigApp; watch: ChannelWatch; observations: Observation[] }
@@ -84,7 +84,10 @@ const waitForServing = async (ctx: ScenarioContext): Promise<{ probe: BoxProbe |
 
 const readSentinel = async (ctx: ScenarioContext): Promise<string> => {
   try {
-    return await ctx.probes.sh({ name: ctx.sandboxName(), script: `cat ${SENTINEL_PATH}` })
+    return await ctx.probes.sh({
+      name: ctx.sandboxName(),
+      script: `cat ${rigSentinelPath({ repo: ctx.shared.get('repo') })}`,
+    })
   } catch (error) {
     return `(read failed: ${messageOf(error)})`
   }
@@ -156,7 +159,7 @@ async function runWakeSend(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     logTail = serving.probe?.logTail ?? logTail
     await observe({ run, step: 'box record', probe: serving.probe, note: serving.error === null ? undefined : `probe failed: ${serving.error}` })
 
-    commands.push(`cat ${SENTINEL_PATH}`)
+    commands.push(`cat ${rigSentinelPath({ repo: ctx.shared.get('repo') })}`)
     const expectedSentinel = ctx.shared.get('sentinel') ?? null
     const sentinel = await readSentinel(ctx)
     const session = await serveSessionMatchesLive(ctx)
