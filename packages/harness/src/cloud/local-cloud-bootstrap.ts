@@ -3,21 +3,19 @@ import type { ThreadId } from '@dltech/atlas-core'
 import { SANDBOX_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { VercelDriver } from './vercel-driver'
 import type { WorkspaceSpec } from './cloud-bridge'
+import type { RunnerDriver } from './runner-driver'
 
 export type LiveSandbox = Parameters<
   NonNullable<Parameters<VercelDriver['createOrResume']>[0]['putContextOnFreshBoot']>
 >[0]
 
-export type BridgeDriver = Pick<
-  VercelDriver,
-  | 'createOrResume'
-  | 'inspect'
-  | 'writeBootstrapFileToSandbox'
-  | 'writeBootstrapFile'
-  | 'readResources'
-  | 'updateResources'
-  | 'destroy'
->
+export type BridgeDriver = RunnerDriver<LiveSandbox> & {
+  writeBootstrapFileToSandbox(args: {
+    sandbox: LiveSandbox
+    path: string
+    content: Uint8Array | string
+  }): Promise<void>
+}
 
 export const BOOTSTRAP_DIRECTORY = `${SANDBOX_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
