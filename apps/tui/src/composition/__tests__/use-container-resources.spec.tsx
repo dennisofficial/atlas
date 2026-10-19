@@ -1,7 +1,9 @@
+import { EResizeApplies } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import {
   DEFAULT_SANDBOX_VCPUS,
   EResourcesPhase,
@@ -17,7 +19,7 @@ type Probe = { control: ContainerResourcesControl | null }
 
 function ControlProbe(props: {
   readResources: () => Promise<{ vcpus?: number; memoryMb?: number }>
-  updateResources: (vcpus: number) => Promise<void>
+  updateResources: (vcpus: number) => Promise<{ appliesAt: EResizeApplies }>
   probe: Probe
 }): React.ReactNode {
   props.probe.control = useContainerResources({
@@ -32,6 +34,7 @@ const arrange = async (args: {
   readFails?: boolean
   applied?: number[]
   updateFails?: boolean
+  appliesAt?: EResizeApplies
 }): Promise<{ probe: Probe; flush: () => Promise<void> }> => {
   const probe: Probe = { control: null }
   const setup = await testRender(
@@ -44,6 +47,7 @@ const arrange = async (args: {
       updateResources={async (vcpus) => {
         if (args.updateFails === true) throw new Error('plan ceiling')
         args.applied?.push(vcpus)
+        return { appliesAt: args.appliesAt ?? EResizeApplies.Restart }
       }}
     />,
     { width: 60, height: 10 },
@@ -57,6 +61,8 @@ const arrange = async (args: {
 }
 
 describe('useContainerResources', () => {
+  afterEach(() => dismissNotice())
+
   it('opens at the allocation the provider reports, clamped onto the steps', async () => {
     const { probe, flush } = await arrange({ live: 4 })
     probe.control?.handleOpen()
@@ -124,6 +130,23 @@ describe('useContainerResources', () => {
 
     expect(applied).toEqual([4])
     expect(probe.control?.state).toBe(null)
+  })
+
+  it.each([
+    [EResizeApplies.Live, 'sandbox resized to 4 vCPU · 8 GB (live)'],
+    [EResizeApplies.Restart, 'sandbox resized to 4 vCPU · 8 GB — applies at next wake'],
+  ])('announces a %s resize as "%s"', async (appliesAt, text) => {
+    const { probe, flush } = await arrange({ live: 2, appliesAt })
+    probe.control?.handleOpen()
+    await flush()
+    await flush()
+    probe.control?.handleKey(key('right'))
+    await flush()
+    probe.control?.handleKey(key('return'))
+    await flush()
+    await flush()
+
+    expect(currentNotices().map((notice) => notice.text)).toEqual([text])
   })
 
   it('keeps the overlay open with the provider error when the apply fails', async () => {

@@ -13,9 +13,14 @@ import { sessionMirrorWriter } from './session-mirror-writer'
 import type { CloudBridge, CloudSandboxes } from './cloud-bridge'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 
+export type AttachOptions = Pick<
+  LocalCloudBridgeOptions,
+  'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'onMirrorRecovered' | 'sessionMirror'
+>
+
 export const attachmentOf =
   (args: {
-    options: Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'onMirrorRecovered' | 'sessionMirror'>
+    options: AttachOptions
     sandboxes: CloudSandboxes
   }): CloudBridge['attach'] =>
   ({ threadId, url, token, sandboxThreadId }: { threadId: ThreadId; url: string; token: string; sandboxThreadId?: ThreadId | undefined }) => {

@@ -20,7 +20,12 @@ export const podRoleLabel = `${POD_LABEL_PREFIX}.role`
 
 export const POD_ROLE = 'pod'
 
-export const POD_MEMORY_RESERVATION_BYTES = 512 * 1024 * 1024
+export const MEMORY_MB_PER_VCPU = 2048
+
+export const MIB = 1024 * 1024
+
+export const memoryReservationBytesFor = (args: { vcpus: number }): number =>
+  args.vcpus * MEMORY_MB_PER_VCPU * MIB
 
 export const POD_NAME_ENV = 'ATLAS_POD_NAME'
 
@@ -88,7 +93,7 @@ export function podCreateBody(args: PodCreateArgs): CreateContainerBody {
         { Type: 'volume', Source: dindVolumeNameFor(args), Target: DIND_STORAGE_PATH },
       ],
       NanoCpus: args.vcpus * 1e9,
-      MemoryReservation: POD_MEMORY_RESERVATION_BYTES,
+      MemoryReservation: memoryReservationBytesFor({ vcpus: args.vcpus }),
       PortBindings: {
         [servePort]: loopbackBinding(args.serveHostPort),
         [ingressPort]: loopbackBinding(args.ingressHostPort),

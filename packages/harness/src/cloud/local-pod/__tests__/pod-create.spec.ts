@@ -7,11 +7,11 @@ import { SANDBOX_HOME_PATH, SANDBOX_WORKSPACES_PATH } from '@dltech/atlas-wire'
 import {
   DEFAULT_POD_IMAGE,
   dindVolumeNameFor,
+  memoryReservationBytesFor,
   podCreateBody,
   podNameFor,
   podRoleLabel,
   podThreadLabel,
-  POD_MEMORY_RESERVATION_BYTES,
   workspaceVolumeNameFor,
   type PodCreateArgs,
 } from '../pod-create'
@@ -76,8 +76,9 @@ describe('podCreateBody', () => {
     const hostConfig = podCreateBody(baseArgs).HostConfig
 
     expect(hostConfig?.NanoCpus).toBe(2e9)
-    expect(hostConfig?.MemoryReservation).toBe(512 * 1024 * 1024)
-    expect(POD_MEMORY_RESERVATION_BYTES).toBe(512 * 1024 * 1024)
+    expect(hostConfig?.MemoryReservation).toBe(2 * 2048 * 1024 * 1024)
+    expect(memoryReservationBytesFor({ vcpus: 2 })).toBe(2 * 2048 * 1024 * 1024)
+    expect(podCreateBody({ ...baseArgs, vcpus: 4 }).HostConfig?.MemoryReservation).toBe(4 * 2048 * 1024 * 1024)
     expect(hostConfig).not.toHaveProperty('Memory')
   })
 
