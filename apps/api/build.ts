@@ -6,6 +6,9 @@ import { assertNoRuntimeRequires, bundleBetterAuthExpress } from './build-plugin
 
 const TIER_FILE = '.env.api.production.enc'
 
+// Bun auto-installs any package it cannot resolve at import time (https://bun.com/docs/runtime/autoimport) — including the externals Nest imports lazily behind a try/catch — and that write fails the whole process on Vercel's read-only filesystem rather than throwing a catchable resolve error.
+const FUNCTION_BUNFIG = '[install]\nauto = "disable"\n'
+
 const OPTIONAL_IMPORTS = [
   // Nest core loads it only for hybrid/microservice apps.
   '@nestjs/microservices',
@@ -81,6 +84,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     throw new Error(`${TIER_FILE} not found at ${tierSource}; the committed tier must exist to ship in the bundle.`)
   }
   await cp(tierSource, join(functionDir, TIER_FILE))
+  await writeFile(join(functionDir, 'bunfig.toml'), FUNCTION_BUNFIG)
 
   await writeJson({
     path: join(functionDir, '.vc-config.json'),

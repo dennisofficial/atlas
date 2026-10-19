@@ -166,20 +166,25 @@ the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). 
 feature check and this API never installs; every entry carries its reason, and any other
 unresolved import must fail the build. `class-validator` and `class-transformer` stay bundled.
 
-`src/vercel-bundle.integration.spec.ts` builds the real output, copies the function directory to a
-tmp dir outside the repo and serves it there with `test/serve-bundle.ts` under `bun --no-install`
-and an empty HOME, the way Vercel's read-only filesystem sees it — so a package the bundle left out
-fails the spec instead of resolving from `node_modules`. It runs against a throwaway
-`postgres:17-alpine` container and hits health, 401, bearer-authenticated, DTO validation,
-better-auth and the HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` (CI sets it) and is
-skipped otherwise. Run it after adding any module or dependency: it is what catches an import the
-bundle misses.
+`src/vercel-bundle.integration.spec.ts` builds the real output and serves the function directory
+from a `docker run --read-only` container of the same Bun image the Dockerfile pins
+(`test/bundle-container.ts`), with HOME on the read-only mount — the way Vercel's filesystem sees
+it, so a package the bundle left out fails the spec instead of resolving from `node_modules`. A
+host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
+on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
+a spec-owned network and hits health, 401, bearer-authenticated, DTO validation, better-auth and the
+HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it
+after adding any module or dependency: it is what catches an import the bundle misses.
 
-A dependency that loads a package through `createRequire()` hides it from `Bun.build`; Bun then
-tries to auto-install it at boot and dies on Vercel's read-only filesystem. `build-plugins.ts`
-rewrites the one known case (`@thallesp/nestjs-better-auth`'s express body parser) to a bundled
-import and fails the build if that library's source changes, and `build.ts` rejects any other
-runtime `createRequire` of a bare package not listed in `RUNTIME_REQUIRE_ALLOWED`.
+Bun auto-installs any package it cannot resolve at import time, and on a read-only filesystem that
+write kills the process instead of throwing a catchable resolve error. Two things guard against it.
+`build.ts` ships a `bunfig.toml` with `[install] auto = "disable"` inside the function, so the
+externals Nest imports lazily (`OPTIONAL_IMPORTS`) fail as ordinary, caught resolve errors. And a
+dependency that loads a package through `createRequire()` hides it from `Bun.build`, so
+`build-plugins.ts` rewrites the one known case (`@thallesp/nestjs-better-auth`'s express body
+parser) to a bundled import, failing the build if that library's source changes, while `build.ts`
+rejects any other runtime `createRequire` of a bare package not listed in
+`RUNTIME_REQUIRE_ALLOWED`.
 
 The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
 `apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
