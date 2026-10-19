@@ -7,6 +7,11 @@ import {
   SERVE_VERSION_PATH,
 } from './serve-env.js'
 
+export enum EServeArch {
+  X64 = 'x64',
+  Arm64 = 'arm64',
+}
+
 const INSTALL_COMMAND_TIMEOUT_MS = 5 * 60 * 1000
 
 const RELEASE_REPOSITORY = 'dennisofficial/atlas'
@@ -17,8 +22,9 @@ const releaseTagOf = (version: string | undefined): string =>
 const installScriptUrlOf = (version: string | undefined): string =>
   `https://raw.githubusercontent.com/${RELEASE_REPOSITORY}/${releaseTagOf(version)}/install.sh`
 
-export const serveInstallScript = (args: { version: string | undefined }): string => {
+export const serveInstallScript = (args: { version: string | undefined; arch?: EServeArch }): string => {
   const version = args.version ?? ''
+  const asset = `atlas-serve-linux-${args.arch ?? EServeArch.X64}`
   const tag = releaseTagOf(args.version)
   const downloadBase =
     args.version === undefined
@@ -27,8 +33,8 @@ export const serveInstallScript = (args: { version: string | undefined }): strin
   return [
     'set -eu',
     `_tmp=$(mktemp -d) && trap 'rm -rf "$_tmp"' EXIT`,
-    `curl -fsSL "${downloadBase}/atlas-serve-linux-x64" -o "$_tmp/atlas-serve"`,
-    `curl -fsSL "${downloadBase}/atlas-serve-linux-x64.sha256" -o "$_tmp/atlas-serve.sha256"`,
+    `curl -fsSL "${downloadBase}/${asset}" -o "$_tmp/atlas-serve"`,
+    `curl -fsSL "${downloadBase}/${asset}.sha256" -o "$_tmp/atlas-serve.sha256"`,
     `_expected=$(awk '{print $1}' "$_tmp/atlas-serve.sha256")`,
     `_actual=$(sha256sum "$_tmp/atlas-serve" | awk '{print $1}')`,
     `[ "$_actual" = "$_expected" ] || { echo "atlas-serve sha256 mismatch: got $_actual want $_expected" >&2; exit 1; }`,

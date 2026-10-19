@@ -51,6 +51,13 @@ jobs:
         run: bun run build:serve
         working-directory: apps/serve
 
+      - name: fetch every platform's optional binaries
+        run: bun install --os='*' --cpu='*'
+
+      - name: build serve binary (linux-arm64)
+        run: bun run build:serve -- --target bun-linux-arm64 --outfile "$RUNNER_TEMP/atlas-serve-linux-arm64"
+        working-directory: apps/serve
+
   # One TUI shard per runner: parallel bun processes on one 4-core runner starve the
   # settle-based render specs into flakes, but separate runners have separate cores
   test-tui:
@@ -249,7 +256,9 @@ jobs:
         run: |
           set -euo pipefail
           bun run build:serve -- --target bun-linux-x64 --outfile dist/atlas-serve-linux-x64
+          bun run build:serve -- --target bun-linux-arm64 --outfile dist/atlas-serve-linux-arm64
           shasum -a 256 dist/atlas-serve-linux-x64 > dist/atlas-serve-linux-x64.sha256
+          shasum -a 256 dist/atlas-serve-linux-arm64 > dist/atlas-serve-linux-arm64.sha256
 
       - name: create release
         if: steps.version.outputs.skip != 'true'
@@ -268,6 +277,7 @@ jobs:
           fi
           gh release create "tui-v${VERSION}" dist/* \
             ../serve/dist/atlas-serve-linux-x64 ../serve/dist/atlas-serve-linux-x64.sha256 \
+            ../serve/dist/atlas-serve-linux-arm64 ../serve/dist/atlas-serve-linux-arm64.sha256 \
             "${args[@]}"
 
       - name: dispatch sandbox image retag

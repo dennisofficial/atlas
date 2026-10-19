@@ -3,9 +3,10 @@ import { join } from 'node:path'
 
 import type { DevServeBinary } from '@dltech/atlas-wire'
 
-import { devServePinOf } from './dev-serve-key'
+import { devServePinOf, type ELinuxServeTarget } from './dev-serve-key'
 
-export const DEV_SERVE_BINARY_NAME = 'atlas-serve-linux-x64'
+const BINARY_NAME_PREFIX = 'atlas-serve-'
+const TARGET_PREFIX = 'bun-'
 const META_NAME = 'meta.json'
 const STAGING_PREFIX = '.staging-'
 const STALE_STAGING_MS = 60 * 60 * 1000
@@ -23,8 +24,11 @@ const isMeta = (value: unknown): value is DevServeMeta => {
   )
 }
 
-const binaryPathOf = (args: { root: string; inputKey: string }): string =>
-  join(args.root, args.inputKey, DEV_SERVE_BINARY_NAME)
+export const devServeBinaryNameOf = (target: ELinuxServeTarget): string =>
+  `${BINARY_NAME_PREFIX}${target.slice(TARGET_PREFIX.length)}`
+
+const binaryPathOf = (args: { root: string; inputKey: string; target: ELinuxServeTarget }): string =>
+  join(args.root, args.inputKey, devServeBinaryNameOf(args.target))
 
 const metaPathOf = (args: { root: string; inputKey: string }): string =>
   join(args.root, args.inputKey, META_NAME)
@@ -54,6 +58,7 @@ const markUsed = async (args: { path: string; now: number }): Promise<void> => {
 export async function readCachedDevServe(args: {
   root: string
   inputKey: string
+  target: ELinuxServeTarget
   now: number
 }): Promise<DevServeBinary | null> {
   const meta = await readMeta(metaPathOf(args))
@@ -80,6 +85,7 @@ const sha256Of = async (path: string): Promise<string> => {
 export async function storeDevServe(args: {
   root: string
   inputKey: string
+  target: ELinuxServeTarget
   built: string
   now: number
 }): Promise<DevServeBinary> {

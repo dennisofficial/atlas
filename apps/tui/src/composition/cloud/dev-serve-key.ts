@@ -2,7 +2,10 @@ import { join } from 'node:path'
 
 import { DEV_SERVE_VERSION_PREFIX } from '@dltech/atlas-wire'
 
-export const DEV_SERVE_TARGET = 'bun-linux-x64'
+export enum ELinuxServeTarget {
+  X64 = 'bun-linux-x64',
+  Arm64 = 'bun-linux-arm64',
+}
 
 export type UntrackedFile = { readonly path: string; readonly sha256: string }
 
@@ -16,9 +19,10 @@ export type DevServeSourceProbe = (args: { repo: string }) => Promise<DevServeSo
 
 const UNREADABLE = 'unreadable'
 
-export function devServeKeyOf(source: DevServeSource): string {
+export function devServeKeyOf(args: { source: DevServeSource; target: ELinuxServeTarget }): string {
+  const { source, target } = args
   const hasher = new Bun.CryptoHasher('sha256')
-  hasher.update(`target\0${DEV_SERVE_TARGET}\0head\0${source.head}\0diff\0`)
+  hasher.update(`target\0${target}\0head\0${source.head}\0diff\0`)
   hasher.update(source.diff)
   hasher.update('\0untracked\0')
   const untracked = [...source.untracked].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
@@ -26,8 +30,8 @@ export function devServeKeyOf(source: DevServeSource): string {
   return hasher.digest('hex')
 }
 
-export function devServeCacheKeyOf(source: DevServeSource): string {
-  return devServeKeyOf(source).slice(0, 16)
+export function devServeCacheKeyOf(args: { source: DevServeSource; target: ELinuxServeTarget }): string {
+  return devServeKeyOf(args).slice(0, 16)
 }
 
 export function devServePinOf(binarySha256: string): string {
