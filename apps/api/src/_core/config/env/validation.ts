@@ -7,6 +7,8 @@ import type { IDatabaseEnv } from './sections/database'
 import { databaseEnvSchema } from './sections/database'
 import type { IGithubEnv } from './sections/github'
 import { githubEnvSchema } from './sections/github'
+import type { IRedisEnv } from './sections/redis'
+import { redisEnvSchema } from './sections/redis'
 import type { IRuntimeEnv } from './sections/runtime'
 import { runtimeEnvSchema } from './sections/runtime'
 import type { ISandboxEnv } from './sections/sandbox'
@@ -18,6 +20,7 @@ export interface IEnvConfig
     IDatabaseEnv,
     ICryptoEnv,
     IGithubEnv,
+    IRedisEnv,
     ISandboxEnv {}
 
 export const envConfigValidation = Joi.object({
@@ -26,5 +29,6 @@ export const envConfigValidation = Joi.object({
   ...databaseEnvSchema,
   ...cryptoEnvSchema,
   ...githubEnvSchema,
+  ...redisEnvSchema,
   ...sandboxEnvSchema,
 })
