@@ -111,9 +111,10 @@ describe('GithubPrFanoutService', () => {
     expect(received).toHaveLength(1)
   })
 
-  it('reports onDelivered only for users whose stream actually received the event', async () => {
+  it('acknowledges only users whose stream actually received the event', async () => {
     const { fanout } = fanoutWith()
     const delivered: string[] = []
+    fanout.onEventDelivered(({ userId }) => delivered.push(userId))
     fanout.openStream({
       userId: 'usr_a',
       handler: () => {},
@@ -124,16 +125,19 @@ describe('GithubPrFanoutService', () => {
     fanout.pushEvent({
       userIds: ['usr_a', 'usr_b', 'usr_c'],
       event: EVENT,
-      onDelivered: (userId) => delivered.push(userId),
+      ackId: 'evt_1',
     })
     await vi.advanceTimersByTimeAsync(1_100)
 
     expect(delivered).toEqual(['usr_a'])
   })
 
-  it('a throwing onDelivered hook does not take down the delivery', async () => {
+  it('a throwing delivered handler does not take down the delivery', async () => {
     const { fanout } = fanoutWith()
     const received: GithubPrEventDto[] = []
+    fanout.onEventDelivered(() => {
+      throw new Error('broken hook')
+    })
     fanout.openStream({
       userId: 'usr_a',
       handler: () => {},
@@ -143,9 +147,7 @@ describe('GithubPrFanoutService', () => {
     fanout.pushEvent({
       userIds: ['usr_a'],
       event: EVENT,
-      onDelivered: () => {
-        throw new Error('broken hook')
-      },
+      ackId: 'evt_1',
     })
     await vi.advanceTimersByTimeAsync(1_100)
 

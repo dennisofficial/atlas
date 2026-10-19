@@ -18,7 +18,13 @@ export class GithubPrEventMailboxService {
   constructor(
     private readonly fanout: GithubPrFanoutService,
     private readonly wake: GithubSandboxWakeService,
-  ) {}
+  ) {
+    this.fanout.onEventDelivered(({ ackId }) => {
+      void db.githubPrEvent
+        .updateMany({ where: { id: ackId, deliveredAt: null }, data: { deliveredAt: new Date() } })
+        .catch(() => undefined)
+    })
+  }
 
   async record(args: {
     userIds: readonly string[]
@@ -40,14 +46,7 @@ export class GithubPrEventMailboxService {
       this.fanout.pushEvent({
         userIds: [userId],
         event: eventDtoOf(row),
-        onDelivered: () => {
-          void db.githubPrEvent
-            .updateMany({
-              where: { id: row.id, deliveredAt: null },
-              data: { deliveredAt: new Date() },
-            })
-            .catch(() => undefined)
-        },
+        ackId: row.id,
       })
       this.wake.notifyEvent({
         userId,
