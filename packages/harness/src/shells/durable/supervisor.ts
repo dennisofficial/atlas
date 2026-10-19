@@ -45,6 +45,8 @@ async function cancelRequested({ shellDir }: { shellDir: string }): Promise<bool
   )
 }
 
+const LONGEST_TIMER_MS = 2_147_483_647
+
 async function superviseChild(config: SupervisorConfig): Promise<number> {
   let requested: EExitCause | undefined
   let pgid: number | undefined
@@ -117,9 +119,10 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     clearTimeout(killTimer)
     clearTimeout(ceilingTimer)
   })
-  if (config.timeoutMs !== undefined) {
-    const remainingMs = Math.max(0, config.timeoutMs - (Date.now() - startedAt))
-    ceilingTimer = setTimeout(() => requestStop(EExitCause.Timeout), remainingMs)
+  const ceilingRemainingMs =
+    config.timeoutMs === undefined ? undefined : Math.max(0, config.timeoutMs - (Date.now() - startedAt))
+  if (ceilingRemainingMs !== undefined && ceilingRemainingMs <= LONGEST_TIMER_MS) {
+    ceilingTimer = setTimeout(() => requestStop(EExitCause.Timeout), ceilingRemainingMs)
     ceilingTimer.unref()
   }
   if (requested !== undefined) requestStop(requested)
