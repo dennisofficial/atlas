@@ -123,6 +123,13 @@ survive the pooler: a killed job once left the lock pinned on a pooled backend a
 deploy timed out acquiring it (P1002). `scripts/migrate-deploy.mjs` also retries the deploy
 three times with a 20s backoff, so two overlapping PRE_DEPLOY jobs no longer fail a deployment.
 
+`.github/workflows/migrate-production.yml` applies migrations on merges to main that touch
+`prisma/migrations`, `prisma/schema.prisma` or the workflow itself, through `DIRECT_URL`, and can be
+run by hand with `workflow_dispatch`. While DigitalOcean is live it runs alongside the PRE_DEPLOY
+job, safely: `prisma migrate deploy` is idempotent, takes an advisory lock, and
+`scripts/migrate-deploy.mjs` retries on contention. After cutover it is the only migration path,
+and the additive-migration and rollback rules below still apply.
+
 **Rollback does not unwind a migration.** App Platform can restore any of the last ten
 successful deployments, and it restores code, configuration and the app spec — never database
 data. It is control-panel only: Apps → the app → Activity → Rollback. `doctl apps` has no
