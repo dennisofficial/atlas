@@ -211,7 +211,7 @@ describe('GithubSubscriptionsService', () => {
 
   it('refuses a repo the user cannot read on github', async () => {
     const denied = async () => new Response('{}', { status: 404 })
-    const service = serviceWith({ token: 'ghu_1', fetchImpl: denied as typeof fetch })
+    const service = serviceWith({ token: 'ghu_1', fetchImpl: denied as unknown as typeof fetch })
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
