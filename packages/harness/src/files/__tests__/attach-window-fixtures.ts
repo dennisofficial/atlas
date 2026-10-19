@@ -55,7 +55,9 @@ export function scriptedScan(signatures: ContextSignature[]) {
 
 export function counter() {
   let count = 0
-  return { notify: () => { count += 1 }, get count() { return count } }
+  let heardFirst: () => void = () => {}
+  const first = new Promise<void>((resolve) => { heardFirst = resolve })
+  return { notify: () => { count += 1; heardFirst() }, first, get count() { return count } }
 }
 
 export const tick = () => Bun.sleep(0)

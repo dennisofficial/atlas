@@ -1,21 +1,43 @@
-import { lstat, readdir } from 'node:fs/promises'
+import { lstat, opendir } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export const MAX_SCANNED_ENTRIES = 500
 
 export type ContextSignature = { signature: string; capped: boolean }
+export type ScannedEntry = { name: string; isDirectory: () => boolean }
+export type OpenDirectory = (args: { path: string }) => Promise<AsyncIterable<ScannedEntry>>
 
-export async function scanContextSignature(args: { context: string; limit?: number }): Promise<ContextSignature> {
+const openDirectory: OpenDirectory = ({ path }) => opendir(path)
+
+async function readBounded(args: { path: string; budget: number; open: OpenDirectory }) {
+  const entries: ScannedEntry[] = []
+  try {
+    for await (const entry of await args.open({ path: args.path })) {
+      if (entries.length >= args.budget) return { entries, capped: true }
+      entries.push(entry)
+    }
+  } catch {
+    return { entries, capped: false }
+  }
+  return { entries, capped: false }
+}
+
+export async function scanContextSignature(args: {
+  context: string
+  limit?: number
+  open?: OpenDirectory
+}): Promise<ContextSignature> {
   const limit = args.limit ?? MAX_SCANNED_ENTRIES
+  const open = args.open ?? openDirectory
   const lines: string[] = []
   const pending = ['']
   let capped = false
   while (pending.length > 0 && !capped) {
     const relative = pending.shift() ?? ''
-    const entries = await readdir(join(args.context, relative), { withFileTypes: true }).catch(() => [])
-    entries.sort((left, right) => left.name.localeCompare(right.name))
-    for (const entry of entries) {
-      if (lines.length >= limit) { capped = true; break }
+    const batch = await readBounded({ path: join(args.context, relative), budget: limit - lines.length, open })
+    capped = batch.capped
+    batch.entries.sort((left, right) => left.name.localeCompare(right.name))
+    for (const entry of batch.entries) {
       const path = join(relative, entry.name)
       const stats = await lstat(join(args.context, path)).catch(() => null)
       lines.push(`${path}:${stats?.size ?? -1}:${stats?.mtimeMs ?? -1}`)

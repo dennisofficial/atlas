@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { watchContextDirectory } from '../watch-context-directory'
+import { watchContextDirectory, type Schedule, type WatchPath } from '../watch-context-directory'
 import type { ContextSignature } from '../context-signature'
 import { changed, cleanupHomes, counter, fixture, manualSchedule, scriptedScan, silentWatch, tick, unchanged } from './attach-window-fixtures'
 
@@ -200,5 +200,28 @@ describe('stopping', () => {
     watch.attached[0]?.deliver('context')
     await timers.flush()
     expect(seen.count).toBe(1)
+  })
+})
+
+describe('re-attach budget', () => {
+  it('stops scheduling re-checks when the session directory exists but cannot be watched', async () => {
+    const { home, sessionDir } = await fixture()
+    await mkdir(sessionDir, { recursive: true })
+    const inner = silentWatch()
+    const watchPath: WatchPath = (path, options, listener) => {
+      if (path === sessionDir) throw Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' })
+      return inner.watchPath(path, options, listener)
+    }
+    const timers = manualSchedule()
+    let scheduled = 0
+    const schedule: Schedule = (task) => { scheduled += 1; return timers.schedule(task) }
+    const stop = watchContextDirectory({
+      sessionDir, onChange: counter().notify, watchPath, schedule, scanContext: scriptedScan([unchanged]).scanContext,
+    })
+    await tick()
+    for (let round = 0; round < 10; round += 1) await timers.flush()
+    stop()
+    expect(inner.attached.map((entry) => entry.path)).toEqual([join(home, 'sessions'), join(home, 'sessions')])
+    expect(scheduled).toBe(2)
   })
 })

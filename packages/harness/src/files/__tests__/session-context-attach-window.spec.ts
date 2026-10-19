@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -33,11 +33,17 @@ describe('window between subscribe and attach', () => {
     })
     const seen = counter()
     const stop = reader.subscribe(seen.notify)
+    const file = join(sessionDir, 'context', 'notes.md')
     mkdirSync(join(sessionDir, 'context'), { recursive: true })
-    writeFileSync(join(sessionDir, 'context', 'notes.md'), 'old')
-    await Bun.sleep(20)
+    writeFileSync(file, 'old')
+    const longAgo = new Date('2000-01-01T00:00:00Z')
+    utimesSync(file, longAgo, longAgo)
+    expect(statSync(file).mtimeMs).toBeLessThan(Date.now() - 365 * 24 * 60 * 60 * 1000)
+    await seen.first
+    await timers.flush()
     stop()
     expect(seen.count).toBe(1)
+    expect(await reader.list()).toEqual([{ name: 'notes.md', isDirectory: false }])
   })
 })
 
@@ -52,8 +58,9 @@ describe('steady state', () => {
     })
     const seen = counter()
     const stop = reader.subscribe(seen.notify)
-    await Bun.sleep(20)
+    await seen.first
     expect(seen.count).toBe(1)
+    expect(timers.tasks).toHaveLength(1)
     await timers.flush()
     stop()
     expect(seen.count).toBe(1)

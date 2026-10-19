@@ -35,6 +35,7 @@ export function watchContextDirectory(args: { sessionDir: string; onChange: () =
   const scanContext = args.scanContext ?? scanContextSignature
   let stopped = false
   let close: () => void = () => {}
+  let lastRecheckReattach: string | undefined
 
   const nearestExistingAncestor = () => {
     let ancestor = root
@@ -78,7 +79,11 @@ export function watchContextDirectory(args: { sessionDir: string; onChange: () =
           if (stopped || delivered) return
           const after = await scanContext({ context })
           if (stopped || delivered) return
-          if (held !== nearestExistingAncestor()) attach({ initial: false })
+          const nearest = nearestExistingAncestor()
+          if (nearest !== held && nearest !== lastRecheckReattach) {
+            lastRecheckReattach = nearest
+            attach({ initial: false })
+          }
           if (!before.capped && !after.capped && before.signature === after.signature) return
           args.onChange()
         },

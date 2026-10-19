@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { scanContextSignature } from '../context-signature'
+import { scanContextSignature, type ScannedEntry } from '../context-signature'
 
 const dirs: string[] = []
 afterEach(async () => {
@@ -45,5 +45,32 @@ describe('scanContextSignature', () => {
     expect(scan.capped).toBe(true)
     expect(scan.signature.split('\n')).toHaveLength(3)
     expect((await scanContextSignature({ context: dir, limit: 5 })).capped).toBe(false)
+  })
+
+  it('stops enumerating a wide directory at the cap and closes the handle', async () => {
+    let read = 0
+    let closed = false
+    const wide = (): AsyncIterable<ScannedEntry> => ({
+      [Symbol.asyncIterator]: () => ({
+        next: async () => {
+          read += 1
+          return read > 100_000 ? { done: true, value: undefined } : { done: false, value: { name: `f${read}`, isDirectory: () => false } }
+        },
+        return: async () => { closed = true; return { done: true, value: undefined } },
+      }),
+    })
+    const scan = await scanContextSignature({ context: await context(), limit: 3, open: async () => wide() })
+    expect(scan.capped).toBe(true)
+    expect(scan.signature.split('\n')).toHaveLength(3)
+    expect(read).toBe(4)
+    expect(closed).toBe(true)
+  })
+
+  it('bounds a real directory wider than the limit', async () => {
+    const dir = await context()
+    for (let index = 0; index < 60; index += 1) await writeFile(join(dir, `f${index}.md`), 'x')
+    const scan = await scanContextSignature({ context: dir, limit: 10 })
+    expect(scan.capped).toBe(true)
+    expect(scan.signature.split('\n')).toHaveLength(10)
   })
 })
