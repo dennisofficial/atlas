@@ -75,6 +75,7 @@ export async function bootServeFiles(args: {
     fetchSpec: fetchSpecOnce,
     fetchArchive: bootstrapContextArchiveFetcher({ atlasHome }),
     atlasHome,
+    projectDirectory: cwd,
     files: args.contextFiles,
   })
   const contextMs = Date.now() - contextStartedAt
