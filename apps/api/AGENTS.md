@@ -188,6 +188,14 @@ write kills the process instead of throwing a catchable resolve error. The funct
 `bunfig.toml`: with a `node_modules` next to the bundle Bun does not auto-install, and the read-only
 spec passes 8/8 without one, so the lazily imported externals fail as ordinary, caught resolve errors.
 
+Work that must outlive the response goes to `BackgroundWork.keepAlive` (`src/_core/ports/background-work.ts`),
+because a Vercel instance can freeze once the response is sent. `backgroundWorkProvider()` binds
+`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. Wake boots are the
+current user: `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
+wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances), so the boot starts
+inside the kept-alive lookup chain. The trigger.dev worker passes `ProcessBackgroundWork` and the
+5 s debounce and relies on `settle()`.
+
 The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
 `apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
 `*.vercel.app` URLs sit behind Comp AI's SSO, so smoke-test them with the project's protection

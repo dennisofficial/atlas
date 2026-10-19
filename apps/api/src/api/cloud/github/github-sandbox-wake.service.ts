@@ -6,19 +6,21 @@ import type { VercelCredentials } from '@dltech/atlas-wire'
 import { db } from '../../../db'
 import { Prisma } from '../../../generated/prisma/client'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { wakeableOf, type SandboxLifecycleColumns } from '../../platform/sandboxes/sandbox-lifecycle'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import type { CloudSandboxModel } from '../../../db'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
+import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import {
   failureText,
   SANDBOX_WAKE_BOOT,
   type SandboxWakeBoot,
 } from './github-sandbox-wake-boot'
 
-export const WAKE_DEBOUNCE_MS = 5_000
+export { WAKE_DEBOUNCE_MS }
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
 
 export type {
@@ -60,6 +62,8 @@ export class GithubSandboxWakeService {
     private readonly env: EnvService,
     private readonly cipher: SecretCipherService,
     @Inject(SANDBOX_WAKE_BOOT) private readonly bootAdapter: SandboxWakeBoot,
+    @Inject(BackgroundWork) private readonly background: BackgroundWork,
+    @Inject(WAKE_DEBOUNCE) private readonly debounceMs: number,
   ) {}
 
   notifyEvent(args: { userId: string; repoFullName: string; prNumber: number }): void {
@@ -84,13 +88,15 @@ export class GithubSandboxWakeService {
     await Promise.all([...this.bootsInFlight])
   }
 
-  private track(args: { inFlight: Set<Promise<void>>; work: Promise<void> }): void {
+  private track(args: { inFlight: Set<Promise<void>>; work: Promise<void> }): Promise<void> {
     const tracked = args.work.finally(() => args.inFlight.delete(tracked))
     args.inFlight.add(tracked)
+    this.background.keepAlive(tracked)
+    return tracked
   }
 
-  private startBoot(target: WakeTarget): void {
-    this.track({
+  private startBoot(target: WakeTarget): Promise<void> {
+    return this.track({
       inFlight: this.bootsInFlight,
       work: this.bootParkedSandbox({ threadId: target.threadId }).catch((failure: unknown) => {
         this.logger.warn(
@@ -130,15 +136,19 @@ export class GithubSandboxWakeService {
           (target.sandbox.wakeFailedAt === null || target.sandbox.wakeFailedAt < backoffCutoff),
       )
     const seen = new Set<string>()
+    const immediateBoots: Promise<void>[] = []
     for (const target of targets) {
       if (seen.has(target.threadId)) continue
       seen.add(target.threadId)
-      this.debounceBoot(target)
+      const boot = this.debounceBoot(target)
+      if (boot !== undefined) immediateBoots.push(boot)
     }
+    await Promise.all(immediateBoots)
   }
 
-  private debounceBoot(target: WakeTarget): void {
-    if (this.inFlight.has(target.threadId)) return
+  private debounceBoot(target: WakeTarget): Promise<void> | undefined {
+    if (this.inFlight.has(target.threadId)) return undefined
+    if (this.debounceMs === 0) return this.startBoot(target)
     const pending = this.debounce.get(target.threadId)
     if (pending !== undefined) {
       clearTimeout(pending.timer)
@@ -147,8 +157,9 @@ export class GithubSandboxWakeService {
     const timer = setTimeout(() => {
       this.debounce.delete(target.threadId)
       this.startBoot(target)
-    }, WAKE_DEBOUNCE_MS)
+    }, this.debounceMs)
     this.debounce.set(target.threadId, { timer, target })
+    return undefined
   }
 
   private async bootParkedSandbox(args: { threadId: string }): Promise<void> {
