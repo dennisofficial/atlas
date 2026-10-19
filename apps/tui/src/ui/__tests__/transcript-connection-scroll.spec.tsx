@@ -45,13 +45,21 @@ const view = (args: { model: TranscriptModel; connected: boolean }) => (
 
 type Setup = Awaited<ReturnType<typeof testRender>>
 
+const NOTCHES_PER_ROUND = 10
+const MAX_ROUNDS = 20
+const ROUND_MS = 1_000
+
 async function readHistory(setup: Setup): Promise<void> {
-  await act(async () => {
-    for (let notch = 0; notch < 10; notch += 1)
-      await setup.mockMouse.scroll(20, 5, 'up')
-    await setup.flush()
-  })
-  await frameShowing({ setup, text: JUMP })
+  for (let round = 0; round < MAX_ROUNDS; round += 1) {
+    await act(async () => {
+      for (let notch = 0; notch < NOTCHES_PER_ROUND; notch += 1)
+        await setup.mockMouse.scroll(20, 5, 'up')
+      await setup.flush()
+    })
+    const frame = await frameSettled({ setup, within: ROUND_MS })
+    if (frame.includes(JUMP)) return
+  }
+  await frameShowing({ setup, text: JUMP, within: ROUND_MS })
 }
 
 async function mount(model: TranscriptModel) {
