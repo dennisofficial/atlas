@@ -55,9 +55,9 @@ them at least once; relative imports work everywhere. Do not reintroduce them.
 The API stores no context archives: context goes straight into the sandbox from the client, and
 the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
 `src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB. `PUT /v1/user-files/*`
-keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) until the client caps or chunks
-user-layer uploads; that must land before the Vercel cutover, or large files will start getting
-413s.
+keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) only for clients older than the
+harness release that caps user-layer files at 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`,
+#1275); drop it once that release is the oldest one in use.
 
 ## Deploy
 
@@ -166,14 +166,26 @@ the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). 
 feature check and this API never installs; every entry carries its reason, and any other
 unresolved import must fail the build. `class-validator` and `class-transformer` stay bundled.
 
-`src/vercel-bundle.integration.spec.ts` builds the real output, serves it with
-`test/serve-bundle.ts` against a throwaway `postgres:17-alpine` container, and hits health, 401,
-bearer-authenticated, DTO validation, better-auth and the HMAC webhook. It runs only with
-`ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it after adding any module or
-dependency: it is what catches an import the bundle misses.
+`src/vercel-bundle.integration.spec.ts` builds the real output, copies the function directory to a
+tmp dir outside the repo and serves it there with `test/serve-bundle.ts` under `bun --no-install`
+and an empty HOME, the way Vercel's read-only filesystem sees it — so a package the bundle left out
+fails the spec instead of resolving from `node_modules`. It runs against a throwaway
+`postgres:17-alpine` container and hits health, 401, bearer-authenticated, DTO validation,
+better-auth and the HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` (CI sets it) and is
+skipped otherwise. Run it after adding any module or dependency: it is what catches an import the
+bundle misses.
 
-The Deploy section below is still the live path until cutover; `vercel.json` is inert until the
-`atlas-api` Vercel project is git-connected.
+A dependency that loads a package through `createRequire()` hides it from `Bun.build`; Bun then
+tries to auto-install it at boot and dies on Vercel's read-only filesystem. `build-plugins.ts`
+rewrites the one known case (`@thallesp/nestjs-better-auth`'s express body parser) to a bundled
+import and fails the build if that library's source changes, and `build.ts` rejects any other
+runtime `createRequire` of a bare package not listed in `RUNTIME_REQUIRE_ALLOWED`.
+
+The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
+`apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
+`*.vercel.app` URLs sit behind Comp AI's SSO, so smoke-test them with the project's protection
+bypass header. `api.byatlas.io` still points at DigitalOcean until cutover, so the Deploy
+section above is still the live path.
 
 ## Auth
 

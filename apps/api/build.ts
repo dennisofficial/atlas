@@ -2,6 +2,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { assertNoRuntimeRequires, bundleBetterAuthExpress } from './build-plugins'
 
 const TIER_FILE = '.env.api.production.enc'
 
@@ -13,6 +14,9 @@ const OPTIONAL_IMPORTS = [
   // @thallesp/nestjs-better-auth imports it dynamically for GraphQL execution contexts; this API is REST-only.
   '@nestjs/graphql',
 ]
+
+// @thallesp/nestjs-better-auth requires qs only for the fastify adapter; this API runs Express, so it never executes.
+const RUNTIME_REQUIRE_ALLOWED = [...OPTIONAL_IMPORTS, 'qs']
 
 type FunctionConfig = {
   runtime: 'bun1.x'
@@ -59,12 +63,18 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     format: 'esm',
     sourcemap: 'linked',
     external: OPTIONAL_IMPORTS,
+    plugins: [bundleBetterAuthExpress()],
     define: { __ATLAS_SHIPPED_MIGRATIONS__: JSON.stringify(shippedMigrationNames()) },
   })
 
   if (!result.success) {
     throw new AggregateError(result.logs, 'Bundling the API failed')
   }
+
+  assertNoRuntimeRequires({
+    bundle: await Bun.file(join(functionDir, 'index.js')).text(),
+    allowed: RUNTIME_REQUIRE_ALLOWED,
+  })
 
   const tierSource = join(import.meta.dir, 'envs', TIER_FILE)
   if (!existsSync(tierSource)) {

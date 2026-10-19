@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { createHmac, randomBytes } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -61,6 +61,7 @@ async function waitForPostgres({ container }: { container: string }): Promise<vo
 describeLive('vercel bundle (built output served through the nodejs launcher shape)', () => {
   const container = `atlas-bundle-spec-${randomBytes(4).toString('hex')}`
   let outDir: string
+  let isolatedDir: string
   let api: BunApiProcess
   const withOutput = (message: string): string => `${message}\n--- bundle output ---\n${api.output()}`
   const authed = { authorization: `Bearer ${SESSION_TOKEN}` }
@@ -72,6 +73,13 @@ describeLive('vercel bundle (built output served through the nodejs launcher sha
       args: ['-e', `import { buildVercelOutput } from './build'; await buildVercelOutput({ outDir: ${JSON.stringify(outDir)} })`],
       env: minimalEnv({}),
     })
+
+    isolatedDir = mkdtempSync(join(tmpdir(), 'atlas-vercel-isolated-'))
+    const isolatedFunc = join(isolatedDir, 'index.func')
+    const isolatedHome = join(isolatedDir, 'home')
+    mkdirSync(isolatedHome)
+    cpSync(join(outDir, 'functions', 'index.func'), isolatedFunc, { recursive: true })
+    copyFileSync(join(API_ROOT, 'test', 'serve-bundle.ts'), join(isolatedFunc, 'serve-bundle.ts'))
 
     const dbPort = await freePort()
     sh({
@@ -99,7 +107,9 @@ describeLive('vercel bundle (built output served through the nodejs launcher sha
 
     api = await startBunApi({
       databaseUrl,
-      args: ['test/serve-bundle.ts', join(outDir, 'functions', 'index.func', 'index.js')],
+      args: ['--no-install', 'serve-bundle.ts', join(isolatedFunc, 'index.js')],
+      cwd: isolatedFunc,
+      home: isolatedHome,
       readyPattern: /bundle listening/,
       extraEnv: { GITHUB_APP_WEBHOOK_SECRET: WEBHOOK_SECRET, RATE_LIMIT_PER_MINUTE: '1000' },
     })
@@ -108,6 +118,7 @@ describeLive('vercel bundle (built output served through the nodejs launcher sha
   afterAll(async () => {
     await api?.kill()
     if (outDir) rmSync(outDir, { recursive: true, force: true })
+    if (isolatedDir) rmSync(isolatedDir, { recursive: true, force: true })
     try {
       sh({ file: 'docker', args: ['rm', '-f', '-v', container] })
     } catch {

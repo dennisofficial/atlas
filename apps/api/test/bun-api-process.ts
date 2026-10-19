@@ -36,20 +36,24 @@ export async function startBunApi({
   args = ['src/main.ts'],
   readyPattern = /Nest application successfully started/,
   extraEnv = {},
+  cwd = API_ROOT,
+  home = process.env.HOME,
 }: {
   databaseUrl: string
   args?: string[]
   readyPattern?: RegExp
   extraEnv?: Record<string, string>
+  cwd?: string
+  home?: string | undefined
 }): Promise<BunApiProcess> {
   const port = await freePort()
   const baseUrl = `http://127.0.0.1:${port}`
 
   const child = spawn('bun', args, {
-    cwd: API_ROOT,
+    cwd,
     env: {
       PATH: process.env.PATH,
-      HOME: process.env.HOME,
+      HOME: home,
       NODE_ENV: 'test',
       PORT: String(port),
       DATABASE_URL: databaseUrl,
