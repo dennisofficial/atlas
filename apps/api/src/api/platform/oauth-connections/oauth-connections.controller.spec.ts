@@ -9,6 +9,7 @@ import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
+import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 import { OauthConnectionsController } from './oauth-connections.controller'
 import { FakeClock, FakeIssuer, FakeStore, grantOf } from './oauth-connections.fakes'
 import { OauthConnectionsService } from './oauth-connections.service'
@@ -16,10 +17,10 @@ import { OauthClock, OauthConnectionStore, OauthIssuer } from './oauth-connectio
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const START = Date.parse('2026-10-05T12:00:00.000Z')
-const SANDBOX_TOKENS: Record<string, { id: string; threadId: string; userId: string }> = {
-  'sandbox-token-1': { id: 'sbx-1', threadId: 'thread-1', userId: 'user-a' },
-  'sandbox-token-2': { id: 'sbx-2', threadId: 'thread-2', userId: 'user-a' },
-}
+const SANDBOX_TOKENS = {
+  'sandbox-token-1': { kind: ETokenPrincipalKind.Sandbox, id: 'sbx-1', threadId: 'thread-1', userId: 'user-a' },
+  'sandbox-token-2': { kind: ETokenPrincipalKind.Sandbox, id: 'sbx-2', threadId: 'thread-2', userId: 'user-a' },
+} as const
 const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
 
 const bearerOf = (request: { headers: { authorization?: string } }): string =>
@@ -68,7 +69,7 @@ describe('OauthConnectionsController authorization', () => {
           provide: SandboxesService,
           useValue: {
             async verifyTokenPrincipal(args: { token: string }) {
-              const row = SANDBOX_TOKENS[args.token]
+              const row = (SANDBOX_TOKENS as Record<string, unknown>)[args.token]
               if (row === undefined) throw new UnauthorizedException()
               return row
             },

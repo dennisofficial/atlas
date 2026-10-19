@@ -2,6 +2,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Request } from 'express'
 import { SandboxesService } from './sandboxes.service'
+import { ETokenPrincipalKind } from './token-principal'
 
 export interface SandboxAuthenticatedRequest extends Request {
   sandbox?: { threadId: string; userId: string }
@@ -46,6 +47,9 @@ export class SandboxTokenGuard implements CanActivate {
     }
 
     const row = await this.sandboxes.verifyTokenPrincipal({ token })
+    if (row.kind === ETokenPrincipalKind.Pod) {
+      throw new UnauthorizedException('a sandbox session token is required')
+    }
     request.sandbox = { threadId: row.threadId, userId: row.userId }
     return true
   }
