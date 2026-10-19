@@ -23,8 +23,6 @@ function readIfPresent(path: string): string | undefined {
 }
 
 function tierFilePath(args: { tier: string; cwd: string }): string | undefined {
-  // The literal import.meta.dirname joins are the bundler anchors: Vercel's file tracer follows
-  // readFileSync literals into the function bundle; dynamic paths are invisible to it.
   const anchored =
     args.tier === 'local'
       ? join(import.meta.dirname, '..', '..', 'envs', '.env.api.local.enc')
