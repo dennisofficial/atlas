@@ -5,6 +5,7 @@ import React, { act, useCallback, useState } from 'react'
 import { toCallId } from '@dltech/atlas-core'
 
 import { ECallState, type ContextAttachment, type ToolCall, type ToolRun } from '../../store'
+import { applyTranscriptCovered } from '../covered-store'
 import { glyph } from '../theme'
 import { ToolRunBlock } from '../components/blocks/tool-run-block'
 import { teardown } from '../markdown/__tests__/harness'
@@ -13,11 +14,12 @@ import { encodePng } from '../images/__tests__/png-fixture'
 import { applyTranscriptRows } from '../viewport-rows-store'
 import { frameWhen } from './waiting'
 
-// The viewport and image-row stores are module-global and the app publishes into them; pin both so
-// shard order cannot leave a tall value that pushes an opened picture's neighbour off the frame.
+// The viewport, image-row and covered stores are module-global and the app publishes into them; pin
+// all three so shard order cannot leave a tall value or a covered flag behind.
 beforeEach(() => {
   applyTranscriptRows(HEIGHT)
   applyImageRows(SHIPPED_IMAGE_ROWS)
+  applyTranscriptCovered(false)
 })
 
 const BULLET = glyph.block
