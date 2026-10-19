@@ -10,10 +10,22 @@ import {
   request,
 } from './engine-http'
 import { demuxExecStream } from './frames'
+import { parseBoundPorts, type BoundPort } from './ports'
 
 export type PodResources = { nanoCpus: number; memoryReservationBytes: number }
 
 export type PodMount = { source: string; target: string }
+
+export type PodDetails = {
+  id: string
+  name: string
+  status: string
+  running: boolean
+  labels: Record<string, string>
+  ports: readonly BoundPort[]
+  nanoCpus: number
+  memoryReservationBytes: number
+}
 
 export type VolumeSummary = { name: string; labels: Record<string, string> }
 
@@ -25,6 +37,12 @@ export type PodExecResult = {
 
 const EXEC_POLL_MS = 25
 const DEFAULT_FILE_MODE = 0o600
+
+const asNumberOrZero = (value: unknown): number => (typeof value === 'number' ? value : 0)
+
+const missing = (error: unknown): boolean => error instanceof EngineRequestFailed && error.status === 404
+
+const alreadyStarted = (error: unknown): boolean => error instanceof EngineRequestFailed && error.status === 304
 
 const labelFilters = (labels: Record<string, string | undefined>): string =>
   JSON.stringify({
@@ -47,6 +65,58 @@ export class DockerPodEngine {
         NanoCpus: args.resources.nanoCpus,
         MemoryReservation: args.resources.memoryReservationBytes,
       },
+    })
+  }
+
+  async inspectPod(args: { id: string }): Promise<PodDetails | undefined> {
+    const found = await request({
+      socketPath: this.socketPath,
+      method: 'GET',
+      path: `/containers/${encodeURIComponent(args.id)}/json`,
+    }).catch((error: unknown) => {
+      if (missing(error)) return undefined
+      throw error
+    })
+    if (found === undefined) return undefined
+
+    const body = asRecord(found)
+    const state = asRecord(body.State)
+    const config = asRecord(body.Config)
+    const hostConfig = asRecord(body.HostConfig)
+    const published = parseBoundPorts(asRecord(body.NetworkSettings ?? {}).Ports)
+
+    return {
+      id: asString(body.Id),
+      name: asString(body.Name).replace(/^\//, ''),
+      status: asString(state.Status),
+      running: state.Running === true,
+      labels: asLabels(config.Labels),
+      ports: published.length > 0 ? published : parseBoundPorts(hostConfig.PortBindings),
+      nanoCpus: asNumberOrZero(hostConfig.NanoCpus),
+      memoryReservationBytes: asNumberOrZero(hostConfig.MemoryReservation),
+    }
+  }
+
+  async startPod(args: { id: string }): Promise<void> {
+    await raw({
+      socketPath: this.socketPath,
+      method: 'POST',
+      path: `/containers/${encodeURIComponent(args.id)}/start`,
+    }).catch((error: unknown) => {
+      if (alreadyStarted(error)) return
+      throw error
+    })
+  }
+
+  async removePod(args: { id: string }): Promise<void> {
+    await request({
+      socketPath: this.socketPath,
+      method: 'DELETE',
+      path: `/containers/${encodeURIComponent(args.id)}`,
+      query: { force: '1', v: '1' },
+    }).catch((error: unknown) => {
+      if (missing(error)) return
+      throw error
     })
   }
 
@@ -83,7 +153,7 @@ export class DockerPodEngine {
       method: 'DELETE',
       path: `/volumes/${encodeURIComponent(args.name)}`,
     }).catch((error: unknown) => {
-      if (error instanceof EngineRequestFailed && error.status === 404) return
+      if (missing(error)) return
       throw error
     })
   }
