@@ -10,7 +10,7 @@ export function pendingMigrations(args: {
 }
 
 export function shippedMigrationNames(args: { directory?: string } = {}): readonly string[] {
-  const directory = args.directory ?? join(__dirname, '..', '..', '..', 'prisma', 'migrations')
+  const directory = args.directory ?? join(import.meta.dirname, '..', '..', '..', 'prisma', 'migrations')
 
   return readdirSync(directory, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

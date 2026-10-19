@@ -1,6 +1,6 @@
 # apps/api
 
-The Atlas Cloud backend. NestJS 11 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
+The Atlas Cloud backend. NestJS 12 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
 (Neon in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
 API keys, ordinary secrets, user settings and MCP configuration stay on the machine; explicit
 backup actions copy them to/from the API. Signing in transfers Atlas-native provider OAuth
@@ -13,13 +13,14 @@ configuration during lift. OAuth-bearing lifts assign scoped connection access b
 starts; API-key-only lifts and sandbox provisioning remain API-independent. The API also provides
 identity, optional remote-control rendezvous, thread discovery, backup sync and PR/CI webhooks.
 
-## Runtime and tests — the exception
+## Runtime and tests
 
-This package runs on **Node**, not Bun, and tests with **vitest**, not `bun test`. Nest's DI
-requires legacy decorators with emitted metadata; Bun's transpiler drops them. vitest needs
-`unplugin-swc` with `legacyDecorator` + `decoratorMetadata` for the same reason (see
-`vitest.config.mts`). Everything else in the repo runs on Bun — keep this exception scoped to
-this package.
+This package runs on **Bun** (`bun src/main.ts`, ESM, no build step) and tests with **vitest**, not
+`bun test`. Bun runs Nest's constructor `@Inject(...)` decorators under this package's tsconfig;
+`test/bun-runtime.spec.ts` spawns the real app under `bun` and fails if one is dropped. vitest
+needs `unplugin-swc` with `legacyDecorator` + `decoratorMetadata` to emit decorator metadata (see
+`vitest.config.mts`), and aliases `@dltech/atlas-wire` to its source because vite does not honor
+wire's `bun` export condition.
 
 ## Layout
 
@@ -36,7 +37,6 @@ src/
   db/         the lazy `db` client proxy + generated-client type re-exports.
   main.ts     the entrypoint — boots the app, hydrating env from the tier file when a
               DOTENV_PRIVATE_KEY is present; also default-exports the handler (harmless).
-  api/main.ts one-line shim so `nest start api` / `start:prod` boot the same bootstrap.
 prisma/       schema + migrations only (the client wrapper moved to src/db).
 envs/         dotenvx tier files (.env.api.<tier>.enc, committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
@@ -49,12 +49,13 @@ them at least once; relative imports work everywhere. Do not reintroduce them.
 ## Deploy
 
 DigitalOcean App Platform, git-connected to main: `apps/api/Dockerfile` (multi-stage, repo-root
-build context) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
+build context; the runtime image is `node:22-slim` plus the `bun` binary — the server runs
+`bun src/main.ts`, while the PRE_DEPLOY migrate job needs node, npm, dotenvx and the prisma CLI) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
 job, region nyc). The only env the platform needs is `APP_TIER`, `MIGRATE_TIER` and
 `DOTENV_PRIVATE_KEY_API_PRODUCTION` — the tier file in the image carries the rest.
 
-The Dockerfile's runtime stage copies explicit paths (`dist`, `envs`, `prisma`, `scripts`,
-`prisma.config.ts`) — anything a package script loads by path must be added to that list or it
+The Dockerfile's runtime stage copies explicit paths (`src`, `envs`, `prisma`, `scripts`,
+`prisma.config.ts`, `tsconfig.json`) — anything a package script loads by path must be added to that list or it
 exists locally and 404s in the deploy. CI builds this image (`build-api-image` in `ci.yml`), so
 a missing copy fails the PR rather than only at deploy.
 

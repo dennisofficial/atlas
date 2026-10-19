@@ -20,11 +20,7 @@ export class EnvModule {
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,
-          validationSchema: isTest ? undefined : validationSchema,
-          validationOptions: {
-            allowUnknown: true,
-            abortEarly: false,
-          },
+          ...(isTest ? {} : { validationSchema }),
         }),
       ],
       providers: [envService],
