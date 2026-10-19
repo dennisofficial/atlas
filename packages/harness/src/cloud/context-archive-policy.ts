@@ -1,10 +1,14 @@
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import { ENoticeTone, NOTICE_WARN_MS, type NoticePort } from '@dltech/atlas-core'
+import { ENoticeTone, NOTICE_WARN_MS, projectOf, type NoticePort } from '@dltech/atlas-core'
 
 import { atlasDirectory } from '../store/paths'
+import { probeWorkspace } from '../workspace/probe'
 
 import { buildContextArchive, type ArchiveFileSource } from './context-archive'
+import { resolveUserLayerRoots, scanUserLayer } from './context-archive-user-layer'
+import { userLayerSources } from './context-archive-user-layer-sources'
 import { MAX_CONTEXT_ARCHIVE_BYTES } from './sandbox-client'
 
 const CONTEXT_OVERFLOW_NOTICE_KEY = 'context-archive-overflow'
@@ -13,22 +17,26 @@ export type CaptureContext = () => Promise<Buffer | undefined>
 
 const mebibytes = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(1)}MiB`
 
-/**
- * The machine-local context a cloud birth still carries as an archive — the local MCP config. The
- * user layer (skills, instructions, memory) no longer rides here: the user-layer sync engine owns
- * it. Returns undefined when there is nothing to carry, and — past the sanity ceiling — warns
- * through the notice port rather than silently dropping the birth's context.
- */
 export async function captureContextArchive(args: {
   notice: NoticePort
   cwd?: string | undefined
   home?: string | undefined
   atlasHome?: string | undefined
+  projectDirectory?: string | undefined
   maxArchiveBytes?: number | undefined
 }): Promise<Buffer | undefined> {
   const atlasHome = args.atlasHome ?? atlasDirectory()
+  const home = args.home ?? homedir()
   const maxBytes = args.maxArchiveBytes ?? MAX_CONTEXT_ARCHIVE_BYTES
-  const sources: ArchiveFileSource[] = [{ key: '.atlas/mcp.json', path: join(atlasHome, 'mcp.json') }]
+  const projectDirectory =
+    args.projectDirectory ??
+    (args.cwd === undefined ? undefined : projectOf(await probeWorkspace({ cwd: args.cwd })))
+
+  const roots = await resolveUserLayerRoots({ atlasHome, home, projectDirectory })
+  const sources: ArchiveFileSource[] = [
+    { key: '.atlas/mcp.json', path: join(atlasHome, 'mcp.json') },
+    ...(await userLayerSources({ files: await scanUserLayer(roots), notice: args.notice })),
+  ]
 
   const archive = await buildContextArchive({ files: sources })
   if (archive === undefined) return undefined
@@ -36,7 +44,7 @@ export async function captureContextArchive(args: {
 
   args.notice.notify({
     key: CONTEXT_OVERFLOW_NOTICE_KEY,
-    text: `the cloud context archive is ${mebibytes(archive.byteLength)}, over the ${mebibytes(maxBytes)} limit — the cloud session boots without the local MCP config this machine holds`,
+    text: `the cloud context archive is ${mebibytes(archive.byteLength)}, over the ${mebibytes(maxBytes)} limit — the cloud session boots without the local MCP config, skills, instructions and memory this machine holds`,
     tone: ENoticeTone.Warn,
     ttlMs: NOTICE_WARN_MS,
   })

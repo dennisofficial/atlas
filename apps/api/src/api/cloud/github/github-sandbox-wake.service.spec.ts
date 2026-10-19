@@ -1,4 +1,5 @@
 import { ERuntimePhase } from '@dltech/atlas-wire'
+import { Logger } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
@@ -293,5 +294,85 @@ describe('GithubSandboxWakeService', () => {
 
     expect(calls).toHaveLength(0)
     expect(row().wakeClaim).toBeNull()
+  })
+
+  describe('settle', () => {
+    it('boots a debounced target immediately, exactly once, and the timer never fires a second boot', async () => {
+      seedSubscription()
+      seedParkedSandbox()
+      const { boot, calls } = fakeBoot()
+      const wake = serviceWith({ boot })
+
+      wake.notifyEvent(PR_EVENT)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(calls).toHaveLength(0)
+
+      await wake.settle()
+      expect(calls).toHaveLength(1)
+      expect(vi.getTimerCount()).toBe(0)
+
+      await flushDebounce()
+      expect(calls).toHaveLength(1)
+    })
+
+    it('awaits a lookup still in flight, then boots', async () => {
+      seedSubscription()
+      seedParkedSandbox()
+      const { boot, calls } = fakeBoot()
+      const wake = serviceWith({ boot })
+
+      wake.notifyEvent(PR_EVENT)
+      await wake.settle()
+
+      expect(calls).toHaveLength(1)
+      expect(row().state).toBe('running')
+    })
+
+    it('awaits a boot already running before resolving', async () => {
+      seedSubscription()
+      seedParkedSandbox()
+      const gate: { release: () => void } = { release: () => {} }
+      const held = new Promise<void>((resolve) => {
+        gate.release = resolve
+      })
+      const { boot, calls } = fakeBoot({ held })
+      const wake = serviceWith({ boot })
+
+      wake.notifyEvent(PR_EVENT)
+      await vi.advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
+      expect(calls).toHaveLength(1)
+
+      let settled = false
+      const settling = wake.settle().then(() => {
+        settled = true
+      })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(settled).toBe(false)
+
+      gate.release()
+      await settling
+      expect(row().state).toBe('running')
+    })
+
+    it('resolves when nothing is pending', async () => {
+      const { boot, calls } = fakeBoot()
+
+      await expect(serviceWith({ boot }).settle()).resolves.toBeUndefined()
+      expect(calls).toHaveLength(0)
+    })
+
+    it('logs a failing boot instead of throwing', async () => {
+      seedSubscription()
+      seedParkedSandbox()
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
+      const wake = serviceWith({ boot: failingBoot() })
+
+      wake.notifyEvent(PR_EVENT)
+      await expect(wake.settle()).resolves.toBeUndefined()
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('vercel is down'))
+      expect(row().wakeClaim).toBeNull()
+      warn.mockRestore()
+    })
   })
 })

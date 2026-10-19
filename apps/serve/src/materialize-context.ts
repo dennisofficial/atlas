@@ -1,4 +1,5 @@
 import { normalizeRepoOrigin } from '@dltech/atlas-core'
+import { sandboxUserLayerTrees } from '@dltech/atlas-harness'
 
 import type { ArchiveRetry } from './context-archive-retry'
 import { writeContextEntries } from './context-entries'
@@ -15,6 +16,7 @@ export async function materializeContext(args: {
   fetchArchive?: FetchContextArchive | undefined
   archiveRetry?: ArchiveRetry | undefined
   atlasHome: string
+  projectDirectory?: string | undefined
   files?: WorkspaceFiles | undefined
 }): Promise<ContextReadiness> {
   const files = args.files ?? nodeWorkspaceFiles
@@ -56,7 +58,14 @@ export async function materializeContext(args: {
     const outcome = await writeContextEntries({
       files,
       entries: resolved.source.entries,
-      targets: { atlasHome: args.atlasHome },
+      targets: {
+        atlasHome: args.atlasHome,
+        userLayerTrees: sandboxUserLayerTrees({
+          atlasHome: args.atlasHome,
+          projectDirectory: args.projectDirectory,
+          identity,
+        }),
+      },
       overwrite: true,
     })
     if (outcome.failed !== null) return readiness(outcome)
