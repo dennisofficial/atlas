@@ -19,6 +19,19 @@ const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 const MAX_PROBE_ATTEMPTS = 20
 
+const QUIET_MS = 300
+
+const MAX_QUIET_ROUNDS = 10
+
+async function settledCount(args: { read: () => number }): Promise<number> {
+  for (let round = 0; round < MAX_QUIET_ROUNDS; round += 1) {
+    const before = args.read()
+    await pause(QUIET_MS)
+    if (args.read() === before) return before
+  }
+  throw new Error(`the watcher never went quiet after ${MAX_QUIET_ROUNDS} rounds`)
+}
+
 describe('watcher', () => {
   it('collapses a burst of writes, including nested ones, into one change', async () => {
     const root = await scratchDirectory('atlas-ulsync-watch')
@@ -45,7 +58,7 @@ describe('watcher', () => {
       await Promise.race([delivered, pause(150)])
     }
     expect(changes).toBeGreaterThan(0)
-    const changesBeforeBurst = changes
+    const changesBeforeBurst = await settledCount({ read: () => changes })
 
     for (let index = 0; index < 6; index += 1) {
       await writeAt({ path: join(root, 'review', 'SKILL.md'), content: `v${index}` })
