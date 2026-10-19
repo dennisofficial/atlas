@@ -198,7 +198,7 @@ describe('a thread born in the cloud', () => {
 })
 
 describe('switching conversations while attached', () => {
-  it('starts fresh on the host on /new, releasing the cloud attachment', async () => {
+  it('starts a fresh pod thread on /new, releasing the cloud attachment', async () => {
     const app = speaking()
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })
@@ -212,9 +212,6 @@ describe('switching conversations while attached', () => {
       expect(await until({ holds: async () => attached.closed, within: 20_000 })).toBe(true)
       expect(await cleared(mounted, 'CLOUD')).not.toContain('CLOUD')
 
-      await mounted.typeText('back on the host')
-      mounted.pressEnter()
-      expect(await until({ holds: async () => app.turnsDriven === 1, within: 20_000 })).toBe(true)
       expect(attached.runs).toBe(0)
     } finally {
       await mounted.done()
@@ -234,8 +231,9 @@ describe('switching conversations while attached', () => {
 
       await command(mounted, '/resume opened-thread')
 
-      expect(await until({ holds: async () => bridge.attached.length === 2, within: 20_000 })).toBe(true)
-      expect(bridge.attached[1]?.threadId).toBe(THREAD)
+      expect(
+        await until({ holds: async () => bridge.attached.some((held) => held.threadId === THREAD && held !== bridge.attached[0]), within: 20_000 }),
+      ).toBe(true)
 
       bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       expect(await shown(mounted, 'CLOUD')).toContain('CLOUD')

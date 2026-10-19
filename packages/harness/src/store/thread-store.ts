@@ -2,6 +2,7 @@ import {
   ECompactionAnchor,
   EExecutionLocation,
   EForkMode,
+  type ERunner,
   locationOfPlacement,
   placementOf,
   type PlacementRecord,
@@ -35,6 +36,7 @@ export type ThreadSummary = {
   /** Set only by `list`, alongside `worktree`; absent when the thread never linked a pull request. */
   pullRequests?: LinkedPullRequest[] | undefined
   executionLocation?: EExecutionLocation | undefined
+  runner?: ERunner | undefined
 }
 
 export const THREAD_LISTING_LIMIT = 50
@@ -70,6 +72,10 @@ export abstract class ThreadStorePort {
   onPlacementChanged(listener: PlacementChangedListener): Unsubscribe {
     void listener
     return () => undefined
+  }
+
+  async chooseRunner(args: { threadId: ThreadId; runner: ERunner }): Promise<void> {
+    void args
   }
 
   async readPlacement(args: { threadId: ThreadId }): Promise<PlacementRecord | undefined> {

@@ -8,6 +8,7 @@ const FAULT_HEAD: Record<EBirthFault, string> = {
   [EBirthFault.Unreachable]: 'Atlas Cloud could not be reached',
   [EBirthFault.Sandbox]: 'the sandbox would not start',
   [EBirthFault.Context]: 'the context could not reach the sandbox',
+  [EBirthFault.ImagePull]: 'the pod image could not be pulled',
 }
 
 const FELL_BACK = 'this thread started on this machine instead'

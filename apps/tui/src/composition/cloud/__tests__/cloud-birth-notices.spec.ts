@@ -47,3 +47,11 @@ describe('a failed cloud birth', () => {
   })
 
 })
+
+describe('a pod image pull failure', () => {
+  it('names the pull as the fault', () => {
+    expect(birthFailedNotice(failure({ fault: EBirthFault.ImagePull, detail: 'denied' }))).toContain(
+      'the pod image could not be pulled',
+    )
+  })
+})

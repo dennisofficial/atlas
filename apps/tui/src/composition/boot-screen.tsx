@@ -4,9 +4,11 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useEffect, useState, useSyncExternalStore } from 'react'
 
 import { Startup } from '../ui/components/startup'
-import { App, reapExpiredSandboxesOnBoot } from './app'
+import { App } from './app'
 import { bootStepLabel, type BootProgress } from './boot-progress'
 import type { AtlasApp } from './compose'
+import { reapExpiredSandboxesOnBoot } from './live-cloud'
+import { reapOrphanPodsOnBoot } from './live-pod'
 import type { OpenedConversation } from './open-conversation'
 import { ESession, type Session } from './open-session'
 import { useStartup } from './use-startup'
@@ -16,6 +18,11 @@ import { useStartup } from './use-startup'
  * ink is not made to pay for a second render of the whole transcript on every frame it draws.
  */
 const CoveredApp = React.memo(App)
+
+const reapOnBootAll = (app: AtlasApp): void => {
+  reapExpiredSandboxesOnBoot(app)
+  reapOrphanPodsOnBoot(app)
+}
 
 type ReadySession = {
   app: AtlasApp
@@ -83,7 +90,7 @@ export function BootScreen(props: {
           opened={ready.opened}
           credentialNotice={ready.credentialNotice}
           covered={startup.covered}
-          reapOnBoot={reapExpiredSandboxesOnBoot}
+          reapOnBoot={reapOnBootAll}
           {...(props.onRestart === undefined ? {} : { onRestart: props.onRestart })}
         />
       )}

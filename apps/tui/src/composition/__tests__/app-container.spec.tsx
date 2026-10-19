@@ -111,7 +111,7 @@ describe('the container command', () => {
       mounted.pressEnter()
       await mounted.frame()
 
-      expect(app.executionLocation.current()).toBe(EExecutionLocation.Host)
+      expect(app.executionLocation.current()).not.toBe(EExecutionLocation.Docker)
     } finally {
       await mounted.done()
     }

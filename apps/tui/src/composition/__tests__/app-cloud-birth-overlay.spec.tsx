@@ -19,7 +19,7 @@ await grammarsReady()
 
 afterEach(() => dismissNotice())
 
-const BIRTH_HEADING = 'STARTING A CLOUD SANDBOX'
+const BIRTH_HEADING = 'STARTING A POD'
 const HELD_DRAFT = 'hold this draft'
 
 const appOn = (): FakeApp =>
@@ -88,7 +88,7 @@ describe('flipping a fresh thread to the cloud', () => {
     const mounted = await mountFresh({ app, bridge })
 
     try {
-      expect(await until({ holds: async () => (await mounted.frame()).includes('local ▾'), within: 20_000 })).toBe(
+      expect(await until({ holds: async () => (await mounted.frame()).includes('host ▾'), within: 20_000 })).toBe(
         true,
       )
 
@@ -117,14 +117,14 @@ describe('flipping a fresh thread to the cloud', () => {
     }
   }, 60_000)
 
-  it('cancelling the overlay falls back to the host with the chip back on local', async () => {
+  it('cancelling the overlay falls back to the host with the chip back on host', async () => {
     const app = appOn()
     const bridge = fakeBridge()
     const held = holdingProvisioning(bridge)
     const mounted = await mountFresh({ app, bridge })
 
     try {
-      expect(await until({ holds: async () => (await mounted.frame()).includes('local ▾'), within: 20_000 })).toBe(
+      expect(await until({ holds: async () => (await mounted.frame()).includes('host ▾'), within: 20_000 })).toBe(
         true,
       )
 
@@ -143,7 +143,7 @@ describe('flipping a fresh thread to the cloud', () => {
       const backedOff = await until({
         holds: async () => {
           const frame = await mounted.frame()
-          return !frame.includes(BIRTH_HEADING) && frame.includes('local ▾')
+          return !frame.includes(BIRTH_HEADING) && frame.includes('host ▾')
         },
         within: 20_000,
       })

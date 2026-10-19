@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react'
 
-import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement, ERunner } from '@dltech/atlas-core'
 import {
   birthInCloud,
+  cloudProvisioningConfigured,
   EBirthNode,
   storedModel,
   type CloudReload,
@@ -11,7 +12,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
-import { bornWith, fallBackToHost, rememberPlacement } from './cloud/born-cloud'
+import { bornWith, CLOUD_NOT_CONFIGURED_NOTICE, fallBackToHost, rememberPlacement } from './cloud/born-cloud'
 import { bornPlacementChip, startsTheThread } from './cloud/born-placement-chip'
 import { cloudRuntimeParts, openCloudConversation } from './cloud/cloud-app'
 import { cloudReadinessOf } from './cloud/cloud-readiness'
@@ -27,34 +28,33 @@ import { cloudAnchorOf, cloudBindingOf, prepareOn } from './session-binding'
 import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 import type { useContainerMove } from './use-container-move'
 
+const POD_PROVISION_LABEL = 'starting the pod — the first one pulls a 5.5 GB image'
+
 export type ThreadBirth = {
   handleNewThread: () => void
   handleFlipPlacement: () => void
 }
 
-/**
- * /new. A thread is born-placed: the cloud when this machine can provision a sandbox, the host
- * otherwise — and it never moves afterwards. The cloud birth is the same provisioning a bare
- * `/container cloud` ran, minus everything a history would transfer: there is nothing to pause,
- * capture, or verify, because the thread has no events yet.
- */
 export function useThreadBirth(args: {
   app: AtlasApp
   owner: SessionOwner<SessionRuntime>
   containerMove: ReturnType<typeof useContainerMove>
   createBridge: CloudBridgeFactory
   preflightBirth?: BirthPreflight | undefined
+  onSignInRequired: () => void
   adopt: (opened: OpenedConversation) => void
   onReload: (reload: CloudReload) => Promise<void>
 }): ThreadBirth {
   const latest = useRef(args)
   latest.current = args
-  const birthCloudRef = useRef<(born: { threadId: OpenedConversation['threadId'] }) => void>(() => undefined)
+  const birthCloudRef = useRef<(born: { threadId: OpenedConversation['threadId']; runner: ERunner }) => void>(
+    () => undefined,
+  )
 
   const birthArgs = useCallback(
     (born: {
       threadId: OpenedConversation['threadId']
-      choice?: EHarnessPlacement | undefined
+      choice?: ERunner | undefined
       carriedDraft?: boolean | undefined
     }) => ({
       app: latest.current.app,
@@ -62,20 +62,30 @@ export function useThreadBirth(args: {
       ...(born.choice === undefined ? {} : { choice: born.choice }),
       ...(born.carriedDraft === true ? { carriedDraft: true } : {}),
       preflightBirth: latest.current.preflightBirth,
-      birthCloud: (born: { threadId: OpenedConversation['threadId'] }) => birthCloudRef.current(born),
+      requireSignIn: () => latest.current.onSignInRequired(),
+      birthCloud: (next: { threadId: OpenedConversation['threadId']; runner: ERunner }) =>
+        birthCloudRef.current(next),
       adopt: latest.current.adopt,
     }),
     [],
   )
 
-  const birthNewborn = useCallback((born: { threadId: OpenedConversation['threadId'] }) => {
+  const birthNewborn = useCallback((born: { threadId: OpenedConversation['threadId']; runner: ERunner }) => {
     const { app, containerMove: move, createBridge, owner } = latest.current
-    const threadId = born.threadId
-    const bridge = createBridge()
+    const { threadId, runner } = born
+    const pod = runner === ERunner.Local
+    const bridge = createBridge({ runner })
+    const failed = (reason: string): void => {
+      if (pod) void bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
+      move.handleFail(reason)
+      notify({ key: CLOUD_BIRTH_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+      fallBackToHost(birthArgs({ threadId }))
+    }
     const captureContext = () => app.captureContext({ cwd: app.workspace.workspace })
 
     void birthInCloud({
       threadId,
+      runner,
       cwd: app.workspace.workspace,
       identity: app.workspace,
       model: storedModel(app.model.choice()),
@@ -89,9 +99,16 @@ export function useThreadBirth(args: {
       onBegin: ({ waves }) =>
         move.handleBegin({
           target: EExecutionLocation.Cloud,
-          rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })),
-          heading: 'STARTING A CLOUD SANDBOX',
-          onCancel: () => fallBackToHost(birthArgs({ threadId })),
+          rows: waves.map((wave) => ({
+            id: wave.ids[0] ?? wave.label,
+            text: pod && wave.ids[0] === EBirthNode.Provision ? POD_PROVISION_LABEL : wave.label,
+            nodeIds: wave.ids,
+          })),
+          heading: pod ? 'STARTING A POD' : 'STARTING A CLOUD SANDBOX',
+          onCancel: () => {
+            if (pod) void bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
+            fallBackToHost(birthArgs({ threadId }))
+          },
         }),
       onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
       onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
@@ -143,27 +160,21 @@ export function useThreadBirth(args: {
     })
       .then(async (born) => {
         if (!born.ok) {
-          const reason = birthFailedNotice(born)
-          move.handleFail(reason)
-          notify({ key: CLOUD_BIRTH_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
-          fallBackToHost(birthArgs({ threadId }))
+          failed(birthFailedNotice(born))
           return
         }
-        bornPlacementChip(app).set({ threadId, harness: EHarnessPlacement.Cloud, provisioning: false })
+        bornPlacementChip(app).set({ threadId, harness: EHarnessPlacement.Cloud, runner, provisioning: false })
         move.handleSettle()
       })
       .catch((error: unknown) => {
-        const reason = `starting a cloud sandbox failed — ${messageOf(error)}`
-        move.handleFail(reason)
-        notify({ key: CLOUD_BIRTH_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
-        fallBackToHost(birthArgs({ threadId }))
+        failed(`${pod ? 'starting the pod' : 'starting a cloud sandbox'} failed — ${messageOf(error)}`)
       })
   }, [])
 
   const birth = useCallback(
     (born: {
       threadId: OpenedConversation['threadId']
-      choice?: EHarnessPlacement | undefined
+      choice?: ERunner | undefined
       carriedDraft?: boolean | undefined
     }) => {
       void bornWith(birthArgs(born)).catch((error: unknown) => {
@@ -187,20 +198,40 @@ export function useThreadBirth(args: {
   }, [birth])
 
   const handleFlipPlacement = useCallback(() => {
-    const { app, containerMove } = latest.current
+    const { app, containerMove, createBridge } = latest.current
     const state = bornPlacementChip(app).snapshot()
     if (state === null || state.provisioning || containerMove.move !== null) return
-    const choice = state.harness === EHarnessPlacement.Cloud ? EHarnessPlacement.Host : EHarnessPlacement.Cloud
-    rememberPlacement({ app, harness: choice })
-    if (choice === EHarnessPlacement.Cloud) {
-      birth({ threadId: state.threadId, choice })
+    if (state.harness === EHarnessPlacement.Host) {
+      rememberPlacement({ app, harness: EHarnessPlacement.Cloud })
+      birth({ threadId: state.threadId, choice: ERunner.Local })
       return
     }
-    void latest.current
-      .createBridge()
-      .sandboxes.destroy({ threadId: state.threadId })
-      .catch(() => undefined)
-    birth({ threadId: app.ids.nextThreadId(), choice, carriedDraft: true })
+    const old = state.runner === ERunner.Vercel ? ERunner.Vercel : ERunner.Local
+    const next = old === ERunner.Local ? ERunner.Vercel : ERunner.Local
+    if (next === ERunner.Vercel && !cloudProvisioningConfigured({ settings: app.settings, secrets: app.secrets })) {
+      notify({
+        key: 'born-cloud-unconfigured',
+        text: CLOUD_NOT_CONFIGURED_NOTICE,
+        tone: ENoticeTone.Info,
+        ttlMs: NOTICE_WARN_MS,
+      })
+      return
+    }
+    if (app.cloud.session() === null) {
+      birth({ threadId: state.threadId, choice: next })
+      return
+    }
+    void (latest.current.preflightBirth?.({ runner: next }) ?? Promise.resolve(null)).then((refusal) => {
+      if (refusal !== null) {
+        notify({ key: 'born-cloud-preflight', text: refusal, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+        return
+      }
+      rememberPlacement({ app, harness: EHarnessPlacement.Cloud })
+      void createBridge({ runner: old })
+        .sandboxes.destroy({ threadId: state.threadId })
+        .catch(() => undefined)
+      birth({ threadId: app.ids.nextThreadId(), choice: next, carriedDraft: true })
+    })
   }, [birth])
 
   useEffect(

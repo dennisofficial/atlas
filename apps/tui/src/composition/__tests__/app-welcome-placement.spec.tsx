@@ -11,14 +11,15 @@ import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/har
 import { dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
-import { spokenIn, until } from './app-fixture'
+import { until } from './app-fixture'
+import { unstartedConversation } from '../open-conversation'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
 afterEach(() => dismissNotice())
 
-const HOST_HINT = '↓ to the footer chip, ⏎ for a cloud sandbox'
+const HOST_HINT = '↓ to the footer chip, ⏎ for a pod'
 
 const appOn = (args: { shape?: 'chip' | 'hero' }): FakeApp =>
   fakeApp({
@@ -42,7 +43,7 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
   const setup = await testRender(
     <App
       app={args.app}
-      opened={await spokenIn(args.app)}
+      opened={unstartedConversation({ ids: args.app.ids })}
       createBridge={() => args.bridge}
       preflightBirth={async () => null}
     />,
@@ -77,11 +78,10 @@ const frameHolds = async (args: { mounted: Mounted; holds: (frame: string) => bo
   until({ holds: async () => args.holds(await args.mounted.frame()), within: 20_000 })
 
 describe('the welcome hero placement shape', () => {
-  it('surfaces the local placement and its hint on a fresh /new', async () => {
+  it('surfaces the host placement and its hint on a fresh thread', async () => {
     const mounted = await mount({ app: appOn({ shape: 'hero' }), bridge: fakeBridge() })
 
     try {
-      await mounted.command('/new')
 
       expect(
         await frameHolds({
@@ -98,7 +98,6 @@ describe('the welcome hero placement shape', () => {
     const mounted = await mount({ app: appOn({ shape: 'hero' }), bridge: fakeBridge() })
 
     try {
-      await mounted.command('/new')
       expect(await frameHolds({ mounted, holds: (frame) => frame.includes(HOST_HINT) })).toBe(true)
 
       await mounted.command('hello from the hero')
@@ -106,7 +105,7 @@ describe('the welcome hero placement shape', () => {
       expect(
         await frameHolds({
           mounted,
-          holds: (frame) => !frame.includes(HOST_HINT) && !frame.includes('☁ local') && !frame.includes('local ▾'),
+          holds: (frame) => !frame.includes(HOST_HINT) && !frame.includes('☁ local') && !frame.includes('host ▾'),
         }),
       ).toBe(true)
     } finally {
@@ -118,8 +117,7 @@ describe('the welcome hero placement shape', () => {
     const mounted = await mount({ app: appOn({}), bridge: fakeBridge() })
 
     try {
-      await mounted.command('/new')
-      expect(await frameHolds({ mounted, holds: (frame) => frame.includes('local ▾') })).toBe(true)
+      expect(await frameHolds({ mounted, holds: (frame) => frame.includes('host ▾') })).toBe(true)
 
       const frame = await mounted.frame()
 
@@ -130,12 +128,11 @@ describe('the welcome hero placement shape', () => {
     }
   }, 60_000)
 
-  it('still births the cloud through the footer chip', async () => {
+  it('still births a pod through the footer chip', async () => {
     const bridge = fakeBridge()
     const mounted = await mount({ app: appOn({ shape: 'hero' }), bridge })
 
     try {
-      await mounted.command('/new')
       expect(await frameHolds({ mounted, holds: (frame) => frame.includes(HOST_HINT) })).toBe(true)
       expect(bridge.created.length).toBe(0)
 

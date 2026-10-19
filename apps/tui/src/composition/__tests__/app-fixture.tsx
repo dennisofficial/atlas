@@ -7,6 +7,7 @@ import React from 'react'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImageReader } from '../../ui/clipboard-image'
 import { App } from '../app'
+import { fakeBridge } from '../cloud/__tests__/fixture'
 import type { OpenedConversation } from '../open-conversation'
 import type { FakeApp } from './fake-app'
 
@@ -105,10 +106,13 @@ export async function open(args: {
   opened?: OpenedConversation
   clipboard?: ClipboardImageReader
 }): Promise<Mounted> {
+  const bridge = fakeBridge()
   const setup = await testRender(
     <App
       app={args.app}
       opened={args.opened ?? EMPTY}
+      createBridge={() => bridge}
+      preflightBirth={async () => null}
       clipboard={args.clipboard ?? NOTHING_ON_THE_CLIPBOARD}
     />,
     { width: WIDTH, height: HEIGHT },

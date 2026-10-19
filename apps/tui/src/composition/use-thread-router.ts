@@ -1,4 +1,4 @@
-import { toThreadId } from '@dltech/atlas-core'
+import { ERunner, toThreadId } from '@dltech/atlas-core'
 import { type ThreadStorePort } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef } from 'react'
 import { messageOf } from './error-text'
@@ -45,15 +45,33 @@ export function useThreadRouter(args: {
   onLocalSwap: (threadId: string) => void
 }): ThreadRouter {
   const { localApp, cloudBridge, cloudSession, createBridge, containerMove } = args
-  const bridgeRef = useRef<CloudBridge | null>(null)
+  const bridgesRef = useRef(new Map<ERunner, CloudBridge>())
 
-  const ensureBridge = useCallback((): CloudBridge => {
-    if (cloudBridge !== null) return cloudBridge
-    if (bridgeRef.current !== null) return bridgeRef.current
+  const bridgeFor = useCallback(
+    (runner: ERunner): CloudBridge => {
+      const held = bridgesRef.current.get(runner)
+      if (held !== undefined) return held
+      const created = createBridge({ runner })
+      bridgesRef.current.set(runner, created)
+      return created
+    },
+    [createBridge],
+  )
 
-    bridgeRef.current = createBridge()
-    return bridgeRef.current
-  }, [cloudBridge, createBridge])
+  const runnerOf = useCallback(
+    async (threadId: string): Promise<ERunner> =>
+      (await localApp.threads.find({ threadId: toThreadId(threadId) }).catch(() => undefined))?.runner ??
+      ERunner.Vercel,
+    [localApp],
+  )
+
+  const bridgeOf = useCallback(
+    async (threadId: string): Promise<CloudBridge> => {
+      if (cloudBridge !== null && threadId === args.activeThreadId) return cloudBridge
+      return bridgeFor(await runnerOf(threadId))
+    },
+    [args.activeThreadId, bridgeFor, cloudBridge, runnerOf],
+  )
 
   const listing = useCallback((): Pick<ThreadStorePort, 'list'> => cloudListing(localApp), [localApp])
 
@@ -61,7 +79,7 @@ export function useThreadRouter(args: {
     async (threadId: string, projectDirectory: string | undefined): Promise<void> => {
       if (threadId === args.activeThreadId && cloudSession !== null) return
 
-      const bridge = ensureBridge()
+      const bridge = await bridgeOf(threadId)
       await localApp.sessionOwner.activateLocal({ threadId: toThreadId(threadId) }).catch(() => undefined)
 
       const adopted = await openCloudThread({
@@ -96,7 +114,7 @@ export function useThreadRouter(args: {
       clearAttachFailure()
       cloudAttachmentOf(adopted)?.settleOpen()
     },
-    [args, cloudSession, containerMove, ensureBridge, localApp],
+    [args, bridgeOf, cloudSession, containerMove, localApp],
   )
 
   const route = useCallback(
@@ -161,8 +179,10 @@ export function useThreadRouter(args: {
   }, [attach, cloudSession, args.opened, localApp])
 
   const findSandbox = useCallback(
-    (): Pick<CloudSandboxes, 'find'> => ensureBridge().sandboxes,
-    [ensureBridge],
+    (): Pick<CloudSandboxes, 'find'> => ({
+      find: async ({ threadId }) => (await bridgeOf(threadId)).sandboxes.find({ threadId }),
+    }),
+    [bridgeOf],
   )
 
   const handleOpen = useCallback((threadId: string) => void route(threadId), [route])

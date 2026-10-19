@@ -1,5 +1,6 @@
 import {
   EExecutionLocation,
+  type ERunner,
   placementOf,
   toThreadId,
   type PlacementRecord,
@@ -176,6 +177,12 @@ export class JsonlThreadStore implements ThreadStorePort {
       },
     })
     for (const listener of [...this.modelChosenListeners]) listener({ threadId, model })
+  }
+
+  async chooseRunner({ threadId, runner }: { threadId: ThreadId; runner: ERunner }): Promise<void> {
+    const sessionDir = await this.registry.sessionDirOf({ threadId })
+    if (sessionDir === undefined) return
+    await updateThreadMeta({ context: this.context(), threadId, change: (meta) => ({ ...meta, runner }) })
   }
 
   async chooseExecutionLocation(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {

@@ -3,14 +3,20 @@ import { describe, expect, it } from 'bun:test'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ContainerSummary } from '../../../execution/docker/engine'
-import { POD_ROLE, podNameFor, podRoleLabel, podThreadLabel } from '../pod-create'
+import { POD_ROLE, podHomeDigestOf, podHomeLabel, podNameFor, podRoleLabel, podThreadLabel } from '../pod-create'
 import { reapOrphanPods } from '../reaper'
+
+const HOME = '/home/atlas-test'
 
 const summaryFor = (args: { threadId: string; name?: string }): ContainerSummary => ({
   id: `id-${args.threadId}`,
   name: `/${args.name ?? podNameFor({ threadId: args.threadId })}`,
   state: 'exited',
-  labels: { [podThreadLabel]: args.threadId, [podRoleLabel]: POD_ROLE },
+  labels: {
+    [podThreadLabel]: args.threadId,
+    [podRoleLabel]: POD_ROLE,
+    [podHomeLabel]: podHomeDigestOf({ home: HOME }),
+  },
 })
 
 type ListArgs = { labels: Record<string, string | undefined>; all?: boolean }
@@ -39,6 +45,7 @@ const harness = (args: {
           destroyed.push(name)
         }),
       threadExists: args.threadExists ?? (async ({ threadId }) => live.has(threadId)),
+      home: HOME,
       log: (line) => logs.push(line),
     })
   return { run, listed, destroyed, logs }
@@ -48,7 +55,16 @@ describe('reapOrphanPods', () => {
   it('lists every pod, running or not, by thread and role label', async () => {
     const { run, listed } = harness({ containers: [] })
     await run()
-    expect(listed).toEqual([{ labels: { [podThreadLabel]: undefined, [podRoleLabel]: POD_ROLE }, all: true }])
+    expect(listed).toEqual([
+      {
+        labels: {
+          [podThreadLabel]: undefined,
+          [podRoleLabel]: POD_ROLE,
+          [podHomeLabel]: podHomeDigestOf({ home: HOME }),
+        },
+        all: true,
+      },
+    ])
   })
 
   it('destroys an orphan under its derived name', async () => {
@@ -137,6 +153,7 @@ describe('reapOrphanPods', () => {
         },
         destroyPod: async () => undefined,
         threadExists: async () => false,
+        home: HOME,
       }),
     ).rejects.toBe(failure)
   })

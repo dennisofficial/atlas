@@ -25,7 +25,6 @@ import {
 
 import { buildInfo, clientVersionHeader, EBuildKind } from '../build/info'
 import { ENoticeTone } from '../ui/notice-store'
-import { createCloudBridge } from './cloud/create-bridge'
 import { devServeResolverFor } from './cloud/dev-serve'
 import { durableOpLog } from './durable-op-log'
 import { reapExpiredCloudSandboxes } from './cloud/reaper'
@@ -33,11 +32,10 @@ import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
 import { noticePortBinding } from './notice-binding'
-import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 
 type RegistryMetadata = { title?: string; repo?: string; model?: string }
 
-const releaseBuildOf = (): { version: string } | undefined => {
+export const releaseBuildOf = (): { version: string } | undefined => {
   const build = buildInfo()
   if (build.kind !== EBuildKind.Release) return undefined
   return { version: build.version }
@@ -169,11 +167,6 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   }),
 })
 
-export const liveBridgeFor =
-  (app: AtlasApp): CloudBridgeFactory =>
-  () =>
-    createCloudBridge(liveBridgeOptionsFor(app))
-
 export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
   const session = app.cloud.session()
   if (session === null) return
@@ -215,14 +208,3 @@ export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
     }),
   )
 }
-
-export const liveBirthPreflightFor =
-  (app: AtlasApp): BirthPreflight =>
-  async () => {
-    try {
-      requireVercelCredentials({ settings: app.settings, secrets: app.secrets })
-      return null
-    } catch (error) {
-      return messageOf(error)
-    }
-  }

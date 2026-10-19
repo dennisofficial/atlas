@@ -1,6 +1,7 @@
 import {
   EHarnessPlacement,
   EToolEnvironment,
+  ERunner,
   ESettingId,
   type SessionPlacement,
   type ThreadId,
@@ -11,35 +12,27 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { unstartedConversation, type OpenedConversation } from '../open-conversation'
 import { localAnchorOf, localBindingOf } from '../session-binding'
+import type { BirthPreflight } from './bridge-factory'
 import { bornPlacementChip, startsTheThread } from './born-placement-chip'
 
 export const CLOUD_NOT_CONFIGURED_NOTICE =
-  'cloud sandboxes are not configured yet — this thread was born on the host; set up your Vercel account under settings (ctrl+o) › cloud to choose the cloud for a thread'
+  'cloud sandboxes are not configured yet — set up your Vercel account under settings (ctrl+o) › cloud'
+
+export const SIGN_IN_TO_BIRTH_NOTICE =
+  'sign in to Atlas Cloud to start a session — pods lease your model tokens and signing key from it'
 
 export type BornCloudArgs = {
   app: AtlasApp
   threadId: ThreadId
-  choice?: EHarnessPlacement | undefined
-  /** True when this birth is a cloud→host flip rebirth: the operator's draft crosses the id change. */
+  choice?: ERunner | undefined
   carriedDraft?: boolean | undefined
-  preflightBirth?: (() => Promise<string | null>) | undefined
-  birthCloud: (args: { threadId: ThreadId }) => void
+  preflightBirth?: BirthPreflight | undefined
+  requireSignIn: () => void
+  birthCloud: (args: { threadId: ThreadId; runner: ERunner }) => void
   adopt: (opened: OpenedConversation) => void
 }
 
 const HOST_PLACEMENT: SessionPlacement = { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host }
-
-type BornChoice = { harness: EHarnessPlacement; unconfigured: boolean }
-
-function bornChoiceOf(args: { app: AtlasApp; explicit: EHarnessPlacement | undefined }): BornChoice {
-  const { app } = args
-  const wanted = args.explicit ?? EHarnessPlacement.Host
-  if (wanted === EHarnessPlacement.Host) return { harness: EHarnessPlacement.Host, unconfigured: false }
-  if (cloudProvisioningConfigured({ settings: app.settings, secrets: app.secrets })) {
-    return { harness: EHarnessPlacement.Cloud, unconfigured: false }
-  }
-  return { harness: EHarnessPlacement.Host, unconfigured: true }
-}
 
 export function rememberPlacement(args: { app: AtlasApp; harness: EHarnessPlacement }): void {
   args.app.settings.set({ id: ESettingId.LastBornPlacement, value: args.harness })
@@ -88,41 +81,41 @@ export function fallBackToHost(args: BornCloudArgs): void {
   adoptLocally(args)
 }
 
-/**
- * Where a /new thread is born. The placement is fixed at the first send and never moves after it:
- * the host is the default and the cloud is always an explicit chip choice — never assumed and never
- * carried over from the last thread. Choosing the cloud starts provisioning right away — the provisioning is
- * the placement write, and the thread has no history to transfer. The born marker lands once the
- * birth settles (`markBorn`), so a crash mid-provision still reads as an unfinished birth to the
- * recovery path. Anywhere else the thread runs on the host and, when the cloud was explicitly chosen
- * but is not set up, says why once.
- */
 export async function bornWith(args: BornCloudArgs): Promise<void> {
   const { app, threadId } = args
-  const choice = bornChoiceOf({ app, explicit: args.choice })
 
-  if (choice.harness === EHarnessPlacement.Host) {
-    if (choice.unconfigured) {
-      notify({
-        key: 'born-cloud-unconfigured',
-        text: CLOUD_NOT_CONFIGURED_NOTICE,
-        tone: ENoticeTone.Info,
-        ttlMs: NOTICE_WARN_MS,
-      })
-    }
-    fallBackToHost(args)
+  if (app.cloud.session() === null) {
+    notify({ key: 'born-sign-in', text: SIGN_IN_TO_BIRTH_NOTICE, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+    args.requireSignIn()
     return
   }
 
-  const refusal = (await args.preflightBirth?.()) ?? null
+  const runner = args.choice ?? ERunner.Local
+
+  if (runner === ERunner.Vercel && !cloudProvisioningConfigured({ settings: app.settings, secrets: app.secrets })) {
+    notify({
+      key: 'born-cloud-unconfigured',
+      text: CLOUD_NOT_CONFIGURED_NOTICE,
+      tone: ENoticeTone.Info,
+      ttlMs: NOTICE_WARN_MS,
+    })
+    return
+  }
+
+  const refusal = (await args.preflightBirth?.({ runner })) ?? null
   if (refusal !== null) {
     notify({ key: 'born-cloud-preflight', text: refusal, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
-    fallBackToHost(args)
     return
   }
 
-  bornPlacementChip(app).set({ threadId, harness: EHarnessPlacement.Cloud, provisioning: true })
+  bornPlacementChip(app).set({
+    threadId,
+    harness: EHarnessPlacement.Cloud,
+    runner,
+    provisioning: true,
+    ...(args.carriedDraft === true ? { carriedDraft: true } : {}),
+  })
   const opened = unstartedConversation({ ids: app.ids, threadId })
   args.adopt(opened)
-  args.birthCloud({ threadId })
+  args.birthCloud({ threadId, runner })
 }

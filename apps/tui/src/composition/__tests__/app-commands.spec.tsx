@@ -7,6 +7,7 @@ import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { EKeyGroup } from '../../ui/keys'
 import { App } from '../app'
+import { fakeBridge } from '../cloud/__tests__/fixture'
 import { FAKE_CONFIG, fakeApp, fakeSkill, scriptedModelPort, type FakeApp } from './fake-app'
 
 const PIRATE = fakeSkill({
@@ -37,11 +38,13 @@ async function landed(setup: Mounted): Promise<void> {
   await setup.flush()
 }
 
-async function opened(app: FakeApp): Promise<Mounted> {
+async function opened(app: FakeApp, args: { started?: boolean } = {}): Promise<Mounted> {
   const setup = await testRender(
     <App
       app={app}
-      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: args.started ?? true }}
+      createBridge={() => fakeBridge()}
+      preflightBirth={async () => null}
     />,
     WIDE,
   )
@@ -271,11 +274,9 @@ describe('a fresh conversation started from inside the app', () => {
 
   it('is filed under the workspace by its first message, so tomorrow can resume it', async () => {
     const app = appWith()
-    const setup = await opened(app)
+    const setup = await opened(app, { started: false })
 
     try {
-      await setup.mockInput.typeText('/new')
-      setup.mockInput.pressEnter()
       await landed(setup)
 
       await setup.mockInput.typeText('the first thing said in it')

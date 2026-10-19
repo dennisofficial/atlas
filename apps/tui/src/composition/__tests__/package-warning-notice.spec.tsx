@@ -23,6 +23,7 @@ function activeRedirect(log: JsonlLog): ReturnType<typeof installOutputRedirect>
 }
 
 beforeEach(() => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = false
   dismissNotice()
   jest.useFakeTimers()
 })
