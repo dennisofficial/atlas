@@ -7,6 +7,7 @@ import { waitFor } from './rig-observer'
 import { EvidencedScenarioFailed, messageOf } from './rig-park-wait'
 import type { BoxProbe } from './rig-probes'
 import { assistantSaid, transcriptLines, transcriptOf, userSaidCount } from './rig-transcript'
+import { rigSentinelPath, rigWorkspaceDir } from './rig-workspace'
 
 const ID = 1
 const SLUG = 'fresh'
@@ -16,9 +17,10 @@ const REPLY_WORD = 'READY'
 const REPLY_WITHIN_MS = 5 * 60_000
 const REPLY_EVERY_MS = 5_000
 const PROBE_LOG_LINES = 60
-const SENTINEL_PATH = '/opt/atlas/workspaces/workspace/rig-sentinel.txt'
-const SENTINEL_SCRIPT = `set -e; v=rig-$(date +%s%N); printf %s "$v" > ${SENTINEL_PATH}; cat ${SENTINEL_PATH}`
 const SENTINEL_PATTERN = /^rig-\d+$/
+
+const sentinelScript = (path: string): string =>
+  `set -e; v=rig-$(date +%s%N); printf %s "$v" > ${path}; cat ${path}`
 
 type Draft = {
   commands: string[]
@@ -91,24 +93,26 @@ const waitForReady = async (args: { ctx: ScenarioContext; draft: Draft }): Promi
 }
 
 const WORKSPACE_FAILED = 'serve.workspace-failed'
-const WORKSPACE_DIR = '/opt/atlas/workspaces/workspace'
-const ROOT_DIRS = ['/opt', '/usr', '/etc'] as const
-const LAYOUT_SCRIPT = [
-  ...ROOT_DIRS.map((dir) => `if test -d ${dir}; then echo "dir ${dir} ok"; else echo "dir ${dir} MISSING"; fi`),
-  `git -C ${WORKSPACE_DIR} remote get-url origin 2>/dev/null | sed 's/^/origin /'`,
-  'true',
-].join('; ')
+const ROOT_DIRS = ['/opt', '/usr', '/etc', '/atlas'] as const
+
+const layoutScriptOf = (workspaceDir: string): string =>
+  [
+    ...ROOT_DIRS.map((dir) => `if test -d ${dir}; then echo "dir ${dir} ok"; else echo "dir ${dir} MISSING"; fi`),
+    `git -C ${workspaceDir} remote get-url origin 2>/dev/null | sed 's/^/origin /'`,
+    'true',
+  ].join('; ')
 
 const layoutMisses = async (ctx: ScenarioContext): Promise<{ out: string; misses: string[] }> => {
+  const repo = ctx.shared.get('repo')
+  const workspaceDir = rigWorkspaceDir({ repo })
   const out = await ctx.probes
-    .sh({ name: ctx.sandboxName(), script: LAYOUT_SCRIPT })
+    .sh({ name: ctx.sandboxName(), script: layoutScriptOf(workspaceDir) })
     .catch((error: unknown) => `probe failed: ${messageOf(error)}`)
   const misses = out.split('\n').filter((line) => line.includes('MISSING') || line.startsWith('probe failed'))
-  const repo = ctx.shared.get('repo')
   if (repo === undefined || repo === 'none') return { out, misses }
   const origin = out.split('\n').find((line) => line.startsWith('origin '))?.slice('origin '.length).trim()
   if (origin === repo) return { out, misses }
-  return { out, misses: [...misses, `${WORKSPACE_DIR} origin ${origin ?? 'absent'}, expected ${repo}`] }
+  return { out, misses: [...misses, `${workspaceDir} origin ${origin ?? 'absent'}, expected ${repo}`] }
 }
 
 const checkServingBox = async (args: { ctx: ScenarioContext; draft: Draft }): Promise<void> => {
@@ -136,17 +140,18 @@ const checkServingBox = async (args: { ctx: ScenarioContext; draft: Draft }): Pr
 }
 
 const writeSentinel = async (args: { ctx: ScenarioContext; draft: Draft }): Promise<void> => {
+  const path = rigSentinelPath({ repo: args.ctx.shared.get('repo') })
   let sentinel: string
   try {
-    sentinel = (await args.ctx.probes.sh({ name: args.ctx.sandboxName(), script: SENTINEL_SCRIPT })).trim()
+    sentinel = (await args.ctx.probes.sh({ name: args.ctx.sandboxName(), script: sentinelScript(path) })).trim()
   } catch (error) {
-    return fail({ draft: args.draft, step: 'write sentinel', expected: `${SENTINEL_PATH} written`, observed: messageOf(error) })
+    return fail({ draft: args.draft, step: 'write sentinel', expected: `${path} written`, observed: messageOf(error) })
   }
   if (!SENTINEL_PATTERN.test(sentinel)) {
     fail({ draft: args.draft, step: 'write sentinel', expected: 'a rig-<nanoseconds> value echoed back', observed: sentinel || '(empty)' })
   }
   args.ctx.shared.set('sentinel', sentinel)
-  observe({ ctx: args.ctx, draft: args.draft, step: 'sentinel written', note: `${SENTINEL_PATH} = ${sentinel}` })
+  observe({ ctx: args.ctx, draft: args.draft, step: 'sentinel written', note: `${path} = ${sentinel}` })
 }
 
 async function runFresh(ctx: ScenarioContext): Promise<ScenarioEvidence> {
@@ -156,7 +161,7 @@ async function runFresh(ctx: ScenarioContext): Promise<ScenarioEvidence> {
       `submit "${PROMPT}"`,
       `wait ≤${REPLY_WITHIN_MS / 60_000} min for the cloud transcript to hold the prompt and a ${REPLY_WORD} reply`,
       `probe the box (${PROBE_LOG_LINES} log lines): record phase, version/protocol stamps, serve pid`,
-      `write the sentinel: ${SENTINEL_SCRIPT}`,
+      `write the sentinel into the rig workspace dir`,
     ],
     observations: [],
     logs: [],

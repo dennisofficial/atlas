@@ -26,7 +26,7 @@ async function fixture() {
   const mapScript = (script: string): string =>
     script
       .replaceAll(SERVE_LOG_PATH, log)
-      .replaceAll('/opt/atlas/home/operational', mounted)
+      .replaceAll('/atlas/home/operational', mounted)
       .replaceAll(SANDBOX_WORKSPACE_PATH, workspace)
   const execute = async (script: string) => {
     const process = Bun.spawn(['sh', '-c', mapScript(script)], { stdout: 'pipe', stderr: 'pipe' })
