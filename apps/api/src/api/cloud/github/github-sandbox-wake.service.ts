@@ -48,8 +48,13 @@ type WakeTarget = {
 @Injectable()
 export class GithubSandboxWakeService {
   private readonly logger = new Logger(GithubSandboxWakeService.name)
-  private readonly debounce = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly debounce = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout>; target: WakeTarget }
+  >()
   private readonly inFlight = new Set<string>()
+  private readonly lookupsInFlight = new Set<Promise<void>>()
+  private readonly bootsInFlight = new Set<Promise<void>>()
 
   constructor(
     private readonly env: EnvService,
@@ -58,10 +63,40 @@ export class GithubSandboxWakeService {
   ) {}
 
   notifyEvent(args: { userId: string; repoFullName: string; prNumber: number }): void {
-    void this.wakeTargets(args).catch((failure: unknown) => {
-      this.logger.warn(
-        `sandbox wake for ${args.repoFullName}#${args.prNumber} (user ${args.userId}) failed: ${failureText(failure)}`,
-      )
+    this.track({
+      inFlight: this.lookupsInFlight,
+      work: this.wakeTargets(args).catch((failure: unknown) => {
+        this.logger.warn(
+          `sandbox wake for ${args.repoFullName}#${args.prNumber} (user ${args.userId}) failed: ${failureText(failure)}`,
+        )
+      }),
+    })
+  }
+
+  /** For callers about to exit: boots every debounced target now and awaits all lookups and boots. Never throws. */
+  async settle(): Promise<void> {
+    await Promise.all([...this.lookupsInFlight])
+    for (const { timer, target } of [...this.debounce.values()]) {
+      clearTimeout(timer)
+      this.debounce.delete(target.threadId)
+      this.startBoot(target)
+    }
+    await Promise.all([...this.bootsInFlight])
+  }
+
+  private track(args: { inFlight: Set<Promise<void>>; work: Promise<void> }): void {
+    const tracked = args.work.finally(() => args.inFlight.delete(tracked))
+    args.inFlight.add(tracked)
+  }
+
+  private startBoot(target: WakeTarget): void {
+    this.track({
+      inFlight: this.bootsInFlight,
+      work: this.bootParkedSandbox({ threadId: target.threadId }).catch((failure: unknown) => {
+        this.logger.warn(
+          `wake boot of sandbox ${target.sandbox.name} (thread ${target.threadId}) failed: ${failureText(failure)}`,
+        )
+      }),
     })
   }
 
@@ -106,18 +141,14 @@ export class GithubSandboxWakeService {
     if (this.inFlight.has(target.threadId)) return
     const pending = this.debounce.get(target.threadId)
     if (pending !== undefined) {
-      clearTimeout(pending)
+      clearTimeout(pending.timer)
       this.debounce.delete(target.threadId)
     }
     const timer = setTimeout(() => {
       this.debounce.delete(target.threadId)
-      void this.bootParkedSandbox({ threadId: target.threadId }).catch((failure: unknown) => {
-        this.logger.warn(
-          `wake boot of sandbox ${target.sandbox.name} (thread ${target.threadId}) failed: ${failureText(failure)}`,
-        )
-      })
+      this.startBoot(target)
     }, WAKE_DEBOUNCE_MS)
-    this.debounce.set(target.threadId, timer)
+    this.debounce.set(target.threadId, { timer, target })
   }
 
   private async bootParkedSandbox(args: { threadId: string }): Promise<void> {
