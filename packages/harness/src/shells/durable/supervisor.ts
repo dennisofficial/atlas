@@ -51,6 +51,7 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
   let exited = false
   let killTimer: ReturnType<typeof setTimeout> | undefined
   let ticker: ReturnType<typeof setInterval> | undefined
+  let ceilingTimer: ReturnType<typeof setTimeout> | undefined
   let spoolClosed = false
 
   const requestStop = (cause: EExitCause): void => {
@@ -114,7 +115,13 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     exited = true
     clearInterval(ticker)
     clearTimeout(killTimer)
+    clearTimeout(ceilingTimer)
   })
+  if (config.timeoutMs !== undefined) {
+    const remainingMs = Math.max(0, config.timeoutMs - (Date.now() - startedAt))
+    ceilingTimer = setTimeout(() => requestStop(EExitCause.Timeout), remainingMs)
+    ceilingTimer.unref()
+  }
   if (requested !== undefined) requestStop(requested)
 
   const lease = createLeaseTracker({ shellDir: config.shellDir, startedAt })
@@ -157,6 +164,7 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     await writeFileAtomic({ path: join(config.shellDir, META_FILE), data: JSON.stringify(meta), mode: 0o600 })
     await writer.update({ phase: EShellPhase.Running })
   } catch (error) {
+    clearTimeout(ceilingTimer)
     signalGroup({ pgid: childPid, signal: 'SIGKILL' })
     await finished
     await server?.close()

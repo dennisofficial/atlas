@@ -37,7 +37,7 @@ for (const adapter of shellAdapters) {
           status: EShellStatus.Killed,
           killedBy: EKilledBy.Timeout,
         })
-      }, 15_000)
+      })
 
       it('lets a shell that finishes in time end on its own terms', async () => {
         const { registry, log } = openRegistry({ adapter })
