@@ -117,6 +117,7 @@ describeLive('vercel bundle (built output served from a read-only container)', (
       handler: 'index.js',
       launcherType: 'Nodejs',
       supportsResponseStreaming: true,
+      maxDuration: 300,
       environment: { DOTENVX_ENVS_DIR: '.', APP_TIER: 'production' },
     })
   })

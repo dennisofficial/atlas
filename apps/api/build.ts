@@ -6,6 +6,8 @@ import { lockedRuntimePackages } from './build-runtime-packages'
 
 const TIER_FILE = '.env.api.production.enc'
 
+const MAX_DURATION_SECONDS = 300
+
 // Lazy imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
 const OPTIONAL_IMPORTS = [
   '@nestjs/graphql',
@@ -28,6 +30,7 @@ type FunctionConfig = {
   handler: string
   launcherType: 'Nodejs'
   supportsResponseStreaming: true
+  maxDuration: number
   // The Build Output API field is `environment`; `env` is silently ignored by Vercel.
   environment: Record<string, string>
 }
@@ -104,6 +107,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
       handler: 'index.js',
       launcherType: 'Nodejs',
       supportsResponseStreaming: true,
+      maxDuration: MAX_DURATION_SECONDS,
       environment: { DOTENVX_ENVS_DIR: '.', APP_TIER: 'production' },
     },
   })
