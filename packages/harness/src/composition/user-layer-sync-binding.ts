@@ -2,11 +2,11 @@ import { homedir } from 'node:os'
 
 import { LogPort, NoticePort } from '@dltech/atlas-core'
 
+import { resolveUserLayerRoots } from '../cloud/context-archive-user-layer'
 import { cloudUserFilesClientFor } from '../cloud/user-files-client'
 import { registerDisposable } from '../container/disposal'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import { CloudSessionStoreToken, ServeSessionToken } from '../container/tokens'
-import { resolveProjectMemory } from '../memory/project-memory'
 import { atlasDirectory } from '../store/paths'
 import { createUserLayerSync } from '../user-layer-sync/factory'
 import { NullUserLayerSync, UserLayerSyncPort } from '../user-layer-sync/port'
@@ -68,22 +68,13 @@ export async function bindUserLayerSync(args: {
     return { boot: async () => undefined }
   }
 
-  const projectMemory = await resolveProjectMemory({
-    atlasHome: binding.atlasHome,
-    repoRoot: args.projectDirectory ?? binding.home,
-  })
-    .then((resolved) => resolved.directories.project)
-    .catch(() => undefined)
-
-  const engine = createUserLayerSync({
+  const roots = await resolveUserLayerRoots({
     atlasHome: binding.atlasHome,
     home: binding.home,
     projectDirectory: args.projectDirectory,
-    projectMemoryDirectory: projectMemory,
-    client: binding.client,
-    log,
-    notice,
   })
+
+  const engine = createUserLayerSync({ ...roots, client: binding.client, log, notice })
   container.register(registeredPortToken(UserLayerSyncPort), { useValue: engine })
   registerDisposable({
     container,

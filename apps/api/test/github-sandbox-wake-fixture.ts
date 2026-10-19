@@ -2,6 +2,8 @@ import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { vi } from 'vitest'
 
 import { EnvService } from '../src/_core/config/env/env.service'
+import { BackgroundWork } from '../src/_core/ports/background-work'
+import { ProcessBackgroundWork } from '../src/_lib/background-work/background-work.providers'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import {
   GithubSandboxWakeService,
@@ -78,8 +80,18 @@ export function seedParkedSandbox(partial: Partial<FakeCloudSandboxRow> = {}): v
   })
 }
 
+export class RecordingBackgroundWork extends BackgroundWork {
+  readonly kept: Promise<unknown>[] = []
+
+  keepAlive(work: Promise<unknown>): void {
+    this.kept.push(work)
+  }
+}
+
 export function serviceWith(args: {
   boot: SandboxWakeBoot
+  background?: BackgroundWork
+  debounceMs?: number
   env?: Partial<Record<'VERCEL_TOKEN' | 'VERCEL_TEAM_ID' | 'VERCEL_PROJECT_ID', string>>
 }): GithubSandboxWakeService {
   const env = {
@@ -93,7 +105,13 @@ export function serviceWith(args: {
         ...args.env,
       })[key],
   } as unknown as EnvService
-  return new GithubSandboxWakeService(env, cipher, args.boot)
+  return new GithubSandboxWakeService(
+    env,
+    cipher,
+    args.boot,
+    args.background ?? new ProcessBackgroundWork(),
+    args.debounceMs ?? WAKE_DEBOUNCE_MS,
+  )
 }
 
 export function fakeBoot(options: { created?: boolean; held?: Promise<void> } = {}): {

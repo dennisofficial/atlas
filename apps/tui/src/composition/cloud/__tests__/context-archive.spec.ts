@@ -44,7 +44,7 @@ describe('captureContextArchive', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('carries only the local mcp config — the user layer rides the sync engine, not the archive', async () => {
+  it('carries the user layer alongside the local mcp config', async () => {
     const home = await freshDirectory('atlas-context-home-')
     const atlasHome = await freshDirectory('atlas-context-atlashome-')
     await writeFile(join(atlasHome, 'mcp.json'), '{"mcpServers":{}}', 'utf8')
@@ -53,7 +53,10 @@ describe('captureContextArchive', () => {
     const bundle = await captureContextArchive({ home, atlasHome, notice: recordingNotices().port })
     if (bundle === undefined) throw new Error('expected a bundle')
 
-    expect(await decode(bundle)).toEqual({ '.atlas/mcp.json': '{"mcpServers":{}}' })
+    expect(await decode(bundle)).toEqual({
+      '.atlas/mcp.json': '{"mcpServers":{}}',
+      'user-layer/instructions/.atlas/ATLAS.md': '# global instructions',
+    })
   })
 
   it('preserves the source mtime through the archive, within tar’s one-second granularity', async () => {

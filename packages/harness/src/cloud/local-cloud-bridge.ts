@@ -119,7 +119,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         }
       }
       await authorize(() => sandbox.domain(SANDBOX_SERVE_PORT))
-      if (createArgs.captureContext === undefined) return
+      if (createArgs.captureContext === undefined || !needsPortable) return
       await createArgs.captureContext((archive) =>
         transferBufferedArchive({
           archive,
