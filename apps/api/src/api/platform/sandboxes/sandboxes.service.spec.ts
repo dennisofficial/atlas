@@ -65,8 +65,6 @@ const sandboxRow = (
   workspaceBranch: null,
   workspaceCommit: null,
   workspacePatch: null,
-  workspaceSkills: null,
-  workspaceContext: null,
   contextPending: true,
   workspaceProjectDirectory: null,
   sealedToken: null,
