@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'bun:test'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, realpath, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { toThreadId, worktreeLockToken } from '@dltech/atlas-core'
@@ -20,9 +20,9 @@ afterEach(async () => {
 it('keeps an inherited parent lock when relocated home and active directories differ', async () => {
   const store = openStoreFixture()
   stores.push(store)
-  const repository = join(store.home, 'repo')
+  await mkdir(join(store.home, 'repo'))
+  const repository = await realpath(join(store.home, 'repo'))
   const tree = join(repository, '.atlas', 'worktrees', 'parent')
-  await mkdir(repository)
   await git({ cwd: repository, args: ['init', '-b', 'main'] })
   await writeFile(join(repository, 'file'), 'seed\n')
   await git({ cwd: repository, args: ['add', '.'] })
