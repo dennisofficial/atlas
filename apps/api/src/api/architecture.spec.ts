@@ -27,14 +27,8 @@ const SRC_ROOT = path.dirname(API_ROOT)
 const GRANDFATHERED = new Set([
   'platform/sandboxes/git-credentials.spec.ts -> ../../cloud/github/github.service',
   'platform/sandboxes/git-credentials.ts -> ../../cloud/github/github.service',
-  'platform/sandboxes/sandboxes.controller.ts -> ../../cloud/context-archive/context-archive-http',
-  'platform/sandboxes/sandboxes.module.ts -> ../../cloud/context-archive/context-archive.module',
   'platform/sandboxes/sandboxes.module.ts -> ../../cloud/github/github.module',
-  'platform/sandboxes/sandboxes.service.spec.ts -> ../../cloud/context-archive/context-archive-limits',
-  'platform/sandboxes/sandboxes.service.spec.ts -> ../../cloud/context-archive/context-archive.store',
   'platform/sandboxes/sandboxes.service.spec.ts -> ../../cloud/github/github.service',
-  'platform/sandboxes/sandboxes.service.ts -> ../../cloud/context-archive/context-archive-limits',
-  'platform/sandboxes/sandboxes.service.ts -> ../../cloud/context-archive/context-archive.store',
 ])
 
 interface Violation {

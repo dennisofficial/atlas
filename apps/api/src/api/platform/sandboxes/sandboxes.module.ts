@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common'
-import { ContextArchiveModule } from '../../cloud/context-archive/context-archive.module'
 import { GithubModule } from '../../cloud/github/github.module'
 import { SandboxGitCredentials } from './git-credentials'
 import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
-import { SandboxContextController } from './sandbox-context.controller'
 import { SandboxEndpointService } from './sandbox-endpoint'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { SandboxesController } from './sandboxes.controller'
@@ -12,10 +10,9 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
 import { SandboxWorkspaceController } from './workspace.controller'
 
 @Module({
-  imports: [ContextArchiveModule, GithubModule],
+  imports: [GithubModule],
   controllers: [
     SandboxCheckpointController,
-    SandboxContextController,
     SandboxesController,
     SandboxWorkspaceController,
   ],

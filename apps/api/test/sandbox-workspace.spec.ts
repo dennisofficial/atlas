@@ -97,7 +97,6 @@ describe('sandbox workspace endpoint', () => {
     expect(sandboxes.claim).toHaveBeenCalledWith({
       userId: 'user-a',
       threadId: THREAD,
-      contextBundle: undefined,
       gitToken: undefined,
       contextPending: undefined,
     })
@@ -112,7 +111,6 @@ describe('sandbox workspace endpoint', () => {
     expect(sandboxes.claim).toHaveBeenCalledWith({
       userId: 'user-a',
       threadId: THREAD,
-      contextBundle: undefined,
       gitToken: 'gho_fresh',
       contextPending: false,
     })

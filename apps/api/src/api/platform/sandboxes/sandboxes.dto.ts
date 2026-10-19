@@ -64,10 +64,6 @@ export class ClaimSandboxDto {
 
   @IsOptional()
   @IsString()
-  contextBundle?: string
-
-  @IsOptional()
-  @IsString()
   gitToken?: string
 
   @IsOptional()
