@@ -1,0 +1,93 @@
+import { createHash } from 'node:crypto'
+
+import {
+  EServeEnv,
+  SANDBOX_HOME_PATH,
+  SANDBOX_SERVE_PORT,
+  SANDBOX_WORKSPACES_PATH,
+} from '@dltech/atlas-wire'
+
+import type { CreateContainerBody } from '../../execution/docker/engine'
+import { POD_INGRESS_CONTAINER_PORT } from './ingress'
+
+export const DEFAULT_POD_IMAGE = 'ghcr.io/dennisofficial/atlas-sandbox:latest'
+
+export const POD_LABEL_PREFIX = 'atlas-pod'
+
+export const podThreadLabel = `${POD_LABEL_PREFIX}.thread`
+
+export const podRoleLabel = `${POD_LABEL_PREFIX}.role`
+
+export const POD_ROLE = 'pod'
+
+export const POD_MEMORY_RESERVATION_BYTES = 512 * 1024 * 1024
+
+export const POD_NAME_ENV = 'ATLAS_POD_NAME'
+
+const DIGEST_LENGTH = 24
+const DIND_STORAGE_PATH = '/var/lib/docker'
+const VENDOR_ENV_PREFIX = 'VERCEL_'
+
+export const podNameFor = (args: { threadId: string }): string =>
+  `${POD_LABEL_PREFIX}-${createHash('sha256').update(args.threadId).digest('hex').slice(0, DIGEST_LENGTH)}`
+
+export const workspaceVolumeNameFor = (args: { threadId: string }): string =>
+  `${podNameFor(args)}-workspace`
+
+export const dindVolumeNameFor = (args: { threadId: string }): string => `${podNameFor(args)}-docker`
+
+export type PodCreateArgs = {
+  threadId: string
+  image: string
+  serveHostPort: number
+  ingressHostPort: number
+  vcpus: number
+  token: string
+  cloudUrl: string
+  pinnedModel?: string | undefined
+  environment: Record<string, string>
+}
+
+const callerEnvironment = (environment: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.entries(environment).filter(([key]) => !key.startsWith(VENDOR_ENV_PREFIX)))
+
+const podEnv = (args: PodCreateArgs): string[] =>
+  Object.entries({
+    [EServeEnv.Token]: args.token,
+    [EServeEnv.Port]: String(SANDBOX_SERVE_PORT),
+    [EServeEnv.ThreadId]: args.threadId,
+    [EServeEnv.CloudUrl]: args.cloudUrl,
+    ATLAS_HOME: SANDBOX_HOME_PATH,
+    [POD_NAME_ENV]: podNameFor(args),
+    ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
+    ...callerEnvironment(args.environment),
+  }).map(([key, value]) => `${key}=${value}`)
+
+const loopbackBinding = (hostPort: number) => [{ HostIp: '127.0.0.1', HostPort: String(hostPort) }]
+
+export function podCreateBody(args: PodCreateArgs): CreateContainerBody {
+  const servePort = `${SANDBOX_SERVE_PORT}/tcp`
+  const ingressPort = `${POD_INGRESS_CONTAINER_PORT}/tcp`
+
+  return {
+    Image: args.image,
+    Cmd: ['sleep', 'infinity'],
+    Labels: { [podThreadLabel]: args.threadId, [podRoleLabel]: POD_ROLE },
+    Env: podEnv(args),
+    ExposedPorts: { [servePort]: {}, [ingressPort]: {} },
+    HostConfig: {
+      Init: true,
+      Privileged: true,
+      Mounts: [
+        { Type: 'volume', Source: workspaceVolumeNameFor(args), Target: SANDBOX_WORKSPACES_PATH },
+        { Type: 'volume', Source: dindVolumeNameFor(args), Target: DIND_STORAGE_PATH },
+      ],
+      NanoCpus: args.vcpus * 1e9,
+      MemoryReservation: POD_MEMORY_RESERVATION_BYTES,
+      PortBindings: {
+        [servePort]: loopbackBinding(args.serveHostPort),
+        [ingressPort]: loopbackBinding(args.ingressHostPort),
+      },
+    },
+  }
+}

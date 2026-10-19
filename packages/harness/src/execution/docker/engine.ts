@@ -46,6 +46,10 @@ export type CreateContainerBody = {
     Binds?: readonly string[]
     NanoCpus?: number
     Memory?: number
+    MemoryReservation?: number
+    Privileged?: boolean
+    Init?: boolean
+    Mounts?: readonly { Type: 'volume'; Source: string; Target: string }[]
     PortBindings?: Record<string, readonly PortBinding[]>
     RestartPolicy?: { Name: string }
   }

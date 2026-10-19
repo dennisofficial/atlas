@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { dockerfileImageReference } from '../image/build'
 import { atlasDirectory } from '../../store/paths'
 import type { DockerEngine } from './engine'
-import { proxyScriptSource } from './expose-proxy-script'
+import { proxyScriptSource } from '../../cloud/local-pod/ingress-script'
 import { hostPortFor } from './ports'
 import {
   DEFAULT_LABEL_PREFIX,
