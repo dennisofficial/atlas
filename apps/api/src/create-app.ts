@@ -3,7 +3,7 @@ import { HttpAdapterHost, NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import helmet from 'helmet'
 import { GlobalExceptionFilter } from './api/global-exception.filter'
-import { JSON_BODY_LIMIT, userFileJsonParser } from './_lib/body-limits'
+import { JSON_BODY_LIMIT } from './_lib/body-limits'
 import { GITHUB_WEBHOOK_BODY_LIMIT, webhookJsonParser } from './_lib/webhook-body-limit'
 
 const VALIDATION_PIPE_OPTIONS = {
@@ -22,7 +22,6 @@ export async function createApp(): Promise<NestExpressApplication> {
   // verified only after buffering, so anything bigger must be refused before it is read.
   app.use('/v1/github/webhooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
   app.use('/v1/github/hooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
-  app.use('/v1/user-files', userFileJsonParser())
   app.useBodyParser('json', { limit: JSON_BODY_LIMIT })
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })

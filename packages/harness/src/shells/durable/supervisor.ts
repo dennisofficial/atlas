@@ -45,12 +45,15 @@ async function cancelRequested({ shellDir }: { shellDir: string }): Promise<bool
   )
 }
 
+const LONGEST_TIMER_MS = 2_147_483_647
+
 async function superviseChild(config: SupervisorConfig): Promise<number> {
   let requested: EExitCause | undefined
   let pgid: number | undefined
   let exited = false
   let killTimer: ReturnType<typeof setTimeout> | undefined
   let ticker: ReturnType<typeof setInterval> | undefined
+  let ceilingTimer: ReturnType<typeof setTimeout> | undefined
   let spoolClosed = false
 
   const requestStop = (cause: EExitCause): void => {
@@ -114,7 +117,14 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     exited = true
     clearInterval(ticker)
     clearTimeout(killTimer)
+    clearTimeout(ceilingTimer)
   })
+  const ceilingRemainingMs =
+    config.timeoutMs === undefined ? undefined : Math.max(0, config.timeoutMs - (Date.now() - startedAt))
+  if (ceilingRemainingMs !== undefined && ceilingRemainingMs <= LONGEST_TIMER_MS) {
+    ceilingTimer = setTimeout(() => requestStop(EExitCause.Timeout), ceilingRemainingMs)
+    ceilingTimer.unref()
+  }
   if (requested !== undefined) requestStop(requested)
 
   const lease = createLeaseTracker({ shellDir: config.shellDir, startedAt })
@@ -157,6 +167,7 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     await writeFileAtomic({ path: join(config.shellDir, META_FILE), data: JSON.stringify(meta), mode: 0o600 })
     await writer.update({ phase: EShellPhase.Running })
   } catch (error) {
+    clearTimeout(ceilingTimer)
     signalGroup({ pgid: childPid, signal: 'SIGKILL' })
     await finished
     await server?.close()

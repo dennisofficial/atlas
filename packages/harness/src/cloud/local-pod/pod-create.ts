@@ -31,10 +31,15 @@ const VENDOR_ENV_PREFIX = 'VERCEL_'
 export const podNameFor = (args: { threadId: string }): string =>
   `${POD_LABEL_PREFIX}-${createHash('sha256').update(args.threadId).digest('hex').slice(0, DIGEST_LENGTH)}`
 
-export const workspaceVolumeNameFor = (args: { threadId: string }): string =>
-  `${podNameFor(args)}-workspace`
+export const workspaceVolumeNameOf = (args: { podName: string }): string => `${args.podName}-workspace`
 
-export const dindVolumeNameFor = (args: { threadId: string }): string => `${podNameFor(args)}-docker`
+export const dindVolumeNameOf = (args: { podName: string }): string => `${args.podName}-docker`
+
+export const workspaceVolumeNameFor = (args: { threadId: string }): string =>
+  workspaceVolumeNameOf({ podName: podNameFor(args) })
+
+export const dindVolumeNameFor = (args: { threadId: string }): string =>
+  dindVolumeNameOf({ podName: podNameFor(args) })
 
 export type PodCreateArgs = {
   threadId: string
