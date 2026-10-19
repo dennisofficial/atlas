@@ -1,8 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { ERunner, toThreadId } from '@dltech/atlas-core'
 import {
   atlasDirectory,
@@ -33,11 +29,8 @@ type Lease = { path: string; auth: string | null; body: { token: string } }
 describeLive('a pod birth through the live TUI wiring', () => {
   const leases: Lease[] = []
   let server: ReturnType<typeof Bun.serve>
-  let bridge: CloudBridge | undefined
-  const previousHome = process.env.ATLAS_HOME
 
   beforeAll(() => {
-    process.env.ATLAS_HOME = mkdtempSync(join(tmpdir(), 'atlas-live-pod-home-'))
     server = Bun.serve({
       port: 0,
       hostname: '127.0.0.1',
@@ -53,10 +46,7 @@ describeLive('a pod birth through the live TUI wiring', () => {
   })
 
   afterAll(async () => {
-    await bridge?.sandboxes.destroy({ threadId: THREAD }).catch(() => undefined)
     await server.stop(true)
-    if (previousHome === undefined) delete process.env.ATLAS_HOME
-    else process.env.ATLAS_HOME = previousHome
   })
 
   it(
@@ -66,7 +56,8 @@ describeLive('a pod birth through the live TUI wiring', () => {
         model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
         cloud: fakeCloud({ session: { url: `http://127.0.0.1:${server.port}`, token: 'live-session', email: null } }),
       })
-      bridge = liveBridgeFor(app)({ runner: ERunner.Local })
+      const bridge: CloudBridge = liveBridgeFor(app)({ runner: ERunner.Local })
+      try {
       await app.sessionOwner.placement.activate({ threadId: THREAD })
 
       const born = await birthInCloud({
@@ -107,6 +98,9 @@ describeLive('a pod birth through the live TUI wiring', () => {
       })
       expect(health.status).toBe(200)
       expect((await app.threads.find({ threadId: THREAD }))?.runner).toBe(ERunner.Local)
+      } finally {
+        await bridge.sandboxes.destroy({ threadId: THREAD })
+      }
     },
     LIVE_TIMEOUT_MS,
   )
