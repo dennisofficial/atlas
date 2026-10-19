@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { LogPort, type LogEntry } from '@dltech/atlas-core'
+import { LogPort, NoticePort, type LogEntry, type NoticePost } from '@dltech/atlas-core'
 
 import { UserFileConflict, type UserFileContent, type UserFileMeta } from '../../cloud/user-files-client'
 import type { UserLayerSyncClient } from '../client'
@@ -78,6 +78,14 @@ export class RecordingLog extends LogPort {
   }
 }
 
+export class RecordingNotice extends NoticePort {
+  readonly posts: NoticePost[] = []
+
+  notify(post: NoticePost): void {
+    this.posts.push(post)
+  }
+}
+
 export const scratchDirectory = (prefix: string): Promise<string> => mkdtemp(join(tmpdir(), `${prefix}-`))
 
 export async function writeAt(args: { path: string; content: string }): Promise<void> {
@@ -102,6 +110,7 @@ export async function makeDevice(args: {
   server: FakeUserFilesServer
   name: string
   client?: UserLayerSyncClient
+  notice?: NoticePort
   debounceMs?: number
 }): Promise<Device> {
   const root = await scratchDirectory(`atlas-ulsync-${args.name}`)
@@ -111,7 +120,7 @@ export async function makeDevice(args: {
   await mkdir(home, { recursive: true })
   const log = new RecordingLog()
   const client = args.client ?? args.server.clientFor()
-  const engine = createUserLayerSync({ atlasHome, home, client, log, debounceMs: args.debounceMs ?? 20 })
+  const engine = createUserLayerSync({ atlasHome, home, client, log, notice: args.notice, debounceMs: args.debounceMs ?? 20 })
   const deviceId = async (): Promise<string> =>
     (JSON.parse(await readAt(join(atlasHome, 'sync', 'user-layer-sync.json'))) as { deviceId: string }).deviceId
   return { atlasHome, home, log, engine, client, deviceId }

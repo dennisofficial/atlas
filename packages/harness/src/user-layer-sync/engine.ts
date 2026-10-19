@@ -1,4 +1,4 @@
-import { LogPort } from '@dltech/atlas-core'
+import { LogPort, type NoticePort } from '@dltech/atlas-core'
 
 import type { UserLayerSyncClient } from './client'
 import type { TreeSyncContext } from './context'
@@ -15,6 +15,7 @@ export type UserLayerSyncEngineArgs = {
   trees: readonly TreeLayout[]
   stateFile: string
   log: LogPort
+  notice?: NoticePort | undefined
   debounceMs?: number | undefined
 }
 
@@ -85,7 +86,13 @@ export class UserLayerSyncEngine extends UserLayerSyncPort {
   private async contexts(): Promise<readonly TreeSyncContext[]> {
     this.state ??= await UserLayerState.load({ file: this.args.stateFile })
     const state = this.state
-    return this.args.trees.map((layout) => ({ client: this.args.client, state, layout, log: this.args.log }))
+    return this.args.trees.map((layout) => ({
+      client: this.args.client,
+      state,
+      layout,
+      log: this.args.log,
+      notice: this.args.notice,
+    }))
   }
 
   private async pullAll(): Promise<void> {
