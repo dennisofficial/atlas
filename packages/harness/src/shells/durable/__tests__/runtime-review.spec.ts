@@ -200,7 +200,7 @@ describe('overlapping tick lifecycle', () => {
         DURABLE_LOCK_PID: String(process.pid),
         DURABLE_TICK_MARKER: marker,
       },
-      timeoutMs: 60,
+      timeoutMs: 250,
       tickMs: 30,
       killGraceMs: 200,
       command: `while [ ! -f '${marker}' ]; do sleep 0.01; done; exit 0`,
