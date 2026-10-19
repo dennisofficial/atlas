@@ -23,14 +23,14 @@ function readIfPresent(path: string): string | undefined {
 }
 
 function tierFilePath(args: { tier: string; cwd: string }): string | undefined {
-  // The literal __dirname joins are the bundler anchors: Vercel's file tracer follows
+  // The literal import.meta.dirname joins are the bundler anchors: Vercel's file tracer follows
   // readFileSync literals into the function bundle; dynamic paths are invisible to it.
   const anchored =
     args.tier === 'local'
-      ? join(__dirname, '..', '..', 'envs', '.env.api.local.enc')
+      ? join(import.meta.dirname, '..', '..', 'envs', '.env.api.local.enc')
       : args.tier === 'staging'
-        ? join(__dirname, '..', '..', 'envs', '.env.api.staging.enc')
-        : join(__dirname, '..', '..', 'envs', '.env.api.production.enc')
+        ? join(import.meta.dirname, '..', '..', 'envs', '.env.api.staging.enc')
+        : join(import.meta.dirname, '..', '..', 'envs', '.env.api.production.enc')
 
   const name = `.env.api.${args.tier}.enc`
   const candidates = [

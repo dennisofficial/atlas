@@ -13,7 +13,7 @@ interface EnvEntry {
 }
 
 function parseTier(tier: (typeof TIERS)[number]): EnvEntry[] {
-  const path = join(__dirname, '..', 'envs', `.env.api.${tier}.enc`)
+  const path = join(import.meta.dirname, '..', 'envs', `.env.api.${tier}.enc`)
   return readFileSync(path, 'utf8')
     .split('\n')
     .map((line) => /^(#\s*)?([A-Z][A-Z0-9_]*)=(.*)$/.exec(line))

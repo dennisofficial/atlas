@@ -1,4 +1,4 @@
-import type { LogPort } from '@dltech/atlas-core'
+import type { LogPort, NoticePort } from '@dltech/atlas-core'
 
 import type { UserLayerSyncClient } from './client'
 import type { TreeLayout } from './layout'
@@ -9,4 +9,5 @@ export type TreeSyncContext = {
   state: UserLayerState
   layout: TreeLayout
   log: LogPort
+  notice?: NoticePort | undefined
 }

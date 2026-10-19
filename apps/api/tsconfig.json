@@ -2,7 +2,8 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
-    "module": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "types": ["node"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -14,8 +15,7 @@
     "useDefineForClassFields": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
     "noEmit": true
   },
-  "include": ["src", "prisma", "test"]
+  "include": ["src", "prisma", "test", "build.ts"]
 }

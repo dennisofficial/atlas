@@ -32,6 +32,4 @@ export interface SandboxWorkspaceSpec {
 
 export interface SandboxWorkspaceDto extends SandboxWorkspaceSpec {
   githubToken: string | null
-  /** The operator's user-level context as a JSON map of relative path to base64 content. */
-  contextBundle: string | null
 }

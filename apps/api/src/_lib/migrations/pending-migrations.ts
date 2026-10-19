@@ -9,8 +9,14 @@ export function pendingMigrations(args: {
   return [...args.shipped].filter((name) => !applied.has(name)).sort()
 }
 
+declare const __ATLAS_SHIPPED_MIGRATIONS__: readonly string[] | undefined
+
 export function shippedMigrationNames(args: { directory?: string } = {}): readonly string[] {
-  const directory = args.directory ?? join(__dirname, '..', '..', '..', 'prisma', 'migrations')
+  if (args.directory === undefined && typeof __ATLAS_SHIPPED_MIGRATIONS__ !== 'undefined') {
+    return __ATLAS_SHIPPED_MIGRATIONS__
+  }
+
+  const directory = args.directory ?? join(import.meta.dirname, '..', '..', '..', 'prisma', 'migrations')
 
   return readdirSync(directory, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

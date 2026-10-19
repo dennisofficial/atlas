@@ -2,12 +2,10 @@ import { createHash } from 'node:crypto'
 import {
   BadRequestException,
   NotFoundException,
-  PayloadTooLargeException,
   UnauthorizedException,
 } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../../generated/prisma/client'
-import type { ContextArchiveStore } from '../../cloud/context-archive/context-archive.store'
 
 vi.mock('../../../db', async () => {
   const { fakeSessionDb } = await import('../../../../test/fake-session-db.js')
@@ -21,13 +19,11 @@ import {
 } from '../../../../test/fake-session-db.js'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { MAX_CONTEXT_ARCHIVE_BYTES } from '../../cloud/context-archive/context-archive-limits'
 import type { GithubService } from '../../cloud/github/github.service'
 import { SandboxGitCredentials } from './git-credentials'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
 import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
-import { MAX_CONTEXT_BUNDLE_BYTES } from './workspace-spec'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -92,20 +88,6 @@ const cipher = new SecretCipherService({
 
 const stubGithub = () => ({ findToken: vi.fn(async () => 'gho_user-token') })
 
-const stubArchives = () => {
-  const sandboxArchives = new Map<string, Buffer>()
-  return {
-    readSandboxArchive: vi.fn(
-      async (a: { threadId: string }) => sandboxArchives.get(a.threadId) ?? null,
-    ),
-    writeSandboxArchive: vi.fn(async (a: { threadId: string; archive: Buffer }) => {
-      sandboxArchives.set(a.threadId, a.archive)
-    }),
-    readUserArchive: vi.fn(async () => null),
-    writeUserArchive: vi.fn(async () => undefined),
-  }
-}
-
 const stubClient = () => ({
   inspect: vi.fn(async (): Promise<{ state: ESandboxState; url?: string }> => ({
     state: ESandboxState.Parked,
@@ -117,7 +99,6 @@ const stubClient = () => ({
 describe('SandboxesService', () => {
   let client: ReturnType<typeof stubClient>
   let github: ReturnType<typeof stubGithub>
-  let archives: ReturnType<typeof stubArchives>
   let service: SandboxesService
 
   beforeEach(() => {
@@ -125,12 +106,10 @@ describe('SandboxesService', () => {
     fake.threads.push(threadRow({ id: THREAD }))
     client = stubClient()
     github = stubGithub()
-    archives = stubArchives()
     service = new SandboxesService(
       client as unknown as VercelSandboxClient,
       new SandboxGitCredentials(github as unknown as GithubService),
       cipher,
-      archives as unknown as ContextArchiveStore,
     )
   })
 
@@ -164,27 +143,6 @@ describe('SandboxesService', () => {
 
     const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
     expect(cipher.decrypt(row?.sealedGitToken ?? '')).toBe('gho_kept')
-  })
-
-  it('records the context bundle on the claim, writing no workspace columns', async () => {
-    await service.claim({
-      userId: USER_A,
-      threadId: THREAD,
-      contextBundle: 'the bundle',
-    })
-
-    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
-    expect(row?.workspaceRemoteUrl).toBeNull()
-    expect(row?.workspaceContext).toBe('the bundle')
-  })
-
-  it('refuses a context bundle over the limit before claiming anything', async () => {
-    const oversized = 'x'.repeat(MAX_CONTEXT_BUNDLE_BYTES + 1)
-
-    await expect(
-      service.claim({ userId: USER_A, threadId: THREAD, contextBundle: oversized }),
-    ).rejects.toBeInstanceOf(PayloadTooLargeException)
-    expect(fake.cloudSandboxes).toHaveLength(0)
   })
 
   it('list answers only the caller’s sandboxes, most recently active first', async () => {
@@ -306,42 +264,10 @@ describe('SandboxesService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 
-  it('stores and fetches the context archive through the store', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
-    const archive = Buffer.from('the context archive')
-
-    await service.putContextArchive({ userId: USER_A, threadId: THREAD, archive })
-
-    expect(archives.writeSandboxArchive).toHaveBeenCalledWith({ threadId: THREAD, archive })
-    expect(await service.getContextArchive({ threadId: THREAD })).toEqual(archive)
-  })
-
-  it('refuses to store a context archive for a sandbox owned by another user', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, userId: USER_A }))
-
-    await expect(
-      service.putContextArchive({ userId: USER_B, threadId: THREAD, archive: Buffer.from('x') }),
-    ).rejects.toBeInstanceOf(NotFoundException)
-    expect(archives.writeSandboxArchive).not.toHaveBeenCalled()
-  })
-
-  it('refuses a context archive over the sanity cap', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
-
-    await expect(
-      service.putContextArchive({
-        userId: USER_A,
-        threadId: THREAD,
-        archive: Buffer.alloc(MAX_CONTEXT_ARCHIVE_BYTES + 1),
-      }),
-    ).rejects.toBeInstanceOf(PayloadTooLargeException)
-  })
-
-  it('answers the stored workspace remote with the claimed git credential and bundle', async () => {
+  it('answers the stored workspace remote with the claimed git credential', async () => {
     await service.claim({
       userId: USER_A,
       threadId: THREAD,
-      contextBundle: 'the bundle',
       gitToken: 'gho_claimed',
     })
     const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
@@ -351,7 +277,6 @@ describe('SandboxesService', () => {
 
     expect(workspace.remoteUrl).toBe(REMOTE_URL)
     expect(workspace.githubToken).toBe('gho_claimed')
-    expect(workspace.contextBundle).toBe('the bundle')
     expect(github.findToken).not.toHaveBeenCalled()
   })
 

@@ -1,6 +1,6 @@
 # apps/api
 
-The Atlas Cloud backend. NestJS 11 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
+The Atlas Cloud backend. NestJS 12 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
 (Neon in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
 API keys, ordinary secrets, user settings and MCP configuration stay on the machine; explicit
 backup actions copy them to/from the API. Signing in transfers Atlas-native provider OAuth
@@ -13,13 +13,14 @@ configuration during lift. OAuth-bearing lifts assign scoped connection access b
 starts; API-key-only lifts and sandbox provisioning remain API-independent. The API also provides
 identity, optional remote-control rendezvous, thread discovery, backup sync and PR/CI webhooks.
 
-## Runtime and tests — the exception
+## Runtime and tests
 
-This package runs on **Node**, not Bun, and tests with **vitest**, not `bun test`. Nest's DI
-requires legacy decorators with emitted metadata; Bun's transpiler drops them. vitest needs
-`unplugin-swc` with `legacyDecorator` + `decoratorMetadata` for the same reason (see
-`vitest.config.mts`). Everything else in the repo runs on Bun — keep this exception scoped to
-this package.
+This package runs on **Bun** (`bun src/main.ts`, ESM, no build step) and tests with **vitest**, not
+`bun test`. Bun runs Nest's constructor `@Inject(...)` decorators under this package's tsconfig;
+`test/bun-runtime.spec.ts` spawns the real app under `bun` and fails if one is dropped. vitest
+needs `unplugin-swc` with `legacyDecorator` + `decoratorMetadata` to emit decorator metadata (see
+`vitest.config.mts`), and aliases `@dltech/atlas-wire` to its source because vite does not honor
+wire's `bun` export condition.
 
 ## Layout
 
@@ -30,13 +31,16 @@ src/
   _module/    shared injectable modules (session guard + verifier port).
   api/        the deployable app: app.module.ts + feature modules in two layers —
               platform/ (auth, accounts, sessions, sandboxes, health) and cloud/ (secrets,
-              mcp-servers, user-context, context-archive, github). One-way rule:
+              mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
   db/         the lazy `db` client proxy + generated-client type re-exports.
-  main.ts     the entrypoint — boots the app, hydrating env from the tier file when a
-              DOTENV_PRIVATE_KEY is present; also default-exports the handler (harmless).
-  api/main.ts one-line shim so `nest start api` / `start:prod` boot the same bootstrap.
+  create-app.ts  composes the Nest app (parsers, pipes, filters) and inits it; never listens.
+  main.ts     the long-lived server — hydrates env from the tier file when a DOTENV_PRIVATE_KEY
+              is present, validates env, createApp(), graceful shutdown, listen.
+  vercel.ts   the Vercel function entry — decrypts the shipped tier (vercel-tier-env.ts),
+              validates env, createApp(), default-exports the Express instance.
+build.ts      bundles vercel.ts into a Build Output API v3 directory (see "Vercel bundle").
 prisma/       schema + migrations only (the client wrapper moved to src/db).
 envs/         dotenvx tier files (.env.api.<tier>.enc, committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
@@ -46,15 +50,25 @@ Imports are plain relative paths — this package has no path aliases on purpose
 rewrites them, and every downstream toolchain (bundlers, tracers, containers) has broken on
 them at least once; relative imports work everywhere. Do not reintroduce them.
 
+## Request bodies
+
+The API stores no context archives: context goes straight into the sandbox from the client, and
+the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
+`src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB. `PUT /v1/user-files/*`
+keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) until the client caps or chunks
+user-layer uploads; that must land before the Vercel cutover, or large files will start getting
+413s.
+
 ## Deploy
 
 DigitalOcean App Platform, git-connected to main: `apps/api/Dockerfile` (multi-stage, repo-root
-build context) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
+build context; the runtime image is `node:22-slim` plus the `bun` binary — the server runs
+`bun src/main.ts`, while the PRE_DEPLOY migrate job needs node, npm, dotenvx and the prisma CLI) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
 job, region nyc). The only env the platform needs is `APP_TIER`, `MIGRATE_TIER` and
 `DOTENV_PRIVATE_KEY_API_PRODUCTION` — the tier file in the image carries the rest.
 
-The Dockerfile's runtime stage copies explicit paths (`dist`, `envs`, `prisma`, `scripts`,
-`prisma.config.ts`) — anything a package script loads by path must be added to that list or it
+The Dockerfile's runtime stage copies explicit paths (`src`, `envs`, `prisma`, `scripts`,
+`prisma.config.ts`, `tsconfig.json`) — anything a package script loads by path must be added to that list or it
 exists locally and 404s in the deploy. CI builds this image (`build-api-image` in `ci.yml`), so
 a missing copy fails the PR rather than only at deploy.
 
@@ -135,6 +149,31 @@ no restore to make.
 applied, so drift fails the health check and DO holds the previous release rather than serving
 500s. A database it cannot reach is reported as `unknown` and stays healthy — a cold start is
 not drift.
+
+## Vercel bundle
+
+`bun run build` (`prisma generate`, then `build.ts`) writes `.vercel/output`: `Bun.build` bundles
+`src/vercel.ts` into one `index.js` (`target: 'bun'`, ESM), plus `config.json` routing everything to
+the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). The committed
+`envs/.env.api.production.enc` is copied into the function; Vercel holds only
+`DOTENV_PRIVATE_KEY_API_PRODUCTION`, and `DOTENVX_ENVS_DIR=.` in `.vc-config.json` makes
+`vercel-tier-env.ts` decrypt it at boot (fatal if the file is missing or any value stays
+`encrypted:`). The migration directory names are inlined at build time as
+`__ATLAS_SHIPPED_MIGRATIONS__`, because the bundle has no `prisma/migrations` directory for
+`shippedMigrationNames()` to read.
+
+`OPTIONAL_IMPORTS` in `build.ts` lists only packages that a dependency imports lazily behind a
+feature check and this API never installs; every entry carries its reason, and any other
+unresolved import must fail the build. `class-validator` and `class-transformer` stay bundled.
+
+`src/vercel-bundle.integration.spec.ts` builds the real output, serves it with
+`test/serve-bundle.ts` against a throwaway `postgres:17-alpine` container, and hits health, 401,
+bearer-authenticated, DTO validation, better-auth and the HMAC webhook. It runs only with
+`ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it after adding any module or
+dependency: it is what catches an import the bundle misses.
+
+The Deploy section below is still the live path until cutover; `vercel.json` is inert until the
+`atlas-api` Vercel project is git-connected.
 
 ## Auth
 

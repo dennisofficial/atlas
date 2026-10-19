@@ -26,74 +26,32 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=deps /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY apps/api ./apps/api
 COPY tsconfig.base.json ./tsconfig.base.json
-# The api imports @dltech/atlas-wire at runtime; its dist is built here so the runtime stage
-# can copy compiled JS rather than raw TS. Its node_modules carry the tsc the build invokes.
 COPY packages/wire ./packages/wire
-RUN cd packages/wire && bun run build
-RUN cd apps/api && bun run build
-
-FROM ${BUN_IMAGE} AS serve-deps
-WORKDIR /app
-COPY package.json bun.lock bunfig.toml ./
-COPY apps/api/package.json ./apps/api/
-COPY apps/serve/package.json ./apps/serve/
-COPY apps/tui/package.json ./apps/tui/
-COPY apps/web/package.json ./apps/web/
-COPY packages/core/package.json ./packages/core/
-COPY packages/harness/package.json ./packages/harness/
-COPY packages/ui/package.json ./packages/ui/
-COPY packages/wire/package.json ./packages/wire/
-RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install/cache \
-  bun install --frozen-lockfile --ignore-scripts --os='*' --cpu='*' --filter '@dltech/atlas-serve'
-
-# The target is pinned, not host-derived: an arm64 builder (every macOS laptop) must not
-# ship a binary the linux/amd64 sandbox cannot exec.
-FROM ${BUN_IMAGE} AS serve-binary
-WORKDIR /app
-COPY --from=serve-deps /app/node_modules ./node_modules
-COPY --from=serve-deps /app/apps/serve/node_modules ./apps/serve/node_modules
-COPY --from=serve-deps /app/packages/core/node_modules ./packages/core/node_modules
-COPY --from=serve-deps /app/packages/harness/node_modules ./packages/harness/node_modules
-COPY --from=serve-deps /app/packages/wire/node_modules ./packages/wire/node_modules
-COPY apps/serve ./apps/serve
-COPY packages/core ./packages/core
-COPY packages/harness ./packages/harness
-COPY packages/wire ./packages/wire
-COPY tsconfig.base.json ./tsconfig.base.json
-# The hash sidecar is the binary's own integrity proof for whatever downloads it — computed
-# from the compiled bytes, not the source, so it matches what the endpoint actually serves.
-RUN cd apps/serve && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
-  && sha256sum bin/atlas-serve | cut -d' ' -f1 > bin/atlas-serve.sha256
+RUN cd apps/api && bun run db:generate
 
 FROM node:22.13.1-slim AS runtime
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
+COPY --from=oven/bun:1.4.2 /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
 COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/packages/wire/dist ./packages/wire/dist
+COPY --from=builder /app/apps/api/src ./apps/api/src
+COPY --from=builder /app/packages/wire/src ./packages/wire/src
 COPY --from=builder /app/packages/wire/package.json ./packages/wire/package.json
-# wire's compiled dist imports zod at runtime; without its node_modules the API crashes on boot
-# with ERR_MODULE_NOT_FOUND. (Deploy 80dcf7da failed on exactly this.)
 COPY --from=builder /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --from=serve-binary /app/apps/serve/bin/atlas-serve /app/atlas-serve
-COPY --from=serve-binary /app/apps/serve/bin/atlas-serve.sha256 /app/atlas-serve.sha256
 COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
-# The instance this runs on is 0.5GB: cap the old-space heap under it so memory pressure kills
-# the process cleanly (and the platform restarts it) instead of wedging the container at the
-# kernel OOM killer, which also wipes the in-process wake/reply-watch state.
-ENV NODE_OPTIONS=--max-old-space-size=384
 EXPOSE 3400
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s \
-  CMD node -e "fetch('http://localhost:'+(process.env.PORT ?? 3400)+'/v1/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+  CMD bun -e "fetch('http://localhost:'+(process.env.PORT ?? 3400)+'/v1/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["node", "dist/main.js"]
+CMD ["bun", "src/main.ts"]

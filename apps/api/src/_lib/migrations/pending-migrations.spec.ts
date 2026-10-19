@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { pendingMigrations, shippedMigrationNames } from './pending-migrations'
 
 describe('pendingMigrations', () => {
@@ -47,5 +47,14 @@ describe('shippedMigrationNames', () => {
       '20250101000000_a',
       '20260101000000_b',
     ])
+  })
+
+  it('uses the build-time inlined names when the bundle defines them', () => {
+    vi.stubGlobal('__ATLAS_SHIPPED_MIGRATIONS__', ['20260101000000_inlined'])
+    try {
+      expect(shippedMigrationNames()).toEqual(['20260101000000_inlined'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

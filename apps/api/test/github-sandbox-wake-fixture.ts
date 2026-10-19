@@ -20,7 +20,7 @@ export const cipher = new SecretCipherService({
 } as unknown as EnvService)
 
 export const releaseArtifactCheck = (ok: boolean) =>
-  vi.fn(async () => new Response(null, { status: ok ? 200 : 404 })) as typeof fetch
+  vi.fn(async () => new Response(null, { status: ok ? 200 : 404 })) as unknown as typeof fetch
 
 export const pastIso = (ms: number): string => new Date(Date.now() - ms).toISOString()
 

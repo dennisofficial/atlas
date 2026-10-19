@@ -11,6 +11,11 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    alias: {
+      '@dltech/atlas-wire': new URL('../../packages/wire/src/index.ts', import.meta.url).pathname,
+    },
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.spec.ts', 'prisma/**/*.spec.ts', 'test/**/*.spec.ts'],
