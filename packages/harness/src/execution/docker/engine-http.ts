@@ -48,6 +48,7 @@ export async function raw(args: {
   query?: Record<string, string>
   body?: unknown
   tarBody?: Uint8Array<ArrayBuffer>
+  signal?: AbortSignal | undefined
 }): Promise<Response> {
   const query = new URLSearchParams(args.query).toString()
   const url = `http://localhost${args.path}${query === '' ? '' : `?${query}`}`
@@ -55,6 +56,7 @@ export async function raw(args: {
   const response = await fetch(url, {
     unix: args.socketPath,
     method: args.method,
+    ...(args.signal === undefined ? {} : { signal: args.signal }),
     ...(args.tarBody !== undefined
       ? { headers: { 'content-type': 'application/x-tar' }, body: args.tarBody }
       : args.body === undefined
@@ -76,6 +78,7 @@ export async function request(args: {
   path: string
   query?: Record<string, string>
   body?: unknown
+  signal?: AbortSignal | undefined
 }): Promise<unknown> {
   return await raw(args).then(async (response) => {
     const text = await response.text()

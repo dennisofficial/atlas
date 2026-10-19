@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 
 import { DockerEngine } from '../engine'
 import { DockerPodEngine } from '../pod-engine'
+import { uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
 
 const SOCKET = '/var/run/docker.sock'
@@ -9,7 +10,8 @@ const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? d
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
-const LABELS = { 'atlas-pod.spec': 'pod-engine' }
+const RUN = uniqueTestPrefix('pod-engine').replace(/^atlas-dev-/, 'atlas-pod-spec-')
+const LABELS = { 'atlas-pod.spec': RUN }
 
 const sweep = async (): Promise<void> => {
   for (const container of await engine.listContainers({ labels: LABELS, all: true })) {
@@ -25,12 +27,12 @@ describeDocker('DockerPodEngine against a live daemon', () => {
   afterAll(sweep)
 
   it('writes through a volume, reads back, resizes, and cleans up', async () => {
-    const volume = 'atlas-pod-spec-volume'
+    const volume = `${RUN}-volume`
     const content = 'hello from put-archive\n'
 
     await pods.createVolume({ name: volume, labels: LABELS })
     const created = await engine.createContainer({
-      name: 'atlas-pod-spec-container',
+      name: `${RUN}-container`,
       body: {
         Image: 'alpine:latest',
         Cmd: ['sleep', 'infinity'],
@@ -52,6 +54,8 @@ describeDocker('DockerPodEngine against a live daemon', () => {
     const cpuMax = await pods.execSh({ id: created.id, script: 'cat /sys/fs/cgroup/cpu.max', timeoutMs: 30_000 })
     expect((await cpuMax.stdout()).trim()).toBe('100000 100000')
     expect((await engine.inspectContainer({ id: created.id })).hostConfig.nanoCpus).toBe(1e9)
+    const memoryLow = await pods.execSh({ id: created.id, script: 'cat /sys/fs/cgroup/memory.low', timeoutMs: 30_000 })
+    expect((await memoryLow.stdout()).trim()).toBe(String(256 * 1024 * 1024))
 
     await engine.removeContainer({ id: created.id })
     await pods.removeVolume({ name: volume })

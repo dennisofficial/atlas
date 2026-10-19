@@ -108,42 +108,38 @@ export class DockerPodEngine {
   }
 
   async execSh(args: { id: string; script: string; timeoutMs: number }): Promise<PodExecResult> {
-    let expired = false
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const deadline = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => {
-        expired = true
-        reject(new Error(`exec timed out after ${args.timeoutMs}ms`))
-      }, args.timeoutMs)
-    })
-
+    const deadline = new AbortController()
+    const timedOut = new Error(`exec timed out after ${args.timeoutMs}ms`)
+    const timer = setTimeout(() => deadline.abort(timedOut), args.timeoutMs)
     try {
-      return await Promise.race([this.runSh({ id: args.id, script: args.script, isExpired: () => expired }), deadline])
+      return await this.runSh({ id: args.id, script: args.script, signal: deadline.signal })
+    } catch (failure) {
+      if (deadline.signal.aborted) throw timedOut
+      throw failure
     } finally {
       clearTimeout(timer)
     }
   }
 
-  private async runSh(args: {
-    id: string
-    script: string
-    isExpired: () => boolean
-  }): Promise<PodExecResult> {
+  private async runSh(args: { id: string; script: string; signal: AbortSignal }): Promise<PodExecResult> {
     const created = asRecord(
       await request({
         socketPath: this.socketPath,
         method: 'POST',
         path: `/containers/${args.id}/exec`,
         body: { AttachStdout: true, AttachStderr: true, Cmd: ['sh', '-c', args.script] },
+        signal: args.signal,
       }),
     )
     const execId = asString(created.Id)
+    args.signal.throwIfAborted()
 
     const response = await raw({
       socketPath: this.socketPath,
       method: 'POST',
       path: `/exec/${execId}/start`,
       body: { Detach: false, Tty: false },
+      signal: args.signal,
     })
     if (response.body === null) throw new Error('the exec stream had no body')
 
@@ -153,19 +149,24 @@ export class DockerPodEngine {
       new Response(demuxed.stderr).text(),
       demuxed.done,
     ])
-    const exitCode = await this.awaitExitCode({ execId, isExpired: args.isExpired })
+    const exitCode = await this.awaitExitCode({ execId, signal: args.signal })
 
     return { exitCode, stdout: async () => stdout, stderr: async () => stderr }
   }
 
-  private async awaitExitCode(args: { execId: string; isExpired: () => boolean }): Promise<number> {
-    while (!args.isExpired()) {
+  private async awaitExitCode(args: { execId: string; signal: AbortSignal }): Promise<number> {
+    for (;;) {
+      args.signal.throwIfAborted()
       const state = asRecord(
-        await request({ socketPath: this.socketPath, method: 'GET', path: `/exec/${args.execId}/json` }),
+        await request({
+          socketPath: this.socketPath,
+          method: 'GET',
+          path: `/exec/${args.execId}/json`,
+          signal: args.signal,
+        }),
       )
       if (state.Running !== true && typeof state.ExitCode === 'number') return state.ExitCode
       await Bun.sleep(EXEC_POLL_MS)
     }
-    throw new Error('exec timed out while waiting for its exit code')
   }
 }

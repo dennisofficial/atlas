@@ -74,13 +74,13 @@ const concat = (parts: readonly Uint8Array[]): Uint8Array => {
 const octal = (field: Uint8Array): number => parseInt(new TextDecoder().decode(field).replace(/\0.*$/, '').trim(), 8)
 
 const firstTarEntry = (archive: Uint8Array) => {
-  const text = (start: number, end: number) =>
-    new TextDecoder().decode(archive.slice(start, end)).replace(/\0.*$/, '')
+  const text = (field: { start: number; end: number }) =>
+    new TextDecoder().decode(archive.slice(field.start, field.end)).replace(/\0.*$/, '')
   const size = octal(archive.slice(124, 136))
   return {
-    name: text(0, 100),
+    name: text({ start: 0, end: 100 }),
     mode: octal(archive.slice(100, 108)),
-    typeflag: text(156, 157),
+    typeflag: text({ start: 156, end: 157 }),
     body: archive.slice(512, 512 + size),
   }
 }
@@ -256,21 +256,66 @@ describe('DockerPodEngine execSh', () => {
     expect(inspects).toBe(3)
   })
 
-  it('rejects naming the timeout when the stream never ends', async () => {
+  it('rejects naming the timeout and cancels the exec stream it was reading', async () => {
+    let cancelled = false
     const { engine } = await serveDaemon((request) => {
       if (request.path === '/containers/abc/exec') return Response.json({ Id: 'exec-1' }, { status: 201 })
       return new Response(
         new ReadableStream<Uint8Array>({
           start: (controller) => controller.enqueue(frame({ stream: 1, text: 'partial' })),
+          cancel: () => {
+            cancelled = true
+          },
         }),
       )
     })
 
+    const startedAt = Date.now()
     const failure = await engine
       .execSh({ id: 'abc', script: 'sleep 999', timeoutMs: 150 })
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(Error)
-    expect((failure as Error).message).toContain('timed out after 150ms')
+    expect((failure as Error).message).toBe('exec timed out after 150ms')
+    expect(Date.now() - startedAt).toBeLessThan(1_000)
+    await Bun.sleep(100)
+    expect(cancelled).toBe(true)
+  })
+
+  it('never starts an exec whose creation outlived the deadline', async () => {
+    const { engine, requests } = await serveDaemon(async (request) => {
+      if (request.path === '/containers/abc/exec') {
+        await Bun.sleep(300)
+        return Response.json({ Id: 'exec-1' }, { status: 201 })
+      }
+      return new Response(frame({ stream: 1, text: 'late' }))
+    })
+
+    const failure = await engine
+      .execSh({ id: 'abc', script: 'true', timeoutMs: 100 })
+      .catch((error: unknown) => error)
+    await Bun.sleep(400)
+
+    expect((failure as Error).message).toBe('exec timed out after 100ms')
+    expect(requests.map((request) => request.path)).toEqual(['/containers/abc/exec'])
+  })
+
+  it('stops polling for an exit code once the deadline passes', async () => {
+    let inspects = 0
+    const { engine } = await serveDaemon((request) => {
+      if (request.path === '/containers/abc/exec') return Response.json({ Id: 'exec-1' }, { status: 201 })
+      if (request.path === '/exec/exec-1/start') return new Response(frame({ stream: 1, text: 'ok' }))
+      inspects += 1
+      return Response.json({ Running: true, ExitCode: null })
+    })
+
+    const failure = await engine
+      .execSh({ id: 'abc', script: 'true', timeoutMs: 150 })
+      .catch((error: unknown) => error)
+    const settled = inspects
+    await Bun.sleep(200)
+
+    expect((failure as Error).message).toBe('exec timed out after 150ms')
+    expect(inspects).toBe(settled)
   })
 })
