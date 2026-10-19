@@ -20,7 +20,6 @@ export async function createApp(): Promise<NestExpressApplication> {
   app.use(helmet())
   // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
   // verified only after buffering, so anything bigger must be refused before it is read.
-  app.use('/v1/github/webhooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
   app.use('/v1/github/hooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
   app.useBodyParser('json', { limit: JSON_BODY_LIMIT })
   app.set('trust proxy', 1)
