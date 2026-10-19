@@ -188,10 +188,12 @@ describe('a local child the incoming family no longer names', () => {
     }
     const stale = await spawn(entry.parent)
     const unrelated = await spawn(other)
-    const running = await spawn(entry.parent)
     entry.runners.started.find((run) => run.threadId === stale)?.settle(finished())
     entry.runners.started.find((run) => run.threadId === unrelated)?.settle(finished())
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await Promise.all([entry.parent, other].map((threadId) => entry.supervisor.whenChildrenSettled({ threadId })))
+    expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
+    expect(entry.supervisor.pendingNotices({ threadId: other })).toHaveLength(1)
+    const running = await spawn(entry.parent)
     await entry.harness.log.replace({
       threadId: entry.parent,
       runId: entry.harness.ids.nextRunId(),

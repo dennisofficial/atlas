@@ -54,10 +54,9 @@ them at least once; relative imports work everywhere. Do not reintroduce them.
 
 The API stores no context archives: context goes straight into the sandbox from the client, and
 the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
-`src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB. `PUT /v1/user-files/*`
-keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) only for clients older than the
-harness release that caps user-layer files at 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`,
-#1275); drop it once that release is the oldest one in use.
+`src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB before the app sees them,
+so no route gets a larger parser. User-layer uploads fit because the harness skips files over
+3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`), whose base64 body is 4,000,000 bytes.
 
 ## Deploy
 
