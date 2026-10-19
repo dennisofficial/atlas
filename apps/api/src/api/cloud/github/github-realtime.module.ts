@@ -11,6 +11,7 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
+import { sweepSchedulerProviders } from './github-sweep-scheduler'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { prFrameBusProvider } from './github-pr-fanout.transport'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
@@ -33,6 +34,7 @@ import { GithubModule } from './github.module'
     GithubSubscriptionsService,
     GithubHookLifecycleService,
     GithubPollSweeperService,
+    ...sweepSchedulerProviders(),
     GithubDeliveryService,
     GithubPrDiscussionDeliveryService,
     GithubPrEventMailboxService,

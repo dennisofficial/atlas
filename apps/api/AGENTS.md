@@ -250,6 +250,33 @@ must survive lives in Postgres and Redis only carries notifications. Local dev r
 `REDIS_URL` is unset in the local and staging tiers, `isConfigured()` is `false`, and callers
 choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.
 
+## Background jobs
+
+Scheduled work runs as trigger.dev tasks embedded in this package: `trigger.config.ts`
+(`dirs: ['./src/trigger']`, runtime `node-24`, `maxDuration: 300`) and task code under
+`src/trigger/<feature>/`. The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
+Technologies LLC); use only the pinned scripts, which pass `--profile atlas`
+(`trigger:dev`, `trigger:deploy`). Never run `trigger deploy` by hand: deploys ride trigger.dev's
+GitHub integration, and an undeployed task does not error, it never runs.
+
+- **Worker env is the tier.** `trigger-tier-extension.ts` ships `envs/.env.api.production.enc` in
+  the worker bundle and `src/trigger/init.ts` decrypts it into `process.env` before any task
+  loads (`tier-env.ts`, fatal on a missing file or any value left `encrypted:`). The dashboard
+  holds only `DOTENV_PRIVATE_KEY_API_PRODUCTION`; never paste an app secret into it.
+  `TRIGGER_SECRET_KEY` is a tier key for the API to enqueue work, unused by the sweeps.
+- **Tasks build their service graph by hand**, outside Nest DI (`src/trigger/github/github-sweep-graph.ts`):
+  plain constructor chains over `EnvService` built from the validated `process.env`. The fan-out
+  gets a `RedisPrFrameBus` when the tier carries `REDIS_URL`, else a `LocalPrFrameBus`; a worker
+  only publishes, since it never calls `openStream`.
+- **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
+  `trigger.config.ts` sets `conditions: ['bun']`. Prisma, `@prisma/adapter-pg` and ioredis bundle
+  without an extension; `bunx trigger.dev@4.7.4 deploy --profile atlas --dry-run` proves the build
+  without deploying. `src/vercel.ts` must never import `src/trigger/`.
+- **Until cutover, in-process timers stay.** `GithubSweepSchedulerService` owns the 30 s and 60 s
+  `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so DO and `bun run dev`
+  keep sweeping with no trigger.dev login while Vercel instances never run timers. A double run
+  (DO timers plus the schedules) is harmless: both sweeps are idempotent.
+
 ## Rules that differ from the rest of the repo
 
 - vitest unit specs are colocated `*.spec.ts`; they never touch a real database (CI has none).
