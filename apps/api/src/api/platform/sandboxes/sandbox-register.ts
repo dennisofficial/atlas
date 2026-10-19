@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common'
+import { BadRequestException, ConflictException } from '@nestjs/common'
 import { db } from '../../../db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { registerSandboxRow, stampRegistrationMetadata } from './sandbox-claim'
@@ -26,6 +26,9 @@ export async function registerSandbox(
   assertClientTokenShape(args.clientToken)
   if (args.serveUrl === undefined) throw new BadRequestException('serveUrl is required')
   assertPublicServeUrl(args.serveUrl)
+  const tokenHash = hashSessionToken(args.clientToken)
+  const lease = await db.localPodLease.findUnique({ where: { tokenHash }, select: { id: true } })
+  if (lease !== null) throw new ConflictException('this token is already in use by another credential')
   const thread = await findOrCreateClaimThread({
     db,
     userId: args.userId,
@@ -33,7 +36,7 @@ export async function registerSandbox(
   })
   const row = await registerSandboxRow({
     thread,
-    tokenHash: hashSessionToken(args.clientToken),
+    tokenHash,
     sealedToken: cipher.encrypt(args.clientToken),
     serveUrl: args.serveUrl,
     ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),

@@ -17,7 +17,12 @@ export interface SandboxPrincipal {
   threadId: string
 }
 
+export interface PodPrincipal {
+  threadId: string
+}
+
 export interface AuthenticatedRequest extends Request {
   auth?: VerifiedSession
   sandbox?: SandboxPrincipal
+  pod?: PodPrincipal
 }
