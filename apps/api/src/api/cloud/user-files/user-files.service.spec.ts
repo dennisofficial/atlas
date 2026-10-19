@@ -2,10 +2,7 @@ import { createHash } from 'node:crypto'
 import { BadRequestException, ConflictException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Prisma, type PrismaClient } from '../../../generated/prisma/client'
-import { DrainStateService } from '../../platform/health/drain-state.service'
-import { UserFilesFanoutService } from './user-files.fanout'
 import { UserFilesService } from './user-files.service'
-import type { UserFileChange } from './user-files.types'
 
 interface UserFileRow {
   id: string
@@ -94,18 +91,12 @@ async function conflictOf(attempt: Promise<unknown>): Promise<ConflictException>
 
 describe('UserFilesService', () => {
   let service: UserFilesService
-  let changes: Array<{ userId: string; change: UserFileChange }>
 
   beforeEach(() => {
     fake.rows.length = 0
     fake.findManyCalls.length = 0
     fake.state.createFailure = undefined
-    const fanout = new UserFilesFanoutService(new DrainStateService())
-    changes = []
-    vi.spyOn(fanout, 'publish').mockImplementation((args) => {
-      changes.push(args)
-    })
-    service = new UserFilesService(fanout)
+    service = new UserFilesService()
   })
 
   describe('put', () => {
@@ -173,15 +164,6 @@ describe('UserFilesService', () => {
 
       await expect(service.put(args)).rejects.toBeInstanceOf(BadRequestException)
     })
-
-    it('publishes the change only after a successful write', async () => {
-      await service.put(putArgs({ text: 'one', baseRevision: 0 }))
-      await conflictOf(service.put(putArgs({ text: 'late', baseRevision: 0 })))
-
-      expect(changes).toEqual([
-        { userId: USER_A, change: { tree: 'skills', path: 'review/SKILL.md', revision: 1 } },
-      ])
-    })
   })
 
   describe('remove', () => {
@@ -195,7 +177,6 @@ describe('UserFilesService', () => {
       expect(fake.rows).toHaveLength(1)
       expect(fake.rows[0]).toMatchObject({ revision: 2, contentHash: '', content: null })
       expect(fake.rows[0]?.tombstonedAt).toBeInstanceOf(Date)
-      expect(changes.at(-1)?.change.revision).toBe(2)
     })
 
     it('rejects a stale baseRevision with the current revision', async () => {

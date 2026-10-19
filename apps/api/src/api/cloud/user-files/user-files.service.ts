@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common'
 import { db } from '../../../db'
 import { isUniqueViolation } from '../github/unique-violation'
-import { UserFilesFanoutService } from './user-files.fanout'
 import {
   USER_FILE_TREES,
   type UserFileDto,
@@ -92,8 +91,6 @@ function toContentDto(row: ContentRow): UserFileWithContentDto {
 
 @Injectable()
 export class UserFilesService {
-  constructor(private readonly fanout: UserFilesFanoutService) {}
-
   async list(args: {
     userId: string
     tree: string
@@ -153,9 +150,7 @@ export class UserFilesService {
         currentHash: existing.contentHash,
       })
     }
-    const revision = args.baseRevision + 1
-    this.fanout.publish({ userId: args.userId, change: { tree, path: args.path, revision } })
-    return { revision }
+    return { revision: args.baseRevision + 1 }
   }
 
   async remove(args: {
@@ -177,9 +172,7 @@ export class UserFilesService {
       currentRevision: existing.revision,
       currentHash: existing.contentHash,
     })
-    const revision = args.baseRevision + 1
-    this.fanout.publish({ userId: args.userId, change: { tree, path: args.path, revision } })
-    return { revision }
+    return { revision: args.baseRevision + 1 }
   }
 
   private async createFirstRevision(args: {
