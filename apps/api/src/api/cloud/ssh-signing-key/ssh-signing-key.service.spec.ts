@@ -1,12 +1,10 @@
-import { BadGatewayException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import {
   ESshSigningKeyState,
   GITHUB_NOT_CONNECTED_CODE,
   SSH_SIGNING_SCOPE_MISSING_CODE,
 } from '@dltech/atlas-wire'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { EnvService } from '../../../_core/config/env/env.service'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
 vi.mock('../../../db', async () => {
@@ -14,38 +12,25 @@ vi.mock('../../../db', async () => {
   return { db: sharedSigningKeyDb.db as unknown as PrismaClient }
 })
 
-import { sharedSigningKeyDb as fake } from '../../../../test/fake-signing-key-db.js'
-import { GithubDeviceClient } from '../github/github-device-client'
-import { GithubService } from '../github/github.service'
-import { GithubSigningKeysClient } from './github-signing-keys.client'
-import { createFakeGithub, response } from './ssh-signing-key.fakes'
-import { generateKey } from './ssh-key.fixtures'
-import { SshSigningKeyService } from './ssh-signing-key.service'
-
-const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
-const USER = 'user-a'
-const SIGNING_SCOPES = 'repo read:org admin:repo_hook admin:ssh_signing_key'
-const OLD_SCOPES = 'repo read:org admin:repo_hook'
-const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
-const github = createFakeGithub()
-const keyA = generateKey({ type: 'ed25519' })
-const keyB = generateKey({ type: 'ed25519' })
-
-const connect = (scopes: string) =>
-  fake.connections.push({ userId: USER, login: 'octocat', scopes, sealedToken: cipher.encrypt('gho_token') })
+import { response } from './ssh-signing-key.fakes'
+import {
+  OLD_SCOPES,
+  USER,
+  cipher,
+  connect,
+  fake,
+  github,
+  keyA,
+  keyB,
+  resetWorld,
+} from './ssh-signing-key.service-support'
+import type { SshSigningKeyService } from './ssh-signing-key.service'
 
 describe('SshSigningKeyService', () => {
   let service: SshSigningKeyService
 
   beforeEach(() => {
-    fake.reset()
-    github.reset()
-    connect(SIGNING_SCOPES)
-    service = new SshSigningKeyService(
-      cipher,
-      new GithubService(cipher, new EnvService({}), new GithubDeviceClient({})),
-      new GithubSigningKeysClient({ fetchFn: github.fetchFn }),
-    )
+    service = resetWorld()
   })
 
   it('stores the private half sealed and leases back the identical pem', async () => {
@@ -161,21 +146,6 @@ describe('SshSigningKeyService', () => {
     expect(fake.keys[0]).toMatchObject({ githubKeyId: 102n, publicKey: keyB.publicLine })
     expect(cipher.decrypt(fake.keys[0]?.sealedPrivateKey ?? '')).toBe(keyB.privateKey)
     expect(github.registered.has(101)).toBe(false)
-  })
-
-  it('leaves state unchanged and removes the new key when the old key delete fails', async () => {
-    await service.register({ userId: USER, privateKey: keyA.privateKey })
-    const before = { ...fake.keys[0] }
-    github.calls.length = 0
-    github.override((call) => (call.method === 'DELETE' && call.url.endsWith('/101') ? response({ status: 500 }) : undefined))
-
-    await expect(service.rotate({ userId: USER, privateKey: keyB.privateKey })).rejects.toBeInstanceOf(
-      BadGatewayException,
-    )
-
-    expect(fake.keys[0]).toEqual(before)
-    expect(github.calls.at(-1)).toMatchObject({ method: 'DELETE', url: expect.stringMatching(/\/102$/) })
-    expect(github.registered.has(102)).toBe(false)
   })
 
   it('refuses a rotate with nothing registered', async () => {

@@ -222,11 +222,7 @@ is ever installed on a repo or org for auth. A GitHub App would invert that for 
 become the intersection of user access, app permissions, and installation coverage (repo 404s for
 an uninstalled repo), the device flow ignores the requested scopes, and user-to-server tokens
 expire after 8 hours. `pollConnect` therefore refuses a grant whose `scope` is missing any of
-`repo read:org admin:repo_hook admin:ssh_signing_key` (an `admin:X` grant satisfies `write:X` and `read:X`),
-instead of storing a token that can only ever see public repos. `admin:ssh_signing_key` is on the list
-because GitHub's `DELETE /user/ssh_signing_keys/{id}` needs `admin:`, and rotating or revoking the per-user
-commit-signing key deletes the old one; connections made before it was added keep working for everything
-else and get a `github-signing-scope-missing` error from `/v1/ssh-signing-key` until they reconnect.
+`repo read:org admin:repo_hook admin:ssh_signing_key` (an `admin:X` grant satisfies `write:X` and `read:X`), instead of storing a token that can only ever see public repos. `admin:ssh_signing_key` is listed because `DELETE /user/ssh_signing_keys/{id}` needs `admin:` and rotate/revoke of the commit-signing key deletes the old one; older connections keep working for everything else and get `github-signing-scope-missing` from `/v1/ssh-signing-key` until they reconnect.
 
 **Webhook transport is separate, and there a GitHub App is allowed.** A per-repo personal webhook
 needs the subscribing user to be a repo admin; on an org repo where they are not, PR events

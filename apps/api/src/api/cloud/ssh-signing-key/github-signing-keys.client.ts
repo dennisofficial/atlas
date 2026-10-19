@@ -7,6 +7,11 @@ const TIMEOUT_MS = 8_000
 const KEYS_PATH = '/user/ssh_signing_keys'
 const LIST_PAGE_SIZE = 100
 
+export interface RegisteredKey {
+  id: number
+  created: boolean
+}
+
 export class SigningScopeMissing extends Error {
   constructor() {
     super('github refused the signing key call for lack of scope')
@@ -41,6 +46,7 @@ export class GithubSigningKeysClient {
 
   async identity(args: { token: string }): Promise<{ id: number; login: string }> {
     const response = await this.send({ method: 'GET', path: '/user', token: args.token })
+    if (response.status === 401) throw new SigningScopeMissing()
     if (!response.ok) throw unexpected({ operation: 'identity lookup', status: response.status })
     const body = asRecord(await readJson(response))
     if (typeof body.id !== 'number' || typeof body.login !== 'string' || body.login.length === 0) {
@@ -49,14 +55,14 @@ export class GithubSigningKeysClient {
     return { id: body.id, login: body.login }
   }
 
-  async register(args: { token: string; key: string; title: string }): Promise<{ id: number }> {
+  async register(args: { token: string; key: string; title: string }): Promise<RegisteredKey> {
     const response = await this.send({
       method: 'POST',
       path: KEYS_PATH,
       token: args.token,
       body: JSON.stringify({ key: args.key, title: args.title }),
     })
-    if (response.status === 201) return this.idFrom(await readJson(response))
+    if (response.status === 201) return { ...this.idFrom(await readJson(response)), created: true }
     if (response.status === 422) return this.adopt({ token: args.token, key: args.key })
     if (isScopeRefusal(response.status)) throw new SigningScopeMissing()
     throw unexpected({ operation: 'signing key upload', status: response.status })
@@ -73,7 +79,7 @@ export class GithubSigningKeysClient {
     throw unexpected({ operation: 'signing key removal', status: response.status })
   }
 
-  private async adopt(args: { token: string; key: string }): Promise<{ id: number }> {
+  private async adopt(args: { token: string; key: string }): Promise<RegisteredKey> {
     const response = await this.send({
       method: 'GET',
       path: `${KEYS_PATH}?per_page=${LIST_PAGE_SIZE}`,
@@ -86,7 +92,7 @@ export class GithubSigningKeysClient {
       ? listed.map(asRecord).find((entry) => sameKey({ listed: entry.key, wanted: args.key }))
       : undefined
     if (match === undefined) throw new BadGatewayException('github rejected the signing key')
-    return this.idFrom(match)
+    return { ...this.idFrom(match), created: false }
   }
 
   private idFrom(value: unknown): { id: number } {

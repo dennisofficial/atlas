@@ -19,16 +19,33 @@ export type FakeConnectionRow = {
   sealedToken: string
 }
 
+export type FailableOperation = 'create' | 'updateMany' | 'deleteMany'
+
+type KeyWhere = { userId: string; githubKeyId?: bigint }
+type KeyData = Partial<Omit<FakeSigningKeyRow, 'id' | 'userId' | 'createdAt'>>
+
+const matches = (where: KeyWhere) => (row: FakeSigningKeyRow) =>
+  row.userId === where.userId && (where.githubKeyId === undefined || row.githubKeyId === where.githubKeyId)
+
 export function createFakeSigningKeyDb() {
   const keys: FakeSigningKeyRow[] = []
   const connections: FakeConnectionRow[] = []
   let sequence = 0
   let failNextCreateWithRace = false
+  const armed = new Set<FailableOperation>()
+
+  const throwIfArmed = (operation: FailableOperation) => {
+    if (!armed.delete(operation)) return
+    throw new Error(`injected ${operation} failure`)
+  }
 
   const sshSigningKey = {
-    findUnique: async (args: { where: { userId: string } }) =>
-      keys.find((row) => row.userId === args.where.userId) ?? null,
+    findUnique: async (args: { where: { userId: string } }) => {
+      const row = keys.find((one) => one.userId === args.where.userId)
+      return row === undefined ? null : { ...row }
+    },
     create: async (args: { data: Omit<FakeSigningKeyRow, 'id' | 'createdAt' | 'updatedAt'> }) => {
+      throwIfArmed('create')
       if (failNextCreateWithRace || keys.some((row) => row.userId === args.data.userId)) {
         failNextCreateWithRace = false
         throw uniqueViolation(['userId'])
@@ -38,17 +55,15 @@ export function createFakeSigningKeyDb() {
       keys.push(row)
       return row
     },
-    update: async (args: {
-      where: { userId: string }
-      data: Partial<Omit<FakeSigningKeyRow, 'id' | 'userId' | 'createdAt'>>
-    }) => {
-      const row = keys.find((one) => one.userId === args.where.userId)
-      if (row === undefined) throw new Error('record to update not found')
-      Object.assign(row, args.data, { updatedAt: new Date() })
-      return row
+    updateMany: async (args: { where: KeyWhere; data: KeyData }) => {
+      throwIfArmed('updateMany')
+      const matched = keys.filter(matches(args.where))
+      for (const row of matched) Object.assign(row, args.data, { updatedAt: new Date() })
+      return { count: matched.length }
     },
-    deleteMany: async (args: { where: { userId: string } }) => {
-      const doomed = keys.filter((row) => row.userId === args.where.userId)
+    deleteMany: async (args: { where: KeyWhere }) => {
+      throwIfArmed('deleteMany')
+      const doomed = keys.filter(matches(args.where))
       for (const row of doomed) keys.splice(keys.indexOf(row), 1)
       return { count: doomed.length }
     },
@@ -66,11 +81,15 @@ export function createFakeSigningKeyDb() {
     raceNextCreate: () => {
       failNextCreateWithRace = true
     },
+    failNext: (operation: FailableOperation) => {
+      armed.add(operation)
+    },
     reset: () => {
       keys.length = 0
       connections.length = 0
       sequence = 0
       failNextCreateWithRace = false
+      armed.clear()
     },
   }
 }

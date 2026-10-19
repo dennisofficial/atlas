@@ -23,6 +23,7 @@ import { publicKeyLineOf } from './openssh-key'
 interface Registration {
   token: string
   keyId: number
+  created: boolean
   userName: string
   userEmail: string
 }
@@ -68,9 +69,9 @@ export class SshSigningKeyService {
         },
       })
     } catch (error) {
-      if (!isUniqueViolation(error, ['userId'])) throw error
-      await this.client.remove({ token: registration.token, keyId: registration.keyId })
-      throw alreadyRegistered()
+      await this.removeIfCreated(registration)
+      if (isUniqueViolation(error, ['userId'])) throw alreadyRegistered()
+      throw error
     }
     return this.status({ userId: args.userId })
   }
@@ -79,32 +80,26 @@ export class SshSigningKeyService {
     const publicKey = publicKeyLineOf({ privateKey: args.privateKey })
     const existing = await db.sshSigningKey.findUnique({ where: { userId: args.userId } })
     if (existing === null) throw new NotFoundException('no signing key is registered')
-    const registration = await this.registerOnGithub({ userId: args.userId, publicKey })
     const oldKeyId = Number(existing.githubKeyId)
-    if (oldKeyId !== registration.keyId) {
-      await this.removeOrUndo({ registration, oldKeyId })
+    const registration = await this.registerOnGithub({ userId: args.userId, publicKey })
+    const swapped = await this.swapRow({ existing, registration, publicKey, privateKey: args.privateKey })
+    if (!swapped) {
+      await this.removeIfCreated(registration)
+      throw new ConflictException('the signing key changed concurrently; retry')
     }
-    await db.sshSigningKey.update({
-      where: { userId: args.userId },
-      data: {
-        publicKey,
-        sealedPrivateKey: this.cipher.encrypt(args.privateKey),
-        githubKeyId: BigInt(registration.keyId),
-        userName: registration.userName,
-        userEmail: registration.userEmail,
-      },
-    })
+    if (oldKeyId !== registration.keyId) {
+      await this.removeBestEffort({ token: registration.token, keyId: oldKeyId })
+    }
     return this.status({ userId: args.userId })
   }
 
   async revoke(args: { userId: string }): Promise<void> {
     const row = await db.sshSigningKey.findUnique({ where: { userId: args.userId } })
     if (row === null) return
-    const credentials = await this.github.findCredentials({ userId: args.userId })
-    if (credentials !== undefined) {
-      await this.removeBestEffort({ token: credentials.token, keyId: Number(row.githubKeyId) })
-    }
-    await db.sshSigningKey.deleteMany({ where: { userId: args.userId } })
+    await db.sshSigningKey.deleteMany({ where: { userId: args.userId, githubKeyId: row.githubKeyId } })
+    const credentials = await this.github.findCredentials({ userId: args.userId }).catch(() => undefined)
+    if (credentials === undefined) return
+    await this.removeBestEffort({ token: credentials.token, keyId: Number(row.githubKeyId) })
   }
 
   async lease(args: { userId: string }): Promise<SshSigningKeyLease> {
@@ -129,7 +124,7 @@ export class SshSigningKeyService {
     if (!hasSigningScope(credentials.scopes)) throw scopeMissing()
     try {
       const { id, login } = await this.client.identity({ token: credentials.token })
-      const { id: keyId } = await this.client.register({
+      const { id: keyId, created } = await this.client.register({
         token: credentials.token,
         key: args.publicKey,
         title: `Atlas (${login})`,
@@ -137,6 +132,7 @@ export class SshSigningKeyService {
       return {
         token: credentials.token,
         keyId,
+        created,
         userName: login,
         userEmail: `${id}+${login}@users.noreply.github.com`,
       }
@@ -146,22 +142,40 @@ export class SshSigningKeyService {
     }
   }
 
-  private async removeOrUndo(args: { registration: Registration; oldKeyId: number }): Promise<void> {
+  private async swapRow(args: {
+    existing: { userId: string; githubKeyId: bigint }
+    registration: Registration
+    publicKey: string
+    privateKey: string
+  }): Promise<boolean> {
     try {
-      await this.client.remove({ token: args.registration.token, keyId: args.oldKeyId })
+      const { count } = await db.sshSigningKey.updateMany({
+        where: { userId: args.existing.userId, githubKeyId: args.existing.githubKeyId },
+        data: {
+          publicKey: args.publicKey,
+          sealedPrivateKey: this.cipher.encrypt(args.privateKey),
+          githubKeyId: BigInt(args.registration.keyId),
+          userName: args.registration.userName,
+          userEmail: args.registration.userEmail,
+        },
+      })
+      return count > 0
     } catch (error) {
-      await this.removeBestEffort({ token: args.registration.token, keyId: args.registration.keyId })
-      if (error instanceof SigningScopeMissing) throw scopeMissing()
+      await this.removeIfCreated(args.registration)
       throw error
     }
+  }
+
+  private async removeIfCreated(registration: Registration): Promise<void> {
+    if (!registration.created) return
+    await this.removeBestEffort({ token: registration.token, keyId: registration.keyId })
   }
 
   private async removeBestEffort(args: { token: string; keyId: number }): Promise<void> {
     try {
       await this.client.remove(args)
-    } catch (error) {
-      if (error instanceof SigningScopeMissing) return
-      throw error
+    } catch {
+      return
     }
   }
 }
