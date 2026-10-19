@@ -21,8 +21,7 @@ const cacheRoot = async (): Promise<string> => {
 
 const sourceWith = (diff: string): DevServeSource => ({ head: 'abc', diff, untracked: [] })
 
-const keyOf = (diff: string, target: ELinuxServeTarget = ELinuxServeTarget.X64): string =>
-  devServeCacheKeyOf({ source: sourceWith(diff), target })
+const keyOf = (diff: string): string => devServeCacheKeyOf({ source: sourceWith(diff), target: ELinuxServeTarget.X64 })
 
 const sha256Of = (text: string): string => new Bun.CryptoHasher('sha256').update(text).digest('hex')
 

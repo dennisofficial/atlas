@@ -72,9 +72,10 @@ const secondsSince = (args: { start: number; now: number }): string => ((args.no
 
 const inputsLabel = (inputKey: string): string => inputKey.slice(0, 8)
 
+let processWideBuildQueue: Promise<unknown> = Promise.resolve()
+
 export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
   const inFlight = new Map<string, Promise<DevServeBinary>>()
-  let buildQueue: Promise<unknown> = Promise.resolve()
 
   const sourceKey = async (repo: string): Promise<string> => {
     const source = await deps.probe({ repo })
@@ -150,8 +151,8 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
     const sharedAfterRead = inFlight.get(inputKey)
     if (sharedAfterRead !== undefined) return sharedAfterRead
 
-    const resolving = buildQueue.then(() => buildAndStore({ repo, inputKey, log: narrate }))
-    buildQueue = resolving.catch(() => undefined)
+    const resolving = processWideBuildQueue.then(() => buildAndStore({ repo, inputKey, log: narrate }))
+    processWideBuildQueue = resolving.catch(() => undefined)
     inFlight.set(inputKey, resolving)
     try {
       return await resolving
