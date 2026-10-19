@@ -1,7 +1,7 @@
 # apps/api
 
 The Atlas Cloud backend. NestJS 12 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
-(Neon in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
+(PlanetScale Postgres in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
 API keys, ordinary secrets, user settings and MCP configuration stay on the machine; explicit
 backup actions copy them to/from the API. Signing in transfers Atlas-native provider OAuth
 renewal to dedicated cloud-owned connections. Local sessions and assigned sandboxes retrieve
@@ -117,7 +117,8 @@ is the only thing that applies schema in a deployed tier — never the app conta
 no DDL rights by design. Locally the same command is `MIGRATE_TIER=production bun run
 db:migrate:deploy`.
 
-The job connects through `DIRECT_URL` (Neon's non-pooled endpoint) when the tier supplies one,
+The job connects through `DIRECT_URL` (PlanetScale's direct endpoint, :5432; `DATABASE_URL` is its
+PgBouncer on :6432) when the tier supplies one,
 falling back to `DATABASE_URL` — `prisma migrate deploy`'s session-level advisory lock does not
 survive the pooler: a killed job once left the lock pinned on a pooled backend and every later
 deploy timed out acquiring it (P1002). `scripts/migrate-deploy.mjs` also retries the deploy
@@ -131,19 +132,12 @@ the release it lands ahead of: add columns with defaults, add tables, never rena
 the same deploy as the code that stops using them. A `FAILED_DEPLOY` job that ran down-DDL would
 turn a failed deploy into data loss; there is deliberately none.
 
-The database half of a rollback is Neon's, and it is already there — nothing to build. A restore
-matches the timestamp to an LSN, moves the compute to a point-in-time branch so the connection
-string does not change, and renames the pre-restore branch to `<name>_old_head_<timestamp>`, so
-the restore is itself reversible:
-
-```
-neon branches restore main '^self@2026-09-16T04:00:00.000Z'
-```
-
-It only reaches as far back as the project's history retention — 1 day by default on paid plans,
-6 hours on free, configurable to 7 days on Launch and 30 on Scale. Check that window is wider
-than the gap between a bad migration landing and someone noticing, because outside it there is
-no restore to make.
+The database half of a rollback is PlanetScale's backups. A restore never happens in place: pick
+a backup or a point in time (up to 5 minutes ago) under Backups and restore it to a **new
+branch**, reset the role password there, then `dotenvx set` both URLs to the new branch's host
+and redeploy. It reaches only as far back as the backup retention (2 days on the default
+schedule), so check that window is wider than the gap between a bad migration landing and
+someone noticing. https://planetscale.com/docs/postgres/backups/point-in-time-recovery
 
 `GET /v1/health` answers 503 when the running build expects migrations the database has not
 applied, so drift fails the health check and DO holds the previous release rather than serving
