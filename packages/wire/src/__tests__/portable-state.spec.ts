@@ -38,7 +38,7 @@ const state = (over: Record<string, unknown> = {}): Record<string, unknown> => (
 
 describe('PORTABLE_STATE_PATH', () => {
   it('is the bootstrap staging path under the snapshot-persisted sandbox home', () => {
-    expect(PORTABLE_STATE_PATH).toBe('/opt/atlas/home/bootstrap/local-state.json')
+    expect(PORTABLE_STATE_PATH).toBe('/atlas/home/bootstrap/local-state.json')
   })
 })
 

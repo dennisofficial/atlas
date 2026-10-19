@@ -127,8 +127,8 @@ describe('createCloudBridge sandboxes.create', () => {
     await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
 
     const paths = driver.written.map((write) => write.path)
-    expect(paths).toContain('/opt/atlas/home/bootstrap/workspace-spec.json')
-    expect(paths).toContain('/opt/atlas/home/bootstrap/local-state.json')
+    expect(paths).toContain('/atlas/home/bootstrap/workspace-spec.json')
+    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
 
     const spec = driver.written.find((write) => write.path.endsWith('workspace-spec.json'))
     expect(JSON.parse(String(spec?.content))).toMatchObject({ githubToken: 'gho_test_token' })
@@ -150,8 +150,8 @@ describe('createCloudBridge sandboxes.create', () => {
     await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
 
     const paths = driver.written.map((write) => write.path)
-    expect(paths).toContain('/opt/atlas/home/bootstrap/local-state.json')
-    expect(paths).not.toContain('/opt/atlas/home/bootstrap/workspace-spec.json')
+    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
+    expect(paths).not.toContain('/atlas/home/bootstrap/workspace-spec.json')
   })
 
   it('boots without push access when the git token read fails', async () => {
@@ -324,7 +324,7 @@ describe('createCloudBridge sandboxes.create', () => {
 
     expect(captures).toHaveLength(1)
     expect(driver.written.map((write) => write.path)).toContain(
-      '/opt/atlas/home/bootstrap/local-state.json',
+      '/atlas/home/bootstrap/local-state.json',
     )
   })
 })

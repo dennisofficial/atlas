@@ -106,7 +106,7 @@ describe('serve git access env', () => {
     expect(env.GH_TOKEN).toBe('gho_cloud')
     expect(env.GIT_CONFIG_COUNT).toBe('7')
     expect(env.GIT_CONFIG_KEY_1).toBe('safe.directory')
-    expect(env.GIT_CONFIG_VALUE_1).toBe('/workspace')
+    expect(env.GIT_CONFIG_VALUE_1).toBe('/atlas/workspaces/atlas')
     expect(env.GIT_CONFIG_KEY_3).toBe('credential.helper')
     expect(env.GIT_CONFIG_VALUE_3).toBe('')
     expect(env.GIT_CONFIG_KEY_4).toBe('credential.https://github.com.helper')
