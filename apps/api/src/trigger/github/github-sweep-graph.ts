@@ -1,5 +1,6 @@
 import { EnvService } from '../../_core/config/env/env.service'
 import { envConfigValidation } from '../../_core/config/env/validation'
+import { ProcessBackgroundWork } from '../../_lib/background-work/background-work.providers'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { RedisService } from '../../_lib/redis/redis.service'
 import { GithubAppInstallationsService } from '../../api/cloud/github/github-app-installations.service'
@@ -14,6 +15,7 @@ import {
   type PrFrameBus,
 } from '../../api/cloud/github/github-pr-fanout.transport'
 import { sandboxWakeBootProvider } from '../../api/cloud/github/github-sandbox-wake-boot'
+import { WAKE_DEBOUNCE_MS } from '../../api/cloud/github/github-sandbox-wake-debounce'
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
 import { GithubUserReads } from '../../api/cloud/github/github-user-reads'
 import { GithubService } from '../../api/cloud/github/github.service'
@@ -42,7 +44,13 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const github = new GithubService(cipher, env, new GithubDeviceClient({}))
   const reads = new GithubUserReads()
   const fanout = new GithubPrFanoutService(new DrainStateService(), bus)
-  const wake = new GithubSandboxWakeService(env, cipher, sandboxWakeBootProvider.useFactory())
+  const wake = new GithubSandboxWakeService(
+    env,
+    cipher,
+    sandboxWakeBootProvider.useFactory(),
+    new ProcessBackgroundWork(),
+    WAKE_DEBOUNCE_MS,
+  )
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
 
   return {
