@@ -9,10 +9,9 @@ import { ensurePodIngress, POD_INGRESS_CONTAINER_PORT } from './ingress'
 import {
   dindVolumeNameOf,
   podCreateBody,
+  podLabelsFor,
   podNameFor,
-  podRoleLabel,
   podThreadLabel,
-  POD_ROLE,
   workspaceVolumeNameOf,
 } from './pod-create'
 import { isPodStaged, stagePod } from './pod-staged'
@@ -36,6 +35,7 @@ export type PodHostPorts = { serveHostPort: number; ingressHostPort: number }
 export type PodProvisionDeps = {
   engine: PodDriverEngine
   image: string
+  home: string
   vcpus: number
   cloudUrl: string
   hostPorts: (args: { threadId: string }) => PodHostPorts
@@ -106,7 +106,7 @@ const createFresh = async (args: {
   token: string
 }): Promise<string | undefined> => {
   const { deps, provision } = args
-  const labels = { [podThreadLabel]: provision.threadId, [podRoleLabel]: POD_ROLE }
+  const labels = podLabelsFor({ threadId: provision.threadId, home: deps.home })
   const ports = deps.hostPorts({ threadId: provision.threadId })
 
   try {
@@ -116,6 +116,7 @@ const createFresh = async (args: {
       name: provision.name,
       body: podCreateBody({
         threadId: provision.threadId,
+        home: deps.home,
         image: deps.image,
         ...ports,
         vcpus: deps.vcpus,

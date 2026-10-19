@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   EConnectionView,
   ECloudSandboxState,
+  EResizeApplies,
   ERuntimePhase,
   type ChannelConnection,
   type CloudSandboxStatus,
@@ -51,7 +52,7 @@ const sessionOn = (
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
       find: args.find ?? (async () => undefined),
       readResources: async () => ({}),
-      updateResources: async () => {},
+      updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
       destroy: async () => undefined,
     },
     wake: () => {

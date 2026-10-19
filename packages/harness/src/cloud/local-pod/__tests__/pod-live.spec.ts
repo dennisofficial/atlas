@@ -10,6 +10,7 @@ import { ensurePodIngress, POD_INGRESS_CONTAINER_PORT } from '../ingress'
 import {
   DEFAULT_POD_IMAGE,
   dindVolumeNameFor,
+  memoryReservationBytesFor,
   podCreateBody,
   podNameFor,
   podThreadLabel,
@@ -117,6 +118,7 @@ describeDocker('local pod create body against a live daemon', () => {
       name: podName,
       body: podCreateBody({
         threadId,
+        home: '/tmp/atlas-pod-live-home',
         image: DEFAULT_POD_IMAGE,
         serveHostPort,
         ingressHostPort,
@@ -138,7 +140,7 @@ describeDocker('local pod create body against a live daemon', () => {
     expect(mounts.find((mount) => mount.Name === workspaceVolume)?.Destination).toBe(SANDBOX_WORKSPACES_PATH)
     expect(mounts.find((mount) => mount.Name === dindVolume)?.Destination).toBe('/var/lib/docker')
 
-    expect(await sh({ id: created.id, script: 'cat /sys/fs/cgroup/memory.low' })).toBe(String(512 * 1024 * 1024))
+    expect(await sh({ id: created.id, script: 'cat /sys/fs/cgroup/memory.low' })).toBe(String(memoryReservationBytesFor({ vcpus: 1 })))
     expect(await sh({ id: created.id, script: 'cat /sys/fs/cgroup/memory.max' })).toBe('max')
 
     expect(await sh({ id: created.id, script: 'cat /proc/1/comm' })).toBe('docker-init')
