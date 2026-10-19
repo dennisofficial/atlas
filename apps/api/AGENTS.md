@@ -264,8 +264,9 @@ Scheduled work runs as trigger.dev tasks embedded in this package: `trigger.conf
 (`dirs: ['./src/trigger']`, runtime `node-24`, `maxDuration: 300`) and task code under
 `src/trigger/<feature>/`. The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
 Technologies LLC); use only the pinned scripts, which pass `--profile atlas`
-(`trigger:dev`, `trigger:deploy`). Never run `trigger deploy` by hand: deploys ride trigger.dev's
-GitHub integration, and an undeployed task does not error, it never runs.
+(`trigger:dev`, `trigger:deploy`). trigger.dev's GitHub integration is not connected yet, so a deploy
+is manual: `bun run db:generate` first (the generated client is gitignored and the build fails
+without it), then `bun run trigger:deploy`. An undeployed task does not error, it never runs.
 
 - **Worker env is the tier.** `trigger-tier-extension.ts` ships `envs/.env.api.production.enc` in
   the worker bundle and `src/trigger/init.ts` decrypts it into `process.env` before any task
@@ -277,9 +278,13 @@ GitHub integration, and an undeployed task does not error, it never runs.
   gets a `RedisPrFrameBus` when the tier carries `REDIS_URL`, else a `LocalPrFrameBus`; a worker
   only publishes, since it never calls `openStream`.
 - **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
-  `trigger.config.ts` sets `conditions: ['bun']`. Prisma, `@prisma/adapter-pg` and ioredis bundle
-  without an extension; `bunx trigger.dev@4.7.4 deploy --profile atlas --dry-run` proves the build
-  without deploying. `src/vercel.ts` must never import `src/trigger/`.
+  `trigger.config.ts` sets `conditions: ['bun']`. `@prisma/client` must stay external
+  (`prismaExtension({ mode: 'modern' })`): bundled, esbuild re-exports its CJS query-compiler
+  `wasm-base64` module as a default only, the generated client's `const { wasm } = await import(...)`
+  gets `undefined`, and every query fails with `Buffer.from(undefined)`. `@prisma/adapter-pg`, `pg`
+  and ioredis bundle. `bunx trigger.dev@4.7.4 deploy --profile atlas --dry-run` proves the build
+  but not the runtime: run one task by hand after a deploy before trusting the schedules.
+  `src/vercel.ts` must never import `src/trigger/`.
 - **Until cutover, in-process timers stay.** `GithubSweepSchedulerService` owns the 30 s and 60 s
   `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so DO and `bun run dev`
   keep sweeping with no trigger.dev login while Vercel instances never run timers. A double run
