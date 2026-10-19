@@ -14,8 +14,6 @@ import { encodePng } from '../images/__tests__/png-fixture'
 import { applyTranscriptRows } from '../viewport-rows-store'
 import { frameWhen } from './waiting'
 
-// The viewport, image-row and covered stores are module-global and the app publishes into them; pin
-// all three so shard order cannot leave a tall value or a covered flag behind.
 beforeEach(() => {
   applyTranscriptRows(HEIGHT)
   applyImageRows(SHIPPED_IMAGE_ROWS)
