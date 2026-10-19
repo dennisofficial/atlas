@@ -127,9 +127,6 @@ model CloudSandbox {
   workspaceBranch    String?
   workspaceCommit    String?
   workspacePatch     String?
-  workspaceSkills    String?  @ignore
-  workspaceContext   String?  @db.Text @ignore
-  workspaceContextArchive Bytes? @ignore
   contextPending Boolean @default(true)
   workspaceProjectDirectory String?
   workspaceGitName String?
