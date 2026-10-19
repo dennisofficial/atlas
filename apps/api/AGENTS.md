@@ -188,6 +188,14 @@ write kills the process instead of throwing a catchable resolve error. The funct
 `bunfig.toml`: with a `node_modules` next to the bundle Bun does not auto-install, and the read-only
 spec passes 8/8 without one, so the lazily imported externals fail as ordinary, caught resolve errors.
 
+Work that must outlive the response goes to `BackgroundWork.keepAlive` (`src/_core/ports/background-work.ts`),
+because a Vercel instance can freeze once the response is sent. `backgroundWorkProvider()` binds
+`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. Wake boots are the
+current user: `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
+wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances), so the boot starts
+inside the kept-alive lookup chain. The trigger.dev worker passes `ProcessBackgroundWork` and the
+5 s debounce and relies on `settle()`.
+
 The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
 `apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
 `*.vercel.app` URLs sit behind Comp AI's SSO, so smoke-test them with the project's protection
@@ -249,6 +257,38 @@ its teardown. Nothing durable goes in Redis — Upstash is a bus with eviction o
 must survive lives in Postgres and Redis only carries notifications. Local dev runs without it:
 `REDIS_URL` is unset in the local and staging tiers, `isConfigured()` is `false`, and callers
 choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.
+
+## Background jobs
+
+Scheduled work runs as trigger.dev tasks embedded in this package: `trigger.config.ts`
+(`dirs: ['./src/trigger']`, runtime `node-24`, `maxDuration: 300`) and task code under
+`src/trigger/<feature>/`. The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
+Technologies LLC); use only the pinned scripts, which pass `--profile atlas`
+(`trigger:dev`, `trigger:deploy`). trigger.dev's GitHub integration is not connected yet, so a deploy
+is manual: `bun run db:generate` first (the generated client is gitignored and the build fails
+without it), then `bun run trigger:deploy`. An undeployed task does not error, it never runs.
+
+- **Worker env is the tier.** `trigger-tier-extension.ts` ships `envs/.env.api.production.enc` in
+  the worker bundle and `src/trigger/init.ts` decrypts it into `process.env` before any task
+  loads (`tier-env.ts`, fatal on a missing file or any value left `encrypted:`). The dashboard
+  holds only `DOTENV_PRIVATE_KEY_API_PRODUCTION`; never paste an app secret into it.
+  `TRIGGER_SECRET_KEY` is a tier key for the API to enqueue work, unused by the sweeps.
+- **Tasks build their service graph by hand**, outside Nest DI (`src/trigger/github/github-sweep-graph.ts`):
+  plain constructor chains over `EnvService` built from the validated `process.env`. The fan-out
+  gets a `RedisPrFrameBus` when the tier carries `REDIS_URL`, else a `LocalPrFrameBus`; a worker
+  only publishes, since it never calls `openStream`.
+- **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
+  `trigger.config.ts` sets `conditions: ['bun']`. `@prisma/client` must stay external
+  (`prismaExtension({ mode: 'modern' })`): bundled, esbuild re-exports its CJS query-compiler
+  `wasm-base64` module as a default only, the generated client's `const { wasm } = await import(...)`
+  gets `undefined`, and every query fails with `Buffer.from(undefined)`. `@prisma/adapter-pg`, `pg`
+  and ioredis bundle. `bunx trigger.dev@4.7.4 deploy --profile atlas --dry-run` proves the build
+  but not the runtime: run one task by hand after a deploy before trusting the schedules.
+  `src/vercel.ts` must never import `src/trigger/`.
+- **Until cutover, in-process timers stay.** `GithubSweepSchedulerService` owns the 30 s and 60 s
+  `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so DO and `bun run dev`
+  keep sweeping with no trigger.dev login while Vercel instances never run timers. A double run
+  (DO timers plus the schedules) is harmless: both sweeps are idempotent.
 
 ## Rules that differ from the rest of the repo
 

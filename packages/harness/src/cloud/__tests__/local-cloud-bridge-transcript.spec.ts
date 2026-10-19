@@ -136,6 +136,35 @@ describe('createLocalCloudBridge bootstrap writes', () => {
     expect(progress[0]?.transferredBytes).toBe(0)
   })
 
+  it('captures no context on a healthy resume, since the sandbox already installed it', async () => {
+    const { driver, writes } = fakeDriver({ observed: true, vaultPresent: true })
+    let captured = 0
+
+    await bridgeWith(driver).sandboxes.create({
+      threadId,
+      workspace: null,
+      captureContext: async (put) => {
+        captured += 1
+        await put(new Uint8Array(2))
+      },
+    })
+
+    expect(captured).toBe(0)
+    expect(writes.some((entry) => entry.path === CONTEXT_ARCHIVE_PATH)).toBe(false)
+  })
+
+  it('recaptures the context when a resumed sandbox lost its installed state', async () => {
+    const { driver, writes } = fakeDriver({ observed: true, vaultPresent: false })
+
+    await bridgeWith(driver).sandboxes.create({
+      threadId,
+      workspace: null,
+      captureContext: async (put) => put(new Uint8Array(2)),
+    })
+
+    expect(writes.some((entry) => entry.path === CONTEXT_ARCHIVE_PATH)).toBe(true)
+  })
+
   it('keeps the context archive write ahead of the serve launch', async () => {
     const { driver, events, writes } = fakeDriver({ observed: false })
 

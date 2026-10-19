@@ -13,6 +13,8 @@ import type { IRuntimeEnv } from './sections/runtime'
 import { runtimeEnvSchema } from './sections/runtime'
 import type { ISandboxEnv } from './sections/sandbox'
 import { sandboxEnvSchema } from './sections/sandbox'
+import type { ITriggerEnv } from './sections/trigger'
+import { triggerEnvSchema } from './sections/trigger'
 
 export interface IEnvConfig
   extends IRuntimeEnv,
@@ -21,7 +23,8 @@ export interface IEnvConfig
     ICryptoEnv,
     IGithubEnv,
     IRedisEnv,
-    ISandboxEnv {}
+    ISandboxEnv,
+    ITriggerEnv {}
 
 export const envConfigValidation = Joi.object({
   ...runtimeEnvSchema,
@@ -31,4 +34,5 @@ export const envConfigValidation = Joi.object({
   ...githubEnvSchema,
   ...redisEnvSchema,
   ...sandboxEnvSchema,
+  ...triggerEnvSchema,
 })
