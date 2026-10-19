@@ -262,6 +262,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
   useEffect(() => {
     applyTranscriptCovered(picturesCovered)
+    return () => applyTranscriptCovered(false)
   }, [picturesCovered])
 
   return { overlaid: blurred, picturesCovered }
