@@ -1,6 +1,6 @@
 import type { KeyEvent } from '@opentui/core'
 import type { CloudService } from '@dltech/atlas-harness'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ECloudAction } from '../ui/components/settings/cloud'
 import { ESettingsLogin } from '../ui/settings-login-model'
@@ -67,6 +67,10 @@ export function useCloudPage(args: {
   )
   const lastAction = actions[actions.length - 1] ?? ECloudAction.SignOut
   const action = held !== null && !actions.includes(held) ? lastAction : held
+
+  useEffect(() => {
+    if (held !== null && !actions.includes(held)) setAction(lastAction)
+  }, [held, actions, lastAction])
 
   const handleResetAction = useCallback(() => {
     setAction(ECloudAction.SignOut)

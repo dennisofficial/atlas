@@ -42,11 +42,16 @@ const preExistingGitEnv = (): Record<string, string | undefined> => {
 const asFetch = (call: (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => Promise<Response>): typeof fetch =>
   Object.assign(call, { preconnect: () => undefined })
 
-const requestOf = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Request =>
-  input instanceof Request ? new Request(input, init) : new Request(String(input), init)
+const requestOf = (args: {
+  input: Parameters<typeof fetch>[0]
+  init?: Parameters<typeof fetch>[1]
+}): Request =>
+  args.input instanceof Request
+    ? new Request(args.input, args.init)
+    : new Request(String(args.input), args.init)
 
 const answering = (respond: (request: Request) => Response | Promise<Response>): typeof fetch =>
-  asFetch(async (input, init) => respond(requestOf(input, init)))
+  asFetch(async (input, init) => respond(requestOf({ input, init })))
 
 const fetchWith = (fetchFn: typeof fetch) =>
   fetchSigningKeyLease({

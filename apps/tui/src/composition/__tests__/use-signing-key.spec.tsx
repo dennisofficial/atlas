@@ -1,14 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
-import {
-  CloudService,
-  CloudSessionStore,
-  memoryAccountStore,
-  SystemClock,
-} from '@dltech/atlas-harness'
 import { SSH_SIGNING_SCOPE_NOTICE } from '@dltech/atlas-wire'
 import { testRender } from '@opentui/react/test-utils'
 import React from 'react'
@@ -16,115 +7,23 @@ import React from 'react'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { ESigningKeyView } from '../../ui/components/settings/signing-key-row'
 import { clearNotice, currentNotices } from '../../ui/notice-store'
-import { useSigningKey, type SigningKeyControl } from '../use-signing-key'
-
-const URL = 'https://cloud.test'
-const PUBLIC_KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIABCDEFGHIJ'
-const SCOPE_KEY = 'signing-scope-missing'
-
-type Remote = {
-  registered: boolean
-  scopeMissing: boolean
-  down: boolean
-  githubConnected: boolean
-  calls: string[]
-}
-
-const remote = (): Remote => ({ registered: false, scopeMissing: false, down: false, githubConnected: false, calls: [] })
-
-const keyFetch = (state: Remote): typeof fetch => {
-  const reply = (status: number, payload?: unknown) =>
-    new Response(payload === undefined ? null : JSON.stringify(payload), {
-      status,
-      headers: { 'content-type': 'application/json' },
-    })
-  const statusBody = () =>
-    state.registered
-      ? { state: 'registered', publicKey: PUBLIC_KEY, createdAt: '2026-01-01T00:00:00.000Z' }
-      : { state: 'absent' }
-
-  return (async (input: unknown, init?: RequestInit) => {
-    const path = String(input).slice(URL.length)
-    const call = `${init?.method ?? 'GET'} ${path}`
-    state.calls.push(call)
-
-    if (state.down) return reply(500, { message: 'cloud is down' })
-    if (call === 'GET /v1/github') {
-      return reply(
-        200,
-        state.githubConnected
-          ? { connected: true, login: 'octocat', scopes: ['repo'], connectedAt: '2026-01-01T00:00:00.000Z' }
-          : { connected: false },
-      )
-    }
-    if (call === 'GET /v1/ssh-signing-key/status') return reply(200, statusBody())
-    if (call === 'POST /v1/ssh-signing-key' || call === 'POST /v1/ssh-signing-key/rotate') {
-      if (state.scopeMissing) {
-        return reply(403, { message: SSH_SIGNING_SCOPE_NOTICE, code: 'github-signing-scope-missing' })
-      }
-      state.registered = true
-      return reply(call.endsWith('rotate') ? 200 : 201, statusBody())
-    }
-    if (call === 'DELETE /v1/ssh-signing-key') {
-      state.registered = false
-      return reply(204)
-    }
-    return reply(404, { message: `unhandled ${call}` })
-  }) as typeof fetch
-}
-
-let directory: string
-
-const cloudOf = (state: Remote): CloudService => {
-  directory = mkdtempSync(join(tmpdir(), 'atlas-signing-key-'))
-  const sessions = new CloudSessionStore({
-    file: join(directory, 'cloud.json'),
-    keyFile: join(directory, 'key'),
-  })
-  sessions.write({ url: URL, token: 'sess_key', email: 'dev@example.com' })
-  return new CloudService({
-    sessions,
-    localAccounts: memoryAccountStore({ clock: new SystemClock() }),
-    defaultUrl: URL,
-    fetchFn: keyFetch(state),
-  })
-}
+import {
+  cloudOf,
+  controlOf,
+  count,
+  expectUntil,
+  Key,
+  remote,
+  removeDirectories,
+  SCOPE_KEY,
+  type Probe,
+  type Remote,
+} from './use-signing-key-fixture'
 
 afterEach(() => {
   clearNotice({ key: SCOPE_KEY })
-  rmSync(directory, { recursive: true, force: true })
+  removeDirectories()
 })
-
-async function expectUntil(holds: () => boolean): Promise<void> {
-  const deadline = Date.now() + 10_000
-  while (Date.now() < deadline) {
-    if (holds()) return
-    await settle(20)
-  }
-  expect(holds()).toBe(true)
-}
-
-type Probe = { control: SigningKeyControl | null }
-
-function Key(props: {
-  cloud: CloudService
-  state: Remote
-  login: string | null
-  probe: Probe
-}): React.ReactNode {
-  const control = useSigningKey({
-    cloud: props.cloud,
-    githubLogin: props.login,
-    fetchFn: keyFetch(props.state),
-  })
-  props.probe.control = control
-  return <text>{control.view.state}</text>
-}
-
-const controlOf = (probe: Probe): SigningKeyControl => {
-  if (probe.control === null) throw new Error('the probe never mounted')
-  return probe.control
-}
 
 async function mounted(args: { state: Remote; login: string | null }) {
   const probe: Probe = { control: null }
@@ -133,10 +32,8 @@ async function mounted(args: { state: Remote; login: string | null }) {
     <Key cloud={cloud} state={args.state} login={args.login} probe={probe} />,
     { width: 40, height: 4 },
   )
-  return { probe, done: () => teardown(setup) }
+  return { probe, setup, done: () => teardown(setup) }
 }
-
-const count = (state: Remote, call: string): number => state.calls.filter((entry) => entry === call).length
 
 describe('useSigningKey', () => {
   it('registers a key once GitHub has a login and reports the fingerprint tail', async () => {
@@ -270,5 +167,46 @@ describe('useSigningKey', () => {
     } finally {
       await done()
     }
+  })
+
+  it('uploads one key when two mounts see the same login', async () => {
+    const state = remote()
+    const first: Probe = { control: null }
+    const second: Probe = { control: null }
+    const cloud = cloudOf(state)
+    const setup = await testRender(
+      <>
+        <Key cloud={cloud} state={state} login="octocat" probe={first} />
+        <Key cloud={cloud} state={state} login="octocat" probe={second} />
+      </>,
+      { width: 40, height: 4 },
+    )
+
+    try {
+      await expectUntil(() => controlOf(first).view.state === ESigningKeyView.Registered)
+      await settle(100)
+      expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('drops a deferred ensure result that lands after unmount', async () => {
+    const state = remote()
+    state.scopeMissing = true
+    let release: () => void = () => undefined
+    state.gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { setup } = await mounted({ state, login: 'octocat' })
+
+    await expectUntil(() => count(state, 'GET /v1/ssh-signing-key/status') === 1)
+    await teardown(setup)
+    await settle(50)
+    release()
+    await settle(150)
+
+    expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
+    expect(currentNotices().map((notice) => notice.text)).not.toContain(SSH_SIGNING_SCOPE_NOTICE)
   })
 })

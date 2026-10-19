@@ -44,12 +44,17 @@ const inMemoryContextFiles = (): WorkspaceFiles => {
   }
 }
 
-const requestOf = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Request =>
-  input instanceof Request ? new Request(input, init) : new Request(String(input), init)
+const requestOf = (args: {
+  input: Parameters<typeof fetch>[0]
+  init?: Parameters<typeof fetch>[1]
+}): Request =>
+  args.input instanceof Request
+    ? new Request(args.input, args.init)
+    : new Request(String(args.input), args.init)
 
 const controlPlane = (args: { leaseStatus: number }): typeof fetch =>
   Object.assign(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    const request = requestOf(input, init)
+    const request = requestOf({ input, init })
     const isLease = request.method === 'GET' && new URL(request.url).pathname === '/v1/ssh-signing-key'
     if (!isLease) return new Response(null, { status: 204 })
     if (args.leaseStatus === 200) return Response.json(lease)
@@ -117,11 +122,23 @@ describe('serve boot signing key', () => {
 
   it('appends after git config entries already present in the env', async () => {
     const env: Record<string, string | undefined> = { GIT_CONFIG_COUNT: '3' }
+    for (let index = 0; index < 3; index += 1) {
+      env[`GIT_CONFIG_KEY_${index}`] = `pre.key${index}`
+      env[`GIT_CONFIG_VALUE_${index}`] = `pre-value-${index}`
+    }
 
     await start({ env, leaseStatus: 200 })
 
     expect(env.GIT_CONFIG_COUNT).toBe('10')
     expect(env.GIT_CONFIG_KEY_3).toBe('gpg.format')
+  })
+
+  it('arms nothing when the env already carries a malformed git config count', async () => {
+    const env: Record<string, string | undefined> = { GIT_CONFIG_COUNT: 'garbage' }
+
+    await start({ env, leaseStatus: 200 })
+
+    expect(env).toEqual({ GIT_CONFIG_COUNT: 'garbage' })
   })
 
   it('writes nothing and leaves the env alone when the lease is a 404', async () => {

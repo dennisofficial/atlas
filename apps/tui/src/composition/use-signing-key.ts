@@ -41,8 +41,10 @@ const busyViewOf = (current: SigningKeyView): SigningKeyView =>
     ? { state: ESigningKeyView.Busy }
     : { state: ESigningKeyView.Busy, fingerprintTail: current.fingerprintTail }
 
-const sameView = (a: SigningKeyView, b: SigningKeyView): boolean =>
-  a.state === b.state && a.fingerprintTail === b.fingerprintTail
+const sameView = (args: { a: SigningKeyView; b: SigningKeyView }): boolean =>
+  args.a.state === args.b.state && args.a.fingerprintTail === args.b.fingerprintTail
+
+const ensuring = new Set<string>()
 
 const infoNotice = (text: string): void => notify({ text, tone: ENoticeTone.Info })
 
@@ -57,12 +59,13 @@ export function useSigningKey(args: {
   const busy = useRef(false)
   const scopeMissing = useRef(false)
   const ensured = useRef<string | null>(null)
+  const mounted = useRef(true)
   const seenLogin = useRef<string | null>(null)
   const loginRef = useRef(githubLogin)
   loginRef.current = githubLogin
 
   const put = useCallback((next: SigningKeyView) => {
-    if (sameView(viewRef.current, next)) return
+    if (sameView({ a: viewRef.current, b: next })) return
     viewRef.current = next
     setView(next)
   }, [])
@@ -92,10 +95,10 @@ export function useSigningKey(args: {
     void client
       .status()
       .then((status) => {
-        if (!busy.current) put(viewOfStatus(status))
+        if (mounted.current && !busy.current) put(viewOfStatus(status))
       })
       .catch(() => {
-        if (!busy.current) put(UNAVAILABLE)
+        if (mounted.current && !busy.current) put(UNAVAILABLE)
       })
   }, [clientOf, put, viewOfStatus])
 
@@ -132,8 +135,10 @@ export function useSigningKey(args: {
       if (busy.current) return
       busy.current = true
       put(busyViewOf(viewRef.current))
-      const outcome = await action()
-      busy.current = false
+      const outcome = await action().finally(() => {
+        busy.current = false
+      })
+      if (!mounted.current) return
       settleOutcome(outcome)
     },
     [put, settleOutcome],
@@ -141,14 +146,29 @@ export function useSigningKey(args: {
 
   const ensureFor = useCallback(
     (login: string) => {
-      if (ensured.current === login) return
+      if (ensured.current === login || busy.current) return
+      const session = cloud.session()
       const client = clientOf()
-      if (client === null) return
+      if (session === null || client === null) return
+      const account = `${session.url}|${login}`
+      if (ensuring.has(account)) return
       ensured.current = login
-      void run(() => ensureSigningKey({ client, comment: commentOf(login) }))
+      ensuring.add(account)
+      void run(() =>
+        ensureSigningKey({ client, comment: commentOf(login) }).finally(() => {
+          ensuring.delete(account)
+        }),
+      )
     },
-    [clientOf, run],
+    [cloud, clientOf, run],
   )
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   useEffect(() => {
     if (githubLogin === null) {
@@ -168,7 +188,7 @@ export function useSigningKey(args: {
     void client
       .githubConnection()
       .then((found) => {
-        if (found !== null) ensureFor(found.login)
+        if (mounted.current && found !== null) ensureFor(found.login)
       })
       .catch(() => undefined)
   }, [cloud, ensureFor])

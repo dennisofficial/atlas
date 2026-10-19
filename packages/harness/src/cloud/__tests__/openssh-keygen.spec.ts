@@ -8,9 +8,12 @@ import { generateSigningKeyPair } from '../openssh-keygen'
 const SSH_KEYGEN = '/usr/bin/ssh-keygen'
 const EMAIL = 'octo@users.noreply.github.com'
 
-const run = (args: string[], stdin?: string): { code: number; stdout: string; stderr: string } => {
-  const result = Bun.spawnSync([SSH_KEYGEN, ...args], {
-    ...(stdin === undefined ? {} : { stdin: Buffer.from(stdin) }),
+const run = (args: {
+  argv: string[]
+  stdin?: string
+}): { code: number; stdout: string; stderr: string } => {
+  const result = Bun.spawnSync([SSH_KEYGEN, ...args.argv], {
+    ...(args.stdin === undefined ? {} : { stdin: Buffer.from(args.stdin) }),
   })
   return { code: result.exitCode, stdout: result.stdout.toString(), stderr: result.stderr.toString() }
 }
@@ -56,7 +59,7 @@ describe('generateSigningKeyPair', () => {
     const pair = generateSigningKeyPair({ comment: 'atlas@octo' })
     const path = writeKey({ name: 'derive', privateKey: pair.privateKey })
 
-    const derived = run(['-y', '-f', path])
+    const derived = run({ argv: ['-y', '-f', path] })
 
     expect(derived.code).toBe(0)
     expect(derived.stdout.trim()).toBe(pair.publicKey)
@@ -66,7 +69,7 @@ describe('generateSigningKeyPair', () => {
     const pair = generateSigningKeyPair({ comment: '' })
     const path = writeKey({ name: 'bare', privateKey: pair.privateKey })
 
-    const derived = run(['-y', '-f', path])
+    const derived = run({ argv: ['-y', '-f', path] })
 
     expect(derived.code).toBe(0)
     expect(derived.stdout.trim()).toBe(pair.publicKey)
@@ -82,15 +85,15 @@ describe('generateSigningKeyPair', () => {
     const [type, blob] = pair.publicKey.split(' ')
     writeFileSync(allowedPath, `${EMAIL} ${type} ${blob}\n`)
 
-    const signed = run(['-Y', 'sign', '-n', 'git', '-f', keyPath, payloadPath])
+    const signed = run({ argv: ['-Y', 'sign', '-n', 'git', '-f', keyPath, payloadPath] })
     expect(signed.code).toBe(0)
     const signaturePath = `${payloadPath}.sig`
     expect(readFileSync(signaturePath, 'utf8')).toContain('BEGIN SSH SIGNATURE')
 
-    const verified = run(
-      ['-Y', 'verify', '-n', 'git', '-I', EMAIL, '-f', allowedPath, '-s', signaturePath],
-      readFileSync(payloadPath, 'utf8'),
-    )
+    const verified = run({
+      argv: ['-Y', 'verify', '-n', 'git', '-I', EMAIL, '-f', allowedPath, '-s', signaturePath],
+      stdin: readFileSync(payloadPath, 'utf8'),
+    })
 
     expect(verified.code).toBe(0)
     expect(verified.stdout).toContain('Good "git" signature')
@@ -104,12 +107,12 @@ describe('generateSigningKeyPair', () => {
     const allowedPath = join(dir, 'allowed_signers_tamper')
     const [type, blob] = pair.publicKey.split(' ')
     writeFileSync(allowedPath, `${EMAIL} ${type} ${blob}\n`)
-    expect(run(['-Y', 'sign', '-n', 'git', '-f', keyPath, payloadPath]).code).toBe(0)
+    expect(run({ argv: ['-Y', 'sign', '-n', 'git', '-f', keyPath, payloadPath] }).code).toBe(0)
 
-    const verified = run(
-      ['-Y', 'verify', '-n', 'git', '-I', EMAIL, '-f', allowedPath, '-s', `${payloadPath}.sig`],
-      'tampered',
-    )
+    const verified = run({
+      argv: ['-Y', 'verify', '-n', 'git', '-I', EMAIL, '-f', allowedPath, '-s', `${payloadPath}.sig`],
+      stdin: 'tampered',
+    })
 
     expect(verified.code).not.toBe(0)
   })
