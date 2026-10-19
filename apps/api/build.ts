@@ -2,24 +2,26 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { assertNoRuntimeRequires, bundleBetterAuthExpress } from './build-plugins'
+import { lockedRuntimePackages } from './build-runtime-packages'
 
 const TIER_FILE = '.env.api.production.enc'
 
-// Bun auto-installs any package it cannot resolve at import time (https://bun.com/docs/runtime/autoimport) — including the externals Nest imports lazily behind a try/catch — and that write fails the whole process on Vercel's read-only filesystem rather than throwing a catchable resolve error.
-const FUNCTION_BUNFIG = '[install]\nauto = "disable"\n'
-
+// Lazy imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
 const OPTIONAL_IMPORTS = [
-  // Nest core loads it only for hybrid/microservice apps.
-  '@nestjs/microservices',
-  // Nest core loads it only when the app registers a WebSocket adapter.
-  '@nestjs/websockets/socket-module.js',
-  // @thallesp/nestjs-better-auth imports it dynamically for GraphQL execution contexts; this API is REST-only.
   '@nestjs/graphql',
+  '@nestjs/microservices',
+  '@nestjs/microservices/microservices-module',
+  '@nestjs/websockets/socket-module',
+  '@nestjs/websockets/socket-module.js',
 ]
 
-// @thallesp/nestjs-better-auth requires qs only for the fastify adapter; this API runs Express, so it never executes.
-const RUNTIME_REQUIRE_ALLOWED = [...OPTIONAL_IMPORTS, 'qs']
+// @thallesp/nestjs-better-auth loads express with createRequire(), which a bundler cannot follow.
+const RUNTIME_PACKAGES = ['express']
+
+type FunctionManifest = {
+  type: 'module'
+  dependencies: Record<string, string>
+}
 
 type FunctionConfig = {
   runtime: 'bun1.x'
@@ -40,7 +42,7 @@ async function writeJson({
   value,
 }: {
   path: string
-  value: FunctionConfig | OutputConfig
+  value: FunctionManifest | FunctionConfig | OutputConfig
 }): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`)
 }
@@ -65,8 +67,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     target: 'bun',
     format: 'esm',
     sourcemap: 'linked',
-    external: OPTIONAL_IMPORTS,
-    plugins: [bundleBetterAuthExpress()],
+    external: [...OPTIONAL_IMPORTS, ...RUNTIME_PACKAGES],
     define: { __ATLAS_SHIPPED_MIGRATIONS__: JSON.stringify(shippedMigrationNames()) },
   })
 
@@ -74,17 +75,27 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     throw new AggregateError(result.logs, 'Bundling the API failed')
   }
 
-  assertNoRuntimeRequires({
-    bundle: await Bun.file(join(functionDir, 'index.js')).text(),
-    allowed: RUNTIME_REQUIRE_ALLOWED,
+  const runtime = await lockedRuntimePackages({
+    lockPath: join(import.meta.dir, '..', '..', 'bun.lock'),
+    roots: RUNTIME_PACKAGES,
   })
+  await writeJson({ path: join(functionDir, 'package.json'), value: { type: 'module', dependencies: runtime.dependencies } })
+  await writeFile(join(functionDir, 'bun.lock'), `${JSON.stringify(runtime.lock, null, 2)}\n`)
+
+  // --os=* --cpu=* keeps every platform's optional binaries: the build host differs from Vercel's linux x64.
+  const install = Bun.spawnSync(
+    ['bun', 'install', '--production', '--linker', 'hoisted', '--frozen-lockfile', '--os=*', '--cpu=*'],
+    { cwd: functionDir, stdout: 'inherit', stderr: 'inherit' },
+  )
+  if (install.exitCode !== 0) {
+    throw new Error('Installing the runtime packages of the function failed')
+  }
 
   const tierSource = join(import.meta.dir, 'envs', TIER_FILE)
   if (!existsSync(tierSource)) {
     throw new Error(`${TIER_FILE} not found at ${tierSource}; the committed tier must exist to ship in the bundle.`)
   }
   await cp(tierSource, join(functionDir, TIER_FILE))
-  await writeFile(join(functionDir, 'bunfig.toml'), FUNCTION_BUNFIG)
 
   await writeJson({
     path: join(functionDir, '.vc-config.json'),

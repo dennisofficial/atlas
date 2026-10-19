@@ -162,9 +162,15 @@ the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). 
 `__ATLAS_SHIPPED_MIGRATIONS__`, because the bundle has no `prisma/migrations` directory for
 `shippedMigrationNames()` to read.
 
-`OPTIONAL_IMPORTS` in `build.ts` lists only packages that a dependency imports lazily behind a
-feature check and this API never installs; every entry carries its reason, and any other
-unresolved import must fail the build. `class-validator` and `class-transformer` stay bundled.
+The build follows comp-neo's pattern. `OPTIONAL_IMPORTS` in `build.ts` stays external: the lazy
+imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
+`class-validator` and `class-transformer` stay bundled. `@thallesp/nestjs-better-auth` loads express
+with `createRequire()`, which `Bun.build` cannot follow, so `RUNTIME_PACKAGES = ['express']` is
+external too and is installed beside the bundle: `build-runtime-packages.ts`
+(`lockedRuntimePackages`) pins express and its full dependency graph from the repo `bun.lock`
+(`lockfileVersion` 3), `build.ts` writes that as `index.func/package.json` and a trimmed `bun.lock`,
+then runs `bun install --production --linker hoisted --frozen-lockfile --os=* --cpu=*` in the
+function directory. Any other unresolved import fails the build.
 
 `src/vercel-bundle.integration.spec.ts` builds the real output and serves the function directory
 from a `docker run --read-only` container of the same Bun image the Dockerfile pins
@@ -177,14 +183,9 @@ HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` (CI sets it) and is skippe
 after adding any module or dependency: it is what catches an import the bundle misses.
 
 Bun auto-installs any package it cannot resolve at import time, and on a read-only filesystem that
-write kills the process instead of throwing a catchable resolve error. Two things guard against it.
-`build.ts` ships a `bunfig.toml` with `[install] auto = "disable"` inside the function, so the
-externals Nest imports lazily (`OPTIONAL_IMPORTS`) fail as ordinary, caught resolve errors. And a
-dependency that loads a package through `createRequire()` hides it from `Bun.build`, so
-`build-plugins.ts` rewrites the one known case (`@thallesp/nestjs-better-auth`'s express body
-parser) to a bundled import, failing the build if that library's source changes, while `build.ts`
-rejects any other runtime `createRequire` of a bare package not listed in
-`RUNTIME_REQUIRE_ALLOWED`.
+write kills the process instead of throwing a catchable resolve error. The function ships no
+`bunfig.toml`: with a `node_modules` next to the bundle Bun does not auto-install, and the read-only
+spec passes 8/8 without one, so the lazily imported externals fail as ordinary, caught resolve errors.
 
 The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
 `apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
