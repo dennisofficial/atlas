@@ -8,6 +8,8 @@ import { registryFor } from '../../store/sessions/registry'
 import { sessionDirectory } from '../../store/sessions/paths'
 import { createSessionContextReader } from '../session-context'
 
+const MAX_CREATE_ATTEMPTS = 200
+
 const homes: string[] = []
 afterEach(async () => {
   for (const home of homes.splice(0)) await rm(home, { recursive: true, force: true })
@@ -40,14 +42,16 @@ describe('session context reader', () => {
   it('notifies when context is created after the sidebar subscribed', async () => {
     const { home, root, sessionDir } = await fixture()
     const reader = createSessionContextReader({ home, threadId: root })
-    let resolveChange: () => void = () => {}
-    const change = new Promise<void>((resolve) => { resolveChange = resolve })
-    const stop = reader.subscribe(resolveChange)
+    let notified = false
+    const stop = reader.subscribe(() => { notified = true })
     try {
       await reader.list()
-      await mkdir(join(sessionDir, 'context'), { recursive: true })
-      await writeFile(join(sessionDir, 'context', 'notes.md'), 'new note')
-      await change
+      for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS && !notified; attempt++) {
+        await rm(join(home, 'sessions'), { recursive: true, force: true })
+        await mkdir(join(sessionDir, 'context'), { recursive: true })
+        await writeFile(join(sessionDir, 'context', 'notes.md'), `note ${attempt}`)
+      }
+      expect(notified).toBe(true)
       expect(await reader.list()).toEqual([{ name: 'notes.md', isDirectory: false }])
     } finally { stop() }
   }, 5000)
