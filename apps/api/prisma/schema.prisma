@@ -127,9 +127,6 @@ model CloudSandbox {
   workspaceBranch    String?
   workspaceCommit    String?
   workspacePatch     String?
-  workspaceSkills    String? // outgoing column from the release ahead of the workspaceContext rename; drop once every release writes workspaceContext only
-  workspaceContext   String?  @db.Text
-  workspaceContextArchive Bytes?
   contextPending Boolean @default(true)
   workspaceProjectDirectory String?
   workspaceGitName String?

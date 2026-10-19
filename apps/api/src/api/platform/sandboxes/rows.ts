@@ -3,10 +3,9 @@ import { SANDBOX_LIFECYCLE_SELECT, sandboxStateOf, type SandboxLifecycleColumns 
 import type { SandboxStatusDto } from './sandboxes.types'
 
 /**
- * The columns a status answer needs. Never widen this with the blob columns
- * (workspacePatch, workspaceContext, workspaceContextArchive): they are megabytes each, and the
- * status route is polled every 2s while a sandbox boots — an unselected read once burned 4.5GB of
- * Neon transfer in two days (2026-09-21).
+ * The columns a status answer needs. Never widen this with the `workspacePatch` blob column: it
+ * can be megabytes, and the status route is polled every 2s while a sandbox boots — an unselected
+ * read once burned 4.5GB of database transfer in two days (2026-09-21).
  */
 export type SandboxStatusColumns = SandboxLifecycleColumns &
   Pick<CloudSandboxModel, 'name' | 'region' | 'lastActivityAt' | 'contextPending' | 'serveUrl'>
