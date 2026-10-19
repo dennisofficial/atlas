@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, statSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import { atlasHomeFrom, isUnderPath } from '@dltech/atlas-core'
+import { isUnderPath } from '@dltech/atlas-core'
 
 import {
   DEFAULT_DOCKER_SOCKET,
@@ -13,6 +13,7 @@ import {
 import { EImageKind, type ContainerResolution } from '../image/resolve'
 import type { DockerfileBuild } from '../image/build'
 import { EMountMode, type Mount } from '../image/mounts'
+import { atlasDirectory } from '../../store/paths'
 import { mountsWithGitMetadata } from './git-metadata-mounts'
 
 export type HostSandboxEnvironment = {
@@ -122,13 +123,7 @@ export function mountedAtlasHomeSubtrees(args: {
   declared?: readonly Mount[] | undefined
   atlasHome?: string | undefined
 }): readonly Mount[] {
-  const atlasHome =
-    args.atlasHome ??
-    atlasHomeFrom({
-      env: process.env,
-      home: homedir(),
-      tempDir: tmpdir(),
-    })
+  const atlasHome = args.atlasHome ?? atlasDirectory()
   mkdirSync(join(atlasHome, SESSIONS_SUBTREE), { recursive: true })
   const covered = [args.worktree, ...(args.declared ?? []).map((mount) => mount.path)]
 

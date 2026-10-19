@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,11 +20,20 @@ export function isEmbeddedBuild(): boolean {
   return import.meta.dir.startsWith(EMBEDDED_ROOT)
 }
 
+function temporaryRoots(): readonly string[] {
+  const spelled = tmpdir()
+  try {
+    return [spelled, realpathSync(spelled)]
+  } catch {
+    return [spelled]
+  }
+}
+
 export function atlasDirectory(): string {
   return atlasHomeFrom({
     env: process.env,
     home: homedir(),
-    tempDir: tmpdir(),
+    tempDirs: temporaryRoots(),
   })
 }
 

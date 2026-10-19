@@ -15,7 +15,7 @@ const TEMP_DIR = tmpdir()
 const realHome = join(FAKE_HOME, '.atlas')
 
 const resolve = (env: Record<string, string | undefined>): string =>
-  atlasHomeFrom({ env, home: FAKE_HOME, tempDir: TEMP_DIR })
+  atlasHomeFrom({ env, home: FAKE_HOME, tempDirs: [TEMP_DIR] })
 
 describe('atlasHomeFrom test guard', () => {
   test('no testing signal, ATLAS_HOME unset returns the real home', () => {
@@ -39,6 +39,22 @@ describe('atlasHomeFrom test guard', () => {
   test('testing signal, ATLAS_HOME under os.tmpdir() passes', () => {
     const underTmp = join(TEMP_DIR, 'atlas-test-xyz')
     expect(resolve({ NODE_ENV: 'test', ATLAS_HOME: underTmp })).toBe(underTmp)
+  })
+
+  test('testing signal, ATLAS_HOME under any listed temp root passes, so a symlinked and a resolved spelling both work', () => {
+    const symlinked = '/var/folders/zz/T'
+    const resolved = '/private/var/folders/zz/T'
+    const home = join(resolved, 'atlas-quality-home-abc', 'atlas')
+    const env = { NODE_ENV: 'test', ATLAS_HOME: home }
+    expect(() => atlasHomeFrom({ env, home: FAKE_HOME, tempDirs: [symlinked] })).toThrow(/refused/)
+    expect(atlasHomeFrom({ env, home: FAKE_HOME, tempDirs: [symlinked, resolved] })).toBe(home)
+  })
+
+  test('a listed temp root does not make a sibling prefix or the real home safe', () => {
+    const tempDirs = ['/private/var/folders/zz/T']
+    const sibling = { NODE_ENV: 'test', ATLAS_HOME: '/private/var/folders/zz/Tother/atlas' }
+    expect(() => atlasHomeFrom({ env: sibling, home: FAKE_HOME, tempDirs })).toThrow(/refused/)
+    expect(() => atlasHomeFrom({ env: { NODE_ENV: 'test' }, home: FAKE_HOME, tempDirs })).toThrow(/refused/)
   })
 
   test('testing signal, ATLAS_HOME under repo scratch .atlas-home passes from any cwd', () => {

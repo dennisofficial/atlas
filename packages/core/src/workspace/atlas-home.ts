@@ -31,16 +31,15 @@ const underDirectory = (args: { path: string; directory: string }): boolean => {
 
 const SCRATCH_SUFFIX = `${SEPARATOR}${SCRATCH_DIRECTORY_NAME}`
 
-const isSafeTestHome = (args: { path: string; tempDir?: string | undefined }): boolean => {
-  if (args.tempDir !== undefined && underDirectory({ path: args.path, directory: args.tempDir }))
-    return true
+const isSafeTestHome = (args: { path: string; tempDirs: readonly string[] }): boolean => {
+  if (args.tempDirs.some((directory) => underDirectory({ path: args.path, directory }))) return true
   return args.path.endsWith(SCRATCH_SUFFIX) || args.path.includes(`${SCRATCH_SUFFIX}${SEPARATOR}`)
 }
 
 export function atlasHomeFrom(args: {
   env: Record<string, string | undefined>
   home: string
-  tempDir?: string
+  tempDirs?: readonly string[]
 }): string {
   const named = args.env[ATLAS_HOME_ENV]
   const hasNamed = named !== undefined && named.length > 0
@@ -50,7 +49,7 @@ export function atlasHomeFrom(args: {
 
   if (!underTestRunner(args.env)) return resolved
   if (escapeHatchOpen(args.env)) return resolved
-  if (hasNamed && isSafeTestHome({ path: resolved, tempDir: args.tempDir })) return resolved
+  if (hasNamed && isSafeTestHome({ path: resolved, tempDirs: args.tempDirs ?? [] })) return resolved
 
   throw new Error(
     `atlasHomeFrom refused the real Atlas home (${resolved}) under a test runner. ` +

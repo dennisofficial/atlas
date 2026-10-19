@@ -9,7 +9,7 @@ import type { CloudSandboxModel } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SandboxGitCredentials } from './git-credentials'
 import { ownedSandbox } from './ownership'
-import { toSandboxDto, type SandboxPrincipal } from './rows'
+import { toSandboxDto } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
 import { sandboxStateOf } from './sandbox-lifecycle'
 import { SandboxEndpointService } from './sandbox-endpoint'
@@ -24,6 +24,7 @@ import type {
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
+import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
 import { workspaceSpecOf } from './workspace-spec'
 
 const nowIso = (): string => new Date().toISOString()
@@ -216,13 +217,21 @@ export class SandboxesService {
     return { userId: row.userId }
   }
 
-  async verifyTokenPrincipal(args: { token: string }): Promise<SandboxPrincipal> {
-    const row = await db.cloudSandbox.findFirst({
-      where: { tokenHash: hashSessionToken(args.token) },
-      select: { id: true, threadId: true, userId: true },
-    })
-    if (row === null) throw new UnauthorizedException('a valid sandbox session token is required')
-    return row
+  async verifyTokenPrincipal(args: { token: string }): Promise<TokenPrincipal> {
+    const tokenHash = hashSessionToken(args.token)
+    const [sandbox, pod] = await Promise.all([
+      db.cloudSandbox.findFirst({
+        where: { tokenHash },
+        select: { id: true, threadId: true, userId: true },
+      }),
+      db.localPodLease.findUnique({
+        where: { tokenHash },
+        select: { threadId: true, userId: true },
+      }),
+    ])
+    if (sandbox !== null && pod === null) return { kind: ETokenPrincipalKind.Sandbox, ...sandbox }
+    if (pod !== null && sandbox === null) return { kind: ETokenPrincipalKind.Pod, ...pod }
+    throw new UnauthorizedException('a valid sandbox session token is required')
   }
 
   /**

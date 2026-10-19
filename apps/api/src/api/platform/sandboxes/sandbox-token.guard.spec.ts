@@ -3,6 +3,7 @@ import { UnauthorizedException } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import type { SandboxesService } from './sandboxes.service'
+import { ETokenPrincipalKind } from './token-principal'
 
 const contextWith = (args: {
   params: Record<string, string>
@@ -49,7 +50,12 @@ describe('SandboxTokenGuard', () => {
   })
 
   it('resolves the thread from the token alone on a route with no :threadId', async () => {
-    const verifyTokenPrincipal = vi.fn(async () => ({ threadId: 'brn_resolved', userId: 'user-a' }))
+    const verifyTokenPrincipal = vi.fn(async () => ({
+      kind: ETokenPrincipalKind.Sandbox,
+      id: 'sbx_1',
+      threadId: 'brn_resolved',
+      userId: 'user-a',
+    }))
     const guard = new SandboxTokenGuard({
       verifyTokenPrincipal,
     } as unknown as SandboxesService)
@@ -72,5 +78,21 @@ describe('SandboxTokenGuard', () => {
     await expect(
       guard.canActivate(contextWith({ params: {} })),
     ).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+  it('refuses a pod lease token on a route with no :threadId', async () => {
+    const verifyTokenPrincipal = vi.fn(async () => ({
+      kind: ETokenPrincipalKind.Pod,
+      threadId: 'brn_pod',
+      userId: 'user-a',
+    }))
+    const guard = new SandboxTokenGuard({ verifyTokenPrincipal } as unknown as SandboxesService)
+    const request = { params: {}, headers: { authorization: 'Bearer pod-token' } }
+
+    await expect(
+      guard.canActivate({
+        switchToHttp: () => ({ getRequest: () => request }),
+      } as unknown as ExecutionContext),
+    ).rejects.toBeInstanceOf(UnauthorizedException)
+    expect(request).not.toHaveProperty('sandbox')
   })
 })

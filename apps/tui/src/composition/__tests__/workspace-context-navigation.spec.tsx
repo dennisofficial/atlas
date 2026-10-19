@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import React, { act } from 'react'
 import { testRender } from '@opentui/react/test-utils'
@@ -16,10 +17,7 @@ const settle = async () => act(async () => { await new Promise((resolve) => setT
 
 describe('workspace context navigation on disk', () => {
   it('follows context links through a collapsed folder and restores folder choices after remount', async () => {
-    const scratch = process.env.ATLAS_SESSION_DIR === undefined
-      ? process.env.TMPDIR ?? '/tmp' : join(process.env.ATLAS_SESSION_DIR, 'scratch')
-    await mkdir(scratch, { recursive: true })
-    const home = await mkdtemp(join(scratch, 'context-navigation-'))
+    const home = await mkdtemp(join(tmpdir(), 'context-navigation-'))
     const previous = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = home
     const threadId = toThreadId(`context-navigation-${Date.now()}`)
