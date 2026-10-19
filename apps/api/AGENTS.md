@@ -233,6 +233,16 @@ Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bu
 Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they run via
 `db:migrate:deploy` with `MIGRATE_TIER` set, never from the app container.
 
+## Redis
+
+`src/_lib/redis` (`RedisService`, `RedisModule`) is the one Redis seam: nothing else constructs an
+ioredis client. `client()` is the shared, lazy command connection; a subscriber takes its own
+connection from `duplicate()` (a subscribed connection answers only pub/sub commands) and owns
+its teardown. Nothing durable goes in Redis — Upstash is a bus with eviction on, so state that
+must survive lives in Postgres and Redis only carries notifications. Local dev runs without it:
+`REDIS_URL` is unset in the local and staging tiers, `isConfigured()` is `false`, and callers
+choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.
+
 ## Rules that differ from the rest of the repo
 
 - vitest unit specs are colocated `*.spec.ts`; they never touch a real database (CI has none).
