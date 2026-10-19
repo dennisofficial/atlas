@@ -4,7 +4,7 @@ import { atlasDirectory } from '../store/paths'
 import { contextDirectory } from '../store/sessions/paths'
 import { registryFor } from '../store/sessions/registry'
 import { ContextBrowser, type ContextFileContent } from './context-browser'
-import { watchContextDirectory, type WatchPath } from './watch-context-directory'
+import { watchContextDirectory, type WatchSeams } from './watch-context-directory'
 
 export type ContextReader = Pick<ContextBrowser, 'list' | 'load'> & {
   subscribe: (listener: () => void) => () => void
@@ -16,7 +16,7 @@ export type ContextReader = Pick<ContextBrowser, 'list' | 'load'> & {
   localPath?: (path: string) => Promise<string | undefined>
 }
 
-export function createSessionContextReader(args: { threadId: ThreadId; home?: string; watchPath?: WatchPath | undefined }): ContextReader {
+export function createSessionContextReader(args: { threadId: ThreadId; home?: string; watchSeams?: WatchSeams }): ContextReader {
   const directory = async () => registryFor({ home: args.home ?? atlasDirectory() })
     .sessionDirFor({ threadId: args.threadId })
   const browser = async () => new ContextBrowser({ root: contextDirectory({ sessionDir: await directory() }) })
@@ -28,10 +28,10 @@ export function createSessionContextReader(args: { threadId: ThreadId; home?: st
     subscribe: (listener) => {
       let stopped = false
       let close: () => void = () => {}
-      const subscribedAt = Date.now()
       void directory().then((root) => {
         if (stopped) return
-        close = watchContextDirectory({ sessionDir: root, onChange: listener, changedSince: subscribedAt, watchPath: args.watchPath })
+        close = watchContextDirectory({ sessionDir: root, onChange: listener, ...args.watchSeams })
+        if (stopped) close()
       }, () => { if (!stopped) listener() })
       return () => { stopped = true; close() }
     },

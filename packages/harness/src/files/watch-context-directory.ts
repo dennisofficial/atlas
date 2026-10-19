@@ -1,11 +1,10 @@
-import { watch } from 'node:fs'
+import { existsSync, watch } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-import { contextModifiedAt } from './context-modified-at'
+import { scanContextSignature, type ContextSignature } from './context-signature'
 
 // macOS fs.watch drops events for a few milliseconds after the watch is created.
 export const ATTACH_RECHECK_DELAY_MS = 50
-const CLOCK_SLACK_MS = 50
 
 type Watcher = { on: (event: 'error', listener: () => void) => unknown; close: () => void }
 export type WatchPath = (
@@ -13,19 +12,35 @@ export type WatchPath = (
   options: { recursive: boolean },
   listener: (event: string, name: string | null) => void,
 ) => Watcher
-
-export function watchContextDirectory(args: {
-  sessionDir: string
-  onChange: () => void
-  changedSince?: number | undefined
+export type Schedule = (args: { run: () => Promise<void>; delayMs: number }) => () => void
+export type ScanContext = (args: { context: string }) => Promise<ContextSignature>
+export type WatchSeams = {
   watchPath?: WatchPath | undefined
-}): () => void {
+  schedule?: Schedule | undefined
+  scanContext?: ScanContext | undefined
+}
+
+const scheduleTimeout: Schedule = ({ run, delayMs }) => {
+  const timer = setTimeout(() => { void run() }, delayMs)
+  timer.unref()
+  return () => clearTimeout(timer)
+}
+
+export function watchContextDirectory(args: { sessionDir: string; onChange: () => void } & WatchSeams): () => void {
   const root = args.sessionDir
   const home = dirname(dirname(root))
   const context = join(root, 'context')
   const watchPath = args.watchPath ?? watch
+  const schedule = args.schedule ?? scheduleTimeout
+  const scanContext = args.scanContext ?? scanContextSignature
   let stopped = false
   let close: () => void = () => {}
+
+  const nearestExistingAncestor = () => {
+    let ancestor = root
+    while (ancestor !== home && !existsSync(ancestor)) ancestor = dirname(ancestor)
+    return ancestor
+  }
 
   const attach = ({ initial }: { initial: boolean }) => {
     if (stopped) return
@@ -51,16 +66,26 @@ export function watchContextDirectory(args: {
         }
         continue
       }
-      watcher.on('error', () => { if (!stopped) args.onChange() })
-      const modifiedAtAttach = contextModifiedAt({ context })
-      const recheck = setTimeout(() => {
-        if (stopped || delivered || contextModifiedAt({ context }) === modifiedAtAttach) return
-        if (held !== root) attach({ initial: false })
+      watcher.on('error', () => {
+        if (stopped) return
+        delivered = true
         args.onChange()
-      }, ATTACH_RECHECK_DELAY_MS)
-      recheck.unref()
-      close = () => { clearTimeout(recheck); watcher.close() }
-      if (initial && args.changedSince !== undefined && modifiedAtAttach >= args.changedSince - CLOCK_SLACK_MS) args.onChange()
+      })
+      const atAttach = scanContext({ context })
+      const cancelRecheck = schedule({
+        run: async () => {
+          const before = await atAttach
+          if (stopped || delivered) return
+          const after = await scanContext({ context })
+          if (stopped || delivered) return
+          if (held !== nearestExistingAncestor()) attach({ initial: false })
+          if (!before.capped && !after.capped && before.signature === after.signature) return
+          args.onChange()
+        },
+        delayMs: ATTACH_RECHECK_DELAY_MS,
+      })
+      close = () => { cancelRecheck(); watcher.close() }
+      if (initial) queueMicrotask(() => { if (!stopped) args.onChange() })
       return
     }
   }
