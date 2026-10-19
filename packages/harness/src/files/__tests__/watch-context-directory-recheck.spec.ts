@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { watchContextDirectory, type Schedule, type WatchPath } from '../watch-context-directory'
@@ -223,5 +223,26 @@ describe('re-attach budget', () => {
     stop()
     expect(inner.attached.map((entry) => entry.path)).toEqual([join(home, 'sessions'), join(home, 'sessions')])
     expect(scheduled).toBe(2)
+  })
+
+  it('re-attaches to each ancestor at most once when the session directory keeps appearing and vanishing', async () => {
+    const { home, sessionDir } = await fixture()
+    await mkdir(join(home, 'sessions'), { recursive: true })
+    const timers = manualSchedule()
+    let scheduled = 0
+    const schedule: Schedule = (task) => { scheduled += 1; return timers.schedule(task) }
+    const stop = watchContextDirectory({
+      sessionDir, onChange: counter().notify, watchPath: silentWatch().watchPath, schedule,
+      scanContext: scriptedScan([unchanged]).scanContext,
+    })
+    await tick()
+    for (let round = 0; round < 8; round += 1) {
+      if (round % 2 === 0) await mkdir(sessionDir, { recursive: true })
+      else await rm(sessionDir, { recursive: true, force: true })
+      await timers.flush()
+    }
+    stop()
+    expect(scheduled).toBe(3)
+    expect(timers.tasks).toHaveLength(0)
   })
 })
