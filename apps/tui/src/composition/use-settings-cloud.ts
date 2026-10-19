@@ -3,15 +3,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CloudService, CloudSyncCounts, UrlOpener } from '@dltech/atlas-harness'
 
 import { idleSync, type CloudSyncState } from '../ui/components/settings/cloud'
+import { hasSigningKey } from '../ui/components/settings/signing-key-row'
 import { useCloudPage, type CloudPageControl } from './use-cloud-page'
 import { useSettingsCloudLogin, type SettingsCloudLoginControl } from './use-settings-cloud-login'
 import { useSettingsGithub, type SettingsGithubControl } from './use-settings-github'
+import { useSigningKey, type SigningKeyControl } from './use-signing-key'
 
 export type SettingsCloudControl = {
   session: { email: string | null } | null
   login: SettingsCloudLoginControl
   cloudPage: CloudPageControl
   github: SettingsGithubControl
+  signingKey: SigningKeyControl
   upload: CloudSyncState
   download: CloudSyncState
   readSession: () => void
@@ -151,6 +154,8 @@ export function useSettingsCloud(args: {
 
   const github = useSettingsGithub({ cloud, openUrl })
 
+  const signingKey = useSigningKey({ cloud, githubLogin: github.connection?.login ?? null })
+
   const cloudPage = useCloudPage({
     cloud,
     loginStatus: login.state.status,
@@ -159,6 +164,10 @@ export function useSettingsCloud(args: {
     onUpload: handleUpload,
     onDownload: handleDownload,
     onGithubActivate: github.activate,
+    onSigningKeyActivate: signingKey.activateRotateOrEnable,
+    onSigningKeyRemove: signingKey.activateRemove,
+    githubConnected: github.connection !== null,
+    signingKeyRegistered: hasSigningKey(signingKey.view),
   })
 
   const handleOpenSignInUrl = useCallback(() => {
@@ -180,6 +189,7 @@ export function useSettingsCloud(args: {
     login,
     cloudPage,
     github,
+    signingKey,
     upload,
     download,
     readSession,

@@ -58,6 +58,10 @@ export async function finishServeBoot(args: {
     ensureWorkspace: serveArgs.ensureWorkspace,
     profile: serveArgs.profile,
     contextFiles: serveArgs.contextFiles,
+    controlPlaneUrl,
+    token,
+    clientVersion: serveArgs.clientVersion ?? 'dev',
+    fetchFn,
   })
 
   const app = await composeBootApp({

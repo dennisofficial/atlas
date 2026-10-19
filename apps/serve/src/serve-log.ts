@@ -46,6 +46,9 @@ export enum EServeEvent {
   PortableStateFailed = 'serve.portable-state-failed',
   SettingsDropped = 'serve.settings-dropped',
   RotationFailed = 'serve.rotation-failed',
+  SigningKeyReady = 'serve.signing-key-ready',
+  SigningKeyAbsent = 'serve.signing-key-absent',
+  SigningKeyWriteFailed = 'serve.signing-key-write-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

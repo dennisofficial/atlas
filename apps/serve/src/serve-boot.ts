@@ -27,6 +27,7 @@ import {
   type WorkspaceReadiness,
 } from './materialize-workspace'
 import { materializeContext } from './materialize-context'
+import { applySigningKey } from './signing-key-env'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { resolveWorkspaceDir, writeRecordedWorkspaceDir } from './workspace-dir'
 import type { WorkspaceFiles } from './workspace-files'
@@ -45,6 +46,10 @@ export async function bootServeFiles(args: {
   ensureWorkspace?: EnsureWorkspace | undefined
   profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
+  controlPlaneUrl: string
+  token: string
+  clientVersion: string
+  fetchFn: typeof fetch
 }) {
   const { env, threadId, atlasHome, log } = args
   const fetchSpecOnce = lazy(bootstrapWorkspaceSpecFetcher({ atlasHome }))
@@ -78,6 +83,15 @@ export async function bootServeFiles(args: {
 
   const spec = await fetchSpecOnce().catch(() => null)
   applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
+  await applySigningKey({
+    env,
+    atlasHome,
+    log,
+    controlPlaneUrl: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+  })
 
   const contextStartedAt = Date.now()
   const context = await materializeContext({

@@ -1,6 +1,6 @@
 import type { KeyEvent } from '@opentui/core'
 import type { CloudService } from '@dltech/atlas-harness'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { ECloudAction } from '../ui/components/settings/cloud'
 import { ESettingsLogin } from '../ui/settings-login-model'
@@ -20,14 +20,19 @@ export type CloudKeyContext = {
   rowCount: number
 }
 
-const CLOUD_ACTIONS: readonly ECloudAction[] = [
-  ECloudAction.SignOut,
-  ECloudAction.Upload,
-  ECloudAction.Download,
-  ECloudAction.Github,
-]
-
-const LAST_ACTION = CLOUD_ACTIONS[CLOUD_ACTIONS.length - 1] ?? ECloudAction.SignOut
+export function cloudActionsOf(args: {
+  githubConnected: boolean
+  signingKeyRegistered: boolean
+}): readonly ECloudAction[] {
+  return [
+    ECloudAction.SignOut,
+    ECloudAction.Upload,
+    ECloudAction.Download,
+    ECloudAction.Github,
+    ...(args.githubConnected ? [ECloudAction.SigningKey] : []),
+    ...(args.githubConnected && args.signingKeyRegistered ? [ECloudAction.SigningKeyRemove] : []),
+  ]
+}
 
 export function useCloudPage(args: {
   cloud: CloudService
@@ -37,10 +42,31 @@ export function useCloudPage(args: {
   onUpload: () => void
   onDownload: () => void
   onGithubActivate: () => void
+  onSigningKeyActivate: () => void
+  onSigningKeyRemove: () => void
+  githubConnected: boolean
+  signingKeyRegistered: boolean
 }): CloudPageControl {
-  const { cloud, loginStatus, onSignOut, onBeginSignIn, onUpload, onDownload, onGithubActivate } =
-    args
-  const [action, setAction] = useState<ECloudAction | null>(ECloudAction.SignOut)
+  const {
+    cloud,
+    loginStatus,
+    onSignOut,
+    onBeginSignIn,
+    onUpload,
+    onDownload,
+    onGithubActivate,
+    onSigningKeyActivate,
+    onSigningKeyRemove,
+    githubConnected,
+    signingKeyRegistered,
+  } = args
+  const [held, setAction] = useState<ECloudAction | null>(ECloudAction.SignOut)
+  const actions = useMemo(
+    () => cloudActionsOf({ githubConnected, signingKeyRegistered }),
+    [githubConnected, signingKeyRegistered],
+  )
+  const lastAction = actions[actions.length - 1] ?? ECloudAction.SignOut
+  const action = held !== null && !actions.includes(held) ? lastAction : held
 
   const handleResetAction = useCallback(() => {
     setAction(ECloudAction.SignOut)
@@ -67,8 +93,27 @@ export function useCloudPage(args: {
       onGithubActivate()
       return
     }
+    if (action === ECloudAction.SigningKey) {
+      onSigningKeyActivate()
+      return
+    }
+    if (action === ECloudAction.SigningKeyRemove) {
+      onSigningKeyRemove()
+      return
+    }
     if (action === ECloudAction.SignOut) onSignOut()
-  }, [action, cloud, loginStatus, onBeginSignIn, onDownload, onGithubActivate, onSignOut, onUpload])
+  }, [
+    action,
+    cloud,
+    loginStatus,
+    onBeginSignIn,
+    onDownload,
+    onGithubActivate,
+    onSignOut,
+    onSigningKeyActivate,
+    onSigningKeyRemove,
+    onUpload,
+  ])
 
   const handleKey = useCallback(
     (key: KeyEvent, context: CloudKeyContext): boolean => {
@@ -78,24 +123,24 @@ export function useCloudPage(args: {
       const delta = key.name === 'down' ? 1 : -1
 
       if (action !== null) {
-        const next = CLOUD_ACTIONS.indexOf(action) + delta
-        if (next >= CLOUD_ACTIONS.length) {
+        const next = actions.indexOf(action) + delta
+        if (next >= actions.length) {
           if (context.rowCount === 0) return true
           setAction(null)
           return true
         }
-        if (next >= 0) setAction(CLOUD_ACTIONS[next] ?? ECloudAction.SignOut)
+        if (next >= 0) setAction(actions[next] ?? ECloudAction.SignOut)
         return true
       }
 
       if (delta < 0 && context.rowIndex === 0) {
-        setAction(LAST_ACTION)
+        setAction(lastAction)
         return true
       }
 
       return false
     },
-    [action],
+    [action, actions, lastAction],
   )
 
   return { action, handleResetAction, handleDisarmAction, handleActivate, handleKey }

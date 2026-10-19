@@ -23,6 +23,7 @@ import type { QualityHealthStatusProps } from '../../composition/use-workspace-q
 import type { Appearance } from '../appearance'
 import { ECloudAction, SettingsCloud, type CloudSyncState } from './settings/cloud'
 import { type GithubAccountView } from './settings/github-connect'
+import { type SigningKeyAccountView } from './settings/signing-key-row'
 import { SettingsBand } from './settings/band'
 import { SettingsDetail } from './settings/detail'
 import { SettingsHead } from './settings/head'
@@ -120,6 +121,7 @@ export function Settings(props: {
   cloudUpload: CloudSyncState
   cloudDownload: CloudSyncState
   github?: GithubAccountView | undefined
+  signingKey?: SigningKeyAccountView | undefined
   qualityHealth: QualityHealthStatusProps
   onSignOut: () => void
   onSignIn: () => void
@@ -214,6 +216,7 @@ export function Settings(props: {
                   onSignIn={props.onSignIn}
                   onOpenSignInUrl={props.onOpenSignInUrl}
                   {...(props.github === undefined ? {} : { github: props.github })}
+                  {...(props.signingKey === undefined ? {} : { signingKey: props.signingKey })}
                 />
               ) : null}
               {onQualityPage ? (
