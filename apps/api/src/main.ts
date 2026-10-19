@@ -5,14 +5,12 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Express } from 'express'
 import helmet from 'helmet'
 import { envConfigValidation } from './_core/config/env/validation'
-import { contextArchiveRawParser } from './api/cloud/context-archive/context-archive-http'
-import { MAX_CONTEXT_ARCHIVE_BYTES } from './api/cloud/context-archive/context-archive-limits'
 import { GlobalExceptionFilter } from './api/global-exception.filter'
 import { registerGracefulShutdown } from './api/graceful-shutdown'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
+import { JSON_BODY_LIMIT, userFileJsonParser } from './_lib/body-limits'
 import { GITHUB_WEBHOOK_BODY_LIMIT, webhookJsonParser } from './_lib/webhook-body-limit'
 import { DrainStateService } from './api/platform/health/drain-state.service'
-import { WORKSPACE_BODY_LIMIT } from './api/platform/sandboxes/workspace-spec'
 
 const VALIDATION_PIPE_OPTIONS = {
   whitelist: true,
@@ -39,13 +37,12 @@ async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true })
 
   app.use(helmet())
-  const rawArchiveParser = contextArchiveRawParser({ limitBytes: MAX_CONTEXT_ARCHIVE_BYTES })
-  app.use('/v1/sandboxes/:threadId/context', rawArchiveParser)
   // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
   // verified only after buffering, so anything bigger must be refused before it is read.
   app.use('/v1/github/webhooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
   app.use('/v1/github/hooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
-  app.useBodyParser('json', { limit: WORKSPACE_BODY_LIMIT })
+  app.use('/v1/user-files', userFileJsonParser())
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT })
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))

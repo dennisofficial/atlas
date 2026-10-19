@@ -87,7 +87,6 @@ export type ClaimUpdate = Partial<WorkspaceColumns> & {
 }
 
 export function rotationOf(args: {
-  contextBundle: string | undefined
   tokenHash: string
   sealedToken: string
   rotated: boolean
@@ -106,7 +105,6 @@ export function rotationOf(args: {
   if (args.sealedGitToken !== undefined) rotation.sealedGitToken = args.sealedGitToken
   if (args.sealedGpgKey !== undefined) rotation.sealedGpgKey = args.sealedGpgKey
   if (args.contextPending !== undefined) rotation.contextPending = args.contextPending
-  if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
   if (args.pinnedModel !== undefined) rotation.pinnedModel = args.pinnedModel
   if (args.serveUrl !== undefined) rotation.serveUrl = args.serveUrl
   return rotation
@@ -124,7 +122,6 @@ export function claimSandboxRow(args: {
   tokenHash: string
   sealedToken: string
   rotated: boolean
-  contextBundle: string | undefined
   sealedGitToken?: string | undefined
   sealedGpgKey?: string | undefined
   contextPending?: boolean | undefined
@@ -133,10 +130,7 @@ export function claimSandboxRow(args: {
   serveUrl?: string | undefined
 }): Promise<ClaimedSandbox> {
   const at = new Date().toISOString()
-  const columns: WorkspaceColumns = {
-    ...workspaceColumnsOf(undefined),
-    workspaceContext: args.contextBundle ?? null,
-  }
+  const columns: WorkspaceColumns = workspaceColumnsOf(undefined)
   return (args.writer ?? db).cloudSandbox.upsert({
     where: { threadId: args.thread.id },
     select: {

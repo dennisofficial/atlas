@@ -71,7 +71,6 @@ export type FakeCloudSandboxRow = {
   workspacePatch: string | null
   workspaceSkills: string | null
   workspaceContext: string | null
-  workspaceContextArchive?: Buffer | null
   contextPending?: boolean
   workspaceProjectDirectory: string | null
   driveName?: string | null

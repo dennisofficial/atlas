@@ -31,7 +31,7 @@ src/
   _module/    shared injectable modules (session guard + verifier port).
   api/        the deployable app: app.module.ts + feature modules in two layers —
               platform/ (auth, accounts, sessions, sandboxes, health) and cloud/ (secrets,
-              mcp-servers, user-context, context-archive, github). One-way rule:
+              mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
   db/         the lazy `db` client proxy + generated-client type re-exports.
@@ -45,6 +45,15 @@ test/         cross-cutting specs (env alignment).
 Imports are plain relative paths — this package has no path aliases on purpose. tsc never
 rewrites them, and every downstream toolchain (bundlers, tracers, containers) has broken on
 them at least once; relative imports work everywhere. Do not reintroduce them.
+
+## Request bodies
+
+The API stores no context archives: context goes straight into the sandbox from the client, and
+the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
+`src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB. `PUT /v1/user-files/*`
+keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) until the client caps or chunks
+user-layer uploads; that must land before the Vercel cutover, or large files will start getting
+413s.
 
 ## Deploy
 
