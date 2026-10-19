@@ -3,7 +3,15 @@ import { describe, expect, it } from 'bun:test'
 import { CHANNEL_PROTOCOL_VERSION, UNSTAMPED_PROTOCOL } from '@dltech/atlas-wire'
 
 import { POD_INGRESS_CONTAINER_PORT } from '../ingress'
-import { dindVolumeNameFor, podRoleLabel, podThreadLabel, POD_ROLE, workspaceVolumeNameFor } from '../pod-create'
+import {
+  dindVolumeNameFor,
+  podHomeDigestOf,
+  podHomeLabel,
+  podRoleLabel,
+  podThreadLabel,
+  POD_ROLE,
+  workspaceVolumeNameFor,
+} from '../pod-create'
 import { POD_STAGED_PATH } from '../pod-staged'
 import type { PodServeLauncher } from '../serve-launch'
 import { driverWith, fakeEngine, INGRESS_HOST_PORT, NAME, SERVE_HOST_PORT, THREAD } from './fake-pod-engine'
@@ -54,6 +62,9 @@ describe('DockerPodDriver createOrResume', () => {
     ])
     expect(fake.volumes.every((volume) => volume.labels[podThreadLabel] === THREAD)).toBe(true)
     expect(fake.volumes.every((volume) => volume.labels[podRoleLabel] === POD_ROLE)).toBe(true)
+    const homeDigest = podHomeDigestOf({ home: '/home/test/.atlas' })
+    expect(fake.volumes.every((volume) => volume.labels[podHomeLabel] === homeDigest)).toBe(true)
+    expect(fake.created[0]?.body.Labels?.[podHomeLabel]).toBe(homeDigest)
     expect(fake.created[0]?.name).toBe(NAME)
     expect(fake.created[0]?.body.Env).toContain('ATLAS_SERVE_TOKEN=tok')
     expect(placement).toEqual({

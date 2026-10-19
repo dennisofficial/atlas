@@ -47,6 +47,7 @@ export type PodDriverConfig = {
   devServe?: DevServeResolver | undefined
   vcpus?: number | undefined
   cloudUrl: string
+  home: string
   log?: ((line: string) => void) | undefined
 }
 
@@ -207,6 +208,7 @@ export class DockerPodDriver implements RunnerDriver {
     return {
       engine: this.engine,
       image: this.args.image ?? DEFAULT_POD_IMAGE,
+      home: this.args.home,
       vcpus: this.args.vcpus ?? DEFAULT_VCPUS,
       cloudUrl: this.args.cloudUrl,
       hostPorts: this.hostPorts,

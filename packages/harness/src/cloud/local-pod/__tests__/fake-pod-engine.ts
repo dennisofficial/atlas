@@ -145,6 +145,7 @@ export const driverWith = (args: {
   new DockerPodDriver({
     engine: args.engine,
     cloudUrl: 'http://cloud.test',
+    home: '/home/test/.atlas',
     serveVersion: args.desiredVersion,
     devServe: args.devServe,
     provisionLock: args.provisionLock ?? unlockedProvision,

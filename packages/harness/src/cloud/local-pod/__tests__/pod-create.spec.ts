@@ -9,6 +9,8 @@ import {
   dindVolumeNameFor,
   memoryReservationBytesFor,
   podCreateBody,
+  podHomeDigestOf,
+  podHomeLabel,
   podNameFor,
   podRoleLabel,
   podThreadLabel,
@@ -18,6 +20,7 @@ import {
 
 const baseArgs: PodCreateArgs = {
   threadId: 'thread-1',
+  home: '/home/test/.atlas',
   image: DEFAULT_POD_IMAGE,
   serveHostPort: 23_456,
   ingressHostPort: 23_457,
@@ -92,13 +95,23 @@ describe('podCreateBody', () => {
     expect(body.ExposedPorts).toEqual({ '3000/tcp': {}, '7676/tcp': {} })
   })
 
-  it('labels the pod with its thread and role', () => {
+  it('labels the pod with its thread, role and owning home', () => {
+    const homeDigest = createHash('sha256').update('/home/test/.atlas').digest('hex').slice(0, 16)
     expect(podCreateBody(baseArgs).Labels).toEqual({
       [podThreadLabel]: 'thread-1',
       [podRoleLabel]: 'pod',
+      [podHomeLabel]: homeDigest,
     })
     expect(podThreadLabel).toBe('atlas-pod.thread')
     expect(podRoleLabel).toBe('atlas-pod.role')
+    expect(podHomeLabel).toBe('atlas-pod.home')
+  })
+
+  it('keeps the home label stable for one home and distinct across homes', () => {
+    const prod = podHomeDigestOf({ home: '/home/test/.atlas' })
+    expect(podCreateBody(baseArgs).Labels?.[podHomeLabel]).toBe(prod)
+    expect(podCreateBody({ ...baseArgs, threadId: 'thread-2' }).Labels?.[podHomeLabel]).toBe(prod)
+    expect(podHomeDigestOf({ home: '/home/test/.atlas-dev' })).not.toBe(prod)
   })
 
   it('carries the serve contract in the environment', () => {

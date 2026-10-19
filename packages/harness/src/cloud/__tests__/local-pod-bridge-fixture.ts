@@ -5,7 +5,7 @@ import type { PodProvisionArgs, RunnerPodHandle } from '../runner-driver'
 
 export type WriteRecord = { name: string; path: string; content: Uint8Array | string }
 
-export const POD_CONFIG = { cloudUrl: 'http://cloud.test' }
+export const POD_CONFIG = { cloudUrl: 'http://cloud.test', home: '/home/test/.atlas' }
 
 export const fakePodDriver = (args: { created: boolean; vaultPresent?: boolean }) => {
   const events: string[] = []

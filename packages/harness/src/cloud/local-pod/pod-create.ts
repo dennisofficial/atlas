@@ -18,6 +18,8 @@ export const podThreadLabel = `${POD_LABEL_PREFIX}.thread`
 
 export const podRoleLabel = `${POD_LABEL_PREFIX}.role`
 
+export const podHomeLabel = `${POD_LABEL_PREFIX}.home`
+
 export const POD_ROLE = 'pod'
 
 export const MEMORY_MB_PER_VCPU = 2048
@@ -30,11 +32,21 @@ export const memoryReservationBytesFor = (args: { vcpus: number }): number =>
 export const POD_NAME_ENV = 'ATLAS_POD_NAME'
 
 const DIGEST_LENGTH = 24
+const HOME_DIGEST_LENGTH = 16
 const DIND_STORAGE_PATH = '/var/lib/docker'
 const VENDOR_ENV_PREFIX = 'VERCEL_'
 
 export const podNameFor = (args: { threadId: string }): string =>
   `${POD_LABEL_PREFIX}-${createHash('sha256').update(args.threadId).digest('hex').slice(0, DIGEST_LENGTH)}`
+
+export const podHomeDigestOf = (args: { home: string }): string =>
+  createHash('sha256').update(args.home).digest('hex').slice(0, HOME_DIGEST_LENGTH)
+
+export const podLabelsFor = (args: { threadId: string; home: string }): Record<string, string> => ({
+  [podThreadLabel]: args.threadId,
+  [podRoleLabel]: POD_ROLE,
+  [podHomeLabel]: podHomeDigestOf({ home: args.home }),
+})
 
 export const workspaceVolumeNameOf = (args: { podName: string }): string => `${args.podName}-workspace`
 
@@ -48,6 +60,7 @@ export const dindVolumeNameFor = (args: { threadId: string }): string =>
 
 export type PodCreateArgs = {
   threadId: string
+  home: string
   image: string
   serveHostPort: number
   ingressHostPort: number
@@ -82,7 +95,7 @@ export function podCreateBody(args: PodCreateArgs): CreateContainerBody {
   return {
     Image: args.image,
     Cmd: ['sleep', 'infinity'],
-    Labels: { [podThreadLabel]: args.threadId, [podRoleLabel]: POD_ROLE },
+    Labels: podLabelsFor({ threadId: args.threadId, home: args.home }),
     Env: podEnv(args),
     ExposedPorts: { [servePort]: {}, [ingressPort]: {} },
     HostConfig: {
