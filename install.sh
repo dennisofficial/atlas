@@ -33,11 +33,14 @@ platform="$(uname -s)-$(uname -m)"
 
 case "$flavor" in
   serve)
-    if [ "$platform" != Linux-x86_64 ]; then
-      printf 'install.sh: serve ships linux-x64 only, not %s\n' "$platform" >&2
-      exit 1
-    fi
-    asset=atlas-serve-linux-x64
+    case "$platform" in
+      Linux-x86_64) asset=atlas-serve-linux-x64 ;;
+      Linux-aarch64 | Linux-arm64) asset=atlas-serve-linux-arm64 ;;
+      *)
+        printf 'install.sh: serve ships linux-x64 and linux-arm64 only, not %s\n' "$platform" >&2
+        exit 1
+        ;;
+    esac
     binary=atlas-serve
     ;;
   tui)

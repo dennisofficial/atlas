@@ -8,24 +8,25 @@ import { EBuildKind, type BuildInfo } from '../../build/info'
 import { repoRootOf } from '../../build/stamp'
 import {
   createDevServeStaging,
-  DEV_SERVE_BINARY_NAME,
+  devServeBinaryNameOf,
   pruneDevServeCache,
   readCachedDevServe,
   storeDevServe,
 } from './dev-serve-cache'
 import {
-  DEV_SERVE_TARGET,
   devServeCacheKeyOf,
+  ELinuxServeTarget,
   probeDevServeSource,
   type DevServeSourceProbe,
 } from './dev-serve-key'
 
-export type DevServeBuild = (args: { repo: string; outfile: string }) => Promise<void>
+export type DevServeBuild = (args: { repo: string; outfile: string; target: ELinuxServeTarget }) => Promise<void>
 
 export type DevServeDeps = {
   repo: () => Promise<string | null>
   probe: DevServeSourceProbe
   build: DevServeBuild
+  target: ELinuxServeTarget
   cacheRoot: () => string
   now: () => number
   keep: number
@@ -41,11 +42,22 @@ const tailOf = (text: string): string => {
 
 const bunExecutable = (): string => (basename(process.execPath).startsWith('bun') ? process.execPath : 'bun')
 
-export const buildDevServeWithBun: DevServeBuild = async ({ repo, outfile }) => {
-  const proc = Bun.spawn(
-    [bunExecutable(), 'scripts/build-serve.ts', '--target', DEV_SERVE_TARGET, '--outfile', outfile],
-    { cwd: join(repo, 'apps', 'serve'), stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' },
-  )
+export const devServeBuildArgvOf = (args: { target: ELinuxServeTarget; outfile: string }): string[] => [
+  bunExecutable(),
+  'scripts/build-serve.ts',
+  '--target',
+  args.target,
+  '--outfile',
+  args.outfile,
+]
+
+export const buildDevServeWithBun: DevServeBuild = async ({ repo, outfile, target }) => {
+  const proc = Bun.spawn(devServeBuildArgvOf({ target, outfile }), {
+    cwd: join(repo, 'apps', 'serve'),
+    stdin: 'ignore',
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -60,21 +72,27 @@ const secondsSince = (args: { start: number; now: number }): string => ((args.no
 
 const inputsLabel = (inputKey: string): string => inputKey.slice(0, 8)
 
+let processWideBuildQueue: Promise<unknown> = Promise.resolve()
+
 export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
   const inFlight = new Map<string, Promise<DevServeBinary>>()
-  let buildQueue: Promise<unknown> = Promise.resolve()
 
   const sourceKey = async (repo: string): Promise<string> => {
     const source = await deps.probe({ repo })
     if (source === null) throw new Error(`cannot pin a dev serve: ${repo} is not a readable git checkout`)
-    return devServeCacheKeyOf(source)
+    return devServeCacheKeyOf({ source, target: deps.target })
   }
 
   const cachedFor = async (args: {
     inputKey: string
     log: (line: string) => void
   }): Promise<DevServeBinary | null> => {
-    const cached = await readCachedDevServe({ root: deps.cacheRoot(), inputKey: args.inputKey, now: deps.now() })
+    const cached = await readCachedDevServe({
+      root: deps.cacheRoot(),
+      inputKey: args.inputKey,
+      target: deps.target,
+      now: deps.now(),
+    })
     if (cached !== null) args.log(`dev serve ${cached.version} cached (inputs ${inputsLabel(args.inputKey)})`)
     return cached
   }
@@ -92,15 +110,21 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
     const start = deps.now()
     const staging = await createDevServeStaging({ root })
     try {
-      const outfile = join(staging, DEV_SERVE_BINARY_NAME)
-      await deps.build({ repo: args.repo, outfile })
+      const outfile = join(staging, devServeBinaryNameOf(deps.target))
+      await deps.build({ repo: args.repo, outfile, target: deps.target })
       const builtKey = await sourceKey(args.repo)
       if (builtKey !== args.inputKey) {
         args.log(
           `the dev serve build changed the tree: caching it under inputs ${inputsLabel(builtKey)}, not ${inputsLabel(args.inputKey)}`,
         )
       }
-      const stored = await storeDevServe({ root, inputKey: builtKey, built: outfile, now: deps.now() })
+      const stored = await storeDevServe({
+        root,
+        inputKey: builtKey,
+        target: deps.target,
+        built: outfile,
+        now: deps.now(),
+      })
       args.log(
         `built dev serve ${stored.version} (inputs ${inputsLabel(builtKey)}) in ${secondsSince({ start, now: deps.now() })}s`,
       )
@@ -127,8 +151,8 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
     const sharedAfterRead = inFlight.get(inputKey)
     if (sharedAfterRead !== undefined) return sharedAfterRead
 
-    const resolving = buildQueue.then(() => buildAndStore({ repo, inputKey, log: narrate }))
-    buildQueue = resolving.catch(() => undefined)
+    const resolving = processWideBuildQueue.then(() => buildAndStore({ repo, inputKey, log: narrate }))
+    processWideBuildQueue = resolving.catch(() => undefined)
     inFlight.set(inputKey, resolving)
     try {
       return await resolving
@@ -146,11 +170,15 @@ const repoOfBuild = (build: BuildInfo): (() => Promise<string | null>) | undefin
 
 const sharedResolvers = new Map<string, DevServeResolver>()
 
-export function devServeResolverFor(build: BuildInfo): DevServeResolver | undefined {
+export function devServeResolverFor(
+  build: BuildInfo,
+  options: { target: ELinuxServeTarget } = { target: ELinuxServeTarget.X64 },
+): DevServeResolver | undefined {
   const repo = repoOfBuild(build)
   if (repo === undefined) return undefined
 
-  const key = build.kind === EBuildKind.Dev ? `${build.kind}:${build.repo}` : build.kind
+  const buildKey = build.kind === EBuildKind.Dev ? `${build.kind}:${build.repo}` : build.kind
+  const key = `${buildKey}:${options.target}`
   const held = sharedResolvers.get(key)
   if (held !== undefined) return held
 
@@ -158,6 +186,7 @@ export function devServeResolverFor(build: BuildInfo): DevServeResolver | undefi
     repo,
     probe: probeDevServeSource,
     build: buildDevServeWithBun,
+    target: options.target,
     cacheRoot: () => join(atlasDirectory(), 'dev-serve'),
     now: () => Date.now(),
     keep: DEFAULT_KEEP,
