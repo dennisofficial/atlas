@@ -1,6 +1,6 @@
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
+import React, { act } from 'react'
 
 import { ERunner, toThreadId } from '@dltech/atlas-core'
 import type { CloudBridge } from '@dltech/atlas-harness'
@@ -53,9 +53,14 @@ describe('the thread router across runners', () => {
       return null
     }
 
-    const setup = await testRender(<Probe />, { width: 10, height: 3 })
+    let setup!: Awaited<ReturnType<typeof testRender>>
+    await act(async () => {
+      setup = await testRender(<Probe />, { width: 10, height: 3 })
+    })
     try {
-      await setup.renderOnce()
+      await act(async () => {
+        await setup.renderOnce()
+      })
       const sandbox = probe.router?.findSandbox()
 
       expect(await sandbox?.find({ threadId: LOCAL_THREAD })).toEqual({ state: ERunner.Local } as never)
