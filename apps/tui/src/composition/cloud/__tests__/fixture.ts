@@ -41,6 +41,7 @@ import {
 import { identityReplyOf, FakeSessionDisk } from '../../__tests__/fake-session-disk'
 import {
   ECloudSandboxState,
+  EResizeApplies,
   type CloudBridge,
   type CloudChannel,
   type CloudReload,
@@ -714,7 +715,7 @@ export function fakeBridge(
         return { ...status, checkpoint: args.checkpoint }
       },
       readResources: async () => ({}),
-      updateResources: async () => {},
+      updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

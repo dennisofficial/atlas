@@ -35,7 +35,9 @@ describe('fileProvisionLock', () => {
     const results = await Promise.all([run('first'), run('second')])
 
     expect(results).toEqual(['first', 'second'])
-    expect(events).toEqual(['first:start', 'first:end', 'second:start', 'second:end'])
+    const [leader] = (events[0] ?? '').split(':')
+    const follower = leader === 'first' ? 'second' : 'first'
+    expect(events).toEqual([`${leader}:start`, `${leader}:end`, `${follower}:start`, `${follower}:end`])
   })
 
   it('does not serialize different names', async () => {

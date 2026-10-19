@@ -2,11 +2,12 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { sandboxNameFor } from './sandbox-names'
 import { ECloudSandboxState, sandboxStateSchema } from './sandbox-client'
-import type {
-  CloudBridge,
-  CloudSandbox,
-  CloudSandboxes,
-  CloudSandboxStatus,
+import {
+  EResizeApplies,
+  type CloudBridge,
+  type CloudSandbox,
+  type CloudSandboxes,
+  type CloudSandboxStatus,
 } from './cloud-bridge'
 import {
   SANDBOX_SERVE_PORT,
@@ -203,8 +204,10 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     create,
     readResources: ({ threadId }) =>
       driverWith(args.vercel()).readResources({ name: sandboxNameFor({ threadId }) }),
-    updateResources: ({ threadId, vcpus }) =>
-      driverWith(args.vercel()).updateResources({ name: sandboxNameFor({ threadId }), vcpus }),
+    updateResources: async ({ threadId, vcpus }) => {
+      await driverWith(args.vercel()).updateResources({ name: sandboxNameFor({ threadId }), vcpus })
+      return { appliesAt: EResizeApplies.Restart }
+    },
     find,
     destroy,
   }

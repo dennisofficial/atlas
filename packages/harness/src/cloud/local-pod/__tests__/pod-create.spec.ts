@@ -7,17 +7,20 @@ import { SANDBOX_HOME_PATH, SANDBOX_WORKSPACES_PATH } from '@dltech/atlas-wire'
 import {
   DEFAULT_POD_IMAGE,
   dindVolumeNameFor,
+  memoryReservationBytesFor,
   podCreateBody,
+  podHomeDigestOf,
+  podHomeLabel,
   podNameFor,
   podRoleLabel,
   podThreadLabel,
-  POD_MEMORY_RESERVATION_BYTES,
   workspaceVolumeNameFor,
   type PodCreateArgs,
 } from '../pod-create'
 
 const baseArgs: PodCreateArgs = {
   threadId: 'thread-1',
+  home: '/home/test/.atlas',
   image: DEFAULT_POD_IMAGE,
   serveHostPort: 23_456,
   ingressHostPort: 23_457,
@@ -76,8 +79,9 @@ describe('podCreateBody', () => {
     const hostConfig = podCreateBody(baseArgs).HostConfig
 
     expect(hostConfig?.NanoCpus).toBe(2e9)
-    expect(hostConfig?.MemoryReservation).toBe(512 * 1024 * 1024)
-    expect(POD_MEMORY_RESERVATION_BYTES).toBe(512 * 1024 * 1024)
+    expect(hostConfig?.MemoryReservation).toBe(2 * 2048 * 1024 * 1024)
+    expect(memoryReservationBytesFor({ vcpus: 2 })).toBe(2 * 2048 * 1024 * 1024)
+    expect(podCreateBody({ ...baseArgs, vcpus: 4 }).HostConfig?.MemoryReservation).toBe(4 * 2048 * 1024 * 1024)
     expect(hostConfig).not.toHaveProperty('Memory')
   })
 
@@ -91,13 +95,23 @@ describe('podCreateBody', () => {
     expect(body.ExposedPorts).toEqual({ '3000/tcp': {}, '7676/tcp': {} })
   })
 
-  it('labels the pod with its thread and role', () => {
+  it('labels the pod with its thread, role and owning home', () => {
+    const homeDigest = createHash('sha256').update('/home/test/.atlas').digest('hex').slice(0, 16)
     expect(podCreateBody(baseArgs).Labels).toEqual({
       [podThreadLabel]: 'thread-1',
       [podRoleLabel]: 'pod',
+      [podHomeLabel]: homeDigest,
     })
     expect(podThreadLabel).toBe('atlas-pod.thread')
     expect(podRoleLabel).toBe('atlas-pod.role')
+    expect(podHomeLabel).toBe('atlas-pod.home')
+  })
+
+  it('keeps the home label stable for one home and distinct across homes', () => {
+    const prod = podHomeDigestOf({ home: '/home/test/.atlas' })
+    expect(podCreateBody(baseArgs).Labels?.[podHomeLabel]).toBe(prod)
+    expect(podCreateBody({ ...baseArgs, threadId: 'thread-2' }).Labels?.[podHomeLabel]).toBe(prod)
+    expect(podHomeDigestOf({ home: '/home/test/.atlas-dev' })).not.toBe(prod)
   })
 
   it('carries the serve contract in the environment', () => {

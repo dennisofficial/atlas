@@ -5,6 +5,7 @@ import { SANDBOX_SERVE_PORT, type DevServeResolver } from '@dltech/atlas-wire'
 import type { ContainerSummary, CreateContainerBody } from '../../../execution/docker/engine'
 import { EngineRequestFailed } from '../../../execution/docker/engine'
 import type { PodDetails } from '../../../execution/docker/pod-engine'
+import { VAULT_PROBE_PATH } from '../../local-cloud-bootstrap'
 import { DockerPodDriver, type PodDriverEngine } from '../driver'
 import { POD_INGRESS_CONTAINER_PORT } from '../ingress'
 import { podNameFor, podThreadLabel } from '../pod-create'
@@ -26,6 +27,7 @@ type FakeOptions = {
   staged?: boolean
   loseCreateResponse?: boolean
   markerProbeExitCode?: number
+  vaultProbe?: 'present' | 'absent' | 'throws'
   podDetails?: Partial<PodDetails>
 }
 
@@ -120,6 +122,10 @@ export const fakeEngine = (options: FakeOptions = {}) => {
         const exitCode = options.markerProbeExitCode ?? (staged ? 0 : 1)
         return { exitCode, stdout: async () => '', stderr: async () => 'probe failed' }
       }
+      if (args.script.includes(`test -s ${VAULT_PROBE_PATH}`)) {
+        if (options.vaultProbe === 'throws') throw new Error('exec timed out')
+        return { exitCode: options.vaultProbe === 'absent' ? 1 : 0, stdout: async () => '', stderr: async () => '' }
+      }
       return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
     },
   }
@@ -139,6 +145,7 @@ export const driverWith = (args: {
   new DockerPodDriver({
     engine: args.engine,
     cloudUrl: 'http://cloud.test',
+    home: '/home/test/.atlas',
     serveVersion: args.desiredVersion,
     devServe: args.devServe,
     provisionLock: args.provisionLock ?? unlockedProvision,

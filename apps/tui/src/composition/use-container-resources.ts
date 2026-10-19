@@ -1,3 +1,4 @@
+import { EResizeApplies } from '@dltech/atlas-harness'
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useState } from 'react'
 
@@ -42,6 +43,11 @@ const stepBy = (vcpus: number, delta: number): number => {
   return SANDBOX_VCPU_STEPS[next] ?? DEFAULT_SANDBOX_VCPUS
 }
 
+const resizedNoticeOf = (args: { vcpus: number; appliesAt: EResizeApplies }): string => {
+  const size = `sandbox resized to ${args.vcpus} vCPU · ${memoryGbOf(args.vcpus)} GB`
+  return args.appliesAt === EResizeApplies.Live ? `${size} (live)` : `${size} — applies at next wake`
+}
+
 /**
  * The `/container resources` overlay: a live resize of the sandbox this session runs in. Opens at
  * the allocation Vercel reports, Enter applies through the bridge, Esc cancels. Never touches the
@@ -49,7 +55,7 @@ const stepBy = (vcpus: number, delta: number): number => {
  */
 export function useContainerResources(args: {
   readResources: () => Promise<{ vcpus?: number; memoryMb?: number }>
-  updateResources: (vcpus: number) => Promise<void>
+  updateResources: (vcpus: number) => Promise<{ appliesAt: EResizeApplies }>
 }): ContainerResourcesControl {
   const [state, setState] = useState<ContainerResourcesState | null>(null)
 
@@ -107,11 +113,9 @@ export function useContainerResources(args: {
       setState({ ...pending, phase: EResourcesPhase.Applying, error: null })
       void args
         .updateResources(pending.vcpus)
-        .then(() => {
+        .then(({ appliesAt }) => {
           setState(null)
-          notify({
-            text: `sandbox resized to ${pending.vcpus} vCPU · ${memoryGbOf(pending.vcpus)} GB`,
-          })
+          notify({ text: resizedNoticeOf({ vcpus: pending.vcpus, appliesAt }) })
         })
         .catch((failure: unknown) => {
           setState((current) =>

@@ -4,6 +4,7 @@ import { toRunId } from '@dltech/atlas-core'
 import {
   EConnectionView,
   ECloudSandboxState,
+  EResizeApplies,
   ETurnStatus,
   type ChannelConnection,
   type CloudReload,
@@ -46,7 +47,7 @@ const sessionOn = (
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
       find: async () => undefined,
       readResources: async () => ({}),
-      updateResources: async () => {},
+      updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
       destroy: async () => undefined,
     },
     wake: async () => undefined,
