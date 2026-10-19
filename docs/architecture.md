@@ -1446,8 +1446,11 @@ worktrees, or uncommitted work cross: the remote is the only truth at birth, so 
 local checkout cannot leak into the cloud. Portable state (`local-state.json`) carries vault
 accounts, secrets, `settings.json`, and `mcp.json`, staged on the drive and installed into the
 sandbox's Atlas home before serve composes. The OAuth handoff rides the Cloud API as before.
-Skills, instructions, and memory cross through the user-layer sync (`/v1/user-files`); there is no
-transcript at birth — the thread's history starts in the sandbox.
+The context archive (`context.tar.gz`, written straight into the sandbox before serve launches)
+carries `mcp.json` plus the user layer — skills, instructions, memory — captured from the same
+roots the user-layer sync reads, so a birth does not depend on sync having run; the sync
+(`/v1/user-files`) then keeps them live. There is no transcript at birth — the thread's history
+starts in the sandbox.
 
 A birth that cannot finish — the credentials missing, the sandbox refusing, the attach failing —
 falls back to a host birth and says why. The cloud chip retires itself the first time the thread
