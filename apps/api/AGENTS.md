@@ -55,9 +55,9 @@ them at least once; relative imports work everywhere. Do not reintroduce them.
 The API stores no context archives: context goes straight into the sandbox from the client, and
 the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
 `src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB. `PUT /v1/user-files/*`
-keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) until the client caps or chunks
-user-layer uploads; that must land before the Vercel cutover, or large files will start getting
-413s.
+keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) only for clients older than the
+harness release that caps user-layer files at 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`,
+#1275); drop it once that release is the oldest one in use.
 
 ## Deploy
 
@@ -162,18 +162,36 @@ the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). 
 `__ATLAS_SHIPPED_MIGRATIONS__`, because the bundle has no `prisma/migrations` directory for
 `shippedMigrationNames()` to read.
 
-`OPTIONAL_IMPORTS` in `build.ts` lists only packages that a dependency imports lazily behind a
-feature check and this API never installs; every entry carries its reason, and any other
-unresolved import must fail the build. `class-validator` and `class-transformer` stay bundled.
+The build follows comp-neo's pattern. `OPTIONAL_IMPORTS` in `build.ts` stays external: the lazy
+imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
+`class-validator` and `class-transformer` stay bundled. `@thallesp/nestjs-better-auth` loads express
+with `createRequire()`, which `Bun.build` cannot follow, so `RUNTIME_PACKAGES = ['express']` is
+external too and is installed beside the bundle: `build-runtime-packages.ts`
+(`lockedRuntimePackages`) pins express and its full dependency graph from the repo `bun.lock`
+(`lockfileVersion` 3), `build.ts` writes that as `index.func/package.json` and a trimmed `bun.lock`,
+then runs `bun install --production --linker hoisted --frozen-lockfile --os=* --cpu=*` in the
+function directory. Any other unresolved import fails the build.
 
-`src/vercel-bundle.integration.spec.ts` builds the real output, serves it with
-`test/serve-bundle.ts` against a throwaway `postgres:17-alpine` container, and hits health, 401,
-bearer-authenticated, DTO validation, better-auth and the HMAC webhook. It runs only with
-`ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it after adding any module or
-dependency: it is what catches an import the bundle misses.
+`src/vercel-bundle.integration.spec.ts` builds the real output and serves the function directory
+from a `docker run --read-only` container of the same Bun image the Dockerfile pins
+(`test/bundle-container.ts`), with HOME on the read-only mount — the way Vercel's filesystem sees
+it, so a package the bundle left out fails the spec instead of resolving from `node_modules`. A
+host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
+on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
+a spec-owned network and hits health, 401, bearer-authenticated, DTO validation, better-auth and the
+HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it
+after adding any module or dependency: it is what catches an import the bundle misses.
 
-The Deploy section below is still the live path until cutover; `vercel.json` is inert until the
-`atlas-api` Vercel project is git-connected.
+Bun auto-installs any package it cannot resolve at import time, and on a read-only filesystem that
+write kills the process instead of throwing a catchable resolve error. The function ships no
+`bunfig.toml`: with a `node_modules` next to the bundle Bun does not auto-install, and the read-only
+spec passes 8/8 without one, so the lazily imported externals fail as ordinary, caught resolve errors.
+
+The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
+`apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
+`*.vercel.app` URLs sit behind Comp AI's SSO, so smoke-test them with the project's protection
+bypass header. `api.byatlas.io` still points at DigitalOcean until cutover, so the Deploy
+section above is still the live path.
 
 ## Auth
 
