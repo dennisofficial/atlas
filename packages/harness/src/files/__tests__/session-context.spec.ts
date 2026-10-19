@@ -8,7 +8,11 @@ import { registryFor } from '../../store/sessions/registry'
 import { sessionDirectory } from '../../store/sessions/paths'
 import { createSessionContextReader } from '../session-context'
 
-const MAX_CREATE_ATTEMPTS = 200
+const READY_SENTINEL = '.ready'
+
+const WARM_UP_MS = 1_500
+
+const WARM_UP_PACE_MS = 10
 
 const homes: string[] = []
 afterEach(async () => {
@@ -41,17 +45,38 @@ describe('session context reader', () => {
 
   it('notifies when context is created after the sidebar subscribed', async () => {
     const { home, root, sessionDir } = await fixture()
+    await mkdir(sessionDir, { recursive: true })
     const reader = createSessionContextReader({ home, threadId: root })
-    let notified = false
-    const stop = reader.subscribe(() => { notified = true })
+    const context = join(sessionDir, 'context')
+    const removed = Promise.withResolvers<void>()
+    const created = Promise.withResolvers<void>()
+    let ready = false
+    let awaitingRemoval = false
+    const handleChange = () => {
+      void reader.list().then((entries) => {
+        if (entries.some((entry) => entry.name === READY_SENTINEL)) ready = true
+        if (awaitingRemoval && entries.length === 0) removed.resolve()
+        if (entries.some((entry) => entry.name === 'notes.md')) created.resolve()
+      }, created.reject)
+    }
+    const stop = reader.subscribe(handleChange)
     try {
-      await reader.list()
-      for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS && !notified; attempt++) {
-        await rm(join(home, 'sessions'), { recursive: true, force: true })
-        await mkdir(join(sessionDir, 'context'), { recursive: true })
-        await writeFile(join(sessionDir, 'context', 'notes.md'), `note ${attempt}`)
+      expect(await reader.list()).toEqual([])
+      await mkdir(context)
+      const warmUpEnds = performance.now() + WARM_UP_MS
+      while (!ready && performance.now() < warmUpEnds) {
+        await writeFile(join(context, READY_SENTINEL), 'ready')
+        await Bun.sleep(WARM_UP_PACE_MS)
       }
-      expect(notified).toBe(true)
+      expect(ready).toBe(true)
+
+      awaitingRemoval = true
+      await rm(context, { recursive: true })
+      await removed.promise
+
+      await mkdir(context)
+      await writeFile(join(context, 'notes.md'), 'new note')
+      await created.promise
       expect(await reader.list()).toEqual([{ name: 'notes.md', isDirectory: false }])
     } finally { stop() }
   }, 5000)
