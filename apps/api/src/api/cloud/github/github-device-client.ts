@@ -5,12 +5,13 @@ const DEVICE_CODE_URL = 'https://github.com/login/device/code'
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const USER_URL = 'https://api.github.com/user'
 const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
-export const REQUESTED_SCOPES = 'repo read:org admin:repo_hook'
+export const REQUESTED_SCOPES = 'repo read:org admin:repo_hook admin:ssh_signing_key'
 
 export interface GithubHttpRequest {
-  method: 'GET' | 'POST'
+  method: 'GET' | 'POST' | 'DELETE'
   headers: Record<string, string>
   body?: string
+  signal?: AbortSignal
 }
 
 export interface GithubHttpResponse {
@@ -34,7 +35,7 @@ function asHttpResponse(value: unknown): GithubHttpResponse {
   return value as GithubHttpResponse
 }
 
-const defaultFetch: FetchFn = async (url, request) => asHttpResponse(await fetch(url, request))
+export const defaultGithubFetch: FetchFn = async (url, request) => asHttpResponse(await fetch(url, request))
 
 export type GithubPollOutcome =
   | { kind: 'granted'; accessToken: string; scope: string }
@@ -82,7 +83,7 @@ export class GithubDeviceClient {
   private readonly fetchFn: FetchFn
 
   constructor(args: { fetchFn?: FetchFn } = {}) {
-    this.fetchFn = args.fetchFn ?? defaultFetch
+    this.fetchFn = args.fetchFn ?? defaultGithubFetch
   }
 
   async beginDeviceFlow(args: { clientId: string }): Promise<GithubDeviceCodesDto> {

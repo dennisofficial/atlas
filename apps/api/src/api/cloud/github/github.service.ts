@@ -9,7 +9,8 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { GithubPollOutcome } from './github-device-client'
-import { GithubDeviceClient, REQUESTED_SCOPES } from './github-device-client'
+import { GithubDeviceClient } from './github-device-client'
+import { missingScopesOf, splitScopes } from './github-scopes'
 import type {
   GithubConnectionDto,
   GithubDeviceCodesDto,
@@ -18,15 +19,9 @@ import type {
 } from './github.types'
 import { EGithubPollStatus } from './github.types'
 
-// https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
-// The device-flow token response returns scope comma-separated, not space-separated.
-function splitScopes(scope: string): string[] {
-  return scope.split(/[\s,]+/).filter((entry) => entry.length > 0)
-}
-
-function missingScopesOf(granted: string): string[] {
-  const held = new Set(splitScopes(granted))
-  return splitScopes(REQUESTED_SCOPES).filter((scope) => !held.has(scope))
+export interface GithubCredentials {
+  token: string
+  scopes: string
 }
 
 function mapPollError(outcome: { error: string; description?: string }): GithubPollResultDto {
@@ -98,6 +93,12 @@ export class GithubService {
     const row = await db.githubConnection.findUnique({ where: { userId: args.userId } })
     if (row === null) return undefined
     return this.cipher.decrypt(row.sealedToken)
+  }
+
+  async findCredentials(args: { userId: string }): Promise<GithubCredentials | undefined> {
+    const row = await db.githubConnection.findUnique({ where: { userId: args.userId } })
+    if (row === null) return undefined
+    return { token: this.cipher.decrypt(row.sealedToken), scopes: row.scopes }
   }
 
   async disconnect(args: { userId: string }): Promise<void> {
