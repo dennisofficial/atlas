@@ -88,6 +88,7 @@ export * from './context/supersede'
 
 
 export * from './workspace/worktree'
+export * from './workspace/repo-name'
 export * from './workspace/pull-requests'
 export * from './workspace/worktree-lock'
 export * from './workspace/identity'

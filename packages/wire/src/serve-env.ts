@@ -15,12 +15,13 @@ export enum EServeEnv {
 }
 
 /**
- * Workspace and ATLAS_HOME live on the sandbox's own filesystem under /opt/atlas, which
+ * Workspace and ATLAS_HOME live on the sandbox's own filesystem under /atlas, which
  * `persistent: true` snapshots carry between stops — there is no drive and no mount.
+ * /opt/atlas is tooling only (serve binary, lock, stamps, token).
  */
-export const SANDBOX_WORKSPACES_PATH = '/opt/atlas/workspaces'
+export const SANDBOX_WORKSPACES_PATH = '/atlas/workspaces'
 export const SANDBOX_WORKSPACE_PATH = `${SANDBOX_WORKSPACES_PATH}/workspace`
-export const SANDBOX_HOME_PATH = '/opt/atlas/home'
+export const SANDBOX_HOME_PATH = '/atlas/home'
 
 export const SERVE_HOME = '/opt/atlas'
 export const SERVE_BINARY_PATH = `${SERVE_HOME}/atlas-serve`
