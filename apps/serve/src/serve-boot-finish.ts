@@ -11,7 +11,7 @@ import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
 import { runtimeWork } from './runtime-work'
-import { sandboxPark } from './sandbox-park'
+import { providerStopFor } from './sandbox-park'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
 import { bootServeFiles } from './serve-boot'
@@ -29,11 +29,6 @@ import { createSessionHandlers } from './socket-session'
 import { createServeWorkspaceSession } from './serve-workspace-session'
 import { createSessionMirrorReader } from './session-mirror'
 import { createSessionMirrorRevision } from './session-mirror-revision'
-
-// A serve booted without Vercel env (local dev serve) has no provider stop: park fails bounded
-// rather than pretending a legacy exit path exists.
-const missingProviderStop = (): Promise<void> =>
-  Promise.reject(new Error('this runtime has no sandbox to stop'))
 
 export async function finishServeBoot(args: {
   serveArgs: ServeArgs
@@ -261,7 +256,7 @@ export async function finishServeBoot(args: {
       unsubscribeWake?.()
       detachSubscriptions()
     },
-    stopSandbox: serveArgs.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }) ?? missingProviderStop,
+    stopSandbox: serveArgs.stopSandbox ?? providerStopFor({ threadId, controlPlaneUrl, env }),
     exit,
   })
 
