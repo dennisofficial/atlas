@@ -16,7 +16,7 @@ describe('steady state without a session directory', () => {
     const timers = manualSchedule()
     const seen = counter()
     const stop = watchContextDirectory({
-      sessionDir, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule,
+      sessionDir, catchUp: true, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule,
       scanContext: scriptedScan([{ signature: '', capped: false }]).scanContext,
     })
     await tick()
@@ -33,7 +33,7 @@ describe('native watch startup gap', () => {
     const timers = manualSchedule()
     const scan = scriptedScan([unchanged, changed])
     const seen = counter()
-    const stop = watchContextDirectory({ sessionDir, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule, scanContext: scan.scanContext })
+    const stop = watchContextDirectory({ sessionDir, catchUp: true, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule, scanContext: scan.scanContext })
     await tick()
     expect(seen.count).toBe(1)
     await timers.flush()
@@ -48,7 +48,7 @@ describe('native watch startup gap', () => {
     const timers = manualSchedule()
     const seen = counter()
     const stop = watchContextDirectory({
-      sessionDir, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule,
+      sessionDir, catchUp: true, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule,
       scanContext: scriptedScan([unchanged, unchanged]).scanContext,
     })
     await tick()
@@ -67,7 +67,7 @@ describe('native watch startup gap', () => {
       const timers = manualSchedule()
       const seen = counter()
       const stop = watchContextDirectory({
-        sessionDir, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule,
+        sessionDir, catchUp: true, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule,
         scanContext: scriptedScan(script).scanContext,
       })
       await tick()
@@ -84,7 +84,7 @@ describe('native watch startup gap', () => {
     const watch = silentWatch()
     const seen = counter()
     const stop = watchContextDirectory({
-      sessionDir, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule,
+      sessionDir, catchUp: true, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule,
       scanContext: scriptedScan([unchanged, changed]).scanContext,
     })
     await tick()
@@ -101,7 +101,7 @@ describe('native watch startup gap', () => {
     const watch = silentWatch()
     const seen = counter()
     const stop = watchContextDirectory({
-      sessionDir, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule,
+      sessionDir, catchUp: true, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule,
       scanContext: scriptedScan([unchanged, changed]).scanContext,
     })
     await tick()
@@ -119,7 +119,7 @@ describe('native watch startup gap', () => {
     const watch = silentWatch()
     const scan = scriptedScan([unchanged, unchanged, changed])
     const seen = counter()
-    const stop = watchContextDirectory({ sessionDir, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule, scanContext: scan.scanContext })
+    const stop = watchContextDirectory({ sessionDir, catchUp: true, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule, scanContext: scan.scanContext })
     await tick()
     expect(watch.attached.map((entry) => entry.path)).toEqual([sessions])
     expect(timers.tasks.map((task) => task.cancelled)).toEqual([false])
@@ -141,7 +141,7 @@ describe('native watch startup gap', () => {
     const watch = silentWatch()
     const seen = counter()
     const stop = watchContextDirectory({
-      sessionDir, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule,
+      sessionDir, catchUp: true, onChange: seen.notify, watchPath: watch.watchPath, schedule: timers.schedule,
       scanContext: scriptedScan([unchanged, changed]).scanContext,
     })
     await tick()
@@ -161,7 +161,7 @@ describe('stopping', () => {
     const timers = manualSchedule()
     const scan = scriptedScan([unchanged, changed])
     const seen = counter()
-    const stop = watchContextDirectory({ sessionDir, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule, scanContext: scan.scanContext })
+    const stop = watchContextDirectory({ sessionDir, catchUp: true, onChange: seen.notify, watchPath: silentWatch().watchPath, schedule: timers.schedule, scanContext: scan.scanContext })
     stop()
     expect(timers.tasks.map((task) => task.cancelled)).toEqual([true])
     await tick()
@@ -175,7 +175,7 @@ describe('stopping', () => {
     await mkdir(sessionDir, { recursive: true })
     const scan = scriptedScan([unchanged, changed])
     const seen = counter()
-    const stop = watchContextDirectory({ sessionDir, onChange: seen.notify, watchPath: silentWatch().watchPath, scanContext: scan.scanContext })
+    const stop = watchContextDirectory({ sessionDir, catchUp: true, onChange: seen.notify, watchPath: silentWatch().watchPath, scanContext: scan.scanContext })
     stop()
     await Bun.sleep(150)
     expect(scan.calls.length).toBe(1)
@@ -191,7 +191,7 @@ describe('stopping', () => {
     const seen = counter()
     let stop: () => void = () => {}
     stop = watchContextDirectory({
-      sessionDir, onChange: () => { seen.notify(); stop() }, watchPath: watch.watchPath, schedule: timers.schedule, scanContext: scan.scanContext,
+      sessionDir, catchUp: true, onChange: () => { seen.notify(); stop() }, watchPath: watch.watchPath, schedule: timers.schedule, scanContext: scan.scanContext,
     })
     await tick()
     expect(seen.count).toBe(1)
@@ -216,7 +216,7 @@ describe('re-attach budget', () => {
     let scheduled = 0
     const schedule: Schedule = (task) => { scheduled += 1; return timers.schedule(task) }
     const stop = watchContextDirectory({
-      sessionDir, onChange: counter().notify, watchPath, schedule, scanContext: scriptedScan([unchanged]).scanContext,
+      sessionDir, catchUp: true, onChange: counter().notify, watchPath, schedule, scanContext: scriptedScan([unchanged]).scanContext,
     })
     await tick()
     for (let round = 0; round < 10; round += 1) await timers.flush()
@@ -232,7 +232,7 @@ describe('re-attach budget', () => {
     let scheduled = 0
     const schedule: Schedule = (task) => { scheduled += 1; return timers.schedule(task) }
     const stop = watchContextDirectory({
-      sessionDir, onChange: counter().notify, watchPath: silentWatch().watchPath, schedule,
+      sessionDir, catchUp: true, onChange: counter().notify, watchPath: silentWatch().watchPath, schedule,
       scanContext: scriptedScan([unchanged]).scanContext,
     })
     await tick()

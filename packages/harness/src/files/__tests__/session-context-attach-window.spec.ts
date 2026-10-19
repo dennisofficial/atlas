@@ -9,6 +9,8 @@ import { cleanupHomes, counter, fixture, manualSchedule, silentWatch } from './a
 
 afterEach(cleanupHomes)
 
+const MAX_ATTACH_TURNS = 500
+
 describe('window between subscribe and attach', () => {
   it('notifies for a file created before the watch attached, then lists it, with no retry', async () => {
     const { home, sessionId, sessionDir } = await fixture()
@@ -16,7 +18,7 @@ describe('window between subscribe and attach', () => {
     const reader = createSessionContextReader({ home, threadId: sessionId, watchSeams: seams })
     let resolveChange: () => void = () => {}
     const change = new Promise<void>((resolve) => { resolveChange = resolve })
-    const stop = reader.subscribe(resolveChange)
+    const stop = reader.subscribe(resolveChange, { catchUp: true })
     mkdirSync(join(sessionDir, 'context'), { recursive: true })
     writeFileSync(join(sessionDir, 'context', 'notes.md'), 'new note')
     try {
@@ -32,7 +34,7 @@ describe('window between subscribe and attach', () => {
       home, threadId: sessionId, watchSeams: { watchPath: silentWatch().watchPath, schedule: timers.schedule },
     })
     const seen = counter()
-    const stop = reader.subscribe(seen.notify)
+    const stop = reader.subscribe(seen.notify, { catchUp: true })
     const file = join(sessionDir, 'context', 'notes.md')
     mkdirSync(join(sessionDir, 'context'), { recursive: true })
     writeFileSync(file, 'old')
@@ -57,13 +59,34 @@ describe('steady state', () => {
       home, threadId: sessionId, watchSeams: { watchPath: silentWatch().watchPath, schedule: timers.schedule },
     })
     const seen = counter()
-    const stop = reader.subscribe(seen.notify)
+    const stop = reader.subscribe(seen.notify, { catchUp: true })
     await seen.first
     expect(seen.count).toBe(1)
     expect(timers.tasks).toHaveLength(1)
     await timers.flush()
     stop()
     expect(seen.count).toBe(1)
+  })
+})
+
+describe('a subscriber that does not ask for a catch-up', () => {
+  it('hears nothing at attach or through the re-check while nothing changes', async () => {
+    const { home, sessionId, sessionDir } = await fixture()
+    await mkdir(join(sessionDir, 'context'), { recursive: true })
+    await writeFile(join(sessionDir, 'context', 'notes.md'), 'existing')
+    const timers = manualSchedule()
+    const watch = silentWatch()
+    const reader = createSessionContextReader({
+      home, threadId: sessionId, watchSeams: { watchPath: watch.watchPath, schedule: timers.schedule },
+    })
+    const seen = counter()
+    const stop = reader.subscribe(seen.notify)
+    for (let turn = 0; turn < MAX_ATTACH_TURNS && timers.tasks.length === 0; turn += 1) await Bun.sleep(1)
+    expect(watch.attached).toHaveLength(1)
+    await Bun.sleep(0)
+    await timers.flush()
+    stop()
+    expect(seen.count).toBe(0)
   })
 })
 
@@ -78,7 +101,7 @@ describe('reader unsubscribing from its first notification', () => {
     let stop: () => void = () => {}
     let first: () => void = () => {}
     const heard = new Promise<void>((resolve) => { first = resolve })
-    stop = reader.subscribe(() => { seen.notify(); stop(); first() })
+    stop = reader.subscribe(() => { seen.notify(); stop(); first() }, { catchUp: true })
     await heard
     await Bun.sleep(20)
     expect(seen.count).toBe(1)
@@ -107,7 +130,7 @@ describe('reader unsubscribing from its first notification', () => {
     stop = reader.subscribe(() => {
       if (!unsubscribed) { unsubscribed = true; stop() }
       first()
-    })
+    }, { catchUp: true })
     await heard
     await Bun.sleep(20)
     expect(closed).toEqual([true])
@@ -120,7 +143,7 @@ describe('with the real watcher', () => {
     const reader = createSessionContextReader({ home, threadId: sessionId })
     let resolveChange: () => void = () => {}
     const change = new Promise<void>((resolve) => { resolveChange = resolve })
-    const stop = reader.subscribe(resolveChange)
+    const stop = reader.subscribe(resolveChange, { catchUp: true })
     mkdirSync(join(sessionDir, 'context'), { recursive: true })
     writeFileSync(join(sessionDir, 'context', 'notes.md'), 'new note')
     try {

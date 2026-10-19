@@ -26,7 +26,9 @@ const scheduleTimeout: Schedule = ({ run, delayMs }) => {
   return () => clearTimeout(timer)
 }
 
-export function watchContextDirectory(args: { sessionDir: string; onChange: () => void } & WatchSeams): () => void {
+export function watchContextDirectory(
+  args: { sessionDir: string; onChange: () => void; catchUp?: boolean | undefined } & WatchSeams,
+): () => void {
   const root = args.sessionDir
   const home = dirname(dirname(root))
   const context = join(root, 'context')
@@ -90,7 +92,7 @@ export function watchContextDirectory(args: { sessionDir: string; onChange: () =
         delayMs: ATTACH_RECHECK_DELAY_MS,
       })
       close = () => { cancelRecheck(); watcher.close() }
-      if (initial) queueMicrotask(() => { if (!stopped) args.onChange() })
+      if (initial && args.catchUp === true) queueMicrotask(() => { if (!stopped) args.onChange() })
       return
     }
   }
