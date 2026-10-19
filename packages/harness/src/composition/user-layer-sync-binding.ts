@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 
-import { LogPort } from '@dltech/atlas-core'
+import { LogPort, NoticePort } from '@dltech/atlas-core'
 
 import { cloudUserFilesClientFor } from '../cloud/user-files-client'
 import { registerDisposable } from '../container/disposal'
@@ -35,6 +35,10 @@ export async function bindUserLayerSync(args: {
 }): Promise<{ boot: () => Promise<void> }> {
   const { container } = args
   const log = container.resolve(registeredPortToken(LogPort))
+
+  const notice = container.isRegistered(registeredPortToken(NoticePort), true)
+    ? container.resolve(registeredPortToken(NoticePort))
+    : undefined
 
   const session =
     (container.isRegistered(ServeSessionToken, true)
@@ -78,6 +82,7 @@ export async function bindUserLayerSync(args: {
     projectMemoryDirectory: projectMemory,
     client: binding.client,
     log,
+    notice,
   })
   container.register(registeredPortToken(UserLayerSyncPort), { useValue: engine })
   registerDisposable({

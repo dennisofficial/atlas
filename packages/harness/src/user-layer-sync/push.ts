@@ -1,12 +1,28 @@
+import { ENoticeTone, NOTICE_WARN_MS } from '@dltech/atlas-core'
+
 import { UserFileConflict } from '../cloud/user-files-client'
 
 import type { TreeSyncContext } from './context'
+import { MAX_USER_LAYER_FILE_BYTES, megabytes } from './limits'
 import { readLocalFile } from './local-file'
 import { warnSync } from './log'
 import { pullPath } from './pull'
 
 const MAX_PUSH_ATTEMPTS = 2
 const TOMBSTONE_HASH = ''
+
+function reportOversize(args: { ctx: TreeSyncContext; key: string; byteLength: number }): void {
+  const { ctx, key } = args
+  const label = `${ctx.layout.tree}/${key}`
+  const message = `not syncing ${label} to Atlas Cloud: ${megabytes(args.byteLength)} MB is over the ${megabytes(MAX_USER_LAYER_FILE_BYTES)} MB limit`
+  warnSync({ log: ctx.log, message })
+  ctx.notice?.notify({
+    key: `user-layer-oversize:${label}`,
+    tone: ENoticeTone.Warn,
+    ttlMs: NOTICE_WARN_MS,
+    text: message,
+  })
+}
 
 async function pushFile(args: { ctx: TreeSyncContext; key: string; path: string }): Promise<void> {
   const { ctx, key } = args
@@ -15,6 +31,10 @@ async function pushFile(args: { ctx: TreeSyncContext; key: string; path: string 
   for (let attempt = 0; attempt < MAX_PUSH_ATTEMPTS; attempt += 1) {
     const local = await readLocalFile(args.path)
     if (!local.exists || local.text === null) return
+    if (local.text.bytes.byteLength > MAX_USER_LAYER_FILE_BYTES) {
+      reportOversize({ ctx, key, byteLength: local.text.bytes.byteLength })
+      return
+    }
     const synced = ctx.state.get(address)
     if (synced?.contentHash === local.text.hash) return
 
