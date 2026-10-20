@@ -9,7 +9,7 @@ export type PlacementChoice = {
   harness: EHarnessPlacement
   runner?: ERunner | undefined
   provisioning: boolean
-  onFlip: () => void
+  onFlip?: (() => void) | undefined
 }
 
 const placementLabelOf = (choice: PlacementChoice): string => {
@@ -23,7 +23,7 @@ const placementGroundOf = (choice: PlacementChoice): string => {
 }
 
 function placementChipOf(choice: PlacementChoice): FooterItem {
-  const flippable = !choice.provisioning
+  const flippable = !choice.provisioning && choice.onFlip !== undefined
   return chipItem({
     id: PLACEMENT_CHIP_ID,
     text: `${placementLabelOf(choice)}${flippable ? ' ▾ ' : ' '}`,

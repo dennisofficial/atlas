@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ERunner, toThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, ERunner, toThreadId } from '@dltech/atlas-core'
 import {
   atlasDirectory,
   birthInCloud,
@@ -73,7 +73,7 @@ const activeRowSpy = () => {
     seen,
     finalMarks: () => move?.rows.map((row) => row.mark) ?? [],
     onBegin: ({ waves }: { waves: typeof BIRTH_WAVES }) => {
-      move = beginMove({ now: 0, rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })) })
+      move = beginMove({ target: EExecutionLocation.Cloud, now: 0, rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })) })
     },
     onNodeStart: (nodeId: string) => {
       if (move !== null) move = startMoveNode({ move, nodeId, now: 0 })
@@ -145,6 +145,7 @@ describeLive('a pod birth through the live TUI wiring', () => {
     'leases the token, runs a labelled pod that answers health, and marks the thread local',
     async () => {
       const app = fakeApp({
+        pods: true,
         model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
         cloud: fakeCloud({ session: { url: `http://127.0.0.1:${server.port}`, token: 'live-session', email: null } }),
       })
@@ -209,6 +210,7 @@ describeLive('a pod birth through the live TUI wiring', () => {
       const session = { url: `http://127.0.0.1:${server.port}`, token: 'live-session', email: null }
       const client = new CloudClient({ url: session.url, token: session.token })
       const app = fakeApp({
+        pods: true,
         model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
         cloud: fakeCloud({ session, client }),
         cwd: launchDirectory,

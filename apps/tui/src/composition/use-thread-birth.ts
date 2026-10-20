@@ -123,7 +123,7 @@ export function useThreadBirth(args: {
   const handleUnbornSend = useCallback(
     (sent: UnbornSend): boolean => {
       const { app, attached, unplaced, threadId, containerMove } = latest.current
-      if (attached || !unplaced) return false
+      if (!app.pods || attached || !unplaced) return false
       const record = app.sessionOwner.placement.snapshot(threadId)
       if (record !== undefined && record.revision > 0) return false
       if (birthInFlight(containerMove) || undelivered.current !== null) {
@@ -154,7 +154,7 @@ export function useThreadBirth(args: {
   useUnbornThread({
     app: args.app,
     threadId: args.threadId,
-    unplaced: args.unplaced,
+    unplaced: args.app.pods && args.unplaced,
     attached: args.attached,
     onArrival: (send) => {
       undelivered.current = null

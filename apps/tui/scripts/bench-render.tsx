@@ -102,6 +102,7 @@ const benchApp = (args: {
   const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
 
   return {
+    pods: false,
     config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root, executionLocation: undefined },
     launch: { cwd: args.root, command: 'atlas-dev', model: undefined, executionLocation: undefined },
     command: 'atlas-dev',

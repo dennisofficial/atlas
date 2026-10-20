@@ -43,7 +43,7 @@ export function useExecutionLocation(args: {
   }, [app, stored, threadId])
 
   useEffect(() => {
-    if (started) return
+    if (started || app.pods) return
     const chip = bornPlacementChip(app)
     const held = chip.snapshot()
     if (held !== null && held.threadId === threadId) return

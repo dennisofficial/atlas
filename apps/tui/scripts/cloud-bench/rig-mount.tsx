@@ -69,6 +69,7 @@ const composeRigApp = async (args: { workspace: string; settings: SettingsBindin
   const surfaces: readonly ContributedSurface[] = harness.pluginSurfaces
   return {
     ...harness,
+    pods: true,
     pluginProjections: harness.pluginProjections,
     pluginSurfaces: surfaces,
     pullRequests: null,

@@ -789,6 +789,7 @@ export function fakeApp(args: {
   turnPolicy?: TurnPolicy
   intake?: boolean | undefined
   rotation?: RotationPort | undefined
+  pods?: boolean
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -1079,6 +1080,7 @@ export function fakeApp(args: {
       limits: args.containerLimits ?? { cpus: 4, memoryGb: 8 },
     }),
     executionPinned: false,
+    pods: args.pods === true,
     settings: createSettingsService({
       definitions: [
         ...ATLAS_SETTINGS.filter((definition) => !isCloudSettingId(definition.id)),

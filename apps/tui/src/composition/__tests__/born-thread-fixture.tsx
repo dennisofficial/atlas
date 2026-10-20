@@ -70,6 +70,7 @@ export const bornThreadApp = (args: {
 }): FakeApp => {
   const client = (args.api ?? fakeProjectsApi()).client
   return fakeApp({
+    pods: true,
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
     cwd: launchDirWith(args.origin === undefined ? ACME_ORIGIN : args.origin),
     cloud: args.signedOut === true ? fakeSignedOutCloud({ client }) : fakeCloud({ client }),

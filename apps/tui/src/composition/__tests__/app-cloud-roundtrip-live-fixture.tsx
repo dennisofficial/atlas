@@ -114,6 +114,7 @@ export async function mountLive(args: {
   const surfaces: readonly ContributedSurface[] = harness.pluginSurfaces
   const app: AtlasApp = {
     ...harness,
+    pods: false,
     pluginProjections: harness.pluginProjections,
     pluginSurfaces: surfaces,
     pullRequests: null,

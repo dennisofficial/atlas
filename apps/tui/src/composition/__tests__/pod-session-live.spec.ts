@@ -55,6 +55,7 @@ describeLive('a multi-turn session in a local pod', () => {
       const fakeModel = startFakeModel({ marker: MARKER })
       const leaseApi = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response(null, { status: 204 }) })
       const app = fakeApp({
+        pods: true,
         model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
         cloud: fakeCloud({ session: { url: `http://127.0.0.1:${leaseApi.port}`, token: 'live-session', email: null } }),
       })

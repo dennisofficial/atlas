@@ -96,6 +96,7 @@ export function useWorkspaceNotices(args: {
   useEffect(() => {
     if (cloudSignInNoticed.current) return
     cloudSignInNoticed.current = true
+    if (!app.pods) return
     if (app.cloud.session() !== null) return
     if (app.cloud.signInOffered()) return
 
@@ -106,5 +107,5 @@ export function useWorkspaceNotices(args: {
       tone: ENoticeTone.Info,
       ttlMs: CLOUD_SIGN_IN_OFFER_MS,
     })
-  }, [app.cloud])
+  }, [app.cloud, app.pods])
 }

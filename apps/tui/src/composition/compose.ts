@@ -1,6 +1,6 @@
 import { hostname } from 'node:os'
 
-import { OnThreadOpenHook } from '@dltech/atlas-core'
+import { ESettingId, OnThreadOpenHook, toggleValueOf } from '@dltech/atlas-core'
 import {
   composeHarness,
   createUrlOpener,
@@ -64,6 +64,7 @@ export type AtlasApp = Omit<
   rotation?: RotationPort | undefined
   config: AtlasConfig
   command: string
+  pods: boolean
 }
 
 /**
@@ -218,6 +219,7 @@ export async function composeAtlas(args: {
     ...harness,
     config: args.config,
     command: args.command,
+    pods: toggleValueOf({ resolution: args.settings.service.snapshot().resolution, id: ESettingId.ExperimentalPods }),
     pluginProjections,
     pluginSurfaces:
       surface.githubSurface === null ? pluginSurfaces : [...pluginSurfaces, surface.githubSurface],
