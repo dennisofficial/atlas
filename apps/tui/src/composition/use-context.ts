@@ -36,7 +36,7 @@ export function useContextBrowser(args: {
 
   useEffect(() => {
     if (readers === undefined) return
-    return readers.subscribe(() => setRevision((value) => value + 1))
+    return readers.subscribe(() => setRevision((value) => value + 1), { catchUp: true })
   }, [readers])
 
   useEffect(() => {

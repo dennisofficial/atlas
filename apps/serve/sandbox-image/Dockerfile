@@ -265,3 +265,7 @@ RUN chmod 755 /usr/local/bin/docker /usr/local/bin/docker-daemon-up \
 # /opt/atlas is 777, not 755: serve is downloaded into it at sandbox boot and the session user
 # (non-root) writes the serve token/lock/log files there, and a root-owned 755 dir would break both.
 RUN install -d -m 0777 /opt/atlas
+
+# /atlas holds the session's own filesystem: ATLAS_HOME (/atlas/home) and the workspace clones
+# (/atlas/workspaces/<repo>). Same 777 rule as /opt/atlas — the session user writes both at boot.
+RUN install -d -m 0777 /atlas

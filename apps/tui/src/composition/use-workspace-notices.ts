@@ -102,7 +102,7 @@ export function useWorkspaceNotices(args: {
     app.cloud.markSignInOffered()
     notify({
       key: 'cloud-sign-in-offer',
-      text: 'sign in to Atlas Cloud to register cloud sandboxes for remote control and discovery — settings (ctrl+o) › cloud',
+      text: 'sign in to Atlas Cloud to start sessions — settings (ctrl+o) › cloud',
       tone: ENoticeTone.Info,
       ttlMs: CLOUD_SIGN_IN_OFFER_MS,
     })

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 import { EBuildKind } from '../../../build/info'
 import { createDevServeResolver, devServeResolverFor, type DevServeDeps } from '../dev-serve'
-import { devServeCacheKeyOf, type DevServeSource } from '../dev-serve-key'
+import { devServeCacheKeyOf, ELinuxServeTarget, type DevServeSource } from '../dev-serve-key'
 
 const scratch: string[] = []
 
@@ -21,7 +21,7 @@ const cacheRoot = async (): Promise<string> => {
 
 const sourceWith = (diff: string): DevServeSource => ({ head: 'abc', diff, untracked: [] })
 
-const keyOf = (diff: string): string => devServeCacheKeyOf(sourceWith(diff))
+const keyOf = (diff: string): string => devServeCacheKeyOf({ source: sourceWith(diff), target: ELinuxServeTarget.X64 })
 
 const sha256Of = (text: string): string => new Bun.CryptoHasher('sha256').update(text).digest('hex')
 
@@ -39,6 +39,7 @@ const harness = async (overrides: Partial<DevServeDeps> = {}) => {
       builds.push(outfile)
       await writeFile(outfile, `serve for ${tree.diff}`)
     },
+    target: ELinuxServeTarget.X64,
     cacheRoot: () => root,
     now: () => 0,
     keep: 3,

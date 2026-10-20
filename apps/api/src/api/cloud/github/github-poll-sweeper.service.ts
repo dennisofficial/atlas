@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Interval } from '@nestjs/schedule'
 import { db, type GithubPrStateModel } from '../../../db'
 import {
   dtoOf,
@@ -14,8 +13,6 @@ import type { PrTransitionSnapshot } from './github-pr-event-transitions'
 import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
-
-const POLL_INTERVAL_MS = 30_000
 
 /**
  * A delivered webhook rewrites the state row and bumps `updatedAt`, so a hook-backed PR whose
@@ -36,7 +33,6 @@ export class GithubPollSweeperService {
     private readonly mailbox: GithubPrEventMailboxService,
   ) {}
 
-  @Interval(POLL_INTERVAL_MS)
   async handlePoll(): Promise<void> {
     const now = new Date()
 

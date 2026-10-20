@@ -15,6 +15,11 @@ import type { ThreadStorePort } from '../store/thread-store'
 export { ECloudSandboxState }
 export type { WorkspaceSpec }
 
+export enum EResizeApplies {
+  Live = 'live',
+  Restart = 'restart',
+}
+
 /**
  * The result of a claim plus a provision: `create` awaits the whole of it, so the url is always
  * there and `created` says whether the sandbox booted fresh (needing the context archive) or
@@ -72,7 +77,7 @@ export type CloudSandboxes = {
   /** The live allocation as the provider reports it; fields absent when the provider doesn't say. */
   readResources(args: { threadId: ThreadId }): Promise<{ vcpus?: number; memoryMb?: number }>
   /** Resizes the live sandbox. Touches the running sandbox only — never the stored default. */
-  updateResources(args: { threadId: ThreadId; vcpus: number }): Promise<void>
+  updateResources(args: { threadId: ThreadId; vcpus: number }): Promise<{ appliesAt: EResizeApplies }>
   destroy(args: { threadId: ThreadId; expectedSandboxSessionId?: string | undefined }): Promise<void>
 }
 

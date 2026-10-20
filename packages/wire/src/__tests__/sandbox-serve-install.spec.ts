@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire.js'
-import { serveInstallScript, serveStageAndStampSteps } from '../sandbox-serve-install.js'
+import { EServeArch, serveInstallScript, serveStageAndStampSteps } from '../sandbox-serve-install.js'
 import { SERVE_BINARY_PATH, SERVE_PROTOCOL_PATH, SERVE_VERSION_PATH } from '../serve-env.js'
 
 describe('the shared stage-and-stamp steps', () => {
@@ -48,5 +48,26 @@ describe('the serve install script', () => {
   it('still verifies the sha256 before staging', () => {
     const script = serveInstallScript({ version: '1.92.2' })
     expect(script.indexOf('sha256 mismatch')).toBeLessThan(script.indexOf('install -m 0755'))
+  })
+})
+
+describe('the serve install script architecture', () => {
+  it('defaults to x64 and matches the explicit x64 script byte for byte', () => {
+    const script = serveInstallScript({ version: '1.92.2' })
+    expect(script).toBe(serveInstallScript({ version: '1.92.2', arch: EServeArch.X64 }))
+    expect(script).toContain('/releases/download/tui-v1.92.2/atlas-serve-linux-x64"')
+    expect(script).toContain('/releases/download/tui-v1.92.2/atlas-serve-linux-x64.sha256"')
+  })
+
+  it('downloads the arm64 asset and its checksum and never the x64 one', () => {
+    const script = serveInstallScript({ version: '1.92.2', arch: EServeArch.Arm64 })
+    expect(script).toContain('/releases/download/tui-v1.92.2/atlas-serve-linux-arm64"')
+    expect(script).toContain('/releases/download/tui-v1.92.2/atlas-serve-linux-arm64.sha256"')
+    expect(script).not.toContain('linux-x64')
+  })
+
+  it('resolves the arm64 asset from the latest release when no version is pinned', () => {
+    const script = serveInstallScript({ version: undefined, arch: EServeArch.Arm64 })
+    expect(script).toContain('/releases/latest/download/atlas-serve-linux-arm64"')
   })
 })

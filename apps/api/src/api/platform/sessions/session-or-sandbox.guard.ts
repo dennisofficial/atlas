@@ -3,11 +3,13 @@ import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@
 import { Reflector } from '@nestjs/core'
 import type { Request } from 'express'
 import { IS_PUBLIC_KEY } from '../../../_core/decorators/public.decorator'
+import { POD_REACHABLE_KEY } from '../../../_core/decorators/pod-reachable.decorator'
 import { SANDBOX_REACHABLE_KEY } from '../../../_core/decorators/sandbox-reachable.decorator'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import type { SessionVerifier } from '../../../_core/ports/session-verifier'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
+import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 
 const threadIdOf = (request: Request): string | undefined => {
   const value = request.params.threadId
@@ -56,10 +58,23 @@ export class SessionOrSandboxGuard implements CanActivate {
 
     if (token !== undefined) {
       const row = await this.sandboxes.verifyTokenPrincipal({ token }).catch(() => null)
+      if (row?.kind === ETokenPrincipalKind.Pod) {
+        if (!this.reachable({ context, key: POD_REACHABLE_KEY })) {
+          throw new ForbiddenException('a pod lease token does not reach this route')
+        }
+        request.auth = {
+          userId: row.userId,
+          sessionId: `pod:${row.threadId}`,
+          email: '',
+          activeOrganizationId: null,
+        }
+        request.pod = { threadId: row.threadId }
+        return true
+      }
       if (row !== null) {
         if (threadId !== undefined) {
           await this.sandboxes.assertThreadInFamily({ sandboxThreadId: row.threadId, threadId })
-        } else if (!this.sandboxReachable(context)) {
+        } else if (!this.reachable({ context, key: SANDBOX_REACHABLE_KEY })) {
           throw new ForbiddenException('a sandbox session token does not reach this route')
         }
         request.auth = {
@@ -80,10 +95,10 @@ export class SessionOrSandboxGuard implements CanActivate {
     return true
   }
 
-  private sandboxReachable(context: ExecutionContext): boolean {
-    return this.reflector.getAllAndOverride<boolean>(SANDBOX_REACHABLE_KEY, [
-      context.getHandler(),
-      context.getClass(),
+  private reachable(args: { context: ExecutionContext; key: string }): boolean {
+    return this.reflector.getAllAndOverride<boolean>(args.key, [
+      args.context.getHandler(),
+      args.context.getClass(),
     ]) === true
   }
 }

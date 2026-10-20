@@ -1,7 +1,7 @@
 # apps/api
 
 The Atlas Cloud backend. NestJS 12 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
-(Neon in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
+(PlanetScale Postgres in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
 API keys, ordinary secrets, user settings and MCP configuration stay on the machine; explicit
 backup actions copy them to/from the API. Signing in transfers Atlas-native provider OAuth
 renewal to dedicated cloud-owned connections. Local sessions and assigned sandboxes retrieve
@@ -54,10 +54,9 @@ them at least once; relative imports work everywhere. Do not reintroduce them.
 
 The API stores no context archives: context goes straight into the sandbox from the client, and
 the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
-`src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB. `PUT /v1/user-files/*`
-keeps its own larger parser (`USER_FILE_BODY_LIMIT`, 96 MB) until the client caps or chunks
-user-layer uploads; that must land before the Vercel cutover, or large files will start getting
-413s.
+`src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB before the app sees them,
+so no route gets a larger parser. User-layer uploads fit because the harness skips files over
+3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`), whose base64 body is 4,000,000 bytes.
 
 ## Deploy
 
@@ -117,11 +116,19 @@ is the only thing that applies schema in a deployed tier — never the app conta
 no DDL rights by design. Locally the same command is `MIGRATE_TIER=production bun run
 db:migrate:deploy`.
 
-The job connects through `DIRECT_URL` (Neon's non-pooled endpoint) when the tier supplies one,
+The job connects through `DIRECT_URL` (PlanetScale's direct endpoint, :5432; `DATABASE_URL` is its
+PgBouncer on :6432) when the tier supplies one,
 falling back to `DATABASE_URL` — `prisma migrate deploy`'s session-level advisory lock does not
 survive the pooler: a killed job once left the lock pinned on a pooled backend and every later
 deploy timed out acquiring it (P1002). `scripts/migrate-deploy.mjs` also retries the deploy
 three times with a 20s backoff, so two overlapping PRE_DEPLOY jobs no longer fail a deployment.
+
+`.github/workflows/migrate-production.yml` applies migrations on merges to main that touch
+`prisma/migrations`, `prisma/schema.prisma` or the workflow itself, through `DIRECT_URL`, and can be
+run by hand with `workflow_dispatch`. While DigitalOcean is live it runs alongside the PRE_DEPLOY
+job, safely: `prisma migrate deploy` is idempotent, takes an advisory lock, and
+`scripts/migrate-deploy.mjs` retries on contention. After cutover it is the only migration path,
+and the additive-migration and rollback rules below still apply.
 
 **Rollback does not unwind a migration.** App Platform can restore any of the last ten
 successful deployments, and it restores code, configuration and the app spec — never database
@@ -131,19 +138,12 @@ the release it lands ahead of: add columns with defaults, add tables, never rena
 the same deploy as the code that stops using them. A `FAILED_DEPLOY` job that ran down-DDL would
 turn a failed deploy into data loss; there is deliberately none.
 
-The database half of a rollback is Neon's, and it is already there — nothing to build. A restore
-matches the timestamp to an LSN, moves the compute to a point-in-time branch so the connection
-string does not change, and renames the pre-restore branch to `<name>_old_head_<timestamp>`, so
-the restore is itself reversible:
-
-```
-neon branches restore main '^self@2026-09-16T04:00:00.000Z'
-```
-
-It only reaches as far back as the project's history retention — 1 day by default on paid plans,
-6 hours on free, configurable to 7 days on Launch and 30 on Scale. Check that window is wider
-than the gap between a bad migration landing and someone noticing, because outside it there is
-no restore to make.
+The database half of a rollback is PlanetScale's backups. A restore never happens in place: pick
+a backup or a point in time (up to 5 minutes ago) under Backups and restore it to a **new
+branch**, reset the role password there, then `dotenvx set` both URLs to the new branch's host
+and redeploy. It reaches only as far back as the backup retention (2 days on the default
+schedule), so check that window is wider than the gap between a bad migration landing and
+someone noticing. https://planetscale.com/docs/postgres/backups/point-in-time-recovery
 
 `GET /v1/health` answers 503 when the running build expects migrations the database has not
 applied, so drift fails the health check and DO holds the previous release rather than serving
@@ -162,18 +162,44 @@ the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). 
 `__ATLAS_SHIPPED_MIGRATIONS__`, because the bundle has no `prisma/migrations` directory for
 `shippedMigrationNames()` to read.
 
-`OPTIONAL_IMPORTS` in `build.ts` lists only packages that a dependency imports lazily behind a
-feature check and this API never installs; every entry carries its reason, and any other
-unresolved import must fail the build. `class-validator` and `class-transformer` stay bundled.
+The build follows comp-neo's pattern. `OPTIONAL_IMPORTS` in `build.ts` stays external: the lazy
+imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
+`class-validator` and `class-transformer` stay bundled. `@thallesp/nestjs-better-auth` loads express
+with `createRequire()`, which `Bun.build` cannot follow, so `RUNTIME_PACKAGES = ['express']` is
+external too and is installed beside the bundle: `build-runtime-packages.ts`
+(`lockedRuntimePackages`) pins express and its full dependency graph from the repo `bun.lock`
+(`lockfileVersion` 3), `build.ts` writes that as `index.func/package.json` and a trimmed `bun.lock`,
+then runs `bun install --production --linker hoisted --frozen-lockfile --os=* --cpu=*` in the
+function directory. Any other unresolved import fails the build.
 
-`src/vercel-bundle.integration.spec.ts` builds the real output, serves it with
-`test/serve-bundle.ts` against a throwaway `postgres:17-alpine` container, and hits health, 401,
-bearer-authenticated, DTO validation, better-auth and the HMAC webhook. It runs only with
-`ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it after adding any module or
-dependency: it is what catches an import the bundle misses.
+`src/vercel-bundle.integration.spec.ts` builds the real output and serves the function directory
+from a `docker run --read-only` container of the same Bun image the Dockerfile pins
+(`test/bundle-container.ts`), with HOME on the read-only mount — the way Vercel's filesystem sees
+it, so a package the bundle left out fails the spec instead of resolving from `node_modules`. A
+host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
+on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
+a spec-owned network and hits health, 401, bearer-authenticated, DTO validation, better-auth and the
+HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it
+after adding any module or dependency: it is what catches an import the bundle misses.
 
-The Deploy section below is still the live path until cutover; `vercel.json` is inert until the
-`atlas-api` Vercel project is git-connected.
+Bun auto-installs any package it cannot resolve at import time, and on a read-only filesystem that
+write kills the process instead of throwing a catchable resolve error. The function ships no
+`bunfig.toml`: with a `node_modules` next to the bundle Bun does not auto-install, and the read-only
+spec passes 8/8 without one, so the lazily imported externals fail as ordinary, caught resolve errors.
+
+Work that must outlive the response goes to `BackgroundWork.keepAlive` (`src/_core/ports/background-work.ts`),
+because a Vercel instance can freeze once the response is sent. `backgroundWorkProvider()` binds
+`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. Wake boots are the
+current user: `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
+wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances), so the boot starts
+inside the kept-alive lookup chain. The trigger.dev worker passes `ProcessBackgroundWork` and the
+5 s debounce and relies on `settle()`.
+
+The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
+`apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
+`*.vercel.app` URLs sit behind Comp AI's SSO, so smoke-test them with the project's protection
+bypass header. `api.byatlas.io` still points at DigitalOcean until cutover, so the Deploy
+section above is still the live path.
 
 ## Auth
 
@@ -220,6 +246,48 @@ a tier does not supply it), then `dotenvx set` to fill values in place. Typed ac
 Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bun run dev`.
 Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they run via
 `db:migrate:deploy` with `MIGRATE_TIER` set, never from the app container.
+
+## Redis
+
+`src/_lib/redis` (`RedisService`, `RedisModule`) is the one Redis seam: nothing else constructs an
+ioredis client. `client()` is the shared, lazy command connection; a subscriber takes its own
+connection from `duplicate()` (a subscribed connection answers only pub/sub commands) and owns
+its teardown. Nothing durable goes in Redis — Upstash is a bus with eviction on, so state that
+must survive lives in Postgres and Redis only carries notifications. Local dev runs without it:
+`REDIS_URL` is unset in the local and staging tiers, `isConfigured()` is `false`, and callers
+choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.
+
+## Background jobs
+
+Scheduled work runs as trigger.dev tasks embedded in this package: `trigger.config.ts`
+(`dirs: ['./src/trigger']`, runtime `node-24`, `maxDuration: 300`) and task code under
+`src/trigger/<feature>/`. The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
+Technologies LLC); use only the pinned scripts, which pass `--profile atlas`
+(`trigger:dev`, `trigger:deploy`). trigger.dev's GitHub integration is not connected yet, so a deploy
+is manual: `bun run db:generate` first (the generated client is gitignored and the build fails
+without it), then `bun run trigger:deploy`. An undeployed task does not error, it never runs.
+
+- **Worker env is the tier.** `trigger-tier-extension.ts` ships `envs/.env.api.production.enc` in
+  the worker bundle and `src/trigger/init.ts` decrypts it into `process.env` before any task
+  loads (`tier-env.ts`, fatal on a missing file or any value left `encrypted:`). The dashboard
+  holds only `DOTENV_PRIVATE_KEY_API_PRODUCTION`; never paste an app secret into it.
+  `TRIGGER_SECRET_KEY` is a tier key for the API to enqueue work, unused by the sweeps.
+- **Tasks build their service graph by hand**, outside Nest DI (`src/trigger/github/github-sweep-graph.ts`):
+  plain constructor chains over `EnvService` built from the validated `process.env`. The fan-out
+  gets a `RedisPrFrameBus` when the tier carries `REDIS_URL`, else a `LocalPrFrameBus`; a worker
+  only publishes, since it never calls `openStream`.
+- **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
+  `trigger.config.ts` sets `conditions: ['bun']`. `@prisma/client` must stay external
+  (`prismaExtension({ mode: 'modern' })`): bundled, esbuild re-exports its CJS query-compiler
+  `wasm-base64` module as a default only, the generated client's `const { wasm } = await import(...)`
+  gets `undefined`, and every query fails with `Buffer.from(undefined)`. `@prisma/adapter-pg`, `pg`
+  and ioredis bundle. `bunx trigger.dev@4.7.4 deploy --profile atlas --dry-run` proves the build
+  but not the runtime: run one task by hand after a deploy before trusting the schedules.
+  `src/vercel.ts` must never import `src/trigger/`.
+- **Until cutover, in-process timers stay.** `GithubSweepSchedulerService` owns the 30 s and 60 s
+  `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so DO and `bun run dev`
+  keep sweeping with no trigger.dev login while Vercel instances never run timers. A double run
+  (DO timers plus the schedules) is harmless: both sweeps are idempotent.
 
 ## Rules that differ from the rest of the repo
 

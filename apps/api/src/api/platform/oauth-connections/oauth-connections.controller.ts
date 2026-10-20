@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
+import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
 import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
@@ -68,6 +69,7 @@ export class OauthConnectionsController {
   @HttpCode(200)
   @UseGuards(SessionOrSandboxGuard)
   @SandboxReachable()
+  @PodReachable()
   @Header('Cache-Control', NO_STORE)
   handleAccessToken(
     @Req() request: AuthenticatedRequest,

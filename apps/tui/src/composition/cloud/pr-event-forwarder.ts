@@ -1,13 +1,14 @@
-import { EExecutionLocation, prEventContent, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, ERunner, prEventContent, type ThreadId } from '@dltech/atlas-core'
 import {
   ECloudSandboxState,
   prEventNoticeOf,
   repoOfFrame,
-  type CloudBridge,
   type CloudChannel,
   type PrEventFrame,
   type ThreadSummary,
 } from '@dltech/atlas-harness'
+
+import type { CloudBridgeFactory } from './bridge-factory'
 
 /**
  * Forwards a pull-request event into a parked cloud conversation as ordinary input. The active
@@ -30,15 +31,18 @@ export function createPrEventForwarder(args: {
   /** The merged local+cloud listing, so a cloud-only thread's stub row (with its wire pullRequests) resolves. */
   listThreads: (args: { project: string }) => Promise<readonly ThreadSummary[]>
   project: string
-  bridge: () => CloudBridge
+  bridge: CloudBridgeFactory
   activeThreadId: () => ThreadId | undefined
 }): PrEventForwarder {
   const channels = new Map<ThreadId, CloudChannel>()
+  const runners = new Map<ThreadId, ERunner>()
+  const bridgeFor = (threadId: ThreadId) =>
+    args.bridge({ runner: runners.get(threadId) ?? ERunner.Vercel })
 
   const channelFor = (threadId: ThreadId): CloudChannel => {
     const held = channels.get(threadId)
     if (held !== undefined) return held
-    const attached = args.bridge().attach({ threadId })
+    const attached = bridgeFor(threadId).attach({ threadId })
     channels.set(threadId, attached.channel)
     return attached.channel
   }
@@ -48,7 +52,7 @@ export function createPrEventForwarder(args: {
     const listed = await args.listThreads({ project: args.project }).catch(() => [])
     const active = args.activeThreadId()
 
-    return listed
+    const watching = listed
       .filter(
         (summary) =>
           summary.executionLocation === EExecutionLocation.Cloud &&
@@ -57,11 +61,13 @@ export function createPrEventForwarder(args: {
             (link) => link.repo === repo && link.number === frame.prNumber,
           ),
       )
-      .map((summary) => summary.id)
+
+    for (const summary of watching) runners.set(summary.id, summary.runner ?? ERunner.Vercel)
+    return watching.map((summary) => summary.id)
   }
 
   const parkedOrGone = async (threadId: ThreadId): Promise<boolean> => {
-    const status = await args.bridge().sandboxes.find({ threadId }).catch(() => undefined)
+    const status = await bridgeFor(threadId).sandboxes.find({ threadId }).catch(() => undefined)
     return status?.state !== ECloudSandboxState.Running
   }
 

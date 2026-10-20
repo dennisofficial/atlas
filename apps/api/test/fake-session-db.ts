@@ -1,3 +1,4 @@
+import { createFakePodLeaseDb } from './fake-pod-lease-db'
 import { applyUpdate, matchesValue, project, sortRows, type Where } from './fake-db-support'
 
 export type FakeThreadRow = {
@@ -69,8 +70,6 @@ export type FakeCloudSandboxRow = {
   workspaceBranch: string | null
   workspaceCommit: string | null
   workspacePatch: string | null
-  workspaceSkills: string | null
-  workspaceContext: string | null
   contextPending?: boolean
   workspaceProjectDirectory: string | null
   driveName?: string | null
@@ -90,6 +89,7 @@ export function createFakeSessionDb() {
   const events: FakeEventRow[] = []
   const turns: FakeTurnRow[] = []
   const cloudSandboxes: FakeCloudSandboxRow[] = []
+  const podLeases = createFakePodLeaseDb()
 
   const matchesRow = (row: FakeRow, where: Where): boolean =>
     Object.entries(where).every(([key, condition]) => {
@@ -267,6 +267,7 @@ export function createFakeSessionDb() {
         return removed
       },
     },
+    localPodLease: podLeases.localPodLease,
     $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback(db),
   }
 
@@ -276,11 +277,13 @@ export function createFakeSessionDb() {
     events,
     turns,
     cloudSandboxes,
+    podLeaseRows: podLeases.rows,
     reset: () => {
       threads.length = 0
       events.length = 0
       turns.length = 0
       cloudSandboxes.length = 0
+      podLeases.rows.length = 0
     },
   }
 }

@@ -6,6 +6,6 @@ if (!bundlePath) throw new Error('usage: serve-bundle.ts <path to the bundled in
 const { default: handler } = await import(bundlePath)
 const port = Number(process.env.PORT)
 
-createServer(handler).listen(port, '127.0.0.1', () => {
+createServer(handler).listen(port, '0.0.0.0', () => {
   console.log(`bundle listening on ${port}`)
 })

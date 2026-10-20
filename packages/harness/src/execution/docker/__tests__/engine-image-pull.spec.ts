@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { DockerEngine, EngineRequestFailed } from '../engine'
+import { ImagePullError } from '../image-pull'
 
 const IMAGE = 'registry.example:5000/team/node:22-trixie-slim'
 const CREATE = {
@@ -78,16 +79,71 @@ describe('DockerEngine missing image recovery', () => {
     expect(requests).toHaveLength(1)
   })
 
-  it('preserves HTTP pull failures without retrying container creation', async () => {
+  it('names the image in an ImagePullError when the pull fails over HTTP, without retrying creation', async () => {
     const { engine, requests } = await serveDaemon([
       missingImage(),
       Response.json({ message: 'registry unavailable' }, { status: 503 }),
     ])
 
     const error: unknown = await engine.createContainer(CREATE).catch((error: unknown) => error)
-    expect(error).toBeInstanceOf(EngineRequestFailed)
-    expect(error).toMatchObject({ status: 503, message: 'registry unavailable' })
+    expect(error).toBeInstanceOf(ImagePullError)
+    expect(error).toMatchObject({ name: 'ImagePullError', image: IMAGE })
+    expect((error as ImagePullError).message).toBe(
+      `could not pull ${IMAGE} — check Docker is running and can reach ghcr.io (the image is public; no registry login is needed): registry unavailable`,
+    )
+    expect((error as ImagePullError).cause).toBeInstanceOf(EngineRequestFailed)
     expect(requests).toHaveLength(2)
+  })
+
+  it('names the image in an ImagePullError when the daemon reports a pull error in the stream', async () => {
+    const { engine } = await serveDaemon([
+      missingImage(),
+      new Response('{"error":"denied: requested access to the resource is denied"}\n'),
+    ])
+
+    const error: unknown = await engine.createContainer(CREATE).catch((error: unknown) => error)
+    expect(error).toBeInstanceOf(ImagePullError)
+    expect(error).toMatchObject({ image: IMAGE })
+    expect((error as ImagePullError).message).toContain('requested access to the resource is denied')
+  })
+
+  it('sends no authorization header with the pull', async () => {
+    const headers: Headers[] = []
+    const directory = await mkdtemp(join(tmpdir(), 'atlas-engine-'))
+    const socketPath = join(directory, 'docker.sock')
+    let calls = 0
+    const server = Bun.serve({
+      unix: socketPath,
+      fetch(request) {
+        calls += 1
+        if (new URL(request.url).pathname === '/images/create') headers.push(request.headers)
+        if (calls === 1) return missingImage()
+        if (calls === 2) return new Response('{"status":"done"}\n')
+        return created()
+      },
+    })
+    cleanups.push(async () => {
+      await server.stop(true)
+      await rm(directory, { recursive: true, force: true })
+    })
+
+    await new DockerEngine({ socketPath }).createContainer(CREATE)
+
+    expect(headers).toHaveLength(1)
+    expect(headers[0]?.get('authorization')).toBeNull()
+    expect(headers[0]?.get('x-registry-auth')).toBeNull()
+  })
+
+  it('keeps the create error as is when the retried create fails after a successful pull', async () => {
+    const { engine } = await serveDaemon([
+      missingImage(),
+      new Response('{"status":"done"}\n'),
+      Response.json({ message: 'Conflict. The container name is already in use' }, { status: 409 }),
+    ])
+
+    const error: unknown = await engine.createContainer(CREATE).catch((error: unknown) => error)
+    expect(error).not.toBeInstanceOf(ImagePullError)
+    expect(error).toBeInstanceOf(EngineRequestFailed)
   })
 
   it('does not pull again when the retried create still cannot find the image', async () => {

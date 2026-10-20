@@ -31,8 +31,6 @@ export const sandboxRow = (
   workspaceBranch: null,
   workspaceCommit: null,
   workspacePatch: null,
-  workspaceSkills: null,
-  workspaceContext: null,
   workspaceProjectDirectory: null,
   runtimeCheckpointRevision: null,
   createdAt: '2026-10-01T00:00:00.000Z',

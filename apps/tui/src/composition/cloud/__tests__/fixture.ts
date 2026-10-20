@@ -41,6 +41,7 @@ import {
 import { identityReplyOf, FakeSessionDisk } from '../../__tests__/fake-session-disk'
 import {
   ECloudSandboxState,
+  EResizeApplies,
   type CloudBridge,
   type CloudChannel,
   type CloudReload,
@@ -536,6 +537,10 @@ class WatchedThreadStore extends ThreadStorePort {
     return this.inner.chooseModel(args)
   }
 
+  override chooseRunner(args: Parameters<ThreadStorePort['chooseRunner']>[0]) {
+    return this.inner.chooseRunner(args)
+  }
+
   chooseExecutionLocation(args: Parameters<ThreadStorePort['chooseExecutionLocation']>[0]) {
     this.trail.push('flip')
     return this.inner.chooseExecutionLocation(args)
@@ -714,7 +719,7 @@ export function fakeBridge(
         return { ...status, checkpoint: args.checkpoint }
       },
       readResources: async () => ({}),
-      updateResources: async () => {},
+      updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

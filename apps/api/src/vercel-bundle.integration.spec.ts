@@ -1,10 +1,19 @@
 import { execFileSync } from 'node:child_process'
 import { createHmac, randomBytes } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { type BunApiProcess, freePort, startBunApi } from '../test/bun-api-process'
+import { freePort } from '../test/bun-api-process'
+import {
+  type BundleApi,
+  bundleNames,
+  docker,
+  removeBundleResources,
+  startBundleApi,
+  startPostgres,
+  waitForPostgres,
+} from '../test/bundle-container'
 
 const API_ROOT = join(import.meta.dirname, '..')
 const PRISMA = join(API_ROOT, 'node_modules', '.bin', 'prisma')
@@ -45,25 +54,15 @@ function signedHookRequest({ secret }: { secret: string }): RequestInit {
   }
 }
 
-async function waitForPostgres({ container }: { container: string }): Promise<void> {
-  const deadline = Date.now() + 60_000
-  while (Date.now() < deadline) {
-    try {
-      sh({ file: 'docker', args: ['exec', container, 'psql', '-U', 'atlas', '-d', 'atlas', '-c', 'select 1'] })
-      return
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-  }
-  throw new Error(`postgres container ${container} never became ready`)
-}
-
-describeLive('vercel bundle (built output served through the nodejs launcher shape)', () => {
-  const container = `atlas-bundle-spec-${randomBytes(4).toString('hex')}`
+describeLive('vercel bundle (built output served from a read-only container)', () => {
+  const names = bundleNames()
   let outDir: string
-  let api: BunApiProcess
-  const withOutput = (message: string): string => `${message}\n--- bundle output ---\n${api.output()}`
+  let isolatedDir: string
+  let api: BundleApi | undefined
+  const bundleOutput = (): string => api?.output() ?? ''
+  const withOutput = (message: string): string => `${message}\n--- bundle output ---\n${bundleOutput()}`
   const authed = { authorization: `Bearer ${SESSION_TOKEN}` }
+  const baseUrl = (): string => api?.baseUrl ?? ''
 
   beforeAll(async () => {
     outDir = mkdtempSync(join(tmpdir(), 'atlas-vercel-output-'))
@@ -73,17 +72,14 @@ describeLive('vercel bundle (built output served through the nodejs launcher sha
       env: minimalEnv({}),
     })
 
+    isolatedDir = mkdtempSync(join(tmpdir(), 'atlas-vercel-isolated-'))
+    const isolatedFunc = join(isolatedDir, 'index.func')
+    cpSync(join(outDir, 'functions', 'index.func'), isolatedFunc, { recursive: true })
+    copyFileSync(join(API_ROOT, 'test', 'serve-bundle.ts'), join(isolatedFunc, 'serve-bundle.ts'))
+
     const dbPort = await freePort()
-    sh({
-      file: 'docker',
-      args: [
-        'run', '-d', '--name', container,
-        '-e', 'POSTGRES_USER=atlas', '-e', 'POSTGRES_PASSWORD=atlas', '-e', 'POSTGRES_DB=atlas',
-        '-p', `127.0.0.1:${dbPort}:5432`,
-        'postgres:17-alpine',
-      ],
-    })
-    await waitForPostgres({ container })
+    startPostgres({ names, hostPort: dbPort })
+    await waitForPostgres({ container: names.postgres })
 
     const databaseUrl = `postgresql://atlas:atlas@127.0.0.1:${dbPort}/atlas`
     sh({
@@ -95,24 +91,20 @@ describeLive('vercel bundle (built output served through the nodejs launcher sha
       INSERT INTO "User" (id, name, email, "updatedAt") VALUES ('usr_bundle', 'Bundle Spec', 'bundle@spec.test', now());
       INSERT INTO "Session" (id, token, "expiresAt", "updatedAt", "userId")
         VALUES ('ses_bundle', '${SESSION_TOKEN}', now() + interval '1 day', now(), 'usr_bundle');`
-    sh({ file: 'docker', args: ['exec', container, 'psql', '-U', 'atlas', '-d', 'atlas', '-v', 'ON_ERROR_STOP=1', '-c', seed] })
+    docker(['exec', names.postgres, 'psql', '-U', 'atlas', '-d', 'atlas', '-v', 'ON_ERROR_STOP=1', '-c', seed])
 
-    api = await startBunApi({
-      databaseUrl,
-      args: ['test/serve-bundle.ts', join(outDir, 'functions', 'index.func', 'index.js')],
-      readyPattern: /bundle listening/,
+    api = await startBundleApi({
+      names,
+      functionDir: isolatedFunc,
+      hostPort: await freePort(),
       extraEnv: { GITHUB_APP_WEBHOOK_SECRET: WEBHOOK_SECRET, RATE_LIMIT_PER_MINUTE: '1000' },
     })
   }, SETUP_TIMEOUT_MS)
 
-  afterAll(async () => {
-    await api?.kill()
+  afterAll(() => {
+    removeBundleResources({ names })
     if (outDir) rmSync(outDir, { recursive: true, force: true })
-    try {
-      sh({ file: 'docker', args: ['rm', '-f', '-v', container] })
-    } catch {
-      return
-    }
+    if (isolatedDir) rmSync(isolatedDir, { recursive: true, force: true })
   }, 60_000)
 
   it('writes the Build Output API config', () => {
@@ -125,31 +117,32 @@ describeLive('vercel bundle (built output served through the nodejs launcher sha
       handler: 'index.js',
       launcherType: 'Nodejs',
       supportsResponseStreaming: true,
+      maxDuration: 300,
       environment: { DOTENVX_ENVS_DIR: '.', APP_TIER: 'production' },
     })
   })
 
   it('reports health with the shipped migrations level against the migrated database', async () => {
-    const response = await fetch(`${api.baseUrl}/v1/health`)
+    const response = await fetch(`${baseUrl()}/v1/health`)
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(200)
     expect(JSON.parse(text)).toMatchObject({ status: 'ok', migrations: 'level' })
   })
 
   it('rejects an unauthenticated guarded route with 401', async () => {
-    const response = await fetch(`${api.baseUrl}/v1/secrets`)
+    const response = await fetch(`${baseUrl()}/v1/secrets`)
     expect(response.status, withOutput(await response.text())).toBe(401)
   })
 
   it('serves a guarded route to a bearer session through prisma and pg', async () => {
-    const response = await fetch(`${api.baseUrl}/v1/secrets`, { headers: authed })
+    const response = await fetch(`${baseUrl()}/v1/secrets`, { headers: authed })
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(200)
     expect(JSON.parse(text)).toEqual({ secrets: [] })
   })
 
   it('validates a DTO body with class-validator', async () => {
-    const response = await fetch(`${api.baseUrl}/v1/secrets/BUNDLE_PROBE`, {
+    const response = await fetch(`${baseUrl()}/v1/secrets/BUNDLE_PROBE`, {
       method: 'PUT',
       headers: { ...authed, 'content-type': 'application/json' },
       body: JSON.stringify({ unexpected: true }),
@@ -160,19 +153,19 @@ describeLive('vercel bundle (built output served through the nodejs launcher sha
   })
 
   it('mounts better-auth under /api/auth', async () => {
-    const response = await fetch(`${api.baseUrl}/api/auth/ok`)
+    const response = await fetch(`${baseUrl()}/api/auth/ok`)
     expect(response.status, withOutput(await response.text())).toBe(200)
   })
 
   it('accepts a correctly signed github app webhook with the raw body intact', async () => {
-    const response = await fetch(`${api.baseUrl}/v1/github/app/hook`, signedHookRequest({ secret: WEBHOOK_SECRET }))
+    const response = await fetch(`${baseUrl()}/v1/github/app/hook`, signedHookRequest({ secret: WEBHOOK_SECRET }))
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(200)
     expect(JSON.parse(text)).toEqual({ received: true })
   })
 
   it('rejects a github app webhook signed with the wrong secret', async () => {
-    const response = await fetch(`${api.baseUrl}/v1/github/app/hook`, signedHookRequest({ secret: 'wrong-secret' }))
+    const response = await fetch(`${baseUrl()}/v1/github/app/hook`, signedHookRequest({ secret: 'wrong-secret' }))
     expect(response.status, withOutput(await response.text())).toBe(401)
   })
 })

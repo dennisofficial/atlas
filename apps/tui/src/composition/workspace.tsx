@@ -116,7 +116,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     },
     updateResources: async (vcpus) => {
       if (props.cloudBridge === null) throw new Error('no cloud bridge attached')
-      await props.cloudBridge.sandboxes.updateResources({ threadId: conversation.threadId, vcpus })
+      return await props.cloudBridge.sandboxes.updateResources({ threadId: conversation.threadId, vcpus })
     },
   })
   const { containerGuard, handleContainer, handleContainerResources } = useWorkspaceLocation({

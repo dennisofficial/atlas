@@ -5,18 +5,19 @@ import React, { act, useCallback, useState } from 'react'
 import { toCallId } from '@dltech/atlas-core'
 
 import { ECallState, type ContextAttachment, type ToolCall, type ToolRun } from '../../store'
+import { applyTranscriptCovered } from '../covered-store'
 import { glyph } from '../theme'
 import { ToolRunBlock } from '../components/blocks/tool-run-block'
 import { teardown } from '../markdown/__tests__/harness'
 import { applyImageRows, SHIPPED_IMAGE_ROWS } from '../image-rows-store'
 import { encodePng } from '../images/__tests__/png-fixture'
 import { applyTranscriptRows } from '../viewport-rows-store'
+import { frameWhen } from './waiting'
 
-// The viewport and image-row stores are module-global and the app publishes into them; pin both so
-// shard order cannot leave a tall value that pushes an opened picture's neighbour off the frame.
 beforeEach(() => {
   applyTranscriptRows(HEIGHT)
   applyImageRows(SHIPPED_IMAGE_ROWS)
+  applyTranscriptCovered(false)
 })
 
 const BULLET = glyph.block
@@ -593,13 +594,11 @@ describe('a run of tool calls in the transcript', () => {
       <ToolRunBlock run={run} width={WIDTH} cwd={CWD} />,
       { width: WIDTH, height: HEIGHT },
     )
-    await setup.flush()
-    for (let pass = 0; pass < 10; pass += 1) {
-      await Bun.sleep(3)
-      await setup.flush()
-    }
-    const frame = setup.captureCharFrame()
-    await teardown(setup)
+    const frame = await frameWhen({
+      setup,
+      holds: painted,
+      describe: 'the logged bytes to paint',
+    }).finally(() => teardown(setup))
 
     // The path does not exist on this machine, so a path-sourced image would paint nothing at all.
     expect(frame).toContain('▾ /somewhere/inside/the/sandbox/shot.png')

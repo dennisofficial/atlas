@@ -1,4 +1,4 @@
-import { consumeDaemonProgress } from './image-pull'
+import { pullImageOrFail } from './image-pull'
 import { parseBoundPorts, type BoundPort, type PortBinding } from './ports'
 import { asLabels, asNumber, asRecord, asString, raw, request, EngineRequestFailed } from './engine-http'
 import { DockerImages } from './engine-images'
@@ -46,6 +46,10 @@ export type CreateContainerBody = {
     Binds?: readonly string[]
     NanoCpus?: number
     Memory?: number
+    MemoryReservation?: number
+    Privileged?: boolean
+    Init?: boolean
+    Mounts?: readonly { Type: 'volume'; Source: string; Target: string }[]
     PortBindings?: Record<string, readonly PortBinding[]>
     RestartPolicy?: { Name: string }
   }
@@ -158,12 +162,10 @@ export class DockerEngine {
         ) {
           throw error
         }
-        const response = await this.raw({
-          method: 'POST',
-          path: '/images/create',
-          query: { fromImage: args.body.Image },
+        await pullImageOrFail({
+          image: args.body.Image,
+          pull: () => this.raw({ method: 'POST', path: '/images/create', query: { fromImage: args.body.Image } }),
         })
-        await consumeDaemonProgress({ response, what: `Pulling ${args.body.Image}` })
         return create()
       }),
     )

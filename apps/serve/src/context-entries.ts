@@ -1,21 +1,24 @@
 import { readFile } from 'node:fs/promises'
 import { join, sep } from 'node:path'
 
-import { safeRelativeSegment } from '@dltech/atlas-harness'
+import { safeRelativeSegment, userLayerTargetOf, type TreeLayout } from '@dltech/atlas-harness'
 
 import { messageOf } from './context-readiness'
 import type { WorkspaceFiles } from './workspace-files'
 
 export type ContextEntry = { path: string; readBytes: () => Promise<Buffer> }
 
-export type ContextTargets = { atlasHome: string }
+export type ContextTargets = {
+  atlasHome: string
+  userLayerTrees: readonly TreeLayout[]
+}
 
 const ATLAS_MCP_JSON = `.atlas${sep}mcp.json`
 
 export const entryTargetOf = (args: { path: string } & ContextTargets): string | null => {
   const normalized = safeRelativeSegment(args.path)
   if (normalized === ATLAS_MCP_JSON) return join(args.atlasHome, 'mcp.json')
-  return null
+  return userLayerTargetOf({ archiveKey: args.path, trees: args.userLayerTrees })
 }
 
 export type WriteOutcome = { written: number; failed: string | null }

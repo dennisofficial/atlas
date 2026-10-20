@@ -41,7 +41,7 @@ const fail = (message: string): never => {
   process.exit(2)
 }
 
-const home = core.atlasHomeFrom({ env: process.env, home: process.env.HOME ?? '', tempDir: '/tmp' })
+const home = core.atlasHomeFrom({ env: process.env, home: process.env.HOME ?? '', tempDirs: ['/tmp'] })
 const cipher = new SecretCipher(join(home, 'key'))
 const secrets = new FileSecretsStore({ file: join(home, 'secrets.json'), cipher })
 const settingsStore = new FileSettingsStore({ file: join(home, 'settings.json'), label: 'user settings' })

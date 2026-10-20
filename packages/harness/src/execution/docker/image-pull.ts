@@ -23,3 +23,25 @@ export async function consumeDaemonProgress(args: {
     }
   }
 }
+
+export async function pullImageOrFail(args: { image: string; pull: () => Promise<Response> }): Promise<void> {
+  try {
+    await consumeDaemonProgress({ response: await args.pull(), what: `Pulling ${args.image}` })
+  } catch (cause) {
+    throw new ImagePullError({ image: args.image, cause })
+  }
+}
+
+export class ImagePullError extends Error {
+  readonly image: string
+
+  constructor(args: { image: string; cause: unknown }) {
+    const reason = args.cause instanceof Error ? args.cause.message : String(args.cause)
+    super(
+      `could not pull ${args.image} — check Docker is running and can reach ghcr.io (the image is public; no registry login is needed): ${reason}`,
+      { cause: args.cause },
+    )
+    this.name = 'ImagePullError'
+    this.image = args.image
+  }
+}

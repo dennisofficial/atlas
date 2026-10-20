@@ -10,6 +10,7 @@ import React from 'react'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'
 import { App } from '../app'
+import { fakeBridge } from '../cloud/__tests__/fixture'
 import { open, until, THREAD, REPLY, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -174,7 +175,12 @@ describe('naming a session from its opening message', () => {
   it('drops the name when a new conversation starts, rather than carrying it over', async () => {
     const app = naming(NAME)
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+        createBridge={() => fakeBridge()}
+        preflightBirth={async () => null}
+      />,
       { width: 140, height: 40 },
     )
 

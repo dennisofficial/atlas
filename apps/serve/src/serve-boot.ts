@@ -1,5 +1,8 @@
-import { EExecutionLocation, EHarnessPlacement, type ThreadId } from '@dltech/atlas-core'
+import { existsSync } from 'node:fs'
+
+import { EExecutionLocation, EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
 import {
+  POD_NAME_ENV,
   metaWithPlacement,
   newThreadMeta,
   readMetaSync,
@@ -26,6 +29,7 @@ import {
 } from './materialize-workspace'
 import { materializeContext } from './materialize-context'
 import { EServeEvent, type ServeLog } from './serve-log'
+import { resolveWorkspaceDir, writeRecordedWorkspaceDir } from './workspace-dir'
 import type { WorkspaceFiles } from './workspace-files'
 
 const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
@@ -43,14 +47,20 @@ export async function bootServeFiles(args: {
   profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
 }) {
-  const { env, threadId, cwd, atlasHome, log } = args
+  const { env, threadId, atlasHome, log } = args
   const fetchSpecOnce = lazy(bootstrapWorkspaceSpecFetcher({ atlasHome }))
 
   const workspaceStartedAt = Date.now()
+  const cwd = await resolveWorkspaceDir({ atlasHome, fetchSpec: fetchSpecOnce })
   const profile = args.profile ?? createEnvironmentProfile({ env })
   const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
   const workspace: WorkspaceReadiness = await ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce })
   const workspaceMs = Date.now() - workspaceStartedAt
+
+  if (workspace.state !== EWorkspaceState.Failed) {
+    if (cwd !== process.cwd() && existsSync(cwd)) process.chdir(cwd)
+    await writeRecordedWorkspaceDir({ atlasHome, workspaceDir: cwd }).catch(() => undefined)
+  }
 
   if (workspace.state === EWorkspaceState.Failed) {
     log({
@@ -75,6 +85,7 @@ export async function bootServeFiles(args: {
     fetchSpec: fetchSpecOnce,
     fetchArchive: bootstrapContextArchiveFetcher({ atlasHome }),
     atlasHome,
+    projectDirectory: cwd,
     files: args.contextFiles,
   })
   const contextMs = Date.now() - contextStartedAt
@@ -89,6 +100,7 @@ export async function bootServeFiles(args: {
   if (readMetaSync({ file: metaFile, schema: threadMetaSchema }) === undefined) {
     const born = newThreadMeta({ id: threadId, at: new Date().toISOString() })
     born.workspace = cwd
+    if (env[POD_NAME_ENV]) born.runner = ERunner.Local
     const meta = metaWithPlacement({
       meta: born,
       record: { placement: { harness: EHarnessPlacement.Cloud }, revision: 0 },

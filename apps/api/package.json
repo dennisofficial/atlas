@@ -15,7 +15,9 @@
     "db:migrate": "bun run env:inject -- prisma migrate dev",
     "db:migrate:deploy": "dotenvx run --strict -f envs/.env.api.$MIGRATE_TIER.enc -- node scripts/migrate-deploy.mjs",
     "db:up": "docker compose up -d postgres",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "trigger:dev": "bun run env:inject -- trigger dev --profile atlas",
+    "trigger:deploy": "trigger deploy --profile atlas"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.82",
@@ -30,6 +32,8 @@
     "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "7.9.1",
     "@thallesp/nestjs-better-auth": "^2.8.0",
+    "@trigger.dev/sdk": "^4.7.4",
+    "@vercel/functions": "^3.10.1",
     "@vercel/sandbox": "^3.3.0",
     "ai": "^7.0.143",
     "better-auth": "^1.6.29",
@@ -37,6 +41,7 @@
     "class-validator": "^0.15.1",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
+    "ioredis": "^6.0.0",
     "joi": "^18.2.3",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
@@ -46,6 +51,7 @@
   "devDependencies": {
     "@nestjs/testing": "^12.2.0",
     "@swc/core": "^1.13.5",
+    "@trigger.dev/build": "4.7.4",
     "@types/bun": "latest",
     "@types/express": "^5.0.3",
     "@types/node": "^26.3.0",
@@ -53,6 +59,7 @@
     "@types/supertest": "^6.0.3",
     "prisma": "7.9.1",
     "supertest": "^7.1.4",
+    "trigger.dev": "^4.7.4",
     "typescript": "6.0.3",
     "unplugin-swc": "^1.5.7",
     "vite": "^7.0.0",

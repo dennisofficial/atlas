@@ -1,5 +1,6 @@
 import {
   EHarnessPlacement,
+  type ERunner,
   type EventLogPort,
   type IdPort,
   type LogPort,
@@ -9,6 +10,7 @@ import {
 
 import type { BirthInstall, SessionOwner, SessionRuntime } from '../composition/session-owner'
 import { logFieldsOf } from '../store/logs'
+import { ImagePullError } from '../execution/docker/image-pull'
 import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
 import { runGit } from '../workspace/run-git'
 import type { CaptureContext } from './context-archive-policy'
@@ -39,6 +41,7 @@ export enum EBirthFault {
   Unreachable = 'unreachable',
   Sandbox = 'sandbox',
   Context = 'context',
+  ImagePull = 'image-pull',
 }
 
 export type BirthFailure = { ok: false; fault: EBirthFault; step: EBirthNode; detail: string }
@@ -53,6 +56,7 @@ export type CloudBirth = BirthSuccess | BirthFailure
 
 export type BirthArgs = {
   threadId: ThreadId
+  runner?: ERunner | undefined
   cwd: string
   identity: WorkspaceIdentity
   model: ThreadModel
@@ -77,6 +81,7 @@ export type BirthArgs = {
 const birthFaultOf = (error: unknown): EBirthFault => {
   if (error instanceof VercelNotConfiguredError) return EBirthFault.NotConfigured
   if (error instanceof GitCredentialError) return EBirthFault.GitAuth
+  if (error instanceof ImagePullError) return EBirthFault.ImagePull
   if (!(error instanceof CloudError)) return EBirthFault.Sandbox
   if (error.status === 503 && error.message.includes('not configured')) return EBirthFault.NotConfigured
   if (error.status === 0) return EBirthFault.Unreachable
@@ -145,6 +150,7 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
 
         started(EBirthNode.FlipOwnership)
         await handle.commit({ harness: EHarnessPlacement.Cloud })
+        if (args.runner !== undefined) await args.localThreads.chooseRunner({ threadId, runner: args.runner })
         done(EBirthNode.FlipOwnership)
 
         return { ok: true as const, sandbox, channel: attachment.channel }

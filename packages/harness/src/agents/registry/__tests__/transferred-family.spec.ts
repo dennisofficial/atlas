@@ -107,8 +107,9 @@ describe('hydrating a family that arrived from another location', () => {
     const mine = await spawn(entry.parent)
     const theirs = await spawn(second)
     for (const run of entry.runners.started) run.settle(finished())
-    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
+    await Promise.all([entry.parent, second].map((threadId) => entry.supervisor.whenChildrenSettled({ threadId })))
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
+    expect(entry.supervisor.pendingNotices({ threadId: second })).toHaveLength(1)
     await append(entry, entry.parent, [endingFor({ agentId: mine, status: EAgentStatus.Finished })])
 
     await entry.supervisor.hydrateTransferred({ threadId: entry.parent })

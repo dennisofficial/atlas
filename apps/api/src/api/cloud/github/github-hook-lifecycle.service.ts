@@ -1,6 +1,5 @@
 import { randomBytes } from 'node:crypto'
 import { Injectable, Logger } from '@nestjs/common'
-import { Interval } from '@nestjs/schedule'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '../../../db'
@@ -63,7 +62,6 @@ export class GithubHookLifecycleService {
     })
   }
 
-  @Interval(60_000)
   async handleSweep(): Promise<void> {
     const now = new Date()
     const candidates = await db.githubRepoHook.findMany({

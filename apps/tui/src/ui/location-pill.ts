@@ -1,4 +1,4 @@
-import { EExecutionLocation, EHarnessPlacement } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement, ERunner } from '@dltech/atlas-core'
 
 import { chipItem, EFooterItemReach, type FooterItem } from './footer-item'
 import { theme } from './theme'
@@ -7,17 +7,27 @@ export const PLACEMENT_CHIP_ID = 'placement-chip'
 
 export type PlacementChoice = {
   harness: EHarnessPlacement
+  runner?: ERunner | undefined
   provisioning: boolean
   onFlip: () => void
 }
 
+const placementLabelOf = (choice: PlacementChoice): string => {
+  if (choice.harness !== EHarnessPlacement.Cloud) return ' host'
+  return choice.runner === ERunner.Local ? ' pod' : ' ☁ cloud'
+}
+
+const placementGroundOf = (choice: PlacementChoice): string => {
+  if (choice.provisioning) return theme.warn
+  return choice.harness === EHarnessPlacement.Cloud ? theme.link : theme.hint
+}
+
 function placementChipOf(choice: PlacementChoice): FooterItem {
-  const cloud = choice.harness === EHarnessPlacement.Cloud
   const flippable = !choice.provisioning
   return chipItem({
     id: PLACEMENT_CHIP_ID,
-    text: `${cloud ? ' ☁ cloud' : ' local'}${flippable ? ' ▾ ' : ' '}`,
-    ground: choice.provisioning ? theme.warn : cloud ? theme.link : theme.hint,
+    text: `${placementLabelOf(choice)}${flippable ? ' ▾ ' : ' '}`,
+    ground: placementGroundOf(choice),
     reach: flippable ? EFooterItemReach.Keyboard : EFooterItemReach.None,
     onActivate: flippable ? choice.onFlip : undefined,
   })

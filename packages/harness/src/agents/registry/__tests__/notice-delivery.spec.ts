@@ -146,7 +146,8 @@ describe('when a finished child counts as delivered', () => {
 
     runners.started[0]?.settle(finished())
     runners.started[1]?.settle(finished())
-    await supervisor.whenChildrenSettled({ threadId: parent })
+    await Promise.all([parent, other].map((threadId) => supervisor.whenChildrenSettled({ threadId })))
+    expect(supervisor.pendingNotices({ threadId: other })).toHaveLength(1)
 
     supervisor.drainNotifications({ threadId: other })
 

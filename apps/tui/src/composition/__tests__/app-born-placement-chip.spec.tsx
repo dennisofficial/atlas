@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EHarnessPlacement, ESettingId } from '@dltech/atlas-core'
+import { EHarnessPlacement, ERunner, ESettingId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -102,7 +102,7 @@ const mountFresh = (args: { app: FakeApp; bridge: FakeBridge }): Promise<Mounted
   mount({ ...args, fresh: true })
 
 describe('the placement chip in the composer footer', () => {
-  it('starts a new thread local on a configured machine, without provisioning a sandbox', async () => {
+  it('births a pod on /new by default', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
@@ -110,24 +110,20 @@ describe('the placement chip in the composer footer', () => {
     try {
       await newThread(mounted)
 
-      expect(await chipShows(mounted, ' local ')).toBe(true)
-      expect(bridge.created.length).toBe(0)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
+      expect(bridge.created.length).toBe(1)
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('births a cloud-born thread when the first message is sent after choosing the cloud', async () => {
+  it('places the pod-born thread in the cloud and records its runner', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
 
     try {
       await newThread(mounted)
-      expect(await chipShows(mounted, ' local ')).toBe(true)
-      expect(bridge.created.length).toBe(0)
-
-      await flipChip(mounted)
 
       expect(await until({ holds: async () => bridge.created.length === 1, within: 20_000 })).toBe(true)
       const threadId = bridge.created[0]?.threadId
@@ -137,76 +133,68 @@ describe('the placement chip in the composer footer', () => {
         within: 20_000,
       })
       expect(record).toBe(true)
-      expect(app.sessionOwner.placement.snapshot(threadId!)?.placement.harness).toBe(EHarnessPlacement.Cloud)
+      expect(app.threads.chosenRunners).toContainEqual({ threadId: threadId!, runner: ERunner.Local })
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('births a local thread when the host is chosen, and remembers it', async () => {
+  it('flips a pod thread to Vercel and back, rebirthing under a new id each time', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
 
     try {
       await newThread(mounted)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
+
       await flipChip(mounted)
       expect(await chipShows(mounted, '☁ cloud')).toBe(true)
+      expect(bridge.created.length).toBe(2)
+      expect(bridge.created[1]?.threadId).not.toBe(bridge.created[0]?.threadId)
+      expect(lastChoice(app)).toBe('cloud')
 
       await flipChip(mounted)
-      expect(await chipShows(mounted, ' local ')).toBe(true)
-
-      await mounted.command('hello from the host')
-      const threadId = app.sessionOwner.snapshot().threadId!
-      const placed = await until({
-        holds: async () => app.sessionOwner.placement.snapshot(threadId)?.placement.harness === EHarnessPlacement.Host,
-        within: 20_000,
-      })
-
-      expect(placed).toBe(true)
-      expect(app.sessionOwner.placement.snapshot(threadId)?.placement.harness).toBe(EHarnessPlacement.Host)
-      expect(lastChoice(app)).toBe('host')
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
+      expect(bridge.created.length).toBe(3)
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('starts every /new local, even right after the operator chose the cloud', async () => {
+  it('births a pod on every /new, even right after the operator chose Vercel', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
 
     try {
       await newThread(mounted)
-      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
       await flipChip(mounted)
-      expect(await until({ holds: async () => bridge.created.length === 1, within: 20_000 })).toBe(true)
       expect(await chipShows(mounted, '☁ cloud')).toBe(true)
 
       await newThread(mounted)
 
-      expect(await chipShows(mounted, ' local ')).toBe(true)
-      expect(bridge.created.length).toBe(1)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
+      expect(bridge.created.length).toBe(3)
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('keeps the draft across an unsent cloud→host flip', async () => {
+  it('keeps the draft across an unsent runner flip', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
 
     try {
       await newThread(mounted)
-      await flipChip(mounted)
-      expect(await chipShows(mounted, '☁ cloud')).toBe(true)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
 
       await mounted.typeDraft('a draft worth keeping')
       await flipChip(mounted)
 
-      expect(await chipShows(mounted, ' local ')).toBe(true)
-      const threadId = app.sessionOwner.snapshot().threadId!
+      expect(await chipShows(mounted, '☁ cloud')).toBe(true)
       const draftVisible = await until({
         holds: async () => (await mounted.frame()).includes('a draft worth keeping'),
         within: 20_000,
@@ -220,11 +208,10 @@ describe('the placement chip in the composer footer', () => {
   it('refuses to flip a thread that has already sent', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
-    const mounted = await mount({ app, bridge })
+    const mounted = await mountFresh({ app, bridge })
 
     try {
-      await newThread(mounted)
-      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(await chipShows(mounted, ' host ')).toBe(true)
 
       await mounted.command('sent, so the placement is locked')
       const startedId = app.sessionOwner.snapshot().threadId!
@@ -232,39 +219,39 @@ describe('the placement chip in the composer footer', () => {
         holds: async () => app.sessionOwner.placement.snapshot(startedId)?.placement.harness === EHarnessPlacement.Host,
         within: 20_000,
       })).toBe(true)
-      expect(app.sessionOwner.placement.snapshot(startedId)?.placement.harness).toBe(EHarnessPlacement.Host)
 
       await flipChip(mounted)
 
       expect(app.sessionOwner.placement.snapshot(startedId)?.placement.harness).toBe(EHarnessPlacement.Host)
-      expect(await chipShows(mounted, '☁ cloud')).toBe(false)
+      expect(await chipShows(mounted, ' pod ')).toBe(false)
+      expect(bridge.created.length).toBe(0)
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('starts local without any notice on a machine without a Vercel token', async () => {
+  it('births a pod without any notice on a machine without a Vercel token', async () => {
     const app = appOn({ configured: false })
     const mounted = await mount({ app, bridge: fakeBridge() })
 
     try {
       await newThread(mounted)
 
-      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
       expect(currentNotices().map((notice) => notice.text)).not.toContain(CLOUD_NOT_CONFIGURED_NOTICE)
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('explains the fallback when the cloud is chosen on a machine without a Vercel token', async () => {
+  it('explains the refusal and keeps the pod when Vercel is chosen without a Vercel token', async () => {
     const app = appOn({ configured: false })
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })
 
     try {
       await newThread(mounted)
-      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
 
       await flipChip(mounted)
 
@@ -273,8 +260,9 @@ describe('the placement chip in the composer footer', () => {
         within: 20_000,
       })
       expect(noticed).toBe(true)
-      expect(await chipShows(mounted, ' local ')).toBe(true)
-      expect(bridge.created.length).toBe(0)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
+      expect(bridge.created.length).toBe(1)
+      expect(bridge.destroyed.length).toBe(0)
     } finally {
       await mounted.done()
     }
@@ -282,34 +270,35 @@ describe('the placement chip in the composer footer', () => {
 })
 
 describe('the placement chip on a fresh, unsent thread', () => {
-  it('shows the local default with the flip affordance before any /new', async () => {
+  it('shows the host default with the flip affordance before any /new', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mountFresh({ app, bridge })
 
     try {
-      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(await chipShows(mounted, ' host ')).toBe(true)
       expect(bridge.created.length).toBe(0)
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('flips a fresh thread to the cloud and settles on the first send', async () => {
+  it('flips a fresh thread to a pod under the same id and settles on the first send', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mountFresh({ app, bridge })
 
     try {
-      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(await chipShows(mounted, ' host ')).toBe(true)
+      const freshId = app.sessionOwner.snapshot().threadId
 
       await flipChip(mounted)
-      expect(await chipShows(mounted, '☁ cloud')).toBe(true)
+      expect(await chipShows(mounted, ' pod ')).toBe(true)
       expect(await until({ holds: async () => bridge.created.length === 1, within: 20_000 })).toBe(true)
+      expect(bridge.created[0]?.threadId).toBe(freshId!)
 
       await mounted.command('ship it')
       const threadId = bridge.created[0]?.threadId
-      expect(threadId).toBeDefined()
       const settled = await until({
         holds: async () =>
           app.sessionOwner.placement.snapshot(threadId!)?.placement.harness === EHarnessPlacement.Cloud,
@@ -321,13 +310,13 @@ describe('the placement chip on a fresh, unsent thread', () => {
     }
   }, 60_000)
 
-  it('settles the chip away on the first send of a fresh local thread', async () => {
+  it('settles the chip away on the first send of a fresh host thread', async () => {
     const app = appOn({ configured: true })
     const bridge = fakeBridge()
     const mounted = await mountFresh({ app, bridge })
 
     try {
-      expect(await chipShows(mounted, ' local ')).toBe(true)
+      expect(await chipShows(mounted, ' host ')).toBe(true)
 
       await mounted.command('hello, fresh tile')
 
@@ -335,7 +324,7 @@ describe('the placement chip on a fresh, unsent thread', () => {
       const settled = await until({
         holds: async () =>
           app.sessionOwner.placement.snapshot(threadId)?.placement.harness === EHarnessPlacement.Host &&
-          !(await mounted.frame()).includes('local ▾'),
+          !(await mounted.frame()).includes('host ▾'),
         within: 20_000,
       })
       expect(settled).toBe(true)

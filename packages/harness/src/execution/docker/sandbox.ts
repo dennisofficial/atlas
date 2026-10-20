@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { mountBind, type Mount } from '../image/mounts'
 import { dockerfileImageReference, ensureBuiltImage, type DockerfileBuild } from '../image/build'
+import { DEFAULT_POD_IMAGE } from '../../cloud/local-pod/pod-create'
 import { gitConfigEnv } from '../../workspace/git-config-env'
 import {
   declaredMountsDrift,
@@ -19,7 +20,7 @@ import type { DockerImages } from './engine-images'
 
 export const DEFAULT_LABEL_PREFIX = 'atlas'
 
-export const DEFAULT_SANDBOX_IMAGE = 'ghcr.io/dennisofficial/atlas-sandbox:latest'
+export const DEFAULT_SANDBOX_IMAGE = DEFAULT_POD_IMAGE
 
 export const DEFAULT_DOCKER_SOCKET = '/var/run/docker.sock'
 

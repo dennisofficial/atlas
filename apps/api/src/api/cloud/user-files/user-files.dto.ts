@@ -24,12 +24,6 @@ export class ListUserFilesQuery {
   sinceRevision?: number
 }
 
-export class StreamUserFilesQuery {
-  @IsOptional()
-  @IsIn(USER_FILE_TREES)
-  tree?: UserFileTree
-}
-
 export class GetUserFilesDto {
   @IsIn(USER_FILE_TREES)
   tree!: UserFileTree
