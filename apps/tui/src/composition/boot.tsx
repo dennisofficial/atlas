@@ -20,6 +20,8 @@ import { BootScreen } from "./boot-screen";
 import { CrashBoundary } from "./crash-boundary";
 import { classifyRequestOf } from "./classify";
 import { runClassify } from "./classify-run";
+import { pushRequestOf } from "./push";
+import { runPush } from "./push-run";
 import { resolveConfig } from "./config";
 import { ESession, openSession } from "./open-session";
 import { performRespawn, realRespawnPorts, wiresSelfRestart } from "./respawn";
@@ -66,6 +68,9 @@ export async function bootAtlas(args: {
   if (classify !== undefined) {
     return await runClassify({ request: classify, cwd: config.cwd, env: args.env });
   }
+
+  const push = pushRequestOf({ argv: args.argv });
+  if (push !== undefined) return await runPush({ request: push });
 
   process.stdout.write(
     launchLine({
