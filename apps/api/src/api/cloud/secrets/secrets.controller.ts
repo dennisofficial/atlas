@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   Put,
@@ -10,11 +11,16 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
+import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
+import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { SetSecretDto } from './secrets.dto'
 import { SecretsService } from './secrets.service'
 import type { SecretListDto } from './secrets.types'
+
+const NO_STORE = 'no-store'
 
 function userIdOf(request: AuthenticatedRequest): string {
   const auth = request.auth
@@ -23,17 +29,21 @@ function userIdOf(request: AuthenticatedRequest): string {
 }
 
 @Controller({ path: 'secrets', version: '1' })
-@UseGuards(SessionAuthGuard)
 export class SecretsController {
   constructor(private readonly secrets: SecretsService) {}
 
   @Get()
+  @UseGuards(SessionOrSandboxGuard)
+  @PodReachable()
+  @SandboxReachable()
+  @Header('Cache-Control', NO_STORE)
   async handleList(@Req() request: AuthenticatedRequest): Promise<SecretListDto> {
     return { secrets: await this.secrets.list({ userId: userIdOf(request) }) }
   }
 
   @Put(':name')
   @HttpCode(204)
+  @UseGuards(SessionAuthGuard)
   async handleSet(
     @Req() request: AuthenticatedRequest,
     @Param('name') name: string,
@@ -44,6 +54,7 @@ export class SecretsController {
 
   @Delete(':name')
   @HttpCode(204)
+  @UseGuards(SessionAuthGuard)
   async handleRemove(
     @Req() request: AuthenticatedRequest,
     @Param('name') name: string,

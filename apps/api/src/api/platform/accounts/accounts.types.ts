@@ -64,3 +64,8 @@ export interface StoredAccountDto extends AccountDto {
 export interface ActiveAccountDto {
   accountId: string | null
 }
+
+export interface AccountLeaseDto {
+  accounts: StoredAccountDto[]
+  active: { provider: string; accountId: string }[]
+}
