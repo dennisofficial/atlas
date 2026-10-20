@@ -38,6 +38,7 @@ const settleWaitTextOf = (notice: SettleWaitNotice): string => {
 export async function wakeSandbox(args: {
   bridge: CloudBridge
   threadId: ThreadId
+  projectId: string | null
   captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
   onRotationStarted?: (() => void) | undefined
@@ -46,7 +47,7 @@ export async function wakeSandbox(args: {
 
   const woken = await args.bridge.sandboxes.create({
     threadId: args.threadId,
-    workspace: null,
+    projectId: args.projectId,
     onRotationStarted: () => {
       args.onRotationStarted?.()
       args.move?.handleExpand({
@@ -88,6 +89,7 @@ export function createCloudWake(args: {
   bridge: CloudBridge
   channel: CloudChannel
   threadId: ThreadId
+  projectId: string | null
   captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
   onWoken?: ((woken: { created: boolean }) => void) | undefined
@@ -99,6 +101,7 @@ export function createCloudWake(args: {
       const woken = await wakeSandbox({
         bridge: args.bridge,
         threadId: args.threadId,
+        projectId: args.projectId,
         captureContext: args.captureContext,
         ...(move === undefined ? {} : { move }),
         onRotationStarted: () => args.channel.beginRotation(),
@@ -125,6 +128,7 @@ export function createCloudRunner(args: {
   bridge: CloudBridge
   channel: CloudChannel
   threadId: ThreadId
+  projectId: string | null
   captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
   wake?: CloudWake | undefined

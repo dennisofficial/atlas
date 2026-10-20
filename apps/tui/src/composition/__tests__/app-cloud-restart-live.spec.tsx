@@ -12,7 +12,6 @@ import {
   atlasSecretsFile,
   atlasVaultKeyFile,
   loadSettings,
-  readGhAuthToken,
   requireVercelCredentials,
   sandboxImageOf,
   VercelDriver,
@@ -112,8 +111,6 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
     register({ label: 'settings service', run: async () => settings.service.close() })
     requireVercelCredentials({ settings: settings.service, secrets })
     write0('boot: vercel creds resolved')
-    await readGhAuthToken()
-    write0('boot: gh token read')
 
     const build = buildInfo()
     const release = build.kind === EBuildKind.Release ? { version: build.version } : undefined
@@ -127,7 +124,6 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
         ...sandboxImageOf({ settings: settings.service, release }),
       }),
       attachmentToken: ({ threadId: tid }) => sandboxServeTokenFor({ secrets, threadId: tid }),
-      readGitToken: () => readGhAuthToken(),
       onDriverLog: (line) => driverLines.push(line),
     })
     const bridge: CloudBridge = {

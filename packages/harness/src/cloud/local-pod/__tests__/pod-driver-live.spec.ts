@@ -103,7 +103,7 @@ describeDocker('DockerPodDriver against a live daemon', () => {
         await driver.writeBootstrapFile({
           name: handle.name,
           path: WORKSPACE_SPEC_PATH,
-          content: bootstrapSpecOf({ workspace: null, gitToken: undefined }),
+          content: bootstrapSpecOf({ projectId: null }),
         })
       },
     })
@@ -112,7 +112,7 @@ describeDocker('DockerPodDriver against a live daemon', () => {
     expect(staged).toBe(true)
     expect(first.state).toBe('running')
     expect(await healthStatus({ url: first.url, token })).toBe(200)
-    expect(await sh(`cat ${WORKSPACE_SPEC_PATH}`)).toBe(bootstrapSpecOf({ workspace: null, gitToken: undefined }))
+    expect(await sh(`cat ${WORKSPACE_SPEC_PATH}`)).toBe(bootstrapSpecOf({ projectId: null }))
     expect(await driver.inspect({ name: podName })).toEqual({ state: 'running', url: first.url })
 
     const elfMachine = await sh(`od -An -tx1 -j${ELF_MACHINE_OFFSET} -N2 /opt/atlas/atlas-serve`)

@@ -59,6 +59,7 @@ export function toThreadSummary(meta: ThreadMeta): ThreadSummary {
     ...modelOf(meta),
     ...locationOf(meta.executionLocation),
     ...runnerFieldOf(meta.runner),
+    ...projectFieldOf(meta.projectId),
   }
 }
 
@@ -81,6 +82,10 @@ function modelOf(meta: ThreadMeta): { model?: ThreadModel } {
 function locationOf(stored: string | null): { executionLocation?: EExecutionLocation } {
   const location = executionLocationOf(stored)
   return location === undefined ? {} : { executionLocation: location }
+}
+
+function projectFieldOf(stored: string | null | undefined): { projectId?: string } {
+  return stored === null || stored === undefined ? {} : { projectId: stored }
 }
 
 function runnerFieldOf(stored: string | null | undefined): { runner?: ERunner } {

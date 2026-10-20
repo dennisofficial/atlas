@@ -52,7 +52,9 @@ export function projectWorkspaceSpecFetcher(args: {
 
   return async (): Promise<WorkspaceSpec> => {
     const bootstrap = await readBootstrap()
-    if (bootstrap.projectId === undefined || bootstrap.projectId === null) return bootstrap
+    if (bootstrap.projectId === undefined || bootstrap.projectId === null) {
+      return { remoteUrl: null, githubToken: null, model: bootstrap.model }
+    }
 
     const workspace = projectWorkspaceSchema.parse(await requestPatiently(bootstrap.projectId))
     return {

@@ -1,7 +1,4 @@
 import { describe, expect, it } from 'bun:test'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import { EEffort, ERunner, toThreadId } from '@dltech/atlas-core'
 import {
@@ -74,8 +71,8 @@ describeLive('a multi-turn session in a local pod', () => {
         await app.sessionOwner.placement.activate({ threadId: THREAD })
         const born = await birthInCloud({
           threadId: THREAD,
+          projectId: null,
           runner: ERunner.Local,
-          cwd: mkdtempSync(join(tmpdir(), 'atlas-pod-session-cwd-')),
           identity: app.workspace,
           model: { ref: `openrouter/${MODEL_ID}`, effort: EEffort.Medium },
           bridge,
@@ -108,6 +105,7 @@ describeLive('a multi-turn session in a local pod', () => {
           bridge,
           channel: attachment.channel,
           threadId: THREAD,
+          projectId: null,
           captureContext: async () => undefined,
         })
 

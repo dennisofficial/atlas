@@ -15,7 +15,7 @@ import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 
 export type AttachOptions = Pick<
   LocalCloudBridgeOptions,
-  'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'onMirrorRecovered' | 'sessionMirror'
+  'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'onMirrorRecovered' | 'sessionMirror' | 'projectIdOf'
 >
 
 export const attachmentOf =
@@ -34,10 +34,15 @@ export const attachmentOf =
       ...(options.lastEventSeq === undefined
         ? {}
         : { lastEventSeq: () => options.lastEventSeq?.({ threadId }) ?? 0 }),
-      wakeSandbox: ({ onRotationStarted }) =>
-        sandboxes
-          .create({ threadId: hosted, workspace: null, onRotationStarted })
-          .then(({ url: woken, token: minted }) => ({ url: woken, token: minted })),
+      wakeSandbox: async ({ onRotationStarted }) => {
+        const projectId = (await options.projectIdOf?.({ threadId: hosted }).catch(() => null)) ?? null
+        const { url: woken, token: minted } = await sandboxes.create({
+          threadId: hosted,
+          projectId,
+          onRotationStarted,
+        })
+        return { url: woken, token: minted }
+      },
       onFinished: () => unbindSettings?.(),
     })
     if (options.settings !== undefined) {

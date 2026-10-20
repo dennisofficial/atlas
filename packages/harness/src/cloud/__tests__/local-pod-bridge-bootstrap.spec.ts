@@ -3,17 +3,15 @@ import { describe, expect, it } from 'bun:test'
 import { bootstrapSpecOf } from '../local-cloud-bootstrap'
 
 describe('bootstrapSpecOf', () => {
-  it('writes the legacy shape when no project id is given', () => {
-    const spec = JSON.parse(
-      bootstrapSpecOf({ workspace: { remoteUrl: 'git@github.com:comp-ai/atlas.git' }, gitToken: 'tok' }),
-    )
+  it('writes a null project id for a workspace-less session', () => {
+    const spec = JSON.parse(bootstrapSpecOf({ projectId: null }))
 
-    expect(spec).toEqual({ remoteUrl: 'git@github.com:comp-ai/atlas.git', githubToken: 'tok' })
+    expect(spec).toEqual({ remoteUrl: null, githubToken: null, projectId: null })
   })
 
   it('writes the project id alongside the model when one is given', () => {
     const spec = JSON.parse(
-      bootstrapSpecOf({ workspace: null, gitToken: undefined, model: 'claude-x', projectId: 'proj-1' }),
+      bootstrapSpecOf({ model: 'claude-x', projectId: 'proj-1' }),
     )
 
     expect(spec).toEqual({ remoteUrl: null, githubToken: null, projectId: 'proj-1', model: 'claude-x' })

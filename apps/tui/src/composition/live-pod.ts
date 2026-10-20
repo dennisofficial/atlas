@@ -7,7 +7,6 @@ import {
   createLocalPodBridge,
   pingDocker,
   putPodLease,
-  readGhAuthToken,
   reapOrphanPods,
   requireVercelCredentials,
   sandboxServeTokenFor,
@@ -61,7 +60,7 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
   lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
   localLog: app.log,
   settings: app.settings,
-  readGitToken: () => readGhAuthToken(),
+  projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
   capturePortable: () => app.cloud.capturePortableState(),
   registerPodLease: ({ threadId, token }: { threadId: ThreadId; token: string }) => {
     const session = app.cloud.session()

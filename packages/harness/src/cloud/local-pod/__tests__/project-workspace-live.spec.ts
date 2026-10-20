@@ -148,7 +148,7 @@ describeDocker('serve clones the project a bootstrap names inside a live pod', (
         await driver.writeBootstrapFile({
           name: handle.name,
           path: WORKSPACE_SPEC_PATH,
-          content: bootstrapSpecOf({ workspace: null, gitToken: undefined, projectId: PROJECT_ID }),
+          content: bootstrapSpecOf({ projectId: PROJECT_ID }),
         })
       },
     })

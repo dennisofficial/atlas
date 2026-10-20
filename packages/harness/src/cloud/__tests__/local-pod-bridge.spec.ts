@@ -24,7 +24,7 @@ describe('createLocalPodBridge birth', () => {
 
     const sandbox = await bridge.sandboxes.create({
       threadId,
-      workspace: { remoteUrl: 'git@github.com:comp-ai/atlas.git' },
+      projectId: null,
       captureContext: async (put) => put(new Uint8Array(3)),
     })
 
@@ -46,18 +46,20 @@ describe('createLocalPodBridge birth', () => {
     expect(sandbox).toMatchObject({ url: 'http://127.0.0.1:20111', token: serveToken, created: true })
   })
 
-  it('writes the remote url and model into the workspace spec', async () => {
+  it('writes the project id and model into the workspace spec', async () => {
     const { driver, writes } = fakePodDriver({ created: true })
 
     await podBridgeWith({ driver }).sandboxes.create({
       threadId,
-      workspace: { remoteUrl: 'git@github.com:comp-ai/atlas.git' },
+      projectId: 'proj_1',
       model: 'claude-x',
     })
 
     const spec = writes.find((write) => write.path === WORKSPACE_SPEC_PATH)
-    expect(JSON.parse(String(spec?.content))).toMatchObject({
-      remoteUrl: 'git@github.com:comp-ai/atlas.git',
+    expect(JSON.parse(String(spec?.content))).toEqual({
+      remoteUrl: null,
+      githubToken: null,
+      projectId: 'proj_1',
       model: 'claude-x',
     })
     expect(spec?.name).toBe(podNameFor({ threadId }))
@@ -66,7 +68,7 @@ describe('createLocalPodBridge birth', () => {
   it('always hands the driver the serve token and the pod name', async () => {
     const { driver, created } = fakePodDriver({ created: false })
 
-    await podBridgeWith({ driver }).sandboxes.create({ threadId, workspace: null })
+    await podBridgeWith({ driver }).sandboxes.create({ threadId, projectId: null })
 
     expect(created).toHaveLength(1)
     expect(created[0]).toMatchObject({ name: podNameFor({ threadId }), threadId, token: serveToken })
@@ -87,7 +89,7 @@ describe('createLocalPodBridge birth', () => {
       },
     }).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async () => {
         archived += 1
       },
@@ -103,7 +105,7 @@ describe('createLocalPodBridge birth', () => {
 
     await podBridgeWith({ driver }).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async (put) => put(new Uint8Array(6)),
       onTransferProgress: (reading) => progress.push(reading),
     })
@@ -122,8 +124,8 @@ describe('createLocalPodBridge birth', () => {
     await podBridgeWith({
       driver: withEnv.driver,
       overrides: { environment: () => ({ ATLAS_CLASSIFIER_MODE: 'nudge' }) },
-    }).sandboxes.create({ threadId, workspace: null })
-    await podBridgeWith({ driver: without.driver }).sandboxes.create({ threadId, workspace: null })
+    }).sandboxes.create({ threadId, projectId: null })
+    await podBridgeWith({ driver: without.driver }).sandboxes.create({ threadId, projectId: null })
 
     expect(withEnv.created[0]?.environment).toEqual({ ATLAS_CLASSIFIER_MODE: 'nudge' })
     expect(without.created[0]?.environment).toBeUndefined()
@@ -146,7 +148,7 @@ describe('createLocalPodBridge birth', () => {
       },
     }).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async (put) => put(new Uint8Array(2)),
     })
 
@@ -169,7 +171,7 @@ describe('createLocalPodBridge birth', () => {
       },
     })
 
-    await expect(bridge.sandboxes.create({ threadId, workspace: null })).rejects.toThrow('lease refused')
+    await expect(bridge.sandboxes.create({ threadId, projectId: null })).rejects.toThrow('lease refused')
     expect(events).toEqual(['create'])
     expect(writes).toEqual([])
   })
@@ -181,7 +183,7 @@ describe('createLocalPodBridge birth', () => {
     }
     const registered: Array<{ threadId: string; token: string }> = []
 
-    await expect(podBridgeWith({ driver, registered }).sandboxes.create({ threadId, workspace: null })).rejects.toThrow(
+    await expect(podBridgeWith({ driver, registered }).sandboxes.create({ threadId, projectId: null })).rejects.toThrow(
       'token refused',
     )
 

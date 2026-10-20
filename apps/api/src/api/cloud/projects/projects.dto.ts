@@ -1,4 +1,4 @@
-import { GIT_BRANCH_PATTERN, GITHUB_REPO_PATTERN, MAX_ADDITIONAL_REPOS } from '@dltech/atlas-wire'
+import { GIT_BRANCH_PATTERN, GITHUB_REPO_PATTERN, MAX_ADDITIONAL_REPOS, MAX_PROJECT_NAME_LENGTH } from '@dltech/atlas-wire'
 import { Type } from 'class-transformer'
 import {
   ArrayMaxSize,
@@ -26,7 +26,7 @@ export class ProjectRepoDto {
 
 export class SaveProjectDto {
   @IsString()
-  @Length(1, 100)
+  @Length(1, MAX_PROJECT_NAME_LENGTH)
   name!: string
 
   @whenGiven()

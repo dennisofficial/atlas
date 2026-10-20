@@ -65,6 +65,7 @@ export type FakeThreadStore = ThreadStorePort & {
   readonly chosenModels: readonly { threadId: ThreadId; model: ThreadModel }[]
   readonly chosenLocations: readonly { threadId: ThreadId; location: EExecutionLocation }[]
   readonly chosenRunners: readonly { threadId: ThreadId; runner: ERunner }[]
+  readonly chosenProjects: readonly { threadId: ThreadId; projectId: string | null }[]
   /** Drops an already-known thread row in whole, for a fake serve materializing an uploaded transcript. */
   seedThread(row: ThreadSummary): void
   peekRow(args: { threadId: ThreadId }): ThreadSummary | undefined
@@ -107,6 +108,7 @@ export function fakeThreadStore(
   const chosenModels: { threadId: ThreadId; model: ThreadModel }[] = []
   const chosenLocations: { threadId: ThreadId; location: EExecutionLocation }[] = []
   const chosenRunners: { threadId: ThreadId; runner: ERunner }[] = []
+  const chosenProjects: { threadId: ThreadId; projectId: string | null }[] = []
   const renameListeners = new Set<RenameListener>()
   const modelChosenListeners = new Set<ModelChosenListener>()
 
@@ -354,6 +356,16 @@ export function fakeThreadStore(
 
     get chosenRunners() {
       return chosenRunners
+    },
+
+    get chosenProjects() {
+      return chosenProjects
+    },
+
+    async chooseProject({ threadId, projectId }) {
+      chosenProjects.push({ threadId, projectId })
+      const row = rows.find((held) => held.id === threadId)
+      if (row !== undefined) row.projectId = projectId
     },
 
     async chooseRunner({ threadId, runner }) {

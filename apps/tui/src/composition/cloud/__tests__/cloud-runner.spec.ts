@@ -62,6 +62,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      projectId: null,
       move,
       captureContext: async () => archive,
     })
@@ -69,7 +70,7 @@ describe('waking a cloud runner whose channel is not open', () => {
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
 
-    expect(bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: null }])
+    expect(bridge.created).toEqual([{ threadId: CLOUD_THREAD, projectId: null }])
     expect(bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
@@ -82,6 +83,27 @@ describe('waking a cloud runner whose channel is not open', () => {
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
   })
 
+  it('re-provisions with the project the thread was born on', async () => {
+    const bridge = fakeBridge({ sandbox: CREATED })
+    const channel = fakeCloudChannel()
+    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      projectId: 'proj_1',
+      captureContext: async () => undefined,
+    })
+
+    const turn = runner.runTurn({ threadId: CLOUD_THREAD })
+    await Bun.sleep(1)
+
+    expect(bridge.created).toEqual([{ threadId: CLOUD_THREAD, projectId: 'proj_1' }])
+
+    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-p') })
+    await turn
+  })
+
   it('skips capturing and uploading the context archive when the sandbox resumed with it', async () => {
     const bridge = fakeBridge({ sandbox: RESUMED })
     const channel = fakeCloudChannel()
@@ -91,6 +113,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      projectId: null,
       captureContext: async () => {
         captureCalls += 1
         return Buffer.from('a fake tar.gz')
@@ -116,6 +139,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      projectId: null,
       captureContext: async () => undefined,
     })
 
@@ -141,6 +165,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      projectId: null,
       move,
       captureContext: async () => archive,
     })
@@ -173,6 +198,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      projectId: null,
       move,
       captureContext: async () => undefined,
     })
@@ -204,6 +230,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      projectId: null,
       move,
       captureContext: async () => undefined,
     })
@@ -231,6 +258,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      projectId: null,
       move,
       captureContext: async () => undefined,
     })

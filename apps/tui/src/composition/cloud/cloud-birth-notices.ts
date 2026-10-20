@@ -4,7 +4,6 @@ export const CLOUD_BIRTH_NOTICE_KEY = 'container-cloud'
 
 const FAULT_HEAD: Record<EBirthFault, string> = {
   [EBirthFault.NotConfigured]: 'cloud sandboxes are not set up',
-  [EBirthFault.GitAuth]: 'git access is not set up',
   [EBirthFault.Unreachable]: 'Atlas Cloud could not be reached',
   [EBirthFault.Sandbox]: 'the sandbox would not start',
   [EBirthFault.Context]: 'the context could not reach the sandbox',

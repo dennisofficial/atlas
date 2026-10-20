@@ -8,12 +8,14 @@ import { birthNewborn } from './cloud/birth-newborn'
 import { bornWith, preferredRunner, rememberPlacement } from './cloud/born-cloud'
 import { bornPlacementChip } from './cloud/born-placement-chip'
 import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
+import { useProjectResolution } from './cloud/use-project-resolution'
 import { preferenceChipFor, useUnbornThread } from './cloud/use-unborn-thread'
 import type { AtlasApp } from './compose'
 import type { SendArgs } from './conversation-types'
 import { messageOf } from './error-text'
 import { unstartedConversation, type OpenedConversation } from './open-conversation'
 import type { ContainerMoveControl } from './use-container-move'
+import type { ProjectPromptControl } from './use-project-prompt'
 
 export type UnbornSend = { send: SendArgs; onUndelivered: () => void }
 
@@ -29,6 +31,7 @@ export function useThreadBirth(args: {
   app: AtlasApp
   owner: SessionOwner<SessionRuntime>
   containerMove: ContainerMoveControl
+  projectPrompt: Pick<ProjectPromptControl, 'ask' | 'isMounted'>
   createBridge: CloudBridgeFactory
   preflightBirth?: BirthPreflight | undefined
   onSignInRequired: () => void
@@ -41,6 +44,7 @@ export function useThreadBirth(args: {
 }): ThreadBirth {
   const latest = useRef(args)
   latest.current = args
+  const resolveProject = useProjectResolution({ app: args.app, prompt: args.projectPrompt })
   const undelivered = useRef<{ threadId: ThreadId; restore: () => void } | null>(null)
 
   const restoreDraft = useCallback((threadId: ThreadId) => {
@@ -66,7 +70,7 @@ export function useThreadBirth(args: {
   const birth = useCallback(
     (born: { threadId: ThreadId; runner: ERunner; arrival: SendArgs }) => {
       const { threadId } = born
-      const birthCloud = (next: { threadId: ThreadId; runner: ERunner }): void => {
+      const birthCloud = (next: { threadId: ThreadId; runner: ERunner; projectId: string | null }): void => {
         const { app, owner, containerMove, createBridge } = latest.current
         birthNewborn({
           app,
@@ -75,6 +79,7 @@ export function useThreadBirth(args: {
           createBridge,
           threadId: next.threadId,
           runner: next.runner,
+          projectId: next.projectId,
           onReload: (reload) => latest.current.onReload(reload),
           onRestoreDraft: () => restoreDraft(next.threadId),
           onRelease: () => {
@@ -90,6 +95,7 @@ export function useThreadBirth(args: {
         arrival: born.arrival,
         preflightBirth: latest.current.preflightBirth,
         requireSignIn: () => latest.current.onSignInRequired(),
+        resolveProject,
         birthCloud,
       })
         .then((placed) => {
@@ -105,7 +111,7 @@ export function useThreadBirth(args: {
           restoreUndelivered(threadId)
         })
     },
-    [restoreUndelivered, restoreDraft, releaseAttempt],
+    [restoreUndelivered, restoreDraft, releaseAttempt, resolveProject],
   )
 
   const handleNewThread = useCallback(() => {

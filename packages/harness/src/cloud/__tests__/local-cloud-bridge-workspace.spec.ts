@@ -48,7 +48,7 @@ describe('createLocalCloudBridge sandbox environment', () => {
   it('forwards the operator environment as the sandbox boot environment', async () => {
     const { bridge, seen } = bridgeSeeing({ environment: { ATLAS_CLASSIFIER_MODE: 'nudge' } })
 
-    await bridge.sandboxes.create({ threadId, workspace: null })
+    await bridge.sandboxes.create({ threadId, projectId: null })
 
     expect(seen).toEqual([{ ATLAS_CLASSIFIER_MODE: 'nudge' }])
   })
@@ -56,7 +56,7 @@ describe('createLocalCloudBridge sandbox environment', () => {
   it('passes no environment at all when there is nothing to say', async () => {
     const { bridge, seen } = bridgeSeeing({})
 
-    await bridge.sandboxes.create({ threadId, workspace: null })
+    await bridge.sandboxes.create({ threadId, projectId: null })
 
     expect(seen).toEqual([undefined])
   })

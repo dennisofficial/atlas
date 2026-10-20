@@ -21,7 +21,7 @@ const appOn = (args: { signedIn: boolean; vercel: boolean }): FakeApp =>
   })
 
 const rig = (args: { app: FakeApp; choice?: ERunner; preflight?: string | null }) => {
-  const calls = { births: [] as { threadId: ThreadId; runner: ERunner }[], signIns: 0 }
+  const calls = { births: [] as { threadId: ThreadId; runner: ERunner; projectId: string | null }[], signIns: 0 }
   const threadId = args.app.ids.nextThreadId()
   const run = bornWith({
     app: args.app,
@@ -31,6 +31,7 @@ const rig = (args: { app: FakeApp; choice?: ERunner; preflight?: string | null }
     requireSignIn: () => {
       calls.signIns += 1
     },
+    resolveProject: async () => ({ projectId: null }),
     birthCloud: (born) => calls.births.push(born),
     arrival: { text: 'first words' },
   })
@@ -48,7 +49,7 @@ describe('where a thread is born on its first send', () => {
     await run
 
     expect(preferredRunner(app)).toBe(ERunner.Vercel)
-    expect(calls.births).toEqual([{ threadId, runner: ERunner.Vercel }])
+    expect(calls.births).toEqual([{ threadId, runner: ERunner.Vercel, projectId: null }])
   })
 
   for (const choice of [undefined, ERunner.Local, ERunner.Vercel]) {
@@ -73,7 +74,7 @@ describe('where a thread is born on its first send', () => {
 
     await run
 
-    expect(calls.births).toEqual([{ threadId, runner: ERunner.Local }])
+    expect(calls.births).toEqual([{ threadId, runner: ERunner.Local, projectId: null }])
     expect(calls.signIns).toBe(0)
     expect(bornPlacementChip(app).snapshot()).toMatchObject({
       threadId,
@@ -89,7 +90,7 @@ describe('where a thread is born on its first send', () => {
 
     await run
 
-    expect(calls.births).toEqual([{ threadId, runner: ERunner.Vercel }])
+    expect(calls.births).toEqual([{ threadId, runner: ERunner.Vercel, projectId: null }])
     expect(bornPlacementChip(app).snapshot()?.runner).toBe(ERunner.Vercel)
   })
 

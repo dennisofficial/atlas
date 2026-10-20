@@ -108,6 +108,7 @@ export async function forkThread({ context, args }: { context: ThreadStoreContex
         modelEffort: source.modelEffort,
         executionLocation: source.executionLocation,
         runner: source.runner,
+        projectId: source.projectId,
       }
       if (mode === EForkMode.Copy) {
         const prefix = await eventLog.read({ threadId: from, upTo: seq })

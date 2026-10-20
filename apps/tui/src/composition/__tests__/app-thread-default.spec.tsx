@@ -5,7 +5,8 @@ import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import type { OpenedConversation } from '../open-conversation'
 import { open, until, REPLY } from './app-fixture'
-import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { ACME_ORIGIN, fakeProjectsApi, launchDirWith } from './born-thread-fixture'
+import { fakeApp, fakeCloud, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -26,7 +27,11 @@ const UNSTARTED: OpenedConversation = {
 }
 
 const speaking = (): FakeApp =>
-  fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: REPLY } }) })
+  fakeApp({
+    model: scriptedModelPort({ script: { thinking: 'weighing it', reply: REPLY } }),
+    cwd: launchDirWith(ACME_ORIGIN),
+    cloud: fakeCloud({ client: fakeProjectsApi().client }),
+  })
 
 const choiceIn = (app: FakeApp): string => refKey(app.model.choice().ref)
 

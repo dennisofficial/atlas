@@ -11,6 +11,7 @@ import { useSince } from '../ui/hooks/use-since'
 import { channelTakingTurns } from './cloud/channel-ready'
 import { pasteDirectoryOf } from './paste-directory'
 import { unplacedThread } from './cloud/use-unborn-thread'
+import { useProjectPrompt } from './use-project-prompt'
 import { useThreadBirth } from './use-thread-birth'
 import { useCloudHealth } from './use-cloud-connection'
 import { useContainerMove } from './use-container-move'
@@ -142,7 +143,10 @@ export function useWorkspaceSession(args: {
     return true
   }, [conversation.model.entries, handleToggle])
 
+  const projectPrompt = useProjectPrompt()
+
   const birth = useThreadBirth({
+    projectPrompt,
     app: props.localApp,
     owner: props.localApp.sessionOwner,
     containerMove,
@@ -170,6 +174,7 @@ export function useWorkspaceSession(args: {
     tokens,
     conversation,
     containerMove,
+    projectPrompt,
     cloudHealth,
     cloud: { view: cloudView, wake: wakeCloud },
     reconnectingSince,

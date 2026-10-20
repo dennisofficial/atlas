@@ -5,7 +5,8 @@ import { theme } from '../theme'
 import { clipSpans } from './sidebar/cells'
 import { Spans } from './spans'
 import type { HoverHandlers } from '../hooks/use-hover'
-import { usePress, type PressHandlers } from '../hooks/use-press'
+import { useClickRegion } from '../hooks/use-click-region'
+import { type PressHandlers } from '../hooks/use-press'
 
 export const DRAWER_PAD = 2
 
@@ -184,10 +185,10 @@ export function DrawerHints(props: {
   cells: number
   onDismiss: () => void
 }): React.ReactNode {
-  const press = usePress()
+  const click = useClickRegion(props.onDismiss)
 
   return (
-    <DrawerLine press={press(props.onDismiss)}>
+    <DrawerLine {...(click.wash.bg === undefined ? {} : { band: click.wash.bg })} press={click.handlers}>
       <text>
         <Spans
           spans={clipSpans({

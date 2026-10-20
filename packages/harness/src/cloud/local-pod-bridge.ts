@@ -28,15 +28,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     args.driverWith ??
     ((config: PodDriverConfig): PodBridgeDriver => new DockerPodDriver({ ...config, log: args.onDriverLog }))
 
-  const readGitTokenQuietly = async (): Promise<string | undefined> => {
-    if (args.readGitToken === undefined) return undefined
-    try {
-      return await args.readGitToken()
-    } catch {
-      return undefined
-    }
-  }
-
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
   ): Promise<CloudSandbox> => {
@@ -50,8 +41,7 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
         name: handle.name,
         path: WORKSPACE_SPEC_PATH,
         content: bootstrapSpecOf({
-          workspace: createArgs.workspace,
-          gitToken: await readGitTokenQuietly(),
+          projectId: createArgs.projectId,
           ...(createArgs.model === undefined ? {} : { model: createArgs.model }),
         }),
       })

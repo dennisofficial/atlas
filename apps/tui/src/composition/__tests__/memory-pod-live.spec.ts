@@ -1,7 +1,4 @@
 import { describe, expect, it } from 'bun:test'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import { EEffort, ERunner, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import {
@@ -17,6 +14,7 @@ import {
 import { createCloudRunner } from '../cloud/cloud-runner'
 import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
+import { fakeSessionRuntime } from './fake-session-runtime'
 import { REMEMBER_TRIGGER, startFakeMemoryApi, startMemoryModel, textOf } from './memory-pod-live-fixture'
 import { MODEL_ID, seedOpenRouterAccount } from './pod-session-live-fixture'
 
@@ -52,8 +50,8 @@ describeLive('memory written in one pod', () => {
         await app.sessionOwner.placement.activate({ threadId })
         const birth = await birthInCloud({
           threadId,
+          projectId: null,
           runner: ERunner.Local,
-          cwd: mkdtempSync(join(tmpdir(), 'atlas-memory-pod-cwd-')),
           identity: app.workspace,
           model: { ref: `openrouter/${MODEL_ID}`, effort: EEffort.Medium },
           bridge,
@@ -64,13 +62,13 @@ describeLive('memory written in one pod', () => {
           captureContext: async () => undefined,
           open: async ({ attachment, prepareRuntime }) => {
             attachments.push(attachment)
-            prepareRuntime({ kind: ERuntimeKind.Cloud, cwd: '/atlas/workspaces', adapters: app.sessionOwner.require().adapters })
+            prepareRuntime({ kind: ERuntimeKind.Cloud, cwd: '/atlas/workspaces', adapters: fakeSessionRuntime(app) })
           },
         })
         if (!birth.ok) throw new Error(`birth of ${threadId} failed: ${birth.detail}`)
         const attachment = attachments[0]
         if (attachment === undefined) throw new Error(`birth of ${threadId} never opened an attachment`)
-        return createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext: async () => undefined })
+        return createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId: null, captureContext: async () => undefined })
       }
 
       try {

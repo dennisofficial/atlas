@@ -185,6 +185,12 @@ export class JsonlThreadStore implements ThreadStorePort {
     await updateThreadMeta({ context: this.context(), threadId, change: (meta) => ({ ...meta, runner }) })
   }
 
+  async chooseProject({ threadId, projectId }: { threadId: ThreadId; projectId: string | null }): Promise<void> {
+    const sessionDir = await this.registry.sessionDirOf({ threadId })
+    if (sessionDir === undefined) return
+    await updateThreadMeta({ context: this.context(), threadId, change: (meta) => ({ ...meta, projectId }) })
+  }
+
   async chooseExecutionLocation(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {
     const { threadId } = args
     const held = await this.readPlacement({ threadId })

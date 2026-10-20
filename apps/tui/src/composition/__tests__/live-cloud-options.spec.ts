@@ -60,7 +60,7 @@ describe('liveBridgeOptionsFor', () => {
       'onMirrorFailed',
       'onPortableOmitted',
       'onRegistrationFailed',
-      'readGitToken',
+      'projectIdOf',
       'registration',
       'sendRegistration',
       'settings',

@@ -9,21 +9,22 @@ import {
   type EAuthProvider,
   type StoredAccount,
 } from '@dltech/atlas-core'
+import type { Project } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
 import type { CloudSession } from './cloud-session'
+import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
 import { cloudRequest } from './cloud-transport'
 import {
-  githubConnectPollOutcomeFrom,
-  githubConnectPollResponseSchema,
-  githubConnectTicketSchema,
-  githubStateResponseSchema,
-  githubTokenResponseSchema,
-  type GithubConnectPollOutcome,
-  type GithubConnectTicket,
-  type GithubConnection,
-} from './github-connect'
+  beginGithubConnectVia,
+  disconnectGithubVia,
+  dismissGithubAppInstallNoticeVia,
+  githubConnectionVia,
+  githubTokenVia,
+  pollGithubConnectVia,
+} from './cloud-github'
+import type { GithubConnectPollOutcome, GithubConnectTicket, GithubConnection } from './github-connect'
 
 export { CloudError } from './cloud-transport'
 
@@ -233,47 +234,36 @@ export class CloudClient {
     await this.request({ method: 'DELETE', path: `/v1/mcp-servers/${encodeURIComponent(args.name)}` })
   }
 
-  async beginGithubConnect(): Promise<GithubConnectTicket> {
-    const body = await this.request({ method: 'POST', path: '/v1/github/connect/begin' })
-    return githubConnectTicketSchema.parse(body)
+  beginGithubConnect(): Promise<GithubConnectTicket> {
+    return beginGithubConnectVia((args) => this.request(args))
   }
 
-  async pollGithubConnect(args: { deviceCode: string }): Promise<GithubConnectPollOutcome> {
-    const body = await this.request({
-      method: 'POST',
-      path: '/v1/github/connect/poll',
-      body: { deviceCode: args.deviceCode },
-    })
-    return githubConnectPollOutcomeFrom(githubConnectPollResponseSchema.parse(body))
+  pollGithubConnect(args: { deviceCode: string }): Promise<GithubConnectPollOutcome> {
+    return pollGithubConnectVia({ request: (call) => this.request(call), deviceCode: args.deviceCode })
   }
 
-  async dismissGithubAppInstallNotice(args: { repoFullName: string }): Promise<void> {
-    await this.request({
-      method: 'POST',
-      path: '/v1/github/subscriptions/app-install-notice/dismiss',
-      body: { repoFullName: args.repoFullName },
-    })
+  dismissGithubAppInstallNotice(args: { repoFullName: string }): Promise<void> {
+    return dismissGithubAppInstallNoticeVia({ request: (call) => this.request(call), repoFullName: args.repoFullName })
   }
 
-  async githubConnection(): Promise<GithubConnection | null> {
-    const body = await this.request({ method: 'GET', path: '/v1/github' })
-    const parsed = githubStateResponseSchema.parse(body)
-    if (!parsed.connected) return null
-    return { login: parsed.login, scopes: parsed.scopes, connectedAt: parsed.connectedAt }
+  githubConnection(): Promise<GithubConnection | null> {
+    return githubConnectionVia((args) => this.request(args))
   }
 
-  async githubToken(): Promise<string | undefined> {
-    const body = await this.request({
-      method: 'GET',
-      path: '/v1/github/token',
-      allowMissing: true,
-    })
-    if (body === undefined) return undefined
-    return githubTokenResponseSchema.parse(body).token
+  githubToken(): Promise<string | undefined> {
+    return githubTokenVia((args) => this.request(args))
   }
 
-  async disconnectGithub(): Promise<void> {
-    await this.request({ method: 'DELETE', path: '/v1/github' })
+  disconnectGithub(): Promise<void> {
+    return disconnectGithubVia((args) => this.request(args))
+  }
+
+  listProjects(): Promise<Project[]> {
+    return listProjectsVia((args) => this.request(args))
+  }
+
+  createProject(input: ProjectInput): Promise<Project> {
+    return createProjectVia({ request: (args) => this.request(args), input })
   }
 
   private request(args: {

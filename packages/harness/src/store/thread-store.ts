@@ -36,6 +36,7 @@ export type ThreadSummary = {
   pullRequests?: LinkedPullRequest[] | undefined
   executionLocation?: EExecutionLocation | undefined
   runner?: ERunner | undefined
+  projectId?: string | null | undefined
 }
 
 export const THREAD_LISTING_LIMIT = 50
@@ -74,6 +75,10 @@ export abstract class ThreadStorePort {
   }
 
   async chooseRunner(args: { threadId: ThreadId; runner: ERunner }): Promise<void> {
+    void args
+  }
+
+  async chooseProject(args: { threadId: ThreadId; projectId: string | null }): Promise<void> {
     void args
   }
 
