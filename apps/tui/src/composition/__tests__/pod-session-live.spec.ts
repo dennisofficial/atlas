@@ -20,6 +20,7 @@ import {
 import { createCloudRunner } from '../cloud/cloud-runner'
 import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
+import { fakeSessionRuntime } from './fake-session-runtime'
 import {
   dockerCli,
   MODEL_ID,
@@ -88,7 +89,7 @@ describeLive('a multi-turn session in a local pod', () => {
             prepareRuntime({
               kind: ERuntimeKind.Cloud,
               cwd: '/atlas/workspaces',
-              adapters: app.sessionOwner.require().adapters,
+              adapters: fakeSessionRuntime(app),
             })
           },
         })

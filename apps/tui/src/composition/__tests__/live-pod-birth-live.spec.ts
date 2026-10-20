@@ -16,6 +16,7 @@ import {
 
 import { liveBridgeFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
+import { fakeSessionRuntime } from './fake-session-runtime'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
 const enabled = process.env.ATLAS_LIVE_DOCKER === '1' && (await pingDocker({ socketPath: SOCKET })) === undefined
@@ -76,7 +77,7 @@ describeLive('a pod birth through the live TUI wiring', () => {
           prepareRuntime({
             kind: ERuntimeKind.Cloud,
             cwd: '/atlas/workspaces',
-            adapters: app.sessionOwner.require().adapters,
+            adapters: fakeSessionRuntime(app),
           }),
       })
 
