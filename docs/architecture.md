@@ -1053,49 +1053,40 @@ walkthroughs remain available on demand.
 
 ## Memory
 
-Memory is markdown files and nothing else. Two directories, both under the Atlas home so nothing lands
-in the repository:
+Memory is rows in Atlas Cloud, reached only through tools. A `Memory` row has a scope (`global` or
+`project`), a project key (the GitHub `owner/repo`, lowercased, derived from the normalized origin identity
+and empty for global rows), a `name`, a one-line `description`, a `type` (`user`, `feedback`, `project`,
+`reference`), a `body` and a `revision`. Nothing lives on disk and nothing lands in the repository. A session
+with no GitHub remote has no project scope: project calls fail with a plain reason and global memory still
+works.
 
-| Directory | Holds |
-| --- | --- |
-| `<atlasHome>/projects/<sanitised-repo>/memory/` | what is true of this repository |
-| `<atlasHome>/memory/` | what stays true when the repository changes |
+**Four tools, one port.** `read_memory`, `write_memory`, `edit_memory` and `delete_memory` call a harness
+`MemoryPort`. `CloudMemoryPort` is the implementation for every session kind: in a pod it authenticates with
+the serve token, locally with the Atlas Cloud session. There is no cache and no offline mode — signed out,
+the tools refuse with a reason and the index says memory is unavailable.
 
-**Project memory is keyed on the repository, never the working directory.** `projectDirectoryOf` returns
-the *worktree* path, and that is what a `BeforeTurn` hook is handed — keying memory on it would give every
-worktree its own empty memory. The key is `WorkspaceIdentity.repo`, derived from `git rev-parse
---git-common-dir` in `probeWorkspace` and therefore identical across every worktree of a repository.
-Claude Code hit this exact bug and fixed it the same way (anthropics/claude-code#24382).
+**The name is the memory's identity.** A memory named for the claim it makes (`bun-deflate-is-raw-not-zlib`)
+is superseded by writing that name again, which upserts and bumps the revision. This is the cheap version of
+a result from the shared-memory literature: contradictions are on average *more* similar to the original than
+duplicates are, so no similarity threshold separates "restates" from "overturns" — you need a stable identity
+key instead. `edit_memory` carries the revision the model read and the server refuses a stale one, so a
+concurrent writer is never silently overwritten.
 
-Each directory holds a `MEMORY.md` index — one line per memory, pointing at a file — plus one file per
-memory carrying `name`, `description` and `type` frontmatter. The four types (`user`, `feedback`,
-`project`, `reference`) are the whole taxonomy; anything derivable from the code, the git history or the
-instruction files is not a memory.
+**The index is rendered, not stored.** Core's pure `renderMemoryIndex` turns `list()` into a global section
+and a project section, capped at 200 entry lines with a line telling the model to consolidate when it
+overflows. A `LoadMemoryIndexHook` loads it once per session — on the first turn, retried on a later turn if
+the load failed — and `MemoryFragment`, a volatile prompt fragment, puts it in the system prompt under the
+standing memory instructions. It is deliberately not refreshed after the model's own writes: the model knows
+what it wrote, and a refresh would break the cached prefix on every save. A new session loads it fresh.
 
-**The filename is the memory's identity.** A memory named for the claim it makes (`bun-deflate-is-raw-not-zlib.md`)
-can be superseded by rewriting that one file. This is the cheap version of a result from the shared-memory
-literature: contradictions are on average *more* similar to the original than duplicates are, so no
-similarity threshold separates "restates" from "overturns" — you need a stable identity key instead, and a
-filename is one.
+**Sub-agents read but never write.** `MemoryFragment.applies` withholds the instructions from
+`EPromptAgent.Sub`, and the child runner denies a sub-agent `write_memory`, `edit_memory` and
+`delete_memory` while leaving `read_memory`, so several children finishing at once cannot become
+concurrent writers. Teammates are full sessions and keep all four.
 
-**Nothing new is a tool.** The model writes memories with the file tools it already has. The read half is
-`LoadMemoryHook`, a `BeforeTurnHook` that emits the index as a `context-loaded` event in the `memory` slot,
-bounded to 200 lines and 25KB with a warning appended when it truncates — memory that vanishes silently is
-worse than none, because the operator believes it is loaded.
-
-**The instructions and the content are split deliberately.** `MemoryFragment` is a plain `PromptFragment`:
-it names the directories and never changes, so it stays inside the cached prefix. The volatile index goes
-in as an event instead. A volatile fragment would break the cache on every write, and worse — a rewritten
-memory gets a fresh seq, so `compactedHistory` would splice it *below* the compaction summary and strand it
-among the live turns for the rest of the session.
-
-**Sub-agents read but never write.** Children share the parent's `HookChain`, so the load hook fires for
-them too; that is a bounded index and harmless. `MemoryFragment.applies` withholds the *instructions* from
-`EPromptAgent.Sub`, so several children finishing at once cannot become concurrent writers to one directory.
-
-Memory is data, not instruction. The `memory` slot's provenance line says so in as many words, because the
-failure mode is not only a poisoned file — a benign memory recalled out of context will happily dictate
-tool calls it was never meant to.
+Memory is data, not instruction. The fragment says so in as many words, because the failure mode is not only
+a poisoned entry — a benign memory recalled out of context will happily dictate tool calls it was never
+meant to.
 
 Not built: extraction at turn end. `AfterTurnHook` is wired and has no implementations, and it fires only
 on cleanly Completed turns — never on an interrupt, which is exactly where corrective feedback lives. Nor
@@ -1419,7 +1410,7 @@ between an issuer's token endpoint and our database.
 settings and MCP configuration only when the operator requests them. A failed sync leaves local
 operation intact. Existing cloud-only installations recover their data through an explicit
 download; previously archived local files are restored without replacing live files. Memory is
-not a synced domain.
+not a synced domain: it lives in Atlas Cloud and pods read it through the memory tools.
 
 **Sessions originate on the operator's machine.** An iOS remote-control client asks a connected
 laptop to start a session; an offline laptop cannot receive that request. The laptop provisions
@@ -1447,7 +1438,7 @@ local checkout cannot leak into the cloud. Portable state (`local-state.json`) c
 accounts, secrets, `settings.json`, and `mcp.json`, staged on the drive and installed into the
 sandbox's Atlas home before serve composes. The OAuth handoff rides the Cloud API as before.
 The context archive (`context.tar.gz`, written straight into the sandbox before serve launches)
-carries `mcp.json` plus the user layer — skills, instructions, memory — captured from the same
+carries `mcp.json` plus the user layer — skills and instructions — captured from the same
 roots the user-layer sync reads, so a birth does not depend on sync having run; the sync
 (`/v1/user-files`) then keeps them live. There is no transcript at birth — the thread's history
 starts in the sandbox.
@@ -1490,7 +1481,7 @@ under the sandbox's ordinary `$HOME/.agents/skills` or `$HOME/.claude/skills` ar
 The context receipt records this persistent skill layout. Older receipts trigger compatibility-only
 recovery: surviving ordinary-home skill roots are imported, and absent roots recover from the
 bootstrap archive or legacy bundle. Present roots are authoritative even when empty. Existing
-persistent files win, and recovery never replays memory, instructions, MCP configuration or Atlas
+persistent files win, and recovery never replays instructions, MCP configuration or Atlas
 skills. Failed recovery remains retryable without upgrading the receipt. A current receipt skips
 bootstrap replay, preserving runtime changes. Compatibility edits already lost with an older
 sandbox's ephemeral home cannot be reconstructed beyond the original bootstrap copy.

@@ -50,8 +50,8 @@ class ManualSchedule {
 type Rig = {
   server: FakeUserFilesServer
   engine: UserLayerSyncEngine
-  memoryScans: () => number
-  memoryFile: (name: string) => string
+  skillScans: () => number
+  skillFile: (name: string) => string
   lateText: () => string | undefined
 }
 
@@ -63,11 +63,11 @@ afterEach(() => {
 async function rig(args: { watch: (rig: () => Rig) => WatchDirectory; schedule: Schedule }): Promise<Rig> {
   const server = new FakeUserFilesServer()
   const device = await makeDevice({ server, name: 'attach' })
-  const memoryDirectory = join(device.atlasHome, 'memory')
-  await writeAt({ path: join(memoryDirectory, 'first.md'), content: '# first' })
+  const skillsDirectory = join(device.atlasHome, 'skills')
+  await writeAt({ path: join(skillsDirectory, 'first.md'), content: '# first' })
   let scans = 0
   const trees: readonly TreeLayout[] = userLayerTrees({ atlasHome: device.atlasHome, home: device.home }).map((tree) =>
-    tree.tree === EUserLayerTree.Memory
+    tree.tree === EUserLayerTree.Skills
       ? {
           ...tree,
           scan: async () => {
@@ -94,9 +94,9 @@ async function rig(args: { watch: (rig: () => Rig) => WatchDirectory; schedule: 
   built.current = {
     server,
     engine,
-    memoryScans: () => scans,
-    memoryFile: (name) => join(memoryDirectory, name),
-    lateText: () => server.text({ tree: 'memory', path: 'user/late.md' }),
+    skillScans: () => scans,
+    skillFile: (name) => join(skillsDirectory, name),
+    lateText: () => server.text({ tree: 'skills', path: '.atlas/late.md' }),
   }
   return built.current
 }
@@ -105,7 +105,7 @@ describe('attach reconcile', () => {
   it('syncs a file written between the boot reconcile and the watch going live', async () => {
     const manual = new ManualSchedule()
     const dropping = (get: () => Rig): DroppingWatch =>
-      new DroppingWatch(() => writeFileSync(get().memoryFile('late.md'), '# late', 'utf8'))
+      new DroppingWatch(() => writeFileSync(get().skillFile('late.md'), '# late', 'utf8'))
     let watch: DroppingWatch | null = null
     const attached = await rig({
       watch: (get) => {
@@ -117,7 +117,7 @@ describe('attach reconcile', () => {
 
     await attached.engine.start()
 
-    expect(attached.server.text({ tree: 'memory', path: 'user/first.md' })).toBe('# first')
+    expect(attached.server.text({ tree: 'skills', path: '.atlas/first.md' })).toBe('# first')
     expect(attached.lateText()).toBe('# late')
   })
 
@@ -126,7 +126,7 @@ describe('attach reconcile', () => {
     const attached = await rig({ watch: () => new DroppingWatch().watch, schedule: manual.schedule })
     await attached.engine.start()
 
-    await writeAt({ path: attached.memoryFile('late.md'), content: '# late' })
+    await writeAt({ path: attached.skillFile('late.md'), content: '# late' })
     await pause(60)
     expect(attached.lateText()).toBeUndefined()
 
@@ -150,14 +150,14 @@ describe('steady state', () => {
     const attached = await rig({ watch: () => new DroppingWatch().watch, schedule: manual.schedule })
 
     await attached.engine.start()
-    expect(attached.memoryScans()).toBe(2)
+    expect(attached.skillScans()).toBe(2)
 
     manual.fire()
-    await waitFor(() => attached.memoryScans() === 3)
+    await waitFor(() => attached.skillScans() === 3)
     await pause(200)
 
-    expect(attached.memoryScans()).toBe(3)
-    expect(attached.server.puts).toEqual(['memory/user/first.md'])
+    expect(attached.skillScans()).toBe(3)
+    expect(attached.server.puts).toEqual(['skills/.atlas/first.md'])
     expect(manual.scheduled.length).toBe(1)
   })
 
@@ -166,14 +166,14 @@ describe('steady state', () => {
     const dropping = new DroppingWatch()
     const attached = await rig({ watch: () => dropping.watch, schedule: manual.schedule })
     await attached.engine.start()
-    expect(attached.memoryScans()).toBe(2)
+    expect(attached.skillScans()).toBe(2)
 
     dropping.deliver()
-    await waitFor(() => attached.memoryScans() === 3)
+    await waitFor(() => attached.skillScans() === 3)
     manual.fire()
     await pause(100)
 
-    expect(attached.memoryScans()).toBe(3)
+    expect(attached.skillScans()).toBe(3)
   })
 })
 
@@ -182,14 +182,14 @@ describe('stop', () => {
     const manual = new ManualSchedule()
     const attached = await rig({ watch: () => new DroppingWatch().watch, schedule: manual.schedule })
     await attached.engine.start()
-    await writeAt({ path: attached.memoryFile('late.md'), content: '# late' })
+    await writeAt({ path: attached.skillFile('late.md'), content: '# late' })
 
     attached.engine.stop()
     manual.fire()
     await pause(100)
 
     expect(manual.scheduled[0]?.cancelled).toBe(true)
-    expect(attached.memoryScans()).toBe(2)
+    expect(attached.skillScans()).toBe(2)
     expect(attached.lateText()).toBeUndefined()
   })
 
@@ -205,6 +205,6 @@ describe('stop', () => {
     await pause(100)
 
     expect(manual.scheduled.length).toBe(0)
-    expect(attached.memoryScans()).toBe(1)
+    expect(attached.skillScans()).toBe(1)
   })
 })

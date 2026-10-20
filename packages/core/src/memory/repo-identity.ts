@@ -38,3 +38,12 @@ export function normalizeRepoOrigin(originUrl: string): string | null {
     : parsed.pathname
   return joinIdentity({ host: parsed.host, path })
 }
+
+const GITHUB_IDENTITY = /^github\.com\/([^/]+)\/([^/]+)$/
+
+export function githubProjectOf(identity: string | null): string | null {
+  if (identity === null) return null
+  const match = GITHUB_IDENTITY.exec(identity)
+  if (match === null) return null
+  return `${match[1] ?? ''}/${match[2] ?? ''}`.toLowerCase()
+}

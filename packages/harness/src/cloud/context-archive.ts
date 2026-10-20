@@ -45,9 +45,9 @@ const freshWorkDir = (prefix: string): Promise<string> => mkdtemp(join(tmpdir(),
 /**
  * Builds a `.tar.gz` from a staged copy of each source file under its wire key, so callers never
  * hand tar a working tree directly. `cp`'s `preserveTimestamps` is what lets the archive carry the
- * source's real mtime — the memory merge's last-writer-wins comparison depends on it surviving the
- * round trip. A source that vanishes between listing and staging is skipped rather than failing the
- * whole archive, matching how the callers already tolerate a file disappearing mid-capture.
+ * source's real mtime, so a restored file keeps its original modification time. A source that
+ * vanishes between listing and staging is skipped rather than failing the whole archive, matching
+ * how the callers already tolerate a file disappearing mid-capture.
  */
 export async function buildContextArchive(args: {
   files: readonly ArchiveFileSource[]

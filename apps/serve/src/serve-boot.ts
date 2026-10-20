@@ -29,6 +29,7 @@ import {
 } from './materialize-workspace'
 import { materializeContext } from './materialize-context'
 import { projectWorkspaceSpecFetcher } from './project-workspace-spec'
+import { applyPublishedBundle } from './published-bundle'
 import { applySigningKey } from './signing-key-env'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { resolveWorkspaceDir, writeRecordedWorkspaceDir } from './workspace-dir'
@@ -117,6 +118,16 @@ export async function bootServeFiles(args: {
   } else if (context.written > 0) {
     log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
   }
+  await applyPublishedBundle({
+    atlasHome,
+    projectDirectory: cwd,
+    controlPlaneUrl: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+    log,
+    files: args.contextFiles,
+  })
 
   const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })
   const metaFile = threadMetaFile({ sessionDir, threadId })

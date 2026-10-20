@@ -1,12 +1,9 @@
 import { readdir } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 
-import { MEMORY_INDEX_NAME } from '@dltech/atlas-core'
-
 export enum EUserLayerTree {
   Skills = 'skills',
   Instructions = 'instructions',
-  Memory = 'memory',
 }
 
 export type WatchTarget = {
@@ -32,8 +29,6 @@ export const isConflictCopyKey = (key: string): boolean => basenameOf(key).inclu
 
 export const isSyncableName = (name: string): boolean =>
   !name.includes(CONFLICT_MARKER) && !name.endsWith(PARTIAL_SUFFIX) && !IGNORED_NAMES.has(name)
-
-export const isMemoryIndexKey = (key: string): boolean => basenameOf(key) === MEMORY_INDEX_NAME
 
 export async function walkFiles(directory: string): Promise<ReadonlyMap<string, string>> {
   let entries

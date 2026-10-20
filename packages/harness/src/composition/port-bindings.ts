@@ -47,6 +47,7 @@ export const sharedPortBindings = {
   PrEventFrameSink: { runtime: 'shared', transport: null },
   AppInstallRecommendationSink: { runtime: 'shared', transport: null },
   UserLayerSyncPort: { runtime: 'shared', transport: null },
+  MemoryPort: { runtime: 'shared', transport: null },
 } satisfies Partial<ComposedPortBindings>
 
 /**

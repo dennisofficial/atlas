@@ -46,8 +46,11 @@ describe('systemContext', () => {
 })
 
 describe('provenanceOf', () => {
-  it('recognises the memory-reconcile key prefix', () => {
-    expect(provenanceOf({ slot: 'memory', key: 'memory-reconcile:/x' })).toContain('memory index')
+  it('gives a retired memory slot the generic provenance', () => {
+    const provenance = provenanceOf({ slot: 'memory', key: '/x/MEMORY.md' })
+
+    expect(provenance).toContain('source: memory')
+    expect(provenance).toContain('The operator did not write this')
   })
 
   it('no longer narrates a relocation for the retired session slot', () => {
