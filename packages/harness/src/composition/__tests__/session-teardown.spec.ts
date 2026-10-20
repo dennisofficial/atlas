@@ -76,7 +76,7 @@ describe('teardownSession', () => {
     remainingCharacters: 0,
   }
 
-  it('stops the sandbox only after the shells are closed and their endings appended', async () => {
+  it('appends endings only after the shells are closed', async () => {
     const calls: string[] = []
     const source = recordingSource({ calls, name: 'shells', drafts: [DRAFT] })
 
@@ -84,12 +84,9 @@ describe('teardownSession', () => {
       sources: [source],
       log: recordingLog(calls),
       ids: new RandomIds(),
-      stopSandbox: async () => {
-        calls.push('sandbox:stop')
-      },
     })
 
-    expect(calls).toEqual(['shells:closeAll', 'shells:drain', 'log:append', 'sandbox:stop'])
+    expect(calls).toEqual(['shells:closeAll', 'shells:drain', 'log:append'])
   })
 
   it('persists quiet bookkeeping even when no thread is awaiting a wake', async () => {
@@ -106,9 +103,8 @@ describe('teardownSession', () => {
     }
     await teardownSession({
       sources: [quiet], log: recordingLog(calls), ids: new RandomIds(),
-      stopSandbox: async () => { calls.push('sandbox:stop') },
     })
-    expect(calls).toEqual(['agents:closeAll', 'log:append', 'agents:acknowledge', 'sandbox:stop'])
+    expect(calls).toEqual(['agents:closeAll', 'log:append', 'agents:acknowledge'])
   })
 
   it('flushes through the shared intake when one is present, covering retained adapter state', async () => {
@@ -125,9 +121,8 @@ describe('teardownSession', () => {
     await teardownSession({
       sources: [recordingSource({ calls, name: 'shells' })],
       log: recordingLog(calls), ids: new RandomIds(), intake,
-      stopSandbox: async () => { calls.push('sandbox:stop') },
     })
-    expect(calls).toEqual(['shells:closeAll', 'log:append', 'intake:acknowledge', 'sandbox:stop'])
+    expect(calls).toEqual(['shells:closeAll', 'log:append', 'intake:acknowledge'])
     intake.dispose()
   })
 
@@ -145,28 +140,21 @@ describe('teardownSession', () => {
     log.append = async () => { throw new Error('append failed') }
     await expect(teardownSession({
       sources: [pending], log, ids: new RandomIds(),
-      stopSandbox: async () => { calls.push('sandbox:stop') },
     })).rejects.toThrow('append failed')
-    expect(calls).toEqual(['shells:closeAll', 'shells:release', 'sandbox:stop'])
+    expect(calls).toEqual(['shells:closeAll', 'shells:release'])
   })
 
-  it('stops the sandbox even when a registry refuses to close', async () => {
+  it('rejects when a registry refuses to close', async () => {
     const calls: string[] = []
     const broken = recordingSource({ calls, name: 'broken', throws: true })
-    let stopped = false
 
     await expect(
       teardownSession({
         sources: [broken],
         log: recordingLog(calls),
         ids: new RandomIds(),
-        stopSandbox: async () => {
-          stopped = true
-        },
       }),
     ).rejects.toThrow('broken would not close')
-
-    expect(stopped).toBe(true)
   })
 })
 
@@ -242,12 +230,9 @@ describe('teardownSession ordered by the ownership projection', () => {
       log: liveThreadLog(THREAD, liveUnitsDrafts),
       ids: new RandomIds(),
       ownedKinds: { agents, shells, services },
-      stopSandbox: async () => {
-        calls.push('sandbox:stop')
-      },
     })
 
-    expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll', 'sandbox:stop'])
+    expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll'])
   })
 
   it('warns about a live unit the log shows but no registry claims', async () => {
@@ -263,7 +248,6 @@ describe('teardownSession ordered by the ownership projection', () => {
       ids: new RandomIds(),
       ownedKinds: { agents, shells, services },
       logPort: recordingLogPort(entries),
-      stopSandbox: async () => {},
     })
 
     const lost = entries.filter(
@@ -284,7 +268,6 @@ describe('teardownSession ordered by the ownership projection', () => {
       log: liveThreadLog(THREAD, liveUnitsDrafts),
       ids: new RandomIds(),
       ownedKinds: { agents, services },
-      stopSandbox: async () => {},
     })
 
     expect(calls).toEqual(['agents:closeAll', 'services:closeAll', 'misc:closeAll'])
@@ -307,7 +290,6 @@ describe('teardownSession ordered by the ownership projection', () => {
       ids: new RandomIds(),
       ownedKinds: { agents, shells, services },
       logPort: recordingLogPort(entries),
-      stopSandbox: async () => {},
     })
 
     expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll'])

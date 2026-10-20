@@ -10,7 +10,6 @@ import {
   type SourceStaleness,
 } from './update-check'
 import type { useAgents } from './use-agents'
-import type { useContainerGuard } from './use-container-guard'
 import type { useContainerMove } from './use-container-move'
 import type { useConversation } from './use-conversation'
 import type { useServices } from './use-services'
@@ -27,14 +26,13 @@ export function useWorkspaceStaleness(args: {
   conversation: Pick<ReturnType<typeof useConversation>, 'working' | 'turn' | 'compacting'>
   draft: ReturnType<typeof useDraft>
   containerMove: Pick<ReturnType<typeof useContainerMove>, 'move'>
-  containerGuard: Pick<ReturnType<typeof useContainerGuard>, 'state'>
   shells: Pick<ReturnType<typeof useShells>, 'runningEverywhere'>
   agents: Pick<ReturnType<typeof useAgents>, 'running'>
   services: Pick<ReturnType<typeof useServices>, 'running'>
   exit: Pick<ReturnType<typeof useWorkspaceExit>, 'exitGuard'>
   autoRestart: boolean
 }): void {
-  const { props, conversation, draft, containerMove, containerGuard, shells, agents, services } =
+  const { props, conversation, draft, containerMove, shells, agents, services } =
     args
   const { exitGuard } = args.exit
   const { autoRestart } = args
@@ -71,7 +69,6 @@ export function useWorkspaceStaleness(args: {
           compacting: conversation.compacting !== null,
           containerMoveOpen: containerMove.move !== null,
           exitGuardOpen: exitGuard.state !== null,
-          containerGuardOpen: containerGuard.state !== null,
           queuedMessages: props.app.pending.waitingCount(),
           runningTasks: shells.runningEverywhere + agents.running + services.running,
           draftEmpty: (draft.editor.current?.plainText ?? draft.value).length === 0,
@@ -83,7 +80,6 @@ export function useWorkspaceStaleness(args: {
       props.app.pending,
       conversation,
       exitGuard.state,
-      containerGuard.state,
       containerMove.move,
       shells.runningEverywhere,
       agents.running,

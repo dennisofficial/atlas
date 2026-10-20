@@ -81,7 +81,6 @@ import {
 } from '@dltech/atlas-harness'
 
 import { FileBrowser } from '@dltech/atlas-harness'
-import { moveLocalPlacement } from '@dltech/atlas-harness'
 
 import { MessageIntake, operatorSource } from '@dltech/atlas-harness'
 
@@ -101,7 +100,6 @@ import { heldChoice } from '@dltech/atlas-harness'
 import type { ModelCatalogue } from '@dltech/atlas-harness'
 import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
 import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
-import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { noticePortBinding } from '../notice-binding'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeServiceRegistry, type FakeServices } from './fake-services'
@@ -982,17 +980,6 @@ export function fakeApp(args: {
       return bashNotes
     },
 
-    sandbox: {
-      prepareWorkspace: async () => undefined,
-      noteBash: () => {
-        bashNotes += 1
-      },
-      stop: async () => {
-        sandboxStops += 1
-        return false
-      },
-    },
-
     ledger,
 
     markActiveThread: (active) => {
@@ -1062,21 +1049,6 @@ export function fakeApp(args: {
           attachment: undefined,
         },
       },
-    }),
-    moveTools: (move) =>
-      moveLocalPlacement({
-        ...move,
-        control: { state: executionLocation, pinned: false },
-        engine: { info: async () => ({ cpus: 4, memoryBytes: 8 * 1024 ** 3 }) },
-        ids,
-        shells,
-        services,
-        stores: () => ({ threads, log, agents }),
-      }),
-    containerStatus: createSandboxStatusState({
-      image: 'node:22-slim',
-      label: 'node:22-slim',
-      limits: args.containerLimits ?? { cpus: 4, memoryGb: 8 },
     }),
     executionPinned: false,
     settings: createSettingsService({

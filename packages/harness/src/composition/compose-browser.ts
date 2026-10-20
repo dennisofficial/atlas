@@ -20,7 +20,6 @@ export function bindBrowser(args: {
   anchor: string
   settings: SettingsService
   executionLocation: ExecutionLocationState
-  mounts: readonly string[]
 }): BrowserBinding {
   const editor = (): EEditor => {
     const held = choiceValueOf({
@@ -38,7 +37,6 @@ export function bindBrowser(args: {
         reachableRootsFor({
           location: args.executionLocation.current(),
           projectDirectory: args.anchor,
-          mounts: args.mounts,
         }),
     }),
     openUrl: createUrlOpener(),

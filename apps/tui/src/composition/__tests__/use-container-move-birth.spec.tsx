@@ -42,7 +42,7 @@ const begin = async (args: { onCancel?: () => void }) => {
 
 describe('cancelling a cloud birth', () => {
   for (const cancel of [key({ name: 'escape' }), key({ name: 'c', ctrl: true })]) {
-    it(`takes the overlay down and runs the fallback on ${cancel.ctrl === true ? 'ctrl+c' : 'esc'}`, async () => {
+    it(`takes the overlay down and runs the cancel on ${cancel.ctrl === true ? 'ctrl+c' : 'esc'}`, async () => {
       let cancelled = 0
       const mounted = await begin({ onCancel: () => (cancelled += 1) })
       expect(mounted.control().move?.cancellable).toBe(true)
@@ -55,7 +55,7 @@ describe('cancelling a cloud birth', () => {
     })
   }
 
-  it('does not run the fallback twice when cancel is pressed again', async () => {
+  it('does not run the cancel twice when cancel is pressed again', async () => {
     let cancelled = 0
     const mounted = await begin({ onCancel: () => (cancelled += 1) })
 
@@ -66,7 +66,7 @@ describe('cancelling a cloud birth', () => {
     expect(cancelled).toBe(1)
   })
 
-  it('leaves a move without a fallback running when esc is pressed', async () => {
+  it('leaves a move without a cancel running when esc is pressed', async () => {
     const mounted = await begin({})
 
     mounted.control().handleKey(key({ name: 'escape' }) as never)

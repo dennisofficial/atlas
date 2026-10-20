@@ -22,6 +22,7 @@ import { useComposerMenus } from './use-composer-menus'
 import type { useConversation } from './use-conversation'
 import { useResolvedMentions } from './use-resolved-mentions'
 import { useComposerFiles } from './use-composer-files'
+import type { ThreadBirth } from './use-thread-birth'
 
 export function useWorkspaceComposer(args: {
   app: AtlasApp
@@ -32,9 +33,10 @@ export function useWorkspaceComposer(args: {
   commands: ReturnType<typeof localCommands>
   loadedSkills: readonly DiscoveredSkill[]
   handleOpenNewest: () => boolean
+  handleUnbornSend: ThreadBirth['handleUnbornSend']
 }) {
-  const { app, draft, tokens, conversation, agentView, commands, loadedSkills, handleOpenNewest } =
-    args
+  const { app, draft, tokens, conversation, agentView, commands, loadedSkills } = args
+  const { handleOpenNewest, handleUnbornSend } = args
 
   const [sends, setSends] = useState(0)
 
@@ -223,7 +225,8 @@ export function useWorkspaceComposer(args: {
         tokens: live,
         load: readImageBase64,
       })
-      conversation.handleSend({ ...sending, context: dispatched.drafts })
+      const send = { ...sending, context: dispatched.drafts }
+      if (!handleUnbornSend({ send, onUndelivered: putBack })) conversation.handleSend(send)
     })()
       .catch((error: unknown) => {
         conversation.handleReportProblem(
@@ -243,6 +246,7 @@ export function useWorkspaceComposer(args: {
     draft,
     files,
     handleOpenNewest,
+    handleUnbornSend,
     skills,
     tokens,
   ])

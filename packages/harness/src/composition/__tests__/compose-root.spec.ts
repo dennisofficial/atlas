@@ -116,7 +116,7 @@ describe('bindBrowser', () => {
         user: new MemorySettingsStore({ label: 'compose root spec' }),
       })
       const location = new PlacementController(EExecutionLocation.Host)
-      const browser = bindBrowser({ anchor, settings, executionLocation: location, mounts: ['/mnt'] })
+      const browser = bindBrowser({ anchor, settings, executionLocation: location })
 
       expect(browser.pathResolver({ path: 'notes.md' })).toEqual({ path: join(anchor, 'notes.md') })
       expect(browser.pathResolver({ path: 'missing.md' })).toBeNull()

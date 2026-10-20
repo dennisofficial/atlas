@@ -1,3 +1,4 @@
+import { EExecutionLocation } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
@@ -65,7 +66,7 @@ describe('the resume journal', () => {
   it('writes nothing while a thread has nothing said in it yet', async () => {
     const mounted = await open({
       app: naming(),
-      opened: { threadId: THREAD, events: [], turns: [], name: null, started: false },
+      opened: { threadId: THREAD, events: [], turns: [], name: null, started: false, executionLocation: EExecutionLocation.Host },
     })
 
     try {

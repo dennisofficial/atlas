@@ -4,7 +4,7 @@ import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ESettingId } from '@dltech/atlas-core'
+import { ESettingId, EExecutionLocation } from '@dltech/atlas-core'
 
 import { glyph } from '../../ui/glyphs'
 
@@ -23,6 +23,7 @@ const UNSTARTED: OpenedConversation = {
   turns: [],
   name: null,
   started: false,
+  executionLocation: EExecutionLocation.Host,
 }
 
 const speaking = (settings?: Parameters<typeof fakeApp>[0]['settings']) =>

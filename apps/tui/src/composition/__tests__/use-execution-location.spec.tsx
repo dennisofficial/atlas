@@ -17,13 +17,11 @@ function Harness(args: {
   probe: Probe
   app: FakeApp
   stored: EExecutionLocation | undefined
-  started?: boolean | undefined
 }) {
   args.probe.current = useExecutionLocation({
     app: args.app,
     threadId: THREAD,
     stored: args.stored,
-    started: args.started ?? true,
   })
   return <box />
 }

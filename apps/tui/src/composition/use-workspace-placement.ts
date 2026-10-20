@@ -24,10 +24,9 @@ export function useWorkspacePlacement(args: {
     app,
     threadId: conversation.threadId,
     stored: conversation.executionLocation,
-    started: args.opened.started,
   })
   const cloudConnection = useCloudConnection({ app, session: cloudSession })
-  const containerPill = useContainerPill({ app, connection: cloudConnection })
+  const containerPill = useContainerPill({ connection: cloudConnection })
   const locationItems = useLocationItems({ app, connection: cloudConnection })
 
   return { execution, containerPill, locationItems }

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
 import {
@@ -22,12 +21,10 @@ import { registeredPortToken, type DependencyContainer } from '../container/inje
 import {
   ClientVersionToken,
   CloudSettingsStoreToken,
-  DockerEngineToken,
   HookMishapReporterToken,
   SleepPreventionToken,
   WakeSignalToken,
 } from '../container/tokens'
-import { moveLocalPlacement } from '../execution/local-placement-move'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { createPendingQueues } from '../pending'
 import { PromptRegistry } from '../prompt/registry'
@@ -59,7 +56,6 @@ import { publishProjections, type ContributedProjection } from '../plugins/proje
 
 import { bindInstructionsAndMemory } from './context-bindings'
 import { boundCaptureContext } from './context-archive-binding'
-import { ExecutionLocationToken } from './execution-location-state'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessCloseRequest, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
 import { bindModels } from './model-bindings'
@@ -122,7 +118,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const settings = args.settings.service
   const settled = settings.snapshot().resolution
-  const preThreadSessionKey = randomUUID()
   let activeThread: ActiveConversation | null = null
 
   const launchValue = (id: ESettingId): string | undefined => {
@@ -173,14 +168,9 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     modelPinned,
     executionLocation,
     executionPinned,
-    sandbox,
-    containerStatus,
-    mounts,
   } = await bindModels({
     container,
     launch,
-    anchor,
-    sessionKey: () => activeThread?.threadId ?? preThreadSessionKey,
     settled,
     settings,
     credentials,
@@ -258,7 +248,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     summarise: utility.summarise,
     settings,
     decisionsEnabled: utility.decisionsEnabled,
-    stopSandbox: sandbox.stop,
     settled,
     sleepPrevention: container.resolve(SleepPreventionToken),
     wake: container.resolve(WakeSignalToken),
@@ -275,7 +264,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     summarise: carryOverSummariser({ model: utility.compactionModel }),
   })
   lateRotation.bind(rotation)
-  const browser = bindBrowser({ anchor, settings, executionLocation, mounts })
+  const browser = bindBrowser({ anchor, settings, executionLocation })
   const sessionOwner = localSessionOwner({
     files: browser.files,
     placement: executionLocation,
@@ -328,8 +317,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     agents,
     services,
     operatorInput,
-    sandbox,
-    containerStatus,
     mcp: mcp.servers,
     mcpSignIn: mcp.signIn,
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
@@ -344,16 +331,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     executionLocation,
     sessionOwner,
     executionPinned,
-    moveTools: (move) =>
-      moveLocalPlacement({
-        ...move,
-        control: container.resolve(ExecutionLocationToken),
-        engine: container.resolve(DockerEngineToken),
-        ids,
-        shells,
-        services,
-        stores: () => ({ threads, log, agents }),
-      }),
     surface: bound as TSurface,
     prepareClose: (request) => {
       prepared = { ...prepared, ...request }

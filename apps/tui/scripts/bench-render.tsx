@@ -36,7 +36,6 @@ import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
 import { noticePortBinding } from '../src/composition/notice-binding'
 import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
-import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { createPathResolver } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
 import { fakeAgentRegistry } from '../src/composition/__tests__/fake-agents'
@@ -166,8 +165,6 @@ const benchApp = (args: {
     mcp: () => [],
     mcpSignIn: undefined,
     threadOpened: async () => {},
-    sandbox: { noteBash: () => {}, stop: async () => false, prepareWorkspace: async () => undefined },
-    containerStatus: createSandboxStatusState({ image: 'unused', label: 'unused' }),
     executionLocation,
     sessionOwner: createSessionOwner<SessionRuntime>({
       placement: executionLocation,
@@ -190,14 +187,6 @@ const benchApp = (args: {
           attachment: undefined,
         },
       },
-    }),
-    moveTools: async ({ target }) => ({
-      ok: true as const,
-      from: EExecutionLocation.Host,
-      to: target,
-      killedShells: 0,
-      moved: { stoppedServices: [], relocatedAgents: [], stillStopping: 0 },
-      stillDying: 0,
     }),
     executionPinned: false,
     prepareClose: () => {},

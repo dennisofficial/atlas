@@ -4,6 +4,7 @@ import { asLabels, asNumber, asRecord, asString, raw, request, EngineRequestFail
 import { DockerImages } from './engine-images'
 
 export { EngineRequestFailed } from './engine-http'
+export const DEFAULT_DOCKER_SOCKET = '/var/run/docker.sock'
 export type { ImageSummary } from './engine-images'
 
 export type EngineInfo = {

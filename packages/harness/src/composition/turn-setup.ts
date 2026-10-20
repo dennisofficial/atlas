@@ -31,7 +31,6 @@ export type TurnSetup<Command = never> = {
   summarise: Summariser
   settings: SettingsService
   decisionsEnabled: () => boolean
-  stopSandbox: () => Promise<boolean>
   settled: SettingsResolution
   tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
   titler: (args: { text: string; images?: readonly SaidImage[] | undefined }) => Promise<string | null>

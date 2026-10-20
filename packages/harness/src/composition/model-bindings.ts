@@ -4,12 +4,13 @@ import {
   EAuthProvider,
   type Account,
   type CredentialPort,
+  ExecutionLocationSinkPort,
   type NoticePort,
   type SettingsResolution,
 } from '@dltech/atlas-core'
 
-import type { DependencyContainer } from '../container/injection'
-import { DockerEngineToken, LanguageModelToken, ModelCardSourceToken, SelectableModelToken } from '../container/tokens'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
+import { LanguageModelToken, ModelCardSourceToken, SelectableModelToken } from '../container/tokens'
 import { CodexModelsCatalogue } from '../models/codex-models-catalogue'
 import { cardsForProvider } from '../models/generated-catalogue'
 import { CODEX_VERSION } from '../providers/codex-version'
@@ -30,9 +31,6 @@ import { executionPinned, resolveExecutionLocation } from './execution-preferenc
 import { modelCatalogue, type ModelCatalogue } from './model-catalogue'
 import { launchSelection, modelPinned } from './model-preference'
 import { selectableModel, type SelectableModel } from './model-selection'
-import { bindSandbox, type SandboxControl } from './sandbox-binding'
-import type { AnchoringControl } from './sandbox-reanchor'
-import type { SandboxStatusState } from './sandbox-status-state'
 
 export type ModelBindings = {
   models: ModelCatalogue
@@ -40,9 +38,6 @@ export type ModelBindings = {
   modelPinned: boolean
   executionLocation: ExecutionLocationState
   executionPinned: boolean
-  sandbox: SandboxControl
-  containerStatus: SandboxStatusState
-  mounts: readonly string[]
 }
 
 const emptyToUndefined = (value: string | undefined): string | undefined =>
@@ -56,10 +51,6 @@ const holdsOpenAiLogin = (accounts: readonly Account[]): boolean =>
 export async function bindModels(args: {
   container: DependencyContainer
   launch: HarnessLaunch
-  /** The directory the sandbox binds and roots resolve against — the launch cwd, or the process directory for a workspace-less session. */
-  anchor: string
-  /** The identity the sandbox container is keyed to — the active thread once one is open. */
-  sessionKey: () => string
   settled: SettingsResolution
   settings: SettingsService
   credentials: CredentialPort
@@ -113,21 +104,12 @@ export async function bindModels(args: {
     }),
   })
   const pinned = executionPinned({ requested: launch.executionLocation })
-  const { sandbox, containerStatus, mounts } = await bindSandbox({
-    container,
-    engine: container.resolve(DockerEngineToken),
-    cwd: args.anchor,
-    sessionKey: args.sessionKey,
-    settings,
-    executionLocation,
-    notice,
+  container.register(registeredPortToken(ExecutionLocationSinkPort), {
+    useValue: {
+      refresh: ({ threadId }) => executionLocation.refresh({ threadId }),
+    },
   })
-  const control: AnchoringControl = {
-    state: executionLocation,
-    pinned,
-    anchoring: { launchDirectory: args.anchor, prepare: sandbox.prepareWorkspace },
-  }
-  container.register(ExecutionLocationToken, { useValue: control })
+  container.register(ExecutionLocationToken, { useValue: { state: executionLocation, pinned } })
 
   container.register(LanguageModelToken, { useValue: model.model })
   container.register(SelectableModelToken, { useValue: model })
@@ -141,8 +123,5 @@ export async function bindModels(args: {
     modelPinned: modelPinned({ requested: { model: launch.model }, catalogue: models }),
     executionLocation,
     executionPinned: pinned,
-    sandbox,
-    containerStatus,
-    mounts,
   }
 }

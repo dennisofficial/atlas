@@ -31,10 +31,9 @@ export function useLocationItems(args: {
       unplaced === null || unplaced.threadId !== threadId
         ? null
         : {
-            harness: unplaced.harness,
             runner: unplaced.runner,
             provisioning: unplaced.provisioning,
-            onFlip: chip.flip,
+            onFlip: unplaced.preference === true ? chip.flip : undefined,
           }
     const pill = locationPillOf({ location, placement })
     return [icon, pill].filter((item): item is FooterItem => item !== null)

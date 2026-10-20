@@ -149,11 +149,10 @@ export function useThreadView(args: {
       effects,
       paceReveal,
       priceOf,
-      sandbox: app.containerStatus,
       readClock: () => clock.current(),
       ...(projectEvents === undefined ? {} : { projectEvents }),
     });
-  }, [app.channel, app.containerStatus, app.executionLocation, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
+  }, [app.channel, app.executionLocation, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
 
   const stamp = useCallback(
     (advance: (progress: TurnProgress) => TurnProgress) => store.stampTurn(advance),

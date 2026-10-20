@@ -243,13 +243,6 @@ function DerivedEntryView(props: {
         />
       )
 
-    case EEntryKind.SandboxNotice:
-      return (
-        <box flexDirection="row" marginBottom={1} flexShrink={0}>
-          <text fg={entry.failed ? theme.warn : theme.dim}>{entry.text}</text>
-        </box>
-      )
-
     case EEntryKind.OperatorInput:
       return (
         <box flexDirection="row" marginBottom={1} flexShrink={0}>

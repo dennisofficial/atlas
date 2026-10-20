@@ -54,10 +54,6 @@ const fakes = (args: { shells: readonly unknown[] }) => {
     services,
     log: {} as unknown as EventLogPort,
     ids: {} as unknown as IdPort,
-    stopSandbox: async () => {
-      calls.push('sandbox:stop')
-      return true
-    },
   })
   return { calls, shells, bound }
 }
@@ -80,12 +76,11 @@ const closeWith = async (args: { shells: readonly unknown[]; stopShells: boolean
 }
 
 describe('closing a session', () => {
-  it('detaches running shells without killing them and leaves the sandbox up', async () => {
+  it('detaches running shells without killing them', async () => {
     const calls = await closeWith({ shells: [running], stopShells: false })
 
     expect(calls).toContain('shells:detach')
     expect(calls).not.toContain('shells:kill')
-    expect(calls).not.toContain('sandbox:stop')
   })
 
   it('still stops agents and services when shells are kept', async () => {
@@ -95,17 +90,9 @@ describe('closing a session', () => {
     expect(calls).toContain('services:close')
   })
 
-  it('stops the sandbox on a normal close when no shell is running', async () => {
-    const calls = await closeWith({ shells: [], stopShells: false })
-
-    expect(calls).toContain('sandbox:stop')
-    expect(calls).not.toContain('shells:kill')
-  })
-
   it('kills shells before anything is detached when the close asks to stop them', async () => {
     const calls = await closeWith({ shells: [running], stopShells: true })
 
     expect(calls[0]).toBe('shells:kill')
-    expect(calls).toContain('sandbox:stop')
   })
 })

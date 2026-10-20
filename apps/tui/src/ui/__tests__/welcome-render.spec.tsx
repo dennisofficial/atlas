@@ -1,4 +1,4 @@
-import { EHarnessPlacement } from '@dltech/atlas-core'
+import { ERunner } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
@@ -67,7 +67,7 @@ describe('the welcome screen', () => {
 
 type Shape = 'chip' | 'hero'
 
-type Placement = { harness: EHarnessPlacement; provisioning: boolean } | null
+type Placement = { runner?: ERunner; provisioning: boolean } | null
 
 const placed = (args: { shape?: Shape; placement?: Placement }): React.ReactNode => (
   <WelcomeScreen
@@ -81,20 +81,18 @@ const placed = (args: { shape?: Shape; placement?: Placement }): React.ReactNode
   />
 )
 
-const HOST_HINT = '↓ to the footer chip, ⏎ for a pod'
-
 const CLOUD_HINT = '↓ to the footer chip, ⏎ to switch runner'
 
-const host: Placement = { harness: EHarnessPlacement.Host, provisioning: false }
+const pod: Placement = { runner: ERunner.Local, provisioning: false }
 
-const cloud: Placement = { harness: EHarnessPlacement.Cloud, provisioning: false }
+const cloud: Placement = { runner: ERunner.Vercel, provisioning: false }
 
 describe('the welcome screen in the hero placement shape', () => {
-  it('shows the local placement in the metadata line, with the way to the cloud', async () => {
-    const frame = await frameOf(placed({ shape: 'hero', placement: host }), WIDE)
+  it('shows the pod preference in the metadata line, with the way to switch runner', async () => {
+    const frame = await frameOf(placed({ shape: 'hero', placement: pod }), WIDE)
 
-    expect(frame).toContain('v1.2.3 · ☁ local')
-    expect(frame).toContain(HOST_HINT)
+    expect(frame).toContain('v1.2.3 · pod')
+    expect(frame).toContain(CLOUD_HINT)
     expect(frame).not.toContain('☁ cloud')
   })
 
@@ -103,12 +101,12 @@ describe('the welcome screen in the hero placement shape', () => {
 
     expect(frame).toContain('v1.2.3 · ☁ cloud')
     expect(frame).toContain(CLOUD_HINT)
-    expect(frame).not.toContain('☁ local')
+    expect(frame).not.toContain('· pod')
   })
 
   it('stays on the cloud label while the sandbox provisions', async () => {
     const frame = await frameOf(
-      placed({ shape: 'hero', placement: { harness: EHarnessPlacement.Cloud, provisioning: true } }),
+      placed({ shape: 'hero', placement: { runner: ERunner.Vercel, provisioning: true } }),
       WIDE,
     )
 
@@ -117,9 +115,9 @@ describe('the welcome screen in the hero placement shape', () => {
   })
 
   it('places the hint under the action line', async () => {
-    const rows = (await frameOf(placed({ shape: 'hero', placement: host }), WIDE)).split('\n')
+    const rows = (await frameOf(placed({ shape: 'hero', placement: pod }), WIDE)).split('\n')
     const action = rows.findIndex((row) => row.includes('Describe the work below.'))
-    const hint = rows.findIndex((row) => row.includes(HOST_HINT))
+    const hint = rows.findIndex((row) => row.includes(CLOUD_HINT))
 
     expect(action).toBeGreaterThanOrEqual(0)
     expect(hint).toBe(action + 1)
@@ -143,7 +141,7 @@ describe('the welcome screen in the hero placement shape', () => {
         version="v1.2.3"
         width={narrow}
         shape="hero"
-        placement={host}
+        placement={pod}
       />
     )
     const frame = await frameOf(node, narrow)
@@ -158,7 +156,7 @@ describe('the welcome screen in the chip placement shape', () => {
   it('ignores a placement, byte for byte', async () => {
     const baseline = await frameOf(placed({}), WIDE)
 
-    expect(await frameOf(placed({ shape: 'chip', placement: host }), WIDE)).toBe(baseline)
+    expect(await frameOf(placed({ shape: 'chip', placement: pod }), WIDE)).toBe(baseline)
     expect(await frameOf(placed({ placement: cloud }), WIDE)).toBe(baseline)
     expect(baseline).not.toContain('☁')
     expect(baseline).not.toContain('footer chip')

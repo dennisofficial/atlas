@@ -1,19 +1,11 @@
-import {
-  EHarnessPlacement,
-  EToolEnvironment,
-  ERunner,
-  ESettingId,
-  type SessionPlacement,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { choiceValueOf, EHarnessPlacement, ERunner, ESettingId, type ThreadId } from '@dltech/atlas-core'
 import { cloudProvisioningConfigured } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
-import { unstartedConversation, type OpenedConversation } from '../open-conversation'
-import { localAnchorOf, localBindingOf } from '../session-binding'
+import type { SendArgs } from '../conversation-types'
 import type { BirthPreflight } from './bridge-factory'
-import { bornPlacementChip, startsTheThread } from './born-placement-chip'
+import { bornPlacementChip } from './born-placement-chip'
 
 export const CLOUD_NOT_CONFIGURED_NOTICE =
   'cloud sandboxes are not configured yet — set up your Vercel account under settings (ctrl+o) › cloud'
@@ -25,87 +17,52 @@ export type BornCloudArgs = {
   app: AtlasApp
   threadId: ThreadId
   choice?: ERunner | undefined
-  carriedDraft?: boolean | undefined
+  arrival: SendArgs
   preflightBirth?: BirthPreflight | undefined
   requireSignIn: () => void
   birthCloud: (args: { threadId: ThreadId; runner: ERunner }) => void
-  adopt: (opened: OpenedConversation) => void
 }
 
-const HOST_PLACEMENT: SessionPlacement = { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host }
-
-export function rememberPlacement(args: { app: AtlasApp; harness: EHarnessPlacement }): void {
-  args.app.settings.set({ id: ESettingId.LastBornPlacement, value: args.harness })
+export function rememberPlacement(args: { app: Pick<AtlasApp, 'settings'>; runner: ERunner }): void {
+  args.app.settings.set({ id: ESettingId.LastBornPlacement, value: args.runner })
 }
 
-const adoptLocally = (args: BornCloudArgs): void => {
-  const opened = unstartedConversation({ ids: args.app.ids, threadId: args.threadId })
-  args.adopt(opened)
-  void args.app.sessionOwner
-    .activateLocal({
-      threadId: args.threadId,
-      binding: localBindingOf({
-        local: args.app,
-        workspace: localAnchorOf({ local: args.app, opened }),
-        opened,
-      }),
-    })
-    .catch(() => undefined)
-}
-
-function placeOnFirstSend(args: BornCloudArgs): void {
-  const { app, threadId } = args
-  const stop = app.channel.subscribe({
-    threadId,
-    listener: (signal) => {
-      if (!startsTheThread(signal)) return
-      stop()
-      bornPlacementChip(app).retire(threadId)
-      const held = app.sessionOwner.placement.snapshot(threadId)
-      if (held !== undefined && held.placement.harness === EHarnessPlacement.Cloud) return
-      void app.sessionOwner.placement
-        .placeAtCreation({ threadId, placement: HOST_PLACEMENT })
-        .catch(() => undefined)
-    },
+export function preferredRunner(app: Pick<AtlasApp, 'settings'>): ERunner {
+  const chosen = choiceValueOf({
+    resolution: app.settings.snapshot().resolution,
+    id: ESettingId.LastBornPlacement,
+    fallback: ERunner.Local,
   })
+  return chosen === ERunner.Vercel ? ERunner.Vercel : ERunner.Local
 }
 
-export function fallBackToHost(args: BornCloudArgs): void {
-  bornPlacementChip(args.app).set({
-    threadId: args.threadId,
-    harness: EHarnessPlacement.Host,
-    provisioning: false,
-    ...(args.carriedDraft === true ? { carriedDraft: true } : {}),
-  })
-  placeOnFirstSend(args)
-  adoptLocally(args)
+export const vercelConfigured = (app: Pick<AtlasApp, 'settings' | 'secrets'>): boolean =>
+  cloudProvisioningConfigured({ settings: app.settings, secrets: app.secrets })
+
+export function notifyVercelUnconfigured(): void {
+  notify({ key: 'born-cloud-unconfigured', text: CLOUD_NOT_CONFIGURED_NOTICE, tone: ENoticeTone.Info, ttlMs: NOTICE_WARN_MS })
 }
 
-export async function bornWith(args: BornCloudArgs): Promise<void> {
+export async function bornWith(args: BornCloudArgs): Promise<boolean> {
   const { app, threadId } = args
 
   if (app.cloud.session() === null) {
     notify({ key: 'born-sign-in', text: SIGN_IN_TO_BIRTH_NOTICE, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
     args.requireSignIn()
-    return
+    return false
   }
 
-  const runner = args.choice ?? ERunner.Local
+  const runner = args.choice ?? preferredRunner(app)
 
-  if (runner === ERunner.Vercel && !cloudProvisioningConfigured({ settings: app.settings, secrets: app.secrets })) {
-    notify({
-      key: 'born-cloud-unconfigured',
-      text: CLOUD_NOT_CONFIGURED_NOTICE,
-      tone: ENoticeTone.Info,
-      ttlMs: NOTICE_WARN_MS,
-    })
-    return
+  if (runner === ERunner.Vercel && !vercelConfigured(app)) {
+    notifyVercelUnconfigured()
+    return false
   }
 
   const refusal = (await args.preflightBirth?.({ runner })) ?? null
   if (refusal !== null) {
     notify({ key: 'born-cloud-preflight', text: refusal, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
-    return
+    return false
   }
 
   bornPlacementChip(app).set({
@@ -113,9 +70,8 @@ export async function bornWith(args: BornCloudArgs): Promise<void> {
     harness: EHarnessPlacement.Cloud,
     runner,
     provisioning: true,
-    ...(args.carriedDraft === true ? { carriedDraft: true } : {}),
+    arrival: args.arrival,
   })
-  const opened = unstartedConversation({ ids: app.ids, threadId })
-  args.adopt(opened)
   args.birthCloud({ threadId, runner })
+  return true
 }

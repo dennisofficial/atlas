@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { Chunk, ModelPort, ModelStepResult } from '@dltech/atlas-core'
-import { EFinishReason, toThreadId } from '@dltech/atlas-core'
+import { EFinishReason, toThreadId, EExecutionLocation } from '@dltech/atlas-core'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { open, promiseGate, until, type Mounted } from './app-fixture'
@@ -20,6 +20,7 @@ const openFresh = async (app: FakeApp): Promise<Mounted> =>
       turns: [],
       name: null,
       started: false,
+      executionLocation: EExecutionLocation.Host,
     },
   })
 

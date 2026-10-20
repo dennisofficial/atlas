@@ -11,14 +11,10 @@ const FAULT_HEAD: Record<EBirthFault, string> = {
   [EBirthFault.ImagePull]: 'the pod image could not be pulled',
 }
 
-const FELL_BACK = 'this thread started on this machine instead'
-
-const landing = (failure: BirthFailure): string => {
-  if (failure.step === EBirthNode.Attach) {
-    return `the sandbox started but could not be attached — ${FELL_BACK}`
-  }
-  return FELL_BACK
-}
+const landing = (failure: BirthFailure): string =>
+  failure.step === EBirthNode.Attach ? ' — the sandbox started but could not be attached' : ''
 
 export const birthFailedNotice = (failure: BirthFailure): string =>
-  `${FAULT_HEAD[failure.fault]} — ${landing(failure)}. ${failure.detail}`
+  `${FAULT_HEAD[failure.fault]}${landing(failure)}. ${failure.detail}`
+
+export const BIRTH_CANCELLED_NOTICE = 'starting the pod was cancelled — send again to retry'

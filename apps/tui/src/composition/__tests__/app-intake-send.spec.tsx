@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId } from '@dltech/atlas-core'
+import { toThreadId, EExecutionLocation } from '@dltech/atlas-core'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { open, until, type Mounted } from './app-fixture'
@@ -19,6 +19,7 @@ const openFresh = async (app: FakeApp): Promise<Mounted> =>
       turns: [],
       name: null,
       started: false,
+      executionLocation: EExecutionLocation.Host,
     },
   })
 

@@ -1,15 +1,6 @@
-import { existsSync } from 'node:fs'
-
-import {
-  DEFAULT_DOCKER_SOCKET,
-  DockerEngine,
-  listWorktrees,
-  logFieldsOf,
-  sweepSandboxes,
-} from '@dltech/atlas-harness'
+import { logFieldsOf } from '@dltech/atlas-harness'
 
 import { registerGrammars } from '../ui/markdown/grammars/index'
-import { ENoticeTone, notify } from '../ui/notice-store'
 import { EBootStep, type BootProgress } from './boot-progress'
 import { durableOpLog } from './durable-op-log'
 import { composeAtlas, type AtlasApp } from './compose'
@@ -64,26 +55,6 @@ async function credentialReadiness(app: AtlasApp): Promise<CredentialDiagnosis |
   }
 }
 
-async function sweepOrphanedSandboxes(args: { cwd: string }): Promise<void> {
-  const socketPath = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
-  if (!existsSync(socketPath)) return
-
-  const listing = await listWorktrees({ cwd: args.cwd })
-  if (!listing.ok) return
-
-  const removed = await sweepSandboxes({
-    engine: new DockerEngine({ socketPath }),
-    worktrees: listing.worktrees.map((worktree) => worktree.path),
-  })
-  if (removed.length === 0) return
-
-  notify({
-    key: 'sandbox-sweep',
-    tone: ENoticeTone.Info,
-    text: `Removed ${removed.length} sandbox ${removed.length === 1 ? 'container' : 'containers'} whose ${removed.length === 1 ? 'worktree is' : 'worktrees are'} gone: ${removed.join(', ')}`,
-  })
-}
-
 async function startSession(args: {
   config: AtlasConfig
   command: string
@@ -98,15 +69,6 @@ async function startSession(args: {
     state: stateOfDirectory(config.cwd),
   })
   if (unusable !== null) return { type: ESession.Refused, message: unusable, exitCode: REFUSED }
-
-  void sweepOrphanedSandboxes({ cwd: config.cwd }).catch((error: unknown) => {
-    durableOpLog()?.warn({
-      source: 'tui.open-session',
-      message: 'sandbox sweep failed',
-      ...logFieldsOf({ error }),
-      data: { cwd: config.cwd },
-    })
-  })
 
   progress.report(EBootStep.Composing)
   const app = await composeAtlas({

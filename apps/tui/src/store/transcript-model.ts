@@ -24,7 +24,6 @@ export enum EEntryKind {
   AgentRestarted = 'agent-restarted',
   TldrWritten = 'tldr-written',
   TurnEnded = 'turn-ended',
-  SandboxNotice = 'sandbox-notice',
   LocationChanged = 'location-changed',
   Rotated = 'rotated',
   OperatorInput = 'operator-input',
@@ -189,14 +188,6 @@ export type TurnEndedEntry = {
   interrupted: boolean
 }
 
-export type SandboxNoticeEntry = {
-  kind: EEntryKind.SandboxNotice
-  author: EAuthor.Model
-  key: string
-  text: string
-  failed: boolean
-}
-
 export type LocationChangedEntry = {
   kind: EEntryKind.LocationChanged
   author: EAuthor.Model
@@ -270,7 +261,6 @@ export type TranscriptEntry =
   | AgentRestartedEntry
   | TldrWrittenEntry
   | TurnEndedEntry
-  | SandboxNoticeEntry
   | LocationChangedEntry
   | RotatedEntry
   | OperatorInputEntry

@@ -10,6 +10,7 @@ import { useDraftTokens } from '../ui/hooks/use-draft-tokens'
 import { useSince } from '../ui/hooks/use-since'
 import { channelTakingTurns } from './cloud/channel-ready'
 import { pasteDirectoryOf } from './paste-directory'
+import { unplacedThread } from './cloud/use-unborn-thread'
 import { useThreadBirth } from './use-thread-birth'
 import { useCloudHealth } from './use-cloud-connection'
 import { useContainerMove } from './use-container-move'
@@ -152,6 +153,10 @@ export function useWorkspaceSession(args: {
     onSignInRequired: settings.handleOpenCloudSignIn,
     adopt: (opened) => props.onLeaveCloud(opened),
     onReload: props.onReload,
+    threadId: conversation.threadId,
+    unplaced: unplacedThread({ opened: props.opened, started: conversation.started }),
+    attached: props.cloudSession !== null,
+    onArrival: (send) => conversation.handleSend(send),
   })
 
   const handleNewConversation = useCallback(() => {
@@ -175,5 +180,6 @@ export function useWorkspaceSession(args: {
     handleOpenNewest,
     handleFocusComposer,
     handleNewConversation,
+    handleUnbornSend: birth.handleUnbornSend,
   }
 }

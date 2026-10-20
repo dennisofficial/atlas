@@ -1,3 +1,4 @@
+import { EExecutionLocation } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -21,6 +22,7 @@ const UNSTARTED: OpenedConversation = {
   turns: [],
   name: null,
   started: false,
+  executionLocation: EExecutionLocation.Host,
 }
 
 const WIDE = { width: 140, height: 40 }

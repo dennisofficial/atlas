@@ -65,7 +65,6 @@ export function WorkspaceTranscript(props: {
   const placement =
     unplaced !== null && unplaced.threadId === conversation.threadId
       ? {
-          harness: unplaced.harness,
           runner: unplaced.runner,
           provisioning: unplaced.provisioning,
         }
