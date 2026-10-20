@@ -5,6 +5,7 @@ import {
   toRunId,
   type Event,
   type EventDraft,
+  type ExecutionLocationSinkPort,
   type ModelPort,
   type ModelStepResult,
   type ThreadId,
@@ -131,10 +132,12 @@ export type OpenedSupervisor = {
 
 export async function openSupervisor({
   agentTypes = [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: 'builder' })],
+  sink,
   hasLiveWork,
   inheritOrphanedNotices,
 }: {
   agentTypes?: readonly AgentType[]
+  sink?: ExecutionLocationSinkPort | undefined
   hasLiveWork?: ((threadId: ThreadId) => boolean) | undefined
   inheritOrphanedNotices?: InheritOrphanedNotices | undefined
 } = {}): Promise<OpenedSupervisor> {
@@ -156,6 +159,7 @@ export async function openSupervisor({
       agentTypes,
       runners: runners.source,
       launchDirectory: '/launch',
+      ...(sink === undefined ? {} : { sink }),
       ...(hasLiveWork === undefined ? {} : { hasLiveWork }),
       ...(inheritOrphanedNotices === undefined ? {} : { inheritOrphanedNotices }),
     }),

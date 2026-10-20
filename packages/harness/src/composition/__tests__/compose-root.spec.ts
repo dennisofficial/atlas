@@ -6,10 +6,11 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   ENoticeTone,
-  EHarnessPlacement,
+  EExecutionLocation,
   TelemetryPort,
   toThreadId,
   type NoticePost,
+  type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
 import { createIsolatedContainer, registeredPortToken } from '../../container/injection'
@@ -17,16 +18,18 @@ import { registerDisposable } from '../../container/disposal'
 import type { AccountUsageService } from '../../usage/account-usage-service'
 import { bindBrowser } from '../compose-browser'
 import { closeSession, hookMishapNotice } from '../compose-lifecycle'
-import { unplacedSessionOwner } from '../compose-session'
+import { localSessionOwner } from '../compose-session'
 import { PlacementController } from '../placement-controller'
-import { ERuntimeKind, type RuntimeBinding } from '../session-owner'
+import { ERuntimeKind } from '../session-owner'
 import { createSettingsService } from '../../settings/service'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { ATLAS_SETTINGS } from '@dltech/atlas-core'
 import { recordingNotices } from './fakes'
 
-describe('unplacedSessionOwner', () => {
-  it('holds no runtime until a session is adopted, and holds the intake of a frozen family', async () => {
+const WORKSPACE: WorkspaceIdentity = { workspace: '/work', repo: '/repo' }
+
+describe('localSessionOwner', () => {
+  it('binds the local runtime at the workspace and holds the intake of a frozen family', async () => {
     const held: string[] = []
     const released: string[] = []
     const intake = {
@@ -42,30 +45,27 @@ describe('unplacedSessionOwner', () => {
     const threads = {
       spawned: async ({ threadId }: { threadId: string }) => (threadId === parent ? [{ id: child }] : []),
     }
-    const owner = unplacedSessionOwner({
-      placement: new PlacementController(),
-      threads,
-      intake,
-    } as unknown as Parameters<typeof unplacedSessionOwner>[0])
+    const adapters = {
+      runner: {}, channel: {}, log: {}, threads, ledger: {}, intake, shells: {}, agents: {}, services: {},
+    }
+    const owner = localSessionOwner({
+      placement: new PlacementController(EExecutionLocation.Host),
+      workspace: WORKSPACE,
+      ...adapters,
+    } as unknown as Parameters<typeof localSessionOwner>[0])
 
-    expect(owner.snapshot().bound).toBe(false)
-    expect(owner.snapshot().placed).toBe(false)
-    expect(() => owner.require()).toThrow('not attached')
+    const binding = owner.require()
+    expect(binding.kind).toBe(ERuntimeKind.Local)
+    expect(binding.cwd).toBe('/work')
+    expect(binding.adapters.workspace).toBe(WORKSPACE)
+    expect(binding.adapters.rewindMachinery).toBeUndefined()
+    expect(binding.adapters.attachment).toBeUndefined()
+    expect(binding.adapters.intake).toBe(intake as never)
 
-    const binding: RuntimeBinding<unknown> = { kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: {} }
-    owner.placement.bind({
-      threads: {
-        readPlacement: async () => ({ placement: { harness: EHarnessPlacement.Cloud }, revision: 1 }),
-        writePlacement: async () => undefined,
-        onPlacementChanged: () => () => undefined,
-        find: async () => undefined,
-      },
-      workspace: '/work',
-      repo: null,
-    })
-    await owner.adopt({ threadId: parent, binding: binding as never })
-    expect(owner.snapshot().bound).toBe(true)
+    const release = await binding.freeze?.({ threadId: parent })
     expect(held).toEqual([parent, child])
+    release?.()
+    expect(released).toEqual([parent, child])
   })
 })
 
@@ -115,7 +115,8 @@ describe('bindBrowser', () => {
         definitions: ATLAS_SETTINGS,
         user: new MemorySettingsStore({ label: 'compose root spec' }),
       })
-      const browser = bindBrowser({ anchor, settings })
+      const location = new PlacementController(EExecutionLocation.Host)
+      const browser = bindBrowser({ anchor, settings, executionLocation: location, mounts: ['/mnt'] })
 
       expect(browser.pathResolver({ path: 'notes.md' })).toEqual({ path: join(anchor, 'notes.md') })
       expect(browser.pathResolver({ path: 'missing.md' })).toBeNull()

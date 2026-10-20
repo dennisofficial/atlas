@@ -73,4 +73,32 @@ describe('the app announcing which directory an opened conversation stands in', 
     }
   }, 60_000)
 
+  it('follows a switch into a thread standing in a worktree', async () => {
+    const app = appWith()
+    await seedWorktreeThread({ app, title: 'the thing' })
+    const setup = await testRender(
+      <App
+        app={app}
+        opened={{ threadId: toThreadId('opened-thread'), events: [], turns: [], name: null, started: true }}
+      />,
+      WIDE,
+    )
+
+    try {
+      await settle(250)
+      await setup.flush()
+      expect(app.openedDirectories).toEqual([FAKE_CONFIG.cwd])
+
+      await setup.mockInput.typeText('/resume the-thing')
+      await setup.flush()
+      setup.mockInput.pressEnter()
+      await setup.flush()
+      await settle(400)
+      await setup.flush()
+
+      expect(app.openedDirectories).toEqual([FAKE_CONFIG.cwd, TREE])
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
 })

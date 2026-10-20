@@ -68,7 +68,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   const services = useServices({ app: props.app })
   const contextBrowser = useWorkspaceContext({
     readers: props.attachment?.context, threadId: conversation.threadId, onClosePeek: frame.handleClosePeek,
-    local: props.attachment === undefined,
+    local: props.attachment === undefined || props.attachment.kind === 'local',
   })
 
   useWorkspaceNotices({
@@ -119,15 +119,20 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
       return await props.cloudBridge.sandboxes.updateResources({ threadId: conversation.threadId, vcpus })
     },
   })
-  const { handleContainer, handleContainerResources } = useWorkspaceLocation({
+  const { containerGuard, handleContainer, handleContainerResources } = useWorkspaceLocation({
+    props,
+    conversation,
     execution: placement.execution,
+    containerMove,
     containerResources,
+    shells,
   })
   const { handleRestart, handleQuit } = useWorkspaceLifecycle({
     props,
     conversation,
     draft,
     containerMove,
+    containerGuard,
     shells,
     agents,
     services,
@@ -163,7 +168,6 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     commands,
     loadedSkills,
     handleOpenNewest: session.handleOpenNewest,
-    handleUnbornSend: session.handleUnbornSend,
   })
 
   const footer = useWorkspaceFooter({
@@ -209,6 +213,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     footerStrip: footer.footerStrip,
     rewind,
     exitGuard,
+    containerGuard,
     containerMove,
     containerResources,
     contextBrowser,
@@ -297,7 +302,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
             accounts, threads, projectPrompt, rewind, qualityHealth }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
-          {...{ exitGuard, containerResources }}
+          {...{ exitGuard, containerGuard, containerResources }}
           compacting={conversation.compacting}
           containerMove={containerMove.move}
           containerMoveNow={containerMove.now}

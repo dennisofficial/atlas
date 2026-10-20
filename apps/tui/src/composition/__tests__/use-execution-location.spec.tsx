@@ -13,8 +13,18 @@ const THREAD: ThreadId = 'thread-under-test' as ThreadId
 
 type Probe = { current: ExecutionLocationControl | null }
 
-function Harness(args: { probe: Probe; app: FakeApp }) {
-  args.probe.current = useExecutionLocation({ app: args.app, threadId: THREAD })
+function Harness(args: {
+  probe: Probe
+  app: FakeApp
+  stored: EExecutionLocation | undefined
+  started?: boolean | undefined
+}) {
+  args.probe.current = useExecutionLocation({
+    app: args.app,
+    threadId: THREAD,
+    stored: args.stored,
+    started: args.started ?? true,
+  })
   return <box />
 }
 
@@ -27,12 +37,15 @@ type Mounted = {
 
 const live: Mounted[] = []
 
-async function mount(args: { app: FakeApp }): Promise<Mounted> {
+async function mount(args: {
+  stored: EExecutionLocation | undefined
+  app: FakeApp
+}): Promise<Mounted> {
   const setup = await createTestRenderer({ width: 40, height: 4 })
   const root = createRoot(setup.renderer)
   const probe: Probe = { current: null }
   await act(async () => {
-    root.render(<Harness probe={probe} app={args.app} />)
+    root.render(<Harness probe={probe} app={args.app} stored={args.stored} />)
     await setup.flush()
   })
   await act(async () => {
@@ -60,22 +73,22 @@ describe('the location the footer reads', () => {
   it('shows where the session is durably placed rather than what a mount would default to', async () => {
     const app = await appWith(EExecutionLocation.Cloud)
 
-    const { probe } = await mount({ app })
+    const { probe } = await mount({ stored: undefined, app })
 
-    expect(probe.current?.placed).toBe(true)
+    expect(probe.current?.location).toBe(EExecutionLocation.Cloud)
   })
 
   it('writes no placement of its own, so remounting a cloud thread cannot send it home', async () => {
     const app = await appWith(EExecutionLocation.Cloud)
 
-    const first = await mount({ app })
+    const first = await mount({ stored: EExecutionLocation.Cloud, app })
     first.root.unmount()
     first.setup.renderer.destroy()
     live.pop()
 
-    const { probe } = await mount({ app })
+    const { probe } = await mount({ stored: undefined, app })
 
-    expect(probe.current?.placed).toBe(true)
+    expect(probe.current?.location).toBe(EExecutionLocation.Cloud)
     expect(app.threads.chosenLocations).toEqual([])
   })
 })

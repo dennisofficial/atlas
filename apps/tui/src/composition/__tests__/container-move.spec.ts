@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
 
 import {
   activateMoveRow,
@@ -7,7 +8,7 @@ import {
   EStepMark,
   expandMove,
   failMove,
-  DEFAULT_MOVE_HEADING,
+  moveHeading,
   relabelMoveRow,
   settleMoveNode,
   startMoveNode,
@@ -27,7 +28,7 @@ const BIRTH_ROWS = [
 
 describe('the rows a move narrates', () => {
   it('starts every row pending until its nodes begin', () => {
-    const move = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
+    const move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
 
     expect(move.rows.map((row) => row.mark)).toEqual([
       EStepMark.Pending,
@@ -42,7 +43,7 @@ describe('the rows a move narrates', () => {
 
 describe('settling the nodes behind a row', () => {
   it('keeps a concurrent wave active until its slowest node lands', () => {
-    let move = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
+    let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
     for (const nodeId of ['provision', 'uploadContext', 'attach']) {
       move = startMoveNode({ move, nodeId, now: STARTED_AT + 500 })
     }
@@ -68,7 +69,7 @@ describe('settling the nodes behind a row', () => {
   })
 
   it('ignores a node no row is waiting on', () => {
-    const begun = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
+    const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
 
     const move = settleMoveNode({ move: begun, nodeId: 'captureGpg', now: STARTED_AT + 1_000 })
 
@@ -79,7 +80,7 @@ describe('settling the nodes behind a row', () => {
 
 describe('a hand-listed move with no completion signal', () => {
   it('jumps to a row, completing everything before it', () => {
-    const begun = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
+    const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
 
     const move = activateMoveRow({ move: begun, id: 'attach', now: STARTED_AT + 4_000 })
 
@@ -94,7 +95,7 @@ describe('a hand-listed move with no completion signal', () => {
 
 describe('a row whose label changes mid-flight', () => {
   it('retexts the row the node feeds without touching its mark', () => {
-    const begun = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
+    const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
     const waiting = activateMoveRow({ move: begun, id: 'provision', now: STARTED_AT + 4_000 })
 
     const move = relabelMoveRow({ move: waiting, nodeId: 'provision', text: 'sending skills and memory to the sandbox' })
@@ -107,7 +108,7 @@ describe('a row whose label changes mid-flight', () => {
 
 describe('a move that grows a row mid-flight', () => {
   it('inserts ahead of the named row, completing what already passed', () => {
-    const begun = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
+    const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
     const waiting = activateMoveRow({ move: begun, id: 'attach', now: STARTED_AT + 4_000 })
 
     const move = expandMove({
@@ -135,7 +136,7 @@ describe('a move that grows a row mid-flight', () => {
 
 describe('a move that does not finish', () => {
   it('fails the row it was on and keeps the reason', () => {
-    const begun = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
+    const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
     const waiting = activateMoveRow({ move: begun, id: 'provision', now: STARTED_AT + 4_000 })
 
     const move = failMove({ move: waiting, reason: 'no capacity in iad1' })
@@ -150,7 +151,9 @@ describe('a move that does not finish', () => {
 })
 
 describe('the heading over the rows', () => {
-  it('names the cloud sandbox start by default', () => {
-    expect(DEFAULT_MOVE_HEADING).toBe('STARTING A CLOUD SANDBOX')
+  it('names where the conversation is going', () => {
+    expect(moveHeading(EExecutionLocation.Cloud)).toBe('STARTING A CLOUD SANDBOX')
+    expect(moveHeading(EExecutionLocation.Docker)).toBe('MOVING INTO A DOCKER CONTAINER')
+    expect(moveHeading(EExecutionLocation.Host)).toBe('RETURNING TO THE HOST')
   })
 })

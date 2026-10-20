@@ -3,17 +3,32 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import type { SettingsDocument } from '@dltech/atlas-core'
+import { EExecutionLocation, ESettingId, type SettingsDocument } from '@dltech/atlas-core'
+import { ESandboxState, EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
-import { open, spokenIn, REPLY, THINKING } from './app-fixture'
+import type { OpenedConversation } from '../open-conversation'
+import { open, promiseGate, spokenIn, spokenInRow, until, REPLY, THREAD, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
+// Notices live in a module-level store, and a failed move posts a warn notice that outlives its
+// own test by seconds — the host-footer assertion below would otherwise read another spec's
+// 'the move to docker failed' warning.
 afterEach(() => dismissNotice())
+
+const WITHIN_MS = 20_000
+
+const UNSTARTED: OpenedConversation = {
+  threadId: THREAD,
+  events: [],
+  turns: [],
+  name: null,
+  started: false,
+}
 
 const speaking = (settings?: SettingsDocument): FakeApp =>
   fakeApp({
@@ -28,7 +43,35 @@ const switchTo = async (mounted: Awaited<ReturnType<typeof open>>, argument: str
 }
 
 describe('the container command', () => {
-  it('answers where the conversation runs without placing it', async () => {
+  it('writes the column the moment the operator switches, mid-session', async () => {
+    const app = speaking()
+    const opened = await spokenIn(app)
+    spokenInRow(app, opened.events)
+    const mounted = await open({ app, opened })
+
+    try {
+      await switchTo(mounted, 'docker')
+
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
+
+      const settled = await until({
+        holds: async () => app.threads.chosenLocations.length === 2,
+        within: WITHIN_MS,
+      })
+
+      // A host↔docker switch is one direct rewrite now, not a move transaction: the relocation's
+      // own column flip plus the placement commit's write — no intent/cleared-record phases.
+      expect(settled).toBe(true)
+      expect(app.threads.chosenLocations).toEqual([
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+      ])
+    } finally {
+      await mounted.done()
+    }
+  })
+
+  it('answers where the conversation runs without moving it', async () => {
     const app = speaking()
     const mounted = await open({ app, opened: await spokenIn(app) })
 
@@ -36,14 +79,341 @@ describe('the container command', () => {
       await switchTo(mounted, '')
 
       expect(app.threads.chosenLocations).toEqual([])
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Host)
     } finally {
       await mounted.done()
     }
   })
+
+  it('starts a conversation where the settings file puts it', async () => {
+    const app = speaking({ values: { [ESettingId.ExecutionLocation]: 'docker' } })
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    try {
+      await mounted.frame()
+
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
+      expect(app.threads.chosenLocations).toEqual([])
+    } finally {
+      await mounted.done()
+    }
+  })
+
+  it('starts a fresh conversation from the default, not from the thread it just left', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    try {
+      await switchTo(mounted, 'docker')
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
+
+      await mounted.typeText('/new')
+      mounted.pressEnter()
+      await mounted.frame()
+
+      expect(app.executionLocation.current()).not.toBe(EExecutionLocation.Docker)
+    } finally {
+      await mounted.done()
+    }
+  })
+
+  it('holds a switch made before the thread exists and stamps it on the thread the first message opens', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: UNSTARTED })
+
+    try {
+      await switchTo(mounted, 'docker')
+
+      const settled = await until({
+        holds: async () => app.threads.chosenLocations.length === 2,
+        within: WITHIN_MS,
+      })
+
+      expect(settled).toBe(true)
+      expect(app.threads.chosenLocations).toEqual([
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+      ])
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
+
+      await mounted.typeText('take the linter to zero')
+      mounted.pressEnter()
+
+      const landed = await until({
+        holds: async () => app.threads.peekRow({ threadId: THREAD }) !== undefined,
+        within: WITHIN_MS,
+      })
+
+      expect(landed).toBe(true)
+      expect(app.threads.peekRow({ threadId: THREAD })?.executionLocation).toBe(
+        EExecutionLocation.Docker,
+      )
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('never reaches for the sandbox on a fresh conversation or a location switch', async () => {
+    const app = speaking({ values: { [ESettingId.ExecutionLocation]: 'docker' } })
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    try {
+      await switchTo(mounted, 'docker')
+      await mounted.typeText('/new')
+      mounted.pressEnter()
+      await mounted.frame()
+
+      expect(app.sandboxStops).toBe(0)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('shows the location marker as soon as the move settles, without waiting for a turn', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    try {
+      expect(await mounted.frame()).not.toContain('docker container')
+
+      await switchTo(mounted, 'docker')
+      expect(await mounted.frame()).toContain('docker container')
+
+      await switchTo(mounted, 'off')
+      expect(await mounted.frame()).toContain(' host ')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('narrates the move and holds the composer until the session is relocated', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    const { gate, release } = promiseGate()
+    const append = app.log.append.bind(app.log)
+    app.log.append = (args) => gate.then(() => append(args))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const moving = await mounted.frame()
+
+      expect(moving).toContain('MOVING INTO A DOCKER CONTAINER')
+      expect(moving).toContain('stopping services, moving sub-agents')
+      expect(moving).toContain('handing the conversation over')
+
+      await mounted.typeText('typed over the move')
+      expect(mounted.draftText()).toBe('')
+
+      release()
+      expect(await mounted.frame()).not.toContain('MOVING INTO A DOCKER CONTAINER')
+
+      await mounted.typeText('back in command')
+      expect(mounted.draftText()).toBe('back in command')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('puts the conversation back where it was when the move cannot finish', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+    app.log.append = () => Promise.reject(new Error('the log fell over'))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const failed = await mounted.frame()
+
+      expect(failed).toContain('✗ stopping services, moving sub-agents')
+      expect(failed).toContain('did not finish')
+      expect(failed).toContain('the log fell over')
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Host)
+
+      mounted.pressEscape()
+      expect(await mounted.frame()).not.toContain('MOVING INTO A DOCKER CONTAINER')
+
+      await mounted.typeText('back in command')
+      expect(mounted.draftText()).toBe('back in command')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('holds a background ending while the move is still in flight', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    const { gate, release } = promiseGate()
+    const append = app.log.append.bind(app.log)
+    app.log.append = (args) => gate.then(() => append(args))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const moving = await mounted.frame()
+
+      expect(moving).toContain('MOVING INTO A DOCKER CONTAINER')
+
+      app.shells.announce(endedShell())
+      await mounted.frame()
+
+      expect(app.turnsDriven).toBe(0)
+
+      release()
+
+      const woke = await until({ holds: async () => app.turnsDriven > 0, within: WITHIN_MS })
+
+      expect(woke).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('wakes for a background ending while a failed move still waits on escape', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+    const append = app.log.append.bind(app.log)
+    app.log.append = () => Promise.reject(new Error('the log fell over'))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const failed = await mounted.frame()
+
+      expect(failed).toContain('did not finish')
+
+      app.log.append = append
+      app.shells.announce(endedShell())
+
+      const woke = await until({ holds: async () => app.turnsDriven > 0, within: WITHIN_MS })
+
+      expect(woke).toBe(true)
+      expect(await mounted.frame()).toContain('MOVING INTO A DOCKER CONTAINER')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+const endedShell = (): ShellSnapshot => ({
+  shellId: toShellId('bash_9'),
+  threadId: THREAD,
+  command: 'bun test',
+  description: 'Run full TUI suite',
+  status: EShellStatus.Exited,
+  exitCode: 0,
+  pid: 4_242,
+  startedAt: '2026-08-27T12:00:00.000Z',
+  lastOutputAt: '2026-08-27T12:00:01.000Z',
+  totalCharacters: 18,
+  awaitingInput: false,
+})
+
+const shellExposing = (args: { containerPort: number; hostPort: number }): ShellSnapshot => ({
+  shellId: toShellId('bash_1'),
+  threadId: THREAD,
+  command: 'bun run dev',
+  description: 'dev server',
+  status: EShellStatus.Running,
+  startedAt: '2026-09-05T12:00:00.000Z',
+  lastOutputAt: '2026-09-05T12:00:00.000Z',
+  totalCharacters: 0,
+  awaitingInput: false,
+  exposure: {
+    containerPort: args.containerPort,
+    hostPort: args.hostPort,
+    url: `http://localhost:${args.hostPort}`,
+  },
+})
+
+describe('the sandbox line in the transcript', () => {
+  it('narrates the sandbox while it starts and clears once it runs', async () => {
+    const app = speaking()
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+      expect(setup.captureCharFrame()).not.toContain('starting the container')
+
+      app.containerStatus.mark({ state: ESandboxState.Starting })
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+      expect(setup.captureCharFrame()).toContain('starting the container')
+
+      app.containerStatus.mark({
+        state: ESandboxState.Running,
+        name: 'atlas-dev-0123456789ab',
+        ports: [],
+      })
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+      expect(setup.captureCharFrame()).not.toContain('starting the container')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it("carries the daemon's reason while the sandbox is failed", async () => {
+    const app = speaking()
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      app.containerStatus.mark({
+        state: ESandboxState.Failed,
+        reason: 'No such image: atlas-dev-no-such-image:latest',
+      })
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('the container failed to start')
+      expect(frame).toContain('No such image')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
 })
 
 describe('the location pill in the footer', () => {
-  it('shows no location chip before the thread is placed', async () => {
+  it('shows a docker chip, the short image label and the sandbox limits in docker', async () => {
+    const app = speaking({ values: { [ESettingId.ExecutionLocation]: 'docker' } })
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('docker')
+      expect(frame).toContain('node:22-slim')
+      expect(frame).toContain('4 cpu · 8 GB')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('shows no location chip on the host', async () => {
     const app = speaking()
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: 140,
@@ -56,6 +426,81 @@ describe('the location pill in the footer', () => {
       await setup.flush()
 
       expect(setup.captureCharFrame()).not.toContain('docker')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('reads an uncapped sandbox as no cap rather than zero', async () => {
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+      settings: { values: { [ESettingId.ExecutionLocation]: 'docker' } },
+      containerLimits: { cpus: 0, memoryGb: 0 },
+    })
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('no cpu cap · no memory cap')
+      expect(frame).not.toContain('0 cpu')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
+describe('the container pill in the sidebar', () => {
+  it('is absent on the host and answers with the sandbox state in docker', async () => {
+    const app = speaking()
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+      expect(setup.captureCharFrame()).not.toContain('CONTAINER')
+
+      await setup.mockInput.typeText('/container docker')
+      setup.mockInput.pressEnter()
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const hosting = setup.captureCharFrame()
+      expect(hosting).toContain('CONTAINER')
+      expect(hosting).toContain('stopped')
+      expect(hosting).toContain('node:22-slim')
+
+      app.containerStatus.mark({
+        state: ESandboxState.Running,
+        name: 'atlas-dev-0123456789ab',
+        ports: [{ containerPort: 3000, hostPort: 20_123 }],
+      })
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const running = setup.captureCharFrame()
+      expect(running).toContain('running')
+      expect(running).toContain('atlas-dev-0123456789ab')
+      expect(running).not.toContain('3000→20123')
+
+      app.shells.place(shellExposing({ containerPort: 3000, hostPort: 20_123 }))
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      expect(setup.captureCharFrame()).toContain('3000→20123')
     } finally {
       await teardown(setup)
     }

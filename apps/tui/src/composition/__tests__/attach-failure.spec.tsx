@@ -76,7 +76,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
       expect(frame).not.toContain('WAKING THE SANDBOX')
 
       const owner = app.sessionOwner.snapshot()
-      expect(owner.placed).toBe(true)
+      expect(owner.location).toBe(EExecutionLocation.Cloud)
       expect(owner.bound).toBe(false)
       expect(owner.binding).toBeUndefined()
       expect(owner.threadId).toBe(threadId)
@@ -173,7 +173,7 @@ describe('the connection the chrome derives from a recorded attach failure', () 
   const mountProbe = async (): Promise<{ probe: Probe; app: FakeApp }> => {
     const app = appFor()
     await app.threads.create({ id: THREAD, executionLocation: EExecutionLocation.Cloud })
-    await app.sessionOwner.placement.activate({ threadId: THREAD })
+    await app.executionLocation.activate({ threadId: THREAD, fallback: EExecutionLocation.Cloud })
     const probe: Probe = { current: undefined }
     function Harness() {
       probe.current = useCloudConnection({ app, session: null })
@@ -202,4 +202,31 @@ describe('the connection the chrome derives from a recorded attach failure', () 
     await act(async () => clearAttachFailure())
     expect(probe.current?.state).toBe(EConnectionView.Waking)
   })
+})
+
+describe('a host session after an earlier cloud attach failure', () => {
+  it('renders the transcript undimmed and free of the disconnected row', async () => {
+    const app = appFor()
+    const opened = await spokenIn(app)
+    await app.executionLocation.activate({ threadId: opened.threadId, fallback: EExecutionLocation.Host })
+    recordAttachFailure({ threadId: OTHER, detail: REASON })
+
+    const home = mkdtempSync(join(tmpdir(), 'atlas-attach-failure-spec-'))
+    const previousHome = process.env.ATLAS_HOME
+    process.env.ATLAS_HOME = home
+    const mounted = await open({ app, opened })
+
+    try {
+      await settle(1_000)
+      const frame = await mounted.frame()
+      expect(frame).toContain('what is in here?')
+      expect(frame).not.toContain('○ disconnected')
+      expect(frame).not.toContain('ctrl+r reconnect')
+    } finally {
+      await mounted.done()
+      if (previousHome === undefined) delete process.env.ATLAS_HOME
+      else process.env.ATLAS_HOME = previousHome
+      await rm(home, { recursive: true, force: true })
+    }
+  }, 60_000)
 })

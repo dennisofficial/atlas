@@ -36,9 +36,12 @@ const sandboxed = bridgeThat(async () => ({ url: 'https://sandbox.test', token: 
 async function setup() {
   const fixture = openStoreFixture()
   held.push(fixture)
-  const placement = new PlacementController()
+  const placement = new PlacementController(EExecutionLocation.Host)
   placement.bind({ threads: fixture.threads, workspace: '/work', repo: null })
-  const owner = createSessionOwner<SessionRuntime>({ placement })
+  const owner = createSessionOwner<SessionRuntime>({
+    placement,
+    local: { kind: ERuntimeKind.Local, cwd: '/work', adapters: NO_ADAPTERS },
+  })
   await owner.placement.activate({ threadId: THREAD })
   const birthArgs = (overrides: Partial<BirthArgs>): BirthArgs => ({
     threadId: THREAD,

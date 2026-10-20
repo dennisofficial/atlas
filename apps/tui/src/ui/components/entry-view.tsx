@@ -11,6 +11,7 @@ import { ThinkingBlock } from './blocks/thinking-block'
 import { TldrBlock } from './blocks/tldr-block'
 import { ToolRunBlock } from './blocks/tool-run-block'
 import { TurnEndedBlock } from './blocks/turn-ended-block'
+import { LocationDivider } from './location-divider'
 import { RotatedDivider } from './rotated-divider'
 import { UserBlock } from './blocks/user-block'
 
@@ -242,6 +243,13 @@ function DerivedEntryView(props: {
         />
       )
 
+    case EEntryKind.SandboxNotice:
+      return (
+        <box flexDirection="row" marginBottom={1} flexShrink={0}>
+          <text fg={entry.failed ? theme.warn : theme.dim}>{entry.text}</text>
+        </box>
+      )
+
     case EEntryKind.OperatorInput:
       return (
         <box flexDirection="row" marginBottom={1} flexShrink={0}>
@@ -285,6 +293,9 @@ function DerivedEntryView(props: {
           expanded={false}
         />
       )
+
+    case EEntryKind.LocationChanged:
+      return <LocationDivider width={props.width} location={entry.to} cause={entry.cause} />
 
     case EEntryKind.Rotated:
       return (

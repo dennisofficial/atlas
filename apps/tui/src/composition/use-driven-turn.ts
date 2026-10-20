@@ -74,6 +74,7 @@ export function useDrivenTurn(args: {
         runId,
         workspace: move?.path ?? app.workspace.workspace,
         repo: move === null ? app.workspace.repo : move.repo,
+        executionLocation: app.executionLocation.of(threadId),
       })
       started.current = true
     },

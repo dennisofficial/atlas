@@ -1,4 +1,4 @@
-import { EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
 import {
   birthInCloud,
   EBirthNode,
@@ -76,6 +76,7 @@ export function birthNewborn(args: {
     captureContext,
     onBegin: ({ waves }) =>
       move.handleBegin({
+        target: EExecutionLocation.Cloud,
         rows: waves.map((wave) => ({
           id: wave.ids[0] ?? wave.label,
           text: pod && wave.ids[0] === EBirthNode.Provision ? POD_PROVISION_LABEL : wave.label,

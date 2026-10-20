@@ -4,6 +4,7 @@ import type { ClockPort } from './clock.port'
 import type { CredentialPort } from './credential.port'
 import type { DecisionPort } from './decision.port'
 import type { EventLogPort } from './event-log.port'
+import type { ExecutionLocationSinkPort } from './execution-location-sink.port'
 import type { FileCapabilitiesPort } from './file-capabilities.port'
 import type { FileSystemPort } from './filesystem.port'
 import type { IdPort } from './id.port'
@@ -58,6 +59,9 @@ export interface PortRegistryEntries {
   readonly DecisionPort: PortRegistryEntry<DecisionPort> & { readonly transport: 'none' }
   readonly JudgePort: PortRegistryEntry<JudgePort> & { readonly transport: 'none' }
   readonly NoticePort: PortRegistryEntry<NoticePort> & { readonly transport: 'none' }
+  readonly ExecutionLocationSinkPort: PortRegistryEntry<ExecutionLocationSinkPort> & {
+    readonly transport: 'none'
+  }
 }
 
 export type RegisteredPortName = keyof PortRegistryEntries

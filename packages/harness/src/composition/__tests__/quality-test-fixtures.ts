@@ -120,7 +120,7 @@ export class QualityRig {
     let captured: DependencyContainer | undefined
     const facts: RegistrationFacts = { qualityPortWasRegistered: false, decisionPortWasRegistered: false }
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: args.command, model: undefined },
+      launch: { cwd: project, command: args.command, model: undefined, executionLocation: undefined },
       env: {},
       settings,
       ports: testPortBindings(),

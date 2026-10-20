@@ -1,4 +1,4 @@
-import { type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
 import type { SettleWaitNotice } from '@dltech/atlas-wire'
 
@@ -43,7 +43,7 @@ export async function wakeSandbox(args: {
   move?: ContainerMoveControl | undefined
   onRotationStarted?: (() => void) | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
-  args.move?.handleBegin({ rows: WAKE_ROWS, heading: WAKE_HEADING })
+  args.move?.handleBegin({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, heading: WAKE_HEADING })
 
   const woken = await args.bridge.sandboxes.create({
     threadId: args.threadId,

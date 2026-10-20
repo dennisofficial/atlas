@@ -1,4 +1,13 @@
-import { EExecutionLocation, EHarnessPlacement, type PlacementRecord } from '@dltech/atlas-core'
+import {
+  EHarnessPlacement,
+  EToolEnvironment,
+  executionLocationOf,
+  locationOfPlacement,
+  placementOf,
+  EExecutionLocation,
+  type PlacementRecord,
+  type SessionPlacement,
+} from '@dltech/atlas-core'
 
 import type { ThreadMeta } from './meta'
 
@@ -11,23 +20,37 @@ export class PlacementConflict extends Error {
   }
 }
 
-export function placementRecordOf(meta: ThreadMeta): PlacementRecord | undefined {
+const placementFrom = (value: unknown): SessionPlacement | undefined => {
+  if (typeof value !== 'object' || value === null) return undefined
+  const held = value as { harness?: unknown; tools?: unknown; driveName?: unknown }
+  if (held.harness === EHarnessPlacement.Cloud) {
+    return typeof held.driveName === 'string'
+      ? { harness: EHarnessPlacement.Cloud, driveName: held.driveName }
+      : { harness: EHarnessPlacement.Cloud }
+  }
+  if (held.harness !== EHarnessPlacement.Host) return undefined
+  return {
+    harness: EHarnessPlacement.Host,
+    tools: held.tools === EToolEnvironment.Docker ? EToolEnvironment.Docker : EToolEnvironment.Host,
+  }
+}
+
+export function placementRecordOf(meta: ThreadMeta): PlacementRecord {
   const stored = meta.placement
-  const driveName = stored?.placement?.driveName
-  if (stored?.placement !== undefined && stored.placement !== null) {
+  const placement = stored === undefined || stored === null ? undefined : placementFrom(stored.placement)
+  if (placement === undefined) {
     return {
-      placement: driveName === undefined ? { harness: EHarnessPlacement.Cloud } : { harness: EHarnessPlacement.Cloud, driveName },
-      revision: stored.revision,
+      placement: placementOf(executionLocationOf(meta.executionLocation) ?? EExecutionLocation.Host),
+      revision: 0,
     }
   }
-  if (meta.executionLocation !== EExecutionLocation.Cloud) return undefined
-  return { placement: { harness: EHarnessPlacement.Cloud }, revision: stored?.revision ?? 0 }
+  return { placement, revision: stored?.revision ?? 0 }
 }
 
 export function metaWithPlacement(args: { meta: ThreadMeta; record: PlacementRecord }): ThreadMeta {
   return {
     ...args.meta,
-    executionLocation: EExecutionLocation.Cloud,
+    executionLocation: locationOfPlacement(args.record.placement),
     placement: {
       placement: args.record.placement,
       revision: args.record.revision,

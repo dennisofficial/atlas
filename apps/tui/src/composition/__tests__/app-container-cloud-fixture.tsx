@@ -145,6 +145,7 @@ export const cloudOpened = async (args: { app: FakeApp; bridge: FakeBridge }): P
       { type: 'user-said', text: SEEDED },
       {
         type: 'location-changed',
+        from: EExecutionLocation.Host,
         to: EExecutionLocation.Cloud,
         cwd: SANDBOX_WORKSPACE,
       },

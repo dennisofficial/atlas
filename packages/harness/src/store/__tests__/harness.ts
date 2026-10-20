@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import type { ThreadId, ClockPort, EventId, IdPort, RunId } from '@dltech/atlas-core'
 import { EKilledBy, toThreadId, toCallId, toEventId, toRunId } from '@dltech/atlas-core'
 
-import { AgentRegistryPort } from '../../agents/registry/port'
+import { AgentRegistryPort, type RelocateChildrenArgs } from '../../agents/registry/port'
 import type { AgentSnapshot } from '../../agents/registry/snapshot'
 import type { ServiceSnapshot } from '../../services/service-process'
 import { ServiceRegistryPort, type ServiceStopOutcome } from '../../services/service-registry'
@@ -40,11 +40,17 @@ export class UnstaffedAgents extends AgentRegistryPort {
   stop() {
     return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
   }
+  relocateChildren(_args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
+    return Promise.resolve([])
+  }
   stopChildren() {
     return Promise.resolve([])
   }
   pauseChildren() {
     return Promise.resolve([])
+  }
+  markChildrenRelocated() {
+    return Promise.resolve()
   }
   list(_args: { threadId: ThreadId }): readonly AgentSnapshot[] {
     return []

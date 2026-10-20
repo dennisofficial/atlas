@@ -1,4 +1,4 @@
-import { ERunner } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement, ERunner } from '@dltech/atlas-core'
 
 import { chipItem, EFooterItemReach, type FooterItem } from './footer-item'
 import { theme } from './theme'
@@ -6,18 +6,24 @@ import { theme } from './theme'
 export const PLACEMENT_CHIP_ID = 'placement-chip'
 
 export type PlacementChoice = {
+  harness: EHarnessPlacement
   runner?: ERunner | undefined
   provisioning: boolean
-  onFlip?: (() => void) | undefined
+  onFlip: () => void
 }
 
-const placementLabelOf = (choice: PlacementChoice): string =>
-  choice.runner === ERunner.Local ? ' pod' : ' ☁ cloud'
+const placementLabelOf = (choice: PlacementChoice): string => {
+  if (choice.harness !== EHarnessPlacement.Cloud) return ' host'
+  return choice.runner === ERunner.Local ? ' pod' : ' ☁ cloud'
+}
 
-const placementGroundOf = (choice: PlacementChoice): string => (choice.provisioning ? theme.warn : theme.link)
+const placementGroundOf = (choice: PlacementChoice): string => {
+  if (choice.provisioning) return theme.warn
+  return choice.harness === EHarnessPlacement.Cloud ? theme.link : theme.hint
+}
 
 function placementChipOf(choice: PlacementChoice): FooterItem {
-  const flippable = !choice.provisioning && choice.onFlip !== undefined
+  const flippable = !choice.provisioning
   return chipItem({
     id: PLACEMENT_CHIP_ID,
     text: `${placementLabelOf(choice)}${flippable ? ' ▾ ' : ' '}`,
@@ -28,15 +34,15 @@ function placementChipOf(choice: PlacementChoice): FooterItem {
 }
 
 export function locationPillOf(args: {
-  placed: boolean
+  location: EExecutionLocation
   placement?: PlacementChoice | null | undefined
 }): FooterItem | null {
   if (args.placement !== undefined && args.placement !== null) return placementChipOf(args.placement)
-  if (!args.placed) return null
+  if (args.location === EExecutionLocation.Host) return null
 
   return chipItem({
     id: 'execution-location',
-    text: 'cloud',
+    text: args.location,
     ground: theme.link,
     reach: EFooterItemReach.None,
   })

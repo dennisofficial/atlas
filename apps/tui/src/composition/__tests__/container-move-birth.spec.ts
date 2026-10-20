@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import { beginMove, startMoveNode, updateMoveTransfer } from '../container-move'
@@ -31,7 +32,7 @@ const key = (over: { name: string; ctrl?: boolean; eventType?: string }) => over
 
 describe('the serve-launch stage', () => {
   const provisioning = (progress: BirthTransferProgress[]) => {
-    let move = beginMove({ now: AT, rows: ROWS })
+    let move = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS })
     move = startMoveNode({ move, nodeId: 'provision', now: AT })
     for (const reading of progress) move = updateMoveTransfer({ move, progress: reading })
     return move.rows[0]
@@ -58,8 +59,8 @@ describe('cancelling a birth', () => {
 
   it('claims the keyboard for a cancellable birth and for a failure, not for a plain move', () => {
     const handleKey = () => undefined
-    const plain = beginMove({ now: AT, rows: ROWS })
-    const birth = beginMove({ now: AT, rows: ROWS, cancellable: true })
+    const plain = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS })
+    const birth = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS, cancellable: true })
 
     expect(moveOverlayPresence({ move: plain, handleKey }).handleKey).toBeUndefined()
     expect(moveOverlayPresence({ move: birth, handleKey }).handleKey).toBe(handleKey)
@@ -68,7 +69,7 @@ describe('cancelling a birth', () => {
   })
 
   it('blocks the composer for as long as the birth is up', () => {
-    const birth = beginMove({ now: AT, rows: ROWS, cancellable: true })
+    const birth = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS, cancellable: true })
     const presence = moveOverlayPresence({ move: birth, handleKey: () => undefined })
 
     expect(presence.open).toBe(true)

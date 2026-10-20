@@ -14,6 +14,7 @@ import { BackPill } from "./back-pill";
 import { SIDEBAR_GUTTER, SIDEBAR_PADDING, sidebarCells } from "./sidebar/cells";
 import { ESidebarPlace } from "../sidebar-section";
 import { CloudSection } from "./sidebar/cloud";
+import { ContainerSection } from "./sidebar/container";
 import { ContextSection, type ContextSectionProps } from "./sidebar/context";
 import { ContributedSections } from "./sidebar/contributed";
 import { SubagentsSection, TeammatesSection } from "./sidebar/crew";
@@ -165,6 +166,9 @@ function DerivedSidebar(props: {
               naming={props.naming}
               {...(props.accented === undefined ? {} : { accented: props.accented })}
             />
+            {model.container === undefined ? null : (
+              <ContainerSection container={model.container} cells={cells} />
+            )}
             {model.cloud === undefined ? null : (
               <CloudSection cloud={model.cloud} cells={cells} />
             )}

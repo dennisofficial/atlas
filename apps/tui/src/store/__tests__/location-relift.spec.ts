@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'bun:test'
+
+import { EExecutionLocation } from '@dltech/atlas-core'
+
+import { deriveTranscript } from '../derive-transcript'
+import { EEntryKind, type TranscriptEntry } from '../transcript-model'
+import { log } from './fixture'
+
+const dividers = (
+  events: Parameters<typeof deriveTranscript>[0]['events'],
+): { key: string; to: EExecutionLocation }[] =>
+  deriveTranscript({ events, signals: [] })
+    .entries.filter(
+      (entry): entry is TranscriptEntry & { to: EExecutionLocation } =>
+        entry.kind === EEntryKind.LocationChanged,
+    )
+    .map((entry) => ({ key: entry.key, to: entry.to }))
+
+// The log of a thread that moved between host and docker and said one more thing: every move
+// pinned its own `location-changed` event, so the transcript the operator reads carries the full
+// trail inline. Moves to or from the cloud are relocation artifacts and render nothing — see
+// relocation-artifact-suppression.spec.ts.
+const movedLog = log([
+  { type: 'user-said', text: 'get it running' },
+  { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
+  { type: 'user-said', text: 'keep it going in there' },
+  { type: 'location-changed', from: EExecutionLocation.Docker, to: EExecutionLocation.Host },
+  { type: 'user-said', text: 'back in it goes' },
+])
+
+describe('the location divider as a logged event', () => {
+  it('renders exactly the markers the log holds, pinned where each move landed', () => {
+    const shown = dividers(movedLog)
+
+    expect(shown.map((entry) => entry.to)).toEqual([
+      EExecutionLocation.Docker,
+      EExecutionLocation.Host,
+    ])
+    // A logged event's key is its event id — never a synthesized placement key.
+    expect(shown.every((entry) => entry.key !== 'placement-divider')).toBe(true)
+  })
+
+  it('never synthesizes a divider from placement — a log with no marker shows none', () => {
+    const home = log([{ type: 'user-said', text: 'still here' }])
+
+    expect(dividers(home)).toHaveLength(0)
+  })
+
+  it('keeps a single divider when the log already ends in docker', () => {
+    const movedToDocker = log([
+      { type: 'user-said', text: 'take it in' },
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
+    ])
+
+    const shown = dividers(movedToDocker)
+    expect(shown).toHaveLength(1)
+    expect(shown.at(-1)?.to).toBe(EExecutionLocation.Docker)
+  })
+})

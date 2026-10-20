@@ -2,7 +2,7 @@ import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import { readMeta, threadMetaSchema, type ThreadMeta } from './meta'
 import { sessionDirectory, threadMetaFile } from './paths'
-import { isCloudThread, readThreadMetas } from './listing'
+import { readThreadMetas } from './listing'
 
 export type SelectedRoot = { sessionDir: string; root: ThreadMeta; activityAt: string }
 
@@ -27,7 +27,7 @@ async function selectedRoot({
   const root = await readMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(safe) }), schema: threadMetaSchema }).catch(
     () => undefined,
   )
-  if (root === undefined || root.spawnerThreadId !== null || !isCloudThread(root)) return undefined
+  if (root === undefined || root.spawnerThreadId !== null) return undefined
   if (root.repo !== project && root.workspace !== project) return undefined
   const metas = await readThreadMetas({ sessionDir })
   const activityAt = metas.reduce((latest, meta) => (meta.updatedAt > latest ? meta.updatedAt : latest), root.updatedAt)

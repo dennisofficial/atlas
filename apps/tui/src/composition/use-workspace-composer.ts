@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { liveTokens, tokenAtOffset, type LiveToken } from '../ui/composer-tokens'
-import { mentionedFilePaths } from '@dltech/atlas-core'
+import { mentionedFilePaths, pastedTagSpans } from '@dltech/atlas-core'
 import { readImageBase64 } from '../ui/clipboard-image'
 import { restoredImages, submissionOf } from '../ui/draft-images'
 import { useDraft } from '../ui/hooks/use-draft'
@@ -11,7 +11,6 @@ import { useDraftTokens } from '../ui/hooks/use-draft-tokens'
 import { notify } from '../ui/notice-store'
 import { commandSpecs, dispatchSubmission, EDispatch, localCommands } from './commands'
 import type { AtlasApp } from './compose'
-import { draftPutBack } from './draft-put-back'
 import { workspaceFileLoader } from './mentioned-files'
 import {
   beginMentionPreparation,
@@ -23,7 +22,6 @@ import { useComposerMenus } from './use-composer-menus'
 import type { useConversation } from './use-conversation'
 import { useResolvedMentions } from './use-resolved-mentions'
 import { useComposerFiles } from './use-composer-files'
-import type { ThreadBirth } from './use-thread-birth'
 
 export function useWorkspaceComposer(args: {
   app: AtlasApp
@@ -34,10 +32,9 @@ export function useWorkspaceComposer(args: {
   commands: ReturnType<typeof localCommands>
   loadedSkills: readonly DiscoveredSkill[]
   handleOpenNewest: () => boolean
-  handleUnbornSend: ThreadBirth['handleUnbornSend']
 }) {
-  const { app, draft, tokens, conversation, agentView, commands, loadedSkills } = args
-  const { handleOpenNewest, handleUnbornSend } = args
+  const { app, draft, tokens, conversation, agentView, commands, loadedSkills, handleOpenNewest } =
+    args
 
   const [sends, setSends] = useState(0)
 
@@ -148,14 +145,15 @@ export function useWorkspaceComposer(args: {
         setSends((count) => count + 1)
       }
 
-      const putBack = () =>
-        draftPutBack({
-          tokens,
-          said,
-          typedSince: draft.editor.current?.plainText ?? '',
-          live,
-          images: readyImages,
-        })
+      const putBackPastes = live.flatMap((token) => {
+        if (token.slot.kind !== 'pasted') return []
+        const span = pastedTagSpans(token.slot.label)[0]
+        return span === undefined ? [] : [{ ordinal: span.ordinal, content: token.slot.content }]
+      })
+
+      const putBack = () => {
+        tokens.restore({ text: said, images: readyImages, pastes: putBackPastes })
+      }
 
       const keepAttachments = () => {
         if (preparing.current !== attempt || readyImages.length === 0) return
@@ -225,8 +223,7 @@ export function useWorkspaceComposer(args: {
         tokens: live,
         load: readImageBase64,
       })
-      const send = { ...sending, context: dispatched.drafts }
-      if (!handleUnbornSend({ send, onUndelivered: putBack })) conversation.handleSend(send)
+      conversation.handleSend({ ...sending, context: dispatched.drafts })
     })()
       .catch((error: unknown) => {
         conversation.handleReportProblem(
@@ -246,7 +243,6 @@ export function useWorkspaceComposer(args: {
     draft,
     files,
     handleOpenNewest,
-    handleUnbornSend,
     skills,
     tokens,
   ])

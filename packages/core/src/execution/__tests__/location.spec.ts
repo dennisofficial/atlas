@@ -3,8 +3,9 @@ import { describe, expect, it } from 'bun:test'
 import { EExecutionLocation, executionLocationOf } from '../location'
 
 describe('an execution location named as text', () => {
-  it('reads the value the column holds', () => {
-    expect(executionLocationOf('cloud')).toBe(EExecutionLocation.Cloud)
+  it('reads the values the column and the settings file hold', () => {
+    expect(executionLocationOf('host')).toBe(EExecutionLocation.Host)
+    expect(executionLocationOf('docker')).toBe(EExecutionLocation.Docker)
   })
 
   it('reads nothing into no decision, so an unwritten column stays undecided', () => {
@@ -13,8 +14,8 @@ describe('an execution location named as text', () => {
     expect(executionLocationOf('')).toBeUndefined()
   })
 
-  it('reads a value this build never writes as undecided rather than guessing at one', () => {
+  it('refuses a value Atlas never wrote rather than guessing at one', () => {
     expect(executionLocationOf('podman')).toBeUndefined()
-    expect(executionLocationOf('CLOUD')).toBeUndefined()
+    expect(executionLocationOf('HOST')).toBeUndefined()
   })
 })

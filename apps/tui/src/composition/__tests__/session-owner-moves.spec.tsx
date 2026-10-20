@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
 import { ECloudSandboxState, EConnectionView, ERuntimeKind } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
@@ -15,18 +16,21 @@ const connected = async (mounted: Awaited<ReturnType<typeof mountInCloud>>, brid
 }
 
 describe('the session owner behind a cloud thread', () => {
-  it('selects the cloud runner for a cloud-born thread', async () => {
+  it('selects the cloud runner for a cloud-born thread, not the local one', async () => {
     const app = speaking()
+    const local = app.sessionOwner.require()
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })
 
     try {
       await connected(mounted, bridge)
       const cloud = app.sessionOwner.snapshot()
-      expect(cloud.placed).toBe(true)
+      expect(cloud.location).toBe(EExecutionLocation.Cloud)
       expect(cloud.binding?.kind).toBe(ERuntimeKind.Cloud)
+      expect(cloud.binding).not.toBe(local)
       expect(cloud.binding?.adapters.runner).not.toBe(app.runner)
       expect(cloud.binding?.adapters.channel).toBe(bridge.channel)
+      expect(cloud.cwd).not.toBe(local.cwd)
     } finally {
       await mounted.done()
     }
@@ -40,9 +44,9 @@ describe('the session owner behind a cloud thread', () => {
     try {
       await connected(mounted, bridge)
       const cloud = app.sessionOwner.snapshot()
-      expect(cloud.placed).toBe(true)
-      expect(cloud.binding?.cwd).not.toBe(app.workspace.workspace)
-      expect(cloud.binding?.adapters.workspace.workspace).toBe(cloud.binding?.cwd)
+      expect(cloud.location).toBe(EExecutionLocation.Cloud)
+      expect(cloud.cwd).not.toBe(app.workspace.workspace)
+      expect(cloud.binding?.adapters.workspace.workspace).toBe(cloud.cwd)
     } finally {
       await mounted.done()
     }
@@ -61,7 +65,7 @@ describe('the session owner behind a cloud thread', () => {
       await mounted.run('')
       expect(bridge.attached.length).toBe(attached)
       expect(bridge.created.length).toBe(created)
-      expect(app.sessionOwner.snapshot().placed).toBe(true)
+      expect(app.sessionOwner.snapshot().location).toBe(EExecutionLocation.Cloud)
     } finally {
       await mounted.done()
     }

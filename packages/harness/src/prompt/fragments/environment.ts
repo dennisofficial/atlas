@@ -1,4 +1,4 @@
-import { PromptFragment, type ClockPort } from '@dltech/atlas-core'
+import { EExecutionLocation, PromptFragment, type ClockPort, type PromptContext } from '@dltech/atlas-core'
 
 import { SystemClock } from '../../store/clock'
 import { localDayOf, localWeekdayOf } from '../../time/local-day'
@@ -23,12 +23,26 @@ export class TodayFragment extends VolatilePromptFragment {
   }
 }
 
-export class ExecutionLocationFragment extends PromptFragment {
+const placementLine = (placement: EExecutionLocation | undefined): string => {
+  if (placement === EExecutionLocation.Cloud) {
+    return 'This session is running in the cloud — a Vercel sandbox; your filesystem, /tmp, and localhost are the sandbox\'s alone, not the operator\'s machine.'
+  }
+  if (placement === EExecutionLocation.Docker) {
+    return 'This session is running on the operator\'s machine in a Docker container — the container shares only the project directory and its declared mounts with the host.'
+  }
+  return 'This session is running locally on the operator\'s machine (the host).'
+}
+
+export class ExecutionLocationFragment extends VolatilePromptFragment {
   readonly id = 'environment.execution-location'
 
-  text(): string {
+  stamp(ctx: PromptContext): string {
+    return ctx.placement ?? ''
+  }
+
+  text(ctx: PromptContext): string {
     return [
-      "This session is running in a pod or a Vercel sandbox; your filesystem, /tmp, and localhost are the sandbox's alone, not the operator's machine.",
+      placementLine(ctx.placement),
       'New cloud workspaces place the primary repository at /atlas/workspaces/<repo-name>.',
       'Repositories the project configures are already cloned beside it; clone others there too and use explicit workdir or absolute paths to work in them.',
       'Adjacent clones are ephemeral; sandbox cleanup deletes them.',

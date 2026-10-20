@@ -5,6 +5,7 @@
 const FEATURE_TOOLS: Readonly<Record<string, string>> = {
   enter_worktree: 'worktree-enter',
   exit_worktree: 'worktree-exit',
+  execution_location: 'container-move',
   skill: 'skill-load',
 }
 

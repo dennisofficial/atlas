@@ -348,7 +348,7 @@ describe('what neither operation will do', () => {
   it('spares a location-changed marker from a destructive summary, since the move is still true', async () => {
     const threadId = await openThread([
       said('move it'),
-      { type: 'location-changed', to: EExecutionLocation.Cloud },
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
       said('keep going'),
       replied('done'),
     ])

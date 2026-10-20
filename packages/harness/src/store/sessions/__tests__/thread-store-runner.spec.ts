@@ -32,7 +32,7 @@ async function openStore(): Promise<{ home: string; threads: JsonlThreadStore }>
 describe('a thread’s runner', () => {
   it('reads back through find and list once chosen', async () => {
     const { threads } = await openStore()
-    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'on a pod', workspace: '/here' })
+    const thread = await threads.create({ title: 'on a pod', workspace: '/here' })
     expect(thread.runner).toBeUndefined()
 
     await threads.chooseRunner({ threadId: thread.id, runner: ERunner.Local })
@@ -44,7 +44,7 @@ describe('a thread’s runner', () => {
 
   it('survives a later placement write', async () => {
     const { threads } = await openStore()
-    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
+    const thread = await threads.create({ workspace: '/here' })
     await threads.chooseRunner({ threadId: thread.id, runner: ERunner.Local })
 
     await threads.writePlacement({
@@ -68,7 +68,7 @@ describe('a thread’s runner', () => {
 
   it('stays undefined when the meta file predates the field', async () => {
     const { home, threads } = await openStore()
-    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
+    const thread = await threads.create({ workspace: '/here' })
     const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: thread.id }), threadId: thread.id })
     const { runner, ...legacy } = newThreadMeta({ id: thread.id, at: '2026-01-01T00:00:00.000Z' })
     void runner
@@ -80,7 +80,7 @@ describe('a thread’s runner', () => {
 
   it('carries onto a fork', async () => {
     const { threads } = await openStore()
-    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
+    const thread = await threads.create({ workspace: '/here' })
     await threads.chooseRunner({ threadId: thread.id, runner: ERunner.Local })
 
     const forked = await threads.fork({ from: thread.id, seq: 0, mode: EForkMode.Copy })

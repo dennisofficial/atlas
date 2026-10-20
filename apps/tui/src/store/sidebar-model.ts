@@ -1,11 +1,17 @@
 import {
+  EExecutionLocation,
   EPlanStatus,
   type Event,
   type Grant,
 } from "@dltech/atlas-core";
 
 import {
+  EShellStatus,
   TEAMMATE_AGENT_TYPE,
+  type BoundPort,
+  type SandboxContainer,
+  type SandboxLimits,
+  type ShellSnapshot,
   type TurnSpend,
 } from "@dltech/atlas-harness";
 
@@ -55,8 +61,13 @@ export type SidebarModel = {
   sections?: readonly SidebarSection[];
   classifier?: ClassifierFold;
   grants?: readonly Grant[];
+  container?: SidebarContainer;
   cloud?: SidebarCloud;
 };
+
+export type SidebarLimits = SandboxLimits;
+
+export type SidebarContainer = SandboxContainer;
 
 export const IDLE_SIDEBAR: SidebarModel = {
   title: null,
@@ -214,6 +225,46 @@ export function withSections(args: {
   if (sections.length === 0) return args.model;
 
   return { ...args.model, sections };
+}
+
+export function exposedPortsOf(args: {
+  shells: readonly ShellSnapshot[];
+}): readonly BoundPort[] {
+  return args.shells
+    .flatMap((shell) => {
+      if (shell.status !== EShellStatus.Running || shell.exposure === undefined) return [];
+      const { containerPort, hostPort } = shell.exposure;
+      return [{ containerPort, hostPort }];
+    })
+    .sort((left, right) => left.containerPort - right.containerPort);
+}
+
+export function containerPillOf(args: {
+  location: EExecutionLocation;
+  container: SidebarContainer;
+  exposed: readonly BoundPort[];
+}): SidebarContainer | null {
+  if (args.location !== EExecutionLocation.Docker) return null;
+
+  const { state, image, label, name, limits, reason } = args.container;
+  return {
+    state,
+    image,
+    label,
+    ...(name === undefined ? {} : { name }),
+    ...(limits === undefined ? {} : { limits }),
+    ports: args.exposed,
+    ...(reason === undefined ? {} : { reason }),
+  };
+}
+
+export function withContainer(args: {
+  model: SidebarModel;
+  container: SidebarContainer | null;
+}): SidebarModel {
+  if (args.container === null) return args.model;
+
+  return { ...args.model, container: args.container };
 }
 
 export function withCloud(args: {

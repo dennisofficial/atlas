@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EConnectionView } from '@dltech/atlas-harness'
+import { EExecutionLocation } from '@dltech/atlas-core'
+import { EConnectionView, ESandboxState } from '@dltech/atlas-harness'
 
 import { cloudPillOf, isResting } from '../cloud-state'
-import { IDLE_SIDEBAR, withCloud } from '../sidebar-model'
+import { containerPillOf, IDLE_SIDEBAR, withCloud, type SidebarContainer } from '../sidebar-model'
+
+const running: SidebarContainer = {
+  state: ESandboxState.Running,
+  image: 'node:22-slim',
+  label: 'node:22-slim',
+  ports: [],
+}
 
 describe('the cloud pill', () => {
   it('is absent until the session has attached', () => {
@@ -40,5 +48,13 @@ describe('the cloud pill', () => {
     expect(isResting(EConnectionView.Connected)).toBe(false)
     expect(isResting(EConnectionView.Disconnected)).toBe(false)
     expect(isResting(EConnectionView.Detached)).toBe(false)
+  })
+})
+
+describe('the container pill in the cloud', () => {
+  it('leaves the docker container pill away — the loop is not in a container here', () => {
+    expect(
+      containerPillOf({ location: EExecutionLocation.Cloud, container: running, exposed: [] }),
+    ).toBeNull()
   })
 })

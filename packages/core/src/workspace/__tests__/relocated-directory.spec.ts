@@ -13,7 +13,8 @@ const location: Event = {
   depth: 0,
   at: '2026-10-01T00:00:00.000Z',
   type: 'location-changed',
-  to: EExecutionLocation.Cloud,
+  from: EExecutionLocation.Cloud,
+  to: EExecutionLocation.Host,
   cwd: restored,
 }
 

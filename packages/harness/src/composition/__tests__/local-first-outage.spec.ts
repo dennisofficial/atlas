@@ -121,7 +121,7 @@ const compose = async (args: {
   model?: ScriptedLocalModel
 }): Promise<HarnessApp<undefined, never>> =>
   composeHarness<undefined, never>({
-    launch: { cwd: project, command: 'atlas-test', model: undefined },
+    launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
     env: {},
     settings: settingsBinding(),
     ports: testPortBindings(),

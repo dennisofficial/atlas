@@ -19,6 +19,7 @@ import { EOpenMode } from '../../src/composition/config'
 import { liveBridgeOptionsFor } from '../../src/composition/live-cloud'
 import { noticePortBinding } from '../../src/composition/notice-binding'
 import {
+  closeConversation,
   unstartedConversation,
   type OpenedConversation,
 } from '../../src/composition/open-conversation'
@@ -58,7 +59,7 @@ const flushTolerant = async (setup: Setup): Promise<void> => {
 
 const composeRigApp = async (args: { workspace: string; settings: SettingsBinding }): Promise<AtlasApp> => {
   const harness = await composeHarness<undefined, never, PluginSurface>({
-    launch: { cwd: args.workspace, command: RIG_COMMAND, model: undefined },
+    launch: { cwd: args.workspace, command: RIG_COMMAND, model: undefined, executionLocation: undefined },
     env: process.env,
     settings: args.settings,
     clientVersion: RIG_COMMAND,
@@ -72,7 +73,7 @@ const composeRigApp = async (args: { workspace: string; settings: SettingsBindin
     pluginSurfaces: surfaces,
     pullRequests: null,
     prEventSink: null,
-    config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.workspace },
+    config: { model: undefined, executionLocation: undefined, open: { mode: EOpenMode.New }, cwd: args.workspace },
     command: RIG_COMMAND,
   }
 }
@@ -152,7 +153,11 @@ export async function mountRig(args: {
       try {
         if (setup !== undefined) await teardown(setup)
       } finally {
-        await app.close()
+        try {
+          await closeConversation()
+        } finally {
+          await app.close()
+        }
       }
     })()
     return closing

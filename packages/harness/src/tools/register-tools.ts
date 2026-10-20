@@ -1,16 +1,25 @@
 import {
   AgentFileSystemPort,
+  EExecutionLocation,
   DynamicToolSource,
+  EventLogPort,
   FileCapabilitiesPort,
   FileSystemPort,
+  IdPort,
+  LogPort,
   ProcessPort,
   ToolDefinition,
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { AgentRegistryPort } from '../agents/registry/port'
+import { withDeltaPublishing } from '../channel/publishing-event-log'
+import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../container/injection'
 import { OperatorInputPort } from '../operator-input/port'
 import {
+  DeltaChannelToken,
+  DockerEngineToken,
   SecretsStoreToken,
   SessionRegistryToken,
   WebSearchBackendToken,
@@ -35,6 +44,7 @@ import { TeammateMessageTool } from './builtin/teammate-message'
 import { BashTool } from './builtin/bash'
 import { EditTool } from './builtin/edit'
 import { EnterWorktreeTool } from './builtin/enter-worktree'
+import { ExecutionLocationTool } from './builtin/execution-location'
 import { ExitWorktreeTool } from './builtin/exit-worktree'
 import { GlobTool } from './builtin/glob'
 import { GrepTool } from './builtin/grep'
@@ -58,6 +68,12 @@ import { WebSearchTool } from './builtin/web-search'
 import { WriteTool } from './builtin/write'
 import { WorktreeListTool } from './builtin/worktree-list'
 import { InMemoryToolRegistry, ToolRegistry } from './registry'
+
+const relocationLog = (resolver: DependencyContainer): EventLogPort => {
+  const log = resolver.resolve(registeredPortToken(EventLogPort))
+  if (!resolver.isRegistered(DeltaChannelToken, true)) return log
+  return withDeltaPublishing({ log, channel: resolver.resolve(DeltaChannelToken) })
+}
 
 export function registerBuiltinTools({ container }: { container: DependencyContainer }): void {
   const shellRegistry = (resolver: DependencyContainer) => resolver.resolve(registeredPortToken(ShellRegistryPort))
@@ -194,6 +210,22 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ExitWorktreeTool(resolver.resolve(WorkspaceRoot)),
   })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new ExecutionLocationTool({
+        control: resolver.resolve(ExecutionLocationToken),
+        engine: resolver.resolve(DockerEngineToken),
+        ids: resolver.resolve(registeredPortToken(IdPort)),
+        services: serviceRegistry(resolver),
+        shells: shellRegistry(resolver),
+        stores: () => ({
+          threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+          log: relocationLog(resolver),
+          agents: resolver.resolve(registeredPortToken(AgentRegistryPort)),
+        }),
+        logPort: resolver.resolve(registeredPortToken(LogPort)),
+      }),
+  })
   container.register(portToken(ToolDefinition), { useClass: WorktreeListTool })
   container.register(portToken(ToolDefinition), { useClass: WebFetchTool })
   container.register(portToken(ToolDefinition), {
@@ -209,6 +241,8 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
       new CompositeToolRegistry({
         base: new InMemoryToolRegistry(resolver.resolveAll(portToken(ToolDefinition))),
         sources: resolveSet({ container: resolver, token: portToken(DynamicToolSource) }),
+        available: (name) => name !== 'execution_location' ||
+          resolver.resolve(ExecutionLocationToken).state.current() !== EExecutionLocation.Cloud,
       }),
   })
 }

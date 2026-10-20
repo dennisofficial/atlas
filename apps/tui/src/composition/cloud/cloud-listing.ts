@@ -1,6 +1,5 @@
 import { EExecutionLocation, projectOf, toThreadId } from '@dltech/atlas-core'
 import {
-  isCloudThread,
   THREAD_LISTING_LIMIT,
   type ThreadStorePort,
   type ThreadSummary,
@@ -63,15 +62,15 @@ function mergedRows(args: {
   limit: number
 }): ThreadSummary[] {
   const known = new Map(args.remote.map((row) => [row.id, row]))
-  for (const row of args.local.filter(isCloudThread)) known.set(row.id, row)
+  for (const row of args.local) known.set(row.id, row)
   return [...known.values()]
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, args.limit)
 }
 
-const stubInto = async (args: { app: ListingApp; wire: WireThread }): Promise<ThreadSummary | undefined> => {
+const stubInto = async (args: { app: ListingApp; wire: WireThread }): Promise<ThreadSummary> => {
   const existing = await args.app.threads.find({ threadId: toThreadId(args.wire.id) })
-  if (existing !== undefined) return isCloudThread(existing) ? existing : undefined
+  if (existing !== undefined) return existing
 
   const created = await args.app.threads.create({
     id: toThreadId(args.wire.id),

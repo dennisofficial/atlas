@@ -17,10 +17,11 @@ import { useConversationDirectory, usePendingMove } from './use-conversation-dir
 import { usePendingRows, useProjectEvents } from './use-conversation-projections'
 import { useOperatorInput } from './use-operator-input'
 import { useResumeOnOpen } from './use-conversation-resume'
-import { useRemotePending, useSendingChannel } from './use-conversation-send'
+import { usePlacementMoving, useRemotePending, useSendingChannel } from './use-conversation-send'
 import { useMainWake } from './use-main-wake'
 import { useSessionName } from './use-session-name'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
+import { useThreadSwap } from './use-thread-swap'
 import { useTurnDriver } from './use-turn-driver'
 import { useTickingNow } from './use-turn-clock'
 
@@ -28,7 +29,7 @@ export type { Conversation } from './conversation-types'
 
 export function useConversation(args: ConversationArgs): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
-  const { opened } = args
+  const [opened, setOpened] = useState<OpenedConversation>(args.opened)
   const { failure, setFailure, setTurnFailure, dismissalFor } = useFailureNotice()
   const [reported, setReported] = useState<{ threadId: ThreadId; usage: ModelUsage } | null>(null)
   const { pendingMove, pendingMoveRef, holdMove } = usePendingMove()
@@ -38,7 +39,7 @@ export function useConversation(args: ConversationArgs): Conversation {
   const cancelRotationRef = useRef<() => boolean>(() => false)
 
   const threadId = opened.threadId
-  const moving = false
+  const moving = usePlacementMoving({ app, threadId })
 
   const clock = useMemo(() => createAwakeClock(), [])
   const readClock = clock.read
@@ -64,7 +65,7 @@ export function useConversation(args: ConversationArgs): Conversation {
 
   const localDriveRefusal = useCallback((): string | null => {
     const owned = app.sessionOwner.snapshot()
-    if (owned.bound || !owned.placed) return null
+    if (owned.bound) return null
     return 'the sandbox is still connecting — your message sends once the channel is open'
   }, [app.sessionOwner])
   const driveRefusal = useCallback(
@@ -162,6 +163,27 @@ export function useConversation(args: ConversationArgs): Conversation {
     intake: app.intake,
   })
 
+  const adopt = useCallback(
+    (next: OpenedConversation) => {
+      turnDriver.settle()
+      setFailure(null)
+      setReported(null)
+      holdMove(null)
+      startedRef.current = next.started
+      setEvents(next.events)
+      setName(next.name)
+      setOpened(next)
+      args.onLocalOpened?.(next)
+    },
+    [args.onLocalOpened, holdMove, setEvents, setName, turnDriver],
+  )
+  const { handleNewConversation, handleOpenThread } = useThreadSwap({
+    app,
+    threadId,
+    working: turnDriver.workingRef,
+    adopt,
+    onFailure: setFailure,
+  })
   const { rotating, handleRotate, cancelRotation, handleSend, handleTakeBackPending } =
     useConversationRotation({
       app,
@@ -238,7 +260,10 @@ export function useConversation(args: ConversationArgs): Conversation {
     threadId,
     started,
     threadModel: opened.model,
+    executionLocation: opened.executionLocation,
     attachPending: !app.sessionOwner.snapshot().bound,
+    lost: opened.lost ?? null,
+    lostShells: opened.lostShells ?? [],
     handle: name === null ? null : threadHandle({ threadId, title: name }),
     sessionName: name,
     naming,
@@ -272,6 +297,8 @@ export function useConversation(args: ConversationArgs): Conversation {
     handlePauseForMove: turnDriver.handlePauseForMove,
     handleResumeSource: turnDriver.handleResume,
     whenSettled: turnDriver.whenSettled,
+    handleNewConversation,
+    handleOpenThread,
     handleChangeDirectory,
     handleRename: renameSession,
     handleCompact: compaction.compact,

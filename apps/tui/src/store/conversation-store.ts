@@ -1,4 +1,4 @@
-import type { CallId, ThreadId, Event } from "@dltech/atlas-core";
+import type { CallId, EExecutionLocation, ThreadId, Event } from "@dltech/atlas-core";
 import type {
   ChannelSignal,
   DeltaChannel,
@@ -23,8 +23,10 @@ import {
   sameSidebar,
   sidebarFoldFrom,
   sidebarFrom,
+  type SidebarContainer,
   type SidebarModel,
 } from "./sidebar-model";
+import { watchSandbox, type SandboxStatusSource } from "./sandbox-source";
 import { pendingTldrOf, subscribeTldrFeed } from "../ui/tldr-feed-store";
 import { sameEvents, sameTurns } from "./same-log";
 import type { ModelPriceLookup } from "./sidebar-spend";
@@ -77,6 +79,7 @@ export function createConversationStore(args: {
   name?: string | null;
   priceOf?: ModelPriceLookup | undefined;
   projectEvents?: ((args: { events: readonly Event[] }) => void) | undefined;
+  sandbox?: SandboxStatusSource | undefined;
   readClock?: (() => number) | undefined;
 }): ConversationStore {
   const paceReveal = args.paceReveal ?? false;
@@ -89,6 +92,7 @@ export function createConversationStore(args: {
   let progress: TurnProgress = IDLE_PROGRESS;
   let turn: TurnClock = IDLE_TURN;
   let gate: RevealGate | null = null;
+  let sandbox: SidebarContainer | null = args.sandbox?.current() ?? null;
   let channelWorking = false;
   let pendingTldr = pendingTldrOf(args.threadId) ?? null;
   let frame: ReturnType<typeof setTimeout> | undefined;
@@ -124,7 +128,7 @@ export function createConversationStore(args: {
   const sidebarNow = (): SidebarModel =>
     sidebarFrom({ fold: sidebarFoldFrom(logWindow.acc), turn, turns, priceOf: args.priceOf, name });
 
-  let model = assembleTranscript({ durable: durableNow(), live: [], thinking, pendingTldr, tldrStatus })
+  let model = assembleTranscript({ durable: durableNow(), live: [], thinking, pendingTldr, tldrStatus, sandbox })
   let sidebar = sidebarNow()
 
   args.projectEvents?.({ events });
@@ -184,6 +188,7 @@ export function createConversationStore(args: {
         thinking,
         pendingTldr,
         tldrStatus,
+        sandbox,
         outputs: tails,
         working: channelWorking,
       }),
@@ -294,6 +299,15 @@ export function createConversationStore(args: {
     republish();
   });
 
+  const unsubscribeFromSandbox = watchSandbox({
+    source: args.sandbox,
+    current: () => sandbox,
+    onMoved: (next) => {
+      sandbox = next;
+      republish();
+    },
+  });
+
   return {
     subscribe(listener) {
       listeners.add(listener);
@@ -386,6 +400,7 @@ export function createConversationStore(args: {
       unsubscribeFromChannel?.();
       unsubscribeFromChannel = undefined;
       unsubscribeFromFeed();
+      unsubscribeFromSandbox?.();
       listeners.clear();
     },
   };
