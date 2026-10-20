@@ -158,11 +158,14 @@ export class Fixture {
 
   /** Cache file paths for a test, for corruption scenarios. */
   cacheFiles() {
-    const found = spawnSync(
-      'find',
-      [this.cacheDir, '-name', '*.json', '-not', '-path', '*/work/*'],
-      { encoding: 'utf8' },
-    );
-    return found.stdout.trim().split('\n').filter(Boolean);
+    const found = spawnSync('find', ['.', '-name', '*.json', '-not', '-path', './work/*'], {
+      cwd: this.cacheDir,
+      encoding: 'utf8',
+    });
+    return found.stdout
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((file) => join(this.cacheDir, file));
   }
 }
