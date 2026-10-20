@@ -1,0 +1,66 @@
+packages/vitest-incremental/test/harness.ts
+  s_19eda1e80b9014::t_e588da885aabfa 1-67
+packages/vitest-incremental/test/correctness.test.ts
+  s_19eda1e80b9014::t_e588da885aabfa 1-197
+packages/vitest-incremental/index.d.ts
+  ai_agent 1-34
+packages/vitest-incremental/README.md
+  s_19eda1e80b9014::t_e588da885aabfa 1-118
+packages/vitest-incremental/src/record.ts
+  ai_agent 1-106
+packages/vitest-incremental/src/reporter.ts
+  ai_agent 1-251
+bun.lock
+  ai_agent 247-262,441
+packages/vitest-incremental/tsconfig.json
+  s_19eda1e80b9014::t_438548167398be 1-8
+packages/vitest-incremental/package.json
+  s_19eda1e80b9014::t_e588da885aabfa 1-16,21-29
+  s_19eda1e80b9014::t_68e5f460eae754 18
+  s_19eda1e80b9014::t_66c1435b4d320b 19-20
+  s_19eda1e80b9014::t_9d3aea5ceb4198 17
+packages/vitest-incremental/test/fingerprint.test.ts
+  s_19eda1e80b9014::t_e588da885aabfa 1-60
+packages/vitest-incremental/test/store.test.ts
+  s_19eda1e80b9014::t_e588da885aabfa 1-169
+packages/vitest-incremental/src/store.ts
+  s_19eda1e80b9014::t_e588da885aabfa 1-207
+packages/vitest-incremental/test/inputs.test.ts
+  s_19eda1e80b9014::t_e588da885aabfa 1-65
+packages/vitest-incremental/src/fingerprint.ts
+  ai_agent 1-168
+packages/vitest-incremental/index.js
+  s_19eda1e80b9014::t_e588da885aabfa 1-86
+packages/vitest-incremental/test/plugin.test.ts
+  s_19eda1e80b9014::t_66c1435b4d320b 11
+  s_19eda1e80b9014::t_e588da885aabfa 1-10,12-20,22-283
+  s_19eda1e80b9014::t_38c00eb6f738fe 21
+packages/vitest-incremental/src/global-key.ts
+  ai_agent 1-97
+packages/vitest-incremental/src/types.ts
+  ai_agent 1-40
+packages/vitest-incremental/src/recorder.ts
+  s_19eda1e80b9014::t_759531e8697b0d 1-30,37-72,76-79,82-83,99,101-329
+  s_19eda1e80b9014::t_9e1ae8f412cb74 31-36,73-75
+  s_19eda1e80b9014::t_bb9815f882bc54 80-81,84-98,100
+packages/vitest-incremental/test/fixture.ts
+  s_19eda1e80b9014::t_e588da885aabfa 2-7,9-168
+  s_19eda1e80b9014::t_38c00eb6f738fe 8
+  s_19eda1e80b9014::t_66c1435b4d320b 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0f3b7ec03b807d35276df5e88f6167f24b508d45",
+  "prompts": {},
+  "sessions": {
+    "s_19eda1e80b9014": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f53feb8b-7c5c-4166-9a49-00c7883408ce",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Dennis Lysenko <dennislysenko@hotmail.com>"
+    }
+  }
+}
