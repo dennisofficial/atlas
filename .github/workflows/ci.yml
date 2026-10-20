@@ -132,8 +132,26 @@ jobs:
           docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
           docker pull node:22-slim
 
+      - name: restore incremental test records
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            incremental-tests-${{ github.ref_name }}-
+            incremental-tests-main-
+
       - name: test core, harness, ui, api
         run: bun run test --filter='!@dltech/atlas' --concurrency 1 --output-logs=full
+        env:
+          VITEST_INCREMENTAL: '1'
+
+      - name: save incremental test records
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-${{ github.ref_name }}-${{ github.sha }}
 
   # The api image is the deploy artifact, and its runtime stage copies explicit paths — a
   # path-loaded asset missing from that list builds fine and only fails at deploy time (#474).

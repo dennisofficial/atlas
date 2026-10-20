@@ -46,6 +46,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@dltech/vitest-incremental": "workspace:*",
         "@nestjs/testing": "^12.2.0",
         "@swc/core": "^1.13.5",
         "@trigger.dev/build": "4.7.4",

@@ -53,6 +53,7 @@
     "@nestjs/testing": "^12.2.0",
     "@swc/core": "^1.13.5",
     "@trigger.dev/build": "4.7.4",
+    "@dltech/vitest-incremental": "workspace:*",
     "@types/bun": "latest",
     "@types/express": "^5.0.3",
     "@types/node": "^26.3.0",
