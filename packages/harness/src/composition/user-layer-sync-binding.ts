@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { LogPort, NoticePort } from '@dltech/atlas-core'
 
 import { resolveUserLayerRoots } from '../cloud/context-archive-user-layer'
+import { POD_NAME_ENV } from '../cloud/local-pod/pod-create'
 import { cloudUserFilesClientFor } from '../cloud/user-files-client'
 import { registerDisposable } from '../container/disposal'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
@@ -55,7 +56,7 @@ export async function bindUserLayerSync(args: {
           atlasHome: args.override.atlasHome,
           client: args.override.client,
         }
-      : session === null || session === undefined
+      : session === null || session === undefined || process.env[POD_NAME_ENV] !== undefined
         ? null
         : {
             home: args.home ?? homedir(),

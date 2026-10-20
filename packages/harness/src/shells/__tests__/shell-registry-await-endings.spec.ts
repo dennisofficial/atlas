@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EKilledBy } from '@dltech/atlas-core'
 
-import { closeRegistries, ELSEWHERE, job, openRegistry, recorded, THREAD } from './shell-registry-fixture'
+import { closeRegistries, ELSEWHERE, job, openRegistry, recorded, SIGKILL_TRAPPING_TEARDOWN_MS, THREAD } from './shell-registry-fixture'
 
-afterEach(closeRegistries)
+afterEach(closeRegistries, SIGKILL_TRAPPING_TEARDOWN_MS)
 
 describe('awaiting the endings a kill caused', async () => {
   it('leaves the ending in the log by the time it resolves', async () => {

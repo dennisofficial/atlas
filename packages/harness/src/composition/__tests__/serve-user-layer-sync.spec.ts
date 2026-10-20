@@ -140,6 +140,36 @@ describe('serve launch user-layer sync', () => {
     }
   })
 
+  it('a pod never reaches for the user layer — its lease token cannot reach the user-files routes', async () => {
+    const cloud = recordCloud(({ url }) => {
+      if (url.includes('/v1/user-files')) return new Promise<Response>(() => {})
+      return EMPTY_LISTS
+    })
+    const previousPodName = process.env.ATLAS_POD_NAME
+    process.env.ATLAS_POD_NAME = 'atlas-pod-spec'
+    try {
+      const booted = serveCompose({
+        bindPorts: ({ container }) => {
+          container.register(ServeSessionToken, {
+            useValue: { url: 'https://cloud.test', token: 'pod-lease', email: null },
+          })
+        },
+      })
+      const app = await Promise.race([
+        booted,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('serve boot hung waiting on the user layer')), 2_000)
+        }),
+      ])
+      expect(cloud.calls).toEqual([])
+      expect(app.workspace.workspace.length).toBeGreaterThan(0)
+    } finally {
+      if (previousPodName === undefined) delete process.env.ATLAS_POD_NAME
+      else process.env.ATLAS_POD_NAME = previousPodName
+      cloud.restore()
+    }
+  })
+
   it('never opens a socket when no cloud authority exists', async () => {
     const cloud = recordCloud(() => {
       throw new Error('signed-out boot must not fetch')
