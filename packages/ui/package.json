@@ -6,44 +6,20 @@
   "sideEffects": [
     "**/*.css"
   ],
+  "imports": {
+    "#components/*": "./src/components/*.tsx",
+    "#lib/*": "./src/lib/*.ts",
+    "#hooks/*": "./src/hooks/*.ts",
+    "#lib/highlighter": "./src/lib/highlighter.tsx"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./tokens": "./src/tokens/index.ts",
-    "./cn": "./src/lib/cn.ts",
-    "./button": "./src/atoms/button.tsx",
-    "./input": "./src/atoms/input.tsx",
-    "./textarea": "./src/atoms/textarea.tsx",
-    "./checkbox": "./src/atoms/checkbox.tsx",
-    "./radio-group": "./src/atoms/radio-group.tsx",
-    "./select": "./src/atoms/select.tsx",
-    "./slider": "./src/atoms/slider.tsx",
-    "./switch": "./src/atoms/switch.tsx",
-    "./avatar": "./src/atoms/avatar.tsx",
-    "./badge": "./src/atoms/badge.tsx",
-    "./card": "./src/atoms/card.tsx",
-    "./code-block": "./src/atoms/code-block.tsx",
-    "./empty-state": "./src/atoms/empty-state.tsx",
-    "./kbd": "./src/atoms/kbd.tsx",
-    "./separator": "./src/atoms/separator.tsx",
-    "./skeleton": "./src/atoms/skeleton.tsx",
-    "./table": "./src/atoms/table.tsx",
-    "./dialog": "./src/atoms/dialog.tsx",
-    "./drawer": "./src/atoms/drawer.tsx",
-    "./dropdown-menu": "./src/atoms/dropdown-menu.tsx",
-    "./popover": "./src/atoms/popover.tsx",
-    "./tooltip": "./src/atoms/tooltip.tsx",
-    "./toast": "./src/atoms/toast.tsx",
-    "./command-palette": "./src/molecules/command-palette.tsx",
-    "./tabs": "./src/atoms/tabs.tsx",
-    "./scroll-area": "./src/atoms/scroll-area.tsx",
-    "./icon": "./src/atoms/icon.tsx",
-    "./glyph": "./src/atoms/glyph.tsx",
-    "./spinner": "./src/atoms/spinner.tsx",
-    "./chat-bubble": "./src/molecules/chat-bubble.tsx",
-    "./tool-call-card": "./src/molecules/tool-call-card.tsx",
-    "./approval-prompt": "./src/molecules/approval-prompt.tsx",
-    "./diff-viewer": "./src/molecules/diff-viewer.tsx",
-    "./model-picker": "./src/molecules/model-picker.tsx",
+    "./components/*": "./src/components/*.tsx",
+    "./ai/*": "./src/ai/*.tsx",
+    "./lib/highlighter": "./src/lib/highlighter.tsx",
+    "./lib/*": "./src/lib/*.ts",
+    "./hooks/*": "./src/hooks/*.ts",
     "./theme.css": "./src/styles/theme.css",
     "./base.css": "./src/styles/base.css",
     "./fonts.css": "./src/styles/fonts.css"
@@ -51,16 +27,28 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "ATLAS_TESTING=1 bun test",
-    "generate": "bun run tools/generate-css.ts",
-    "storybook": "storybook dev --no-open",
-    "build-storybook": "storybook build --output-dir storybook-static"
+    "generate": "bun run tools/generate-css.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
+    "@shadcn/react": "^0.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "cn": "^0.5.0",
+    "date-fns": "^4.4.0",
+    "embla-carousel-react": "^8.6.0",
+    "input-otp": "^1.5.0",
     "lucide-react": "^1.45.0",
-    "tailwind-merge": "^3.6.0"
+    "next-themes": "^0.4.6",
+    "react-day-picker": "^10.0.2",
+    "react-resizable-panels": "^4.14.6",
+    "recharts": "3.8.0",
+    "shadcn": "^4.22.1",
+    "shiki": "^4.5.0",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0"
   },
   "peerDependencies": {
     "react": "^19",
@@ -68,14 +56,11 @@
     "tailwindcss": "^4"
   },
   "devDependencies": {
-    "@storybook/react-vite": "10.6.0",
-    "@tailwindcss/vite": "^4.1.18",
     "@types/bun": "latest",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "storybook": "10.6.0",
     "tailwindcss": "^4.1.18"
   }
 }
