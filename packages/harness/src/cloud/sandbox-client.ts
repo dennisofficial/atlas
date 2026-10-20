@@ -88,7 +88,6 @@ export class SandboxClient {
     gitToken: string
     contextPending: boolean
     workspace?: WorkspaceSpec | undefined
-    gpgKey?: string | undefined
   }): Promise<WireSandboxClaim> {
     const body = await this.request({
       method: 'POST',
@@ -98,7 +97,6 @@ export class SandboxClient {
         gitToken: args.gitToken,
         contextPending: args.contextPending,
         ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-        ...(args.gpgKey === undefined ? {} : { gpgKey: args.gpgKey }),
       },
     })
     return wireSandboxClaimSchema.parse(body)

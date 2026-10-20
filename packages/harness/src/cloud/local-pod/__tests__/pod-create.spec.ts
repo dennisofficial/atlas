@@ -122,6 +122,7 @@ describe('podCreateBody', () => {
       ATLAS_CLOUD_URL: 'https://cloud.example',
       ATLAS_HOME: SANDBOX_HOME_PATH,
       ATLAS_POD_NAME: podNameFor({ threadId: 'thread-1' }),
+      ATLAS_SANDBOX_SESSION_ID: podNameFor({ threadId: 'thread-1' }),
     })
   })
 

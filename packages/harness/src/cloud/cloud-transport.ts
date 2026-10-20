@@ -2,11 +2,13 @@ import { ELogSeverity, type LogEntry, type LogPort, type ThreadId } from '@dltec
 
 export class CloudError extends Error {
   readonly status: number
+  readonly code?: string
 
-  constructor(args: { status: number; message: string }) {
+  constructor(args: { status: number; message: string; code?: string | undefined }) {
     super(args.message)
     this.name = 'CloudError'
     this.status = args.status
+    if (args.code !== undefined) this.code = args.code
   }
 }
 
@@ -112,6 +114,12 @@ const detailFrom = (body: unknown): string | undefined => {
   return undefined
 }
 
+const codeFrom = (body: unknown): string | undefined => {
+  if (typeof body !== 'object' || body === null) return undefined
+  const code = Reflect.get(body, 'code')
+  return typeof code === 'string' && code.length > 0 ? code : undefined
+}
+
 const safeJson = (text: string): unknown => {
   try {
     return JSON.parse(text)
@@ -203,6 +211,7 @@ export const cloudRequest = async (args: {
       throw new CloudError({
         status: response.status,
         message: `The Atlas Cloud API answered ${args.method} ${args.path} with ${response.status}${detail === undefined ? '' : `: ${detail}`}.`,
+        code: codeFrom(parsed),
       })
     }
 
@@ -276,13 +285,15 @@ export const cloudRawRequest = async (args: {
     if (response.status === 404 && args.allowMissing === true) return null
 
     if (!response.ok) {
-      const detail = detailFrom(safeJson(await response.text()))
+      const failure = safeJson(await response.text())
+      const detail = detailFrom(failure)
       if (isRetryableStatus(response.status)) {
         noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt })
       }
       throw new CloudError({
         status: response.status,
         message: `The Atlas Cloud API answered ${args.method} ${args.path} with ${response.status}${detail === undefined ? '' : `: ${detail}`}.`,
+        code: codeFrom(failure),
       })
     }
 

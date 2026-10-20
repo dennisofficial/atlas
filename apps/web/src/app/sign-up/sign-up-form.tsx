@@ -1,8 +1,24 @@
 'use client'
 
-import { Button } from '@dltech/atlas-ui/button'
-import { Card } from '@dltech/atlas-ui/card'
-import { Input } from '@dltech/atlas-ui/input'
+import { Alert, AlertDescription } from '@dltech/atlas-ui/components/alert'
+import { Button } from '@dltech/atlas-ui/components/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@dltech/atlas-ui/components/card'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 
@@ -32,39 +48,64 @@ export function SignUpForm() {
   }
 
   return (
-    <Card
-      title="Create your Atlas account"
-      subtitle="One account for the TUI and Atlas Cloud"
-      footer={
+    <Card>
+      <CardHeader>
+        <CardTitle>Create your Atlas account</CardTitle>
+        <CardDescription>One account for the TUI and Atlas Cloud</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form id="sign-up" onSubmit={handleSubmit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="name">Name</FieldLabel>
+              <Input
+                id="name"
+                name="name"
+                placeholder="Ada Lovelace"
+                required
+                autoComplete="name"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@company.com"
+                required
+                autoComplete="email"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+              <FieldDescription>At least 8 characters</FieldDescription>
+            </Field>
+            {error !== null && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <Button type="submit" size="lg" disabled={busy}>
+              {busy && <Spinner data-icon="inline-start" />}
+              Create account
+            </Button>
+          </FieldGroup>
+        </form>
+      </CardContent>
+      <CardFooter className="justify-center text-sm text-muted-foreground">
         <span>
-          Already have an account? <a href="/sign-in">Sign in</a>
+          Already have an account? <Link href="/sign-in">Sign in</Link>
         </span>
-      }
-    >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Input name="name" label="Name" placeholder="Ada Lovelace" required autoComplete="name" />
-        <Input
-          name="email"
-          type="email"
-          label="Email"
-          placeholder="you@company.com"
-          required
-          autoComplete="email"
-        />
-        <Input
-          name="password"
-          type="password"
-          label="Password"
-          hint="At least 8 characters"
-          required
-          minLength={8}
-          autoComplete="new-password"
-        />
-        {error !== null && <p className="text-xs text-destructive">{error}</p>}
-        <Button type="submit" variant="primary" fullWidth loading={busy}>
-          Create account
-        </Button>
-      </form>
+      </CardFooter>
     </Card>
   )
 }

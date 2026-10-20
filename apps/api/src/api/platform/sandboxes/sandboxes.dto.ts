@@ -68,10 +68,6 @@ export class ClaimSandboxDto {
 
   @IsOptional()
   @IsString()
-  gpgKey?: string
-
-  @IsOptional()
-  @IsString()
   @MinLength(1)
   driveName?: string | null
 

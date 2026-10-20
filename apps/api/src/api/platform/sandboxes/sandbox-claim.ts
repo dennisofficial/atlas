@@ -78,7 +78,6 @@ export type ClaimUpdate = Partial<WorkspaceColumns> & {
   tokenHash?: string
   sealedToken?: string
   sealedGitToken?: string
-  sealedGpgKey?: string
   contextPending?: boolean
   pinnedModel?: string | null
   serveUrl?: string | null
@@ -91,7 +90,6 @@ export function rotationOf(args: {
   sealedToken: string
   rotated: boolean
   sealedGitToken?: string | undefined
-  sealedGpgKey?: string | undefined
   contextPending?: boolean | undefined
   pinnedModel?: string | undefined
   serveUrl?: string | undefined
@@ -103,7 +101,6 @@ export function rotationOf(args: {
     ...(args.rotated ? { tokenHash: args.tokenHash, sealedToken: args.sealedToken } : {}),
   }
   if (args.sealedGitToken !== undefined) rotation.sealedGitToken = args.sealedGitToken
-  if (args.sealedGpgKey !== undefined) rotation.sealedGpgKey = args.sealedGpgKey
   if (args.contextPending !== undefined) rotation.contextPending = args.contextPending
   if (args.pinnedModel !== undefined) rotation.pinnedModel = args.pinnedModel
   if (args.serveUrl !== undefined) rotation.serveUrl = args.serveUrl
@@ -123,7 +120,6 @@ export function claimSandboxRow(args: {
   sealedToken: string
   rotated: boolean
   sealedGitToken?: string | undefined
-  sealedGpgKey?: string | undefined
   contextPending?: boolean | undefined
   name?: string | undefined
   pinnedModel?: string | undefined
@@ -152,7 +148,6 @@ export function claimSandboxRow(args: {
       tokenHash: args.tokenHash,
       sealedToken: args.sealedToken,
       sealedGitToken: args.sealedGitToken ?? null,
-      sealedGpgKey: args.sealedGpgKey ?? null,
       contextPending: args.contextPending ?? true,
       ...columns,
       pinnedModel: args.pinnedModel ?? null,

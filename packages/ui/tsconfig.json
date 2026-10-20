@@ -3,7 +3,9 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "types": ["bun"]
+    "types": ["bun"],
+    "resolvePackageJsonImports": true,
+    "exactOptionalPropertyTypes": false
   },
-  "include": ["src", "tools", ".storybook"]
+  "include": ["src", "tools"]
 }
