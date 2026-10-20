@@ -674,15 +674,15 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     id: ESettingId.LastBornPlacement,
     page: ESettingPage.Hidden,
     group: 'Execution',
-    label: 'Last chosen thread placement',
+    label: 'Last chosen thread runner',
     description:
-      'Where the operator last chose to start a new thread, cloud or host. Written by the placement chip in the composer footer rather than set here; automatic until the chip is first flipped.',
+      'Where the operator last chose to start a new thread, a local pod or a Vercel sandbox. Written by the placement chip in the composer footer rather than set here; automatic until the chip is first flipped.',
     kind: ESettingKind.Choice,
     fallback: 'auto',
     options: [
       { value: 'auto', label: 'automatic' },
-      { value: 'cloud', label: 'cloud' },
-      { value: 'host', label: 'host' },
+      { value: 'local', label: 'local pod' },
+      { value: 'vercel', label: 'Vercel sandbox' },
     ],
   },
   {
