@@ -1,0 +1,21 @@
+packages/vitest-incremental/test/fixture.ts
+  s_19eda1e80b9014::t_2495eee5a34ebf 161-169
+packages/vitest-incremental/test/correctness.test.ts
+  s_19eda1e80b9014::t_2495eee5a34ebf 190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4952c2ea7cbceeddf419e08801b5a8c56273e4ae",
+  "prompts": {},
+  "sessions": {
+    "s_19eda1e80b9014": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f53feb8b-7c5c-4166-9a49-00c7883408ce",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Dennis Lysenko <dennislysenko@hotmail.com>"
+    }
+  }
+}
