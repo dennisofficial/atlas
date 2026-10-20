@@ -8,7 +8,7 @@ import {
   EPublishStage,
   loadPublishState,
   messageOf,
-  pendingRows,
+  hasChanges,
   planPush,
   publishBundle,
   PublishedBundleClient,
@@ -40,7 +40,7 @@ const complain = (line: string): void => {
   process.stderr.write(`${line}\n`)
 }
 
-const defaultPicker = async (args: { rows: readonly PlanRow[] }): Promise<PickerOutcome> => {
+const defaultPicker = async (args: { rows: readonly PlanRow[]; showAll: boolean }): Promise<PickerOutcome> => {
   const { runPushPicker } = await import('../push/run-picker')
   return await runPushPicker(args)
 }
@@ -74,14 +74,15 @@ export async function runPush({
 
   const last = await loadPublishState({ atlasHome })
   const plan = planPush({ items, last })
-  if (pendingRows(plan).length === 0 && last.version > 0) {
-    say(`nothing changed since the last push (version ${last.version})`)
+  if (!hasChanges(plan) && last.version > 0 && !request.all) {
+    say(`nothing changed since the last push (version ${last.version}) — atlas push --all to revise the selection`)
     return OK
   }
+  if (plan.removed.length > 0) say(`${plan.removed.length} previously published item(s) no longer exist and will be dropped`)
 
   let selectedIds = new Set(plan.rows.filter((row) => row.selected).map((row) => row.item.id))
   if (!request.yes) {
-    const outcome = await pick({ rows: plan.rows })
+    const outcome = await pick({ rows: plan.rows, showAll: request.all })
     if (outcome.kind === EPickerOutcome.Cancelled) {
       say('cancelled, nothing published')
       return REFUSED

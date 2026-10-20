@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPublishStatus, pendingRows, planPush, stateAfterPush } from '../publish-plan'
+import { EPublishStatus, hasChanges, pendingRows, planPush, stateAfterPush } from '../publish-plan'
 import { EMPTY_PUBLISH_STATE, type PublishState } from '../publish-state'
 import { EPublishKind, type Publishable } from '../publishables'
 
@@ -42,6 +42,13 @@ describe('planPush', () => {
       ['fresh', EPublishStatus.New, true],
     ])
     expect(pendingRows(plan).map((row) => row.item.id)).toEqual(['edited', 'editedOn', 'fresh'])
+  })
+
+  it('counts a deleted, previously published item as a change', () => {
+    const plan = planPush({ items: [item('kept', 'a'), item('skipped', 'b')], last })
+    expect(plan.removed).toEqual(['editedOn'])
+    expect(hasChanges(plan)).toBe(true)
+    expect(hasChanges(planPush({ items: [item('kept', 'a'), item('skipped', 'b'), item('editedOn', 'old'), item('edited', 'old')], last }))).toBe(false)
   })
 
   it('records the selection and hashes for the next push', () => {

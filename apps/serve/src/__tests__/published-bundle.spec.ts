@@ -174,6 +174,35 @@ describe('applyPublishedBundle', () => {
     expect(lines.map((line) => line.event)).toEqual([EServeEvent.BundleReady])
   })
 
+  it('does not retry an unavailable API, so a down API costs boot one request', async () => {
+    let apiCalls = 0
+    const fetchFn = asFetch(() => {
+      apiCalls += 1
+      return new Response(null, { status: 503, headers: { 'retry-after': '8' } })
+    })
+
+    const { written, lines } = await run({ fetchFn })
+
+    expect(apiCalls).toBe(1)
+    expect(written.size).toBe(0)
+    expect(lines.map((line) => line.event)).toEqual([EServeEvent.BundleFailed])
+  })
+
+  it('gives the blob download a deadline', async () => {
+    const bytes = await fullBundle()
+    let blobSignal: AbortSignal | null | undefined
+    const fetchFn = asFetch((request) => {
+      if (request.url !== BLOB_URL) return Response.json(currentOf({ bytes }))
+      blobSignal = request.signal
+      return new Response(bytes)
+    })
+
+    await run({ fetchFn })
+
+    expect(blobSignal?.aborted).toBe(false)
+    expect(blobSignal).toBeInstanceOf(AbortSignal)
+  })
+
   it('gives up after ten 401s and logs failure', async () => {
     let apiCalls = 0
     const fetchFn = asFetch(() => {

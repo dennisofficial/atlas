@@ -9,7 +9,7 @@ export enum EPublishStatus {
 
 export type PlanRow = { item: Publishable; status: EPublishStatus; selected: boolean }
 
-export type PushPlan = { rows: readonly PlanRow[] }
+export type PushPlan = { rows: readonly PlanRow[]; removed: readonly string[] }
 
 export function planPush(args: { items: readonly Publishable[]; last: PublishState }): PushPlan {
   const rows = args.items.map((item): PlanRow => {
@@ -18,8 +18,14 @@ export function planPush(args: { items: readonly Publishable[]; last: PublishSta
     const status = known.hash === item.hash ? EPublishStatus.Unchanged : EPublishStatus.Changed
     return { item, status, selected: known.selected }
   })
-  return { rows }
+  const present = new Set(args.items.map((item) => item.id))
+  const removed = Object.entries(args.last.items)
+    .filter(([id, known]) => known.selected && !present.has(id))
+    .map(([id]) => id)
+  return { rows, removed }
 }
+
+export const hasChanges = (plan: PushPlan): boolean => pendingRows(plan).length > 0 || plan.removed.length > 0
 
 export const pendingRows = (plan: PushPlan): readonly PlanRow[] =>
   plan.rows.filter((row) => row.status !== EPublishStatus.Unchanged)

@@ -55,7 +55,7 @@ export function PickerRow(props: {
   onPress: () => void
 }): React.ReactNode {
   const region = useClickRegion(props.onPress)
-  const bg = props.current ? theme.selectedBg : region.wash.bg
+  const bg = region.hovered ? region.wash.bg : props.current ? theme.selectedBg : undefined
 
   return (
     <text

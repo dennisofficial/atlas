@@ -16,6 +16,7 @@ import {
   pickerLines,
   selectionOf,
   startState,
+  toggleAllShown,
   toggleSelected,
   toggleShowAll,
   type PickerOutcome,
@@ -29,6 +30,7 @@ const PAD = 2
 const hintsFor = (showAll: boolean): readonly Hint[] => [
   { key: '↑↓', label: 'move' },
   { key: 'space', label: 'toggle' },
+  { key: 'A', label: 'all on/off' },
   { key: 'a', label: showAll ? 'changed only' : 'show all' },
   { key: 'enter', label: 'publish' },
   { key: 'esc', label: 'cancel' },
@@ -43,11 +45,15 @@ function Header(props: { title: string; selected: number; total: number }): Reac
   )
 }
 
-export function PushPicker(props: { rows: readonly PlanRow[]; onDone: (outcome: PickerOutcome) => void }): React.ReactNode {
+export function PushPicker(props: {
+  rows: readonly PlanRow[]
+  showAll?: boolean | undefined
+  onDone: (outcome: PickerOutcome) => void
+}): React.ReactNode {
   const { rows } = props
   const { width } = useTerminalDimensions()
   const cells = Math.max(0, width - PAD * 2)
-  const [state, setState] = useState<PickerState>(() => startState(rows))
+  const [state, setState] = useState<PickerState>(() => startState({ rows, showAll: props.showAll === true }))
   const scroller = useRef<ScrollBoxRenderable | null>(null)
   const attachScroller = useHiddenVerticalScrollbar(scroller)
   const finished = useRef(false)
@@ -73,6 +79,7 @@ export function PushPicker(props: { rows: readonly PlanRow[]; onDone: (outcome: 
     if (key.name === 'up' || key.name === 'k') setState((current) => moveCursor({ state: current, rows, delta: -1 }))
     else if (key.name === 'down' || key.name === 'j') setState((current) => moveCursor({ state: current, rows, delta: 1 }))
     else if (key.name === 'space' && state.cursorId !== null) handlePress(state.cursorId)
+    else if (key.name === 'a' && key.shift) setState((current) => toggleAllShown({ state: current, rows }))
     else if (key.name === 'a') setState((current) => toggleShowAll({ state: current, rows }))
     else if (key.name === 'return' || key.name === 'enter') finish({ kind: EPickerOutcome.Chosen, ids: total.ids })
     else if (key.name === 'escape' || key.name === 'q') finish({ kind: EPickerOutcome.Cancelled })

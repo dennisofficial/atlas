@@ -81,6 +81,35 @@ describe('push picker', () => {
     }
   })
 
+  it('turns every shown row on with A, then off, leaving hidden rows alone', async () => {
+    const { setup, outcomes } = await mount()
+    try {
+      setup.mockInput.pressKey('A', { shift: true })
+      await landed(setup)
+      expect(setup.captureCharFrame()).toMatch(/\[x\] .agents\/beta/)
+      expect(setup.captureCharFrame()).not.toContain('.claude/gamma')
+      setup.mockInput.pressKey('A', { shift: true })
+      await landed(setup)
+      setup.mockInput.pressEnter()
+      await landed(setup)
+      expect(outcomes).toEqual([{ kind: EPickerOutcome.Chosen, ids: ['skill:.claude/gamma'] }])
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('opens on every row when asked to show all', async () => {
+    const outcomes: PickerOutcome[] = []
+    const setup = await testRender(<PushPicker rows={ROWS} showAll onDone={(outcome) => outcomes.push(outcome)} />, { width: 90, height: 24 })
+    try {
+      await setup.flush()
+      expect(setup.captureCharFrame()).toContain('.claude/gamma')
+      expect(setup.captureCharFrame()).toContain('showing all 5 items')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
   it('resolves with the selected ids on enter', async () => {
     const { setup, outcomes } = await mount()
     try {

@@ -11,7 +11,7 @@ describe('what the operator typed after atlas', () => {
   })
 
   it('reads a bare push as an interactive push', () => {
-    expect(requestFor('push')).toEqual({ yes: false, help: false, unknown: [] })
+    expect(requestFor('push')).toEqual({ yes: false, help: false, all: false, unknown: [] })
   })
 
   it('reads --yes and -y', () => {
@@ -24,7 +24,11 @@ describe('what the operator typed after atlas', () => {
     expect(requestFor('push -h')?.help).toBe(true)
   })
 
+  it('reads --all as a request to revise everything', () => {
+    expect(requestFor('push --all')?.all).toBe(true)
+  })
+
   it('reports flags it does not know', () => {
-    expect(requestFor('push --force --yes')).toEqual({ yes: true, help: false, unknown: ['--force'] })
+    expect(requestFor('push --force --yes')).toEqual({ yes: true, help: false, all: false, unknown: ['--force'] })
   })
 })

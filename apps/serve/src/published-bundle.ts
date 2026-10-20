@@ -20,7 +20,8 @@ import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 const CURRENT_PATH = '/v1/published-bundles/current'
 const LEASE_REGISTRATION_ATTEMPTS = 10
 const LEASE_REGISTRATION_DELAY_MS = 1_000
-const TRANSPORT_ATTEMPTS = 2
+const REQUEST_TIMEOUT_MS = 10_000
+const BOOT_BUDGET_MS = 60_000
 const KEPT_KEY_PREFIXES = ['user-layer/skills/', 'user-layer/instructions/'] as const
 const KEPT_EXACT_KEY = '.atlas/mcp.json'
 
@@ -32,6 +33,13 @@ type CurrentRequest = {
   clientVersion: string
   fetchFn: typeof fetch
   sleep: Sleep
+  deadline: number
+}
+
+const remainingMs = (deadline: number): number => {
+  const left = deadline - Date.now()
+  if (left <= 0) throw new Error(`the published bundle did not arrive within ${BOOT_BUDGET_MS} ms`)
+  return left
 }
 
 const defaultSleep: Sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -50,9 +58,7 @@ const requestCurrent = (args: CurrentRequest): Promise<unknown> =>
     method: 'GET',
     path: CURRENT_PATH,
     allowMissing: true,
-    retry: true,
-    maxAttempts: TRANSPORT_ATTEMPTS,
-    sleep: args.sleep,
+    timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs(args.deadline)),
   })
 
 const fetchCurrentBody = async (args: CurrentRequest): Promise<unknown> => {
@@ -61,7 +67,7 @@ const fetchCurrentBody = async (args: CurrentRequest): Promise<unknown> => {
       return await requestCurrent(args)
     } catch (error) {
       if (!isUnauthorized(error) || attempt >= LEASE_REGISTRATION_ATTEMPTS) throw error
-      await args.sleep(LEASE_REGISTRATION_DELAY_MS)
+      await args.sleep(Math.min(LEASE_REGISTRATION_DELAY_MS, remainingMs(args.deadline)))
     }
   }
 }
@@ -71,8 +77,11 @@ const tooLarge = (): Error => new Error(`the bundle is larger than ${PUBLISHED_B
 const downloadBundle = async (args: {
   current: PublishedBundleCurrent
   fetchFn: typeof fetch
+  deadline: number
 }): Promise<Buffer> => {
-  const response = await args.fetchFn(args.current.downloadUrl)
+  const response = await args.fetchFn(args.current.downloadUrl, {
+    signal: AbortSignal.timeout(remainingMs(args.deadline)),
+  })
   if (!response.ok) throw new Error(`the bundle download answered ${response.status}`)
   const declared = Number(response.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > PUBLISHED_BUNDLE_MAX_BYTES) throw tooLarge()
@@ -126,6 +135,7 @@ export const applyPublishedBundle = async (args: {
   sleep?: Sleep | undefined
 }): Promise<void> => {
   const startedAt = Date.now()
+  const deadline = startedAt + BOOT_BUDGET_MS
   try {
     const body = await fetchCurrentBody({
       controlPlaneUrl: args.controlPlaneUrl,
@@ -133,6 +143,7 @@ export const applyPublishedBundle = async (args: {
       clientVersion: args.clientVersion,
       fetchFn: args.fetchFn,
       sleep: args.sleep ?? defaultSleep,
+      deadline,
     })
     if (body === undefined) {
       args.log({ event: EServeEvent.BundleAbsent })
@@ -140,7 +151,7 @@ export const applyPublishedBundle = async (args: {
     }
     const parsed = publishedBundleCurrentSchema.safeParse(body)
     if (!parsed.success) throw new Error('the published bundle answer was malformed')
-    const bytes = await downloadBundle({ current: parsed.data, fetchFn: args.fetchFn })
+    const bytes = await downloadBundle({ current: parsed.data, fetchFn: args.fetchFn, deadline })
     const written = await writeBundle({
       bytes,
       atlasHome: args.atlasHome,

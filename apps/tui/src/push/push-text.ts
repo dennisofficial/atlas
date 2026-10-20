@@ -1,7 +1,7 @@
 import type { PublishedBundleSummary } from '@dltech/atlas-wire'
 
 export const PUSH_USAGE: readonly string[] = [
-  'atlas push [--yes]',
+  'atlas push [--yes] [--all]',
   '    publishes your skills, the global ATLAS.md and ~/.atlas/mcp.json to Atlas Cloud, so every',
   '    cloud session starts with them. Sign in to Atlas Cloud first.',
   '',
@@ -9,6 +9,7 @@ export const PUSH_USAGE: readonly string[] = [
   '    choices carry over.',
   '',
   '    --yes   skip the picker and publish the planned selection (new items on, last choices kept).',
+  '    --all   open the picker on every item, even when nothing changed, to revise the selection.',
 ]
 
 const KILOBYTE = 1_000

@@ -32,9 +32,20 @@ export function listOf({ rows, showAll }: { rows: readonly PlanRow[]; showAll: b
 export const carriedOver = (rows: readonly PlanRow[]): number =>
   rows.filter((row) => row.status === EPublishStatus.Unchanged).length
 
-export function startState(rows: readonly PlanRow[]): PickerState {
+export function startState({ rows, showAll }: { rows: readonly PlanRow[]; showAll: boolean }): PickerState {
   const selected = new Set(rows.filter((row) => row.selected).map((row) => row.item.id))
-  return { selected, cursorId: listOf({ rows, showAll: false })[0]?.item.id ?? null, showAll: false }
+  return { selected, cursorId: listOf({ rows, showAll })[0]?.item.id ?? null, showAll }
+}
+
+export function toggleAllShown({ state, rows }: { state: PickerState; rows: readonly PlanRow[] }): PickerState {
+  const shown = listOf({ rows, showAll: state.showAll }).map((row) => row.item.id)
+  const selected = new Set(state.selected)
+  const everyShownSelected = shown.every((id) => selected.has(id))
+  for (const id of shown) {
+    if (everyShownSelected) selected.delete(id)
+    else selected.add(id)
+  }
+  return { ...state, selected }
 }
 
 export function pickerLines({ list, selected }: { list: readonly PlanRow[]; selected: ReadonlySet<string> }): readonly PickerLine[] {
