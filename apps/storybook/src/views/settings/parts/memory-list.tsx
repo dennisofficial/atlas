@@ -14,17 +14,17 @@ import { MemoryRow } from "./memory-row";
 
 export function MemoryList({
   memories,
-  storeIsEmpty,
-  selectedIds,
+  scopeIsEmpty,
+  selectedNames,
   onSelectedChange,
   onOpen,
   onEdit,
   onDelete,
 }: {
   memories: MemoryEntry[];
-  storeIsEmpty: boolean;
-  selectedIds: string[];
-  onSelectedChange: (args: { id: string; selected: boolean }) => void;
+  scopeIsEmpty: boolean;
+  selectedNames: string[];
+  onSelectedChange: (args: { name: string; selected: boolean }) => void;
   onOpen: (entry: MemoryEntry) => void;
   onEdit: (entry: MemoryEntry) => void;
   onDelete: (entry: MemoryEntry) => void;
@@ -37,10 +37,10 @@ export function MemoryList({
             <BrainIcon />
           </EmptyMedia>
           <EmptyTitle>
-            {storeIsEmpty ? "No memories in this store yet." : "No memories match."}
+            {scopeIsEmpty ? "No memories in this scope yet." : "No memories match."}
           </EmptyTitle>
           <EmptyDescription>
-            {storeIsEmpty
+            {scopeIsEmpty
               ? "The agent writes one when it learns something worth keeping: who you are, how you want to work, project context, or where things live."
               : "Try a different search or clear the type filter."}
           </EmptyDescription>
@@ -52,10 +52,10 @@ export function MemoryList({
     <SettingsCard>
       {memories.map((entry) => (
         <MemoryRow
-          key={entry.id}
+          key={entry.name}
           entry={entry}
-          selected={selectedIds.includes(entry.id)}
-          onSelectedChange={(selected) => onSelectedChange({ id: entry.id, selected })}
+          selected={selectedNames.includes(entry.name)}
+          onSelectedChange={(selected) => onSelectedChange({ name: entry.name, selected })}
           onOpen={() => onOpen(entry)}
           actions={[
             { label: "View", onSelect: () => onOpen(entry) },

@@ -5,34 +5,30 @@ export enum EMemoryType {
   Reference = "reference",
 }
 
-export enum EMemoryStoreKind {
+export enum EMemoryScope {
   Global = "global",
   Project = "project",
 }
 
 export type MemoryEntry = {
-  id: string;
-  file: string;
   name: string;
   description: string;
   type: EMemoryType;
-  recorded: string;
   body: string;
+  revision: number;
+  updatedAt: string;
 };
 
-export type MemoryStore = {
+export type MemoryScopeGroup = {
   id: string;
-  kind: EMemoryStoreKind;
-  label: string;
-  path: string;
-  indexLines: number;
-  indexBytes: number;
+  scope: EMemoryScope;
+  project: string | null;
   memories: MemoryEntry[];
 };
 
-export const MEMORY_INDEX_MAX_LINES = 200;
-export const MEMORY_INDEX_MAX_BYTES = 25_000;
-export const MEMORY_RECONCILE_THRESHOLD = 0.8;
+export const MEMORY_MAX_DESCRIPTION_CHARS = 300;
+export const MEMORY_MAX_BODY_CHARS = 20_000;
+export const MEMORY_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,99}$/;
 
 export const MEMORY_TYPE_LABELS: Record<EMemoryType, string> = {
   [EMemoryType.User]: "User",
@@ -46,5 +42,5 @@ export const MEMORY_TYPE_OPTIONS = Object.values(EMemoryType).map((type) => ({
   label: MEMORY_TYPE_LABELS[type],
 }));
 
-export const MEMORY_GLOBAL_STORE_ID = "global";
-export const MEMORY_RS_CRM_STORE_ID = "rs-crm";
+export const MEMORY_GLOBAL_GROUP_ID = "global";
+export const MEMORY_RS_CRM_GROUP_ID = "recycling-solution/rs-crm-app";
