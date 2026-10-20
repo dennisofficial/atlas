@@ -50,6 +50,9 @@ export enum EServeEvent {
   SigningKeyAbsent = 'serve.signing-key-absent',
   SigningKeyWriteFailed = 'serve.signing-key-write-failed',
   SigningKeyEnvInvalid = 'serve.signing-key-env-invalid',
+  BundleReady = 'serve.bundle-ready',
+  BundleAbsent = 'serve.bundle-absent',
+  BundleFailed = 'serve.bundle-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }
