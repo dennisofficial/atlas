@@ -1,7 +1,8 @@
 // tsyringe throws from its own module body when `Reflect.getMetadata` is absent, so the polyfill
-// import must stay above it. Everything tsyringe touches imports it through here, which is what
-// keeps that ordering true.
-import 'reflect-metadata'
+// must evaluate first. Bun's bundler hoists ESM initializers above CommonJS requires inside a lazily
+// wrapped module, so a bare `import 'reflect-metadata'` (CJS) here ran after tsyringe in the
+// compiled binary. Routing it through an ESM module keeps it in source order.
+import './reflect-polyfill'
 
 import { container, type DependencyContainer, type InjectionToken } from 'tsyringe'
 
