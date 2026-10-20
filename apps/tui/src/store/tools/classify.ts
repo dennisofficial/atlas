@@ -256,7 +256,7 @@ export function classify(args: { call: ToolCall; cwd: string }): Classification 
     }
   }
 
-  const remembered = memoryCall(args)
+  const remembered = memoryCall(call)
   if (remembered !== null) return remembered
 
   if (call.name === 'edit' || call.name === 'multi_edit' || call.name === 'write') {

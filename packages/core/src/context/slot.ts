@@ -2,7 +2,6 @@ export enum EContextSlot {
   UserInstructions = 'user-instructions',
   ProjectInstructions = 'project-instructions',
   NestedInstructions = 'nested-instructions',
-  Memory = 'memory',
   Skill = 'skill',
   File = 'file',
   SkillListing = 'skill-listing',

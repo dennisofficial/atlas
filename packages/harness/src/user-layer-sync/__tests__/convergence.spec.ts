@@ -18,7 +18,7 @@ afterEach(() => {
 })
 
 describe('two-device convergence', () => {
-  it('carries a skill, instructions and memory from A to B and back', async () => {
+  it('carries skills and instructions from A to B and back, including an edit', async () => {
     const server = new FakeUserFilesServer()
     const a = await track({ server, name: 'a' })
     const b = await track({ server, name: 'b' })
@@ -26,28 +26,28 @@ describe('two-device convergence', () => {
     await writeAt({ path: join(a.atlasHome, 'skills', 'review', 'SKILL.md'), content: '# review' })
     await writeAt({ path: join(a.home, '.agents', 'skills', 'explore', 'SKILL.md'), content: '# explore' })
     await writeAt({ path: join(a.atlasHome, 'ATLAS.md'), content: '# global' })
-    await writeAt({ path: join(a.atlasHome, 'memory', 'topic.md'), content: '# topic' })
+    await writeAt({ path: join(a.atlasHome, 'skills', 'topic.md'), content: '# topic' })
     await a.engine.start()
 
     await b.engine.pullNow()
     expect(await readAt(join(b.atlasHome, 'skills', 'review', 'SKILL.md'))).toBe('# review')
     expect(await readAt(join(b.home, '.agents', 'skills', 'explore', 'SKILL.md'))).toBe('# explore')
     expect(await readAt(join(b.atlasHome, 'ATLAS.md'))).toBe('# global')
-    expect(await readAt(join(b.atlasHome, 'memory', 'topic.md'))).toBe('# topic')
-    expect(server.row({ tree: 'memory', path: 'user/topic.md' })?.contentHash).toBe(hashOf('# topic'))
+    expect(await readAt(join(b.atlasHome, 'skills', 'topic.md'))).toBe('# topic')
+    expect(server.row({ tree: 'skills', path: '.atlas/topic.md' })?.contentHash).toBe(hashOf('# topic'))
 
-    await writeAt({ path: join(b.atlasHome, 'memory', 'topic.md'), content: '# topic, edited on B' })
+    await writeAt({ path: join(b.atlasHome, 'skills', 'topic.md'), content: '# topic, edited on B' })
     await b.engine.reconcileNow()
     await a.engine.pullNow()
-    expect(await readAt(join(a.atlasHome, 'memory', 'topic.md'))).toBe('# topic, edited on B')
-    expect(server.row({ tree: 'memory', path: 'user/topic.md' })?.revision).toBe(2)
+    expect(await readAt(join(a.atlasHome, 'skills', 'topic.md'))).toBe('# topic, edited on B')
+    expect(server.row({ tree: 'skills', path: '.atlas/topic.md' })?.revision).toBe(2)
   })
 
   it('does not push back what a pull just wrote', async () => {
     const server = new FakeUserFilesServer()
     const a = await track({ server, name: 'a' })
     const b = await track({ server, name: 'b' })
-    await writeAt({ path: join(a.atlasHome, 'memory', 'one.md'), content: '# one' })
+    await writeAt({ path: join(a.atlasHome, 'skills', 'one.md'), content: '# one' })
     await a.engine.start()
     const putsAfterA = server.puts.length
 
@@ -55,21 +55,21 @@ describe('two-device convergence', () => {
     await new Promise((resolve) => setTimeout(resolve, 250))
 
     expect(server.puts.length).toBe(putsAfterA)
-    expect(await readAt(join(b.atlasHome, 'memory', 'one.md'))).toBe('# one')
+    expect(await readAt(join(b.atlasHome, 'skills', 'one.md'))).toBe('# one')
   })
 
   it('pushes a file written while the watchers run, and tombstones a removed one', async () => {
     const server = new FakeUserFilesServer()
     const a = await track({ server, name: 'a' })
-    await writeAt({ path: join(a.atlasHome, 'memory', 'seed.md'), content: '# seed' })
+    await writeAt({ path: join(a.atlasHome, 'skills', 'seed.md'), content: '# seed' })
     await a.engine.start()
 
-    await writeAt({ path: join(a.atlasHome, 'memory', 'live.md'), content: '# live' })
-    await waitFor(() => server.text({ tree: 'memory', path: 'user/live.md' }) === '# live')
+    await writeAt({ path: join(a.atlasHome, 'skills', 'live.md'), content: '# live' })
+    await waitFor(() => server.text({ tree: 'skills', path: '.atlas/live.md' }) === '# live')
 
-    await rm(join(a.atlasHome, 'memory', 'live.md'))
-    await waitFor(() => server.row({ tree: 'memory', path: 'user/live.md' })?.tombstonedAt != null)
-    expect(server.row({ tree: 'memory', path: 'user/live.md' })?.revision).toBe(2)
+    await rm(join(a.atlasHome, 'skills', 'live.md'))
+    await waitFor(() => server.row({ tree: 'skills', path: '.atlas/live.md' })?.tombstonedAt != null)
+    expect(server.row({ tree: 'skills', path: '.atlas/live.md' })?.revision).toBe(2)
   })
 
   it('persists one device id across engine restarts', async () => {

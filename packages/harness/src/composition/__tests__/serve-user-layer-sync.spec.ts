@@ -76,7 +76,6 @@ describe('serve launch user-layer sync', () => {
       'skills/.atlas/persisted-skill/SKILL.md':
         '---\nname: persisted-skill\ndescription: pulled at serve boot\n---\nBody pulled at boot.',
       'instructions/.atlas/ATLAS.md': '# Global instructions pulled at boot',
-      'memory/user/boot-memory.md': '---\nname: boot-memory\ndescription: pulled at serve boot\ntype: project\n---\nRemembered at boot.',
     }
     const cloud = recordCloud(({ url, init }) => {
       if (url.includes('/v1/user-files?tree=')) {

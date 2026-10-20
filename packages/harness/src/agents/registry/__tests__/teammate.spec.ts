@@ -463,6 +463,10 @@ describe("a teammate's session", () => {
       toolNamed('enter_worktree'),
       toolNamed('execution_location'),
       toolNamed('service_start'),
+      toolNamed('read_memory'),
+      toolNamed('write_memory'),
+      toolNamed('edit_memory'),
+      toolNamed('delete_memory'),
     ])
 
     const supervisor = new AgentSupervisor({
@@ -531,6 +535,10 @@ describe("a teammate's session", () => {
       'enter_worktree',
       'execution_location',
       'service_start',
+      'read_memory',
+      'write_memory',
+      'edit_memory',
+      'delete_memory',
     ])
   })
 

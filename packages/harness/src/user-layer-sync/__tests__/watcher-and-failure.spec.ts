@@ -108,12 +108,12 @@ describe('non-blocking contract', () => {
     }
     const device = await makeDevice({ server, name: 'offline', client: failing })
     devices.push(device)
-    await writeAt({ path: join(device.atlasHome, 'memory', 'keep.md'), content: '# keep' })
+    await writeAt({ path: join(device.atlasHome, 'skills', 'keep.md'), content: '# keep' })
 
     await expect(device.engine.start()).resolves.toBeUndefined()
     await expect(device.engine.pullNow()).resolves.toBeUndefined()
 
-    expect(await readAt(join(device.atlasHome, 'memory', 'keep.md'))).toBe('# keep')
+    expect(await readAt(join(device.atlasHome, 'skills', 'keep.md'))).toBe('# keep')
     expect(device.log.entries.some((entry) => entry.message.includes('could not pull'))).toBe(true)
   })
 

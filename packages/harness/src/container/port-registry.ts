@@ -3,6 +3,7 @@ import type { PortRegistryEntry } from '@dltech/atlas-core'
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { FileReadStatePort } from '../files/read-state'
+import type { MemoryPort } from '../memory/memory-port'
 import type { FileWriteGuardPort } from '../files/write-guard'
 import type { OperatorInputPort } from '../operator-input/port'
 import type { GithubUiBridgePort } from '../plugins/github/ui-bridge'
@@ -56,5 +57,6 @@ declare module '@dltech/atlas-core' {
       readonly transport: 'none'
     }
     readonly UserLayerSyncPort: PortRegistryEntry<UserLayerSyncPort> & { readonly transport: 'none' }
+    readonly MemoryPort: PortRegistryEntry<MemoryPort> & { readonly transport: 'none' }
   }
 }

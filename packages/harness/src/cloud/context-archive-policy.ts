@@ -44,7 +44,7 @@ export async function captureContextArchive(args: {
 
   args.notice.notify({
     key: CONTEXT_OVERFLOW_NOTICE_KEY,
-    text: `the cloud context archive is ${mebibytes(archive.byteLength)}, over the ${mebibytes(maxBytes)} limit — the cloud session boots without the local MCP config, skills, instructions and memory this machine holds`,
+    text: `the cloud context archive is ${mebibytes(archive.byteLength)}, over the ${mebibytes(maxBytes)} limit — the cloud session boots without the local MCP config, skills and instructions this machine holds`,
     tone: ENoticeTone.Warn,
     ttlMs: NOTICE_WARN_MS,
   })

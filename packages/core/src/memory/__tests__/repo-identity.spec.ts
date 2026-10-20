@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { normalizeRepoOrigin } from '../repo-identity'
+import { githubProjectOf, normalizeRepoOrigin } from '../repo-identity'
 
 describe('normalizeRepoOrigin', () => {
   it('normalizes an scp-like ssh remote', () => {
@@ -53,5 +53,27 @@ describe('normalizeRepoOrigin', () => {
   it('names nothing for an empty or unreadable remote', () => {
     expect(normalizeRepoOrigin('')).toBeNull()
     expect(normalizeRepoOrigin('   ')).toBeNull()
+  })
+})
+
+describe('githubProjectOf', () => {
+  it('lowercases a github identity into owner/repo', () => {
+    expect(githubProjectOf('github.com/DennisOfficial/Atlas')).toBe('dennisofficial/atlas')
+  })
+
+  it('names nothing for a non-github host', () => {
+    expect(githubProjectOf('gitlab.com/group/repo')).toBeNull()
+  })
+
+  it('names nothing for a nested path', () => {
+    expect(githubProjectOf('github.com/org/repo/extra')).toBeNull()
+  })
+
+  it('names nothing without an identity', () => {
+    expect(githubProjectOf(null)).toBeNull()
+  })
+
+  it('composes with normalizeRepoOrigin', () => {
+    expect(githubProjectOf(normalizeRepoOrigin('git@github.com:Org/Repo.git'))).toBe('org/repo')
   })
 })

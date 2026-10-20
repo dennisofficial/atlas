@@ -63,7 +63,6 @@ export async function materializeContext(args: {
         userLayerTrees: sandboxUserLayerTrees({
           atlasHome: args.atlasHome,
           projectDirectory: args.projectDirectory,
-          identity,
         }),
       },
       overwrite: true,

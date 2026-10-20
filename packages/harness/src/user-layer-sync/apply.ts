@@ -1,9 +1,9 @@
-import { conflictCopyName, mergeMemoryIndexes } from '@dltech/atlas-core'
+import { conflictCopyName } from '@dltech/atlas-core'
 
 import type { UserFileContent } from '../cloud/user-files-client'
 
 import type { TreeSyncContext } from './context'
-import { isConflictCopyKey, isMemoryIndexKey } from './layout'
+import { isConflictCopyKey } from './layout'
 import {
   decodeText,
   readLocalFile,
@@ -76,13 +76,6 @@ async function applyLive(args: RowContext): Promise<void> {
   const localUnchanged = localText === undefined || localText.hash === synced?.contentHash
   if (localUnchanged) {
     await writeLocalFile({ path, content: remoteText })
-    ctx.state.set(accepted)
-    return
-  }
-
-  if (isMemoryIndexKey(row.path)) {
-    const merged = mergeMemoryIndexes({ local: localText.content, remote: remoteText, prefer: 'remote' })
-    await writeLocalFile({ path, content: merged })
     ctx.state.set(accepted)
     return
   }

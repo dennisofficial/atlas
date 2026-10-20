@@ -1,29 +1,12 @@
-/**
- * Memory calls, named for what they are rather than for the file they touched.
- *
- * A memory is a file, so without this every recall reads `Read .atlas/memory/bun-deflate.md` and
- * every save reads `Wrote` the same path — the two operations a reader most wants to tell apart,
- * spelled identically and buried under a directory nobody needs to see. The classification is what
- * decides the prose, so naming them here is the whole change.
- */
-
-import { isMemoryIndexPath, looksLikeMemoryPath, memoryNameOf } from '@dltech/atlas-core'
-
 import { ECallState, type ToolCall } from '../tool-runs'
 import { EDetail, EGather, EToolClass, type Classification } from './kinds'
-import { count, inputOf, lineCount, num, outputOf, str, targetOf } from './reading'
+import { count, inputOf, lineCount, num, outputOf, str } from './reading'
 
-const INDEX = 'the memory index'
+const subjectOf = (call: ToolCall): string => str(inputOf(call).name) ?? 'a memory'
 
-const pathOf = (args: { call: ToolCall; cwd: string }): string | undefined =>
-  str(outputOf(args.call).path) ?? targetOf(args) ?? str(inputOf(args.call).path)
-
-const subjectOf = (path: string): string =>
-  isMemoryIndexPath(path) ? INDEX : (memoryNameOf(path) ?? path)
-
-function recalled(args: { call: ToolCall; path: string }): Classification {
-  const lines = num(outputOf(args.call).lines) ?? lineCount(args.call.modelText)
-  const subject = subjectOf(args.path)
+function recalled(call: ToolCall): Classification {
+  const subject = subjectOf(call)
+  const lines = num(outputOf(call).lines) ?? lineCount(call.modelText)
 
   return {
     klass: EToolClass.Gathered,
@@ -37,37 +20,30 @@ function recalled(args: { call: ToolCall; path: string }): Classification {
   }
 }
 
-function saved(args: { call: ToolCall; path: string }): Classification {
-  const output = outputOf(args.call)
-  const subject = subjectOf(args.path)
-  const created = output.created === true
-  const index = isMemoryIndexPath(args.path)
+const changed = (args: { line: string; note: string; detail: EDetail }): Classification => ({
+  klass: EToolClass.Change,
+  gather: null,
+  line: args.line,
+  failed: false,
+  note: args.note,
+  metric: null,
+  detail: args.detail,
+})
 
-  const verb = index ? 'Updated' : created ? 'Remembered' : 'Revised'
-  const wrote = str(inputOf(args.call).content) !== undefined
-
-  return {
-    klass: EToolClass.Change,
-    gather: null,
-    line: `${verb} ${subject}`,
-    failed: false,
-    note: created ? 'new' : 'saved',
-    metric: null,
-    detail: wrote ? EDetail.Created : EDetail.None,
-  }
-}
-
-export function memoryCall(args: { call: ToolCall; cwd: string }): Classification | null {
-  const { call } = args
+export function memoryCall(call: ToolCall): Classification | null {
   if (call.state !== ECallState.Ok) return null
+  const subject = subjectOf(call)
 
-  const path = pathOf(args)
-  if (path === undefined || !looksLikeMemoryPath(path)) return null
-
-  if (call.name === 'read') return recalled({ call, path })
-  if (call.name === 'write' || call.name === 'edit' || call.name === 'multi_edit') {
-    return saved({ call, path })
+  switch (call.name) {
+    case 'read_memory':
+      return recalled(call)
+    case 'write_memory':
+      return changed({ line: `Remembered ${subject}`, note: 'saved', detail: EDetail.Created })
+    case 'edit_memory':
+      return changed({ line: `Revised ${subject}`, note: 'saved', detail: EDetail.None })
+    case 'delete_memory':
+      return changed({ line: `Forgot ${subject}`, note: 'forgotten', detail: EDetail.None })
+    default:
+      return null
   }
-
-  return null
 }

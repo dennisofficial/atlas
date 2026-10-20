@@ -57,5 +57,6 @@ describe('registry-driven transport parity', () => {
     expect(sharedPortBindings.NoticePort.transport).toBeNull()
     expect(sharedPortBindings.ModelPort.transport).toBeNull()
     expect(sharedPortBindings.ProcessPort.transport).toBeNull()
+    expect(sharedPortBindings.MemoryPort.transport).toBeNull()
   })
 })

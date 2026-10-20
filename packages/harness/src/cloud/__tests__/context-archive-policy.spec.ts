@@ -57,15 +57,13 @@ const populate = async (layer: Layer): Promise<void> => {
   await put({ path: join(layer.home, '.claude', 'skills', 'z', 'SKILL.md'), content: 'skill z' })
   await put({ path: join(layer.atlasHome, 'ATLAS.md'), content: '# global' })
   await put({ path: join(layer.projectDirectory, 'CLAUDE.local.md'), content: '# local' })
-  await put({ path: join(layer.atlasHome, 'memory', 'MEMORY.md'), content: '- [fact](fact.md)' })
-  await put({ path: join(layer.atlasHome, 'memory', 'fact.md'), content: 'a fact' })
 }
 
 const capture = (args: { layer: Layer; notice: NoticePort; maxArchiveBytes?: number }) =>
   captureContextArchive({ ...args.layer, notice: args.notice, maxArchiveBytes: args.maxArchiveBytes })
 
 describe('captureContextArchive user layer', () => {
-  it('carries skills of every flavour, instructions, memory and mcp.json under their archive keys', async () => {
+  it('carries skills of every flavour, instructions and mcp.json under their archive keys', async () => {
     const layer = await freshLayer()
     await populate(layer)
 
@@ -79,8 +77,6 @@ describe('captureContextArchive user layer', () => {
       'user-layer/skills/.claude/z/SKILL.md': 'skill z',
       'user-layer/instructions/.atlas/ATLAS.md': '# global',
       'user-layer/instructions/project/CLAUDE.local.md': '# local',
-      'user-layer/memory/user/MEMORY.md': '- [fact](fact.md)',
-      'user-layer/memory/user/fact.md': 'a fact',
     })
   })
 
@@ -138,7 +134,7 @@ describe('captureContextArchive user layer', () => {
   it('warns and returns undefined when the archive is over the ceiling', async () => {
     const layer = await freshLayer()
     await populate(layer)
-    await put({ path: join(layer.atlasHome, 'memory', 'noise.md'), content: crypto.randomUUID().repeat(300) })
+    await put({ path: join(layer.atlasHome, 'skills', 'x', 'noise.md'), content: crypto.randomUUID().repeat(300) })
 
     const { posts, port } = recordingNotices()
     const bundle = await capture({ layer, notice: port, maxArchiveBytes: 64 })
@@ -147,16 +143,15 @@ describe('captureContextArchive user layer', () => {
     const overflow = posts.find((post) => post.key === 'context-archive-overflow')
     expect(overflow?.tone).toBe(ENoticeTone.Warn)
     expect(overflow?.text).toContain('over the')
-    expect(overflow?.text).toContain('skills, instructions and memory')
+    expect(overflow?.text).toContain('skills and instructions')
   })
 
   it('does not carry conflict copies or .DS_Store', async () => {
     const layer = await freshLayer()
     await populate(layer)
-    await put({ path: join(layer.atlasHome, 'memory', 'fact.conflict-abc.md'), content: 'stale' })
+    await put({ path: join(layer.atlasHome, 'ATLAS.conflict-abc.md'), content: 'stale' })
     await put({ path: join(layer.atlasHome, 'skills', 'x', 'SKILL.conflict-abc.md'), content: 'stale' })
     await put({ path: join(layer.atlasHome, 'skills', 'x', '.DS_Store'), content: 'junk' })
-    await put({ path: join(layer.atlasHome, 'memory', '.DS_Store'), content: 'junk' })
 
     const bundle = await capture({ layer, notice: recordingNotices().port })
     if (bundle === undefined) throw new Error('expected a bundle')
