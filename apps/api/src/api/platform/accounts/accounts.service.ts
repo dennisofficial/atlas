@@ -6,6 +6,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { CreateAccountDto, OauthAuthorityDto, SecretDto, SetActiveDto, SetStatusDto } from './accounts.dto'
 import type {
   AccountDto,
+  AccountLeaseDto,
   AccountSecret,
   ActiveAccountDto,
   OauthAuthority,
@@ -27,6 +28,11 @@ function toAccountDto(row: AgentAccountModel): AccountDto {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
+}
+
+function withoutRefreshToken(secret: AccountSecret): AccountSecret {
+  if (secret.kind !== EAuthKind.Oauth) return secret
+  return { ...secret, tokens: { ...secret.tokens, refreshToken: '' } }
 }
 
 function toAuthority(dto: OauthAuthorityDto): OauthAuthority {
@@ -79,6 +85,24 @@ export class AccountsService {
       orderBy: { createdAt: 'asc' },
     })
     return rows.map(toAccountDto)
+  }
+
+  async lease(args: { userId: string }): Promise<AccountLeaseDto> {
+    const rows = await db.agentAccount.findMany({
+      where: { userId: args.userId },
+      orderBy: { createdAt: 'asc' },
+    })
+    const pointers = await db.activeAccount.findMany({ where: { userId: args.userId } })
+    return {
+      accounts: rows.map((row) => ({
+        ...toAccountDto(row),
+        secret: withoutRefreshToken(this.openSecret(row.sealedSecret)),
+      })),
+      active: pointers.map((pointer) => ({
+        provider: pointer.provider,
+        accountId: pointer.accountId,
+      })),
+    }
   }
 
   async read(args: { userId: string; accountId: string }): Promise<StoredAccountDto> {
