@@ -93,6 +93,8 @@ export const shellAdapters: readonly ShellAdapter[] = [localShellAdapter]
 
 const opened: { registry: ShellRegistryPort; root: string; adapter: ShellAdapter }[] = []
 
+export const SIGKILL_TRAPPING_TEARDOWN_MS = 20_000
+
 export async function closeRegistries(): Promise<void> {
   for (const entry of opened.splice(0)) {
     await entry.registry.closeAll()
