@@ -1,5 +1,3 @@
-import { resolveProjectMemory } from '../memory/project-memory'
-import { memoryDirectoriesFor } from '../memory/read-memory'
 import type { EUserLayerTree, TreeLayout } from '../user-layer-sync/layout'
 import { userLayerTrees, type UserLayerRootsArgs } from '../user-layer-sync/roots'
 
@@ -12,18 +10,7 @@ export async function resolveUserLayerRoots(args: {
   home: string
   projectDirectory?: string | undefined
 }): Promise<UserLayerRootsArgs> {
-  const projectMemoryDirectory = await resolveProjectMemory({
-    atlasHome: args.atlasHome,
-    repoRoot: args.projectDirectory ?? args.home,
-  })
-    .then((resolved) => resolved.directories.project)
-    .catch(() => undefined)
-  return {
-    atlasHome: args.atlasHome,
-    home: args.home,
-    projectDirectory: args.projectDirectory,
-    projectMemoryDirectory,
-  }
+  return { atlasHome: args.atlasHome, home: args.home, projectDirectory: args.projectDirectory }
 }
 
 export const userLayerArchiveKey = (args: { tree: EUserLayerTree; key: string }): string =>
@@ -40,18 +27,11 @@ export async function scanUserLayer(roots: UserLayerRootsArgs): Promise<readonly
 export function sandboxUserLayerTrees(args: {
   atlasHome: string
   projectDirectory?: string | undefined
-  identity: string | null
 }): readonly TreeLayout[] {
-  const projectMemoryDirectory = memoryDirectoriesFor({
-    atlasHome: args.atlasHome,
-    repoRoot: args.projectDirectory ?? args.atlasHome,
-    identity: args.identity,
-  }).project
   return userLayerTrees({
     atlasHome: args.atlasHome,
     home: args.atlasHome,
     projectDirectory: args.projectDirectory,
-    projectMemoryDirectory,
   })
 }
 

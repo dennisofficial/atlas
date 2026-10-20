@@ -29,7 +29,3 @@ export interface SandboxAttachmentDto extends SandboxStatusDto {
 export interface SandboxWorkspaceSpec {
   remoteUrl: string | null
 }
-
-export interface SandboxWorkspaceDto extends SandboxWorkspaceSpec {
-  githubToken: string | null
-}

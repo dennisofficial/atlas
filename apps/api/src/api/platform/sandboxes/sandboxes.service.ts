@@ -1,13 +1,11 @@
 import {
   Injectable,
   Logger,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
 import { db } from '../../../db'
 import type { CloudSandboxModel } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { SandboxGitCredentials } from './git-credentials'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
@@ -20,12 +18,10 @@ import type {
   SandboxAttachmentDto,
   SandboxListEntryDto,
   SandboxStatusDto,
-  SandboxWorkspaceDto,
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
 import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
-import { workspaceSpecOf } from './workspace-spec'
 
 const nowIso = (): string => new Date().toISOString()
 const messageOf = (failure: unknown): string =>
@@ -39,7 +35,6 @@ export class SandboxesService {
 
   constructor(
     private readonly vercel: VercelSandboxClient,
-    private readonly gitCredentials: SandboxGitCredentials,
     private readonly cipher: SecretCipherService,
   ) {
     this.endpoints = new SandboxEndpointService(vercel, cipher)
@@ -125,52 +120,6 @@ export class SandboxesService {
       state: sandboxStateOf(row),
       lastActivityAt: row.lastActivityAt,
     }))
-  }
-
-  /**
-   * Answered to the sandbox rather than pushed into its environment: a patch outgrows what a
-   * process environment will carry. The git credential rides the claim and sits sealed on the
-   * row; a claim without one falls through to the credential broker.
-   */
-  async workspace(args: { threadId: string }): Promise<SandboxWorkspaceDto> {
-    const row = await db.cloudSandbox.findUnique({
-      where: { threadId: args.threadId },
-      select: {
-        userId: true,
-        threadId: true,
-        name: true,
-        sealedGitToken: true,
-        workspaceRemoteUrl: true,
-      },
-    })
-    if (row === null) throw new NotFoundException('sandbox not found')
-    const spec = workspaceSpecOf(row)
-    if (spec.remoteUrl === null) {
-      return { ...spec, githubToken: null }
-    }
-    const claimed = this.claimedGitToken({ name: row.name, sealedGitToken: row.sealedGitToken })
-    if (claimed !== null) return { ...spec, githubToken: claimed }
-    const githubToken = await this.gitCredentials.findToken({
-      userId: row.userId,
-      threadId: row.threadId,
-      remoteUrl: spec.remoteUrl,
-    })
-    return { ...spec, githubToken }
-  }
-
-  private claimedGitToken(args: {
-    name: string
-    sealedGitToken: string | null
-  }): string | null {
-    if (args.sealedGitToken === null) return null
-    try {
-      return this.cipher.decrypt(args.sealedGitToken)
-    } catch (failure) {
-      this.logger.warn(
-        `the sealed git token on sandbox ${args.name} does not decrypt; the credential broker answers instead: ${messageOf(failure)}`,
-      )
-      return null
-    }
   }
 
   status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {

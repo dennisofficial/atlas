@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 import { normalizeRepoOrigin } from '@dltech/atlas-core'
-import { buildContextArchive, memoryDirectoriesFor, sandboxUserLayerTrees } from '@dltech/atlas-harness'
+import { buildContextArchive, sandboxUserLayerTrees } from '@dltech/atlas-harness'
 import { writeContextEntries } from '../context-entries'
 import { materializeContext } from '../materialize-context'
 import type { FetchContextArchive } from '../workspace-spec'
@@ -158,19 +158,12 @@ const archiveOf = async (entries: Record<string, string>): Promise<Uint8Array> =
 }
 
 describe('materializeContext with a user-layer archive', () => {
-  it('restores skills, instructions and memory into the sandbox layout and stamps the receipt', async () => {
+  it('restores skills and instructions into the sandbox layout and stamps the receipt', async () => {
     const { files, written, stamped } = fakeFiles()
     const archive = await archiveOf({
       'user-layer/skills/.atlas/demo/SKILL.md': '# demo skill',
       'user-layer/instructions/.atlas/ATLAS.md': '# global instructions',
-      'user-layer/memory/user/MEMORY.md': '# user memory',
-      'user-layer/memory/project/notes.md': '# project notes',
     })
-    const projectMemory = memoryDirectoriesFor({
-      atlasHome: ATLAS_HOME,
-      repoRoot: PROJECT_DIRECTORY,
-      identity: normalizeRepoOrigin(REMOTE_URL),
-    }).project
 
     const readiness = await materializeContext({
       fetchSpec: async () => SPEC_WITH_REMOTE,
@@ -181,11 +174,9 @@ describe('materializeContext with a user-layer archive', () => {
     })
 
     expect(readiness.failed).toBeNull()
-    expect(readiness.written).toBe(4)
+    expect(readiness.written).toBe(2)
     expect(written.get(join(ATLAS_HOME, 'skills', 'demo', 'SKILL.md'))).toBe('# demo skill')
     expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# global instructions')
-    expect(written.get(join(ATLAS_HOME, 'memory', 'MEMORY.md'))).toBe('# user memory')
-    expect(written.get(join(projectMemory, 'notes.md'))).toBe('# project notes')
     expect(stamped.has(CONTEXT_STAMP_PATH)).toBe(true)
   })
 
@@ -229,7 +220,7 @@ describe('materializeContext with a user-layer archive', () => {
     expect(written.size).toBe(0)
   })
 
-  it('ignores archive keys that name no tree or a nested memory file', async () => {
+  it('ignores archive keys that name no tree, including legacy memory keys', async () => {
     const { files, written } = fakeFiles()
     const archive = await archiveOf({
       'user-layer/memory/user/a/b.md': 'nested',
@@ -258,7 +249,6 @@ describe('materializeContext with a user-layer archive', () => {
     const trees = sandboxUserLayerTrees({
       atlasHome: ATLAS_HOME,
       projectDirectory: PROJECT_DIRECTORY,
-      identity: normalizeRepoOrigin(REMOTE_URL),
     })
     const entry = (path: string) => ({ path, readBytes: async () => Buffer.from('x') })
 

@@ -141,18 +141,9 @@ const KNOWN_SLOT_LABELS: ReadonlyMap<string, string> = new Map([
 
 const SKILL_SUGGESTION_NAME = /skill classifier picked '([a-z0-9-]+)' as relevant/
 
-const memoryLabelOf = (key: string): string => {
-  const segments = key.split('/').filter((segment) => segment.length > 0)
-  const memory = segments.lastIndexOf('memory')
-  if (memory < 0) return 'memory'
-  if (segments[memory - 1] === '.atlas') return 'global memory'
-  return segments.slice(0, memory).includes('projects') ? 'project memory' : 'memory'
-}
-
 const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   const label = KNOWN_SLOT_LABELS.get(event.slot)
   if (label !== undefined) return label
-  if (event.slot === EContextSlot.Memory) return memoryLabelOf(event.key)
   if (event.slot === 'skill-suggestion') {
     const name = SKILL_SUGGESTION_NAME.exec(event.content)?.[1]
     return name === undefined ? 'skill suggestion' : `skill suggestion · ${name}`

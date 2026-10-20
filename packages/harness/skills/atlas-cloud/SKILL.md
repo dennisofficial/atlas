@@ -49,7 +49,7 @@ start a new thread with `/new` to use the other one. There are no `/lift`, `/des
 ## What a cloud birth carries
 
 A cloud-born thread's sandbox boots from the local machine's bootstrap: user skills, global
-instructions, user MCP configuration, memory/project memory, and project-local instruction files
+instructions, user MCP configuration, and project-local instruction files
 ride the context bundle; copyable API-key accounts, ordinary secrets, and user settings carry
 through portable state. Provider OAuth and MCP OAuth have the restrictions below. The workspace is
 cloned fresh in the sandbox at `/atlas/workspaces/<repo-name>` — sibling clones under that root are
@@ -60,7 +60,7 @@ ephemeral: sandbox destruction deletes them, so preserve their work outside the 
 The cloud settings page offers device-code sign-in, sign-out, GitHub connection, and explicit upload
 or download of accounts, secrets, user settings, and MCP configuration. Restore merges local data:
 same-named secrets, MCP entries, and settings keys may be overwritten, while other local data remains.
-Memory is not a Cloud backup domain; it travels with session context.
+Memory is not a Cloud backup domain; it lives in Atlas Cloud, and pods read it through the memory tools.
 
 Sign-in and backup can hand eligible Atlas-native Claude/Codex OAuth grants to Cloud's refresh
 authority. Sandboxes use assigned short-lived access tokens, not provider refresh

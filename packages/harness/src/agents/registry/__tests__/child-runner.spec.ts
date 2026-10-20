@@ -273,6 +273,25 @@ describe("a child's tools", () => {
     expect(invoked).toEqual([])
   })
 
+  it('keeps read_memory but loses every memory mutation tool', async () => {
+    const spawned = await spawn({
+      script: [{ text: 'nothing to do' }],
+      agentType: agentTypeNamed({ name: 'builder' }),
+      tools: [
+        toolNamed('read_memory'),
+        toolNamed('write_memory'),
+        toolNamed('edit_memory'),
+        toolNamed('delete_memory'),
+        toolNamed('read'),
+      ],
+    })
+
+    expect(spawned.model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual([
+      'read_memory',
+      'read',
+    ])
+  })
+
   it('is otherwise the whole set, narrowed by the type and by nothing else', async () => {
     const spawned = await spawn({
       script: [{ text: 'nothing to do' }],

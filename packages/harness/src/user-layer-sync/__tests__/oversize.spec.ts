@@ -17,7 +17,7 @@ const setup = async () => {
   const notice = new RecordingNotice()
   const device = await makeDevice({ server, name: 'oversize', notice })
   devices.push(device)
-  return { server, notice, device, big: join(device.atlasHome, 'memory', 'big.md') }
+  return { server, notice, device, big: join(device.atlasHome, 'skills', 'big.md') }
 }
 
 const overCap = 'a'.repeat(3_400_000)
@@ -34,17 +34,17 @@ describe('user-layer upload cap', () => {
     expect(server.puts).toEqual([])
     expect(notice.posts).toEqual([
       {
-        key: 'user-layer-oversize:memory/user/big.md',
+        key: 'user-layer-oversize:skills/.atlas/big.md',
         tone: ENoticeTone.Warn,
         ttlMs: NOTICE_WARN_MS,
-        text: 'not syncing memory/user/big.md to Atlas Cloud: 3.4 MB is over the 3.0 MB limit',
+        text: 'not syncing skills/.atlas/big.md to Atlas Cloud: 3.4 MB is over the 3.0 MB limit',
       },
     ])
-    expect(device.log.entries.some((entry) => entry.message.includes('not syncing memory/user/big.md'))).toBe(true)
+    expect(device.log.entries.some((entry) => entry.message.includes('not syncing skills/.atlas/big.md'))).toBe(true)
     const state = JSON.parse(await Bun.file(join(device.atlasHome, 'sync', 'user-layer-sync.json')).text()) as {
       trees: Record<string, Record<string, unknown>>
     }
-    expect(state.trees['memory']?.['user/big.md']).toBeUndefined()
+    expect(state.trees['skills']?.['.atlas/big.md']).toBeUndefined()
 
     await device.engine.reconcileNow()
     expect(notice.posts).toHaveLength(2)
@@ -57,7 +57,7 @@ describe('user-layer upload cap', () => {
 
     await device.engine.reconcileNow()
 
-    expect(server.puts).toEqual(['memory/user/big.md'])
+    expect(server.puts).toEqual(['skills/.atlas/big.md'])
     expect(notice.posts).toEqual([])
   })
 
@@ -79,17 +79,17 @@ describe('user-layer upload cap', () => {
     await writeAt({ path: big, content: 'small' })
     await device.engine.reconcileNow()
 
-    expect(server.text({ tree: 'memory', path: 'user/big.md' })).toBe('small')
+    expect(server.text({ tree: 'skills', path: '.atlas/big.md' })).toBe('small')
   })
 
   it('still syncs the other files in the tree', async () => {
     const { server, notice, device, big } = await setup()
     await writeAt({ path: big, content: overCap })
-    await writeAt({ path: join(device.atlasHome, 'memory', 'small.md'), content: 'ok' })
+    await writeAt({ path: join(device.atlasHome, 'skills', 'small.md'), content: 'ok' })
 
     await device.engine.reconcileNow()
 
-    expect(server.puts).toEqual(['memory/user/small.md'])
+    expect(server.puts).toEqual(['skills/.atlas/small.md'])
     expect(notice.posts).toHaveLength(1)
   })
 
@@ -97,7 +97,7 @@ describe('user-layer upload cap', () => {
     const server = new FakeUserFilesServer()
     const device = await makeDevice({ server, name: 'no-notice' })
     devices.push(device)
-    await writeAt({ path: join(device.atlasHome, 'memory', 'big.md'), content: overCap })
+    await writeAt({ path: join(device.atlasHome, 'skills', 'big.md'), content: overCap })
 
     await device.engine.reconcileNow()
 

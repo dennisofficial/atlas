@@ -45,6 +45,7 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     const name = podNameFor({ threadId: createArgs.threadId })
 
     const stage = async (handle: RunnerPodHandle): Promise<void> => {
+      await args.registerPodLease({ threadId: createArgs.threadId, token })
       await driver.writeBootstrapFile({
         name: handle.name,
         path: WORKSPACE_SPEC_PATH,

@@ -10,7 +10,6 @@ vi.mock('../../../db', async () => {
 import { fakeSessionDb } from '../../../../test/fake-session-db.js'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { SandboxGitCredentials } from './git-credentials'
 import { hashSessionToken } from './sandbox-tokens'
 import { SandboxesService } from './sandboxes.service'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
@@ -30,7 +29,6 @@ describe('registering a client token that a pod lease already holds', () => {
     fake.reset()
     service = new SandboxesService(
       {} as unknown as VercelSandboxClient,
-      {} as unknown as SandboxGitCredentials,
       cipher,
     )
     fake.podLeaseRows.push({

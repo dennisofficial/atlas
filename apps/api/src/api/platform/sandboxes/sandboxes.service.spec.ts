@@ -19,8 +19,6 @@ import {
 } from '../../../../test/fake-session-db.js'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { GithubService } from '../../cloud/github/github.service'
-import { SandboxGitCredentials } from './git-credentials'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
 import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
@@ -77,13 +75,9 @@ const sandboxRow = (
   ...partial,
 })
 
-const REMOTE_URL = 'https://github.com/dennisofficial/atlas.git'
-
 const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
 } as unknown as EnvService)
-
-const stubGithub = () => ({ findToken: vi.fn(async () => 'gho_user-token') })
 
 const stubClient = () => ({
   inspect: vi.fn(async (): Promise<{ state: ESandboxState; url?: string }> => ({
@@ -95,17 +89,14 @@ const stubClient = () => ({
 
 describe('SandboxesService', () => {
   let client: ReturnType<typeof stubClient>
-  let github: ReturnType<typeof stubGithub>
   let service: SandboxesService
 
   beforeEach(() => {
     fake.reset()
     fake.threads.push(threadRow({ id: THREAD }))
     client = stubClient()
-    github = stubGithub()
     service = new SandboxesService(
       client as unknown as VercelSandboxClient,
-      new SandboxGitCredentials(github as unknown as GithubService),
       cipher,
     )
   })
@@ -259,31 +250,6 @@ describe('SandboxesService', () => {
     await expect(
       service.assertThreadInFamily({ sandboxThreadId: THREAD, threadId: 'brn_unrelated' }),
     ).rejects.toBeInstanceOf(UnauthorizedException)
-  })
-
-  it('answers the stored workspace remote with the claimed git credential', async () => {
-    await service.claim({
-      userId: USER_A,
-      threadId: THREAD,
-      gitToken: 'gho_claimed',
-    })
-    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
-    if (row !== undefined) row.workspaceRemoteUrl = REMOTE_URL
-
-    const workspace = await service.workspace({ threadId: THREAD })
-
-    expect(workspace.remoteUrl).toBe(REMOTE_URL)
-    expect(workspace.githubToken).toBe('gho_claimed')
-    expect(github.findToken).not.toHaveBeenCalled()
-  })
-
-  it('answers a workspace spec without a token when github is not connected', async () => {
-    github.findToken.mockResolvedValue(null as never)
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, workspaceRemoteUrl: REMOTE_URL }))
-
-    const workspace = await service.workspace({ threadId: THREAD })
-
-    expect(workspace.githubToken).toBeNull()
   })
 
   describe('the client-provisioned register path', () => {

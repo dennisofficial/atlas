@@ -62,7 +62,6 @@ describe('skills across cloud context recreation', () => {
     const entries: readonly { key: string; content: string | Buffer }[] = [
       { key: '.atlas/mcp.json', content: '{"mcpServers":{}}' },
       { key: '.agents/skills/stale/SKILL.md', content: text({ name: 'stale', body: 'Archive must not carry this.' }) },
-      { key: '.atlas/memory/MEMORY.md', content: 'Old bootstrap memory.' },
     ]
     const sources = []
     for (const entry of entries) {
@@ -79,11 +78,9 @@ describe('skills across cloud context recreation', () => {
     expect(restored.written).toBe(1)
     expect(await readFile(join(driveHome, 'mcp.json'), 'utf8')).toBe('{"mcpServers":{}}')
     expect(existsSync(join(driveHome, '.agents/skills/stale'))).toBe(false)
-    expect(existsSync(join(driveHome, 'memory/MEMORY.md'))).toBe(false)
 
     const handoff = join(driveHome, '.agents/skills/handoff/SKILL.md')
     await put({ path: handoff, content: text({ name: 'handoff', body: 'Edited in cloud.' }) })
-    await put({ path: join(driveHome, 'memory/MEMORY.md'), content: 'Live memory.' })
     const resumed = await materializeContext({
       atlasHome: driveHome,
       fetchSpec: async () => { throw new Error('must not replay spec') },
@@ -105,7 +102,6 @@ describe('skills across cloud context recreation', () => {
       if (!loaded.ok) throw new Error(loaded.reason)
       expect(loaded.modelText).toContain(dirname(handoff))
       expect(loaded.modelText).toContain('Edited in cloud.')
-      expect(await readFile(join(driveHome, 'memory/MEMORY.md'), 'utf8')).toBe('Live memory.')
     } finally {
       await app.close()
     }

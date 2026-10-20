@@ -4,13 +4,12 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { normalizeRepoOrigin, toThreadId, type NoticePort } from '@dltech/atlas-core'
+import { toThreadId, type NoticePort } from '@dltech/atlas-core'
 import {
   captureContextArchive,
   CONTEXT_ARCHIVE_PATH,
   createLocalCloudBridge,
   ECloudSandboxState,
-  memoryDirectoriesFor,
   type BridgeDriver,
   type LiveSandbox,
 } from '@dltech/atlas-harness'
@@ -76,9 +75,6 @@ describe('the Vercel birth path carries the user layer', () => {
     await put({ path: join(atlasHome, 'skills', 'demo', 'SKILL.md'), content: '# demo skill' })
     await put({ path: join(atlasHome, 'ATLAS.md'), content: '# global instructions' })
     await put({ path: join(atlasHome, 'mcp.json'), content: '{"servers":{}}' })
-    await put({ path: join(atlasHome, 'memory', 'MEMORY.md'), content: '# user memory' })
-    const hostProjectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: projectDirectory }).project
-    await put({ path: join(hostProjectMemory, 'notes.md'), content: '# project notes' })
     await put({ path: join(projectDirectory, 'CLAUDE.local.md'), content: '# local rules' })
 
     const { driver, events, writes } = recordingDriver()
@@ -117,17 +113,10 @@ describe('the Vercel birth path carries the user layer', () => {
       files: nodeWorkspaceFiles,
     })
 
-    const sandboxProjectMemory = memoryDirectoriesFor({
-      atlasHome: sandboxAtlasHome,
-      repoRoot: sandboxProject,
-      identity: normalizeRepoOrigin(REMOTE_URL),
-    }).project
     expect(readiness.failed).toBeNull()
     expect(await readFile(join(sandboxAtlasHome, 'skills', 'demo', 'SKILL.md'), 'utf8')).toBe('# demo skill')
     expect(await readFile(join(sandboxAtlasHome, 'ATLAS.md'), 'utf8')).toBe('# global instructions')
     expect(await readFile(join(sandboxAtlasHome, 'mcp.json'), 'utf8')).toBe('{"servers":{}}')
-    expect(await readFile(join(sandboxAtlasHome, 'memory', 'MEMORY.md'), 'utf8')).toBe('# user memory')
-    expect(await readFile(join(sandboxProjectMemory, 'notes.md'), 'utf8')).toBe('# project notes')
     expect(await readFile(join(sandboxProject, 'CLAUDE.local.md'), 'utf8')).toBe('# local rules')
   })
 })

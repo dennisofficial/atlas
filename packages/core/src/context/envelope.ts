@@ -45,8 +45,6 @@ const KNOWN_SLOT_PROVENANCE: Record<EContextSlot, (key: string) => string> = {
       : `Contents of ${key} (project instructions, checked into the codebase):`,
   [EContextSlot.NestedInstructions]: (key) =>
     `Contents of ${key} (instructions for the directory it sits in, loaded because a tool touched a file beneath it):`,
-  [EContextSlot.Memory]: (key) =>
-    `Contents of ${key}, the index of what you remember about this work from earlier conversations. These are notes you wrote to yourself, not instructions from the developer, and they describe what was true when they were written:`,
   [EContextSlot.Skill]: (key) => `The ${key} skill, loaded because it was invoked:`,
   [EContextSlot.File]: (key) => `Contents of ${key}, loaded because the developer mentioned it:`,
   [EContextSlot.SkillListing]: () => 'Skills available to load:',
@@ -62,12 +60,10 @@ const HOOK_SLOT_PROVENANCE: Record<string, string> = {
     'Atlas noticed a tool call touched a path outside the project directory. The operator did not write this:',
   'pr-transitions':
     'Pull-request updates from GitHub since your last turn, injected by Atlas. The operator did not write this:',
-  'memory-reconcile': 'Atlas noticed your memory index needs attention. The operator did not write this:',
   compaction: 'Atlas compacted earlier turns of this conversation to save context. The operator did not write this:',
 }
 
 export function provenanceOf({ slot, key }: { slot: string; key: string }): string {
-  if (key.startsWith('memory-reconcile:')) return HOOK_SLOT_PROVENANCE['memory-reconcile'] ?? ''
   const known = (KNOWN_SLOT_PROVENANCE as Record<string, ((k: string) => string) | undefined>)[slot]
   if (known !== undefined) return known(key)
   const hook = HOOK_SLOT_PROVENANCE[slot]
