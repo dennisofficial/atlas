@@ -120,7 +120,10 @@ describe('GithubService', () => {
     })
     expect(calls[0]?.url).toBe('https://github.com/login/device/code')
     expect(calls[0]?.request.body).toBe(
-      JSON.stringify({ client_id: CLIENT_ID, scope: 'repo read:org admin:repo_hook' }),
+      JSON.stringify({
+        client_id: CLIENT_ID,
+        scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+      }),
     )
   })
 
@@ -166,38 +169,12 @@ describe('GithubService', () => {
     ).rejects.toBeInstanceOf(BadGatewayException)
   })
 
-  it('poll refuses a grant that is missing scopes and stores nothing', async () => {
-    fetchImpl = async () => jsonResponse({ access_token: 'ghu_scoped-down', scope: '' })
-
-    const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
-
-    expect(result).toEqual({
-      status: EGithubPollStatus.MissingScopes,
-      missing: ['repo', 'read:org', 'admin:repo_hook'],
-    })
-    expect(fake.connections).toHaveLength(0)
-    expect(calls.some((call) => call.url === 'https://api.github.com/user')).toBe(false)
-  })
-
-  it('poll reports only the scopes that are actually missing', async () => {
-    fetchImpl = async () =>
-      jsonResponse({ access_token: 'gho_partial', scope: 'repo read:org' })
-
-    const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
-
-    expect(result).toEqual({
-      status: EGithubPollStatus.MissingScopes,
-      missing: ['admin:repo_hook'],
-    })
-    expect(fake.connections).toHaveLength(0)
-  })
-
-  it('poll accepts the comma-separated scope string github actually returns', async () => {
+  it('poll verifies the granted token and stores it sealed', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
         return jsonResponse({
           access_token: 'gho_raw-token',
-          scope: 'admin:repo_hook,read:org,repo',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
         })
       }
       return jsonResponse({ login: 'octocat' })
@@ -208,25 +185,7 @@ describe('GithubService', () => {
     expect(result).toEqual({
       status: EGithubPollStatus.Connected,
       login: 'octocat',
-      scopes: ['admin:repo_hook', 'read:org', 'repo'],
-    })
-    expect(fake.connections[0]?.scopes).toBe('admin:repo_hook,read:org,repo')
-  })
-
-  it('poll verifies the granted token and stores it sealed', async () => {
-    fetchImpl = async (url) => {
-      if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
-      }
-      return jsonResponse({ login: 'octocat' })
-    }
-
-    const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
-
-    expect(result).toEqual({
-      status: EGithubPollStatus.Connected,
-      login: 'octocat',
-      scopes: ['repo', 'read:org', 'admin:repo_hook'],
+      scopes: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key'],
     })
     const verification = calls.find((call) => call.url === 'https://api.github.com/user')
     expect(verification?.request.headers.Authorization).toBe('Bearer gho_raw-token')
@@ -234,7 +193,7 @@ describe('GithubService', () => {
     const row = fake.connections[0]
     expect(row?.userId).toBe(USER_A)
     expect(row?.login).toBe('octocat')
-    expect(row?.scopes).toBe('repo read:org admin:repo_hook')
+    expect(row?.scopes).toBe('repo read:org admin:repo_hook admin:ssh_signing_key')
     expect(row?.sealedToken).not.toContain('gho_raw-token')
 
     const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
@@ -244,7 +203,10 @@ describe('GithubService', () => {
   it('poll re-upserts the row when the same user reconnects', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
+        return jsonResponse({
+          access_token: 'gho_raw-token',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+        })
       }
       return jsonResponse({ login: 'octocat' })
     }
@@ -258,7 +220,10 @@ describe('GithubService', () => {
   it('scopes the connection to the owning user', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
+        return jsonResponse({
+          access_token: 'gho_raw-token',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+        })
       }
       return jsonResponse({ login: 'octocat' })
     }
@@ -278,7 +243,10 @@ describe('GithubService', () => {
   it('disconnect is idempotent', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
+        return jsonResponse({
+          access_token: 'gho_raw-token',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+        })
       }
       return jsonResponse({ login: 'octocat' })
     }

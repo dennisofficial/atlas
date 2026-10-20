@@ -32,6 +32,7 @@ model User {
   oauthConnections OauthConnection[]
   userFiles     UserFile[]
   localPodLeases LocalPodLease[]
+  sshSigningKey SshSigningKey?
 }
 
 model Thread {
@@ -284,6 +285,19 @@ model GithubConnection {
   updatedAt   DateTime @updatedAt
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SshSigningKey {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  publicKey        String
+  sealedPrivateKey String
+  githubKeyId      BigInt
+  userName         String
+  userEmail        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {

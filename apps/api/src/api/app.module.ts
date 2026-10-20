@@ -22,6 +22,7 @@ import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
+import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 
 @Module({
@@ -49,6 +50,7 @@ import { UserFilesModule } from './cloud/user-files/user-files.module'
     UserFilesModule,
     McpServersModule,
     GithubModule,
+    SshSigningKeyModule,
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,
