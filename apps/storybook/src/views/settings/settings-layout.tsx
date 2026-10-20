@@ -148,6 +148,7 @@ export type DangerAction = {
   buttonLabel: string;
   confirmTitle: string;
   confirmDescription: string;
+  onConfirm?: () => void;
 };
 
 export function DangerZone({ actions }: { actions: DangerAction[] }) {
@@ -171,7 +172,9 @@ export function DangerZone({ actions }: { actions: DangerAction[] }) {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction variant="destructive">{action.buttonLabel}</AlertDialogAction>
+                    <AlertDialogAction variant="destructive" onClick={action.onConfirm}>
+                      {action.buttonLabel}
+                    </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
