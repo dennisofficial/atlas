@@ -273,6 +273,7 @@ function DerivedOverlayStack(props: {
             onActivate: settings.github.activate,
             onOpenUrl: settings.handleOpenGithubUrl,
           }}
+          signingKey={settings.signingKey}
           cloudAction={settings.cloudPage.action}
           cloudUpload={settings.cloudUpload}
           cloudDownload={settings.cloudDownload}

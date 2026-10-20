@@ -1,8 +1,15 @@
 'use client'
 
-import { Button } from '@dltech/atlas-ui/button'
-import { Card } from '@dltech/atlas-ui/card'
-import { Spinner } from '@dltech/atlas-ui/spinner'
+import { Alert, AlertDescription } from '@dltech/atlas-ui/components/alert'
+import { Button } from '@dltech/atlas-ui/components/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@dltech/atlas-ui/components/card'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -69,42 +76,55 @@ export function DeviceAuthorizer() {
   }
 
   return (
-    <Card title="Authorize a device" subtitle="Confirm the code matches what your terminal shows">
-      {step === EDeviceStep.Loading && (
-        <p className="flex items-center gap-2 text-sm text-meta">
-          <Spinner /> Checking the device code…
-        </p>
-      )}
-
-      {step === EDeviceStep.Ready && (
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-meta">
-            A device is asking to sign in to your Atlas account. Confirm the code matches what the
-            device shows.
+    <Card>
+      <CardHeader>
+        <CardTitle>Authorize a device</CardTitle>
+        <CardDescription>Confirm the code matches what your terminal shows</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {step === EDeviceStep.Loading && (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner /> Checking the device code…
           </p>
-          <p className="text-center font-mono text-md tracking-[0.3em] text-foreground">
-            {userCode}
+        )}
+
+        {step === EDeviceStep.Ready && (
+          <>
+            <p className="text-sm text-muted-foreground">
+              A device is asking to sign in to your Atlas account. Confirm the code matches what
+              the device shows.
+            </p>
+            <p
+              aria-label="Device code"
+              className="rounded-lg border bg-muted px-4 py-3 text-center font-mono text-2xl font-medium tracking-widest text-foreground"
+            >
+              {userCode}
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button size="lg" onClick={() => void handleAct('approve')}>
+                Approve
+              </Button>
+              <Button variant="outline" size="lg" onClick={() => void handleAct('deny')}>
+                Deny
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === EDeviceStep.Done && (
+          <p className="text-sm text-foreground">
+            {outcome === 'approve'
+              ? 'Device authorized — you can return to your terminal.'
+              : 'Device denied.'}
           </p>
-          <div className="flex gap-2">
-            <Button variant="primary" fullWidth onClick={() => void handleAct('approve')}>
-              Approve
-            </Button>
-            <Button variant="destructive" fullWidth onClick={() => void handleAct('deny')}>
-              Deny
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
 
-      {step === EDeviceStep.Done && (
-        <p className="text-sm text-foreground">
-          {outcome === 'approve'
-            ? 'Device authorized — you can return to your terminal.'
-            : 'Device denied.'}
-        </p>
-      )}
-
-      {error !== null && <p className="mt-4 text-xs text-destructive">{error}</p>}
+        {error !== null && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
     </Card>
   )
 }

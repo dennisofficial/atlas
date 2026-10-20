@@ -5,7 +5,7 @@ import { DeviceAuthorizer } from './device-authorizer'
 export default function DevicePage() {
   return (
     <div className="mx-auto w-full max-w-sm">
-      <Suspense fallback={<p className="text-sm text-meta">Loading…</p>}>
+      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <DeviceAuthorizer />
       </Suspense>
     </div>

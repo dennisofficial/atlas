@@ -1,2 +1,2 @@
-export { cn } from "./lib/cn";
+export { cn } from "./lib/utils";
 export * from "./tokens/index";

@@ -28,6 +28,7 @@ import { preferencesOf, type PlacementChooserShape } from './settings-preference
 import { type CloudPageControl } from './use-cloud-page'
 import { useSecretPrompt } from './use-secret-prompt'
 import { type SettingsGithubControl } from './use-settings-github'
+import { type SigningKeyControl } from './use-signing-key'
 import { useSettingsCloud } from './use-settings-cloud'
 import { useTextPrompt } from './use-text-prompt'
 import { useSettingsKeys } from './use-settings-keys'
@@ -49,6 +50,7 @@ export type SettingsControl = {
   cloudUpload: CloudSyncState
   cloudDownload: CloudSyncState
   github: SettingsGithubControl
+  signingKey: SigningKeyControl
   handleSignOut: () => void
   handleSignIn: () => void
   handleUpload: () => void
@@ -127,6 +129,7 @@ export function useSettings(args: {
     login: cloudLogin,
     cloudPage,
     github,
+    signingKey,
     upload: cloudUpload,
     download: cloudDownload,
     readSession: readCloudSession,
@@ -182,6 +185,10 @@ export function useSettings(args: {
     if (onCloudPage) github.refresh()
   }, [onCloudPage, cloudSession, github.refresh])
 
+  useEffect(() => {
+    if (onCloudPage) signingKey.refresh()
+  }, [onCloudPage, cloudSession, github.connection?.login, signingKey.refresh])
+
   const handleSelect = useCallback(
     (target: SettingsState) => {
       cloudPage.handleDisarmAction()
@@ -228,6 +235,7 @@ export function useSettings(args: {
       cloudUpload,
       cloudDownload,
       github,
+      signingKey,
       handleSignOut,
       handleSignIn: cloudLogin.begin,
       handleUpload,
@@ -251,6 +259,7 @@ export function useSettings(args: {
       cloudSession,
       cloudUpload,
       github,
+      signingKey,
       handleDismiss,
       handleDownload,
       handleKey,
