@@ -1,8 +1,10 @@
+import { incrementalTests } from '@dltech/vitest-incremental'
 import swc from 'unplugin-swc'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [
+    incrementalTests({ globalInputs: ['apps/api/prisma/**/*.prisma'] }),
     swc.vite({
       jsc: {
         parser: { syntax: 'typescript', decorators: true },
