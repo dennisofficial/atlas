@@ -63,7 +63,7 @@ export function WorkspaceTranscript(props: {
   const chip = bornPlacementChip(app)
   const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
   const placement =
-    unplaced !== null && unplaced.threadId === conversation.threadId
+    app.pods && unplaced !== null && unplaced.threadId === conversation.threadId
       ? {
           harness: unplaced.harness,
           runner: unplaced.runner,

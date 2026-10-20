@@ -168,6 +168,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     commands,
     loadedSkills,
     handleOpenNewest: session.handleOpenNewest,
+    handleUnbornSend: session.handleUnbornSend,
   })
 
   const footer = useWorkspaceFooter({

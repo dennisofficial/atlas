@@ -21,7 +21,7 @@ const CoveredApp = React.memo(App)
 
 const reapOnBootAll = (app: AtlasApp): void => {
   reapExpiredSandboxesOnBoot(app)
-  reapOrphanPodsOnBoot(app)
+  if (app.pods) reapOrphanPodsOnBoot(app)
 }
 
 type ReadySession = {
