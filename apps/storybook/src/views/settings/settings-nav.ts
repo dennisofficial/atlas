@@ -2,6 +2,7 @@ import {
   BellIcon,
   BookOpenTextIcon,
   BotIcon,
+  BrainIcon,
   Building2Icon,
   ChartScatterIcon,
   FlaskConicalIcon,
@@ -32,6 +33,7 @@ export enum ESettingsPage {
   UsageModels = "usage-models",
   UsageSandboxes = "usage-sandboxes",
   Instructions = "instructions",
+  Memory = "memory",
   ModelsEffort = "models-effort",
   Providers = "providers",
   Secrets = "secrets",
@@ -77,6 +79,7 @@ export const PERSONAL_NAV: SettingsNavGroup[] = [
     label: "Agent",
     items: [
       { page: ESettingsPage.Instructions, label: "Instructions", icon: BookOpenTextIcon },
+      { page: ESettingsPage.Memory, label: "Memory", icon: BrainIcon },
       { page: ESettingsPage.ModelsEffort, label: "Models & Effort", icon: GaugeIcon },
       { page: ESettingsPage.Providers, label: "Providers", icon: BotIcon },
     ],
