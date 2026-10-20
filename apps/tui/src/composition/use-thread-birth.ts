@@ -43,12 +43,25 @@ export function useThreadBirth(args: {
   latest.current = args
   const undelivered = useRef<{ threadId: ThreadId; restore: () => void } | null>(null)
 
-  const restoreUndelivered = useCallback((threadId: ThreadId) => {
+  const restoreDraft = useCallback((threadId: ThreadId) => {
+    const held = undelivered.current
+    if (held === null || held.threadId !== threadId) return
+    held.restore()
+  }, [])
+
+  const releaseAttempt = useCallback((threadId: ThreadId) => {
     const held = undelivered.current
     if (held === null || held.threadId !== threadId) return
     undelivered.current = null
-    held.restore()
   }, [])
+
+  const restoreUndelivered = useCallback(
+    (threadId: ThreadId) => {
+      restoreDraft(threadId)
+      releaseAttempt(threadId)
+    },
+    [restoreDraft, releaseAttempt],
+  )
 
   const birth = useCallback(
     (born: { threadId: ThreadId; runner: ERunner; arrival: SendArgs }) => {
@@ -63,9 +76,10 @@ export function useThreadBirth(args: {
           threadId: next.threadId,
           runner: next.runner,
           onReload: (reload) => latest.current.onReload(reload),
-          onAbandon: () => {
+          onRestoreDraft: () => restoreDraft(next.threadId),
+          onRelease: () => {
             preferenceChipFor({ app, threadId: next.threadId })
-            restoreUndelivered(next.threadId)
+            releaseAttempt(next.threadId)
           },
         })
       }
@@ -91,7 +105,7 @@ export function useThreadBirth(args: {
           restoreUndelivered(threadId)
         })
     },
-    [restoreUndelivered],
+    [restoreUndelivered, restoreDraft, releaseAttempt],
   )
 
   const handleNewThread = useCallback(() => {

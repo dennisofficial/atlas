@@ -43,7 +43,7 @@ describe('a first-send birth that fails partway', () => {
     }
   }, 60_000)
 
-  it('says the start was cancelled, keeps the draft, and destroys the pod when the overlay is cancelled', async () => {
+  it('keeps the attempt reserved until the cancelled provisioning settles, then destroys the pod and births again', async () => {
     const app = bornThreadApp({})
     const bridge = fakeBridge()
     const held = holdingProvisioning(bridge)
@@ -58,9 +58,24 @@ describe('a first-send birth that fails partway', () => {
 
       expect(await noticeNaming(BIRTH_CANCELLED_NOTICE)).toBe(true)
       expect(await until({ holds: async () => mounted.draft() === 'cancel me', within: 20_000 })).toBe(true)
-      expect(bridge.destroyed).toContain(threadId)
+      expect(bridge.destroyed).toEqual([])
       expect(app.threads.chosenLocations).toEqual([])
+
+      await mounted.command('')
+
+      expect(await until({ holds: async () => mounted.draft() === 'cancel me', within: 20_000 })).toBe(true)
+      expect(bridge.created).toEqual([])
+
+      held.release()
+
+      expect(await until({ holds: async () => bridge.destroyed.includes(threadId), within: 20_000 })).toBe(true)
+      expect(bridge.trail.indexOf('destroy')).toBeGreaterThan(bridge.trail.indexOf('sandbox'))
+      expect(bridge.created.map((born) => born.threadId)).toEqual([threadId])
       expect(await mounted.frameHolds((frame) => !frame.includes('STARTING A POD') && frame.includes('pod ▾'))).toBe(true)
+
+      await mounted.command('')
+
+      expect(await until({ holds: async () => bridge.created.length === 2, within: 20_000 })).toBe(true)
     } finally {
       held.release()
       await mounted.done()

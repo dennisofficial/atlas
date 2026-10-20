@@ -39,6 +39,7 @@ export {
   sessionMetaFile,
   threadMetaFile,
 } from './sessions/paths'
+export { isCloudThread } from './sessions/listing'
 export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
 export { SessionRegistry, registryFor } from './sessions/registry'
 export {

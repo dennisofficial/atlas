@@ -36,7 +36,8 @@ export function birthNewborn(args: {
   threadId: ThreadId
   runner: ERunner
   onReload: (reload: CloudReload) => Promise<void>
-  onAbandon: () => void
+  onRestoreDraft: () => void
+  onRelease: () => void
 }): void {
   const { app, move, owner, threadId, runner } = args
   const pod = runner === ERunner.Local
@@ -44,16 +45,20 @@ export function birthNewborn(args: {
   let cancelled = false
   const destroySandbox = (): Promise<void> => bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
   const failed = async (reason: string): Promise<void> => {
-    if (cancelled) return
     await destroySandbox()
     move.handleFail(reason)
     warn(reason)
-    args.onAbandon()
+    args.onRestoreDraft()
+    args.onRelease()
+  }
+  const settleCancelled = async (): Promise<void> => {
+    await destroySandbox()
+    args.onRelease()
   }
   const handleCancel = (): void => {
     cancelled = true
     warn(BIRTH_CANCELLED_NOTICE)
-    void destroySandbox().then(args.onAbandon)
+    args.onRestoreDraft()
   }
   const captureContext = () => app.captureContext({ cwd: app.workspace.workspace })
 
@@ -130,7 +135,7 @@ export function birthNewborn(args: {
     },
   })
     .then((born) => {
-      if (cancelled) return
+      if (cancelled) return settleCancelled()
       if (!born.ok) return failed(birthFailedNotice(born))
       const chip = bornPlacementChip(app)
       const held = chip.snapshot()
@@ -139,6 +144,7 @@ export function birthNewborn(args: {
       move.handleSettle()
     })
     .catch((error: unknown) => {
+      if (cancelled) return settleCancelled()
       return failed(`${pod ? 'starting the pod' : 'starting a cloud sandbox'} failed — ${messageOf(error)}`)
     })
 }

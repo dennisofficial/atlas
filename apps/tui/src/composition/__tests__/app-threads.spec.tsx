@@ -1,4 +1,4 @@
-import { EEffort, refKey, toRunId, toThreadId } from '@dltech/atlas-core'
+import { EEffort, EExecutionLocation, refKey, toRunId, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -21,7 +21,7 @@ const appWith = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
 
 async function seed(args: { app: FakeApp; title: string; said: string }): Promise<string> {
-  const thread = await args.app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+  const thread = await args.app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, executionLocation: EExecutionLocation.Cloud })
   await args.app.threads.rename({ threadId: thread.id, title: args.title })
   await args.app.log.append({
     threadId: thread.id,

@@ -1,5 +1,6 @@
 import {
   EAgentStatus,
+  EExecutionLocation,
   toCallId,
   toRunId,
   toThreadId,
@@ -63,6 +64,7 @@ async function seedChildThread(app: FakeApp): Promise<void> {
     workspace: FAKE_CONFIG.cwd,
     repo: null,
     agent: { spawnedBy: THREAD, type: 'explore' },
+    executionLocation: EExecutionLocation.Cloud,
   })
   const made = (await app.threads.list({ project: FAKE_CONFIG.cwd })).at(0)
   if (made === undefined) throw new Error('the child thread was not created')
@@ -209,7 +211,7 @@ describe('conversations the operator started', () => {
   it('leaves a sub-agent out of /resume', async () => {
     const app = appWith()
     await seedChildThread(app)
-    const own = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+    const own = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, executionLocation: EExecutionLocation.Cloud })
     await app.threads.rename({ threadId: own.id, title: 'a conversation I started' })
 
     const setup = await opened(app)

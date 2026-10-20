@@ -39,8 +39,8 @@ export type ListingPlaces = {
 type RootEntry = { sessionDir: string; root: ThreadMeta; activityAt: string }
 type ListingRow = { entry: RootEntry; summary: ThreadSummary; places: ListingPlaces }
 
-export const isCloudThread = (meta: ThreadMeta): boolean =>
-  meta.executionLocation === EExecutionLocation.Cloud
+export const isCloudThread = (thread: { executionLocation?: string | null | undefined }): boolean =>
+  thread.executionLocation === EExecutionLocation.Cloud
 
 export function toThreadSummary(meta: ThreadMeta): ThreadSummary {
   return {

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { liveTokens, tokenAtOffset, type LiveToken } from '../ui/composer-tokens'
-import { mentionedFilePaths, pastedTagSpans } from '@dltech/atlas-core'
+import { mentionedFilePaths } from '@dltech/atlas-core'
 import { readImageBase64 } from '../ui/clipboard-image'
 import { restoredImages, submissionOf } from '../ui/draft-images'
 import { useDraft } from '../ui/hooks/use-draft'
@@ -11,6 +11,7 @@ import { useDraftTokens } from '../ui/hooks/use-draft-tokens'
 import { notify } from '../ui/notice-store'
 import { commandSpecs, dispatchSubmission, EDispatch, localCommands } from './commands'
 import type { AtlasApp } from './compose'
+import { draftPutBack } from './draft-put-back'
 import { workspaceFileLoader } from './mentioned-files'
 import {
   beginMentionPreparation,
@@ -147,20 +148,14 @@ export function useWorkspaceComposer(args: {
         setSends((count) => count + 1)
       }
 
-      const putBackPastes = live.flatMap((token) => {
-        if (token.slot.kind !== 'pasted') return []
-        const span = pastedTagSpans(token.slot.label)[0]
-        return span === undefined ? [] : [{ ordinal: span.ordinal, content: token.slot.content }]
-      })
-
-      const putBack = () => {
-        const current = draft.editor.current?.plainText ?? ''
-        tokens.restore({
-          text: current.trim().length === 0 ? said : `${said}\n\n${current}`,
+      const putBack = () =>
+        draftPutBack({
+          tokens,
+          said,
+          typedSince: draft.editor.current?.plainText ?? '',
+          live,
           images: readyImages,
-          pastes: putBackPastes,
         })
-      }
 
       const keepAttachments = () => {
         if (preparing.current !== attempt || readyImages.length === 0) return

@@ -13,10 +13,6 @@ import {
 
 export * from './placement-controller-types'
 
-/**
- * The placement substrate: the durable record's compare-and-swap write discipline and the cloud
- * birth's commit handle. A thread with no record is unplaced; birth is the only writer.
- */
 const UNPLACED: PlacementRecord = { placement: { harness: EHarnessPlacement.Cloud }, revision: 0 }
 
 export class PlacementController {

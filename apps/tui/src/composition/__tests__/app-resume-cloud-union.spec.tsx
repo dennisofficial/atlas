@@ -109,7 +109,7 @@ describe('/resume listing local and cloud threads together', () => {
       return spy(args)
     }
     const app = speaking({ cloud })
-    const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+    const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, executionLocation: EExecutionLocation.Cloud })
     await app.threads.rename({ threadId: thread.id, title: 'the host thread' })
     const mounted = await mount({ app, bridge: fakeBridge({ status: RUNNING_STATUS }) })
 
@@ -165,7 +165,7 @@ describe('/resume listing local and cloud threads together', () => {
 
   it('still lists the local store when the cloud read fails', async () => {
     const app = speaking({ cloud: cloudWithThreads({ threads: [], fail: true }) })
-    const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+    const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, executionLocation: EExecutionLocation.Cloud })
     await app.threads.rename({ threadId: thread.id, title: 'the host thread' })
     const mounted = await mount({ app, bridge: fakeBridge({ status: RUNNING_STATUS }) })
 
@@ -184,7 +184,7 @@ describe('/resume listing local and cloud threads together', () => {
         threads: [wireThread({ id: 'cloud-thread-9', title: 'the fresh sandbox thread' })],
       }),
     })
-    const local = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+    const local = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, executionLocation: EExecutionLocation.Cloud })
     await app.threads.rename({ threadId: local.id, title: 'the old host thread' })
     const mounted = await mount({ app, bridge: fakeBridge({ status: RUNNING_STATUS }) })
 
