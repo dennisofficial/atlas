@@ -35,9 +35,9 @@ export type ContainerMove = {
   failure: string | null
 }
 
-export const WAKE_HEADING = 'WAKING THE SANDBOX'
+export const WAKE_HEADING = 'WAKING THE POD'
 
-export const DEFAULT_MOVE_HEADING = 'STARTING A CLOUD SANDBOX'
+export const DEFAULT_MOVE_HEADING = 'STARTING A POD'
 
 export function beginMove(args: {
   now: number

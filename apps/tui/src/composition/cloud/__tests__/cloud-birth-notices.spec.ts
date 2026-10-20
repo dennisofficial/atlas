@@ -19,10 +19,10 @@ describe('a failed cloud birth', () => {
   it('names the reason and the cause, and claims no fallback', () => {
     const text = birthFailedNotice(failure())
 
-    expect(text).toBe('the sandbox would not start. vercel returned 500')
+    expect(text).toBe('the pod would not start. vercel returned 500')
   })
 
-  it('says the sandbox started but could not be attached when attach is what failed', () => {
+  it('says the pod started but could not be attached when attach is what failed', () => {
     const text = birthFailedNotice(failure({ step: EBirthNode.Attach, detail: 'channel refused' }))
 
     expect(text).toContain('could not be attached')

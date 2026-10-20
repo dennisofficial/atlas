@@ -6,7 +6,7 @@ import { deferred, harness, readied } from './remote-channel-fixture'
 
 const FRESH = { url: 'https://fresh.test/', token: 'tok_fresh' }
 
-const UPDATING: ConnectionView = { state: EConnectionView.Updating, detail: 'updating the cloud sandbox' }
+const UPDATING: ConnectionView = { state: EConnectionView.Updating, detail: 'updating the pod' }
 
 describe('a wake that turns out to be a serve swap', () => {
   it('reads Updating once the provision starts rotating, then Connected after the attach', async () => {
@@ -59,7 +59,7 @@ describe('a wake that turns out to be a serve swap', () => {
 
     expect(channel.connection()).toEqual({
       state: EConnectionView.Disconnected,
-      detail: 'the sandbox could not be woken: drain never sealed',
+      detail: 'the pod could not be woken: drain never sealed',
     })
   })
 
@@ -106,11 +106,11 @@ describe('a swap announced by a wake the caller ran itself', () => {
 
     detached.channel.beginWake()
     detached.channel.beginRotation()
-    detached.channel.failWake({ reason: 'the sandbox could not be woken: drain never sealed' })
+    detached.channel.failWake({ reason: 'the pod could not be woken: drain never sealed' })
 
     expect(detached.channel.connection()).toEqual({
       state: EConnectionView.Disconnected,
-      detail: 'the sandbox could not be woken: drain never sealed',
+      detail: 'the pod could not be woken: drain never sealed',
     })
   })
 

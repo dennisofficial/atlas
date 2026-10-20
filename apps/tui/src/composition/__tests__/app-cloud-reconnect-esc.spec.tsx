@@ -82,7 +82,7 @@ describe('pressing escape while the cloud socket is down', () => {
   }, 60_000)
 })
 
-describe('pressing escape while the sandbox is updating', () => {
+describe('pressing escape while the pod is updating', () => {
   it('names the update in the row and refuses the interrupt with the updating text', async () => {
     const app = speaking()
     const bridge = fakeBridge()
@@ -101,11 +101,11 @@ describe('pressing escape while the sandbox is updating', () => {
         }),
       ).toBe(true)
 
-      bridge.channel.moveTo({ state: EConnectionView.Updating, detail: 'updating the cloud sandbox' })
+      bridge.channel.moveTo({ state: EConnectionView.Updating, detail: 'updating the pod' })
 
       expect(
         await until({
-          holds: async () => (await mounted.nextFrame()).includes('Updating the cloud sandbox for'),
+          holds: async () => (await mounted.nextFrame()).includes('Updating the pod for'),
           within: 20_000,
         }),
       ).toBe(true)
@@ -115,7 +115,7 @@ describe('pressing escape while the sandbox is updating', () => {
       expect(
         await until({
           holds: async () =>
-            (await mounted.nextFrame()).includes('the sandbox is updating — esc will interrupt once it is back'),
+            (await mounted.nextFrame()).includes('the pod is updating — esc will interrupt once it is back'),
           within: 20_000,
         }),
       ).toBe(true)

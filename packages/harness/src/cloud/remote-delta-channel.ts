@@ -435,7 +435,7 @@ export function createRemoteDeltaChannel(args: {
       },
       (failure: unknown) => {
         if (abandoned || scheduled !== generation) return
-        const reason = `the sandbox could not be woken: ${failure instanceof Error ? failure.message : String(failure)}`
+        const reason = `the pod could not be woken: ${failure instanceof Error ? failure.message : String(failure)}`
         failures.emit({ message: reason })
         failWake(reason)
       },

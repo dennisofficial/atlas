@@ -95,7 +95,7 @@ const settled = async (setup: Setup): Promise<void> => {
   await flushTolerant(setup)
 }
 
-const BIRTH_OVERLAY = 'STARTING A CLOUD SANDBOX'
+const BIRTH_OVERLAY = 'STARTING A POD'
 const BIRTH_SETTLE_WITHIN_MS = 6 * 60_000
 const BIRTH_POLL_MS = 500
 

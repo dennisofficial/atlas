@@ -19,7 +19,7 @@ const RENDER_MS = 60
 
 const SAY: EventDraft = { type: 'user-said', text: 'go' }
 
-const REFUSAL = "the sandbox socket is down — esc will interrupt once it's back"
+const REFUSAL = "the pod socket is down — esc will interrupt once it's back"
 
 type Probe = { driver: TurnDriver | null; interrupting: boolean }
 

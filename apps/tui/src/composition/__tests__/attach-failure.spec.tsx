@@ -73,7 +73,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
       mounted.pressEscape()
       await settle(300)
       const frame = await mounted.showing('✗ cloud')
-      expect(frame).not.toContain('WAKING THE SANDBOX')
+      expect(frame).not.toContain('WAKING THE POD')
 
       const owner = app.sessionOwner.snapshot()
       expect(owner.placed).toBe(true)

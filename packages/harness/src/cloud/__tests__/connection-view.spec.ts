@@ -57,20 +57,20 @@ describe('connectionViewOf', () => {
   }
 
   it('carries the failure as the disconnected detail', () => {
-    expect(connectionViewOf(facts({ failure: 'the sandbox could not be woken: 503' }))).toEqual({
+    expect(connectionViewOf(facts({ failure: 'the pod could not be woken: 503' }))).toEqual({
       state: EConnectionView.Disconnected,
-      detail: 'the sandbox could not be woken: 503',
+      detail: 'the pod could not be woken: 503',
     })
   })
 
   it('names the swap while updating', () => {
-    expect(connectionViewOf(facts({ phase: ERuntimePhase.Updating })).detail).toBe('updating the cloud sandbox')
+    expect(connectionViewOf(facts({ phase: ERuntimePhase.Updating })).detail).toBe('updating the pod')
   })
 
   it('names the swap while a wake rotates the sandbox', () => {
     expect(connectionViewOf(facts({ waking: true, rotating: true }))).toEqual({
       state: EConnectionView.Updating,
-      detail: 'updating the cloud sandbox',
+      detail: 'updating the pod',
     })
   })
 })
