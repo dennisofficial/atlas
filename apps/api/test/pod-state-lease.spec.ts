@@ -3,11 +3,11 @@ import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/c
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { EnvService } from '../../../_core/config/env/env.service'
-import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
-import type { PrismaClient } from '../../../generated/prisma/client'
+import { EnvService } from '../src/_core/config/env/env.service'
+import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
+import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
+import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
+import type { PrismaClient } from '../src/generated/prisma/client'
 
 interface Owned {
   userId: string
@@ -67,20 +67,20 @@ const fake = vi.hoisted(() => {
   return { db, tables }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+vi.mock('../src/db', () => ({ db: fake.db as unknown as PrismaClient }))
 
-import { SettingsController } from '../../cloud/settings/settings.controller'
-import { SettingsService } from '../../cloud/settings/settings.service'
-import { SecretsController } from '../../cloud/secrets/secrets.controller'
-import { SecretsService } from '../../cloud/secrets/secrets.service'
-import { SandboxesService } from '../sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../sandboxes/token-principal'
-import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
-import { AccountLeaseController } from './account-lease.controller'
-import { AccountsController } from './accounts.controller'
-import { AccountsService } from './accounts.service'
-import type { AccountSecret } from './accounts.types'
-import { EAuthKind } from './accounts.types'
+import { SettingsController } from '../src/api/cloud/settings/settings.controller'
+import { SettingsService } from '../src/api/cloud/settings/settings.service'
+import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
+import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
+import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
+import { ETokenPrincipalKind } from '../src/api/platform/sandboxes/token-principal'
+import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
+import { AccountLeaseController } from '../src/api/platform/accounts/account-lease.controller'
+import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
+import { AccountsService } from '../src/api/platform/accounts/accounts.service'
+import type { AccountSecret } from '../src/api/platform/accounts/accounts.types'
+import { EAuthKind } from '../src/api/platform/accounts/accounts.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
