@@ -83,9 +83,6 @@ describe('teardownSession per-thread failure isolation', () => {
         sources: [twoThreadSource(calls)],
         log,
         ids: new RandomIds(),
-        stopSandbox: async () => {
-          calls.push('sandbox:stop')
-        },
       }),
     ).rejects.toThrow('append failed')
 
@@ -95,7 +92,6 @@ describe('teardownSession per-thread failure isolation', () => {
       `log:append:${FIRST}`,
       `shells:drain:${SECOND}`,
       `log:append:${SECOND}`,
-      'sandbox:stop',
     ])
   })
 
@@ -126,9 +122,6 @@ describe('teardownSession per-thread failure isolation', () => {
         sources: [prepared],
         log,
         ids: new RandomIds(),
-        stopSandbox: async () => {
-          calls.push('sandbox:stop')
-        },
       }),
     ).rejects.toThrow('append failed')
 
@@ -139,7 +132,6 @@ describe('teardownSession per-thread failure isolation', () => {
       `log:append:${SECOND}`,
       `agents:acknowledge:${SECOND}`,
       `agents:release:${SECOND}`,
-      'sandbox:stop',
     ])
   })
 })

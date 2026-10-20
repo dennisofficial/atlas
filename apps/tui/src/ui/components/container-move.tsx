@@ -2,7 +2,7 @@ import React from 'react'
 
 import {
   EStepMark,
-  moveHeading,
+  DEFAULT_MOVE_HEADING,
   type ContainerMove,
   type MoveRow,
 } from '../../composition/container-move'
@@ -128,7 +128,7 @@ export function ContainerMoveOverlay(props: {
 
   return (
     <BottomDrawer overlay>
-      <DrawerHeading label={move.heading ?? moveHeading(move.target)} />
+      <DrawerHeading label={move.heading ?? DEFAULT_MOVE_HEADING} />
       {move.cancellable === true && move.failure === null ? (
         <ElapsedLine elapsedMs={props.now - move.startedAt} />
       ) : null}

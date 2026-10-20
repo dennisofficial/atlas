@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 
 import type { ModelSelection } from '@dltech/atlas-harness'
 
-import { withCloud, withContainer, withSections } from '../store/sidebar-model'
+import { withCloud, withSections } from '../store/sidebar-model'
 import type { FooterItem } from '../ui/footer-item'
 import { footerLayout } from '../ui/footer-layout'
 import type { DraftControls } from '../ui/hooks/use-draft'
@@ -72,10 +72,7 @@ export function useWorkspaceFooter(args: {
   const sidebarModel = useMemo(
     () =>
       withSections({
-        model: withCloud({
-          model: withContainer({ model: agents.sidebar, container: containerPill.container }),
-          cloud: containerPill.cloud,
-        }),
+        model: withCloud({ model: agents.sidebar, cloud: containerPill.cloud }),
         sections: surfaces.sidebarSections,
       }),
     [agents.sidebar, containerPill, surfaces.sidebarSections],

@@ -19,7 +19,6 @@ import {
   type HarnessApp,
   type RewindMachineryPort,
   type RotationPort,
-  type SandboxControl,
   type SessionTitler,
   type SettingsBinding,
 } from '@dltech/atlas-harness'
@@ -39,7 +38,7 @@ import type { AtlasConfig } from './config'
 import { noticePortBinding } from './notice-binding'
 import { createWarpReporter, WarpThreadOpenHook } from './warp-reporter'
 
-export type { SandboxControl, SessionTitler }
+export type { SessionTitler }
 
 type TuiSurface = {
   pullRequests: PullRequestPort | null
@@ -109,7 +108,6 @@ export async function composeAtlas(args: {
       cwd: args.config.cwd,
       command: args.command,
       model: args.config.model === undefined ? undefined : { ref: args.config.model },
-      executionLocation: args.config.executionLocation,
     },
     env: args.env,
     settings: args.settings,

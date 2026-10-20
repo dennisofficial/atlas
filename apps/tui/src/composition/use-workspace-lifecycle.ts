@@ -1,9 +1,7 @@
 import { useCallback, useEffect } from 'react'
 
 import type { useDraft } from '../ui/hooks/use-draft'
-import { closeConversation } from './open-conversation'
 import type { useAgents } from './use-agents'
-import type { useContainerGuard } from './use-container-guard'
 import type { useContainerMove } from './use-container-move'
 import type { useConversation } from './use-conversation'
 import type { useServices } from './use-services'
@@ -20,7 +18,6 @@ export function useWorkspaceLifecycle(args: {
   conversation: ReturnType<typeof useConversation>
   draft: ReturnType<typeof useDraft>
   containerMove: ReturnType<typeof useContainerMove>
-  containerGuard: ReturnType<typeof useContainerGuard>
   shells: ReturnType<typeof useShells>
   agents: ReturnType<typeof useAgents>
   services: ReturnType<typeof useServices>
@@ -87,7 +84,6 @@ export function useWorkspaceLifecycle(args: {
       return
     }
 
-    void closeConversation()
     renderer.destroy()
   }, [agents.running, cloud, conversation, exit, renderer, services.running, shells])
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ATLAS_SETTINGS, EHarnessPlacement, ESettingId, EToolEnvironment, SecretsPort } from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, ESettingId, SecretsPort } from '@dltech/atlas-core'
 
 import { createSettingsService, MemorySettingsStore } from '../../settings'
-import { bornPlacementFor, cloudProvisioningConfigured } from '../born-placement'
+import { cloudProvisioningConfigured } from '../born-placement'
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../settings-definitions'
 
 class FakeSecrets extends SecretsPort {
@@ -44,29 +44,6 @@ const SCOPING = {
   [ESettingId.VercelProjectId]: 'prj_1',
 }
 const TOKEN = { [ESettingId.VercelToken]: 'vercel-token' }
-
-describe('bornPlacementFor', () => {
-  it('is the host on a fully configured machine', () => {
-    const placement = bornPlacementFor({ settings: settingsWith(SCOPING), secrets: new FakeSecrets(TOKEN) })
-
-    expect(placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
-  })
-
-  it('is the host on an unconfigured machine', () => {
-    const placement = bornPlacementFor({ settings: settingsWith({}), secrets: new FakeSecrets({}) })
-
-    expect(placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
-  })
-
-  it('is the host even when the last born placement was the cloud', () => {
-    const placement = bornPlacementFor({
-      settings: settingsWith({ ...SCOPING, [ESettingId.LastBornPlacement]: 'cloud' }),
-      secrets: new FakeSecrets(TOKEN),
-    })
-
-    expect(placement.harness).toBe(EHarnessPlacement.Host)
-  })
-})
 
 describe('cloudProvisioningConfigured', () => {
   it('needs the token, the team and the project', () => {

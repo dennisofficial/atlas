@@ -1,6 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
 import { EConnectionView, type CloudConnection } from '@dltech/atlas-harness'
 
 import type { CloudHealth, CloudSession } from './cloud/cloud-session'
@@ -16,7 +15,7 @@ const WAKING: CloudConnection = { state: EConnectionView.Waking, detail: null }
 const NEVER_CHANGES = (): (() => void) => () => undefined
 
 function useCloudState(args: { app: AtlasApp; session: CloudSession | null }): {
-  location: EExecutionLocation
+  placed: boolean
   bound: boolean
   threadId: ReturnType<typeof useSessionOwner>['threadId']
   failure: ReturnType<typeof useAttachFailure>
@@ -24,14 +23,14 @@ function useCloudState(args: { app: AtlasApp; session: CloudSession | null }): {
 } {
   const { app, session } = args
 
-  const { location, bound, threadId } = useSessionOwner({ app })
+  const { placed, bound, threadId } = useSessionOwner({ app })
   const failure = useAttachFailure()
   const health = useSyncExternalStore(
     session?.subscribe ?? NEVER_CHANGES,
     () => session?.health() ?? null,
   )
 
-  return { location, bound, threadId, failure, health }
+  return { placed, bound, threadId, failure, health }
 }
 
 /**
@@ -47,9 +46,9 @@ export function useCloudConnection(args: {
   app: AtlasApp
   session: CloudSession | null
 }): CloudConnection | null {
-  const { location, bound, threadId, failure, health } = useCloudState(args)
+  const { placed, bound, threadId, failure, health } = useCloudState(args)
 
-  if (location !== EExecutionLocation.Cloud) return null
+  if (!placed) return null
   if (!bound) {
     if (failure !== null && failure.threadId === threadId) {
       return { state: EConnectionView.Disconnected, detail: failure.detail }
@@ -67,7 +66,7 @@ export function useCloudHealth(args: {
   app: AtlasApp
   session: CloudSession | null
 }): CloudHealth | null {
-  const { location, bound, health } = useCloudState(args)
+  const { placed, bound, health } = useCloudState(args)
 
   const failure = health?.failure ?? null
   useEffect(() => {
@@ -78,6 +77,6 @@ export function useCloudHealth(args: {
     notify({ key: CLOUD_SERVER_FAILURE_NOTICE_KEY, text: failure, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
   }, [failure])
 
-  if (location !== EExecutionLocation.Cloud || !bound) return null
+  if (!placed || !bound) return null
   return health
 }

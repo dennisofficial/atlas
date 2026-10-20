@@ -180,7 +180,7 @@ describe('a thread born in the cloud', () => {
 
   it('still lists the local conversations in /resume', async () => {
     const app = speaking()
-    const other = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+    const other = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, executionLocation: EExecutionLocation.Cloud })
     await app.threads.rename({ threadId: other.id, title: 'the host thread' })
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })

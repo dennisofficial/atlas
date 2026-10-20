@@ -13,7 +13,6 @@ const entered = { type: 'worktree-entered' as const, path: TREE, branch: 'dennis
 
 const relocated = (to: EExecutionLocation) => ({
   type: 'location-changed' as const,
-  from: EExecutionLocation.Host,
   to,
 })
 
@@ -151,45 +150,11 @@ describe('telling the model the project directory and any active worktree', () =
     expect(noteOf(assembled)).toContain(TREE)
   })
 
-  it('names no execution location on the host, the default', () => {
+  it('asserts the cloud sandbox and its isolation on every session', () => {
     const note = noteOf(assembleWith(log([{ type: 'user-said', text: 'hello' }])))
-
-    expect(note).not.toContain('Execution location')
-  })
-
-  it('asserts the cloud sandbox and its isolation once the session is in the cloud', () => {
-    const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Cloud)])))
 
     expect(note).toContain('Execution location: a cloud sandbox')
     expect(note).toContain("the operator's machine cannot see any of it")
-  })
-
-  it('says a Docker session shares only the project directory and its declared mounts', () => {
-    const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Docker)])))
-
-    expect(note).toContain('Execution location: a Docker container')
-    expect(note).toContain('only the project directory and explicitly mounted paths are shared with the host')
-  })
-
-  it('drops the sentence again once the session is back on the host', () => {
-    const note = noteOf(
-      assembleWith(
-        log([relocated(EExecutionLocation.Cloud), { ...relocated(EExecutionLocation.Host), from: EExecutionLocation.Cloud }]),
-      ),
-    )
-
-    expect(note).not.toContain('Execution location')
-  })
-
-  it('answers the latest move when the session reached the cloud twice', () => {
-    const note = noteOf(
-      assembleWith(
-        log([relocated(EExecutionLocation.Docker), { ...relocated(EExecutionLocation.Cloud), from: EExecutionLocation.Docker }]),
-      ),
-    )
-
-    expect(note).toContain('a cloud sandbox')
-    expect(note).not.toContain('a Docker container')
   })
 
   it('still asserts the location after the history covering the move is compacted', () => {

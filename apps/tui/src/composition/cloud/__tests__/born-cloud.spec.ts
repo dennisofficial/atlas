@@ -5,8 +5,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { currentNotices, dismissNotice } from '../../../ui/notice-store'
 import { fakeApp, fakeSignedOutCloud, scriptedModelPort, type FakeApp } from '../../__tests__/fake-app'
-import type { OpenedConversation } from '../../open-conversation'
-import { bornWith, CLOUD_NOT_CONFIGURED_NOTICE } from '../born-cloud'
+import { bornWith, CLOUD_NOT_CONFIGURED_NOTICE, preferredRunner, rememberPlacement } from '../born-cloud'
 import { bornPlacementChip } from '../born-placement-chip'
 
 afterEach(() => dismissNotice())
@@ -22,7 +21,7 @@ const appOn = (args: { signedIn: boolean; vercel: boolean }): FakeApp =>
   })
 
 const rig = (args: { app: FakeApp; choice?: ERunner; preflight?: string | null }) => {
-  const calls = { adopted: [] as OpenedConversation[], births: [] as { threadId: ThreadId; runner: ERunner }[], signIns: 0 }
+  const calls = { births: [] as { threadId: ThreadId; runner: ERunner }[], signIns: 0 }
   const threadId = args.app.ids.nextThreadId()
   const run = bornWith({
     app: args.app,
@@ -33,14 +32,25 @@ const rig = (args: { app: FakeApp; choice?: ERunner; preflight?: string | null }
       calls.signIns += 1
     },
     birthCloud: (born) => calls.births.push(born),
-    adopt: (opened) => calls.adopted.push(opened),
+    arrival: { text: 'first words' },
   })
   return { calls, run, threadId }
 }
 
 const noticeKeys = (): string[] => currentNotices().map((notice) => notice.key)
 
-describe('where a /new thread is born', () => {
+describe('where a thread is born on its first send', () => {
+  it('births on the remembered runner when no choice is passed', async () => {
+    const app = appOn({ signedIn: true, vercel: true })
+    rememberPlacement({ app, runner: ERunner.Vercel })
+    const { calls, run, threadId } = rig({ app })
+
+    await run
+
+    expect(preferredRunner(app)).toBe(ERunner.Vercel)
+    expect(calls.births).toEqual([{ threadId, runner: ERunner.Vercel }])
+  })
+
   for (const choice of [undefined, ERunner.Local, ERunner.Vercel]) {
     it(`refuses every birth while signed out (${choice ?? 'default'}) and opens the cloud sign-in`, async () => {
       const app = appOn({ signedIn: false, vercel: true })
@@ -49,7 +59,6 @@ describe('where a /new thread is born', () => {
       await run
 
       expect(calls.signIns).toBe(1)
-      expect(calls.adopted).toEqual([])
       expect(calls.births).toEqual([])
       expect(bornPlacementChip(app).snapshot()).toBeNull()
       expect(noticeKeys()).toEqual(['born-sign-in'])
@@ -65,12 +74,12 @@ describe('where a /new thread is born', () => {
     await run
 
     expect(calls.births).toEqual([{ threadId, runner: ERunner.Local }])
-    expect(calls.adopted).toHaveLength(1)
     expect(calls.signIns).toBe(0)
     expect(bornPlacementChip(app).snapshot()).toMatchObject({
       threadId,
       runner: ERunner.Local,
       provisioning: true,
+      arrival: { text: 'first words' },
     })
   })
 
@@ -84,18 +93,17 @@ describe('where a /new thread is born', () => {
     expect(bornPlacementChip(app).snapshot()?.runner).toBe(ERunner.Vercel)
   })
 
-  it('says so and adopts nothing when Vercel is chosen but not configured', async () => {
+  it('says so and births nothing when Vercel is chosen but not configured', async () => {
     const app = appOn({ signedIn: true, vercel: false })
     const { calls, run } = rig({ app, choice: ERunner.Vercel })
 
     await run
 
     expect(calls.births).toEqual([])
-    expect(calls.adopted).toEqual([])
     expect(currentNotices()[0]?.text).toBe(CLOUD_NOT_CONFIGURED_NOTICE)
   })
 
-  it('names Docker Desktop and adopts nothing when the pod preflight refuses', async () => {
+  it('names Docker Desktop and births nothing when the pod preflight refuses', async () => {
     const app = appOn({ signedIn: true, vercel: false })
     const refusal = "Docker isn't answering at /x (nope) — start Docker Desktop, or point ATLAS_DOCKER_SOCKET at a running engine"
     const { calls, run } = rig({ app, preflight: refusal })
@@ -103,7 +111,6 @@ describe('where a /new thread is born', () => {
     await run
 
     expect(calls.births).toEqual([])
-    expect(calls.adopted).toEqual([])
     expect(currentNotices()[0]?.text).toContain('Docker Desktop')
   })
 })

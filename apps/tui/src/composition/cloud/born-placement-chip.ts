@@ -3,6 +3,7 @@ import type { EHarnessPlacement, ERunner, ThreadId } from '@dltech/atlas-core'
 import type { ChannelSignal } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from '../compose'
+import type { SendArgs } from '../conversation-types'
 
 const FIRST_SEND_SIGNALS: ReadonlySet<ChannelSignal['type']> = new Set([
   'events-appended',
@@ -17,8 +18,8 @@ export type BornPlacementState = {
   harness: EHarnessPlacement
   runner?: ERunner | undefined
   provisioning: boolean
-  /** Set when a cloud→host flip rebirths the thread: the operator's draft crosses the id change. */
-  carriedDraft?: boolean | undefined
+  preference?: boolean | undefined
+  arrival?: SendArgs | undefined
 }
 
 export type BornPlacementChip = {

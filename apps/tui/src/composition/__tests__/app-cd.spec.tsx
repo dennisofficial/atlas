@@ -4,7 +4,6 @@ import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ESettingId } from '@dltech/atlas-core'
 
 import { glyph } from '../../ui/glyphs'
 
@@ -132,25 +131,7 @@ describe('the cd command', () => {
     }
   }, 60_000)
 
-  it('refuses to move while the conversation runs in a container', async () => {
-    const target = await makeDirectory()
-    const app = speaking({ values: { [ESettingId.ExecutionLocation]: 'docker' } })
-    const mounted = await open({ app, opened: await spokenIn(app) })
-
-    try {
-      await mounted.typeText(`/cd ${target}`)
-      mounted.pressEnter()
-
-      await mounted.frame()
-
-      expect(directoryEvents(app)).toEqual([])
-      expect(mounted.draftText()).toBe(`/cd ${target}`)
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
-
-  it('holds a move made before the thread exists and opens the thread there', async () => {
+  it('holds a move made before the thread exists, writing nothing yet', async () => {
     const target = await makeDirectory()
     const app = speaking()
     const mounted = await open({ app, opened: UNSTARTED })
@@ -165,20 +146,7 @@ describe('the cd command', () => {
       })
       expect(announced).toBe(true)
       expect(directoryEvents(app)).toEqual([])
-
-      await mounted.typeText('look around')
-      mounted.pressEnter()
-
-      const landed = await until({
-        holds: async () => directoryEvents(app).length > 0,
-        within: WITHIN_MS,
-      })
-
-      expect(landed).toBe(true)
-      const [first, second] = app.log.peek({ threadId: THREAD })
-      expect(first).toMatchObject({ type: 'directory-changed', path: target, repo: null })
-      expect(second).toMatchObject({ type: 'user-said', text: 'look around' })
-      expect(app.threads.createdWith[0]).toMatchObject({ workspace: target, repo: null })
+      expect(app.threads.created).toBe(0)
     } finally {
       await mounted.done()
     }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
 
 import {
   activateMoveRow,
@@ -31,7 +30,7 @@ const WAKE_ROWS = [
 ] as const
 
 const cloudMove = (over: { settleThrough?: number; fail?: string } = {}): ContainerMove => {
-  let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
+  let move = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
   const through = over.settleThrough ?? 0
   const order = ['provision', 'attach', 'flipOwnership']
   for (const nodeId of order.slice(0, through)) {
@@ -112,7 +111,6 @@ describe('a move while it runs', () => {
 describe('a wake that rotates the sandbox first', () => {
   const rotatingMove = (): ContainerMove => {
     const begun = beginMove({
-      target: EExecutionLocation.Cloud,
       rows: WAKE_ROWS,
       heading: WAKE_HEADING,
       now: STARTED_AT,
@@ -155,7 +153,7 @@ describe('a wake that rotates the sandbox first', () => {
   })
 
   it('leaves the rows alone when asked to insert before one it does not hold', async () => {
-    const begun = beginMove({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, now: STARTED_AT })
+    const begun = beginMove({ rows: WAKE_ROWS, now: STARTED_AT })
     const expanded = expandMove({
       move: begun,
       insertBefore: 'flipOwnership',

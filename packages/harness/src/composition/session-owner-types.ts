@@ -1,5 +1,4 @@
 import type {
-  EExecutionLocation,
   EventLogPort,
   PlacementRecord,
   ThreadId,
@@ -21,7 +20,6 @@ import type { MentionReader } from '../files/mention-reader'
 import type { PlacementCommit, PlacementController } from './placement-controller'
 
 export enum ERuntimeKind {
-  Local = 'local',
   Cloud = 'cloud',
 }
 
@@ -52,10 +50,9 @@ export type SessionRuntime = {
 
 export type OwnerSnapshot<Adapters> = {
   threadId: ThreadId | undefined
-  location: EExecutionLocation
+  placed: boolean
   record: PlacementRecord | undefined
   binding: RuntimeBinding<Adapters> | undefined
-  cwd: string
   bound: boolean
 }
 
@@ -68,7 +65,6 @@ export type SessionOwner<Adapters> = {
   snapshot: () => OwnerSnapshot<Adapters>
   require: () => RuntimeBinding<Adapters>
   attaching: (threadId: ThreadId) => boolean
-  current: () => EExecutionLocation
   subscribe: (listener: () => void) => () => void
   /**
    * Installs the binding a fresh cloud birth provisioned and commits the born-placed record in one
@@ -84,11 +80,6 @@ export type SessionOwner<Adapters> = {
   adopt: (args: {
     threadId: ThreadId
     binding: RuntimeBinding<Adapters>
-  }) => Promise<void>
-  activateLocal: (args: {
-    threadId: ThreadId
-    binding?: RuntimeBinding<Adapters> | undefined
-    fallback?: EExecutionLocation | undefined
   }) => Promise<void>
   detach: (args: { threadId: ThreadId }) => void
 }

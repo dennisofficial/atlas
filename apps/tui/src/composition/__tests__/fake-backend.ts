@@ -1,8 +1,7 @@
 import {
   activeWorktreeOf,
   EExecutionLocation,
-  locationOfPlacement,
-  placementOf,
+  EHarnessPlacement,
   stampEvent,
   toThreadId,
   ECompactionAnchor,
@@ -93,6 +92,7 @@ export function fakeThreadStore(
     updatedAt: AT,
     workspace: workspaceOf,
     repo: args.repo ?? null,
+    executionLocation: EExecutionLocation.Cloud,
     ...(args.titles?.[id] === undefined ? {} : { title: args.titles[id] }),
   }))
 
@@ -369,18 +369,15 @@ export function fakeThreadStore(
     async readPlacement({ threadId }) {
       const row = rows.find((held) => held.id === threadId)
       if (row === undefined) return undefined
-      return (
-        placements.get(threadId) ?? {
-          placement: placementOf(row.executionLocation ?? EExecutionLocation.Host),
-          revision: 0,
-          move: null,
-        }
-      )
+      const held = placements.get(threadId)
+      if (held !== undefined) return held
+      if (row.executionLocation !== EExecutionLocation.Cloud) return undefined
+      return { placement: { harness: EHarnessPlacement.Cloud }, revision: 0 }
     },
 
     async writePlacement({ threadId, record }) {
       placements.set(threadId, record)
-      const location = locationOfPlacement(record.placement)
+      const location = EExecutionLocation.Cloud
       chosenLocations.push({ threadId, location })
       disk?.locate({ threadId, location })
       await disk?.writeThreadMeta({ threadId })

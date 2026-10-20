@@ -12,12 +12,12 @@ export function useComposerFiles(args: {
   const owner = useSessionOwner({ app: args.app })
   const reader = activeMentionReader({
     reader: args.app.files,
-    location: owner.location,
+    placed: owner.placed,
     bound: owner.bound,
   })
   const files = useMemo(
     () => rebaseMentionReader({ reader, root: args.projectDirectory }),
-    [reader, args.projectDirectory, owner.location],
+    [reader, args.projectDirectory, owner.placed],
   )
   return { reader, files }
 }

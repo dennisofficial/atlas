@@ -105,8 +105,6 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.AgentEnded }
       | { kind: EEntryKind.TldrWritten }
       | { kind: EEntryKind.TurnEnded }
-      | { kind: EEntryKind.SandboxNotice }
-      | { kind: EEntryKind.LocationChanged }
       | { kind: EEntryKind.Rotated }
       | { kind: EEntryKind.AgentRestarted }
       | { kind: EEntryKind.AgentReported }
@@ -126,8 +124,6 @@ export const fromTheModel = (model: TranscriptModel) =>
       entry.kind !== EEntryKind.AgentEnded &&
       entry.kind !== EEntryKind.TldrWritten &&
       entry.kind !== EEntryKind.TurnEnded &&
-      entry.kind !== EEntryKind.SandboxNotice &&
-      entry.kind !== EEntryKind.LocationChanged &&
       entry.kind !== EEntryKind.Rotated &&
       entry.kind !== EEntryKind.AgentRestarted &&
       entry.kind !== EEntryKind.AgentReported &&

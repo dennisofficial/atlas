@@ -1,3 +1,4 @@
+import { EExecutionLocation } from '@dltech/atlas-core'
 import { afterEach, describe, expect, it } from 'bun:test'
 import type { MockLanguageModelV4 } from 'ai/test'
 
@@ -31,7 +32,7 @@ const promptText = (model: MockLanguageModelV4, call: number): string =>
 describe('a conversation that outlives the process that started it', () => {
   it('continues from nothing but the database file, driven by a different script', async () => {
     const first = await attach([{ text: 'auth and the router' }])
-    const thread = await first.harness.threads.create({ workspace: '/work' })
+    const thread = await first.harness.threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/work' })
     const opened = await first.harness.runner.say({ threadId: thread.id, text: 'what changed?' })
     expect(opened.status).toBe(ETurnStatus.Completed)
     await first.release()
@@ -63,7 +64,7 @@ describe('a conversation that outlives the process that started it', () => {
 
   it('finishes a reply the previous process died before writing', async () => {
     const first = await attach([])
-    const thread: ThreadId = (await first.harness.threads.create({})).id
+    const thread: ThreadId = (await first.harness.threads.create({ executionLocation: EExecutionLocation.Cloud })).id
     await first.harness.log.append({
       threadId: thread,
       runId: first.harness.ids.nextRunId(),
@@ -83,7 +84,7 @@ describe('a conversation that outlives the process that started it', () => {
 
   it('carries a thinking signature written by one process into the next process prompt', async () => {
     const first = await attach([{ reasoning: { text: 'checking the diff', signature: 'sig-abc' }, text: 'two files' }])
-    const thread = (await first.harness.threads.create({})).id
+    const thread = (await first.harness.threads.create({ executionLocation: EExecutionLocation.Cloud })).id
     await first.harness.runner.say({ threadId: thread, text: 'what changed?' })
     await first.release()
 
@@ -96,7 +97,7 @@ describe('a conversation that outlives the process that started it', () => {
 
   it('does nothing on a reopened thread whose last word was the model', async () => {
     const first = await attach([{ text: 'auth and the router' }])
-    const thread = (await first.harness.threads.create({})).id
+    const thread = (await first.harness.threads.create({ executionLocation: EExecutionLocation.Cloud })).id
     await first.harness.runner.say({ threadId: thread, text: 'what changed?' })
     await first.release()
 

@@ -11,7 +11,6 @@ import {
 
 import { createIsolatedContainer, portToken, registeredPortToken, resolveSet } from '../../container/injection'
 import { GrillingCeremonyEnabledToken } from '../../container/tokens'
-import { ExecutionLocationToken } from '../../composition/execution-location-state'
 import { SkillRegistryPort } from '../../skills/port'
 import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
 import { PromptRegistry } from '../registry'
@@ -66,12 +65,8 @@ describe('the builtin prompt', () => {
     expect(first.blocks[0]?.text).not.toContain(CONTEXT.projectDirectory)
   })
 
-  it('compiles the stable execution topology without touching runtime execution state', () => {
-    const container = registered()
-    container.register(ExecutionLocationToken, {
-      useFactory: () => { throw new Error('runtime execution state belongs outside system text') },
-    })
-    const parts = container.resolve(registeredPortToken(PromptRegistry)).compile(CONTEXT).parts
+  it('compiles the stable execution topology', () => {
+    const parts = registered().resolve(registeredPortToken(PromptRegistry)).compile(CONTEXT).parts
     expect(parts.some((part) => part.id === 'environment.execution-location')).toBe(true)
   })
 

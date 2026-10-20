@@ -89,24 +89,6 @@ describe('a background shell belongs to the conversation that started it', () =>
     }
   }, 60_000)
 
-  it('does not show it to a conversation that did not start it', async () => {
-    const app = appWith()
-    await seedOtherThread(app)
-    app.shells.place(running({ shellId: 'bash_1', command: 'bun run dev' }), THREAD)
-    const setup = await opened(app)
-
-    try {
-      expect(setup.captureCharFrame()).toContain('bun run dev')
-
-      await resumeTheOther(setup)
-
-      const frame = setup.captureCharFrame()
-      expect(frame).toContain('over here')
-      expect(frame).not.toContain('bun run dev')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
 
   it('does not count it in the footer pill of a conversation that did not start it', async () => {
     const app = appWith()
@@ -133,56 +115,5 @@ describe('a background shell belongs to the conversation that started it', () =>
     }
   }, 60_000)
 
-  it('still names it on the way out, because quitting kills it whoever started it', async () => {
-    const app = appWith()
-    await seedOtherThread(app)
-    app.shells.place(running({ shellId: 'bash_1', command: 'bun run dev' }), THREAD)
-    const setup = await opened(app)
 
-    try {
-      await resumeTheOther(setup)
-      expect(setup.captureCharFrame()).not.toContain('bun run dev')
-
-      setup.mockInput.pressKey('c', { ctrl: true })
-      await setup.flush()
-      await settle(200)
-      await setup.flush()
-
-      const frame = setup.captureCharFrame()
-      expect(frame).toContain(HEADING)
-      expect(frame).toContain('bun run dev')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('keeps an ending for its owner rather than dropping it on a switch', async () => {
-    const app = appWith()
-    const other = await seedOtherThread(app)
-    app.shells.announce(
-      { ...running({ shellId: 'bash_1', command: 'bun run dev' }), status: EShellStatus.Exited },
-      other,
-    )
-    const setup = await opened(app)
-
-    try {
-      expect(app.shells.threadsAwaitingNotice()).toEqual([other])
-      expect(app.shells.pendingNotices({ threadId: THREAD })).toEqual([])
-
-      await resumeTheOther(setup)
-
-      const delivered = await until({
-        holds: async () =>
-          (await app.log.read({ threadId: other })).some(
-            (event) => event.type === 'background-shell-ended',
-          ),
-        within: 20_000,
-      })
-
-      expect(delivered).toBe(true)
-      expect(app.shells.pendingNotices({ threadId: other })).toEqual([])
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
 })

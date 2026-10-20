@@ -81,7 +81,6 @@ import {
 } from '@dltech/atlas-harness'
 
 import { FileBrowser } from '@dltech/atlas-harness'
-import { moveLocalPlacement } from '@dltech/atlas-harness'
 
 import { MessageIntake, operatorSource } from '@dltech/atlas-harness'
 
@@ -100,8 +99,7 @@ import { threadHandle } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
 import type { ModelCatalogue } from '@dltech/atlas-harness'
 import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
-import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
-import { createSandboxStatusState } from '@dltech/atlas-harness'
+import { createSessionOwner, PlacementController, type SessionRuntime } from '@dltech/atlas-harness'
 import { noticePortBinding } from '../notice-binding'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeServiceRegistry, type FakeServices } from './fake-services'
@@ -116,7 +114,6 @@ import {
 
 export const FAKE_CONFIG: AtlasConfig = {
   model: undefined,
-  executionLocation: undefined,
   open: { mode: EOpenMode.New },
   cwd: '/workspace/atlas',
 }
@@ -923,8 +920,8 @@ export function fakeApp(args: {
     },
   }
 
-  const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
-  executionLocation.bind({ threads, workspace: args.workspaceRoot ?? FAKE_CONFIG.cwd, repo: null })
+  const placement = new PlacementController()
+  placement.bind({ threads, workspace: args.workspaceRoot ?? FAKE_CONFIG.cwd, repo: null })
 
   return {
     skills: skillRegistry.all(),
@@ -982,17 +979,6 @@ export function fakeApp(args: {
       return bashNotes
     },
 
-    sandbox: {
-      prepareWorkspace: async () => undefined,
-      noteBash: () => {
-        bashNotes += 1
-      },
-      stop: async () => {
-        sandboxStops += 1
-        return false
-      },
-    },
-
     ledger,
 
     markActiveThread: (active) => {
@@ -1014,7 +1000,6 @@ export function fakeApp(args: {
       cwd: args.cwd ?? FAKE_CONFIG.cwd,
       command: 'atlas-dev',
       model: undefined,
-      executionLocation: undefined,
     },
     command: 'atlas-dev',
     journalResume: ({ active, directory }) => {
@@ -1040,45 +1025,7 @@ export function fakeApp(args: {
     }),
     modelPinned: false,
     models: args.models ?? fakeCatalogue(),
-    executionLocation,
-    sessionOwner: createSessionOwner<SessionRuntime>({
-      placement: executionLocation,
-      local: {
-        kind: ERuntimeKind.Local,
-        cwd: workspace.workspace,
-        adapters: {
-          runner: countingRunner,
-          channel,
-          log,
-          threads,
-          ledger,
-          intake,
-          shells,
-          agents,
-          services,
-          rewindMachinery: undefined,
-          workspace,
-          files: new FileBrowser({ root: workspace.workspace }),
-          attachment: undefined,
-        },
-      },
-    }),
-    moveTools: (move) =>
-      moveLocalPlacement({
-        ...move,
-        control: { state: executionLocation, pinned: false },
-        engine: { info: async () => ({ cpus: 4, memoryBytes: 8 * 1024 ** 3 }) },
-        ids,
-        shells,
-        services,
-        stores: () => ({ threads, log, agents }),
-      }),
-    containerStatus: createSandboxStatusState({
-      image: 'node:22-slim',
-      label: 'node:22-slim',
-      limits: args.containerLimits ?? { cpus: 4, memoryGb: 8 },
-    }),
-    executionPinned: false,
+    sessionOwner: createSessionOwner<SessionRuntime>({ placement }),
     settings: createSettingsService({
       definitions: [
         ...ATLAS_SETTINGS.filter((definition) => !isCloudSettingId(definition.id)),

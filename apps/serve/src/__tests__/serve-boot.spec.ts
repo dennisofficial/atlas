@@ -203,7 +203,7 @@ describe('startServe', () => {
 
     expect(meta).toBeDefined()
     expect(meta?.executionLocation).toBe('cloud')
-    expect(placementRecordOf(meta!).placement).toEqual({ harness: EHarnessPlacement.Cloud })
+    expect(placementRecordOf(meta!)?.placement).toEqual({ harness: EHarnessPlacement.Cloud })
   })
 
   it('stamps the local runner into the born thread meta when it boots in a pod', async () => {

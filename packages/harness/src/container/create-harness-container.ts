@@ -2,23 +2,15 @@ import {
   ClockPort,
   CredentialPort,
   EDefinitionOrigin,
-  EExecutionLocation,
   EventLogPort,
-  ExecutionLocationSinkPort,
   FileCapabilitiesPort,
   IdPort,
   LogPort,
   ModelPort,
-  NoopExecutionLocationSink,
   QualityReviewPort,
   TelemetryPort,
   telemetryEnabled,
 } from '@dltech/atlas-core'
-
-import {
-  createExecutionLocationState,
-  ExecutionLocationToken,
-} from '../composition/execution-location-state'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
 import { isStepping } from '../agents/registry/child-state'
@@ -96,8 +88,6 @@ function registerAgents({ container }: { container: DependencyContainer }): void
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
 
-  container.register(registeredPortToken(ExecutionLocationSinkPort), { useClass: NoopExecutionLocationSink })
-
   container.register(registeredPortToken(AgentRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       live = new AgentSupervisor({
@@ -111,7 +101,6 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           ? resolver.resolve(ChildRunnerDepsToken)().modelAtSpawn?.(args)
           : undefined,
         launchDirectory: resolver.resolve(WorkspaceRoot),
-        sink: resolver.resolve(registeredPortToken(ExecutionLocationSinkPort)),
         telemetry: resolver.resolve(registeredPortToken(TelemetryPort)),
         input: () => {
           if (!resolver.isRegistered(ChildRunnerDepsToken, true)) return undefined
@@ -232,20 +221,6 @@ export function createHarnessContainer(): DependencyContainer {
   registerOperatorInput({ container: harness })
   registerSkills({ container: harness })
   registerAgents({ container: harness })
-  harness.register(ExecutionLocationToken, {
-    useFactory: instanceCachingFactory((resolver) => {
-      const state = createExecutionLocationState({ initial: EExecutionLocation.Host })
-      state.bind({
-        threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
-        workspace: resolver.isRegistered(WorkspaceRoot, true) ? resolver.resolve(WorkspaceRoot) : home,
-        repo: null,
-        authority: resolver.isRegistered(registeredPortToken(SessionAuthorityPort), true)
-          ? resolver.resolve(registeredPortToken(SessionAuthorityPort))
-          : undefined,
-      })
-      return { state, pinned: false }
-    }),
-  })
   registerBuiltinTools({ container: harness })
   registerBuiltinHooks({ container: harness })
 

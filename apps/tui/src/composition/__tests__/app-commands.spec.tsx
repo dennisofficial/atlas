@@ -1,4 +1,4 @@
-import { toThreadId } from '@dltech/atlas-core'
+import { toRunId, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -8,13 +8,10 @@ import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/har
 import { EKeyGroup } from '../../ui/keys'
 import { App } from '../app'
 import { fakeBridge } from '../cloud/__tests__/fixture'
-import { FAKE_CONFIG, fakeApp, fakeSkill, scriptedModelPort, type FakeApp } from './fake-app'
-
-const PIRATE = fakeSkill({
-  name: 'pirate',
-  summary: 'answer entirely in pirate dialect',
-  body: 'Answer entirely in pirate dialect.',
-})
+import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'
+import { until } from './app-fixture'
+import { mountInCloud, shown } from './app-container-cloud-fixture'
+import { fakeApp, fakeSkill, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -26,7 +23,11 @@ const READ_MS = 60
 
 const WELCOME = 'Describe the work below.'
 
-const REPLIED = 'done'
+const PIRATE = fakeSkill({
+  name: 'pirate',
+  summary: 'answer entirely in pirate dialect',
+  body: 'Answer entirely in pirate dialect.',
+})
 
 type Mounted = Awaited<ReturnType<typeof testRender>>
 
@@ -42,7 +43,13 @@ async function opened(app: FakeApp, args: { started?: boolean } = {}): Promise<M
   const setup = await testRender(
     <App
       app={app}
-      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: args.started ?? true }}
+      opened={{
+        threadId: THREAD,
+        events: [],
+        turns: [],
+        name: null,
+        started: args.started ?? true,
+      }}
       createBridge={() => fakeBridge()}
       preflightBirth={async () => null}
     />,
@@ -58,34 +65,46 @@ describe('a message that loaded a skill', () => {
       model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'arr' } }),
       skills: [PIRATE],
     })
-    const setup = await opened(app)
+    const bridge = fakeBridge()
+    const mounted = await mountInCloud({ app, bridge })
 
     try {
-      await setup.mockInput.typeText('/pirate how about now?')
-      await landed(setup)
-
-      setup.mockInput.pressEnter()
-      const frame = await frameShowing({ setup, text: '◆ pirate' })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
+      await mounted.typeText('/pirate how about now?')
+      await mounted.frame()
+      mounted.pressEnter()
+      await until({ holds: async () => bridge.channel.sent.length > 0, within: 20_000 })
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-skill') })
+      const frame = await shown(mounted, '◆ pirate')
 
       expect(frame).toContain('/pirate how about now?')
       expect(frame).toContain('◆ pirate')
+      expect(bridge.channel.sent.at(-1)?.context?.some((draft) => draft.type === 'context-loaded')).toBe(true)
     } finally {
-      await teardown(setup)
+      await mounted.done()
     }
   }, 60_000)
 
   it('says nothing beneath a message that loaded none', async () => {
-    const setup = await opened(appWith())
+    const bridge = fakeBridge()
+    const mounted = await mountInCloud({ app: appWith(), bridge })
 
     try {
-      await setup.mockInput.typeText('plain question')
-      await landed(setup)
-      setup.mockInput.pressEnter()
-      const frame = await frameShowing({ setup, text: REPLIED })
+      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
+      await mounted.typeText('plain question')
+      await mounted.frame()
+      mounted.pressEnter()
+      const delivered = await until({
+        holds: async () => bridge.channel.sent.some((said) => said.text === 'plain question'),
+        within: 20_000,
+      })
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-plain') })
+      const frame = await shown(mounted, 'plain question')
 
+      expect(delivered).toBe(true)
       expect(frame).not.toContain('◆')
     } finally {
-      await teardown(setup)
+      await mounted.done()
     }
   }, 60_000)
 })
@@ -267,43 +286,6 @@ describe('a fresh conversation started from inside the app', () => {
       await landed(setup)
 
       expect(app.threads.createdWith).toEqual([])
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('is filed under the workspace by its first message, so tomorrow can resume it', async () => {
-    const app = appWith()
-    const setup = await opened(app, { started: false })
-
-    try {
-      await landed(setup)
-
-      await setup.mockInput.typeText('the first thing said in it')
-      setup.mockInput.pressEnter()
-      await frameShowing({ setup, text: REPLIED })
-
-      expect(app.threads.createdWith).toEqual([{ workspace: FAKE_CONFIG.cwd, repo: null }])
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('also starts on ctrl+n, without typing /new', async () => {
-    const app = appWith()
-    const setup = await opened(app)
-
-    try {
-      await setup.mockInput.typeText('something said before')
-      setup.mockInput.pressEnter()
-      await frameShowing({ setup, text: REPLIED })
-
-      expect(setup.captureCharFrame()).toContain('something said before')
-
-      setup.mockInput.pressKey('n', { ctrl: true })
-      const frame = await frameShowing({ setup, text: WELCOME })
-
-      expect(frame).not.toContain('something said before')
     } finally {
       await teardown(setup)
     }

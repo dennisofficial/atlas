@@ -93,7 +93,6 @@ export async function mountLive(args: {
       cwd: args.scratch.dir,
       command,
       model: undefined,
-      executionLocation: undefined,
     },
     env: process.env,
     settings: args.settings,
@@ -120,7 +119,6 @@ export async function mountLive(args: {
     prEventSink: null,
     config: {
       model: undefined,
-      executionLocation: undefined,
       open: { mode: EOpenMode.New },
       cwd: args.scratch.dir,
     },

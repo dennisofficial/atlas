@@ -49,10 +49,6 @@ export type FakeAgents = AgentRegistryPort & {
   readonly paused: readonly { agentId: string }[]
   readonly said: readonly { agentId: ThreadId; threadId: ThreadId; text: string }[]
   stopChildren: (args: { threadId: ThreadId; by: EKilledBy }) => Promise<readonly ThreadId[]>
-  markChildrenRelocated: (args: {
-    threadId: ThreadId
-    location: EExecutionLocation
-  }) => Promise<void>
 }
 
 /**
@@ -242,8 +238,6 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
       announce(kept)
     },
 
-    relocateChildren: () => Promise.resolve([]),
-
     pauseChildren: async ({ threadId }) => {
       const mine = owned.get(threadId) ?? NOTHING_LISTED
       const stepping = mine.filter((one) => one.status === EAgentStatus.Running)
@@ -272,15 +266,6 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
       for (const one of halted) stopped.push({ agentId: one.agentId, by })
 
       return halted.map((one) => one.agentId)
-    },
-
-    markChildrenRelocated: async ({ threadId, location }) => {
-      const mine = owned.get(threadId) ?? NOTHING_LISTED
-      if (mine.length === 0 || args.threads === undefined) return
-
-      for (const child of mine) {
-        await args.threads.chooseExecutionLocation({ threadId: child.agentId, location })
-      }
     },
 
     closeAll: async () => {},

@@ -1,5 +1,4 @@
 import type {
-  EExecutionLocation,
   EKilledBy,
   EToolEffect,
   EventLogPort,
@@ -11,7 +10,7 @@ import type {
 import type { UserSettingsTarget } from './apply-user-settings'
 import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
 
-import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController, RecoveredAgents } from '@dltech/atlas-harness'
+import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, RecoveredAgents } from '@dltech/atlas-harness'
 import type { FileBrowser, MentionReader } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
@@ -179,8 +178,6 @@ export type ServeApp = {
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   compaction?: CompactionPort | undefined
   rotation?: RotationPort | undefined
-  /** The session's placement controller; serve hydrates it to cloud once boot settles. */
-  executionLocation?: PlacementController | undefined
   close: () => Promise<void>
 }
 

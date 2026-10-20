@@ -49,7 +49,6 @@ export async function attachCloudSession(args: {
     model: thread.model,
     // The truth of an attached thread is cloud — not whatever the remote meta happens to say.
     executionLocation: EExecutionLocation.Cloud,
-    lostShells: [],
     base: snapshot.base,
     identity: snapshot.identity,
     appliedEvents: snapshot.all,

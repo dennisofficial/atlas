@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ECompactionAnchor, EForkMode, EWorktreeExit, type EventDraft } from '@dltech/atlas-core'
+import { ECompactionAnchor, EForkMode, EWorktreeExit, type EventDraft, EExecutionLocation } from '@dltech/atlas-core'
 
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
@@ -51,7 +51,7 @@ describe('the worktree a listed thread is standing in', () => {
   it('is nothing for a thread that never moved, and the last entered worktree once it has', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const unmoved = await threads.create({ title: 'unmoved', workspace: '/here' })
+    const unmoved = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'unmoved', workspace: '/here' })
     await log.append({ threadId: unmoved.id, runId: ids.nextRunId(), drafts: [said('hello')] })
 
     expect((await threads.list({ project: '/here' }))[0]?.worktree).toBeUndefined()
@@ -71,7 +71,7 @@ describe('the worktree a listed thread is standing in', () => {
   it('is nothing once the thread leaves the worktree again', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -84,7 +84,7 @@ describe('the worktree a listed thread is standing in', () => {
   it('is inherited by a reference fork up to the fork point, and no further', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const source = await threads.create({ workspace: '/here' })
+    const source = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: source.id,
       runId: ids.nextRunId(),
@@ -110,7 +110,7 @@ describe('the worktree a listed thread is standing in', () => {
   it('stands where a copy fork stands, whose copied log carries the move with it', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const source = await threads.create({ workspace: '/here' })
+    const source = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: source.id,
       runId: ids.nextRunId(),
@@ -127,7 +127,7 @@ describe('the pull requests a listed thread is linked to', () => {
   it('folds the links oldest first, refreshing a repeat in place', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -146,7 +146,7 @@ describe('the pull requests a listed thread is linked to', () => {
   it('is inherited by a reference fork up to the fork point', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const source = await threads.create({ workspace: '/here' })
+    const source = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: source.id,
       runId: ids.nextRunId(),
@@ -167,7 +167,7 @@ describe('the pull requests a listed thread is linked to', () => {
   it('a reference fork keeps the parent’s links beside its own', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const source = await threads.create({ workspace: '/here' })
+    const source = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: source.id,
       runId: ids.nextRunId(),
@@ -187,7 +187,7 @@ describe('the pull requests a listed thread is linked to', () => {
   it('leaves the session meta untouched on list — it is a read, not a cache refresh', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -207,7 +207,7 @@ describe('the pull requests a listed thread is linked to', () => {
   it('stops seeing a pull request once a rewind cut its link', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -224,7 +224,7 @@ describe('the pull requests a listed thread is linked to', () => {
   it('stops standing in a worktree once a summarise cut its entry', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),

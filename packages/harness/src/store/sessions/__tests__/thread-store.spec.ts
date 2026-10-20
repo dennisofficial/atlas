@@ -43,7 +43,7 @@ describe('JsonlThreadStore.create', () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
 
-    const thread = await threads.create({ title: 'refactor the log', workspace: '/here', repo: '/repo' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'refactor the log', workspace: '/here', repo: '/repo' })
 
     expect(thread.title).toBe('refactor the log')
     expect(thread.head).toBe(0)
@@ -51,7 +51,7 @@ describe('JsonlThreadStore.create', () => {
 
     const sessionDir = sessionDirectory({ home, sessionId: thread.id })
     const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
-    expect(session).toMatchObject({ format: 1, id: thread.id, title: 'refactor the log', home: 'host' })
+    expect(session).toMatchObject({ format: 1, id: thread.id, title: 'refactor the log', home: 'cloud' })
     const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: thread.id }), schema: threadMetaSchema })
     expect(meta).toMatchObject({ workspace: '/here', repo: '/repo', spawnerThreadId: null })
   })
@@ -84,7 +84,7 @@ describe('JsonlThreadStore field choices', () => {
   it('renames a thread without disturbing its head, and syncs the session meta', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'before', workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'before', workspace: '/here' })
     await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said('one')] })
 
     await threads.rename({ threadId: thread.id, title: 'after' })
@@ -98,8 +98,8 @@ describe('JsonlThreadStore field choices', () => {
   it('announces a rename through onRename, scoped to the thread it landed on', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const named = await threads.create({ title: 'before', workspace: '/here' })
-    const other = await threads.create({ title: 'untouched', workspace: '/here' })
+    const named = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'before', workspace: '/here' })
+    const other = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'untouched', workspace: '/here' })
     const heard: { threadId: string; title: string }[] = []
 
     const forget = threads.onRename((renamed) => heard.push(renamed))
@@ -125,7 +125,7 @@ describe('JsonlThreadStore field choices', () => {
   it('remembers the chosen model without counting it as activity', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
-    const thread = await threads.create({ workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said('hello')] })
     const before = await threads.find({ threadId: thread.id })
 
@@ -139,7 +139,7 @@ describe('JsonlThreadStore field choices', () => {
   it('announces a chosen model through onModelChosen, and stays silent for a thread that is not there', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const thread = await threads.create({ workspace: '/here' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
     const heard: { threadId: string; model: { ref: string; effort: string } }[] = []
 
     const forget = threads.onModelChosen((chosen) => heard.push(chosen))
@@ -157,8 +157,8 @@ describe('JsonlThreadStore field choices', () => {
     const thread = await threads.create({ workspace: '/here' })
 
     expect((await threads.find({ threadId: thread.id }))?.executionLocation).toBeUndefined()
-    await threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Docker })
-    expect((await threads.find({ threadId: thread.id }))?.executionLocation).toBe(EExecutionLocation.Docker)
+    await threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+    expect((await threads.find({ threadId: thread.id }))?.executionLocation).toBe(EExecutionLocation.Cloud)
   })
 
   it('materializes a never-written thread when it is placed somewhere, so a later boot can route it', async () => {
@@ -177,22 +177,13 @@ describe('JsonlThreadStore field choices', () => {
     expect(session?.home).toBe(EExecutionLocation.Cloud)
   })
 
-  it('does not invent a record when a never-written thread is placed at host', async () => {
-    const home = await tempHome()
-    const { threads } = openStore({ home })
-    const threadId = toThreadId('placed-at-host')
-
-    await threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Host })
-
-    expect(await threads.find({ threadId })).toBeUndefined()
-  })
-
   it('adopts a thread that carried no workspace, so it lists where it was reopened', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
     const threadId = toThreadId('unattributed')
     await log.append({ threadId, runId: ids.nextRunId(), drafts: [said('hello')] })
 
+    await threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Cloud })
     await threads.adopt({ threadId, workspace: '/here', repo: '/repo' })
 
     expect((await threads.list({ project: '/here' })).map((row) => row.id)).toEqual([threadId])
@@ -204,9 +195,9 @@ describe('JsonlThreadStore supervision', () => {
   it('keeps an agent thread inside its spawner’s session folder', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const spawner = await threads.create({ title: 'main', workspace: '/here' })
+    const spawner = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'main', workspace: '/here' })
 
-    const child = await threads.create({ workspace: '/here', agent: { spawnedBy: spawner.id, type: 'explore' } })
+    const child = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here', agent: { spawnedBy: spawner.id, type: 'explore' } })
 
     expect(child.agent).toEqual({ spawnedBy: spawner.id, type: 'explore' })
     const rootDir = sessionDirectory({ home, sessionId: spawner.id })
@@ -217,9 +208,9 @@ describe('JsonlThreadStore supervision', () => {
   it('answers spawned() by scanning the session folder’s thread metas', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const spawner = await threads.create({ title: 'main', workspace: '/here' })
-    const first = await threads.create({ agent: { spawnedBy: spawner.id, type: 'explore' } })
-    const second = await threads.create({ agent: { spawnedBy: spawner.id, type: 'builder' } })
+    const spawner = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'main', workspace: '/here' })
+    const first = await threads.create({ executionLocation: EExecutionLocation.Cloud, agent: { spawnedBy: spawner.id, type: 'explore' } })
+    const second = await threads.create({ executionLocation: EExecutionLocation.Cloud, agent: { spawnedBy: spawner.id, type: 'builder' } })
 
     expect((await threads.spawned({ threadId: spawner.id })).map((row) => row.id)).toEqual([first.id, second.id])
     expect(await threads.spawned({ threadId: first.id })).toEqual([])
@@ -228,8 +219,8 @@ describe('JsonlThreadStore supervision', () => {
   it('keeps agent threads out of /resume listings and most-recent', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
-    const root = await threads.create({ title: 'main', workspace: '/here' })
-    const child = await threads.create({ workspace: '/here', agent: { spawnedBy: root.id, type: 'explore' } })
+    const root = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'main', workspace: '/here' })
+    const child = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here', agent: { spawnedBy: root.id, type: 'explore' } })
     await log.append({ threadId: child.id, runId: ids.nextRunId(), drafts: [said('agent work')] })
 
     expect((await threads.list({ project: '/here' })).map((row) => row.id)).toEqual([root.id])
@@ -239,9 +230,9 @@ describe('JsonlThreadStore supervision', () => {
   it('sorts a session by any activity in its folder, including an agent’s', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
-    const older = await threads.create({ title: 'older', workspace: '/here' })
-    await threads.create({ title: 'newer', workspace: '/here' })
-    const child = await threads.create({ agent: { spawnedBy: older.id, type: 'explore' } })
+    const older = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'older', workspace: '/here' })
+    await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'newer', workspace: '/here' })
+    const child = await threads.create({ executionLocation: EExecutionLocation.Cloud, agent: { spawnedBy: older.id, type: 'explore' } })
     await log.append({ threadId: child.id, runId: ids.nextRunId(), drafts: [said('agent work')] })
 
     expect((await threads.list({ project: '/here' })).map((row) => row.title)).toEqual(['older', 'newer'])
@@ -259,9 +250,9 @@ describe('JsonlThreadStore listing', () => {
   it('answers most recent with the thread touched last, scoped to the project', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
-    const older = await threads.create({ title: 'older', workspace: '/work' })
-    await threads.create({ title: 'newer', workspace: '/work' })
-    await threads.create({ title: 'elsewhere', workspace: '/other' })
+    const older = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'older', workspace: '/work' })
+    await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'newer', workspace: '/work' })
+    await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'elsewhere', workspace: '/other' })
     await log.append({ threadId: older.id, runId: ids.nextRunId(), drafts: [said('touched last')] })
 
     expect((await threads.mostRecent({ project: '/work' }))?.id).toBe(older.id)
@@ -270,9 +261,9 @@ describe('JsonlThreadStore listing', () => {
   it('lists the threads of every worktree of a project, most recently touched first', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
-    const onMain = await threads.create({ title: 'on main', workspace: '/repo', repo: '/repo' })
-    await threads.create({ title: 'on feature', workspace: '/wt/feature', repo: '/repo' })
-    await threads.create({ title: 'theirs', workspace: '/wt/other', repo: '/other' })
+    const onMain = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'on main', workspace: '/repo', repo: '/repo' })
+    await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'on feature', workspace: '/wt/feature', repo: '/repo' })
+    await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'theirs', workspace: '/wt/other', repo: '/other' })
     await log.append({ threadId: onMain.id, runId: ids.nextRunId(), drafts: [said('touched last')] })
 
     expect((await threads.list({ project: '/repo' })).map((row) => row.title)).toEqual(['on main', 'on feature'])
@@ -281,8 +272,8 @@ describe('JsonlThreadStore listing', () => {
   it('still lists a main-checkout thread that predates repo attribution', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    await threads.create({ title: 'legacy', workspace: '/repo', repo: null })
-    await threads.create({ title: 'legacy worktree', workspace: '/wt/old', repo: null })
+    await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'legacy', workspace: '/repo', repo: null })
+    await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'legacy worktree', workspace: '/wt/old', repo: null })
 
     expect((await threads.list({ project: '/repo' })).map((row) => row.title)).toEqual(['legacy'])
     expect((await threads.list({ project: '/wt/old' })).map((row) => row.title)).toEqual(['legacy worktree'])
@@ -291,7 +282,7 @@ describe('JsonlThreadStore listing', () => {
   it('takes no more threads than the limit asked for', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    for (const title of ['one', 'two', 'three']) await threads.create({ title, workspace: '/here' })
+    for (const title of ['one', 'two', 'three']) await threads.create({ executionLocation: EExecutionLocation.Cloud, title, workspace: '/here' })
 
     expect(await threads.list({ project: '/here', limit: 2 })).toHaveLength(2)
   })
@@ -299,8 +290,8 @@ describe('JsonlThreadStore listing', () => {
   it('finds a thread by name however far down the picker’s window it has fallen', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const target = await threads.create({ title: 'Migrating to prod GHCR binary', workspace: '/here' })
-    for (let newer = 0; newer < 50; newer += 1) await threads.create({ title: `newer ${newer}`, workspace: '/here' })
+    const target = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'Migrating to prod GHCR binary', workspace: '/here' })
+    for (let newer = 0; newer < 50; newer += 1) await threads.create({ executionLocation: EExecutionLocation.Cloud, title: `newer ${newer}`, workspace: '/here' })
 
     expect(await threads.list({ project: '/here' })).toHaveLength(50)
     const found = await threads.findNamed({ project: '/here', handle: 'migrating-to-prod-ghcr-binary' })
@@ -314,7 +305,7 @@ describe('JsonlThreadStore queued meta writes', () => {
   it('serializes a rename against an append so neither write is lost', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'before', workspace: '/here', repo: null })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'before', workspace: '/here', repo: null })
 
     const [appended] = await Promise.all([
       log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said('kept')] }),

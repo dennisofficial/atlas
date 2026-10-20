@@ -15,10 +15,6 @@ export type { Notice }
 
 export const NOTICE_KEY_CLASSIFIER_OFFLINE = 'classifier-offline'
 
-export const NOTICE_KEY_LOST_AGENTS = 'lost-agents'
-
-export const NOTICE_KEY_LOST_SHELLS = 'lost-shells'
-
 const listeners = new Set<() => void>()
 
 let notices: readonly Notice[] = []

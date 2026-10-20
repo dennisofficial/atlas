@@ -90,7 +90,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       cwd: args.cwd,
       command: SERVE_COMMAND,
       model: args.model,
-      executionLocation: 'cloud',
       threadId: args.threadId,
     },
     env: args.env,
@@ -225,7 +224,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
-    executionLocation: app.executionLocation,
     endProcesses: ({ killedBy }) => stopWorkspaceProcessesFor({
       killedBy,
       root: args.threadId,

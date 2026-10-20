@@ -9,12 +9,10 @@ import { bundleSupervisorSource } from './supervisor-bundle'
 export const SHELL_SUPERVISE_FLAG = '--shell-supervise'
 
 const SCRIPT_PREFIX = 'atlas-supervisor-'
-const DOCKER_BUN = 'bun'
 
 export type SupervisorLauncher = {
   readonly script: string
   readonly host: readonly string[]
-  readonly docker: readonly string[]
 }
 
 export type SupervisorScriptSource = () => Promise<string>
@@ -100,11 +98,10 @@ export async function prepareSupervisorLauncher(args: {
   const script = await materialize({ home: args.home, text })
 
   const sourceEntry = args.source === undefined ? join(import.meta.dir, 'durable', 'supervisor-main.ts') : undefined
-  return { script, host: hostPrefix({ embedded, script, sourceEntry }), docker: [DOCKER_BUN, script] }
+  return { script, host: hostPrefix({ embedded, script, sourceEntry }) }
 }
 
 export const supervisorCommand = (args: {
   launcher: SupervisorLauncher
-  docker: boolean
   configPath: string
-}): readonly string[] => [...(args.docker ? args.launcher.docker : args.launcher.host), args.configPath]
+}): readonly string[] => [...args.launcher.host, args.configPath]

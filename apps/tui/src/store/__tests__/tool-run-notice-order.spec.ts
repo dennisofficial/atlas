@@ -101,8 +101,7 @@ const agentRestarted = (via: EAgentRestart): EventDraft => ({
 
 const locationChanged = (): EventDraft => ({
   type: 'location-changed',
-  from: EExecutionLocation.Host,
-  to: EExecutionLocation.Docker,
+  to: EExecutionLocation.Cloud,
 })
 
 const historyCompacted = (): EventDraft => ({

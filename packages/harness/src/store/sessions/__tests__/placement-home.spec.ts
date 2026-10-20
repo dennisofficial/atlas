@@ -15,7 +15,6 @@ describe('session home after an ownership change', () => {
     held.push(fixture)
     const thread = await fixture.threads.createWithFirstEvents({
       runId: toRunId('run_placement_home'),
-      executionLocation: EExecutionLocation.Host,
       drafts: [{ type: 'user-said', text: 'move my session' }],
     })
     await fixture.threads.writePlacement({

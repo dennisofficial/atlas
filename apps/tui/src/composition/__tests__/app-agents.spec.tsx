@@ -1,5 +1,6 @@
 import {
   EAgentStatus,
+  EExecutionLocation,
   toCallId,
   toRunId,
   toThreadId,
@@ -63,6 +64,7 @@ async function seedChildThread(app: FakeApp): Promise<void> {
     workspace: FAKE_CONFIG.cwd,
     repo: null,
     agent: { spawnedBy: THREAD, type: 'explore' },
+    executionLocation: EExecutionLocation.Cloud,
   })
   const made = (await app.threads.list({ project: FAKE_CONFIG.cwd })).at(0)
   if (made === undefined) throw new Error('the child thread was not created')
@@ -209,7 +211,7 @@ describe('conversations the operator started', () => {
   it('leaves a sub-agent out of /resume', async () => {
     const app = appWith()
     await seedChildThread(app)
-    const own = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+    const own = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, executionLocation: EExecutionLocation.Cloud })
     await app.threads.rename({ threadId: own.id, title: 'a conversation I started' })
 
     const setup = await opened(app)
@@ -286,23 +288,7 @@ describe('an ending is a wake, not an interrupt', () => {
   }, 60_000)
 })
 
-const ORPHAN = toThreadId('thr_orphan')
-
-const ORPHAN_TITLE = 'explore (rotation sweep)'
-
-const LOST: RecoveredAgents = {
-  settled: [],
-  unlogged: [
-    {
-      agentId: ORPHAN,
-      agentType: 'explore',
-      title: ORPHAN_TITLE,
-      startedAt: '2026-01-01T09:15:00.000Z',
-    },
-  ],
-}
-
-async function openedWith(app: FakeApp, lost?: RecoveredAgents): Promise<Mounted> {
+async function openedWith(app: FakeApp): Promise<Mounted> {
   const events = await app.log.append({
     threadId: THREAD,
     runId: toRunId('run-before'),
@@ -317,7 +303,6 @@ async function openedWith(app: FakeApp, lost?: RecoveredAgents): Promise<Mounted
         turns: [],
         name: null,
         started: true,
-        ...(lost === undefined ? {} : { lost }),
       }}
     />,
     WIDE,
@@ -327,23 +312,6 @@ async function openedWith(app: FakeApp, lost?: RecoveredAgents): Promise<Mounted
 }
 
 describe('children the last process lost', () => {
-  it('announces an unlogged child on open, because nothing else in the app ever will', async () => {
-    const setup = await openedWith(appWith(), LOST)
-
-    try {
-      const frame = await frameShowing({
-        setup,
-        text: '1 sub-agent left no record in this conversation',
-      })
-      expect(frame).toContain('1 sub-agent left no record in this conversation')
-      expect(frame).toContain('check the tree before carrying on')
-      expect(frame).not.toContain('/agents')
-      expect(frame).not.toContain(ORPHAN_TITLE)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
   it('shows nothing at all on a clean open, which is every ordinary one', async () => {
     const setup = await openedWith(appWith())
 

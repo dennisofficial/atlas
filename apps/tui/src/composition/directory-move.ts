@@ -2,7 +2,7 @@ import { realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 
-import { EExecutionLocation, type ActiveWorktree, type ThreadId } from '@dltech/atlas-core'
+import type { ActiveWorktree, ThreadId } from '@dltech/atlas-core'
 import { probeWorkspace, releaseWorktree } from '@dltech/atlas-harness'
 
 import { expandHome } from '../ui/paths'
@@ -20,9 +20,6 @@ export const cdTargetOf = (args: { argument: string; current: string }): string 
 
 export const directoryRefusal = (path: string): string | null =>
   workspaceRefusal({ directory: path, state: stateOfDirectory(path) })
-
-export const IN_A_CONTAINER =
-  '/cd moves the session on the host — this conversation runs in a container, where the directory is fixed. /container off first'
 
 export const currentDirectoryNotice = (path: string): string =>
   `this session is working in ${path}`
@@ -69,7 +66,7 @@ const refused = (reason: string): CommandEffect => ({ type: ECommandEffect.Refus
 const ran = (notice: string): CommandEffect => ({ type: ECommandEffect.Ran, notice })
 
 export async function changeDirectory(args: {
-  app: MovePorts & Pick<AtlasApp, 'executionLocation' | 'workspace'>
+  app: MovePorts & Pick<AtlasApp, 'workspace'>
   threadId: ThreadId
   started: boolean
   workspace: { projectDirectory: string; activeWorktree: ActiveWorktree | null }
@@ -82,10 +79,6 @@ export async function changeDirectory(args: {
   const argument = args.argumentText.trim()
   const current = workspace.projectDirectory
   if (argument === '') return ran(currentDirectoryNotice(current))
-
-  if (app.executionLocation.current() === EExecutionLocation.Docker) {
-    return refused(IN_A_CONTAINER)
-  }
 
   const target = cdTargetOf({ argument, current })
   const badDirectory = directoryRefusal(target)

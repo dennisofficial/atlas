@@ -67,7 +67,6 @@ const BUILTIN_NAMES = [
   'report_to_main',
   'enter_worktree',
   'exit_worktree',
-  'execution_location',
   'worktree_list',
   'web_fetch',
   'web_search',

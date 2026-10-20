@@ -98,7 +98,7 @@ describe('serve gets the same repo plugins the TUI gets, because composeHarness 
     let container: DependencyContainer | undefined
 
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
+      launch: { cwd: project, command: 'atlas-serve', model: undefined },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),

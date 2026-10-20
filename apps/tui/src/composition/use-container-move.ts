@@ -1,7 +1,6 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
-import type { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import { createAwakeClock } from './awake-clock'
@@ -25,7 +24,6 @@ export type ContainerMoveControl = {
   move: ContainerMove | null
   now: number
   handleBegin: (args: {
-    target: EExecutionLocation
     rows: readonly MoveRowSeed[]
     heading?: string | undefined
     onCancel?: (() => void) | undefined
@@ -57,7 +55,6 @@ export function useContainerMove(args?: {
 
   const handleBegin = useCallback(
     (beginArgs: {
-      target: EExecutionLocation
       rows: readonly MoveRowSeed[]
       heading?: string | undefined
       onCancel?: (() => void) | undefined
@@ -67,7 +64,6 @@ export function useContainerMove(args?: {
         (current) =>
           current ??
           beginMove({
-            target: beginArgs.target,
             now: clock.read(),
             rows: beginArgs.rows,
             cancellable: beginArgs.onCancel !== undefined,

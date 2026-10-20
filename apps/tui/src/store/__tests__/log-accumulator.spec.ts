@@ -78,7 +78,7 @@ const varied = (): readonly Event[] =>
     { type: 'user-said', text: 'keep going' },
     { type: 'permission-revoked', grantId: 'grant-1' },
     { type: 'worktree-exited', path: '/repo/.atlas/worktrees/feat', action: EWorktreeExit.Keep, returnTo: '/repo' },
-    { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
+    { type: 'location-changed', to: EExecutionLocation.Cloud },
     called({ n: 4, name: 'Read', input: { path: '/x' } }),
     result({ n: 4, name: 'Read', output: 'contents' }),
   ])
@@ -92,7 +92,7 @@ describe('the log accumulator', () => {
 
   it('anchors the home on the directory a location change restored, as the core fold does', () => {
     const events = log([
-      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host, cwd: '/restored/work' },
+      { type: 'location-changed', to: EExecutionLocation.Cloud, cwd: '/restored/work' },
     ])
 
     expect(foldLogEvents({ events, effects }).home).toBe('/restored/work')

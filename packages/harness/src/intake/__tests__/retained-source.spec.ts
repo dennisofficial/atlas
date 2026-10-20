@@ -52,7 +52,7 @@ describe('drain-only source adapter', () => {
     intake.suspend()
     await teardownSession({
       sources: [{ closeAll: async () => undefined, threadsAwaitingNotice: () => [], drainNotifications: () => [] }],
-      log, ids: new RandomIds(), intake, stopSandbox: async () => undefined,
+      log, ids: new RandomIds(), intake,
     })
     expect(stored).toEqual([REPORT])
     expect(intake.threadsWithPendingInput()).toEqual([])

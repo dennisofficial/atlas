@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
 
-import { EventLogPort, EExecutionLocation, EWebSearchBackend, ExecutionLocationSinkPort, toCallId, toRunId, toThreadId, type Chunk } from '@dltech/atlas-core'
+import { EventLogPort, EWebSearchBackend, toCallId, toRunId, toThreadId, type Chunk } from '@dltech/atlas-core'
 
 import { ToolDispatcher } from '../../tools/dispatch'
 import { ToolRegistry } from '../../tools/registry'
@@ -50,7 +50,6 @@ describe('the harness container graph', () => {
       'bash',
       'edit',
       'enter_worktree',
-      'execution_location',
       'exit_worktree',
       'glob',
       'grep',
@@ -125,11 +124,5 @@ describe('the harness container graph', () => {
 
   it('resolves the event log straight from the atlas home, no database to open first', () => {
     expect(rooted().resolve(registeredPortToken(EventLogPort))).toBeInstanceOf(JsonlEventLog)
-  })
-
-  it('answers the execution-location sink with a no-op until an app registers a real one', () => {
-    const sink = rooted().resolve(registeredPortToken(ExecutionLocationSinkPort))
-
-    expect(() => sink.refresh({ threadId: toThreadId('thread-1') })).not.toThrow()
   })
 })

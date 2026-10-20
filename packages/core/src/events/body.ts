@@ -29,10 +29,6 @@ export enum EWorktreeExit {
   Remove = 'remove',
 }
 
-export enum ELocationChangeCause {
-  SandboxExpired = 'sandbox-expired',
-}
-
 export enum EOperatorInputOutcome {
   Delivered = 'delivered',
   Undelivered = 'undelivered',
@@ -148,12 +144,10 @@ export type EventBody =
   | { type: 'worktree-exited'; path: string; action: EWorktreeExit; returnTo?: string | undefined }
   | {
       type: 'location-changed'
-      from: EExecutionLocation
-      to: EExecutionLocation
+      to?: EExecutionLocation | undefined
       cwd?: string | undefined
       remoteUrl?: string | null | undefined
       branch?: string | null | undefined
-      cause?: ELocationChangeCause | undefined
     }
   | { type: 'rotated'; predecessor: ThreadId; handoffPath: string; instructions?: string | undefined }
   | {

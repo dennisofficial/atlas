@@ -210,7 +210,7 @@ describe('rewindPlan for location changes', () => {
   it('keeps a location-changed above the cut, since the move is still true', () => {
     const events = eventsFrom([
       said('msg_1'),
-      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      { type: 'location-changed', to: EExecutionLocation.Cloud },
       said('msg_2'),
       replied('on it'),
     ])
@@ -221,7 +221,6 @@ describe('rewindPlan for location changes', () => {
     expect(plan.reappend).toHaveLength(1)
     expect(plan.reappend[0]?.draft).toEqual({
       type: 'location-changed',
-      from: EExecutionLocation.Host,
       to: EExecutionLocation.Cloud,
     })
   })
@@ -229,24 +228,24 @@ describe('rewindPlan for location changes', () => {
   it('keeps every move when the log holds several', () => {
     const events = eventsFrom([
       said('msg_1'),
-      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      { type: 'location-changed', to: EExecutionLocation.Cloud },
       said('msg_2'),
-      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host },
+      { type: 'location-changed', to: EExecutionLocation.Cloud },
       said('msg_3'),
     ])
 
     const plan = rewindPlan({ events, toSeq: 1 })
 
     expect(plan.reappend.map((notice) => notice.draft)).toEqual([
-      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
-      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host },
+      { type: 'location-changed', to: EExecutionLocation.Cloud },
+      { type: 'location-changed', to: EExecutionLocation.Cloud },
     ])
   })
 
   it('re-appends a move that survived summarization, since the marker outlives the summary covering it', () => {
     const events = eventsFrom([
       said('msg_1'),
-      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      { type: 'location-changed', to: EExecutionLocation.Cloud },
       {
         type: 'history-compacted',
         anchor: ECompactionAnchor.Prefix,
@@ -261,7 +260,7 @@ describe('rewindPlan for location changes', () => {
     const plan = rewindPlan({ events, toSeq: 1 })
 
     expect(plan.reappend.map((notice) => notice.draft)).toEqual([
-      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      { type: 'location-changed', to: EExecutionLocation.Cloud },
     ])
   })
 })

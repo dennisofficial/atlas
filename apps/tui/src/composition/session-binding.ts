@@ -22,7 +22,6 @@ import {
 } from '@dltech/atlas-core'
 
 import { cloudRuntimeParts } from './cloud/cloud-app'
-import { publishPrStateReader } from './cloud/pr-state-reader-holder'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
@@ -44,23 +43,14 @@ export type CloudAttachment = {
   settleOpen: () => void
 }
 
-export type LocalAttachment = { kind: 'local'; opened: OpenedConversation; context: ContextReaders }
-
-export type SurfaceAttachment = CloudAttachment | LocalAttachment
-
 export type Binding = RuntimeBinding<SessionRuntime>
 
-const isAttachment = (value: unknown): value is SurfaceAttachment =>
-  typeof value === 'object' && value !== null && 'kind' in value && (value.kind === 'cloud' || value.kind === 'local')
-
-export const attachmentOf = (binding: Binding | undefined): SurfaceAttachment | undefined => {
-  const held = binding?.adapters.attachment
-  return isAttachment(held) ? held : undefined
-}
+const isCloudAttachment = (value: unknown): value is CloudAttachment =>
+  typeof value === 'object' && value !== null && 'kind' in value && value.kind === 'cloud'
 
 export const cloudAttachmentOf = (binding: Binding | undefined): CloudAttachment | undefined => {
-  const held = attachmentOf(binding)
-  return held?.kind === 'cloud' ? held : undefined
+  const held = binding?.adapters.attachment
+  return isCloudAttachment(held) ? held : undefined
 }
 
 export async function cloudAnchorOf(args: {
@@ -122,50 +112,12 @@ export const cloudBindingOf = (args: {
   close: () => args.session.close(),
 })
 
-export const localAnchorOf = (args: { local: AtlasApp; opened: OpenedConversation }): WorkspaceIdentity => ({
-  workspace: projectDirectoryOf({ events: args.opened.events, launchDirectory: args.local.workspace.workspace }),
-  repo: repoOf({ events: args.opened.events, launchRepo: args.local.workspace.repo }),
-})
-
-export const localBindingOf = (args: {
-  local: AtlasApp
-  workspace: WorkspaceIdentity
-  opened: OpenedConversation
-}): Binding => {
-  publishPrStateReader(null)
-  return {
-    kind: ERuntimeKind.Local,
-    cwd: args.workspace.workspace,
-    adapters: {
-      runner: args.local.runner,
-      channel: args.local.channel,
-      log: args.local.log,
-      threads: args.local.threads,
-      ledger: args.local.ledger,
-      intake: args.local.intake,
-      shells: args.local.shells,
-      agents: args.local.agents,
-      services: args.local.services,
-      rewindMachinery: undefined,
-      compaction: args.local.compaction,
-      workspace: args.workspace,
-      files: args.local.files,
-      attachment: {
-        kind: 'local',
-        opened: args.opened,
-        context: createSessionContextReader({ threadId: args.opened.threadId }),
-      },
-    },
-  }
-}
-
 const derived = new WeakMap<Binding, AtlasApp>()
 
 export function appOf(args: { local: AtlasApp; binding: Binding | undefined }): AtlasApp {
   const { local, binding } = args
   if (binding === undefined) return local
   const held = binding.adapters
-  if (binding.kind === ERuntimeKind.Local) return local
   const cached = derived.get(binding)
   if (cached !== undefined) return cached
   const { attachment: _attachment, ...parts } = held

@@ -34,9 +34,9 @@ describe('the last chosen born placement', () => {
     expect(lastChoiceOf({})).toBe('auto')
   })
 
-  it('remembers cloud and host, and rejects anything else', () => {
-    expect(lastChoiceOf({ [ESettingId.LastBornPlacement]: 'cloud' })).toBe('cloud')
-    expect(lastChoiceOf({ [ESettingId.LastBornPlacement]: 'host' })).toBe('host')
-    expect(lastChoiceOf({ [ESettingId.LastBornPlacement]: 'docker' })).toBe('auto')
+  it('remembers the local and Vercel runners, and rejects anything else', () => {
+    expect(lastChoiceOf({ [ESettingId.LastBornPlacement]: 'local' })).toBe('local')
+    expect(lastChoiceOf({ [ESettingId.LastBornPlacement]: 'vercel' })).toBe('vercel')
+    expect(lastChoiceOf({ [ESettingId.LastBornPlacement]: 'host' })).toBe('auto')
   })
 })

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { DEFAULT_SANDBOX_IMAGE } from '../docker/sandbox'
+import { DEFAULT_POD_IMAGE } from '../../cloud/local-pod/pod-create'
 import { EBuildContext } from './build'
 import { type Mount } from './mounts'
 import { parseContainerJson, parseDevcontainerJson } from './parse'
@@ -76,7 +76,7 @@ export async function resolveContainerConfig(args: {
       return {
         image: {
           kind: EImageKind.Image,
-          reference: parsed.config.image ?? DEFAULT_SANDBOX_IMAGE,
+          reference: parsed.config.image ?? DEFAULT_POD_IMAGE,
         },
         setup: parsed.config.setup,
         start: parsed.config.start,
@@ -103,7 +103,7 @@ export async function resolveContainerConfig(args: {
       return {
         image: {
           kind: EImageKind.Image,
-          reference: parsed.image ?? DEFAULT_SANDBOX_IMAGE,
+          reference: parsed.image ?? DEFAULT_POD_IMAGE,
         },
         setup: parsed.setup,
         start: undefined,
@@ -153,7 +153,7 @@ export async function resolveContainerConfig(args: {
   }
 
   return {
-    image: { kind: EImageKind.Image, reference: DEFAULT_SANDBOX_IMAGE },
+    image: { kind: EImageKind.Image, reference: DEFAULT_POD_IMAGE },
     env: {},
     mounts: [],
     source: EConfigSource.BuiltIn,

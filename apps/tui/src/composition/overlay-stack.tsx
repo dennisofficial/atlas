@@ -5,7 +5,6 @@ import { Accounts } from '../ui/components/accounts'
 import type { Span } from '../ui/components/spans'
 import type { ProviderRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
-import { ContainerGuard } from '../ui/components/container-guard'
 import { ContainerMoveOverlay } from '../ui/components/container-move'
 import { ContainerResources } from '../ui/components/container-resources'
 import type { ContainerMove } from './container-move'
@@ -27,7 +26,6 @@ import { isShellRunning } from '../ui/shells-model'
 import { isSubagentAlive } from '../store/subagent-row'
 import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
-import type { ContainerGuardControl } from './use-container-guard'
 import type { ContainerResourcesControl } from './use-container-resources'
 import type { ExitGuardControl } from './use-exit-guard'
 import type { OnboardingControl } from './use-onboarding'
@@ -62,7 +60,6 @@ function DerivedOverlayStack(props: {
   rewind: RewindControl
   rewindConfirm: RewindConfirmControl
   exitGuard: ExitGuardControl
-  containerGuard: ContainerGuardControl
   containerResources: ContainerResourcesControl
   compacting: Compacting | null
   containerMove: ContainerMove | null
@@ -81,7 +78,6 @@ function DerivedOverlayStack(props: {
     threads,
     rewind,
     exitGuard,
-    containerGuard,
     containerResources,
   } = props
   useAppearance()
@@ -227,17 +223,6 @@ function DerivedOverlayStack(props: {
           state={containerResources.state}
           overlay
           onDismiss={containerResources.handleDismiss}
-        />
-      )}
-      {containerGuard.state === null || containerGuard.target === null ? null : (
-        <ContainerGuard
-          width={Math.min(props.contentWidth, props.width)}
-          target={containerGuard.target}
-          running={shells.shells.filter(isShellRunning).map(exitGuardRow)}
-          state={containerGuard.state}
-          overlay
-          onPick={containerGuard.handlePick}
-          onDismiss={containerGuard.handleDismiss}
         />
       )}
       {onboarding.state === null ? null : (

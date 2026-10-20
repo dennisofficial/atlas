@@ -26,7 +26,7 @@ afterEach(async () => {
 })
 
 describe('a turn without recurring environment reminders', () => {
-  it.each([EExecutionLocation.Host, EExecutionLocation.Docker, EExecutionLocation.Cloud])(
+  it.each([EExecutionLocation.Cloud])(
     'sends only the logged exchange across tool steps on %s',
     async (location) => {
       const model = scriptedModel({

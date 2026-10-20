@@ -45,7 +45,7 @@ const text = (args: { name: string; body: string }) =>
   `---\nname: ${args.name}\ndescription: persistent skill test\n---\n${args.body}`
 
 const compose = () => composeHarness<undefined, never>({
-  launch: { cwd, command: 'serve', model: undefined, executionLocation: undefined },
+  launch: { cwd, command: 'serve', model: undefined },
   env: {},
   settings: {
     service: createSettingsService({ definitions: ATLAS_SETTINGS, user: new MemorySettingsStore({ label: 'persistent skill spec' }) }),

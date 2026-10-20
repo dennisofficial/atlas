@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { EHarnessPlacement, ERunner } from '@dltech/atlas-core'
+import { ERunner } from '@dltech/atlas-core'
 
 import { modelLabel } from '../model-label'
 import { collapseHome } from '../paths'
@@ -16,15 +16,11 @@ const ACTION = 'Describe the work below.'
 
 const SEPARATOR = ' · '
 
-const HOST_LABEL = '☁ local'
-
 const CLOUD_LABEL = '☁ cloud'
-
-const HOST_HINT = '↓ to the footer chip, ⏎ for a pod'
 
 const CLOUD_HINT = '↓ to the footer chip, ⏎ to switch runner'
 
-export type WelcomePlacement = { harness: EHarnessPlacement; runner?: ERunner | undefined; provisioning: boolean }
+export type WelcomePlacement = { runner?: ERunner | undefined; provisioning: boolean }
 
 const POD_LABEL = 'pod'
 
@@ -41,10 +37,7 @@ export function WelcomeScreen(props: {
   placement?: WelcomePlacement | null
 }): React.ReactNode {
   const marked = props.width >= WORDMARK_CELLS
-  const hosted =
-    marked && props.shape === 'hero' && props.placement != null
-      ? props.placement.harness === EHarnessPlacement.Host
-      : null
+  const placed = marked && props.shape === 'hero' && props.placement != null
   const rows = wordmarkRows({ accent: theme.accent, ground: theme.appBg, bright: theme.bright })
 
   return (
@@ -74,18 +67,18 @@ export function WelcomeScreen(props: {
         <span fg={theme.hint}>{modelLabel(props.modelId)}</span>
         <span fg={theme.rule}>{SEPARATOR}</span>
         <span fg={theme.hint}>{props.version}</span>
-        {hosted === null ? null : (
+        {!placed ? null : (
           <>
             <span fg={theme.rule}>{SEPARATOR}</span>
-            <span fg={theme.meta}>{hosted ? HOST_LABEL : placedLabelOf(props.placement)}</span>
+            <span fg={theme.meta}>{placedLabelOf(props.placement)}</span>
           </>
         )}
       </text>
       <text> </text>
       <text fg={theme.meta}>{ACTION}</text>
-      {hosted === null ? null : (
+      {!placed ? null : (
         <text>
-          <span fg={theme.hint}>{hosted ? HOST_HINT : CLOUD_HINT}</span>
+          <span fg={theme.hint}>{CLOUD_HINT}</span>
         </text>
       )}
       <text> </text>

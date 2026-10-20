@@ -1,4 +1,4 @@
-import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, ELocationChangeCause, EOperatorInputOutcome, currentContextEvents, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EContextSlot, EKilledBy, EOperatorInputOutcome, currentContextEvents, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -154,16 +154,6 @@ const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   return event.slot.replaceAll('-', ' ')
 }
 
-// #1252 stopped recording relocation artifacts (a lift-era location-changed marker and a
-// session-slot context injection) for born-placed sessions; logs written before it still carry
-// them. The renderer drops them by shape — a move to or from the cloud means a relocation, since
-// genuine moves under born-placed stay between host and docker — while the read paths in core
-// (worktree anchors, rewind) keep folding the events themselves.
-const isRelocationMarker = (event: EventOfType<'location-changed'>): boolean => {
-  if (event.cause === ELocationChangeCause.SandboxExpired) return false
-  return event.from === EExecutionLocation.Cloud || event.to === EExecutionLocation.Cloud
-}
-
 const isRelocationInjection = (event: EventOfType<'context-loaded'>): boolean =>
   event.slot === 'session' && event.key === 'execution-location'
 
@@ -237,27 +227,6 @@ function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
   }
 
   return folded
-}
-
-const locationChangedEntry = (args: {
-  key: string
-  to: EExecutionLocation
-  cause?: ELocationChangeCause | undefined
-}): TranscriptEntry => {
-  const text =
-    args.to === EExecutionLocation.Docker
-      ? 'docker container'
-      : args.to === EExecutionLocation.Cloud
-        ? 'cloud sandbox'
-        : 'host'
-  return {
-    kind: EEntryKind.LocationChanged,
-    author: EAuthor.Model,
-    key: args.key,
-    text,
-    to: args.to,
-    cause: args.cause,
-  }
 }
 
 export function durableEntries(args: {
@@ -503,10 +472,7 @@ export function durableEntries(args: {
       ]
     }
 
-    if (event.type === 'location-changed') {
-      if (isRelocationMarker(event)) return []
-      return [locationChangedEntry({ key: event.id, to: event.to, cause: event.cause })]
-    }
+    if (event.type === 'location-changed') return []
 
     if (event.type === 'rotated') {
       return [
