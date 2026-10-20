@@ -34,6 +34,7 @@ model User {
   localPodLeases LocalPodLease[]
   sshSigningKey SshSigningKey?
   memories      Memory[]
+  publishedBundles PublishedBundle[]
 }
 
 model Thread {
@@ -317,6 +318,22 @@ model Memory {
 
   @@unique([userId, scope, project, name])
   @@index([userId, project])
+}
+
+model PublishedBundle {
+  id        String   @id @default(cuid())
+  userId    String
+  version   Int
+  pathname  String
+  blobUrl   String
+  sha256    String
+  sizeBytes Int
+  manifest  Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, version])
+  @@unique([pathname])
 }
 
 model Session {

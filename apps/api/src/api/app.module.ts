@@ -19,6 +19,7 @@ import { MemoriesModule } from './cloud/memories/memories.module'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
+import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
@@ -53,6 +54,7 @@ import { UserFilesModule } from './cloud/user-files/user-files.module'
     GithubModule,
     SshSigningKeyModule,
     MemoriesModule,
+    PublishedBundlesModule,
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,

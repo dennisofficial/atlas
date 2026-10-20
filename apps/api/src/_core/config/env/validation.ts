@@ -1,6 +1,8 @@
 import Joi from 'joi'
 import type { IAuthEnv } from './sections/auth'
 import { authEnvSchema } from './sections/auth'
+import type { IBlobEnv } from './sections/blob'
+import { blobEnvSchema } from './sections/blob'
 import type { ICryptoEnv } from './sections/crypto'
 import { cryptoEnvSchema } from './sections/crypto'
 import type { IDatabaseEnv } from './sections/database'
@@ -19,6 +21,7 @@ import { triggerEnvSchema } from './sections/trigger'
 export interface IEnvConfig
   extends IRuntimeEnv,
     IAuthEnv,
+    IBlobEnv,
     IDatabaseEnv,
     ICryptoEnv,
     IGithubEnv,
@@ -29,6 +32,7 @@ export interface IEnvConfig
 export const envConfigValidation = Joi.object({
   ...runtimeEnvSchema,
   ...authEnvSchema,
+  ...blobEnvSchema,
   ...databaseEnvSchema,
   ...cryptoEnvSchema,
   ...githubEnvSchema,
