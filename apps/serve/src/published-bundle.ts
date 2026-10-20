@@ -111,7 +111,6 @@ const writeBundle = async (args: {
         userLayerTrees: sandboxUserLayerTrees({
           atlasHome: args.atlasHome,
           projectDirectory: args.projectDirectory,
-          identity: null,
         }),
       },
       overwrite: true,
