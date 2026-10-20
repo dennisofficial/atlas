@@ -15,14 +15,22 @@ import { registeredPortToken, type DependencyContainer } from '../../container/i
 export const CLOUD_URL = 'https://cloud-unreachable.test'
 export const PROVIDER_URL = 'https://api.anthropic.test'
 
-export type RecordedRequest = { url: string; authorization: string | undefined }
+export type RecordedRequest = {
+  url: string
+  authorization: string | undefined
+  method?: string | undefined
+}
 
 export const requests: RecordedRequest[] = []
 
 export const outageFetch = (mode: 'reject' | '503' | 'hang'): typeof fetch =>
   (async (input: unknown, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
-    requests.push({ url: String(input), authorization: headers.get('authorization') ?? undefined })
+    requests.push({
+      url: String(input),
+      authorization: headers.get('authorization') ?? undefined,
+      method: init?.method ?? 'GET',
+    })
     if (mode === 'hang') return new Promise<Response>(() => {})
     if (mode === '503') return new Response('cloud unavailable', { status: 503 })
     throw new Error('offline')

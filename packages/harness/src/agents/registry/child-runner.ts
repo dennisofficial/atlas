@@ -58,6 +58,9 @@ const SUB_AGENT_DENIED: readonly string[] = [
   ...AGENT_TOOL_NAMES,
   ...WORKTREE_TOOL_NAMES,
   'operator_input',
+  'write_memory',
+  'edit_memory',
+  'delete_memory',
 ]
 
 const deniedFor = (agentType: AgentType): readonly string[] =>

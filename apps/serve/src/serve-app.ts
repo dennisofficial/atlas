@@ -193,12 +193,12 @@ export type ServeComposeArgs = {
   env: Record<string, string | undefined>
   model: { ref: string; effort?: string | undefined } | undefined
   notice: NoticePort
-  /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
+  /** The Mac-side project directory the sandbox mirrors. */
   projectDirectory?: string | null | undefined
   /**
-   * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, so the
-   * sandbox's project memory lands in the same identity-keyed directory the host uses. Null when
-   * the repo has no host-named remote; undefined only against a control plane too old to say.
+   * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, from
+   * which the session derives its GitHub project. Null when the repo has no host-named remote;
+   * undefined only against a control plane too old to say.
    */
   identity?: string | null | undefined
 }

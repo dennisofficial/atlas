@@ -100,8 +100,15 @@ const seedCloudSession = (): void => {
   })
 }
 
+const isMemoryIndexRequest = (request: RecordedRequest): boolean =>
+  request.method === 'GET' &&
+  request.url.startsWith(CLOUD_URL) &&
+  new URL(request.url).pathname === '/v1/memories'
+
+const memoryIndexRequests = (): RecordedRequest[] => requests.filter(isMemoryIndexRequest)
+
 const cloudRequests = (): RecordedRequest[] =>
-  requests.filter((request) => request.url.startsWith(CLOUD_URL))
+  requests.filter((request) => request.url.startsWith(CLOUD_URL) && !isMemoryIndexRequest(request))
 
 const textOf = (parts: readonly AssistantPart[]): string =>
   parts
@@ -129,7 +136,7 @@ const compose = async (args: {
   })
 
 describe('a composed local session while Atlas Cloud is down', () => {
-  it('boots signed-in and runs a turn using cached cloud-owned access without an API request', async () => {
+  it('boots signed-in and runs a turn using cached cloud-owned access without any API request but the memory index', async () => {
     const realFetch = globalThis.fetch
     globalThis.fetch = outageFetch('reject')
 
@@ -153,6 +160,7 @@ describe('a composed local session while Atlas Cloud is down', () => {
         'local answer one',
       )
 
+      expect(memoryIndexRequests().length).toBeGreaterThan(0)
       expect(cloudRequests()).toEqual([])
       expect(requests.some((request) => request.url.includes('/v1/accounts'))).toBe(false)
       expect(requests.some((request) => request.url.includes('/v1/mcp'))).toBe(false)
@@ -203,7 +211,11 @@ describe('a composed local session while Atlas Cloud is down', () => {
     globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
       const url = String(input)
       const headers = new Headers(init?.headers)
-      const record = { url, authorization: headers.get('authorization') ?? undefined }
+      const record = {
+        url,
+        authorization: headers.get('authorization') ?? undefined,
+        method: init?.method ?? 'GET',
+      }
       requests.push(record)
       if (url.startsWith(PROVIDER_URL)) {
         providerCalls.push(record)
@@ -266,9 +278,9 @@ describe('a composed local session while Atlas Cloud is down', () => {
 
   it('does not request renewal or block a turn while cached cloud access is fresh', async () => {
     const realFetch = globalThis.fetch
-    globalThis.fetch = (async (input: unknown) => {
+    globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
       const url = String(input)
-      requests.push({ url, authorization: undefined })
+      requests.push({ url, authorization: undefined, method: init?.method ?? 'GET' })
       if (url.startsWith(CLOUD_URL)) return new Promise<Response>(() => {})
       throw new Error('offline')
     }) as unknown as typeof fetch

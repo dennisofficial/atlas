@@ -1,23 +1,31 @@
 import {
   AfterToolHook,
-  BeforeToolHook,
   BeforeTurnHook,
-  ClockPort,
+  githubProjectOf,
   PromptFragment,
   ToolDefinition,
 } from '@dltech/atlas-core'
 
-import { portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
+import { CloudMemoryPort } from '../memory/cloud-memory-port'
+import { newMemoryIndexState } from '../memory/memory-index-state'
+import { MemoryPort } from '../memory/memory-port'
+import { readOriginIdentity } from '../memory/origin-identity'
+import { instanceCachingFactory, portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
+import {
+  ClientVersionToken,
+  CloudSessionStoreToken,
+  ServeSessionToken,
+} from '../container/tokens'
 import { FileReadStatePort } from '../files/read-state'
 import { LoadInstructionsHook } from '../hooks/load-instructions'
-import { LoadMemoryHook } from '../hooks/load-memory'
+import { LoadMemoryIndexHook } from '../hooks/load-memory'
 import { NestedInstructionsHook } from '../hooks/nested-instructions'
-import { StampMemoryHook } from '../hooks/stamp-memory'
-import { resolveProjectMemory } from '../memory/project-memory'
-import { memoryDirectoriesFor } from '../memory/read-memory'
 import { MemoryFragment } from '../prompt/fragments/memory'
 import type { SettingsService } from '../settings/service'
-import { atlasDirectory } from '../store/paths'
+import { DeleteMemoryTool } from '../tools/builtin/memory-delete'
+import { EditMemoryTool } from '../tools/builtin/memory-edit'
+import { ReadMemoryTool } from '../tools/builtin/memory-read'
+import { WriteMemoryTool } from '../tools/builtin/memory-write'
 
 import { instructionPlanOf, nestedInstructionPlanOf } from './instruction-plan'
 
@@ -46,36 +54,44 @@ export async function bindInstructionsAndMemory(args: {
       }),
   })
 
-  const memoryDirectories =
-    args.repoIdentity === undefined
-      ? (
-          await resolveProjectMemory({
-            atlasHome: atlasDirectory(),
-            repoRoot: args.repoRoot,
-          })
-        ).directories
-      : memoryDirectoriesFor({
-          atlasHome: atlasDirectory(),
-          repoRoot: args.repoRoot,
-          identity: args.repoIdentity,
-        })
+  const project = githubProjectOf(args.repoIdentity ?? (await readOriginIdentity(args.repoRoot)))
+  const state = newMemoryIndexState()
+
+  container.register(registeredPortToken(MemoryPort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new CloudMemoryPort({
+          project,
+          clientVersion: resolver.isRegistered(ClientVersionToken, true)
+            ? resolver.resolve(ClientVersionToken)
+            : 'dev',
+          session: () =>
+            resolver.isRegistered(ServeSessionToken, true)
+              ? resolver.resolve(ServeSessionToken)
+              : resolver.resolve(CloudSessionStoreToken).read(),
+        }),
+    ),
+  })
 
   container.register(portToken(PromptFragment), {
-    useValue: new MemoryFragment({ directories: memoryDirectories }),
+    useValue: new MemoryFragment({ state }),
   })
 
   container.register(portToken(BeforeTurnHook), {
     useFactory: (resolver) =>
-      new LoadMemoryHook({
-        directories: memoryDirectories,
-        readState: resolver.resolve(registeredPortToken(FileReadStatePort)),
-      }),
+      new LoadMemoryIndexHook({ port: resolver.resolve(registeredPortToken(MemoryPort)), state }),
   })
 
-  container.register(portToken(BeforeToolHook), {
-    useValue: new StampMemoryHook({
-      directories: [memoryDirectories.user, memoryDirectories.project],
-      clock: container.resolve(registeredPortToken(ClockPort)),
-    }),
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new ReadMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new WriteMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new EditMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new DeleteMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
   })
 }

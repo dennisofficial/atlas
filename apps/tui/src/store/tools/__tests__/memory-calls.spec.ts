@@ -1,30 +1,25 @@
 import { describe, expect, it } from 'bun:test'
 
-import { classify } from '../classify'
 import { sentenceOf } from '../aggregate'
+import { classify } from '../classify'
 import { EDetail, EGather, EToolClass } from '../kinds'
+import { ECallState } from '../../tool-runs'
 import { aCall, CWD } from './fixture'
 
-const MEMORY = '/Users/d/.atlas/projects/-Users-d-code-atlas/memory/bun-deflate.md'
-const INDEX = '/Users/d/.atlas/projects/-Users-d-code-atlas/memory/MEMORY.md'
-const ORDINARY = '/Users/d/code/atlas/src/ui/theme.ts'
-const DIR = '/Users/d/.atlas/projects/-Users-d-code-atlas/memory'
-
-const readOf = (path: string, extra: Record<string, unknown> = {}) =>
+const memoryOf = (args: { name: string; input?: Record<string, unknown>; output?: unknown; state?: ECallState }) =>
   classify({
-    call: aCall({ name: 'read', input: { path }, output: { path, lines: 12, ...extra } }),
+    call: aCall({
+      name: args.name,
+      input: { scope: 'global', name: 'bun-deflate', ...args.input },
+      output: args.output ?? {},
+      state: args.state ?? ECallState.Ok,
+    }),
     cwd: CWD,
   })
 
-const writeOf = (path: string, output: Record<string, unknown>) =>
-  classify({
-    call: aCall({ name: 'write', input: { path, content: 'x' }, output: { path, ...output } }),
-    cwd: CWD,
-  })
-
-describe('reading a memory', () => {
-  it('is a recall, not a file read', () => {
-    const reading = readOf(MEMORY)
+describe('read_memory', () => {
+  it('is a recall named for the memory', () => {
+    const reading = memoryOf({ name: 'read_memory', output: { lines: 12 } })
 
     expect(reading.gather).toBe(EGather.Recall)
     expect(reading.klass).toBe(EToolClass.Gathered)
@@ -32,56 +27,55 @@ describe('reading a memory', () => {
     expect(reading.alone).toBe('Recalled bun-deflate')
   })
 
-  it('names the index rather than showing MEMORY.md', () => {
-    expect(readOf(INDEX).alone).toBe('Recalled the memory index')
-  })
-
-  it('leaves an ordinary file read alone', () => {
-    const reading = readOf(ORDINARY)
-
-    expect(reading.gather).toBe(EGather.Read)
-    expect(reading.alone).toContain('Read ')
-  })
-
   it('counts into the sentence as a memory', () => {
-    const reads = [MEMORY, INDEX].map((path) => ({
-      call: aCall({ name: 'read' }),
-      reading: readOf(path),
+    const reads = ['a', 'b'].map((name) => ({
+      call: aCall({ name: 'read_memory' }),
+      reading: memoryOf({ name: 'read_memory', input: { name } }),
     }))
 
     expect(sentenceOf(reads)).toBe('Recalled 2 memories')
   })
-
-  it('leads the sentence, ahead of what it merely read', () => {
-    const reads = [
-      { call: aCall({ name: 'read' }), reading: readOf(ORDINARY) },
-      { call: aCall({ name: 'read' }), reading: readOf(MEMORY) },
-    ]
-
-    expect(sentenceOf(reads)).toBe('Recalled 1 memory, read 1 file')
-  })
 })
 
-describe('saving a memory', () => {
-  it('remembers when the file is new', () => {
-    const reading = writeOf(MEMORY, { created: true })
+describe('changing a memory', () => {
+  it('remembers on write', () => {
+    const reading = memoryOf({ name: 'write_memory' })
 
     expect(reading.klass).toBe(EToolClass.Change)
     expect(reading.line).toBe('Remembered bun-deflate')
-    expect(reading.note).toBe('new')
     expect(reading.detail).toBe(EDetail.Created)
   })
 
-  it('revises when the memory already existed', () => {
-    expect(writeOf(MEMORY, { created: false }).line).toBe('Revised bun-deflate')
+  it('revises on edit', () => {
+    expect(memoryOf({ name: 'edit_memory' }).line).toBe('Revised bun-deflate')
   })
 
-  it('calls the index an update, since it is bookkeeping', () => {
-    expect(writeOf(INDEX, { created: false }).line).toBe('Updated the memory index')
+  it('forgets on delete', () => {
+    const reading = memoryOf({ name: 'delete_memory' })
+
+    expect(reading.line).toBe('Forgot bun-deflate')
+    expect(reading.note).toBe('forgotten')
   })
 
-  it('leaves an ordinary write alone', () => {
-    expect(writeOf(ORDINARY, { created: true }).line).toContain('Created ')
+  it('does not name a memory that was refused', () => {
+    const reading = memoryOf({ name: 'write_memory', state: ECallState.Failed })
+
+    expect(reading.line).not.toContain('Remembered')
+  })
+})
+
+describe('shell commands on a memory path', () => {
+  it('are no longer treated as memory', () => {
+    const reading = classify({
+      call: aCall({
+        name: 'bash',
+        input: { command: 'rm /Users/d/.atlas/memory/x.md', description: 'Remove file' },
+        output: { command: 'rm /Users/d/.atlas/memory/x.md', stdout: '', exitCode: 0 },
+      }),
+      cwd: CWD,
+    })
+
+    expect(reading.line).not.toContain('Forgot')
   })
 })
 
@@ -96,68 +90,6 @@ describe('the browse clause', () => {
       cwd: CWD,
     })
 
-    expect(sentenceOf([{ call: aCall({ name: 'web_fetch' }), reading: browsed }])).toBe(
-      'Browsed 1 page',
-    )
-  })
-})
-
-describe('memory reached through the shell', () => {
-  const shellOf = (command: string, description = '', exitCode = 0) =>
-    classify({
-      call: aCall({
-        name: 'bash',
-        input: { command, description },
-        output: { command, description, stdout: 'a\nb', exitCode },
-      }),
-      cwd: CWD,
-    })
-
-  it('recalls when the model cats an index instead of reading it', () => {
-    const reading = shellOf(`ls -la ${DIR} && cat ${INDEX} 2>/dev/null`, 'Read memory indexes')
-
-    expect(reading.gather).toBe(EGather.Recall)
-    expect(reading.line).toBe('Read memory indexes')
-  })
-
-  it('recalls a grep over the memory directory rather than calling it a search', () => {
-    expect(shellOf(`grep -rn zlib ${DIR}`).gather).toBe(EGather.Recall)
-  })
-
-  it('names the memory a removal dropped', () => {
-    const reading = shellOf(`rm ${MEMORY}`)
-
-    expect(reading.klass).toBe(EToolClass.Command)
-    expect(reading.line).toBe('Forgot bun-deflate')
-    expect(reading.note).toBe('forgotten')
-  })
-
-  it('reads a quoted path too', () => {
-    expect(shellOf(`rm '${MEMORY}'`).line).toBe('Forgot bun-deflate')
-  })
-
-  it('remembers when a heredoc writes a memory', () => {
-    expect(shellOf(`cat > ${MEMORY} <<'EOF'`).line).toBe('Remembered bun-deflate')
-  })
-
-  it('calls an append to the index an update', () => {
-    expect(shellOf(`echo x >> ${INDEX}`).line).toBe('Updated the memory index')
-  })
-
-  it('carries a failure through', () => {
-    const reading = shellOf(`rm ${MEMORY}`, '', 1)
-
-    expect(reading.failed).toBe(true)
-    expect(reading.note).toBe('failed')
-  })
-
-  it('leaves a repository directory called memory alone', () => {
-    const reading = shellOf('ls packages/core/src/memory', 'List the core memory module')
-
-    expect(reading.gather).toBe(EGather.List)
-  })
-
-  it('leaves an ordinary removal alone', () => {
-    expect(shellOf('rm -rf dist', 'Clean build output').line).not.toContain('Forgot')
+    expect(sentenceOf([{ call: aCall({ name: 'web_fetch' }), reading: browsed }])).toBe('Browsed 1 page')
   })
 })
