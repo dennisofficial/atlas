@@ -33,6 +33,8 @@ model User {
   userFiles     UserFile[]
   localPodLeases LocalPodLease[]
   sshSigningKey SshSigningKey?
+  memories      Memory[]
+  publishedBundles PublishedBundle[]
 }
 
 model Thread {
@@ -298,6 +300,40 @@ model SshSigningKey {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Memory {
+  id          String   @id @default(cuid())
+  userId      String
+  scope       String
+  project     String   @default("")
+  name        String
+  description String
+  type        String
+  body        String   @db.Text
+  revision    Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scope, project, name])
+  @@index([userId, project])
+}
+
+model PublishedBundle {
+  id        String   @id @default(cuid())
+  userId    String
+  version   Int
+  pathname  String
+  blobUrl   String
+  sha256    String
+  sizeBytes Int
+  manifest  Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, version])
+  @@unique([pathname])
 }
 
 model Session {

@@ -6,6 +6,7 @@ import { ExperimentalPage } from "./pages/experimental";
 import { UsageModelsPage } from "./pages/usage-models";
 import { UsageSandboxesPage } from "./pages/usage-sandboxes";
 import { InstructionsPage } from "./pages/instructions";
+import { MemoryPage } from "./pages/memory";
 import { ModelsEffortPage } from "./pages/models-effort";
 import { ProvidersPage } from "./pages/providers";
 import { SecretsPage } from "./pages/secrets";
@@ -28,6 +29,7 @@ const PAGES: Record<ESettingsPage, ComponentType> = {
   [ESettingsPage.UsageModels]: UsageModelsPage,
   [ESettingsPage.UsageSandboxes]: UsageSandboxesPage,
   [ESettingsPage.Instructions]: InstructionsPage,
+  [ESettingsPage.Memory]: MemoryPage,
   [ESettingsPage.ModelsEffort]: ModelsEffortPage,
   [ESettingsPage.Providers]: ProvidersPage,
   [ESettingsPage.Secrets]: SecretsPage,
