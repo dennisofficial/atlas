@@ -9,12 +9,15 @@ import { Spans, type Span } from '../spans'
 import { CloudSignInPrompt, CloudSignInRow } from './cloud-sign-in'
 import { GithubRow, type GithubAccountView } from './github-connect'
 import { SettingsGroupHeader, SettingsLine, SettingsTextLine } from './rows'
+import { hasSigningKey, SigningKeyRow, type SigningKeyAccountView } from './signing-key-row'
 
 export enum ECloudAction {
   SignOut = 'sign-out',
   Upload = 'upload',
   Download = 'download',
   Github = 'github',
+  SigningKey = 'signing-key',
+  SigningKeyRemove = 'signing-key-remove',
 }
 
 export const UPLOAD_LABEL = 'Back up accounts, secrets, MCP & settings to cloud'
@@ -107,6 +110,7 @@ export function SettingsCloud(props: {
   onSignIn: () => void
   onOpenSignInUrl: () => void
   github?: GithubAccountView | undefined
+  signingKey?: SigningKeyAccountView | undefined
 }): React.ReactNode {
   const whom: Span = props.signedIn
     ? { text: props.email ?? 'signed in', fg: theme.hover }
@@ -156,6 +160,23 @@ export function SettingsCloud(props: {
               )}
               {props.github.flow.notice === null ? null : (
                 <WrappedLine cells={props.cells} text={props.github.flow.notice} fg={theme.hint} />
+              )}
+              {props.github.connection === null || props.signingKey === undefined ? null : (
+                <>
+                  <SigningKeyRow
+                    cells={props.cells}
+                    selected={props.action === ECloudAction.SigningKey}
+                    account={props.signingKey}
+                  />
+                  {hasSigningKey(props.signingKey.view) ? (
+                    <ActionRow
+                      cells={props.cells}
+                      label="Remove signing key"
+                      selected={props.action === ECloudAction.SigningKeyRemove}
+                      onPress={props.signingKey.activateRemove}
+                    />
+                  ) : null}
+                </>
               )}
             </>
           )}
