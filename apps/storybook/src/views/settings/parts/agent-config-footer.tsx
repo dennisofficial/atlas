@@ -12,26 +12,28 @@ export function ConfigFooter({
   onSave: () => void;
 }) {
   return (
-    <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-2.5 shadow-md">
-      <span
-        className={cn(
-          "flex items-center gap-2 text-sm",
-          dirty ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
+    <div className="sticky bottom-0 z-10 -mx-8 -mb-10 mt-4 border-t bg-background px-8 py-3 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-background before:to-transparent">
+      <div className="flex items-center justify-between gap-3">
         <span
-          className={cn("size-1.5 rounded-full", dirty ? "bg-warning" : "bg-success")}
-          aria-hidden
-        />
-        {dirty ? "Unsaved changes" : "In sync"}
-      </span>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" disabled={!dirty} onClick={onDiscard}>
-          Discard
-        </Button>
-        <Button size="sm" disabled={!dirty} onClick={onSave}>
-          Save
-        </Button>
+          className={cn(
+            "flex items-center gap-2 text-sm",
+            dirty ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          <span
+            className={cn("size-1.5 rounded-full", dirty ? "bg-warning" : "bg-success")}
+            aria-hidden
+          />
+          {dirty ? "Unsaved changes" : "In sync"}
+        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" disabled={!dirty} onClick={onDiscard}>
+            Discard
+          </Button>
+          <Button size="sm" disabled={!dirty} onClick={onSave}>
+            Save
+          </Button>
+        </div>
       </div>
     </div>
   );
