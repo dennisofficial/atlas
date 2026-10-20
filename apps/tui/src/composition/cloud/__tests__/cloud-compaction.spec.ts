@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ECompactionAnchor } from '@dltech/atlas-core'
+import { ECompactionAnchor, EExecutionLocation } from '@dltech/atlas-core'
 import { ECompaction, ECompactScope, EClientRequest, RemoteCompaction } from '@dltech/atlas-harness'
 
 import { cloudApp, cloudRuntimeParts } from '../cloud-app'
 import { fakeApp, scriptedModelPort } from '../../__tests__/fake-app'
+import { appOf, localBindingOf } from '../../session-binding'
 import { fakeBridge, CLOUD_THREAD, type FakeCloudChannel } from './fixture'
 
 const attached = () => {
@@ -70,10 +71,25 @@ describe('the compaction a cloud thread carries', () => {
 })
 
 describe('which compaction the surface selects', () => {
-  it('selects the remote one for a cloud binding', () => {
+  it('selects the remote one through appOf for a cloud binding and the host one for a local binding', () => {
     const { app, channel, stores } = attached()
     const parts = cloudRuntimeParts({ channel, stores, runner: app.runner })
 
+    const local = localBindingOf({
+      local: app,
+      workspace: { workspace: '/work', repo: null },
+      opened: {
+        threadId: CLOUD_THREAD,
+        events: [],
+        turns: [],
+        name: null,
+        started: false,
+        executionLocation: EExecutionLocation.Host,
+      },
+    })
+
+    expect(local.adapters.compaction).toBe(app.compaction)
+    expect(appOf({ local: app, binding: local }).compaction).toBe(app.compaction)
     expect(parts.compaction).toBeInstanceOf(RemoteCompaction)
   })
 })

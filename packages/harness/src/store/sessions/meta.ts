@@ -34,7 +34,7 @@ export const sessionMetaSchema = z.object({
   title: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  home: z.string().nullable(),
+  home: z.string(),
   repo: z.string().nullable(),
   workspace: z.string().nullable(),
   worktree: z.string().nullable(),
@@ -78,10 +78,10 @@ export const threadMetaSchema = z.object({
   projectId: z.string().nullish(),
   placement: z
     .object({
-      placement: z
-        .object({ harness: z.literal('cloud'), driveName: z.string().optional() })
-        .nullish()
-        .catch(undefined),
+      placement: z.union([
+        z.object({ harness: z.literal('host'), tools: z.enum(['host', 'docker']) }),
+        z.object({ harness: z.literal('cloud'), driveName: z.string().optional() }),
+      ]),
       revision: z.number(),
     })
     .nullish(),

@@ -22,8 +22,9 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EOpenMode } from '../config'
-import { openConversation } from '../open-conversation'
+import { closeConversation, openConversation } from '../open-conversation'
 import { attachCloudSession } from '../cloud/attach-cloud'
+import { fakeAgentRegistry } from './fake-agents'
 import {
   fakeEventLog,
   fakeIds,
@@ -130,8 +131,30 @@ describe('attaching to a cloud session through the attach seam', () => {
   })
 })
 
+describe('openConversation after the readOnly stopgap is gone', () => {
+  it('resumes a local thread by adopting an unattributed one and claiming its lock', async () => {
+    const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
+
+    const outcome = await openConversation({
+      threads,
+      log: fakeEventLog([said('from before the attribution')]),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      effects: () => undefined,
+      open: { mode: EOpenMode.Resume, threadId: REMOTE_THREAD },
+    })
+
+    expect('cloud' in outcome === false && outcome.ok).toBe(true)
+    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.workspace).toBe(FAKE_WORKSPACE)
+    expect(await lockHeld(REMOTE_THREAD)).toBe(true)
+  })
+})
+
 describe('openConversation on a thread whose meta says cloud', () => {
   it('refuses the local open without claiming the session lock', async () => {
+    await closeConversation()
     const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
     await threads.chooseExecutionLocation({ threadId: REMOTE_THREAD, location: EExecutionLocation.Cloud })
 
@@ -139,6 +162,7 @@ describe('openConversation on a thread whose meta says cloud', () => {
       threads,
       log: fakeEventLog([said('said inside the sandbox')]),
       ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
       effects: () => undefined,
@@ -151,6 +175,7 @@ describe('openConversation on a thread whose meta says cloud', () => {
   })
 
   it('opens the mirrored transcript at boot and marks it for attach, never the lock', async () => {
+    await closeConversation()
     const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
     await threads.chooseExecutionLocation({ threadId: REMOTE_THREAD, location: EExecutionLocation.Cloud })
 
@@ -158,6 +183,7 @@ describe('openConversation on a thread whose meta says cloud', () => {
       threads,
       log: fakeEventLog([said('said inside the sandbox')]),
       ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
       effects: () => undefined,

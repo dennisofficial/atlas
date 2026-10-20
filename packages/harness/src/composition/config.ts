@@ -15,6 +15,7 @@ export type HarnessLaunch = {
   command: string
   /** The model the launch pins, with the effort it was running on when a resumed session carried one. A bare ref string is a model with no opinion on effort. */
   model: { ref: string; effort?: string | undefined } | undefined
+  executionLocation: string | undefined
   /**
    * The thread whose restored log seeds plugin projections at compose. A launch without a surface
    * (serve) names its thread so projections fold before the first turn; a launch with a surface

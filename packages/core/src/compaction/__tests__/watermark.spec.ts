@@ -43,7 +43,7 @@ describe('replacedRanges', () => {
 
   it('calls a range replaced when only a spared location-changed marker is left standing in it', () => {
     const events = eventsFrom([
-      movedLocation({ to: EExecutionLocation.Cloud }),
+      movedLocation({ from: EExecutionLocation.Host, to: EExecutionLocation.Cloud }),
       compactedRange({ fromSeq: 1, throughSeq: 1, summary: 'the session moved' }),
       said('next'),
     ])

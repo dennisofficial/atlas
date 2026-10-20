@@ -80,6 +80,7 @@ describe('projection seeding from the restored log', () => {
         cwd: project,
         command: 'atlas-test',
         model: undefined,
+        executionLocation: undefined,
         threadId,
       },
       env: {},
@@ -105,7 +106,7 @@ describe('projection seeding from the restored log', () => {
 
   it('leaves projections empty for a launch that names no thread', async () => {
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: 'atlas-test', model: undefined },
+      launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),
@@ -125,6 +126,7 @@ describe('projection seeding from the restored log', () => {
         cwd: project,
         command: 'atlas-test',
         model: undefined,
+        executionLocation: undefined,
         threadId: toThreadId('br_nothing-there'),
       },
       env: {},

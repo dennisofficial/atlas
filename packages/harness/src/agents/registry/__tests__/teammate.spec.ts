@@ -461,6 +461,7 @@ describe("a teammate's session", () => {
         throw new Error('the listing never resolves the registry')
       }, [TEAMMATE, BUILDER]),
       toolNamed('enter_worktree'),
+      toolNamed('execution_location'),
       toolNamed('service_start'),
       toolNamed('read_memory'),
       toolNamed('write_memory'),
@@ -532,6 +533,7 @@ describe("a teammate's session", () => {
       'read',
       'agent_spawn',
       'enter_worktree',
+      'execution_location',
       'service_start',
       'read_memory',
       'write_memory',

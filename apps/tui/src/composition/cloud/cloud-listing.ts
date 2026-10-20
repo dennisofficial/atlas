@@ -1,6 +1,5 @@
 import { EExecutionLocation, projectOf, toThreadId } from '@dltech/atlas-core'
 import {
-  isCloudThread,
   THREAD_LISTING_LIMIT,
   type ThreadStorePort,
   type ThreadSummary,
@@ -9,7 +8,7 @@ import {
 
 import type { AtlasApp } from '../compose'
 
-type ListingApp = Pick<AtlasApp, 'threads' | 'cloud' | 'workspace'>
+type ListingApp = Pick<AtlasApp, 'threads' | 'cloud' | 'workspace' | 'pods'>
 
 export function cloudListing(app: ListingApp): Pick<ThreadStorePort, 'list'> {
   return {
@@ -27,7 +26,7 @@ export function cloudListing(app: ListingApp): Pick<ThreadStorePort, 'list'> {
       let localReady = false
       const publish = (): void => {
         if (!localReady && remoteRows.length === 0) return
-        onUpdate?.(mergedRows({ local, remote: remoteRows, limit: cap }))
+        onUpdate?.(mergedRows({ local, remote: remoteRows, limit: cap, pods: app.pods }))
       }
       const localRequest = app.threads.list({
         project,
@@ -52,7 +51,7 @@ export function cloudListing(app: ListingApp): Pick<ThreadStorePort, 'list'> {
           publish()
         }),
       ])
-      return mergedRows({ local, remote: remoteRows, limit: cap })
+      return mergedRows({ local, remote: remoteRows, limit: cap, pods: app.pods })
     },
   }
 }
@@ -61,17 +60,19 @@ function mergedRows(args: {
   local: readonly ThreadSummary[]
   remote: readonly ThreadSummary[]
   limit: number
+  pods: boolean
 }): ThreadSummary[] {
   const known = new Map(args.remote.map((row) => [row.id, row]))
-  for (const row of args.local.filter(isCloudThread)) known.set(row.id, row)
+  const listed = args.pods ? args.local.filter((row) => row.executionLocation === EExecutionLocation.Cloud) : args.local
+  for (const row of listed) known.set(row.id, row)
   return [...known.values()]
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, args.limit)
 }
 
-const stubInto = async (args: { app: ListingApp; wire: WireThread }): Promise<ThreadSummary | undefined> => {
+const stubInto = async (args: { app: ListingApp; wire: WireThread }): Promise<ThreadSummary> => {
   const existing = await args.app.threads.find({ threadId: toThreadId(args.wire.id) })
-  if (existing !== undefined) return isCloudThread(existing) ? existing : undefined
+  if (existing !== undefined) return existing
 
   const created = await args.app.threads.create({
     id: toThreadId(args.wire.id),

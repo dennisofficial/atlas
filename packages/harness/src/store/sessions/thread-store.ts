@@ -1,7 +1,7 @@
 import {
   EExecutionLocation,
-  EHarnessPlacement,
   type ERunner,
+  placementOf,
   toThreadId,
   type PlacementRecord,
   type ClockPort,
@@ -65,7 +65,7 @@ export class JsonlThreadStore implements ThreadStorePort {
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(meta.id) }), meta })
     this.registry.registerThread({ sessionDir, threadId: toThreadId(meta.id) })
     if (args.agent === undefined && args.sessionId === undefined) {
-      await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: args.executionLocation ?? null })
+      await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: EExecutionLocation.Host })
     }
     return toThreadSummary(meta)
   }
@@ -78,7 +78,7 @@ export class JsonlThreadStore implements ThreadStorePort {
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
     this.registry.registerThread({ sessionDir, threadId })
     if (args.agent === undefined && args.sessionId === undefined) {
-      const home = args.executionLocation ?? null
+      const home = args.executionLocation ?? EExecutionLocation.Host
       await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home })
     }
     const events = await this.log.append({ threadId, runId: args.runId, drafts: args.drafts })
@@ -192,12 +192,15 @@ export class JsonlThreadStore implements ThreadStorePort {
   }
 
   async chooseExecutionLocation(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {
-    const { threadId } = args
+    const { threadId, location } = args
+    const known = await this.registry.sessionDirOf({ threadId })
+    if (known === undefined && location === EExecutionLocation.Host) return
+
     const held = await this.readPlacement({ threadId })
     await this.writePlacement({
       threadId,
       record: {
-        placement: { harness: EHarnessPlacement.Cloud },
+        placement: placementOf(location),
         revision: held?.revision ?? 0,
       },
     })

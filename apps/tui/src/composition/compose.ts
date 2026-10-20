@@ -1,6 +1,6 @@
 import { hostname } from 'node:os'
 
-import { OnThreadOpenHook } from '@dltech/atlas-core'
+import { ESettingId, OnThreadOpenHook, toggleValueOf } from '@dltech/atlas-core'
 import {
   composeHarness,
   createUrlOpener,
@@ -19,6 +19,7 @@ import {
   type HarnessApp,
   type RewindMachineryPort,
   type RotationPort,
+  type SandboxControl,
   type SessionTitler,
   type SettingsBinding,
 } from '@dltech/atlas-harness'
@@ -38,7 +39,7 @@ import type { AtlasConfig } from './config'
 import { noticePortBinding } from './notice-binding'
 import { createWarpReporter, WarpThreadOpenHook } from './warp-reporter'
 
-export type { SessionTitler }
+export type { SandboxControl, SessionTitler }
 
 type TuiSurface = {
   pullRequests: PullRequestPort | null
@@ -63,6 +64,7 @@ export type AtlasApp = Omit<
   rotation?: RotationPort | undefined
   config: AtlasConfig
   command: string
+  pods: boolean
 }
 
 /**
@@ -108,6 +110,7 @@ export async function composeAtlas(args: {
       cwd: args.config.cwd,
       command: args.command,
       model: args.config.model === undefined ? undefined : { ref: args.config.model },
+      executionLocation: args.config.executionLocation,
     },
     env: args.env,
     settings: args.settings,
@@ -216,6 +219,7 @@ export async function composeAtlas(args: {
     ...harness,
     config: args.config,
     command: args.command,
+    pods: toggleValueOf({ resolution: args.settings.service.snapshot().resolution, id: ESettingId.ExperimentalPods }),
     pluginProjections,
     pluginSurfaces:
       surface.githubSurface === null ? pluginSurfaces : [...pluginSurfaces, surface.githubSurface],

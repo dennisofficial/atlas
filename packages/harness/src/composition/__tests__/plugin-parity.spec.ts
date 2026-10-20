@@ -70,7 +70,7 @@ describe('serve gets the same plugins the TUI gets, because composeHarness loads
   it('denies a write into a sibling worktree through the foreign-checkout native plugin', async () => {
     let container: DependencyContainer | undefined
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: 'atlas-serve', model: undefined },
+      launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),
@@ -99,7 +99,7 @@ describe('serve gets the same plugins the TUI gets, because composeHarness loads
   it('allows an ordinary write inside the project directory', async () => {
     let container: DependencyContainer | undefined
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: 'atlas-serve', model: undefined },
+      launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),

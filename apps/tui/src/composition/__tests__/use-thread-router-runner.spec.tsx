@@ -48,6 +48,7 @@ describe('the thread router across runners', () => {
         opened: unstartedConversation({ ids: app.ids }),
         onReload: async () => undefined,
         onLeaveCloud: () => undefined,
+        onLocalSwap: () => undefined,
       })
       return null
     }

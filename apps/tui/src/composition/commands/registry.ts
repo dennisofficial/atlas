@@ -1,4 +1,4 @@
-import { ECommandGroup, ECommandKind } from '@dltech/atlas-core'
+import { ECommandGroup, ECommandKind, EExecutionLocation } from '@dltech/atlas-core'
 
 import { ECompactScope, scopeOfArgument } from '@dltech/atlas-harness'
 import { ERenamed } from '../session-rename'
@@ -30,19 +30,24 @@ export enum EContainerAsk {
   Resources = 'resources',
 }
 
-export const containerAskOfArgument = (argumentText: string): EContainerAsk | null => {
+export const containerAskOfArgument = (
+  argumentText: string,
+): EExecutionLocation | EContainerAsk | null => {
   const asked = argumentText.trim().toLowerCase()
   if (asked === '') return EContainerAsk.Current
+  if (asked === 'off' || asked === 'host') return EExecutionLocation.Host
+  if (asked === 'docker') return EExecutionLocation.Docker
+  if (asked === 'cloud') return EExecutionLocation.Cloud
   if (asked === 'resources') return EContainerAsk.Resources
   return null
 }
 
 const unknownContainerArgument = (argumentText: string): string =>
-  `/container takes no argument to say where this conversation runs, or "resources" to resize a cloud sandbox; not ${argumentText.trim()}`
+  `/container takes no argument to say where this conversation was born, "off" | "docker" to switch a host-born thread's tool environment, or "resources" to resize a cloud sandbox — threads never move to or from the cloud; not ${argumentText.trim()}`
 
 export type LocalCommandHandlers = {
   onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
-  onContainer: () => string | undefined
+  onContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
   onContainerResources: () => string | undefined
   onCompact: (scope: ECompactScope) => void
   onRotate: (instructions: string | undefined) => void
@@ -99,8 +104,8 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     }),
     local({
       name: 'container',
-      summary: 'say where this conversation runs, or resize a cloud sandbox',
-      argumentHint: '[resources]',
+      summary: 'say where this conversation runs; switch a host-born thread between host and docker',
+      argumentHint: '[off|docker|resources]',
       group: ECommandGroup.Session,
       timing: ECommandTiming.Immediate,
       echo: ECommandEcho.Output,
@@ -111,7 +116,7 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
           return { type: ECommandEffect.Ran, notice: handlers.onContainerResources() }
         }
 
-        return { type: ECommandEffect.Ran, notice: handlers.onContainer() }
+        return { type: ECommandEffect.Ran, notice: handlers.onContainer(asked) }
       },
     }),
     immediate({

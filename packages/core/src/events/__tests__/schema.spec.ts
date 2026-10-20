@@ -24,9 +24,10 @@ const bodies: EventDraft[] = [
   { type: 'approval-answered', callId: toCallId('call-1'), decision: EDecision.Allow },
   { type: 'context-loaded', slot: 'claude-md', key: '/a/CLAUDE.md', content: '# rules' },
   { type: 'nudge', text: 'stay on task', lifetimeSteps: 2 },
-  { type: 'location-changed', to: EExecutionLocation.Cloud },
+  { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
   {
     type: 'location-changed',
+    from: EExecutionLocation.Host,
     to: EExecutionLocation.Cloud,
     cwd: '/workspace',
   },
@@ -308,10 +309,10 @@ describe('eventBodySchema', () => {
     expect(() => eventBodySchema.parse({ type: 'nudge', text: 'stay on task' })).toThrow()
   })
 
-  it('reads a relocation that names a location this build does not know as one with no location', () => {
-    expect(eventBodySchema.parse({ type: 'location-changed', from: 'host', to: 'the moon' })).toEqual({
-      type: 'location-changed',
-    })
+  it('rejects a relocation that names a location outside the enum', () => {
+    expect(() =>
+      eventBodySchema.parse({ type: 'location-changed', from: 'host', to: 'the moon' }),
+    ).toThrow()
   })
 
   it('rejects a rotation marker with an empty handoff path', () => {

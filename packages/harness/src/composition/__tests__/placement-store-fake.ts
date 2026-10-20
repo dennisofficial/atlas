@@ -1,5 +1,6 @@
 import {
-  EHarnessPlacement,
+  EExecutionLocation,
+  placementOf,
   type PlacementRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -8,7 +9,7 @@ import type { PlacementStore } from '../placement-controller'
 import type { SupervisedAgent, ThreadSummary } from '../../store/thread-store'
 
 export type FakePlacementStore = PlacementStore & {
-  seed: (args: { threadId: ThreadId; agent?: SupervisedAgent }) => void
+  seed: (args: { threadId: ThreadId; location: EExecutionLocation; agent?: SupervisedAgent }) => void
 }
 
 export function fakePlacementStore(): FakePlacementStore {
@@ -17,8 +18,8 @@ export function fakePlacementStore(): FakePlacementStore {
   const listeners = new Set<(args: { threadId: ThreadId; record: PlacementRecord }) => void>()
 
   return {
-    seed: ({ threadId, agent }) => {
-      records.set(threadId, { placement: { harness: EHarnessPlacement.Cloud }, revision: 0 })
+    seed: ({ threadId, location, agent }) => {
+      records.set(threadId, { placement: placementOf(location), revision: 0 })
       if (agent !== undefined) agents.set(threadId, agent)
     },
     readPlacement: async ({ threadId }) => records.get(threadId),

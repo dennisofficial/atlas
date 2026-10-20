@@ -1,4 +1,5 @@
 import type { Event } from '../events/envelope'
+import { EExecutionLocation } from '../execution/location'
 import { elapsedPhrase } from '../shells/elapsed'
 
 const PAYLOAD_CHARACTER_LIMIT = 600
@@ -7,6 +8,12 @@ const ELLIPSIS = '…'
 
 const clipped = (text: string, limit: number): string =>
   text.length <= limit ? text : `${text.slice(0, limit)}${ELLIPSIS}`
+
+function locationPhrase(location: EExecutionLocation): string {
+  if (location === EExecutionLocation.Docker) return 'a Docker container'
+  if (location === EExecutionLocation.Cloud) return 'a cloud sandbox'
+  return 'the host'
+}
 
 function jsonOrDescription(value: unknown, limit: number): string {
   if (typeof value === 'string') return clipped(value, limit)
@@ -63,7 +70,7 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
   }
 
   if (event.type === 'location-changed') {
-    const base = "Atlas moved this conversation's processing to a cloud sandbox"
+    const base = `Atlas moved this conversation's processing to ${locationPhrase(event.to)} — earlier tool results came from ${locationPhrase(event.from)}`
     return event.cwd === undefined ? base : `${base} — the working directory is now ${event.cwd}`
   }
   if (event.type === 'parked') return `Atlas parked this session (${event.reason})`

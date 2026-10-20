@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import {
@@ -30,7 +31,7 @@ const reading = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgre
 })
 
 const started = (): ContainerMove => {
-  const begun = beginMove({ now: STARTED_AT, rows: ROWS })
+  const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: ROWS })
   return startMoveNode({ move: begun, nodeId: 'captureWorkspace', now: STARTED_AT + 500 })
 }
 
@@ -176,7 +177,7 @@ describe('transfer progress that has nowhere to land', () => {
   })
 
   it('does not reopen a row that is not active', () => {
-    const begun = beginMove({ now: STARTED_AT, rows: ROWS })
+    const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: ROWS })
     const marked: ContainerMove = {
       ...begun,
       startedNodeIds: ['captureWorkspace'],

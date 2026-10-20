@@ -92,6 +92,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const {
     container,
     workspace,
+    executionLocation,
     models,
     model,
     modelPort,
@@ -123,7 +124,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   }
 
   const { intake, recordTeardownEndings } = bindIntake({
-    pending, shells, agents, services, log, ids, logPort, pluginSources: args.pluginSources,
+    pending, shells, agents, services, log, ids, stopSandbox: args.stopSandbox, logPort, pluginSources: args.pluginSources,
   })
 
   const { runningShells, runningAgents, runningServices } = turnBackgroundState({ agents, shells, services })
@@ -134,6 +135,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
         provider: modelPort.identity,
         model: promptModelOf(models.cardFor(model.choice().ref)),
         projectDirectory,
+        placement: executionLocation.current(),
       }),
     )
 
@@ -223,6 +225,9 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       modelFor,
       modelAtSpawn,
       telemetry: container.resolve(registeredPortToken(TelemetryPort)),
+      hydratePlacement: async ({ threadId }) => {
+        await executionLocation.load({ threadId })
+      },
       assemblyFor: ({ agentType, model: childModel, projectDirectory: working }) =>
         defaultPipeline({
           prompt: ({ projectDirectory }) =>
@@ -233,6 +238,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
               provider: childModel.identity,
               model: { contextWindow: contextWindowOf(childModel) || promptModelOf(undefined).contextWindow },
               projectDirectory,
+              placement: executionLocation.current(),
             }),
           launchDirectory: working ?? workspace.workspace,
           repoRoot: workspace.repo ?? undefined,

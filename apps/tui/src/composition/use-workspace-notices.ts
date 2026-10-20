@@ -2,11 +2,15 @@ import { useEffect, useRef } from 'react'
 
 import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 
+import { hasLostChildren, lostChildrenNotice } from '../ui/lost-children-model'
+import { hasLostShells, lostShellsNotice } from '../ui/lost-shells-model'
 import {
   clearNotice,
   configureNotices,
   ENoticeTone,
   NOTICE_KEY_CLASSIFIER_OFFLINE,
+  NOTICE_KEY_LOST_AGENTS,
+  NOTICE_KEY_LOST_SHELLS,
   NOTICE_WARN_MS,
   notify,
 } from '../ui/notice-store'
@@ -21,6 +25,7 @@ export function useWorkspaceNotices(args: {
   noticeSeconds: number
 }): void {
   const { app, conversation, noticeSeconds } = args
+  const { lost, lostShells } = conversation
   const judgeFault = conversation.sidebar.classifier?.judgeUnreachable ?? null
 
   useEffect(() => {
@@ -37,6 +42,34 @@ export function useWorkspaceNotices(args: {
       ttlMs: NOTICE_WARN_MS,
     })
   }, [app.model, app.models])
+
+  useEffect(() => {
+    if (!hasLostChildren(lost)) {
+      clearNotice({ key: NOTICE_KEY_LOST_AGENTS })
+      return
+    }
+
+    notify({
+      key: NOTICE_KEY_LOST_AGENTS,
+      text: lostChildrenNotice(lost),
+      tone: ENoticeTone.Warn,
+      sticky: true,
+    })
+  }, [lost])
+
+  useEffect(() => {
+    if (!hasLostShells(lostShells)) {
+      clearNotice({ key: NOTICE_KEY_LOST_SHELLS })
+      return
+    }
+
+    notify({
+      key: NOTICE_KEY_LOST_SHELLS,
+      text: lostShellsNotice(lostShells),
+      tone: ENoticeTone.Warn,
+      sticky: true,
+    })
+  }, [lostShells])
 
   useEffect(() => {
     if (judgeFault === null) {
@@ -63,6 +96,7 @@ export function useWorkspaceNotices(args: {
   useEffect(() => {
     if (cloudSignInNoticed.current) return
     cloudSignInNoticed.current = true
+    if (!app.pods) return
     if (app.cloud.session() !== null) return
     if (app.cloud.signInOffered()) return
 
@@ -73,5 +107,5 @@ export function useWorkspaceNotices(args: {
       tone: ENoticeTone.Info,
       ttlMs: CLOUD_SIGN_IN_OFFER_MS,
     })
-  }, [app.cloud])
+  }, [app.cloud, app.pods])
 }

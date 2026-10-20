@@ -18,7 +18,7 @@ afterEach(() => {
 describe('the cloud sign-in boot notice', () => {
   it('offers sign-in on a signed-out boot, without gating anything', async () => {
     const mounted = await open({
-      app: fakeApp({ model: scripted(), cloud: fakeSignedOutCloud() }),
+      app: fakeApp({ model: scripted(), cloud: fakeSignedOutCloud(), pods: true }),
     })
 
     try {
@@ -50,7 +50,7 @@ describe('the cloud sign-in boot notice', () => {
 
   it('fires once — it does not reappear as the app keeps rendering', async () => {
     const mounted = await open({
-      app: fakeApp({ model: scripted(), cloud: fakeSignedOutCloud() }),
+      app: fakeApp({ model: scripted(), cloud: fakeSignedOutCloud(), pods: true }),
     })
 
     try {

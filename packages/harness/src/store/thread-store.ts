@@ -1,9 +1,10 @@
 import {
   ECompactionAnchor,
   EExecutionLocation,
-  EHarnessPlacement,
   EForkMode,
   type ERunner,
+  locationOfPlacement,
+  placementOf,
   type PlacementRecord,
   type ThreadId,
   type Event,
@@ -84,14 +85,17 @@ export abstract class ThreadStorePort {
 
   async readPlacement(args: { threadId: ThreadId }): Promise<PlacementRecord | undefined> {
     const thread = await this.find(args)
-    if (thread?.executionLocation !== EExecutionLocation.Cloud) return undefined
-    return { placement: { harness: EHarnessPlacement.Cloud }, revision: 0 }
+    if (thread === undefined) return undefined
+    return {
+      placement: placementOf(thread.executionLocation ?? EExecutionLocation.Host),
+      revision: 0,
+    }
   }
 
   async writePlacement(args: WritePlacementArgs): Promise<void> {
     await this.chooseExecutionLocation({
       threadId: args.threadId,
-      location: EExecutionLocation.Cloud,
+      location: locationOfPlacement(args.record.placement),
     })
   }
 

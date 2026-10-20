@@ -1,6 +1,7 @@
 import type {
   ClockPort,
   EventLogPort,
+  ExecutionLocationSinkPort,
   IdPort,
   ThreadId,
 } from '@dltech/atlas-core'
@@ -25,6 +26,7 @@ export class ChildSpawner {
   private readonly roster: AgentRoster
   private readonly steps: ChildSteps
   private readonly agentTypes: readonly AgentType[]
+  private readonly sink: ExecutionLocationSinkPort
   private readonly deps: SupervisorDeps
 
   constructor(args: {
@@ -35,6 +37,7 @@ export class ChildSpawner {
     roster: AgentRoster
     steps: ChildSteps
     agentTypes: readonly AgentType[]
+    sink: ExecutionLocationSinkPort
     deps: SupervisorDeps
   }) {
     this.threads = args.threads
@@ -44,6 +47,7 @@ export class ChildSpawner {
     this.roster = args.roster
     this.steps = args.steps
     this.agentTypes = args.agentTypes
+    this.sink = args.sink
     this.deps = args.deps
   }
 
@@ -79,7 +83,7 @@ export class ChildSpawner {
     }
 
     const model = await this.deps.modelAtSpawn?.({ agentType: type, spawnedBy: threadId })
-    const { threadId: agentId } = await openChildThread({
+    const { threadId: agentId, inheritedLocation } = await openChildThread({
       model,
       threads: this.threads,
       log: this.log,
@@ -89,6 +93,8 @@ export class ChildSpawner {
       brief,
       intent,
     })
+
+    if (inheritedLocation !== undefined) await this.sink.refresh({ threadId: agentId })
 
     const child = freshChild({
       agentId,

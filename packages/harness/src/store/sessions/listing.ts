@@ -39,9 +39,6 @@ export type ListingPlaces = {
 type RootEntry = { sessionDir: string; root: ThreadMeta; activityAt: string }
 type ListingRow = { entry: RootEntry; summary: ThreadSummary; places: ListingPlaces }
 
-export const isCloudThread = (thread: { executionLocation?: string | null | undefined }): boolean =>
-  thread.executionLocation === EExecutionLocation.Cloud
-
 export function toThreadSummary(meta: ThreadMeta): ThreadSummary {
   return {
     id: toThreadId(meta.id),
@@ -187,7 +184,6 @@ async function scanRoots({
         () => undefined,
       )
       if (meta === undefined || meta.spawnerThreadId !== null) return undefined
-      if (!isCloudThread(meta)) return undefined
       if (meta.repo !== project && meta.workspace !== project) return undefined
       return { sessionDir, root: meta }
     },

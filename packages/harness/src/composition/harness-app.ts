@@ -43,10 +43,14 @@ import type { AccountUsageService } from '../usage/account-usage-service'
 
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
+import type { ExecutionLocationState } from './execution-location-state'
+import type { moveLocalPlacement } from '../execution/local-placement-move'
 import type { ModelCatalogue } from './model-catalogue'
 import type { SessionOwner, SessionRuntime } from './session-owner'
 import type { ModelChoice } from './model-selection'
 import type { ActiveConversation } from './resume-hint'
+import type { SandboxControl } from './sandbox-binding'
+import type { SandboxStatusState } from './sandbox-status-state'
 
 export type SessionTitler = (args: {
   text: string
@@ -102,10 +106,15 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   agents: AgentRegistryPort
   operatorInput: OperatorInputPort
   services: ServiceRegistryPort
+  sandbox: SandboxControl
+  containerStatus: SandboxStatusState
   model: ModelChoice
   modelPinned: boolean
   models: ModelCatalogue
+  executionLocation: ExecutionLocationState
   sessionOwner: SessionOwner<SessionRuntime>
+  executionPinned: boolean
+  moveTools: (args: Pick<Parameters<typeof moveLocalPlacement>[0], 'threadId' | 'target' | 'caller' | 'pause' | 'whenSettled' | 'onProgress' | 'cwd'>) => ReturnType<typeof moveLocalPlacement>
   settings: SettingsService
   secrets: SecretsPort
   usage: AccountUsageService

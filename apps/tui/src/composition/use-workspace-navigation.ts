@@ -35,6 +35,7 @@ export function useWorkspaceNavigation(args: {
     | 'threadId'
     | 'working'
     | 'readEvents'
+    | 'handleOpenThread'
     | 'handleRewindTo'
     | 'handleCompactAround'
   >
@@ -65,6 +66,7 @@ export function useWorkspaceNavigation(args: {
     opened: props.opened,
     onReload: props.onReload,
     onLeaveCloud: props.onLeaveCloud,
+    onLocalSwap: conversation.handleOpenThread,
   })
 
   useEffect(() => {

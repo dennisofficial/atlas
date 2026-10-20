@@ -1,6 +1,9 @@
 import {
   EKilledBy,
+  NoopExecutionLocationSink,
+  type EExecutionLocation,
   type EventLogPort,
+  type ExecutionLocationSinkPort,
   type IdPort,
   type SaidImage,
   type ThreadId,
@@ -17,10 +20,12 @@ import { AgentNoticeQueue } from './notices'
 import { NoticeWake } from './notice-wake'
 import { followAgentModels } from './model-follow'
 import { forgetRemovedChildren } from './remove-children'
-import { AgentRegistryPort, type AgentOutcome } from './port'
+import { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
 import { ChildRecovery } from './recovery'
 import {
+  markThreadChildrenRelocated,
   pauseThreadChildren,
+  relocateThreadChildren,
   resumeChild,
   stopThreadChildren,
   type Relocation,
@@ -42,6 +47,7 @@ export class AgentSupervisor extends AgentRegistryPort {
   private readonly delivery: NoticeDelivery
   private readonly steps: ChildSteps
   private readonly recovery: ChildRecovery
+  private readonly sink: ExecutionLocationSinkPort
   private readonly deps: SupervisorDeps
   private readonly relocation: Relocation
   private readonly noticeWake: NoticeWake
@@ -53,6 +59,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     this.log = args.log
     this.ids = args.ids
     this.agentTypes = args.agentTypes
+    this.sink = args.sink ?? new NoopExecutionLocationSink()
     this.journal = new AgentJournal({ log: args.log, ids: args.ids })
     this.steps = new ChildSteps({
       runners: args.runners,
@@ -75,6 +82,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       roster: this.roster,
       steps: this.steps,
       agentTypes: args.agentTypes,
+      sink: this.sink,
       deps: args,
     })
     this.noticeWake = new NoticeWake({
@@ -95,6 +103,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     })
     this.relocation = {
       deps: args,
+      sink: this.sink,
       roster: this.roster,
       steps: this.steps,
       recovery: this.recovery,
@@ -177,6 +186,10 @@ export class AgentSupervisor extends AgentRegistryPort {
     })
   }
 
+  relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
+    return relocateThreadChildren({ ...args, ...this.relocation })
+  }
+
   async stopChildren(args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]> {
     const stopped = await stopThreadChildren({ ...args, ...this.relocation })
     return stopped.map((child) => child.agentId)
@@ -185,6 +198,13 @@ export class AgentSupervisor extends AgentRegistryPort {
   async pauseChildren(args: { threadId: ThreadId }): Promise<readonly ThreadId[]> {
     const paused = await pauseThreadChildren({ ...args, ...this.relocation })
     return paused.map((child) => child.agentId)
+  }
+
+  markChildrenRelocated(args: {
+    threadId: ThreadId
+    location: EExecutionLocation
+  }): Promise<void> {
+    return markThreadChildrenRelocated({ ...args, ...this.relocation })
   }
 
   async stop({

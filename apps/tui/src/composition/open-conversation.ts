@@ -9,14 +9,19 @@ import {
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type {
+  AgentRegistryPort,
+  RecoveredAgents,
   ThreadModel,
   ThreadStorePort,
   ThreadSummary,
   TurnLedgerPort,
   TurnSpend,
 } from '@dltech/atlas-harness'
+import type { LostShell, ServiceRegistryPort, ShellRegistryPort } from '@dltech/atlas-harness'
+import { settleCrashedCalls } from '@dltech/atlas-harness'
 
 import { EOpenMode, type OpenRequest } from './config'
+import { claimThread, closeConversation, recoverLostProcesses } from './conversation-claim'
 import { readThreadSpend } from './thread-spend'
 import { readThreadSnapshot, type ThreadIdentity } from './thread-reads'
 import { EThreadRows } from './use-thread-view'
@@ -31,6 +36,8 @@ export type OpenedConversation = {
   started: boolean
   model?: ThreadModel | undefined
   executionLocation?: EExecutionLocation | undefined
+  lost?: RecoveredAgents | undefined
+  lostShells?: readonly LostShell[] | undefined
   base?: LogAccumulator | undefined
   bootCloudThreadId?: ThreadId | undefined
   /** The transcript opened from the local mirror; the sandbox attach is the workspace's first act. */
@@ -39,6 +46,8 @@ export type OpenedConversation = {
   identity?: ThreadIdentity | undefined
   appliedEvents?: readonly Event[] | undefined
 }
+
+export { closeConversation }
 
 export const unstartedConversation = (args: {
   ids: IdPort
@@ -53,6 +62,12 @@ export const unstartedConversation = (args: {
   ...(args.bootCloudThreadId === undefined ? {} : { bootCloudThreadId: args.bootCloudThreadId }),
 })
 
+/**
+ * The thread meta's executionLocation is the pointer to where the transcript lives: a thread that
+ * points at the cloud is never opened as a local conversation, because the local open claims the
+ * session lock and reads a local transcript the sandbox already owns. The caller routes the cloud
+ * variant through the attach flow instead.
+ */
 export type CloudThreadOutcome = { cloud: true; threadId: ThreadId }
 
 export type OpenOutcome =
@@ -65,10 +80,13 @@ type Opening = {
   remoteThreads?: ThreadStorePort | undefined
   log: EventLogPort
   ledger: TurnLedgerPort
+  agents: AgentRegistryPort
   ids: IdPort
   workspace: WorkspaceIdentity
   open: OpenRequest
   effects: ToolEffects
+  shells?: ShellRegistryPort | undefined
+  services?: ServiceRegistryPort | undefined
   preparing?: boolean | undefined
   /** Boot is the only caller that may open a cloud thread's transcript directly. */
   boot?: boolean | undefined
@@ -149,6 +167,8 @@ async function readOpenedConversation(args: {
   log: EventLogPort
   ledger: TurnLedgerPort
   effects: ToolEffects
+  lost?: RecoveredAgents | undefined
+  lostShells?: readonly LostShell[] | undefined
 }): Promise<OpenedConversation> {
   const { thread } = args
   // The window, the base and the transcript identity derive from one immutable full read — an
@@ -171,15 +191,23 @@ async function readOpenedConversation(args: {
     started: true,
     model: thread.model,
     executionLocation: thread.executionLocation,
+    lost: args.lost,
+    lostShells: args.lostShells,
     base: snapshot.base,
     identity: snapshot.identity,
   }
 }
 
+/**
+ * The order is the invariant. Children the last process lost are settled before the transcript is
+ * read, so the endings it writes are in the events the screen is built from rather than a turn
+ * behind them; settling twice is safe, so an operator returning to a conversation costs nothing.
+ */
 export async function openConversation(args: Opening): Promise<OpenOutcome> {
   const thread = await threadFor(args)
   if ('reason' in thread) return { ok: false, reason: thread.reason }
   if ('unstarted' in thread) {
+    await closeConversation()
     return { ok: true, conversation: unstartedConversation({ ids: args.ids }) }
   }
 
@@ -211,5 +239,26 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
     }
   }
 
-  return { ok: false, reason: unknownThread({ threadId: thread.id, project: projectOf(args.workspace) }) }
+  const refusal = await claimThread({ threadId: thread.id })
+  if (refusal !== null) return { ok: false, reason: refusal }
+
+  const lost = await args.agents.recordLostAgents({ threadId: thread.id })
+  const lostShells = await recoverLostProcesses({
+    threadId: thread.id,
+    log: args.log,
+    ids: args.ids,
+    shells: args.shells,
+    services: args.services,
+  })
+  await settleCrashedCalls({
+    log: args.log,
+    ids: args.ids,
+    threadId: thread.id,
+    effectOf: args.effects,
+  })
+
+  return {
+    ok: true,
+    conversation: await readOpenedConversation({ thread, log: args.log, ledger: args.ledger, effects: args.effects, lost, lostShells }),
+  }
 }

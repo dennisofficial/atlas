@@ -28,7 +28,7 @@ describe('progressive local and cloud listing', () => {
   it('publishes local rows before a slow cloud request finishes', async () => {
     const response = deferred<Response>()
     const app = fakeApp({ model: unusedModel(), cloud: cloudWithResponse(response.promise) })
-    const thread = await app.threads.create({ workspace: app.config.cwd, title: 'local', executionLocation: EExecutionLocation.Cloud })
+    const thread = await app.threads.create({ workspace: app.config.cwd, title: 'local' })
     const published = deferred<readonly ThreadSummary[]>()
     let finished = false
     const listing = cloudListing(app).list({
@@ -79,15 +79,15 @@ describe('progressive local and cloud listing', () => {
 
   it('keeps local rows on remote failure and honors the local limit', async () => {
     const app = fakeApp({ model: unusedModel(), cloud: cloudWithResponse(Promise.resolve(new Response('', { status: 503 }))) })
-    await app.threads.create({ workspace: app.config.cwd, title: 'first', executionLocation: EExecutionLocation.Cloud })
-    await app.threads.create({ workspace: app.config.cwd, title: 'second', executionLocation: EExecutionLocation.Cloud })
+    await app.threads.create({ workspace: app.config.cwd, title: 'first' })
+    await app.threads.create({ workspace: app.config.cwd, title: 'second' })
     expect(await cloudListing(app).list({ project: app.config.cwd, limit: 1 })).toHaveLength(1)
   })
 
   it('keeps the local placement for a duplicate cloud thread', async () => {
     const response = deferred<Response>()
     const app = fakeApp({ model: unusedModel(), cloud: cloudWithResponse(response.promise) })
-    const local = await app.threads.create({ workspace: app.config.cwd, title: 'local wins', executionLocation: EExecutionLocation.Cloud })
+    const local = await app.threads.create({ workspace: app.config.cwd, title: 'local wins' })
     response.resolve(Response.json([{ ...local, title: 'remote', executionLocation: EExecutionLocation.Cloud }]))
     const rows = await cloudListing(app).list({ project: app.config.cwd })
     expect(rows).toHaveLength(1)
@@ -97,26 +97,15 @@ describe('progressive local and cloud listing', () => {
   it('enriches selected local rows without querying the cloud again', async () => {
     const response = deferred<Response>()
     const app = fakeApp({ model: unusedModel(), cloud: cloudWithResponse(response.promise) })
-    const local = await app.threads.create({ workspace: app.config.cwd, title: 'selected', executionLocation: EExecutionLocation.Cloud })
+    const local = await app.threads.create({ workspace: app.config.cwd, title: 'selected' })
     const rows = await cloudListing(app).list({ project: app.config.cwd, enrich: [local.id] })
     expect(rows[0]?.id).toBe(local.id)
   })
 
   it('does not need cloud access when signed out', async () => {
     const app = fakeApp({ model: unusedModel(), cloud: fakeSignedOutCloud() })
-    const local = await app.threads.create({ workspace: app.config.cwd, title: 'offline', executionLocation: EExecutionLocation.Cloud })
+    const local = await app.threads.create({ workspace: app.config.cwd, title: 'offline' })
     const rows = await cloudListing(app).list({ project: app.config.cwd })
     expect(rows[0]?.id).toBe(local.id)
-  })
-
-  it('never lists a local host thread, matched by a remote row or not', async () => {
-    const response = deferred<Response>()
-    const app = fakeApp({ model: unusedModel(), cloud: cloudWithResponse(response.promise) })
-    const matched = await app.threads.create({ workspace: app.config.cwd, title: 'matched host' })
-    const unmatched = await app.threads.create({ workspace: app.config.cwd, title: 'unmatched host' })
-    response.resolve(Response.json([{ ...matched, title: 'remote', executionLocation: EExecutionLocation.Cloud }]))
-    const rows = await cloudListing(app).list({ project: app.config.cwd })
-    expect(rows.map((row) => row.id)).not.toContain(matched.id)
-    expect(rows.map((row) => row.id)).not.toContain(unmatched.id)
   })
 })

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EForkMode, toThreadId, type EventDraft, EExecutionLocation } from '@dltech/atlas-core'
+import { EForkMode, toThreadId, type EventDraft } from '@dltech/atlas-core'
 
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { ForkSeqOutOfRange, ForkSourceMissing } from '../../fork'
@@ -46,7 +46,7 @@ async function openParent({ home }: { home: string }): Promise<{
   parentId: ReturnType<typeof toThreadId>
 }> {
   const store = openStore({ home })
-  const thread = await store.threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'work', workspace: '/here', repo: '/repo' })
+  const thread = await store.threads.create({ title: 'work', workspace: '/here', repo: '/repo' })
   await store.log.append({
     threadId: thread.id,
     runId: store.ids.nextRunId(),
@@ -151,7 +151,7 @@ describe('JsonlThreadStore.createWithFirstEvents', () => {
     const home = await tempHome()
     const { threads, ids } = openStore({ home })
 
-    const opened = await threads.createWithFirstEvents({ executionLocation: EExecutionLocation.Cloud,
+    const opened = await threads.createWithFirstEvents({
       runId: ids.nextRunId(),
       title: 'opened talking',
       workspace: '/here',
@@ -167,9 +167,9 @@ describe('JsonlThreadStore.createWithFirstEvents', () => {
   it('opens an agent thread inside its spawner’s session', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const spawner = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'main', workspace: '/here' })
+    const spawner = await threads.create({ title: 'main', workspace: '/here' })
 
-    const opened = await threads.createWithFirstEvents({ executionLocation: EExecutionLocation.Cloud,
+    const opened = await threads.createWithFirstEvents({
       runId: ids.nextRunId(),
       agent: { spawnedBy: spawner.id, type: 'explore' },
       drafts: [said('agent turn')],
@@ -184,7 +184,7 @@ describe('JsonlThreadStore.createWithFirstEvents', () => {
     const home = await tempHome()
     const { threads, ids } = openStore({ home })
 
-    await expect(threads.createWithFirstEvents({ executionLocation: EExecutionLocation.Cloud, runId: ids.nextRunId(), drafts: [] })).rejects.toBeInstanceOf(
+    await expect(threads.createWithFirstEvents({ runId: ids.nextRunId(), drafts: [] })).rejects.toBeInstanceOf(
       ThreadNeedsOpeningDrafts,
     )
   })

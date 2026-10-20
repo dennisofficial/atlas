@@ -31,7 +31,8 @@ const WORKSPACE = '/home/main/packages/feature-c'
 
 const arrivedAtMain: EventDraft = {
   type: 'location-changed',
-  to: EExecutionLocation.Cloud,
+  from: EExecutionLocation.Cloud,
+  to: EExecutionLocation.Host,
   cwd: MAIN,
 }
 

@@ -32,6 +32,7 @@ const SIZE = { width: 140, height: 40, exitOnCtrlC: false }
 const JUMP_PILL = 'jump to bottom'
 
 const SOURCE_TAIL = 'SOURCE-TAIL-MARKER'
+const DESTINATION_TAIL = 'DESTINATION-TAIL-MARKER'
 const CLOUD_TAIL = 'CLOUD-TAIL-MARKER'
 const LATER_SAID = 'CLOUD-LATER-MARKER'
 
@@ -58,18 +59,33 @@ const conversationOf = (args: { label: string; pairs: number; tail: string }): E
   return drafts
 }
 
-async function mountSeeded(args: { source: number }): Promise<Mounted> {
+async function seedDestination(args: { app: FakeApp; pairs: number }): Promise<void> {
+  const thread = await args.app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+  await args.app.threads.rename({ threadId: thread.id, title: 'destination thread' })
+  const drafts = conversationOf({ label: 'destination', pairs: args.pairs, tail: DESTINATION_TAIL })
+  await args.app.log.append({ threadId: thread.id, runId: toRunId('run-destination'), drafts })
+}
+
+async function mountSeeded(args: { source: number; destination?: number }): Promise<Mounted> {
   const app = appFor()
   const events = await app.log.append({
     threadId: THREAD,
     runId: toRunId('run-source'),
     drafts: conversationOf({ label: 'source', pairs: args.source, tail: SOURCE_TAIL }),
   })
+  if (args.destination !== undefined) await seedDestination({ app, pairs: args.destination })
   const opened = { threadId: THREAD, events, turns: [], name: null, started: true }
   const setup = await testRender(<App app={app} opened={opened} />, SIZE)
   await settle(250)
   await setup.flush()
   return setup
+}
+
+async function command(args: { setup: Mounted; text: string }): Promise<void> {
+  await args.setup.mockInput.typeText(args.text)
+  args.setup.mockInput.pressEnter()
+  await settle(250)
+  await args.setup.flush()
 }
 
 async function wheelUp(setup: Mounted): Promise<string> {
@@ -105,6 +121,32 @@ type Scroller = {
   scrollTo: (offset: number) => void
 }
 
+const isScroller = (node: unknown): node is Scroller =>
+  typeof node === 'object' && node !== null && 'scrollTo' in node && 'scrollHeight' in node && 'viewport' in node
+
+const findScroller = (node: unknown): Scroller | null =>
+  isScroller(node)
+    ? node
+    : ((node as { getChildren?: () => readonly unknown[] }).getChildren?.() ?? [])
+        .map(findScroller)
+        .find((found) => found !== null) ?? null
+
+const scrollerOf = (setup: Mounted): Scroller => {
+  const found = findScroller(setup.renderer.root)
+  if (found === null) throw new Error('the transcript scrollbox never mounted')
+  return found
+}
+
+const isAtBottom = (box: Scroller): boolean => box.scrollTop >= box.scrollHeight - box.viewport.height - 1
+
+async function scrollWithin(args: { setup: Mounted; where: 'top' | 'middle' }): Promise<void> {
+  const box = scrollerOf(args.setup)
+  box.scrollTo(args.where === 'top' ? 0 : Math.floor(box.scrollHeight / 2))
+  await settle(300)
+  await args.setup.flush()
+  expect(isAtBottom(scrollerOf(args.setup))).toBe(false)
+}
+
 describe.each([
   { name: 'a short transcript', pairs: SHORT_PAIRS },
   { name: 'a windowed transcript', pairs: WINDOWED_PAIRS },
@@ -114,6 +156,31 @@ describe.each([
 
     try {
       await landedAtEnd({ setup, tail: SOURCE_TAIL })
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
+describe.each([
+  { name: 'windowed to short, from the head', source: 130, destination: 30, where: 'top' },
+  { name: 'short to windowed, from the middle', source: 30, destination: 130, where: 'middle' },
+  { name: 'deep windowed to windowed, from the head', source: 300, destination: 101, where: 'top' },
+  { name: 'windowed to deeper, from the middle', source: 101, destination: 300, where: 'middle' },
+  { name: 'near-equal windowed, from the head', source: 101, destination: 102, where: 'top' },
+] as const)('picker resume, $name', ({ source, destination, where }) => {
+  it('lands the destination at its end instead of retaining the source scroll position', async () => {
+    const setup = await mountSeeded({ source, destination })
+
+    try {
+      await frameShowing({ setup, text: SOURCE_TAIL })
+      await command({ setup, text: '/resume' })
+      await scrollWithin({ setup, where })
+      setup.mockInput.pressEnter()
+      await setup.flush()
+
+      await landedAtEnd({ setup, tail: DESTINATION_TAIL })
+      expect(isAtBottom(scrollerOf(setup))).toBe(true)
     } finally {
       await teardown(setup)
     }

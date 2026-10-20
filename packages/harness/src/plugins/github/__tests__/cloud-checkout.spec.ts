@@ -23,13 +23,15 @@ const event = (body: Record<string, unknown>): Event => {
 const bornCloud = (args?: { remoteUrl?: string; branch?: string }): Event =>
   event({
     type: 'location-changed',
+    from: EExecutionLocation.Host,
     to: EExecutionLocation.Cloud,
     cwd: '/workspace',
     remoteUrl: args?.remoteUrl ?? 'git@github.com:dennisofficial/atlas.git',
     branch: args?.branch ?? 'dennis/cloud-born',
   })
 
-const unlocated = (): Event => event({ type: 'location-changed' })
+const backHome = (): Event =>
+  event({ type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host })
 
 describe('the cloud checkout projection', () => {
   it('is null for a local thread', () => {
@@ -66,11 +68,11 @@ describe('the cloud checkout projection', () => {
     expect(projection.version()).toBe(version)
   })
 
-  it('clears when a later move names no location', () => {
+  it('clears when the thread comes back to the host', () => {
     const projection = createCloudCheckout()
 
     projection.publish({ events: [bornCloud()] })
-    projection.publish({ events: [bornCloud(), unlocated()] })
+    projection.publish({ events: [bornCloud(), backHome()] })
 
     expect(projection.current()).toBeNull()
   })

@@ -7,7 +7,8 @@ import {
   type DependencyContainer,
 } from '../container/injection'
 import { DockerEngineToken, SessionRegistryToken } from '../container/tokens'
-import { DEFAULT_DOCKER_SOCKET, DockerEngine } from './docker/engine'
+import { DockerEngine } from './docker/engine'
+import { DEFAULT_DOCKER_SOCKET } from './docker/sandbox'
 import { LocalFileSystemPort } from './local-filesystem'
 import { LocalProcessPort } from './local-process'
 import { LoginEnvProcessPort } from './login-env-process'

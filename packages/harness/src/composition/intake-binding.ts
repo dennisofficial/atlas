@@ -14,6 +14,7 @@ export function bindIntake<Command>(args: {
   services: ServiceRegistryPort
   log: EventLogPort
   ids: IdPort
+  stopSandbox: () => Promise<boolean>
   logPort?: LogPort | undefined
   pluginSources?: readonly IntakeSource[] | undefined
 }): { intake: MessageIntake; recordTeardownEndings: () => Promise<void> } {
@@ -42,6 +43,7 @@ export function bindIntake<Command>(args: {
     recordTeardownEndings: async () => {
       intake.suspend()
       unsubscribeRoster()
+      const keepsSandbox = shells.listEverywhere().some((shell) => shell.status === EShellStatus.Running)
       const prepareAgents = agents.prepareNotifications?.bind(agents)
       const shellEndings: TeardownSource = {
         closeAll: () => shells.detachAll(),
@@ -75,6 +77,7 @@ export function bindIntake<Command>(args: {
           intake,
           ownedKinds: { agents: agentEndings, shells: shellEndings, services: serviceEndings },
           logPort: args.logPort,
+          stopSandbox: keepsSandbox ? async () => false : args.stopSandbox,
         })
       } finally {
         intake.dispose()

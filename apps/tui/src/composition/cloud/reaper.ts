@@ -1,3 +1,4 @@
+import { EExecutionLocation, ELocationChangeCause, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { WireSandboxListEntry } from '@dltech/atlas-harness'
 
 import { messageOf } from '../error-text'
@@ -5,6 +6,8 @@ import { messageOf } from '../error-text'
 export const SANDBOX_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export const REAPER_LIST_FAILURE_NOTICE_MS = 24 * 60 * 60 * 1000
+
+export type ReapedThread = { executionLocation?: EExecutionLocation | undefined }
 
 export type ReaperListFailureMark = {
   readonly message: string
@@ -14,6 +17,9 @@ export type ReaperListFailureMark = {
 export type SandboxReaper = {
   listSandboxes: () => Promise<WireSandboxListEntry[]>
   destroySandbox: (args: { threadId: string }) => Promise<void>
+  findThread: (args: { threadId: ThreadId }) => Promise<ReapedThread | undefined>
+  flipToHost: (args: { threadId: ThreadId }) => Promise<void>
+  recordExpired: (args: { threadId: ThreadId }) => Promise<void>
   notify: (text: string) => void
   readListFailureMark?: () => Promise<ReaperListFailureMark | null>
   writeListFailureMark?: (args: { mark: ReaperListFailureMark }) => Promise<void>
@@ -29,6 +35,11 @@ const reapOne = async (args: {
   const { row, reaper } = args
   try {
     await reaper.destroySandbox({ threadId: row.threadId })
+    const thread = await reaper.findThread({ threadId: toThreadId(row.threadId) })
+    if (thread?.executionLocation === EExecutionLocation.Cloud) {
+      await reaper.flipToHost({ threadId: toThreadId(row.threadId) })
+      await reaper.recordExpired({ threadId: toThreadId(row.threadId) })
+    }
   } catch (failure) {
     reaper.notify(
       `could not retire the expired cloud sandbox for "${row.threadId}": ${messageOf(failure)} — it keeps billing until it is destroyed.`,

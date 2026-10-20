@@ -61,25 +61,10 @@ describe('runtime-owned composer mentions', () => {
         },
       },
     })
-    const cloudAdapters = {
-      runner: local.runner,
-      channel: local.channel,
-      log: local.log,
-      threads: local.threads,
-      ledger: local.ledger,
-      intake: local.intake,
-      shells: local.shells,
-      agents: local.agents,
-      services: local.services,
-      rewindMachinery: undefined,
-      workspace: local.workspace,
-      files: local.files,
-      attachment: undefined,
-    }
     const binding: Binding = {
       kind: ERuntimeKind.Cloud,
       cwd: '/atlas/workspaces/project',
-      adapters: { ...cloudAdapters, files: remote },
+      adapters: { ...local.sessionOwner.require().adapters, files: remote },
     }
     const app = appOf({ local, binding })
     expect(app.files).toBe(remote)
@@ -109,20 +94,19 @@ describe('runtime-owned composer mentions', () => {
       workspaceRoot: root,
       model: scriptedModelPort({ script: { thinking: '', reply: 'done' } }),
     })
-    await local.threads.create({ id: threadId, executionLocation: EExecutionLocation.Cloud })
-    await local.sessionOwner.placement.activate({ threadId })
+    await local.executionLocation.activate({ threadId, fallback: EExecutionLocation.Cloud })
     expect(local.sessionOwner.snapshot().binding).toBeUndefined()
     const app = appOf({ local, binding: undefined })
     expect(app).toBe(local)
     const owner = local.sessionOwner.snapshot()
     const files = activeMentionReader({
       reader: app.files,
-      placed: owner.placed,
+      location: owner.location,
       bound: owner.bound,
     })
     expect(files).not.toBe(local.files)
     expect(
-      activeMentionReader({ reader: app.files, placed: owner.placed, bound: owner.bound }),
+      activeMentionReader({ reader: app.files, location: owner.location, bound: owner.bound }),
     ).toBe(files)
     await expect(files.list('')).rejects.toThrow('the cloud filesystem is still connecting')
     expect(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import {
@@ -34,7 +35,7 @@ const reading = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgre
 })
 
 const moveWith = (...readings: BirthTransferProgress[]): ContainerMove => {
-  let move = beginMove({ now: STARTED_AT, rows: ROWS })
+  let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: ROWS })
   move = startMoveNode({ move, nodeId: 'captureWorkspace', now: STARTED_AT })
   for (const progress of readings) move = updateMoveTransfer({ move, progress })
   return move

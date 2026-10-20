@@ -1,9 +1,14 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  locationOfPlacement,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { PlacementController } from './placement-controller'
-import { createSessionFreezes, type FreezeSource } from './session-freezes'
+import { createSessionFreezes } from './session-freezes'
 import { createRetirementQueue } from './session-retirement'
 import {
+  ERuntimeKind,
   type BirthInstall,
   type OwnerSnapshot,
   type RuntimeBinding,
@@ -19,24 +24,32 @@ export type {
   SessionRuntime,
 } from './session-owner-types'
 
+type Staged<Adapters> = {
+  threadId: ThreadId
+  target: EExecutionLocation
+  binding: RuntimeBinding<Adapters> | undefined
+}
+
+const kindFits = (args: { target: EExecutionLocation; kind: ERuntimeKind }): boolean =>
+  (args.target === EExecutionLocation.Cloud) === (args.kind === ERuntimeKind.Cloud)
+
 export function createSessionOwner<Adapters>(args: {
   placement: PlacementController
-  freeze?: FreezeSource | undefined
+  local: RuntimeBinding<Adapters>
 }): SessionOwner<Adapters> {
   const { placement } = args
   const listeners = new Set<() => void>()
+  let local = args.local
+  const baseFreeze = args.local.freeze
   let cloud: { threadId: ThreadId; binding: RuntimeBinding<Adapters> } | undefined
-  let staged: { threadId: ThreadId; binding: RuntimeBinding<Adapters> } | undefined
+  let staged: Staged<Adapters> | undefined
   const freezes = createSessionFreezes()
   const attachments = new Set<ThreadId>()
 
   const releaseFreeze = (threadId: ThreadId): void => freezes.release(threadId)
 
   const holdFreeze = (threadId: ThreadId): Promise<void> =>
-    freezes.hold({
-      threadId,
-      freeze: (cloud?.threadId === threadId ? cloud.binding.freeze : undefined) ?? args.freeze,
-    })
+    freezes.hold({ threadId, freeze: (cloud?.threadId === threadId ? cloud.binding : local).freeze ?? baseFreeze })
 
   const retiring = createRetirementQueue<RuntimeBinding<Adapters>>()
 
@@ -57,18 +70,29 @@ export function createSessionOwner<Adapters>(args: {
     if (retired !== undefined) retiring.push(retired.binding)
   }
 
-  const install = (held: { threadId: ThreadId; binding: RuntimeBinding<Adapters> }): void => {
-    if (cloud !== undefined && cloud.binding !== held.binding) retireCloud()
-    cloud = { threadId: held.threadId, binding: held.binding }
+  const install = (held: Staged<Adapters>): void => {
+    if (held.target === EExecutionLocation.Cloud) {
+      if (held.binding === undefined) return
+      if (cloud !== undefined && cloud.binding !== held.binding) retireCloud()
+      cloud = { threadId: held.threadId, binding: held.binding }
+      return
+    }
+    if (held.binding !== undefined) local = held.binding
+    retireCloud()
+    releaseFreeze(held.threadId)
   }
 
   // A committed cloud birth publishes its placement; the staged binding rides that publish so the
   // durable write and the runtime install land together.
-  placement.beforePublish(({ threadId }) => {
-    if (staged === undefined || staged.threadId !== threadId) return
-    const held = staged
-    staged = undefined
-    install(held)
+  placement.beforePublish(({ threadId, record }) => {
+    const location = locationOfPlacement(record.placement)
+    if (staged !== undefined && staged.threadId === threadId && staged.target === location) {
+      const held = staged
+      staged = undefined
+      install(held)
+      return
+    }
+    if (location !== EExecutionLocation.Cloud && cloud?.threadId === threadId) retireCloud()
   })
   placement.subscribe(notify)
 
@@ -76,28 +100,29 @@ export function createSessionOwner<Adapters>(args: {
 
   const snapshot = (): OwnerSnapshot<Adapters> => {
     const threadId = placement.activeThread()
+    const location = placement.current()
     const record = threadId === undefined ? undefined : placement.snapshot(threadId)
-    const binding = cloud !== undefined && cloud.threadId === threadId ? cloud.binding : undefined
-    const placed = record !== undefined
+    const attached = location === EExecutionLocation.Cloud && cloud !== undefined && cloud.threadId === threadId
+    const binding = location !== EExecutionLocation.Cloud ? local : attached ? cloud?.binding : undefined
     const bound = binding !== undefined
     if (
       cached !== undefined &&
       cached.threadId === threadId &&
-      cached.placed === placed &&
+      cached.location === location &&
       cached.record === record &&
       cached.binding === binding &&
       cached.bound === bound
     ) {
       return cached
     }
-    cached = { threadId, placed, record, binding, bound }
+    cached = { threadId, location, record, binding, cwd: (binding ?? local).cwd, bound }
     return cached
   }
 
   const require = (): RuntimeBinding<Adapters> => {
-    const { binding } = snapshot()
-    if (binding === undefined) throw new Error('the session runtime is not attached — nothing may run until it is')
-    return binding
+    const view = snapshot()
+    if (view.binding === undefined) throw new Error('the cloud runtime is not attached — nothing may run until it is')
+    return view.binding
   }
 
   return {
@@ -105,6 +130,7 @@ export function createSessionOwner<Adapters>(args: {
     snapshot,
     require,
     attaching: (threadId) => attachments.has(threadId),
+    current: placement.current,
     subscribe: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
@@ -127,6 +153,9 @@ export function createSessionOwner<Adapters>(args: {
           const handle: BirthInstall<Adapters> = {
             committed: commit.committed,
             prepareRuntime: (binding) => {
+              if (!kindFits({ target: EExecutionLocation.Cloud, kind: binding.kind })) {
+                throw new Error('the prepared runtime does not fit a cloud birth')
+              }
               discard()
               prepared = binding
             },
@@ -135,7 +164,7 @@ export function createSessionOwner<Adapters>(args: {
               if (prepared === undefined) {
                 throw new Error('a cloud birth needs a prepared runtime before it commits')
               }
-              staged = { threadId, binding: prepared }
+              staged = { threadId, target: EExecutionLocation.Cloud, binding: prepared }
               try {
                 await commit.commit(next)
               } finally {
@@ -156,8 +185,9 @@ export function createSessionOwner<Adapters>(args: {
       })
     },
     adopt: async ({ threadId, binding }) => {
-      if ((await placement.load({ threadId })) === undefined) {
-        throw new Error('this session is not placed in a pod or sandbox — a runtime cannot be adopted')
+      const record = await placement.load({ threadId })
+      if (locationOfPlacement(record.placement) !== EExecutionLocation.Cloud) {
+        throw new Error('this session is not in the cloud — a cloud runtime cannot be adopted')
       }
       const prior = cloud
       cloud = { threadId, binding }
@@ -177,6 +207,13 @@ export function createSessionOwner<Adapters>(args: {
         attachments.delete(threadId)
       }
       if (prior !== undefined && prior.binding !== binding) retiring.push(prior.binding)
+      notify()
+    },
+    activateLocal: async ({ threadId, binding, fallback }) => {
+      await placement.activate({ threadId, fallback })
+      if (binding !== undefined) local = binding
+      if (cloud?.threadId === threadId && placement.of(threadId) !== EExecutionLocation.Cloud) retireCloud()
+      if (placement.of(threadId) !== EExecutionLocation.Cloud) releaseFreeze(threadId)
       notify()
     },
     detach: ({ threadId }) => {

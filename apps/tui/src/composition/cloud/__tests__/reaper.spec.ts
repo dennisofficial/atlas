@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import { ECloudSandboxState, type WireSandboxListEntry } from '@dltech/atlas-harness'
 
 import {
   reapExpiredCloudSandboxes,
   REAPER_LIST_FAILURE_NOTICE_MS,
   SANDBOX_TTL_MS,
+  type ReapedThread,
   type ReaperListFailureMark,
 } from '../reaper'
 
@@ -29,6 +31,7 @@ const FRESH = rowOf({
 
 type Fixture = {
   rows: WireSandboxListEntry[]
+  threads: Map<string, ReapedThread>
   calls: { kind: string; threadId: string }[]
   notices: string[]
   failDestroyOn?: string[]
@@ -40,6 +43,7 @@ type Fixture = {
 const fixture = (given: Partial<Fixture>) => {
   const held: Fixture = {
     rows: [],
+    threads: new Map(),
     calls: [],
     notices: [],
     mark: null,
@@ -62,6 +66,10 @@ const fixture = (given: Partial<Fixture>) => {
           record('row', threadId)
           if (held.failDestroyOn?.includes(threadId) === true) throw new Error('vercel is down')
         },
+        findThread: async ({ threadId }: { threadId: ThreadId }) =>
+          held.threads.get(threadId),
+        flipToHost: async ({ threadId }) => record('flip', threadId),
+        recordExpired: async ({ threadId }) => record('expired-event', threadId),
         notify: (text) => {
           held.notices.push(text)
         },
@@ -79,12 +87,19 @@ const fixture = (given: Partial<Fixture>) => {
 }
 
 describe('reapExpiredCloudSandboxes', () => {
-  it('destroys an expired row without a notice', async () => {
-    const given = fixture({ rows: [EXPIRED] })
+  it('destroys an expired row, flips its cloud thread to host, and marks the transcript without a notice', async () => {
+    const given = fixture({
+      rows: [EXPIRED],
+      threads: new Map([[EXPIRED.threadId, { executionLocation: EExecutionLocation.Cloud }]]),
+    })
 
     await given.run()
 
-    expect(given.calls).toEqual([{ kind: 'row', threadId: EXPIRED.threadId }])
+    expect(given.calls).toEqual([
+      { kind: 'row', threadId: EXPIRED.threadId },
+      { kind: 'flip', threadId: EXPIRED.threadId },
+      { kind: 'expired-event', threadId: EXPIRED.threadId },
+    ])
     expect(given.notices).toEqual([])
   })
 
@@ -97,7 +112,7 @@ describe('reapExpiredCloudSandboxes', () => {
     expect(given.notices).toEqual([])
   })
 
-  it('keeps going when a sandbox destroy fails, still reaps the other rows, and notifies the failure', async () => {
+  it('skips the flip when the sandbox destroy fails, still reaps the other rows, and notifies the failure', async () => {
     const other = rowOf({
       threadId: 'brn_also_expired',
       lastActivityAt: EXPIRED.lastActivityAt,
@@ -116,6 +131,26 @@ describe('reapExpiredCloudSandboxes', () => {
     expect(given.notices).toEqual([
       `could not retire the expired cloud sandbox for "${EXPIRED.threadId}": vercel is down — it keeps billing until it is destroyed.`,
     ])
+  })
+
+  it('does not flip a thread the local store has never heard of', async () => {
+    const given = fixture({ rows: [EXPIRED] })
+
+    await given.run()
+
+    expect(given.calls).toEqual([{ kind: 'row', threadId: EXPIRED.threadId }])
+  })
+
+  it('does not flip or mark a thread that already runs on the host', async () => {
+    const given = fixture({
+      rows: [EXPIRED],
+      threads: new Map([[EXPIRED.threadId, { executionLocation: EExecutionLocation.Host }]]),
+    })
+
+    await given.run()
+
+    expect(given.calls.some((call) => call.kind === 'flip')).toBe(false)
+    expect(given.calls.some((call) => call.kind === 'expired-event')).toBe(false)
   })
 
   it('notifies once and returns when the listing itself fails', async () => {

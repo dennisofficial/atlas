@@ -17,6 +17,7 @@ import {
   SleepPreventionToken,
   WorkspaceRoot,
 } from '../container/tokens'
+import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { ThreadStorePort } from '../store/thread-store'
 import { DurableShellLauncher } from './durable-launcher'
 import { ShellLauncherPort, ShellRegistryPort } from './port'
@@ -107,5 +108,11 @@ function durableLauncher(args: {
       return supervisor
     },
     now: () => clock.now(),
+    locationOf: container.isRegistered(ExecutionLocationToken, true)
+      ? (threadId) => {
+          const location = container.resolve(ExecutionLocationToken).state
+          return location.of(threadId) ?? location.current()
+        }
+      : undefined,
   })
 }

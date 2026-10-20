@@ -1,3 +1,4 @@
+import { EExecutionLocation } from '../execution/location'
 import { EFFORT_LADDER, EEffort } from '../models/effort-ladder'
 import { EClassifierMode } from '../policy/classifier/triage'
 import { EWebSearchBackend } from '../web/search'
@@ -57,6 +58,7 @@ export enum ESettingId {
   CompactionModel = 'model.compactionModel',
   ModelFavourites = 'model.favourites',
   SubagentModel = 'agents.subagentModel',
+  ExecutionLocation = 'execution.location',
   LastBornPlacement = 'placement.lastBorn',
   ContainerCpus = 'container.cpus',
   ContainerMemory = 'container.memory',
@@ -70,6 +72,7 @@ export enum ESettingId {
   AutoRestart = 'dev.autoRestart',
   GrillingCeremony = 'experimental.grillingCeremony',
   PlacementChooserShape = 'experimental.placementChooserShape',
+  ExperimentalPods = 'experimental.pods',
   PrVerdictTiming = 'github.prEvents.verdictTiming',
   QualityEnabled = 'quality.enabled',
   QualityRecordExamples = 'quality.recordExamples',
@@ -683,6 +686,21 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     ],
   },
   {
+    id: ESettingId.ExecutionLocation,
+    page: ESettingPage.General,
+    group: 'Execution',
+    label: 'Where sessions run',
+    description:
+      'Where a conversation that has not been given a location of its own executes its tools. Every conversation remembers the location it was last switched to, so this is only what a new one begins with — /container writes the conversation, and --execution-location outranks this row for one launch.',
+    environmentVariable: 'ATLAS_EXECUTION_LOCATION',
+    kind: ESettingKind.Choice,
+    fallback: EExecutionLocation.Host,
+    options: [
+      { value: EExecutionLocation.Host, label: 'host', detail: 'shipped' },
+      { value: EExecutionLocation.Docker, label: 'docker' },
+    ],
+  },
+  {
     id: ESettingId.ContainerCpus,
     page: ESettingPage.General,
     group: 'Execution',
@@ -748,6 +766,17 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     description:
       'With this on, a session plans feature-sized work by interviewing you first — walking the design tree one question at a time, recommending an answer with each, sharpening vague terminology, stress-testing edge cases, and checking your claims against the code, capturing every settled decision into the context folder as it goes. A localized fix with an obvious cause stays interview-free either way. Off by default while the ceremony proves itself.',
     environmentVariable: 'ATLAS_EXPERIMENTAL_GRILLING_CEREMONY',
+    kind: ESettingKind.Toggle,
+    fallback: false,
+  },
+  {
+    id: ESettingId.ExperimentalPods,
+    page: ESettingPage.Experimental,
+    group: 'Placement',
+    label: 'pods',
+    description:
+      'With this on, every new thread is born on its first send in a local Docker pod or a Vercel sandbox, behind an Atlas Cloud sign-in. Off, sessions run in-process on this machine. Read at launch, so restart Atlas after changing it.',
+    environmentVariable: 'ATLAS_EXPERIMENTAL_PODS',
     kind: ESettingKind.Toggle,
     fallback: false,
   },

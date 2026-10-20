@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 import { beginMove, failMove, startMoveNode, updateMoveTransfer, type ContainerMove } from '../../composition/container-move'
@@ -27,6 +28,7 @@ const upload = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgres
 
 const birth = (): ContainerMove =>
   beginMove({
+    target: EExecutionLocation.Cloud,
     now: STARTED_AT,
     rows: ROWS,
     heading: 'STARTING A POD',

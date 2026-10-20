@@ -72,19 +72,33 @@ describe('transcriptOfRange', () => {
     expect(transcriptOfRange({ events, throughSeq: 1 }).length).toBeLessThan(1_000)
   })
 
-  it('renders a move to the cloud as a cloud sandbox', () => {
-    const events = eventsFrom([movedLocation({ to: EExecutionLocation.Cloud })])
+  it('renders a move to the cloud as a cloud sandbox, not the host', () => {
+    const events = eventsFrom([
+      movedLocation({ from: EExecutionLocation.Host, to: EExecutionLocation.Cloud }),
+    ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      "Atlas moved this conversation's processing to a cloud sandbox",
+      "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host",
+    )
+  })
+
+  it('renders a move away from the cloud with the cloud on the from side', () => {
+    const events = eventsFrom([
+      movedLocation({ from: EExecutionLocation.Cloud, to: EExecutionLocation.Docker }),
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
+      "Atlas moved this conversation's processing to a Docker container — earlier tool results came from a cloud sandbox",
     )
   })
 
   it('names the new working directory when the move carries one', () => {
-    const events = eventsFrom([movedLocation({ to: EExecutionLocation.Cloud, cwd: '/workspace' })])
+    const events = eventsFrom([
+      movedLocation({ from: EExecutionLocation.Host, to: EExecutionLocation.Cloud, cwd: '/workspace' }),
+    ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      "Atlas moved this conversation's processing to a cloud sandbox — the working directory is now /workspace",
+      "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host — the working directory is now /workspace",
     )
   })
 

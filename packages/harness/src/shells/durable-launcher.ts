@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { type ProcessPort, type ThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  type ProcessPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { IMPORTED_SHELL_ORIGIN, IMPORTED_SHELL_ORIGIN_FILE } from '../cloud/portable-session-file'
 import { atlasBinDirectory } from '../store/paths'
@@ -12,7 +16,9 @@ import type { SessionRegistry } from '../store/sessions/registry'
 import {
   attachDurableShell,
   launchDurableShell,
+  CONTROL_FLAG,
   EAttachFailure,
+  type ControlAction,
   type ControlResult,
   type ControlTransport,
 } from './durable/client'
@@ -35,6 +41,7 @@ export type DurableLauncherDeps = {
   sessions: Pick<SessionRegistry, 'sessionDirOf'>
   processes: ProcessPort
   supervisor: () => Promise<SupervisorLauncher>
+  locationOf?: ((threadId: ThreadId) => EExecutionLocation | undefined) | undefined
   now: () => string
 }
 
@@ -44,6 +51,9 @@ const shellEnv = (directory: string): Record<string, string | undefined> => ({
   [LOGIN_ENV_MARKER]: '1',
   [ATLAS_SHELL_DIR_ENV]: directory,
 })
+
+const isControlResult = (value: unknown): value is ControlResult =>
+  typeof value === 'object' && value !== null && typeof (value as { ok?: unknown }).ok === 'boolean'
 
 export class DurableShellLauncher extends ShellLauncherPort {
   constructor(private readonly deps: DurableLauncherDeps) {
@@ -61,7 +71,8 @@ export class DurableShellLauncher extends ShellLauncherPort {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
 
-    const command = supervisorCommand({ launcher: prefix, configPath: '' }).slice(0, -1)
+    const docker = this.docker(spec.threadId)
+    const command = supervisorCommand({ launcher: prefix, docker, configPath: '' }).slice(0, -1)
     const env = shellEnv(created.directory)
     const outcome = await launchDurableShell({
       shellDir: created.directory,
@@ -72,7 +83,10 @@ export class DurableShellLauncher extends ShellLauncherPort {
       silenceMs: spec.silenceMs,
       outputLimitBytes: spec.outputLimitBytes,
       supervisorCommand: command,
-      sessionLock: { lockFile: created.sessionLock, pidNamespace: await pidNamespaceOf() },
+      sessionLock: docker
+        ? undefined
+        : { lockFile: created.sessionLock, pidNamespace: await pidNamespaceOf() },
+      transport: docker ? this.transport({ command, threadId: spec.threadId, dir: created.directory }) : undefined,
       launch: async (call) => {
         if (deps.processes.launchDetached === undefined) {
           throw new Error('the process port this thread runs on cannot launch detached commands')
@@ -115,7 +129,7 @@ export class DurableShellLauncher extends ShellLauncherPort {
     const attached = await attachDurableShell({
       shellDir: files.directory,
       cursor: sizeOf(files.output),
-      transport: imported ? importedTransport : undefined,
+      transport: imported ? importedTransport : this.control({ threadId: args.threadId, dir: files.directory }).transport,
     }).catch((error: unknown) => ({ ok: false as const, code: EAttachFailure.Invalid, reason: String(error) }))
 
     if (!attached.ok) {
@@ -136,6 +150,46 @@ export class DurableShellLauncher extends ShellLauncherPort {
       return undefined
     }
     return { state: EInspected.Live, shellId, attachment }
+  }
+
+  private docker(threadId: ThreadId): boolean {
+    return this.deps.locationOf?.(threadId) === EExecutionLocation.Docker
+  }
+
+  private control(args: { threadId: ThreadId; dir: string }): { transport?: ControlTransport } {
+    if (!this.docker(args.threadId)) return {}
+    return { transport: this.transport({ ...args, command: [] }) }
+  }
+
+  private transport(args: { threadId: ThreadId; dir: string; command: readonly string[] }): ControlTransport {
+    return async ({ request }) => this.sendInContainer({ ...args, request })
+  }
+
+  private async sendInContainer(args: {
+    threadId: ThreadId
+    dir: string
+    command: readonly string[]
+    request: ControlAction
+  }): Promise<ControlResult> {
+    try {
+      const prefix =
+        args.command.length > 0 ? args.command : supervisorCommand({
+          launcher: await this.deps.supervisor(),
+          docker: true,
+          configPath: '',
+        }).slice(0, -1)
+      const handle = this.deps.processes.spawn({
+        cmd: [...prefix, CONTROL_FLAG, args.dir, JSON.stringify(args.request)],
+        cwd: args.dir,
+        threadId: args.threadId,
+      })
+      const [text] = await Promise.all([new Response(handle.stdout).text(), handle.exited])
+      const parsed: unknown = JSON.parse(text.trim().split('\n').at(-1) ?? '')
+      if (isControlResult(parsed)) return parsed
+      return { ok: false, code: EControlError.Unreachable, message: 'the control helper answered nothing usable' }
+    } catch (error) {
+      return { ok: false, code: EControlError.Unreachable, message: error instanceof Error ? error.message : String(error) }
+    }
   }
 }
 

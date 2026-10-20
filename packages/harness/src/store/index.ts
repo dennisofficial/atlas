@@ -26,6 +26,7 @@ export { RandomIds } from './ids'
 export { rewindThread, type RewindKill, type RewindResult } from './rewind'
 export { LocalRewindMachinery } from './local-rewind-machinery'
 export { RewindMachineryPort, type RewindRead } from './rewind-machinery'
+export { relocateSession, type RelocatedSession } from './relocate-session'
 export { ATLAS_DIRECTORY_NAME, atlasDirectory } from './paths'
 export {
   EVENTS_FILE_SUFFIX,
@@ -39,7 +40,6 @@ export {
   sessionMetaFile,
   threadMetaFile,
 } from './sessions/paths'
-export { isCloudThread } from './sessions/listing'
 export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
 export { SessionRegistry, registryFor } from './sessions/registry'
 export {

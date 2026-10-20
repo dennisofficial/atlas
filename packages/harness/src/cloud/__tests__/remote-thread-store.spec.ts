@@ -250,7 +250,7 @@ describe('RemoteThreadStore', () => {
       store.createWithFirstEvents({ runId: 'run_1' as never, drafts: [] }),
     ).rejects.toThrow('the sandbox owns the transcript')
     await expect(
-      store.chooseExecutionLocation({ threadId: THREAD, location: EExecutionLocation.Cloud }),
+      store.chooseExecutionLocation({ threadId: THREAD, location: EExecutionLocation.Docker }),
     ).rejects.toThrow('the sandbox owns the transcript')
     await expect(store.adopt({ threadId: THREAD, workspace: '/w', repo: null })).rejects.toThrow(
       'the sandbox owns the transcript',

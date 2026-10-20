@@ -1,6 +1,7 @@
 import { useRenderer } from '@opentui/react'
 import { useRef } from 'react'
 
+import { closeConversation } from './open-conversation'
 import { useExitGuard } from './use-exit-guard'
 import type { WorkspaceProps } from './workspace-props'
 
@@ -19,11 +20,13 @@ export function useWorkspaceExit(args: { props: ExitProps }) {
       props.onRestart()
       return
     }
+    void closeConversation()
     renderer.destroy()
   }
 
   const handleDetach = () => {
     props.cloudSession?.close()
+    void closeConversation()
     renderer.destroy()
     process.stdout.write(`${DETACHED_EXIT_LINE}\n`)
   }

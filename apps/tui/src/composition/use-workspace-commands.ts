@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { mcpReport, type DiscoveredSkill, type EConnectionView } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from './compose'
-import { localCommands } from './commands'
+import { localCommands, type EContainerAsk } from './commands'
 import { wakeEffect } from './commands/wake'
 import type { Conversation } from './use-conversation'
 import { reloadedSkills, type SkillsReloaded } from './skills-reload'
@@ -12,6 +12,7 @@ import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
 import type { SwitcherControl } from './use-switcher'
 import type { useChromePanel } from './use-workspace-layout'
+import type { EExecutionLocation } from '@dltech/atlas-core'
 
 export function useWorkspaceCommands(args: {
   app: AtlasApp
@@ -23,7 +24,7 @@ export function useWorkspaceCommands(args: {
   shells: ShellsControl
   switcher: Pick<SwitcherControl, 'handleOpen'>
   chrome: Pick<ReturnType<typeof useChromePanel>, 'handleShortcuts'>
-  handleContainer: () => string | undefined
+  handleContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
   handleContainerResources: () => string | undefined
   handleOpenAccounts: () => void
   handleNewConversation: () => void

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { toRunId } from '@dltech/atlas-core'
+import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'
 
 import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
@@ -20,7 +20,7 @@ const fakeMove = (): FakeMove => {
   return {
     move: null,
     now: 0,
-    handleBegin: (args) => calls.push('begin'),
+    handleBegin: (args) => calls.push(`begin:${args.target}`),
     handleNodeStart: (nodeId) => calls.push(`start:${nodeId}`),
     handleNodeDone: (nodeId) => calls.push(`done:${nodeId}`),
     handleCancel: () => calls.push('cancel'),
@@ -74,7 +74,7 @@ describe('waking a cloud runner whose channel is not open', () => {
     expect(bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
-      'begin',
+      `begin:${EExecutionLocation.Cloud}`,
       'active:attaching',
       'settle',
     ])
@@ -207,7 +207,7 @@ describe('waking a cloud runner whose channel is not open', () => {
     await Bun.sleep(1)
 
     expect(move.calls).toEqual([
-      'begin',
+      `begin:${EExecutionLocation.Cloud}`,
       `expand:rotating:UPDATING THE POD`,
       'active:attaching',
       'settle',
@@ -239,7 +239,7 @@ describe('waking a cloud runner whose channel is not open', () => {
     await Bun.sleep(1)
 
     expect(move.calls).toEqual([
-      'begin',
+      `begin:${EExecutionLocation.Cloud}`,
       `expand:rotating:UPDATING THE POD`,
       'active:attaching',
       'settle',
@@ -266,7 +266,7 @@ describe('waking a cloud runner whose channel is not open', () => {
     await expect(runner.runTurn({ threadId: CLOUD_THREAD })).rejects.toThrow('no capacity in iad1')
 
     expect(move.calls).toEqual([
-      'begin',
+      `begin:${EExecutionLocation.Cloud}`,
       'fail:no capacity in iad1',
     ])
     expect(channel.woken).toEqual([])

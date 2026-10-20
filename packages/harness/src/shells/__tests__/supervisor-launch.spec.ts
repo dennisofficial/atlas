@@ -50,12 +50,25 @@ describe('prepareSupervisorLauncher', () => {
     expect(launcher.host).toEqual([process.execPath, SHELL_SUPERVISE_FLAG])
   })
 
-  it('appends the config path to the prefix', async () => {
+  it('always launches Docker with the sandbox Bun and the shared script path', async () => {
+    for (const embedded of [true, false]) {
+      const launcher = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded })
+
+      expect(launcher.docker).toEqual(['bun', launcher.script])
+    }
+  })
+
+  it('appends the config path to the prefix for the chosen runtime', async () => {
     const launcher = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded: true })
 
-    expect(supervisorCommand({ launcher, configPath: '/c.json' })).toEqual([
+    expect(supervisorCommand({ launcher, docker: false, configPath: '/c.json' })).toEqual([
       process.execPath,
       SHELL_SUPERVISE_FLAG,
+      '/c.json',
+    ])
+    expect(supervisorCommand({ launcher, docker: true, configPath: '/c.json' })).toEqual([
+      'bun',
+      launcher.script,
       '/c.json',
     ])
   })

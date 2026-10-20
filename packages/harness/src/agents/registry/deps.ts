@@ -1,6 +1,7 @@
 import type {
   ClockPort,
   EventLogPort,
+  ExecutionLocationSinkPort,
   IdPort,
   TelemetryPort,
   ThreadId,
@@ -38,6 +39,7 @@ export type SupervisorDeps = {
   runners: ChildRunnerSource
   modelAtSpawn?: ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel | undefined>) | undefined
   launchDirectory: string
+  sink?: ExecutionLocationSinkPort | undefined
   telemetry?: TelemetryPort | undefined
   intake?: IntakeChanged | undefined
   input?: (() => IntakeSubmit | undefined) | undefined
