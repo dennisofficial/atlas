@@ -14,7 +14,7 @@ import {
   threadMetaSchema,
 } from '@dltech/atlas-harness'
 
-import { bootstrapContextArchiveFetcher, bootstrapWorkspaceSpecFetcher } from './bootstrap-fetchers'
+import { bootstrapContextArchiveFetcher } from './bootstrap-fetchers'
 import {
   createEnvironmentProfile,
   EProfileStepState,
@@ -28,6 +28,7 @@ import {
   type WorkspaceReadiness,
 } from './materialize-workspace'
 import { materializeContext } from './materialize-context'
+import { projectWorkspaceSpecFetcher } from './project-workspace-spec'
 import { applySigningKey } from './signing-key-env'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { resolveWorkspaceDir, writeRecordedWorkspaceDir } from './workspace-dir'
@@ -53,7 +54,15 @@ export async function bootServeFiles(args: {
   fetchFn: typeof fetch
 }) {
   const { env, threadId, atlasHome, log } = args
-  const fetchSpecOnce = lazy(bootstrapWorkspaceSpecFetcher({ atlasHome }))
+  const fetchSpecOnce = lazy(
+    projectWorkspaceSpecFetcher({
+      atlasHome,
+      controlPlaneUrl: args.controlPlaneUrl,
+      token: args.token,
+      clientVersion: args.clientVersion,
+      fetchFn: args.fetchFn,
+    }),
+  )
 
   const workspaceStartedAt = Date.now()
   const cwd = await resolveWorkspaceDir({ atlasHome, fetchSpec: fetchSpecOnce })

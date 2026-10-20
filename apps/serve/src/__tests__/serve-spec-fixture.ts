@@ -44,6 +44,8 @@ const writeDriveSpec = async (args: {
 
 export const startWithDriveSpec = async (args: {
   spec?: Record<string, unknown> | undefined
+  fetchFn?: typeof fetch | undefined
+  ensureWorkspace?: EnsureWorkspace | undefined
   compose: (composeArgs: { model?: { ref: string; effort?: string | undefined } | undefined }) => Promise<FakeServeApp>
 }): Promise<ServeHandle> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-'))
@@ -58,8 +60,9 @@ export const startWithDriveSpec = async (args: {
     controlPlaneUrl: CONTROL_PLANE,
     env: {},
     cwd: '/workspace',
+    ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
     compose: args.compose,
-    ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+    ensureWorkspace: args.ensureWorkspace ?? (async () => ({ state: EWorkspaceState.Skipped })),
     contextFiles: inMemoryContextFiles(),
   })
   running.push(handle)

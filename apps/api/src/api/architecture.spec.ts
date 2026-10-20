@@ -24,12 +24,7 @@ const SRC_ROOT = path.dirname(API_ROOT)
 // Edges that existed when the layers were drawn (Phase 0). Each one is real
 // module wiring, not an import-path accident; later phases burn this list down.
 // Removing an edge means deleting its entry here — stale entries fail the suite.
-const GRANDFATHERED = new Set([
-  'platform/sandboxes/git-credentials.spec.ts -> ../../cloud/github/github.service',
-  'platform/sandboxes/git-credentials.ts -> ../../cloud/github/github.service',
-  'platform/sandboxes/sandboxes.module.ts -> ../../cloud/github/github.module',
-  'platform/sandboxes/sandboxes.service.spec.ts -> ../../cloud/github/github.service',
-])
+const GRANDFATHERED = new Set<string>()
 
 interface Violation {
   file: string

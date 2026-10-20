@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { gitMessageOf, gitOneLine } from '@dltech/atlas-harness'
 import { runGit, type GitRun } from '@dltech/atlas-harness'
 
+import { branchFlagsOf, cloneAdditionalRepos } from './clone-repo'
 import type { ApplyEnvironmentProfile, EnvironmentProfile } from './environment-profile'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { FetchWorkspaceSpec, WorkspaceSpec } from './workspace-spec'
@@ -62,12 +63,6 @@ export function credentialedRemoteOf(args: { remoteUrl: string; token: string | 
   return https.replace('https://', `https://x-access-token:${args.token}@`)
 }
 
-/**
- * A cloud-born sandbox starts from what origin says right now: a full clone of the repo's default
- * branch, credentialed by the brokered githubToken, with the token scrubbed from the remote once
- * the clone lands. The sentinel records the clone's HEAD; its presence is the "already
- * materialized" answer on a resumed boot.
- */
 export function createEnsureWorkspace(args: {
   git?: GitRunner | undefined
   files?: WorkspaceFiles | undefined
@@ -104,7 +99,7 @@ export function createEnsureWorkspace(args: {
       return failed(EWorkspaceStep.Fetch, messageOf(error))
     }
 
-    const { remoteUrl, githubToken } = spec
+    const { remoteUrl, githubToken, baseBranch, additionalRepos } = spec
     if (remoteUrl === null) {
       try {
         await files.ensureDirectory(cwd)
@@ -124,7 +119,13 @@ export function createEnsureWorkspace(args: {
     }
 
     const cloned = await git({
-      args: ['clone', '--', credentialedRemoteOf({ remoteUrl, token: githubToken }), '.'],
+      args: [
+        'clone',
+        ...branchFlagsOf(baseBranch),
+        '--',
+        credentialedRemoteOf({ remoteUrl, token: githubToken }),
+        '.',
+      ],
       cwd,
     })
     if (!cloned.ok) return failed(EWorkspaceStep.Clone, scrub(reasonOf(cloned)))
@@ -134,6 +135,15 @@ export function createEnsureWorkspace(args: {
       cwd,
     })
     if (!disarmed.ok) return failed(EWorkspaceStep.Clone, scrub(reasonOf(disarmed)))
+
+    const extrasFailure = await cloneAdditionalRepos({
+      git,
+      files,
+      cwd,
+      repos: additionalRepos ?? [],
+      credentialed: (extraUrl) => credentialedRemoteOf({ remoteUrl: extraUrl, token: githubToken }),
+    })
+    if (extrasFailure !== null) return failed(EWorkspaceStep.Clone, scrub(extrasFailure))
 
     const commit = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD'], cwd }))
 

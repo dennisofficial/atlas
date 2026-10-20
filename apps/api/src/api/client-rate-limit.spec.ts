@@ -1,8 +1,8 @@
 import 'reflect-metadata'
 import { describe, expect, it } from 'vitest'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
+import { ProjectWorkspaceController } from './cloud/projects/project-workspace.controller'
 import { SandboxesController } from './platform/sandboxes/sandboxes.controller'
-import { SandboxWorkspaceController } from './platform/sandboxes/workspace.controller'
 import { EventsController } from './platform/sessions/events.controller'
 import { ThreadsController } from './platform/sessions/threads.controller'
 import { TurnsController } from './platform/sessions/turns.controller'
@@ -20,7 +20,7 @@ describe('the first-party read routes', () => {
   }
 })
 
-const serveFacingControllers = [SandboxWorkspaceController]
+const serveFacingControllers = [ProjectWorkspaceController]
 
 describe('the serve-facing control-plane routes', () => {
   for (const controller of serveFacingControllers) {

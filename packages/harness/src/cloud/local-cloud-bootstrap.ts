@@ -61,10 +61,12 @@ export const bootstrapSpecOf = (args: {
   workspace: WorkspaceSpec | null
   gitToken: string | undefined
   model?: string | undefined
+  projectId?: string | undefined
 }): string =>
   JSON.stringify({
     remoteUrl: args.workspace?.remoteUrl ?? null,
     githubToken: args.gitToken ?? null,
+    ...(args.projectId === undefined ? {} : { projectId: args.projectId }),
     ...(args.model === undefined ? {} : { model: args.model }),
   })
 

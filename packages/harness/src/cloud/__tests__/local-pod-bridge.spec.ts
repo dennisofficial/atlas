@@ -12,7 +12,7 @@ const threadId = toThreadId('thread-pod-bridge')
 const serveToken = `serve-token-${threadId}`
 
 describe('createLocalPodBridge birth', () => {
-  it('stages spec, portable state, then the archive in order, and registers the lease once after launch', async () => {
+  it('stages spec, portable state, then the archive in order, and registers the lease before the bootstrap write and again after launch', async () => {
     const { driver, events, created } = fakePodDriver({ created: true })
     const registered: Array<{ threadId: string; token: string }> = []
     const bridge = podBridgeWith({
@@ -30,6 +30,7 @@ describe('createLocalPodBridge birth', () => {
 
     expect(events).toEqual([
       'create',
+      'register',
       `write:${WORKSPACE_SPEC_PATH}`,
       'vault-probe',
       `write:${PORTABLE_STATE_PATH}`,
@@ -37,7 +38,10 @@ describe('createLocalPodBridge birth', () => {
       'launch',
       'register',
     ])
-    expect(registered).toEqual([{ threadId, token: serveToken }])
+    expect(registered).toEqual([
+      { threadId, token: serveToken },
+      { threadId, token: serveToken },
+    ])
     expect(created.map((one) => one.name)).toEqual([podNameFor({ threadId })])
     expect(sandbox).toMatchObject({ url: 'http://127.0.0.1:20111', token: serveToken, created: true })
   })
@@ -153,10 +157,11 @@ describe('createLocalPodBridge birth', () => {
     expect(sandbox.created).toBe(false)
   })
 
-  it('rejects the create when the lease cannot be registered', async () => {
-    const { driver } = fakePodDriver({ created: true })
+  it('rejects a fresh birth before any bootstrap write or launch when the lease cannot be registered', async () => {
+    const { driver, events, writes } = fakePodDriver({ created: true })
     const bridge = podBridgeWith({
       driver,
+      events,
       overrides: {
         registerPodLease: async () => {
           throw new Error('lease refused')
@@ -165,17 +170,19 @@ describe('createLocalPodBridge birth', () => {
     })
 
     await expect(bridge.sandboxes.create({ threadId, workspace: null })).rejects.toThrow('lease refused')
+    expect(events).toEqual(['create'])
+    expect(writes).toEqual([])
   })
 
-  it('does not register a lease when the pod never came up', async () => {
-    const { driver } = fakePodDriver({ created: true })
+  it('registers nothing when the driver refuses a resume without staging', async () => {
+    const { driver } = fakePodDriver({ created: false })
     driver.createOrResume = async () => {
-      throw new Error('boot failed')
+      throw new Error('token refused')
     }
     const registered: Array<{ threadId: string; token: string }> = []
 
     await expect(podBridgeWith({ driver, registered }).sandboxes.create({ threadId, workspace: null })).rejects.toThrow(
-      'boot failed',
+      'token refused',
     )
 
     expect(registered).toEqual([])

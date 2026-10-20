@@ -22,11 +22,13 @@ import {
 } from '../index'
 
 import { connect } from './client'
+import { fakeServeApp } from './fakes'
 import {
   CONTROL_PLANE,
   hello,
   releaseServeSpec,
   start,
+  startWithDriveSpec,
   threadId,
   TOKEN,
 } from './serve-spec-fixture'
@@ -244,5 +246,45 @@ describe('startServe', () => {
           line.includes('control plane unreachable'),
       ),
     ).toBe(true)
+  })
+
+  it('resolves a project the bootstrap names from the control plane and hands the materializer its branch and extras', async () => {
+    const seen: Array<{ cwd: string; spec: Awaited<ReturnType<Parameters<EnsureWorkspace>[0]['fetchSpec']>> }> = []
+    const requested: Array<{ url: string; authorization: string | null }> = []
+    const ensureWorkspace: EnsureWorkspace = async ({ cwd, fetchSpec }) => {
+      seen.push({ cwd, spec: await fetchSpec() })
+      return { state: EWorkspaceState.Skipped }
+    }
+
+    await startWithDriveSpec({
+      spec: { projectId: 'proj-boot' },
+      ensureWorkspace,
+      fetchFn: (async (input: unknown, init?: RequestInit) => {
+        requested.push({
+          url: String(input),
+          authorization: (init?.headers as Record<string, string>).authorization ?? null,
+        })
+        return Response.json({
+          projectId: 'proj-boot',
+          repo: 'octocat/Hello-World',
+          baseBranch: 'test',
+          additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }],
+          githubToken: null,
+        })
+      }) as typeof fetch,
+      compose: async () => fakeServeApp({ threadId, root: '/workspace' }),
+    })
+
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.cwd).toBe('/atlas/workspaces/Hello-World')
+    expect(seen[0]?.spec).toMatchObject({
+      remoteUrl: 'https://github.com/octocat/Hello-World.git',
+      baseBranch: 'test',
+      additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }],
+    })
+    expect(requested[0]).toEqual({
+      url: `${CONTROL_PLANE}/v1/projects/proj-boot/workspace`,
+      authorization: `Bearer ${TOKEN}`,
+    })
   })
 })

@@ -10,7 +10,6 @@ vi.mock('../../../db', async () => {
 import { fakeSessionDb, type FakeCloudSandboxRow } from '../../../../test/fake-session-db.js'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { SandboxGitCredentials } from './git-credentials'
 import { hashSessionToken } from './sandbox-tokens'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
@@ -29,7 +28,6 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
     sessions.reset()
     service = new SandboxesService(
       {} as unknown as VercelSandboxClient,
-      {} as unknown as SandboxGitCredentials,
       cipher,
     )
     sessions.cloudSandboxes.push({
