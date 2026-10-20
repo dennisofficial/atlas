@@ -36,7 +36,7 @@ const summaryOf = (row: BundleRow): PublishedBundleSummary => ({
   version: row.version,
   sha256: row.sha256,
   sizeBytes: row.sizeBytes,
-  manifest: row.manifest as PublishedBundleManifest,
+  manifest: publishedBundleManifestSchema.parse(row.manifest),
   createdAt: row.createdAt.toISOString(),
 })
 
