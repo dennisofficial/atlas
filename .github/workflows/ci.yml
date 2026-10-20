@@ -47,6 +47,12 @@ jobs:
       - name: build binary
         run: bun run build
 
+      # A bundled binary can crash at module evaluation where source runs fine — tui-v1.119.0
+      # shipped tsyringe evaluating before its reflect polyfill — so run the built artifact once.
+      - name: smoke-run the binary
+        run: ./bin/atlas --version
+        working-directory: apps/tui
+
       - name: build serve binary
         run: bun run build:serve
         working-directory: apps/serve
