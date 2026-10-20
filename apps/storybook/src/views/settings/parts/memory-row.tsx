@@ -3,6 +3,7 @@ import { Checkbox } from "@dltech/atlas-ui/components/checkbox";
 
 import {
   type EMemoryType,
+  formatMemoryDate,
   MEMORY_TYPE_LABELS,
   type MemoryEntry,
 } from "../../../fixtures/settings-memory";
@@ -45,7 +46,7 @@ export function MemoryRow({
           <button
             type="button"
             onClick={onOpen}
-            className="min-w-0 truncate rounded-sm text-left outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="min-w-0 truncate rounded-sm text-left font-mono text-xs outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {entry.name}
           </button>
@@ -55,7 +56,7 @@ export function MemoryRow({
         <>
           <span className="line-clamp-2">{entry.description}</span>
           <Mono className="mt-1 block truncate text-muted-foreground/80">
-            {entry.file} · recorded {entry.recorded}
+            rev {entry.revision} · updated {formatMemoryDate(entry.updatedAt)}
           </Mono>
         </>
       }

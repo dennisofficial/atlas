@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { FileTextIcon, SearchIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 
-import { Button } from "@dltech/atlas-ui/components/button";
 import {
   InputGroup,
   InputGroupAddon,
@@ -10,27 +9,28 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@dltech/atlas-ui/components/toggle-group";
 
 import {
-  EMemoryStoreKind,
+  EMemoryScope,
   EMemoryType,
-  MEMORY_STORES,
+  MEMORY_SCOPE_GROUPS,
   MEMORY_TYPE_LABELS,
+  memoryGroupLabel,
   type MemoryEntry,
-  type MemoryStore,
+  type MemoryScopeGroup,
 } from "../../../fixtures/settings-memory";
 import { LibraryConfirmDialog } from "../parts/library-confirm-dialog";
-import { MemoryIndexSheet } from "../parts/memory-index-sheet";
-import { MemoryIndexUsage } from "../parts/memory-index-usage";
 import { MemoryList } from "../parts/memory-list";
+import { MemoryScopeSelect } from "../parts/memory-scope-select";
 import { MemorySelectionBar } from "../parts/memory-selection-bar";
 import { EMemorySheetMode, MemorySheet } from "../parts/memory-sheet";
-import { MemoryStoreSelect } from "../parts/memory-store-select";
 import { DangerZone, SettingsPage, SettingsSection } from "../settings-layout";
-import { useMemoryStores } from "../use-memory-stores";
+import { useMemoryGroups } from "../use-memory-groups";
 
 const ALL_TYPES = "all";
 const TYPE_FILTERS = [ALL_TYPES, ...Object.values(EMemoryType)];
 
-type PendingDelete = { ids: string[]; title: string; description: string };
+const DELETE_TAIL = "The agent stops seeing this memory in new threads. This cannot be undone.";
+
+type PendingDelete = { names: string[]; title: string; description: string };
 
 function isTypeFilter(value: string): value is EMemoryType | typeof ALL_TYPES {
   return TYPE_FILTERS.includes(value);
@@ -50,96 +50,109 @@ function matches({
     needle.length === 0 ||
     entry.name.toLowerCase().includes(needle) ||
     entry.description.toLowerCase().includes(needle) ||
-    entry.file.toLowerCase().includes(needle);
+    entry.body.toLowerCase().includes(needle);
   return textMatch && (type === ALL_TYPES || entry.type === type);
 }
 
-function clearDescription(store: MemoryStore) {
-  return store.kind === EMemoryStoreKind.Global
-    ? "Removes every memory the agent keeps across all projects. Project stores are not touched."
-    : "Removes every memory the agent keeps for this repository. Other projects and the global store are not touched.";
+function scopeHint(group: MemoryScopeGroup) {
+  return group.scope === EMemoryScope.Global
+    ? "Loaded in every thread, on every project."
+    : `Loaded alongside global memories in threads on ${group.project}.`;
+}
+
+function clearDescription(group: MemoryScopeGroup) {
+  return group.scope === EMemoryScope.Global
+    ? "Deletes every global memory. Project memories are not touched."
+    : `Deletes every memory for ${group.project}. Global memories and other projects are not touched.`;
 }
 
 export function MemoryPage({
-  initialStores = MEMORY_STORES,
-  initialStoreId,
-  defaultOpenMemoryId,
+  initialGroups = MEMORY_SCOPE_GROUPS,
+  initialGroupId,
+  defaultOpenMemoryName,
+  defaultEditing = false,
 }: {
-  initialStores?: MemoryStore[];
-  initialStoreId?: string;
-  defaultOpenMemoryId?: string;
+  initialGroups?: MemoryScopeGroup[];
+  initialGroupId?: string;
+  defaultOpenMemoryName?: string;
+  defaultEditing?: boolean;
 }) {
-  const { stores, deleteMemories, saveMemory, clearStore } = useMemoryStores(initialStores);
-  const [storeId, setStoreId] = useState(initialStoreId ?? initialStores[0]?.id ?? "");
+  const { groups, deleteMemories, saveMemory, clearGroup } = useMemoryGroups(initialGroups);
+  const [groupId, setGroupId] = useState(initialGroupId ?? initialGroups[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [type, setType] = useState(ALL_TYPES);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [openId, setOpenId] = useState<string | null>(defaultOpenMemoryId ?? null);
-  const [sheetMode, setSheetMode] = useState(EMemorySheetMode.View);
-  const [indexOpen, setIndexOpen] = useState(false);
+  const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const [openName, setOpenName] = useState<string | null>(defaultOpenMemoryName ?? null);
+  const [sheetMode, setSheetMode] = useState(
+    defaultEditing ? EMemorySheetMode.Edit : EMemorySheetMode.View,
+  );
   const [pending, setPending] = useState<PendingDelete | null>(null);
 
-  const store = stores.find((candidate) => candidate.id === storeId) ?? stores[0];
-  if (!store) return null;
+  const group = groups.find((candidate) => candidate.id === groupId) ?? groups[0];
+  if (!group) return null;
 
-  const visible = store.memories.filter((entry) => matches({ entry, query, type }));
-  const openEntry = store.memories.find((entry) => entry.id === openId) ?? null;
-  const liveSelected = selectedIds.filter((id) => store.memories.some((entry) => entry.id === id));
+  const visible = group.memories.filter((entry) => matches({ entry, query, type }));
+  const openEntry = group.memories.find((entry) => entry.name === openName) ?? null;
+  const liveSelected = selectedNames.filter((name) =>
+    group.memories.some((entry) => entry.name === name),
+  );
 
-  const handleStoreChange = (id: string) => {
-    setStoreId(id);
-    setSelectedIds([]);
-    setOpenId(null);
+  const handleGroupChange = (id: string) => {
+    setGroupId(id);
+    setSelectedNames([]);
+    setOpenName(null);
   };
   const handleTypeChange = (values: string[]) => {
     const next = values[0] ?? ALL_TYPES;
     if (isTypeFilter(next)) setType(next);
   };
-  const handleSelectedChange = ({ id, selected }: { id: string; selected: boolean }) =>
-    setSelectedIds((current) =>
-      selected ? [...current.filter((value) => value !== id), id] : current.filter((value) => value !== id),
+  const handleSelectedChange = ({ name, selected }: { name: string; selected: boolean }) =>
+    setSelectedNames((current) =>
+      selected
+        ? [...current.filter((value) => value !== name), name]
+        : current.filter((value) => value !== name),
     );
   const handleOpen = (entry: MemoryEntry) => {
     setSheetMode(EMemorySheetMode.View);
-    setOpenId(entry.id);
+    setOpenName(entry.name);
   };
   const handleEdit = (entry: MemoryEntry) => {
     setSheetMode(EMemorySheetMode.Edit);
-    setOpenId(entry.id);
+    setOpenName(entry.name);
   };
   const handleDeleteOne = (entry: MemoryEntry) =>
     setPending({
-      ids: [entry.id],
+      names: [entry.name],
       title: `Delete ${entry.name}?`,
-      description: `Removes ${entry.file} and its line in MEMORY.md.`,
+      description: DELETE_TAIL,
     });
   const handleDeleteSelected = () =>
     setPending({
-      ids: liveSelected,
+      names: liveSelected,
       title: `Delete ${liveSelected.length} ${liveSelected.length === 1 ? "memory" : "memories"}?`,
-      description: `Deletes the ${liveSelected.length} files and their lines in MEMORY.md. This cannot be undone.`,
+      description: DELETE_TAIL,
     });
   const handleConfirmDelete = () => {
     if (!pending) return;
-    deleteMemories({ storeId: store.id, ids: pending.ids });
-    setSelectedIds((current) => current.filter((id) => !pending.ids.includes(id)));
-    if (openId && pending.ids.includes(openId)) setOpenId(null);
+    deleteMemories({ groupId: group.id, names: pending.names });
+    setSelectedNames((current) => current.filter((name) => !pending.names.includes(name)));
+    if (openName && pending.names.includes(openName)) setOpenName(null);
     setPending(null);
   };
   const handlePendingOpenChange = (open: boolean) => {
     if (!open) setPending(null);
   };
-  const handleSave = (entry: MemoryEntry) => saveMemory({ storeId: store.id, entry });
+  const handleSave = (entry: MemoryEntry) => saveMemory({ groupId: group.id, entry });
   const handleClearConfirm = () => {
-    clearStore(store.id);
-    setSelectedIds([]);
-    setOpenId(null);
+    clearGroup(group.id);
+    setSelectedNames([]);
+    setOpenName(null);
   };
 
   return (
     <SettingsPage
       title="Memory"
-      description="Notes the agent keeps across conversations. Each store's MEMORY.md index loads at the start of every thread; a memory file loads when the index points to it."
+      description="Notes the agent keeps across conversations. Global memories apply everywhere; project memories apply only in that repository."
       actions={
         <InputGroup className="w-48">
           <InputGroupAddon>
@@ -154,16 +167,15 @@ export function MemoryPage({
         </InputGroup>
       }
     >
-      <SettingsSection title="Store">
-        <MemoryStoreSelect stores={stores} value={store.id} onChange={handleStoreChange} />
-        <MemoryIndexUsage store={store} />
+      <SettingsSection title="Scope">
+        <MemoryScopeSelect groups={groups} value={group.id} onChange={handleGroupChange} />
+        <p className="text-sm text-muted-foreground">{scopeHint(group)}</p>
       </SettingsSection>
 
       <SettingsSection
         title="Memories"
         actions={
-          <>
-            <ToggleGroup
+          <ToggleGroup
               variant="outline"
               size="sm"
               spacing={0}
@@ -177,25 +189,20 @@ export function MemoryPage({
                   {MEMORY_TYPE_LABELS[value]}
                 </ToggleGroupItem>
               ))}
-            </ToggleGroup>
-            <Button variant="outline" size="sm" onClick={() => setIndexOpen(true)}>
-              <FileTextIcon data-icon="inline-start" />
-              View MEMORY.md
-            </Button>
-          </>
+          </ToggleGroup>
         }
       >
         {liveSelected.length > 0 ? (
           <MemorySelectionBar
             count={liveSelected.length}
             onDelete={handleDeleteSelected}
-            onClear={() => setSelectedIds([])}
+            onClear={() => setSelectedNames([])}
           />
         ) : null}
         <MemoryList
           memories={visible}
-          storeIsEmpty={store.memories.length === 0}
-          selectedIds={liveSelected}
+          scopeIsEmpty={group.memories.length === 0}
+          selectedNames={liveSelected}
           onSelectedChange={handleSelectedChange}
           onOpen={handleOpen}
           onEdit={handleEdit}
@@ -206,11 +213,11 @@ export function MemoryPage({
       <DangerZone
         actions={[
           {
-            title: "Clear this store",
-            description: clearDescription(store),
-            buttonLabel: "Clear store",
-            confirmTitle: `Clear ${store.label}?`,
-            confirmDescription: `Deletes every memory file in this store and its MEMORY.md index. This cannot be undone.`,
+            title: "Clear this scope",
+            description: clearDescription(group),
+            buttonLabel: "Clear scope",
+            confirmTitle: `Clear ${memoryGroupLabel(group)}?`,
+            confirmDescription: `${clearDescription(group)} This cannot be undone.`,
             onConfirm: handleClearConfirm,
           },
         ]}
@@ -220,11 +227,10 @@ export function MemoryPage({
         entry={openEntry}
         mode={sheetMode}
         onModeChange={setSheetMode}
-        onClose={() => setOpenId(null)}
+        onClose={() => setOpenName(null)}
         onSave={handleSave}
         onDelete={handleDeleteOne}
       />
-      <MemoryIndexSheet store={store} open={indexOpen} onOpenChange={setIndexOpen} />
       <LibraryConfirmDialog
         open={pending !== null}
         onOpenChange={handlePendingOpenChange}

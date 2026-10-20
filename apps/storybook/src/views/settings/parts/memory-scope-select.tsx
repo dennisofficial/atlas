@@ -6,36 +6,42 @@ import {
   SelectValue,
 } from "@dltech/atlas-ui/components/select";
 
-import { EMemoryStoreKind, type MemoryStore } from "../../../fixtures/settings-memory";
+import {
+  EMemoryScope,
+  memoryGroupLabel,
+  type MemoryScopeGroup,
+} from "../../../fixtures/settings-memory";
 
-function StoreLabel({ store }: { store: MemoryStore }) {
-  const isGlobal = store.kind === EMemoryStoreKind.Global;
+function ScopeLabel({ group }: { group: MemoryScopeGroup }) {
+  const isGlobal = group.scope === EMemoryScope.Global;
   return (
     <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
-      <span className={isGlobal ? "truncate" : "truncate font-mono text-xs"}>{store.label}</span>
+      <span className={isGlobal ? "truncate" : "truncate font-mono text-xs"}>
+        {memoryGroupLabel(group)}
+      </span>
       <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-        {store.memories.length}
+        {group.memories.length}
       </span>
     </span>
   );
 }
 
-export function MemoryStoreSelect({
-  stores,
+export function MemoryScopeSelect({
+  groups,
   value,
   onChange,
 }: {
-  stores: MemoryStore[];
+  groups: MemoryScopeGroup[];
   value: string;
   onChange: (id: string) => void;
 }) {
-  const items = stores.map((store) => ({ value: store.id, label: <StoreLabel store={store} /> }));
+  const items = groups.map((group) => ({ value: group.id, label: <ScopeLabel group={group} /> }));
   const handleValueChange = (next: string | null) => {
     if (next !== null) onChange(next);
   };
   return (
     <Select items={items} value={value} onValueChange={handleValueChange}>
-      <SelectTrigger aria-label="Memory store" className="w-full">
+      <SelectTrigger aria-label="Memory scope" className="w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false} className="min-w-[var(--anchor-width)]">
