@@ -17,7 +17,7 @@ const STARTED_AT = 10_000
 
 const ROWS = [
   { id: 'capture', text: 'packing the work', nodeIds: ['captureWorkspace', 'archiveSession'] },
-  { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
+  { id: 'provision', text: 'waiting for the pod', nodeIds: ['provision'] },
 ] as const
 
 const reading = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({

@@ -12,20 +12,20 @@ export type { CaptureContext }
 
 const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
 
-export const ROTATE_HEADING = 'UPDATING THE CLOUD SANDBOX'
+export const ROTATE_HEADING = 'UPDATING THE POD'
 
 const WAKE_ROWS = [
-  { id: 'waiting', text: 'waiting for the sandbox', nodeIds: ['waiting'] },
+  { id: 'waiting', text: 'waiting for the pod', nodeIds: ['waiting'] },
   { id: 'attaching', text: 'attaching and verifying the conversation', nodeIds: ['attaching'] },
 ] as const
 
 /**
  * The provider settle the mount is riding out, said as what it is: the wake row stops reading
- * "waiting for the sandbox" while the real wait is a name the registry has not released.
+ * "waiting for the pod" while the real wait is a name the registry has not released.
  */
 const settleWaitTextOf = (notice: SettleWaitNotice): string => {
   const attempt = ` (attempt ${notice.attempt}/${notice.attempts})`
-  return `waiting for Vercel to release the sandbox name${attempt}`
+  return `waiting for Vercel to release the pod name${attempt}`
 }
 
 /**
@@ -52,7 +52,7 @@ export async function wakeSandbox(args: {
       args.onRotationStarted?.()
       args.move?.handleExpand({
         insertBefore: 'attaching',
-        row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
+        row: { id: 'rotating', text: 'updating the pod', nodeIds: ['rotating'] },
         heading: ROTATE_HEADING,
       })
     },
@@ -66,7 +66,7 @@ export async function wakeSandbox(args: {
       } catch (error) {
         notify({
           key: WAKE_CONTEXT_NOTICE_KEY,
-          text: `the fresh sandbox woke without this machine's context — ${messageOf(error)}`,
+          text: `the fresh pod woke without this machine's context — ${messageOf(error)}`,
           tone: ENoticeTone.Warn,
           ttlMs: NOTICE_WARN_MS,
         })

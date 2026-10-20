@@ -12,14 +12,14 @@ const STARTED_AT = 10_000
 const MIB = 1024 * 1024
 
 const ROWS = [
-  { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
-  { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
+  { id: 'provision', text: 'waiting for the pod', nodeIds: ['provision'] },
+  { id: 'attach', text: 'setting up the workspace', nodeIds: ['attach', 'open', 'flipOwnership'] },
 ] as const
 
 const upload = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'provision',
   transferId: 'context-upload',
-  label: 'uploading skills and memory',
+  label: 'uploading local config',
   transferredBytes: 12 * MIB,
   totalBytes: 38 * MIB,
   complete: false,
@@ -31,7 +31,7 @@ const birth = (): ContainerMove =>
     target: EExecutionLocation.Cloud,
     now: STARTED_AT,
     rows: ROWS,
-    heading: 'STARTING A CLOUD SANDBOX',
+    heading: 'STARTING A POD',
     cancellable: true,
   })
 
@@ -62,7 +62,7 @@ describe('the birth overlay', () => {
     move = updateMoveTransfer({ move, progress: upload() })
     const text = await frame({ move, elapsedMs: 20_000 })
 
-    expect(text).toContain('uploading skills and memory')
+    expect(text).toContain('uploading local config')
     expect(text).toContain('12.0 MiB / 38.0 MiB')
   })
 

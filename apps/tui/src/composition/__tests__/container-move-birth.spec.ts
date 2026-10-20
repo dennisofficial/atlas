@@ -14,14 +14,14 @@ import {
 const AT = 10_000
 
 const ROWS = [
-  { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
-  { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
+  { id: 'provision', text: 'waiting for the pod', nodeIds: ['provision'] },
+  { id: 'attach', text: 'setting up the workspace', nodeIds: ['attach', 'open', 'flipOwnership'] },
 ] as const
 
 const upload = (over: Partial<BirthTransferProgress> = {}): BirthTransferProgress => ({
   nodeId: 'provision',
   transferId: 'context-upload',
-  label: 'uploading skills and memory',
+  label: 'uploading local config',
   transferredBytes: 10,
   totalBytes: 10,
   complete: true,

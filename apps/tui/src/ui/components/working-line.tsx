@@ -12,7 +12,7 @@ export enum EWorkingVerb {
   Thinking = 'Thinking',
   Compacting = 'Compacting',
   Reconnecting = 'Reconnecting',
-  Waking = 'Waking the sandbox',
+  Waking = 'Waking the pod',
   Disconnected = 'Disconnected',
 }
 
@@ -89,7 +89,7 @@ export function WorkingLine(props: {
     return (
       <box flexDirection="column">
         <ShimmerLine
-          label={`Waking the sandbox for ${formatElapsed(props.elapsedMs)}`}
+          label={`Waking the pod for ${formatElapsed(props.elapsedMs)}`}
           base={theme.warn}
         />
       </box>

@@ -16,19 +16,16 @@ const EVERY_STEP = Object.values(EBirthNode)
 const EVERY_FAULT = Object.values(EBirthFault)
 
 describe('a failed cloud birth', () => {
-  it('names the reason and says the thread started on this machine', () => {
+  it('names the reason and the cause, and claims no fallback', () => {
     const text = birthFailedNotice(failure())
 
-    expect(text).toContain('the sandbox would not start')
-    expect(text).toContain('this thread started on this machine instead')
-    expect(text).toContain('vercel returned 500')
+    expect(text).toBe('the pod would not start. vercel returned 500')
   })
 
-  it('says the sandbox started but could not be attached when attach is what failed', () => {
+  it('says the pod started but could not be attached when attach is what failed', () => {
     const text = birthFailedNotice(failure({ step: EBirthNode.Attach, detail: 'channel refused' }))
 
     expect(text).toContain('could not be attached')
-    expect(text).toContain('this thread started on this machine instead')
     expect(text).toContain('channel refused')
   })
 
@@ -41,7 +38,7 @@ describe('a failed cloud birth', () => {
         expect(text).not.toContain('/container cloud')
         expect(text).not.toContain('reconnect')
         expect(text).not.toContain('still runs here')
-        expect(text).toContain('this machine')
+        expect(text).not.toContain('this machine')
       }
     }
   })

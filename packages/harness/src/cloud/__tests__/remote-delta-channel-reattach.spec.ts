@@ -159,10 +159,10 @@ describe('a wake the caller ran itself', () => {
     channel.beginWake()
     expect(channel.connection()).toEqual({ state: EConnectionView.Waking, detail: null })
 
-    channel.failWake({ reason: 'the sandbox could not be woken: quota' })
+    channel.failWake({ reason: 'the pod could not be woken: quota' })
     expect(channel.connection()).toEqual({
       state: EConnectionView.Disconnected,
-      detail: 'the sandbox could not be woken: quota',
+      detail: 'the pod could not be woken: quota',
     })
   })
 

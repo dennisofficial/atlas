@@ -22,8 +22,6 @@ import { createCloudRunner, createCloudWake } from './cloud-runner'
 import { createCloudSession } from './cloud-session'
 import { mirrorCloudRenames } from './rename-mirror'
 
-const POD_PROVISION_LABEL = 'starting the pod — the first one pulls a 5.5 GB image'
-
 const warn = (text: string): void =>
   notify({ key: CLOUD_BIRTH_NOTICE_KEY, text, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
 
@@ -40,7 +38,6 @@ export function birthNewborn(args: {
   onRelease: () => void
 }): void {
   const { app, move, owner, threadId, runner, projectId } = args
-  const pod = runner === ERunner.Local
   const bridge = args.createBridge({ runner })
   let cancelled = false
   const destroySandbox = (): Promise<void> => bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
@@ -77,12 +74,8 @@ export function birthNewborn(args: {
     onBegin: ({ waves }) =>
       move.handleBegin({
         target: EExecutionLocation.Cloud,
-        rows: waves.map((wave) => ({
-          id: wave.ids[0] ?? wave.label,
-          text: pod && wave.ids[0] === EBirthNode.Provision ? POD_PROVISION_LABEL : wave.label,
-          nodeIds: wave.ids,
-        })),
-        heading: pod ? 'STARTING A POD' : 'STARTING A CLOUD SANDBOX',
+        rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })),
+        heading: 'STARTING A POD',
         onCancel: handleCancel,
       }),
     onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
@@ -145,6 +138,6 @@ export function birthNewborn(args: {
     })
     .catch((error: unknown) => {
       if (cancelled) return settleCancelled()
-      return failed(`${pod ? 'starting the pod' : 'starting a cloud sandbox'} failed — ${messageOf(error)}`)
+      return failed(`starting the pod failed — ${messageOf(error)}`)
     })
 }

@@ -1,0 +1,29 @@
+{
+  "name": "@dltech/vitest-incremental",
+  "description": "Vitest plugin that reruns only test files whose recorded inputs changed since they last passed",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "dependencies": {
+    "tinyglobby": "^0.2.17"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@vitest/runner": "4.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "4.0.1"
+  },
+  "peerDependencies": {
+    "vitest": "^3.2.0 || ^4.0.0"
+  },
+  "scripts": {
+    "test": "bun test test",
+    "typecheck": "tsc --noEmit"
+  }
+}

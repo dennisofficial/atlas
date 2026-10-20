@@ -6,7 +6,7 @@ import type { KeyEvent } from '@opentui/core'
 
 export const SERVE_STAGE_TEXT = 'starting serve'
 
-const PROVISION_IDLE_LABEL = 'waiting for the sandbox'
+const PROVISION_IDLE_LABEL = 'waiting for the pod'
 
 export function serveStageOf(row: MoveRow): string | null {
   if (row.mark !== EStepMark.Active || !row.nodeIds.includes(EBirthNode.Provision)) return null

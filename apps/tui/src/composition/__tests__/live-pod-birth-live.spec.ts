@@ -7,6 +7,7 @@ import { ERunner, toThreadId } from '@dltech/atlas-core'
 import {
   atlasDirectory,
   birthInCloud,
+  BIRTH_WAVES,
   CloudClient,
   createLocalPodBridge,
   DEFAULT_DOCKER_SOCKET,
@@ -22,6 +23,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EProjectAnswer, type ProjectRequest } from '../../ui/project-prompt-model'
+import { beginMove, EStepMark, settleMoveNode, startMoveNode, type ContainerMove } from '../container-move'
 import { resolveProject } from '../cloud/use-project-resolution'
 import { liveBridgeFor, livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
@@ -55,6 +57,33 @@ const WORKSPACE = {
   baseBranch: 'test',
   additionalRepos: [],
   githubToken: null,
+}
+
+type ActiveRow = { text: string; atMs: number }
+
+const activeRowSpy = () => {
+  const began = Date.now()
+  let move: ContainerMove | null = null
+  const seen: ActiveRow[] = []
+  const record = (): void => {
+    const active = move?.rows.find((row) => row.mark === EStepMark.Active)
+    if (active !== undefined && seen.at(-1)?.text !== active.text) seen.push({ text: active.text, atMs: Date.now() - began })
+  }
+  return {
+    seen,
+    finalMarks: () => move?.rows.map((row) => row.mark) ?? [],
+    onBegin: ({ waves }: { waves: typeof BIRTH_WAVES }) => {
+      move = beginMove({ now: 0, rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })) })
+    },
+    onNodeStart: (nodeId: string) => {
+      if (move !== null) move = startMoveNode({ move, nodeId, now: 0 })
+      record()
+    },
+    onNodeDone: (nodeId: string) => {
+      if (move !== null) move = settleMoveNode({ move, nodeId, now: 0 })
+      record()
+    },
+  }
 }
 
 type Lease = { path: string; auth: string | null; body: { token: string } }
@@ -120,6 +149,7 @@ describeLive('a pod birth through the live TUI wiring', () => {
         cloud: fakeCloud({ session: { url: `http://127.0.0.1:${server.port}`, token: 'live-session', email: null } }),
       })
       const bridge: CloudBridge = liveBridgeFor(app)({ runner: ERunner.Local })
+      const spy = activeRowSpy()
       try {
       await app.sessionOwner.placement.activate({ threadId: THREAD })
 
@@ -135,6 +165,9 @@ describeLive('a pod birth through the live TUI wiring', () => {
         ids: app.ids,
         placement: app.sessionOwner,
         captureContext: async () => undefined,
+        onBegin: spy.onBegin,
+        onNodeStart: spy.onNodeStart,
+        onNodeDone: spy.onNodeDone,
         open: async ({ prepareRuntime }) =>
           prepareRuntime({
             kind: ERuntimeKind.Cloud,
@@ -144,6 +177,8 @@ describeLive('a pod birth through the live TUI wiring', () => {
       })
 
       if (!born.ok) throw new Error(`birth failed: ${born.detail}`)
+      expect(spy.seen.map((row) => row.text)).toEqual(['waiting for the pod', 'setting up the workspace'])
+      expect(spy.finalMarks()).toEqual([EStepMark.Done, EStepMark.Done])
       const lease = leases.find((held) => held.path === `/v1/pod-leases/${THREAD}`)
       expect(lease?.auth).toBe('Bearer live-session')
       expect(lease?.body.token).toBe(born.sandbox.token)

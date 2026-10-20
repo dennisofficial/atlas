@@ -10,6 +10,8 @@ import { AccountsController } from '../src/api/platform/accounts/accounts.contro
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
 import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
+import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
+import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
 
 vi.mock('../src/db', () => ({ db: {} }))
 
@@ -57,6 +59,8 @@ describe('sandbox token scoping (in-process, real guard)', () => {
         { provide: SecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },
         SessionAuthGuard,
+        SessionOrSandboxGuard,
+        { provide: SandboxesService, useValue: { verifyTokenPrincipal: vi.fn(async () => null) } },
         Reflector,
         { provide: SESSION_VERIFIER, useValue: verifier },
       ],
@@ -78,7 +82,7 @@ describe('sandbox token scoping (in-process, real guard)', () => {
     await app.close()
   })
 
-  it('refuses a sandbox token on GET /secrets (the GH-198 repro)', async () => {
+  it('refuses a bearer that is neither a session nor a registered sandbox or pod on GET /secrets', async () => {
     const response = await request(app.getHttpServer())
       .get('/secrets')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)

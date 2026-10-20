@@ -279,12 +279,12 @@ describe('a turn asked of a sandbox that is asleep', () => {
     const runner = new RemoteTurnRunner({
       channel,
       wake: async () => {
-        throw new Error('the sandbox could not be woken')
+        throw new Error('the pod could not be woken')
       },
     })
 
     await expect(runner.runTurn({ threadId: THREAD })).rejects.toThrow(
-      'the sandbox could not be woken',
+      'the pod could not be woken',
     )
     expect(live().sent).toHaveLength(1)
   })

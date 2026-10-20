@@ -37,10 +37,10 @@ export type ContainerMove = {
   failure: string | null
 }
 
-export const WAKE_HEADING = 'WAKING THE SANDBOX'
+export const WAKE_HEADING = 'WAKING THE POD'
 
 const HEADING: Record<EExecutionLocation, string> = {
-  [EExecutionLocation.Cloud]: 'STARTING A CLOUD SANDBOX',
+  [EExecutionLocation.Cloud]: 'STARTING A POD',
   [EExecutionLocation.Docker]: 'MOVING INTO A DOCKER CONTAINER',
   [EExecutionLocation.Host]: 'RETURNING TO THE HOST',
 }

@@ -114,7 +114,7 @@ describe('createLocalPodBridge birth', () => {
       [0, false],
       [6, true],
     ])
-    expect(progress[0]?.label).toBe('uploading skills and memory')
+    expect(progress[0]?.label).toBe('uploading local config')
   })
 
   it('forwards the operator environment and omits it when empty', async () => {

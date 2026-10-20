@@ -6,7 +6,7 @@ import { PlacementController } from '../../composition/placement-controller'
 import { createSessionOwner, ERuntimeKind, type SessionRuntime } from '../../composition/session-owner'
 import { ImagePullError } from '../../execution/docker/image-pull'
 import { CountingIds, openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
-import { birthInCloud, EBirthFault, type BirthArgs } from '../cloud-birth'
+import { BIRTH_WAVES, birthInCloud, EBirthFault, EBirthNode, type BirthArgs } from '../cloud-birth'
 import type { CloudBridge } from '../cloud-bridge'
 import { ECloudSandboxState } from '../sandbox-client'
 
@@ -60,6 +60,24 @@ async function setup() {
   })
   return { fixture, birthArgs }
 }
+
+describe('the rows a birth narrates', () => {
+  it('puts every node the birth runs on a visible row', () => {
+    const narrated = BIRTH_WAVES.flatMap((wave) => wave.ids)
+
+    for (const node of Object.values(EBirthNode)) expect(narrated).toContain(node)
+  })
+
+  it('names the pod wait and the workspace setup, finishing on the last write', () => {
+    expect(BIRTH_WAVES).toEqual([
+      { label: 'waiting for the pod', ids: [EBirthNode.Provision] },
+      {
+        label: 'setting up the workspace',
+        ids: [EBirthNode.Attach, EBirthNode.Open, EBirthNode.FlipOwnership],
+      },
+    ])
+  })
+})
 
 describe('birthInCloud', () => {
   it('writes the runner onto the local thread once the placement is committed', async () => {

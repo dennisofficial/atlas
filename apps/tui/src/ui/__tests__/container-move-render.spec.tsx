@@ -20,20 +20,19 @@ import { frameOf, mount } from './transcript-fixture'
 const STARTED_AT = 10_000
 
 const BIRTH_ROWS = [
-  { id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] },
-  { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
-  { id: 'flipOwnership', text: 'handing the conversation over', nodeIds: ['flipOwnership'] },
+  { id: 'provision', text: 'waiting for the pod', nodeIds: ['provision'] },
+  { id: 'attach', text: 'setting up the workspace', nodeIds: ['attach', 'open', 'flipOwnership'] },
 ] as const
 
 const WAKE_ROWS = [
-  { id: 'waiting', text: 'waiting for the sandbox', nodeIds: ['waiting'] },
+  { id: 'waiting', text: 'waiting for the pod', nodeIds: ['waiting'] },
   { id: 'attaching', text: 'attaching and verifying the conversation', nodeIds: ['attaching'] },
 ] as const
 
 const cloudMove = (over: { settleThrough?: number; fail?: string } = {}): ContainerMove => {
   let move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
   const through = over.settleThrough ?? 0
-  const order = ['provision', 'attach', 'flipOwnership']
+  const order = ['provision', 'attach']
   for (const nodeId of order.slice(0, through)) {
     move = settleMoveNode({ move, nodeId, now: STARTED_AT + 1_000 })
   }
@@ -57,16 +56,15 @@ describe('a move while it runs', () => {
   it('names where the conversation is going and lists every row', async () => {
     const frame = await frameOf(overlay({ move: cloudMove() }), 80)
 
-    expect(frame).toContain('STARTING A CLOUD SANDBOX')
-    expect(frame).toContain('handing the conversation over')
-    expect(frame).toContain('waiting for the sandbox')
-    expect(frame).toContain('attaching to the conversation')
+    expect(frame).toContain('STARTING A POD')
+    expect(frame).toContain('waiting for the pod')
+    expect(frame).toContain('setting up the workspace')
   })
 
   it('ticks the row it is on so a long wait reads as work', async () => {
     const frame = await frameOf(overlay({ move: cloudMove() }), 80)
 
-    expect(frame).toContain('waiting for the sandbox (8s)')
+    expect(frame).toContain('waiting for the pod (8s)')
   })
 
   it('never counts backwards when the clock lags the row', async () => {
@@ -75,15 +73,15 @@ describe('a move while it runs', () => {
       80,
     )
 
-    expect(frame).toContain('waiting for the sandbox (0s)')
+    expect(frame).toContain('waiting for the pod (0s)')
     expect(frame).not.toContain('(-')
   })
 
-  it('checks off the rows it finished and dims the ones still coming', async () => {
+  it('checks off the rows it finished and moves on to the next', async () => {
     const frame = await frameOf(overlay({ move: cloudMove({ settleThrough: 1 }) }), 80)
 
-    expect(frame).toContain('✓ waiting for the sandbox')
-    expect(frame).toContain('· handing the conversation over')
+    expect(frame).toContain('✓ waiting for the pod')
+    expect(frame).toContain('setting up the workspace (8s)')
   })
 
   it('rises from the bottom ruled off across the whole width', async () => {
@@ -121,7 +119,7 @@ describe('a wake that rotates the sandbox first', () => {
     return expandMove({
       move: waiting,
       insertBefore: 'attaching',
-      row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
+      row: { id: 'rotating', text: 'updating the pod', nodeIds: ['rotating'] },
       heading: ROTATE_HEADING,
       now: STARTED_AT + 4_000,
     })
@@ -130,16 +128,16 @@ describe('a wake that rotates the sandbox first', () => {
   it('names the update and checks off the wait behind it', async () => {
     const frame = await frameOf(overlay({ move: rotatingMove() }), 80)
 
-    expect(frame).toContain('UPDATING THE CLOUD SANDBOX')
-    expect(frame).toContain('✓ waiting for the sandbox')
-    expect(frame).toContain('updating the cloud sandbox (8s)')
+    expect(frame).toContain('UPDATING THE POD')
+    expect(frame).toContain('✓ waiting for the pod')
+    expect(frame).toContain('updating the pod (8s)')
     expect(frame).toContain('· attaching and verifying the conversation')
   })
 
   it('reads as one continuous move rather than a second one', async () => {
     const frame = await frameOf(overlay({ move: rotatingMove() }), 80)
 
-    expect(frame).not.toContain('WAKING THE SANDBOX')
+    expect(frame).not.toContain('WAKING THE POD')
   })
 
   it('advances past the rotation once the sandbox answers again', async () => {
@@ -150,7 +148,7 @@ describe('a wake that rotates the sandbox first', () => {
     })
     const frame = await frameOf(overlay({ move: attached }), 80)
 
-    expect(frame).toContain('✓ updating the cloud sandbox')
+    expect(frame).toContain('✓ updating the pod')
     expect(frame).toContain('attaching and verifying the conversation (3s)')
   })
 
@@ -158,8 +156,8 @@ describe('a wake that rotates the sandbox first', () => {
     const begun = beginMove({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, now: STARTED_AT })
     const expanded = expandMove({
       move: begun,
-      insertBefore: 'flipOwnership',
-      row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
+      insertBefore: 'missing',
+      row: { id: 'rotating', text: 'updating the pod', nodeIds: ['rotating'] },
       now: STARTED_AT + 1_000,
     })
 
@@ -170,7 +168,7 @@ describe('a wake that rotates the sandbox first', () => {
     const twice = expandMove({
       move: rotatingMove(),
       insertBefore: 'attaching',
-      row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
+      row: { id: 'rotating', text: 'updating the pod', nodeIds: ['rotating'] },
       now: STARTED_AT + 6_000,
     })
 
@@ -185,7 +183,7 @@ describe('a move that did not finish', () => {
       80,
     )
 
-    expect(frame).toContain('✗ attaching to the conversation')
+    expect(frame).toContain('✗ setting up the workspace')
     expect(frame).toContain('no capacity in iad1')
   })
 

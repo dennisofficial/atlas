@@ -35,7 +35,7 @@ describe('the runner turn claim', () => {
     expect(runner.turnInFlight()).toBe(false)
   })
 
-  it('is held while the sandbox is still waking', async () => {
+  it('is held while the pod is still waking', async () => {
     const attached = readied()
     attached.receive({ kind: EServeFrame.Parked, reason: 'idle' })
     const waking = gate()

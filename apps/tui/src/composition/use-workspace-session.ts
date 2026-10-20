@@ -20,11 +20,11 @@ import type { SettingsControl } from './use-settings'
 import type { useWorkspaceExit } from './use-workspace-exit'
 import type { WorkspaceProps } from './workspace-props'
 
-const SOCKET_DOWN_REFUSAL = "the sandbox socket is down — esc will interrupt once it's back"
+const SOCKET_DOWN_REFUSAL = "the pod socket is down — esc will interrupt once it's back"
 
-const SANDBOX_WAKING_REFUSAL = 'the sandbox is still waking — esc will interrupt once it is up'
+const SANDBOX_WAKING_REFUSAL = 'the pod is still waking — esc will interrupt once it is up'
 
-const SANDBOX_UPDATING_REFUSAL = 'the sandbox is updating — esc will interrupt once it is back'
+const SANDBOX_UPDATING_REFUSAL = 'the pod is updating — esc will interrupt once it is back'
 
 type SessionProps = Pick<
   WorkspaceProps,
