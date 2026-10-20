@@ -31,6 +31,8 @@ export const memoryReservationBytesFor = (args: { vcpus: number }): number =>
 
 export const POD_NAME_ENV = 'ATLAS_POD_NAME'
 
+export const SANDBOX_SESSION_ID_ENV = 'ATLAS_SANDBOX_SESSION_ID'
+
 const DIGEST_LENGTH = 24
 const HOME_DIGEST_LENGTH = 16
 const DIND_STORAGE_PATH = '/var/lib/docker'
@@ -82,6 +84,7 @@ const podEnv = (args: PodCreateArgs): string[] =>
     [EServeEnv.CloudUrl]: args.cloudUrl,
     ATLAS_HOME: SANDBOX_HOME_PATH,
     [POD_NAME_ENV]: podNameFor(args),
+    [SANDBOX_SESSION_ID_ENV]: podNameFor(args),
     ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
     ...callerEnvironment(args.environment),
   }).map(([key, value]) => `${key}=${value}`)
