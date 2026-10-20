@@ -109,6 +109,8 @@ const bootArgsFor = (args: { driver: DockerPodDriver; threadId: string; token: s
   },
 })
 
+const LIVE_HOME = join(tmpdir(), 'atlas-pod-lifecycle-live-home')
+
 describeDocker('pod lifecycle against a live daemon', () => {
   const driver = new DockerPodDriver({
     image: DEFAULT_POD_IMAGE,
@@ -116,7 +118,7 @@ describeDocker('pod lifecycle against a live daemon', () => {
     serveVersion: undefined,
     provisionLock: fileProvisionLock({ directory: join(tmpdir(), 'atlas-pod-locks') }),
     cloudUrl: 'http://127.0.0.1:1',
-    home: join(tmpdir(), 'atlas-pod-lifecycle-live-home'),
+    home: LIVE_HOME,
     log: (line) => console.log(`[driver] ${line}`),
   })
   const parkedToken = `live-${randomUUID()}`
@@ -163,6 +165,7 @@ describeDocker('pod lifecycle against a live daemon', () => {
     const result = await reapOrphanPods({
       engine,
       destroyPod: (destroyArgs) => driver.destroy(destroyArgs),
+      home: LIVE_HOME,
       threadExists: async ({ threadId }) => {
         consulted.push(threadId)
         return threadId !== toThreadId(orphanThreadId)

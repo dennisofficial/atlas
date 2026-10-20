@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs'
 
-import { EExecutionLocation, EHarnessPlacement, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
 import {
+  POD_NAME_ENV,
   metaWithPlacement,
   newThreadMeta,
   readMetaSync,
@@ -113,6 +114,7 @@ export async function bootServeFiles(args: {
   if (readMetaSync({ file: metaFile, schema: threadMetaSchema }) === undefined) {
     const born = newThreadMeta({ id: threadId, at: new Date().toISOString() })
     born.workspace = cwd
+    if (env[POD_NAME_ENV]) born.runner = ERunner.Local
     const meta = metaWithPlacement({
       meta: born,
       record: { placement: { harness: EHarnessPlacement.Cloud }, revision: 0 },

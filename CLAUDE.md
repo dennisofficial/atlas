@@ -270,9 +270,9 @@ operator's global instructions: the rule stays "produce a preview", this is the 
 
 ## Sandbox image
 
-The sandbox image lives in two registries. GHCR (`ghcr.io/<owner>/atlas-sandbox`) is the private
+The sandbox image lives in two registries. GHCR (`ghcr.io/<owner>/atlas-sandbox`) is the public
 canonical listing — multi-arch, `sha-<7>` + `latest` per merge, used by local Docker sandboxes and
-as the build cache; access rides on GitHub. VCR (`vcr.vercel.com`) is the delivery mechanism Vercel
+as the build cache; pulls are anonymous (no login), pushes ride on GitHub Actions. VCR (`vcr.vercel.com`) is the delivery mechanism Vercel
 Sandbox requires — `linux/amd64` only, `latest` only: no per-release tag, because the image is a pure
 runtime toolkit with nothing Atlas-versioned in it. Serve is delivered by an in-sandbox download at
 boot, pinned to the client's own release version.

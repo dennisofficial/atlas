@@ -5,6 +5,8 @@ import {
   EExecutionLocation,
   EForkMode,
   executionLocationOf,
+  runnerOf,
+  type ERunner,
   toThreadId,
   type LinkedPullRequest,
   type LogPort,
@@ -53,6 +55,7 @@ export function toThreadSummary(meta: ThreadMeta): ThreadSummary {
     ...agentOf(meta),
     ...modelOf(meta),
     ...locationOf(meta.executionLocation),
+    ...runnerFieldOf(meta.runner),
   }
 }
 
@@ -75,6 +78,11 @@ function modelOf(meta: ThreadMeta): { model?: ThreadModel } {
 function locationOf(stored: string | null): { executionLocation?: EExecutionLocation } {
   const location = executionLocationOf(stored)
   return location === undefined ? {} : { executionLocation: location }
+}
+
+function runnerFieldOf(stored: string | null | undefined): { runner?: ERunner } {
+  const runner = runnerOf(stored)
+  return runner === undefined ? {} : { runner }
 }
 
 export function tryReadThreadMeta({ file }: { file: string }): ThreadMeta | undefined {

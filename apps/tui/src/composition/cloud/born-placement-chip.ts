@@ -1,4 +1,4 @@
-import type { EHarnessPlacement, ThreadId } from '@dltech/atlas-core'
+import type { EHarnessPlacement, ERunner, ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelSignal } from '@dltech/atlas-harness'
 
@@ -15,6 +15,7 @@ export const startsTheThread = (signal: ChannelSignal): boolean => FIRST_SEND_SI
 export type BornPlacementState = {
   threadId: ThreadId
   harness: EHarnessPlacement
+  runner?: ERunner | undefined
   provisioning: boolean
   /** Set when a cloud→host flip rebirths the thread: the operator's draft crosses the id change. */
   carriedDraft?: boolean | undefined

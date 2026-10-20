@@ -71,6 +71,7 @@ export type SettingsControl = {
   placementChooserShape: PlacementChooserShape
   handlePinModels: (favourites: readonly string[]) => void
   handleOpen: () => void
+  handleOpenCloudSignIn: () => void
   handleDismiss: () => void
   handleSelect: (target: SettingsState) => void
   handleKey: (key: KeyEvent) => void
@@ -149,6 +150,14 @@ export function useSettings(args: {
     secret.refresh()
     setState(openSettings())
   }, [readCloudSession, secret.refresh])
+
+  const handleOpenCloudSignIn = useCallback(() => {
+    readCloudSession()
+    secret.refresh()
+    const pageIndex = view.pages.findIndex((entry) => entry.page.id === ESettingPage.Cloud)
+    setState({ ...openSettings(), pageIndex: Math.max(pageIndex, 0), rowIndex: 0 })
+    cloudLogin.begin()
+  }, [cloudLogin.begin, readCloudSession, secret.refresh, view.pages])
 
   const handlePinModels = useCallback(
     (favourites: readonly string[]) => {
@@ -236,6 +245,7 @@ export function useSettings(args: {
       ...preferences,
       handlePinModels,
       handleOpen,
+      handleOpenCloudSignIn,
       handleDismiss,
       handleSelect,
       handleKey,
@@ -254,6 +264,7 @@ export function useSettings(args: {
       handleDownload,
       handleKey,
       handleOpen,
+      handleOpenCloudSignIn,
       handleOpenGithubUrl,
       handleOpenSignInUrl,
       handlePinModels,

@@ -81,9 +81,9 @@ const placed = (args: { shape?: Shape; placement?: Placement }): React.ReactNode
   />
 )
 
-const HOST_HINT = '↓ to the footer chip, ⏎ for a cloud sandbox'
+const HOST_HINT = '↓ to the footer chip, ⏎ for a pod'
 
-const CLOUD_HINT = '↓ to the footer chip, ⏎ back to local'
+const CLOUD_HINT = '↓ to the footer chip, ⏎ to switch runner'
 
 const host: Placement = { harness: EHarnessPlacement.Host, provisioning: false }
 
@@ -98,7 +98,7 @@ describe('the welcome screen in the hero placement shape', () => {
     expect(frame).not.toContain('☁ cloud')
   })
 
-  it('shows the cloud placement with the way back to local', async () => {
+  it('shows the cloud placement with the way to switch runner', async () => {
     const frame = await frameOf(placed({ shape: 'hero', placement: cloud }), WIDE)
 
     expect(frame).toContain('v1.2.3 · ☁ cloud')

@@ -44,7 +44,7 @@ type SessionProps = Pick<
 
 export function useWorkspaceSession(args: {
   props: SessionProps
-  settings: Pick<SettingsControl, 'paceReveal' | 'thinking' | 'tldrStatus'>
+  settings: Pick<SettingsControl, 'paceReveal' | 'thinking' | 'tldrStatus' | 'handleOpenCloudSignIn'>
   exit: Pick<ReturnType<typeof useWorkspaceExit>, 'exitGuard'>
 }) {
   const { props, settings, exit } = args
@@ -149,6 +149,7 @@ export function useWorkspaceSession(args: {
     containerMove,
     createBridge: props.createBridge,
     preflightBirth: props.preflightBirth,
+    onSignInRequired: settings.handleOpenCloudSignIn,
     adopt: (opened) => props.onLeaveCloud(opened),
     onReload: props.onReload,
   })

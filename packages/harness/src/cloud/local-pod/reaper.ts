@@ -1,12 +1,13 @@
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import type { ContainerSummary, DockerEngine } from '../../execution/docker/engine'
-import { POD_ROLE, podNameFor, podRoleLabel, podThreadLabel } from './pod-create'
+import { POD_ROLE, podHomeDigestOf, podHomeLabel, podNameFor, podRoleLabel, podThreadLabel } from './pod-create'
 
 export type OrphanPodReaper = {
   engine: Pick<DockerEngine, 'listContainers'>
   destroyPod: (args: { name: string }) => Promise<void>
   threadExists: (args: { threadId: ThreadId }) => Promise<boolean>
+  home: string
   log?: ((line: string) => void) | undefined
 }
 
@@ -30,7 +31,7 @@ export async function reapOrphanPods(args: OrphanPodReaper): Promise<OrphanPodSw
   const log = args.log ?? (() => undefined)
   const sweep: OrphanPodSweep = { reaped: [], kept: [], failures: [] }
   const containers = await args.engine.listContainers({
-    labels: { [podThreadLabel]: undefined, [podRoleLabel]: POD_ROLE },
+    labels: { [podThreadLabel]: undefined, [podRoleLabel]: POD_ROLE, [podHomeLabel]: podHomeDigestOf({ home: args.home }) },
     all: true,
   })
 

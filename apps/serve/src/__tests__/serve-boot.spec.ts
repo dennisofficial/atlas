@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { ATLAS_HOME_ENV, EHarnessPlacement, toRunId, toThreadId } from '@dltech/atlas-core'
+import { ATLAS_HOME_ENV, EHarnessPlacement, ERunner, toRunId, toThreadId } from '@dltech/atlas-core'
 
 import {
   EClientFrame,
   EServeFrame,
   ETurnStatus,
   placementRecordOf,
+  POD_NAME_ENV,
   readMetaSync,
   sessionDirectory,
   threadMetaFile,
@@ -201,6 +202,22 @@ describe('startServe', () => {
     expect(meta).toBeDefined()
     expect(meta?.executionLocation).toBe('cloud')
     expect(placementRecordOf(meta!).placement).toEqual({ harness: EHarnessPlacement.Cloud })
+  })
+
+  it('stamps the local runner into the born thread meta when it boots in a pod', async () => {
+    await start({
+      env: {
+        [EServeEnv.Token]: TOKEN,
+        [EServeEnv.Port]: '0',
+        [EServeEnv.ThreadId]: threadId,
+        [EServeEnv.CloudUrl]: CONTROL_PLANE,
+        [POD_NAME_ENV]: 'atlas-pod-spec',
+      },
+    })
+
+    const home = process.env[ATLAS_HOME_ENV] ?? ''
+    const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    expect(readMetaSync({ file, schema: threadMetaSchema })?.runner).toBe(ERunner.Local)
   })
 
   it("adopts the thread's transferred children on boot, before anyone connects", async () => {
