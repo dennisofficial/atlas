@@ -107,9 +107,9 @@ describe('waking a parked sandbox on send', () => {
 
     expect(test.channel.connection()).toEqual({
       state: EConnectionView.Disconnected,
-      detail: 'the sandbox could not be woken: the provider refused',
+      detail: 'the pod could not be woken: the provider refused',
     })
-    expect(failures).toEqual(['the sandbox could not be woken: the provider refused'])
+    expect(failures).toEqual(['the pod could not be woken: the provider refused'])
     expect(await answer).toBeInstanceOf(RemoteRequestLost)
     expect(wakes).toBe(1)
     expect(test.retries).toEqual([])

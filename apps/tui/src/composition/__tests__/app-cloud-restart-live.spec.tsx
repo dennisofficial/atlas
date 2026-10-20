@@ -199,7 +199,7 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
     // The placement commits before the channel attach finishes, so a birth is not done until the
     // move overlay clears — attach is part of the move, and the overlay stays up while it runs.
     const overlayCleared = await until({
-      holds: async () => !(await mounted.setup.captureCharFrame()).includes('STARTING A CLOUD SANDBOX'),
+      holds: async () => !(await mounted.setup.captureCharFrame()).includes('STARTING A POD'),
       within: 120_000,
     })
     write0('phase: move overlay cleared =', overlayCleared, '; channel attached =', cloudChannel !== null)

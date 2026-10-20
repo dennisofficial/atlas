@@ -5,7 +5,7 @@ import React from 'react'
 
 import { useContainerMove, type ContainerMoveControl } from '../use-container-move'
 
-const ROWS = [{ id: 'provision', text: 'waiting for the sandbox', nodeIds: ['provision'] }]
+const ROWS = [{ id: 'provision', text: 'waiting for the pod', nodeIds: ['provision'] }]
 
 type Probe = { control: ContainerMoveControl | null }
 
@@ -103,7 +103,7 @@ describe('cancelling a cloud birth', () => {
     mounted.control().handleTransferProgress({
       nodeId: 'provision',
       transferId: 'context-upload',
-      label: 'uploading skills and memory',
+      label: 'uploading local config',
       transferredBytes: 3,
       totalBytes: 9,
       complete: false,

@@ -42,7 +42,7 @@ const DIALING: ReadonlySet<EConnectionView> = new Set([EConnectionView.Waking, E
 
 const RESTING_PHASES: ReadonlySet<ERuntimePhase> = new Set([ERuntimePhase.Parked, ERuntimePhase.Parking])
 
-const wakeFailureOf = (error: unknown): string => `the sandbox could not be woken — ${messageOf(error)}`
+const wakeFailureOf = (error: unknown): string => `the pod could not be woken — ${messageOf(error)}`
 
 export function createCloudSession(args: {
   channel: CloudChannel

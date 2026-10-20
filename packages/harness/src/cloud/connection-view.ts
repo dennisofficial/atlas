@@ -31,7 +31,7 @@ export type ConnectionFacts = {
 
 const view = (state: EConnectionView, detail: string | null = null): ConnectionView => ({ state, detail })
 
-const UPDATING_DETAIL = 'updating the cloud sandbox'
+const UPDATING_DETAIL = 'updating the pod'
 
 const restingPhase = (phase: ERuntimePhase | null): boolean =>
   phase === ERuntimePhase.Parked || phase === ERuntimePhase.Parking

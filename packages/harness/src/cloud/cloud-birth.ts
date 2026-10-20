@@ -26,9 +26,8 @@ export enum EBirthNode {
 export type BirthWave = { label: string; ids: readonly string[] }
 
 export const BIRTH_WAVES: readonly BirthWave[] = [
-  { label: 'waiting for the sandbox', ids: [EBirthNode.Provision] },
-  { label: 'attaching to the conversation', ids: [EBirthNode.Attach] },
-  { label: 'handing the conversation over', ids: [EBirthNode.FlipOwnership] },
+  { label: 'waiting for the pod', ids: [EBirthNode.Provision] },
+  { label: 'setting up the workspace', ids: [EBirthNode.Attach, EBirthNode.Open, EBirthNode.FlipOwnership] },
 ]
 
 export enum EBirthFault {
@@ -106,12 +105,12 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
           model: args.model.ref,
           onTransferProgress: args.onTransferProgress,
           captureContext: async (put) => {
-            args.onWaveLabel?.(EBirthNode.Provision, 'sending skills and memory to the sandbox')
+            args.onWaveLabel?.(EBirthNode.Provision, 'sending local config to the pod')
             try {
               const archive = await args.captureContext()
               if (archive !== undefined) await put(archive)
             } finally {
-              args.onWaveLabel?.(EBirthNode.Provision, 'waiting for the sandbox')
+              args.onWaveLabel?.(EBirthNode.Provision, 'waiting for the pod')
             }
           },
         })

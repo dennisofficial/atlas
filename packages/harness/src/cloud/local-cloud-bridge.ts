@@ -115,7 +115,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         transferBufferedArchive({
           archive,
           upload: () => driver.writeBootstrapFileToSandbox({ sandbox, path: CONTEXT_ARCHIVE_PATH, content: archive }),
-          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'context-upload', label: 'uploading skills and memory' }),
+          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'context-upload', label: 'uploading local config' }),
         }),
       )
     }

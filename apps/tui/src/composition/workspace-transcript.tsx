@@ -20,7 +20,7 @@ import { useSessionOwner } from './use-session-owner'
 import type { AgentView } from './use-agent-view'
 import type { Conversation } from './use-conversation'
 
-const UPDATING_LABEL = 'updating the cloud sandbox'
+const UPDATING_LABEL = 'updating the pod'
 
 export function WorkspaceTranscript(props: {
   app: AtlasApp

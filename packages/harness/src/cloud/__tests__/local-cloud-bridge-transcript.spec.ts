@@ -114,8 +114,8 @@ describe('createLocalCloudBridge bootstrap writes', () => {
     })
 
     expect(progress).toEqual([
-      { transferId: 'context-upload', label: 'uploading skills and memory', transferredBytes: 0, totalBytes: 6, complete: false },
-      { transferId: 'context-upload', label: 'uploading skills and memory', transferredBytes: 6, totalBytes: 6, complete: true },
+      { transferId: 'context-upload', label: 'uploading local config', transferredBytes: 0, totalBytes: 6, complete: false },
+      { transferId: 'context-upload', label: 'uploading local config', transferredBytes: 6, totalBytes: 6, complete: true },
     ])
   })
 

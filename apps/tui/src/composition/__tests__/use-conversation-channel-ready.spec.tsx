@@ -97,7 +97,7 @@ describe('a conversation whose cloud channel is down', () => {
       if (conversation === null) throw new Error('the conversation probe never mounted')
 
       await act(async () => {
-        conversation.handleReportProblem('the sandbox socket is down')
+        conversation.handleReportProblem('the pod socket is down')
       })
       await setup.flush()
 

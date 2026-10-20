@@ -18,11 +18,11 @@ const STARTED_AT = 10_000
 const BIRTH_ROWS = [
   {
     id: 'provision',
-    text: 'waiting for the sandbox',
+    text: 'waiting for the pod',
     nodeIds: ['provision', 'uploadContext'],
   },
-  { id: 'attach', text: 'attaching to the conversation', nodeIds: ['attach'] },
-  { id: 'flipOwnership', text: 'handing the conversation over', nodeIds: ['flipOwnership'] },
+  { id: 'attach', text: 'setting up the workspace', nodeIds: ['attach', 'open', 'flipOwnership'] },
+  { id: 'verify', text: 'verifying the conversation', nodeIds: ['verify'] },
 ] as const
 
 describe('the rows a move narrates', () => {
@@ -97,10 +97,10 @@ describe('a row whose label changes mid-flight', () => {
     const begun = beginMove({ now: STARTED_AT, rows: BIRTH_ROWS })
     const waiting = activateMoveRow({ move: begun, id: 'provision', now: STARTED_AT + 4_000 })
 
-    const move = relabelMoveRow({ move: waiting, nodeId: 'provision', text: 'sending skills and memory to the sandbox' })
+    const move = relabelMoveRow({ move: waiting, nodeId: 'provision', text: 'sending local config to the pod' })
 
     const row = move.rows.find((candidate) => candidate.id === 'provision')
-    expect(row?.text).toBe('sending skills and memory to the sandbox')
+    expect(row?.text).toBe('sending local config to the pod')
     expect(row?.mark).toBe(EStepMark.Active)
   })
 })
@@ -113,7 +113,7 @@ describe('a move that grows a row mid-flight', () => {
     const move = expandMove({
       move: waiting,
       insertBefore: 'attach',
-      row: { id: 'rotating', text: 'updating the cloud sandbox', nodeIds: ['rotating'] },
+      row: { id: 'rotating', text: 'updating the pod', nodeIds: ['rotating'] },
       now: STARTED_AT + 5_000,
     })
 
@@ -121,7 +121,7 @@ describe('a move that grows a row mid-flight', () => {
       'provision',
       'rotating',
       'attach',
-      'flipOwnership',
+      'verify',
     ])
     expect(move.rows.map((row) => row.mark)).toEqual([
       EStepMark.Done,
@@ -151,6 +151,6 @@ describe('a move that does not finish', () => {
 
 describe('the heading over the rows', () => {
   it('names the cloud sandbox start by default', () => {
-    expect(DEFAULT_MOVE_HEADING).toBe('STARTING A CLOUD SANDBOX')
+    expect(DEFAULT_MOVE_HEADING).toBe('STARTING A POD')
   })
 })

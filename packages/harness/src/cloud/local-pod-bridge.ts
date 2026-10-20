@@ -63,7 +63,7 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
             createArgs.onTransferProgress?.({
               ...progress,
               transferId: 'context-upload',
-              label: 'uploading skills and memory',
+              label: 'uploading local config',
             }),
         }),
       )
