@@ -187,7 +187,10 @@ describe('failures and cache damage', () => {
     const fixture = warmFixture();
     const entryFor = (test: string) => {
       const name = createHash('sha256').update(`${fixture.rel}/${test}`).digest('hex').slice(0, 24);
-      return fixture.cacheFiles().find((file) => file.endsWith(`${name}.json`))!;
+      const files = fixture.cacheFiles();
+      const found = files.find((file) => file.endsWith(`${name}.json`));
+      if (!found) throw new Error(`no cache entry for ${fixture.rel}/${test} (${name}) among ${JSON.stringify(files)}`);
+      return found;
     };
     writeFileSync(entryFor('tests/a.test.ts'), '{ not json');
     rmSync(entryFor('tests/b.test.ts'));

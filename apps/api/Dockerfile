@@ -16,6 +16,7 @@ COPY packages/core/package.json ./packages/core/
 COPY packages/harness/package.json ./packages/harness/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/wire/package.json ./packages/wire/
+COPY packages/vitest-incremental/package.json ./packages/vitest-incremental/
 RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install/cache \
   bun install --frozen-lockfile --ignore-scripts --filter '@dltech/atlas-api'
 
