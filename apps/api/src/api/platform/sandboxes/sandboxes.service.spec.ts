@@ -69,7 +69,6 @@ const sandboxRow = (
   workspaceProjectDirectory: null,
   sealedToken: null,
   sealedGitToken: null,
-  sealedGpgKey: null,
   driveName: null,
   pinnedModel: null,
   serveUrl: null,

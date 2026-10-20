@@ -123,7 +123,7 @@ model CloudSandbox {
   tokenHash      String
   sealedToken    String?
   sealedGitToken String?
-  sealedGpgKey   String?
+  sealedGpgKey   String? @ignore
   workspaceRemoteUrl String?
   workspaceBranch    String?
   workspaceCommit    String?
