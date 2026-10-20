@@ -37,7 +37,6 @@ export class SandboxesController {
       userId: userIdOf(request),
       threadId: body.threadId,
       gitToken: body.gitToken,
-      gpgKey: body.gpgKey,
       contextPending: body.contextPending,
       ...(body.clientToken === undefined ? {} : { clientToken: body.clientToken }),
       ...(body.serveUrl === undefined ? {} : { serveUrl: body.serveUrl }),

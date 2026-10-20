@@ -55,7 +55,6 @@ export class SandboxesService {
     userId: string
     threadId: string
     gitToken?: string | undefined
-    gpgKey?: string | undefined
     contextPending?: boolean | undefined
     clientToken?: string | undefined
     serveUrl?: string | undefined
@@ -85,7 +84,6 @@ export class SandboxesService {
       sealedToken: this.cipher.encrypt(minted.token),
       rotated: true,
       ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
-      ...(args.gpgKey === undefined ? {} : { sealedGpgKey: this.cipher.encrypt(args.gpgKey) }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
     return {
@@ -170,18 +168,6 @@ export class SandboxesService {
     } catch (failure) {
       this.logger.warn(
         `the sealed git token on sandbox ${args.name} does not decrypt; the credential broker answers instead: ${messageOf(failure)}`,
-      )
-      return null
-    }
-  }
-
-  private claimedGpgKey(args: { name: string; sealedGpgKey: string | null }): string | null {
-    if (args.sealedGpgKey === null) return null
-    try {
-      return this.cipher.decrypt(args.sealedGpgKey)
-    } catch (failure) {
-      this.logger.warn(
-        `the sealed gpg key on sandbox ${args.name} does not decrypt; the sandbox gets none: ${messageOf(failure)}`,
       )
       return null
     }
