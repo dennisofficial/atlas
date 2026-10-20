@@ -30,7 +30,7 @@ export class ExecutionLocationFragment extends PromptFragment {
     return [
       "This session is running in a pod or a Vercel sandbox; your filesystem, /tmp, and localhost are the sandbox's alone, not the operator's machine.",
       'New cloud workspaces place the primary repository at /atlas/workspaces/<repo-name>.',
-      'Clone additional repositories beside it under /atlas/workspaces and use explicit workdir or absolute paths to work in them.',
+      'Repositories the project configures are already cloned beside it; clone others there too and use explicit workdir or absolute paths to work in them.',
       'Adjacent clones are ephemeral; sandbox cleanup deletes them.',
       'Gitignored content (node_modules, .env) does not reach a cloud sandbox, so run the project\'s own install before building, testing, or running it there.',
     ].join(' ')

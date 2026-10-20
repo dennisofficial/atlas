@@ -104,7 +104,7 @@ const bootArgsFor = (args: { driver: DockerPodDriver; threadId: string; token: s
     await args.driver.writeBootstrapFile({
       name: handle.name,
       path: WORKSPACE_SPEC_PATH,
-      content: bootstrapSpecOf({ workspace: null, gitToken: undefined }),
+      content: bootstrapSpecOf({ projectId: null }),
     })
   },
 })

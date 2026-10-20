@@ -2,7 +2,6 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { SANDBOX_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { VercelDriver } from './vercel-driver'
-import type { WorkspaceSpec } from './cloud-bridge'
 import type { RunnerDriver } from './runner-driver'
 
 export type LiveSandbox = Parameters<
@@ -21,8 +20,6 @@ export const BOOTSTRAP_DIRECTORY = `${SANDBOX_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
 export const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
 export const VAULT_PROBE_PATH = `${SANDBOX_HOME_PATH}/auth.json`
-
-export type GitTokenReader = () => Promise<string>
 
 export type PortableOmissions = {
   oauthAccounts: readonly string[]
@@ -58,15 +55,13 @@ export type RegistrationSender = (args: {
 }) => unknown
 
 export const bootstrapSpecOf = (args: {
-  workspace: WorkspaceSpec | null
-  gitToken: string | undefined
+  projectId: string | null
   model?: string | undefined
-  projectId?: string | undefined
 }): string =>
   JSON.stringify({
-    remoteUrl: args.workspace?.remoteUrl ?? null,
-    githubToken: args.gitToken ?? null,
-    ...(args.projectId === undefined ? {} : { projectId: args.projectId }),
+    remoteUrl: null,
+    githubToken: null,
+    projectId: args.projectId,
     ...(args.model === undefined ? {} : { model: args.model }),
   })
 

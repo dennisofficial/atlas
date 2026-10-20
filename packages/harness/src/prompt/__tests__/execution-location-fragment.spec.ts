@@ -10,7 +10,7 @@ describe('execution-location fragment', () => {
   it('explains sibling cloning and ephemeral cloud workspaces', () => {
     const text = new ExecutionLocationFragment().text()
     expect(text).toContain('/atlas/workspaces/<repo-name>')
-    expect(text).toContain('Clone additional repositories beside it')
+    expect(text).toContain('Repositories the project configures are already cloned beside it')
     expect(text).toContain('Adjacent clones are ephemeral')
     expect(text).toContain('sandbox cleanup deletes them')
   })

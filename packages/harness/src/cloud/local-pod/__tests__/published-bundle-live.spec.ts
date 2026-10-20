@@ -163,7 +163,7 @@ describeDocker('serve applies the published bundle inside a live pod', () => {
         await driver.writeBootstrapFile({
           name: handle.name,
           path: WORKSPACE_SPEC_PATH,
-          content: bootstrapSpecOf({ workspace: null, gitToken: undefined }),
+          content: bootstrapSpecOf({ projectId: null }),
         })
       },
     })

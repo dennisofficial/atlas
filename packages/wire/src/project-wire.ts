@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const GITHUB_REPO_PATTERN = /^[A-Za-z0-9-]+\/(?!\.+$)[A-Za-z0-9_.-]+$/
 export const GIT_BRANCH_PATTERN = /^(?!-)[A-Za-z0-9._/-]+$/
 export const MAX_ADDITIONAL_REPOS = 10
+export const MAX_PROJECT_NAME_LENGTH = 100
 
 export const githubRepoSchema = z.string().regex(GITHUB_REPO_PATTERN)
 export const gitBranchSchema = z.string().regex(GIT_BRANCH_PATTERN)

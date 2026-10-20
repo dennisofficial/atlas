@@ -1,6 +1,6 @@
 import type { KeyEvent } from '@opentui/core'
 import { useKeyboard } from '@opentui/react'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { applyTranscriptCovered } from '../ui/covered-store'
 import { EKeyGroup, EKeyLayer, useKeyBindings, useKeyRegistry } from '../ui/keys'
@@ -31,6 +31,7 @@ import type { useServices } from './use-services'
 import type { useSettings } from './use-settings'
 import type { useShells } from './use-shells'
 import type { useSwitcher } from './use-switcher'
+import type { ProjectPromptControl } from './use-project-prompt'
 import type { useThreads } from './use-threads'
 import type { useWhatsNew } from './use-whats-new'
 import type { useWorkspaceComposer } from './use-workspace-composer'
@@ -67,6 +68,7 @@ export type WorkspaceInputArgs = {
   settings: Pick<ReturnType<typeof useSettings>, 'state' | 'handleKey' | 'handleOpen'>
   accounts: Pick<ReturnType<typeof useAccounts>, 'state' | 'handleKey'>
   threads: Pick<ReturnType<typeof useThreads>, 'state' | 'handleKey'>
+  projectPrompt: Pick<ProjectPromptControl, 'state' | 'handleKey'>
   onboarding: Pick<ReturnType<typeof useOnboarding>, 'state' | 'handleKey'>
   whatsNew: Pick<ReturnType<typeof useWhatsNew>, 'view' | 'handleKey'>
   footerStrip: Pick<ReturnType<typeof useFooterStrip>, 'state' | 'handleKey' | 'handleEnter'>
@@ -105,6 +107,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     settings,
     accounts,
     threads,
+    projectPrompt,
     onboarding,
     whatsNew,
     footerStrip,
@@ -116,6 +119,14 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
   } = args
 
   const { menus } = composer
+  const promptOpen = projectPrompt.state !== null
+
+  const dismissMenus = useRef(menus.handleDismiss)
+  dismissMenus.current = menus.handleDismiss
+
+  useEffect(() => {
+    if (promptOpen) dismissMenus.current()
+  }, [promptOpen])
 
   useKeyBindings(
     globalBindings({
@@ -160,6 +171,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     (): readonly OverlayPresence[] => [
       covering(whatsNew.view !== null, whatsNew.handleKey),
       { ...covering(conversation.operatorInput.state !== null, conversation.operatorInput.handleKey), porous: true },
+      covering(projectPrompt.state !== null, projectPrompt.handleKey),
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerResources.state !== null, containerResources.handleKey),
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
@@ -194,6 +206,8 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       footerStrip.state,
       onboarding.handleKey,
       onboarding.state,
+      projectPrompt.handleKey,
+      projectPrompt.state,
       whatsNew.handleKey,
       whatsNew.view,
       overlay,
@@ -242,14 +256,19 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
       if (key.eventType !== 'release' && key.name !== 'escape') agentView.disarmStop()
 
-      if (conversation.operatorInput.state === null && contextBrowser.viewer === null && menus.handleKey(key)) {
+      if (
+        !promptOpen &&
+        conversation.operatorInput.state === null &&
+        contextBrowser.viewer === null &&
+        menus.handleKey(key)
+      ) {
         key.preventDefault()
         return
       }
 
       handleKey(key)
     },
-    [agentView, conversation.operatorInput.state, covered, contextBrowser.viewer, handleKey, menus],
+    [agentView, conversation.operatorInput.state, covered, contextBrowser.viewer, handleKey, menus, promptOpen],
   )
 
   useKeyboard(handleKeyWithMenu)

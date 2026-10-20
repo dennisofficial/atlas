@@ -94,17 +94,16 @@ describeDocker('createLocalPodBridge against a live daemon', () => {
       sessionMirror: false,
     })
 
-    const sandbox = await bridge.sandboxes.create({ threadId, workspace: null })
+    const sandbox = await bridge.sandboxes.create({ threadId, projectId: null })
 
     expect(sandbox.created).toBe(true)
     expect(sandbox.token).toBe(serveToken)
-    expect(recordedPuts).toEqual([
-      {
-        path: `/v1/pod-leases/${threadId}`,
-        authorization: `Bearer ${OPERATOR_SESSION}`,
-        body: { token: serveToken },
-      },
-    ])
+    const leasePut = {
+      path: `/v1/pod-leases/${threadId}`,
+      authorization: `Bearer ${OPERATOR_SESSION}`,
+      body: { token: serveToken },
+    }
+    expect(recordedPuts).toEqual([leasePut, leasePut])
     const health = await fetch(`${sandbox.url}/v1/health`, {
       headers: { Authorization: `Bearer ${serveToken}` },
       signal: AbortSignal.timeout(10_000),

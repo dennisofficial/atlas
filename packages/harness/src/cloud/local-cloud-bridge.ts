@@ -43,15 +43,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         cloudUrl: args.cloudUrl?.() ?? '',
       }))
 
-  const readGitTokenQuietly = async (): Promise<string | undefined> => {
-    if (args.readGitToken === undefined) return undefined
-    try {
-      return await args.readGitToken()
-    } catch {
-      return undefined
-    }
-  }
-
   const notifyOmitted = (omissions: PortableOmissions): void => {
     try {
       args.onPortableOmitted?.(omissions)
@@ -97,8 +88,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     const writeBootstrap = async (sandbox: LiveSandbox): Promise<void> => {
       if (freshBoot) {
         bootstrap ??= bootstrapSpecOf({
-          workspace: createArgs.workspace,
-          gitToken: await readGitTokenQuietly(),
+          projectId: createArgs.projectId,
           ...(createArgs.model === undefined ? {} : { model: createArgs.model }),
         })
         await driver.writeBootstrapFileToSandbox({

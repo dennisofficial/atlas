@@ -98,7 +98,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(events.indexOf('capture')).toBeLessThan(events.indexOf('write:local-state.json'))
     expect(events.indexOf('write:local-state.json')).toBeLessThan(events.indexOf('authorize'))
@@ -118,7 +118,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null, captureContext: undefined })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null, captureContext: undefined })
 
     expect(events.filter((event) => event === 'authorize')).toHaveLength(1)
   })
@@ -134,7 +134,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    await expect(bridge.sandboxes.create({ threadId: THREAD, workspace: null })).rejects.toThrow(
+    await expect(bridge.sandboxes.create({ threadId: THREAD, projectId: null })).rejects.toThrow(
       'Sign in to Atlas Cloud',
     )
 
@@ -153,7 +153,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       authorizeSandbox: authorize,
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(events).toContain('authorize')
     expect(events).not.toContain('capture')
@@ -170,7 +170,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    const woken = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    const woken = await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect({ url: woken.url, token: woken.token }).toEqual({ url: SERVE_URL, token: 'serve-token' })
     expect(events).toContain('authorize')
@@ -184,7 +184,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       registration: true,
     })
 
-    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(sandbox.state).toBe(ECloudSandboxState.Running)
     expect(events).toContain('launch')
@@ -201,7 +201,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null, model: 'anthropic/claude-test' })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null, model: 'anthropic/claude-test' })
 
     expect(authorizations).toEqual([
       {

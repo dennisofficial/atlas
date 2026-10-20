@@ -5,7 +5,6 @@ import type { SettingsService } from '../settings/service'
 import type { MirrorLocalLog } from './transcript-syncer'
 import type {
   BridgeDriver,
-  GitTokenReader,
   PortableOmissions,
   RegistrationSender,
   SandboxRegistration,
@@ -21,7 +20,6 @@ export type SandboxAuthorizer = (args: {
 export type LocalCloudBridgeOptions = {
   vercel: () => VercelSandboxConfig
   attachmentToken: (args: { threadId: ThreadId }) => string
-  readGitToken?: GitTokenReader | undefined
   /**
    * Runs only when the sandbox needs a snapshot — a fresh boot, or a resume whose vault never
    * materialised after a failed first boot. A healthy resume never captures, so the sandbox's
@@ -69,4 +67,5 @@ export type LocalCloudBridgeOptions = {
   sessionMirror?: boolean | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
   settings?: SettingsService | undefined
+  projectIdOf?: ((args: { threadId: ThreadId }) => Promise<string | null>) | undefined
 }

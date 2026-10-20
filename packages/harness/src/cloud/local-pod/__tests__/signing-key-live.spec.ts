@@ -134,7 +134,7 @@ describeDocker('serve signs commits inside a live pod with the leased key', () =
         await args.driver.writeBootstrapFile({
           name: handle.name,
           path: WORKSPACE_SPEC_PATH,
-          content: bootstrapSpecOf({ workspace: null, gitToken: undefined }),
+          content: bootstrapSpecOf({ projectId: null }),
         })
       },
     })

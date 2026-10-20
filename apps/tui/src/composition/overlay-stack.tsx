@@ -18,6 +18,7 @@ import { Shells } from '../ui/components/shells'
 import { Switcher } from '../ui/components/switcher'
 import { Threads } from '../ui/components/threads'
 import { Onboarding } from '../ui/components/onboarding'
+import { ProjectPrompt } from '../ui/components/project-prompt'
 import { OperatorInputOverlay } from '../ui/components/operator-input'
 import { WhatsNew } from '../ui/components/whats-new'
 import { useAppearance } from '../ui/hooks/use-appearance'
@@ -37,6 +38,7 @@ import type { QualityHealthStatusProps } from './use-workspace-quality-health'
 import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
 import { type SwitcherControl } from './use-switcher'
+import type { ProjectPromptControl } from './use-project-prompt'
 import type { ThreadsControl } from './use-threads'
 import type { WhatsNewControl } from './use-whats-new'
 
@@ -56,6 +58,7 @@ function DerivedOverlayStack(props: {
   whatsNew: WhatsNewControl
   accounts: AccountsControl
   threads: ThreadsControl
+  projectPrompt: ProjectPromptControl
   accountMeters: (account: Account) => readonly Span[] | undefined
   rewind: RewindControl
   rewindConfirm: RewindConfirmControl
@@ -76,6 +79,7 @@ function DerivedOverlayStack(props: {
     onboarding,
     accounts,
     threads,
+    projectPrompt,
     rewind,
     exitGuard,
     containerResources,
@@ -140,6 +144,16 @@ function DerivedOverlayStack(props: {
           onChooseLogin={accounts.handleChooseLogin}
           onDismiss={accounts.handleDismiss}
           onOpenUrl={accounts.handleOpenUrl}
+        />
+      )}
+      {projectPrompt.state === null ? null : (
+        <ProjectPrompt
+          width={Math.min(props.contentWidth, props.width)}
+          state={projectPrompt.state}
+          overlay
+          onChoose={projectPrompt.handlePickRow}
+          onFocusField={projectPrompt.handleFocusField}
+          onCancel={projectPrompt.handleCancel}
         />
       )}
       {threads.state === null ? null : (

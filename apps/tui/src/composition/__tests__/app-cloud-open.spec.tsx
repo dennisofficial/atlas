@@ -246,6 +246,25 @@ describe('opening a conversation that lives in the cloud', () => {
     }
   }, 60_000)
 
+  it('wakes the sandbox with the project the thread was born on', async () => {
+    const app = speaking()
+    const { threadId } = await seedCloudThread(app)
+    await app.threads.chooseProject({ threadId, projectId: 'proj_1' })
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
+    const mounted = await mount({
+      app,
+      bridge,
+      opened: { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId },
+    })
+
+    try {
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      expect(bridge.created).toEqual([{ threadId, projectId: 'proj_1' }])
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('holds the failed boot attach as an unbound cloud placement with its reason, then attaches on the retry from the picker', async () => {
     const app = speaking()
     const { threadId } = await seedCloudThread(app)

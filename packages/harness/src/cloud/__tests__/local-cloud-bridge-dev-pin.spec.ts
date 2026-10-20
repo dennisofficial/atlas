@@ -43,7 +43,7 @@ const registeredVersionOf = async (args: {
     },
     driverWith: () => driverPlacing(args.placement),
   })
-  await bridge.sandboxes.create({ threadId, workspace: null })
+  await bridge.sandboxes.create({ threadId, projectId: null })
   await tick()
   await tick()
   return registered

@@ -50,8 +50,8 @@ export type CloudSandboxStatus = {
 export type CloudSandboxes = {
   create(args: {
     threadId: ThreadId
-    /** The clone spec: the repo's origin URL. `null` for a session with no repository behind it. */
-    workspace: WorkspaceSpec | null
+    /** The cloud project the sandbox clones from on boot. `null` boots an empty workspace. */
+    projectId: string | null
     /** The thread's model ref, written into the boot spec so the cloud session runs the model it was on. */
     model?: string | undefined
     /**

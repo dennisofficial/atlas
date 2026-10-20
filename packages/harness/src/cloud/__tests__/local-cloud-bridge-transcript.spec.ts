@@ -74,18 +74,18 @@ describe('createLocalCloudBridge bootstrap writes', () => {
 
     await bridgeWith(driver).sandboxes.create({
       threadId,
-      workspace: { remoteUrl: 'git@github.com:comp-ai/atlas.git' },
+      projectId: 'proj_1',
     })
 
     expect(events.some((event) => event.startsWith('upload:'))).toBe(false)
     const spec = writes.find((entry) => entry.path === WORKSPACE_SPEC_PATH)
-    expect(String(spec?.content)).toContain('git@github.com:comp-ai/atlas.git')
+    expect(JSON.parse(String(spec?.content))).toMatchObject({ projectId: 'proj_1' })
   })
 
   it('writes no bootstrap spec on a healthy resume', async () => {
     const { driver, events, writes } = fakeDriver({ observed: true, vaultPresent: true })
 
-    const placement = await bridgeWith(driver).sandboxes.create({ threadId, workspace: null })
+    const placement = await bridgeWith(driver).sandboxes.create({ threadId, projectId: null })
 
     expect(placement.created).toBe(false)
     expect(writes.some((entry) => entry.path === WORKSPACE_SPEC_PATH)).toBe(false)
@@ -95,7 +95,7 @@ describe('createLocalCloudBridge bootstrap writes', () => {
   it('writes no bootstrap files at all on a healthy resume without context', async () => {
     const { driver, writes } = fakeDriver({ observed: true, vaultPresent: true })
 
-    await bridgeWith(driver).sandboxes.create({ threadId, workspace: null })
+    await bridgeWith(driver).sandboxes.create({ threadId, projectId: null })
 
     expect(writes).toHaveLength(0)
   })
@@ -105,7 +105,7 @@ describe('createLocalCloudBridge bootstrap writes', () => {
     const progress: SandboxTransferProgress[] = []
     await bridgeWith(driver).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async (put) => put(new Uint8Array(6)),
       onTransferProgress: (reading) => {
         expect(events).not.toContain('launch')
@@ -127,7 +127,7 @@ describe('createLocalCloudBridge bootstrap writes', () => {
     }
     await expect(bridgeWith(driver).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async (put) => put(new Uint8Array(4)),
       onTransferProgress: (reading) => progress.push(reading),
     })).rejects.toThrow('upload rejected')
@@ -142,7 +142,7 @@ describe('createLocalCloudBridge bootstrap writes', () => {
 
     await bridgeWith(driver).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async (put) => {
         captured += 1
         await put(new Uint8Array(2))
@@ -158,7 +158,7 @@ describe('createLocalCloudBridge bootstrap writes', () => {
 
     await bridgeWith(driver).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async (put) => put(new Uint8Array(2)),
     })
 
@@ -170,7 +170,7 @@ describe('createLocalCloudBridge bootstrap writes', () => {
 
     await bridgeWith(driver).sandboxes.create({
       threadId,
-      workspace: null,
+      projectId: null,
       captureContext: async (put) => put(new Uint8Array(2)),
     })
 

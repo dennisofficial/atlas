@@ -11,7 +11,6 @@ import {
 import {
   atlasDirectory,
   persistedTelemetryDistinctId,
-  readGhAuthToken,
   requireVercelCredentials,
   SandboxClient,
   sandboxImageOf,
@@ -119,7 +118,7 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
   localLog: app.log,
   settings: app.settings,
-  readGitToken: () => readGhAuthToken(),
+  projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
   capturePortable: () => app.cloud.capturePortableState(),
   authorizeSandbox: (authorization) => app.cloud.prepareSandboxOauth(authorization),
   cloudUrl: () => cloudUrlOf(app),

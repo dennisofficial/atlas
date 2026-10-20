@@ -467,3 +467,52 @@ describe('cloudClientFor', () => {
     expect(new Headers(calls[0]?.headers).get('atlas-client-version')).toBe('dev')
   })
 })
+
+describe('CloudClient projects', () => {
+  const projectBody = (overrides: Record<string, unknown> = {}) => ({
+    id: 'proj_1',
+    name: 'atlas',
+    repo: 'comp-ai/atlas',
+    baseBranch: 'main',
+    additionalRepos: [{ repo: 'comp-ai/docs', branch: 'next' }],
+    createdAt: '2026-10-01T00:00:00.000Z',
+    updatedAt: '2026-10-02T00:00:00.000Z',
+    ...overrides,
+  })
+
+  it('lists projects from a bare array', async () => {
+    const { client, calls } = clientWith(() => ({ status: 200, body: [projectBody(), projectBody({ id: 'proj_2', repo: null, baseBranch: null })] }))
+
+    const projects = await client.listProjects()
+
+    expect(calls[0]?.method).toBe('GET')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/projects')
+    expect(projects.map((project) => project.id)).toEqual(['proj_1', 'proj_2'])
+  })
+
+  it('rejects a list that is not an array of projects', async () => {
+    const { client } = clientWith(() => ({ status: 200, body: { projects: [] } }))
+
+    await expect(client.listProjects()).rejects.toThrow()
+  })
+
+  it('creates a project with a POST of the input', async () => {
+    const { client, calls } = clientWith(() => ({ status: 201, body: projectBody() }))
+    const input = { name: 'atlas', repo: 'comp-ai/atlas', baseBranch: 'main', additionalRepos: [] }
+
+    const created = await client.createProject(input)
+
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/projects')
+    expect(calls[0]?.body).toEqual(input)
+    expect(created.id).toBe('proj_1')
+  })
+
+  it('surfaces a failed create as a CloudError', async () => {
+    const { client } = clientWith(() => ({ status: 400, body: { message: 'bad repo' } }))
+
+    await expect(
+      client.createProject({ name: 'x', repo: null, baseBranch: null, additionalRepos: [] }),
+    ).rejects.toBeInstanceOf(CloudError)
+  })
+})

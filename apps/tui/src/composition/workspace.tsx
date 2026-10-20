@@ -43,7 +43,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   useCopyOnSelect()
 
   const session = useWorkspaceSession({ props, settings, exit })
-  const { draft, tokens, conversation, containerMove } = session
+  const { draft, tokens, conversation, containerMove, projectPrompt } = session
 
   const frame = useWorkspaceFrame({ settings })
   const models = useWorkspaceModels({
@@ -203,6 +203,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     settings,
     accounts,
     threads,
+    projectPrompt,
     onboarding,
     whatsNew,
     footerStrip: footer.footerStrip,
@@ -293,7 +294,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           active={selection.ref}
           accountMeters={accountMeters}
           {...{ switcher, shells, services, agents, settings, onboarding, whatsNew,
-            accounts, threads, rewind, qualityHealth }}
+            accounts, threads, projectPrompt, rewind, qualityHealth }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
           {...{ exitGuard, containerResources }}

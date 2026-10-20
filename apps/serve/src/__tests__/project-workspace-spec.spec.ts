@@ -63,15 +63,19 @@ const fetcherWith = (args: {
 }
 
 describe('projectWorkspaceSpecFetcher', () => {
-  it('returns the bootstrap untouched, with no request, when it names no project', async () => {
+  it('answers an empty workspace, with no request, when the bootstrap names no project', async () => {
     const home = homeWith({ remoteUrl: 'git@github.com:a/b.git', githubToken: 'laptop', model: 'm' })
     const { fetchSpec, calls } = fetcherWith({ home, answers: [] })
 
-    await expect(fetchSpec()).resolves.toEqual({
-      remoteUrl: 'git@github.com:a/b.git',
-      githubToken: 'laptop',
-      model: 'm',
-    })
+    await expect(fetchSpec()).resolves.toEqual({ remoteUrl: null, githubToken: null, model: 'm' })
+    expect(calls).toEqual([])
+  })
+
+  it('answers an empty workspace for a null project id', async () => {
+    const home = homeWith({ remoteUrl: null, githubToken: null, projectId: null })
+    const { fetchSpec, calls } = fetcherWith({ home, answers: [] })
+
+    await expect(fetchSpec()).resolves.toEqual({ remoteUrl: null, githubToken: null, model: undefined })
     expect(calls).toEqual([])
   })
 

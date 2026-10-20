@@ -75,6 +75,7 @@ export const threadMetaSchema = z.object({
   modelEffort: z.string().nullable(),
   executionLocation: z.string().nullable(),
   runner: z.string().nullish(),
+  projectId: z.string().nullish(),
   placement: z
     .object({
       placement: z
@@ -113,6 +114,7 @@ export function newThreadMeta({ id, at }: { id: string; at: string }): ThreadMet
     modelEffort: null,
     executionLocation: null,
     runner: null,
+    projectId: null,
     placement: null,
     parkedTranscript: null,
   }

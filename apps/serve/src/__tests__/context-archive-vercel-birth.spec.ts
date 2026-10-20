@@ -93,7 +93,7 @@ describe('the Vercel birth path carries the user layer', () => {
 
     await bridge.sandboxes.create({
       threadId: toThreadId('thread-user-layer'),
-      workspace: { remoteUrl: REMOTE_URL },
+      projectId: null,
       captureContext: async (putArchive) => putArchive(archive),
     })
 

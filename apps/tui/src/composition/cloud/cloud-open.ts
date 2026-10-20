@@ -41,19 +41,22 @@ type Composed = {
   openAgainst: (runner: RemoteTurnRunner) => Promise<OpenedConversation>
 }
 
+type ResolvedOpenArgs = OpenArgs & { projectId: string | null }
+
 const ALREADY_SETTLED = (): void => undefined
 
 const captureContextFor = (args: OpenArgs) => () =>
   args.app.captureContext({ cwd: args.projectDirectory ?? args.app.workspace.workspace })
 
-const wakeNarrationFor = (args: OpenArgs) => ({
+const wakeNarrationFor = (args: ResolvedOpenArgs) => ({
   bridge: args.bridge,
   threadId: args.threadId,
+  projectId: args.projectId,
   captureContext: captureContextFor(args),
   ...(args.move === undefined ? {} : { move: args.move }),
 })
 
-async function composeEager(args: OpenArgs): Promise<Composed> {
+async function composeEager(args: ResolvedOpenArgs): Promise<Composed> {
   const woken = await wakeSandbox(wakeNarrationFor(args))
   const { channel, stores, sessionMirror } = args.bridge.attach({
     threadId: args.threadId,
@@ -74,7 +77,7 @@ async function composeEager(args: OpenArgs): Promise<Composed> {
   }
 }
 
-function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation }): Composed {
+function composeRenderFirst(args: ResolvedOpenArgs & { opened: OpenedConversation }): Composed {
   const attachment = args.bridge.attach({ threadId: args.threadId })
   const { channel } = attachment
   const stores = parkedStoresOf({
@@ -100,10 +103,12 @@ function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation }): Co
  * send, anything else wakes in the background. With nothing local to draw, or a half-finished
  * move that settles on the live channel, the wake comes first.
  */
-export async function openCloudThread(args: OpenArgs): Promise<Binding> {
-  const { app, bridge, threadId, move } = args
+export async function openCloudThread(openArgs: OpenArgs): Promise<Binding> {
+  const { app, bridge, threadId, move } = openArgs
 
   try {
+    const projectId = (await app.threads.find({ threadId }))?.projectId ?? null
+    const args: ResolvedOpenArgs = { ...openArgs, projectId }
     const renderable = args.wakeFirst === true ? null : await renderableLocally(args)
     const composed =
       renderable === null

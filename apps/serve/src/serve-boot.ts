@@ -134,6 +134,7 @@ export async function bootServeFiles(args: {
   if (readMetaSync({ file: metaFile, schema: threadMetaSchema }) === undefined) {
     const born = newThreadMeta({ id: threadId, at: new Date().toISOString() })
     born.workspace = cwd
+    born.projectId = spec?.projectId ?? null
     if (env[POD_NAME_ENV]) born.runner = ERunner.Local
     const meta = metaWithPlacement({
       meta: born,

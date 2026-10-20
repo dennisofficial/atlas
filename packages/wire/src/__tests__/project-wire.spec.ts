@@ -5,6 +5,7 @@ import {
   gitBranchSchema,
   githubRepoSchema,
   MAX_ADDITIONAL_REPOS,
+  MAX_PROJECT_NAME_LENGTH,
   projectRepoSchema,
   projectWorkspaceSchema,
 } from '../project-wire'
@@ -55,5 +56,6 @@ describe('project wire', () => {
   it('builds the https clone url and caps extras at ten', () => {
     expect(githubCloneUrlOf('octocat/Hello-World')).toBe('https://github.com/octocat/Hello-World.git')
     expect(MAX_ADDITIONAL_REPOS).toBe(10)
+    expect(MAX_PROJECT_NAME_LENGTH).toBe(100)
   })
 })

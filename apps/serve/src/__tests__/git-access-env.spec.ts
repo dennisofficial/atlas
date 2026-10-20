@@ -49,16 +49,20 @@ const specOnDrive = async (args: { githubToken: string | null }): Promise<string
   await mkdir(bootstrap, { recursive: true })
   await writeFile(
     join(bootstrap, 'workspace-spec.json'),
-    JSON.stringify({
-      remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-      branch: 'main',
-      commit: null,
-      patch: '',
-      githubToken: args.githubToken,
-    }),
+    JSON.stringify({ remoteUrl: null, githubToken: null, projectId: 'proj_1' }),
   )
   return driveHome
 }
+
+const projectApiAnswering = (args: { githubToken: string | null }): typeof fetch =>
+  (async () =>
+    Response.json({
+      projectId: 'proj_1',
+      repo: 'dennisofficial/atlas',
+      baseBranch: null,
+      additionalRepos: [],
+      githubToken: args.githubToken,
+    })) as unknown as typeof fetch
 
 const start = async (args: {
   env: Record<string, string | undefined>
@@ -82,6 +86,7 @@ const start = async (args: {
     compose: async () => app,
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     contextFiles: inMemoryContextFiles(),
+    ...(args.spec === undefined ? {} : { fetchFn: projectApiAnswering({ githubToken: args.spec.githubToken }) }),
   })
   running.push(handle)
   return handle

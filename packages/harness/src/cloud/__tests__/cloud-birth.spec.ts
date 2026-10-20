@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { tmpdir } from 'node:os'
 
 import { EExecutionLocation, ERunner, toThreadId } from '@dltech/atlas-core'
 
@@ -19,9 +18,15 @@ afterEach(async () => {
 const NO_ADAPTERS = {} as never
 const THREAD = toThreadId('thr_birth')
 
-const bridgeThat = (create: () => Promise<{ url: string; token: string }>): CloudBridge => ({
+const bridgeThat = (
+  create: () => Promise<{ url: string; token: string }>,
+  seen?: Array<{ projectId: string | null }>,
+): CloudBridge => ({
   sandboxes: {
-    create: async () => ({ ...(await create()), state: ECloudSandboxState.Running, created: true }),
+    create: async (args: { projectId: string | null }) => {
+      seen?.push({ projectId: args.projectId })
+      return { ...(await create()), state: ECloudSandboxState.Running, created: true }
+    },
   } as unknown as CloudBridge['sandboxes'],
   attach: () => ({ channel: {} }) as unknown as ReturnType<CloudBridge['attach']>,
 })
@@ -37,7 +42,7 @@ async function setup() {
   await owner.placement.activate({ threadId: THREAD })
   const birthArgs = (overrides: Partial<BirthArgs>): BirthArgs => ({
     threadId: THREAD,
-    cwd: tmpdir(),
+    projectId: null,
     identity: { workspace: '/work', repo: null },
     model: { ref: 'anthropic/claude', effort: 'medium' },
     bridge: sandboxed,
@@ -71,6 +76,26 @@ describe('birthInCloud', () => {
     await birthInCloud(birthArgs({}))
 
     expect((await fixture.threads.find({ threadId: THREAD }))?.runner).toBeUndefined()
+  })
+
+  it('passes the project to the sandbox and records it on the thread', async () => {
+    const { fixture, birthArgs } = await setup()
+    const seen: Array<{ projectId: string | null }> = []
+    const bridge = bridgeThat(async () => ({ url: 'https://sandbox.test', token: 'tok' }), seen)
+
+    const result = await birthInCloud(birthArgs({ bridge, projectId: 'proj_1' }))
+
+    expect(result.ok).toBe(true)
+    expect(seen).toEqual([{ projectId: 'proj_1' }])
+    expect((await fixture.threads.find({ threadId: THREAD }))?.projectId).toBe('proj_1')
+  })
+
+  it('leaves the thread without a project when the birth names none', async () => {
+    const { fixture, birthArgs } = await setup()
+
+    await birthInCloud(birthArgs({}))
+
+    expect((await fixture.threads.find({ threadId: THREAD }))?.projectId).toBeUndefined()
   })
 
   it('reports an image pull failure as its own fault', async () => {

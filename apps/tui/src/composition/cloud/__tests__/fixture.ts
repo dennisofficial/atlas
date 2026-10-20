@@ -541,6 +541,10 @@ class WatchedThreadStore extends ThreadStorePort {
     return this.inner.chooseRunner(args)
   }
 
+  override chooseProject(args: Parameters<ThreadStorePort['chooseProject']>[0]) {
+    return this.inner.chooseProject(args)
+  }
+
   chooseExecutionLocation(args: Parameters<ThreadStorePort['chooseExecutionLocation']>[0]) {
     this.trail.push('flip')
     return this.inner.chooseExecutionLocation(args)
@@ -573,7 +577,7 @@ export type FakeBridge = CloudBridge & {
   readonly ledger: FakeLedger
   readonly created: readonly {
     threadId: ThreadId
-    workspace: WorkspaceSpec | null
+    projectId: string | null
   }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
@@ -624,7 +628,7 @@ export function fakeBridge(
   let channel: FakeCloudChannel | null = null
   const created: {
     threadId: ThreadId
-    workspace: WorkspaceSpec | null
+    projectId: string | null
   }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
@@ -689,7 +693,7 @@ export function fakeBridge(
       sourceDisk = disk
     },
     sandboxes: {
-      create: async ({ threadId, workspace, captureContext, onRotationStarted }) => {
+      create: async ({ threadId, projectId, captureContext, onRotationStarted }) => {
         const sandbox = args.sandbox ?? RUNNING
         if (sandbox.rotatedProtocol !== undefined || sandbox.rotatedFrom !== undefined)
           onRotationStarted?.()
@@ -707,7 +711,7 @@ export function fakeBridge(
         trail.push('sandbox')
         created.push({
           threadId,
-          workspace,
+          projectId,
         })
         if (args.createFails !== undefined) throw args.createFails
         return sandbox

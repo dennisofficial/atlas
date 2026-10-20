@@ -76,7 +76,6 @@ const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0
 const bridgeWith = (args: {
   driver: FakeDriver
   token?: string
-  readGitToken?: (() => Promise<string>) | undefined
   signedIn?: boolean
   portable?: PortableState
   registration?: (() => unknown) | undefined
@@ -87,7 +86,6 @@ const bridgeWith = (args: {
   createCloudBridge({
     vercel: () => CONFIG,
     attachmentToken: () => args.token ?? 'stable-serve-token',
-    ...(args.readGitToken === undefined ? {} : { readGitToken: args.readGitToken }),
     capturePortable: async () => args.portable ?? PORTABLE,
     ...(args.registration === undefined
       ? args.signedIn === false
@@ -109,36 +107,32 @@ describe('createCloudBridge sandboxes.create', () => {
     const driver = fakeDriver({ created: true })
     const bridge = bridgeWith({ driver, token: 'stable-serve-token', signedIn: false })
 
-    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(sandbox.token).toBe('stable-serve-token')
     expect(driver.tokens).toEqual(['stable-serve-token'])
     expect(sandbox.created).toBe(true)
   })
 
-  it('writes the workspace spec and portable snapshot before launch on a fresh boot', async () => {
+  it('writes the project pointer and portable snapshot before launch on a fresh boot', async () => {
     const driver = fakeDriver({ created: true })
-    const bridge = bridgeWith({
-      driver,
-      readGitToken: async () => 'gho_test_token',
-      signedIn: false,
-    })
+    const bridge = bridgeWith({ driver, signedIn: false })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: 'proj_1' })
 
     const paths = driver.written.map((write) => write.path)
     expect(paths).toContain('/atlas/home/bootstrap/workspace-spec.json')
     expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
 
     const spec = driver.written.find((write) => write.path.endsWith('workspace-spec.json'))
-    expect(JSON.parse(String(spec?.content))).toMatchObject({ githubToken: 'gho_test_token' })
+    expect(JSON.parse(String(spec?.content))).toEqual({ remoteUrl: null, githubToken: null, projectId: 'proj_1' })
   })
 
   it('never rewrites the workspace spec or portable snapshot on a resume with a live vault', async () => {
     const driver = fakeDriver({ created: false, vaultPresent: true })
     const bridge = bridgeWith({ driver, signedIn: false })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(driver.written).toEqual([])
   })
@@ -147,27 +141,11 @@ describe('createCloudBridge sandboxes.create', () => {
     const driver = fakeDriver({ created: false, vaultPresent: false })
     const bridge = bridgeWith({ driver, signedIn: false })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     const paths = driver.written.map((write) => write.path)
     expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
     expect(paths).not.toContain('/atlas/home/bootstrap/workspace-spec.json')
-  })
-
-  it('boots without push access when the git token read fails', async () => {
-    const driver = fakeDriver({ created: true })
-    const bridge = bridgeWith({
-      driver,
-      readGitToken: async () => {
-        throw new Error('gh not logged in')
-      },
-      signedIn: false,
-    })
-
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
-
-    const spec = driver.written.find((write) => write.path.endsWith('workspace-spec.json'))
-    expect(JSON.parse(String(spec?.content))).toMatchObject({ githubToken: null })
   })
 
   it('sends the registration after the sandbox answers when signed in', async () => {
@@ -179,7 +157,7 @@ describe('createCloudBridge sandboxes.create', () => {
       sendRegistration: (registration) => registered.push(registration),
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
     await tick()
     await tick()
 
@@ -201,7 +179,7 @@ describe('createCloudBridge sandboxes.create', () => {
       sendRegistration: (registration) => registered.push(registration),
     })
 
-    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
     await tick()
 
     expect(sandbox.state).toBe(ECloudSandboxState.Running)
@@ -220,7 +198,7 @@ describe('createCloudBridge sandboxes.create', () => {
       onRegistrationFailed: (failure) => failed.push(failure),
     })
 
-    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
     await tick()
 
     expect(sandbox.state).toBe(ECloudSandboxState.Running)
@@ -238,7 +216,7 @@ describe('createCloudBridge sandboxes.create', () => {
       onRegistrationFailed: (failure) => failed.push(failure),
     })
 
-    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
     await tick()
     await tick()
 
@@ -255,7 +233,7 @@ describe('createCloudBridge sandboxes.create', () => {
     })
 
     const started = Date.now()
-    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    const sandbox = await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(sandbox.state).toBe(ECloudSandboxState.Running)
     expect(Date.now() - started).toBeLessThan(1_000)
@@ -277,7 +255,7 @@ describe('createCloudBridge sandboxes.create', () => {
       onOmitted: (report) => omitted.push(report),
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(omitted).toEqual([
       { oauthAccounts: ['claude-subscription'], mcpOauthSecrets: ['mcp-oauth:linear'] },
@@ -297,12 +275,12 @@ describe('createCloudBridge sandboxes.create', () => {
       onOmitted: (report) => omitted.push(report),
     })
 
-    await resumedBridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await resumedBridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     const fresh = fakeDriver({ created: true })
     const freshBridge = bridgeWith({ driver: fresh, signedIn: false, onOmitted: (report) => omitted.push(report) })
 
-    await freshBridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await freshBridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(omitted).toEqual([])
   })
@@ -320,7 +298,7 @@ describe('createCloudBridge sandboxes.create', () => {
       driverWith: () => driver,
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, workspace: null })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(captures).toHaveLength(1)
     expect(driver.written.map((write) => write.path)).toContain(

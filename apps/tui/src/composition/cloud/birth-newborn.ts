@@ -10,7 +10,6 @@ import {
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
-import { durableOpLog } from '../durable-op-log'
 import { messageOf } from '../error-text'
 import { cloudAnchorOf, cloudBindingOf, prepareOn } from '../session-binding'
 import type { ContainerMoveControl } from '../use-container-move'
@@ -35,11 +34,12 @@ export function birthNewborn(args: {
   createBridge: CloudBridgeFactory
   threadId: ThreadId
   runner: ERunner
+  projectId: string | null
   onReload: (reload: CloudReload) => Promise<void>
   onRestoreDraft: () => void
   onRelease: () => void
 }): void {
-  const { app, move, owner, threadId, runner } = args
+  const { app, move, owner, threadId, runner, projectId } = args
   const pod = runner === ERunner.Local
   const bridge = args.createBridge({ runner })
   let cancelled = false
@@ -65,14 +65,13 @@ export function birthNewborn(args: {
   void birthInCloud({
     threadId,
     runner,
-    cwd: app.workspace.workspace,
+    projectId,
     identity: app.workspace,
     model: storedModel(app.model.choice()),
     bridge,
     localThreads: app.threads,
     localLog: app.log,
     ids: app.ids,
-    logPort: durableOpLog() ?? undefined,
     placement: owner,
     captureContext,
     onBegin: ({ waves }) =>
@@ -99,8 +98,8 @@ export function birthNewborn(args: {
           bornPlacementChip(app).retire(threadId)
         },
       })
-      const wake = createCloudWake({ bridge, channel: attachment.channel, threadId, captureContext, move })
-      const turns = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move, wake })
+      const wake = createCloudWake({ bridge, channel: attachment.channel, threadId, projectId, captureContext, move })
+      const turns = createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId, captureContext, move, wake })
       const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner: turns }) }
       const opened = await openCloudConversation({ app: base, threadId })
       const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })

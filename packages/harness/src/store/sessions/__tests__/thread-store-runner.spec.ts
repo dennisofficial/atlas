@@ -88,3 +88,34 @@ describe('a thread’s runner', () => {
     expect(forked.runner).toBe(ERunner.Local)
   })
 })
+
+describe('a thread’s project', () => {
+  it('reads back through find and list once chosen', async () => {
+    const { threads } = await openStore()
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
+    expect(thread.projectId).toBeUndefined()
+
+    await threads.chooseProject({ threadId: thread.id, projectId: 'proj_1' })
+
+    expect((await threads.find({ threadId: thread.id }))?.projectId).toBe('proj_1')
+    const listed = await threads.list({ project: '/here' })
+    expect(listed.find((row) => row.id === thread.id)?.projectId).toBe('proj_1')
+  })
+
+  it('records no workspace as a null project, which reads back absent', async () => {
+    const { threads } = await openStore()
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
+
+    await threads.chooseProject({ threadId: thread.id, projectId: null })
+
+    expect((await threads.find({ threadId: thread.id }))?.projectId).toBeUndefined()
+  })
+
+  it('is a no-op for a thread the store does not know', async () => {
+    const { threads } = await openStore()
+
+    await threads.chooseProject({ threadId: toThreadId('thr_missing'), projectId: 'proj_1' })
+
+    expect(await threads.find({ threadId: toThreadId('thr_missing') })).toBeUndefined()
+  })
+})

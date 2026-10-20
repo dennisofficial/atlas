@@ -3,20 +3,16 @@ import {
   type ERunner,
   type EventLogPort,
   type IdPort,
-  type LogPort,
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
 import type { BirthInstall, SessionOwner, SessionRuntime } from '../composition/session-owner'
-import { logFieldsOf } from '../store/logs'
 import { ImagePullError } from '../execution/docker/image-pull'
 import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
-import { runGit } from '../workspace/run-git'
 import type { CaptureContext } from './context-archive-policy'
 import type { CloudAttachment, CloudBridge, CloudSandbox } from './cloud-bridge'
 import { CloudError } from './cloud-transport'
-import { GitCredentialError } from './gh-auth-token'
 import type { SandboxTransferProgress } from './transfer-progress'
 import { VercelNotConfiguredError } from './vercel-credentials'
 
@@ -37,7 +33,6 @@ export const BIRTH_WAVES: readonly BirthWave[] = [
 
 export enum EBirthFault {
   NotConfigured = 'not-configured',
-  GitAuth = 'git-auth',
   Unreachable = 'unreachable',
   Sandbox = 'sandbox',
   Context = 'context',
@@ -57,14 +52,13 @@ export type CloudBirth = BirthSuccess | BirthFailure
 export type BirthArgs = {
   threadId: ThreadId
   runner?: ERunner | undefined
-  cwd: string
+  projectId: string | null
   identity: WorkspaceIdentity
   model: ThreadModel
   bridge: CloudBridge
   localThreads: ThreadStorePort
   localLog: EventLogPort
   ids: IdPort
-  logPort?: LogPort | undefined
   placement: SessionOwner<SessionRuntime>
   captureContext: CaptureContext
   onBegin?: ((args: { waves: readonly BirthWave[] }) => void) | undefined
@@ -80,7 +74,6 @@ export type BirthArgs = {
 
 const birthFaultOf = (error: unknown): EBirthFault => {
   if (error instanceof VercelNotConfiguredError) return EBirthFault.NotConfigured
-  if (error instanceof GitCredentialError) return EBirthFault.GitAuth
   if (error instanceof ImagePullError) return EBirthFault.ImagePull
   if (!(error instanceof CloudError)) return EBirthFault.Sandbox
   if (error.status === 503 && error.message.includes('not configured')) return EBirthFault.NotConfigured
@@ -88,22 +81,10 @@ const birthFaultOf = (error: unknown): EBirthFault => {
   return EBirthFault.Sandbox
 }
 
-const remoteUrlOf = async (args: { cwd: string; logPort: LogPort | undefined; threadId: ThreadId }): Promise<string | null> => {
-  const probed = await runGit({ args: ['remote', 'get-url', 'origin'], cwd: args.cwd })
-  const url = probed.ok ? probed.stdout.trim() : ''
-  if (url !== '') return url
-  args.logPort?.warn({
-    source: 'cloud.birth',
-    threadId: args.threadId,
-    message: 'the local checkout has no origin remote; the sandbox boots without a workspace',
-  })
-  return null
-}
-
 /**
- * Born-cloud birth: the provisioning a fresh `/new` thread needs. The sandbox clones the repo's
- * default branch from origin on boot — nothing local crosses but the remote URL; the sandbox's
- * own spec fetch carries the brokered githubToken. The placement commit rides the session owner's
+ * Born-cloud birth: the provisioning a fresh `/new` thread needs. The sandbox clones what the
+ * chosen project names on boot — nothing local crosses but the project id; the sandbox's own
+ * project fetch carries the brokered githubToken. The placement commit rides the session owner's
  * install, so the durable write and the runtime install stay one step.
  */
 export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
@@ -119,10 +100,9 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
 
         started(EBirthNode.Provision)
         await args.localThreads.chooseModel({ threadId, model: args.model })
-        const remoteUrl = await remoteUrlOf({ cwd: args.cwd, logPort: args.logPort, threadId })
         const sandbox = await args.bridge.sandboxes.create({
           threadId,
-          workspace: remoteUrl === null ? null : { remoteUrl },
+          projectId: args.projectId,
           model: args.model.ref,
           onTransferProgress: args.onTransferProgress,
           captureContext: async (put) => {
@@ -151,6 +131,7 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
         started(EBirthNode.FlipOwnership)
         await handle.commit({ harness: EHarnessPlacement.Cloud })
         if (args.runner !== undefined) await args.localThreads.chooseRunner({ threadId, runner: args.runner })
+        await args.localThreads.chooseProject({ threadId, projectId: args.projectId })
         done(EBirthNode.FlipOwnership)
 
         return { ok: true as const, sandbox, channel: attachment.channel }
