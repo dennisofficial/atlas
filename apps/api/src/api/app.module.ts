@@ -15,6 +15,7 @@ import { sweepScheduleImports } from './cloud/github/github-sweep-scheduler'
 import { HealthController } from './platform/health/health.controller'
 import { HealthModule } from './platform/health/health.module'
 import { MigrationStateService } from './platform/health/migration-state.service'
+import { MemoriesModule } from './cloud/memories/memories.module'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
@@ -51,6 +52,7 @@ import { UserFilesModule } from './cloud/user-files/user-files.module'
     McpServersModule,
     GithubModule,
     SshSigningKeyModule,
+    MemoriesModule,
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,
