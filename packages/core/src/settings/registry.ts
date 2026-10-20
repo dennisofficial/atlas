@@ -1,4 +1,3 @@
-import { EExecutionLocation } from '../execution/location'
 import { EFFORT_LADDER, EEffort } from '../models/effort-ladder'
 import { EClassifierMode } from '../policy/classifier/triage'
 import { EWebSearchBackend } from '../web/search'
@@ -58,7 +57,6 @@ export enum ESettingId {
   CompactionModel = 'model.compactionModel',
   ModelFavourites = 'model.favourites',
   SubagentModel = 'agents.subagentModel',
-  ExecutionLocation = 'execution.location',
   LastBornPlacement = 'placement.lastBorn',
   ContainerCpus = 'container.cpus',
   ContainerMemory = 'container.memory',
@@ -682,21 +680,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
       { value: 'auto', label: 'automatic' },
       { value: 'local', label: 'local pod' },
       { value: 'vercel', label: 'Vercel sandbox' },
-    ],
-  },
-  {
-    id: ESettingId.ExecutionLocation,
-    page: ESettingPage.General,
-    group: 'Execution',
-    label: 'Where sessions run',
-    description:
-      'Where a conversation that has not been given a location of its own executes its tools. Every conversation remembers the location it was last switched to, so this is only what a new one begins with — /container writes the conversation, and --execution-location outranks this row for one launch.',
-    environmentVariable: 'ATLAS_EXECUTION_LOCATION',
-    kind: ESettingKind.Choice,
-    fallback: EExecutionLocation.Host,
-    options: [
-      { value: EExecutionLocation.Host, label: 'host', detail: 'shipped' },
-      { value: EExecutionLocation.Docker, label: 'docker' },
     ],
   },
   {

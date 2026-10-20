@@ -1,7 +1,6 @@
 import type {
   ActiveWorktree,
   ECompactionAnchor,
-  EExecutionLocation,
   Event,
   EventDraft,
   SaidFile,
@@ -11,8 +10,6 @@ import type {
 import type {
   EConnectionView,
   ECompactScope,
-  LostShell,
-  RecoveredAgents,
   ThreadModel,
   ThreadStorePort,
 } from '@dltech/atlas-harness'
@@ -55,7 +52,6 @@ export type ConversationArgs = {
   canWake: boolean
   interruptRefusal?: (() => string | null) | undefined
   driveRefusal?: (() => string | null) | undefined
-  onLocalOpened?: ((opened: OpenedConversation) => void) | undefined
   /** False while the cloud channel is closed or reattaching — a retry or resume can only re-fail. */
   channelReady?: boolean | undefined
   frozen?: boolean
@@ -73,11 +69,8 @@ export type Conversation = {
   threadId: ThreadId
   started: boolean
   threadModel: ThreadModel | undefined
-  executionLocation: EExecutionLocation | undefined
   attachPending: boolean
   rewindConfirm: RewindConfirmControl
-  lost: RecoveredAgents | null
-  lostShells: readonly LostShell[]
   handle: string | null
   sessionName: string | null
   naming: boolean
@@ -114,8 +107,6 @@ export type Conversation = {
   whenSettled: () => Promise<void>
   compacting: Compacting | null
   rotating: Rotating | null
-  handleNewConversation: () => void
-  handleOpenThread: (threadId: string) => void
   handleChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   handleRename: (argumentText: string) => Promise<Renaming>
   handleCompact: (scope: ECompactScope) => void

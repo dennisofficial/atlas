@@ -2,7 +2,6 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
 
 import { useContainerMove, type ContainerMoveControl } from '../use-container-move'
 
@@ -35,7 +34,7 @@ const arrange = async () => {
 
 const begin = async (args: { onCancel?: () => void }) => {
   const mounted = await arrange()
-  mounted.control().handleBegin({ target: EExecutionLocation.Cloud, rows: ROWS, ...args })
+  mounted.control().handleBegin({ rows: ROWS, ...args })
   await mounted.flush()
   return mounted
 }

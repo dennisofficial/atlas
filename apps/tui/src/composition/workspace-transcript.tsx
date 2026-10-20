@@ -2,7 +2,6 @@ import { homedir } from 'node:os'
 
 import React, { useSyncExternalStore } from 'react'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
 import { EConnectionView } from '@dltech/atlas-harness'
 
 import { versionLabel } from '../build/info'
@@ -58,7 +57,7 @@ export function WorkspaceTranscript(props: {
   onToggle: (key: string) => void
 }): React.ReactNode {
   const { app, welcome, width, thinking, agentView, conversation, cloudHealth, cloudSession } = props
-  const { location, threadId } = useSessionOwner({ app })
+  const { placed, threadId } = useSessionOwner({ app })
   const attachFailed = useAttachFailure()
   const chip = bornPlacementChip(app)
   const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
@@ -71,7 +70,7 @@ export function WorkspaceTranscript(props: {
       : null
   const attachClosed =
     cloudSession === null &&
-    location === EExecutionLocation.Cloud &&
+    placed &&
     attachFailed !== null &&
     attachFailed.threadId === threadId
   const connection =

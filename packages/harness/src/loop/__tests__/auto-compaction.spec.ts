@@ -5,8 +5,7 @@ import {
   EImageTier,
   type ClockPort,
   type ModelCard,
-  type ThreadId,
-} from '@dltech/atlas-core'
+  type ThreadId, EExecutionLocation } from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { scriptedModel } from '../../model/testing/scripted-model'
@@ -76,7 +75,7 @@ describe('a step whose prompt would overflow the window', () => {
       },
     })
 
-    const thread = await harness.threads.create({})
+    const thread = await harness.threads.create({ executionLocation: EExecutionLocation.Cloud })
     await harness.log.append({
       threadId: thread.id,
       runId: harness.ids.nextRunId(),
@@ -114,8 +113,8 @@ describe('a step whose prompt would overflow the window', () => {
       },
     })
 
-    const running = await harness.threads.create({ workspace: '/work' })
-    const elsewhere = await harness.threads.create({ workspace: '/work' })
+    const running = await harness.threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/work' })
+    const elsewhere = await harness.threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/work' })
 
     await harness.runner.say({ threadId: running.id, text: HUGE })
 
@@ -132,7 +131,7 @@ describe('a step whose prompt would overflow the window', () => {
       },
     })
 
-    const thread = await harness.threads.create({})
+    const thread = await harness.threads.create({ executionLocation: EExecutionLocation.Cloud })
     await harness.runner.say({ threadId: thread.id, text: HUGE })
 
     expect(asked).toBe(1)
@@ -141,7 +140,7 @@ describe('a step whose prompt would overflow the window', () => {
   it('stops the turn and names /compact when nothing can compact for it', async () => {
     const harness = await openWith()
 
-    const thread = await harness.threads.create({})
+    const thread = await harness.threads.create({ executionLocation: EExecutionLocation.Cloud })
     const outcome = await harness.runner.say({ threadId: thread.id, text: HUGE })
 
     expect(outcome.status).toBe(ETurnStatus.Failed)
@@ -158,7 +157,7 @@ describe('a step whose prompt would overflow the window', () => {
       },
     })
 
-    const thread = await harness.threads.create({})
+    const thread = await harness.threads.create({ executionLocation: EExecutionLocation.Cloud })
     const outcome = await harness.runner.say({ threadId: thread.id, text: HUGE })
 
     expect(asked).toBe(0)
@@ -175,7 +174,7 @@ describe('a step whose prompt would overflow the window', () => {
       },
     })
 
-    const thread = await harness.threads.create({})
+    const thread = await harness.threads.create({ executionLocation: EExecutionLocation.Cloud })
     await harness.runner.say({ threadId: thread.id, text: 'what changed?' })
 
     expect(asked).toBe(0)

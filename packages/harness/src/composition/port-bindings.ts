@@ -30,7 +30,6 @@ export const sharedPortBindings = {
   DecisionPort: { runtime: 'shared', transport: null },
   JudgePort: { runtime: 'shared', transport: null },
   NoticePort: { runtime: 'surface', transport: null },
-  ExecutionLocationSinkPort: { runtime: 'shared', transport: null },
   ThreadStorePort: { runtime: 'shared', transport: RemoteThreadStore },
   TurnLedgerPort: { runtime: 'shared', transport: RemoteTurnLedger },
   SessionAuthorityPort: { runtime: 'shared', transport: null },

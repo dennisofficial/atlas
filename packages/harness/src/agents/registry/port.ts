@@ -1,4 +1,4 @@
-import type { EAgentRestart, EExecutionLocation, EKilledBy, EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EAgentRestart, EKilledBy, EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../../intake/input-batch'
 import type { AgentType } from '../types'
@@ -6,13 +6,6 @@ import type { NoticeDrain } from './delivery'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 
 export type AgentOutcome = { ok: true; snapshot: AgentSnapshot } | { ok: false; reason: string }
-
-export type RelocateChildrenArgs = {
-  threadId: ThreadId
-  location: EExecutionLocation
-  /** The thread executing the relocation: its own in-flight step can never settle into the wait, so it is re-routed without being stopped. */
-  caller?: ThreadId | undefined
-}
 
 /**
  * A sub-agent belongs to the thread that spawned it, so every read and every steer is scoped to
@@ -48,13 +41,8 @@ export abstract class AgentRegistryPort {
   }): Promise<AgentOutcome>
   abstract wake(args: { agentId: ThreadId }): Promise<AgentOutcome>
   abstract stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): Promise<AgentOutcome>
-  abstract relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]>
   abstract stopChildren(args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]>
   abstract pauseChildren(args: { threadId: ThreadId }): Promise<readonly ThreadId[]>
-  abstract markChildrenRelocated(args: {
-    threadId: ThreadId
-    location: EExecutionLocation
-  }): Promise<void>
   abstract list(args: { threadId: ThreadId }): readonly AgentSnapshot[]
   abstract hydrate(args: { threadId: ThreadId }): Promise<void>
   hydrateTransferred?(args: { threadId: ThreadId }): Promise<void>

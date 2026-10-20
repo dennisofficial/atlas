@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from 'react'
 
 import type { useDraft } from '../ui/hooks/use-draft'
-import { closeConversation } from './open-conversation'
 import type { useAgents } from './use-agents'
 import type { useContainerMove } from './use-container-move'
 import type { useConversation } from './use-conversation'
@@ -85,7 +84,6 @@ export function useWorkspaceLifecycle(args: {
       return
     }
 
-    void closeConversation()
     renderer.destroy()
   }, [agents.running, cloud, conversation, exit, renderer, services.running, shells])
 

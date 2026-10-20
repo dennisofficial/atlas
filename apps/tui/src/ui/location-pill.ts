@@ -1,4 +1,4 @@
-import { EExecutionLocation, ERunner } from '@dltech/atlas-core'
+import { ERunner } from '@dltech/atlas-core'
 
 import { chipItem, EFooterItemReach, type FooterItem } from './footer-item'
 import { theme } from './theme'
@@ -28,15 +28,15 @@ function placementChipOf(choice: PlacementChoice): FooterItem {
 }
 
 export function locationPillOf(args: {
-  location: EExecutionLocation
+  placed: boolean
   placement?: PlacementChoice | null | undefined
 }): FooterItem | null {
   if (args.placement !== undefined && args.placement !== null) return placementChipOf(args.placement)
-  if (args.location !== EExecutionLocation.Cloud) return null
+  if (!args.placed) return null
 
   return chipItem({
     id: 'execution-location',
-    text: args.location,
+    text: 'cloud',
     ground: theme.link,
     reach: EFooterItemReach.None,
   })

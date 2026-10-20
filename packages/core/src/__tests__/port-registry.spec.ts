@@ -78,7 +78,6 @@ describe('port registry', () => {
       'DecisionPort',
       'JudgePort',
       'NoticePort',
-      'ExecutionLocationSinkPort',
     ]
     expect(new Set(names).size).toBe(names.length)
   })

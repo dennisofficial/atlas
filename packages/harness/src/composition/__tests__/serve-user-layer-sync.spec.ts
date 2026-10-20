@@ -39,7 +39,7 @@ const serveCompose = async (args?: {
   bindPorts?: (bind: { container: import('../../container/injection').DependencyContainer }) => void
 }) => {
   const app = await composeHarness<undefined, never>({
-    launch: { cwd: project, command: 'serve', model: undefined, executionLocation: undefined },
+    launch: { cwd: project, command: 'serve', model: undefined },
     env: {},
     settings: {
       service: createSettingsService({
@@ -164,7 +164,7 @@ describe('serve launch user-layer sync', () => {
       }).write({ url: 'https://cloud.test', token: 'sess', email: null })
 
       const app = await composeHarness<undefined, never>({
-        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        launch: { cwd: project, command: 'atlas-test', model: undefined },
         env: {},
         settings: {
           service: createSettingsService({

@@ -36,7 +36,6 @@ type SessionProps = Pick<
   | 'draftText'
   | 'onDraftSource'
   | 'onLeaveCloud'
-  | 'onLocalOpened'
   | 'onMoveStep'
   | 'createBridge'
   | 'preflightBirth'
@@ -107,7 +106,6 @@ export function useWorkspaceSession(args: {
     frozen: cloudView === EConnectionView.Disconnected,
     cloudView,
     wakeCloud,
-    onLocalOpened: props.onLocalOpened,
   })
 
   const tokens = useDraftTokens({

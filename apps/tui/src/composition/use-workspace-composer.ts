@@ -154,7 +154,12 @@ export function useWorkspaceComposer(args: {
       })
 
       const putBack = () => {
-        tokens.restore({ text: said, images: readyImages, pastes: putBackPastes })
+        const current = draft.editor.current?.plainText ?? ''
+        tokens.restore({
+          text: current.trim().length === 0 ? said : `${said}\n\n${current}`,
+          images: readyImages,
+          pastes: putBackPastes,
+        })
       }
 
       const keepAttachments = () => {

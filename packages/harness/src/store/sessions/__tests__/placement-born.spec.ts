@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, EHarnessPlacement, EToolEnvironment, toRunId, toThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, EHarnessPlacement, toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { fakePlacementStore } from '../../../composition/__tests__/placement-store-fake'
 import { PlacementController, type PlacementStore } from '../../../composition/placement-controller'
@@ -21,7 +21,7 @@ function setup() {
 }
 
 const bound = (threads: PlacementStore): PlacementController => {
-  const placement = new PlacementController(EExecutionLocation.Host)
+  const placement = new PlacementController()
   placement.bind({ threads, workspace: '/ws', repo: null })
   return placement
 }
@@ -41,70 +41,52 @@ describe('born-placed threads', () => {
     expect(meta?.executionLocation).toBe(EExecutionLocation.Cloud)
 
     const record = placementRecordOf(meta!)
-    expect(record.placement).toEqual({ harness: EHarnessPlacement.Cloud })
+    expect(record?.placement).toEqual({ harness: EHarnessPlacement.Cloud })
   })
 
-  it('infers a thread’s placement from its execution location', async () => {
+  it('infers a cloud thread’s placement from its execution location and none for a thread without one', async () => {
     const fixture = setup()
     const cloudThread = await fixture.threads.createWithFirstEvents({
       runId: toRunId('run_inferred_cloud'),
       executionLocation: EExecutionLocation.Cloud,
       drafts: [{ type: 'user-said', text: 'a cloud thread' }],
     })
-    const hostThread = await fixture.threads.createWithFirstEvents({
-      runId: toRunId('run_inferred_host'),
-      executionLocation: EExecutionLocation.Host,
-      drafts: [{ type: 'user-said', text: 'a local thread' }],
+    const unplaced = await fixture.threads.createWithFirstEvents({
+      runId: toRunId('run_inferred_none'),
+      drafts: [{ type: 'user-said', text: 'a thread with no location' }],
     })
 
     const cloud = await fixture.threads.readPlacement({ threadId: cloudThread.thread.id })
     expect(cloud?.placement).toEqual({ harness: EHarnessPlacement.Cloud })
-
-    const host = await fixture.threads.readPlacement({ threadId: hostThread.thread.id })
-    expect(host?.placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
+    expect(await fixture.threads.readPlacement({ threadId: unplaced.thread.id })).toBeUndefined()
   })
 
-  it('placeAtCreation stamps the born placement of a thread the store does not know yet', async () => {
+  it('a birth commit stamps the placement of a thread the store does not know yet', async () => {
     const store = fakePlacementStore()
     const placement = bound(store)
     const threadId = toThreadId('thr_born_fresh')
     const born = { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' } as const
 
-    const stamped = await placement.placeAtCreation({ threadId, placement: born })
+    await placement.birth({ threadId, work: (commit) => commit.commit(born) })
 
-    expect(stamped.placement).toEqual(born)
     expect((await store.readPlacement({ threadId }))?.placement).toEqual(born)
-    expect(placement.of(threadId)).toBe(EExecutionLocation.Cloud)
+    expect(placement.snapshot(threadId)?.placement).toEqual(born)
   })
 
-  it('placeAtCreation is idempotent: a second stamp keeps the existing placement', async () => {
+  it('a second commit on the same birth keeps the first placement', async () => {
     const store = fakePlacementStore()
     const placement = bound(store)
     const threadId = toThreadId('thr_born_twice')
     const first = { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' } as const
 
-    await placement.placeAtCreation({ threadId, placement: first })
-    const again = await placement.placeAtCreation({
+    await placement.birth({
       threadId,
-      placement: { harness: EHarnessPlacement.Host, tools: EToolEnvironment.Docker },
+      work: async (commit) => {
+        await commit.commit(first)
+        await commit.commit({ harness: EHarnessPlacement.Cloud, driveName: 'drive-2' })
+      },
     })
 
-    expect(again.placement).toEqual(first)
     expect((await store.readPlacement({ threadId }))?.placement).toEqual(first)
-    expect(placement.of(threadId)).toBe(EExecutionLocation.Cloud)
-  })
-
-  it('placeAtCreation keeps the inferred placement of a thread the store already holds', async () => {
-    const fixture = setup()
-    const placement = bound(fixture.threads)
-    const threadId = (await fixture.threads.create({})).id
-
-    const stamped = await placement.placeAtCreation({
-      threadId,
-      placement: { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' },
-    })
-
-    expect(stamped.placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
-    expect(placement.of(threadId)).toBe(EExecutionLocation.Host)
   })
 })

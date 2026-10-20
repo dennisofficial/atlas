@@ -24,22 +24,12 @@ const BASE: readonly EventDraft[] = [
 ]
 
 const ENTERED: EventDraft = { type: 'worktree-entered', path: TREE, branch: 'topic', base: 'origin/main' }
-const TO_DOCKER: EventDraft = {
-  type: 'location-changed',
-  from: EExecutionLocation.Host,
-  to: EExecutionLocation.Docker,
-}
-const TO_HOST: EventDraft = {
-  type: 'location-changed',
-  from: EExecutionLocation.Docker,
-  to: EExecutionLocation.Host,
-}
+const TO_CLOUD: EventDraft = { type: 'location-changed', to: EExecutionLocation.Cloud }
 
 const TRANSITIONS: readonly (readonly [string, EventDraft])[] = [
   ['entering a worktree', ENTERED],
   ['changing directory', { type: 'directory-changed', path: '/elsewhere', repo: '/elsewhere' }],
-  ['moving to the cloud', { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud }],
-  ['moving to Docker', TO_DOCKER],
+  ['moving to the cloud', TO_CLOUD],
 ]
 
 const assembleWith = ({
@@ -91,13 +81,12 @@ describe('runtime reminders across transitions', () => {
     expect(assembleWith({ drafts: BASE }).messages).toHaveLength(2)
   })
 
-  it('changes the system prompt on no step of enter, move to Docker, return to host', () => {
+  it('changes the system prompt on no step of enter, move to the cloud', () => {
     const baseline = assembleWith({ drafts: BASE })
     const steps = [
       baseline,
       assembleWith({ drafts: [...BASE, ENTERED] }),
-      assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER] }),
-      assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST] }),
+      assembleWith({ drafts: [...BASE, ENTERED, TO_CLOUD] }),
     ]
 
     for (const step of steps) {
@@ -106,79 +95,60 @@ describe('runtime reminders across transitions', () => {
     }
   })
 
-  it('states the worktree after entering it, and names the execution location only while the session is away from the host', () => {
+  it('states the worktree after entering it and the execution location in the tail note only', () => {
     const inTree = assembleWith({ drafts: [...BASE, ENTERED] })
-    const inDocker = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER] })
-    const backOnHost = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST] })
 
     expect(textOf(inTree.messages.at(-1))).toContain(`Project directory: ${TREE}`)
-    expect(textOf(inDocker.messages.at(-1))).toContain('Execution location: a Docker container')
-    for (const assembled of [inTree, backOnHost]) {
-      for (const entry of assembled.messages) {
-        expect(textOf(entry)).not.toContain('Execution location')
-        expect(textOf(entry)).not.toContain('Docker container')
-      }
-    }
-    for (const entry of inDocker.messages.slice(0, -1)) {
+    expect(textOf(inTree.messages.at(-1))).toContain('Execution location: a cloud sandbox')
+    for (const entry of inTree.messages.slice(0, -1)) {
       expect(textOf(entry)).not.toContain('Execution location')
-      expect(textOf(entry)).not.toContain('Docker container')
     }
   })
 
   it('resets to the launch directory on a real location change and does not claim the worktree is retained', () => {
-    for (const drafts of [
-      [...BASE, ENTERED, TO_DOCKER],
-      [...BASE, ENTERED, TO_DOCKER, TO_HOST],
-    ]) {
-      const note = textOf(assembleWith({ drafts }).messages.at(-1))
+    const note = textOf(assembleWith({ drafts: [...BASE, ENTERED, TO_CLOUD] }).messages.at(-1))
 
-      expect(note).toContain(`Project directory: ${LAUNCH}.`)
-      expect(note).not.toContain(TREE)
-      expect(note).not.toContain('git worktree')
-    }
+    expect(note).toContain(`Project directory: ${LAUNCH}.`)
+    expect(note).not.toContain(TREE)
+    expect(note).not.toContain('git worktree')
   })
 
   it('keeps every earlier message byte-identical as the tail reminders change', () => {
-    const withReminders = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER] })
+    const withReminders = assembleWith({ drafts: [...BASE, ENTERED, TO_CLOUD] })
     const later = assembleWith({
-      drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST, { type: 'user-said', text: 'continue' }],
+      drafts: [...BASE, ENTERED, TO_CLOUD, { type: 'user-said', text: 'continue' }],
     })
 
     expect(later.messages.slice(0, 2)).toEqual(withReminders.messages.slice(0, 2))
   })
 })
 
-describe('the cache prefix across Host to Docker to Host', () => {
+describe('the cache prefix across a move to the cloud', () => {
   const conversation = conversationOf(60)
   const marksIn = (messages: readonly unknown[]): number =>
     messages.filter((entry) => JSON.stringify(entry).includes('cacheControl')).length
 
-  it('holds the system and the 121 durable messages byte-identical through real location events', () => {
+  it('holds the system and the 121 durable messages byte-identical through a real location event', () => {
     expect(conversation.filter((draft) => draft.type !== 'location-changed')).toHaveLength(121)
 
-    const onHost = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
-    const inDocker = assembleWith({ drafts: [...conversation, TO_DOCKER], provider: CACHING_PROVIDER })
-    const backOnHost = assembleWith({
-      drafts: [...conversation, TO_DOCKER, TO_HOST],
-      provider: CACHING_PROVIDER,
-    })
+    const before = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
+    const inCloud = assembleWith({ drafts: [...conversation, TO_CLOUD], provider: CACHING_PROVIDER })
 
-    const prefixOf = (assembled: typeof onHost): string =>
+    const prefixOf = (assembled: typeof before): string =>
       JSON.stringify({ system: assembled.system, durable: assembled.messages.slice(0, 121) })
 
-    expect(JSON.stringify(onHost.system)).toContain('cacheControl')
-    expect(marksIn(onHost.messages.slice(0, 121))).toBeGreaterThan(0)
-    expect(prefixOf(inDocker)).toBe(prefixOf(onHost))
-    expect(prefixOf(backOnHost)).toBe(prefixOf(onHost))
+    expect(JSON.stringify(before.system)).toContain('cacheControl')
+    expect(marksIn(before.messages.slice(0, 121))).toBeGreaterThan(0)
+    expect(prefixOf(inCloud)).toBe(prefixOf(before))
   })
 
   it('keeps the whole prefix identical when the location changes, adding only the logged event', () => {
-    const onHost = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
-    const inDocker = assembleWith({ drafts: [...conversation, TO_DOCKER], provider: CACHING_PROVIDER })
+    const before = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
+    const inCloud = assembleWith({ drafts: [...conversation, TO_CLOUD], provider: CACHING_PROVIDER })
 
-    const durable = (messages: readonly typeof inDocker.messages[number][]): readonly typeof inDocker.messages[number][] =>
+    const durable = (messages: readonly typeof inCloud.messages[number][]): readonly typeof inCloud.messages[number][] =>
       messages.filter((entry) => !textOf(entry).includes('Project directory'))
 
-    expect(durable(inDocker.messages)).toEqual([...durable(onHost.messages)])
+    expect(durable(inCloud.messages)).toEqual([...durable(before.messages)])
   })
 })

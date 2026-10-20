@@ -41,7 +41,7 @@ export async function writeSessionMetaForRoot({
   registry: SessionRegistry
   sessionDir: string
   root: ThreadMeta
-  home: EExecutionLocation
+  home: EExecutionLocation | null
 }): Promise<void> {
   await rewriteSessionMeta({
     registry,

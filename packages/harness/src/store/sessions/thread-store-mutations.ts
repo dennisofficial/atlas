@@ -1,4 +1,4 @@
-import { locationOfPlacement, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 
 import type { WritePlacementArgs } from '../thread-store'
 import { tryReadThreadMeta } from './listing'
@@ -21,7 +21,7 @@ export async function writePlacementMeta({ context, args }: { context: ThreadSto
       const file = threadMetaFile({ sessionDir, threadId })
       const existing = tryReadThreadMeta({ file })
       const base = existing ?? newThreadMeta({ id: threadId, at: context.clock.now() })
-      const held = placementRecordOf(base)
+      const held = placementRecordOf(base) ?? { revision: 0 }
       const conflict =
         args.expectedRevision !== undefined &&
         existing !== undefined &&
@@ -45,7 +45,7 @@ export async function writePlacementMeta({ context, args }: { context: ThreadSto
   })
   registry.registerThread({ sessionDir, threadId })
   if (sessionDir.endsWith(`/${threadId}`)) {
-    await writeSessionMetaForRoot({ registry, sessionDir, root: written, home: locationOfPlacement(record.placement) })
+    await writeSessionMetaForRoot({ registry, sessionDir, root: written, home: EExecutionLocation.Cloud })
   }
 }
 

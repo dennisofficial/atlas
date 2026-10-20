@@ -45,7 +45,7 @@ export const holdingProvisioning = (bridge: FakeBridge): { release: () => void }
 export async function mountUnborn(args: {
   app: FakeApp
   bridge?: FakeBridge
-  preflight?: { refusal: string | null }
+  preflight?: { refusal: string | null; gate?: Promise<void> | undefined }
 }) {
   const bridge = args.bridge ?? fakeBridge()
   const preflight = args.preflight ?? { refusal: null }
@@ -56,7 +56,10 @@ export async function mountUnborn(args: {
       app={args.app}
       opened={unstartedConversation({ ids: args.app.ids })}
       createBridge={() => bridge}
-      preflightBirth={async () => preflight.refusal}
+      preflightBirth={async () => {
+        await preflight.gate
+        return preflight.refusal
+      }}
     />,
     { width: 140, height: 40, exitOnCtrlC: false },
   )

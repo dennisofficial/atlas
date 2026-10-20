@@ -4,23 +4,12 @@ import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { fakeBridge } from '../cloud/__tests__/fixture'
 import { BIRTH_CANCELLED_NOTICE } from '../cloud/cloud-birth-notices'
-import { until } from './app-fixture'
+import { promiseGate, until } from './app-fixture'
 import { bornThreadApp, holdingProvisioning, mountUnborn } from './born-thread-fixture'
-import type { FakeApp } from './fake-app'
 
 await grammarsReady()
 
 afterEach(() => dismissNotice())
-
-const countingLocalActivations = (app: FakeApp): { bound: number } => {
-  const counted = { bound: 0 }
-  const activate = app.sessionOwner.activateLocal
-  app.sessionOwner.activateLocal = (given) => {
-    if (given.binding !== undefined) counted.bound += 1
-    return activate(given)
-  }
-  return counted
-}
 
 const noticeNaming = (text: string): Promise<boolean> =>
   until({ holds: async () => currentNotices().some((notice) => notice.text.includes(text)), within: 20_000 })
@@ -33,7 +22,6 @@ describe('a first-send birth that fails partway', () => {
 
     try {
       const threadId = app.sessionOwner.snapshot().threadId!
-      const activations = countingLocalActivations(app)
 
       await mounted.command('first words')
 
@@ -42,7 +30,6 @@ describe('a first-send birth that fails partway', () => {
       expect(bridge.destroyed).toContain(threadId)
       expect(app.sessionOwner.placement.snapshot(threadId)?.revision ?? 0).toBe(0)
       expect(app.threads.chosenLocations).toEqual([])
-      expect(activations.bound).toBe(0)
       expect(await app.log.read({ threadId })).toEqual([])
       mounted.dismiss()
       expect(await mounted.frameHolds((frame) => frame.includes('pod ▾'))).toBe(true)
@@ -76,6 +63,59 @@ describe('a first-send birth that fails partway', () => {
       expect(await mounted.frameHolds((frame) => !frame.includes('STARTING A POD') && frame.includes('pod ▾'))).toBe(true)
     } finally {
       held.release()
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('a first send whose preflight has not answered yet', () => {
+  it('births nothing new on /new, and the first thread keeps its attempt', async () => {
+    const gate = promiseGate()
+    const app = bornThreadApp({})
+    const mounted = await mountUnborn({ app, preflight: { refusal: null, gate: gate.gate } })
+
+    try {
+      const threadId = app.sessionOwner.snapshot().threadId!
+      await mounted.command('first words')
+      await mounted.command('/new')
+
+      expect(app.sessionOwner.snapshot().threadId).toBe(threadId)
+      gate.release()
+
+      expect(
+        await until({
+          holds: async () =>
+            mounted.bridge.created.length > 0 && mounted.bridge.channel.sent.some((said) => said.text === 'first words'),
+          within: 20_000,
+        }),
+      ).toBe(true)
+      expect(mounted.bridge.created.map((born) => born.threadId)).toEqual([threadId])
+    } finally {
+      gate.release()
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('keeps both the refused submission and what was typed meanwhile', async () => {
+    const gate = promiseGate()
+    const app = bornThreadApp({})
+    const preflight = { refusal: 'Docker is not answering' as string | null, gate: gate.gate }
+    const mounted = await mountUnborn({ app, preflight })
+
+    try {
+      await mounted.command('message A')
+      await mounted.command('message B')
+      gate.release()
+
+      expect(
+        await until({
+          holds: async () => mounted.draft() === 'message A\n\nmessage B',
+          within: 20_000,
+        }),
+      ).toBe(true)
+      expect(mounted.bridge.created.length).toBe(0)
+    } finally {
+      gate.release()
       await mounted.done()
     }
   }, 60_000)

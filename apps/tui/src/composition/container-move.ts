@@ -1,4 +1,3 @@
-import { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 export enum EStepMark {
@@ -26,7 +25,6 @@ export type MoveRow = {
 }
 
 export type ContainerMove = {
-  target: EExecutionLocation
   rows: readonly MoveRow[]
   heading?: string | undefined
   cancellable?: boolean | undefined
@@ -39,23 +37,15 @@ export type ContainerMove = {
 
 export const WAKE_HEADING = 'WAKING THE SANDBOX'
 
-const HEADING: Record<EExecutionLocation, string> = {
-  [EExecutionLocation.Cloud]: 'STARTING A CLOUD SANDBOX',
-  [EExecutionLocation.Docker]: 'MOVING INTO A DOCKER CONTAINER',
-  [EExecutionLocation.Host]: 'RETURNING TO THE HOST',
-}
-
-export const moveHeading = (target: EExecutionLocation): string => HEADING[target]
+export const DEFAULT_MOVE_HEADING = 'STARTING A CLOUD SANDBOX'
 
 export function beginMove(args: {
-  target: EExecutionLocation
   now: number
   rows: readonly { id: string; text: string; nodeIds: readonly string[] }[]
   heading?: string | undefined
   cancellable?: boolean | undefined
 }): ContainerMove {
   return {
-    target: args.target,
     rows: args.rows.map((row) => ({ ...row, mark: EStepMark.Pending })),
     ...(args.heading === undefined ? {} : { heading: args.heading }),
     ...(args.cancellable === true ? { cancellable: true } : {}),

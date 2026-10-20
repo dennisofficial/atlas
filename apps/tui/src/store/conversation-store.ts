@@ -1,4 +1,4 @@
-import type { CallId, EExecutionLocation, ThreadId, Event } from "@dltech/atlas-core";
+import type { CallId, ThreadId, Event } from "@dltech/atlas-core";
 import type {
   ChannelSignal,
   DeltaChannel,

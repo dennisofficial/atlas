@@ -6,8 +6,6 @@ import { createPathResolver, type PathResolver } from '../browser/path-resolver'
 import { FileBrowser } from '../files/file-browser'
 import type { SettingsService } from '../settings/service'
 
-import type { ExecutionLocationState } from './execution-location-state'
-import { reachableRootsFor } from './reachable-files'
 
 export type BrowserBinding = {
   files: FileBrowser
@@ -19,7 +17,6 @@ export type BrowserBinding = {
 export function bindBrowser(args: {
   anchor: string
   settings: SettingsService
-  executionLocation: ExecutionLocationState
 }): BrowserBinding {
   const editor = (): EEditor => {
     const held = choiceValueOf({
@@ -31,14 +28,7 @@ export function bindBrowser(args: {
   }
 
   return {
-    files: new FileBrowser({
-      root: args.anchor,
-      reachableRoots: () =>
-        reachableRootsFor({
-          location: args.executionLocation.current(),
-          projectDirectory: args.anchor,
-        }),
-    }),
+    files: new FileBrowser({ root: args.anchor }),
     openUrl: createUrlOpener(),
     pathResolver: createPathResolver({ root: args.anchor }),
     openFile: createFileOpener({ editor }),

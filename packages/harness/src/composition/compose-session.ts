@@ -1,53 +1,21 @@
-import type { EventLogPort, WorkspaceIdentity } from '@dltech/atlas-core'
-
-import type { AgentRegistryPort } from '../agents/registry/port'
-import type { DeltaChannel } from '../channel/delta-channel'
-import { holdFamilyIntake } from './freeze-family'
 import type { MessageIntake } from '../intake'
-import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
-import type { TurnRunner } from '../loop/turn-runner.port'
-import type { ServiceRegistryPort } from '../services/service-registry'
-import type { ShellRegistryPort } from '../shells/shell-registry'
 import type { ThreadStorePort } from '../store/thread-store'
-import type { CompactionPort } from '../store/compaction-port'
 import type { ContributedSurface } from '../plugins/surface'
-import type { MentionReader } from '../files/mention-reader'
 
-import type { ExecutionLocationState } from './execution-location-state'
-import { createSessionOwner, ERuntimeKind, type SessionOwner, type SessionRuntime } from './session-owner'
+import { holdFamilyIntake } from './freeze-family'
+import type { PlacementController } from './placement-controller'
+import { createSessionOwner, type SessionOwner, type SessionRuntime } from './session-owner'
 
-export function localSessionOwner(args: {
-  placement: ExecutionLocationState
-  workspace: WorkspaceIdentity
-  runner: TurnRunner
-  channel: DeltaChannel
-  log: EventLogPort
+export function unplacedSessionOwner(args: {
+  placement: PlacementController
   threads: ThreadStorePort
-  ledger: TurnLedgerPort
   intake: MessageIntake | undefined
-  shells: ShellRegistryPort
-  agents: AgentRegistryPort
-  services: ServiceRegistryPort
-  files: MentionReader
-  compaction?: CompactionPort | undefined
 }): SessionOwner<SessionRuntime> {
-  const { placement, workspace, threads, intake, ...held } = args
+  const { placement, threads, intake } = args
 
   return createSessionOwner<SessionRuntime>({
     placement,
-    local: {
-      kind: ERuntimeKind.Local,
-      cwd: workspace.workspace,
-      freeze: ({ threadId }) => holdFamilyIntake({ threadId, threads, intake }),
-      adapters: {
-        ...held,
-        threads,
-        intake,
-        rewindMachinery: undefined,
-        workspace,
-        attachment: undefined,
-      },
-    },
+    freeze: ({ threadId }) => holdFamilyIntake({ threadId, threads, intake }),
   })
 }
 

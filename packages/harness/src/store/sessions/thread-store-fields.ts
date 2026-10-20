@@ -1,4 +1,4 @@
-import { EExecutionLocation, executionLocationOf, type ClockPort, type ThreadId } from '@dltech/atlas-core'
+import { executionLocationOf, type EExecutionLocation, type ClockPort, type ThreadId } from '@dltech/atlas-core'
 
 import type { SupervisedAgent } from '../thread-store'
 import { newThreadMeta, readMetaSync, sessionMetaSchema, type ThreadMeta } from './meta'
@@ -22,9 +22,9 @@ export function blankMeta({ clock, threadId, fields }: { clock: ClockPort; threa
   return meta
 }
 
-export function homeOf({ source, fromDir }: { source: ThreadMeta; fromDir: string }): EExecutionLocation {
+export function homeOf({ source, fromDir }: { source: ThreadMeta; fromDir: string }): EExecutionLocation | null {
   const session = readMetaSync({ file: sessionMetaFile({ sessionDir: fromDir }), schema: sessionMetaSchema })
-  return executionLocationOf(session?.home) ?? executionLocationOf(source.executionLocation) ?? EExecutionLocation.Host
+  return executionLocationOf(session?.home) ?? executionLocationOf(source.executionLocation) ?? null
 }
 
 export async function sessionDirFor({ context, threadId }: { context: ThreadStoreContext; threadId: ThreadId }): Promise<string> {

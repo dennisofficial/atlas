@@ -49,7 +49,8 @@ import {
 } from './compose-lifecycle'
 import { bindMcp } from './compose-mcp'
 import { bindQuality } from './compose-quality'
-import { asPluginSurfaces, localSessionOwner } from './compose-session'
+import { asPluginSurfaces, unplacedSessionOwner } from './compose-session'
+import { PlacementController } from './placement-controller'
 import { bindUtilityModels } from './compose-utility-models'
 import type { HarnessLaunch } from './config'
 import { publishProjections, type ContributedProjection } from '../plugins/projection'
@@ -166,8 +167,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     models,
     model,
     modelPinned,
-    executionLocation,
-    executionPinned,
   } = await bindModels({
     container,
     launch,
@@ -201,7 +200,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   await seedProjectionsFromRestoredLog({ launch, log, projections: plugins.projections })
   const ids = container.resolve(registeredPortToken(IdPort))
   const threads = container.resolve(registeredPortToken(ThreadStorePort))
-  executionLocation.bind({
+  const placement = new PlacementController()
+  placement.bind({
     threads,
     workspace: workspace.workspace,
     repo: workspace.repo,
@@ -235,7 +235,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const { runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,
     workspace,
-    executionLocation,
     models,
     model,
     modelPort,
@@ -264,22 +263,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     summarise: carryOverSummariser({ model: utility.compactionModel }),
   })
   lateRotation.bind(rotation)
-  const browser = bindBrowser({ anchor, settings, executionLocation })
-  const sessionOwner = localSessionOwner({
-    files: browser.files,
-    placement: executionLocation,
-    workspace,
-    runner,
-    channel,
-    log,
-    threads,
-    ledger,
-    intake,
-    shells,
-    agents,
-    services,
-    compaction,
-  })
+  const browser = bindBrowser({ anchor, settings })
+  const sessionOwner = unplacedSessionOwner({ placement, threads, intake })
 
   let prepared: HarnessCloseRequest = {}
 
@@ -328,9 +313,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     model,
     modelPinned,
     models,
-    executionLocation,
     sessionOwner,
-    executionPinned,
     surface: bound as TSurface,
     prepareClose: (request) => {
       prepared = { ...prepared, ...request }

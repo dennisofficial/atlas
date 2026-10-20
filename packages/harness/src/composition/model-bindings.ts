@@ -4,7 +4,6 @@ import {
   EAuthProvider,
   type Account,
   type CredentialPort,
-  ExecutionLocationSinkPort,
   type NoticePort,
   type SettingsResolution,
 } from '@dltech/atlas-core'
@@ -22,12 +21,6 @@ import type { SettingsService } from '../settings/service'
 
 import type { HarnessLaunch } from './config'
 
-import {
-  createExecutionLocationState,
-  ExecutionLocationToken,
-  type ExecutionLocationState,
-} from './execution-location-state'
-import { executionPinned, resolveExecutionLocation } from './execution-preference'
 import { modelCatalogue, type ModelCatalogue } from './model-catalogue'
 import { launchSelection, modelPinned } from './model-preference'
 import { selectableModel, type SelectableModel } from './model-selection'
@@ -36,8 +29,6 @@ export type ModelBindings = {
   models: ModelCatalogue
   model: SelectableModel
   modelPinned: boolean
-  executionLocation: ExecutionLocationState
-  executionPinned: boolean
 }
 
 const emptyToUndefined = (value: string | undefined): string | undefined =>
@@ -96,21 +87,6 @@ export async function bindModels(args: {
     }),
   })
 
-  const executionLocation = createExecutionLocationState({
-    initial: resolveExecutionLocation({
-      requested: launch.executionLocation,
-      stored: undefined,
-      settled,
-    }),
-  })
-  const pinned = executionPinned({ requested: launch.executionLocation })
-  container.register(registeredPortToken(ExecutionLocationSinkPort), {
-    useValue: {
-      refresh: ({ threadId }) => executionLocation.refresh({ threadId }),
-    },
-  })
-  container.register(ExecutionLocationToken, { useValue: { state: executionLocation, pinned } })
-
   container.register(LanguageModelToken, { useValue: model.model })
   container.register(SelectableModelToken, { useValue: model })
   container.register(ModelCardSourceToken, {
@@ -121,7 +97,5 @@ export async function bindModels(args: {
     models,
     model,
     modelPinned: modelPinned({ requested: { model: launch.model }, catalogue: models }),
-    executionLocation,
-    executionPinned: pinned,
   }
 }

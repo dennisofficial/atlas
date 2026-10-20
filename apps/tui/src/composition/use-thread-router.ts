@@ -42,7 +42,6 @@ export function useThreadRouter(args: {
   opened: OpenedConversation
   onReload: (reload: CloudReload) => Promise<void>
   onLeaveCloud: (opened: OpenedConversation) => void
-  onLocalSwap: (threadId: string) => void
 }): ThreadRouter {
   const { localApp, cloudBridge, cloudSession, createBridge, containerMove } = args
   const bridgesRef = useRef(new Map<ERunner, CloudBridge>())
@@ -80,7 +79,7 @@ export function useThreadRouter(args: {
       if (threadId === args.activeThreadId && cloudSession !== null) return
 
       const bridge = await bridgeOf(threadId)
-      await localApp.sessionOwner.activateLocal({ threadId: toThreadId(threadId) }).catch(() => undefined)
+      await localApp.sessionOwner.placement.activate({ threadId: toThreadId(threadId) }).catch(() => undefined)
 
       const adopted = await openCloudThread({
         app: localApp,
@@ -125,9 +124,6 @@ export function useThreadRouter(args: {
         threads: localApp.threads,
         log: localApp.log,
         ledger: localApp.ledger,
-        agents: localApp.agents,
-        shells: localApp.shells,
-        services: localApp.services,
         ids: localApp.ids,
         workspace: localApp.workspace,
         open: { mode: EOpenMode.Resume, threadId },
@@ -149,13 +145,6 @@ export function useThreadRouter(args: {
         return
       }
 
-      const target = outcome.conversation.threadId as string
-      if (target === args.activeThreadId && cloudSession === null) return
-
-      if (cloudSession === null) {
-        args.onLocalSwap(target)
-        return
-      }
       args.onLeaveCloud(outcome.conversation)
     },
     [args, attach, cloudSession, localApp],

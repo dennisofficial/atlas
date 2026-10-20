@@ -25,7 +25,7 @@ describe('the placement chip in the composer footer', () => {
     }
   }, 60_000)
 
-  it('explains the refusal and keeps the pod preference when Vercel is chosen without a Vercel token', async () => {
+  it('stores the Vercel preference on toggle with no refusal and no bridge calls, even without a Vercel token', async () => {
     const app = bornThreadApp({})
     const mounted = await mountUnborn({ app })
 
@@ -34,14 +34,11 @@ describe('the placement chip in the composer footer', () => {
 
       await mounted.flipChip()
 
-      const noticed = await until({
-        holds: async () => currentNotices().some((notice) => notice.text === CLOUD_NOT_CONFIGURED_NOTICE),
-        within: 20_000,
-      })
-      expect(noticed).toBe(true)
-      expect(await mounted.frameHolds((frame) => frame.includes('pod ▾'))).toBe(true)
-      expect(app.settings.snapshot().document.values[ESettingId.LastBornPlacement]).toBeUndefined()
+      expect(await mounted.frameHolds((frame) => frame.includes('☁ cloud ▾'))).toBe(true)
+      expect(currentNotices().map((notice) => notice.text)).not.toContain(CLOUD_NOT_CONFIGURED_NOTICE)
+      expect(app.settings.snapshot().document.values[ESettingId.LastBornPlacement]).toBe(ERunner.Vercel)
       expect(mounted.bridge.created.length).toBe(0)
+      expect(mounted.bridge.destroyed.length).toBe(0)
     } finally {
       await mounted.done()
     }

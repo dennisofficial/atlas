@@ -17,7 +17,6 @@ import {
   EAssistantPlaceholder,
   ECompactionAnchor,
   EDecision,
-  ELocationChangeCause,
   EMessageOrigin,
   EOperatorInputOutcome,
   EPrEventKind,
@@ -214,12 +213,10 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   }),
   z.object({
     type: z.literal('location-changed'),
-    from: z.enum(EExecutionLocation),
-    to: z.enum(EExecutionLocation),
+    to: z.enum(EExecutionLocation).optional().catch(undefined),
     cwd: z.string().min(1).optional(),
     remoteUrl: z.string().min(1).nullable().optional(),
     branch: z.string().min(1).nullable().optional(),
-    cause: z.enum(ELocationChangeCause).optional(),
   }),
   z.object({
     type: z.literal('rotated'),

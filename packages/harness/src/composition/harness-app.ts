@@ -43,7 +43,6 @@ import type { AccountUsageService } from '../usage/account-usage-service'
 
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
-import type { ExecutionLocationState } from './execution-location-state'
 import type { ModelCatalogue } from './model-catalogue'
 import type { SessionOwner, SessionRuntime } from './session-owner'
 import type { ModelChoice } from './model-selection'
@@ -106,9 +105,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   model: ModelChoice
   modelPinned: boolean
   models: ModelCatalogue
-  executionLocation: ExecutionLocationState
   sessionOwner: SessionOwner<SessionRuntime>
-  executionPinned: boolean
   settings: SettingsService
   secrets: SecretsPort
   usage: AccountUsageService

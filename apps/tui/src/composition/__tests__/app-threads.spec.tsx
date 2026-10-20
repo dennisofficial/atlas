@@ -95,47 +95,7 @@ describe('/resume', () => {
     }
   }, 60_000)
 
-  it('swaps the transcript for the picked conversation', async () => {
-    const app = appWith()
-    await seed({ app, title: 'the auth overlay', said: 'wire up accounts' })
-    const setup = await opened(app)
 
-    try {
-      await ran(setup, '/resume')
-      setup.mockInput.pressEnter()
-      await setup.flush()
-
-      const frame = await frameShowing({ setup, text: 'wire up accounts' })
-      expect(frame).toContain('wire up accounts')
-      expect(frame).not.toContain(THREADS_HEADING.toUpperCase())
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('brings the picked conversation onto the model it was last switched to', async () => {
-    const app = appWith()
-    const threadId = await seed({ app, title: 'the auth overlay', said: 'wire up accounts' })
-    await app.threads.chooseModel({
-      threadId: toThreadId(threadId),
-      model: { ref: 'anthropic/claude-opus-5', effort: EEffort.High },
-    })
-    const setup = await opened(app)
-
-    try {
-      expect(refKey(app.model.choice().ref)).toBe('anthropic/claude-haiku-4-5')
-
-      await ran(setup, '/resume')
-      setup.mockInput.pressEnter()
-      await setup.flush()
-      await frameShowing({ setup, text: 'wire up accounts' })
-
-      expect(refKey(app.model.choice().ref)).toBe('anthropic/claude-opus-5')
-      expect(app.model.choice().effort).toBe(EEffort.High)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
 
   it('filters the list as you type', async () => {
     const app = appWith()
@@ -157,21 +117,6 @@ describe('/resume', () => {
     }
   }, 60_000)
 
-  it('goes straight to a conversation named by its handle, without the picker', async () => {
-    const app = appWith()
-    await seed({ app, title: 'the auth overlay', said: 'wire up accounts' })
-    const setup = await opened(app)
-
-    try {
-      await ran(setup, '/resume the-auth-overlay')
-
-      const frame = setup.captureCharFrame()
-      expect(frame).toContain('wire up accounts')
-      expect(frame).not.toContain(THREADS_HEADING.toUpperCase())
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
 
   it('says so when the handle names no conversation here', async () => {
     const app = appWith()

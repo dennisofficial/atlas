@@ -23,12 +23,28 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const THREAD: ThreadId = 'thread-under-test' as ThreadId
 
-const HOST_THREAD: ThreadId = 'host-thread-under-test' as ThreadId
+const UNPLACED_THREAD: ThreadId = 'unplaced-thread-under-test' as ThreadId
 
-const switchToHostThread = async (app: FakeApp): Promise<void> => {
-  await app.threads.create({ id: HOST_THREAD, executionLocation: EExecutionLocation.Host })
-  await app.sessionOwner.activateLocal({ threadId: HOST_THREAD, fallback: EExecutionLocation.Host })
+const switchToUnplacedThread = async (app: FakeApp): Promise<void> => {
+  await app.threads.create({ id: UNPLACED_THREAD })
+  await app.sessionOwner.placement.activate({ threadId: UNPLACED_THREAD })
 }
+
+const adaptersOf = (app: FakeApp) => ({
+  runner: app.runner,
+  channel: app.channel,
+  log: app.log,
+  threads: app.threads,
+  ledger: app.ledger,
+  intake: app.intake,
+  shells: app.shells,
+  agents: app.agents,
+  services: app.services,
+  rewindMachinery: undefined,
+  workspace: app.workspace,
+  files: app.files,
+  attachment: undefined,
+})
 
 const sessionOn = (connection?: ChannelConnection): CloudSession =>
   sessionOver(fakeCloudChannel({ connection }))
@@ -71,17 +87,19 @@ const live: Mounted[] = []
 
 async function mount(args: {
   app: FakeApp
-  location: EExecutionLocation
+  placed: boolean
   session: CloudSession | null
   attached?: boolean
 }): Promise<Mounted> {
-  await args.app.threads.create({ id: THREAD, executionLocation: args.location })
-  const local = args.app.sessionOwner.require()
-  await args.app.executionLocation.activate({ threadId: THREAD, fallback: args.location })
-  if (args.location === EExecutionLocation.Cloud && args.attached !== false) {
+  await args.app.threads.create({
+    id: THREAD,
+    ...(args.placed ? { executionLocation: EExecutionLocation.Cloud } : {}),
+  })
+  await args.app.sessionOwner.placement.activate({ threadId: THREAD })
+  if (args.placed && args.attached !== false) {
     await args.app.sessionOwner.adopt({
       threadId: THREAD,
-      binding: { kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: local.adapters },
+      binding: { kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: adaptersOf(args.app) },
     })
   }
   const setup = await createTestRenderer({ width: 40, height: 4 })
@@ -113,7 +131,7 @@ const appFor = (): FakeApp =>
 describe('the connection the cloud chrome reads', () => {
   it('is the session health while the placement says cloud', async () => {
     const session = sessionOn({ state: EConnectionView.Connected, detail: null })
-    const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session })
+    const { probe } = await mount({ app: appFor(), placed: true, session })
 
     expect(probe.current?.state).toBe(EConnectionView.Connected)
   })
@@ -121,7 +139,7 @@ describe('the connection the cloud chrome reads', () => {
   it('is absent once the active thread is placed at home, even over a stale open socket', async () => {
     const app = appFor()
     const session = sessionOn({ state: EConnectionView.Connected, detail: null })
-    const { probe, root } = await mount({ app, location: EExecutionLocation.Cloud, session })
+    const { probe, root } = await mount({ app, placed: true, session })
 
     expect(probe.current?.state).toBe(EConnectionView.Connected)
 
@@ -135,12 +153,12 @@ describe('the connection the cloud chrome reads', () => {
   it('drops a lingering open socket once the active thread is placed at home', async () => {
     const app = appFor()
     const session = sessionOn({ state: EConnectionView.Connected, detail: null })
-    const { probe } = await mount({ app, location: EExecutionLocation.Cloud, session })
+    const { probe } = await mount({ app, placed: true, session })
 
     expect(probe.current?.state).toBe(EConnectionView.Connected)
 
     await act(async () => {
-      await switchToHostThread(app)
+      await switchToUnplacedThread(app)
     })
 
     expect(probe.current).toBeNull()
@@ -152,7 +170,7 @@ describe('the connection the cloud chrome reads', () => {
       { state: EConnectionView.Parked, detail: null },
     ] as const) {
       const session = sessionOn(connection)
-      const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session })
+      const { probe } = await mount({ app: appFor(), placed: true, session })
 
       expect(probe.current?.state).toBe(connection.state)
     }
@@ -161,7 +179,7 @@ describe('the connection the cloud chrome reads', () => {
   it('is absent without a session at all', async () => {
     const { probe } = await mount({
       app: appFor(),
-      location: EExecutionLocation.Host,
+      placed: false,
       session: null,
     })
 
@@ -170,7 +188,7 @@ describe('the connection the cloud chrome reads', () => {
 
   it('shows a waking runtime, never a healthy cloud, while the placement says cloud but nothing is attached', async () => {
     const session = sessionOn({ state: EConnectionView.Connected, detail: null })
-    const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session, attached: false })
+    const { probe } = await mount({ app: appFor(), placed: true, session, attached: false })
 
     expect(probe.current?.state).toBe(EConnectionView.Waking)
   })
@@ -183,7 +201,7 @@ describe('the full health the transcript reads', () => {
       connection: { state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' },
     })
     const session = sessionOver(channel)
-    const { probe } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
+    const { probe } = await mountHealth({ app, placed: true, session })
     await act(async () => {
       channel.fail('workspace failed at git apply')
     })
@@ -195,7 +213,7 @@ describe('the full health the transcript reads', () => {
   it('reads nothing once the active thread is placed at home, however faulted the last cloud health', async () => {
     const app = appFor()
     const session = sessionOn({ state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' })
-    const { probe, root } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
+    const { probe, root } = await mountHealth({ app, placed: true, session })
     await act(async () => {
       await Promise.resolve()
     })
@@ -203,7 +221,7 @@ describe('the full health the transcript reads', () => {
     expect(probe.current?.view.state).toBe(EConnectionView.Disconnected)
 
     await act(async () => {
-      await switchToHostThread(app)
+      await switchToUnplacedThread(app)
     })
 
     expect(probe.current).toBeNull()
@@ -218,17 +236,19 @@ type MountedHealth = {
 
 async function mountHealth(args: {
   app: FakeApp
-  location: EExecutionLocation
+  placed: boolean
   session: CloudSession | null
   attached?: boolean
 }): Promise<MountedHealth> {
-  await args.app.threads.create({ id: THREAD, executionLocation: args.location })
-  const local = args.app.sessionOwner.require()
-  await args.app.executionLocation.activate({ threadId: THREAD, fallback: args.location })
-  if (args.location === EExecutionLocation.Cloud && args.attached !== false) {
+  await args.app.threads.create({
+    id: THREAD,
+    ...(args.placed ? { executionLocation: EExecutionLocation.Cloud } : {}),
+  })
+  await args.app.sessionOwner.placement.activate({ threadId: THREAD })
+  if (args.placed && args.attached !== false) {
     await args.app.sessionOwner.adopt({
       threadId: THREAD,
-      binding: { kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: local.adapters },
+      binding: { kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: adaptersOf(args.app) },
     })
   }
   const setup = await createTestRenderer({ width: 40, height: 4 })

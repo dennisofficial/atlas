@@ -70,9 +70,9 @@ describe('settingsModel', () => {
       ['Notifications', 1],
       ['Development', 1],
       ['Web', 2],
-      ['Execution', 4],
+      ['Execution', 3],
     ])
-    expect(general?.rows).toHaveLength(28)
+    expect(general?.rows).toHaveLength(27)
   })
 
   it('gathers the core cloud rows on the cloud page', () => {
@@ -173,7 +173,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 27 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 26 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {

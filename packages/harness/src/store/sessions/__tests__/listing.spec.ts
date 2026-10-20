@@ -3,7 +3,7 @@ import { appendFile, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/prom
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EForkMode, toThreadId, type EventDraft, type LinkedPullRequest } from '@dltech/atlas-core'
+import { EForkMode, toThreadId, type EventDraft, type LinkedPullRequest, EExecutionLocation } from '@dltech/atlas-core'
 
 import type { ThreadSummary } from '../../thread-store'
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
@@ -59,13 +59,13 @@ describe('listing order', () => {
   it('sorts by the session’s latest activity, including a child thread’s', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const older = await threads.create({ title: 'older', workspace: '/work' })
-    const newer = await threads.create({ title: 'newer', workspace: '/work' })
+    const older = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'older', workspace: '/work' })
+    const newer = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'newer', workspace: '/work' })
     await log.append({ threadId: older.id, runId: ids.nextRunId(), drafts: [said('old turn')] })
     await log.append({ threadId: newer.id, runId: ids.nextRunId(), drafts: [said('new turn')] })
 
     await stampMetaAt({ home, threadId: older.id, at: '2026-01-01T00:00:00.000Z' })
-    const child = await threads.create({ title: 'child', workspace: '/work', agent: { spawnedBy: older.id, type: 'explorer' } })
+    const child = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'child', workspace: '/work', agent: { spawnedBy: older.id, type: 'explorer' } })
     await log.append({ threadId: child.id, runId: ids.nextRunId(), drafts: [said('child just ran')] })
 
     const rows = await listRoots({ home, project: '/work' })
@@ -77,8 +77,8 @@ describe('listing order', () => {
   it('moves a root up when a fork’s thread is the freshest thing in its session', async () => {
     const home = await tempHome()
     const { registry, log, threads, ids } = openStore({ home })
-    const first = await threads.create({ title: 'first', workspace: '/work' })
-    const second = await threads.create({ title: 'second', workspace: '/work' })
+    const first = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'first', workspace: '/work' })
+    const second = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'second', workspace: '/work' })
     await log.append({ threadId: first.id, runId: ids.nextRunId(), drafts: [said('a')] })
     await log.append({ threadId: second.id, runId: ids.nextRunId(), drafts: [said('b')] })
     await stampMetaAt({ home, threadId: second.id, at: '2026-01-01T00:00:00.000Z' })
@@ -95,7 +95,7 @@ describe('listing places on a cold registry', () => {
   it('re-derives worktree and pull requests from the event log with no prior list', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'cold', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'cold', workspace: '/work' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -120,7 +120,7 @@ describe('listing places on a cold registry', () => {
   it('finds facts that sit at the head of a giant log, not near its tail', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'giant', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'giant', workspace: '/work' })
     await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [entered('/work/.wt/first', 'dennis/first')] })
     for (let turnIndex = 0; turnIndex < 200; turnIndex += 1) {
       await log.append({
@@ -137,7 +137,7 @@ describe('listing places on a cold registry', () => {
   it('keeps places out of the registry’s full-log cache: listing a giant session leaves nothing cached', async () => {
     const home = await tempHome()
     const { registry, log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'uncached', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'uncached', workspace: '/work' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -162,7 +162,7 @@ describe('listing places on a cold registry', () => {
   it('picks up an external append to the log between two lists', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'moving', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'moving', workspace: '/work' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -187,7 +187,7 @@ describe('listing reads', () => {
   it('does not write the session meta or the thread meta on list', async () => {
     const home = await tempHome()
     const { registry, log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'quiet', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'quiet', workspace: '/work' })
     await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said('hello')] })
 
     const sessionDir = sessionDirectory({ home, sessionId: thread.id })
@@ -203,7 +203,7 @@ describe('listing reads', () => {
   it('keeps the legacy session-meta schema, with the worktree a bare path and pull requests bare numbers', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const thread = await threads.create({ title: 'legacy', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'legacy', workspace: '/work' })
     const file = sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: thread.id }) })
     const meta = readMetaSync({ file, schema: sessionMetaSchema })
     if (meta === undefined) throw new Error('no session meta')
@@ -219,7 +219,7 @@ describe('listing with a progress callback', () => {
   it('emits the basic rows first and re-emits with places as enrichment lands', async () => {
     const home = await tempHome()
     const { registry, log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'progressive', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'progressive', workspace: '/work' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -242,7 +242,7 @@ describe('listing with a progress callback', () => {
   it('still returns a fully enriched listing when no callback is given', async () => {
     const home = await tempHome()
     const { registry, log, threads, ids } = openStore({ home })
-    const thread = await threads.create({ title: 'plain', workspace: '/work' })
+    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'plain', workspace: '/work' })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -258,7 +258,7 @@ describe('listing selected roots directly', () => {
   it('enriches the selected ids without scanning every session, however deep their history', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const older = await threads.create({ title: 'older', workspace: '/work' })
+    const older = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'older', workspace: '/work' })
     await log.append({
       threadId: older.id,
       runId: ids.nextRunId(),
@@ -267,7 +267,7 @@ describe('listing selected roots directly', () => {
     await stampMetaAt({ home, threadId: older.id, at: '2026-01-01T00:00:00.000Z' })
 
     for (let index = 0; index < 60; index += 1) {
-      const thread = await threads.create({ title: `noise-${index}`, workspace: '/work' })
+      const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: `noise-${index}`, workspace: '/work' })
       await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said(`noise ${index}`)] })
     }
 
@@ -279,10 +279,10 @@ describe('listing selected roots directly', () => {
   it('skips a selected id that names a child thread or another project', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
-    const parent = await threads.create({ title: 'parent', workspace: '/work' })
+    const parent = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'parent', workspace: '/work' })
     await log.append({ threadId: parent.id, runId: ids.nextRunId(), drafts: [said('hello')] })
-    const child = await threads.create({ title: 'child', workspace: '/work', agent: { spawnedBy: parent.id, type: 'explorer' } })
-    const elsewhere = await threads.create({ title: 'elsewhere', workspace: '/other' })
+    const child = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'child', workspace: '/work', agent: { spawnedBy: parent.id, type: 'explorer' } })
+    const elsewhere = await threads.create({ executionLocation: EExecutionLocation.Cloud, title: 'elsewhere', workspace: '/other' })
 
     const rows = await listRoots({
       home,

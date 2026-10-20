@@ -1,4 +1,4 @@
-import { toThreadId, EExecutionLocation } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -8,13 +8,7 @@ import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/har
 import { EKeyGroup } from '../../ui/keys'
 import { App } from '../app'
 import { fakeBridge } from '../cloud/__tests__/fixture'
-import { FAKE_CONFIG, fakeApp, fakeSkill, scriptedModelPort, type FakeApp } from './fake-app'
-
-const PIRATE = fakeSkill({
-  name: 'pirate',
-  summary: 'answer entirely in pirate dialect',
-  body: 'Answer entirely in pirate dialect.',
-})
+import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -25,8 +19,6 @@ const WIDE = { width: 150, height: 40 }
 const READ_MS = 60
 
 const WELCOME = 'Describe the work below.'
-
-const REPLIED = 'done'
 
 type Mounted = Awaited<ReturnType<typeof testRender>>
 
@@ -48,7 +40,6 @@ async function opened(app: FakeApp, args: { started?: boolean } = {}): Promise<M
         turns: [],
         name: null,
         started: args.started ?? true,
-        executionLocation: EExecutionLocation.Host,
       }}
       createBridge={() => fakeBridge()}
       preflightBirth={async () => null}
@@ -58,44 +49,6 @@ async function opened(app: FakeApp, args: { started?: boolean } = {}): Promise<M
   await frameShowing({ setup, text: WELCOME })
   return setup
 }
-
-describe('a message that loaded a skill', () => {
-  it('says which skill it pulled in, beneath what was typed', async () => {
-    const app = fakeApp({
-      model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'arr' } }),
-      skills: [PIRATE],
-    })
-    const setup = await opened(app)
-
-    try {
-      await setup.mockInput.typeText('/pirate how about now?')
-      await landed(setup)
-
-      setup.mockInput.pressEnter()
-      const frame = await frameShowing({ setup, text: '◆ pirate' })
-
-      expect(frame).toContain('/pirate how about now?')
-      expect(frame).toContain('◆ pirate')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('says nothing beneath a message that loaded none', async () => {
-    const setup = await opened(appWith())
-
-    try {
-      await setup.mockInput.typeText('plain question')
-      await landed(setup)
-      setup.mockInput.pressEnter()
-      const frame = await frameShowing({ setup, text: REPLIED })
-
-      expect(frame).not.toContain('◆')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-})
 
 describe('the command menu', () => {
   it('stays closed while the draft holds ordinary prose', async () => {
@@ -274,43 +227,6 @@ describe('a fresh conversation started from inside the app', () => {
       await landed(setup)
 
       expect(app.threads.createdWith).toEqual([])
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('is filed under the workspace by its first message, so tomorrow can resume it', async () => {
-    const app = appWith()
-    const setup = await opened(app, { started: false })
-
-    try {
-      await landed(setup)
-
-      await setup.mockInput.typeText('the first thing said in it')
-      setup.mockInput.pressEnter()
-      await frameShowing({ setup, text: REPLIED })
-
-      expect(app.threads.createdWith).toEqual([{ workspace: FAKE_CONFIG.cwd, repo: null }])
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('also starts on ctrl+n, without typing /new', async () => {
-    const app = appWith()
-    const setup = await opened(app)
-
-    try {
-      await setup.mockInput.typeText('something said before')
-      setup.mockInput.pressEnter()
-      await frameShowing({ setup, text: REPLIED })
-
-      expect(setup.captureCharFrame()).toContain('something said before')
-
-      setup.mockInput.pressKey('n', { ctrl: true })
-      const frame = await frameShowing({ setup, text: WELCOME })
-
-      expect(frame).not.toContain('something said before')
     } finally {
       await teardown(setup)
     }

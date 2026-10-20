@@ -28,7 +28,6 @@ import {
   createThreadViewRefresh,
   driveThreadViewExternally,
 } from "./thread-view-refresh";
-import { usePlacementRepublish } from "./use-placement-republish";
 import {
   subscribeTranscriptViewport,
   transcriptViewport,
@@ -152,7 +151,7 @@ export function useThreadView(args: {
       readClock: () => clock.current(),
       ...(projectEvents === undefined ? {} : { projectEvents }),
     });
-  }, [app.channel, app.executionLocation, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
+  }, [app.channel, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
 
   const stamp = useCallback(
     (advance: (progress: TurnProgress) => TurnProgress) => store.stampTurn(advance),
@@ -196,7 +195,6 @@ export function useThreadView(args: {
   useEffect(() => store.setThinking(thinking), [store, thinking]);
   useEffect(() => store.setTldrStatus(tldrStatus), [store, tldrStatus]);
 
-  usePlacementRepublish({ app, threadId, store });
 
   /**
    * A thread nobody handed rows for reads them itself, once, on the way in. The channel replays the

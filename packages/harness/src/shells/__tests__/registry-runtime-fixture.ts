@@ -22,7 +22,7 @@ export function registryRuntimeLauncher({ root }: { root: string }): ShellLaunch
     }),
     sessions,
     processes: new SessionEnvironmentProcessPort({ inner: new LocalProcessPort(), sessions }),
-    supervisor: async () => ({ script: command[1] ?? '', host: command, docker: command }),
+    supervisor: async () => ({ script: command[1] ?? '', host: command }),
     now: () => new Date().toISOString(),
   })
 }

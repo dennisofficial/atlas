@@ -11,7 +11,7 @@ import { EMPTY_PROMPT } from '../rules/system-prompt'
 import { contextFor, log } from './log-fixture'
 
 const staleCallerArguments = {
-  executionLocation: () => ({ location: EExecutionLocation.Docker, mounts: ['/atlas/home'] }),
+  executionLocation: () => ({ location: EExecutionLocation.Cloud, mounts: ['/atlas/home'] }),
   capabilities: () => ({
     canPush: true,
     gitIdentity: null,
@@ -37,10 +37,10 @@ const HISTORY: readonly EventDraft[] = [
   { type: 'user-said', text: 'run the tests' },
   { type: 'tool-called', callId: CALL, name: 'bash', input: { command: 'bun test' }, ordinal: 0 },
   { type: 'tool-result', callId: CALL, name: 'bash', output: 'ok', modelText: 'ok' },
-  { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
+  { type: 'location-changed', to: EExecutionLocation.Cloud },
   { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
   { type: 'user-said', text: 'again' },
-  { type: 'location-changed', from: EExecutionLocation.Docker, to: EExecutionLocation.Cloud },
+  { type: 'location-changed', to: EExecutionLocation.Cloud },
 ]
 
 const assembleThrough = (length: number) => {

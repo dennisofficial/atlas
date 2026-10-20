@@ -1,5 +1,4 @@
 import type {
-  EExecutionLocation,
   EKilledBy,
   EventDraft,
   SaidFile,
@@ -16,7 +15,6 @@ import {
   type CloudChannel,
   type NoticeDrain,
   type RecoveredAgents,
-  type RelocateChildrenArgs,
 } from '@dltech/atlas-harness'
 
 import { agentsFor, heldIfSame, type SharedRoster } from './roster-reader'
@@ -127,10 +125,6 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
     return { ok: true, snapshot: toAgentSnapshot(outcome.snapshot) }
   }
 
-  async relocateChildren(_args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
-    return []
-  }
-
   async stopChildren(_args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]> {
     return []
   }
@@ -138,11 +132,6 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
   async pauseChildren(_args: { threadId: ThreadId }): Promise<readonly ThreadId[]> {
     return []
   }
-
-  async markChildrenRelocated(_args: {
-    threadId: ThreadId
-    location: EExecutionLocation
-  }): Promise<void> {}
 
   list(args: { threadId: ThreadId }): readonly AgentSnapshot[] {
     const held = this.scoped.get(args.threadId)

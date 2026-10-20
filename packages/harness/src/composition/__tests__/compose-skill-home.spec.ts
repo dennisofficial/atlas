@@ -43,7 +43,7 @@ const writeSkill = async (args: { directory: string; name: string; body: string 
 
 const compose = async (userSkillHome?: string) => {
   const app = await composeHarness<undefined, never>({
-    launch: { cwd: project, command: 'serve', model: undefined, executionLocation: undefined },
+    launch: { cwd: project, command: 'serve', model: undefined },
     env: {},
     settings: {
       service: createSettingsService({

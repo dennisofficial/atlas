@@ -59,7 +59,7 @@ const readHomeLines = async (): Promise<Record<string, unknown>[]> => {
 describe('openSession durability', () => {
   it('records a startup failure to the home-level logs.jsonl and still settles as Failed', async () => {
     const session = await openSession({
-      config: { model: undefined, executionLocation: undefined, open: { mode: EOpenMode.New }, cwd: process.cwd() },
+      config: { model: undefined, open: { mode: EOpenMode.New }, cwd: process.cwd() },
       command: 'atlas-spec',
       env: { ...process.env, ATLAS_DOCKER_SOCKET: join(process.cwd(), 'no-such-socket') },
       progress: createBootProgress(),
@@ -116,7 +116,6 @@ describe('openSession resuming a thread whose meta says cloud', () => {
     const session = await openSession({
       config: {
         model: undefined,
-        executionLocation: undefined,
         open: { mode: EOpenMode.Resume, threadId },
         cwd: process.cwd(),
       },

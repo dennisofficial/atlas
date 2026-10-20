@@ -2,7 +2,6 @@ import {
   agentLabel,
   EAgentStart,
   EMessageOrigin,
-  type EExecutionLocation,
   type EventLogPort,
   type IdPort,
   type ThreadId,
@@ -29,7 +28,7 @@ export async function openChildThread({
   brief: string
   intent: string
   model?: ThreadModel | undefined
-}): Promise<{ threadId: ThreadId; inheritedLocation: EExecutionLocation | undefined }> {
+}): Promise<{ threadId: ThreadId }> {
   const spawner = await threads.find({ threadId: spawnedBy })
   const { thread } = await threads.createWithFirstEvents({
     runId: ids.nextRunId(),
@@ -58,5 +57,5 @@ export async function openChildThread({
     ],
   })
 
-  return { threadId: thread.id, inheritedLocation: spawner?.executionLocation }
+  return { threadId: thread.id }
 }

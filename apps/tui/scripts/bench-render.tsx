@@ -5,7 +5,6 @@ import {
   AccountUsagePort,
   defaultPipeline,
   EEffort,
-  EExecutionLocation,
   EMPTY_PROMPT,
   type AccountUsage,
   type ThreadId,
@@ -35,7 +34,7 @@ import { App } from '../src/composition/app'
 import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
 import { noticePortBinding } from '../src/composition/notice-binding'
-import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
+import { createSessionOwner, PlacementController, type SessionRuntime } from '@dltech/atlas-harness'
 import { createPathResolver } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
 import { fakeAgentRegistry } from '../src/composition/__tests__/fake-agents'
@@ -98,11 +97,11 @@ const benchApp = (args: {
   const agents = fakeAgentRegistry()
   const services = fakeServiceRegistry()
   const operatorInput = fakeOperatorInput()
-  const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
+  const placement = new PlacementController()
 
   return {
-    config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root, executionLocation: undefined },
-    launch: { cwd: args.root, command: 'atlas-dev', model: undefined, executionLocation: undefined },
+    config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root },
+    launch: { cwd: args.root, command: 'atlas-dev', model: undefined },
     command: 'atlas-dev',
     journalResume: () => {},
     workspace,
@@ -165,30 +164,7 @@ const benchApp = (args: {
     mcp: () => [],
     mcpSignIn: undefined,
     threadOpened: async () => {},
-    executionLocation,
-    sessionOwner: createSessionOwner<SessionRuntime>({
-      placement: executionLocation,
-      local: {
-        kind: ERuntimeKind.Local,
-        cwd: args.root,
-        adapters: {
-          runner: args.runner,
-          channel: args.channel,
-          log: args.harness.log,
-          threads: args.harness.threads,
-          ledger: args.harness.ledger,
-          intake: undefined,
-          shells: args.shells,
-          agents,
-          services,
-          rewindMachinery: undefined,
-          workspace,
-          files: new FileBrowser({ root: args.root }),
-          attachment: undefined,
-        },
-      },
-    }),
-    executionPinned: false,
+    sessionOwner: createSessionOwner<SessionRuntime>({ placement }),
     prepareClose: () => {},
     close: async () => {},
   }

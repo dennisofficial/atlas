@@ -1,4 +1,4 @@
-import { EExecutionLocation, EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
+import { EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
 import {
   birthInCloud,
   EBirthNode,
@@ -42,21 +42,18 @@ export function birthNewborn(args: {
   const pod = runner === ERunner.Local
   const bridge = args.createBridge({ runner })
   let cancelled = false
-  const destroyPod = (): void => {
-    if (pod) void bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
-  }
-  const failed = (reason: string): void => {
-    destroyPod()
+  const destroySandbox = (): Promise<void> => bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
+  const failed = async (reason: string): Promise<void> => {
     if (cancelled) return
+    await destroySandbox()
     move.handleFail(reason)
     warn(reason)
     args.onAbandon()
   }
   const handleCancel = (): void => {
     cancelled = true
-    destroyPod()
     warn(BIRTH_CANCELLED_NOTICE)
-    args.onAbandon()
+    void destroySandbox().then(args.onAbandon)
   }
   const captureContext = () => app.captureContext({ cwd: app.workspace.workspace })
 
@@ -75,7 +72,6 @@ export function birthNewborn(args: {
     captureContext,
     onBegin: ({ waves }) =>
       move.handleBegin({
-        target: EExecutionLocation.Cloud,
         rows: waves.map((wave) => ({
           id: wave.ids[0] ?? wave.label,
           text: pod && wave.ids[0] === EBirthNode.Provision ? POD_PROVISION_LABEL : wave.label,
@@ -103,6 +99,7 @@ export function birthNewborn(args: {
       const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner: turns }) }
       const opened = await openCloudConversation({ app: base, threadId })
       const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })
+      if (cancelled) throw new Error(BIRTH_CANCELLED_NOTICE)
       const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: attachment.stores.threads })
       const session = createCloudSession({
         channel: attachment.channel,
@@ -133,10 +130,8 @@ export function birthNewborn(args: {
     },
   })
     .then((born) => {
-      if (!born.ok) {
-        failed(birthFailedNotice(born))
-        return
-      }
+      if (cancelled) return
+      if (!born.ok) return failed(birthFailedNotice(born))
       const chip = bornPlacementChip(app)
       const held = chip.snapshot()
       const arrival = held?.threadId === threadId ? held.arrival : undefined
@@ -144,6 +139,6 @@ export function birthNewborn(args: {
       move.handleSettle()
     })
     .catch((error: unknown) => {
-      failed(`${pod ? 'starting the pod' : 'starting a cloud sandbox'} failed — ${messageOf(error)}`)
+      return failed(`${pod ? 'starting the pod' : 'starting a cloud sandbox'} failed — ${messageOf(error)}`)
     })
 }

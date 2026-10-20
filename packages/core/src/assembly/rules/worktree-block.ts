@@ -1,8 +1,6 @@
 import { systemContext } from '../../context/envelope'
-import { EExecutionLocation } from '../../execution/location'
 import {
   activeWorktreeOf,
-  currentLocationOf,
   homeDirectoryOf,
   repoOf,
   type ActiveWorktree,
@@ -29,27 +27,14 @@ const RESOLUTION_LINE = 'Paths you pass to a tool resolve against it and a bash 
 const CLOUD_LOCATION_LINE =
   "Execution location: a cloud sandbox with full isolation — this filesystem, /tmp, and localhost belong to the sandbox; the operator's machine cannot see any of it. Hand files over through the conversation or an exposed port."
 
-const DOCKER_LOCATION_LINE =
-  'Execution location: a Docker container on the operator\'s machine — only the project directory and explicitly mounted paths are shared with the host; everything else you write, /tmp included, stays inside the container.'
-
-const locationLineOf = (location: EExecutionLocation): string | undefined => {
-  if (location === EExecutionLocation.Cloud) return CLOUD_LOCATION_LINE
-  if (location === EExecutionLocation.Docker) return DOCKER_LOCATION_LINE
-  return undefined
-}
-
 export function projectDirectoryNote(args: {
   directory: string
   worktree?: ActiveWorktree | undefined
   mainCheckout: string
-  location?: EExecutionLocation | undefined
 }): string {
   const { worktree } = args
-  const locationLine = locationLineOf(args.location ?? EExecutionLocation.Host)
   if (worktree === undefined) {
-    return [`Project directory: ${args.directory}. ${RESOLUTION_LINE}`, locationLine]
-      .filter((line) => line !== undefined)
-      .join(' ')
+    return [`Project directory: ${args.directory}. ${RESOLUTION_LINE}`, CLOUD_LOCATION_LINE].join(' ')
   }
 
   return [
@@ -57,10 +42,8 @@ export function projectDirectoryNote(args: {
     RESOLUTION_LINE,
     `The repository's main checkout is at ${args.mainCheckout}; it stays unchanged unless the developer asks for changes there, and you reach it only with absolute paths.`,
     leavingLineOf(worktree),
-    locationLine,
-  ]
-    .filter((line) => line !== undefined)
-    .join(' ')
+    CLOUD_LOCATION_LINE,
+  ].join(' ')
 }
 
 export function worktreeBlock({
@@ -80,8 +63,7 @@ export function worktreeBlock({
       const home = homeDirectoryOf({ events: ctx.events, launchDirectory })
       const worktree = activeWorktreeOf(ctx.events)
       const mainCheckout = repoOf({ events: ctx.events, launchRepo: repoRoot ?? null }) ?? home
-      const location = currentLocationOf(ctx.events)
-      const note = projectDirectoryNote({ directory: home, worktree, mainCheckout, location })
+      const note = projectDirectoryNote({ directory: home, worktree, mainCheckout })
 
       return appendedAtTail({ input, ctx, text: systemContext({ slot: 'workspace', key: 'directory', content: note }) })
     },

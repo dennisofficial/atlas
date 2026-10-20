@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EExecutionLocation, ESettingId, type SettingsDocument } from '@dltech/atlas-core'
+import type { SettingsDocument } from '@dltech/atlas-core'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { dismissNotice } from '../../ui/notice-store'
@@ -28,28 +28,13 @@ const switchTo = async (mounted: Awaited<ReturnType<typeof open>>, argument: str
 }
 
 describe('the container command', () => {
-  it('answers where the conversation runs without moving it', async () => {
+  it('answers where the conversation runs without placing it', async () => {
     const app = speaking()
     const mounted = await open({ app, opened: await spokenIn(app) })
 
     try {
       await switchTo(mounted, '')
 
-      expect(app.threads.chosenLocations).toEqual([])
-      expect(app.executionLocation.current()).toBe(EExecutionLocation.Host)
-    } finally {
-      await mounted.done()
-    }
-  })
-
-  it('starts a conversation where the settings file puts it', async () => {
-    const app = speaking({ values: { [ESettingId.ExecutionLocation]: 'docker' } })
-    const mounted = await open({ app, opened: await spokenIn(app) })
-
-    try {
-      await mounted.frame()
-
-      expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
       expect(app.threads.chosenLocations).toEqual([])
     } finally {
       await mounted.done()
@@ -58,7 +43,7 @@ describe('the container command', () => {
 })
 
 describe('the location pill in the footer', () => {
-  it('shows no location chip on the host', async () => {
+  it('shows no location chip before the thread is placed', async () => {
     const app = speaking()
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: 140,

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EExecutionLocation, placementOf, toRunId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
@@ -271,7 +271,7 @@ describe('opening a conversation that lives in the cloud', () => {
     try {
       expect(await until({ holds: async () => failures === 0, within: 10_000 })).toBe(true)
       const failed = app.sessionOwner.snapshot()
-      expect(failed.location).toBe(EExecutionLocation.Cloud)
+      expect(failed.placed).toBe(true)
       expect(failed.bound).toBe(false)
       expect(() => app.sessionOwner.require()).toThrow('not attached')
       expect(currentNotices().some((notice) => notice.text.includes('the sandbox could not wake'))).toBe(true)
@@ -312,46 +312,6 @@ describe('the picker badge', () => {
     }
   }, 60_000)
 
-})
-
-describe('coming back to the host', () => {
-  it('leaves the cloud session when a local conversation is picked from inside it', async () => {
-    const app = speaking()
-    const hostThread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
-    await app.threads.rename({ threadId: hostThread.id, title: 'the host thread' })
-    await app.log.append({
-      threadId: hostThread.id,
-      runId: toRunId('run-host'),
-      drafts: [{ type: 'user-said', text: 'said on the host' }],
-    })
-    const cloudThread = await seedCloudThread(app)
-    const bridge = fakeBridge({ status: RUNNING_STATUS })
-    await bridge.log.append({
-      threadId: cloudThread.threadId,
-      runId: toRunId('run-cloud'),
-      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
-    })
-    const mounted = await mount({ app, bridge })
-
-    try {
-      await mounted.command('/resume')
-      await mounted.typeText('cloud thread')
-      await mounted.pick()
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
-      await mounted.showing('said inside the sandbox')
-
-      await mounted.command('/resume')
-      await mounted.showing('the host thread')
-      await mounted.typeText('host')
-      await mounted.pick()
-      const frame = await mounted.showing('said on the host')
-
-      expect(frame).toContain('said on the host')
-      expect(bridge.channel.closed).toBe(true)
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
 })
 
 describe('/restart on a cloud session', () => {

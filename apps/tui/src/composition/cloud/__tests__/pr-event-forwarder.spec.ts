@@ -20,7 +20,7 @@ const frame = (over: Partial<PrEventFrame> = {}): PrEventFrame => ({
 
 const summary = (args: {
   id: ThreadId
-  location: EExecutionLocation
+  location?: EExecutionLocation | undefined
   pullRequests?: { repo: string; number: number }[]
 }): ThreadSummary =>
   ({
@@ -147,7 +147,6 @@ describe('parked-cloud pr-event forwarding', () => {
       summaries: [
         summary({
           id: LOCAL_THREAD,
-          location: EExecutionLocation.Host,
           pullRequests: [{ repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],

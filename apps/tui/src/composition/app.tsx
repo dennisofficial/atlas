@@ -15,7 +15,7 @@ import { messageOf } from './error-text'
 import { liveBridgeFor, liveBirthPreflightFor } from './live-pod'
 import type { ReloadedSession } from './reloaded-session'
 import type { OpenedConversation } from './open-conversation'
-import { appOf, attachmentOf, cloudAttachmentOf, keyOf, localAnchorOf, localBindingOf } from './session-binding'
+import { appOf, cloudAttachmentOf, keyOf } from './session-binding'
 import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 import type { MoveStepTiming } from './use-container-move'
 import { Workspace } from './workspace'
@@ -46,7 +46,6 @@ export function App(props: {
   const [reloaded, setReloaded] = useState<ReloadedSession | null>(null)
 
   const app = appOf({ local: props.app, binding: snapshot.binding })
-  const attachment = attachmentOf(snapshot.binding)
   const cloud = cloudAttachmentOf(snapshot.binding)
   const heldCloud = useRef(cloud)
   heldCloud.current = cloud
@@ -124,18 +123,13 @@ export function App(props: {
     })
   }, [owner, props.app])
 
-  const handleLocalOpened = useCallback(
-    (opened: OpenedConversation, remount: boolean) => {
+  const handleLeaveCloud = useCallback(
+    (opened: OpenedConversation) => {
       const leaving = owner.snapshot().threadId
-      if (remount) {
-        setReopened(opened)
-        setReloaded(null)
-      }
-      void owner
-        .activateLocal({
-          threadId: opened.threadId,
-          binding: localBindingOf({ local: props.app, workspace: localAnchorOf({ local: props.app, opened }), opened }),
-        })
+      setReopened(opened)
+      setReloaded(null)
+      void owner.placement
+        .activate({ threadId: opened.threadId })
         .catch((error: unknown) => {
           notify({
             key: 'leave-cloud',
@@ -148,16 +142,11 @@ export function App(props: {
           if (leaving !== undefined && leaving !== opened.threadId) owner.detach({ threadId: leaving })
         })
     },
-    [owner, props.app],
+    [owner],
   )
 
-  const handleLeaveCloud = useCallback((opened: OpenedConversation) => handleLocalOpened(opened, true), [handleLocalOpened])
-  const handleLocalSwap = useCallback((opened: OpenedConversation) => handleLocalOpened(opened, false), [handleLocalOpened])
-
   const reloadedHere = reloaded !== null && reloaded.binding === snapshot.binding ? reloaded : null
-  const cloudOpened = cloud === undefined ? undefined : attachment?.opened
-  const localOpened = attachment?.kind === 'local' && attachment.opened.threadId === reopened?.threadId ? attachment.opened : undefined
-  const openedFor = reloadedHere?.opened ?? cloudOpened ?? localOpened ?? reopened ?? props.opened
+  const openedFor = reloadedHere?.opened ?? cloud?.opened ?? reopened ?? props.opened
   const carried = draftReader.current?.()
   const draftText = carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''
 
@@ -172,7 +161,7 @@ export function App(props: {
         app={app}
         localApp={props.app}
         opened={openedFor}
-        attachment={attachment}
+        attachment={cloud}
         whatsNew={whatsNew}
         draftText={draftText}
         onDraftSource={handleDraftSource}
@@ -183,7 +172,6 @@ export function App(props: {
         preflightBirth={props.preflightBirth ?? liveBirthPreflightFor(props.app)}
         onReload={handleReload}
         onLeaveCloud={handleLeaveCloud}
-        onLocalOpened={handleLocalSwap}
         onMoveStep={props.onMoveStep}
         credentialNotice={props.credentialNotice ?? null}
         covered={props.covered === true}

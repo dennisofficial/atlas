@@ -1,8 +1,6 @@
 import { useCallback } from 'react'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
-
-import { currentLocationNotice, resourcesConnectingNotice, resourcesRefusalNotice } from './container-notices'
+import { currentLocationNotice, resourcesConnectingNotice, resourcesUnplacedNotice } from './container-notices'
 import type { ContainerResourcesControl } from './use-container-resources'
 import type { useExecutionLocation } from './use-execution-location'
 
@@ -18,14 +16,12 @@ export function useWorkspaceLocation(args: {
   const { execution, containerResources } = args
 
   const handleContainer = useCallback(
-    (): string | undefined => currentLocationNotice(execution.location),
-    [execution.location],
+    (): string | undefined => currentLocationNotice(execution.placed),
+    [execution.placed],
   )
 
   const handleContainerResources = useCallback((): string | undefined => {
-    if (execution.location !== EExecutionLocation.Cloud) {
-      return resourcesRefusalNotice(execution.location)
-    }
+    if (!execution.placed) return resourcesUnplacedNotice
     if (!execution.bound) return resourcesConnectingNotice
     containerResources.handleOpen()
     return undefined

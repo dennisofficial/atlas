@@ -1,4 +1,4 @@
-import { EBlockKind, type CallId, type EExecutionLocation, type Event } from '@dltech/atlas-core'
+import { EBlockKind, type CallId, type Event } from '@dltech/atlas-core'
 import { EStepEnd, type StepSignal, type TurnSpend } from '@dltech/atlas-harness'
 
 import { durableEntries } from './durable-entries'

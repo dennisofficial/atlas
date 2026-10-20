@@ -5,7 +5,7 @@ import type { CloudReload, SessionOwner, SessionRuntime } from '@dltech/atlas-ha
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { birthNewborn } from './cloud/birth-newborn'
-import { bornWith, notifyVercelUnconfigured, preferredRunner, rememberPlacement, vercelConfigured } from './cloud/born-cloud'
+import { bornWith, preferredRunner, rememberPlacement } from './cloud/born-cloud'
 import { bornPlacementChip } from './cloud/born-placement-chip'
 import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 import { preferenceChipFor, useUnbornThread } from './cloud/use-unborn-thread'
@@ -96,7 +96,7 @@ export function useThreadBirth(args: {
 
   const handleNewThread = useCallback(() => {
     const { app, adopt, containerMove } = latest.current
-    if (birthInFlight(containerMove)) return
+    if (birthInFlight(containerMove) || undelivered.current !== null) return
     adopt(unstartedConversation({ ids: app.ids }))
   }, [])
 
@@ -125,10 +125,6 @@ export function useThreadBirth(args: {
     const state = chip.snapshot()
     if (state === null || state.preference !== true || state.provisioning) return
     const next = state.runner === ERunner.Vercel ? ERunner.Local : ERunner.Vercel
-    if (next === ERunner.Vercel && !vercelConfigured(app)) {
-      notifyVercelUnconfigured()
-      return
-    }
     rememberPlacement({ app, runner: next })
     chip.set({ ...state, runner: next })
   }, [])

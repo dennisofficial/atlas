@@ -16,15 +16,11 @@ export function useWorkspacePlacement(args: {
   createBridge: CloudBridgeFactory
   onReload: (reload: CloudReload) => Promise<void>
   cloudSession: CloudSession | null
-  conversation: Pick<Conversation, 'threadId' | 'executionLocation'>
+  conversation: Pick<Conversation, 'threadId'>
 }) {
   const { app, cloudSession, conversation } = args
 
-  const execution = useExecutionLocation({
-    app,
-    threadId: conversation.threadId,
-    stored: conversation.executionLocation,
-  })
+  const execution = useExecutionLocation({ app, threadId: conversation.threadId })
   const cloudConnection = useCloudConnection({ app, session: cloudSession })
   const containerPill = useContainerPill({ connection: cloudConnection })
   const locationItems = useLocationItems({ app, connection: cloudConnection })

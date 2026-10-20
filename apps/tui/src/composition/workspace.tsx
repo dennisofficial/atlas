@@ -68,7 +68,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   const services = useServices({ app: props.app })
   const contextBrowser = useWorkspaceContext({
     readers: props.attachment?.context, threadId: conversation.threadId, onClosePeek: frame.handleClosePeek,
-    local: props.attachment === undefined || props.attachment.kind === 'local',
+    local: props.attachment === undefined,
   })
 
   useWorkspaceNotices({

@@ -60,11 +60,10 @@ describe('a compiled binary carrying the supervisor script', () => {
     expect(ran.stderr.toString()).toBe('')
     expect(ran.exitCode).toBe(0)
 
-    const launcher: { script: string; host: string[]; docker: string[] } = JSON.parse(ran.stdout.toString())
+    const launcher: { script: string; host: string[] } = JSON.parse(ran.stdout.toString())
     expect(await readFile(launcher.script, 'utf8')).toBe(STUB_SUPERVISOR)
     expect(launcher.script.startsWith(join(home, 'bin'))).toBe(true)
     expect(launcher.host).toEqual([await realpath(binary), SHELL_SUPERVISE_FLAG])
-    expect(launcher.docker).toEqual(['bun', launcher.script])
     expect(await readdir(join(workspace))).not.toContain('bin')
   })
 })

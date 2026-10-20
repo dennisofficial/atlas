@@ -29,27 +29,25 @@ const openChild = (entry: OpenedSupervisor) =>
   })
 
 describe('the execution location a child thread opens with', () => {
-  it("is the spawner's own, so a docker parent's child never falls back to the host", async () => {
+  it("is the spawner's own, so a cloud parent's child stays in the cloud", async () => {
     const entry = await open()
     await entry.harness.threads.chooseExecutionLocation({
       threadId: entry.parent,
-      location: EExecutionLocation.Docker,
+      location: EExecutionLocation.Cloud,
     })
 
-    const { threadId, inheritedLocation } = await openChild(entry)
+    const { threadId } = await openChild(entry)
 
-    expect(inheritedLocation).toBe(EExecutionLocation.Docker)
     expect((await entry.harness.threads.find({ threadId }))?.executionLocation).toBe(
-      EExecutionLocation.Docker,
+      EExecutionLocation.Cloud,
     )
   })
 
-  it('stays undecided when the spawner never chose one, so the default still answers', async () => {
+  it('stays undecided when the spawner never chose one', async () => {
     const entry = await open()
 
-    const { threadId, inheritedLocation } = await openChild(entry)
+    const { threadId } = await openChild(entry)
 
-    expect(inheritedLocation).toBeUndefined()
     expect((await entry.harness.threads.find({ threadId }))?.executionLocation).toBeUndefined()
   })
 })

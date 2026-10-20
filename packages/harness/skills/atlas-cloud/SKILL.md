@@ -10,11 +10,11 @@ freshness first; these instructions describe behavior, not live state. Load `atl
 
 ## Establish the placement
 
-Every thread is born-placed: it starts where it was created — the cloud when the machine can
-provision a sandbox, the host otherwise — and it never moves. Read workspace and execution
-reminders; `/atlas/workspaces/<repo-name>` alone does not prove location. The operator's
-`/container` reports the thread's placement, and the terminal chip shows connection state. Name
-what you cannot inspect.
+Every session runs in a pod (serve in a local Docker container) or a Vercel sandbox. A thread is
+born on its first send, on the runner the welcome chip shows, and the runner is fixed from then on;
+`/new` starts a fresh thread, which is how to switch. Read workspace and execution reminders;
+`/atlas/workspaces/<repo-name>` alone does not prove location. The operator's `/container` reports
+status, and the terminal chip shows connection state. Name what you cannot inspect.
 
 - The terminal client renders the conversation and provisions sandboxes with the operator's Vercel credentials.
 - The sandbox runs the harness, model requests, tools, shells, and services. Its drive persists session data.
@@ -40,16 +40,11 @@ The operator types these slash commands in Atlas, not in a shell:
 
 | Input                                 | Effect                                                            |
 | ------------------------------------- | ----------------------------------------------------------------- |
-| `/container`                          | Report where this thread was born and runs                        |
-| `/container off` or `/container host` | Switch a host-born thread's tool environment back to the host     |
-| `/container docker`                   | Switch a host-born thread's tool environment to local Docker      |
-| `/container resources`                | Resize a cloud sandbox's vCPUs live                               |
+| `/container`                          | Report where this thread runs                                     |
+| `/container resources`                | Resize the sandbox's vCPUs live                                   |
 
-`/container cloud` is not a move: threads are born-placed, so on a host-born thread it refuses and
-suggests starting a new thread — with cloud configured, new threads are born in the cloud. The same
-refusal answers `/container off|host|docker` on a cloud-born thread. `execution_location` switches
-host/Docker only — docker is an execution location; cloud-vs-local is placement, fixed at creation.
-There are no `/lift`, `/descend`, park, or wake commands.
+The runner (pod or Vercel sandbox) is chosen before the first message and cannot change afterwards;
+start a new thread with `/new` to use the other one. There are no `/lift`, `/descend`, park, or wake commands.
 
 ## What a cloud birth carries
 
@@ -59,13 +54,6 @@ ride the context bundle; copyable API-key accounts, ordinary secrets, and user s
 through portable state. Provider OAuth and MCP OAuth have the restrictions below. The workspace is
 cloned fresh in the sandbox at `/atlas/workspaces/<repo-name>` — sibling clones under that root are
 ephemeral: sandbox destruction deletes them, so preserve their work outside the sandbox.
-
-## Grandfathered threads
-
-Threads created before born-placed sessions keep the location they already have: a legacy local
-thread stays local and can still switch host/docker through `execution_location`; a legacy cloud
-thread keeps working exactly as before (park/wake/reattach). None of them can ever move — the
-answer to wanting the other placement is a new thread.
 
 ## Cloud sign-in, credentials, and backup
 
