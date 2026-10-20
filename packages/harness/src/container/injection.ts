@@ -1,8 +1,10 @@
 // tsyringe throws from its own module body when `Reflect.getMetadata` is absent, so the polyfill
-// must evaluate first. Bun's bundler hoists ESM initializers above CommonJS requires inside a lazily
-// wrapped module, so a bare `import 'reflect-metadata'` (CJS) here ran after tsyringe in the
-// compiled binary. Routing it through an ESM module keeps it in source order.
+// must evaluate first, and Bun needs a different import for each way it loads tsyringe. The bundler
+// takes tsyringe's ESM build and hoists ESM initializers above CommonJS requires, so the compiled
+// binary needs the ESM wrapper (tui-v1.119.0 shipped without it). `bun test` under
+// NODE_ENV=development takes tsyringe's CJS build and needs the direct import. Neither is redundant.
 import './reflect-polyfill'
+import 'reflect-metadata'
 
 import { container, type DependencyContainer, type InjectionToken } from 'tsyringe'
 
