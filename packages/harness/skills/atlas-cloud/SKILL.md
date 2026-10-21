@@ -27,14 +27,13 @@ what you cannot inspect.
 In `/settings` (`ctrl+o`) select cloud. Set the Vercel token through the secret-setting UI, plus
 `sandbox.vercelTeamId` and `sandbox.vercelProjectId` (also `VERCEL_TEAM_ID` and `VERCEL_PROJECT_ID`).
 The token uses Atlas's secret store, not a Vercel environment variable. Keep it out of conversation text.
-An Atlas Cloud sign-in is not required for API-key-based execution; provider OAuth needs handoff below.
+Starting a cloud thread requires an Atlas Cloud sign-in.
 
-Atlas reads `gh auth token` locally when first bootstrapping a sandbox. Missing credentials can leave
-it without GitHub access. Authenticate locally before starting a cloud thread. A later local
-`gh auth login` does not update an existing sandbox; verify its Git access and arrange sandbox
-authentication if needed. Released builds select a matching image; prefer that default.
-`sandbox.image` / `ATLAS_SANDBOX_IMAGE` overrides it for image-access debugging or an intentional
-runtime. Quota and billing belong to the operator.
+A sandbox gets GitHub access from Atlas Cloud, not from the local `gh` login: at boot it fetches its
+Project's repository, base branch and a clone token brokered from the GitHub connection on the cloud
+settings page. If Git access fails in a sandbox, check that connection. Released builds select a
+matching image; prefer that default. `sandbox.image` / `ATLAS_SANDBOX_IMAGE` overrides it for
+image-access debugging or an intentional runtime. Quota and billing belong to the operator.
 
 The operator types these slash commands in Atlas, not in a shell:
 
@@ -53,10 +52,11 @@ There are no `/lift`, `/descend`, park, or wake commands.
 
 ## What a cloud birth carries
 
-A cloud-born thread's sandbox boots from the local machine's bootstrap: user skills, global
-instructions, user MCP configuration, and project-local instruction files
-ride the context bundle; copyable API-key accounts, ordinary secrets, and user settings carry
-through portable state. Provider OAuth and MCP OAuth have the restrictions below. The workspace is
+A cloud-born thread's sandbox boots with a context archive from the local machine: user skills,
+global instructions, user MCP configuration, and project-local instruction files. Everything else
+it pulls from Atlas Cloud at boot: the Project to clone, accounts (OAuth ones without refresh
+tokens), secrets, settings, and the latest bundle published with `atlas push`, which overwrites
+matching archive files. Provider OAuth and MCP OAuth have the restrictions below. The workspace is
 cloned fresh in the sandbox at `/atlas/workspaces/<repo-name>` — sibling clones under that root are
 ephemeral: sandbox destruction deletes them, so preserve their work outside the sandbox.
 
@@ -77,7 +77,7 @@ Memory is not a Cloud backup domain; it lives in Atlas Cloud, and pods read it t
 Sign-in and backup can hand eligible Atlas-native Claude/Codex OAuth grants to Cloud's refresh
 authority. Sandboxes use assigned short-lived access tokens, not provider refresh
 tokens. Local-only or legacy CLI-imported grants need native authorization/handoff. MCP OAuth stays
-local and is excluded from portable credentials. Follow omission notices rather than assuming every
+local and never reaches a sandbox. Follow omission notices rather than assuming every
 login works in a cloud-born thread. Use `/auth` for provider sign-in and `/mcp signin <name>` for
 local MCP sign-in; choose sandbox-compatible MCP authentication for Cloud. Signing out does not
 return OAuth refresh authority to the local client; cached tokens can work until expiry, but renewal
