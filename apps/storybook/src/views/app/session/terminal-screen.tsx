@@ -10,11 +10,11 @@ export interface TerminalScreenProps {
   onRun?: (command: string) => void;
 }
 
-function Prompt({ cwd }: { cwd: string }) {
+function Prompt({ cwd, host = SANDBOX.host }: { cwd: string; host?: string }) {
   return (
     <span className="select-none">
       <span className="text-success">
-        {SANDBOX.user}@{SANDBOX.host}
+        {SANDBOX.user}@{host}
       </span>{" "}
       <span className="text-link">{cwd}</span>{" "}
       <span className="text-warning">({SANDBOX.branch})</span>{" "}
@@ -23,19 +23,19 @@ function Prompt({ cwd }: { cwd: string }) {
   );
 }
 
-function Entry({ entry }: { entry: TerminalEntry }) {
+function Entry({ entry, host }: { entry: TerminalEntry; host?: string }) {
   if (entry.kind === ETerminalEntry.Output) {
     return <div className="whitespace-pre-wrap text-foreground/80">{entry.text}</div>;
   }
   return (
     <div className="whitespace-pre-wrap">
-      <Prompt cwd={entry.cwd} />
+      <Prompt cwd={entry.cwd} host={host} />
       <span className="text-foreground">{entry.command}</span>
     </div>
   );
 }
 
-function LivePrompt({ cwd, onRun }: { cwd: string; onRun?: (command: string) => void }) {
+function LivePrompt({ cwd, host, onRun }: { cwd: string; host?: string; onRun?: (command: string) => void }) {
   const [command, setCommand] = useState("");
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -46,11 +46,11 @@ function LivePrompt({ cwd, onRun }: { cwd: string; onRun?: (command: string) => 
 
   return (
     <form onSubmit={handleSubmit} className="flex items-baseline">
-      <Prompt cwd={cwd} />
+      <Prompt cwd={cwd} host={host} />
       <input
         value={command}
         onChange={(event) => setCommand(event.target.value)}
-        aria-label="Sandbox shell input"
+        aria-label="Pod shell input"
         spellCheck={false}
         autoComplete="off"
         className="min-w-0 flex-1 bg-transparent text-foreground caret-success outline-none"
@@ -77,9 +77,9 @@ export function TerminalScreen({ terminal, live, onRun }: TerminalScreenProps) {
       )}
     >
       {terminal.entries.map((entry, index) => (
-        <Entry key={`${terminal.id}-${index}`} entry={entry} />
+        <Entry key={`${terminal.id}-${index}`} entry={entry} host={terminal.host} />
       ))}
-      {live ? <LivePrompt cwd={terminal.cwd} onRun={onRun} /> : null}
+      {live ? <LivePrompt cwd={terminal.cwd} host={terminal.host} onRun={onRun} /> : null}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   SidebarProvider,
 } from "@dltech/atlas-ui/components/sidebar";
 
+import type { AppThread } from "../../fixtures/app";
 import { AppSidebar } from "./app-sidebar";
 import { AtlasMark } from "./atlas-mark";
 import { EAppNav, type ShellDemoState } from "./shell-types";
@@ -17,6 +18,7 @@ export interface AppShellProps {
   activeNav?: EAppNav;
   defaultOpen?: boolean;
   demo?: ShellDemoState;
+  pendingThread?: AppThread;
 }
 
 const SIDEBAR_STYLE = { "--sidebar-width": "14rem" } as CSSProperties;
@@ -35,6 +37,7 @@ export function AppShell({
   activeNav = EAppNav.Threads,
   defaultOpen = true,
   demo,
+  pendingThread,
 }: AppShellProps) {
   return (
     <SidebarProvider
@@ -46,6 +49,7 @@ export function AppShell({
         activeThreadId={activeThreadId}
         activeNav={activeNav}
         demo={demo}
+        pendingThread={pendingThread}
       />
       <SidebarInset className="h-svh min-h-0 overflow-hidden">
         {children ?? <EmptyHome />}
