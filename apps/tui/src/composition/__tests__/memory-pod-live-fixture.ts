@@ -1,4 +1,4 @@
-import { MODEL_ID } from './pod-session-live-fixture'
+import { MODEL_ID, OPENROUTER_LEASE } from './pod-session-live-fixture'
 
 export const REMEMBER_TRIGGER = 'remember the pod fact'
 
@@ -147,6 +147,9 @@ export const startFakeMemoryApi = (): FakeMemoryApi => {
     fetch: async (request) => {
       const url = new URL(request.url)
       if (url.pathname.startsWith('/v1/pod-leases/')) return new Response(null, { status: 204 })
+      if (url.pathname === '/v1/account-lease') return Response.json(OPENROUTER_LEASE)
+      if (url.pathname === '/v1/settings') return Response.json({ settings: [] })
+      if (url.pathname === '/v1/secrets') return Response.json({ secrets: [] })
       const bearer = request.headers.get('authorization')
       if (bearer !== null) bearers.add(bearer)
       if (url.pathname === '/v1/memories' && request.method === 'GET') {

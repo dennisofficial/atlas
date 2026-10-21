@@ -9,7 +9,6 @@ import { beginCloudLogin, type CloudLoginTicket } from './device-login'
 import { restoreArchivedLocalFiles } from './local-recovery'
 import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
 import { downloadCloudData } from './sync-download'
-import { capturePortableState } from './portable-state'
 import {
   classifyOauthAccounts,
   prepareSandboxOauth,
@@ -39,6 +38,7 @@ export type SessionsClientFor = (args: {
 export class CloudService {
   private readonly sessions: CloudSessionStore
   private readonly localAccounts: AccountStorePort
+  private readonly accounts: AccountStorePort | undefined
   private readonly localSecrets: FileSecretsStore | undefined
   private readonly localSettings: SettingsStorePort | undefined
   private readonly defaultUrl: string
@@ -52,6 +52,7 @@ export class CloudService {
   constructor(args: {
     sessions: CloudSessionStore
     localAccounts: AccountStorePort
+    accounts?: AccountStorePort
     defaultUrl: string
     localSecrets?: FileSecretsStore
     localSettings?: SettingsStorePort
@@ -63,6 +64,7 @@ export class CloudService {
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
+    this.accounts = args.accounts
     this.localSecrets = args.localSecrets
     this.localSettings = args.localSettings
     this.defaultUrl = args.defaultUrl
@@ -172,17 +174,6 @@ export class CloudService {
     return parsed.success ? (parsed.data.user.email ?? null) : null
   }
 
-  async capturePortableState() {
-    const session = this.session()
-    const before = await classifyOauthAccounts({ accounts: this.localAccounts, session })
-    if (session !== null && before.eligible.length > 0) {
-      await this.handoffOauth?.(session, before.eligible)
-    }
-    const after = await classifyOauthAccounts({ accounts: this.localAccounts, session })
-    const omitted = session === null ? [...after.eligible, ...after.excluded.map((account) => account.id)] : after.excluded.map((account) => account.id)
-    return capturePortableState({ omitOauthAccountIds: omitted })
-  }
-
   async prepareSandboxOauth(args: {
     threadId: ThreadId
     token: string
@@ -190,7 +181,7 @@ export class CloudService {
     model?: string | undefined
   }): Promise<void> {
     await prepareSandboxOauth({
-      accounts: this.localAccounts,
+      accounts: this.accounts ?? this.localAccounts,
       session: this.session(),
       handoffOauth: this.handoffOauth,
       registration: { threadId: args.threadId, token: args.token, serveUrl: args.serveUrl },

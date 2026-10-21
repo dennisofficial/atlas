@@ -14,7 +14,7 @@ import {
 
 import {
   AnthropicOauthClient,
-  capturePortableState,
+  encodeSettingValue,
   fileAccountStore,
   FileSecretsStore,
   loadSettings,
@@ -23,7 +23,9 @@ import {
   SecretCipher,
 } from '@dltech/atlas-harness'
 
-import { EPortableStateBoot, installPortableState } from '../portable-state'
+import { applyCloudState } from '../cloud-state'
+import { EServeEvent } from '../serve-log'
+import { apiKeyAccount, SERVE_TOKEN, startFakeCloud } from './cloud-state-fixture'
 
 const clock: ClockPort = { now: () => new Date().toISOString() }
 
@@ -35,50 +37,41 @@ const tempHome = (): string => {
   return home
 }
 
-const writeBundle = (state: unknown): string => {
-  const directory = mkdtempSync(join(tmpdir(), 'atlas-serve-bundle-'))
-  homes.push(directory)
-  const path = join(directory, 'local-state.json')
-  writeFileSync(path, JSON.stringify(state))
-  return path
-}
-
-const seedSourceHome = async (home: string): Promise<void> => {
-  const store = fileAccountStore({ file: join(home, 'auth.json'), keyFile: join(home, 'key'), clock })
-  await store.add({
-    provider: EAuthProvider.Anthropic,
-    label: 'Anthropic (ANTHROPIC_API_KEY)',
-    secret: { kind: EAuthKind.ApiKey, apiKey: 'sk-ant-fake-birth' },
-    origin: EAccountOrigin.Environment,
-    importedFrom: 'environment:ANTHROPIC_API_KEY',
+const bootFromCloud = async (): Promise<string> => {
+  const target = tempHome()
+  const cloud = startFakeCloud({
+    lease: {
+      accounts: [
+        apiKeyAccount({
+          id: 'acc_anthropic',
+          provider: EAuthProvider.Anthropic,
+          apiKey: 'sk-ant-fake-birth',
+          label: 'Anthropic (ANTHROPIC_API_KEY)',
+        }),
+      ],
+      active: [{ provider: EAuthProvider.Anthropic, accountId: 'acc_anthropic' }],
+    },
+    settings: [{ key: ESettingId.SidebarWidth, value: encodeSettingValue(42) }],
+    secrets: [{ name: 'TAVILY_API_KEY', value: 'tvly-fake-birth' }],
   })
-  const secrets = new FileSecretsStore({
-    file: join(home, 'secrets.json'),
-    cipher: new SecretCipher(join(home, 'key')),
-  })
-  secrets.write({ name: 'TAVILY_API_KEY', value: 'tvly-fake-birth' })
+  try {
+    const events: string[] = []
+    await applyCloudState({
+      atlasHome: target,
+      controlPlaneUrl: cloud.url,
+      token: SERVE_TOKEN,
+      clientVersion: '0.0.0-test',
+      fetchFn: fetch,
+      log: (line) => events.push(line.event),
+    })
+    expect(events).toEqual([EServeEvent.CloudStateReady])
+  } finally {
+    await cloud.stop()
+  }
   writeFileSync(
-    join(home, 'settings.json'),
-    `${JSON.stringify({ [ESettingId.SidebarWidth]: 42 })}\n`,
-  )
-  writeFileSync(
-    join(home, 'mcp.json'),
+    join(target, 'mcp.json'),
     '{"fake-local":{"transport":{"kind":"stdio","command":"definitely-not-a-real-command"}}}\n',
   )
-}
-
-const installInto = async (source: string): Promise<string> => {
-  const state = await capturePortableState({ home: source })
-  const target = tempHome()
-  const previous = process.env.ATLAS_HOME
-  process.env.ATLAS_HOME = target
-  try {
-    const boot = await installPortableState({ path: writeBundle(state) })
-    expect(boot.kind).toBe(EPortableStateBoot.Installed)
-  } finally {
-    if (previous === undefined) delete process.env.ATLAS_HOME
-    else process.env.ATLAS_HOME = previous
-  }
   return target
 }
 
@@ -86,11 +79,9 @@ afterEach(() => {
   for (const home of homes.splice(0, homes.length)) rmSync(home, { recursive: true, force: true })
 })
 
-describe('serve local stores after a birth', () => {
-  it('reads the transferred environment account as a usable credential', async () => {
-    const source = tempHome()
-    await seedSourceHome(source)
-    const target = await installInto(source)
+describe('serve local stores after the cloud pull', () => {
+  it('reads the leased account as a usable credential', async () => {
+    const target = await bootFromCloud()
 
     const store = fileAccountStore({
       file: join(target, 'auth.json'),
@@ -107,7 +98,7 @@ describe('serve local stores after a birth', () => {
       clock,
     })
     const heldId = accounts[0]?.id
-    if (heldId === undefined) throw new Error('the transferred account did not install')
+    if (heldId === undefined) throw new Error('the leased account did not install')
 
     const credential = await port.read({ provider: EAuthProvider.Anthropic })
     expect(credential).toEqual({
@@ -117,10 +108,8 @@ describe('serve local stores after a birth', () => {
     })
   })
 
-  it('reads search secrets, settings and MCP specs off the installed home', async () => {
-    const source = tempHome()
-    await seedSourceHome(source)
-    const target = await installInto(source)
+  it('reads search secrets, settings and MCP specs off the pulled home', async () => {
+    const target = await bootFromCloud()
 
     const secrets = new FileSecretsStore({
       file: join(target, 'secrets.json'),

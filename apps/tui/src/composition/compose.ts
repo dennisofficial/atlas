@@ -105,6 +105,7 @@ export async function composeAtlas(args: {
   env: Record<string, string | undefined>
   settings: SettingsBinding
 }): Promise<AtlasApp> {
+  const pods = toggleValueOf({ resolution: args.settings.service.snapshot().resolution, id: ESettingId.ExperimentalPods })
   const app = await composeHarness<TuiSurface, QueuedSettled, PluginSurface>({
     launch: {
       cwd: args.config.cwd,
@@ -114,6 +115,7 @@ export async function composeAtlas(args: {
     },
     env: args.env,
     settings: args.settings,
+    cloudState: pods,
     clientVersion: clientVersionHeader(),
     ports: {
       ...sharedPortBindings,
@@ -219,7 +221,7 @@ export async function composeAtlas(args: {
     ...harness,
     config: args.config,
     command: args.command,
-    pods: toggleValueOf({ resolution: args.settings.service.snapshot().resolution, id: ESettingId.ExperimentalPods }),
+    pods,
     pluginProjections,
     pluginSurfaces:
       surface.githubSurface === null ? pluginSurfaces : [...pluginSurfaces, surface.githubSurface],

@@ -1,7 +1,22 @@
-import { join } from 'node:path'
+import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
-import { EAccountOrigin, EAuthKind, EAuthProvider, type ClockPort } from '@dltech/atlas-core'
-import { atlasDirectory, fileAccountStore } from '@dltech/atlas-harness'
+export const OPENROUTER_KEY = 'sk-or-fake'
+export const OPENROUTER_LEASE = {
+  accounts: [
+    {
+      id: 'acc_openrouter_lease',
+      provider: EAuthProvider.OpenRouter,
+      kind: EAuthKind.ApiKey,
+      origin: EAccountOrigin.Login,
+      label: 'OpenRouter',
+      status: EAccountStatus.Active,
+      createdAt: '2026-10-20T00:00:00.000Z',
+      updatedAt: '2026-10-20T00:00:00.000Z',
+      secret: { kind: EAuthKind.ApiKey, apiKey: OPENROUTER_KEY },
+    },
+  ],
+  active: [{ provider: EAuthProvider.OpenRouter, accountId: 'acc_openrouter_lease' }],
+}
 
 export const MODEL_ID = 'openai/gpt-4o-mini'
 
@@ -16,19 +31,8 @@ type ChatBody = { stream?: boolean; tools?: { function?: { name?: string } }[]; 
 export type FakeModel = {
   url: string
   requests: ChatBody[]
+  authorizations: (string | null)[]
   stop: () => Promise<void>
-}
-
-const clock: ClockPort = { now: () => new Date().toISOString() }
-
-export const seedOpenRouterAccount = async (): Promise<void> => {
-  const home = atlasDirectory()
-  await fileAccountStore({ file: join(home, 'auth.json'), keyFile: join(home, 'key'), clock }).add({
-    provider: EAuthProvider.OpenRouter,
-    label: 'OpenRouter',
-    secret: { kind: EAuthKind.ApiKey, apiKey: 'sk-or-fake' },
-    origin: EAccountOrigin.Login,
-  })
 }
 
 const textOf = (content: unknown): string => {
@@ -113,6 +117,7 @@ const completionOf = (reply: Reply): Response =>
 
 export const startFakeModel = ({ marker }: { marker: string }): FakeModel => {
   const requests: ChatBody[] = []
+  const authorizations: (string | null)[] = []
   const server = Bun.serve({
     port: 0,
     hostname: '0.0.0.0',
@@ -120,6 +125,7 @@ export const startFakeModel = ({ marker }: { marker: string }): FakeModel => {
       if (new URL(request.url).pathname !== '/v1/chat/completions') return new Response('not found', { status: 404 })
       const body = (await request.json()) as ChatBody
       requests.push(body)
+      authorizations.push(request.headers.get('authorization'))
       const reply = replyFor({ body, marker })
       return body.stream === true ? streamOf(reply) : completionOf(reply)
     },
@@ -127,6 +133,7 @@ export const startFakeModel = ({ marker }: { marker: string }): FakeModel => {
   return {
     url: `http://host.docker.internal:${server.port}/v1`,
     requests,
+    authorizations,
     stop: async () => {
       await server.stop(true)
     },

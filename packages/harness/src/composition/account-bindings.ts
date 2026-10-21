@@ -33,6 +33,7 @@ export async function bindAccounts(args: {
   clientVersion: string
   /** False in serve, where the vault was transferred with the sandbox and host sources must not touch it. */
   reconcileHostSources?: boolean
+  cloudBacked?: boolean
 }): Promise<{
   credentials: CredentialPort
   accounts: AccountsService
@@ -47,6 +48,7 @@ export async function bindAccounts(args: {
   const cloud = new CloudService({
     sessions: container.resolve(CloudSessionStoreToken),
     localAccounts: container.resolve(LocalAccountStoreToken),
+    accounts: accountStore,
     localSecrets: container.resolve(LocalSecretsStoreToken),
     ...(container.isRegistered(UserSettingsStoreToken, true)
       ? { localSettings: container.resolve(UserSettingsStoreToken) }
@@ -58,7 +60,7 @@ export async function bindAccounts(args: {
       : {}),
   })
 
-  if (args.reconcileHostSources !== false) {
+  if (args.reconcileHostSources !== false && args.cloudBacked !== true) {
     await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
   }
 

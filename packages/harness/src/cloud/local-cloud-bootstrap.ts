@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { SANDBOX_HOME_PATH, type PortableState, type VercelSandboxConfig } from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import { VercelDriver } from './vercel-driver'
 import type { RunnerDriver } from './runner-driver'
 
@@ -20,22 +20,6 @@ export const BOOTSTRAP_DIRECTORY = `${SANDBOX_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
 export const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
 export const VAULT_PROBE_PATH = `${SANDBOX_HOME_PATH}/auth.json`
-
-export type PortableOmissions = {
-  oauthAccounts: readonly string[]
-  mcpOauthSecrets: readonly string[]
-}
-
-export const portableOmissionsOf = (state: PortableState | undefined): PortableOmissions | null => {
-  if (state?.omitted === undefined) return null
-  if (state.omitted.oauthAccounts.length === 0 && state.omitted.mcpOauthSecrets.length === 0) {
-    return null
-  }
-  return {
-    oauthAccounts: state.omitted.oauthAccounts,
-    mcpOauthSecrets: state.omitted.mcpOauthSecrets,
-  }
-}
 
 export type SandboxRegistration = (args: {
   threadId: ThreadId

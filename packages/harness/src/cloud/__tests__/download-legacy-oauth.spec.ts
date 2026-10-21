@@ -15,7 +15,6 @@ import {
 import { memoryAccountStore } from '../../credentials/account-store'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
-import { openHome, seedSource } from './portable-state-fixture'
 
 const URL = 'https://cloud.test'
 const clock: ClockPort = { now: () => '2026-10-05T12:00:00.000Z' }
@@ -116,31 +115,5 @@ describe('explicit backup download of OAuth accounts', () => {
     expect(stored?.secret.kind === EAuthKind.Oauth ? stored.secret.authority?.connectionId : undefined).toBe('oauth_cloud')
     expect(JSON.stringify(stored)).not.toContain('fake-legacy-seed')
     expect(handoffs).toHaveLength(1)
-  })
-})
-
-describe('portable capture without an Atlas Cloud session', () => {
-  it('omits every OAuth account rather than carrying authority-less copies', async () => {
-    const source = openHome()
-    directories.push(source.directory)
-    const previous = process.env['ATLAS_HOME']
-    process.env['ATLAS_HOME'] = source.directory
-    try {
-      await seedSource({ source })
-      const sessions = new CloudSessionStore({ file: join(source.directory, 'cloud.json'), keyFile: join(source.directory, 'key') })
-      const service = new CloudService({
-        sessions,
-        localAccounts: source.store,
-        defaultUrl: URL,
-        signInOffer: { offered: () => true, markOffered: () => undefined },
-      })
-      const state = await service.capturePortableState()
-      expect(state.omitted?.oauthAccounts).toEqual(['Claude subscription'])
-      expect(state.accounts.find((account) => account.label === 'Claude subscription')?.status).toBe('expired')
-      expect(JSON.stringify(state)).not.toContain('fake-refresh-token')
-    } finally {
-      if (previous === undefined) delete process.env['ATLAS_HOME']
-      else process.env['ATLAS_HOME'] = previous
-    }
   })
 })

@@ -2,7 +2,6 @@ export { createLocalCloudBridge as createCloudBridge } from '@dltech/atlas-harne
 
 export {
   type BridgeDriver,
-  type PortableOmissions,
   type RegistrationSender,
   type SandboxRegistration,
 } from '@dltech/atlas-harness'

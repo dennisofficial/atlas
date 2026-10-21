@@ -61,7 +61,6 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
   localLog: app.log,
   settings: app.settings,
   projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
-  capturePortable: () => app.cloud.capturePortableState(),
   registerPodLease: ({ threadId, token }: { threadId: ThreadId; token: string }) => {
     const session = app.cloud.session()
     if (session === null) throw new Error(SIGN_IN_REQUIRED_MESSAGE)

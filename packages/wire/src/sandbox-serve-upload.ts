@@ -13,7 +13,7 @@ export const DEV_SERVE_VERSION_PREFIX = 'dev-'
 /**
  * `@vercel/sandbox` 3.3.0 `writeFiles` gzips the whole tar into one in-memory buffer and sends a
  * single POST, so a full serve binary goes up in parts. 4 MiB per part is the size proven against
- * real Vercel by packages/harness/spikes/live-local-first-smoke.ts.
+ * real Vercel (docs/research/local-first-live-verification.md).
  */
 export const DEV_SERVE_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
 export const DEV_SERVE_UPLOAD_ATTEMPTS = 3

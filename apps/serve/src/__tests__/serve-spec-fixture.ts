@@ -60,7 +60,7 @@ export const startWithDriveSpec = async (args: {
     controlPlaneUrl: CONTROL_PLANE,
     env: {},
     cwd: '/workspace',
-    ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
+    fetchFn: args.fetchFn ?? ((async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch),
     compose: args.compose,
     ensureWorkspace: args.ensureWorkspace ?? (async () => ({ state: EWorkspaceState.Skipped })),
     contextFiles: inMemoryContextFiles(),

@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
-import type { PortableState } from '@dltech/atlas-wire'
 
 import { ECloudSandboxState } from '@dltech/atlas-harness'
 import type { VercelSandboxConfig } from '@dltech/atlas-wire'
-import {
-  createCloudBridge,
-  type BridgeDriver,
-  type PortableOmissions,
-} from '../create-bridge'
+import { createCloudBridge, type BridgeDriver } from '../create-bridge'
 
 const THREAD = toThreadId('brn_cloud')
 
@@ -18,14 +13,6 @@ type RecordedWrite = { path: string; content: Uint8Array | string }
 const CONFIG: VercelSandboxConfig = {
   credentials: { token: 'vercel-test-token', teamId: 'team_test', projectId: 'prj_test' },
   image: 'atlas-sandbox:test',
-}
-
-const PORTABLE: PortableState = {
-  version: 1,
-  vaultKeyHex: 'ab'.repeat(32),
-  accounts: [],
-  active: [],
-  secrets: [],
 }
 
 type FakeDriver = BridgeDriver & {
@@ -77,16 +64,13 @@ const bridgeWith = (args: {
   driver: FakeDriver
   token?: string
   signedIn?: boolean
-  portable?: PortableState
   registration?: (() => unknown) | undefined
   sendRegistration?: ((registration: Record<string, unknown>) => unknown) | undefined
   onRegistrationFailed?: ((failure: unknown) => void) | undefined
-  onOmitted?: ((omitted: PortableOmissions) => void) | undefined
 }) =>
   createCloudBridge({
     vercel: () => CONFIG,
     attachmentToken: () => args.token ?? 'stable-serve-token',
-    capturePortable: async () => args.portable ?? PORTABLE,
     ...(args.registration === undefined
       ? args.signedIn === false
         ? {}
@@ -98,7 +82,6 @@ const bridgeWith = (args: {
     ...(args.onRegistrationFailed === undefined
       ? {}
       : { onRegistrationFailed: args.onRegistrationFailed }),
-    ...(args.onOmitted === undefined ? {} : { onPortableOmitted: args.onOmitted }),
     driverWith: () => args.driver,
   })
 
@@ -114,7 +97,7 @@ describe('createCloudBridge sandboxes.create', () => {
     expect(sandbox.created).toBe(true)
   })
 
-  it('writes the project pointer and portable snapshot before launch on a fresh boot', async () => {
+  it('writes the project pointer before launch on a fresh boot', async () => {
     const driver = fakeDriver({ created: true })
     const bridge = bridgeWith({ driver, signedIn: false })
 
@@ -122,13 +105,12 @@ describe('createCloudBridge sandboxes.create', () => {
 
     const paths = driver.written.map((write) => write.path)
     expect(paths).toContain('/atlas/home/bootstrap/workspace-spec.json')
-    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
 
     const spec = driver.written.find((write) => write.path.endsWith('workspace-spec.json'))
     expect(JSON.parse(String(spec?.content))).toEqual({ remoteUrl: null, githubToken: null, projectId: 'proj_1' })
   })
 
-  it('never rewrites the workspace spec or portable snapshot on a resume with a live vault', async () => {
+  it('never rewrites the workspace spec on a resume with a live vault', async () => {
     const driver = fakeDriver({ created: false, vaultPresent: true })
     const bridge = bridgeWith({ driver, signedIn: false })
 
@@ -144,7 +126,6 @@ describe('createCloudBridge sandboxes.create', () => {
     await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     const paths = driver.written.map((write) => write.path)
-    expect(paths).toContain('/atlas/home/bootstrap/local-state.json')
     expect(paths).not.toContain('/atlas/home/bootstrap/workspace-spec.json')
   })
 
@@ -239,70 +220,25 @@ describe('createCloudBridge sandboxes.create', () => {
     expect(Date.now() - started).toBeLessThan(1_000)
   })
 
-  it('reports what the portable snapshot omitted after a fresh boot', async () => {
-    const omitted: PortableOmissions[] = []
-    const driver = fakeDriver({ created: true })
-    const bridge = bridgeWith({
-      driver,
-      signedIn: false,
-      portable: {
-        ...PORTABLE,
-        omitted: {
-          oauthAccounts: ['claude-subscription'],
-          mcpOauthSecrets: ['mcp-oauth:linear'],
-        },
-      },
-      onOmitted: (report) => omitted.push(report),
-    })
-
-    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
-
-    expect(omitted).toEqual([
-      { oauthAccounts: ['claude-subscription'], mcpOauthSecrets: ['mcp-oauth:linear'] },
-    ])
-  })
-
-  it('stays quiet when a healthy resume never captured, and when nothing was omitted', async () => {
-    const omitted: PortableOmissions[] = []
-    const resumed = fakeDriver({ created: false, vaultPresent: true })
-    const resumedBridge = bridgeWith({
-      driver: resumed,
-      signedIn: false,
-      portable: {
-        ...PORTABLE,
-        omitted: { oauthAccounts: ['claude-subscription'], mcpOauthSecrets: [] },
-      },
-      onOmitted: (report) => omitted.push(report),
-    })
-
-    await resumedBridge.sandboxes.create({ threadId: THREAD, projectId: null })
-
-    const fresh = fakeDriver({ created: true })
-    const freshBridge = bridgeWith({ driver: fresh, signedIn: false, onOmitted: (report) => omitted.push(report) })
-
-    await freshBridge.sandboxes.create({ threadId: THREAD, projectId: null })
-
-    expect(omitted).toEqual([])
-  })
-
-  it('recovers a failed first boot: a retry that now resumes still stages the snapshot', async () => {
+  it('stages the context archive on a resume whose vault never materialised', async () => {
     const driver = fakeDriver({ created: false, vaultPresent: false })
-    const captures: number[] = []
+    const archives: number[] = []
     const bridge = createCloudBridge({
       vercel: () => CONFIG,
       attachmentToken: () => 'stable-serve-token',
-      capturePortable: async () => {
-        captures.push(1)
-        return PORTABLE
-      },
       driverWith: () => driver,
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
+    await bridge.sandboxes.create({
+      threadId: THREAD,
+      projectId: null,
+      captureContext: async (put) => {
+        archives.push(1)
+        await put(new Uint8Array(2))
+      },
+    })
 
-    expect(captures).toHaveLength(1)
-    expect(driver.written.map((write) => write.path)).toContain(
-      '/atlas/home/bootstrap/local-state.json',
-    )
+    expect(archives).toHaveLength(1)
+    expect(driver.written.map((write) => write.path)).toContain('/atlas/home/bootstrap/context.tar.gz')
   })
 })

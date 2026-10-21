@@ -73,24 +73,6 @@ const registryMetadataOf = async (args: {
   return metadata
 }
 
-const portableOmissionNotice = (omitted: {
-  oauthAccounts: readonly string[]
-  mcpOauthSecrets: readonly string[]
-}): string => {
-  const parts: string[] = []
-  if (omitted.oauthAccounts.length > 0) {
-    parts.push(
-      `OAuth logins stayed local (${omitted.oauthAccounts.join(', ')}) — sign in again with /auth to authorize them with Atlas Cloud before the cloud session can use them`,
-    )
-  }
-  if (omitted.mcpOauthSecrets.length > 0) {
-    parts.push(
-      `MCP OAuth sign-ins stayed local (${omitted.mcpOauthSecrets.join(', ')}) — these servers need separately configured non-OAuth credentials to authenticate in a detached sandbox`,
-    )
-  }
-  return `the cloud session boots without everything this machine holds: ${parts.join('; ')}`
-}
-
 export const cloudUrlOf = (app: {
   cloud: { session(): { url: string } | null }
   settings: { snapshot(): { resolution: SettingsResolution } }
@@ -121,15 +103,8 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   localLog: app.log,
   settings: app.settings,
   projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
-  capturePortable: () => app.cloud.capturePortableState(),
   authorizeSandbox: (authorization) => app.cloud.prepareSandboxOauth(authorization),
   cloudUrl: () => cloudUrlOf(app),
-  onPortableOmitted: (omitted) => {
-    noticePortBinding().notify({
-      text: portableOmissionNotice(omitted),
-      tone: ENoticeTone.Warn,
-    })
-  },
   registration: async ({ threadId }) => {
     if (app.cloud.session() === null) return undefined
     const metadata = await registryMetadataOf({ app, threadId }).catch(() => undefined)

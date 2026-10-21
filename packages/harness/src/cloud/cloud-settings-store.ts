@@ -62,6 +62,10 @@ export class CloudSettingsStore {
     return this.sessions.read() !== null
   }
 
+  sessionToken(): string | undefined {
+    return this.sessions.read()?.token
+  }
+
   invalidate(): void {
     this.held = undefined
   }

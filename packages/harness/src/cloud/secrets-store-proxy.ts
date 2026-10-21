@@ -4,6 +4,14 @@ import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteSecretsStore } from './remote-secrets-store'
+import { SANDBOX_SERVE_TOKEN_PREFIX } from './sandbox-attachment'
+
+const MCP_OAUTH_PREFIX = 'mcp-oauth'
+
+const LOCAL_ONLY_PREFIXES: readonly string[] = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, `${MCP_OAUTH_PREFIX}:`]
+
+export const isLocalOnlySecret = (name: string): boolean =>
+  LOCAL_ONLY_PREFIXES.some((prefix) => name.startsWith(prefix))
 
 /**
  * A cleared session — logout or a refused token — retires the remote store on the spot: its warmed
@@ -42,15 +50,19 @@ export class SecretsStoreProxy implements SecretsPort {
   }
 
   read(name: string): string | undefined {
-    return this.current().read(name)
+    return this.routed(name).read(name)
   }
 
   write(args: { name: string; value: string }): void {
-    this.current().write(args)
+    this.routed(args.name).write(args)
   }
 
   remove(name: string): void {
-    this.current().remove(name)
+    this.routed(name).remove(name)
+  }
+
+  private routed(name: string): SecretsPort {
+    return isLocalOnlySecret(name) ? this.local : this.current()
   }
 
   private current(): SecretsPort {
@@ -64,27 +76,26 @@ export class SecretsStoreProxy implements SecretsPort {
     if (session === null) return undefined
 
     if (this.remote?.token !== session.token) {
-      this.remote = {
-        token: session.token,
-        store: new RemoteSecretsStore({
-          client: cloudClientFor({
-            session,
-            ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
-          }),
-          ...(this.notice === undefined
-            ? {}
-            : {
-                onWriteFailure: ({ name, failure }) => {
-                  this.notice?.notify({
-                    key: 'cloud:secrets-write-behind',
-                    tone: ENoticeTone.Warn,
-                    ttlMs: null,
-                    text: `a write to Atlas Cloud secrets failed for ${name} (${failure.message}) — the value lives on this machine only until the cloud takes it. A successful write or re-warm replaces this notice.`,
-                  })
-                },
-              }),
+      const store = new RemoteSecretsStore({
+        client: cloudClientFor({
+          session,
+          ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
         }),
-      }
+        ...(this.notice === undefined
+          ? {}
+          : {
+              onWriteFailure: ({ name, failure }) => {
+                this.notice?.notify({
+                  key: 'cloud:secrets-write-behind',
+                  tone: ENoticeTone.Warn,
+                  ttlMs: null,
+                  text: `a write to Atlas Cloud secrets failed for ${name} (${failure.message}) — the value lives on this machine only until the cloud takes it. A successful write or re-warm replaces this notice.`,
+                })
+              },
+            }),
+      })
+      this.remote = { token: session.token, store }
+      void store.warm().catch(() => undefined)
     }
 
     return this.remote.store

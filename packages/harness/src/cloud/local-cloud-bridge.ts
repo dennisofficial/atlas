@@ -11,19 +11,15 @@ import {
 } from './cloud-bridge'
 import {
   SANDBOX_SERVE_PORT,
-  PORTABLE_STATE_PATH,
-  type PortableState,
   type VercelSandboxConfig,
 } from '@dltech/atlas-wire'
 import {
   bootstrapSpecOf,
   CONTEXT_ARCHIVE_PATH,
   liveDriverWith,
-  portableOmissionsOf,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
   type LiveSandbox,
-  type PortableOmissions,
   vaultPresentInSandbox,
 } from './local-cloud-bootstrap'
 import { attachmentOf } from './local-cloud-attachment'
@@ -43,12 +39,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
         cloudUrl: args.cloudUrl?.() ?? '',
       }))
 
-  const notifyOmitted = (omissions: PortableOmissions): void => {
-    try {
-      args.onPortableOmitted?.(omissions)
-    } catch {}
-  }
-
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
   ): Promise<CloudSandbox> => {
@@ -59,18 +49,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
 
     const observed = await driver.inspect({ name })
     const freshBoot = observed === undefined
-
-    let portable: PortableState | undefined
-    let portableCaptured = false
-    let stagedPortable = false
-    const captureOnce = async (): Promise<PortableState | undefined> => {
-      if (args.capturePortable === undefined) return undefined
-      if (!portableCaptured) {
-        portable = await args.capturePortable()
-        portableCaptured = true
-      }
-      return portable
-    }
 
     let authorized = false
     const authorize = async (serveUrl: () => string): Promise<void> => {
@@ -97,20 +75,9 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           content: bootstrap,
         })
       }
-      const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
-      if (needsPortable) {
-        const captured = await captureOnce()
-        if (captured !== undefined) {
-          await driver.writeBootstrapFileToSandbox({
-            sandbox,
-            path: PORTABLE_STATE_PATH,
-            content: JSON.stringify(captured),
-          })
-          stagedPortable = true
-        }
-      }
+      const stagesFresh = freshBoot || !(await vaultPresentInSandbox(sandbox))
       await authorize(() => sandbox.domain(SANDBOX_SERVE_PORT))
-      if (createArgs.captureContext === undefined || !needsPortable) return
+      if (createArgs.captureContext === undefined || !stagesFresh) return
       await createArgs.captureContext((archive) =>
         transferBufferedArchive({
           archive,
@@ -137,11 +104,6 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     })
 
     if (!authorized) await authorize(() => placement.url)
-
-    if (stagedPortable) {
-      const omissions = portableOmissionsOf(portable)
-      if (omissions !== null) notifyOmitted(omissions)
-    }
 
     registerInBackground({
       options: args,

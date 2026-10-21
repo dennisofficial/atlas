@@ -138,6 +138,19 @@ describe('SecretsStoreProxy with a session', () => {
     ])
   })
 
+  it('warms the remote store on the first read after a mid-process sign-in', async () => {
+    expect(proxy.read('remote.key')).toBeUndefined()
+    expect(fetchCalls).toHaveLength(0)
+
+    signIn('sess_a')
+    expect(proxy.read('remote.key')).toBeUndefined()
+    await flushWrites()
+    expect(fetchCalls).toHaveLength(1)
+
+    await proxy.warm()
+    expect(proxy.read('remote.key')).toBe('cloud-value')
+  })
+
   it('reuses the remote store while the token is unchanged', async () => {
     signIn('sess_a')
     await proxy.warm()
@@ -192,5 +205,43 @@ describe('SecretsStoreProxy with a session', () => {
     })
     expect(posts[0]?.text).toContain('doomed')
     expect(posts[0]?.text).toContain('vault sealed')
+  })
+})
+
+describe('SecretsStoreProxy local-only names', () => {
+  it.each(['sandbox-serve:thr_1', 'mcp-oauth:https://mcp.test/'])(
+    'keeps %s on the local file store even with a session',
+    async (name) => {
+      signIn('sess_a')
+      await proxy.warm()
+      fetchCalls.length = 0
+
+      proxy.write({ name, value: 'client-held' })
+      await flushWrites()
+
+      expect(local.read(name)).toBe('client-held')
+      expect(proxy.read(name)).toBe('client-held')
+      expect(fetchCalls).toHaveLength(0)
+
+      proxy.remove(name)
+      await flushWrites()
+
+      expect(local.read(name)).toBeUndefined()
+      expect(fetchCalls).toHaveLength(0)
+    },
+  )
+
+  it('still routes every other name to the cloud', async () => {
+    signIn('sess_a')
+    await proxy.warm()
+    fetchCalls.length = 0
+
+    proxy.write({ name: 'search.exa', value: 'cloud-held' })
+    await flushWrites()
+
+    expect(local.read('search.exa')).toBeUndefined()
+    expect(fetchCalls.map((call) => `${call.method} ${call.url}`)).toEqual([
+      'PUT http://cloud.test/v1/secrets/search.exa',
+    ])
   })
 })
