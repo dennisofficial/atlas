@@ -2,10 +2,10 @@ import { EToolKind } from "@dltech/atlas-ui/ai/tool";
 
 import { EThreadStatus, findProject, type AppThread } from "../../../fixtures/app";
 import type { StepSpec } from "../session/transcript-data";
-import { ENewThreadStage, isProvisioningStage } from "./new-thread-types";
+import { EFirstMessage, EPodProgress, isStartingPod } from "./new-thread-types";
 
 export interface PodStage {
-  stage: ENewThreadStage;
+  pod: EPodProgress;
   label: string;
 }
 
@@ -26,25 +26,24 @@ export function projectLabelOf(projectId: string | null): string {
 export const FIXTURE_PROMPT = "Fix the flaky reconnect spec in apps/serve.";
 
 export const POD_STAGES: PodStage[] = [
-  { stage: ENewThreadStage.WaitingForPod, label: "Waiting for the pod" },
-  { stage: ENewThreadStage.SettingUpWorkspace, label: "Setting up the workspace" },
+  { pod: EPodProgress.WaitingForPod, label: "Waiting for the pod" },
+  { pod: EPodProgress.SettingUpWorkspace, label: "Setting up the workspace" },
 ];
 
-export const STAGE_DELAY_MS: Partial<Record<ENewThreadStage, number>> = {
-  [ENewThreadStage.WaitingForPod]: 2500,
-  [ENewThreadStage.SettingUpWorkspace]: 2000,
+export const POD_DELAY_MS: Partial<Record<EPodProgress, number>> = {
+  [EPodProgress.WaitingForPod]: 2500,
+  [EPodProgress.SettingUpWorkspace]: 2000,
 };
 
 export const STEP_DELAYS_MS = [650, 900, 700, 850, 800];
 
 export const SETTLE_DELAY_MS = 700;
 
-export const SEEDED_ELAPSED: Partial<Record<ENewThreadStage, number>> = {
-  [ENewThreadStage.WaitingForPod]: 2,
-  [ENewThreadStage.SettingUpWorkspace]: 6,
-  [ENewThreadStage.Streaming]: 8,
-  [ENewThreadStage.Idle]: 8,
-  [ENewThreadStage.ProvisionFailed]: 3,
+export const SEEDED_ELAPSED: Partial<Record<EPodProgress, number>> = {
+  [EPodProgress.WaitingForPod]: 2,
+  [EPodProgress.SettingUpWorkspace]: 6,
+  [EPodProgress.Ready]: 8,
+  [EPodProgress.ProvisionFailed]: 3,
 };
 
 export const SEEDED_REPLY_WORDS = 18;
@@ -96,12 +95,13 @@ export function titleOf(prompt: string): string {
 interface PendingThreadInput {
   prompt: string;
   projectId: string | null;
-  stage: ENewThreadStage;
+  pod: EPodProgress;
+  message: EFirstMessage;
 }
 
-export function pendingThreadOf({ prompt, projectId, stage }: PendingThreadInput): AppThread | undefined {
-  if (stage === ENewThreadStage.Draft) return undefined;
-  const live = isProvisioningStage(stage) || stage === ENewThreadStage.Streaming;
+export function pendingThreadOf({ prompt, projectId, pod, message }: PendingThreadInput): AppThread | undefined {
+  if (pod === EPodProgress.None) return undefined;
+  const live = isStartingPod(pod) || message === EFirstMessage.Running;
   return {
     id: PENDING_THREAD_ID,
     projectId,

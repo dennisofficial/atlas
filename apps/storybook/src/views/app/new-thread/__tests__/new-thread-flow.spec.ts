@@ -11,98 +11,151 @@ import {
   projectLabelOf,
   titleOf,
 } from "../new-thread-data";
-import { emptyFrom, retryFrom, sendFrom, type ThreadCore } from "../new-thread-transitions";
-import { ENewThreadOutcome, ENewThreadStage, nextStage, startStageOf } from "../new-thread-types";
+import { seededCore } from "../new-thread-seed";
+import { advancePod, retryFrom, sendFrom, takeBackFrom, type ThreadCore } from "../new-thread-transitions";
+import { EFirstMessage, ENewThreadOutcome, EPodProgress, startPodOf } from "../new-thread-types";
 
-const SENT: ThreadCore = { stage: ENewThreadStage.WaitingForPod, prompt: FIXTURE_PROMPT, draft: "" };
+const SUCCESS = ENewThreadOutcome.Success;
 
-describe("nextStage", () => {
-  it("moves provisioning on to workspace setup and then streaming", () => {
-    const outcome = ENewThreadOutcome.Success;
-    expect(nextStage({ stage: ENewThreadStage.WaitingForPod, outcome })).toBe(ENewThreadStage.SettingUpWorkspace);
-    expect(nextStage({ stage: ENewThreadStage.SettingUpWorkspace, outcome })).toBe(ENewThreadStage.Streaming);
-  });
+const PENDING: ThreadCore = {
+  pod: EPodProgress.WaitingForPod,
+  message: EFirstMessage.Pending,
+  prompt: FIXTURE_PROMPT,
+  draft: "",
+};
 
-  it("fails at the first stage when the outcome is a provision failure", () => {
-    const next = nextStage({ stage: ENewThreadStage.WaitingForPod, outcome: ENewThreadOutcome.ProvisionFailed });
-    expect(next).toBe(ENewThreadStage.ProvisionFailed);
-  });
+const TAKEN_BACK: ThreadCore = {
+  pod: EPodProgress.WaitingForPod,
+  message: EFirstMessage.None,
+  prompt: "",
+  draft: FIXTURE_PROMPT,
+};
 
-  it("leaves settled stages alone", () => {
-    const outcome = ENewThreadOutcome.Success;
-    expect(nextStage({ stage: ENewThreadStage.Idle, outcome })).toBe(ENewThreadStage.Idle);
-    expect(nextStage({ stage: ENewThreadStage.Draft, outcome })).toBe(ENewThreadStage.Draft);
-    expect(nextStage({ stage: ENewThreadStage.Empty, outcome })).toBe(ENewThreadStage.Empty);
-  });
-});
-
-describe("startStageOf", () => {
+describe("startPodOf", () => {
   it("fails fast for the token outcome and provisions otherwise", () => {
-    expect(startStageOf(ENewThreadOutcome.NoVercelToken)).toBe(ENewThreadStage.NoVercelToken);
-    expect(startStageOf(ENewThreadOutcome.Success)).toBe(ENewThreadStage.WaitingForPod);
-    expect(startStageOf(ENewThreadOutcome.ProvisionFailed)).toBe(ENewThreadStage.WaitingForPod);
+    expect(startPodOf(ENewThreadOutcome.NoVercelToken)).toBe(EPodProgress.NoVercelToken);
+    expect(startPodOf(SUCCESS)).toBe(EPodProgress.WaitingForPod);
+    expect(startPodOf(ENewThreadOutcome.ProvisionFailed)).toBe(EPodProgress.WaitingForPod);
   });
 
   it("has no not-signed-in outcome", () => {
     expect(Object.values(ENewThreadOutcome)).not.toContain("not-signed-in");
-    expect(Object.values(ENewThreadStage)).not.toContain("not-signed-in");
   });
 });
 
 describe("sendFrom", () => {
-  const outcome = ENewThreadOutcome.Success;
+  const draft: ThreadCore = { pod: EPodProgress.None, message: EFirstMessage.None, prompt: "", draft: "hi" };
 
-  it("starts provisioning from Draft with an empty composer", () => {
-    const core: ThreadCore = { stage: ENewThreadStage.Draft, prompt: "", draft: "hello" };
-    expect(sendFrom({ core, text: "hello", outcome })).toEqual({
-      stage: ENewThreadStage.WaitingForPod,
-      prompt: "hello",
+  it("starts the pod and makes the message pending from the welcome screen", () => {
+    expect(sendFrom({ core: draft, text: "hi", outcome: SUCCESS })).toEqual({
+      pod: EPodProgress.WaitingForPod,
+      message: EFirstMessage.Pending,
+      prompt: "hi",
       draft: "",
     });
   });
 
-  it("provisions again from Empty", () => {
-    const core: ThreadCore = { stage: ENewThreadStage.Empty, prompt: "", draft: FIXTURE_PROMPT };
-    const next = sendFrom({ core, text: FIXTURE_PROMPT, outcome });
-    expect(next?.stage).toBe(ENewThreadStage.WaitingForPod);
-    expect(next?.prompt).toBe(FIXTURE_PROMPT);
-    expect(next?.draft).toBe("");
+  it("makes a send while the pod is starting the pending message without restarting the pod", () => {
+    for (const pod of [EPodProgress.WaitingForPod, EPodProgress.SettingUpWorkspace]) {
+      const next = sendFrom({ core: { ...TAKEN_BACK, pod }, text: FIXTURE_PROMPT, outcome: SUCCESS });
+      expect(next).toEqual({ pod, message: EFirstMessage.Pending, prompt: FIXTURE_PROMPT, draft: "" });
+    }
+  });
+
+  it("runs the message immediately when the pod is ready with no message", () => {
+    const core: ThreadCore = { ...TAKEN_BACK, pod: EPodProgress.Ready };
+    const next = sendFrom({ core, text: FIXTURE_PROMPT, outcome: SUCCESS });
+    expect(next).toEqual({ pod: EPodProgress.Ready, message: EFirstMessage.Running, prompt: FIXTURE_PROMPT, draft: "" });
   });
 
   it("keeps the composer empty after a failure outcome", () => {
-    const core: ThreadCore = { stage: ENewThreadStage.Empty, prompt: "", draft: FIXTURE_PROMPT };
-    const next = sendFrom({ core, text: FIXTURE_PROMPT, outcome: ENewThreadOutcome.NoVercelToken });
-    expect(next).toEqual({ stage: ENewThreadStage.NoVercelToken, prompt: FIXTURE_PROMPT, draft: "" });
+    const next = sendFrom({ core: draft, text: "hi", outcome: ENewThreadOutcome.NoVercelToken });
+    expect(next?.pod).toBe(EPodProgress.NoVercelToken);
+    expect(next?.draft).toBe("");
   });
 
-  it("refuses while provisioning, streaming or idle", () => {
-    for (const stage of [ENewThreadStage.WaitingForPod, ENewThreadStage.Streaming, ENewThreadStage.Idle]) {
-      expect(sendFrom({ core: { ...SENT, stage }, text: "x", outcome })).toBeUndefined();
+  it("leaves a thread with a first message alone", () => {
+    for (const message of [EFirstMessage.Pending, EFirstMessage.Running, EFirstMessage.Done]) {
+      expect(sendFrom({ core: { ...PENDING, message }, text: "x", outcome: SUCCESS })).toBeUndefined();
     }
   });
 });
 
-describe("cancel and edit message", () => {
-  it("go to Empty with the text restored, never to Draft", () => {
-    const failed = { ...SENT, stage: ENewThreadStage.ProvisionFailed };
-    for (const core of [SENT, failed]) {
-      const next = emptyFrom(core);
-      expect(next.stage).toBe(ENewThreadStage.Empty);
-      expect(next.stage).not.toBe(ENewThreadStage.Draft);
-      expect(next.draft).toBe(FIXTURE_PROMPT);
-      expect(next.prompt).toBe("");
+describe("takeBackFrom", () => {
+  it("returns the pending message to the composer and never stops the pod", () => {
+    for (const pod of [EPodProgress.WaitingForPod, EPodProgress.SettingUpWorkspace, EPodProgress.ProvisionFailed]) {
+      const next = takeBackFrom({ ...PENDING, pod });
+      expect(next).toEqual({ pod, message: EFirstMessage.None, prompt: "", draft: FIXTURE_PROMPT });
     }
+  });
+
+  it("ignores a message that is already running or done", () => {
+    for (const message of [EFirstMessage.Running, EFirstMessage.Done]) {
+      const core = { ...PENDING, pod: EPodProgress.Ready, message };
+      expect(takeBackFrom(core)).toBe(core);
+    }
+  });
+
+  it("does nothing when there is no message to take back", () => {
+    expect(takeBackFrom(TAKEN_BACK)).toBe(TAKEN_BACK);
+  });
+
+  it("is idempotent, so a repeated Escape cannot lose the draft", () => {
+    const once = takeBackFrom(PENDING);
+    expect(takeBackFrom(once)).toBe(once);
+    expect(once.draft).toBe(FIXTURE_PROMPT);
+  });
+});
+
+describe("advancePod", () => {
+  it("keeps advancing after a take-back and reaches ready with no message", () => {
+    const setting = advancePod({ core: TAKEN_BACK, outcome: SUCCESS });
+    expect(setting.pod).toBe(EPodProgress.SettingUpWorkspace);
+    const ready = advancePod({ core: setting, outcome: SUCCESS });
+    expect(ready.pod).toBe(EPodProgress.Ready);
+    expect(ready.message).toBe(EFirstMessage.None);
+    expect(ready.draft).toBe(FIXTURE_PROMPT);
+  });
+
+  it("runs the pending message once the pod is ready", () => {
+    const setting = advancePod({ core: PENDING, outcome: SUCCESS });
+    const ready = advancePod({ core: setting, outcome: SUCCESS });
+    expect(ready.message).toBe(EFirstMessage.Running);
+  });
+
+  it("fails at the first stage on a provision failure and keeps the pending message", () => {
+    const failed = advancePod({ core: PENDING, outcome: ENewThreadOutcome.ProvisionFailed });
+    expect(failed.pod).toBe(EPodProgress.ProvisionFailed);
+    expect(failed.message).toBe(EFirstMessage.Pending);
+  });
+
+  it("leaves settled pods alone", () => {
+    const ready: ThreadCore = { ...PENDING, pod: EPodProgress.Ready };
+    expect(advancePod({ core: ready, outcome: SUCCESS })).toBe(ready);
   });
 });
 
 describe("retryFrom", () => {
-  it("reuses the sent message and leaves the composer empty", () => {
-    const failed = { ...SENT, stage: ENewThreadStage.ProvisionFailed };
-    expect(retryFrom({ core: failed, outcome: ENewThreadOutcome.Success })).toEqual({
-      stage: ENewThreadStage.WaitingForPod,
-      prompt: FIXTURE_PROMPT,
-      draft: "",
-    });
+  it("re-provisions and keeps the pending message and an empty composer", () => {
+    const failed = { ...PENDING, pod: EPodProgress.ProvisionFailed };
+    expect(retryFrom({ core: failed, outcome: SUCCESS })).toEqual(PENDING);
+  });
+
+  it("retries a failure with no message", () => {
+    const failed = { ...TAKEN_BACK, pod: EPodProgress.ProvisionFailed };
+    expect(retryFrom({ core: failed, outcome: SUCCESS }).pod).toBe(EPodProgress.WaitingForPod);
+  });
+});
+
+describe("seededCore", () => {
+  it("seeds a taken-back thread with the text in the composer and no message", () => {
+    expect(seededCore({ pod: EPodProgress.WaitingForPod, message: EFirstMessage.None })).toEqual(TAKEN_BACK);
+  });
+
+  it("seeds a ready pod with no message and an empty composer", () => {
+    const core = seededCore({ pod: EPodProgress.Ready, message: EFirstMessage.None });
+    expect(core.draft).toBe("");
+    expect(core.prompt).toBe("");
   });
 });
 
@@ -130,22 +183,25 @@ describe("titleOf", () => {
 describe("pendingThreadOf", () => {
   const base = { prompt: FIXTURE_PROMPT, projectId: "atlas" };
 
-  it("is absent in draft", () => {
-    expect(pendingThreadOf({ ...base, stage: ENewThreadStage.Draft })).toBeUndefined();
+  it("is absent on the welcome screen", () => {
+    const input = { ...base, pod: EPodProgress.None, message: EFirstMessage.None };
+    expect(pendingThreadOf(input)).toBeUndefined();
   });
 
-  it("keeps a thread with no project, ungrouped", () => {
-    const unprojected = pendingThreadOf({ ...base, projectId: null, stage: ENewThreadStage.Idle });
-    expect(unprojected?.id).toBe(PENDING_THREAD_ID);
-    expect(unprojected?.projectId).toBeNull();
-  });
-
-  it("runs while starting, stays in Empty and failures, and idles when done", () => {
-    const running = pendingThreadOf({ ...base, stage: ENewThreadStage.WaitingForPod });
-    expect(running?.id).toBe(PENDING_THREAD_ID);
+  it("runs while the pod starts or the message runs, and idles otherwise", () => {
+    const starting = pendingThreadOf({ ...base, pod: EPodProgress.WaitingForPod, message: EFirstMessage.None });
+    expect(starting?.id).toBe(PENDING_THREAD_ID);
+    expect(starting?.status).toBe(EThreadStatus.Running);
+    const running = pendingThreadOf({ ...base, pod: EPodProgress.Ready, message: EFirstMessage.Running });
     expect(running?.status).toBe(EThreadStatus.Running);
-    expect(pendingThreadOf({ ...base, prompt: "", stage: ENewThreadStage.Empty })?.status).toBe(EThreadStatus.Idle);
-    expect(pendingThreadOf({ ...base, stage: ENewThreadStage.ProvisionFailed })?.status).toBe(EThreadStatus.Idle);
-    expect(pendingThreadOf({ ...base, stage: ENewThreadStage.Idle })?.status).toBe(EThreadStatus.Idle);
+    const ready = pendingThreadOf({ ...base, pod: EPodProgress.Ready, message: EFirstMessage.None });
+    expect(ready?.status).toBe(EThreadStatus.Idle);
+    const failed = pendingThreadOf({ ...base, pod: EPodProgress.ProvisionFailed, message: EFirstMessage.Pending });
+    expect(failed?.status).toBe(EThreadStatus.Idle);
+  });
+
+  it("stays when the project is none", () => {
+    const input = { ...base, projectId: null, pod: EPodProgress.Ready, message: EFirstMessage.Done };
+    expect(pendingThreadOf(input)?.projectId).toBeNull();
   });
 });

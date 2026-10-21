@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { NewThreadView } from "./new-thread/new-thread-view";
-import { ENewThreadOutcome, ENewThreadStage } from "./new-thread/new-thread-types";
+import { EFirstMessage, ENewThreadOutcome, EPodProgress } from "./new-thread/new-thread-types";
 
 const meta = {
   title: "Views/App/NewThread",
@@ -17,22 +17,32 @@ type Story = StoryObj<typeof meta>;
 
 export const Draft: Story = {};
 
-export const EmptyThread: Story = { args: { initialStage: ENewThreadStage.Empty } };
+export const TakenBack: Story = { args: { initialPod: EPodProgress.WaitingForPod } };
 
-export const WaitingForPod: Story = { args: { initialStage: ENewThreadStage.WaitingForPod } };
+export const PodReadyNoMessage: Story = { args: { initialPod: EPodProgress.Ready } };
 
-export const NoProject: Story = {
-  args: { initialStage: ENewThreadStage.WaitingForPod, initialProjectId: null },
+export const WaitingForPod: Story = {
+  args: { initialPod: EPodProgress.WaitingForPod, initialMessage: EFirstMessage.Pending },
 };
 
-export const SettingUpWorkspace: Story = { args: { initialStage: ENewThreadStage.SettingUpWorkspace } };
+export const NoProject: Story = {
+  args: { initialPod: EPodProgress.WaitingForPod, initialMessage: EFirstMessage.Pending, initialProjectId: null },
+};
 
-export const Streaming: Story = { args: { initialStage: ENewThreadStage.Streaming } };
+export const SettingUpWorkspace: Story = {
+  args: { initialPod: EPodProgress.SettingUpWorkspace, initialMessage: EFirstMessage.Pending },
+};
 
-export const FirstTurnDone: Story = { args: { initialStage: ENewThreadStage.Idle } };
+export const Streaming: Story = { args: { initialPod: EPodProgress.Ready, initialMessage: EFirstMessage.Running } };
 
-export const NoVercelToken: Story = { args: { initialStage: ENewThreadStage.NoVercelToken } };
+export const FirstTurnDone: Story = { args: { initialPod: EPodProgress.Ready, initialMessage: EFirstMessage.Done } };
 
-export const ProvisionFailed: Story = { args: { initialStage: ENewThreadStage.ProvisionFailed } };
+export const NoVercelToken: Story = {
+  args: { initialPod: EPodProgress.NoVercelToken, initialMessage: EFirstMessage.Pending },
+};
+
+export const ProvisionFailed: Story = {
+  args: { initialPod: EPodProgress.ProvisionFailed, initialMessage: EFirstMessage.Pending },
+};
 
 export const Interactive: Story = { args: { autoRun: true, outcome: ENewThreadOutcome.Success } };

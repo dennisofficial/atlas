@@ -5,14 +5,12 @@ import { Button } from "@dltech/atlas-ui/components/button";
 import { Trace, TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@dltech/atlas-ui/components/trace";
 
 import { POD_STAGES, PROVISION_FAILURE_DETAIL, type PodStage } from "./new-thread-data";
-import { ENewThreadStage } from "./new-thread-types";
+import { EPodProgress } from "./new-thread-types";
 
 export interface ProvisioningProps {
-  stage: ENewThreadStage;
+  pod: EPodProgress;
   elapsed: number;
-  onCancel: () => void;
   onRetry: () => void;
-  onEditMessage: () => void;
 }
 
 enum ERowState {
@@ -22,9 +20,9 @@ enum ERowState {
   Failed = "failed",
 }
 
-function rowState({ index, stage }: { index: number; stage: ENewThreadStage }): ERowState {
-  if (stage === ENewThreadStage.ProvisionFailed) return index === 0 ? ERowState.Failed : ERowState.Pending;
-  const current = POD_STAGES.findIndex((entry) => entry.stage === stage);
+function rowState({ index, pod }: { index: number; pod: EPodProgress }): ERowState {
+  if (pod === EPodProgress.ProvisionFailed) return index === 0 ? ERowState.Failed : ERowState.Pending;
+  const current = POD_STAGES.findIndex((entry) => entry.pod === pod);
   if (index < current) return ERowState.Done;
   return index === current ? ERowState.Active : ERowState.Pending;
 }
@@ -71,8 +69,8 @@ export function PodReadyLine({ elapsed }: { elapsed: number }) {
   );
 }
 
-export function Provisioning({ stage, elapsed, onCancel, onRetry, onEditMessage }: ProvisioningProps) {
-  const failed = stage === ENewThreadStage.ProvisionFailed;
+export function Provisioning({ pod, elapsed, onRetry }: ProvisioningProps) {
+  const failed = pod === EPodProgress.ProvisionFailed;
 
   return (
     <section
@@ -83,24 +81,16 @@ export function Provisioning({ stage, elapsed, onCancel, onRetry, onEditMessage 
         <span className="font-medium">{failed ? "Couldn't start a pod" : "Starting a pod"}</span>
         <span className="text-xs text-muted-foreground">on Vercel</span>
         <span className="ml-auto font-mono text-xs text-muted-foreground tabular-nums">{elapsed}s</span>
-        {failed ? null : (
-          <Button size="xs" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
       </header>
       <ol className="flex flex-col gap-2">
         {POD_STAGES.map((entry, index) => (
-          <StageRow key={entry.stage} entry={entry} state={rowState({ index, stage })} />
+          <StageRow key={entry.pod} entry={entry} state={rowState({ index, pod })} />
         ))}
       </ol>
       {failed ? (
         <div className="flex gap-2">
           <Button size="sm" onClick={onRetry}>
             Retry
-          </Button>
-          <Button size="sm" variant="outline" onClick={onEditMessage}>
-            Edit message
           </Button>
         </div>
       ) : null}

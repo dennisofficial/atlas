@@ -1,12 +1,17 @@
-export enum ENewThreadStage {
-  Draft = "draft",
-  Empty = "empty",
+export enum EPodProgress {
+  None = "none",
   WaitingForPod = "waiting-for-pod",
   SettingUpWorkspace = "setting-up-workspace",
-  Streaming = "streaming",
-  Idle = "idle",
+  Ready = "ready",
   NoVercelToken = "no-vercel-token",
   ProvisionFailed = "provision-failed",
+}
+
+export enum EFirstMessage {
+  None = "none",
+  Pending = "pending",
+  Running = "running",
+  Done = "done",
 }
 
 export enum ENewThreadOutcome {
@@ -15,30 +20,15 @@ export enum ENewThreadOutcome {
   ProvisionFailed = "provision-failed",
 }
 
-export function isProvisioningStage(stage: ENewThreadStage): boolean {
-  return stage === ENewThreadStage.WaitingForPod || stage === ENewThreadStage.SettingUpWorkspace;
+export function isStartingPod(pod: EPodProgress): boolean {
+  return pod === EPodProgress.WaitingForPod || pod === EPodProgress.SettingUpWorkspace;
 }
 
-export function isFailureStage(stage: ENewThreadStage): boolean {
-  return stage === ENewThreadStage.NoVercelToken || stage === ENewThreadStage.ProvisionFailed;
+export function isFailedPod(pod: EPodProgress): boolean {
+  return pod === EPodProgress.NoVercelToken || pod === EPodProgress.ProvisionFailed;
 }
 
-export function startStageOf(outcome: ENewThreadOutcome): ENewThreadStage {
-  if (outcome === ENewThreadOutcome.NoVercelToken) return ENewThreadStage.NoVercelToken;
-  return ENewThreadStage.WaitingForPod;
-}
-
-interface NextStageInput {
-  stage: ENewThreadStage;
-  outcome: ENewThreadOutcome;
-}
-
-export function nextStage({ stage, outcome }: NextStageInput): ENewThreadStage {
-  if (stage === ENewThreadStage.WaitingForPod) {
-    return outcome === ENewThreadOutcome.ProvisionFailed
-      ? ENewThreadStage.ProvisionFailed
-      : ENewThreadStage.SettingUpWorkspace;
-  }
-  if (stage === ENewThreadStage.SettingUpWorkspace) return ENewThreadStage.Streaming;
-  return stage;
+export function startPodOf(outcome: ENewThreadOutcome): EPodProgress {
+  if (outcome === ENewThreadOutcome.NoVercelToken) return EPodProgress.NoVercelToken;
+  return EPodProgress.WaitingForPod;
 }

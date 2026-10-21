@@ -7,7 +7,7 @@ import { ETerminalEntry, type UserTerminal } from "../session/sandbox-terminal";
 import { EPodPhase, type PodPanelState } from "../session/pod-state";
 import { EPodState, RUNNING_POD, type PodChipConfig } from "../session/pod-status";
 import { FIRST_TURN_STEPS } from "./new-thread-data";
-import { ENewThreadStage, isProvisioningStage } from "./new-thread-types";
+import { EPodProgress, isFailedPod, isStartingPod } from "./new-thread-types";
 
 const SPEC_PATH = "apps/serve/src/__tests__/reconnect.spec.ts";
 
@@ -66,28 +66,27 @@ const READY_TERMINAL: UserTerminal = {
 
 const IDLE_TERMINAL: UserTerminal = { ...READY_TERMINAL, entries: [] };
 
-export function phaseOf(stage: ENewThreadStage): EPodPhase {
-  if (stage === ENewThreadStage.Draft || stage === ENewThreadStage.Empty) return EPodPhase.None;
-  if (isProvisioningStage(stage)) return EPodPhase.Starting;
-  if (stage === ENewThreadStage.Streaming || stage === ENewThreadStage.Idle) return EPodPhase.Ready;
-  return EPodPhase.Failed;
+export function phaseOf(pod: EPodProgress): EPodPhase {
+  if (pod === EPodProgress.None) return EPodPhase.None;
+  if (isStartingPod(pod)) return EPodPhase.Starting;
+  return isFailedPod(pod) ? EPodPhase.Failed : EPodPhase.Ready;
 }
 
-export function podChipOf(stage: ENewThreadStage): PodChipConfig | undefined {
-  const phase = phaseOf(stage);
+export function podChipOf(pod: EPodProgress): PodChipConfig | undefined {
+  const phase = phaseOf(pod);
   if (phase === EPodPhase.Starting) return { status: { ...RUNNING_POD, state: EPodState.Starting } };
   return phase === EPodPhase.Ready ? { status: RUNNING_POD } : undefined;
 }
 
 interface PodStateInput {
-  stage: ENewThreadStage;
+  pod: EPodProgress;
   projectId: string | null;
   visibleSteps: number;
   onRetry: () => void;
 }
 
-export function podStateOf({ stage, projectId, visibleSteps, onRetry }: PodStateInput): PodPanelState {
-  const phase = phaseOf(stage);
+export function podStateOf({ pod, projectId, visibleSteps, onRetry }: PodStateInput): PodPanelState {
+  const phase = phaseOf(pod);
   const ready = phase === EPodPhase.Ready;
   return {
     phase,

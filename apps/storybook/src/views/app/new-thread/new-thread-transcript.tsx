@@ -5,25 +5,24 @@ import { WorkSummary } from "@dltech/atlas-ui/ai/work-summary";
 import { Steps } from "../session/transcript";
 import { NoVercelTokenAlert } from "./failure-alerts";
 import { FIRST_TURN_REPLY, FIRST_TURN_STEPS, REPLY_WORDS } from "./new-thread-data";
-import { ENewThreadStage, isProvisioningStage } from "./new-thread-types";
+import { EFirstMessage, EPodProgress, isStartingPod } from "./new-thread-types";
 import { PodReadyLine, Provisioning } from "./provisioning";
 
 export interface NewThreadTranscriptProps {
-  stage: ENewThreadStage;
+  pod: EPodProgress;
+  message: EFirstMessage;
   prompt: string;
   elapsed: number;
   visibleSteps: number;
   replyWords: number;
-  onCancel: () => void;
   onRetry: () => void;
-  onEditMessage: () => void;
   onOpenFile: (path: string) => void;
 }
 
-type TurnProps = Pick<NewThreadTranscriptProps, "stage" | "visibleSteps" | "replyWords" | "onOpenFile">;
+type TurnProps = Pick<NewThreadTranscriptProps, "message" | "visibleSteps" | "replyWords" | "onOpenFile">;
 
-function Turn({ stage, visibleSteps, replyWords, onOpenFile }: TurnProps) {
-  const done = stage === ENewThreadStage.Idle;
+function Turn({ message, visibleSteps, replyWords, onOpenFile }: TurnProps) {
+  const done = message === EFirstMessage.Done;
   const reply = replyWords >= REPLY_WORDS.length ? FIRST_TURN_REPLY : REPLY_WORDS.slice(0, replyWords).join(" ");
 
   return (
@@ -45,49 +44,41 @@ function Turn({ stage, visibleSteps, replyWords, onOpenFile }: TurnProps) {
   );
 }
 
-function ProvisionBlock(props: NewThreadTranscriptProps) {
-  const { stage } = props;
-  if (stage === ENewThreadStage.NoVercelToken) return <NoVercelTokenAlert onRetry={props.onRetry} />;
-  if (isProvisioningStage(stage) || stage === ENewThreadStage.ProvisionFailed) {
+function PodBlock(props: NewThreadTranscriptProps) {
+  const { pod } = props;
+  if (pod === EPodProgress.NoVercelToken) return <NoVercelTokenAlert onRetry={props.onRetry} />;
+  if (isStartingPod(pod) || pod === EPodProgress.ProvisionFailed) {
     return (
       <Provisioning
-        stage={stage}
+        pod={pod}
         elapsed={props.elapsed}
-        onCancel={props.onCancel}
         onRetry={props.onRetry}
-        onEditMessage={props.onEditMessage}
       />
     );
   }
   return <PodReadyLine elapsed={props.elapsed} />;
 }
 
-function EmptyTranscript() {
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center">
-      <p className="text-sm text-muted-foreground">No messages yet. Send one to start a pod.</p>
-    </div>
-  );
-}
-
 export function NewThreadTranscript(props: NewThreadTranscriptProps) {
-  if (props.stage === ENewThreadStage.Empty) return <EmptyTranscript />;
-  const started = props.stage === ENewThreadStage.Streaming || props.stage === ENewThreadStage.Idle;
+  const sent = props.message !== EFirstMessage.None;
+  const turning = props.message === EFirstMessage.Running || props.message === EFirstMessage.Done;
 
   return (
     <Chat className="min-h-0 flex-1">
-      <ChatItem id="u1" anchor>
-        <UserMessage author="Dennis" timestamp="14:02">
-          {props.prompt}
-        </UserMessage>
+      {sent ? (
+        <ChatItem id="u1" anchor>
+          <UserMessage author="Dennis" timestamp="14:02">
+            {props.prompt}
+          </UserMessage>
+        </ChatItem>
+      ) : null}
+      <ChatItem id="pod">
+        <PodBlock {...props} />
       </ChatItem>
-      <ChatItem id="provision">
-        <ProvisionBlock {...props} />
-      </ChatItem>
-      {started ? (
+      {turning ? (
         <ChatItem id="turn">
           <Turn
-            stage={props.stage}
+            message={props.message}
             visibleSteps={props.visibleSteps}
             replyWords={props.replyWords}
             onOpenFile={props.onOpenFile}

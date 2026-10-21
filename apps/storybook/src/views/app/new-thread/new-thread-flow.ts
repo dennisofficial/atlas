@@ -2,30 +2,20 @@ import { useEffect, useState } from "react";
 
 import type { QueuedMessage } from "@dltech/atlas-ui/ai/task-dock";
 
-import {
-  FIRST_TURN_STEPS,
-  FIXTURE_PROMPT,
-  REPLY_WORDS,
-  SEEDED_ELAPSED,
-  SEEDED_REPLY_WORDS,
-  SETTLE_DELAY_MS,
-  STAGE_DELAY_MS,
-  STEP_DELAYS_MS,
-} from "./new-thread-data";
-import { emptyFrom, retryFrom, sendFrom, type ThreadCore } from "./new-thread-transitions";
-import { ENewThreadOutcome, ENewThreadStage, isProvisioningStage, nextStage } from "./new-thread-types";
+import { FIRST_TURN_STEPS, POD_DELAY_MS, REPLY_WORDS, SETTLE_DELAY_MS, STEP_DELAYS_MS } from "./new-thread-data";
+import { seededCore, seededElapsed, seededTurn } from "./new-thread-seed";
+import { advancePod, retryFrom, sendFrom, takeBackFrom, type ThreadCore } from "./new-thread-transitions";
+import { EFirstMessage, ENewThreadOutcome, EPodProgress, isStartingPod } from "./new-thread-types";
 
 export interface NewThreadFlowOptions {
-  initialStage: ENewThreadStage;
+  initialPod: EPodProgress;
+  initialMessage: EFirstMessage;
   initialProjectId: string | null;
   outcome: ENewThreadOutcome;
   autoRun: boolean;
 }
 
-export interface NewThreadFlow {
-  stage: ENewThreadStage;
-  prompt: string;
-  draft: string;
+export interface NewThreadFlow extends ThreadCore {
   projectId: string | null;
   elapsed: number;
   visibleSteps: number;
@@ -34,67 +24,44 @@ export interface NewThreadFlow {
   handleDraftChange: (value: string) => void;
   handleProjectChange: (projectId: string | null) => void;
   handleSend: (text: string) => void;
-  handleCancel: () => void;
+  handleTakeBack: () => void;
   handleRetry: () => void;
-  handleEditMessage: () => void;
   handleRemoveQueued: (id: string) => void;
 }
 
 const STEP_COUNT = FIRST_TURN_STEPS.length;
 
-function hasSentMessage(stage: ENewThreadStage): boolean {
-  return stage !== ENewThreadStage.Draft && stage !== ENewThreadStage.Empty;
-}
-
-function seededCore(stage: ENewThreadStage): ThreadCore {
-  if (stage === ENewThreadStage.Empty) return { stage, prompt: "", draft: FIXTURE_PROMPT };
-  return { stage, prompt: hasSentMessage(stage) ? FIXTURE_PROMPT : "", draft: "" };
-}
-
-function seededReplyWords(stage: ENewThreadStage): number {
-  if (stage === ENewThreadStage.Idle) return REPLY_WORDS.length;
-  return stage === ENewThreadStage.Streaming ? SEEDED_REPLY_WORDS : 0;
-}
-
-function seededSteps(stage: ENewThreadStage): number {
-  return stage === ENewThreadStage.Streaming || stage === ENewThreadStage.Idle ? STEP_COUNT : 0;
-}
-
 export function useNewThreadFlow({
-  initialStage,
+  initialPod,
+  initialMessage,
   initialProjectId,
   outcome,
   autoRun,
 }: NewThreadFlowOptions): NewThreadFlow {
-  const [core, setCore] = useState(() => seededCore(initialStage));
+  const seededProgress = seededTurn(initialMessage);
+  const [core, setCore] = useState(() => seededCore({ pod: initialPod, message: initialMessage }));
   const [projectId, setProjectId] = useState(initialProjectId);
-  const [elapsed, setElapsed] = useState(SEEDED_ELAPSED[initialStage] ?? 0);
-  const [visibleSteps, setVisibleSteps] = useState(seededSteps(initialStage));
-  const [replyWords, setReplyWords] = useState(seededReplyWords(initialStage));
+  const [elapsed, setElapsed] = useState(seededElapsed(initialPod));
+  const [visibleSteps, setVisibleSteps] = useState(seededProgress.steps);
+  const [replyWords, setReplyWords] = useState(seededProgress.words);
   const [queued, setQueued] = useState<QueuedMessage[]>([]);
-  const { stage, prompt, draft } = core;
-
-  const resetProgress = () => {
-    setElapsed(0);
-    setVisibleSteps(0);
-    setReplyWords(0);
-  };
+  const { pod, message } = core;
 
   useEffect(() => {
-    const delay = STAGE_DELAY_MS[stage];
+    const delay = POD_DELAY_MS[pod];
     if (!autoRun || delay === undefined) return undefined;
-    const timer = setTimeout(() => setCore((previous) => ({ ...previous, stage: nextStage({ stage, outcome }) })), delay);
+    const timer = setTimeout(() => setCore((previous) => advancePod({ core: previous, outcome })), delay);
     return () => clearTimeout(timer);
-  }, [autoRun, stage, outcome]);
+  }, [autoRun, pod, outcome]);
 
   useEffect(() => {
-    if (!autoRun || !isProvisioningStage(stage)) return undefined;
+    if (!autoRun || !isStartingPod(pod)) return undefined;
     const interval = setInterval(() => setElapsed((seconds) => seconds + 1), 1000);
     return () => clearInterval(interval);
-  }, [autoRun, stage]);
+  }, [autoRun, pod]);
 
   useEffect(() => {
-    if (!autoRun || stage !== ENewThreadStage.Streaming) return undefined;
+    if (!autoRun || message !== EFirstMessage.Running) return undefined;
     if (visibleSteps < STEP_COUNT) {
       const timer = setTimeout(() => setVisibleSteps((count) => count + 1), STEP_DELAYS_MS[visibleSteps] ?? 700);
       return () => clearTimeout(timer);
@@ -103,9 +70,9 @@ export function useNewThreadFlow({
       const timer = setTimeout(() => setReplyWords((count) => count + 1), 45);
       return () => clearTimeout(timer);
     }
-    const timer = setTimeout(() => setCore((previous) => ({ ...previous, stage: ENewThreadStage.Idle })), SETTLE_DELAY_MS);
+    const timer = setTimeout(() => setCore((previous) => ({ ...previous, message: EFirstMessage.Done })), SETTLE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [autoRun, stage, visibleSteps, replyWords]);
+  }, [autoRun, message, visibleSteps, replyWords]);
 
   const handleDraftChange = (value: string) => setCore((previous) => ({ ...previous, draft: value }));
 
@@ -114,29 +81,26 @@ export function useNewThreadFlow({
   const handleSend = (text: string) => {
     const started = sendFrom({ core, text, outcome });
     if (started) {
-      resetProgress();
+      if (started.pod !== pod) setElapsed(0);
+      setVisibleSteps(0);
+      setReplyWords(0);
       setCore(started);
       return;
     }
-    if (isProvisioningStage(stage)) return;
     setQueued((previous) => [...previous, { id: `q-${previous.length + 1}-${text.length}`, text }]);
   };
 
-  const handleEditMessage = () => setCore(emptyFrom(core));
-
-  const handleCancel = handleEditMessage;
+  const handleTakeBack = () => setCore(takeBackFrom(core));
 
   const handleRetry = () => {
-    resetProgress();
+    setElapsed(0);
     setCore(retryFrom({ core, outcome }));
   };
 
-  const handleRemoveQueued = (id: string) => setQueued((previous) => previous.filter((message) => message.id !== id));
+  const handleRemoveQueued = (id: string) => setQueued((previous) => previous.filter((entry) => entry.id !== id));
 
   return {
-    stage,
-    prompt,
-    draft,
+    ...core,
     projectId,
     elapsed,
     visibleSteps,
@@ -145,9 +109,8 @@ export function useNewThreadFlow({
     handleDraftChange,
     handleProjectChange,
     handleSend,
-    handleCancel,
+    handleTakeBack,
     handleRetry,
-    handleEditMessage,
     handleRemoveQueued,
   };
 }
