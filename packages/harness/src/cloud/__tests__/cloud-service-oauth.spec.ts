@@ -3,7 +3,14 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EAuthKind, EAuthProvider, EAccountOrigin, type ClockPort } from '@dltech/atlas-core'
+import {
+  EAuthKind,
+  EAuthProvider,
+  EAccountOrigin,
+  toThreadId,
+  type AccountStorePort,
+  type ClockPort,
+} from '@dltech/atlas-core'
 
 import { memoryAccountStore } from '../../credentials/account-store'
 import { CloudService } from '../cloud-service'
@@ -22,7 +29,7 @@ const ticket: CloudLoginTicket = {
   intervalMs: 1_000,
 }
 
-const setup = (handoffOauth: (session: CloudSession) => Promise<void>) => {
+const setup = (handoffOauth: (session: CloudSession) => Promise<void>, accounts?: AccountStorePort) => {
   const directory = mkdtempSync(join(tmpdir(), 'atlas-oauth-signin-'))
   directories.push(directory)
   process.env['ATLAS_HOME'] = directory
@@ -35,6 +42,7 @@ const setup = (handoffOauth: (session: CloudSession) => Promise<void>) => {
   const service = new CloudService({
     sessions,
     localAccounts: local,
+    ...(accounts === undefined ? {} : { accounts }),
     defaultUrl: ticket.url,
     fetchFn,
     handoffOauth,
@@ -46,6 +54,45 @@ afterEach(() => {
   if (realAtlasHome === undefined) delete process.env['ATLAS_HOME']
   else process.env['ATLAS_HOME'] = realAtlasHome
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
+})
+
+const birth = { threadId: toThreadId('oauth-root'), token: 'fake-sandbox', serveUrl: 'https://sandbox.vercel.run' }
+
+const addNativeOauth = (accounts: AccountStorePort) =>
+  accounts.add({
+    provider: EAuthProvider.Anthropic,
+    origin: EAccountOrigin.Login,
+    label: 'native',
+    secret: {
+      kind: EAuthKind.Oauth,
+      tokens: { accessToken: 'fake-access', refreshToken: '', expiresAt: '2026-10-05T13:00:00.000Z' },
+      authority: { url: ticket.url, connectionId: 'oauth-native' },
+    },
+  })
+
+describe('CloudService prepareSandboxOauth account store', () => {
+  it('authorizes against the injected account store, not the local one', async () => {
+    const injected = memoryAccountStore({ clock })
+    const { service, local } = setup(async () => {}, injected)
+    await addNativeOauth(local)
+
+    await service.prepareSandboxOauth(birth)
+  })
+
+  it('sees an OAuth account held only by the injected store', async () => {
+    const injected = memoryAccountStore({ clock })
+    const { service } = setup(async () => {}, injected)
+    await addNativeOauth(injected)
+
+    await expect(service.prepareSandboxOauth(birth)).rejects.toThrow('Sign in to Atlas Cloud')
+  })
+
+  it('falls back to the local store when none is injected', async () => {
+    const { service, local } = setup(async () => {})
+    await addNativeOauth(local)
+
+    await expect(service.prepareSandboxOauth(birth)).rejects.toThrow('Sign in to Atlas Cloud')
+  })
 })
 
 describe('CloudService OAuth activation', () => {

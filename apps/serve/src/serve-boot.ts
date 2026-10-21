@@ -20,6 +20,7 @@ import {
   EProfileStepState,
   type ApplyEnvironmentProfile,
 } from './environment-profile'
+import { applyCloudState } from './cloud-state'
 import { applyGitAccessEnv } from './git-access-env'
 import {
   createEnsureWorkspace,
@@ -96,6 +97,14 @@ export async function bootServeFiles(args: {
   applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
   await applySigningKey({
     env,
+    atlasHome,
+    log,
+    controlPlaneUrl: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+  })
+  await applyCloudState({
     atlasHome,
     log,
     controlPlaneUrl: args.controlPlaneUrl,

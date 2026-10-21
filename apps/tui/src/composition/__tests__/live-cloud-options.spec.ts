@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { ENoticeTone, toThreadId } from '@dltech/atlas-core'
-import type { PortableState } from '@dltech/atlas-wire'
 
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { liveBridgeOptionsFor } from '../live-cloud'
@@ -12,14 +11,6 @@ afterEach(() => {
 })
 
 const THREAD = toThreadId('brn_live_options')
-const PORTABLE: PortableState = {
-  version: 1,
-  vaultKeyHex: 'ab'.repeat(32),
-  accounts: [],
-  active: [],
-  secrets: [],
-}
-
 const fakeApp = () => {
   const calls: string[] = []
   const log = { head: async () => 42 }
@@ -30,10 +21,6 @@ const fakeApp = () => {
     secrets: {},
     cloud: {
       session: () => null,
-      capturePortableState: async () => {
-        calls.push('capture')
-        return PORTABLE
-      },
       prepareSandboxOauth: async () => {
         calls.push('authorize')
       },
@@ -51,14 +38,12 @@ describe('liveBridgeOptionsFor', () => {
     expect(Object.keys(options).sort()).toEqual([
       'attachmentToken',
       'authorizeSandbox',
-      'capturePortable',
       'cloudUrl',
       'environment',
       'lastEventSeq',
       'localLog',
       'onDriverLog',
       'onMirrorFailed',
-      'onPortableOmitted',
       'onRegistrationFailed',
       'projectIdOf',
       'registration',
@@ -78,14 +63,13 @@ describe('liveBridgeOptionsFor', () => {
     expect(options.settings).toBe(settings as never)
   })
 
-  it('captures and authorizes through the app cloud service', async () => {
+  it('authorizes through the app cloud service', async () => {
     const { app, calls } = fakeApp()
 
     const options = liveBridgeOptionsFor(app)
-    await options.capturePortable?.()
     await options.authorizeSandbox?.({ threadId: THREAD, token: 't', serveUrl: 'https://sb.test' })
 
-    expect(calls).toEqual(['capture', 'authorize'])
+    expect(calls).toEqual(['authorize'])
   })
 
   it('registers nothing while signed out', async () => {

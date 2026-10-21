@@ -38,6 +38,7 @@ export type CredentialsBinding = {
 export async function bindCredentials(args: {
   container: DependencyContainer
   settings: SettingsBinding
+  cloudBacked?: boolean
   env: Record<string, string | undefined>
   clientVersion: string
   reconcileHostSources: boolean
@@ -62,6 +63,7 @@ export async function bindCredentials(args: {
     cloudUrl: args.launchValue(ESettingId.CloudUrl),
     clientVersion: args.clientVersion,
     reconcileHostSources: args.reconcileHostSources,
+    ...(args.cloudBacked === undefined ? {} : { cloudBacked: args.cloudBacked }),
   })
 
   const session = cloud.session()
@@ -89,7 +91,7 @@ export async function bindCredentials(args: {
   })
 
   const accountList = await accountStore.list()
-  if (accountList.length === 0 && cloud.session() !== null) {
+  if (args.cloudBacked !== true && accountList.length === 0 && cloud.session() !== null) {
     notice.notify({
       key: 'cloud:legacy-accounts',
       tone: ENoticeTone.Warn,

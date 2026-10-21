@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { relative } from 'node:path'
 
-import { ATLAS_SETTINGS, collapseHome } from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, collapseHome, type SettingsStorePort } from '@dltech/atlas-core'
 
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../cloud/settings-definitions'
 import type { DependencyContainer } from '../container/injection'
@@ -16,6 +16,7 @@ const PROJECT_PREFIX = '.'
 export type SettingsBinding = {
   service: SettingsService
   bindTo: (container: DependencyContainer) => void
+  withUserStore?: (wrap: (local: SettingsStorePort) => SettingsStorePort) => SettingsBinding
 }
 
 /**
@@ -44,19 +45,22 @@ export function loadSettings(args: {
     ...CLOUD_SETTING_DEFINITIONS,
   ]
 
-  const service = createSettingsService({
-    definitions,
-    user,
-    project,
-    environment: environmentLayer({ definitions, env: args.env }),
-    watch: { files: [userFile, projectFile] },
-  })
+  const environment = environmentLayer({ definitions, env: args.env })
 
-  return {
-    service,
+  const bindOver = (userLayer: SettingsStorePort): SettingsBinding => ({
+    service: createSettingsService({
+      definitions,
+      user: userLayer,
+      project,
+      environment,
+      watch: { files: [userFile, projectFile] },
+    }),
     bindTo: (container) => {
       container.register(UserSettingsStoreToken, { useValue: user })
       container.register(ProjectSettingsStoreToken, { useValue: project })
     },
-  }
+    withUserStore: (wrap) => bindOver(wrap(user)),
+  })
+
+  return bindOver(user)
 }

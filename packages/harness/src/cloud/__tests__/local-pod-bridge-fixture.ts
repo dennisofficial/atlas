@@ -1,4 +1,3 @@
-import { PORTABLE_STATE_VERSION, type PortableState } from '@dltech/atlas-wire'
 
 import { createLocalPodBridge, type LocalPodBridgeOptions, type PodBridgeDriver } from '../local-pod-bridge'
 import type { PodProvisionArgs, RunnerPodHandle } from '../runner-driver'
@@ -63,11 +62,3 @@ export const podBridgeWith = (args: {
     sessionMirror: false,
     ...args.overrides,
   })
-
-export const portableState: PortableState = {
-  version: PORTABLE_STATE_VERSION,
-  vaultKeyHex: 'a'.repeat(64),
-  accounts: [],
-  active: [],
-  secrets: [],
-}

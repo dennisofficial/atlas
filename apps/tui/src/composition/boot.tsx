@@ -118,9 +118,10 @@ export async function bootAtlas(args: {
   });
   renderer.once("destroy", untrackFocus);
 
+  let editorSettings = settings.service;
   const openFile = createFileOpener({
     editor: () => {
-      const held = settings.service.snapshot().resolution.settings.get(ESettingId.Editor)
+      const held = editorSettings.snapshot().resolution.settings.get(ESettingId.Editor)
       const value = typeof held?.value === 'string' ? held.value : EEditor.Default
       return Object.values(EEditor).includes(value as EEditor) ? (value as EEditor) : EEditor.Default
     },
@@ -191,6 +192,7 @@ export async function bootAtlas(args: {
   const settled = await session;
 
   if (settled.type === ESession.Ready) {
+    editorSettings = settled.app.settings;
     bindPathLinks({ resolve: settled.app.pathResolver });
     output?.enableNotices();
     activeThread = () => settled.app.activeThread();

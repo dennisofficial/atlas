@@ -16,7 +16,7 @@ import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 import { fakeSessionRuntime } from './fake-session-runtime'
 import { REMEMBER_TRIGGER, startFakeMemoryApi, startMemoryModel, textOf } from './memory-pod-live-fixture'
-import { MODEL_ID, seedOpenRouterAccount } from './pod-session-live-fixture'
+import { MODEL_ID } from './pod-session-live-fixture'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
 const enabled = process.env.ATLAS_LIVE_DOCKER === '1' && (await pingDocker({ socketPath: SOCKET })) === undefined
@@ -31,7 +31,6 @@ describeLive('memory written in one pod', () => {
   it(
     "is listed in the next session's system prompt index",
     async () => {
-      await seedOpenRouterAccount()
       const fakeModel = startMemoryModel({ memoryName: MEMORY_NAME })
       const memoryApi = startFakeMemoryApi()
       const app = fakeApp({

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import type { PortableState } from '@dltech/atlas-wire'
 
 import { ECloudSandboxState } from '@dltech/atlas-harness'
 import type { VercelSandboxConfig } from '@dltech/atlas-wire'
@@ -9,13 +8,6 @@ import { createCloudBridge, type BridgeDriver } from '../create-bridge'
 
 const THREAD = toThreadId('brn_authorize')
 const SERVE_URL = 'https://sb.vercel.run'
-const PORTABLE: PortableState = {
-  version: 1,
-  vaultKeyHex: 'ab'.repeat(32),
-  accounts: [],
-  active: [],
-  secrets: [],
-}
 const CONFIG: VercelSandboxConfig = {
   credentials: { token: 'vercel-test-token', teamId: 'team_test', projectId: 'prj_test' },
   image: 'atlas-sandbox:test',
@@ -59,20 +51,11 @@ const bridgeWith = (args: {
     serveUrl: string
     model?: string | undefined
   }) => Promise<void>
-  capture?: boolean
   registration?: boolean
 }) =>
   createCloudBridge({
     vercel: () => CONFIG,
     attachmentToken: () => 'serve-token',
-    ...(args.capture === false
-      ? {}
-      : {
-          capturePortable: async () => {
-            args.events.push('capture')
-            return PORTABLE
-          },
-        }),
     ...(args.authorizeSandbox === undefined ? {} : { authorizeSandbox: args.authorizeSandbox }),
     ...(args.registration === true
       ? {
@@ -86,7 +69,7 @@ const bridgeWith = (args: {
   })
 
 describe('createCloudBridge sandbox OAuth authorization', () => {
-  it('captures, writes the snapshot, then authorizes against the sandbox domain before serve launches', async () => {
+  it('authorizes against the sandbox domain before serve launches', async () => {
     const events: string[] = []
     const authorizations: unknown[] = []
     const bridge = bridgeWith({
@@ -100,8 +83,6 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
 
     await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
-    expect(events.indexOf('capture')).toBeLessThan(events.indexOf('write:local-state.json'))
-    expect(events.indexOf('write:local-state.json')).toBeLessThan(events.indexOf('authorize'))
     expect(events.indexOf('authorize')).toBeLessThan(events.indexOf('launch'))
     expect(authorizations).toEqual([
       { threadId: THREAD, token: 'serve-token', serveUrl: 'https://sb-3000.vercel.run' },
@@ -142,7 +123,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
     expect(events).not.toContain('register')
   })
 
-  it('re-authorizes a resume whose vault is already live, without recapturing', async () => {
+  it('re-authorizes a resume whose vault is already live', async () => {
     const events: string[] = []
     const authorize = async () => {
       events.push('authorize')
@@ -156,7 +137,6 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
     await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(events).toContain('authorize')
-    expect(events).not.toContain('capture')
     expect(events.indexOf('authorize')).toBeLessThan(events.indexOf('launch'))
   })
 

@@ -21,8 +21,9 @@ import { fakeSessionRuntime } from './fake-session-runtime'
 import {
   dockerCli,
   MODEL_ID,
+  OPENROUTER_KEY,
+  OPENROUTER_LEASE,
   READ_TRIGGER,
-  seedOpenRouterAccount,
   startFakeModel,
   WRITE_TRIGGER,
 } from './pod-session-live-fixture'
@@ -51,16 +52,27 @@ describeLive('a multi-turn session in a local pod', () => {
   it(
     'runs a tool in the pod, parks, wakes the same container, and still sees the workspace',
     async () => {
-      await seedOpenRouterAccount()
       const fakeModel = startFakeModel({ marker: MARKER })
-      const leaseApi = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response(null, { status: 204 }) })
+      const leaseApi = Bun.serve({
+        port: 0,
+        hostname: '0.0.0.0',
+        fetch: (request) => {
+          const path = new URL(request.url).pathname
+          if (path === '/v1/account-lease') return Response.json(OPENROUTER_LEASE)
+          if (path === '/v1/settings') return Response.json({ settings: [] })
+          if (path === '/v1/secrets') return Response.json({ secrets: [] })
+          return new Response(null, { status: 204 })
+        },
+      })
       const app = fakeApp({
         pods: true,
         model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
         cloud: fakeCloud({ session: { url: `http://127.0.0.1:${leaseApi.port}`, token: 'live-session', email: null } }),
       })
+      const options = livePodBridgeOptionsFor(app)
       const bridge = createLocalPodBridge({
-        ...livePodBridgeOptionsFor(app),
+        ...options,
+        pod: () => ({ ...options.pod(), cloudUrl: `http://host.docker.internal:${leaseApi.port}` }),
         environment: () => ({ OPENROUTER_BASE_URL: fakeModel.url, ATLAS_CLASSIFIER_MODE: 'off' }),
       })
       const engine = new DockerEngine({ socketPath: SOCKET })
@@ -137,6 +149,7 @@ describeLive('a multi-turn session in a local pod', () => {
           .slice(seen)
           .flatMap((request) => request.messages.filter((message) => message.role === 'tool'))
         expect(JSON.stringify(toolResults)).toContain(MARKER)
+        expect(new Set(fakeModel.authorizations)).toEqual(new Set([`Bearer ${OPENROUTER_KEY}`]))
       } finally {
         await bridge.sandboxes.destroy({ threadId: THREAD })
         await fakeModel.stop()

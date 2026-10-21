@@ -1,11 +1,10 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { PortableState, RuntimeCheckpoint, VercelSandboxConfig } from '@dltech/atlas-wire'
+import type { RuntimeCheckpoint, VercelSandboxConfig } from '@dltech/atlas-wire'
 
 import type { SettingsService } from '../settings/service'
 import type { MirrorLocalLog } from './transcript-syncer'
 import type {
   BridgeDriver,
-  PortableOmissions,
   RegistrationSender,
   SandboxRegistration,
 } from './local-cloud-bootstrap'
@@ -20,12 +19,6 @@ export type SandboxAuthorizer = (args: {
 export type LocalCloudBridgeOptions = {
   vercel: () => VercelSandboxConfig
   attachmentToken: (args: { threadId: ThreadId }) => string
-  /**
-   * Runs only when the sandbox needs a snapshot — a fresh boot, or a resume whose vault never
-   * materialised after a failed first boot. A healthy resume never captures, so the sandbox's
-   * newer vault is never overwritten.
-   */
-  capturePortable?: (() => Promise<PortableState>) | undefined
   authorizeSandbox?: SandboxAuthorizer | undefined
   registration?: SandboxRegistration | undefined
   sendRegistration?: RegistrationSender | undefined
@@ -41,7 +34,6 @@ export type LocalCloudBridgeOptions = {
    * than churning it.
    */
   onMirrorRecovered?: (() => void) | undefined
-  onPortableOmitted?: ((omitted: PortableOmissions) => void) | undefined
   environment?: (() => Record<string, string>) | undefined
   cloudUrl?: (() => string) | undefined
   readCheckpoint?: ((args: { threadId: ThreadId }) => Promise<RuntimeCheckpoint | null>) | undefined

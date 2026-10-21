@@ -1,26 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { PORTABLE_STATE_PATH } from '@dltech/atlas-wire'
 
 import { CONTEXT_ARCHIVE_PATH, WORKSPACE_SPEC_PATH } from '../local-cloud-bootstrap'
 import { podNameFor } from '../local-pod/pod-create'
 import type { SandboxTransferProgress } from '../transfer-progress'
-import { fakePodDriver, podBridgeWith, portableState } from './local-pod-bridge-fixture'
+import { fakePodDriver, podBridgeWith } from './local-pod-bridge-fixture'
 
 const threadId = toThreadId('thread-pod-bridge')
 const serveToken = `serve-token-${threadId}`
 
 describe('createLocalPodBridge birth', () => {
-  it('stages spec, portable state, then the archive in order, and registers the lease before the bootstrap write and again after launch', async () => {
+  it('stages the spec, then the archive in order, and registers the lease before the bootstrap write and again after launch', async () => {
     const { driver, events, created } = fakePodDriver({ created: true })
     const registered: Array<{ threadId: string; token: string }> = []
-    const bridge = podBridgeWith({
-      driver,
-      registered,
-      events,
-      overrides: { capturePortable: async () => portableState },
-    })
+    const bridge = podBridgeWith({ driver, registered, events })
 
     const sandbox = await bridge.sandboxes.create({
       threadId,
@@ -33,7 +27,6 @@ describe('createLocalPodBridge birth', () => {
       'register',
       `write:${WORKSPACE_SPEC_PATH}`,
       'vault-probe',
-      `write:${PORTABLE_STATE_PATH}`,
       `write:${CONTEXT_ARCHIVE_PATH}`,
       'launch',
       'register',
@@ -74,20 +67,11 @@ describe('createLocalPodBridge birth', () => {
     expect(created[0]).toMatchObject({ name: podNameFor({ threadId }), threadId, token: serveToken })
   })
 
-  it('skips portable state and the archive when a vault is already in the pod', async () => {
+  it('skips the archive when a vault is already in the pod', async () => {
     const { driver, writes } = fakePodDriver({ created: true, vaultPresent: true })
-    let captured = 0
     let archived = 0
 
-    await podBridgeWith({
-      driver,
-      overrides: {
-        capturePortable: async () => {
-          captured += 1
-          return portableState
-        },
-      },
-    }).sandboxes.create({
+    await podBridgeWith({ driver }).sandboxes.create({
       threadId,
       projectId: null,
       captureContext: async () => {
@@ -96,7 +80,7 @@ describe('createLocalPodBridge birth', () => {
     })
 
     expect(writes.map((write) => write.path)).toEqual([WORKSPACE_SPEC_PATH])
-    expect([captured, archived]).toEqual([0, 0])
+    expect(archived).toBe(0)
   })
 
   it('reports archive upload progress through the buffered transfer', async () => {
@@ -134,26 +118,14 @@ describe('createLocalPodBridge birth', () => {
   it('stages nothing when the pod resumes, yet still registers the lease', async () => {
     const { driver, events, writes } = fakePodDriver({ created: false })
     const registered: Array<{ threadId: string; token: string }> = []
-    let captured = 0
 
-    const sandbox = await podBridgeWith({
-      driver,
-      registered,
-      events,
-      overrides: {
-        capturePortable: async () => {
-          captured += 1
-          return portableState
-        },
-      },
-    }).sandboxes.create({
+    const sandbox = await podBridgeWith({ driver, registered, events }).sandboxes.create({
       threadId,
       projectId: null,
       captureContext: async (put) => put(new Uint8Array(2)),
     })
 
     expect(writes).toEqual([])
-    expect(captured).toBe(0)
     expect(events).toEqual(['create', 'launch', 'register'])
     expect(registered).toEqual([{ threadId, token: serveToken }])
     expect(sandbox.created).toBe(false)

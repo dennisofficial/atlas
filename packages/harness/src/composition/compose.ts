@@ -43,6 +43,7 @@ import { ToolRegistry } from '../tools/registry'
 
 import { bindBrowser } from './compose-browser'
 import { bindSessionAgentTypes } from './compose-agent-types'
+import { bindCloudState } from './cloud-state-binding'
 import { bindCredentials } from './compose-credentials'
 import {
   bindProcessServices,
@@ -109,6 +110,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   userSkillHome?: string | undefined
   /** Serve passes the drive home so user-layer sync resolves `.agents`/`.claude` under it. */
   userLayerHome?: string | undefined
+  cloudState?: boolean | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
   const notice = surface.notice
@@ -116,11 +118,19 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   container.register(ClientVersionToken, { useValue: args.clientVersion })
   container.register(registeredPortToken(NoticePort), { useValue: notice })
   args.bindPorts?.({ container })
+  const cloudState = await bindCloudState({
+    enabled: args.cloudState === true,
+    container,
+    settings: args.settings,
+    clientVersion: args.clientVersion,
+    notice,
+  })
+  const settingsBinding = cloudState.settings
 
   const { anchor, workspace } = await claimLaunchWorkspace({ container, launch })
   const mcp = await bindMcp({ container, cwd: anchor, notice })
 
-  const settings = args.settings.service
+  const settings = settingsBinding.service
   const settled = settings.snapshot().resolution
   const preThreadSessionKey = randomUUID()
   let activeThread: ActiveConversation | null = null
@@ -134,7 +144,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const { credentials, accounts, cloud, usage, secrets, accountList } = await bindCredentials({
     container,
-    settings: args.settings,
+    settings: settingsBinding,
+    cloudBacked: cloudState.cloudBacked,
     env: args.env,
     clientVersion: args.clientVersion,
     reconcileHostSources: launch.command !== SERVE_COMMAND,

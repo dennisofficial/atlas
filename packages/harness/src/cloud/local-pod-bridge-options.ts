@@ -1,5 +1,4 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { PortableState } from '@dltech/atlas-wire'
 
 import type { AttachOptions } from './local-cloud-attachment'
 import type { PodDriverConfig } from './local-pod/driver'
@@ -15,7 +14,6 @@ export type LocalPodBridgeOptions = AttachOptions & {
   pod: () => PodDriverConfig
   attachmentToken: (args: { threadId: ThreadId }) => string
   registerPodLease: PodLeaseRegistrar
-  capturePortable?: (() => Promise<PortableState>) | undefined
   environment?: (() => Record<string, string>) | undefined
   onDriverLog?: ((line: string) => void) | undefined
   driverWith?: ((config: PodDriverConfig) => PodBridgeDriver) | undefined

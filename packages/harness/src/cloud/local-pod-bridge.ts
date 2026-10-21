@@ -1,5 +1,4 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { PORTABLE_STATE_PATH } from '@dltech/atlas-wire'
 
 import { transferBufferedArchive } from './buffered-transfer'
 import {
@@ -46,14 +45,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
         }),
       })
       if (await driver.vaultPresent({ name: handle.name })) return
-      const portable = await args.capturePortable?.()
-      if (portable !== undefined) {
-        await driver.writeBootstrapFile({
-          name: handle.name,
-          path: PORTABLE_STATE_PATH,
-          content: JSON.stringify(portable),
-        })
-      }
       await createArgs.captureContext?.((archive) =>
         transferBufferedArchive({
           archive,
