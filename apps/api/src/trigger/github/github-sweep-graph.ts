@@ -19,6 +19,10 @@ import { WAKE_DEBOUNCE_MS } from '../../api/cloud/github/github-sandbox-wake-deb
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
 import { GithubUserReads } from '../../api/cloud/github/github-user-reads'
 import { GithubService } from '../../api/cloud/github/github.service'
+import { ThreadSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/thread-sandbox-credentials.service'
+import { ScopedConfigService } from '../../api/cloud/scoped-config/scoped-config.service'
+import { WorkspaceAccessService } from '../../api/cloud/workspaces/workspace-access.service'
+import { WorkspaceVercelService } from '../../api/cloud/workspaces/workspace-vercel.service'
 import { DrainStateService } from '../../api/platform/health/drain-state.service'
 
 export type GithubSweepGraph = {
@@ -47,6 +51,10 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const wake = new GithubSandboxWakeService(
     env,
     cipher,
+    new ThreadSandboxCredentialsService(
+      new ScopedConfigService(cipher, new WorkspaceVercelService(new WorkspaceAccessService(), cipher)),
+      env,
+    ),
     sandboxWakeBootProvider.useFactory(),
     new ProcessBackgroundWork(),
     WAKE_DEBOUNCE_MS,

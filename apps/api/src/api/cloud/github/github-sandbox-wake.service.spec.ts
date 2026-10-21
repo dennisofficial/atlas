@@ -71,6 +71,31 @@ describe('GithubSandboxWakeService', () => {
     expect(Date.parse(row().lastActivityAt)).toBeGreaterThan(Date.now() - 10_000)
   })
 
+  it('boots a workspace-owned row without injecting its Vercel token and flags it API-provisioned', async () => {
+    seedSubscription()
+    seedParkedSandbox()
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot, credentials: { workspaceOwned: true } }).notifyEvent(PR_EVENT)
+    await flushDebounce()
+
+    expect(calls[0]?.credentials).toEqual({ token: 'vercel-token', teamId: 'team-1', projectId: 'proj-1' })
+    expect(calls[0]?.injectVercelCredentials).toBe(false)
+    expect(calls[0]?.environment).toEqual({ ATLAS_API_PROVISIONED: '1' })
+  })
+
+  it('keeps injecting credentials for a legacy BYO row', async () => {
+    seedSubscription()
+    seedParkedSandbox()
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot, credentials: { workspaceOwned: false } }).notifyEvent(PR_EVENT)
+    await flushDebounce()
+
+    expect(calls[0]).not.toHaveProperty('injectVercelCredentials')
+    expect(calls[0]).not.toHaveProperty('environment')
+  })
+
   it('a sandbox Vercel had to create fresh runs under a newly minted token and drops the dead record', async () => {
     seedSubscription()
     seedParkedSandbox()

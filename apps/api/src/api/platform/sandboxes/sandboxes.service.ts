@@ -189,7 +189,7 @@ export class SandboxesService {
 
   async park(args: { row: Pick<CloudSandboxModel, 'threadId' | 'name'>; reason: string }): Promise<void> {
     await this.notifyParked(args)
-    await this.vercel.stop({ name: args.row.name })
+    await this.vercel.stop({ threadId: args.row.threadId, name: args.row.name })
     await db.cloudSandbox.update({
       where: { threadId: args.row.threadId },
       data: { state: ESandboxState.Parked, updatedAt: nowIso() },
@@ -202,7 +202,11 @@ export class SandboxesService {
     reason: string
   }): Promise<void> {
     try {
-      await this.vercel.notifyParked({ name: args.row.name, reason: args.reason })
+      await this.vercel.notifyParked({
+        threadId: args.row.threadId,
+        name: args.row.name,
+        reason: args.reason,
+      })
     } catch (failure) {
       this.logger.warn(
         `could not notify sandbox ${args.row.name} before parking it: ${messageOf(failure)}`,

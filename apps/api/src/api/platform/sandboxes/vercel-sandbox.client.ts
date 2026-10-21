@@ -1,7 +1,7 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Sandbox } from '@vercel/sandbox'
-import { SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
-import { EnvService } from '../../../_core/config/env/env.service'
+import { assertLiveSession, SANDBOX_MAX_PORTS, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 import { ESandboxState } from './sandboxes.types'
 import { asBadGateway, isSandboxMissing } from './vercel-sandbox.errors'
 
@@ -29,12 +29,6 @@ export interface SandboxObservation {
   url?: string
 }
 
-interface SandboxConfiguration {
-  token: string
-  teamId: string
-  projectId: string
-}
-
 export class SandboxMissingError extends Error {
   constructor(sandboxName?: string) {
     super(
@@ -60,23 +54,13 @@ const routedUrlOf = (sandbox: Sandbox): string | undefined => {
   }
 }
 
-/**
- * The read-and-stop surface the API still needs on a BYO sandbox. The harness owns provisioning
- * with the operator's own Vercel token, so nothing here boots, launches, or downloads serve —
- * only inspect, park notification, and stop.
- */
 @Injectable()
 export class VercelSandboxClient {
-  constructor(private readonly env: EnvService) {}
+  constructor(private readonly credentials: SandboxCredentials) {}
 
-  async inspect(args: { name: string }): Promise<SandboxObservation> {
-    const credentials = this.credentials()
+  async inspect(args: { threadId: string; name: string }): Promise<SandboxObservation> {
     try {
-      const sandbox = await Sandbox.get({
-        ...credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
+      const sandbox = await this.get(args)
       const url = routedUrlOf(sandbox)
       return { state: stateOf(sandbox.status), ...(url === undefined ? {} : { url }) }
     } catch (failure) {
@@ -85,14 +69,14 @@ export class VercelSandboxClient {
     }
   }
 
-  async stop(args: { name: string }): Promise<void> {
-    const credentials = this.credentials()
+  async stop(args: { threadId: string; name: string }): Promise<void> {
+    await this.stopSession(args)
+  }
+
+  async stopSession(args: { threadId: string; name: string; sessionId?: string | undefined }): Promise<void> {
     try {
-      const sandbox = await Sandbox.get({
-        ...credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
+      const sandbox = await this.get({ ...args, resume: false })
+      assertLiveSession({ sandbox, name: args.name, expected: args.sessionId })
       await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return
@@ -100,14 +84,35 @@ export class VercelSandboxClient {
     }
   }
 
+  /**
+   * `update` replaces the whole port list, so the already-routed ports go back in alongside the
+   * new one — omitting them would deregister the serve port and cut the session's own channel.
+   */
+  async exposePort(args: { threadId: string; name: string; port: number }): Promise<string> {
+    try {
+      const sandbox = await this.get(args)
+      const routed = sandbox.routes.map((route) => route.port)
+      if (!routed.includes(args.port)) {
+        if (routed.length >= SANDBOX_MAX_PORTS) {
+          throw new Error(
+            `a sandbox exposes at most ${SANDBOX_MAX_PORTS} ports and this one is at the limit`,
+          )
+        }
+        await sandbox.update(
+          { ports: [...routed, args.port] },
+          { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
+        )
+      }
+      return sandbox.domain(args.port)
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw asBadGateway(failure)
+    }
+  }
+
   /** Throws on any failure; swallowing it is the caller's job, so a wedged sandbox still stops. */
-  async notifyParked(args: { name: string; reason: string }): Promise<void> {
-    const credentials = this.credentials()
-    const sandbox = await Sandbox.get({
-      ...credentials,
-      name: args.name,
-      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-    })
+  async notifyParked(args: { threadId: string; name: string; reason: string }): Promise<void> {
+    const sandbox = await this.get(args)
     await sandbox.runCommand({
       cmd: 'sh',
       args: ['-c', parkNoticeScript(SANDBOX_SERVE_PORT)],
@@ -116,15 +121,15 @@ export class VercelSandboxClient {
     })
   }
 
-  private credentials(): SandboxConfiguration {
-    const token = this.env.get('VERCEL_TOKEN')
-    const teamId = this.env.get('VERCEL_TEAM_ID')
-    const projectId = this.env.get('VERCEL_PROJECT_ID')
-    if (token === undefined || teamId === undefined || projectId === undefined) {
-      throw new ServiceUnavailableException(
-        'Atlas Cloud sandboxes are not configured on this deployment',
-      )
-    }
-    return { token, teamId, projectId }
+  private async get(args: { threadId: string; name: string; resume?: boolean }): Promise<Sandbox> {
+    const { token, teamId, projectId } = await this.credentials.forThread({ threadId: args.threadId })
+    return Sandbox.get({
+      token,
+      teamId,
+      projectId,
+      name: args.name,
+      ...(args.resume === undefined ? {} : { resume: args.resume }),
+      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+    })
   }
 }

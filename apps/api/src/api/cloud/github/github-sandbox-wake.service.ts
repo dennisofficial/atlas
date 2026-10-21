@@ -1,12 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 
-import type { VercelCredentials } from '@dltech/atlas-wire'
+import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 
 import { db } from '../../../db'
 import { Prisma } from '../../../generated/prisma/client'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
+import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { wakeableOf, type SandboxLifecycleColumns } from '../../platform/sandboxes/sandbox-lifecycle'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
@@ -61,6 +62,7 @@ export class GithubSandboxWakeService {
   constructor(
     private readonly env: EnvService,
     private readonly cipher: SecretCipherService,
+    private readonly credentials: SandboxCredentials,
     @Inject(SANDBOX_WAKE_BOOT) private readonly bootAdapter: SandboxWakeBoot,
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
     @Inject(WAKE_DEBOUNCE) private readonly debounceMs: number,
@@ -203,8 +205,14 @@ export class GithubSandboxWakeService {
   private async bootClaimed(args: { row: CloudSandboxModel }): Promise<void> {
     const { row } = args
     const freshToken = randomBytes(32).toString('hex')
+    const { workspaceOwned, ...credentials } = await this.credentials.forThread({
+      threadId: row.threadId,
+    })
     const { serveUrl, created } = await this.bootAdapter.boot({
-      credentials: this.vercelCredentials(),
+      credentials,
+      ...(workspaceOwned
+        ? { injectVercelCredentials: false, environment: { [API_PROVISIONED_ENV]: '1' } }
+        : {}),
       name: row.name,
       threadId: row.threadId,
       image: this.env.get('SANDBOX_IMAGE'),
@@ -260,15 +268,5 @@ export class GithubSandboxWakeService {
       where: { threadId: args.threadId, wakeClaim: args.wakeClaim },
       data: { wakeClaim: null, wakeFailedAt: at, updatedAt: at },
     })
-  }
-
-  private vercelCredentials(): VercelCredentials {
-    const token = this.env.get('VERCEL_TOKEN')
-    const teamId = this.env.get('VERCEL_TEAM_ID')
-    const projectId = this.env.get('VERCEL_PROJECT_ID')
-    if (token === undefined || teamId === undefined || projectId === undefined) {
-      throw new Error('Atlas Cloud sandboxes are not configured on this deployment')
-    }
-    return { token, teamId, projectId }
   }
 }

@@ -22,6 +22,8 @@ import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
+import { SandboxCredentialsModule } from './cloud/sandbox-credentials/sandbox-credentials.module'
+import { SandboxProvisioningModule } from './cloud/sandbox-provisioning/sandbox-provisioning.module'
 import { ScopedConfigModule } from './cloud/scoped-config/scoped-config.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
@@ -64,6 +66,8 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
     GithubRealtimeModule,
     WorkspacesModule,
     ScopedConfigModule,
+    SandboxCredentialsModule,
+    SandboxProvisioningModule,
   ],
   controllers: [HealthController],
   providers: [
