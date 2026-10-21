@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { encodeSettingValue } from '@dltech/atlas-wire/web'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../../generated/prisma/client'
 import { SettingsService } from './settings.service'
@@ -154,5 +155,38 @@ describe('SettingsService', () => {
       'sandbox.team-2.project3',
       'sandbox.vercelTeamId',
     ])
+  })
+
+  describe('legacy PUT stays permissive while PATCH validates', () => {
+    const rawUploads: Array<[string, string]> = [
+      ['sandbox.vcpus', encodeSettingValue('4')],
+      ['sandbox.vcpus', encodeSettingValue(3)],
+      ['sandbox.vcpus', encodeSettingValue(2.5)],
+      ['experimental.grillingCeremony', encodeSettingValue('on')],
+      ['model.id', encodeSettingValue('garbage')],
+    ]
+
+    it('set stores every raw upload the harness accepts', async () => {
+      for (const [key, value] of rawUploads) {
+        await service.set({ userId: USER_A, key, value })
+        expect(fake.settings.find((row) => row.key === key)?.value).toBe(value)
+      }
+      expect(await service.list({ userId: USER_A })).toHaveLength(3)
+    })
+
+    it('set still refuses a malformed key', async () => {
+      await expect(
+        service.set({ userId: USER_A, key: 'sandbox..vcpus', value: encodeSettingValue(4) }),
+      ).rejects.toBeInstanceOf(BadRequestException)
+    })
+
+    it('patch rejects the same values', async () => {
+      for (const [key, value] of rawUploads) {
+        await expect(
+          service.patch({ userId: USER_A, values: { [key]: value } }),
+        ).rejects.toBeInstanceOf(BadRequestException)
+      }
+      expect(fake.settings).toHaveLength(0)
+    })
   })
 })

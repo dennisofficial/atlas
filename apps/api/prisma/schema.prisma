@@ -228,6 +228,7 @@ model ActiveAccount {
 model SecretEntry {
   id          String   @id
   name        String
+  kind        String   @default("secret")
   sealedValue String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -384,6 +385,9 @@ model Organization {
   createdAt   DateTime     @default(now())
   members     Member[]
   invitations Invitation[]
+  secrets     WorkspaceSecret[]
+  mcpServers  WorkspaceMcpServer[]
+  settings    WorkspaceSetting[]
 }
 
 model Member {
@@ -519,9 +523,78 @@ model Project {
   repo            String?
   baseBranch      String?
   additionalRepos Json     @default("[]")
+  description     String   @default("")
+  shipBehavior    String   @default("open-pr")
+  sandboxVcpus    Int?
+  setupScript     String   @default("") @db.Text
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secrets         ProjectSecret[]
+  mcpServers      ProjectMcpServer[]
 
   @@index([userId])
+}
+
+model ProjectSecret {
+  id          String   @id
+  projectId   String
+  name        String
+  kind        String   @default("secret")
+  sealedValue String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+}
+
+model ProjectMcpServer {
+  id         String   @id
+  projectId  String
+  name       String
+  sealedSpec String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+}
+
+model WorkspaceSecret {
+  id             String       @id
+  organizationId String
+  name           String
+  kind           String       @default("secret")
+  sealedValue    String
+  updatedById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+}
+
+model WorkspaceMcpServer {
+  id             String       @id
+  organizationId String
+  name           String
+  sealedSpec     String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+}
+
+model WorkspaceSetting {
+  id             String       @id
+  organizationId String
+  key            String
+  value          String       @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
 }

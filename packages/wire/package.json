@@ -8,7 +8,8 @@
       "types": "./src/index.ts",
       "bun": "./src/index.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./web": "./src/web/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

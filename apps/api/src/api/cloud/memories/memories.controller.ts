@@ -16,6 +16,7 @@ import type { MemoryEntry, MemoryList, MemorySummary } from '@dltech/atlas-wire'
 import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
 import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
+import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { EditMemoryDto, MemoryKeyDto, MemoryProjectQuery, PutMemoryDto } from './memories.dto'
 import { MemoriesService } from './memories.service'
@@ -34,6 +35,14 @@ function userIdOf(request: AuthenticatedRequest): string {
 @SandboxReachable()
 export class MemoriesController {
   constructor(private readonly memories: MemoriesService) {}
+
+  @Get('all')
+  @UseGuards(SessionAuthGuard)
+  @Header('Cache-Control', NO_STORE)
+  async handleListAll(@Req() request: AuthenticatedRequest): Promise<MemoryList> {
+    const memories = await this.memories.listAll({ userId: userIdOf(request) })
+    return { memories }
+  }
 
   @Get()
   @Header('Cache-Control', NO_STORE)

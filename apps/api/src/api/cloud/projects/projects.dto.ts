@@ -1,8 +1,16 @@
-import { GIT_BRANCH_PATTERN, GITHUB_REPO_PATTERN, MAX_ADDITIONAL_REPOS, MAX_PROJECT_NAME_LENGTH } from '@dltech/atlas-wire'
+import {
+  GIT_BRANCH_PATTERN,
+  GITHUB_REPO_PATTERN,
+  MAX_ADDITIONAL_REPOS,
+  MAX_PROJECT_DESCRIPTION_LENGTH,
+  MAX_PROJECT_NAME_LENGTH,
+} from '@dltech/atlas-wire'
+import { EShipBehavior } from '@dltech/atlas-wire/web'
 import { Type } from 'class-transformer'
 import {
   ArrayMaxSize,
   IsArray,
+  IsEnum,
   IsOptional,
   IsString,
   Length,
@@ -44,4 +52,13 @@ export class SaveProjectDto {
   @ValidateNested({ each: true })
   @Type(() => ProjectRepoDto)
   additionalRepos!: ProjectRepoDto[]
+
+  @IsOptional()
+  @IsString()
+  @Length(0, MAX_PROJECT_DESCRIPTION_LENGTH)
+  description?: string
+
+  @IsOptional()
+  @IsEnum(EShipBehavior)
+  shipBehavior?: EShipBehavior
 }

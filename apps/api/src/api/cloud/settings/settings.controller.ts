@@ -6,6 +6,7 @@ import {
   Header,
   HttpCode,
   Param,
+  Patch,
   Put,
   Req,
   UnauthorizedException,
@@ -16,7 +17,7 @@ import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.de
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
-import { SetSettingDto } from './settings.dto'
+import { PatchSettingsDto, SetSettingDto } from './settings.dto'
 import { SettingsService } from './settings.service'
 import type { SettingListDto } from './settings.types'
 
@@ -39,6 +40,16 @@ export class SettingsController {
   @Header('Cache-Control', NO_STORE)
   async handleList(@Req() request: AuthenticatedRequest): Promise<SettingListDto> {
     return { settings: await this.settings.list({ userId: userIdOf(request) }) }
+  }
+
+  @Patch()
+  @HttpCode(204)
+  @UseGuards(SessionAuthGuard)
+  async handlePatch(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: PatchSettingsDto,
+  ): Promise<void> {
+    await this.settings.patch({ userId: userIdOf(request), values: body.values })
   }
 
   @Put(':key')
