@@ -176,17 +176,6 @@ describe('startServe', () => {
     expect(ms).toBeGreaterThanOrEqual(20)
   })
 
-  it('times the context materialization in its boot log', async () => {
-    const { lines } = await start({})
-
-    const context = lines.find(
-      (line) =>
-        line.includes(EServeEvent.ContextReady) || line.includes(EServeEvent.ContextFailed),
-    )
-    expect(context).toBeDefined()
-    expect(JSON.parse(context ?? '{}').ms).toEqual(expect.any(Number))
-  })
-
   it('stamps the whole boot on the started line', async () => {
     const { lines } = await start({})
 

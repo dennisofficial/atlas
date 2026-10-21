@@ -1,16 +1,11 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
+import { RemoteTurnRunner } from '@dltech/atlas-harness'
 import type { SettleWaitNotice } from '@dltech/atlas-wire'
 
-import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import { WAKE_HEADING } from '../container-move'
 import { messageOf } from '../error-text'
 import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
-
-export type { CaptureContext }
-
-const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
 
 export const ROTATE_HEADING = 'UPDATING THE POD'
 
@@ -28,18 +23,10 @@ const settleWaitTextOf = (notice: SettleWaitNotice): string => {
   return `waiting for Vercel to release the pod name${attempt}`
 }
 
-/**
- * Re-attaching to a thread's sandbox: the claim mints a fresh token and git credential, and the
- * driver resumes (or recreates) the sandbox before answering. The operator's context is only sent
- * up again when the sandbox booted fresh — a resumed sandbox's snapshot already has it, so neither
- * the (expensive) tar nor the upload runs. Narrated through `move` when one is given, so a wake
- * reached from an idle conversation reads as progress rather than as a stall.
- */
 export async function wakeSandbox(args: {
   bridge: CloudBridge
   threadId: ThreadId
   projectId: string | null
-  captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
   onRotationStarted?: (() => void) | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
@@ -59,19 +46,6 @@ export async function wakeSandbox(args: {
     onSettleWait: (notice) => {
       args.move?.handleRowLabel({ nodeId: 'waiting', text: settleWaitTextOf(notice) })
     },
-    captureContext: async (put) => {
-      try {
-        const archive = await args.captureContext()
-        if (archive !== undefined) await put(archive)
-      } catch (error) {
-        notify({
-          key: WAKE_CONTEXT_NOTICE_KEY,
-          text: `the fresh pod woke without this machine's context — ${messageOf(error)}`,
-          tone: ENoticeTone.Warn,
-          ttlMs: NOTICE_WARN_MS,
-        })
-      }
-    },
   })
 
   args.move?.handleRowActive('attaching')
@@ -90,7 +64,6 @@ export function createCloudWake(args: {
   channel: CloudChannel
   threadId: ThreadId
   projectId: string | null
-  captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
   onWoken?: ((woken: { created: boolean }) => void) | undefined
 }): CloudWake {
@@ -102,7 +75,6 @@ export function createCloudWake(args: {
         bridge: args.bridge,
         threadId: args.threadId,
         projectId: args.projectId,
-        captureContext: args.captureContext,
         ...(move === undefined ? {} : { move }),
         onRotationStarted: () => args.channel.beginRotation(),
       })
@@ -129,7 +101,6 @@ export function createCloudRunner(args: {
   channel: CloudChannel
   threadId: ThreadId
   projectId: string | null
-  captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
   wake?: CloudWake | undefined
 }): RemoteTurnRunner {

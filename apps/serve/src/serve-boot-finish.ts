@@ -49,7 +49,7 @@ export async function finishServeBoot(args: {
   const { server, port } = boot
   const fetchFn = serveArgs.fetchFn ?? fetch
   const recovery = await createServeRotationRecovery({ atlasHome, threadId, sandboxSessionId, log })
-  const { workspace, activeCwd, spec, context } = await bootServeFiles({
+  const { workspace, activeCwd, spec, identity } = await bootServeFiles({
     env,
     threadId,
     cwd,
@@ -68,7 +68,7 @@ export async function finishServeBoot(args: {
     compose: serveArgs.compose,
     model: serveArgs.model,
     spec,
-    context,
+    identity,
     threadId,
     cwd: activeCwd,
     atlasHome,

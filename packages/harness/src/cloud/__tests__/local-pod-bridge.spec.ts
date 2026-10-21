@@ -2,16 +2,15 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import { CONTEXT_ARCHIVE_PATH, WORKSPACE_SPEC_PATH } from '../local-cloud-bootstrap'
+import { WORKSPACE_SPEC_PATH } from '../local-cloud-bootstrap'
 import { podNameFor } from '../local-pod/pod-create'
-import type { SandboxTransferProgress } from '../transfer-progress'
 import { fakePodDriver, podBridgeWith } from './local-pod-bridge-fixture'
 
 const threadId = toThreadId('thread-pod-bridge')
 const serveToken = `serve-token-${threadId}`
 
 describe('createLocalPodBridge birth', () => {
-  it('stages the spec, then the archive in order, and registers the lease before the bootstrap write and again after launch', async () => {
+  it('stages the spec and registers the lease before the bootstrap write and again after launch', async () => {
     const { driver, events, created } = fakePodDriver({ created: true })
     const registered: Array<{ threadId: string; token: string }> = []
     const bridge = podBridgeWith({ driver, registered, events })
@@ -19,15 +18,12 @@ describe('createLocalPodBridge birth', () => {
     const sandbox = await bridge.sandboxes.create({
       threadId,
       projectId: null,
-      captureContext: async (put) => put(new Uint8Array(3)),
     })
 
     expect(events).toEqual([
       'create',
       'register',
       `write:${WORKSPACE_SPEC_PATH}`,
-      'vault-probe',
-      `write:${CONTEXT_ARCHIVE_PATH}`,
       'launch',
       'register',
     ])
@@ -67,40 +63,6 @@ describe('createLocalPodBridge birth', () => {
     expect(created[0]).toMatchObject({ name: podNameFor({ threadId }), threadId, token: serveToken })
   })
 
-  it('skips the archive when a vault is already in the pod', async () => {
-    const { driver, writes } = fakePodDriver({ created: true, vaultPresent: true })
-    let archived = 0
-
-    await podBridgeWith({ driver }).sandboxes.create({
-      threadId,
-      projectId: null,
-      captureContext: async () => {
-        archived += 1
-      },
-    })
-
-    expect(writes.map((write) => write.path)).toEqual([WORKSPACE_SPEC_PATH])
-    expect(archived).toBe(0)
-  })
-
-  it('reports archive upload progress through the buffered transfer', async () => {
-    const { driver } = fakePodDriver({ created: true })
-    const progress: SandboxTransferProgress[] = []
-
-    await podBridgeWith({ driver }).sandboxes.create({
-      threadId,
-      projectId: null,
-      captureContext: async (put) => put(new Uint8Array(6)),
-      onTransferProgress: (reading) => progress.push(reading),
-    })
-
-    expect(progress.map((reading) => [reading.transferredBytes, reading.complete])).toEqual([
-      [0, false],
-      [6, true],
-    ])
-    expect(progress[0]?.label).toBe('uploading local config')
-  })
-
   it('forwards the operator environment and omits it when empty', async () => {
     const withEnv = fakePodDriver({ created: true })
     const without = fakePodDriver({ created: true })
@@ -122,7 +84,6 @@ describe('createLocalPodBridge birth', () => {
     const sandbox = await podBridgeWith({ driver, registered, events }).sandboxes.create({
       threadId,
       projectId: null,
-      captureContext: async (put) => put(new Uint8Array(2)),
     })
 
     expect(writes).toEqual([])

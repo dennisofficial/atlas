@@ -1,6 +1,12 @@
 import { existsSync } from 'node:fs'
 
-import { EExecutionLocation, EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  EHarnessPlacement,
+  ERunner,
+  normalizeRepoOrigin,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import {
   POD_NAME_ENV,
   metaWithPlacement,
@@ -14,7 +20,6 @@ import {
   threadMetaSchema,
 } from '@dltech/atlas-harness'
 
-import { bootstrapContextArchiveFetcher } from './bootstrap-fetchers'
 import {
   createEnvironmentProfile,
   EProfileStepState,
@@ -28,7 +33,6 @@ import {
   type EnsureWorkspace,
   type WorkspaceReadiness,
 } from './materialize-workspace'
-import { materializeContext } from './materialize-context'
 import { projectWorkspaceSpecFetcher } from './project-workspace-spec'
 import { applyPublishedBundle } from './published-bundle'
 import { applySigningKey } from './signing-key-env'
@@ -113,20 +117,7 @@ export async function bootServeFiles(args: {
     fetchFn: args.fetchFn,
   })
 
-  const contextStartedAt = Date.now()
-  const context = await materializeContext({
-    fetchSpec: fetchSpecOnce,
-    fetchArchive: bootstrapContextArchiveFetcher({ atlasHome }),
-    atlasHome,
-    projectDirectory: cwd,
-    files: args.contextFiles,
-  })
-  const contextMs = Date.now() - contextStartedAt
-  if (context.failed !== null) {
-    log({ event: EServeEvent.ContextFailed, reason: context.failed, ms: contextMs })
-  } else if (context.written > 0) {
-    log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
-  }
+  const identity = spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
   await applyPublishedBundle({
     atlasHome,
     projectDirectory: cwd,
@@ -158,5 +149,5 @@ export async function bootServeFiles(args: {
     })
   }
 
-  return { workspace, activeCwd: cwd, spec, context }
+  return { workspace, activeCwd: cwd, spec, identity }
 }

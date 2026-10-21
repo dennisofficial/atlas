@@ -132,8 +132,6 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
     | undefined
   threadOpened: (args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>
   journalResume: (args: { active: ActiveConversation; directory: string }) => void
-  /** A cloud birth's context capture with the session's notice port already bound in. */
-  captureContext: (callArgs?: { cwd?: string | undefined }) => Promise<Buffer | undefined>
   pluginProjections: readonly ContributedProjection[]
   pluginSurfaces: readonly ContributedSurface<TPluginSurface>[]
   surface: TSurface

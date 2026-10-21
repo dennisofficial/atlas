@@ -26,7 +26,7 @@ export function composeBootApp(args: {
   compose?: ServeCompose | undefined
   model?: { ref: string; effort?: string | undefined } | undefined
   spec: Booted['spec']
-  context: Booted['context']
+  identity: Booted['identity']
   threadId: ThreadId
   cwd: string
   atlasHome: string
@@ -51,7 +51,6 @@ export function composeBootApp(args: {
     env: args.env,
     model,
     notice: args.notice,
-    projectDirectory: args.context.projectDirectory,
-    identity: args.context.identity,
+    identity: args.identity,
   })
 }

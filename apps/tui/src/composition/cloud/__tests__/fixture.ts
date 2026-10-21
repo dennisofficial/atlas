@@ -579,7 +579,6 @@ export type FakeBridge = CloudBridge & {
     threadId: ThreadId
     projectId: string | null
   }[]
-  readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
   /** Channels handed out without a url or token: parked, no socket, until `wake` dials. */
   readonly parkedAttaches: readonly ThreadId[]
@@ -606,7 +605,6 @@ export function fakeBridge(
   args: {
     sandbox?: CloudSandbox
     createFails?: unknown
-    putContextFails?: unknown
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
     /** Lets a spec move the sandbox row after the bridge exists — the control plane's answer. */
@@ -630,7 +628,6 @@ export function fakeBridge(
     threadId: ThreadId
     projectId: string | null
   }[] = []
-  const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
   const parkedAttaches: ThreadId[] = []
   const destroyed: ThreadId[] = []
@@ -643,11 +640,6 @@ export function fakeBridge(
   let sourceWorkspace: string | null = null
   let sourceDisk = args.sourceDisk
 
-  /**
-   * A wake reattaches to a transcript the sandbox already serves: the fake's stores were seeded
-   * by the spec directly, so the thread row mirrors them synchronously. A birth's transcript lands
-   * through the staged archive instead.
-   */
   const materialize = (threadId: ThreadId): void => {
     const events =
       log.peek({ threadId }).length > 0
@@ -677,7 +669,6 @@ export function fakeBridge(
     threads,
     ledger,
     created,
-    contextPuts,
     attached,
     parkedAttaches,
     destroyed,
@@ -693,21 +684,10 @@ export function fakeBridge(
       sourceDisk = disk
     },
     sandboxes: {
-      create: async ({ threadId, projectId, captureContext, onRotationStarted }) => {
+      create: async ({ threadId, projectId, onRotationStarted }) => {
         const sandbox = args.sandbox ?? RUNNING
         if (sandbox.rotatedProtocol !== undefined || sandbox.rotatedFrom !== undefined)
           onRotationStarted?.()
-        // The real create captures and puts the archive onto the row before booting a fresh
-        // sandbox, so the trail records it ahead of the boot; a resumed sandbox already carries
-        // its context and never captures. The caller's thunk owns failure semantics, so the fake
-        // only records the put — the thunk decides whether a put failure throws.
-        if (captureContext !== undefined && sandbox.created) {
-          await captureContext(async (archive) => {
-            trail.push('put-context')
-            contextPuts.push({ threadId, archive: Buffer.from(archive) })
-            if (args.putContextFails !== undefined) throw args.putContextFails
-          })
-        }
         trail.push('sandbox')
         created.push({
           threadId,

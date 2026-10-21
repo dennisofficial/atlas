@@ -59,7 +59,6 @@ import type { HarnessLaunch } from './config'
 import { publishProjections, type ContributedProjection } from '../plugins/projection'
 
 import { bindInstructionsAndMemory } from './context-bindings'
-import { boundCaptureContext } from './context-archive-binding'
 import { ExecutionLocationToken } from './execution-location-state'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessCloseRequest, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
@@ -346,7 +345,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),
-    captureContext: boundCaptureContext({ notice }),
     pluginProjections: plugins.projections,
     pluginSurfaces: asPluginSurfaces<TPluginSurface>(plugins.surfaces),
     model,

@@ -53,7 +53,6 @@ async function setup() {
     localLog: fixture.log,
     ids: new CountingIds('birth'),
     placement: owner,
-    captureContext: async () => undefined,
     open: async ({ prepareRuntime }) =>
       prepareRuntime({ kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: NO_ADAPTERS }),
     ...overrides,

@@ -93,7 +93,6 @@ describeLive('a multi-turn session in a local pod', () => {
           localLog: app.log,
           ids: app.ids,
           placement: app.sessionOwner,
-          captureContext: async () => undefined,
           open: async ({ attachment, prepareRuntime }) => {
             attachments.push(attachment)
             prepareRuntime({
@@ -119,7 +118,6 @@ describeLive('a multi-turn session in a local pod', () => {
           channel: attachment.channel,
           threadId: THREAD,
           projectId: null,
-          captureContext: async () => undefined,
         })
 
         const first = await runner.say({ threadId: THREAD, text: WRITE_TRIGGER })

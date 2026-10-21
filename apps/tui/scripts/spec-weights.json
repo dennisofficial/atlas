@@ -120,7 +120,6 @@
  "src/composition/cloud/__tests__/bounded-merge-remote-memory.spec.ts": 0.317,
  "src/composition/cloud/__tests__/cloud-runner.spec.ts": 0.264,
  "src/composition/cloud/__tests__/cloud-session.spec.ts": 0.264,
- "src/composition/cloud/__tests__/context-archive.spec.ts": 0.326,
  "src/composition/cloud/__tests__/create-bridge.spec.ts": 0.253,
  "src/composition/cloud/__tests__/merge-remote-memory-archive.spec.ts": 0.262,
  "src/composition/cloud/__tests__/merge-remote-memory-identity.spec.ts": 0.299,

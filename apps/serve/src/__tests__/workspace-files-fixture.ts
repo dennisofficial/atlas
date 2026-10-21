@@ -1,15 +1,6 @@
-import { join } from 'node:path'
-
-import { materializeContext } from '../materialize-context'
 import type { WorkspaceFiles } from '../workspace-files'
-import type { WorkspaceSpec } from '../workspace-spec'
 
 export const ATLAS_HOME = '/srv/atlas-home'
-
-export const SPEC: WorkspaceSpec = {
-  remoteUrl: null,
-  githubToken: null,
-}
 
 export const fakeFiles = () => {
   const written = new Map<string, string>()
@@ -35,19 +26,3 @@ export const fakeFiles = () => {
   }
   return { files, written, writtenBytes, stamped }
 }
-
-export const CONTEXT_STAMP_PATH = join(ATLAS_HOME, 'context.stamp')
-
-export const bundle = (entries: Record<string, string>): string =>
-  JSON.stringify(
-    Object.fromEntries(
-      Object.entries(entries).map(([path, text]) => [path, Buffer.from(text, 'utf8').toString('base64')]),
-    ),
-  )
-
-export const materialize = (args: { spec: WorkspaceSpec; files: WorkspaceFiles }) =>
-  materializeContext({
-    fetchSpec: async () => args.spec,
-    atlasHome: ATLAS_HOME,
-    files: args.files,
-  })

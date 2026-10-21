@@ -193,8 +193,6 @@ export type ServeComposeArgs = {
   env: Record<string, string | undefined>
   model: { ref: string; effort?: string | undefined } | undefined
   notice: NoticePort
-  /** The Mac-side project directory the sandbox mirrors. */
-  projectDirectory?: string | null | undefined
   /**
    * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, from
    * which the session derives its GitHub project. Null when the repo has no host-named remote;
