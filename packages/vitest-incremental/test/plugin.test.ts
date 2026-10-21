@@ -153,11 +153,44 @@ describe('never cached', () => {
     expect(fixture.executed()).toEqual({ '.': 1 });
   });
 
+  test('a test file that runs a repo file through cat', () => {
+    const reads = `import { execFileSync } from 'node:child_process';\nimport { join } from 'node:path';\ntest('cat', () => expect(execFileSync('cat', [join(__dirname, '../data.txt')], { encoding: 'utf8' })).toBe('v1'));\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': reads, 'data.txt': 'v1' } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 1 });
+  });
+
   test('a test file whose test passed only on retry', () => {
     const flaky = `let runs = 0;\ntest('flaky', () => expect(++runs).toBe(2));\n`;
     const fixture = singleProject({ files: { 'tests/a.test.ts': flaky }, test: 'retry: 1' });
     expect(fixture.executed()).toEqual({ '.': 2 });
     expect(fixture.executed()).toEqual({ '.': 1 });
+  });
+});
+
+describe('cached despite a child process', () => {
+  test('a child that only touches a temp directory', () => {
+    const hermetic = `import { execFileSync } from 'node:child_process';\nimport { mkdtempSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport { join } from 'node:path';\ntest('git', () => { const dir = mkdtempSync(join(tmpdir(), 'inc-')); execFileSync('git', ['init', '-q'], { cwd: dir }); });\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': hermetic } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 0 });
+  });
+
+  test('a repo script run with bun reruns when a module it imports changes', () => {
+    const runs = `import { execFileSync } from 'node:child_process';\nimport { join } from 'node:path';\ntest('child', () => expect(execFileSync(process.execPath, [join(__dirname, '../child.ts')], { encoding: 'utf8' }).trim()).toBe('v1'));\n`;
+    const fixture = singleProject({
+      files: {
+        'tests/a.test.ts': runs,
+        'child.ts': `import { value } from './value';\nconsole.log(value);\n`,
+        'value.ts': `export const value = 'v1';\n`,
+      },
+    });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 0 });
+    fixture.write('value.ts', `export const value = 'v2';\n`);
+    const { status, summaries } = fixture.run('1');
+    expect(status).not.toBe(0);
+    expect(summaries[0]).toMatchObject({ executed: 1, failedFiles: ['tests/a.test.ts'] });
   });
 });
 

@@ -20,12 +20,14 @@
 import childProcess from 'node:child_process';
 import { EventEmitter, errorMonitor } from 'node:events';
 import fs from 'node:fs';
+
 import { syncBuiltinESMExports } from 'node:module';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, inject } from 'vitest';
 import { ENV_NAMES_MARKER, SESSION_ONLY_ENV } from './fingerprint';
+import { createSpawnClassifier } from './spawn';
 import type {} from './types';
 
 type CachedModule = {
@@ -230,9 +232,18 @@ function wrap(params: {
 // What a child process reads (`git grep`, a script run with node) is invisible
 // here, so a test file that starts one is never cached.
 let spawned = false;
+const spawnedCommands: string[] = [];
+const spawns = createSpawnClassifier({ repoRoot: REPO_ROOT, recordFile: (path) => files.add(path) });
+
+function recordSpawn(args: unknown[]) {
+  const verdict = spawns.classify(args);
+  if (spawnedCommands.length < 20) spawnedCommands.push(verdict.command);
+  if (verdict.uncacheable) spawned = true;
+}
+
 const marking = (fn: Fn) =>
   function (this: unknown, ...args: unknown[]) {
-    spawned = true;
+    recordSpawn(args);
     return fn.apply(this, args);
   };
 const processes = childProcess as unknown as Record<string, Fn & { [promisify.custom]?: Fn }>;
@@ -336,6 +347,7 @@ afterAll(() => {
   fileTask.meta.incremental = {
     recorderOk: Boolean(moduleCache && REPO_ROOT),
     uncacheable: spawned ? 'started a child process' : undefined,
+    spawned: spawnedCommands,
     modules: [...modules],
     files: [...files],
     dirs: [...dirs],
