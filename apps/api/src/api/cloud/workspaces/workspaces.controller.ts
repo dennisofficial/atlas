@@ -1,4 +1,4 @@
-import type { WorkspaceSecret } from '@dltech/atlas-wire/web'
+import type { WorkspaceSecret, WorkspaceVercelCredential } from '@dltech/atlas-wire/web'
 import {
   Body,
   Controller,
@@ -22,6 +22,7 @@ import type { SettingListDto } from '../settings/settings.types'
 import { PatchWorkspaceSettingsDto } from './workspaces.dto'
 import { WorkspaceResourcesService } from './workspace-resources.service'
 import { WorkspaceSettingsService } from './workspace-settings.service'
+import { WorkspaceVercelService } from './workspace-vercel.service'
 
 const NO_STORE = 'no-store'
 
@@ -37,6 +38,7 @@ export class WorkspacesController {
   constructor(
     private readonly resources: WorkspaceResourcesService,
     private readonly settings: WorkspaceSettingsService,
+    private readonly vercel: WorkspaceVercelService,
   ) {}
 
   @Get('secrets')
@@ -133,5 +135,33 @@ export class WorkspacesController {
     @Body() body: PatchWorkspaceSettingsDto,
   ): Promise<void> {
     await this.settings.patch({ userId: userIdOf(request), organizationId, values: body.values })
+  }
+
+  @Get('vercel')
+  @Header('Cache-Control', NO_STORE)
+  handleReadVercel(
+    @Req() request: AuthenticatedRequest,
+    @Param('organizationId') organizationId: string,
+  ): Promise<WorkspaceVercelCredential> {
+    return this.vercel.read({ userId: userIdOf(request), organizationId })
+  }
+
+  @Put('vercel')
+  @HttpCode(204)
+  async handleWriteVercel(
+    @Req() request: AuthenticatedRequest,
+    @Param('organizationId') organizationId: string,
+    @Body() body: unknown,
+  ): Promise<void> {
+    await this.vercel.write({ userId: userIdOf(request), organizationId, body })
+  }
+
+  @Delete('vercel')
+  @HttpCode(204)
+  async handleRemoveVercel(
+    @Req() request: AuthenticatedRequest,
+    @Param('organizationId') organizationId: string,
+  ): Promise<void> {
+    await this.vercel.remove({ userId: userIdOf(request), organizationId })
   }
 }

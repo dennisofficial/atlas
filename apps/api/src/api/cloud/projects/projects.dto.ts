@@ -61,4 +61,10 @@ export class SaveProjectDto {
   @IsOptional()
   @IsEnum(EShipBehavior)
   shipBehavior?: EShipBehavior
+
+  @IsOptional()
+  @whenGiven()
+  @IsString()
+  @Length(1, 200)
+  organizationId?: string | null
 }

@@ -4,6 +4,7 @@ import type { GithubService } from '../github/github.service'
 import type { SaveProjectDto } from './projects.dto'
 import { projectRows, resetProjectRows } from './projects.fakes'
 import { ProjectsService } from './projects.service'
+import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 
 vi.mock('../../../db', async () => {
   const { fakeProjectDb } = await import('./projects.fakes')
@@ -29,7 +30,7 @@ describe('ProjectsService', () => {
     resetProjectRows()
     tokens = { [USER_A]: 'gho_user-a' }
     const github = { findToken: vi.fn(async (args: { userId: string }) => tokens[args.userId]) }
-    service = new ProjectsService(github as unknown as GithubService)
+    service = new ProjectsService(github as unknown as GithubService, new WorkspaceAccessService())
   })
 
   it('creates, reads, lists, replaces and removes a project', async () => {
