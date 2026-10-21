@@ -4,11 +4,9 @@ import { PANEL_BOTTOM_EDGE } from '../borders'
 import { mixHex } from '../colour'
 import { collapseHome, tailOfPath } from '../paths'
 import { type StartupFrame } from '../startup-model'
-import { glyph, theme } from '../theme'
+import { theme } from '../theme'
 import { wordmarkRows, WORDMARK_CELLS, WORDMARK_ROWS } from '../wordmark'
 import { Spans } from './spans'
-
-const WORDMARK = 'atlas'
 
 const SEPARATOR = ' · '
 
@@ -45,16 +43,7 @@ function Seam(props: { width: number; lift: number }): React.ReactNode {
 function Mark(props: { frame: StartupFrame; roomy: boolean }): React.ReactNode {
   const { reveal, drain } = props.frame
 
-  if (!props.roomy) {
-    const gone = 1 - reveal * (1 - drain)
-
-    return (
-      <box height={1} flexShrink={0} flexDirection="row">
-        <text fg={fadedTo({ colour: theme.accent, drain: gone })}>{`${glyph.block} `}</text>
-        <text fg={fadedTo({ colour: theme.hover, drain: gone })}>{WORDMARK}</text>
-      </box>
-    )
-  }
+  if (!props.roomy) return null
 
   const rows = wordmarkRows({
     accent: theme.accent,

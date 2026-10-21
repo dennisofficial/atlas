@@ -4,11 +4,9 @@ import { EHarnessPlacement, ERunner } from '@dltech/atlas-core'
 
 import { modelLabel } from '../model-label'
 import { collapseHome } from '../paths'
-import { glyph, theme } from '../theme'
+import { theme } from '../theme'
 import { wordmarkRows, WORDMARK_CELLS } from '../wordmark'
 import { Spans } from './spans'
-
-const WORDMARK = 'atlas'
 
 const PITCH = 'A coding agent working in this directory.'
 
@@ -59,12 +57,7 @@ export function WelcomeScreen(props: {
             </box>
           ))}
         </box>
-      ) : (
-        <text>
-          <span fg={theme.accent}>{glyph.block} </span>
-          <span fg={theme.hover}>{WORDMARK}</span>
-        </text>
-      )}
+      ) : null}
       <text> </text>
       <text fg={theme.meta}>{PITCH}</text>
       <text> </text>

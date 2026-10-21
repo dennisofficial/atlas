@@ -10,7 +10,7 @@ import { CWD, HOME, MODEL_ID, frameOf } from './transcript-fixture'
 
 await grammarsReady()
 
-const WIDE = WORDMARK_CELLS + 20
+const WIDE = 104
 
 const HALF_CELL = '\u2580'
 
@@ -57,11 +57,13 @@ describe('the welcome screen', () => {
     expect(painted.map((column) => column - pad)).toEqual(modelled)
   })
 
-  it('falls back to a one-line mark when the terminal is too narrow to carry the art', async () => {
+  it('draws no mark and no wordmark when the terminal is too narrow to carry the logo', async () => {
     const narrow = WORDMARK_CELLS - 10
     const frame = await frameOf(screen(narrow), narrow)
 
-    expect(frame).toContain('atlas')
+    expect(frame).not.toContain(HALF_CELL)
+    expect(frame).not.toContain('⏺')
+    expect(frame).not.toContain('⏺ atlas')
   })
 })
 

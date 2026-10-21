@@ -121,16 +121,17 @@ describe('the startup curtain', () => {
     expect(painted).not.toContain(STATUS)
   })
 
-  it('falls back to a one-line mark in a terminal too narrow to carry the wordmark', async () => {
+  it('draws no mark and no wordmark in a terminal too narrow to carry the logo', async () => {
     const painted = await paint({ frame: frame(), width: WORDMARK_CELLS - 10 })
-    expect(painted).toContain('atlas')
+    expect(painted).not.toContain(HALF_CELL)
+    expect(painted).not.toContain('⏺')
     expect(painted).not.toContain(BENEATH)
   })
 
-  it('falls back to it in a terminal too short for one too, rather than clipping the mark', async () => {
+  it('draws nothing in the mark slot of a terminal too short for it, rather than clipping it', async () => {
     const painted = await paint({ frame: frame(), height: WORDMARK_ROWS + 1 })
-    expect(painted).toContain('atlas')
     expect(painted).not.toContain(HALF_CELL)
+    expect(painted).not.toContain('⏺')
     expect(painted).not.toContain(BENEATH)
   })
 })
