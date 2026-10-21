@@ -1,24 +1,9 @@
 import type { JsonValue, SettingsStorePort } from '@dltech/atlas-core'
+import { decodeSettingValue, encodeSettingValue } from '@dltech/atlas-wire/web'
 
 import { CloudError, type CloudClient } from './cloud-client'
 
-const SETTING_VALUE_PREFIX = 'atlas-setting:v1:'
-
-export const encodeSettingValue = (raw: JsonValue): string =>
-  `${SETTING_VALUE_PREFIX}${JSON.stringify(raw)}`
-
-const isSettingScalar = (raw: unknown): raw is string | number | boolean =>
-  typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean'
-
-export const decodeSettingValue = (stored: string): JsonValue => {
-  if (!stored.startsWith(SETTING_VALUE_PREFIX)) return stored
-  try {
-    const parsed: unknown = JSON.parse(stored.slice(SETTING_VALUE_PREFIX.length))
-    return isSettingScalar(parsed) ? parsed : stored
-  } catch {
-    return stored
-  }
-}
+export { decodeSettingValue, encodeSettingValue }
 
 export async function uploadLocalSettings(args: {
   client: CloudClient

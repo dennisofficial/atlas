@@ -1,5 +1,6 @@
 import type { Project, ProjectRepo, ProjectWorkspace } from '@dltech/atlas-wire'
 import { projectRepoSchema } from '@dltech/atlas-wire'
+import { EShipBehavior } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { z } from 'zod'
 import type { ProjectModel } from '../../../db'
@@ -8,7 +9,7 @@ import { GithubService } from '../github/github.service'
 import type { SaveProjectDto } from './projects.dto'
 import { assertProjectRules } from './projects.rules'
 
-const NOT_FOUND = 'project not found'
+export const PROJECT_NOT_FOUND = 'project not found'
 
 const repoListSchema = z.array(projectRepoSchema)
 
@@ -17,6 +18,10 @@ const reposOf = (row: ProjectModel): ProjectRepo[] => {
   return parsed.success ? parsed.data : []
 }
 
+const shipBehaviorOf = (stored: string): EShipBehavior =>
+  Object.values(EShipBehavior).find((candidate) => candidate === stored) ??
+  EShipBehavior.OpenPullRequest
+
 function toProject(row: ProjectModel): Project {
   return {
     id: row.id,
@@ -24,6 +29,8 @@ function toProject(row: ProjectModel): Project {
     repo: row.repo,
     baseBranch: row.baseBranch,
     additionalRepos: reposOf(row),
+    description: row.description,
+    shipBehavior: shipBehaviorOf(row.shipBehavior),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -39,6 +46,8 @@ function columnsOf(input: SaveProjectDto) {
     repo: input.repo,
     baseBranch: input.baseBranch,
     additionalRepos,
+    ...(input.description === undefined ? {} : { description: input.description }),
+    ...(input.shipBehavior === undefined ? {} : { shipBehavior: input.shipBehavior }),
   }
 }
 
@@ -80,7 +89,7 @@ export class ProjectsService {
     const { count } = await db.project.deleteMany({
       where: { id: args.projectId, userId: args.userId },
     })
-    if (count === 0) throw new NotFoundException(NOT_FOUND)
+    if (count === 0) throw new NotFoundException(PROJECT_NOT_FOUND)
   }
 
   async workspace(args: { userId: string; projectId: string }): Promise<ProjectWorkspace> {
@@ -98,7 +107,7 @@ export class ProjectsService {
     const row = await db.project.findFirst({
       where: { id: args.projectId, userId: args.userId },
     })
-    if (row === null) throw new NotFoundException(NOT_FOUND)
+    if (row === null) throw new NotFoundException(PROJECT_NOT_FOUND)
     return row
   }
 }

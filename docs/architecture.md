@@ -1419,6 +1419,14 @@ copyable credentials across at birth. Atlas Cloud owns identity, remote-control 
 PR/CI webhook delivery and cloud-managed provider OAuth renewal, not sandbox provisioning or the
 model request path. Unsigned local-only accounts and API-key credentials do not require the API.
 
+## Pods
+
+A pod is the external runtime a session runs in, local Docker or Vercel, behind the
+`experimental.pods` setting. `docs/pods.md` describes how pods are born, boot, park and are
+secured, and what they pull from Atlas Cloud. `docs/decisions/` holds one record per durable
+decision behind them. Where the cloud-birth sections below disagree with `docs/pods.md` about what
+crosses at birth, `docs/pods.md` is current.
+
 ## Born-placed sessions and the cloud birth
 
 Sessions are born-placed: a thread starts where it is created — the cloud when this machine can

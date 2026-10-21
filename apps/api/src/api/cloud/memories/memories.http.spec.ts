@@ -181,6 +181,35 @@ describe('memories HTTP surface', () => {
     expect(withProject.body.memories[0]).toMatchObject({ name: 'widget-fact', project: 'acme/widgets' })
   })
 
+  it('GET /memories/all is session-only, no-store, and spans every scope and project of the caller newest first', async () => {
+    const orphanProject = { ...NOTE, scope: 'project', project: 'no/catalog-row', name: 'orphan-fact' }
+    const otherProject = { ...NOTE, scope: 'project', project: 'acme/widgets', name: 'widget-fact' }
+    await http().put('/v1/memories/entry').set(as('session-a')).send(NOTE).expect(200)
+    await http().put('/v1/memories/entry').set(as('session-a')).send(orphanProject).expect(200)
+    await http().put('/v1/memories/entry').set(as('session-a')).send(otherProject).expect(200)
+    await http().put('/v1/memories/entry').set(as('session-b')).send({ ...NOTE, name: 'b-private' }).expect(200)
+
+    const listed = await http().get('/v1/memories/all').set(as('session-a')).expect(200)
+
+    expect(listed.headers['cache-control']).toBe('no-store')
+    expect(listed.body.memories.map((memory: { name: string }) => memory.name)).toEqual([
+      'widget-fact',
+      'orphan-fact',
+      NOTE.name,
+    ])
+    expect(listed.body.memories[1]).toMatchObject({ scope: 'project', project: 'no/catalog-row' })
+    const other = await http().get('/v1/memories/all').set(as('session-b')).expect(200)
+    expect(other.body.memories.map((memory: { name: string }) => memory.name)).toEqual(['b-private'])
+  })
+
+  it('GET /memories/all refuses pod and sandbox tokens and anonymous callers', async () => {
+    await http().put('/v1/memories/entry').set(as('session-a')).send(NOTE).expect(200)
+
+    await http().get('/v1/memories/all').set(as('pod-token-a')).expect(401)
+    await http().get('/v1/memories/all').set(as('sandbox-token-a')).expect(401)
+    await http().get('/v1/memories/all').expect(401)
+  })
+
   it('rejects invalid names and scope/project mismatches with 400', async () => {
     await http().put('/v1/memories/entry').set(as('session-a')).send({ ...NOTE, name: 'Bad Name' }).expect(400)
     await http().put('/v1/memories/entry').set(as('session-a')).send({ ...NOTE, scope: 'project' }).expect(400)

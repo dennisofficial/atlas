@@ -37,9 +37,13 @@ export function createFakeMemoryDb() {
   const tick = (): Date => new Date((clock += 1000))
 
   const memory = {
-    findMany: async (args: { where: { userId: string; project: { in: string[] } } }) =>
+    findMany: async (args: { where: { userId: string; project?: { in: string[] } } }) =>
       rows
-        .filter((row) => row.userId === args.where.userId && args.where.project.in.includes(row.project))
+        .filter(
+          (row) =>
+            row.userId === args.where.userId &&
+            (args.where.project === undefined || args.where.project.in.includes(row.project)),
+        )
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
     findUnique: async (args: { where: ByUnique }) => {
       const key = args.where.userId_scope_project_name

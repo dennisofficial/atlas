@@ -27,6 +27,7 @@ import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
+import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { UserFilesModule } from './cloud/user-files/user-files.module'
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,
+    WorkspacesModule,
   ],
   controllers: [HealthController],
   providers: [
