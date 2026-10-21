@@ -101,6 +101,9 @@ jobs:
             incremental-tests-${{ github.ref }}-
             incremental-tests-refs/heads/main-
 
+      - name: env fingerprint (temporary diagnostic)
+        run: env | cut -d= -f1 | sort | while read -r name; do printf '%s %s\n' "$name" "$(printenv "$name" | sha256sum | cut -c1-8)"; done
+
       - name: test (bun runtime)
         id: bun-tests
         run: bun --bun vitest run
