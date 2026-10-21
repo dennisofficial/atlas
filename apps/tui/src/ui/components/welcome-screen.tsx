@@ -2,11 +2,13 @@ import React from 'react'
 
 import { EHarnessPlacement, ERunner } from '@dltech/atlas-core'
 
+import { useAppearance } from '../hooks/use-appearance'
+import { logoCells, logoHasNarrowLabel } from '../logo'
+import { logo } from '../logo-store'
 import { modelLabel } from '../model-label'
 import { collapseHome } from '../paths'
 import { theme } from '../theme'
-import { wordmarkRows, WORDMARK_CELLS } from '../wordmark'
-import { Spans } from './spans'
+import { LogoRows, NarrowLogo } from './logo-rows'
 
 const PITCH = 'A coding agent working in this directory.'
 
@@ -38,25 +40,20 @@ export function WelcomeScreen(props: {
   shape?: 'chip' | 'hero'
   placement?: WelcomePlacement | null
 }): React.ReactNode {
-  const marked = props.width >= WORDMARK_CELLS
+  useAppearance()
+  const chosen = logo()
+  const marked = props.width >= logoCells(chosen)
   const hosted =
     marked && props.shape === 'hero' && props.placement != null
       ? props.placement.harness === EHarnessPlacement.Host
       : null
-  const rows = wordmarkRows({ accent: theme.accent, ground: theme.appBg, bright: theme.bright })
 
   return (
     <box flexDirection="column" flexShrink={0} alignItems="center">
       {marked ? (
-        <box flexDirection="column" flexShrink={0} width={WORDMARK_CELLS}>
-          {rows.map((row, index) => (
-            <box key={index} height={1} flexShrink={0}>
-              <text>
-                <Spans spans={row} />
-              </text>
-            </box>
-          ))}
-        </box>
+        <LogoRows logo={chosen} />
+      ) : logoHasNarrowLabel(chosen) ? (
+        <NarrowLogo />
       ) : null}
       <text> </text>
       <text fg={theme.meta}>{PITCH}</text>

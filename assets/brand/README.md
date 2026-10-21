@@ -13,7 +13,7 @@ The approved Atlas mark is Split Apex: a clay, open A with a diagonal gap in its
 
 All opaque assets use exactly **#272422** as the background. Preserve the transparent master’s clay artwork, proportions, diagonal gap, and clear space. The original artwork was generated with the built-in image generation tool; exports resize that master and preserve its alpha, or composite onto the specified solid background. Do not redraw each usage independently.
 
-The web header, README, favicon, browser icon, Apple touch icon, and web manifest use this identity. The terminal startup/welcome lockup prepends a half-cell adaptation of the same mark to the existing Atlas wordmark and uses the operator’s selected accent.
+The web header, README, favicon, browser icon, Apple touch icon, and web manifest use this identity. The terminal startup/welcome logo is chosen by the Appearance → Logo setting: the wordmark lockup by default (a half-cell adaptation of the same mark beside the Atlas wordmark), or the mark alone. Both use the operator’s selected accent.
 
 GitHub App display settings and Linear OAuth application settings manage their own logos outside the repository. Upload the transparent bot avatar where the platform supports a custom background; use the dark avatar where it does not. Set GitHub’s badge background to **#272422**.
 

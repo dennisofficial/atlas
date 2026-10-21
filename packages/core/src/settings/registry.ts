@@ -44,6 +44,7 @@ export enum ESettingId {
   Accent = 'appearance.accent',
   BlockPadding = 'appearance.blockPadding',
   ComposerEdge = 'appearance.composerEdge',
+  Logo = 'appearance.logo',
   ClassifierMode = 'classifier.mode',
   DecisionsProvider = 'decisions.provider',
   DecisionsUrl = 'decisions.url',
@@ -525,6 +526,21 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
       { value: 'slab', label: 'slab', detail: 'shipped' },
       { value: 'bordered', label: 'bordered' },
       { value: 'claude', label: 'claude' },
+    ],
+  },
+  {
+    id: ESettingId.Logo,
+    page: ESettingPage.Appearance,
+    group: 'Logo',
+    label: 'Logo',
+    description:
+      'Which logo the home screen and the boot curtain draw. Wordmark is the mark beside the word atlas, and falls back to a one-line ⏺ atlas on a narrow terminal. Mark draws the Λ alone, smaller, and leaves the slot empty when the terminal is too narrow for it.',
+    environmentVariable: 'ATLAS_LOGO',
+    kind: ESettingKind.Choice,
+    fallback: 'wordmark',
+    options: [
+      { value: 'wordmark', label: 'wordmark', detail: 'shipped' },
+      { value: 'mark', label: 'mark' },
     ],
   },
   {

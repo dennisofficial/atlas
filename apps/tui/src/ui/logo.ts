@@ -1,34 +1,24 @@
 import { mixHex } from './colour'
 import type { Span } from './components/spans'
+import { LOGO_ART, MARK_PIXELS, type LogoArt } from './logo-art'
+import type { ELogo } from './logo-store'
 
-export const MARK_PIXELS: readonly string[] = [
-  '000000000001100000000000',
-  '000000000011110000000000',
-  '000000000111111000000000',
-  '000000001111111100000000',
-  '000000011111111110000000',
-  '000000111110011100000000',
-  '000001111100001001100000',
-  '000011111000000011110000',
-  '000111110000000011111000',
-  '001111100000000001111100',
-  '011111000000000000111110',
-  '111110000000000000011111',
-]
+export { MARK_PIXELS }
 
 const CREST_LIFT = 0.22
 
-const FOOT_FALL = 0.15
-
 const HALF_CELL = '▀'
 
-export const WORDMARK_CELLS = Math.max(...MARK_PIXELS.map((row) => row.length))
+export const logoCells = (logo: ELogo): number =>
+  Math.max(...LOGO_ART[logo].pixels.map((row) => row.length))
 
-export const WORDMARK_ROWS = Math.ceil(MARK_PIXELS.length / 2)
+export const logoRows = (logo: ELogo): number => Math.ceil(LOGO_ART[logo].pixels.length / 2)
 
-export type WordmarkSweep = { reveal: number; drain: number }
+export const logoHasNarrowLabel = (logo: ELogo): boolean => LOGO_ART[logo].narrowLabel
 
-export const FULLY_INKED: WordmarkSweep = { reveal: 1, drain: 0 }
+export type LogoSweep = { reveal: number; drain: number }
+
+export const FULLY_INKED: LogoSweep = { reveal: 1, drain: 0 }
 
 const FEATHER_CELLS = 12
 
@@ -36,12 +26,12 @@ type Lighting = { lit: number; glow: number }
 
 const clampUnit = (value: number): number => Math.min(1, Math.max(0, value))
 
-function inkAt(args: { row: string; column: number }): number {
-  return args.row[args.column] === '1' ? 1 : 0
+function inkAt(args: { art: LogoArt; row: string; column: number }): number {
+  return args.art.density[Number(args.row[args.column] ?? '0')] ?? 0
 }
 
-function lightingAt(args: { column: number; sweep: WordmarkSweep }): Lighting {
-  const crest = args.sweep.reveal * (WORDMARK_CELLS + FEATHER_CELLS * 2) - FEATHER_CELLS
+function lightingAt(args: { cells: number; column: number; sweep: LogoSweep }): Lighting {
+  const crest = args.sweep.reveal * (args.cells + FEATHER_CELLS * 2) - FEATHER_CELLS
   const held = 1 - clampUnit(args.sweep.drain)
 
   return {
@@ -50,8 +40,8 @@ function lightingAt(args: { column: number; sweep: WordmarkSweep }): Lighting {
   }
 }
 
-function tintAt(args: { crest: string; foot: string; pixelRow: number }): string {
-  const span = MARK_PIXELS.length - 1
+function tintAt(args: { art: LogoArt; crest: string; foot: string; pixelRow: number }): string {
+  const span = args.art.pixels.length - 1
   if (span <= 0) return args.crest
   return mixHex({ from: args.crest, to: args.foot, amount: args.pixelRow / span })
 }
@@ -70,19 +60,21 @@ function appendRun(args: { spans: Span[]; text: string; fg?: string; bg?: string
 }
 
 function rowSpans(args: {
+  art: LogoArt
+  cells: number
   top: string
   bottom: string
   topTint: string
   bottomTint: string
   ground: string
   bright: string
-  sweep: WordmarkSweep
+  sweep: LogoSweep
 }): Span[] {
   const spans: Span[] = []
-  for (let column = 0; column < WORDMARK_CELLS; column += 1) {
-    const light = lightingAt({ column, sweep: args.sweep })
-    const upper = inkAt({ row: args.top, column }) * light.lit
-    const lower = inkAt({ row: args.bottom, column }) * light.lit
+  for (let column = 0; column < args.cells; column += 1) {
+    const light = lightingAt({ cells: args.cells, column, sweep: args.sweep })
+    const upper = inkAt({ art: args.art, row: args.top, column }) * light.lit
+    const lower = inkAt({ art: args.art, row: args.bottom, column }) * light.lit
     if (upper === 0 && lower === 0) {
       appendRun({ spans, text: ' ' })
       continue
@@ -102,24 +94,29 @@ function rowSpans(args: {
   return spans
 }
 
-export function wordmarkRows(args: {
+export function logoSpans(args: {
+  logo: ELogo
   accent: string
   ground: string
   bright: string
-  sweep?: WordmarkSweep
+  sweep?: LogoSweep
 }): Span[][] {
+  const art = LOGO_ART[args.logo]
+  const cells = logoCells(args.logo)
   const crest = mixHex({ from: args.accent, to: args.bright, amount: CREST_LIFT })
-  const foot = mixHex({ from: args.accent, to: args.ground, amount: FOOT_FALL })
+  const foot = mixHex({ from: args.accent, to: args.ground, amount: art.footFall })
   const sweep = args.sweep ?? FULLY_INKED
 
   const rows: Span[][] = []
-  for (let pixelRow = 0; pixelRow < MARK_PIXELS.length; pixelRow += 2) {
+  for (let pixelRow = 0; pixelRow < art.pixels.length; pixelRow += 2) {
     rows.push(
       rowSpans({
-        top: MARK_PIXELS[pixelRow] ?? '',
-        bottom: MARK_PIXELS[pixelRow + 1] ?? '',
-        topTint: tintAt({ crest, foot, pixelRow }),
-        bottomTint: tintAt({ crest, foot, pixelRow: pixelRow + 1 }),
+        art,
+        cells,
+        top: art.pixels[pixelRow] ?? '',
+        bottom: art.pixels[pixelRow + 1] ?? '',
+        topTint: tintAt({ art, crest, foot, pixelRow }),
+        bottomTint: tintAt({ art, crest, foot, pixelRow: pixelRow + 1 }),
         ground: args.ground,
         bright: args.bright,
         sweep,

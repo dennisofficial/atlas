@@ -1,28 +1,52 @@
 import { describe, expect, it } from 'bun:test'
 
 import { mixHex } from '../colour'
+import type { Span } from '../components/spans'
+import { FULLY_INKED, logoCells, logoHasNarrowLabel, logoRows, logoSpans, MARK_PIXELS } from '../logo'
+import { ELogo } from '../logo-store'
 import { theme } from '../theme'
-import {
-  FULLY_INKED,
-  MARK_PIXELS,
-  wordmarkRows,
-  WORDMARK_CELLS,
-  WORDMARK_ROWS,
-} from '../wordmark'
 
-const rowsOf = (accent = theme.accent) =>
-  wordmarkRows({ accent, ground: theme.appBg, bright: theme.bright })
+const LOGOS = [ELogo.Wordmark, ELogo.Mark]
+
+const rowsOf = (args: { logo?: ELogo; accent?: string } = {}) =>
+  logoSpans({
+    logo: args.logo ?? ELogo.Mark,
+    accent: args.accent ?? theme.accent,
+    ground: theme.appBg,
+    bright: theme.bright,
+  })
 
 const cellsOf = (spans: readonly { text: string }[]) =>
   spans.reduce((total, span) => total + span.text.length, 0)
 
-describe('wordmarkRows', () => {
-  it('emits one text row per pair of pixel rows', () => {
-    expect(rowsOf()).toHaveLength(WORDMARK_ROWS)
+describe('logoSpans', () => {
+  it('emits one text row per pair of pixel rows, for each logo', () => {
+    for (const logo of LOGOS) expect(rowsOf({ logo })).toHaveLength(logoRows(logo))
   })
 
-  it('never runs wider than the declared cell count', () => {
-    for (const row of rowsOf()) expect(cellsOf(row)).toBeLessThanOrEqual(WORDMARK_CELLS)
+  it('never runs wider than the logo declares, for each logo', () => {
+    for (const logo of LOGOS) {
+      for (const row of rowsOf({ logo })) expect(cellsOf(row)).toBeLessThanOrEqual(logoCells(logo))
+    }
+  })
+
+  it('draws the wordmark lockup wider and taller than the mark alone', () => {
+    expect(logoCells(ELogo.Wordmark)).toBeGreaterThan(logoCells(ELogo.Mark))
+    expect(logoRows(ELogo.Wordmark)).toBeGreaterThan(logoRows(ELogo.Mark))
+  })
+
+  it('keeps the one-line fallback for the wordmark only', () => {
+    expect(logoHasNarrowLabel(ELogo.Wordmark)).toBe(true)
+    expect(logoHasNarrowLabel(ELogo.Mark)).toBe(false)
+  })
+
+  it('lets the wordmark fall to its own foot, a little further than the mark does', () => {
+    const crest = mixHex({ from: theme.accent, to: theme.bright, amount: 0.22 })
+    const foot = mixHex({ from: theme.accent, to: theme.appBg, amount: 0.3 })
+    const fullInk = mixHex({ from: crest, to: foot, amount: 16 / 17 })
+    const lastRow = rowsOf({ logo: ELogo.Wordmark }).at(-1) ?? []
+
+    expect(lastRow.map((span) => span.fg)).toContain(fullInk)
   })
 
   it('paints ink with a half block carrying both a foreground and a background', () => {
@@ -65,8 +89,8 @@ describe('wordmarkRows', () => {
   })
 
   it('derives the whole mark from whichever accent it is given', () => {
-    const clay = JSON.stringify(rowsOf(theme.accent))
-    const moss = JSON.stringify(rowsOf('#7aa262'))
+    const clay = JSON.stringify(rowsOf({ accent: theme.accent }))
+    const moss = JSON.stringify(rowsOf({ accent: '#7aa262' }))
     expect(moss).not.toBe(clay)
     expect(moss).not.toContain(theme.accent)
   })
@@ -87,16 +111,12 @@ const LOGO_GRID = [
   '111110000000000000011111',
 ]
 
-type Cell = { text: string; fg?: string; bg?: string }
-
-const cellsIn = (spans: readonly Cell[]): Cell[] =>
+const cellsIn = (spans: readonly Span[]): Span[] =>
   spans.flatMap((span) => [...span.text].map((text) => ({ ...span, text })))
 
 describe('the logo mark', () => {
   it('is drawn from exactly the agreed pixel grid', () => {
     expect([...MARK_PIXELS]).toEqual(LOGO_GRID)
-    expect(WORDMARK_CELLS).toBe(24)
-    expect(WORDMARK_ROWS).toBe(6)
   })
 
   it('paints every inked half in its row gradient and every empty half in the ground', () => {
@@ -104,7 +124,8 @@ describe('the logo mark', () => {
     const foot = mixHex({ from: theme.accent, to: theme.appBg, amount: 0.15 })
     const tint = (pixelRow: number) =>
       mixHex({ from: crest, to: foot, amount: pixelRow / (LOGO_GRID.length - 1) })
-    const rows = wordmarkRows({
+    const rows = logoSpans({
+      logo: ELogo.Mark,
       accent: theme.accent,
       ground: theme.appBg,
       bright: theme.bright,
@@ -115,7 +136,7 @@ describe('the logo mark', () => {
       const top = LOGO_GRID[textRow * 2] ?? ''
       const bottom = LOGO_GRID[textRow * 2 + 1] ?? ''
       const cells = cellsIn(row)
-      for (let column = 0; column < WORDMARK_CELLS; column += 1) {
+      for (let column = 0; column < logoCells(ELogo.Mark); column += 1) {
         const upper = top[column] === '1'
         const lower = bottom[column] === '1'
         const cell = cells[column]

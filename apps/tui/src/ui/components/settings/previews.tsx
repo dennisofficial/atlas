@@ -10,10 +10,12 @@ import React from 'react'
 import { accentHex } from '../../accents'
 import type { Appearance } from '../../appearance'
 import { useDraft } from '../../hooks/use-draft'
+import { logoCells, logoHasNarrowLabel } from '../../logo'
 import { FencedBlock } from '../../markdown/fenced-block'
 import { theme } from '../../theme'
 import { Composer, EComposerTone } from '../composer'
 import { InlineDiff } from '../diff/inline-diff'
+import { LogoRows, NarrowLogo } from '../logo-rows'
 
 export type SettingPreview = {
   render: (args: {
@@ -82,6 +84,12 @@ function ComposerScene(props: { width: number }): React.ReactNode {
   )
 }
 
+function LogoScene(props: { appearance: Appearance; width: number }): React.ReactNode {
+  const chosen = props.appearance.logo
+  if (props.width >= logoCells(chosen)) return <LogoRows logo={chosen} />
+  return logoHasNarrowLabel(chosen) ? <NarrowLogo /> : null
+}
+
 const PREVIEWS: Readonly<Record<string, SettingPreview>> = {
   [ESettingId.Accent]: {
     render: ({ appearance, setting }) => (
@@ -90,6 +98,9 @@ const PREVIEWS: Readonly<Record<string, SettingPreview>> = {
   },
   [ESettingId.ComposerEdge]: {
     render: ({ width }) => <ComposerScene width={width} />,
+  },
+  [ESettingId.Logo]: {
+    render: ({ appearance, width }) => <LogoScene appearance={appearance} width={width} />,
   },
   [ESettingId.BlockPadding]: {
     render: ({ width }) => (

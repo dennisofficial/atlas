@@ -16,6 +16,7 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react'
 import { applyAppearance, type Appearance } from '../src/ui/appearance'
 import { SHIPPED_IMAGE_ROWS } from '../src/ui/image-rows-store'
 import { SHIPPED_FENCE_WRAP } from '../src/ui/fence-wrap-store'
+import { SHIPPED_LOGO } from '../src/ui/logo-store'
 import {
   subscribeComposerEdge,
   composerEdgeVersion,
@@ -63,6 +64,7 @@ const appearanceOf = (held: Held): Appearance => ({
         : EComposerEdge.Slab,
   imageRows: SHIPPED_IMAGE_ROWS,
   fenceWrap: SHIPPED_FENCE_WRAP,
+  logo: SHIPPED_LOGO,
 })
 
 const BAND_MARGIN = 2

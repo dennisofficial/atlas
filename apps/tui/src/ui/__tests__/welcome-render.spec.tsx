@@ -1,18 +1,25 @@
 import { EHarnessPlacement } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { WelcomeScreen } from '../components/welcome-screen'
 import { grammarsReady } from '../markdown/__tests__/harness'
+import { glyph } from '../glyphs'
 import { theme } from '../theme'
-import { wordmarkRows, WORDMARK_CELLS } from '../wordmark'
+import { logoCells, logoSpans } from '../logo'
+import { applyLogo, ELogo, SHIPPED_LOGO } from '../logo-store'
+import { expectNoLogo, HALF_CELL } from './logo-fixture'
 import { CWD, HOME, MODEL_ID, frameOf } from './transcript-fixture'
 
 await grammarsReady()
 
-const WIDE = 104
+const SIDE_MARGIN = 20
 
-const HALF_CELL = '\u2580'
+const WIDE = Math.max(...Object.values(ELogo).map(logoCells)) + SIDE_MARGIN
+
+afterEach(() => {
+  applyLogo(SHIPPED_LOGO)
+})
 
 const screen = (width: number): React.ReactNode => (
   <WelcomeScreen cwd={CWD} home={HOME} modelId={MODEL_ID} version="v1.2.3" width={width} />
@@ -36,12 +43,13 @@ describe('the welcome screen', () => {
   })
 
   it('holds every row of the mark on one shared left edge', async () => {
-    const pad = Math.floor((WIDE - WORDMARK_CELLS) / 2)
+    const pad = Math.floor((WIDE - logoCells(ELogo.Wordmark)) / 2)
     const painted = (await frameOf(screen(WIDE), WIDE))
       .split('\n')
       .map((row) => row.indexOf(HALF_CELL))
       .filter((column) => column >= 0)
-    const modelled = wordmarkRows({
+    const modelled = logoSpans({
+      logo: ELogo.Wordmark,
       accent: theme.accent,
       ground: theme.appBg,
       bright: theme.bright,
@@ -57,13 +65,35 @@ describe('the welcome screen', () => {
     expect(painted.map((column) => column - pad)).toEqual(modelled)
   })
 
-  it('draws no mark and no wordmark when the terminal is too narrow to carry the logo', async () => {
-    const narrow = WORDMARK_CELLS - 10
+  it('falls back to the one-line name when the terminal is too narrow for the wordmark', async () => {
+    const narrow = logoCells(ELogo.Wordmark) - 10
     const frame = await frameOf(screen(narrow), narrow)
 
     expect(frame).not.toContain(HALF_CELL)
-    expect(frame).not.toContain('⏺')
-    expect(frame).not.toContain('⏺ atlas')
+    expect(frame).toContain(`${glyph.block} atlas`)
+  })
+})
+
+describe('the welcome screen with the mark chosen', () => {
+  it('draws the mark alone, at its own width', async () => {
+    applyLogo(ELogo.Mark)
+    const frame = await frameOf(screen(WIDE), WIDE)
+    const widest = Math.max(
+      ...frame
+        .split('\n')
+        .filter((row) => row.includes(HALF_CELL))
+        .map((row) => row.trimEnd().length - row.search(/\S/)),
+    )
+
+    expect(widest).toBeGreaterThan(0)
+    expect(widest).toBeLessThanOrEqual(logoCells(ELogo.Mark))
+    expect(frame).not.toContain(`${glyph.block} atlas`)
+  })
+
+  it('leaves the slot empty when the terminal is too narrow for it', async () => {
+    applyLogo(ELogo.Mark)
+    const narrow = logoCells(ELogo.Mark) - 10
+    expectNoLogo(await frameOf(screen(narrow), narrow))
   })
 })
 
@@ -136,7 +166,7 @@ describe('the welcome screen in the hero placement shape', () => {
   })
 
   it('drops the placement from the metadata line when the terminal is too narrow for it', async () => {
-    const narrow = WORDMARK_CELLS - 10
+    const narrow = logoCells(ELogo.Wordmark) - 10
     const node = (
       <WelcomeScreen
         cwd={CWD}
