@@ -12,8 +12,10 @@ import { as, buildSessionApp } from '../session-test-app'
 import { sharedWebSettingsDb as fake } from '../web-settings.fake-db'
 import { ProjectResourcesController } from './project-resources.controller'
 import { ProjectResourcesService } from './project-resources.service'
+import { ProjectSettingsService } from './project-settings.service'
 import { ProjectsController } from './projects.controller'
 import { ProjectsService } from './projects.service'
+import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 
 const BODY = { name: 'atlas', repo: 'dennisofficial/atlas', baseBranch: 'main', additionalRepos: [] }
 
@@ -32,7 +34,9 @@ describe('project resources HTTP surface', () => {
       controllers: [ProjectsController, ProjectResourcesController],
       providers: [
         ProjectsService,
+        WorkspaceAccessService,
         ProjectResourcesService,
+        ProjectSettingsService,
         { provide: GithubService, useValue: { findToken: async () => undefined } },
       ],
     })

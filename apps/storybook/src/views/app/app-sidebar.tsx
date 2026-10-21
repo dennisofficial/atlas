@@ -7,6 +7,7 @@ import {
   SidebarRail,
 } from "@dltech/atlas-ui/components/sidebar";
 
+import type { AppThread } from "../../fixtures/app";
 import { AccountMenu } from "./account-menu";
 import { ShellBottomNav } from "./shell-bottom-nav";
 import { ShellTopBar } from "./shell-top-bar";
@@ -17,9 +18,10 @@ export interface AppSidebarProps {
   activeThreadId?: string;
   activeNav: EAppNav;
   demo?: ShellDemoState;
+  pendingThread?: AppThread;
 }
 
-export function AppSidebar({ activeThreadId, activeNav, demo }: AppSidebarProps) {
+export function AppSidebar({ activeThreadId, activeNav, demo, pendingThread }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <ShellTopBar />
@@ -28,6 +30,7 @@ export function AppSidebar({ activeThreadId, activeNav, demo }: AppSidebarProps)
           activeThreadId={activeThreadId}
           threadCardId={demo?.threadCardId}
           projectCardId={demo?.projectCardId}
+          pendingThread={pendingThread}
         />
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border p-2 group-data-[collapsible=icon]:mt-auto">

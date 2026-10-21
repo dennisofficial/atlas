@@ -7,6 +7,7 @@ import {
   Header,
   HttpCode,
   Param,
+  Patch,
   Put,
   Req,
   UnauthorizedException,
@@ -18,8 +19,11 @@ import { UpsertMcpServerDto } from '../mcp-servers/mcp-servers.dto'
 import type { McpServerListDto } from '../mcp-servers/mcp-servers.types'
 import { SetSecretDto } from '../secrets/secrets.dto'
 import type { SecretDetailListDto } from '../secrets/secrets.types'
+import type { SettingListDto } from '../settings/settings.types'
+import { PatchWorkspaceSettingsDto } from '../workspaces/workspaces.dto'
 import { ProjectSandboxDto } from './project-resources.dto'
 import { ProjectResourcesService } from './project-resources.service'
+import { ProjectSettingsService } from './project-settings.service'
 
 const NO_STORE = 'no-store'
 
@@ -32,7 +36,30 @@ function userIdOf(request: AuthenticatedRequest): string {
 @Controller({ path: 'projects/:projectId', version: '1' })
 @UseGuards(SessionAuthGuard)
 export class ProjectResourcesController {
-  constructor(private readonly resources: ProjectResourcesService) {}
+  constructor(
+    private readonly resources: ProjectResourcesService,
+    private readonly settings: ProjectSettingsService,
+  ) {}
+
+  @Get('settings')
+  @Header('Cache-Control', NO_STORE)
+  async handleListSettings(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+  ): Promise<SettingListDto> {
+    const settings = await this.settings.list({ userId: userIdOf(request), projectId })
+    return { settings }
+  }
+
+  @Patch('settings')
+  @HttpCode(204)
+  async handlePatchSettings(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: PatchWorkspaceSettingsDto,
+  ): Promise<void> {
+    await this.settings.patch({ userId: userIdOf(request), projectId, values: body.values })
+  }
 
   @Get('sandbox')
   handleReadSandbox(

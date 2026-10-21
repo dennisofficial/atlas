@@ -13,6 +13,7 @@ import { resetProjectRows } from './projects.fakes'
 import { ProjectWorkspaceController } from './project-workspace.controller'
 import { ProjectsController } from './projects.controller'
 import { ProjectsService } from './projects.service'
+import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 
 vi.mock('../../../db', async () => {
   const { fakeProjectDb } = await import('./projects.fakes')
@@ -55,6 +56,7 @@ describe('projects HTTP surface', () => {
       controllers: [ProjectsController, ProjectWorkspaceController],
       providers: [
         ProjectsService,
+        WorkspaceAccessService,
         SessionAuthGuard,
         SessionOrSandboxGuard,
         {

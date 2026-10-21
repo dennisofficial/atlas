@@ -6,6 +6,7 @@ import { SESSION_VERIFIER } from '../../_core/ports/session-verifier'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
 import { SandboxesService } from '../platform/sandboxes/sandboxes.service'
+import { ETokenPrincipalKind } from '../platform/sandboxes/token-principal'
 import { SessionOrSandboxGuard } from '../platform/sessions/session-or-sandbox.guard'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
@@ -23,10 +24,14 @@ export const as = (token: string): { authorization: string } => ({
 const bearerOf = (req: { headers: { authorization?: string } }): string =>
   (req.headers.authorization ?? '').replace(/^Bearer /i, '')
 
+export type SandboxTokenFixture = { id: string; threadId: string; userId: string }
+
 export async function buildSessionApp(args: {
   controllers: Type[]
   providers: Provider[]
+  sandboxTokens?: Record<string, SandboxTokenFixture>
 }): Promise<INestApplication> {
+  const sandboxTokens = args.sandboxTokens ?? {}
   const module = await Test.createTestingModule({
     controllers: args.controllers,
     providers: [
@@ -50,8 +55,10 @@ export async function buildSessionApp(args: {
       {
         provide: SandboxesService,
         useValue: {
-          async verifyTokenPrincipal() {
-            throw new UnauthorizedException()
+          async verifyTokenPrincipal(query: { token: string }) {
+            const sandbox = sandboxTokens[query.token]
+            if (sandbox === undefined) throw new UnauthorizedException()
+            return { kind: ETokenPrincipalKind.Sandbox, ...sandbox }
           },
         },
       },

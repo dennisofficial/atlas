@@ -13,6 +13,7 @@ import { sharedWebSettingsDb as fake } from '../web-settings.fake-db'
 import { WorkspaceAccessService } from './workspace-access.service'
 import { WorkspaceResourcesService } from './workspace-resources.service'
 import { WorkspaceSettingsService } from './workspace-settings.service'
+import { WorkspaceVercelService } from './workspace-vercel.service'
 import { WorkspacesController } from './workspaces.controller'
 
 const ORG = 'org-1'
@@ -32,7 +33,12 @@ describe('workspaces HTTP surface', () => {
     fake.tables.user.rows.push({ id: 'user-a', name: 'Ada' })
     app = await buildSessionApp({
       controllers: [WorkspacesController],
-      providers: [WorkspaceAccessService, WorkspaceResourcesService, WorkspaceSettingsService],
+      providers: [
+        WorkspaceAccessService,
+        WorkspaceResourcesService,
+        WorkspaceSettingsService,
+        WorkspaceVercelService,
+      ],
     })
   })
 

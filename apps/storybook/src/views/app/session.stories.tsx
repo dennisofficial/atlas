@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { SessionView } from "./session/session-view";
 import { ETerminalConnection } from "./session/sandbox-terminal";
+import { EPodState, RUNNING_POD } from "./session/pod-status";
 import { ERightTab, ESessionState } from "./session/session-types";
 
 const meta = {
@@ -38,3 +39,20 @@ export const TerminalDisconnected: Story = {
 };
 
 export const PreviewTab: Story = { args: { initialTab: ERightTab.Preview, initialPreviewId: "storybook" } };
+
+export const PodRunning: Story = {
+  args: { header: { podStatus: { status: RUNNING_POD, defaultOpen: true } } },
+};
+
+export const PodParked: Story = {
+  args: {
+    state: ESessionState.Idle,
+    header: { podStatus: { status: { ...RUNNING_POD, state: EPodState.Parked }, defaultOpen: true } },
+  },
+};
+
+export const PodResizePending: Story = {
+  args: {
+    header: { podStatus: { status: { ...RUNNING_POD, pendingVcpus: 8 }, defaultOpen: true } },
+  },
+};

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import type { ProjectModel } from '../../../db'
 import { db } from '../../../db'
 import { GithubService } from '../github/github.service'
+import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 import type { SaveProjectDto } from './projects.dto'
 import { assertProjectRules } from './projects.rules'
 
@@ -31,6 +32,7 @@ function toProject(row: ProjectModel): Project {
     additionalRepos: reposOf(row),
     description: row.description,
     shipBehavior: shipBehaviorOf(row.shipBehavior),
+    organizationId: row.organizationId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -53,7 +55,10 @@ function columnsOf(input: SaveProjectDto) {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly github: GithubService) {}
+  constructor(
+    private readonly github: GithubService,
+    private readonly access: WorkspaceAccessService,
+  ) {}
 
   async list(args: { userId: string }): Promise<Project[]> {
     const rows = await db.project.findMany({
@@ -64,8 +69,10 @@ export class ProjectsService {
   }
 
   async create(args: { userId: string; input: SaveProjectDto }): Promise<Project> {
+    const columns = columnsOf(args.input)
+    await this.assertMembership({ userId: args.userId, organizationId: args.input.organizationId })
     const row = await db.project.create({
-      data: { userId: args.userId, ...columnsOf(args.input) },
+      data: { userId: args.userId, ...columns, organizationId: args.input.organizationId ?? null },
     })
     return toProject(row)
   }
@@ -81,7 +88,13 @@ export class ProjectsService {
   }): Promise<Project> {
     const columns = columnsOf(args.input)
     await this.owned(args)
-    const row = await db.project.update({ where: { id: args.projectId }, data: columns })
+    await this.assertMembership({ userId: args.userId, organizationId: args.input.organizationId })
+    const organization =
+      args.input.organizationId === undefined ? {} : { organizationId: args.input.organizationId }
+    const row = await db.project.update({
+      where: { id: args.projectId },
+      data: { ...columns, ...organization },
+    })
     return toProject(row)
   }
 
@@ -101,6 +114,14 @@ export class ProjectsService {
       additionalRepos: reposOf(row),
       githubToken: (await this.github.findToken({ userId: args.userId })) ?? null,
     }
+  }
+
+  private async assertMembership(args: {
+    userId: string
+    organizationId: string | null | undefined
+  }): Promise<void> {
+    if (args.organizationId === undefined || args.organizationId === null) return
+    await this.access.require({ userId: args.userId, organizationId: args.organizationId, write: false })
   }
 
   private async owned(args: { userId: string; projectId: string }): Promise<ProjectModel> {

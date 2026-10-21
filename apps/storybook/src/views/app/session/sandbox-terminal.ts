@@ -29,12 +29,13 @@ export interface UserTerminal {
   id: string;
   label: string;
   cwd: string;
+  host?: string;
   entries: TerminalEntry[];
 }
 
 export const SANDBOX = {
   user: "dennis",
-  host: "sandbox",
+  host: "pod",
   branch: "dennis/app-shell",
   size: "4 vCPU · 8 GB",
 };
