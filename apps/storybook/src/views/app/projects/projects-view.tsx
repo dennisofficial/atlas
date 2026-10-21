@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { FolderSearchIcon, LinkIcon, PlusIcon } from "lucide-react";
 
 import {
@@ -10,16 +11,20 @@ import {
   BreadcrumbSeparator,
 } from "@dltech/atlas-ui/components/breadcrumb";
 import { Button } from "@dltech/atlas-ui/components/button";
+import { Toaster } from "@dltech/atlas-ui/components/sonner";
 
+import { NewProjectDialog } from "./new-project-dialog";
+import type { NewProjectSeed } from "./new-project-types";
 import { OwnerList } from "./owner-list";
 import { ProjectRow } from "./project-row";
-import { filterProjects, PROJECT_OWNERS, PROJECTS } from "./projects.fixtures";
+import { filterProjects, PROJECT_OWNERS, PROJECTS, type ProjectSummary } from "./projects.fixtures";
 
 export interface ProjectsViewProps {
   initialOwnerId?: string | null;
+  newProject?: NewProjectSeed;
 }
 
-function ProjectsHeader({ ownerName }: { ownerName: string }) {
+function ProjectsHeader({ ownerName, onNewProject }: { ownerName: string; onNewProject: () => void }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
       <Breadcrumb>
@@ -37,7 +42,7 @@ function ProjectsHeader({ ownerName }: { ownerName: string }) {
         <Button variant="outline" size="icon" aria-label="Copy link to this view">
           <LinkIcon />
         </Button>
-        <Button>
+        <Button onClick={onNewProject}>
           <PlusIcon data-icon="inline-start" />
           New project
         </Button>
@@ -58,15 +63,26 @@ function EmptyResults({ query }: { query: string }) {
   );
 }
 
-export function ProjectsView({ initialOwnerId = null }: ProjectsViewProps) {
+export function ProjectsView({ initialOwnerId = null, newProject }: ProjectsViewProps) {
   const [ownerId, setOwnerId] = useState<string | null>(initialOwnerId);
   const [query, setQuery] = useState("");
+  const [allProjects, setAllProjects] = useState(PROJECTS);
+  const [dialogOpen, setDialogOpen] = useState(newProject !== undefined);
   const owner = PROJECT_OWNERS.find((candidate) => candidate.id === ownerId);
-  const projects = filterProjects({ projects: PROJECTS, ownerId, query });
+  const projects = filterProjects({ projects: allProjects, ownerId, query });
+
+  const handleNewProject = () => setDialogOpen(true);
+  const handleCreate = (project: ProjectSummary) => {
+    setAllProjects((current) => [project, ...current]);
+    setOwnerId(project.owner);
+    setQuery("");
+    setDialogOpen(false);
+    toast.success("Project created", { description: `${project.owner}/${project.name}` });
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ProjectsHeader ownerName={owner?.name ?? "All projects"} />
+      <ProjectsHeader ownerName={owner?.name ?? "All projects"} onNewProject={handleNewProject} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[760px] items-start gap-8 px-6 py-8">
           <OwnerList
@@ -89,6 +105,15 @@ export function ProjectsView({ initialOwnerId = null }: ProjectsViewProps) {
           </div>
         </div>
       </div>
+      <NewProjectDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        projects={allProjects}
+        defaultOwnerId={ownerId}
+        seed={newProject}
+        onCreate={handleCreate}
+      />
+      <Toaster />
     </div>
   );
 }
