@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EQualityReviewStatus, LogPort, toCallId, type CodeQualityReviewedBody, type EventDraft, type LogEntry } from '@dltech/atlas-core'
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { backgroundWaitLabel, isWaiting, NOTHING_IN_BACKGROUND } from '../background-wait'
 

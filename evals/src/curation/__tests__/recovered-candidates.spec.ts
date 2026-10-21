@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { EQualityScopeKind } from '@dltech/atlas-core'
 
 import { ECandidateMethod } from '../candidates'

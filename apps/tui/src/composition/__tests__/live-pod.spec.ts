@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { toThreadId } from '@dltech/atlas-core'
 import { atlasDirectory, type OrphanPodSweep } from '@dltech/atlas-harness'

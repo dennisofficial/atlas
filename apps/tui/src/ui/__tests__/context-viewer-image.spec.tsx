@@ -1,7 +1,7 @@
 import { OptimizedBuffer } from '@opentui/core'
 import { setRendererCapabilities } from '@opentui/core/testing'
 import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, it, spyOn } from 'bun:test'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 
 import { ContextViewer } from '../components/context-viewer'
@@ -96,7 +96,7 @@ async function frameOf(args: {
   useTerminal(args.program)
   const draws: ImageDraw[] = []
   const original = OptimizedBuffer.prototype.drawImage
-  const spy = spyOn(OptimizedBuffer.prototype, 'drawImage').mockImplementation(function (this: OptimizedBuffer, ...call: DrawImageArgs) {
+  const spy = vi.spyOn(OptimizedBuffer.prototype, 'drawImage').mockImplementation(function (this: OptimizedBuffer, ...call: DrawImageArgs) {
     draws.push(snapshotDraw(call))
     return original.apply(this, call)
   })

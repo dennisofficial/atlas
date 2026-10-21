@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EStage, HOOK_CONTEXT_KEY, type BeforeTurn } from '@dltech/atlas-core'
 

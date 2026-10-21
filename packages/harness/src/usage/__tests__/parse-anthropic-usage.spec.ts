@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { EUsageWindow } from '@dltech/atlas-core'
 
 import { parseAnthropicUsage } from '../parse-anthropic-usage'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
 import { EClientFrame, EClientRequest, EServeFrame } from '../channel-wire'

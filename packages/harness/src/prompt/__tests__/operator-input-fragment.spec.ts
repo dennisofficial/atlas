@@ -1,5 +1,5 @@
 import { EPromptAgent, type PromptContext } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { OperatorInputFragment } from '../fragments/tools'
 

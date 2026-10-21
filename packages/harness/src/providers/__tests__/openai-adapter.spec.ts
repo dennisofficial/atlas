@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { generateText } from 'ai'
 
 import { EEffort, EImageTier, type CredentialPort, type ModelCard } from '@dltech/atlas-core'

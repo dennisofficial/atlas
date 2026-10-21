@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EFooterItemReach } from '../../ui/footer-item'
 import { BOTH, controlOf, editorOf, item, key, mounted } from './footer-strip-fixture'

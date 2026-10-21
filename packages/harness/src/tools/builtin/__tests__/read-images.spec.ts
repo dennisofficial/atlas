@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, readdir, readFile as readFileFromDisk, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeAll, describe, expect, it } from 'bun:test'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { ReadTool } from '../read'
 import type { ImageReadOutput } from '../read-image'

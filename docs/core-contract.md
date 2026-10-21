@@ -685,4 +685,4 @@ Three consequences worth knowing before touching it:
 Max 300 lines per file. No comments — name things instead; the only exception is a fact external to
 the repo that cannot drift, of which this document's *why* clauses are the canonical list. No
 `as any`, no `@ts-ignore`. Strict TS with `noUncheckedIndexedAccess`. Named parameters for 2+
-arguments. `E`-prefixed enums. Tests in a sibling `__tests__/` as `*.spec.ts`, run with `bun test`.
+arguments. `E`-prefixed enums. Tests in a sibling `__tests__/` as `*.spec.ts`, run with Vitest (`bun --bun vitest run`).

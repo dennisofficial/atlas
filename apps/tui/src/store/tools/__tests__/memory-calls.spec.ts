@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { sentenceOf } from '../aggregate'
 import { classify } from '../classify'

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, vi } from 'vitest'
 
 import { ATLAS_SETTINGS, EExecutionLocation, toThreadId } from '@dltech/atlas-core'
 import {
@@ -20,7 +20,7 @@ const grammarFailure = new Error('the grammar bundle would not load')
 
 let grammarsFail = true
 
-void mock.module('../../ui/markdown/grammars/index', () => ({
+vi.mock('../../ui/markdown/grammars/index', () => ({
   registerGrammars: async (): Promise<void> => {
     if (grammarsFail) throw grammarFailure
   },

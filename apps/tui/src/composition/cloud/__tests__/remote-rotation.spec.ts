@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { toThreadId } from '@dltech/atlas-core'
 import { EClientRequest, ERotationPhase, type ChannelSignal, type ChannelListener } from '@dltech/atlas-harness'

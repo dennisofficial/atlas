@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EPrEventKind, EPrReviewState, EPrVerdict, type EventDraft } from '../../../events/body'
 import type { EventOfType } from '../../../events/envelope'

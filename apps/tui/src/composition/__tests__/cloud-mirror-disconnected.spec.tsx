@@ -1,5 +1,5 @@
 import { EConnectionView } from '@dltech/atlas-harness'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { dismissNotice } from '../../ui/notice-store'
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'

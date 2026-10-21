@@ -1,5 +1,5 @@
 import type { LanguageModelV4, LanguageModelV4StreamPart } from '@ai-sdk/provider'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { createFallbackModel } from '../fallback-model'
 
 const PRELUDE: LanguageModelV4StreamPart[] = [

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 
 import { type LogEntry, SINK_NOTICE_TEXT_LIMIT } from '@dltech/atlas-core'
@@ -25,10 +25,10 @@ function activeRedirect(log: JsonlLog): ReturnType<typeof installOutputRedirect>
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = false
   dismissNotice()
-  jest.useFakeTimers()
+  vi.useFakeTimers()
 })
 afterEach(() => {
-  jest.useRealTimers()
+  vi.useRealTimers()
   dismissNotice()
 })
 
@@ -42,7 +42,7 @@ describe('package warning notices', () => {
     const payload = 'private reasoning '.repeat(40)
     try {
       process.emitWarning(`${cause} Skipping reasoning part: {"text":"${payload}"}`, { type: 'Warning' })
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
     }
@@ -60,7 +60,7 @@ describe('package warning notices', () => {
     const redirect = activeRedirect(log)
     try {
       console.warn('a package is unhappy')
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
     }
@@ -80,7 +80,7 @@ describe('package warning notices', () => {
     try {
       for (let index = 0; index < 20; index += 1) console.warn('repeated warning')
       console.warn('another warning')
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
     }
@@ -99,7 +99,7 @@ describe('package warning notices', () => {
     try {
       process.emitWarning(`${head} {"text":"first thought"}`, { type: 'Warning' })
       process.emitWarning(`${head} {"text":"second thought"}`, { type: 'Warning' })
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
     }
@@ -116,10 +116,10 @@ describe('package warning notices', () => {
     try {
       console.warn('repeated warning')
       console.warn('repeated warning')
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
       dismissNotice()
       console.warn('repeated warning')
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
     }
@@ -132,7 +132,7 @@ describe('package warning notices', () => {
     const text = 'x'.repeat(1_500)
     try {
       console.warn(text)
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
     }
@@ -146,7 +146,7 @@ describe('package warning notices', () => {
     const redirect = activeRedirect(log)
     try {
       console.warn(new Error('boom'))
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
     }
@@ -161,7 +161,7 @@ describe('package warning notices', () => {
     const redirect = activeRedirect(log)
     try {
       console.warn('steady warning')
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
       const first = currentNotices()[0]
       if (first === undefined) throw new Error('the warning was not posted')
 
@@ -169,7 +169,7 @@ describe('package warning notices', () => {
       expect(currentNotices()).toHaveLength(0)
 
       console.warn('steady warning')
-      jest.advanceTimersByTime(FLUSH_WAIT_MS)
+      vi.advanceTimersByTime(FLUSH_WAIT_MS)
       const repeated = currentNotices()[0]
       expect(repeated?.text).toContain('steady warning')
       expect(repeated?.text).not.toContain('occurrences')

@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { stageVendoredRipgrep } from '../../../scripts/stage-ripgrep'
 import { writeSupervisorBundle } from '../../../../../packages/harness/src/shells/supervisor-bundle'
@@ -28,7 +28,7 @@ const runCapturing = async (args: {
 
 describe('vendored ripgrep in a compiled binary', () => {
   it('materializes the embedded binary and runs it', async () => {
-    const tuiRoot = join(import.meta.dir, '..', '..', '..')
+    const tuiRoot = join(import.meta.dirname, '..', '..', '..')
     const repoRoot = join(tuiRoot, '..', '..')
     const binary = join(mkdtempSync(join(tmpdir(), 'atlas-vendored-rg-')), 'probe')
 
@@ -37,7 +37,7 @@ describe('vendored ripgrep in a compiled binary', () => {
 
     const built = await runCapturing({
       cwd: tuiRoot,
-      command: ['bun', 'build', '--compile', join(import.meta.dir, 'vendored-ripgrep-entry.ts'), '--outfile', binary],
+      command: ['bun', 'build', '--compile', join(import.meta.dirname, 'vendored-ripgrep-entry.ts'), '--outfile', binary],
     })
 
     expect(built.stderr).not.toContain('error:')

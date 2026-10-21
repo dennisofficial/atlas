@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { FileMcpSource } from '../config/sources'
 import {

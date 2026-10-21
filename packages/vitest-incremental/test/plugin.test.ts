@@ -6,19 +6,18 @@
  *
  *   bun test test/plugin.test.ts
  */
-import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
+import { afterAll, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { computeGlobalKey } from '../src/global-key';
+import { vitestCommand } from './fixture';
 
-setDefaultTimeout(180_000);
+vi.setConfig({ testTimeout: 180_000 });
 
-const PACKAGE_DIR = join(import.meta.dir, '..');
+const PACKAGE_DIR = join(import.meta.dirname, '..');
 const REPO_ROOT = join(PACKAGE_DIR, '../..');
 const PLUGIN = join(PACKAGE_DIR, 'index.js');
-const VITEST = join(dirname(createRequire(import.meta.url).resolve('vitest/package.json')), 'vitest.mjs');
 const PASSING = `test('ok', () => expect(1).toBe(1));\n`;
 
 interface Summary {
@@ -68,7 +67,8 @@ class PluginFixture {
   run(mode: string) {
     const summaryFile = join(this.root, '.summary.json');
     rmSync(summaryFile, { force: true });
-    const result = spawnSync('node', [VITEST, 'run'], {
+    const [command, args] = vitestCommand(['run']);
+    const result = spawnSync(command, args, {
       cwd: this.root,
       encoding: 'utf8',
       env: { ...process.env, VITEST_INCREMENTAL: mode, VITEST_INCREMENTAL_SUMMARY: summaryFile },

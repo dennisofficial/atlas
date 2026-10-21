@@ -95,7 +95,7 @@ export type Inspection = {
   reason?: string | undefined
 }
 
-const SUPERVISOR_ENTRY = join(import.meta.dir, 'supervisor-main.ts')
+const SUPERVISOR_ENTRY = join(import.meta.dirname, 'supervisor-main.ts')
 
 export function defaultSupervisorCommand(): readonly string[] {
   return [process.execPath, SUPERVISOR_ENTRY]

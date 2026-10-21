@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { ECloudSandboxState, EConnectionView, ERuntimePhase, ETurnStatus, transcriptIdentityDigest } from '@dltech/atlas-harness'

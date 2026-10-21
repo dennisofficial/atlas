@@ -165,7 +165,7 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
 const repoOfBuild = (build: BuildInfo): (() => Promise<string | null>) | undefined => {
   if (build.kind === EBuildKind.Release) return undefined
   if (build.kind === EBuildKind.Dev) return async () => build.repo
-  return () => repoRootOf(import.meta.dir)
+  return () => repoRootOf(import.meta.dirname)
 }
 
 const sharedResolvers = new Map<string, DevServeResolver>()

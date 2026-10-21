@@ -7,7 +7,7 @@ import { seedDevHome } from './dev-home';
 const TTYD_VERSION = '1.7.7';
 const TTYD_RELEASE_BASE = `https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}`;
 
-const config = resolveConfig({ env: process.env, appDir: resolve(import.meta.dir, '..') });
+const config = resolveConfig({ env: process.env, appDir: resolve(import.meta.dirname, '..') });
 
 function ttydAssetName(): string {
   if (process.platform !== 'linux') {

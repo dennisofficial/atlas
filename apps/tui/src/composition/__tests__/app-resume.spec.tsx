@@ -1,5 +1,5 @@
 import { RESUME_NUDGE, toRunId, type EventDraft } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { EOpenMode } from '../config'

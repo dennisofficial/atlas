@@ -21,7 +21,7 @@ const arg = (name: string): string | undefined => {
 // packages/harness/src/execution/vendored-ripgrep.ts, so both the resolution and the staging
 // dir must live in harness's tree no matter where the serve app moved.
 const requireFromHarness = createRequire(
-  join(import.meta.dir, '..', '..', '..', 'packages', 'harness', 'package.json'),
+  join(import.meta.dirname, '..', '..', '..', 'packages', 'harness', 'package.json'),
 )
 
 async function stageVendoredRipgrep(args: { target: string | undefined }): Promise<string> {
@@ -44,7 +44,7 @@ async function stageVendoredRipgrep(args: { target: string | undefined }): Promi
   const manifestPath = join(dirname(dirname(requireFromHarness.resolve('@vscode/ripgrep'))), 'package.json')
   const { version } = JSON.parse(await readFile(manifestPath, 'utf8')) as { version: string }
 
-  const vendor = join(import.meta.dir, '..', '..', '..', 'packages', 'harness', 'src', 'execution', 'vendor')
+  const vendor = join(import.meta.dirname, '..', '..', '..', 'packages', 'harness', 'src', 'execution', 'vendor')
   await mkdir(vendor, { recursive: true })
   const staged = join(vendor, 'rg')
   await copyFile(binary, staged)
@@ -69,5 +69,5 @@ const cmd = [
   arg('--outfile') ?? 'bin/atlas-serve',
 ]
 
-const build = Bun.spawnSync({ cmd, cwd: join(import.meta.dir, '..'), stdout: 'inherit', stderr: 'inherit' })
+const build = Bun.spawnSync({ cmd, cwd: join(import.meta.dirname, '..'), stdout: 'inherit', stderr: 'inherit' })
 process.exit(build.exitCode)

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync, utimesSync } f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { ATLAS_SVC_NAME, ensureAtlasSvcShim, tryEnsureAtlasSvcShim } from '../atlas-svc-shim'
 

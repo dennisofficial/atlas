@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 
 import { EDeedRealm, EOccupancy, NO_FACTS, type WorktreeFact } from '@dltech/atlas-core'
 

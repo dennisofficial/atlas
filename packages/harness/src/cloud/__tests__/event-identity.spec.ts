@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { toRunId, toThreadId, type Event, type EventId } from '@dltech/atlas-core'
 
 import { transcriptIdentityDigest } from '../event-identity'

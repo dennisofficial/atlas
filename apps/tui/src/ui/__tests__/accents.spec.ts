@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { accentHex, accentPalette } from '../accents'
 import { ACCENT, SHIPPED_PALETTE, theme } from '../palette'

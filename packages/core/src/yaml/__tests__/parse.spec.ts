@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { parseFrontmatter, parseYaml } from '../parse'
 import { isYamlList, isYamlMap } from '../value'

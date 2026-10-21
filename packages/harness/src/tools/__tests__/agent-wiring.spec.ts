@@ -1,6 +1,6 @@
 import { tmpdir } from 'node:os'
 
-import { afterAll, describe, expect, it } from 'bun:test'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import { EDefinitionOrigin, EWebSearchBackend, ToolDefinition } from '@dltech/atlas-core'
 

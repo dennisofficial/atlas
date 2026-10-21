@@ -1,5 +1,5 @@
 import { ECommandGroup, ECommandKind, type CommandSpec } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import {
   commandMenuWindow,

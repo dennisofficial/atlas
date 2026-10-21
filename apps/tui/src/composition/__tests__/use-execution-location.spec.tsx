@@ -1,6 +1,6 @@
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot, type Root } from '@opentui/react'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import React, { act } from 'react'
 

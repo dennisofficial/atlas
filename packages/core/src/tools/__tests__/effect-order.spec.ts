@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EToolEffect } from '../tool'
 import { TOOL_EFFECTS, permitsEffect, toToolEffect } from '../effect-order'

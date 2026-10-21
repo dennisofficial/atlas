@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EDeed, EDeedRealm } from '../../../deed'
 import { actionsFor, oneDeed, PROJECT, targetValues } from './read-deeds'

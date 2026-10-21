@@ -1,6 +1,6 @@
 import type { FileMention } from '@dltech/atlas-core'
 import type { MentionReader } from '@dltech/atlas-harness'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { useResolvedMentions } from '../use-resolved-mentions'

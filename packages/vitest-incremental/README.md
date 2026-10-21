@@ -19,7 +19,7 @@ By default the plugin is inert unless `VITEST_INCREMENTAL` is set, so plain
 `vitest` is unchanged; pass `enabled: true` to keep it always on:
 
 ```sh
-VITEST_INCREMENTAL=1 vitest run       # reuse valid passes (bun run test:incremental)
+VITEST_INCREMENTAL=1 vitest run       # reuse valid passes
 VITEST_INCREMENTAL=force vitest run   # run everything, refresh the cache
 VITEST_INCREMENTAL=plan vitest run    # log what would run, run nothing
 VITEST_INCREMENTAL=clear vitest run   # delete the cache, then run everything
@@ -92,9 +92,8 @@ into a different checkout path still hits.
 ## Tests and benchmarks
 
 ```sh
-bun run --filter @dltech/vitest-incremental test
-bun packages/vitest-incremental/bench/scenarios.ts --oracle
-bash packages/vitest-incremental/bench/new-runner-pr.sh <app-file> <app-file-2> <portal-file>
+bun run --filter @dltech/vitest-incremental test                                # fixtures run on bun
+VITEST_INCREMENTAL_RUNTIME=node bun run --filter @dltech/vitest-incremental test # fixtures run on node
 ```
 
 and fails only if a file the cache would have skipped fails.

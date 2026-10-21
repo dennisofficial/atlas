@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { CloudError } from '../cloud-transport'
 import { putPodLease } from '../pod-lease-client'

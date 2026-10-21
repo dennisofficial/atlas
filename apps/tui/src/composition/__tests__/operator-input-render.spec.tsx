@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, vi } from 'vitest'
 import { RGBA } from '@opentui/core'
 import { act } from 'react'
 
@@ -14,7 +14,7 @@ await grammarsReady()
 describe('operator input overlay in the real workspace', () => {
   it('edits with Shift+Enter and submits with Enter without leaking into the conversation composer', async () => {
     const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'done' } }) })
-    const answer = mock(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 0 } as const))
+    const answer = vi.fn(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 0 } as const))
     app.operatorInput.answer = answer
     const mounted = await open({ app })
     const capture = async () => {
@@ -53,7 +53,7 @@ describe('native operator input history', () => {
   it('preserves original newline bytes across undo and redo', async () => {
     const mounted = await mountInput()
     const value = 'first\r\nsecond\rthird\n'
-    const answer = mock(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 0 } as const))
+    const answer = vi.fn(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 0 } as const))
     mounted.app.operatorInput.answer = answer
     try {
       mounted.announce()

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EventLogPort, EShellStatus, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { RandomIds } from '@dltech/atlas-harness'

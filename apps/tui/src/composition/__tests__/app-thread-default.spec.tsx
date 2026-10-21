@@ -1,5 +1,5 @@
 import { ESettingId, refKey, toThreadId } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'

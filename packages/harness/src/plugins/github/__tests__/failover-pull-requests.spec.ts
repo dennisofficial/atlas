@@ -1,5 +1,5 @@
 import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EFailoverState, FailoverPullRequestPort, PROBE_INTERVAL_MS } from '../failover-pull-requests'
 import { PullRequestPort, type PullRequestReading } from '../pure'

@@ -17,7 +17,7 @@ they are never re-derived.
 
 ## Consumption
 
-Bun (harness, TUI, `bun test`) resolves the `bun` condition and imports `src/*.ts` raw, the same
+Bun (harness, TUI) resolves the `bun` condition and imports `src/*.ts` raw, the same
 as core and harness today.
 
 `apps/api` runs on Node with `module: NodeNext`, where a `.ts` specifier cannot resolve. The

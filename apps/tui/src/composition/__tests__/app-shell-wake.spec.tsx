@@ -1,5 +1,5 @@
 import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { open, until, spokenIn, THREAD, type Mounted } from './app-fixture'

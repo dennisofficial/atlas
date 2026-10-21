@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EQualityHealthStatus, projectQualityHealth, QUALITY_HEALTH_LABEL, type QualityHealthRecord } from '../health'
 import { EQualityFindingState, EQualityReviewStatus, EQualitySkipReason } from '../policy'

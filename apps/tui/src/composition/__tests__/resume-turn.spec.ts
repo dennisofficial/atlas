@@ -8,7 +8,7 @@ import {
   type EventDraft,
 } from '@dltech/atlas-core'
 import { LocalRewindMachinery } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { discardInterrupted, EDiscard } from '../resume-turn'
 import { fakeAgentRegistry } from './fake-agents'

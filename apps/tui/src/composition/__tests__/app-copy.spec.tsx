@@ -1,9 +1,9 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 
 const copies: string[] = []
 
-void mock.module('../../ui/clipboard', () => ({
+vi.mock('../../ui/clipboard', () => ({
   copyToClipboard: (args: { text: string }) => {
     copies.push(args.text)
     return true

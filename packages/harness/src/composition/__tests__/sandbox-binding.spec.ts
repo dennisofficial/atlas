@@ -9,7 +9,7 @@ import {
   DockerEngine,
   MemorySettingsStore,
 } from '@dltech/atlas-harness'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { recordingNotices } from './fakes'
 import { createExecutionLocationState } from '../execution-location-state'

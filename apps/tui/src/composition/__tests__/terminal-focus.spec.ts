@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 
 import { CliRenderEvents } from '@opentui/core'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { applyTerminalFocus, ETerminalFocus, terminalFocus } from '../../ui/focus-store'
 import { trackTerminalFocus } from '../terminal-focus'

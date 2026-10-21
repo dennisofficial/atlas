@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import type { PodExecResult } from '../../../execution/docker/pod-engine'
 import { ensurePodIngress, POD_INGRESS_SCRIPT_PATH, type PodIngressEngine } from '../ingress'

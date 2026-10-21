@@ -1,5 +1,5 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { AGENT_SPAWN_TOOL_NAME, type AgentType } from '../agent-type'
 import { EmbeddedAgentTypeSource } from '../embedded-source'

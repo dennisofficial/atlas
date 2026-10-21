@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { EClientFrame, EClientRequest, LocalCompaction, type Summariser } from '@dltech/atlas-harness'
 import { EWireCompactionAnchor, EWireCompactScope } from '@dltech/atlas-wire'

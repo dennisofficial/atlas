@@ -10,12 +10,12 @@
  *
  *   bun run --filter @dltech/vitest-incremental test
  */
-import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
+import { afterAll, describe, expect, test, vi } from 'vitest'
 import { createHash } from 'node:crypto';
 import { rmSync, writeFileSync } from 'node:fs';
 import { ALL, expectRun, removeFixtures, t, warmFixture } from './harness';
 
-setDefaultTimeout(180_000);
+vi.setConfig({ testTimeout: 180_000 });
 
 afterAll(removeFixtures);
 

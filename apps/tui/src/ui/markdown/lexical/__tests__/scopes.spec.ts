@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { codeScopes, codeTheme, rolesFor } from '../../themes/index'
 import { LEXICAL_LANGUAGES } from '../languages/index'

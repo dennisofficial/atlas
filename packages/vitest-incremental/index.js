@@ -3,6 +3,7 @@
 // TypeScript). Everything else is TypeScript, loaded by Vitest as a reporter.
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rewriteFsImports } from './fs-shim.js';
 
 const REPORTER = fileURLToPath(new URL('./src/reporter.ts', import.meta.url));
 
@@ -47,12 +48,21 @@ function sessionOptions(options) {
 
 /** @param {import('./index').IncrementalTestsOptions} [options] */
 export function incrementalTests(options = {}) {
+  let active = false;
   return {
     name: 'dltech:vitest-incremental',
+    enforce: 'pre',
+    /** @param {string} code @param {string} id */
+    transform(code, id) {
+      if (!active) return null;
+      const rewritten = rewriteFsImports(code, id);
+      return rewritten === undefined ? null : { code: rewritten, map: null };
+    },
     /** @param {import('vitest/node').VitestPluginContext} context */
     configureVitest({ vitest, project }) {
       const envMode = modeFromEnv(process.env.VITEST_INCREMENTAL);
       if (!(options.enabled ?? envMode !== undefined)) return;
+      active = true;
       const session = sessionOptions(options);
       // One reporter per Vitest instance; each project using the plugin opts in
       // with its own options.

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { type OperatorInputRequest } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'

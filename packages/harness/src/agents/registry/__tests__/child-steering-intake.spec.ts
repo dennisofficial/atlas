@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { createPendingQueues } from '../../../pending'
 import { MessageIntake, type IntakeDriver } from '../../../intake/message-intake'

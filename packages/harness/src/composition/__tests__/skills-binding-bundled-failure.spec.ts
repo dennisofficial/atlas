@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { ENoticeTone, NOTICE_WARN_MS } from '@dltech/atlas-core'
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { liveSkillRegistry } from '../skills-binding'
 import { recordingNotices } from './fakes'

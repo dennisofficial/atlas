@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { readFile } from 'node:fs/promises'
 
 import { CODEX_VERSION } from '../../src/providers/codex-version'

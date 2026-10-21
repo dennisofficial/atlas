@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { mkdtempSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'

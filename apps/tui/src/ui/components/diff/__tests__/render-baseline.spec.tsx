@@ -2,7 +2,7 @@ import { EDiffLine, sideBySideRows, type DiffFile, type DiffHunk } from '@dltech
 import type { CapturedFrame } from '@opentui/core'
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot } from '@opentui/react'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React, { act } from 'react'
 
 import { grammarsReady, settle, teardown } from '../../../markdown/__tests__/harness'

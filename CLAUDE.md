@@ -82,11 +82,11 @@ extended by harness) with its slots, and `composeHarness` requires the full mani
 feature isn't done when the loop works; it's done when its port is registered with all its
 bindings, and adding one without them breaks typecheck in both apps.
 
-**`api` runs on Bun (NestJS 12) and tests with vitest, not `bun test`.** Bun executes Nest's
+**`api` runs on Bun (NestJS 12) but its tests run vitest on Node.** Bun executes Nest's
 constructor `@Inject(...)` decorators under the api's tsconfig — `test/bun-runtime.spec.ts` boots
-the real app under `bun` and proves it. vitest stays because its transform needs `unplugin-swc` to
-emit decorator metadata; `bun test` takes a different transpile path (see "Dependency injection"
-below). `apps/api/AGENTS.md` holds its conventions (env tiers, module layout, testing tiers).
+the real app under `bun` and proves it. Its vitest transform needs `unplugin-swc` to emit decorator
+metadata, and its Prisma driver-adapter specs fail under `bun --bun vitest`, so `apps/api` keeps
+plain `vitest run`. `apps/api/AGENTS.md` holds its conventions (env tiers, module layout, testing tiers).
 
 ## `deprecated/`
 
@@ -166,10 +166,18 @@ classes only.
 
 - **Every new feature includes tests.** TDD preferred.
 - Tests live in a sibling `__tests__/` directory as `*.spec.ts(x)`.
-- `bun test` everywhere.
+- **Vitest everywhere, on the Bun runtime.** Specs import from `vitest` (`vi.fn`, `vi.mock`,
+  `vi.useFakeTimers`); every package script is `bun --bun vitest run`, because source calls
+  `Bun.spawn` / `Bun.file` / `Bun.serve`. Each package's `vitest.config.ts` is one
+  `atlasProject(...)` call from root `vitest.shared.ts`; `bun --bun vitest run` at the root runs
+  every package except `apps/api` as one project set.
+- **Tests are incremental.** `VITEST_INCREMENTAL=1` skips any spec file with a cached pass for its
+  exact current inputs (`packages/vitest-incremental`). CI always sets it; locally it is opt-in.
+  `VITEST_INCREMENTAL=plan` shows what would run. A spec that starts a child process is never
+  cached. Never add a paths filter or sharding to CI tests — relevance is decided per file.
 - Live Docker specs (anything gating on `describeLiveDocker` / `dockerUnavailableReason`, plus the
   docker shell-adapter specs) run only with `ATLAS_LIVE_DOCKER=1`; CI sets it. Locally they skip by
-  default so a running Docker Desktop doesn't turn every `bun test` pass into real containers.
+  default so a running Docker Desktop doesn't turn every test pass into real containers.
 - Context assembly, hook resolution, and policy decisions are pure and belong to `core` — test them
   with plain data, never with a live model, a terminal, or a database.
 
@@ -242,7 +250,8 @@ binary. The package manager has simply stopped being a second tool.
 
 **Turborepo runs the tasks.** `bun run typecheck` / `test` / `build` at the root are
 `turbo run <task>`; `turbo.json` holds the graph. Per-package scripts still call `tsc` and
-`bun test` directly — turbo orchestrates, it is not the runner.
+`vitest` directly — turbo orchestrates, it is not the runner. CI runs tests through vitest, not
+turbo: turbo's package-level replay would stop the incremental cache from ever being seeded.
 
 - Run one package with `turbo run <task> --filter @dltech/atlas-core`, or `bun run <script>` inside
   the package.

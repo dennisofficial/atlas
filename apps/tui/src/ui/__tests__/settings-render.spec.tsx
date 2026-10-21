@@ -1,5 +1,5 @@
 import { ATLAS_SETTINGS, ESettingId, ESettingsLayer } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { settingsDetailVisible } from '../components/settings'
 import { cellsOf } from '../hint-layout'
 import { OPTION_SEPARATOR, RANGE_HINT, TEXT_HINT, TOGGLE_HINT } from '../settings-format'

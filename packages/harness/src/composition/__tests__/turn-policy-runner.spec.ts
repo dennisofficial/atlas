@@ -9,7 +9,7 @@ import {
   type ModelPort,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import { createDeltaChannel } from '../../channel/delta-channel'

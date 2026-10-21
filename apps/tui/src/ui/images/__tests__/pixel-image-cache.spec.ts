@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { NativeImage } from '@opentui/core'
 
 import { PixelImageCache } from '../pixel-image-cache'

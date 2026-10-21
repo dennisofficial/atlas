@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { dindVolumeNameFor, workspaceVolumeNameFor } from '../pod-create'
 import { POD_STAGED_PATH } from '../pod-staged'

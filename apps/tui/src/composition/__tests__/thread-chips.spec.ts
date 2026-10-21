@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { theme } from '../../ui/theme'
 import type { ThreadChip, ThreadRow } from '../../ui/threads-model'

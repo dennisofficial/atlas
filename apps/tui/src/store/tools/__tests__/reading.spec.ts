@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ECallState } from '../../tool-runs'
 import { detailOf, dictatedContentOf, reasonOf } from '../reading'

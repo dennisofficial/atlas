@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'vitest'
 import React, { act, useCallback, useState } from 'react'
 
 import { toCallId } from '@dltech/atlas-core'

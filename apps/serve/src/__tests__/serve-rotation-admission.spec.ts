@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { admissionClosedFor, ERuntimePhase } from '@dltech/atlas-wire'
 
 import { EWorkspaceState } from '../materialize-workspace'

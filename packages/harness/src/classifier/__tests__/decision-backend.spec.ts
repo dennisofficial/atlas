@@ -1,5 +1,5 @@
 import { ATLAS_SETTINGS, ESettingId, jevRiskQuestions } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { MemorySecretsStore } from '../../secrets/memory-store'
 import { MemorySettingsStore } from '../../settings/memory-store'

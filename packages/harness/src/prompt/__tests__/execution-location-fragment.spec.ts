@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { EExecutionLocation, promptContextFor, EPromptAgent, type ProviderIdentity, type PromptModel } from '@dltech/atlas-core'
 
 import { ExecutionLocationFragment } from '../fragments/environment'

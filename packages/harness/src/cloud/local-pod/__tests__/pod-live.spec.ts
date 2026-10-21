@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'bun:test'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import { randomUUID } from 'node:crypto'
 import { request } from 'node:http'

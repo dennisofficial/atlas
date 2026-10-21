@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { EClientFrame, ETurnStatus } from '@dltech/atlas-harness'
 
 import { ECommandEffect } from '../commands/local-command'

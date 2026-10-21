@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ESidebarTaskState, type SidebarTask } from '../../store/sidebar-model'
 import { ETodoRow, foldTodo, todoRows, TODO_MARK_CELLS } from '../todo-layout'

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { EngineRequestFailed } from '../engine-http'
 import { cleanupDaemons, serveDaemon } from './fake-pod-daemon'

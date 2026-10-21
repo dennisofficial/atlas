@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -145,7 +145,7 @@ describe('supervisor bundle', () => {
   })
 
   it('bundles an entry with its dependencies inlined so it runs with no node_modules', async () => {
-    const entry = join(import.meta.dir, 'supervisor-bundle-entry.ts')
+    const entry = join(import.meta.dirname, 'supervisor-bundle-entry.ts')
     const outfile = await writeSupervisorBundle({ entry, outfile: join(directory, 'out', 'sup.js') })
 
     expect(await readFile(outfile, 'utf8')).not.toContain('from "zod"')

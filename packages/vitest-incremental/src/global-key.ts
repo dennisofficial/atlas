@@ -72,7 +72,8 @@ export function computeGlobalKey(params: {
     `${project}/tsconfig*.json`,
     `${project}/.env*`,
     `${plugin}/src/**/*.ts`,
-    `${plugin}/index.js`,
+    `${plugin}/*.js`,
+    `${plugin}/shims/*.js`,
     ...globalInputs,
   ];
   const files = new Set([

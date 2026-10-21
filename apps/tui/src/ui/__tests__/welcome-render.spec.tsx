@@ -1,5 +1,5 @@
 import { EHarnessPlacement } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { WelcomeScreen } from '../components/welcome-screen'

@@ -2,7 +2,7 @@ import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { LocalFileSystemPort } from '../../../execution/local-filesystem'
 import { LocalProcessPort } from '../../../execution/local-process'

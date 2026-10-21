@@ -1,5 +1,5 @@
 import { ECompactionAnchor } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { deriveTranscript } from '../derive-transcript'
 import { EEntryKind } from '../transcript-model'

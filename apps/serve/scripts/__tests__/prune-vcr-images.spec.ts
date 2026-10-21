@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { planPrune, SEMVER_TAG } from '../prune-vcr-images'
 import type { PruneImage, SandboxRef } from '../prune-vcr-images'

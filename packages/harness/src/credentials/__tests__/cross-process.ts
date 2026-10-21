@@ -6,7 +6,7 @@ import { EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 import { fileAccountStore, type AccountStore } from '../account-store'
 
-const CHILD = join(import.meta.dir, 'cross-process-child.ts')
+const CHILD = join(import.meta.dirname, 'cross-process-child.ts')
 const POLL_MS = 10
 const WAIT_MS = 20_000
 

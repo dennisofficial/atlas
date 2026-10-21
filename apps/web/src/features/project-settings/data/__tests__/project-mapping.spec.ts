@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ESecretKind, EShipBehavior, type Project } from '@dltech/atlas-wire/web'
 import type { ListedSecret } from '@/features/settings/data/workspace/resource-api'

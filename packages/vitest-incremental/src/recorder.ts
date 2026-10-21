@@ -246,6 +246,25 @@ for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execF
   processes[name] = wrapper;
 }
 
+type BunRuntime = Record<string, unknown> & { file?: Fn; spawn?: Fn; spawnSync?: Fn };
+const bun = (globalThis as { Bun?: BunRuntime }).Bun;
+if (bun) {
+  for (const name of ['spawn', 'spawnSync'] as const) {
+    const original = bun[name];
+    if (typeof original === 'function') bun[name] = marking(original);
+  }
+  const bunFile = bun.file;
+  if (typeof bunFile === 'function') {
+    // Bun.file is lazy: recording the path at creation over-records a file only
+    // written or stat-ed, which costs cache hits, never correctness.
+    bun.file = function (this: unknown, ...args: unknown[]) {
+      const path = toRepoPath(args[0]);
+      if (path) files.add(path);
+      return bunFile.apply(this, args);
+    };
+  }
+}
+
 const read = () => files;
 const listing = (args: unknown[]) => (isRecursive(args[1]) ? trees : dirs);
 const exists = () => stats;

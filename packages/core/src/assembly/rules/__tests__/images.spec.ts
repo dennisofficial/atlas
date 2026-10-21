@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import type { Assembled, AssembledMessage } from '../../assembled'
 import { toEventId } from '../../../events/ids'

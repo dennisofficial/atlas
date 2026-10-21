@@ -8,12 +8,12 @@ import {
   SkillRegistryPort,
   ToolRegistry,
 } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { bindSkillRegistry, SkillRegistryNotBound } from '../skills-binding'
 import { fakeSkill, fakeSkillRegistry } from './fakes'
 
-const COMPOSE = join(import.meta.dir, '..', 'compose.ts')
+const COMPOSE = join(import.meta.dirname, '..', 'compose.ts')
 
 const registryOf = (...names: readonly string[]) =>
   fakeSkillRegistry({ skills: names.map((name) => fakeSkill({ name })) })

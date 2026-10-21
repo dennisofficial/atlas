@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { LogPort } from '@dltech/atlas-core'
 
 import { EForge, type RepositoryCheckout } from '../../plugins/github/pure'

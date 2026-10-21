@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { materializeContext } from '../materialize-context'
 import type { WorkspaceSpec } from '../workspace-spec'

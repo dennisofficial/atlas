@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { toThreadId, toRunId, type ClockPort, type ProviderIdentity } from '@dltech/atlas-core'
 

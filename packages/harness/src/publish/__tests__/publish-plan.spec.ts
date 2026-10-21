@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EPublishStatus, hasChanges, pendingRows, planPush, stateAfterPush } from '../publish-plan'
 import { EMPTY_PUBLISH_STATE, type PublishState } from '../publish-state'

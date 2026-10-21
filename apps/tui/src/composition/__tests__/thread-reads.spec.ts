@@ -7,7 +7,7 @@ import {
   type Event,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import {
   createThreadPager,

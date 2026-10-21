@@ -1,6 +1,6 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { pngSize } from '../limits'
 import { decodePng, downscalePng, downscaleRgba, encodePng, type PngCodec, type RgbaImage } from '../png'

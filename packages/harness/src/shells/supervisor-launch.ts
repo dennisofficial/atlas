@@ -99,7 +99,7 @@ export async function prepareSupervisorLauncher(args: {
   const text = await (args.source ?? defaultScriptSource(embedded))()
   const script = await materialize({ home: args.home, text })
 
-  const sourceEntry = args.source === undefined ? join(import.meta.dir, 'durable', 'supervisor-main.ts') : undefined
+  const sourceEntry = args.source === undefined ? join(import.meta.dirname, 'durable', 'supervisor-main.ts') : undefined
   return { script, host: hostPrefix({ embedded, script, sourceEntry }), docker: [DOCKER_BUN, script] }
 }
 

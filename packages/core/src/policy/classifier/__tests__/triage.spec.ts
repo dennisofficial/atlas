@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ERiskDimension, ESeverity } from '../dimension'
 import { EGrantScope, grantCovering, type Grant } from '../grant'

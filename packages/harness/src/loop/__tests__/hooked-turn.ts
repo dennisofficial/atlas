@@ -1,4 +1,4 @@
-import { afterEach } from 'bun:test'
+import { afterEach } from 'vitest'
 import type { MockLanguageModelV4 } from 'ai/test'
 
 import { z } from 'zod'

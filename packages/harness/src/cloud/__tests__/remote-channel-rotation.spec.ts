@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EServeFrame } from '../channel-wire'
 import { EConnectionView, type ConnectionView } from '../connection-view'

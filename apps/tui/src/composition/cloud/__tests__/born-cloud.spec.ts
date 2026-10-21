@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { ERunner, ESettingId } from '@dltech/atlas-core'
 import type { ThreadId } from '@dltech/atlas-core'

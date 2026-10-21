@@ -1,5 +1,5 @@
 import { EDefinitionOrigin, EToolEffect, toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { HookChain } from '../../../hooks/registry'
 import { HookedToolDispatcher, type DispatchableCall } from '../../../tools/dispatch'

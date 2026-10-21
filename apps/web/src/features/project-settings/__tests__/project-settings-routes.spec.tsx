@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { PROJECT_SECTION_STATUS, EPageStatus } from '@/features/settings/status/page-status'
 

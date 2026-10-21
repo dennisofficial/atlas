@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { defaultPipeline, EMPTY_PROMPT, type ModelPort } from '@dltech/atlas-core'
 

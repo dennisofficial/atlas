@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { classify } from '../classify'
 import { humanBytes, imageOf, imageSummary } from '../images'

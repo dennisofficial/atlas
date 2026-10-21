@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { deriveTranscript } from '../derive-transcript'
 import { EAuthor, EEntryKind, type TranscriptModel } from '../transcript-model'

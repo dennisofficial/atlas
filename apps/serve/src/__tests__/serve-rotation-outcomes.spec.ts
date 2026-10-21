@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { toCallId, toRunId } from '@dltech/atlas-core'
 import { ERuntimePhase, runtimeCheckpointSchema, type SandboxRotationReceipt } from '@dltech/atlas-wire'
 import { EServeFrame, ETurnStatus, readPersistedRuntimeCheckpoint, readSandboxRotationReceipt, runtimeCheckpointFile } from '@dltech/atlas-harness'

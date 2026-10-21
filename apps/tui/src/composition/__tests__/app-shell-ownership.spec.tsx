@@ -1,9 +1,10 @@
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React from 'react'
 
+import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { HEADING } from '../../ui/components/exit-guard'
 import { App } from '../app'
@@ -68,12 +69,10 @@ async function resumeTheOther(setup: Mounted): Promise<void> {
   await setup.flush()
   setup.mockInput.pressEnter()
   await setup.flush()
-  await settle(250)
-  await setup.flush()
+  await frameShowing({ setup, text: 'the other conversation' })
   setup.mockInput.pressEnter()
   await setup.flush()
-  await settle(400)
-  await setup.flush()
+  await frameShowing({ setup, text: 'over here' })
 }
 
 describe('a background shell belongs to the conversation that started it', () => {
@@ -144,13 +143,9 @@ describe('a background shell belongs to the conversation that started it', () =>
       expect(setup.captureCharFrame()).not.toContain('bun run dev')
 
       setup.mockInput.pressKey('c', { ctrl: true })
-      await setup.flush()
-      await settle(200)
-      await setup.flush()
+      await frameShowing({ setup, text: HEADING })
 
-      const frame = setup.captureCharFrame()
-      expect(frame).toContain(HEADING)
-      expect(frame).toContain('bun run dev')
+      expect(setup.captureCharFrame()).toContain('bun run dev')
     } finally {
       await teardown(setup)
     }

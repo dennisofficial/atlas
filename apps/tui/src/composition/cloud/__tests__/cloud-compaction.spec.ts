@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ECompactionAnchor, EExecutionLocation } from '@dltech/atlas-core'
 import { ECompaction, ECompactScope, EClientRequest, RemoteCompaction } from '@dltech/atlas-harness'

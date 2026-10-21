@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 import { ESandboxProbe } from '../resume-probe'

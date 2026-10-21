@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React, { act, useCallback, useState } from 'react'
 
 import { EContextSlot, toCallId } from '@dltech/atlas-core'

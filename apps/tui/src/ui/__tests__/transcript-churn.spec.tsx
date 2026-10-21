@@ -1,28 +1,29 @@
 import { testRender } from '@opentui/react/test-utils'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React, { act, useCallback, useState, useSyncExternalStore } from 'react'
 
+import type * as EntryViewModule from '../components/entry-view'
 import type { ConversationStore, EEntryKind as EntryKind, TranscriptModel } from '../../store'
 
-const { EntryView: RealEntryView } = await import('../components/entry-view')
-
-type RowProps = React.ComponentProps<typeof RealEntryView>
+type RowProps = React.ComponentProps<typeof EntryViewModule.EntryView>
 
 /**
  * Every row in the transcript is the memoized `EntryView`, so a render that survives the memo is
  * exactly a render whose props changed identity. The wrapper counts those — it is memoized with the
- * same default shallow compare, so its counts are the real component's counts. The real component
- * is captured BEFORE the mock lands: `mock.module` rewrites the namespace's live bindings, so a
- * wrapper that read `real.EntryView` at render time would find itself and recurse without end.
+ * same default shallow compare, so its counts are the real component's counts. `vi.mock` is hoisted
+ * above every import, so the real component comes from `importActual` inside the factory.
  */
-const renders = new Map<string, number>()
+const renders = vi.hoisted(() => new Map<string, number>())
 
-const CountedRow = React.memo((props: RowProps): React.ReactNode => {
-  renders.set(props.entry.key, (renders.get(props.entry.key) ?? 0) + 1)
-  return <RealEntryView {...props} />
+vi.mock('../components/entry-view', async () => {
+  const actual = await vi.importActual<typeof EntryViewModule>('../components/entry-view')
+  const RealEntryView = actual.EntryView
+  const CountedRow = React.memo((props: RowProps): React.ReactNode => {
+    renders.set(props.entry.key, (renders.get(props.entry.key) ?? 0) + 1)
+    return <RealEntryView {...props} />
+  })
+  return { ...actual, EntryView: CountedRow }
 })
-
-void mock.module('../components/entry-view', () => ({ EntryView: CountedRow }))
 
 const { EEntryKind, createConversationStore, deriveTranscript } = await import('../../store')
 const { createDeltaChannel } = await import('@dltech/atlas-harness')

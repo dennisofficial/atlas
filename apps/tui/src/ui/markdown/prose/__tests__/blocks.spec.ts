@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EProseBlock, type ProseBlock, proseBlocks } from '../blocks'
 import { EInline, inlinePlainText } from '../inline'

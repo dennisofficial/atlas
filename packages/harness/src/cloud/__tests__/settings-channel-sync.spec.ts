@@ -1,5 +1,5 @@
 import { ATLAS_SETTINGS, ESettingId, serialiseSettingsDocument } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

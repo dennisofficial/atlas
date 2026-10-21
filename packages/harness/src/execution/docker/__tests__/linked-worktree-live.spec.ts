@@ -1,4 +1,4 @@
-import { expect, it } from 'bun:test'
+import { expect, it } from 'vitest'
 
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'

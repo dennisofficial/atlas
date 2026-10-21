@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { toThreadId, type EventDraft, type EventLogPort } from '@dltech/atlas-core'
 import { RandomIds } from '../../store/ids'
 import { teardownSession } from '../../composition/session-teardown'

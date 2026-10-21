@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { afterAll, describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'vitest'
 import React from 'react'
 
 import { EAuthor, EEntryKind, EPendingKind, type PendingRow, type TranscriptEntry } from '../../../../store'

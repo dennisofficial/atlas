@@ -6,10 +6,10 @@
  *
  *   bun run --filter @dltech/vitest-incremental test
  */
-import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
+import { afterAll, describe, expect, test, vi } from 'vitest'
 import { expectRun, removeFixtures, t, warmFixture } from './harness';
 
-setDefaultTimeout(180_000);
+vi.setConfig({ testTimeout: 180_000 });
 
 afterAll(removeFixtures);
 
@@ -55,6 +55,12 @@ describe('fs and env inputs', () => {
     const fixture = warmFixture();
     fixture.write('fixtures/maybe.txt', 'here\n');
     expectRun({ fixture, executed: t('v'), failed: t('v') });
+  });
+
+  test('file read through Bun.file (or fs on Node) changing reruns the test', () => {
+    const fixture = warmFixture();
+    fixture.write('fixtures/bun-file.txt', 'bun v2\n');
+    expectRun({ fixture, executed: t('x'), failed: t('x') });
   });
 
   test('size change of a file the test only stat-ed reruns the test', () => {

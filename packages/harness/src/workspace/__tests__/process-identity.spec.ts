@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { access } from 'node:fs/promises'
 
 import { parseProcStatStartTime, startTimeOf } from '../process-identity'

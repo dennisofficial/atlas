@@ -1,6 +1,6 @@
 import { EResizeApplies } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { currentNotices, dismissNotice } from '../../ui/notice-store'

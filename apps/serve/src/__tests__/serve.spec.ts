@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { CHANNEL_PROTOCOL_VERSION, EClientFrame, EServeFrame } from '@dltech/atlas-harness'
 

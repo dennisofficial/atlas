@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import type { Event } from '@dltech/atlas-core'
 import { EClientRequest, EServeFrame, RemoteRequestFailed } from '@dltech/atlas-harness'

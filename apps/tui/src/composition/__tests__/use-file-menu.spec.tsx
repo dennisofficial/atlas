@@ -1,5 +1,5 @@
 import type { MentionReader } from '@dltech/atlas-harness'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import React, { useEffect } from 'react'
 
 import { useFileMenu, type FileMenuControl } from '../use-file-menu'

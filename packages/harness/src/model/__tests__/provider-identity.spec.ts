@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { AiSdkModelPort } from '../ai-sdk-model-port'
 import { GATEWAY_PROVIDER_ID, providerIdentityOf } from '../provider-identity'

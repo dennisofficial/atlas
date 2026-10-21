@@ -7,7 +7,7 @@
     "dev": "storybook dev -p 6006 --no-open",
     "build": "storybook build -o storybook-static",
     "typecheck": "tsc --noEmit",
-    "test": "ATLAS_TESTING=1 bun test"
+    "test": "bun --bun vitest run"
   },
   "dependencies": {
     "@dltech/atlas-ui": "workspace:*",
@@ -26,6 +26,8 @@
     "@types/react-dom": "^19",
     "storybook": "10.6.0",
     "tailwindcss": "^4.1.18",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.0.1",
+    "@dltech/vitest-incremental": "workspace:*"
   }
 }

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { EToolEffect, toCallId, type EventDraft } from '@dltech/atlas-core'
 

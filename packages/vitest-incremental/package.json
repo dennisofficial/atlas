@@ -23,7 +23,7 @@
     "vitest": "^3.2.0 || ^4.0.0"
   },
   "scripts": {
-    "test": "bun test test",
+    "test": "bun --bun vitest run",
     "typecheck": "tsc --noEmit"
   }
 }

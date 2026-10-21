@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { EStepEnd } from '../../channel/signal'
 import { EClientRequest, EServeFrame } from '../channel-wire'
 import { LONG_REQUEST_TIMEOUT_MS, requestTimeoutFor } from '../request-timeout'

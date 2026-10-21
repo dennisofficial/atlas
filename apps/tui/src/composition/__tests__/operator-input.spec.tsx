@@ -1,6 +1,6 @@
 import { toThreadId } from '@dltech/atlas-core'
 import { EClientRequest, type OperatorInputAnswerOutcome } from '@dltech/atlas-harness'
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, vi } from 'vitest'
 
 import { operatorEditorText } from '../../ui/operator-input-text'
 import { INPUT_REQUEST, MULTILINE, deliveryGate, mountInput } from './operator-input-fixture'
@@ -40,7 +40,7 @@ describe('native operator input', () => {
 
   it('inserts Shift+Enter as a newline, edits natively, and submits Enter without an implicit newline', async () => {
     const mounted = await mountInput()
-    const answer = mock(async () => ({ ok: true, bytes: 0 } as const))
+    const answer = vi.fn(async () => ({ ok: true, bytes: 0 } as const))
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, '  first')
@@ -66,7 +66,7 @@ describe('native operator input', () => {
   it('awaits actual local delivery on Enter and does not submit twice', async () => {
     const mounted = await mountInput()
     const gate = deliveryGate<OperatorInputAnswerOutcome>()
-    const answer = mock((_args: { requestId: string; value: string }) => gate.promise)
+    const answer = vi.fn((_args: { requestId: string; value: string }) => gate.promise)
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, MULTILINE)
@@ -94,7 +94,7 @@ describe('native operator input', () => {
 
   it('sends whitespace-only answers exactly without adding the optional server-side newline', async () => {
     const mounted = await mountInput()
-    const answer = mock(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 4 } as const))
+    const answer = vi.fn(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 4 } as const))
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, ' \t\n ')
@@ -109,7 +109,7 @@ describe('native operator input', () => {
   it('explicitly interrupts on Escape both before and during delivery without dismissing the request', async () => {
     const mounted = await mountInput()
     const gate = deliveryGate<OperatorInputAnswerOutcome>()
-    const answer = mock(() => gate.promise)
+    const answer = vi.fn(() => gate.promise)
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, 'answer')
@@ -136,7 +136,7 @@ describe('native operator input', () => {
 
   it('keeps the exact draft and re-enables editing after a local transport error', async () => {
     const mounted = await mountInput()
-    const answer = mock(async () => { throw new Error('local transport lost') })
+    const answer = vi.fn(async () => { throw new Error('local transport lost') })
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, MULTILINE)
@@ -177,9 +177,9 @@ describe('native operator input', () => {
 
   it('uses the remote delivery request instead of the local port and preserves the same text', async () => {
     const gate = deliveryGate<unknown>()
-    const request = mock((_args: { op: EClientRequest; params?: unknown }) => gate.promise)
+    const request = vi.fn((_args: { op: EClientRequest; params?: unknown }) => gate.promise)
     const mounted = await mountInput({ remote: request })
-    const localAnswer = mock(async () => ({ ok: false, reason: 'must not run locally' } as const))
+    const localAnswer = vi.fn(async () => ({ ok: false, reason: 'must not run locally' } as const))
     mounted.app.operatorInput.answer = localAnswer
     try {
       await paste(mounted, MULTILINE)

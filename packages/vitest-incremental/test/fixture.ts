@@ -3,9 +3,16 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 
-export const REPO_ROOT = join(import.meta.dir, '../../..');
-const PLUGIN = join(import.meta.dir, '../index.js');
+export const REPO_ROOT = join(import.meta.dirname, '../../..');
+const PLUGIN = join(import.meta.dirname, '../index.js');
+const MOCK_PATHS = join(import.meta.dirname, '../../../vitest-setup/mock-paths.ts');
 const VITEST = join(dirname(createRequire(import.meta.url).resolve('vitest/package.json')), 'vitest.mjs');
+
+export const RUNTIME = process.env.VITEST_INCREMENTAL_RUNTIME === 'node' ? 'node' : 'bun';
+
+export function vitestCommand(args: string[]): [string, string[]] {
+  return RUNTIME === 'node' ? ['node', [VITEST, ...args]] : ['bun', ['--bun', VITEST, ...args]];
+}
 
 /**
  * A small Vitest project covering the dependency shapes the runner must track.
@@ -52,6 +59,8 @@ const FILES: Record<string, string> = {
   'tests/u.test.ts': `import { readFileSync } from 'node:fs';\ntest('u', () => expect(readFileSync(new URL('../fixtures/with space/data.txt', import.meta.url), 'utf8')).toBe('v1\\n'));\n`,
   'tests/v.test.ts': `import { exists } from 'node:fs';\nimport { join } from 'node:path';\ntest('v', async () => {\n  const found = await new Promise((done) => exists(join(__dirname, '../fixtures/maybe.txt'), done));\n  expect(found).toBe(false);\n});\n`,
   'fixtures/sized.bin': 'abcd',
+  'fixtures/bun-file.txt': 'bun v1\n',
+  'tests/x.test.ts': `import { join } from 'node:path';\ntest('x', async () => {\n  const read = typeof Bun === 'undefined' ? (await import('node:fs')).readFileSync(join(__dirname, '../fixtures/bun-file.txt'), 'utf8') : await Bun.file(join(__dirname, '../fixtures/bun-file.txt')).text();\n  expect(read).toBe('bun v1\\n');\n});\n`,
   'tests/w.test.ts': `import { statSync } from 'node:fs';\nimport { join } from 'node:path';\ntest('w', () => expect(statSync(join(__dirname, '../fixtures/sized.bin')).size).toBe(4));\n`,
 };
 
@@ -80,20 +89,21 @@ export class Fixture {
     this.write(
       'vitest.config.ts',
       `import { incrementalTests } from ${JSON.stringify(PLUGIN)};\n` +
-        `export default { plugins: [${plugin}], test: { globals: true, include: ['tests/**/*.test.ts'], setupFiles: ['./setup.ts'] } };\n`,
+        `import { absoluteMockPaths } from ${JSON.stringify(MOCK_PATHS)};\n` +
+        `export default { plugins: [${plugin}, absoluteMockPaths()], test: { globals: true, include: ['tests/**/*.test.ts'], setupFiles: ['./setup.ts'] } };\n`,
     );
   }
 
   private vitest(env: Record<string, string | undefined>) {
+    const [command, args] = vitestCommand([
+      'run',
+      ...(env.VITEST_INCREMENTAL
+        ? []
+        : ['--reporter=json', `--outputFile=${join(this.root, '.full.json')}`]),
+    ]);
     return spawnSync(
-      'node',
-      [
-        VITEST,
-        'run',
-        ...(env.VITEST_INCREMENTAL
-          ? []
-          : ['--reporter=json', `--outputFile=${join(this.root, '.full.json')}`]),
-      ],
+      command,
+      args,
       {
         cwd: this.root,
         encoding: 'utf8',

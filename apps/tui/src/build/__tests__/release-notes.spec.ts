@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, vi } from 'vitest'
 
 import { fetchReleaseNotes } from '../release-notes'
 
@@ -14,7 +14,7 @@ describe('fetchReleaseNotes', () => {
       '**Full Changelog**: https://github.com/owner/atlas/compare/tui-v1.46.1...tui-v1.46.2',
     ].join('\n')
 
-    globalThis.fetch = mock(async () =>
+    globalThis.fetch = vi.fn(async () =>
       Response.json([{ tag_name: 'tui-v1.46.2', body }])
     ) as unknown as typeof fetch
 

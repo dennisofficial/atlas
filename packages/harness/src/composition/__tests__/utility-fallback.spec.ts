@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { MockLanguageModelV4 } from 'ai/test'
 import { EUtilityModelRole } from '@dltech/atlas-core'
 import { notifyingUtilityFallback } from '../utility-model'

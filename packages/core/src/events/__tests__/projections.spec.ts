@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EAgentStatus } from '../../agents/status'
 import { EDecision, EPrEventKind, type EventDraft } from '../body'

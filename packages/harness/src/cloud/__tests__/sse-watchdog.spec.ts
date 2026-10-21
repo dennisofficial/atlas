@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { runSseStream } from '../sse-client'
 import { collect, startServer, waitFor, type TestServer } from './sse-test-server'

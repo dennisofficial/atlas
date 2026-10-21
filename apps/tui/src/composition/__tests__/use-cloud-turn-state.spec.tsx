@@ -1,6 +1,6 @@
 import { toCallId, type EventDraft } from '@dltech/atlas-core'
 import { EClientFrame, EStepEnd, ETurnStatus, toStepId } from '@dltech/atlas-harness'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
