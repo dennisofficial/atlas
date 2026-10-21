@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { defaultPipeline, EMPTY_PROMPT, toCallId, type Event, type EventOfType } from '@dltech/atlas-core'
 

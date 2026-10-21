@@ -6,19 +6,18 @@
  *
  *   bun test test/plugin.test.ts
  */
-import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
+import { afterAll, describe, expect, test, vi } from 'vitest'
 import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { computeGlobalKey } from '../src/global-key';
+import { vitestCommand } from './fixture';
 
-setDefaultTimeout(180_000);
+vi.setConfig({ testTimeout: 180_000 });
 
-const PACKAGE_DIR = join(import.meta.dir, '..');
+const PACKAGE_DIR = join(import.meta.dirname, '..');
 const REPO_ROOT = join(PACKAGE_DIR, '../..');
 const PLUGIN = join(PACKAGE_DIR, 'index.js');
-const VITEST = join(dirname(createRequire(import.meta.url).resolve('vitest/package.json')), 'vitest.mjs');
 const PASSING = `test('ok', () => expect(1).toBe(1));\n`;
 
 interface Summary {
@@ -68,7 +67,8 @@ class PluginFixture {
   run(mode: string) {
     const summaryFile = join(this.root, '.summary.json');
     rmSync(summaryFile, { force: true });
-    const result = spawnSync('node', [VITEST, 'run'], {
+    const [command, args] = vitestCommand(['run']);
+    const result = spawnSync(command, args, {
       cwd: this.root,
       encoding: 'utf8',
       env: { ...process.env, VITEST_INCREMENTAL: mode, VITEST_INCREMENTAL_SUMMARY: summaryFile },
@@ -153,11 +153,58 @@ describe('never cached', () => {
     expect(fixture.executed()).toEqual({ '.': 1 });
   });
 
+  test('a test file that runs a repo file through cat', () => {
+    const reads = `import { execFileSync } from 'node:child_process';\nimport { join } from 'node:path';\ntest('cat', () => expect(execFileSync('cat', [join(__dirname, '../data.txt')], { encoding: 'utf8' })).toBe('v1'));\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': reads, 'data.txt': 'v1' } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 1 });
+  });
+
   test('a test file whose test passed only on retry', () => {
     const flaky = `let runs = 0;\ntest('flaky', () => expect(++runs).toBe(2));\n`;
     const fixture = singleProject({ files: { 'tests/a.test.ts': flaky }, test: 'retry: 1' });
     expect(fixture.executed()).toEqual({ '.': 2 });
     expect(fixture.executed()).toEqual({ '.': 1 });
+  });
+});
+
+describe('cached despite a child process', () => {
+  test('ssh-keygen style tools run from a repo cwd on temp files only', () => {
+    const tool = `import { execFileSync } from 'node:child_process';\nimport { mkdtempSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport { join } from 'node:path';\ntest('tar', () => { const src = mkdtempSync(join(tmpdir(), 'inc-src-')); const out = mkdtempSync(join(tmpdir(), 'inc-out-')); execFileSync('tar', ['-czf', join(out, 'x.tgz'), '-C', src, '.']); });\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': tool } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 0 });
+  });
+
+  test('git run in the repo cwd stays uncached', () => {
+    const git = `import { execFileSync } from 'node:child_process';\ntest('git', () => { execFileSync('git', ['status', '--short']); });\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': git } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 1 });
+  });
+
+  test('a child that only touches a temp directory', () => {
+    const hermetic = `import { execFileSync } from 'node:child_process';\nimport { mkdtempSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport { join } from 'node:path';\ntest('git', () => { const dir = mkdtempSync(join(tmpdir(), 'inc-')); execFileSync('git', ['init', '-q'], { cwd: dir }); });\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': hermetic } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 0 });
+  });
+
+  test('a repo script run with bun reruns when a module it imports changes', () => {
+    const runs = `import { execFileSync } from 'node:child_process';\nimport { join } from 'node:path';\ntest('child', () => expect(execFileSync(process.execPath, [join(__dirname, '../child.ts')], { encoding: 'utf8' }).trim()).toBe('v1'));\n`;
+    const fixture = singleProject({
+      files: {
+        'tests/a.test.ts': runs,
+        'child.ts': `import { value } from './value';\nconsole.log(value);\n`,
+        'value.ts': `export const value = 'v1';\n`,
+      },
+    });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 0 });
+    fixture.write('value.ts', `export const value = 'v2';\n`);
+    const { status, summaries } = fixture.run('1');
+    expect(status).not.toBe(0);
+    expect(summaries[0]).toMatchObject({ executed: 1, failedFiles: ['tests/a.test.ts'] });
   });
 });
 

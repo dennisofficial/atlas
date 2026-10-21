@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { EKilledBy, EShellStatus, type PortExposure } from '@dltech/atlas-core'
 

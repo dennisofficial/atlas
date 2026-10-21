@@ -1,5 +1,5 @@
 import { CredentialError, ECredentialFailure } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { CREDENTIAL_EXIT_CODE, diagnoseCredentialFailure } from '../credential-diagnosis'
 

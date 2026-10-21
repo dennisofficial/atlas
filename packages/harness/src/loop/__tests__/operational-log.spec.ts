@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ELogSeverity, LogPort, toThreadId, type LogEntry, type ThreadId } from '@dltech/atlas-core'
 

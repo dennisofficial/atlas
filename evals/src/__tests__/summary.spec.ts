@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { ERunExitCode, ERunMode, ERunStatus } from '../results'
 import type { LoadedRun, RunSummary } from '../results'
 import { compareRuns, comparisonExitCode, evaluateRun, formatComparisonText, formatSummaryText } from '../summary'

@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, it } from 'bun:test'
+import { expect, it } from 'vitest'
 
 import { attachDurableShell, launchDurableShell } from '../client'
 import { collect } from './fixture'

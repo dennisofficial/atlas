@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { HEADING } from '../../ui/components/exit-guard'

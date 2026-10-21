@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { toEventId, toRunId, type Event, type EventDraft, type EventEnvelope, type ThreadId } from '@dltech/atlas-core'
 import { EServeFrame } from '@dltech/atlas-wire'

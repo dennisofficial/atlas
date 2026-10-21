@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EForge } from '../checkout'
 import { forgeOfHost, parseRemoteUrl } from '../remote-url'

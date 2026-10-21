@@ -1751,8 +1751,8 @@ Max 300 lines per file. Tests in a sibling `__tests__/` as `*.spec.ts`.
 | Hook discovery | Glob at dev time, generated manifest for `--compile` |
 | Format evolution | Versioned event payloads; readers tolerate every historical shape; a newer `format` in a session's meta refuses loudly |
 | Packages | `core`, `harness`, `apps/tui` — raw TS source, no build step |
-| Runtime | Bun — runtime, package manager and test runner |
-| Task runner | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `bun test` |
+| Runtime | Bun — runtime and package manager; tests run Vitest on the Bun runtime (`bun --bun vitest`) |
+| Task runner | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `vitest` |
 | Fenced-code highlighting | **Two tiers.** tree-sitter wasm where a small maintainer build exists; a declarative lexer for the long tail |
 
 **`core` owns its own message type.** `Assembled` cannot hold `ModelMessage` without `core` depending

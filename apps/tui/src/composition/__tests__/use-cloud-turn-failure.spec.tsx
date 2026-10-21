@@ -1,6 +1,6 @@
 import { toRunId } from '@dltech/atlas-core'
 import { EClientFrame } from '@dltech/atlas-harness'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { ECommandEffect } from '../commands/local-command'
 import { dismissNotice } from '../../ui/notice-store'

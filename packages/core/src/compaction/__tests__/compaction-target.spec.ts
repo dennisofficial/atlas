@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { compactionTarget, ECompactionRefusal } from '../compaction-target'
 import { called, compacted, denied, eventsFrom, replied, resulted, said } from './fixture'

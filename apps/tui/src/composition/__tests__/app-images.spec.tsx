@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { EImageDelivery } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'

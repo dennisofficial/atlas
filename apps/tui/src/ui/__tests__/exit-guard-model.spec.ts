@@ -1,6 +1,6 @@
 import { toThreadId } from '@dltech/atlas-core'
 import { toShellId } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import {
   AGENT_TAG,

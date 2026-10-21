@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EExecutionLocation } from '../../execution/location'
 import { definitionsOfPage, ESettingPage, type ChoiceDefinition } from '../definition'

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, jest } from 'bun:test'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -211,7 +211,7 @@ describe('useSettingsGithub', () => {
     const state = remote()
     const { probe, opened, done } = await mounted({ cloud: githubCloud({ state }) })
 
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     try {
       controlOf(probe).activate()
       await drain()
@@ -220,13 +220,13 @@ describe('useSettingsGithub', () => {
       expect(opened).toEqual(['https://github.com/login/device'])
 
       state.approved = true
-      jest.advanceTimersByTime(3_000)
+      vi.advanceTimersByTime(3_000)
       await drain()
       const notice = 'Connected GitHub as @octocat.'
       expect(controlOf(probe).flow.notice).toBe(notice)
       expect(controlOf(probe).connection?.login).toBe('octocat')
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
       controlOf(probe).stop()
       await done()
     }
@@ -236,7 +236,7 @@ describe('useSettingsGithub', () => {
     const state = remote()
     const { probe, done } = await mounted({ cloud: githubCloud({ state }) })
 
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     try {
       controlOf(probe).activate()
       await drain()
@@ -246,12 +246,12 @@ describe('useSettingsGithub', () => {
       await drain()
       expect(controlOf(probe).flow.status).toBe(ESettingsLogin.Idle)
       const pollsAtStop = state.polls
-      jest.advanceTimersByTime(10_000)
+      vi.advanceTimersByTime(10_000)
       await drain()
 
       expect(state.polls).toBe(pollsAtStop)
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
       await done()
     }
   }, 30_000)
@@ -261,16 +261,16 @@ describe('useSettingsGithub', () => {
     state.denied = true
     const { probe, done } = await mounted({ cloud: githubCloud({ state }) })
 
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     try {
       controlOf(probe).activate()
       await drain()
       const failure = 'that connection was refused.'
-      jest.advanceTimersByTime(3_000)
+      vi.advanceTimersByTime(3_000)
       await drain()
       expect(controlOf(probe).flow.failure).toBe(failure)
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
       controlOf(probe).stop()
       await done()
     }

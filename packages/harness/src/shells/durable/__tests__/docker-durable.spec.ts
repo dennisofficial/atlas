@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { EKilledBy, toThreadId } from '@dltech/atlas-core'
@@ -44,7 +44,7 @@ function transport({ shellDir }: { shellDir: string }): ControlTransport {
 }
 
 const launcherSource = `
-import { launchDurableShell, ELeaseMode } from ${JSON.stringify(resolve(import.meta.dir, '../client.ts'))};
+import { launchDurableShell, ELeaseMode } from ${JSON.stringify(resolve(import.meta.dirname, '../client.ts'))};
 const [container, root, shellDir, command, limit] = process.argv.slice(1);
 const run = async (cmd) => {
   const child = Bun.spawn(cmd, { stdout: 'pipe', stderr: 'pipe' });

@@ -1,5 +1,5 @@
 import { EImageDelivery } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import type { TextareaRenderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'

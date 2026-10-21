@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { ATLAS_ALLOW_REAL_HOME_ENV, EEffort, findCard } from '@dltech/atlas-core'
 

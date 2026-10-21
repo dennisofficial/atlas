@@ -10,7 +10,7 @@ import {
   toThreadId,
   type ToolOutcome,
 } from '@dltech/atlas-core'
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { CloudSessionStore } from '../../../cloud/cloud-session'
 import { ResolveProjectPathsHook } from '../../../hooks/resolve-project-paths'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { HttpTransport } from '../transport/http'
 import type { JsonRpcId, JsonRpcMessage } from '../transport/transport'

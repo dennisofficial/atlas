@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { KeyEvent } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import React, { act, useState } from 'react'

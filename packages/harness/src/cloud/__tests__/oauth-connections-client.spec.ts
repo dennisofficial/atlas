@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { fakeOauthApi } from '../../credentials/__tests__/oauth-api-fake'
 import { CloudError } from '../cloud-transport'

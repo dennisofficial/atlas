@@ -2,7 +2,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import { mkdtemp, realpath, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { ProcessPort, SpawnCommand, ToolOutcome } from '@dltech/atlas-core'
 

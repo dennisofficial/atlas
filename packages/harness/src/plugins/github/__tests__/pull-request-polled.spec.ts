@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { checkoutKey } from '../pure'
 import { createPullRequestService } from '../pull-request-service'

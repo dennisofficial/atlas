@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { dirname, join } from 'node:path'
 
 import { loadCursor, ENDED_READ_BYTES } from '../output-preview'

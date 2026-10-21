@@ -26,7 +26,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "ATLAS_TESTING=1 bun test",
+    "test": "bun --bun vitest run",
     "generate": "bun run tools/generate-css.ts"
   },
   "dependencies": {
@@ -61,6 +61,8 @@
     "@types/react-dom": "^19",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+    "vitest": "4.0.1",
+    "@dltech/vitest-incremental": "workspace:*"
   }
 }

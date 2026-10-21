@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { EvalRegistryError, createFeatureRegistry } from '../../src/feature-registry'
 import type { AnyEvalFeature } from '../../src/feature-registry'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EEffort, EImageTier, catalogOf, findCard, type ModelCard } from '@dltech/atlas-core'
 import { ProviderAdapter } from '@dltech/atlas-harness'

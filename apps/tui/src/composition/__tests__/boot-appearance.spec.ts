@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { ESettingId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { accentHex } from '../../ui/accents'
 import { appearanceOf, applyAppearance } from '../../ui/appearance'
@@ -11,7 +11,7 @@ import { resetPalette } from '../../ui/palette-store'
 import { theme } from '../../ui/theme'
 import { loadSettings } from '@dltech/atlas-harness'
 
-const BOOT = join(import.meta.dir, '..', 'boot.tsx')
+const BOOT = join(import.meta.dirname, '..', 'boot.tsx')
 
 const workspaceWith = (accent: string): string => {
   const cwd = mkdtempSync(join(tmpdir(), 'atlas-appearance-'))

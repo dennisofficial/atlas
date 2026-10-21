@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { EWorkspaceState, startServe } from '../index'
 import { EServeEvent } from '../serve-log'

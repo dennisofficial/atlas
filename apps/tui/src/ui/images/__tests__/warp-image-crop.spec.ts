@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, test } from 'vitest'
 import { BoxRenderable, ScrollBoxRenderable, type NativeImage } from '@opentui/core'
 
 import { TranscriptImageRenderable } from '../transcript-image'

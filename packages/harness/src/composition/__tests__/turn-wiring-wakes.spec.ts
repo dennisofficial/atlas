@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EServiceStatus, EShellStatus, type EventDraft } from '@dltech/atlas-core'
 

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -31,7 +31,7 @@ describe('a compiled binary carrying the supervisor script', () => {
     await mkdir(join(workspace, 'src', 'store'), { recursive: true })
     await mkdir(join(workspace, 'bin'), { recursive: true })
 
-    await copyFile(join(import.meta.dir, '..', 'supervisor-launch.ts'), join(workspace, 'src', 'shells', 'supervisor-launch.ts'))
+    await copyFile(join(import.meta.dirname, '..', 'supervisor-launch.ts'), join(workspace, 'src', 'shells', 'supervisor-launch.ts'))
     await writeFile(join(workspace, 'src', 'shells', 'supervisor-bundle.ts'), BUNDLE_STUB)
     await writeFile(join(workspace, 'src', 'store', 'paths.ts'), PATHS_STUB)
     await writeFile(join(workspace, 'src', 'main.ts'), ENTRY)

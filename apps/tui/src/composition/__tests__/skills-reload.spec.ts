@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { reloadedSkills, reloadNotice } from '../skills-reload'
 import { fakeSkill } from './fake-app'

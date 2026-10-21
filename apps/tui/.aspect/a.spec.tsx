@@ -1,4 +1,4 @@
-import { test } from 'bun:test'
+import { test } from 'vitest'
 import { testRender } from '@opentui/react/test-utils'
 import React from 'react'
 

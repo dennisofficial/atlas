@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from 'vitest'
 
 import { EPodPhase, terminalConnectionOf } from "../pod-state";
 import { canResize, chipLabel, EPodState, ramOf, RUNNING_POD, sizeLabel, VCPU_STEPS } from "../pod-status";

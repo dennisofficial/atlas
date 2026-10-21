@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { cellsOf, fitHints, hintSpans, hintWidth, type Hint } from '../hint-layout'
 import { theme } from '../theme'

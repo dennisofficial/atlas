@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import type { DevServeBinary } from '@dltech/atlas-wire'
 
-const REPOSITORY_ROOT = join(import.meta.dir, '..', '..', '..', '..', '..', '..')
+const REPOSITORY_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..')
 
 const linuxTargetOfHost = (): string => {
   if (process.arch === 'arm64') return 'bun-linux-arm64'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { bearerSubprotocolOf, tokenFromSubprotocols } from '@dltech/atlas-harness'
 import { bearerToken, offeredSubprotocols, tokenMatches } from '../token-guard'

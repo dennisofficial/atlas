@@ -9,6 +9,8 @@ export interface RecordedInputs {
   recorderOk: boolean;
   /** Why the file must never be cached (it started a child process), if it must not. */
   uncacheable?: string;
+  /** argv and cwd of the first child processes the file started. */
+  spawned?: string[];
   /** Module ids Vitest loaded; `mock:<path>` for modules replaced by a vi.mock factory. */
   modules: string[];
   /** Files read or opened successfully (`f:` keys). */

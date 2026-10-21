@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EEffort, ERunner, toThreadId } from '@dltech/atlas-core'
 import {

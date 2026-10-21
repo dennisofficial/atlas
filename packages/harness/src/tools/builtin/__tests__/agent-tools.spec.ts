@@ -1,6 +1,6 @@
 import { tmpdir } from 'node:os'
 
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import {

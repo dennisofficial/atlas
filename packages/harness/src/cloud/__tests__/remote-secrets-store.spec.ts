@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { CloudClient, CloudError } from '../cloud-client'
 import { RemoteSecretsStore } from '../remote-secrets-store'

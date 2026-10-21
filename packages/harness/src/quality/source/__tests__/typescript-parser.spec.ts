@@ -1,5 +1,5 @@
 import { EQualityLanguage, EQualityScopeKind } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { parseQualitySource, scriptKindForPath } from '../typescript-parser'
 

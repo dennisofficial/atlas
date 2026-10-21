@@ -1,23 +1,25 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, vi } from 'vitest'
 import React from 'react'
 
 import { toCallId } from '@dltech/atlas-core'
 
+import type * as ToolDetailModule from '../tool-detail'
 import { ECallState, type ToolCall, type ToolRun } from '../../../../store'
 
-const { ToolDetail: RealToolDetail } = await import('../tool-detail')
+type DetailProps = React.ComponentProps<typeof ToolDetailModule.ToolDetail>
 
-type DetailProps = React.ComponentProps<typeof RealToolDetail>
+const detailRenders = vi.hoisted(() => new Map<string, number>())
 
-const detailRenders = new Map<string, number>()
-
-function CountedDetail(props: DetailProps): React.ReactNode {
-  detailRenders.set(props.call.callId, (detailRenders.get(props.call.callId) ?? 0) + 1)
-  return <RealToolDetail {...props} />
-}
-
-void mock.module('../tool-detail', () => ({ ToolDetail: CountedDetail }))
+vi.mock('../tool-detail', async () => {
+  const actual = await vi.importActual<typeof ToolDetailModule>('../tool-detail')
+  const RealToolDetail = actual.ToolDetail
+  const CountedDetail = (props: DetailProps): React.ReactNode => {
+    detailRenders.set(props.call.callId, (detailRenders.get(props.call.callId) ?? 0) + 1)
+    return <RealToolDetail {...props} />
+  }
+  return { ...actual, ToolDetail: CountedDetail }
+})
 
 const { ToolRunBlock } = await import('../tool-run-block')
 const { grammarsReady, teardown } = await import('../../../markdown/__tests__/harness')

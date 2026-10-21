@@ -19,7 +19,7 @@ By default the plugin is inert unless `VITEST_INCREMENTAL` is set, so plain
 `vitest` is unchanged; pass `enabled: true` to keep it always on:
 
 ```sh
-VITEST_INCREMENTAL=1 vitest run       # reuse valid passes (bun run test:incremental)
+VITEST_INCREMENTAL=1 vitest run       # reuse valid passes
 VITEST_INCREMENTAL=force vitest run   # run everything, refresh the cache
 VITEST_INCREMENTAL=plan vitest run    # log what would run, run nothing
 VITEST_INCREMENTAL=clear vitest run   # delete the cache, then run everything
@@ -65,8 +65,11 @@ startup. Empty strings count as unset.
   listings (including recursive ones), `stat`/`lstat` results, existence
   checks, env var names read, and whether `process.env` was enumerated. Only
   files that passed with no attributed unhandled error and no pass on retry, in
-  a run that was not interrupted or filtered, are stored. A file that starts a
-  child process is never stored, since what the child reads is invisible. An
+  a run that was not interrupted or filtered, are stored. A child process is
+  classified by what it can see (`src/spawn.ts`): one that touches no files, or
+  whose cwd and arguments stay outside the repo, is ignored; `bun|node <repo
+  script>` records the script's static import graph; anything else keeps the
+  file uncached. An
   entry is not stored if an input was modified during the run, or if something
   the test saw existing is gone at record time. Cache read, validation and
   write errors fall back to running the test.
@@ -92,9 +95,8 @@ into a different checkout path still hits.
 ## Tests and benchmarks
 
 ```sh
-bun run --filter @dltech/vitest-incremental test
-bun packages/vitest-incremental/bench/scenarios.ts --oracle
-bash packages/vitest-incremental/bench/new-runner-pr.sh <app-file> <app-file-2> <portal-file>
+bun run --filter @dltech/vitest-incremental test                                # fixtures run on bun
+VITEST_INCREMENTAL_RUNTIME=node bun run --filter @dltech/vitest-incremental test # fixtures run on node
 ```
 
 and fails only if a file the cache would have skipped fails.

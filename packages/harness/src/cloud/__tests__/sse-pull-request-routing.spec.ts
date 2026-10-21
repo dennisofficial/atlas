@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { pullRequestEntries } from '../../plugins/github/pull-request-entries'
 import { createPullRequestService } from '../../plugins/github/pull-request-service'

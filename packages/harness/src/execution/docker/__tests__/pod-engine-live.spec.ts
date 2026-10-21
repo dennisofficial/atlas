@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, describe, expect, it } from 'vitest'
 
 import { DockerEngine } from '../engine'
 import { DockerPodEngine } from '../pod-engine'

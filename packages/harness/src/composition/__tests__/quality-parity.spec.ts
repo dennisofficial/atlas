@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { EDefinitionOrigin, EFinishReason, EQualityReviewStatus, QualityReviewPort, TEAMMATE_AGENT_TYPE, toThreadId } from '@dltech/atlas-core'
 

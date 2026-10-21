@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "ATLAS_TESTING=1 bun test --preload ./src/__tests__/test-home-setup.ts",
+    "test": "bun --bun vitest run",
     "generate:catalogue": "bun scripts/generate-catalogue.ts",
     "generate:claude-code-version": "bun scripts/generate-claude-code-version.ts",
     "generate:codex-version": "bun scripts/generate-codex-version.ts",
@@ -36,6 +36,8 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/turndown": "^5.0.6"
+    "@types/turndown": "^5.0.6",
+    "vitest": "4.0.1",
+    "@dltech/vitest-incremental": "workspace:*"
   }
 }

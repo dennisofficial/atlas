@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React, { act, useSyncExternalStore } from 'react'
 
 import { WINDOW_CAP } from '../entry-window'

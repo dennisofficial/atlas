@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { CORE_PACKAGE_NAME } from '@dltech/atlas-core'
 

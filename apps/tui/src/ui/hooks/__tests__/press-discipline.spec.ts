@@ -1,8 +1,8 @@
 import { Glob } from 'bun'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { join } from 'node:path'
 
-const SRC = join(import.meta.dir, '..', '..', '..')
+const SRC = join(import.meta.dirname, '..', '..', '..')
 
 const RAW_MOUSE = /on(?:MouseDown|MouseUp|MouseDrag|Mouse(?![A-Za-z]))/
 

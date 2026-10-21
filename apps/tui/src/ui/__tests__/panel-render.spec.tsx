@@ -1,6 +1,6 @@
 import { parseColor, type CapturedFrame, type RGBA } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { PANEL_BOTTOM_EDGE, PANEL_TOP_EDGE } from '../borders'

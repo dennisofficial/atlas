@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { carriedProviderOptions, mergeProviderOptions, toCoreProviderOptions } from '../provider-options'
 

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 
 import { EHistoricalRejection, recoverHistoricalChanges } from '../historical-recover'
 import { makeLog } from './historical-log'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { MAX_INLINE_BYTES } from '../../../images/limits'
 import type { Assembled } from '../../assembled'

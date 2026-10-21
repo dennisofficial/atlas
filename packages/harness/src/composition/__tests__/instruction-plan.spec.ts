@@ -1,6 +1,6 @@
 import { ATLAS_SETTINGS, EInstructionFamily, ESettingId } from '@dltech/atlas-core'
 import { createSettingsService, MemorySettingsStore } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { instructionPlanOf } from '../instruction-plan'
 

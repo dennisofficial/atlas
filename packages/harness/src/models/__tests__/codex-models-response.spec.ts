@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { CONTEXT_WINDOW_UNMEASURED, EEffort, EImageTier } from '@dltech/atlas-core'
 

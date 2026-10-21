@@ -3,7 +3,7 @@ import { EConnectionView } from '../connection-view'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it, afterEach } from 'bun:test'
+import { describe, expect, it, afterEach } from 'vitest'
 
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'

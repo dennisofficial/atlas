@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { ELogSeverity, type LogEntry, type LogPort } from '@dltech/atlas-core'
 

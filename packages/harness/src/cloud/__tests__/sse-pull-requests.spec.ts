@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EPullRequestLookup, EPullRequestState, EChecksState } from '../../plugins/github/pure'
 import type { RepositoryCheckout } from '../../plugins/github/pure'

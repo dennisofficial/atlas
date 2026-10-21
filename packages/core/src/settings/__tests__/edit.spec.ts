@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { activateSetting, adjustSetting } from '../edit'
 import { choice, range, toggle } from './fixture'

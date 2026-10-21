@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, spyOn } from 'bun:test'
+import { afterEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 
 import { recordingFetch } from './recording-fetch'
 import { streamedResponse } from './responses-stream-fixtures'
@@ -13,7 +13,7 @@ import {
 
 describe('openai history reasoning compatibility', () => {
   const warnings: string[] = []
-  let warnSpy: ReturnType<typeof spyOn>
+  let warnSpy: MockInstance<typeof console.warn>
 
   afterEach(() => {
     warnSpy?.mockRestore()
@@ -21,7 +21,7 @@ describe('openai history reasoning compatibility', () => {
   })
 
   const watchWarnings = (): void => {
-    warnSpy = spyOn(console, 'warn').mockImplementation((message?: unknown) => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation((message?: unknown) => {
       warnings.push(String(message))
     })
   }

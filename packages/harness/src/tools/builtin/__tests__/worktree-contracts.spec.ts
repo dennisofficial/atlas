@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { BUILT_IN_AGENT_TYPES } from '../../../agents/types/built-ins'
 

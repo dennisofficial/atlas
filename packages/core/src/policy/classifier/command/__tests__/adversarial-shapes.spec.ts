@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ETokenKind, lexCommand } from '../lex'
 import { EReadConfidence, readCommand, type CommandReading } from '../read-command'

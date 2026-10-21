@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { ERuntimePhase } from '../runtime-checkpoint'
 import { sandboxDrainReplySchema, sandboxRotationReceiptSchema, sandboxRotationStateSchema, type SandboxRotationReceipt } from '../sandbox-rotation'
 

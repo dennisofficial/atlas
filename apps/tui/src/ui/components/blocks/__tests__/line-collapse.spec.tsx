@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { afterAll, describe, expect, it } from 'bun:test'
+import { afterAll, describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import React from 'react'
@@ -28,7 +28,7 @@ import { ToolDetail } from '../tool-detail'
 
 await grammarsReady()
 
-const FIXTURE = join(import.meta.dir, 'fixtures', 'line-collapse.json')
+const FIXTURE = join(import.meta.dirname, 'fixtures', 'line-collapse.json')
 
 const HEIGHT = 44
 

@@ -6,7 +6,7 @@ import {
   toCallId,
   type EventDraft,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { IDLE_TURN } from '../../ui/turn-clock'
 import { deriveSidebar } from '../sidebar-model'

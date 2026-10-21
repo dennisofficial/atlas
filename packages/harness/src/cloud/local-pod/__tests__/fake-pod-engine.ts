@@ -1,4 +1,4 @@
-import { expect } from 'bun:test'
+import { expect } from 'vitest'
 
 import { SANDBOX_SERVE_PORT, type DevServeResolver } from '@dltech/atlas-wire'
 

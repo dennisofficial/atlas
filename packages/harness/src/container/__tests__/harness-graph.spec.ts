@@ -1,7 +1,7 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeAll, describe, expect, it } from 'bun:test'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { EventLogPort, EExecutionLocation, EWebSearchBackend, ExecutionLocationSinkPort, toCallId, toRunId, toThreadId, type Chunk } from '@dltech/atlas-core'
 

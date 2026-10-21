@@ -1,6 +1,6 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
-import React from 'react'
+import { describe, expect, it } from 'vitest'
+import React, { act } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 
@@ -23,8 +23,10 @@ const arrange = async () => {
   const probe: Probe = { control: null }
   const setup = await testRender(<ControlProbe probe={probe} />, { width: 20, height: 4 })
   const flush = async (): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    await setup.renderOnce()
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      await setup.renderOnce()
+    })
   }
   const control = (): ContainerMoveControl => {
     if (probe.control === null) throw new Error('probe never mounted')

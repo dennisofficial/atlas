@@ -1,8 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from 'vitest'
 import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const storybookRoot = resolve(import.meta.dir, "..");
+const storybookRoot = resolve(import.meta.dirname, "..");
 const uiSrc = resolve(storybookRoot, "../../packages/ui/src");
 
 function listModules(dir: string): string[] {

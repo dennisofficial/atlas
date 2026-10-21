@@ -4,7 +4,7 @@
  * and checks that exactly the expected files execute and that the result
  * agrees with a plain full Vitest run of the same checkout (the oracle).
  */
-import { expect } from 'bun:test';
+import { expect } from 'vitest'
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { Fixture, REPO_ROOT } from './fixture';
@@ -29,6 +29,7 @@ export const ALL = [
   'u',
   'v',
   'w',
+  'x',
 ].map((n) => `tests/${n}.test.ts`);
 
 export const t = (...names: string[]) => names.map((n) => `tests/${n}.test.ts`).sort();

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { worktreeLabel } from '../sandbox'
 import { removeTestSandboxes, uniqueTestPrefix, type TestCleanupEngine } from './docker-test-cleanup'

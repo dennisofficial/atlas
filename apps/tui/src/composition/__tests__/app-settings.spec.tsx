@@ -1,5 +1,5 @@
 import { ESettingId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { appWith, widthOf, columnOf, landed, opened, onSettings, valueOf, SIDEBAR_WIDTH_ROW, DECISIONS_URL_ROW, CUSTOM_DECISIONS_SETTINGS, toModelsPage, downTo } from './app-settings-fixture'
 

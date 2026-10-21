@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EQualityFindingState, EQualityReviewStatus, EQualitySkipReason, JEV_QUALITY_MODEL, type DecisionOutcome, type EventDraft } from '@dltech/atlas-core'
 

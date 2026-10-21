@@ -1,5 +1,5 @@
 import { marked } from 'marked'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { bindPathLinks, unbindPathLinks } from '../../../../composition/path-links'
 import { EInline, hostOf, type InlineNode, inlineNodes, inlinePlainText } from '../inline'

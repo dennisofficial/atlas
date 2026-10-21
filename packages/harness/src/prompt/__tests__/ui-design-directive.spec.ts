@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EDefinitionOrigin, EPromptAgent, promptContextFor, type PromptContext } from '@dltech/atlas-core'
 

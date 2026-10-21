@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { EAgentStatus, EKilledBy, type ThreadId } from '@dltech/atlas-core'
 
@@ -116,7 +116,7 @@ describe('pausing a stepping child', () => {
     opened.push(entry)
     const child = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
     const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
-    await Bun.sleep(1)
+    await vi.waitFor(() => expect(entry.runners.started[0]?.pause?.paused).toBe(true))
     const descendant = await spawn({ entry, threadId: child, agentType: 'explore' })
     entry.runners.started[1]?.fail(new Error('late descendant failed'))
     entry.runners.started[0]?.settle(relocationPaused())

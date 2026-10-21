@@ -1,5 +1,5 @@
 import { SyntaxStyle } from '@opentui/core'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { applyPalette, resetPalette } from '../../palette-store'
 import { theme } from '../../theme'

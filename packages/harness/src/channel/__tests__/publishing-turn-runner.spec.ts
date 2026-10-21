@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { defaultPipeline, EMPTY_PROMPT, EToolEffect, type ToolDefinition } from '@dltech/atlas-core'
 import { z } from 'zod'

@@ -5,7 +5,7 @@ import type { DockerEngine } from '../engine'
 import { runSandboxScript } from '../sandbox-scripts'
 import { quoted } from './live-docker'
 
-const REPO_ROOT = join(import.meta.dir, '..', '..', '..', '..', '..', '..')
+const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..')
 const RELEASE_URL = /https:\/\/github\.com\/dennisofficial\/atlas\/releases\/download\/tui-v[^/"\s]+/g
 
 export const OLD_SERVE_STUB = `#!/usr/bin/python3

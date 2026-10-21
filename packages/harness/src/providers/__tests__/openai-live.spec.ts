@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, spyOn } from 'bun:test'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { generateText, stepCountIs, streamText, tool, type ModelMessage } from 'ai'
 import { z } from 'zod'
 
@@ -106,7 +106,7 @@ describe.skipIf(process.env[LIVE_OPENAI_FLAG] !== '1')(
 
       const atlasWarnings: string[] = []
       const sdkWarnings: string[] = []
-      const warnSpy = spyOn(console, 'warn').mockImplementation((message?: unknown) => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation((message?: unknown) => {
         const line = String(message)
         if (line.startsWith('atlas:')) atlasWarnings.push(line)
         else sdkWarnings.push(line)

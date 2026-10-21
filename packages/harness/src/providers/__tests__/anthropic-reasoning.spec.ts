@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, spyOn } from 'bun:test'
+import { afterEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 
 import type { LanguageModelV4Prompt } from '@ai-sdk/provider'
 
@@ -75,7 +75,7 @@ const thinkingBlocks = (recorder: RecordingFetch, index: number): AnthropicBlock
 
 describe('anthropic history reasoning compatibility', () => {
   const warnings: string[] = []
-  let warnSpy: ReturnType<typeof spyOn>
+  let warnSpy: MockInstance<typeof console.warn>
 
   afterEach(() => {
     warnSpy?.mockRestore()
@@ -83,7 +83,7 @@ describe('anthropic history reasoning compatibility', () => {
   })
 
   const watchWarnings = (): void => {
-    warnSpy = spyOn(console, 'warn').mockImplementation((message?: unknown) => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation((message?: unknown) => {
       warnings.push(String(message))
     })
   }

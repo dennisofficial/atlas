@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { APICallError } from '@ai-sdk/provider'
 import { StreamProviderError } from 'ai'

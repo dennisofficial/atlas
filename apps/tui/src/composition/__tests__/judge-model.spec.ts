@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { type CredentialPort, type ModelRef } from '@dltech/atlas-core'
 import { DEFAULT_MODEL_REF } from '@dltech/atlas-harness'

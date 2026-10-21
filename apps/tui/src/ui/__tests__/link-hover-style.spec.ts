@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { linkHoverStyle } from '../link-hover-style'
 import { theme } from '../theme'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { EOperatorInputOutcome, toThreadId, type EventDraft, type EventLogPort } from '@dltech/atlas-core'
 
 import { createDeltaChannel } from '../../channel/delta-channel'

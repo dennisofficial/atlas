@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 # Write scopes live on the release job, never at workflow level: GITHUB_TOKEN is minted per
 # job, so the test and build jobs run with a read-only token even if a job is added later.
@@ -64,38 +65,16 @@ jobs:
         run: bun run build:serve -- --target bun-linux-arm64 --outfile "$RUNNER_TEMP/atlas-serve-linux-arm64"
         working-directory: apps/serve
 
-  # One TUI shard per runner: parallel bun processes on one 4-core runner starve the
-  # settle-based render specs into flakes, but separate runners have separate cores
-  test-tui:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2.2.0
-
-      - uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install
-
-      - name: tui shard ${{ matrix.shard }} of 4
-        run: bun run test
-        working-directory: apps/tui
-        env:
-          ATLAS_TEST_SHARDS: '4'
-          ATLAS_TEST_SHARD: ${{ matrix.shard }}
-          ATLAS_TESTING: '1'
-
-  test-packages:
+  # Every test suite in one job, made incremental by @dltech/vitest-incremental: a test file runs only
+  # when it has no cached pass for its exact current inputs (modules loaded, files read, env read), so
+  # there is no paths filter and no sharding. Each run saves a new immutable cache keyed by run id;
+  # restore picks the newest for this ref, then main's. GitHub scopes caches by ref, so a PR reads
+  # main's cache but main never reads a PR's — never move this to pull_request_target.
+  # tests-nightly.yml runs everything nightly and fails if the cache ever hid a failure.
+  test:
     runs-on: ubuntu-latest
     env:
-      ATLAS_LIVE_DOCKER: '1'
+      VITEST_INCREMENTAL: ${{ github.event_name == 'workflow_dispatch' && 'force' || '1' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -105,53 +84,59 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - run: bun install
-
       - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
-      - name: enable turbo remote cache
-        run: |
-          if [ -n "$VERCEL_TOKEN" ]; then
-            echo "TURBO_TOKEN=$VERCEL_TOKEN" >> "$GITHUB_ENV"
-            echo "TURBO_TEAM=comp-ai" >> "$GITHUB_ENV"
-          fi
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - run: bun install
 
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: pull test images
-        run: |
-          docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
-          docker pull node:22-slim
-
-      - name: restore incremental test records
+      - name: restore incremental test cache
+        id: restore
         uses: actions/cache/restore@v6
         with:
           path: .cache/incremental-tests
-          key: incremental-tests-${{ github.ref_name }}-${{ github.sha }}
+          key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            incremental-tests-${{ github.ref_name }}-
-            incremental-tests-main-
+            incremental-tests-${{ github.ref }}-
+            incremental-tests-refs/heads/main-
 
-      - name: test core, harness, ui, api
-        run: bun run test --filter='!@dltech/atlas' --concurrency 1 --output-logs=full
+      - name: test (bun runtime)
+        id: bun-tests
+        run: bun --bun vitest run
         env:
-          VITEST_INCREMENTAL: '1'
+          VITEST_INCREMENTAL_SUMMARY: ${{ runner.temp }}/summary-bun.json
 
-      - name: save incremental test records
+      # api stays on Node: its Prisma driver-adapter specs fail under the Bun runtime.
+      - name: test api (node runtime)
+        if: always() && steps.restore.outcome == 'success'
+        working-directory: apps/api
+        run: bun run test
+        env:
+          VITEST_INCREMENTAL_SUMMARY: ${{ runner.temp }}/summary-api.json
+
+      # The plugin's own suite drives child vitest runs, so it is never incremental; turbo's remote
+      # cache keys it on the package's sources instead.
+      - name: test the incremental plugin itself
+        if: always() && steps.restore.outcome == 'success'
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then export TURBO_TOKEN="$VERCEL_TOKEN" TURBO_TEAM=comp-ai; fi
+          bunx turbo run test --filter @dltech/vitest-incremental --output-logs=errors-only
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VITEST_INCREMENTAL: ''
+
+      - name: report
         if: always()
+        run: .github/scripts/incremental-report.sh .cache/incremental-tests "$RUNNER_TEMP"/summary-*.json
+
+      # Saved even when tests fail: passes stay valid and failures are never stored.
+      - name: save incremental test cache
+        if: always() && steps.restore.outcome == 'success'
         uses: actions/cache/save@v6
         with:
           path: .cache/incremental-tests
-          key: incremental-tests-${{ github.ref_name }}-${{ github.sha }}
+          key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # The api image is the deploy artifact, and its runtime stage copies explicit paths — a
   # path-loaded asset missing from that list builds fine and only fails at deploy time (#474).
@@ -206,7 +191,7 @@ jobs:
   ci:
     name: ${{ github.event_name == 'pull_request' && 'ci' || 'ci (post-merge)' }}
     runs-on: ubuntu-latest
-    needs: [check, test-packages, test-tui, build-api-image]
+    needs: [check, test, build-api-image]
     if: always()
     steps:
       - name: Fail if any check failed

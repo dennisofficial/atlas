@@ -10,7 +10,7 @@ type Timing = {
 
 async function specFiles(): Promise<string[]> {
   const found: string[] = []
-  for await (const file of new Bun.Glob(SPEC_GLOB).scan({ cwd: `${import.meta.dir}/..` })) {
+  for await (const file of new Bun.Glob(SPEC_GLOB).scan({ cwd: `${import.meta.dirname}/..` })) {
     found.push(file)
   }
   return found.sort()

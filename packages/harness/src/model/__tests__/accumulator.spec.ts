@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EFinishReason, toCallId, type Chunk } from '@dltech/atlas-core'
 

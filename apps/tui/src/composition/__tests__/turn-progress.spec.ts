@@ -1,6 +1,6 @@
 import { EFinishReason, ERetryReason, type Chunk } from '@dltech/atlas-core'
 import { ETurnStatus, toStepId, EStepEnd, type ChannelSignal } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EMPTY_TRANSCRIPT, type TranscriptModel } from '../../store'
 import { toCallId, toRunId } from '@dltech/atlas-core'

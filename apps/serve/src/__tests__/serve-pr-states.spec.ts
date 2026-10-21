@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EClientFrame, EClientRequest, EServeFrame, encodeFrame } from '@dltech/atlas-harness'
 import { EPullRequestStateWire, type PrStateWire } from '@dltech/atlas-wire'

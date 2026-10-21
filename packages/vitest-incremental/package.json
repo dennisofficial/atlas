@@ -11,7 +11,8 @@
     }
   },
   "dependencies": {
-    "tinyglobby": "^0.2.17"
+    "tinyglobby": "^0.2.17",
+    "es-module-lexer": "^1.7.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -23,7 +24,7 @@
     "vitest": "^3.2.0 || ^4.0.0"
   },
   "scripts": {
-    "test": "bun test test",
+    "test": "bun --bun vitest run",
     "typecheck": "tsc --noEmit"
   }
 }

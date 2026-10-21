@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { RAIL } from '../../ui/borders'
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'

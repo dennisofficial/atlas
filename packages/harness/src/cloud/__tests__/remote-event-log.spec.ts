@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { EClientRequest } from '../channel-wire'

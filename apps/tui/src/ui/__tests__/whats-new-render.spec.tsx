@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { WhatsNew, type WhatsNewState } from '../components/whats-new'

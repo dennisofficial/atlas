@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { collapseUnchanged } from '../collapse'
 import { EDiffLine, type DiffHunk, type DiffLine } from '../hunk'

@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { EShellStatus } from '@dltech/atlas-core'
 import { closeRegistries, endedDraft, job, openRegistry, recorded, settle, THREAD } from './shell-registry-fixture'

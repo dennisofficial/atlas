@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { EPrEventKind, toThreadId, type LinkedPullRequest, type ThreadId } from '@dltech/atlas-core'
 
 import { prEventFrameSchema, type PrEventFrame } from '../../../cloud/pr-event-frame'

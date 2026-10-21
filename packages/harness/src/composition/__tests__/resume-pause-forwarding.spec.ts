@@ -6,7 +6,7 @@ import {
   type ModelStepResult,
   type ProviderIdentity,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { PauseSignal } from '../../loop/pause-signal'

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from 'vitest'
 import { readFileSync } from "node:fs";
 
 import { buildThemeCss, toKebab } from "../css";
@@ -82,7 +82,7 @@ describe("semantic tokens", () => {
 describe("theme.css", () => {
   test("checked-in stylesheet matches the current tokens", () => {
     const onDisk = readFileSync(
-      `${import.meta.dir}/../../styles/theme.css`,
+      `${import.meta.dirname}/../../styles/theme.css`,
       "utf8",
     );
     expect(onDisk).toBe(buildThemeCss());

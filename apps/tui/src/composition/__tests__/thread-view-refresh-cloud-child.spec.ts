@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   toEventId,
   toRunId,
@@ -203,8 +203,8 @@ const controllableChannelFor = (args: { connection: ChannelConnection }) => {
 }
 
 describe('driveThreadViewExternally', () => {
-  beforeEach(() => jest.useFakeTimers())
-  afterEach(() => jest.useRealTimers())
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
 
   it('refreshes when the channel readies, and stops once disposed', async () => {
     const served = new Map<ThreadId, Event[]>([
@@ -266,9 +266,8 @@ describe('driveThreadViewExternally', () => {
       viewRefresh,
     })
 
-    jest.advanceTimersByTime(4000)
-    await Promise.resolve()
-    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(4000)
+    await flush()
     expect(applied.map((event) => event.seq)).toEqual([1])
 
     served.set(CHILD, [
@@ -276,14 +275,13 @@ describe('driveThreadViewExternally', () => {
       eventOf({ threadId: CHILD, seq: 2, text: 'second' }),
     ])
     control.state.current = PARKED
-    jest.advanceTimersByTime(8000)
-    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(8000)
+    await flush()
     expect(applied.map((event) => event.seq)).toEqual([1])
 
     control.state.current = OPEN
-    jest.advanceTimersByTime(4000)
-    await Promise.resolve()
-    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(4000)
+    await flush()
     expect(applied.map((event) => event.seq)).toEqual([1, 2])
     dispose?.()
   })

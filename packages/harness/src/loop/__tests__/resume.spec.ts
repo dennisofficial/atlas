@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { MockLanguageModelV4 } from 'ai/test'
 
 import type { ThreadId } from '@dltech/atlas-core'

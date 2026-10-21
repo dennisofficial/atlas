@@ -6,7 +6,7 @@ import { EClientKind, parseClientMessage } from './protocol';
 
 type SocketData = { session: PtySession | null };
 
-const config = resolveConfig({ env: process.env, appDir: resolve(import.meta.dir, '..') });
+const config = resolveConfig({ env: process.env, appDir: resolve(import.meta.dirname, '..') });
 const seed = await seedDevHome({
   sourceHome: config.sourceHome,
   devHome: config.devHome,

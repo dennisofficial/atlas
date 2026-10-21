@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { oversubscriptionWarnings } from '../sandbox'
 import { fakeEngine } from './fake-engine'

@@ -201,7 +201,10 @@ export default class IncrementalReporter implements Reporter {
       });
       if (typeof entry === 'string') {
         state.stats.notRecorded++;
-        this.vitest.logger.log(`[incremental] not caching ${test}: ${entry}`);
+        const spawned = testModule.meta().incremental?.spawned ?? [];
+        this.vitest.logger.log(
+          `[incremental] not caching ${test}: ${entry}${spawned.length ? ` (${spawned.slice(0, 3).join(' | ')})` : ''}`,
+        );
         continue;
       }
       if (!state.store.write(test, entry)) {

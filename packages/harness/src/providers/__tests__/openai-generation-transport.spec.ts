@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { generateText } from 'ai'
 
 import { apiKeyCredential, oauthCredential } from '../../credentials/testing'

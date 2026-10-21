@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 
 import { EVerdict, ScenarioFailed, type ScenarioEvidence } from '../rig-evidence'
 import { EvidencedScenarioFailed } from '../rig-park-wait'

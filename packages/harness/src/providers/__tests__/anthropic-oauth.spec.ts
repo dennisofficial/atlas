@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { generateText, streamText } from 'ai'
 
 import { secretOf, type CredentialPort } from '@dltech/atlas-core'

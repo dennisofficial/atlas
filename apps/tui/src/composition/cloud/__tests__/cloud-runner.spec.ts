@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'

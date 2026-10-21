@@ -69,6 +69,6 @@ export async function markSourceAt(args: { repoRoot: string; mark?: string | und
 }
 
 export async function markServeSource(): Promise<SourceMark> {
-  const repoRoot = (await git({ cwd: import.meta.dir, argv: ['rev-parse', '--show-toplevel'] })).trim()
+  const repoRoot = (await git({ cwd: import.meta.dirname, argv: ['rev-parse', '--show-toplevel'] })).trim()
   return markSourceAt({ repoRoot })
 }

@@ -1,7 +1,7 @@
 import type { LanguageModelV4GenerateResult } from '@ai-sdk/provider'
 import { stampDrafts, toEventId, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
 import { MockLanguageModelV4 } from 'ai/test'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { SummaryFailure, summaryFor } from '../summariser'
 

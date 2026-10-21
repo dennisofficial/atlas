@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { secretDisplay, SECRET_NOT_NEEDED, SECRET_NOT_SET } from '../settings-format'
 import { theme } from '../theme'

@@ -20,12 +20,14 @@
 import childProcess from 'node:child_process';
 import { EventEmitter, errorMonitor } from 'node:events';
 import fs from 'node:fs';
+
 import { syncBuiltinESMExports } from 'node:module';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, inject } from 'vitest';
 import { ENV_NAMES_MARKER, SESSION_ONLY_ENV } from './fingerprint';
+import { createSpawnClassifier } from './spawn';
 import type {} from './types';
 
 type CachedModule = {
@@ -230,9 +232,18 @@ function wrap(params: {
 // What a child process reads (`git grep`, a script run with node) is invisible
 // here, so a test file that starts one is never cached.
 let spawned = false;
+const spawnedCommands: string[] = [];
+const spawns = createSpawnClassifier({ repoRoot: REPO_ROOT, recordFile: (path) => files.add(path) });
+
+function recordSpawn(args: unknown[]) {
+  const verdict = spawns.classify(args);
+  if (spawnedCommands.length < 20) spawnedCommands.push(verdict.command);
+  if (verdict.uncacheable) spawned = true;
+}
+
 const marking = (fn: Fn) =>
   function (this: unknown, ...args: unknown[]) {
-    spawned = true;
+    recordSpawn(args);
     return fn.apply(this, args);
   };
 const processes = childProcess as unknown as Record<string, Fn & { [promisify.custom]?: Fn }>;
@@ -244,6 +255,25 @@ for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execF
   const custom = original[promisify.custom];
   if (custom) Object.defineProperty(wrapper, promisify.custom, { value: marking(custom) });
   processes[name] = wrapper;
+}
+
+type BunRuntime = Record<string, unknown> & { file?: Fn; spawn?: Fn; spawnSync?: Fn };
+const bun = (globalThis as { Bun?: BunRuntime }).Bun;
+if (bun) {
+  for (const name of ['spawn', 'spawnSync'] as const) {
+    const original = bun[name];
+    if (typeof original === 'function') bun[name] = marking(original);
+  }
+  const bunFile = bun.file;
+  if (typeof bunFile === 'function') {
+    // Bun.file is lazy: recording the path at creation over-records a file only
+    // written or stat-ed, which costs cache hits, never correctness.
+    bun.file = function (this: unknown, ...args: unknown[]) {
+      const path = toRepoPath(args[0]);
+      if (path) files.add(path);
+      return bunFile.apply(this, args);
+    };
+  }
 }
 
 const read = () => files;
@@ -317,6 +347,7 @@ afterAll(() => {
   fileTask.meta.incremental = {
     recorderOk: Boolean(moduleCache && REPO_ROOT),
     uncacheable: spawned ? 'started a child process' : undefined,
+    spawned: spawnedCommands,
     modules: [...modules],
     files: [...files],
     dirs: [...dirs],

@@ -1,5 +1,5 @@
 import { ESettingId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { previewFor } from '../components/settings/previews'
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { TelemetryPort, type EventDraft, type RunId, type ThreadId } from '@dltech/atlas-core'
 

@@ -1,5 +1,5 @@
 import { ATLAS_SETTINGS, ESettingId } from '@dltech/atlas-core'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'

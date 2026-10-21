@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EWebSearchBackend, secretNameOf, type SecretsPort } from '@dltech/atlas-core'
 

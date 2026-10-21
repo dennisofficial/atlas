@@ -3,7 +3,7 @@ import { join, relative } from 'node:path'
 
 import { generateSkills } from '../../../packages/harness/scripts/generate-skills'
 
-const repoRoot = join(import.meta.dir, '..', '..', '..')
+const repoRoot = join(import.meta.dirname, '..', '..', '..')
 const result = await generateSkills()
 
 console.log(

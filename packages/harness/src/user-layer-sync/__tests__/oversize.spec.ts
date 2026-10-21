@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { join } from 'node:path'
 
 import { ENoticeTone, NOTICE_WARN_MS } from '@dltech/atlas-core'

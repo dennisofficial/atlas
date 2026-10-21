@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 const IDENTITY_PLUGIN = `
 import { BeforeToolHook, definePlugin, EStage } from 'atlas'
@@ -34,7 +34,7 @@ const runCapturing = async (args: {
 
 describe('a plugin loaded by a compiled binary', () => {
   it('gets the host own class and enum, not a second copy', async () => {
-    const harnessRoot = join(import.meta.dir, '..', '..', '..')
+    const harnessRoot = join(import.meta.dirname, '..', '..', '..')
     const pluginDirectory = mkdtempSync(join(tmpdir(), 'atlas-compiled-plugins-'))
     const binary = join(mkdtempSync(join(tmpdir(), 'atlas-compiled-bin-')), 'probe')
 
@@ -46,7 +46,7 @@ describe('a plugin loaded by a compiled binary', () => {
         'bun',
         'build',
         '--compile',
-        join(import.meta.dir, 'compiled-binary-entry.ts'),
+        join(import.meta.dirname, 'compiled-binary-entry.ts'),
         '--outfile',
         binary,
       ],

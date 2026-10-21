@@ -1,5 +1,5 @@
 import { EChecksState, EPullRequestState, type PullRequestBadge } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EFooterItemReach } from '../../../ui/footer-item'
 import { theme } from '../../../ui/theme'

@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import React, { act } from 'react'
@@ -25,7 +25,7 @@ import {
 
 await grammarsReady()
 
-const FIXTURE = join(import.meta.dir, 'fixtures', 'identical-output.json')
+const FIXTURE = join(import.meta.dirname, 'fixtures', 'identical-output.json')
 
 type StreamedFrames = { live: readonly string[]; settled: readonly string[] }
 

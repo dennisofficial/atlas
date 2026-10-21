@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { checksRollup, checksTally, ECheckOutcome, latestAttemptOutcomes } from '../checks'
 import { EChecksState } from '../pull-request'

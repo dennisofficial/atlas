@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 
 import { sha256Hex } from '../../hash'
 import { REDACTION_RULES, redactionMapEquals, redactText } from '../redact'

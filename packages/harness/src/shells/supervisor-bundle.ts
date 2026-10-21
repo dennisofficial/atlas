@@ -1,8 +1,8 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-const HARNESS_ROOT = join(import.meta.dir, '..', '..')
-const SUPERVISOR_ENTRY = join(import.meta.dir, 'durable', 'supervisor-main.ts')
+const HARNESS_ROOT = join(import.meta.dirname, '..', '..')
+const SUPERVISOR_ENTRY = join(import.meta.dirname, 'durable', 'supervisor-main.ts')
 
 export const supervisorBundleFile = (): string =>
   join(HARNESS_ROOT, 'bin', 'atlas-supervisor.js')

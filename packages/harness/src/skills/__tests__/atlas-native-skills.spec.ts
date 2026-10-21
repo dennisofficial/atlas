@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { EPromptAgent, toThreadId, type PromptContext } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { SkillListingFragment } from '../../prompt/fragments/skills'
 import { SkillTool } from '../../tools/builtin/skill'

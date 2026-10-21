@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { asSchema } from 'ai'
 
 import { EToolEffect, type ToolDeclaration } from '@dltech/atlas-core'

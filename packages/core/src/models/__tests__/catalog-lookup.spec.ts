@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EImageTier } from '../../images/projection'
 import { catalogOf, findCard, type ModelCard } from '../card'

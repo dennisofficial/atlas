@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, test } from 'vitest'
 import { type CloudConnection, EConnectionView } from '@dltech/atlas-harness'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 

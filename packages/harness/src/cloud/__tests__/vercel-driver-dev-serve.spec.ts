@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import type { DevServeBinary, ServeInstaller, VercelSdk } from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'

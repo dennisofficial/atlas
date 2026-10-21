@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { expectLexes, expectPlain, textFor } from '../../__tests__/harness'
 import { ada as spec } from '../ada'

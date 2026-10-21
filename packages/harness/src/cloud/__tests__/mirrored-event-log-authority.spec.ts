@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import { EConnectionView } from '../connection-view'
 import { toEventId, toRunId, transcriptIdentityDigest, type Event } from '@dltech/atlas-core'
 import { EServeFrame } from '@dltech/atlas-wire'

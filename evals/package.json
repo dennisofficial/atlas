@@ -6,7 +6,7 @@
   "scripts": {
     "build": "bun run src/build.ts --check",
     "typecheck": "tsc --noEmit",
-    "test": "ATLAS_TESTING=1 bun test",
+    "test": "bun --bun vitest run",
     "eval:run": "bun run src/build.ts && bun run src/cli.ts run",
     "eval:validate": "bun run src/cli.ts validate",
     "eval:export-examples": "bun run src/cli.ts export-examples",
@@ -26,6 +26,7 @@
     "vitest": "4.0.1",
     "vite": "6.4.1",
     "typescript": "6.0.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@dltech/vitest-incremental": "workspace:*"
   }
 }

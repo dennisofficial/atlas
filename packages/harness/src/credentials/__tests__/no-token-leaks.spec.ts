@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const credentialsDirectory = join(import.meta.dir, '..')
+const credentialsDirectory = join(import.meta.dirname, '..')
 
 const readCredentialSources = async (): Promise<{ name: string; text: string }[]> => {
   const entries = await readdir(credentialsDirectory, { withFileTypes: true })

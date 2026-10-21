@@ -3,7 +3,7 @@ import { EClientFrame, ETurnStatus } from '@dltech/atlas-harness'
 
 import { ECommandEffect } from '../commands/local-command'
 import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 import React, { useRef } from 'react'
 
 import { SHIPPED_THINKING } from '../../store'

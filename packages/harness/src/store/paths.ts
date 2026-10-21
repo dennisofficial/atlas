@@ -17,7 +17,7 @@ export const ATLAS_LOGS_FILE_NAME = 'logs.jsonl'
 const EMBEDDED_ROOT = '/$bunfs'
 
 export function isEmbeddedBuild(): boolean {
-  return import.meta.dir.startsWith(EMBEDDED_ROOT)
+  return import.meta.dirname.startsWith(EMBEDDED_ROOT)
 }
 
 function temporaryRoots(): readonly string[] {

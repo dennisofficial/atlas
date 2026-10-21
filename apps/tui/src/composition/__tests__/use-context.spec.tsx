@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React, { act, useState } from 'react'
 import { testRender } from '@opentui/react/test-utils'
 import type { DirectoryEntry } from '@dltech/atlas-core'

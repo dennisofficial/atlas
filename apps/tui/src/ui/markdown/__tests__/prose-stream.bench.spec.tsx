@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, it } from 'bun:test'
+import { describe, it } from 'vitest'
 import React, { act } from 'react'
 
 import { MarkdownView } from '../markdown-view'

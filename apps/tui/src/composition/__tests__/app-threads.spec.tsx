@@ -1,6 +1,6 @@
 import { EEffort, refKey, toRunId, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { frameShowing } from '../../ui/__tests__/waiting'
@@ -164,9 +164,8 @@ describe('/resume', () => {
 
     try {
       await ran(setup, '/resume the-auth-overlay')
+      const frame = await frameShowing({ setup, text: 'wire up accounts' })
 
-      const frame = setup.captureCharFrame()
-      expect(frame).toContain('wire up accounts')
       expect(frame).not.toContain(THREADS_HEADING.toUpperCase())
     } finally {
       await teardown(setup)

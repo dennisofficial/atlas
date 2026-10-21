@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { ECaseReviewState } from '../../src/case'
 import { gradeRow } from '../../src/grading'

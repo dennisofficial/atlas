@@ -14,6 +14,7 @@ import {
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { createTempHome } from '../../../loop/__tests__/temp-home'
 import { ETurnStatus, type TurnOutcome } from '../../../loop/turn-outcome'
+import type { PauseSignal } from '../../../loop/pause-signal'
 import type { TurnRunner } from '../../../loop/turn-runner.port'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import type { AgentType } from '../../types'
@@ -36,6 +37,7 @@ export type StartedRun = {
   fail: (cause: unknown) => void
   observe: (drafts: readonly EventDraft[]) => void
   observeContext: (args: { tokens: number; window: number }) => void
+  pause: PauseSignal | undefined
 }
 
 export type FakeRunners = {
@@ -48,7 +50,7 @@ export function fakeRunners(): FakeRunners {
   const started: StartedRun[] = []
   const resumed: ThreadId[] = []
 
-  const hold = (request: ChildRunnerRequest, signal: AbortSignal): Promise<TurnOutcome> =>
+  const hold = (request: ChildRunnerRequest, signal: AbortSignal, pause: PauseSignal | undefined): Promise<TurnOutcome> =>
     new Promise<TurnOutcome>((resolve, reject) => {
       started.push({
         request,
@@ -58,15 +60,16 @@ export function fakeRunners(): FakeRunners {
         fail: reject,
         observe: request.observe,
         observeContext: request.observeContext,
+        pause,
       })
     })
 
   const source: ChildRunnerSource = (request) => ({
-    say: ({ signal }) => hold(request, signal ?? new AbortController().signal),
-    runTurn: ({ signal }) => hold(request, signal ?? new AbortController().signal),
-    resume: ({ threadId, signal }) => {
+    say: ({ signal, pause }) => hold(request, signal ?? new AbortController().signal, pause),
+    runTurn: ({ signal, pause }) => hold(request, signal ?? new AbortController().signal, pause),
+    resume: ({ threadId, signal, pause }) => {
       resumed.push(threadId)
-      return hold(request, signal ?? new AbortController().signal)
+      return hold(request, signal ?? new AbortController().signal, pause)
     },
   })
 

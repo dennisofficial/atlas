@@ -1,10 +1,10 @@
 import { testRender } from '@opentui/react/test-utils'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React, { act } from 'react'
 
 const copies: string[] = []
 
-void mock.module('../../clipboard', () => ({
+vi.mock('../../clipboard', () => ({
   copyToClipboard: (args: { text: string }) => {
     copies.push(args.text)
     return true

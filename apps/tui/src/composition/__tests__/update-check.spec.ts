@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { installedNotice, type LatestRelease } from '../../build/latest-release-state'
 import {

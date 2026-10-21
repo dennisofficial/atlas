@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { CORPUS } from '../../__tests__/streamed-corpus'
 import { EProseBlock, sourcedProseBlocks } from '../blocks'

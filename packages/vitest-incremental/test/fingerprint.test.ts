@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'vitest'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -56,5 +56,11 @@ describe('envDigest', () => {
     expect(envDigest(keys, { A: '1', TERM: 'x', SHLVL: '2' })).toBe(base);
     expect(envDigest(keys, { A: '1', B: '' })).not.toBe(base);
     expect(envDigest(['A'], { A: '1', B: '' })).toBe(envDigest(['A'], { A: '1' }));
+  });
+
+  test('per-run CI context never invalidates a test that enumerates process.env', () => {
+    const keys = ['A', ENV_NAMES_MARKER];
+    const base = envDigest(keys, { A: '1', GITHUB_SHA: 'a', RUNNER_TEMP: '/t1', ACTIONS_CACHE_URL: 'u1' });
+    expect(envDigest(keys, { A: '1', GITHUB_SHA: 'b', GITHUB_REF: 'r', RUNNER_TEMP: '/t2' })).toBe(base);
   });
 });

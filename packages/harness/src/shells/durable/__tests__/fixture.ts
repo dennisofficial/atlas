@@ -53,4 +53,4 @@ export function isAlive({ pid }: { pid: number }): boolean {
   }
 }
 
-export const launcherScript = join(import.meta.dir, 'launcher-script.ts')
+export const launcherScript = join(import.meta.dirname, 'launcher-script.ts')

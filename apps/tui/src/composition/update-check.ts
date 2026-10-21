@@ -156,7 +156,7 @@ export async function sourceStalenessProbe(): Promise<SourceStaleness | null> {
   if (buildInfo().kind !== EBuildKind.Source) return null
   if (process.env.ATLAS_DEV !== '1') return null
 
-  const repo = await repoRootOf(import.meta.dir)
+  const repo = await repoRootOf(import.meta.dirname)
   if (repo === null) return null
 
   const launchStamp = await sourceStateStamp({ repo })
@@ -188,7 +188,7 @@ export async function checkForUpdate(): Promise<void> {
   if (build.kind === EBuildKind.Source) {
     if (process.env.ATLAS_DEV !== '1') return
 
-    const repo = await repoRootOf(import.meta.dir)
+    const repo = await repoRootOf(import.meta.dirname)
     if (repo === null) return
 
     const state = await probeSourceBehind(repo)

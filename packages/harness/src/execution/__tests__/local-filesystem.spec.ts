@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { chmod, mkdtemp, rm, symlink, writeFile as nodeWriteFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -63,7 +63,7 @@ describe('LocalFileSystemPort', () => {
     const bytes = new Uint8Array([0x89, 0x50, 0xfe, 0x00, 0xff])
     await Bun.write(path, bytes)
 
-    expect(await port.readBytes({ path })).toEqual(bytes)
+    expect(new Uint8Array(await port.readBytes({ path }))).toEqual(bytes)
   })
 
   it('removes a file, and rejects removing what is not there', async () => {

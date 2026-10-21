@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { CloudError, DEFAULT_RETRY_MAX_ATTEMPTS } from '../cloud-transport'
 import { PrSubscriptionClient } from '../pr-subscription-client'

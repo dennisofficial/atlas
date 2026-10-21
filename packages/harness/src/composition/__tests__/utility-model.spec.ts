@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import type { LanguageModelV4, LanguageModelV4GenerateResult } from '@ai-sdk/provider'
 import {

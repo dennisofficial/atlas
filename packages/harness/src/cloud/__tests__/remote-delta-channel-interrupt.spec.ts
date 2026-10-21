@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { EClientFrame, EServeFrame } from '../channel-wire'
 import type { InterruptAck } from '../remote-delta-channel'

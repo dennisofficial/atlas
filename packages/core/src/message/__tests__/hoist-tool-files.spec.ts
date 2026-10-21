@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { hoistToolResultFiles } from '../hoist-tool-files'
 import type { Message, ToolMessage } from '../message'

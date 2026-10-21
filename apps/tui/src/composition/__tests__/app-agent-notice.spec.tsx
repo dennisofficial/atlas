@@ -1,5 +1,5 @@
 import { EAgentStatus } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { glyph } from '../../ui/theme'

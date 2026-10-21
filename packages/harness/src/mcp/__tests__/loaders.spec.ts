@@ -1,5 +1,5 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { resolveMcpSpecs } from '../config/loaders'
 import { RemoteMcpSource } from '../config/remote-mcp-source'

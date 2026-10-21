@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 
 import { MAX_PROJECT_NAME_LENGTH } from '@dltech/atlas-wire'
 

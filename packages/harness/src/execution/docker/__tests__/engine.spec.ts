@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { DockerEngine, EngineRequestFailed } from '../engine'
 import { dockerUnavailableReason } from './live-docker'

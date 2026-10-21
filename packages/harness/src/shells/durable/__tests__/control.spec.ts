@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, test } from 'vitest'
 import { connect } from 'node:net'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -118,7 +118,7 @@ describe('control socket', () => {
   test('the --control entry run as a real process works end to end', async () => {
     const shellDir = await scratch()
     const handle = await launchOrThrow({ shellDir, command: 'sleep 300' })
-    const entry = join(import.meta.dir, '..', 'supervisor-main.ts')
+    const entry = join(import.meta.dirname, '..', 'supervisor-main.ts')
     const child = Bun.spawn([process.execPath, entry, '--control', shellDir, JSON.stringify({ type: 'terminate' })], {
       stdout: 'pipe',
     })
