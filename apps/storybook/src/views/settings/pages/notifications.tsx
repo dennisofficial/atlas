@@ -1,5 +1,3 @@
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
 import { Switch } from "@dltech/atlas-ui/components/switch";
 
 import {
@@ -65,32 +63,6 @@ export function NotificationsPage() {
                 onCheckedChange={(enabled) => handleChannelChange({ channel: "email", enabled })}
                 aria-label="Email"
               />
-            }
-          />
-          <SettingsRow
-            title="Slack"
-            description="Post to a DM or channel in your connected workspace."
-            control={
-              value.channels.slack ? (
-                <>
-                  <Badge variant="secondary">Connected</Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleChannelChange({ channel: "slack", enabled: false })}
-                  >
-                    Disconnect
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleChannelChange({ channel: "slack", enabled: true })}
-                >
-                  Connect
-                </Button>
-              )
             }
           />
         </SettingsCard>

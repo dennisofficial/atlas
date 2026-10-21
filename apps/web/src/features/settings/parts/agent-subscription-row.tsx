@@ -5,7 +5,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Progress } from '@dltech/atlas-ui/components/progress'
 
 import { SettingsRow } from '../settings-layout'
-import { ProviderTile } from './agent-provider-tile'
+import { BrandMark, type EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
 export type SubscriptionAccount = {
   email: string
@@ -16,7 +16,7 @@ export type SubscriptionAccount = {
 
 export function SubscriptionRow({
   name,
-  letter,
+  brand,
   idleDescription,
   signInLabel,
   signOutLabel = 'Sign out',
@@ -27,7 +27,7 @@ export function SubscriptionRow({
   onSignOut,
 }: {
   name: string
-  letter: string
+  brand: EBrand
   idleDescription: string
   signInLabel: string
   signOutLabel?: string
@@ -40,7 +40,7 @@ export function SubscriptionRow({
   if (!account) {
     return (
       <SettingsRow
-        media={<ProviderTile letter={letter} />}
+        media={<BrandMark brand={brand} />}
         title={
           <>
             {name}
@@ -58,7 +58,7 @@ export function SubscriptionRow({
   }
   return (
     <SettingsRow
-      media={<ProviderTile letter={letter} />}
+      media={<BrandMark brand={brand} />}
       title={
         <>
           {name}

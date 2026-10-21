@@ -7,9 +7,9 @@ import { fetchMcpServers } from '../data/personal/mcp-api'
 import { QuerySection } from '../data/personal/query-boundary'
 import { useMcpStore } from '../data/personal/use-mcp-store'
 import { INTEGRATIONS, type Integration } from '../fixtures/settings-account'
+import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { AccountIntegrationRow } from '../parts/account-integration-row'
 import { McpServersSection } from '../parts/mcp-servers-section'
-import { McpSuggested } from '../parts/mcp-suggested'
 import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 const GITHUB_ID = 'github'
@@ -22,7 +22,7 @@ export function githubIntegration(connection: GithubConnection): Integration {
   return {
     id: GITHUB_ID,
     name: 'GitHub',
-    letter: 'G',
+    brand: EBrand.GitHub,
     description: connection.connected
       ? (base?.description ?? '')
       : `${base?.description ?? ''} ${GITHUB_HINT}`.trim(),
@@ -37,16 +37,12 @@ export function githubIntegration(connection: GithubConnection): Integration {
 
 function IntegrationsList() {
   const query = useCloudQuery({ key: 'personal-github', load: fetchGithub })
-  const sample = INTEGRATIONS.filter((integration) => integration.id !== GITHUB_ID)
   return (
     <SettingsSection title="Integrations" description="Accounts Atlas can act on your behalf.">
       <QuerySection query={query} title="GitHub" rows={1}>
         {(connection) => (
           <SettingsCard>
             <AccountIntegrationRow integration={githubIntegration(connection)} actionsDisabled />
-            {sample.map((integration) => (
-              <AccountIntegrationRow key={integration.id} integration={integration} />
-            ))}
           </SettingsCard>
         )}
       </QuerySection>
@@ -74,7 +70,7 @@ function McpContent({
   return (
     <McpServersSection
       title="MCP servers"
-      description="Personal MCP servers apply to every thread; project and workspace servers with the same id override them."
+      description="Personal MCP servers are saved to your account. Workspace values apply first, your personal values override them, and project values override both."
       store={store}
     />
   )
@@ -88,7 +84,6 @@ export function IntegrationsPage() {
     >
       <IntegrationsList />
       <McpSection />
-      <McpSuggested />
     </SettingsPage>
   )
 }

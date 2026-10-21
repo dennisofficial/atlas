@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { BackgroundWork } from '../src/_core/ports/background-work'
 import { ProcessBackgroundWork } from '../src/_lib/background-work/background-work.providers'
+import { SandboxCredentials, type ThreadSandboxCredentials } from '../src/_core/ports/sandbox-credentials'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import {
   GithubSandboxWakeService,
@@ -92,22 +93,28 @@ export function serviceWith(args: {
   boot: SandboxWakeBoot
   background?: BackgroundWork
   debounceMs?: number
-  env?: Partial<Record<'VERCEL_TOKEN' | 'VERCEL_TEAM_ID' | 'VERCEL_PROJECT_ID', string>>
+  credentials?: Partial<ThreadSandboxCredentials>
 }): GithubSandboxWakeService {
+  const credentials: SandboxCredentials = {
+    forThread: async () => ({
+      token: 'vercel-token',
+      teamId: 'team-1',
+      projectId: 'proj-1',
+      workspaceOwned: false,
+      ...args.credentials,
+    }),
+  }
   const env = {
     get: (key: string) =>
       ({
-        VERCEL_TOKEN: 'vercel-token',
-        VERCEL_TEAM_ID: 'team-1',
-        VERCEL_PROJECT_ID: 'proj-1',
         SANDBOX_IMAGE: 'atlas-sandbox:latest',
         ATLAS_CLOUD_URL: 'https://api.byatlas.io',
-        ...args.env,
       })[key],
   } as unknown as EnvService
   return new GithubSandboxWakeService(
     env,
     cipher,
+    credentials,
     args.boot,
     args.background ?? new ProcessBackgroundWork(),
     args.debounceMs ?? WAKE_DEBOUNCE_MS,

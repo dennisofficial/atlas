@@ -7,7 +7,9 @@ import { useWorkspaceSecretsStore } from '../data/workspace/use-workspace-stores
 import type { WorkspaceAccess } from '../data/workspace/use-workspace-access'
 import { pageWrapOf, WorkspaceGate } from '../data/workspace/workspace-gate'
 import { describeAccess } from '../data/workspace/workspace-role'
+import { SettingsSection } from '../settings-layout'
 import { SecretsView } from '../parts/library-secrets-view'
+import { WorkspaceVercelCardSlot } from '../parts/workspace-vercel-card-live'
 
 const TITLE = 'Secrets & Env Vars'
 
@@ -17,7 +19,7 @@ function LoadedSecrets({ access }: { access: WorkspaceAccess }) {
     canEdit: access.canEdit,
   })
   const description = describeAccess({
-    description: `Shared values for ${access.organization.name}. Project values override these, and a member's personal values override both.`,
+    description: `Shared values for ${access.organization.name}. A member's personal values override these, and project values override both. They don't reach sessions yet.`,
     canEdit: access.canEdit,
   })
   return (
@@ -31,7 +33,18 @@ function LoadedSecrets({ access }: { access: WorkspaceAccess }) {
           <SecretsView
             scope={ELibraryScope.Workspace}
             description={description}
-            sectionDescription="Available to every member's threads."
+            sectionDescription="Saved for every member of the workspace."
+            lead={
+              <SettingsSection
+                title="Sandbox credential"
+                description="Lets Atlas Cloud create this workspace's sandboxes."
+              >
+                <WorkspaceVercelCardSlot
+                  organizationId={access.organization.id}
+                  canEdit={access.canEdit}
+                />
+              </SettingsSection>
+            }
             store={store}
           />
         </ReadOnlyArea>

@@ -1,6 +1,4 @@
-import { randomBytes } from 'node:crypto'
-import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 import {
   accountOf,
@@ -27,8 +25,11 @@ import {
   type VaultFile,
 } from '@dltech/atlas-harness'
 import { accountLeaseSchema } from '@dltech/atlas-wire'
+import { ESecretKind, resolvedSandboxConfigSchema } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
+import { cloudConfigPathFor, exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
+import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 const UNAUTHORIZED = 401
@@ -36,7 +37,6 @@ const RETRY_DELAY_MS = 2_000
 const DEFAULT_RETRY_BUDGET_MS = 60_000
 const REQUEST_TIMEOUT_MS = 10_000
 const MAX_ATTEMPTS = 30
-const OWNER_ONLY = 0o600
 const CLIENT_HELD_SECRET_PREFIXES = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, 'mcp-oauth:'] as const
 
 const settingsResponseSchema = z.object({
@@ -47,13 +47,6 @@ const secretsResponseSchema = z.object({
 })
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-const writeAtomically = (args: { path: string; content: string }): void => {
-  mkdirSync(dirname(args.path), { recursive: true })
-  const staging = join(dirname(args.path), `.${randomBytes(8).toString('hex')}.tmp`)
-  writeFileSync(staging, args.content, { mode: OWNER_ONLY })
-  renameSync(staging, args.path)
-}
 
 const isProviderKnown = (provider: string): provider is EAuthProvider =>
   Object.values<string>(EAuthProvider).includes(provider)
@@ -122,6 +115,8 @@ export const applyCloudState = async (args: {
   clientVersion: string
   fetchFn: typeof fetch
   log: ServeLog
+  env?: Record<string, string | undefined> | undefined
+  projectId?: string | null | undefined
   sleep?: ((ms: number) => Promise<void>) | undefined
   retryBudgetMs?: number | undefined
   now?: (() => number) | undefined
@@ -139,8 +134,9 @@ export const applyCloudState = async (args: {
     return left
   }
 
-  const request = (path: string): Promise<unknown> =>
+  const request = (path: string, allowMissing = false): Promise<unknown> =>
     cloudRequest({
+      allowMissing,
       url,
       token: args.token,
       clientVersion: args.clientVersion,
@@ -150,10 +146,10 @@ export const applyCloudState = async (args: {
       timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs()),
     })
 
-  const requestPatiently = async (path: string): Promise<unknown> => {
+  const requestPatiently = async (path: string, allowMissing = false): Promise<unknown> => {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        return await request(path)
+        return await request(path, allowMissing)
       } catch (error) {
         const registering = error instanceof CloudError && error.status === UNAUTHORIZED
         if (!registering || attempt >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) throw error
@@ -162,22 +158,48 @@ export const applyCloudState = async (args: {
     }
   }
 
-  try {
-    const [lease, settings, secrets] = await Promise.all([
-      requestPatiently('/v1/account-lease').then((body) => accountLeaseSchema.parse(body)),
+  const legacyConfig = async (): Promise<CloudConfig> => {
+    const [settings, secrets] = await Promise.all([
       requestPatiently('/v1/settings').then((body) => settingsResponseSchema.parse(body)),
       requestPatiently('/v1/secrets').then((body) => secretsResponseSchema.parse(body)),
+    ])
+    return {
+      settings: settings.settings,
+      secrets: secrets.secrets.map((secret) => ({ ...secret, kind: ESecretKind.Secret })),
+      mcpServers: [],
+    }
+  }
+
+  const scopedConfig = async (): Promise<CloudConfig> => {
+    const body = await requestPatiently(cloudConfigPathFor(args.projectId), true)
+    if (body === undefined) return legacyConfig()
+    const resolved = resolvedSandboxConfigSchema.parse(body)
+    return {
+      settings: Object.entries(resolved.settings).map(([key, value]) => ({ key, value })),
+      secrets: resolved.secrets,
+      mcpServers: resolved.mcpServers,
+    }
+  }
+
+  try {
+    const [lease, config] = await Promise.all([
+      requestPatiently('/v1/account-lease').then((body) => accountLeaseSchema.parse(body)),
+      scopedConfig(),
     ])
     const cipher = new SecretCipher(join(args.atlasHome, ATLAS_VAULT_KEY_NAME))
     const accounts = storedAccountsOf(lease.accounts)
     writeVault({ atlasHome: args.atlasHome, cipher, accounts, active: lease.active })
-    const secretCount = writeSecrets({ atlasHome: args.atlasHome, cipher, secrets: secrets.secrets })
-    writeSettings({ atlasHome: args.atlasHome, settings: settings.settings })
+    const secretCount = writeSecrets({ atlasHome: args.atlasHome, cipher, secrets: config.secrets })
+    writeSettings({ atlasHome: args.atlasHome, settings: config.settings })
+    mergeCloudMcpServers({ atlasHome: args.atlasHome, servers: config.mcpServers })
+    const exported = args.env === undefined ? 0 : exportEnvSecrets({ env: args.env, secrets: config.secrets })
     args.log({
       event: EServeEvent.CloudStateReady,
       accounts: accounts.length,
       secrets: secretCount,
-      settings: settings.settings.length,
+      settings: config.settings.length,
+      ...(config.mcpServers.length === 0 ? {} : { mcpServers: config.mcpServers.length }),
+      ...(exported === 0 ? {} : { envExported: exported }),
     })
   } catch (failure) {
     args.log({

@@ -70,7 +70,6 @@ export function McpAddDialog({ onAdd }: { onAdd: (draft: McpDraft) => void }) {
       id: toServerId(draft.name),
       transport: draft.transport,
       target: draft.target.trim(),
-      toolCount: 0,
       enabled: true,
       extra: draft.extra,
     })

@@ -24,11 +24,13 @@ export function SecretsView({
   scope,
   description,
   sectionDescription,
+  lead,
   store,
 }: {
   scope: ELibraryScope
   description: ReactNode
   sectionDescription: string
+  lead?: ReactNode
   store: SecretsStore
 }) {
   const { secrets } = store
@@ -72,6 +74,7 @@ export function SecretsView({
 
   return (
     <SettingsPage title="Secrets & Env Vars" description={description}>
+      {lead}
       <SettingsSection
         title="Values"
         description={sectionDescription}

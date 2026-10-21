@@ -8,10 +8,35 @@ renewal to dedicated cloud-owned connections. Local sessions and assigned sandbo
 access tokens, never refresh tokens, from that authority. Persistent ownership survives signout
 and outages; a stale local seed is never a fallback refresher. Model requests still go directly
 to providers. MCP OAuth is separate and remains local; memory is never a synced domain.
-Sandboxes are BYO: the client provisions Vercel directly with its own token and transfers
-configuration during lift. OAuth-bearing lifts assign scoped connection access before serve
-starts; API-key-only lifts and sandbox provisioning remain API-independent. The API also provides
-identity, optional remote-control rendezvous, thread discovery, backup sync and PR/CI webhooks.
+
+**The API provisions Atlas Cloud sandboxes, with the workspace's own Vercel credentials.** A web
+thread's first message calls `POST /v1/threads/:threadId/sandbox`
+(`src/api/cloud/sandbox-provisioning/`). The API resolves the thread's project, then that project's
+workspace credential (`WorkspaceVercelCredential`: token + team) and the project setting
+`sandbox.vercelProjectId` through `ScopedConfigService.vercelCredentials`. It creates the sandbox,
+launches serve under `BackgroundWork.keepAlive`, and answers `booting | running | not-configured`
+at once. A thread with no project, or a workspace or project missing a piece, gets a Provision
+error event that names where to fix it. It never falls back to another identity. Atlas Cloud's own
+Vercel account never pays for user compute: the API env `VERCEL_*` are only the legacy fallback
+that `SandboxCredentials` (`src/_core/ports/sandbox-credentials.ts`) uses to inspect and stop BYO
+rows the TUI created (rows whose thread has no project). They are never used to create a sandbox.
+
+An API-provisioned sandbox carries **no** Vercel credentials in its environment
+(`mountWithRetries({ injectVercelCredentials: false })`), because the agent can read anything in
+the pod and the token belongs to the whole workspace. Its serve sees `ATLAS_API_PROVISIONED=1` and
+asks the API for what used to need the token: `POST /v1/sandboxes/self/ports` to publish a port,
+`POST /v1/sandboxes/self/stop` to park itself. Both take the sandbox session token. The API acts
+with the credential it resolves per thread.
+
+Boot progress is a thread event (`sandbox-boot-step`, `bootStepEventSchema` in
+`packages/wire/src/boot-progress-wire.ts`) on run `run_sandbox-boot`. The API appends Provision
+and Serve. Serve cannot report its own download, so it appends Clone, Context, Settings and Agent
+with its sandbox token.
+
+The TUI still provisions its own BYO sandboxes with the operator's token and registers them
+through `POST /v1/sandboxes`. That path is unchanged and frozen with the TUI. OAuth-bearing lifts
+assign scoped connection access before serve starts. The API also provides identity, optional
+remote-control rendezvous, thread discovery, backup sync and PR/CI webhooks.
 
 ## Runtime and tests
 
@@ -189,8 +214,11 @@ spec passes 8/8 without one, so the lazily imported externals fail as ordinary, 
 
 Work that must outlive the response goes to `BackgroundWork.keepAlive` (`src/_core/ports/background-work.ts`),
 because a Vercel instance can freeze once the response is sent. `backgroundWorkProvider()` binds
-`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. Wake boots are the
-current user: `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
+`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. First-message
+provisioning boots ride it, and so do wake boots. Both share `VercelSandboxWakeBoot`, which mounts,
+launches serve and rolls back a sandbox it created when the boot fails. A boot can outlive one
+response: a sandbox create plus the serve download can approach the function's `maxDuration`.
+`GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
 wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances), so the boot starts
 inside the kept-alive lookup chain. The trigger.dev worker passes `ProcessBackgroundWork` and the
 5 s debounce and relies on `settle()`.

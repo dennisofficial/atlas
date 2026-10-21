@@ -120,7 +120,7 @@ describe('mcp mapping', () => {
         disabled: true,
         updatedAt: 'x',
       }),
-    ).toEqual({ id: 's', transport: EMcpTransport.Stdio, target: 'npx a', toolCount: 0, enabled: false })
+    ).toEqual({ id: 's', transport: EMcpTransport.Stdio, target: 'npx a', enabled: false })
   })
 })
 
@@ -180,7 +180,7 @@ describe('interface settings', () => {
   it('reads and diffs the notification matrix', () => {
     const saved = notificationsFrom(new Map([['web.notifications.event.finished.email', true]]))
     expect(saved.matrix.finished?.email).toBe(true)
-    expect(saved.channels).toEqual({ push: true, email: true, slack: false })
+    expect(saved.channels).toEqual({ push: true, email: true })
     const draft = { ...saved, quietFrom: '23:00' }
     expect(notificationChanges({ saved, draft })).toEqual({ 'web.notifications.quietFrom': '23:00' })
   })

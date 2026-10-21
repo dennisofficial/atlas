@@ -1,5 +1,4 @@
 import { Badge } from '@dltech/atlas-ui/components/badge'
-import { Button } from '@dltech/atlas-ui/components/button'
 
 import type { Organization } from '@/lib/organization-api'
 
@@ -32,11 +31,6 @@ export function AccountWorkspacesCard({ workspaces }: { workspaces: Organization
               {workspace.name}
               <Badge variant="secondary">{workspace.slug}</Badge>
             </>
-          }
-          control={
-            <Button variant="outline" size="sm" disabled>
-              Leave
-            </Button>
           }
         />
       ))}

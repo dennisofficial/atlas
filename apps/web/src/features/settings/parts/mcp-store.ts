@@ -24,7 +24,6 @@ export function useLocalMcpStore(initial: McpServer[]): McpStore {
           id: draft.id,
           transport: draft.transport,
           target: draft.target,
-          toolCount: draft.toolCount,
           enabled: draft.enabled,
         },
       ]),

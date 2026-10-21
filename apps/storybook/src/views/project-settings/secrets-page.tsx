@@ -28,7 +28,7 @@ import {
 
 import { ESecretScope, SECRETS, type SecretRow } from "../../fixtures/project-settings";
 import { AddSecretDialog, BulkAddDialog, type SecretPair } from "./secrets-dialogs";
-import { FileChip, SettingsCard, SettingsSection } from "./settings-layout";
+import { SettingsCard, SettingsSection } from "./settings-layout";
 
 export enum ESecretsDialog {
   None = "none",
@@ -192,9 +192,9 @@ export function SecretsPage({
       title="Secrets & Env Vars"
       description={
         <>
-          Injected into every sandbox for this project. A project value overrides a workspace value
-          with the same name, and your personal values override both. Inspect them in a thread with{" "}
-          <FileChip>atlas secrets</FileChip>.
+          Order of precedence: default, then workspace, then personal, then project. The project
+          value wins. Workspace values shown here are a preview of what will merge; sessions don&apos;t
+          load project or workspace values yet.
         </>
       }
     >

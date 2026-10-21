@@ -1,5 +1,8 @@
 import { POD_NAME_ENV, sandboxNameFor, VercelDriver } from '@dltech/atlas-harness'
+import { isApiProvisioned, SANDBOX_SELF_STOP_PATH } from '@dltech/atlas-wire'
 import type { ThreadId } from '@dltech/atlas-core'
+
+import { postSandboxSelf } from './sandbox-self-client'
 
 export type SignalSender = (args: { pid: number; signal: NodeJS.Signals }) => void
 
@@ -16,7 +19,23 @@ export function sandboxPark(args: {
   threadId: ThreadId
   controlPlaneUrl: string
   env: Record<string, string | undefined>
+  token: string
+  clientVersion?: string | undefined
+  fetchFn?: typeof fetch | undefined
 }): (() => Promise<void>) | undefined {
+  if (isApiProvisioned(args.env)) {
+    const sessionId = args.env.ATLAS_SANDBOX_SESSION_ID
+    return async () => {
+      await postSandboxSelf({
+        controlPlaneUrl: args.controlPlaneUrl,
+        path: SANDBOX_SELF_STOP_PATH,
+        token: args.token,
+        clientVersion: args.clientVersion ?? 'dev',
+        fetchFn: args.fetchFn ?? fetch,
+        body: sessionId ? { sessionId } : {},
+      })
+    }
+  }
   const token = args.env.VERCEL_TOKEN
   const teamId = args.env.VERCEL_TEAM_ID
   const projectId = args.env.VERCEL_PROJECT_ID
@@ -46,12 +65,22 @@ export function providerStopFor(args: {
   threadId: ThreadId
   controlPlaneUrl: string
   env: Record<string, string | undefined>
+  token: string
+  clientVersion?: string | undefined
+  fetchFn?: typeof fetch | undefined
   sendSignal?: SignalSender
   sandboxStopFor?: typeof sandboxPark
 }): () => Promise<void> {
   const sandboxStopFor = args.sandboxStopFor ?? sandboxPark
   return (
-    sandboxStopFor({ threadId: args.threadId, controlPlaneUrl: args.controlPlaneUrl, env: args.env }) ??
+    sandboxStopFor({
+      threadId: args.threadId,
+      controlPlaneUrl: args.controlPlaneUrl,
+      env: args.env,
+      token: args.token,
+      clientVersion: args.clientVersion,
+      fetchFn: args.fetchFn,
+    }) ??
     podPark({ env: args.env, sendSignal: args.sendSignal }) ??
     missingProviderStop
   )

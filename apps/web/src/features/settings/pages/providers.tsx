@@ -2,6 +2,9 @@
 
 import { useCallback } from 'react'
 
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
+
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import {
@@ -18,7 +21,8 @@ import { useSaveAction } from '../data/personal/use-save-action'
 import { API_KEY_PROVIDERS, EProviderId } from '../fixtures/settings-agent'
 import { ApiKeyRow } from '../parts/agent-api-key-row'
 import { SubscriptionRow, type SubscriptionAccount } from '../parts/agent-subscription-row'
-import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
+import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
+import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Providers'
 const DESCRIPTION =
@@ -29,13 +33,13 @@ const SUBSCRIPTIONS = [
   {
     provider: EProviderId.Anthropic,
     name: 'Claude',
-    letter: 'C',
+    brand: EBrand.Claude,
     idleDescription: 'Use your Claude Pro or Max subscription.',
   },
   {
     provider: EProviderId.OpenAI,
     name: 'ChatGPT / Codex',
-    letter: 'G',
+    brand: EBrand.OpenAI,
     idleDescription: 'Use your ChatGPT Plus or Pro plan for GPT-5 models.',
   },
 ]
@@ -100,7 +104,7 @@ function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: (
               <SubscriptionRow
                 key={subscription.provider}
                 name={subscription.name}
-                letter={subscription.letter}
+                brand={subscription.brand}
                 idleDescription={subscription.idleDescription}
                 signInLabel={`Sign in with ${subscription.name.split(' ')[0]}`}
                 signInHint={SIGN_IN_HINT}
@@ -140,8 +144,29 @@ function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: (
               />
             )
           })}
+          <AiGatewayRow />
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
+  )
+}
+
+function AiGatewayRow() {
+  return (
+    <SettingsRow
+      media={<BrandMark brand={EBrand.Vercel} />}
+      title={
+        <>
+          Vercel AI Gateway
+          <Badge variant="outline">Coming soon</Badge>
+        </>
+      }
+      description="Every major model behind one key, billed through Vercel."
+      control={
+        <Button variant="outline" size="sm" disabled>
+          Add key
+        </Button>
+      }
+    />
   )
 }

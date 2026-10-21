@@ -257,8 +257,9 @@ export function SecretsPage() {
       title="Secrets & Env Vars"
       description={
         <>
-          Injected into every sandbox for this project. A project value overrides a workspace value
-          with the same name, and your personal values override both.
+          Order of precedence: default, then workspace, then personal, then project. The project
+          value wins. Workspace values shown here are a preview of what will merge; sessions don&apos;t
+          load project or workspace values yet.
         </>
       }
     >

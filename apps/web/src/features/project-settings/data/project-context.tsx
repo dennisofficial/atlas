@@ -2,14 +2,12 @@
 
 import { createContext, useContext, type ReactNode } from 'react'
 
-import type { Project } from '@dltech/atlas-wire/web'
-
-import type { SaveProjectBody } from './project-api'
+import type { ProjectView, SaveProjectBody } from './project-api'
 import { identityOf, type ProjectIdentity } from './project-mapping'
 
 type ProjectContextValue = {
   projectId: string
-  project: Project
+  project: ProjectView
   identity: ProjectIdentity
   save: (body: SaveProjectBody) => Promise<void>
 }
@@ -23,7 +21,7 @@ export function ProjectProvider({
   children,
 }: {
   projectId: string
-  project: Project
+  project: ProjectView
   save: ProjectContextValue['save']
   children: ReactNode
 }) {

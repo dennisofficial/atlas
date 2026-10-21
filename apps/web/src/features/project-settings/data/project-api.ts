@@ -1,7 +1,14 @@
+import { z } from 'zod'
+
 import { projectSandboxSchema, projectSchema, type ProjectSandbox } from '@dltech/atlas-wire/web'
 
 import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
 import { projectBase } from '@/features/settings/data/workspace/resource-api'
+
+export const projectViewSchema = projectSchema.extend({
+  organizationId: z.string().nullable().default(null),
+})
+export type ProjectView = z.infer<typeof projectViewSchema>
 
 export type SaveProjectBody = {
   name: string
@@ -10,17 +17,18 @@ export type SaveProjectBody = {
   additionalRepos: { repo: string; branch?: string }[]
   description: string
   shipBehavior: string
+  organizationId?: string | null
 }
 
 export const fetchProject = (projectId: string) =>
-  cloudJson({ method: EHttpMethod.Get, path: projectBase(projectId), schema: projectSchema })
+  cloudJson({ method: EHttpMethod.Get, path: projectBase(projectId), schema: projectViewSchema })
 
 export const saveProject = (args: { projectId: string; body: SaveProjectBody }) =>
   cloudJson({
     method: EHttpMethod.Put,
     path: projectBase(args.projectId),
     body: args.body,
-    schema: projectSchema,
+    schema: projectViewSchema,
   })
 
 export const deleteProject = (projectId: string) =>

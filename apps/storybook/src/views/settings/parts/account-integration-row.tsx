@@ -1,6 +1,7 @@
 import { CheckIcon, XIcon } from "lucide-react";
 
 import { Badge } from "@dltech/atlas-ui/components/badge";
+import { BrandMark } from "@dltech/atlas-ui/components/brand-mark";
 import { Button } from "@dltech/atlas-ui/components/button";
 
 import type { Integration } from "../../../fixtures/settings-account";
@@ -11,11 +12,7 @@ export function AccountIntegrationRow({ integration }: { integration: Integratio
 
   return (
     <SettingsRow
-      media={
-        <div className="flex size-9 items-center justify-center rounded-md bg-muted text-sm font-semibold">
-          {integration.letter}
-        </div>
-      }
+      media={<BrandMark brand={integration.brand} />}
       title={
         <>
           {integration.name}

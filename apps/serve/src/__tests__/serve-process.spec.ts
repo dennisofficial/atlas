@@ -1,26 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
-import type { VercelDriver } from '@dltech/atlas-harness'
 import { ServeProcessPort } from '../serve-process'
-
-const driverWith = (exposePort: VercelDriver['exposePort']): Pick<VercelDriver, 'exposePort'> => ({
-  exposePort,
-})
 
 describe('ServeProcessPort', () => {
   it('answers an exposure with the Vercel-routed url rather than a sandbox-local one', async () => {
-    const seen: { name: string; port: number }[] = []
+    const seen: { port: number }[] = []
     const port = new ServeProcessPort({
-      name: 'atlas-thread-deadbeef',
-      driver: driverWith(async (args) => {
+      exposePort: async (args) => {
         seen.push(args)
         return 'https://sb-unguessable.vercel.run'
-      }),
+      },
     })
 
     const outcome = await port.exposePort({ containerPort: 3001 })
 
-    expect(seen).toEqual([{ name: 'atlas-thread-deadbeef', port: 3001 }])
+    expect(seen).toEqual([{ port: 3001 }])
     expect(outcome).toEqual({
       ok: true,
       exposure: {
@@ -33,10 +27,9 @@ describe('ServeProcessPort', () => {
 
   it('reads a Vercel refusal as a reason, never as a localhost url', async () => {
     const port = new ServeProcessPort({
-      name: 'atlas-thread-deadbeef',
-      driver: driverWith(async () => {
+      exposePort: async () => {
         throw new Error('a sandbox exposes at most 15 ports and this one is at the limit')
-      }),
+      },
     })
 
     const outcome = await port.exposePort({ containerPort: 3001 })

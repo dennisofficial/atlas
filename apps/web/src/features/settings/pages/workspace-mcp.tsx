@@ -7,7 +7,6 @@ import type { WorkspaceAccess } from '../data/workspace/use-workspace-access'
 import { pageWrapOf, WorkspaceGate } from '../data/workspace/workspace-gate'
 import { describeAccess } from '../data/workspace/workspace-role'
 import { McpServersSection } from '../parts/mcp-servers-section'
-import { McpSuggested } from '../parts/mcp-suggested'
 import { SettingsPage } from '../settings-layout'
 
 const TITLE = 'MCP'
@@ -31,12 +30,11 @@ function LoadedMcp({ access }: { access: WorkspaceAccess }) {
               <McpServersSection
                 description={describeAccess({
                   description:
-                    'Workspace MCP servers are available to every member; project servers with the same id override them, and personal servers override both.',
+                    'Workspace values apply first, your personal values override them, and project values override both.',
                   canEdit: access.canEdit,
                 })}
                 store={store}
               />
-              <McpSuggested />
             </div>
           </ReadOnlyArea>
         </SettingsPage>

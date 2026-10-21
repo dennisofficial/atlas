@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowUpRightIcon, CircleCheckIcon, CircleDashedIcon, SparklesIcon } from 'lucide-react'
+import { ArrowUpRightIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -23,12 +23,6 @@ import {
 } from './data/sandbox-mapping'
 import { useSandbox } from './data/use-sandbox'
 import {
-  REPO_FILES,
-  SNAPSHOTS,
-  type RepoFileStatus,
-  type SandboxSnapshot,
-} from './fixtures/project-settings'
-import {
   ERowLayout,
   FileChip,
   SettingsCard,
@@ -36,6 +30,7 @@ import {
   SettingsSection,
   UnsavedHint,
 } from './settings-layout'
+import { VercelSection } from './vercel-section'
 
 function SizeCard({ size }: { size: SandboxSize }) {
   const id = `sandbox-size-${size.id}`
@@ -175,87 +170,7 @@ function SetupScript({
   )
 }
 
-function RepoFileRow({ file }: { file: RepoFileStatus }) {
-  const StatusIcon = file.present ? CircleCheckIcon : CircleDashedIcon
-  return (
-    <SettingsRow title={<FileChip>{file.path}</FileChip>} description={file.description}>
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 text-sm',
-          file.present ? 'text-success' : 'text-muted-foreground',
-        )}
-      >
-        <StatusIcon className="size-4" />
-        {file.present ? 'Present on main' : 'Not present on main'}
-      </span>
-    </SettingsRow>
-  )
-}
-
-function RepoFiles({ files }: { files: readonly RepoFileStatus[] }) {
-  return (
-    <SettingsSection
-      title="Repository files"
-      description="Sample data — Atlas doesn't check the repository yet. Atlas reads these from the base branch when it builds the sandbox image."
-    >
-      <SettingsCard
-        footer={
-          <Button variant="outline" size="sm">
-            <SparklesIcon data-icon="inline-start" />
-            Set up with Atlas
-          </Button>
-        }
-      >
-        {files.map((file) => (
-          <RepoFileRow key={file.path} file={file} />
-        ))}
-      </SettingsCard>
-    </SettingsSection>
-  )
-}
-
-function SnapshotRow({ snapshot, onDelete }: { snapshot: SandboxSnapshot; onDelete: () => void }) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <span className="font-mono text-sm">{snapshot.size}</span>
-      {snapshot.isProjectDefault ? <Badge variant="secondary">Project default</Badge> : null}
-      <span className="ml-auto text-sm text-muted-foreground">{snapshot.cachedFor}</span>
-      <Button variant="outline" size="sm" onClick={onDelete}>
-        Delete
-      </Button>
-    </div>
-  )
-}
-
-function Snapshots() {
-  const [snapshots, setSnapshots] = useState(SNAPSHOTS)
-  const handleDelete = (id: string) =>
-    setSnapshots((current) => current.filter((item) => item.id !== id))
-  return (
-    <SettingsSection
-      title="Snapshots"
-      description="Sample data — snapshots aren't tracked yet. A snapshot is the sandbox right after setup, so new threads skip the clone and install."
-    >
-      <SettingsCard>
-        {snapshots.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-            No snapshots yet. The next thread in this project creates one.
-          </p>
-        ) : (
-          snapshots.map((snapshot) => (
-            <SnapshotRow
-              key={snapshot.id}
-              snapshot={snapshot}
-              onDelete={() => handleDelete(snapshot.id)}
-            />
-          ))
-        )}
-      </SettingsCard>
-    </SettingsSection>
-  )
-}
-
-export function SandboxPage({ repoFiles = REPO_FILES }: { repoFiles?: readonly RepoFileStatus[] }) {
+export function SandboxPage() {
   const { projectId } = useProjectContext()
   const { query, save } = useSandbox(projectId)
   return (
@@ -278,8 +193,7 @@ export function SandboxPage({ repoFiles = REPO_FILES }: { repoFiles?: readonly R
               saved={sandbox.setupScript}
               onSave={(setupScript) => handleSave({ setupScript })}
             />
-            <RepoFiles files={repoFiles} />
-            <Snapshots />
+            <VercelSection projectId={projectId} />
           </>
         )
       }}

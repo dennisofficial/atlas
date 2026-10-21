@@ -19,6 +19,7 @@ import {
   threadMetaFile,
   threadMetaSchema,
 } from '@dltech/atlas-harness'
+import { EBootStep, NOOP_BOOT_REPORTER, type BootReporter } from '@dltech/atlas-wire'
 
 import {
   createEnvironmentProfile,
@@ -36,6 +37,7 @@ import {
 import { projectWorkspaceSpecFetcher } from './project-workspace-spec'
 import { applyPublishedBundle } from './published-bundle'
 import { applySigningKey } from './signing-key-env'
+import { trackClone } from './serve-boot-reporter'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { resolveWorkspaceDir, writeRecordedWorkspaceDir } from './workspace-dir'
 import type { WorkspaceFiles } from './workspace-files'
@@ -58,8 +60,10 @@ export async function bootServeFiles(args: {
   token: string
   clientVersion: string
   fetchFn: typeof fetch
+  reporter?: BootReporter | undefined
 }) {
   const { env, threadId, atlasHome, log } = args
+  const reporter = args.reporter ?? NOOP_BOOT_REPORTER
   const fetchSpecOnce = lazy(
     projectWorkspaceSpecFetcher({
       atlasHome,
@@ -74,7 +78,10 @@ export async function bootServeFiles(args: {
   const cwd = await resolveWorkspaceDir({ atlasHome, fetchSpec: fetchSpecOnce })
   const profile = args.profile ?? createEnvironmentProfile({ env })
   const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
-  const workspace: WorkspaceReadiness = await ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce })
+  const workspace: WorkspaceReadiness = await trackClone({
+    reporter,
+    work: () => ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce }),
+  })
   const workspaceMs = Date.now() - workspaceStartedAt
 
   if (workspace.state !== EWorkspaceState.Failed) {
@@ -108,25 +115,35 @@ export async function bootServeFiles(args: {
     clientVersion: args.clientVersion,
     fetchFn: args.fetchFn,
   })
-  await applyCloudState({
-    atlasHome,
-    log,
-    controlPlaneUrl: args.controlPlaneUrl,
-    token: args.token,
-    clientVersion: args.clientVersion,
-    fetchFn: args.fetchFn,
+  await reporter.track({
+    step: EBootStep.Settings,
+    work: () =>
+      applyCloudState({
+        atlasHome,
+        log,
+        env,
+        projectId: spec?.projectId ?? null,
+        controlPlaneUrl: args.controlPlaneUrl,
+        token: args.token,
+        clientVersion: args.clientVersion,
+        fetchFn: args.fetchFn,
+      }),
   })
 
   const identity = spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
-  await applyPublishedBundle({
-    atlasHome,
-    projectDirectory: cwd,
-    controlPlaneUrl: args.controlPlaneUrl,
-    token: args.token,
-    clientVersion: args.clientVersion,
-    fetchFn: args.fetchFn,
-    log,
-    files: args.contextFiles,
+  await reporter.track({
+    step: EBootStep.Context,
+    work: () =>
+      applyPublishedBundle({
+        atlasHome,
+        projectDirectory: cwd,
+        controlPlaneUrl: args.controlPlaneUrl,
+        token: args.token,
+        clientVersion: args.clientVersion,
+        fetchFn: args.fetchFn,
+        log,
+        files: args.contextFiles,
+      }),
   })
 
   const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })

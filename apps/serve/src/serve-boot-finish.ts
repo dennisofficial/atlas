@@ -1,5 +1,5 @@
 import { EServeFrame, createSessionContextReader, sessionDirectory, type ServeFrame, type StepId } from '@dltech/atlas-harness'
-import { admissionClosedFor } from '@dltech/atlas-wire'
+import { admissionClosedFor, EBootStep } from '@dltech/atlas-wire'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
@@ -15,6 +15,7 @@ import { providerStopFor } from './sandbox-park'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
 import { bootServeFiles } from './serve-boot'
+import { bootReporterFor } from './serve-boot-reporter'
 import type { BootListener } from './serve-boot-listener'
 import { composeBootApp } from './serve-compose-boot'
 import { bindServeDrain } from './serve-drain-binding'
@@ -48,6 +49,8 @@ export async function finishServeBoot(args: {
   const { atlasHome, sandboxSessionId, boot } = args
   const { server, port } = boot
   const fetchFn = serveArgs.fetchFn ?? fetch
+  const clientVersion = serveArgs.clientVersion ?? 'dev'
+  const reporter = bootReporterFor({ env, controlPlaneUrl, threadId, token, clientVersion, fetchFn, log })
   const recovery = await createServeRotationRecovery({ atlasHome, threadId, sandboxSessionId, log })
   const { workspace, activeCwd, spec, identity } = await bootServeFiles({
     env,
@@ -60,23 +63,28 @@ export async function finishServeBoot(args: {
     contextFiles: serveArgs.contextFiles,
     controlPlaneUrl,
     token,
-    clientVersion: serveArgs.clientVersion ?? 'dev',
+    clientVersion,
     fetchFn,
+    reporter,
   })
 
-  const app = await composeBootApp({
-    compose: serveArgs.compose,
-    model: serveArgs.model,
-    spec,
-    identity,
-    threadId,
-    cwd: activeCwd,
-    atlasHome,
-    controlPlaneUrl,
-    token,
-    clientVersion: serveArgs.clientVersion ?? 'dev',
-    env,
-    notice,
+  const app = await reporter.track({
+    step: EBootStep.Agent,
+    work: () =>
+      composeBootApp({
+        compose: serveArgs.compose,
+        model: serveArgs.model,
+        spec,
+        identity,
+        threadId,
+        cwd: activeCwd,
+        atlasHome,
+        controlPlaneUrl,
+        token,
+        clientVersion,
+        env,
+        notice,
+      }),
   })
 
   const admissionClosed = (): boolean => {
@@ -260,7 +268,7 @@ export async function finishServeBoot(args: {
       unsubscribeWake?.()
       detachSubscriptions()
     },
-    stopSandbox: serveArgs.stopSandbox ?? providerStopFor({ threadId, controlPlaneUrl, env }),
+    stopSandbox: serveArgs.stopSandbox ?? providerStopFor({ threadId, controlPlaneUrl, env, token, clientVersion, fetchFn }),
     exit,
   })
 

@@ -10,9 +10,7 @@ import {
 
 import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 
-import { sandboxNameFor } from '@dltech/atlas-harness'
 import { SelectableModelToken } from '@dltech/atlas-harness'
-import { VercelDriver } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
@@ -25,7 +23,7 @@ import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake
 import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
 import { ServeProcessPort } from './serve-process'
 import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
-import { vercelCredentialsOf } from './vercel-credentials'
+import { exposerFor } from './serve-port-exposer'
 
 export const SERVE_COMMAND = 'serve'
 
@@ -81,21 +79,10 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           },
         }
 
-        const credentials = vercelCredentialsOf(args.env)
         container.register(registeredPortToken(ProcessPort), {
           useValue: new SessionEnvironmentProcessPort({
             sessions: container.resolve(SessionRegistryToken),
-            inner: new ServeProcessPort(
-              credentials === null
-                ? null
-                : {
-                    driver: new VercelDriver({
-                      credentials,
-                      cloudUrl: args.controlPlaneUrl,
-                    }),
-                    name: sandboxNameFor({ threadId: args.threadId }),
-                  },
-            ),
+            inner: new ServeProcessPort(exposerFor(args)),
           }),
         })
 

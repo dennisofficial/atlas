@@ -16,55 +16,6 @@ export const CODE_FONT_SIZES = [
   { value: '14', label: '14 px' },
 ]
 
-export type Shortcut = { action: string; keys: string[] }
-export type ShortcutSection = { title: string; shortcuts: Shortcut[] }
-
-export const SHORTCUT_SECTIONS: ShortcutSection[] = [
-  {
-    title: 'General',
-    shortcuts: [
-      { action: 'Open command palette', keys: ['⌘', 'K'] },
-      { action: 'Personal settings', keys: ['⌘', ','] },
-      { action: 'Workspace settings', keys: ['⌥', '⌘', ','] },
-      { action: 'Toggle sidebar', keys: ['⌘', 'B'] },
-      { action: 'Show keymap', keys: ['?'] },
-      { action: 'Search threads', keys: ['⌘', 'P'] },
-    ],
-  },
-  {
-    title: 'Threads',
-    shortcuts: [
-      { action: 'New thread', keys: ['⌘', 'N'] },
-      { action: 'Next thread', keys: ['⌥', '↓'] },
-      { action: 'Previous thread', keys: ['⌥', '↑'] },
-      { action: 'Pin thread', keys: ['⌘', '⇧', 'P'] },
-      { action: 'Archive thread', keys: ['⌘', '⇧', 'E'] },
-      { action: 'Interrupt turn', keys: ['Esc'] },
-    ],
-  },
-  {
-    title: 'Composer',
-    shortcuts: [
-      { action: 'Send message', keys: ['⌘', '⏎'] },
-      { action: 'New line', keys: ['⇧', '⏎'] },
-      { action: 'Attach file', keys: ['⌘', 'U'] },
-      { action: 'Switch model', keys: ['⌘', '/'] },
-      { action: 'Cycle effort', keys: ['⇧', 'Tab'] },
-      { action: 'Edit last message', keys: ['↑'] },
-    ],
-  },
-  {
-    title: 'Session panel',
-    shortcuts: [
-      { action: 'Toggle terminal', keys: ['⌘', 'J'] },
-      { action: 'Show changes', keys: ['⌘', '1'] },
-      { action: 'Show files', keys: ['⌘', '2'] },
-      { action: 'Show preview', keys: ['⌘', '3'] },
-      { action: 'Copy preview URL', keys: ['⌘', '⇧', 'C'] },
-    ],
-  },
-]
-
 export enum ENotifyChannel {
   InApp = 'inApp',
   Push = 'push',
@@ -100,7 +51,7 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
 
 export type NotifyMatrix = Record<string, Record<ENotifyChannel, boolean>>
 
-export type ChannelState = { push: boolean; email: boolean; slack: boolean }
+export type ChannelState = { push: boolean; email: boolean }
 
 export type NotificationSettings = {
   channels: ChannelState

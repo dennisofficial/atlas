@@ -51,6 +51,7 @@ export enum EServeEvent {
   BundleReady = 'serve.bundle-ready',
   BundleAbsent = 'serve.bundle-absent',
   BundleFailed = 'serve.bundle-failed',
+  BootReportFailed = 'serve.boot-report-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

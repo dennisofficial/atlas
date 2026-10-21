@@ -40,6 +40,13 @@ const tableOf = (args: { defaults?: Record<string, unknown> } = {}) => {
     },
     findFirst: async (query: { where: Record<string, unknown> }) =>
       rows.find((row) => matchesWhere(row, query.where)) ?? null,
+    findUnique: async (query: { where: Record<string, unknown> }) =>
+      rows.find((row) => matchesWhere(row, keyOf(query.where))) ?? null,
+    updateMany: async (query: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+      const matched = rows.filter((row) => matchesWhere(row, query.where))
+      for (const row of matched) Object.assign(row, query.data, { updatedAt: new Date() })
+      return { count: matched.length }
+    },
     upsert: async (query: {
       where: Record<string, unknown>
       create: Record<string, unknown>
@@ -75,11 +82,20 @@ export function createWebSettingsDb() {
   const tables = {
     secretEntry: tableOf({ defaults: { kind: 'secret' } }),
     cloudSetting: tableOf(),
+    mcpServerConfig: tableOf(),
+    thread: tableOf({ defaults: { projectId: null } }),
     project: tableOf({
-      defaults: { description: '', shipBehavior: 'open-pr', sandboxVcpus: null, setupScript: '' },
+      defaults: {
+        description: '',
+        shipBehavior: 'open-pr',
+        sandboxVcpus: null,
+        setupScript: '',
+        organizationId: null,
+      },
     }),
     projectSecret: tableOf({ defaults: { kind: 'secret' } }),
     projectMcpServer: tableOf(),
+    projectSetting: tableOf(),
     member: tableOf(),
     user: tableOf(),
     workspaceSecret: tableOf({
@@ -87,6 +103,7 @@ export function createWebSettingsDb() {
     }),
     workspaceMcpServer: tableOf(),
     workspaceSetting: tableOf(),
+    workspaceVercelCredential: tableOf({ defaults: { updatedById: null } }),
   }
   const db = {
     ...tables,
