@@ -71,39 +71,10 @@ const recordCloud = (body: (input: { url: string; init?: RequestInit | undefined
 const EMPTY_LISTS = Response.json({ files: [] })
 
 describe('serve launch user-layer sync', () => {
-  it('pulls the user layer at boot through the sandbox principal when cloud.json never landed on the drive', async () => {
-    const seeded = {
-      'skills/.atlas/persisted-skill/SKILL.md':
-        '---\nname: persisted-skill\ndescription: pulled at serve boot\n---\nBody pulled at boot.',
-      'instructions/.atlas/ATLAS.md': '# Global instructions pulled at boot',
-    }
-    const cloud = recordCloud(({ url, init }) => {
-      if (url.includes('/v1/user-files?tree=')) {
-        const tree = new URL(url).searchParams.get('tree')
-        const files = Object.keys(seeded)
-          .filter((key) => key.startsWith(`${tree}/`))
-          .map((path) => ({ path: path.slice(`${tree}/`.length), revision: 1, contentHash: 'h', tombstonedAt: null }))
-        return Response.json({ files })
-      }
-      if (url.includes('/v1/user-files/get')) {
-        const body = JSON.parse(String(init?.body)) as { tree: string; paths: string[] }
-        return Response.json({
-          files: body.paths.map((path) => {
-            const content = seeded[`${body.tree}/${path}` as keyof typeof seeded]
-            if (content === undefined) throw new Error(`unseeded ${body.tree}/${path}`)
-            return {
-              path,
-              revision: 1,
-              contentHash: 'h',
-              tombstonedAt: null,
-              content: Buffer.from(content).toString('base64'),
-            }
-          }),
-        })
-      }
-      return EMPTY_LISTS
-    })
-
+  it('a Vercel-shaped serve with no pod name makes zero user-files calls', async () => {
+    const cloud = recordCloud(() => EMPTY_LISTS)
+    const previousPodName = process.env.ATLAS_POD_NAME
+    delete process.env.ATLAS_POD_NAME
     try {
       const app = await serveCompose({
         bindPorts: ({ container }) => {
@@ -112,55 +83,30 @@ describe('serve launch user-layer sync', () => {
           })
         },
       })
+      app.markActiveThread({ threadId: 'thread-opened', title: 'opened', started: false })
+      await new Promise((resolve) => setTimeout(resolve, 200))
 
-      expect(cloud.calls.some((call) => call.url.startsWith('https://cloud.test/v1/user-files'))).toBe(true)
-      expect(app.skillRegistry.byName('persisted-skill')?.body).toBe('Body pulled at boot.')
-    } finally {
-      cloud.restore()
-    }
-  })
-
-  it('composes with the last copy on disk when the cloud refuses the boot pull', async () => {
-    const cloud = recordCloud(() => new Response('cloud refused', { status: 403 }))
-
-    try {
-      const app = await serveCompose({
-        bindPorts: ({ container }) => {
-          container.register(ServeSessionToken, {
-            useValue: { url: 'https://cloud-unreachable.test', token: 'sandbox-principal', email: null },
-          })
-        },
-      })
-
-      expect(cloud.calls.some((call) => call.url.startsWith('https://cloud-unreachable.test/v1/user-files'))).toBe(true)
+      expect(cloud.calls.filter((call) => call.url.includes('/v1/user-files'))).toEqual([])
       expect(app.workspace.workspace.length).toBeGreaterThan(0)
     } finally {
+      if (previousPodName !== undefined) process.env.ATLAS_POD_NAME = previousPodName
       cloud.restore()
     }
   })
 
-  it('a pod never reaches for the user layer — its lease token cannot reach the user-files routes', async () => {
-    const cloud = recordCloud(({ url }) => {
-      if (url.includes('/v1/user-files')) return new Promise<Response>(() => {})
-      return EMPTY_LISTS
-    })
+  it('a local pod makes zero user-files calls either', async () => {
+    const cloud = recordCloud(() => EMPTY_LISTS)
     const previousPodName = process.env.ATLAS_POD_NAME
     process.env.ATLAS_POD_NAME = 'atlas-pod-spec'
     try {
-      const booted = serveCompose({
+      const app = await serveCompose({
         bindPorts: ({ container }) => {
           container.register(ServeSessionToken, {
             useValue: { url: 'https://cloud.test', token: 'pod-lease', email: null },
           })
         },
       })
-      const app = await Promise.race([
-        booted,
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('serve boot hung waiting on the user layer')), 2_000)
-        }),
-      ])
-      expect(cloud.calls).toEqual([])
+      expect(cloud.calls.filter((call) => call.url.includes('/v1/user-files'))).toEqual([])
       expect(app.workspace.workspace.length).toBeGreaterThan(0)
     } finally {
       if (previousPodName === undefined) delete process.env.ATLAS_POD_NAME
