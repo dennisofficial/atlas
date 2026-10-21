@@ -56,6 +56,11 @@ export class CreateThreadDto {
   repo?: string | null
 
   @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  projectId?: string
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => SupervisedAgentInput)
   agent?: SupervisedAgentInput
@@ -86,6 +91,11 @@ export class OpenThreadDto {
   @IsOptional()
   @IsString()
   repo?: string | null
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  projectId?: string
 
   @IsOptional()
   @IsString()

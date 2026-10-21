@@ -82,6 +82,8 @@ export function createWebSettingsDb() {
   const tables = {
     secretEntry: tableOf({ defaults: { kind: 'secret' } }),
     cloudSetting: tableOf(),
+    mcpServerConfig: tableOf(),
+    thread: tableOf({ defaults: { projectId: null } }),
     project: tableOf({
       defaults: {
         description: '',
