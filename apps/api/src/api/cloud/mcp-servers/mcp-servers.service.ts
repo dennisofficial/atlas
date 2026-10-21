@@ -9,7 +9,7 @@ import { EMcpTransportKind } from './mcp-servers.types'
 
 const NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
 
-function assertValidName(name: string): void {
+export function assertValidName(name: string): void {
   if (!NAME_PATTERN.test(name)) {
     throw new BadRequestException(
       'a server name holds only letters, digits, underscores and hyphens',

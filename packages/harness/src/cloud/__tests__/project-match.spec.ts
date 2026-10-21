@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { Project } from '@dltech/atlas-wire'
+import { EShipBehavior, type Project } from '@dltech/atlas-wire/web'
 
 import { githubRepoOfOrigin, matchProject } from '../project-match'
 
@@ -9,6 +9,8 @@ const projectOf = (overrides: Partial<Project>): Project => ({
   repo: 'comp-ai/atlas',
   baseBranch: null,
   additionalRepos: [],
+  description: '',
+  shipBehavior: EShipBehavior.OpenPullRequest,
   createdAt: '2026-10-01T00:00:00.000Z',
   updatedAt: '2026-10-01T00:00:00.000Z',
   ...overrides,

@@ -98,3 +98,30 @@ export async function actOnDevice(args: {
   }
   if (!response.ok) await failWith(response, 'Request failed')
 }
+
+export type SessionUser = {
+  name: string
+  email: string
+  image: string | null
+}
+
+type SessionUserBody = {
+  user?: { name?: unknown; email?: unknown; image?: unknown } | null
+} | null
+
+export async function sessionUser(): Promise<SessionUser | null> {
+  let response: Response
+  try {
+    response = await fetch('/api/auth/get-session')
+  } catch {
+    throw new AuthApiError(UNREACHABLE)
+  }
+  if (!response.ok) return null
+
+  const body = (await response.json().catch(() => null)) as SessionUserBody
+  const user = body?.user
+  if (user === null || user === undefined) return null
+  const email = typeof user.email === 'string' ? user.email : ''
+  const name = typeof user.name === 'string' && user.name.length > 0 ? user.name : email
+  return { name, email, image: typeof user.image === 'string' ? user.image : null }
+}

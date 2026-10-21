@@ -100,6 +100,14 @@ export class MemoriesService {
     return rows.map((row) => toSummary(row))
   }
 
+  async listAll(args: { userId: string }): Promise<MemorySummary[]> {
+    const rows = await db.memory.findMany({
+      where: { userId: args.userId },
+      orderBy: { updatedAt: 'desc' },
+    })
+    return rows.map((row) => toSummary(row))
+  }
+
   async get(args: MemoryKey): Promise<MemoryEntry> {
     const row = await db.memory.findUnique({ where: uniqueKeyOf(storedKeyOf(args)) })
     if (row === null) throw new NotFoundException('no such memory')

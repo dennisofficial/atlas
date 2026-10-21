@@ -18,7 +18,7 @@ import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { SetSecretDto } from './secrets.dto'
 import { SecretsService } from './secrets.service'
-import type { SecretListDto } from './secrets.types'
+import type { SecretDetailListDto, SecretListDto } from './secrets.types'
 
 const NO_STORE = 'no-store'
 
@@ -41,6 +41,13 @@ export class SecretsController {
     return { secrets: await this.secrets.list({ userId: userIdOf(request) }) }
   }
 
+  @Get('details')
+  @UseGuards(SessionAuthGuard)
+  @Header('Cache-Control', NO_STORE)
+  async handleListDetails(@Req() request: AuthenticatedRequest): Promise<SecretDetailListDto> {
+    return { secrets: await this.secrets.listDetails({ userId: userIdOf(request) }) }
+  }
+
   @Put(':name')
   @HttpCode(204)
   @UseGuards(SessionAuthGuard)
@@ -49,7 +56,12 @@ export class SecretsController {
     @Param('name') name: string,
     @Body() body: SetSecretDto,
   ): Promise<void> {
-    await this.secrets.set({ userId: userIdOf(request), name, value: body.value })
+    await this.secrets.set({
+      userId: userIdOf(request),
+      name,
+      value: body.value,
+      kind: body.kind,
+    })
   }
 
   @Delete(':name')

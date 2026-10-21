@@ -14,9 +14,16 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: {
-      '@dltech/atlas-wire': new URL('../../packages/wire/src/index.ts', import.meta.url).pathname,
-    },
+    alias: [
+      {
+        find: /^@dltech\/atlas-wire\/web$/,
+        replacement: new URL('../../packages/wire/src/web/index.ts', import.meta.url).pathname,
+      },
+      {
+        find: /^@dltech\/atlas-wire$/,
+        replacement: new URL('../../packages/wire/src/index.ts', import.meta.url).pathname,
+      },
+    ],
   },
   test: {
     environment: 'node',

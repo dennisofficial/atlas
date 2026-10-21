@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto'
+import type { SecretDetail } from '@dltech/atlas-wire/web'
+import type { ESecretKind } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import type { SecretEntryModel } from '../../../db'
 import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { kindOf, openSecretValue } from './sealed-secret'
 import type { SecretDto } from './secrets.types'
 
 const MAX_NAME_LENGTH = 200
@@ -27,7 +30,26 @@ export class SecretsService {
     return rows.map((row) => this.toSecretDto(row))
   }
 
-  async set(args: { userId: string; name: string; value: string }): Promise<void> {
+  async listDetails(args: { userId: string }): Promise<SecretDetail[]> {
+    const rows = await db.secretEntry.findMany({
+      where: { userId: args.userId },
+      orderBy: { name: 'asc' },
+    })
+    return rows.map((row) => ({
+      name: row.name,
+      kind: kindOf(row.kind),
+      value: openSecretValue({ cipher: this.cipher, sealed: row.sealedValue }),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    }))
+  }
+
+  async set(args: {
+    userId: string
+    name: string
+    value: string
+    kind?: ESecretKind | undefined
+  }): Promise<void> {
     assertValidName(args.name)
     const sealedValue = this.cipher.encrypt(JSON.stringify(args.value))
     await db.secretEntry.upsert({
@@ -37,8 +59,9 @@ export class SecretsService {
         name: args.name,
         sealedValue,
         userId: args.userId,
+        ...(args.kind === undefined ? {} : { kind: args.kind }),
       },
-      update: { sealedValue },
+      update: { sealedValue, ...(args.kind === undefined ? {} : { kind: args.kind }) },
     })
   }
 
