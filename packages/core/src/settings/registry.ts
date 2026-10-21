@@ -537,10 +537,10 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
       'Which logo the home screen and the boot curtain draw. Wordmark is the mark beside the word atlas, and falls back to a one-line ⏺ atlas on a narrow terminal. Mark draws the Λ alone, smaller, and leaves the slot empty when the terminal is too narrow for it.',
     environmentVariable: 'ATLAS_LOGO',
     kind: ESettingKind.Choice,
-    fallback: 'wordmark',
+    fallback: 'mark',
     options: [
-      { value: 'wordmark', label: 'wordmark', detail: 'shipped' },
-      { value: 'mark', label: 'mark' },
+      { value: 'mark', label: 'mark', detail: 'shipped' },
+      { value: 'wordmark', label: 'wordmark' },
     ],
   },
   {

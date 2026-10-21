@@ -3,7 +3,7 @@ export enum ELogo {
   Mark = 'mark',
 }
 
-export const SHIPPED_LOGO = ELogo.Wordmark
+export const SHIPPED_LOGO = ELogo.Mark
 
 const listeners = new Set<() => void>()
 
@@ -30,6 +30,6 @@ export function applyLogo(next: ELogo): void {
 }
 
 export const logoOf = (value: string): ELogo => {
-  if (value === ELogo.Mark) return ELogo.Mark
-  return ELogo.Wordmark
+  if (value === ELogo.Wordmark) return ELogo.Wordmark
+  return ELogo.Mark
 }

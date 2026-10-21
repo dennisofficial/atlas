@@ -60,7 +60,7 @@ describe('appearanceOf', () => {
       [ESettingId.ComposerEdge]: 'bordered',
       [ESettingId.ImageRows]: 48,
       [ESettingId.FenceWrap]: 'never',
-      [ESettingId.Logo]: 'mark',
+      [ESettingId.Logo]: 'wordmark',
     })
 
     expect(appearanceOf({ resolution })).toEqual({
@@ -69,7 +69,7 @@ describe('appearanceOf', () => {
       composer: EComposerEdge.Bordered,
       imageRows: 48,
       fenceWrap: EFenceWrap.Never,
-      logo: ELogo.Mark,
+      logo: ELogo.Wordmark,
     })
   })
 })
@@ -154,9 +154,9 @@ describe('applyLogo', () => {
       composer: SHIPPED_COMPOSER_EDGE,
       imageRows: SHIPPED_IMAGE_ROWS,
       fenceWrap: SHIPPED_FENCE_WRAP,
-      logo: ELogo.Mark,
+      logo: ELogo.Wordmark,
     })
 
-    expect(logo()).toBe(ELogo.Mark)
+    expect(logo()).toBe(ELogo.Wordmark)
   })
 })

@@ -125,6 +125,7 @@ describe('the startup curtain', () => {
   })
 
   it('falls back to the one-line name in a terminal too narrow for the wordmark', async () => {
+    applyLogo(ELogo.Wordmark)
     const painted = await paint({ frame: frame(), width: logoCells(ELogo.Wordmark) - 10 })
     expect(painted).not.toContain(HALF_CELL)
     expect(painted).toContain(`${glyph.block} atlas`)
@@ -132,6 +133,7 @@ describe('the startup curtain', () => {
   })
 
   it('falls back to the one-line name in a terminal too short for the wordmark', async () => {
+    applyLogo(ELogo.Wordmark)
     const painted = await paint({ frame: frame(), height: logoRows(ELogo.Wordmark) + 1 })
     expect(painted).not.toContain(HALF_CELL)
     expect(painted).toContain(`${glyph.block} atlas`)

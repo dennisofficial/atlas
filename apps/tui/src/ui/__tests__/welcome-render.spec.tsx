@@ -42,7 +42,8 @@ describe('the welcome screen', () => {
     expect(inked.length).toBeGreaterThan(0)
   })
 
-  it('holds every row of the mark on one shared left edge', async () => {
+  it('holds every row of the wordmark on one shared left edge', async () => {
+    applyLogo(ELogo.Wordmark)
     const pad = Math.floor((WIDE - logoCells(ELogo.Wordmark)) / 2)
     const painted = (await frameOf(screen(WIDE), WIDE))
       .split('\n')
@@ -66,6 +67,7 @@ describe('the welcome screen', () => {
   })
 
   it('falls back to the one-line name when the terminal is too narrow for the wordmark', async () => {
+    applyLogo(ELogo.Wordmark)
     const narrow = logoCells(ELogo.Wordmark) - 10
     const frame = await frameOf(screen(narrow), narrow)
 
@@ -166,7 +168,7 @@ describe('the welcome screen in the hero placement shape', () => {
   })
 
   it('drops the placement from the metadata line when the terminal is too narrow for it', async () => {
-    const narrow = logoCells(ELogo.Wordmark) - 10
+    const narrow = logoCells(SHIPPED_LOGO) - 10
     const node = (
       <WelcomeScreen
         cwd={CWD}

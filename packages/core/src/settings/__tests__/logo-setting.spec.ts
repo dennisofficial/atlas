@@ -30,24 +30,24 @@ describe('the logo setting', () => {
     expect(ids.indexOf(ESettingId.Logo)).toBeGreaterThan(ids.indexOf(ESettingId.ComposerEdge))
   })
 
-  it('offers the wordmark lockup, shipped, and the mark alone', () => {
-    expect(definition().fallback).toBe('wordmark')
+  it('offers the mark alone, shipped, and the wordmark lockup', () => {
+    expect(definition().fallback).toBe('mark')
     expect(definition().environmentVariable).toBe('ATLAS_LOGO')
-    expect(definition().options.map((option) => option.value)).toEqual(['wordmark', 'mark'])
+    expect(definition().options.map((option) => option.value)).toEqual(['mark', 'wordmark'])
     expect(definition().options.find((option) => option.detail === 'shipped')?.value).toBe(
-      'wordmark',
+      'mark',
     )
   })
 
-  it('resolves to the wordmark until the mark is chosen', () => {
+  it('resolves to the mark until the wordmark is chosen', () => {
     const read = (values: Record<string, unknown>) =>
       choiceValueOf({
         resolution: resolutionOf(values),
         id: ESettingId.Logo,
-        fallback: 'wordmark',
+        fallback: 'mark',
       })
 
-    expect(read({})).toBe('wordmark')
-    expect(read({ [ESettingId.Logo]: 'mark' })).toBe('mark')
+    expect(read({})).toBe('mark')
+    expect(read({ [ESettingId.Logo]: 'wordmark' })).toBe('wordmark')
   })
 })

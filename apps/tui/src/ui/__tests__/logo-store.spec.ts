@@ -15,16 +15,16 @@ afterEach(() => {
 })
 
 describe('applyLogo', () => {
-  it('ships the wordmark, so the logo a new install sees is the one it always was', () => {
-    expect(SHIPPED_LOGO).toBe(ELogo.Wordmark)
-    expect(logo()).toBe(ELogo.Wordmark)
+  it('ships the mark alone', () => {
+    expect(SHIPPED_LOGO).toBe(ELogo.Mark)
+    expect(logo()).toBe(ELogo.Mark)
   })
 
   it('bumps a numeric version, which is what useSyncExternalStore snapshots', () => {
     const before = logoVersion()
-    applyLogo(ELogo.Mark)
+    applyLogo(ELogo.Wordmark)
     expect(logoVersion()).toBe(before + 1)
-    expect(logo()).toBe(ELogo.Mark)
+    expect(logo()).toBe(ELogo.Wordmark)
   })
 
   it('says nothing when the logo is already the one asked for', () => {
@@ -47,7 +47,7 @@ describe('applyLogo', () => {
     })
     unsubscribe()
 
-    applyLogo(ELogo.Mark)
+    applyLogo(ELogo.Wordmark)
     expect(calls).toBe(0)
   })
 })
@@ -58,8 +58,8 @@ describe('logoOf', () => {
     expect(logoOf('wordmark')).toBe(ELogo.Wordmark)
   })
 
-  it('falls back to the wordmark for anything a hand-edited settings file might hold', () => {
-    expect(logoOf('lambda')).toBe(ELogo.Wordmark)
-    expect(logoOf('')).toBe(ELogo.Wordmark)
+  it('falls back to the mark for anything a hand-edited settings file might hold', () => {
+    expect(logoOf('lambda')).toBe(ELogo.Mark)
+    expect(logoOf('')).toBe(ELogo.Mark)
   })
 })
