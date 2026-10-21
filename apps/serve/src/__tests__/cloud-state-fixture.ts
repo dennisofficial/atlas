@@ -34,11 +34,12 @@ export type FakeCloudState = {
   lease: unknown
   settings: { key: string; value: string }[]
   secrets: { name: string; value: string }[]
+  config?: unknown
 }
 
 export type FakeCloud = {
   url: string
-  requests: { path: string; authorization: string | null }[]
+  requests: { path: string; search: string; authorization: string | null }[]
   unauthorizedUntil: { remaining: number }
   stop: () => Promise<void>
 }
@@ -50,15 +51,16 @@ export const startFakeCloud = (state: FakeCloudState): FakeCloud => {
     port: 0,
     hostname: '127.0.0.1',
     fetch: (request) => {
-      const path = new URL(request.url).pathname
+      const { pathname: path, search } = new URL(request.url)
       const authorization = request.headers.get('authorization')
-      requests.push({ path, authorization })
+      requests.push({ path, search, authorization })
       if (authorization !== `Bearer ${SERVE_TOKEN}`) return new Response('unauthorized', { status: 401 })
       if (unauthorizedUntil.remaining > 0) {
         unauthorizedUntil.remaining -= 1
         return new Response('not registered yet', { status: 401 })
       }
       if (path === '/v1/account-lease') return Response.json(state.lease)
+      if (path === '/v1/sandboxes/self/config' && state.config !== undefined) return Response.json(state.config)
       if (path === '/v1/settings') return Response.json({ settings: state.settings })
       if (path === '/v1/secrets') return Response.json({ secrets: state.secrets })
       return new Response('not found', { status: 404 })

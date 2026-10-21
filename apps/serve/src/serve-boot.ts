@@ -111,6 +111,8 @@ export async function bootServeFiles(args: {
   await applyCloudState({
     atlasHome,
     log,
+    env,
+    projectId: spec?.projectId ?? null,
     controlPlaneUrl: args.controlPlaneUrl,
     token: args.token,
     clientVersion: args.clientVersion,
