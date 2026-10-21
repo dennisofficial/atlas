@@ -114,6 +114,16 @@ describe('SandboxProvisioningService', () => {
     expect(calls).toHaveLength(1)
   })
 
+  it('marks a thread that already has a project as cloud when it boots', async () => {
+    seedThread({ projectId: 'prj-1' })
+    const service = serviceWith({ boot: fakeBoot().boot })
+
+    await service.provision(ARGS)
+    await service.settle()
+
+    expect(fake.threads[0]?.executionLocation).toBe('cloud')
+  })
+
   it('ignores a body projectId once the thread has a project', async () => {
     seedThread({ projectId: 'prj-1' })
     const scoped = fakeScoped()

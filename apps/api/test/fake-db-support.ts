@@ -23,6 +23,10 @@ const comparableOf = (value: unknown): unknown =>
 export const matchesValue = (value: unknown, condition: unknown): boolean => {
   if (typeof condition === 'object' && condition !== null && !(condition instanceof Date)) {
     const ops = condition as Record<string, unknown>
+    if ('path' in ops) {
+      const [key] = ops.path as string[]
+      return typeof value === 'object' && value !== null && (value as Where)[String(key)] === ops.equals
+    }
     if ('in' in ops) return (ops.in as unknown[]).includes(value)
     if ('notIn' in ops) return !(ops.notIn as unknown[]).includes(value)
     if ('not' in ops && value === ops.not) return false
@@ -73,6 +77,10 @@ export const sortRows = <Row>(rows: Row[], orderBy: unknown): Row[] => {
 
 export const applyUpdate = (row: Record<string, unknown>, data: Where): void => {
   for (const [key, value] of Object.entries(data)) {
+    if (value === Prisma.DbNull) {
+      row[key] = null
+      continue
+    }
     if (typeof value === 'object' && value !== null && 'increment' in value) {
       row[key] = (row[key] as number) + (value as { increment: number }).increment
       continue

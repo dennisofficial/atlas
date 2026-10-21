@@ -6,8 +6,11 @@ import { ProcessBackgroundWork } from '../../../_lib/background-work/background-
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { provisioningFakeDb } from '../../../../test/sandbox-provisioning-fake-db'
 import type { SandboxWakeBoot, WakeBootArgs } from '../github/github-sandbox-wake-boot'
+import type { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
+import type { ServeSendArgs } from './serve-send'
+import { ThreadMessagesService } from './thread-messages.service'
 
 export const fake = provisioningFakeDb()
 
@@ -64,7 +67,11 @@ export function fakeScoped(overrides: Partial<Record<'vercelCredentials' | 'acce
   return scoped as unknown as ScopedConfigService & typeof scoped
 }
 
-export function serviceWith(args: { boot: SandboxWakeBoot; scoped?: ScopedConfigService }) {
+export function serviceWith(args: {
+  boot: SandboxWakeBoot
+  scoped?: ScopedConfigService
+  messages?: ThreadMessagesService
+}) {
   const env = {
     get: (key: string) =>
       ({ SANDBOX_IMAGE: 'atlas-sandbox:latest', ATLAS_CLOUD_URL: 'https://api.byatlas.io' })[key],
@@ -75,6 +82,7 @@ export function serviceWith(args: { boot: SandboxWakeBoot; scoped?: ScopedConfig
     cipher,
     args.boot,
     new ProcessBackgroundWork(),
+    args.messages ?? messagesWith({}).service,
   )
 }
 
@@ -82,4 +90,14 @@ export function fakeSandbox() {
   const runCommand = vi.fn(async () => ({}))
   const writeFiles = vi.fn(async () => undefined)
   return { sandbox: { runCommand, writeFiles } as unknown as Sandbox, runCommand, writeFiles }
+}
+
+export function messagesWith(args: { endpoint?: { token: string; url: string } | null; serveFails?: Error }) {
+  const endpoint = args.endpoint ?? null
+  const runningEndpoint = vi.fn(async () => endpoint)
+  const serve = vi.fn(async (_delivery: ServeSendArgs) => {
+    if (args.serveFails !== undefined) throw args.serveFails
+  })
+  const service = new ThreadMessagesService({ runningEndpoint } as unknown as SandboxEndpointService, serve)
+  return { service, serve, runningEndpoint }
 }
