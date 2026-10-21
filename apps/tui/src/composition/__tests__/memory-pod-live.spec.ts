@@ -58,7 +58,6 @@ describeLive('memory written in one pod', () => {
           localLog: app.log,
           ids: app.ids,
           placement: app.sessionOwner,
-          captureContext: async () => undefined,
           open: async ({ attachment, prepareRuntime }) => {
             attachments.push(attachment)
             prepareRuntime({ kind: ERuntimeKind.Cloud, cwd: '/atlas/workspaces', adapters: fakeSessionRuntime(app) })
@@ -67,7 +66,7 @@ describeLive('memory written in one pod', () => {
         if (!birth.ok) throw new Error(`birth of ${threadId} failed: ${birth.detail}`)
         const attachment = attachments[0]
         if (attachment === undefined) throw new Error(`birth of ${threadId} never opened an attachment`)
-        return createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId: null, captureContext: async () => undefined })
+        return createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId: null })
       }
 
       try {

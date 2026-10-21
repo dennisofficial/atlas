@@ -25,8 +25,6 @@ type OpenArgs = {
   bridge: CloudBridge
   threadId: ThreadId
   move?: ContainerMoveControl | undefined
-  /** Where this thread lives on this machine, when it does — see cloud-runner.ts's wake. */
-  projectDirectory?: string | undefined
   onReload: (reload: CloudReload) => Promise<void>
   /** Wake the sandbox before anything renders. Recovery settles on the live channel, so it needs this. */
   wakeFirst?: boolean | undefined
@@ -45,14 +43,10 @@ type ResolvedOpenArgs = OpenArgs & { projectId: string | null }
 
 const ALREADY_SETTLED = (): void => undefined
 
-const captureContextFor = (args: OpenArgs) => () =>
-  args.app.captureContext({ cwd: args.projectDirectory ?? args.app.workspace.workspace })
-
 const wakeNarrationFor = (args: ResolvedOpenArgs) => ({
   bridge: args.bridge,
   threadId: args.threadId,
   projectId: args.projectId,
-  captureContext: captureContextFor(args),
   ...(args.move === undefined ? {} : { move: args.move }),
 })
 

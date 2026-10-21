@@ -10,7 +10,7 @@ import type { PublishedBundleCurrent } from '@dltech/atlas-wire'
 
 import { applyPublishedBundle } from '../published-bundle'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
-import { ATLAS_HOME, fakeFiles } from './materialize-context-fixture'
+import { ATLAS_HOME, fakeFiles } from './workspace-files-fixture'
 
 const API = 'https://api.example.com'
 const BLOB_URL = 'https://blob.example.com/bundles/u/b.tar.gz'

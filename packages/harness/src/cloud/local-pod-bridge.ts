@@ -1,6 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { transferBufferedArchive } from './buffered-transfer'
 import {
   EResizeApplies,
   type CloudBridge,
@@ -9,7 +8,7 @@ import {
   type CloudSandboxStatus,
 } from './cloud-bridge'
 import { attachmentOf } from './local-cloud-attachment'
-import { bootstrapSpecOf, CONTEXT_ARCHIVE_PATH, WORKSPACE_SPEC_PATH } from './local-cloud-bootstrap'
+import { bootstrapSpecOf, WORKSPACE_SPEC_PATH } from './local-cloud-bootstrap'
 import { DockerPodDriver, type PodDriverConfig } from './local-pod/driver'
 import { podNameFor } from './local-pod/pod-create'
 import type { LocalPodBridgeOptions, PodBridgeDriver } from './local-pod-bridge-options'
@@ -44,20 +43,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
           ...(createArgs.model === undefined ? {} : { model: createArgs.model }),
         }),
       })
-      if (await driver.vaultPresent({ name: handle.name })) return
-      await createArgs.captureContext?.((archive) =>
-        transferBufferedArchive({
-          archive,
-          upload: () =>
-            driver.writeBootstrapFile({ name: handle.name, path: CONTEXT_ARCHIVE_PATH, content: archive }),
-          onProgress: (progress) =>
-            createArgs.onTransferProgress?.({
-              ...progress,
-              transferId: 'context-upload',
-              label: 'uploading local config',
-            }),
-        }),
-      )
     }
 
     const environment: Record<string, string> = { ...args.environment?.() }

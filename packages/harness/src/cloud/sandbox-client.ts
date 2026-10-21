@@ -17,17 +17,6 @@ export enum ECloudSandboxState {
 
 export const sandboxStateSchema = z.nativeEnum(ECloudSandboxState)
 
-/**
- * Shared with `apps/api/src/api/context-archive/context-archive-limits.ts`, which duplicates this
- * value rather than importing it — `apps/api` carries no in-repo dependency by design (see its
- * AGENTS.md). The API buffers the whole request body before a handler ever sees it (`express.raw`
- * concatenates it, Prisma returns the whole bytea column), so this is a deliberate per-request
- * memory budget sized against the API container rather than a streaming limit. The #485 OOM was a
- * 109MB `writeFiles` push through an SDK that multiplied the buffer several times over; a single
- * buffered body at this cap is the accepted bound.
- */
-export const MAX_CONTEXT_ARCHIVE_BYTES = 256 * 1024 * 1024
-
 export const wireSandboxClaimSchema = z.object({
   token: z.string().min(1),
 })

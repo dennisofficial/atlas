@@ -18,8 +18,6 @@ export type BridgeDriver = RunnerDriver<LiveSandbox> & {
 
 export const BOOTSTRAP_DIRECTORY = `${SANDBOX_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
-export const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
-export const VAULT_PROBE_PATH = `${SANDBOX_HOME_PATH}/auth.json`
 
 export type SandboxRegistration = (args: {
   threadId: ThreadId
@@ -63,18 +61,3 @@ export const liveDriverWith = (args: {
     ...(args.config.devServe === undefined ? {} : { devServe: args.config.devServe }),
     ...(args.onDriverLog === undefined ? {} : { log: args.onDriverLog }),
   })
-
-const QUICK_COMMAND_TIMEOUT_MS = 15_000
-
-export const vaultPresentInSandbox = async (sandbox: LiveSandbox): Promise<boolean> => {
-  try {
-    const probe = await sandbox.runCommand({
-      cmd: 'sh',
-      args: ['-c', `test -s ${VAULT_PROBE_PATH}`],
-      timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
-    })
-    return probe.exitCode === 0
-  } catch {
-    return false
-  }
-}

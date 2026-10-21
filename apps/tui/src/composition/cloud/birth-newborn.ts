@@ -57,7 +57,6 @@ export function birthNewborn(args: {
     warn(BIRTH_CANCELLED_NOTICE)
     args.onRestoreDraft()
   }
-  const captureContext = () => app.captureContext({ cwd: app.workspace.workspace })
 
   void birthInCloud({
     threadId,
@@ -70,7 +69,6 @@ export function birthNewborn(args: {
     localLog: app.log,
     ids: app.ids,
     placement: owner,
-    captureContext,
     onBegin: ({ waves }) =>
       move.handleBegin({
         target: EExecutionLocation.Cloud,
@@ -80,8 +78,6 @@ export function birthNewborn(args: {
       }),
     onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
     onNodeDone: (nodeId) => move.handleNodeDone(nodeId),
-    onTransferProgress: (progress) => move.handleTransferProgress({ ...progress, nodeId: EBirthNode.Provision }),
-    onWaveLabel: (nodeId, label) => move.handleRowLabel({ nodeId, text: label }),
     open: async ({ attachment, prepareRuntime }) => {
       if (cancelled) throw new Error(BIRTH_CANCELLED_NOTICE)
       const stopWatching = attachment.channel.subscribe({
@@ -92,8 +88,8 @@ export function birthNewborn(args: {
           bornPlacementChip(app).retire(threadId)
         },
       })
-      const wake = createCloudWake({ bridge, channel: attachment.channel, threadId, projectId, captureContext, move })
-      const turns = createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId, captureContext, move, wake })
+      const wake = createCloudWake({ bridge, channel: attachment.channel, threadId, projectId, move })
+      const turns = createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId, move, wake })
       const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner: turns }) }
       const opened = await openCloudConversation({ app: base, threadId })
       const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })
