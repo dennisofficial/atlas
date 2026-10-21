@@ -47,6 +47,8 @@ export async function mountWithRetries(args: {
   threadId: string
   token: string
   environment?: Record<string, string> | undefined
+  /** False for an API-provisioned sandbox: its pod must never read the workspace's Vercel token. */
+  injectVercelCredentials?: boolean | undefined
   pinnedModel?: string | undefined
   onCreate: () => Promise<void>
   onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
@@ -70,9 +72,13 @@ export async function mountWithRetries(args: {
           ATLAS_THREAD_ID: args.threadId,
           ATLAS_CLOUD_URL: args.cloudUrl,
           ATLAS_HOME: SANDBOX_HOME_PATH,
-          VERCEL_TOKEN: args.credentials.token,
-          VERCEL_TEAM_ID: args.credentials.teamId,
-          VERCEL_PROJECT_ID: args.credentials.projectId,
+          ...(args.injectVercelCredentials === false
+            ? {}
+            : {
+                VERCEL_TOKEN: args.credentials.token,
+                VERCEL_TEAM_ID: args.credentials.teamId,
+                VERCEL_PROJECT_ID: args.credentials.projectId,
+              }),
           ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
           ...args.environment,
         },
