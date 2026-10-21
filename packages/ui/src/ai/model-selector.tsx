@@ -1,32 +1,53 @@
 "use client";
 
-import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronDownIcon, Settings2Icon } from "lucide-react";
 
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "#components/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "#components/dropdown-menu";
 import { InputGroupButton } from "#components/input-group";
+import { Popover, PopoverContent, PopoverTrigger } from "#components/popover";
+
+import { ModelRow, NoProvidersState, ReconnectRow } from "./internal/model-selector-rows";
+import {
+  EModelSelectorState,
+  EProviderGroupKind,
+  MANAGE_PROVIDERS_VALUE,
+  firstItemValue,
+  modelSelectorGroups,
+  togglePinned,
+  type ModelOption,
+} from "./model-selector-groups";
+
+export {
+  EModelSelectorState,
+  EProviderGroupKind,
+  groupByProvider,
+  modelSelectorGroups,
+  togglePinned,
+  type ModelOption,
+  type ModelSelectorGroups,
+  type ProviderGroup,
+  type ProviderModels,
+} from "./model-selector-groups";
 
 export enum EEffort {
   Low = "low",
   Medium = "medium",
   High = "high",
-}
-
-export interface ModelOption {
-  id: string;
-  label: string;
-  provider?: string;
-  context?: string;
-  rate?: string;
-  unavailable?: boolean;
 }
 
 export interface ModelSelectorProps {
@@ -36,6 +57,12 @@ export interface ModelSelectorProps {
   effort?: EEffort;
   onEffortChange?: (effort: EEffort) => void;
   showRate?: boolean;
+  pinned?: string[];
+  onPinnedChange?: (ids: string[]) => void;
+  reconnectProviders?: string[];
+  onReconnect?: (provider: string) => void;
+  onManageProviders?: () => void;
+  defaultOpen?: boolean;
 }
 
 const EFFORT_LABEL: Record<EEffort, string> = {
@@ -45,20 +72,6 @@ const EFFORT_LABEL: Record<EEffort, string> = {
 };
 
 const EFFORTS = [EEffort.Low, EEffort.Medium, EEffort.High];
-
-export function groupByProvider(
-  models: ModelOption[],
-): { provider: string; models: ModelOption[] }[] {
-  const groups = new Map<string, ModelOption[]>();
-  for (const model of models) {
-    const provider = model.provider ?? "Models";
-    groups.set(provider, [...(groups.get(provider) ?? []), model]);
-  }
-  return [...groups].map(([provider, grouped]) => ({
-    provider,
-    models: grouped,
-  }));
-}
 
 function isEffort(value: string): value is EEffort {
   return EFFORTS.some((effort) => effort === value);
@@ -71,55 +84,141 @@ export function ModelSelector({
   effort,
   onEffortChange,
   showRate = true,
+  pinned = [],
+  onPinnedChange,
+  reconnectProviders = [],
+  onReconnect,
+  onManageProviders,
+  defaultOpen = false,
 }: ModelSelectorProps) {
   const current = models.find((model) => model.id === value) ?? models[0];
-  const groups = groupByProvider(models);
+  const [open, setOpen] = useState(defaultOpen);
+  const [query, setQuery] = useState("");
+  const [highlighted, setHighlighted] = useState(current?.id ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleModelChange = (next: string) => onValueChange?.(next);
+  const canManageProviders = onManageProviders !== undefined;
+  const groupsFor = (nextQuery: string) =>
+    modelSelectorGroups({
+      models,
+      query: nextQuery,
+      pinned,
+      reconnectProviders,
+      canManageProviders,
+    });
+  const groups = groupsFor(query);
+  const pinnedIds = new Set(groups.pinned.map((model) => model.id));
+  const canPin = onPinnedChange !== undefined;
+  const hasNoProviders = groups.state === EModelSelectorState.NoProviders;
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    setQuery("");
+    if (next) setHighlighted(current?.id ?? firstItemValue(groupsFor("")) ?? "");
+  };
+  const handleQueryChange = (next: string) => {
+    setQuery(next);
+    const first = firstItemValue(groupsFor(next)) ?? "";
+    setHighlighted(next.trim().length === 0 ? (current?.id ?? first) : first);
+  };
+  const handleModelSelect = (id: string) => {
+    onValueChange?.(id);
+    handleOpenChange(false);
+  };
+  const handleReconnect = (provider: string) => {
+    onReconnect?.(provider);
+    handleOpenChange(false);
+  };
+  const handleManageProviders = () => {
+    onManageProviders?.();
+    handleOpenChange(false);
+  };
+  const handleTogglePin = (id: string) => onPinnedChange?.(togglePinned({ pinned, id }));
   const handleEffortChange = (next: string) => {
     if (isEffort(next)) onEffortChange?.(next);
   };
 
+  const renderRow = (model: ModelOption) => (
+    <ModelRow
+      key={model.id}
+      model={model}
+      checked={model.id === current?.id}
+      pinned={pinnedIds.has(model.id)}
+      canPin={canPin}
+      showRate={showRate}
+      onSelect={handleModelSelect}
+      onTogglePin={handleTogglePin}
+    />
+  );
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<InputGroupButton size="sm" />}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger render={<InputGroupButton size="sm" />}>
           {current?.label ?? "No model"}
           <ChevronDownIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-64">
-          <DropdownMenuRadioGroup
-            value={current?.id ?? ""}
-            onValueChange={handleModelChange}
-          >
-            {groups.map((group, index) => (
-              <DropdownMenuGroup key={group.provider}>
-                {index > 0 ? <DropdownMenuSeparator /> : null}
-                <DropdownMenuLabel>{group.provider}</DropdownMenuLabel>
-                {group.models.map((model) => (
-                  <DropdownMenuRadioItem
-                    key={model.id}
-                    value={model.id}
-                    disabled={model.unavailable}
-                    closeOnClick
-                  >
-                    <span className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="truncate">{model.label}</span>
-                      {model.unavailable ? (
-                        <TriangleAlertIcon className="text-warning" />
-                      ) : null}
-                    </span>
-                    <span className="ml-auto flex shrink-0 gap-2 text-xs text-muted-foreground">
-                      {model.context ? <span>{model.context}</span> : null}
-                      {showRate && model.rate ? <span>{model.rate}</span> : null}
-                    </span>
-                  </DropdownMenuRadioItem>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          initialFocus={hasNoProviders ? true : inputRef}
+          className="w-80 gap-0 p-0"
+        >
+          {hasNoProviders ? (
+            <NoProvidersState canConnect={canManageProviders} onConnect={handleManageProviders} />
+          ) : (
+            <Command
+              label="Models"
+              shouldFilter={false}
+              loop
+              value={highlighted}
+              onValueChange={setHighlighted}
+            >
+              <CommandInput
+                ref={inputRef}
+                autoFocus
+                aria-label="Search models"
+                placeholder="Search models"
+                value={query}
+                onValueChange={handleQueryChange}
+              />
+              <CommandList className="max-h-80">
+                {groups.state === EModelSelectorState.NoMatches ? (
+                  <p role="status" className="px-2 py-6 text-center text-sm text-muted-foreground">
+                    No models match “{query.trim()}”
+                  </p>
+                ) : null}
+                {groups.pinned.length > 0 ? (
+                  <CommandGroup heading="Pinned">{groups.pinned.map(renderRow)}</CommandGroup>
+                ) : null}
+                {groups.providers.map((group) => (
+                  <CommandGroup key={group.provider} heading={group.provider}>
+                    {group.kind === EProviderGroupKind.Reconnect ? (
+                      <ReconnectRow provider={group.provider} onReconnect={handleReconnect} />
+                    ) : (
+                      group.models.map(renderRow)
+                    )}
+                  </CommandGroup>
                 ))}
-              </DropdownMenuGroup>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+                {groups.showManageProviders ? (
+                  <>
+                    <CommandSeparator />
+                    <CommandGroup>
+                      <CommandItem
+                        value={MANAGE_PROVIDERS_VALUE}
+                        onSelect={handleManageProviders}
+                        className="h-8 text-muted-foreground"
+                      >
+                        <Settings2Icon className="size-3.5" />
+                        Manage providers
+                      </CommandItem>
+                    </CommandGroup>
+                  </>
+                ) : null}
+              </CommandList>
+            </Command>
+          )}
+        </PopoverContent>
+      </Popover>
       {effort ? (
         <DropdownMenu>
           <DropdownMenuTrigger render={<InputGroupButton size="sm" />}>
@@ -127,10 +226,7 @@ export function ModelSelector({
             <ChevronDownIcon />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuRadioGroup
-              value={effort}
-              onValueChange={handleEffortChange}
-            >
+            <DropdownMenuRadioGroup value={effort} onValueChange={handleEffortChange}>
               {EFFORTS.map((option) => (
                 <DropdownMenuRadioItem key={option} value={option} closeOnClick>
                   {EFFORT_LABEL[option]}

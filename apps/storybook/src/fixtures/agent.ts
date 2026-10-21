@@ -101,7 +101,6 @@ export const MODELS: ModelOption[] = [
     provider: "OpenAI",
     context: "400k",
     rate: "$",
-    unavailable: true,
   },
 ];
 
