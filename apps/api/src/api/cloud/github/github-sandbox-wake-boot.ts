@@ -10,6 +10,9 @@ import {
   routedUrlWithRetries,
   SANDBOX_QUICK_TIMEOUT_MS,
   settleRetry,
+  NOOP_BOOT_REPORTER,
+  EBootStep,
+  type BootReporter,
   type ServeLauncher,
   type VercelCredentials,
   type VercelSdk,
@@ -28,6 +31,12 @@ export type WakeBootArgs = {
   resumeToken: string | undefined
   /** Runs before serve launches on a sandbox Vercel created fresh, so its first mirror authenticates. */
   onFreshSandbox: () => Promise<void>
+  /** False for a workspace-owned sandbox, so its pod never carries the workspace's Vercel token. */
+  injectVercelCredentials?: boolean | undefined
+  environment?: Record<string, string> | undefined
+  reporter?: BootReporter | undefined
+  /** Runs on the mounted sandbox before serve launches. */
+  prepare?: ((sandbox: Sandbox) => Promise<void>) | undefined
 }
 
 export type WakeBootResult = { serveUrl: string; created: boolean }
@@ -80,33 +89,51 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
   }
 
   async boot(args: WakeBootArgs): Promise<WakeBootResult> {
+    const reporter = args.reporter ?? NOOP_BOOT_REPORTER
     let created = false
     try {
-      const sandbox = await mountWithRetries({
-        sdk: this.sdk,
-        cloudUrl: args.cloudUrl,
-        retry: settleRetry,
-        imageOptimize: imageOptimizeRetry,
-        log: this.log,
-        credentials: args.credentials,
-        name: args.name,
-        image: args.image,
-        threadId: args.threadId,
-        token: args.freshToken,
-        onCreate: () => {
-          created = true
-          return Promise.resolve()
-        },
+      const sandbox = await reporter.track({
+        step: EBootStep.Provision,
+        work: () => this.mount({ args, onCreate: () => (created = true) }),
       })
       if (created) await args.onFreshSandbox()
       const token = created ? args.freshToken : args.resumeToken
       if (token === undefined) throw new ResumeTokenMissingError(args.name)
-      await this.launchServe({ sandbox, token, args })
-      return { serveUrl: await routedUrlWithRetries(sandbox), created }
+      const serveUrl = await reporter.track({
+        step: EBootStep.Serve,
+        work: async () => {
+          await args.prepare?.(sandbox)
+          await this.launchServe({ sandbox, token, args })
+          return routedUrlWithRetries(sandbox)
+        },
+      })
+      return { serveUrl, created }
     } catch (failure) {
       if (created) await this.rollback(args)
       throw failure
     }
+  }
+
+  private mount(params: { args: WakeBootArgs; onCreate: () => void }): Promise<Sandbox> {
+    const { args } = params
+    return mountWithRetries({
+      sdk: this.sdk,
+      cloudUrl: args.cloudUrl,
+      retry: settleRetry,
+      imageOptimize: imageOptimizeRetry,
+      log: this.log,
+      credentials: args.credentials,
+      name: args.name,
+      image: args.image,
+      threadId: args.threadId,
+      token: args.freshToken,
+      ...(args.injectVercelCredentials === undefined ? {} : { injectVercelCredentials: args.injectVercelCredentials }),
+      ...(args.environment === undefined ? {} : { environment: args.environment }),
+      onCreate: () => {
+        params.onCreate()
+        return Promise.resolve()
+      },
+    })
   }
 
   private async launchServe(args: { sandbox: Sandbox; token: string; args: WakeBootArgs }): Promise<void> {

@@ -192,7 +192,7 @@ describe('SandboxesService', () => {
     await service.stop({ userId: USER_A, threadId: THREAD })
 
     const claimed = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
-    expect(client.stop).toHaveBeenCalledWith({ name: claimed?.name })
+    expect(client.stop).toHaveBeenCalledWith({ threadId: THREAD, name: claimed?.name })
     const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
     expect(row?.state).toBe(ESandboxState.Parked)
     expect(row?.sealedToken).not.toBeNull()
@@ -204,6 +204,7 @@ describe('SandboxesService', () => {
     await service.stop({ userId: USER_A, threadId: THREAD })
 
     expect(client.notifyParked).toHaveBeenCalledWith({
+      threadId: THREAD,
       name: 'atlas-thread-named',
       reason: 'the sandbox was stopped',
     })

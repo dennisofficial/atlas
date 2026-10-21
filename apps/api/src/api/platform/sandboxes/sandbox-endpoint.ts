@@ -41,7 +41,7 @@ export class SandboxEndpointService {
     if (token === null) return null
     let observed: SandboxObservation
     try {
-      observed = await this.vercel.inspect({ name: row.name })
+      observed = await this.vercel.inspect({ threadId: row.threadId, name: row.name })
     } catch {
       return null
     }
@@ -58,7 +58,7 @@ export class SandboxEndpointService {
       }
     }
     try {
-      const observed = await this.vercel.inspect({ name: row.name })
+      const observed = await this.vercel.inspect({ threadId: row.threadId, name: row.name })
       return {
         ...toSandboxDto(row),
         state: observed.state,
