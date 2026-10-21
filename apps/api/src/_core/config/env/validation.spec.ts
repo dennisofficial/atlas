@@ -6,6 +6,7 @@ const VALID_ENV = {
   SECRET_KEY: 'a-secret-key-with-at-least-32-characters',
   SECRETS_ENCRYPTION_KEY:
     'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+  TRIGGER_SECRET_KEY: 'tr_dev_test-fixture-not-a-real-key',
 }
 
 function validate(env: Record<string, string>) {
@@ -26,6 +27,7 @@ describe('envConfigValidation', () => {
     expect(error?.message).toContain('DATABASE_URL')
     expect(error?.message).toContain('SECRET_KEY')
     expect(error?.message).toContain('SECRETS_ENCRYPTION_KEY')
+    expect(error?.message).toContain('TRIGGER_SECRET_KEY')
   })
 
   it('rejects a short SECRET_KEY', () => {
@@ -49,6 +51,17 @@ describe('envConfigValidation', () => {
   it('boots a deployed tier that has no Vercel credentials', () => {
     const { error } = validate({ ...VALID_ENV, APP_TIER: 'production' })
     expect(error).toBeUndefined()
+  })
+
+  it('refuses to boot without TRIGGER_SECRET_KEY', () => {
+    const { TRIGGER_SECRET_KEY: _omitted, ...withoutKey } = VALID_ENV
+    const { error } = validate(withoutKey)
+    expect(error?.message).toContain('TRIGGER_SECRET_KEY')
+  })
+
+  it('rejects the retired staging tier', () => {
+    const { error } = validate({ ...VALID_ENV, APP_TIER: 'staging' })
+    expect(error?.message).toContain('APP_TIER')
   })
 
   it('coerces PORT to a number', () => {

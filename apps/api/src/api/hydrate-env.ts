@@ -23,12 +23,8 @@ function readIfPresent(path: string): string | undefined {
 }
 
 function tierFilePath(args: { tier: string; cwd: string }): string | undefined {
-  const anchored =
-    args.tier === 'local'
-      ? join(import.meta.dirname, '..', '..', 'envs', '.env.api.local.enc')
-      : args.tier === 'staging'
-        ? join(import.meta.dirname, '..', '..', 'envs', '.env.api.staging.enc')
-        : join(import.meta.dirname, '..', '..', 'envs', '.env.api.production.enc')
+  const anchoredName = args.tier === 'local' ? '.env.api.local.enc' : '.env.api.production.enc'
+  const anchored = join(import.meta.dirname, '..', '..', 'envs', anchoredName)
 
   const name = `.env.api.${args.tier}.enc`
   const candidates = [

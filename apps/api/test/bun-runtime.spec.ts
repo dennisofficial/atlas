@@ -15,6 +15,7 @@ function probeEnv({ port }: { port: number }): NodeJS.ProcessEnv {
     WEB_ORIGIN: 'http://localhost:3001',
     BETTER_AUTH_URL: `http://localhost:${port}`,
     SECRETS_ENCRYPTION_KEY: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+    TRIGGER_SECRET_KEY: 'tr_dev_test-fixture-not-a-real-key',
     NODE_ENV: 'development',
     DOTENV_PRIVATE_KEY_API_LOCAL: undefined,
   }

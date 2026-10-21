@@ -6,3 +6,4 @@ process.env.WEB_ORIGIN = 'http://localhost:3001'
 process.env.BETTER_AUTH_URL = 'http://localhost:3400'
 process.env.SECRETS_ENCRYPTION_KEY =
   'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+process.env.TRIGGER_SECRET_KEY = 'tr_dev_test-fixture-not-a-real-key'

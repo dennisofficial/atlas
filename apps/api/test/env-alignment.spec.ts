@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const TIERS = ['local', 'staging', 'production'] as const
+const TIERS = ['local', 'production'] as const
 const RECOGNIZED_PLACEHOLDERS =
   /^<(not-needed-locally|not-deployed|via-personal-env|TODO-shared-value|TODO-pull-from-aws|TODO-pull-from-gcp)>$/
 
@@ -38,14 +38,6 @@ describe('env tier alignment', () => {
     for (const entry of parseTier('local')) {
       if (!entry.commented) continue
       expect(entry.value, `local:${entry.key}`).toMatch(RECOGNIZED_PLACEHOLDERS)
-    }
-  })
-
-  it('comments every staging value with a recognized reason', () => {
-    for (const entry of parseTier('staging')) {
-      if (entry.key === 'APP_TIER' || entry.key === 'PORT') continue
-      expect(entry.commented, `staging:${entry.key} must be commented`).toBe(true)
-      expect(entry.value, `staging:${entry.key}`).toMatch(RECOGNIZED_PLACEHOLDERS)
     }
   })
 
