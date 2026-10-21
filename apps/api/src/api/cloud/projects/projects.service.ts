@@ -31,6 +31,7 @@ function toProject(row: ProjectModel): Project {
     additionalRepos: reposOf(row),
     description: row.description,
     shipBehavior: shipBehaviorOf(row.shipBehavior),
+    organizationId: row.organizationId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
