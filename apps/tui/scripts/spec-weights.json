@@ -299,7 +299,7 @@
  "src/ui/__tests__/usage-meters.spec.ts": 0.073,
  "src/ui/__tests__/viewport-rows.spec.ts": 0.02,
  "src/ui/__tests__/welcome-render.spec.tsx": 0.506,
- "src/ui/__tests__/wordmark.spec.ts": 0.026,
+ "src/ui/__tests__/logo.spec.ts": 0.026,
  "src/ui/__tests__/wrap-cells.spec.ts": 0.016,
  "src/ui/components/__tests__/shimmer-line.spec.tsx": 1.841,
  "src/ui/components/blocks/__tests__/created-file-tail.spec.tsx": 0.48,

@@ -139,15 +139,16 @@ describe('settingsModel', () => {
     )
   })
 
-  it('keeps the appearance page to its colour, its density and its composer', () => {
+  it('keeps the appearance page to its colour, its density, its composer and its logo', () => {
     const appearance = modelWith().pages[2]
 
     expect(appearance?.groups.map((group) => group.label)).toEqual([
       'Colour',
       'Density',
       'Composer',
+      'Logo',
     ])
-    expect(appearance?.rows).toHaveLength(3)
+    expect(appearance?.rows).toHaveLength(4)
   })
 
   it('carries where each value came from onto the row', () => {

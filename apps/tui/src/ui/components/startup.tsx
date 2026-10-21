@@ -2,13 +2,14 @@ import React from 'react'
 
 import { PANEL_BOTTOM_EDGE } from '../borders'
 import { mixHex } from '../colour'
+import { useAppearance } from '../hooks/use-appearance'
+import { logoCells, logoHasNarrowLabel, logoRows } from '../logo'
+import { logo, type ELogo } from '../logo-store'
 import { collapseHome, tailOfPath } from '../paths'
 import { type StartupFrame } from '../startup-model'
-import { glyph, theme } from '../theme'
-import { wordmarkRows, WORDMARK_CELLS, WORDMARK_ROWS } from '../wordmark'
+import { theme } from '../theme'
+import { LogoRows, NarrowLogo } from './logo-rows'
 import { Spans } from './spans'
-
-const WORDMARK = 'atlas'
 
 const SEPARATOR = ' · '
 
@@ -25,10 +26,6 @@ const SEAM_FALL = 0.45
 const fadedTo = (args: { colour: string; drain: number }): string =>
   mixHex({ from: args.colour, to: theme.appBg, amount: args.drain })
 
-/**
- * The half cell the whole app is built from: `▀` in the curtain's own ground over the seam colour,
- * so what trails the retracting edge is half a row of accent rather than a whole one.
- */
 function Seam(props: { width: number; lift: number }): React.ReactNode {
   return (
     <box position="absolute" left={0} right={0} bottom={0} height={1}>
@@ -42,44 +39,22 @@ function Seam(props: { width: number; lift: number }): React.ReactNode {
   )
 }
 
-function Mark(props: { frame: StartupFrame; roomy: boolean }): React.ReactNode {
+function Mark(props: { frame: StartupFrame; roomy: boolean; logo: ELogo }): React.ReactNode {
   const { reveal, drain } = props.frame
 
   if (!props.roomy) {
-    const gone = 1 - reveal * (1 - drain)
+    if (!logoHasNarrowLabel(props.logo)) return null
 
     return (
-      <box height={1} flexShrink={0} flexDirection="row">
-        <text fg={fadedTo({ colour: theme.accent, drain: gone })}>{`${glyph.block} `}</text>
-        <text fg={fadedTo({ colour: theme.hover, drain: gone })}>{WORDMARK}</text>
+      <box height={1} flexShrink={0}>
+        <NarrowLogo drain={1 - reveal * (1 - drain)} />
       </box>
     )
   }
 
-  const rows = wordmarkRows({
-    accent: theme.accent,
-    ground: theme.appBg,
-    bright: theme.bright,
-    sweep: { reveal, drain },
-  })
-
-  return (
-    <box flexDirection="column" flexShrink={0} height={WORDMARK_ROWS} width={WORDMARK_CELLS}>
-      {rows.map((row, index) => (
-        <box key={index} height={1} flexShrink={0}>
-          <text>
-            <Spans spans={row} />
-          </text>
-        </box>
-      ))}
-    </box>
-  )
+  return <LogoRows logo={props.logo} sweep={{ reveal, drain }} />
 }
 
-/**
- * Drawn over a workspace that is already mounted and settled, so what the curtain hides is not an
- * empty screen but the first paint correcting itself.
- */
 export function Startup(props: {
   frame: StartupFrame
   width: number
@@ -88,12 +63,14 @@ export function Startup(props: {
   cwd: string
   home: string
 }): React.ReactNode {
+  useAppearance()
+  const chosen = logo()
   const rows = Math.max(0, Math.round(props.height * (1 - props.frame.lift)))
   if (rows === 0) return null
 
   const roomy =
-    props.width >= WORDMARK_CELLS + SIDE_AIR &&
-    props.height >= WORDMARK_ROWS + STATUS_ROWS + SIDE_AIR
+    props.width >= logoCells(chosen) + SIDE_AIR &&
+    props.height >= logoRows(chosen) + STATUS_ROWS + SIDE_AIR
   const drain = Math.min(1, props.frame.drain + props.frame.lift)
   const dim = fadedTo({ colour: theme.hint, drain })
   const rule = fadedTo({ colour: theme.rule, drain })
@@ -120,7 +97,7 @@ export function Startup(props: {
       justifyContent="center"
       backgroundColor={theme.appBg}
     >
-      <Mark frame={props.frame} roomy={roomy} />
+      <Mark frame={props.frame} roomy={roomy} logo={chosen} />
       <box height={STATUS_AIR} flexShrink={0} />
       <box height={1} flexShrink={0}>
         <text>
