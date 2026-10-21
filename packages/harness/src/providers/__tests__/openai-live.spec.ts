@@ -126,7 +126,7 @@ describe.skipIf(process.env[LIVE_OPENAI_FLAG] !== '1')(
         stopWhen: stepCountIs(2),
       })
 
-      const firstAssistant = first.response.messages.find((message) => message.role === 'assistant')
+      const firstAssistant = first.finalStep.response.messages.find((message) => message.role === 'assistant')
       const nativeReasoning =
         firstAssistant === undefined || typeof firstAssistant.content === 'string'
           ? undefined
@@ -151,7 +151,7 @@ describe.skipIf(process.env[LIVE_OPENAI_FLAG] !== '1')(
             { type: 'text', text: 'the earlier answer' },
           ],
         },
-        ...first.response.messages,
+        ...first.finalStep.response.messages,
         { role: 'user', content: 'What did the tool report? Answer in one short sentence.' },
       ]
 

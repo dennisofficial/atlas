@@ -91,7 +91,7 @@ async function viaStreamText(): Promise<Run> {
     maxRetries: 0,
     onError: () => undefined,
   })
-  for await (const part of stream.fullStream) {
+  for await (const part of stream.stream) {
     void part
     parts += 1
   }
@@ -234,7 +234,7 @@ async function viaAnthropicStreamText(): Promise<Run> {
     maxRetries: 0,
     onError: () => undefined,
   })
-  for await (const part of stream.fullStream) {
+  for await (const part of stream.stream) {
     void part
     parts += 1
   }
@@ -332,7 +332,7 @@ async function viaOpenAiStreamText(): Promise<Run> {
     maxRetries: 0,
     onError: () => undefined,
   })
-  for await (const part of stream.fullStream) {
+  for await (const part of stream.stream) {
     void part
     parts += 1
   }

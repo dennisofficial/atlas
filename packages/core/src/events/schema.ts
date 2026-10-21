@@ -185,7 +185,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     detail: z.string().optional(),
     assessments: z.array(qualityAssessmentSchema),
     findings: z.array(qualityFindingSchema),
-    durationMs: z.number().finite().nonnegative(),
+    durationMs: z.number().nonnegative(),
     requestedModel: z.string().min(1).optional(),
     resolvedModel: z.string().min(1).optional(),
     evidencePath: z.string().min(1).optional(),

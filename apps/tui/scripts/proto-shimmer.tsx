@@ -115,7 +115,7 @@ function ReactSpansLine(props: { cadence: Cadence }): React.ReactNode {
 
 // --- variant: imperative (ref write per tick, cached colours) ---
 
-type TextRef = React.MutableRefObject<TextRenderable | null>
+type TextRef = React.RefObject<TextRenderable | null>
 
 function imperativeTick(ref: TextRef, now: number, base: string | undefined): void {
   const node = ref.current

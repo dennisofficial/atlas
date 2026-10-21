@@ -15,7 +15,7 @@ export enum ECloudSandboxState {
   Unknown = 'unknown',
 }
 
-export const sandboxStateSchema = z.nativeEnum(ECloudSandboxState)
+export const sandboxStateSchema = z.enum(ECloudSandboxState)
 
 /**
  * Shared with `apps/api/src/api/context-archive/context-archive-limits.ts`, which duplicates this

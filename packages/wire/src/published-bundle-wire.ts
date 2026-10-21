@@ -14,7 +14,7 @@ export type PublishedBundleManifest = z.infer<typeof publishedBundleManifestSche
 
 export const publishedBundleUploadSchema = z.object({
   pathname: z.string().min(1),
-  uploadUrl: z.string().url(),
+  uploadUrl: z.url(),
   contentType: z.literal(PUBLISHED_BUNDLE_CONTENT_TYPE),
   maximumSizeInBytes: z.number().int().positive(),
   validUntil: z.number().int(),
@@ -38,6 +38,6 @@ export const publishedBundleSummarySchema = z.object({
 export type PublishedBundleSummary = z.infer<typeof publishedBundleSummarySchema>
 
 export const publishedBundleCurrentSchema = publishedBundleSummarySchema.extend({
-  downloadUrl: z.string().url(),
+  downloadUrl: z.url(),
 })
 export type PublishedBundleCurrent = z.infer<typeof publishedBundleCurrentSchema>
