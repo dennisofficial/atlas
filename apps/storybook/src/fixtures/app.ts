@@ -33,7 +33,7 @@ export interface AppProject {
 
 export interface AppThread {
   id: string;
-  projectId: string;
+  projectId: string | null;
   title: string;
   status: EThreadStatus;
   created: string;

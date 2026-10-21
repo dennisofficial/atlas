@@ -47,7 +47,7 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 }
 
 export function ThreadHoverCardBody({ thread }: { thread: AppThread }) {
-  const project = findProject(thread.projectId);
+  const projectName = thread.projectId === null ? "No project" : findProject(thread.projectId).name;
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-0.5">
@@ -64,7 +64,7 @@ export function ThreadHoverCardBody({ thread }: { thread: AppThread }) {
         <DetailRow label="Model">{thread.model}</DetailRow>
         <DetailRow label="Project">
           <Folder className="size-3.5 text-muted-foreground" />
-          <span className="truncate">{project.name}</span>
+          <span className="truncate">{projectName}</span>
         </DetailRow>
       </div>
     </div>

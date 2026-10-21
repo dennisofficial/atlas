@@ -1,15 +1,16 @@
-import { useRef, useState, type ComponentProps } from "react";
+import { useRef, useState, type ComponentProps, type ReactNode } from "react";
 
 import { EConfirmationState } from "@dltech/atlas-ui/ai/confirmation";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@dltech/atlas-ui/components/resizable";
 import { TooltipProvider } from "@dltech/atlas-ui/components/tooltip";
 
 import { SESSION_THREAD_ID } from "../../../fixtures/app";
-import { AppShell } from "../app-shell";
+import { AppShell, type AppShellProps } from "../app-shell";
 import { Composer } from "./composer";
 import type { ETerminalConnection } from "./sandbox-terminal";
 import { RightPanel } from "./right-panel";
-import { SessionHeader } from "./session-header";
+import type { PodPanelState } from "./pod-state";
+import { SessionHeader, type SessionHeaderProps } from "./session-header";
 import { ERightTab, ESessionState } from "./session-types";
 import { INITIAL_QUEUE, planFor } from "./transcript-data";
 import { Transcript } from "./transcript";
@@ -23,6 +24,11 @@ export interface SessionViewProps {
   initialPanelOpen?: boolean;
   initialTerminalConnection?: ETerminalConnection;
   initialPreviewId?: string;
+  header?: Pick<SessionHeaderProps, "title" | "subtitle" | "detail" | "badgeLabel" | "podStatus">;
+  shell?: Pick<AppShellProps, "activeThreadId" | "pendingThread">;
+  pod?: PodPanelState;
+  renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode;
+  composer?: ReactNode;
 }
 
 export function SessionView({
@@ -31,6 +37,11 @@ export function SessionView({
   initialPanelOpen = true,
   initialTerminalConnection,
   initialPreviewId,
+  header,
+  shell,
+  pod,
+  renderTranscript,
+  composer,
 }: SessionViewProps) {
   const panelRef = useRef<PanelHandle>(null);
   const [panelOpen, setPanelOpen] = useState(initialPanelOpen);
@@ -62,25 +73,31 @@ export function SessionView({
 
   return (
     <TooltipProvider>
-      <AppShell activeThreadId={SESSION_THREAD_ID}>
-        <SessionHeader state={state} panelOpen={panelOpen} onTogglePanel={handleTogglePanel} />
+      <AppShell activeThreadId={shell?.activeThreadId ?? SESSION_THREAD_ID} pendingThread={shell?.pendingThread}>
+        <SessionHeader state={state} {...header} panelOpen={panelOpen} onTogglePanel={handleTogglePanel} />
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
           <ResizablePanel id="transcript" minSize="35%">
             <div className="flex h-full min-w-0 flex-col">
-              <Transcript
-                state={state}
-                approval={approval}
-                onApprove={() => setApproval(EConfirmationState.Approved)}
-                onDeny={() => setApproval(EConfirmationState.Denied)}
-                onOpenFile={handleOpenFile}
-              />
-              <Composer
-                steps={planFor(state)}
-                queued={queued}
-                busy={busy}
-                onRemoveQueued={handleRemoveQueued}
-                onSend={handleSend}
-              />
+              {renderTranscript ? (
+                renderTranscript({ onOpenFile: handleOpenFile })
+              ) : (
+                <Transcript
+                  state={state}
+                  approval={approval}
+                  onApprove={() => setApproval(EConfirmationState.Approved)}
+                  onDeny={() => setApproval(EConfirmationState.Denied)}
+                  onOpenFile={handleOpenFile}
+                />
+              )}
+              {composer ?? (
+                <Composer
+                  steps={planFor(state)}
+                  queued={queued}
+                  busy={busy}
+                  onRemoveQueued={handleRemoveQueued}
+                  onSend={handleSend}
+                />
+              )}
             </div>
           </ResizablePanel>
           <ResizableHandle />
@@ -101,6 +118,7 @@ export function SessionView({
               onExpandedChange={setExpanded}
               initialTerminalConnection={initialTerminalConnection}
               initialPreviewId={initialPreviewId}
+              pod={pod}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
