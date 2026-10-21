@@ -58,6 +58,7 @@ describe('applyCloudState', () => {
     expect(lines).toEqual([{ event: EServeEvent.CloudStateReady, accounts: 1, secrets: 1, settings: 1 }])
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
       '/v1/account-lease',
+      '/v1/sandboxes/self/config',
       '/v1/secrets',
       '/v1/settings',
     ])

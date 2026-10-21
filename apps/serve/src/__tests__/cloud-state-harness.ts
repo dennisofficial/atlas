@@ -33,6 +33,8 @@ export const apply = async (args: {
   home: string
   cloud: FakeCloud
   token?: string
+  env?: Record<string, string | undefined>
+  projectId?: string | null
   sleep?: (ms: number) => Promise<void>
   now?: () => number
   retryBudgetMs?: number
@@ -45,6 +47,8 @@ export const apply = async (args: {
     clientVersion: '0.0.0-test',
     fetchFn: fetch,
     log: (line) => lines.push(line),
+    ...(args.env === undefined ? {} : { env: args.env }),
+    ...(args.projectId === undefined ? {} : { projectId: args.projectId }),
     sleep: args.sleep ?? (async () => undefined),
     ...(args.now === undefined ? {} : { now: args.now }),
     ...(args.retryBudgetMs === undefined ? {} : { retryBudgetMs: args.retryBudgetMs }),

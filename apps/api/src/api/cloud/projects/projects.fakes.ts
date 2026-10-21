@@ -7,6 +7,7 @@ export interface FakeProjectRow {
   repo: string | null
   baseBranch: string | null
   additionalRepos: unknown
+  organizationId?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -36,7 +37,7 @@ const project = {
   create: async (args: { data: Omit<FakeProjectRow, 'id' | 'createdAt' | 'updatedAt'> }) => {
     sequence += 1
     const now = new Date(Date.UTC(2026, 9, 20, 12, 0, sequence))
-    const row = { ...args.data, id: `proj_${sequence}`, createdAt: now, updatedAt: now }
+    const row = { organizationId: null, ...args.data, id: `proj_${sequence}`, createdAt: now, updatedAt: now }
     projectRows.push(row)
     return row
   },

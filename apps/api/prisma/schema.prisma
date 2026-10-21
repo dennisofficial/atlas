@@ -54,6 +54,7 @@ model Thread {
   modelRef          String?
   modelEffort       String?
   executionLocation String?
+  projectId         String?
   userId            String
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent            Thread?  @relation("ThreadFork", fields: [parentThreadId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -63,8 +64,10 @@ model Thread {
   events            Event[]
   turns             Turn[]
   cloudSandbox      CloudSandbox?
+  project           Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([userId, updatedAt])
+  @@index([projectId])
   @@index([parentThreadId])
   @@index([spawnerThreadId])
   @@index([userId, workspace, updatedAt])
@@ -388,6 +391,8 @@ model Organization {
   secrets     WorkspaceSecret[]
   mcpServers  WorkspaceMcpServer[]
   settings    WorkspaceSetting[]
+  projects    Project[]
+  vercelCredential WorkspaceVercelCredential?
 }
 
 model Member {
@@ -527,13 +532,30 @@ model Project {
   shipBehavior    String   @default("open-pr")
   sandboxVcpus    Int?
   setupScript     String   @default("") @db.Text
+  organizationId  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   secrets         ProjectSecret[]
   mcpServers      ProjectMcpServer[]
+  settings        ProjectSetting[]
+  threads         Thread[]
 
   @@index([userId])
+  @@index([organizationId])
+}
+
+model ProjectSetting {
+  id        String   @id
+  projectId String
+  key       String
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, key])
 }
 
 model ProjectSecret {
@@ -597,4 +619,14 @@ model WorkspaceSetting {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, key])
+}
+
+model WorkspaceVercelCredential {
+  organizationId String       @id
+  sealedToken    String
+  teamId         String
+  updatedById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }

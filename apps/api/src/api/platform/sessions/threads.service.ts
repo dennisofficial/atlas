@@ -4,6 +4,7 @@ import { appendWithin, nextThreadId, nowIso } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { threadPullRequests, threadWorktree } from './places'
 import { toEventDto, toThreadDto } from './rows'
+import { threadProjectColumn } from './thread-project'
 import type {
   AdoptThreadDto,
   ChooseModelDto,
@@ -28,6 +29,7 @@ export class ThreadsService {
         ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
         ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
         ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
+        ...(await threadProjectColumn({ userId: args.userId, projectId: args.draft.projectId })),
         ...(args.draft.agent === undefined
           ? {}
           : { spawnerThreadId: args.draft.agent.spawnedBy, agentType: args.draft.agent.type }),
@@ -55,6 +57,7 @@ export class ThreadsService {
           ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
           ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
           ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
+          ...(await threadProjectColumn({ userId: args.userId, projectId: args.draft.projectId })),
           ...(args.draft.executionLocation === undefined
             ? {}
             : { executionLocation: args.draft.executionLocation }),

@@ -25,6 +25,7 @@ export const projectSchema = z.object({
   additionalRepos: z.array(projectRepoSchema),
   description: z.string().default(''),
   shipBehavior: z.enum(EShipBehavior).default(EShipBehavior.OpenPullRequest),
+  organizationId: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
