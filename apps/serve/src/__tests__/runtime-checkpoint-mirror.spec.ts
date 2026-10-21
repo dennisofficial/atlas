@@ -215,7 +215,9 @@ describe('runtime checkpoint mirror', () => {
       cloudURL,
     })
     await capture.capture({ phase: ERuntimePhase.Serving })
+    await capture.flush({ timeoutMs: 1_000 })
     await capture.capture({ phase: ERuntimePhase.Parking, attempts: 1 })
+    await capture.flush({ timeoutMs: 1_000 })
     await capture.capture({ phase: ERuntimePhase.Parked })
     await capture.flush({ timeoutMs: 1_000 })
     expect(accepted.map((c) => c.revision)).toEqual([1, 2, 3])
