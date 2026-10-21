@@ -169,6 +169,20 @@ describe('never cached', () => {
 });
 
 describe('cached despite a child process', () => {
+  test('ssh-keygen style tools run from a repo cwd on temp files only', () => {
+    const tool = `import { execFileSync } from 'node:child_process';\nimport { mkdtempSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport { join } from 'node:path';\ntest('tar', () => { const dir = mkdtempSync(join(tmpdir(), 'inc-')); execFileSync('tar', ['-czf', join(dir, 'x.tgz'), '-C', dir, '.']); });\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': tool } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 0 });
+  });
+
+  test('git run in the repo cwd stays uncached', () => {
+    const git = `import { execFileSync } from 'node:child_process';\ntest('git', () => { execFileSync('git', ['status', '--short']); });\n`;
+    const fixture = singleProject({ files: { 'tests/a.test.ts': git } });
+    expect(fixture.executed()).toEqual({ '.': 2 });
+    expect(fixture.executed()).toEqual({ '.': 1 });
+  });
+
   test('a child that only touches a temp directory', () => {
     const hermetic = `import { execFileSync } from 'node:child_process';\nimport { mkdtempSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport { join } from 'node:path';\ntest('git', () => { const dir = mkdtempSync(join(tmpdir(), 'inc-')); execFileSync('git', ['init', '-q'], { cwd: dir }); });\n`;
     const fixture = singleProject({ files: { 'tests/a.test.ts': hermetic } });

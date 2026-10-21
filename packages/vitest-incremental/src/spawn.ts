@@ -1,8 +1,10 @@
 /**
  * What a child process reads is invisible to the recorder, so each spawn is classified by
  * what it can see:
- *  - a program that touches no files (ps, echo), or one whose cwd and arguments all stay
- *    outside the repo (git init in a temp dir), cannot read repo inputs;
+ *  - a program that touches no files (ps, echo), or one whose arguments name no repo path
+ *    and that does not read a repo cwd implicitly (ssh-keygen -f /tmp/k, git in a temp dir),
+ *    cannot read repo inputs; binaries and files under node_modules are covered by the
+ *    lockfile in the global key;
  *  - `bun|node <repo script>` reads that script's static import graph, which is recorded;
  *  - anything else makes the test file uncacheable.
  * Runtime reads inside a child script stay invisible; the nightly full run guards that gap.
@@ -15,10 +17,12 @@ const realpathSync = fs.realpathSync.bind(fs);
 
 const NO_FILESYSTEM = new Set(['ps', 'true', 'false', 'echo', 'sleep', 'kill', 'id', 'uname', 'which']);
 const SCRIPT_RUNNERS = new Set(['bun', 'node']);
+// Programs that read their working directory without naming it: in a repo cwd they see repo files.
+const READS_CWD = new Set(['git', 'rg', 'grep', 'find', 'ls', 'du', 'sh', 'bash', 'zsh', 'make', 'bun', 'bunx', 'node', 'npx', 'npm', 'tsc']);
 const SCRIPT = /\.[cm]?[jt]sx?$/;
 
 type BunGraphApi = {
-  Transpiler: new (options: { loader: 'tsx' }) => { scanImports(code: string): Array<{ path: string }> };
+  Transpiler: new (options: { loader: 'ts' | 'tsx' | 'js' | 'jsx' }) => { scanImports(code: string): Array<{ path: string }> };
   resolveSync(specifier: string, from: string): string;
 };
 
@@ -64,7 +68,16 @@ export function createSpawnClassifier(params: {
       .filter(insideRepo);
 
   const scriptGraph = (entry: string, api: BunGraphApi): string[] | undefined => {
-    const transpiler = new api.Transpiler({ loader: 'tsx' });
+    const transpilers = new Map<string, InstanceType<BunGraphApi['Transpiler']>>();
+    const transpilerFor = (file: string) => {
+      const loader = file.endsWith('.tsx') ? 'tsx' : file.endsWith('.jsx') ? 'jsx' : /\.[cm]?ts$/.test(file) ? 'ts' : 'js';
+      let transpiler = transpilers.get(loader);
+      if (!transpiler) {
+        transpiler = new api.Transpiler({ loader });
+        transpilers.set(loader, transpiler);
+      }
+      return transpiler;
+    };
     const seen = new Set<string>();
     const stack = [entry];
     while (stack.length > 0) {
@@ -80,7 +93,7 @@ export function createSpawnClassifier(params: {
       }
       let imports: Array<{ path: string }>;
       try {
-        imports = transpiler.scanImports(code);
+        imports = transpilerFor(file).scanImports(code);
       } catch {
         return undefined;
       }
@@ -110,9 +123,9 @@ export function createSpawnClassifier(params: {
     const command = `${argv.join(' ').slice(0, 300)} @ ${cwd}`;
     const program = basename(argv[0] ?? '');
     if (NO_FILESYSTEM.has(program)) return { command, uncacheable: false };
-    const named = repoPathsIn(argv.slice(1), cwd);
-    const mentionsRepo = Boolean(repoRoot) && argv.some((token) => token.includes(repoRoot as string));
-    if (named.length === 0 && !mentionsRepo && !insideRepo(cwd)) return { command, uncacheable: false };
+    const named = repoPathsIn(argv.slice(1), cwd).filter((path) => !path.includes('/node_modules/'));
+    const readsCwd = insideRepo(cwd) && READS_CWD.has(program);
+    if (named.length === 0 && !readsCwd) return { command, uncacheable: false };
     const script = named.find((path) => SCRIPT.test(path));
     const api = (globalThis as { Bun?: Partial<BunGraphApi> }).Bun;
     if (SCRIPT_RUNNERS.has(program) && script && api?.Transpiler && api.resolveSync) {
