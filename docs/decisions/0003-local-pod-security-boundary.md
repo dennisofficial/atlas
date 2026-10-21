@@ -5,8 +5,9 @@ Accepted 2026-10-19.
 ## Context
 
 Agents run Docker inside their pod (compose stacks, test databases). Docker-in-Docker needs a
-privileged container. The older local sandbox instead mounted the host's Docker socket, which hands
-the agent control of every container on the machine.
+privileged container. The tool-environment container behind `/container docker` instead mounts the
+host's Docker socket (`packages/harness/src/execution/docker/sandbox.ts`), which hands the agent
+control of every container on the machine.
 
 ## Decision
 
@@ -31,4 +32,5 @@ runs in a VM, which bounds it; on a Linux host it is close to root on the host.
 - The workspace is a fresh clone inside the pod, never the host checkout. Edits do not appear in
   the operator's editor; work leaves by `git push`.
 - Ports publish to `127.0.0.1` only.
-- `apps/serve/sandbox-image/README.md` still describes the old socket passthrough and is stale.
+- The flag-off tool-environment container keeps its socket mount and host bind mounts. It is not
+  a pod, and this boundary does not cover it.
