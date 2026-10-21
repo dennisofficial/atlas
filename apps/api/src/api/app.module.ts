@@ -5,6 +5,7 @@ import { EnvModule } from '../_core/config/env/env.module'
 import { EnvService } from '../_core/config/env/env.service'
 import { envConfigValidation } from '../_core/config/env/validation'
 import { CryptoModule } from '../_lib/crypto/crypto.module'
+import { TriggerModule } from '../_lib/trigger/trigger.module'
 import { ClientVersionGuard } from '../_module/client-version/client-version.guard'
 import { ClientVersionModule } from '../_module/client-version/client-version.module'
 import { AccountsModule } from './platform/accounts/accounts.module'
@@ -46,6 +47,7 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
     }),
     ...sweepScheduleImports(),
     CryptoModule,
+    TriggerModule,
     HealthModule,
     ClientVersionModule,
     AuthModule,

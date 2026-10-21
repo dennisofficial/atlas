@@ -282,40 +282,65 @@ ioredis client. `client()` is the shared, lazy command connection; a subscriber 
 connection from `duplicate()` (a subscribed connection answers only pub/sub commands) and owns
 its teardown. Nothing durable goes in Redis — Upstash is a bus with eviction on, so state that
 must survive lives in Postgres and Redis only carries notifications. Local dev runs without it:
-`REDIS_URL` is unset in the local and staging tiers, `isConfigured()` is `false`, and callers
+`REDIS_URL` is unset in the local tier, `isConfigured()` is `false`, and callers
 choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.
 
 ## Background jobs
 
-Scheduled work runs as trigger.dev tasks embedded in this package: `trigger.config.ts`
-(`dirs: ['./src/trigger']`, runtime `node-24`, `maxDuration: 300`) and task code under
-`src/trigger/<feature>/`. The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
-Technologies LLC); use only the pinned scripts, which pass `--profile atlas`
-(`trigger:dev`, `trigger:deploy`). trigger.dev's GitHub integration is not connected yet, so a deploy
-is manual: `bun run db:generate` first (the generated client is gitignored and the build fails
-without it), then `bun run trigger:deploy`. An undeployed task does not error, it never runs.
+trigger.dev is a required platform for this package, not an optional add-on. Tasks live under
+`src/trigger/<feature>/`, configured by `trigger.config.ts` (`dirs: ['./src/trigger']`, runtime
+`node-24`, `maxDuration: 300`). The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
+Technologies LLC). The SDK, `@trigger.dev/build` and the `trigger.dev` CLI are pinned together at
+one exact version; bump all three at once.
 
+- **One dispatch seam.** API code enqueues work through `JobDispatcher`
+  (`src/_core/ports/job-dispatcher.ts`), bound globally by `TriggerModule`
+  (`src/_lib/trigger/`). `dispatch({ task, payload, idempotencyKey, tags })` returns `{ runId }`.
+  Any SDK failure, or a payload the contract's schema rejects, throws `JobDispatchError` carrying
+  the task id. Nothing ever falls back to running the work in-process. `trigger-job-dispatcher.ts` is
+  the only file in `src/api` or `src/_lib` that imports `@trigger.dev/sdk`, and nothing outside
+  `src/trigger` imports worker code. `src/api/trigger-boundary.spec.ts` enforces both rules.
+- **Contracts are owned by the caller.** A task's id, zod payload schema and
+  `Task<id, payload, output>` type live in a contract file next to the feature that dispatches it,
+  exported as a `TaskContract`. The worker task `satisfies` that type, so the two stay in step
+  without the API depending on the worker's graph. `src/trigger/smoke/smoke.contract.ts` is the
+  exception: only CI dispatches `atlas-smoke`, so its contract sits beside the task.
+- **`TRIGGER_SECRET_KEY` is required.** A missing key fails boot. Local uses the dev-environment
+  key (`tr_dev_…`) and production uses the prod key. Specs and the CI image probe use a fixture.
 - **Worker env is the tier.** `trigger-tier-extension.ts` ships `envs/.env.api.production.enc` in
-  the worker bundle and `src/trigger/init.ts` decrypts it into `process.env` before any task
-  loads (`tier-env.ts`, fatal on a missing file or any value left `encrypted:`). The dashboard
+  the worker bundle, and `src/trigger/init.ts` decrypts it into `process.env` before any task
+  loads (`tier-env.ts` is fatal on a missing file or any value left `encrypted:`). The dashboard
   holds only `DOTENV_PRIVATE_KEY_API_PRODUCTION`; never paste an app secret into it.
-  `TRIGGER_SECRET_KEY` is a tier key for the API to enqueue work, unused by the sweeps.
-- **Tasks build their service graph by hand**, outside Nest DI (`src/trigger/github/github-sweep-graph.ts`):
-  plain constructor chains over `EnvService` built from the validated `process.env`. The fan-out
-  gets a `RedisPrFrameBus` when the tier carries `REDIS_URL`, else a `LocalPrFrameBus`; a worker
-  only publishes, since it never calls `openStream`.
+- **Tasks build their service graph by hand**, outside Nest DI and once per run
+  (`src/trigger/github/github-sweep-graph.ts`): plain constructor chains over an `EnvService` built
+  from the validated `process.env`. The fan-out gets a `RedisPrFrameBus` when the tier carries
+  `REDIS_URL`, else a `LocalPrFrameBus`; a worker only publishes, since it never calls `openStream`.
+  Test a task by calling its run function directly with a stubbed graph or db
+  (`github-sweep.tasks.spec.ts`, `smoke.task.spec.ts`).
+- **Local dev.** `bun run dev` runs the API and `trigger dev --profile atlas` together under one
+  `env:inject`; when either exits, both stop. Dispatched runs execute only while that worker is up.
+  `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.
+  `trigger:dev` runs only the worker.
+- **Deploy is automatic.** `.github/workflows/deploy-trigger.yml` deploys to prod on every merge to
+  main that touches the API's build closure, serialized and never cancelled. It runs `db:generate`
+  first, because the generated client is gitignored and the bundle fails without it. The CLI
+  authenticates with the `TRIGGER_ACCESS_TOKEN` repo secret (a `tr_pat_` personal token) and takes
+  the project from `trigger.config.ts`. The job then decrypts the prod `TRIGGER_SECRET_KEY` and runs
+  `scripts/trigger-smoke.ts`, which dispatches `atlas-smoke` (`SELECT 1` through the worker's db)
+  and fails unless the run completes within two minutes. PRs get no deploy dry-run: `trigger deploy
+  --dry-run` authenticates and fetches project env vars before it bundles, and PR code never
+  receives the token. A manual deploy is `bun run db:generate && bun run trigger:deploy`.
 - **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
   `trigger.config.ts` sets `conditions: ['bun']`. `@prisma/client` must stay external
   (`prismaExtension({ mode: 'modern' })`): bundled, esbuild re-exports its CJS query-compiler
   `wasm-base64` module as a default only, the generated client's `const { wasm } = await import(...)`
   gets `undefined`, and every query fails with `Buffer.from(undefined)`. `@prisma/adapter-pg`, `pg`
-  and ioredis bundle. `bunx trigger.dev@4.7.4 deploy --profile atlas --dry-run` proves the build
-  but not the runtime: run one task by hand after a deploy before trusting the schedules.
-  `src/vercel.ts` must never import `src/trigger/`.
+  and ioredis bundle. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime;
+  the smoke step is what proves the runtime. `src/vercel.ts` must never import `src/trigger/`.
 - **Until cutover, in-process timers stay.** `GithubSweepSchedulerService` owns the 30 s and 60 s
   `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so DO and `bun run dev`
-  keep sweeping with no trigger.dev login while Vercel instances never run timers. A double run
-  (DO timers plus the schedules) is harmless: both sweeps are idempotent.
+  keep sweeping while Vercel instances never run timers. A double run (DO timers plus the
+  schedules) is harmless: both sweeps are idempotent.
 
 ## Rules that differ from the rest of the repo
 
