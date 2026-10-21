@@ -51,11 +51,10 @@ export function incrementalTests(options = {}) {
   let active = false;
   return {
     name: 'dltech:vitest-incremental',
-    enforce: 'pre',
     /** @param {string} code @param {string} id */
-    transform(code, id) {
+    async transform(code, id) {
       if (!active) return null;
-      const rewritten = rewriteFsImports(code, id);
+      const rewritten = await rewriteFsImports(code, id);
       return rewritten === undefined ? null : { code: rewritten, map: null };
     },
     /** @param {import('vitest/node').VitestPluginContext} context */

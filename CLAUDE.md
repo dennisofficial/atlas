@@ -176,8 +176,10 @@ classes only.
   `VITEST_INCREMENTAL=plan` shows what would run. A spec that starts a child process is never
   cached. Never add a paths filter or sharding to CI tests — relevance is decided per file.
 - Live Docker specs (anything gating on `describeLiveDocker` / `dockerUnavailableReason`, plus the
-  docker shell-adapter specs) run only with `ATLAS_LIVE_DOCKER=1`; CI sets it. Locally they skip by
-  default so a running Docker Desktop doesn't turn every test pass into real containers.
+  docker shell-adapter specs) run only with `ATLAS_LIVE_DOCKER=1`. CI does not set it: under turbo
+  the variable never reached them, several were found broken when vitest first honoured it, and they
+  need repair before CI turns them on. Locally they skip by default so a running Docker Desktop
+  doesn't turn every test pass into real containers.
 - Context assembly, hook resolution, and policy decisions are pure and belong to `core` — test them
   with plain data, never with a live model, a terminal, or a database.
 

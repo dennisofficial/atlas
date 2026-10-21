@@ -11,7 +11,8 @@
     }
   },
   "dependencies": {
-    "tinyglobby": "^0.2.17"
+    "tinyglobby": "^0.2.17",
+    "es-module-lexer": "^1.7.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

@@ -20,7 +20,6 @@ concurrency:
 env:
   ATLAS_HOME: ${{ github.workspace }}/.atlas-home
   NODE_ENV: development
-  ATLAS_LIVE_DOCKER: '1'
 
 jobs:
   verify-cache:
@@ -35,17 +34,6 @@ jobs:
           node-version-file: .nvmrc
 
       - run: bun install
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: pull test images
-        run: |
-          docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
-          docker pull node:22-slim
 
       - name: restore incremental test cache
         id: restore

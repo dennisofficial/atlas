@@ -274,6 +274,7 @@
       "name": "@dltech/vitest-incremental",
       "version": "0.0.0",
       "dependencies": {
+        "es-module-lexer": "^1.7.0",
         "tinyglobby": "^0.2.17",
       },
       "devDependencies": {
