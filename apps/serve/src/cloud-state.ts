@@ -34,6 +34,8 @@ import { EServeEvent, type ServeLog } from './serve-log'
 const UNAUTHORIZED = 401
 const RETRY_DELAY_MS = 2_000
 const DEFAULT_RETRY_BUDGET_MS = 60_000
+const REQUEST_TIMEOUT_MS = 10_000
+const MAX_ATTEMPTS = 30
 const OWNER_ONLY = 0o600
 const CLIENT_HELD_SECRET_PREFIXES = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, 'mcp-oauth:'] as const
 
@@ -129,6 +131,14 @@ export const applyCloudState = async (args: {
   const now = args.now ?? Date.now
   const url = args.controlPlaneUrl.replace(/\/+$/, '')
 
+  const deadline = now() + retryBudgetMs
+
+  const remainingMs = (): number => {
+    const left = deadline - now()
+    if (left <= 0) throw new Error(`Atlas Cloud state did not arrive within ${retryBudgetMs} ms`)
+    return left
+  }
+
   const request = (path: string): Promise<unknown> =>
     cloudRequest({
       url,
@@ -137,17 +147,16 @@ export const applyCloudState = async (args: {
       fetchFn: args.fetchFn,
       method: 'GET',
       path,
-      retry: true,
+      timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs()),
     })
 
   const requestPatiently = async (path: string): Promise<unknown> => {
-    const startedAt = now()
-    for (;;) {
+    for (let attempt = 1; ; attempt += 1) {
       try {
         return await request(path)
       } catch (error) {
         const registering = error instanceof CloudError && error.status === UNAUTHORIZED
-        if (!registering || now() - startedAt + RETRY_DELAY_MS > retryBudgetMs) throw error
+        if (!registering || attempt >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) throw error
         await sleep(RETRY_DELAY_MS)
       }
     }
