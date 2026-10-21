@@ -1,5 +1,4 @@
 import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
 
 import { EWorkspaceRole, WORKSPACE_MEMBERSHIPS } from "../../../fixtures/settings-account";
 import { SettingsCard, SettingsRow, Mono } from "../settings-layout";
@@ -27,13 +26,6 @@ export function AccountWorkspacesCard() {
             <>
               <Mono>{workspace.memberCount}</Mono> members
             </>
-          }
-          control={
-            workspace.role === EWorkspaceRole.Owner ? null : (
-              <Button variant="outline" size="sm">
-                Leave
-              </Button>
-            )
           }
         />
       ))}

@@ -79,7 +79,6 @@ export function useWorkspaceMcpStore(args: {
           id: row.id,
           transport: transportOfKind(row.kind),
           target: row.target,
-          toolCount: 0,
           enabled: row.enabled,
         }
       }),

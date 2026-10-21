@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { EProjectSettingsPage, REPO_FILES } from "../../fixtures/project-settings";
+import { EProjectSettingsPage } from "../../fixtures/project-settings";
 import { ProjectSettingsShell } from "./project-settings-shell";
 import { SandboxPage } from "./sandbox-page";
 
@@ -21,10 +21,10 @@ export const Default: Story = {
   ),
 };
 
-export const NotSetUp: Story = {
+export const VercelUnavailable: Story = {
   render: () => (
     <ProjectSettingsShell active={EProjectSettingsPage.Sandbox}>
-      <SandboxPage repoFiles={REPO_FILES.map((file) => ({ ...file, present: false }))} />
+      <SandboxPage vercelEnabled={false} />
     </ProjectSettingsShell>
   ),
 };

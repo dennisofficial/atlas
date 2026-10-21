@@ -7,7 +7,7 @@ import {
 } from "../../../fixtures/settings-agent";
 import { Mono, SettingsRow } from "../settings-layout";
 import { KeyDialog } from "./agent-key-dialog";
-import { ProviderTile } from "./agent-provider-tile";
+import { BrandMark } from "@dltech/atlas-ui/components/brand-mark";
 
 export function ApiKeyRow({
   provider,
@@ -23,7 +23,7 @@ export function ApiKeyRow({
   const prefix = KEY_PREFIXES[provider.id];
   return (
     <SettingsRow
-      media={<ProviderTile letter={provider.letter} />}
+      media={<BrandMark brand={provider.brand} />}
       title={provider.name}
       description={
         entry ? (

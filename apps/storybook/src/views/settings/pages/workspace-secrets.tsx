@@ -1,22 +1,61 @@
-import { Mono } from "../settings-layout";
 import { CURRENT_USER } from "../../../fixtures/settings";
 import { ELibraryScope, WORKSPACE_SECRETS, type LibrarySecret } from "../../../fixtures/settings-library";
 import { SecretsView } from "../parts/library-secrets-view";
+import { WorkspaceVercelCard, type VercelCredentialView } from "../parts/workspace-vercel-card";
+import { SettingsSection } from "../settings-layout";
 
-export function WorkspaceSecretsPage({ initial = WORKSPACE_SECRETS }: { initial?: LibrarySecret[] }) {
-  return (
+const READ_ONLY_NOTE = "Only owners and admins can change this.";
+
+export type WorkspaceVercelState = {
+  view?: VercelCredentialView;
+  statusLine?: string;
+  soon?: boolean;
+};
+
+export const VERCEL_NOT_CONFIGURED: WorkspaceVercelState = { statusLine: "Not configured" };
+
+export const VERCEL_CONFIGURED: WorkspaceVercelState = {
+  view: { configured: true, teamId: "team_dltech", updatedAt: "2026-10-21T09:00:00.000Z" },
+  statusLine: "Configured · updated 3h ago",
+};
+
+export function WorkspaceSecretsPage({
+  initial = WORKSPACE_SECRETS,
+  vercel = VERCEL_NOT_CONFIGURED,
+  readOnly = false,
+}: {
+  initial?: LibrarySecret[];
+  vercel?: WorkspaceVercelState;
+  readOnly?: boolean;
+}) {
+  const base = "Shared values for DL Tech. A member's personal values override these, and project values override both. They don't reach sessions yet.";
+  const card = (
+    <WorkspaceVercelCard
+      {...vercel}
+      disabled={readOnly || vercel.soon === true}
+    />
+  );
+  const view = (
     <SecretsView
       scope={ELibraryScope.Workspace}
-      description={
-        <>
-          Shared values for DL Tech. Project values override these, and a member's personal values
-          override both. Manage them from the terminal with{" "}
-          <Mono className="rounded bg-muted px-1.5 py-0.5">atlas secrets --workspace</Mono>.
-        </>
+      description={readOnly ? `${base} ${READ_ONLY_NOTE}` : base}
+      sectionDescription="Saved for every member of the workspace."
+      lead={
+        <SettingsSection
+          title="Sandbox credential"
+          description="Lets Atlas Cloud create this workspace's sandboxes."
+        >
+          {card}
+        </SettingsSection>
       }
-      sectionDescription="Available to every member's threads."
       initial={initial}
       currentMember={{ name: CURRENT_USER.name, initials: CURRENT_USER.initials }}
     />
+  );
+  if (!readOnly) return view;
+  return (
+    <div inert className="opacity-70">
+      {view}
+    </div>
   );
 }

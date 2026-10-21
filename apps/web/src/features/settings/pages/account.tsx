@@ -10,7 +10,7 @@ import { QueryPage } from '../data/personal/query-boundary'
 import { useSaveAction } from '../data/personal/use-save-action'
 import { AccountProfileCard } from '../parts/account-profile-card'
 import { AccountWorkspacesCard } from '../parts/account-workspaces-card'
-import { DangerZone, SettingsPage, SettingsSection } from '../settings-layout'
+import { SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Account'
 const DESCRIPTION = 'Your profile and the workspaces you belong to.'
@@ -47,23 +47,10 @@ function AccountContent({ data, reload }: { data: AccountData; reload: () => voi
       </SettingsSection>
       <SettingsSection
         title="Workspaces"
-        description="Workspaces you are a member of. Owners cannot leave without transferring ownership."
+        description="Workspaces you are a member of."
       >
         <AccountWorkspacesCard workspaces={data.workspaces} />
       </SettingsSection>
-      <DangerZone
-        actions={[
-          {
-            title: 'Delete account',
-            description:
-              'Permanently delete your account, threads, and personal secrets. This cannot be undone.',
-            buttonLabel: 'Delete account',
-            confirmTitle: 'Delete your account?',
-            confirmDescription:
-              'All of your threads, sandboxes, and personal settings will be removed. Workspaces you own must be transferred or deleted first.',
-          },
-        ]}
-      />
     </SettingsPage>
   )
 }

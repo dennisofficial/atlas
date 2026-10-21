@@ -7,7 +7,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@dltech/atlas-ui/components/dropdown-menu";
 import {
@@ -21,20 +20,12 @@ import { Switch } from "@dltech/atlas-ui/components/switch";
 import { cn } from "@dltech/atlas-ui/lib/utils";
 
 import {
-  EMcpStatus,
   EMcpTransport,
   MCP_SERVERS,
-  SUGGESTED_MCP_SERVERS,
   type McpServer,
 } from "../../fixtures/project-settings";
 import { AddMcpServerDialog, type McpServerDraft } from "./mcp-add-dialog";
-import { MonogramTile, SettingsCard, SettingsSection } from "./settings-layout";
-
-const STATUS_DOT: Record<EMcpStatus, string> = {
-  [EMcpStatus.Connected]: "bg-success",
-  [EMcpStatus.NeedsAuth]: "bg-warning",
-  [EMcpStatus.Failed]: "bg-destructive",
-};
+import { SettingsCard, SettingsSection } from "./settings-layout";
 
 function ServerRow({
   server,
@@ -55,17 +46,12 @@ function ServerRow({
         <span className="flex items-center gap-2">
           <span className="font-mono text-sm font-medium">{server.id}</span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span aria-hidden className={cn("size-1.5 rounded-full", STATUS_DOT[server.status])} />
-            {server.detail}
+            <span aria-hidden className="size-1.5 rounded-full bg-muted-foreground/40" />
+            Not checked
           </span>
         </span>
         <span className="truncate font-mono text-xs text-muted-foreground">{server.target}</span>
       </div>
-      {server.status === EMcpStatus.NeedsAuth ? (
-        <Button variant="outline" size="sm">
-          Sign in
-        </Button>
-      ) : null}
       <Switch
         aria-label={`Enable ${server.id}`}
         checked={server.enabled}
@@ -78,9 +64,6 @@ function ServerRow({
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem>Edit…</DropdownMenuItem>
-          <DropdownMenuItem>View tools</DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={onRemove}>
             Remove
           </DropdownMenuItem>
@@ -99,37 +82,10 @@ function ServersEmpty() {
         </EmptyMedia>
         <EmptyTitle>No project MCP servers</EmptyTitle>
         <EmptyDescription>
-          Threads still get your personal and workspace servers. Add one here, or connect a
-          suggestion below.
+          Threads still get your personal and workspace servers. Add one here to share it with everyone on this project.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
-  );
-}
-
-function SuggestedServers({ onConnect }: { onConnect: (id: string) => void }) {
-  return (
-    <SettingsSection title="Suggested MCP servers">
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {SUGGESTED_MCP_SERVERS.map((server) => (
-          <li
-            key={server.id}
-            className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10"
-          >
-            <MonogramTile label={server.name} />
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="text-sm font-medium">{server.name}</span>
-              <span className="truncate text-sm text-muted-foreground">
-                Connect Atlas to {server.name}.
-              </span>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => onConnect(server.id)}>
-              Connect
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </SettingsSection>
   );
 }
 
@@ -145,19 +101,17 @@ export function McpPage({
   const handleAdd = (draft: McpServerDraft) =>
     setServers((current) => [
       ...current.filter((server) => server.id !== draft.id),
-      { ...draft, status: EMcpStatus.Connected, detail: "Connecting…", enabled: true },
+      { ...draft, enabled: true },
     ]);
   const handleToggle = ({ id, enabled }: { id: string; enabled: boolean }) =>
     setServers((current) => current.map((server) => (server.id === id ? { ...server, enabled } : server)));
   const handleRemove = (id: string) => setServers((current) => current.filter((server) => server.id !== id));
-  const handleConnect = (id: string) =>
-    handleAdd({ id, transport: EMcpTransport.Http, target: `https://mcp.${id}.com/mcp` });
 
   return (
     <>
       <SettingsSection
         title="MCP"
-        description="Servers every thread in this project connects to. When IDs match, these override workspace and personal MCP servers."
+        description="Workspace servers apply first, a member's personal servers override them, and project servers override both."
         actions={
           <>
             <Button variant="ghost" size="sm" className="text-muted-foreground">
@@ -187,12 +141,11 @@ export function McpPage({
             <Badge variant="outline" className="mr-1.5">
               Overrides
             </Badge>
-            <span className="font-mono">linear</span> replaces your personal server with the same
-            ID.
+            <span className="font-mono">linear</span> replaces a member&apos;s personal server with
+            the same ID.
           </p>
         ) : null}
       </SettingsSection>
-      <SuggestedServers onConnect={handleConnect} />
     </>
   );
 }

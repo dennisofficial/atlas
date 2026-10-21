@@ -22,9 +22,9 @@ export type SecretEntry = { key: string; value: string; kind: ESecretKind }
 
 const SCOPE_NOTES: Record<ELibraryScope, string> = {
   [ELibraryScope.Personal]:
-    'Only you can see this. It overrides workspace and project values with the same key.',
+    'Only you can see this. It overrides workspace values with the same key; project values override it.',
   [ELibraryScope.Workspace]:
-    "Available to every member's threads. Project values override it; personal values override both.",
+    "Available to every member's threads. Personal values override it; project values override both.",
 }
 
 export function parseBulkLines(text: string): SecretEntry[] {

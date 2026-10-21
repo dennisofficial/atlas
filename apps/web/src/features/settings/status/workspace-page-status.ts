@@ -7,7 +7,7 @@ export const WORKSPACE_PAGE_STATUS = {
   [ESettingsPage.WorkspaceGeneral]: {
     status: EPageStatus.Partial,
     detail:
-      'Name, slug, region and default model are saved. Logo upload and ownership transfer are not available yet.',
+      "Name and slug are live. Region and default model are saved, but no session reads them yet. Logo upload and ownership transfer are not available yet.",
   },
   [ESettingsPage.WorkspaceMembers]: {
     status: EPageStatus.Stored,
@@ -15,23 +15,23 @@ export const WORKSPACE_PAGE_STATUS = {
   },
   [ESettingsPage.WorkspaceSecrets]: {
     status: EPageStatus.Stored,
-    detail: "Saved to the workspace; sessions don't inject workspace secrets yet.",
+    detail: "Saved to the workspace; sessions don't load workspace values yet.",
   },
   [ESettingsPage.WorkspaceMcp]: {
     status: EPageStatus.Partial,
-    detail:
-      "Servers are saved to the workspace; sessions don't load them yet. Tool counts and the suggested servers are sample data.",
+    detail: "Servers are saved to the workspace; sessions don't load them yet.",
   },
 } as const satisfies Partial<Record<ESettingsPage, PageStatusInfo>>
 
 export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusInfo> = {
   [EProjectSettingsSection.Overview]: {
-    status: EPageStatus.Stored,
-    detail: "The repository's GitHub default branch isn't stored.",
+    status: EPageStatus.Partial,
+    detail:
+      'Repository, base branch and additional repositories reach sandboxes; name, description and ship behavior are saved only.',
   },
   [EProjectSettingsSection.Sandbox]: {
-    status: EPageStatus.Partial,
-    detail: 'Size and setup script are saved. Repository file checks and snapshots are sample data.',
+    status: EPageStatus.Stored,
+    detail: "Size and setup script are saved; sandboxes don't apply them yet.",
   },
   [EProjectSettingsSection.Secrets]: {
     status: EPageStatus.Stored,
@@ -39,7 +39,6 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
   },
   [EProjectSettingsSection.Mcp]: {
     status: EPageStatus.Partial,
-    detail:
-      'Servers are saved to the project. Connection status is not checked, and suggested servers are sample data.',
+    detail: "Servers are saved to the project; sessions don't load them yet.",
   },
 }

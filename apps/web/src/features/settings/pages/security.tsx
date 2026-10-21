@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 
 import {
   AlertDialog,
@@ -27,9 +27,7 @@ import {
 import { QuerySection } from '../data/personal/query-boundary'
 import { useSaveAction } from '../data/personal/use-save-action'
 import type { SignedInDevice } from '../fixtures/settings-security'
-import { ActivityTable } from '../parts/security-activity-table'
 import { DeviceRow } from '../parts/security-device-row'
-import { PendingCodeRow } from '../parts/security-pending-code'
 import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 async function loadDevices(): Promise<SignedInDevice[]> {
@@ -44,7 +42,6 @@ export function SecurityPage() {
   const devicesQuery = useCloudQuery({ key: 'security-sessions', load: loadDevices })
   const { reload } = devicesQuery
   const { saving, run } = useSaveAction()
-  const [pendingOpen, setPendingOpen] = useState(true)
 
   const handleRevoke = useCallback(
     (token: string) =>
@@ -68,12 +65,11 @@ export function SecurityPage() {
       }),
     [run, reload],
   )
-  const handleResolvePending = () => setPendingOpen(false)
 
   return (
     <SettingsPage
       title="Security"
-      description="Devices signed in to your account and recent sign-in activity."
+      description="Devices signed in to your account."
       actions={
         <AlertDialog>
           <AlertDialogTrigger render={<Button variant="outline" size="sm" disabled={saving} />}>
@@ -110,24 +106,6 @@ export function SecurityPage() {
             </SettingsCard>
           )}
         </QuerySection>
-      </SettingsSection>
-      {pendingOpen ? (
-        <SettingsSection
-          title="Pending device codes"
-          description="A CLI or TUI is waiting for you to approve its sign-in."
-        >
-          <SettingsCard>
-            <PendingCodeRow onApprove={handleResolvePending} onDeny={handleResolvePending} />
-          </SettingsCard>
-        </SettingsSection>
-      ) : null}
-      <SettingsSection
-        title="Recent sign-in activity"
-        description="The last 30 days of authentication events."
-      >
-        <SettingsCard>
-          <ActivityTable />
-        </SettingsCard>
       </SettingsSection>
     </SettingsPage>
   )

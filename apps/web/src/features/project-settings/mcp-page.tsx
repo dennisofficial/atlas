@@ -28,9 +28,8 @@ import { runAction } from '@/features/settings/data/workspace/run-action'
 
 import { useProjectContext } from './data/project-context'
 import { useProjectMcp } from './data/use-project-mcp'
-import { EMcpTransport, SUGGESTED_MCP_SERVERS } from './fixtures/project-settings'
 import { AddMcpServerDialog, type McpServerDraft } from './mcp-add-dialog'
-import { MonogramTile, SettingsCard, SettingsSection } from './settings-layout'
+import { SettingsCard, SettingsSection } from './settings-layout'
 
 function ServerRow({
   server,
@@ -87,37 +86,10 @@ function ServersEmpty() {
         </EmptyMedia>
         <EmptyTitle>No project MCP servers</EmptyTitle>
         <EmptyDescription>
-          Threads still get your personal and workspace servers. Add one here, or connect a
-          suggestion below.
+          Add one here to share it with everyone on this project.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
-  )
-}
-
-function SuggestedServers({ onConnect }: { onConnect: (id: string) => void }) {
-  return (
-    <SettingsSection title="Suggested MCP servers">
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {SUGGESTED_MCP_SERVERS.map((server) => (
-          <li
-            key={server.id}
-            className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10"
-          >
-            <MonogramTile label={server.name} />
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="text-sm font-medium">{server.name}</span>
-              <span className="truncate text-sm text-muted-foreground">
-                Connect Atlas to {server.name}.
-              </span>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => onConnect(server.id)}>
-              Connect
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </SettingsSection>
   )
 }
 
@@ -134,19 +106,12 @@ function McpContent({ servers }: { servers: McpRow[] }) {
     void runAction({ work: () => mcp.toggle(args) })
   const handleRemove = (id: string) =>
     void runAction({ work: () => mcp.remove(id), success: `Removed ${id}` })
-  const handleConnect = (id: string) =>
-    handleAdd({
-      id,
-      transport: EMcpTransport.Http,
-      target: `https://mcp.${id}.com/mcp`,
-      extra: '',
-    })
 
   return (
     <>
       <SettingsSection
         title="MCP"
-        description="Servers every thread in this project connects to. When IDs match, these override workspace and personal MCP servers."
+        description="Workspace servers apply first, a member's personal servers override them, and project servers override both."
         actions={
           <>
             <Button
@@ -178,7 +143,6 @@ function McpContent({ servers }: { servers: McpRow[] }) {
           )}
         </SettingsCard>
       </SettingsSection>
-      <SuggestedServers onConnect={handleConnect} />
     </>
   )
 }

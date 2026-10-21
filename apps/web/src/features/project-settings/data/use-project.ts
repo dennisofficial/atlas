@@ -2,14 +2,12 @@
 
 import { useCallback } from 'react'
 
-import type { Project } from '@dltech/atlas-wire/web'
-
 import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
 
-import { fetchProject, saveProject, type SaveProjectBody } from './project-api'
+import { fetchProject, saveProject, type ProjectView, type SaveProjectBody } from './project-api'
 
 export type ProjectResource = {
-  query: CloudQuery<Project>
+  query: CloudQuery<ProjectView>
   save: (body: SaveProjectBody) => Promise<void>
 }
 

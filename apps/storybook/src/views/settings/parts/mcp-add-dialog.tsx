@@ -67,7 +67,6 @@ export function McpAddDialog({ onAdd }: { onAdd: (server: McpServer) => void }) 
       id: toServerId(draft.name),
       transport: draft.transport,
       target: draft.target.trim(),
-      toolCount: 0,
       enabled: true,
     });
     setOpen(false);

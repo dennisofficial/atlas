@@ -1,5 +1,9 @@
 import { useState } from "react";
 
+import { Badge } from "@dltech/atlas-ui/components/badge";
+import { BrandMark, EBrand } from "@dltech/atlas-ui/components/brand-mark";
+import { Button } from "@dltech/atlas-ui/components/button";
+
 import {
   API_KEY_PROVIDERS,
   CHATGPT_SUBSCRIPTION,
@@ -10,7 +14,7 @@ import {
 } from "../../../fixtures/settings-agent";
 import { ApiKeyRow } from "../parts/agent-api-key-row";
 import { SubscriptionRow } from "../parts/agent-subscription-row";
-import { SettingsCard, SettingsPage, SettingsSection } from "../settings-layout";
+import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "../settings-layout";
 
 const TODAY_LABEL = "Added Oct 20";
 const MASK_TAIL_LENGTH = 4;
@@ -49,7 +53,7 @@ export function ProvidersPage() {
         <SettingsCard>
           <SubscriptionRow
             name="Claude"
-            letter="C"
+            brand={EBrand.Claude}
             idleDescription="Use your Claude Pro or Max subscription."
             signInLabel="Sign in with Claude"
             account={claudeConnected ? CLAUDE_SUBSCRIPTION : null}
@@ -58,7 +62,7 @@ export function ProvidersPage() {
           />
           <SubscriptionRow
             name="ChatGPT / Codex"
-            letter="G"
+            brand={EBrand.OpenAI}
             idleDescription="Use your ChatGPT Plus or Pro plan for GPT-5 models."
             signInLabel="Sign in with ChatGPT"
             account={chatgptConnected ? CHATGPT_SUBSCRIPTION : null}
@@ -81,8 +85,29 @@ export function ProvidersPage() {
               onRemove={() => handleKeyRemove(provider.id)}
             />
           ))}
+          <AiGatewayRow />
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
+  );
+}
+
+function AiGatewayRow() {
+  return (
+    <SettingsRow
+      media={<BrandMark brand={EBrand.Vercel} />}
+      title={
+        <>
+          Vercel AI Gateway
+          <Badge variant="outline">Coming soon</Badge>
+        </>
+      }
+      description="Every major model behind one key, billed through Vercel."
+      control={
+        <Button variant="outline" size="sm" disabled>
+          Add key
+        </Button>
+      }
+    />
   );
 }
