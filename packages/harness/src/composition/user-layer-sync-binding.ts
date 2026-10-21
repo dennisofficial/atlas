@@ -3,7 +3,6 @@ import { homedir } from 'node:os'
 import { LogPort, NoticePort } from '@dltech/atlas-core'
 
 import { resolveUserLayerRoots } from '../cloud/context-archive-user-layer'
-import { POD_NAME_ENV } from '../cloud/local-pod/pod-create'
 import { cloudUserFilesClientFor } from '../cloud/user-files-client'
 import { registerDisposable } from '../container/disposal'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
@@ -12,18 +11,6 @@ import { atlasDirectory } from '../store/paths'
 import { createUserLayerSync } from '../user-layer-sync/factory'
 import { NullUserLayerSync, UserLayerSyncPort } from '../user-layer-sync/port'
 
-/**
- * The user layer (skills/instructions/memory) syncs only while the session has cloud authority; a
- * signed-out session composes the no-op port so the registry slot is never unbound. That authority
- * is the stored cloud session on a local launch and the `ServeSessionToken` attachment the
- * control plane issued on serve — the sandbox never stores a user session (cloud.json), so a
- * serve launch that read only the store would bind the Null no matter how signed-in the operator
- * is. The engine is registered at compose but NOT started on local launches — composing must never
- * open a socket (the local-first outage contract forbids a signed-in session from touching the
- * cloud when it is down), so `boot` is returned for the caller to fire: serve calls it at compose
- * (its boot IS the wake), the TUI on the first conversation open. Serve passes its own home
- * (`driveHome`) via `home`.
- */
 export async function bindUserLayerSync(args: {
   container: DependencyContainer
   clientVersion: string
@@ -41,13 +28,11 @@ export async function bindUserLayerSync(args: {
     ? container.resolve(registeredPortToken(NoticePort))
     : undefined
 
+  const inPod = container.isRegistered(ServeSessionToken, true)
   const session =
-    (container.isRegistered(ServeSessionToken, true)
-      ? container.resolve(ServeSessionToken)
-      : undefined) ??
-    (container.isRegistered(CloudSessionStoreToken, true)
-      ? container.resolve(CloudSessionStoreToken).read()
-      : null)
+    inPod || !container.isRegistered(CloudSessionStoreToken, true)
+      ? null
+      : container.resolve(CloudSessionStoreToken).read()
 
   const binding =
     args.override !== undefined
@@ -56,7 +41,7 @@ export async function bindUserLayerSync(args: {
           atlasHome: args.override.atlasHome,
           client: args.override.client,
         }
-      : session === null || session === undefined || process.env[POD_NAME_ENV] !== undefined
+      : session === null
         ? null
         : {
             home: args.home ?? homedir(),

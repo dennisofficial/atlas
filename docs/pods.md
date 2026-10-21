@@ -155,8 +155,7 @@ reaches a pod only through the `atlas push` bundle
    `runner: local` (`apps/serve/src/serve-boot.ts`).
 9. **Compose.** Serve composes the shared harness with the pod's serve token as its Atlas Cloud
     credential (`apps/serve/src/compose-serve.ts`), then hands its handlers to the listener and
-    arms the idle timer (`apps/serve/src/serve-boot-finish.ts`). On a Vercel pod, composition
-    also starts the user-layer sync (below).
+    arms the idle timer (`apps/serve/src/serve-boot-finish.ts`).
 
 Two pulls happen after boot, on use:
 
@@ -175,11 +174,10 @@ Two pulls happen after boot, on use:
 MCP server config reaches a pod through the bundle, not through `/v1/mcp-servers`,
 which is session-only.
 
-The user-layer sync engine (`/v1/user-files`, skills and instructions) differs by runner. A local
-pod gets `ATLAS_POD_NAME`, and the binding chooses a no-op whenever it is set
-(`packages/harness/src/composition/user-layer-sync-binding.ts`). A Vercel pod has no
-`ATLAS_POD_NAME`, so it binds the real engine with its serve token and syncs. Signed-in host
-sessions use it too.
+The user-layer sync engine (`/v1/user-files`, skills and instructions) never runs in a pod. Serve
+composes with its serve token as `ServeSessionToken`, and the binding chooses a no-op whenever that
+token is present, on either runner (`packages/harness/src/composition/user-layer-sync-binding.ts`).
+Only signed-in host sessions run the engine.
 
 ### The TUI's own stores in pod mode
 
