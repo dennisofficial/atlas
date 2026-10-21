@@ -5,10 +5,6 @@ export { EServeEnv }
 
 export const DEFAULT_SERVE_PORT = 3000
 
-/**
- * Serve boots local-first: the Atlas API is reached only by optional machinery (PR/CI realtime),
- * never for credentials, so a sandbox created without the variable still serves.
- */
 export const DEFAULT_CLOUD_URL = 'https://api.byatlas.io'
 
 const MAX_PORT = 65_535
