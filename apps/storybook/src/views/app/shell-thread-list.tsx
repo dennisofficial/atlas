@@ -1,15 +1,17 @@
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
-import { SidebarGroup } from "@dltech/atlas-ui/components/sidebar";
+import { SidebarGroup, SidebarMenu } from "@dltech/atlas-ui/components/sidebar";
 
-import { BUCKETS, PROJECTS, threadsOf } from "../../fixtures/app";
+import { BUCKETS, PROJECTS, threadsOf, type AppThread } from "../../fixtures/app";
 import { ProjectGroup } from "./shell-project-group";
+import { ThreadRow } from "./shell-thread-row";
 
 export interface ThreadListProps {
   activeThreadId?: string;
   threadCardId?: string;
   projectCardId?: string;
+  pendingThread?: AppThread;
 }
 
 function BucketRow({
@@ -35,10 +37,22 @@ function BucketRow({
   );
 }
 
+function threadsFor({
+  projectId,
+  pendingThread,
+}: {
+  projectId: string;
+  pendingThread?: AppThread;
+}): AppThread[] {
+  const threads = threadsOf(projectId);
+  return pendingThread?.projectId === projectId ? [pendingThread, ...threads] : threads;
+}
+
 export function ThreadList({
   activeThreadId,
   threadCardId,
   projectCardId,
+  pendingThread,
 }: ThreadListProps) {
   const [collapsed, setCollapsed] = useState<string[]>([]);
 
@@ -48,13 +62,27 @@ export function ThreadList({
     );
   };
 
+  const unprojected = pendingThread?.projectId === null ? [pendingThread] : [];
+
   return (
     <SidebarGroup className="gap-3 px-2 py-2">
+      {unprojected.length > 0 ? (
+        <SidebarMenu aria-label="Threads without a project" className="gap-0.5">
+          {unprojected.map((thread) => (
+            <ThreadRow
+              key={thread.id}
+              thread={thread}
+              active={thread.id === activeThreadId}
+              defaultCardOpen={thread.id === threadCardId}
+            />
+          ))}
+        </SidebarMenu>
+      ) : null}
       {PROJECTS.map((project) => (
         <ProjectGroup
           key={project.id}
           project={project}
-          threads={threadsOf(project.id)}
+          threads={threadsFor({ projectId: project.id, pendingThread })}
           open={!collapsed.includes(project.id)}
           onOpenChange={(open) => handleOpenChange(project.id, open)}
           activeThreadId={activeThreadId}

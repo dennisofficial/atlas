@@ -25,7 +25,7 @@ export interface TranscriptProps {
   onOpenFile: (path: string) => void;
 }
 
-interface StepsProps {
+export interface StepsProps {
   steps: StepSpec[];
   onOpenFile: (path: string) => void;
 }
@@ -47,7 +47,7 @@ function EditStep({ step, onOpenFile }: { step: StepSpec; onOpenFile: (path: str
   );
 }
 
-function Steps({ steps, onOpenFile }: StepsProps) {
+export function Steps({ steps, onOpenFile }: StepsProps) {
   return (
     <>
       {steps.map((step) =>

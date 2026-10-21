@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@dltech/atlas-ui/compo
 
 import { CHANGED_FILES } from "../../../fixtures/agent";
 import { CHANGE_SCOPES, filesInScope } from "./session-changes";
+import { PodChanges, PodFiles, PodPreview, PodTerminal } from "./pod-panels";
+import type { PodPanelState } from "./pod-state";
 import { ERightTab, isRightTab } from "./session-types";
 import { PreviewTab } from "./preview-tab";
 import type { ETerminalConnection } from "./sandbox-terminal";
@@ -18,6 +20,7 @@ export interface RightPanelProps {
   onExpandedChange: (paths: string[]) => void;
   initialTerminalConnection?: ETerminalConnection;
   initialPreviewId?: string;
+  pod?: PodPanelState;
 }
 
 const TAB_LABEL: Record<ERightTab, string> = {
@@ -36,6 +39,7 @@ export function RightPanel({
   onExpandedChange,
   initialTerminalConnection,
   initialPreviewId,
+  pod,
 }: RightPanelProps) {
   const [scope, setScope] = useState("all");
   const [selectedFile, setSelectedFile] = useState<string>();
@@ -54,23 +58,34 @@ export function RightPanel({
         ))}
       </TabsList>
       <TabsContent value={ERightTab.Changes} className="min-h-0 flex-1">
-        <ChangesPanel
-          files={filesInScope(scope)}
-          scopes={SCOPES}
-          scope={scope}
-          onScopeChange={setScope}
-          expanded={expanded}
-          onExpandedChange={onExpandedChange}
-        />
+        {pod ? (
+          <PodChanges pod={pod} expanded={expanded} onExpandedChange={onExpandedChange} />
+        ) : (
+          <ChangesPanel
+            files={filesInScope(scope)}
+            scopes={SCOPES}
+            scope={scope}
+            onScopeChange={setScope}
+            expanded={expanded}
+            onExpandedChange={onExpandedChange}
+          />
+        )}
       </TabsContent>
-      <TabsContent value={ERightTab.Files} className="min-h-0 flex-1 overflow-auto p-2">
-        <FileTree nodes={CHANGED_FILES} selected={selectedFile} onSelect={setSelectedFile} />
+      <TabsContent
+        value={ERightTab.Files}
+        className={pod ? "min-h-0 flex-1" : "min-h-0 flex-1 overflow-auto p-2"}
+      >
+        {pod ? (
+          <PodFiles pod={pod} />
+        ) : (
+          <FileTree nodes={CHANGED_FILES} selected={selectedFile} onSelect={setSelectedFile} />
+        )}
       </TabsContent>
       <TabsContent value={ERightTab.Terminal} className="min-h-0 flex-1">
-        <TerminalTab initialConnection={initialTerminalConnection} />
+        {pod ? <PodTerminal pod={pod} /> : <TerminalTab initialConnection={initialTerminalConnection} />}
       </TabsContent>
       <TabsContent value={ERightTab.Preview} className="min-h-0 flex-1">
-        <PreviewTab initialPreviewId={initialPreviewId} />
+        {pod ? <PodPreview /> : <PreviewTab initialPreviewId={initialPreviewId} />}
       </TabsContent>
     </Tabs>
   );
