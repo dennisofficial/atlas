@@ -28,7 +28,6 @@ export function toMcpServer(wire: McpServerWire): McpServer {
     id: wire.name,
     transport: wire.transport?.kind === EMcpTransportKind.Http ? EMcpTransport.Http : EMcpTransport.Stdio,
     target: targetOf(wire.transport),
-    toolCount: 0,
     enabled: wire.disabled !== true,
   }
 }

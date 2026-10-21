@@ -5,6 +5,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 
 import type { Integration } from '../fixtures/settings-account'
 import { Mono, SettingsRow } from '../settings-layout'
+import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
 
 export function AccountIntegrationRow({
   integration,
@@ -17,11 +18,7 @@ export function AccountIntegrationRow({
 
   return (
     <SettingsRow
-      media={
-        <div className="flex size-9 items-center justify-center rounded-md bg-muted text-sm font-semibold">
-          {integration.letter}
-        </div>
-      }
+      media={<BrandMark brand={integration.brand} />}
       title={
         <>
           {integration.name}

@@ -14,23 +14,19 @@ import {
 import { Button } from "@dltech/atlas-ui/components/button";
 
 import { SIGNED_IN_DEVICES } from "../../../fixtures/settings-security";
-import { ActivityTable } from "../parts/security-activity-table";
 import { DeviceRow } from "../parts/security-device-row";
-import { PendingCodeRow } from "../parts/security-pending-code";
 import { SettingsCard, SettingsPage, SettingsSection } from "../settings-layout";
 
 export function SecurityPage() {
   const [devices, setDevices] = useState(SIGNED_IN_DEVICES);
-  const [pendingOpen, setPendingOpen] = useState(true);
 
   const handleRevoke = (id: string) => setDevices((all) => all.filter((device) => device.id !== id));
   const handleRevokeOthers = () => setDevices((all) => all.filter((device) => device.current));
-  const handleResolvePending = () => setPendingOpen(false);
 
   return (
     <SettingsPage
       title="Security"
-      description="Devices signed in to your account and recent sign-in activity."
+      description="Devices signed in to your account."
       actions={
         <AlertDialog>
           <AlertDialogTrigger render={<Button variant="outline" size="sm" />}>
@@ -62,21 +58,6 @@ export function SecurityPage() {
           {devices.map((device) => (
             <DeviceRow key={device.id} device={device} onRevoke={handleRevoke} />
           ))}
-        </SettingsCard>
-      </SettingsSection>
-      {pendingOpen ? (
-        <SettingsSection
-          title="Pending device codes"
-          description="A CLI or TUI is waiting for you to approve its sign-in."
-        >
-          <SettingsCard>
-            <PendingCodeRow onApprove={handleResolvePending} onDeny={handleResolvePending} />
-          </SettingsCard>
-        </SettingsSection>
-      ) : null}
-      <SettingsSection title="Recent sign-in activity" description="The last 30 days of authentication events.">
-        <SettingsCard>
-          <ActivityTable />
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>

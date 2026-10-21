@@ -15,23 +15,9 @@ import { diffChanges, settingBool, settingString, settingValue } from './setting
 const APPEARANCE_PREFIX = 'web.appearance.'
 const NOTIFY_PREFIX = 'web.notifications.'
 
-export const EXPERIMENT_KEYS: Record<string, string> = {
-  'parallel-tool-calls': 'web.experimental.parallelToolCalls',
-  'speculative-classifier': 'web.experimental.speculativeClassifier',
-  'auto-compact': 'web.experimental.autoCompact',
-  'born-in-cloud': 'web.experimental.bornInCloud',
-  'web-terminal': 'web.experimental.webTerminal',
-  'plan-mode-default': 'web.experimental.planModeDefault',
-}
-
 const isTheme = (value: string): value is ETheme => Object.values(ETheme).some((t) => t === value)
 const isDensity = (value: string): value is EDensity =>
   Object.values(EDensity).some((d) => d === value)
-
-export function experimentEnabled(args: { values: SettingValues; id: string }): boolean {
-  const key = EXPERIMENT_KEYS[args.id]
-  return key !== undefined && settingBool({ values: args.values, key })
-}
 
 export function appearanceFrom(values: SettingValues): AppearanceSettings {
   const theme = settingString({ values, key: `${APPEARANCE_PREFIX}theme` })
@@ -81,7 +67,6 @@ export function notificationsFrom(values: SettingValues): NotificationSettings {
     channels: {
       push: settingBool({ values, key: `${NOTIFY_PREFIX}channel.push` }),
       email: settingBool({ values, key: `${NOTIFY_PREFIX}channel.email` }),
-      slack: settingBool({ values, key: `${NOTIFY_PREFIX}channel.slack` }),
     },
     matrix,
     quietHours: settingBool({ values, key: `${NOTIFY_PREFIX}quietHours` }),
@@ -94,7 +79,6 @@ function notificationsFlat(settings: NotificationSettings): Record<string, strin
   const flat: Record<string, string | boolean> = {
     [`${NOTIFY_PREFIX}channel.push`]: settings.channels.push,
     [`${NOTIFY_PREFIX}channel.email`]: settings.channels.email,
-    [`${NOTIFY_PREFIX}channel.slack`]: settings.channels.slack,
     [`${NOTIFY_PREFIX}quietHours`]: settings.quietHours,
     [`${NOTIFY_PREFIX}quietFrom`]: settings.quietFrom,
     [`${NOTIFY_PREFIX}quietTo`]: settings.quietTo,

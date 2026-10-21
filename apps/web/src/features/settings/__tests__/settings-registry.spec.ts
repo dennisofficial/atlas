@@ -41,7 +41,9 @@ describe('settings page registry', () => {
       ESettingsPage.Memory,
     ])
     const usage = filterNav({ groups: PERSONAL_NAV, query: 'usage' })
-    expect(usage.flatMap((group) => group.items)).toHaveLength(2)
+    expect(usage.flatMap((group) => group.items.map((item) => item.page))).toEqual([
+      ESettingsPage.UsageSandboxes,
+    ])
     expect(filterNav({ groups: PERSONAL_NAV, query: 'zzz' })).toEqual([])
   })
 })
@@ -61,6 +63,6 @@ describe('settings route params', () => {
   })
 
   it('builds hrefs that round-trip through the parser', () => {
-    expect(hrefOfPage(ESettingsPage.UsageModels)).toBe('/settings/usage-models')
+    expect(hrefOfPage(ESettingsPage.UsageSandboxes)).toBe('/settings/usage-sandboxes')
   })
 })

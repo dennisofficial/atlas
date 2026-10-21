@@ -11,6 +11,19 @@ export enum EShipBehavior {
   Merge = "merge",
 }
 
+export interface WorkspaceOption {
+  value: string;
+  label: string;
+}
+
+export const PERSONAL_WORKSPACE_VALUE = "personal";
+
+export const WORKSPACE_OPTIONS: readonly WorkspaceOption[] = [
+  { value: PERSONAL_WORKSPACE_VALUE, label: "Personal (no workspace)" },
+  { value: "org_acme", label: "Acme" },
+  { value: "org_atlas", label: "Atlas Labs" },
+];
+
 export interface ProjectFixture {
   owner: string;
   name: string;
@@ -19,6 +32,7 @@ export interface ProjectFixture {
   baseBranch: string;
   shipBehavior: EShipBehavior;
   additionalRepositories: readonly string[];
+  workspace: string;
 }
 
 export const PROJECT: ProjectFixture = {
@@ -29,6 +43,7 @@ export const PROJECT: ProjectFixture = {
   baseBranch: "",
   shipBehavior: EShipBehavior.OpenPullRequest,
   additionalRepositories: ["dennisofficial/atlas-docs"],
+  workspace: "org_atlas",
 };
 
 export const SHIP_BEHAVIORS: readonly { value: EShipBehavior; label: string; description: string }[] = [
@@ -42,11 +57,6 @@ export const SHIP_BEHAVIORS: readonly { value: EShipBehavior; label: string; des
     label: "Push branch",
     description: "Push the branch; you open the PR yourself.",
   },
-  {
-    value: EShipBehavior.Merge,
-    label: "Merge when green",
-    description: "Open a PR and squash-merge it once required checks pass.",
-  },
 ];
 
 export interface SandboxSize {
@@ -57,6 +67,8 @@ export interface SandboxSize {
   pricePerHour: string;
   unavailableReason?: string;
 }
+
+export const VERCEL_PROJECT_ID = "prj_8Qm2ZkT4vLx9";
 
 export const SANDBOX_SIZES: readonly SandboxSize[] = [
   { id: "s1.small", vcpus: 1, memoryGb: 2, diskGb: 16, pricePerHour: "$0.06" },
@@ -77,37 +89,6 @@ export const DEFAULT_SANDBOX_SIZE = "s1.medium";
 export const SETUP_SCRIPT = `bun install --frozen-lockfile
 bun run --filter @dltech/atlas-ui generate
 bunx turbo run typecheck --filter @dltech/atlas-core`;
-
-export interface RepoFileStatus {
-  path: string;
-  description: string;
-  present: boolean;
-}
-
-export const REPO_FILES: readonly RepoFileStatus[] = [
-  {
-    path: ".atlas/container.json",
-    description: "Image, setup and start commands, env, and mounts for the sandbox.",
-    present: true,
-  },
-  {
-    path: ".devcontainer/devcontainer.json",
-    description: "Read for image and postCreateCommand when container.json is absent.",
-    present: false,
-  },
-];
-
-export interface SandboxSnapshot {
-  id: string;
-  size: string;
-  cachedFor: string;
-  isProjectDefault: boolean;
-}
-
-export const SNAPSHOTS: readonly SandboxSnapshot[] = [
-  { id: "snap_01", size: "s1.medium", cachedFor: "Cached 6h ago", isProjectDefault: true },
-  { id: "snap_02", size: "s1.large", cachedFor: "Cached 2d ago", isProjectDefault: false },
-];
 
 export enum ESecretScope {
   Project = "project",
@@ -167,18 +148,10 @@ export enum EMcpTransport {
   Http = "http",
 }
 
-export enum EMcpStatus {
-  Connected = "connected",
-  NeedsAuth = "needs-auth",
-  Failed = "failed",
-}
-
 export interface McpServer {
   id: string;
   transport: EMcpTransport;
   target: string;
-  status: EMcpStatus;
-  detail: string;
   enabled: boolean;
 }
 
@@ -187,46 +160,24 @@ export const MCP_SERVERS: readonly McpServer[] = [
     id: "playwright",
     transport: EMcpTransport.Stdio,
     target: "bunx @playwright/mcp@latest --headless",
-    status: EMcpStatus.Connected,
-    detail: "21 tools",
     enabled: true,
   },
   {
     id: "posthog",
     transport: EMcpTransport.Http,
     target: "https://mcp.posthog.com/mcp",
-    status: EMcpStatus.Connected,
-    detail: "38 tools",
     enabled: true,
   },
   {
     id: "linear",
     transport: EMcpTransport.Http,
     target: "https://mcp.linear.app/mcp",
-    status: EMcpStatus.NeedsAuth,
-    detail: "Sign-in required",
     enabled: true,
   },
   {
     id: "postgres",
     transport: EMcpTransport.Stdio,
     target: "bunx @modelcontextprotocol/server-postgres $DATABASE_URL",
-    status: EMcpStatus.Failed,
-    detail: "Exited with code 1",
     enabled: false,
   },
-];
-
-export interface SuggestedMcpServer {
-  id: string;
-  name: string;
-}
-
-export const SUGGESTED_MCP_SERVERS: readonly SuggestedMcpServer[] = [
-  { id: "sentry", name: "Sentry" },
-  { id: "vercel", name: "Vercel" },
-  { id: "neon", name: "Neon" },
-  { id: "stripe", name: "Stripe" },
-  { id: "figma", name: "Figma" },
-  { id: "context7", name: "Context7" },
 ];

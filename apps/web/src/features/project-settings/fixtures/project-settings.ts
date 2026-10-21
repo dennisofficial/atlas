@@ -17,42 +17,6 @@ export const SHIP_BEHAVIORS: readonly {
     label: 'Push branch',
     description: 'Push the branch; you open the PR yourself.',
   },
-  {
-    value: EShipBehavior.Merge,
-    label: 'Merge when green',
-    description: 'Open a PR and squash-merge it once required checks pass.',
-  },
-]
-
-export interface RepoFileStatus {
-  path: string
-  description: string
-  present: boolean
-}
-
-export const REPO_FILES: readonly RepoFileStatus[] = [
-  {
-    path: '.atlas/container.json',
-    description: 'Image, setup and start commands, env, and mounts for the sandbox.',
-    present: true,
-  },
-  {
-    path: '.devcontainer/devcontainer.json',
-    description: 'Read for image and postCreateCommand when container.json is absent.',
-    present: false,
-  },
-]
-
-export interface SandboxSnapshot {
-  id: string
-  size: string
-  cachedFor: string
-  isProjectDefault: boolean
-}
-
-export const SNAPSHOTS: readonly SandboxSnapshot[] = [
-  { id: 'snap_01', size: 's1.medium', cachedFor: 'Cached 6h ago', isProjectDefault: true },
-  { id: 'snap_02', size: 's1.large', cachedFor: 'Cached 2d ago', isProjectDefault: false },
 ]
 
 export enum ESecretScope {
@@ -72,32 +36,3 @@ export enum EMcpTransport {
   Stdio = 'stdio',
   Http = 'http',
 }
-
-export enum EMcpStatus {
-  Connected = 'connected',
-  NeedsAuth = 'needs-auth',
-  Failed = 'failed',
-}
-
-export interface McpServer {
-  id: string
-  transport: EMcpTransport
-  target: string
-  status: EMcpStatus
-  detail: string
-  enabled: boolean
-}
-
-export interface SuggestedMcpServer {
-  id: string
-  name: string
-}
-
-export const SUGGESTED_MCP_SERVERS: readonly SuggestedMcpServer[] = [
-  { id: 'sentry', name: 'Sentry' },
-  { id: 'vercel', name: 'Vercel' },
-  { id: 'neon', name: 'Neon' },
-  { id: 'stripe', name: 'Stripe' },
-  { id: 'figma', name: 'Figma' },
-  { id: 'context7', name: 'Context7' },
-]

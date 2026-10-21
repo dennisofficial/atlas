@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@dltech/atlas-ui/components/dropdown-menu'
 import {
@@ -41,7 +40,7 @@ export function McpServerList({
           </EmptyMedia>
           <EmptyTitle>No MCP servers configured</EmptyTitle>
           <EmptyDescription>
-            Add a server to give threads extra tools, or connect one from the suggestions below.
+            Add a server to give threads extra tools.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -64,9 +63,6 @@ export function McpServerList({
           }
           control={
             <>
-              <span className="text-xs text-muted-foreground">
-                <Mono>{server.toolCount}</Mono> tools
-              </span>
               <Switch
                 size="sm"
                 aria-label={`Enable ${server.id}`}
@@ -82,9 +78,6 @@ export function McpServerList({
                   <EllipsisIcon />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem>Edit</DropdownMenuItem>
-                  <DropdownMenuItem>Restart</DropdownMenuItem>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" onClick={() => onRemove(server.id)}>
                     Remove
                   </DropdownMenuItem>

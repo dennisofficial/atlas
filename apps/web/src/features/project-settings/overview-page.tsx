@@ -2,13 +2,6 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import {
-  ArrowUpRightIcon,
-  FolderGit2Icon,
-  PlusIcon,
-  XIcon,
-} from 'lucide-react'
-
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Input } from '@dltech/atlas-ui/components/input'
 import {
@@ -17,15 +10,9 @@ import {
   InputGroupInput,
   InputGroupText,
 } from '@dltech/atlas-ui/components/input-group'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@dltech/atlas-ui/components/select'
 
-import { EShipBehavior, SHIP_BEHAVIORS } from './fixtures/project-settings'
+import { CLOUD_CAPABILITIES } from '@/lib/cloud-capabilities'
+
 import { useProjectContext } from './data/project-context'
 import {
   draftsEqual,
@@ -35,6 +22,7 @@ import {
   type ProjectIdentity,
 } from './data/project-mapping'
 import { DangerZone } from './overview-danger-zone'
+import { AdditionalRepositories, RepositoryControls } from './overview-repositories'
 import {
   ERowLayout,
   MonogramTile,
@@ -43,83 +31,8 @@ import {
   SettingsSection,
   UnsavedHint,
 } from './settings-layout'
-
-const SHIP_ITEMS = SHIP_BEHAVIORS.map(({ value, label }) => ({ value, label }))
-
-function isShipBehavior(value: unknown): value is EShipBehavior {
-  return Object.values(EShipBehavior).some((behavior) => behavior === value)
-}
-
-function RepositoryControls({ identity }: { identity: ProjectIdentity }) {
-  if (identity.repo === null) {
-    return <span className="text-sm text-muted-foreground">No repository connected</span>
-  }
-  return (
-    <>
-      <a
-        href={`https://github.com/${identity.repo}`}
-        target="_blank"
-        rel="noreferrer"
-        className="mr-auto inline-flex min-w-0 items-center gap-1 font-mono text-sm text-foreground underline-offset-4 hover:underline sm:mr-0"
-      >
-        <span className="truncate">{identity.repo}</span>
-        <ArrowUpRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
-      </a>
-    </>
-  )
-}
-
-function AdditionalRepositories({
-  repositories,
-  onChange,
-}: {
-  repositories: readonly string[]
-  onChange: (next: readonly string[]) => void
-}) {
-  const handleRemove = (index: number) => {
-    onChange(repositories.filter((_, position) => position !== index))
-  }
-  const handleEdit = ({ index, value }: { index: number; value: string }) => {
-    onChange(repositories.map((repo, position) => (position === index ? value : repo)))
-  }
-  return (
-    <>
-      {repositories.map((repo, index) => (
-        <InputGroup key={index}>
-          <InputGroupAddon>
-            <FolderGit2Icon />
-          </InputGroupAddon>
-          <InputGroupInput
-            aria-label={`Additional repository ${index + 1}`}
-            className="font-mono"
-            placeholder="owner/repo"
-            value={repo}
-            onChange={(event) => handleEdit({ index, value: event.target.value })}
-          />
-          <InputGroupAddon align="inline-end">
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={`Remove ${repo || 'repository'}`}
-              onClick={() => handleRemove(index)}
-            >
-              <XIcon />
-            </Button>
-          </InputGroupAddon>
-        </InputGroup>
-      ))}
-      <Button
-        variant="outline"
-        size="sm"
-        className="self-start"
-        onClick={() => onChange([...repositories, ''])}
-      >
-        <PlusIcon data-icon="inline-start" />
-        Add repository
-      </Button>
-    </>
-  )
-}
+import { ShipRow } from './ship-row'
+import { WorkspaceRow } from './workspace-row'
 
 export function OverviewPage() {
   const { project, identity, save } = useProjectContext()
@@ -132,14 +45,10 @@ export function OverviewPage() {
   const update = (patch: Partial<OverviewDraft>) =>
     setDraft((current) => ({ ...current, ...patch }))
 
-  const handleShipChange = (value: unknown) => {
-    if (isShipBehavior(value)) update({ shipBehavior: value })
-  }
-
   const handleSave = async () => {
     setSaving(true)
     try {
-      await save(saveBodyOf({ project, draft }))
+      await save(saveBodyOf({ project, draft, includeWorkspace: CLOUD_CAPABILITIES.projectWorkspace }))
       toast.success('Project saved')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save the project')
@@ -147,10 +56,6 @@ export function OverviewPage() {
       setSaving(false)
     }
   }
-
-  const shipDescription = SHIP_BEHAVIORS.find(
-    (item) => item.value === draft.shipBehavior,
-  )?.description
 
   return (
     <>
@@ -196,6 +101,12 @@ export function OverviewPage() {
               />
             </InputGroup>
           </SettingsRow>
+          {CLOUD_CAPABILITIES.projectWorkspace ? (
+            <WorkspaceRow
+              organizationId={draft.organizationId}
+              onChange={(organizationId) => update({ organizationId })}
+            />
+          ) : null}
           <SettingsRow title="Project icon" description="Icons aren't supported yet.">
             <MonogramTile label={draft.name || identity.name} />
             <Button variant="outline" size="sm" disabled>
@@ -229,20 +140,7 @@ export function OverviewPage() {
               onChange={(event) => update({ baseBranch: event.target.value })}
             />
           </SettingsRow>
-          <SettingsRow title="Ship behavior" htmlFor="project-ship" description={shipDescription}>
-            <Select items={SHIP_ITEMS} value={draft.shipBehavior} onValueChange={handleShipChange}>
-              <SelectTrigger id="project-ship" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SHIP_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingsRow>
+          <ShipRow value={draft.shipBehavior} onChange={(shipBehavior) => update({ shipBehavior })} />
           <SettingsRow
             title="Additional repositories"
             description="Cloned next to the main repository, for threads that span repos."

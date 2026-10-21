@@ -9,8 +9,8 @@ export function SecretsPage({ initial = PERSONAL_SECRETS }: { initial?: LibraryS
       scope={ELibraryScope.Personal}
       description={
         <>
-          Values injected into your sandboxes. Project values override workspace values, and your
-          personal values override both. Manage them from the terminal with{" "}
+          Delivered to your sandboxes as harness secrets. Workspace values apply first, your personal
+          values override them, and project values override both. Manage them from the terminal with{" "}
           <Mono className="rounded bg-muted px-1.5 py-0.5">atlas secrets</Mono>.
         </>
       }

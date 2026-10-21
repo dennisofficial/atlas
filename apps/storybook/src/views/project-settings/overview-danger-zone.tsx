@@ -29,8 +29,8 @@ function DeleteProjectDialog({ projectSlug }: { projectSlug: string }) {
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {projectSlug}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Its threads, secrets, MCP servers, and sandbox snapshots are removed for everyone in the
-            workspace. The GitHub repository is not touched.
+            The project and its secrets and MCP servers are deleted from Atlas. Existing threads and
+            the GitHub repository are not touched.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="flex flex-col gap-2">
@@ -62,9 +62,9 @@ export function DangerZone({ projectSlug }: { projectSlug: string }) {
       <SettingsCard>
         <SettingsRow
           title="Transfer ownership"
-          description="Move this project to another workspace or member. Threads and secrets move with it."
+          description="Not available yet. Moving a project between workspaces isn't hooked up to Atlas Cloud."
         >
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" disabled>
             Transfer…
           </Button>
         </SettingsRow>

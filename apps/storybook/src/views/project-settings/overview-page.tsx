@@ -33,8 +33,9 @@ import {
 
 import {
   EShipBehavior,
-  PROJECT,
+    PROJECT,
   SHIP_BEHAVIORS,
+  WORKSPACE_OPTIONS,
   type ProjectFixture,
 } from "../../fixtures/project-settings";
 import { DangerZone } from "./overview-danger-zone";
@@ -49,10 +50,16 @@ import {
 
 type OverviewDraft = Pick<
   ProjectFixture,
-  "name" | "description" | "baseBranch" | "shipBehavior" | "additionalRepositories"
+  "name" | "description" | "baseBranch" | "shipBehavior" | "additionalRepositories" | "workspace"
 >;
 
-const SHIP_ITEMS = SHIP_BEHAVIORS.map(({ value, label }) => ({ value, label }));
+const LEGACY_MERGE_LABEL = "Merge when green (no longer offered)";
+
+function shipItemsOf(current: EShipBehavior) {
+  const items = SHIP_BEHAVIORS.map(({ value, label }) => ({ value, label, disabled: false }));
+  if (items.some((item) => item.value === current)) return items;
+  return [...items, { value: current, label: LEGACY_MERGE_LABEL, disabled: true }];
+}
 
 function isShipBehavior(value: unknown): value is EShipBehavior {
   return Object.values(EShipBehavior).some((behavior) => behavior === value);
@@ -64,6 +71,7 @@ function draftsEqual({ left, right }: { left: OverviewDraft; right: OverviewDraf
     left.description === right.description &&
     left.baseBranch === right.baseBranch &&
     left.shipBehavior === right.shipBehavior &&
+    left.workspace === right.workspace &&
     left.additionalRepositories.join("\n") === right.additionalRepositories.join("\n")
   );
 }
@@ -154,7 +162,13 @@ function AdditionalRepositories({
   );
 }
 
-export function OverviewPage({ initial = PROJECT }: { initial?: ProjectFixture }) {
+export function OverviewPage({
+  initial = PROJECT,
+  showWorkspace = true,
+}: {
+  initial?: ProjectFixture;
+  showWorkspace?: boolean;
+}) {
   const [saved, setSaved] = useState<OverviewDraft>(initial);
   const [draft, setDraft] = useState<OverviewDraft>(initial);
   const dirty = !draftsEqual({ left: draft, right: saved });
@@ -165,6 +179,11 @@ export function OverviewPage({ initial = PROJECT }: { initial?: ProjectFixture }
     if (isShipBehavior(value)) update({ shipBehavior: value });
   };
 
+  const handleWorkspaceChange = (value: unknown) => {
+    if (typeof value === "string") update({ workspace: value });
+  };
+
+  const shipItems = shipItemsOf(draft.shipBehavior);
   const shipDescription = SHIP_BEHAVIORS.find((item) => item.value === draft.shipBehavior)?.description;
 
   return (
@@ -197,6 +216,26 @@ export function OverviewPage({ initial = PROJECT }: { initial?: ProjectFixture }
               />
             </InputGroup>
           </SettingsRow>
+          {showWorkspace ? (
+            <SettingsRow
+              title="Workspace"
+              htmlFor="project-workspace"
+              description="The workspace this project belongs to. Members of the workspace can see it."
+            >
+              <Select items={WORKSPACE_OPTIONS} value={draft.workspace} onValueChange={handleWorkspaceChange}>
+                <SelectTrigger id="project-workspace" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORKSPACE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingsRow>
+          ) : null}
           <SettingsRow title="Project icon" description="A square image, at least 128×128.">
             <MonogramTile label={draft.name || initial.name} />
             <Button variant="outline" size="sm">
@@ -228,13 +267,13 @@ export function OverviewPage({ initial = PROJECT }: { initial?: ProjectFixture }
             />
           </SettingsRow>
           <SettingsRow title="Ship behavior" htmlFor="project-ship" description={shipDescription}>
-            <Select items={SHIP_ITEMS} value={draft.shipBehavior} onValueChange={handleShipChange}>
+            <Select items={shipItems} value={draft.shipBehavior} onValueChange={handleShipChange}>
               <SelectTrigger id="project-ship" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SHIP_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
+                {shipItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value} disabled={item.disabled}>
                     {item.label}
                   </SelectItem>
                 ))}
