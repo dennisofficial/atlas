@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 import { ESettingId } from '@dltech/atlas-core'
 import { CloudClient } from '@dltech/atlas-harness'
-import type { Project } from '@dltech/atlas-wire'
+import { EShipBehavior, type Project } from '@dltech/atlas-wire'
 import { testRender } from '@opentui/react/test-utils'
 import React from 'react'
 
@@ -24,6 +24,8 @@ export const projectOf = (args: { id: string; name?: string; repo: string | null
   repo: args.repo,
   baseBranch: null,
   additionalRepos: [],
+  description: '',
+  shipBehavior: EShipBehavior.OpenPullRequest,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: args.updatedAt ?? '2026-01-01T00:00:00.000Z',
 })
