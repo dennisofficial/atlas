@@ -170,7 +170,7 @@ describe('never cached', () => {
 
 describe('cached despite a child process', () => {
   test('ssh-keygen style tools run from a repo cwd on temp files only', () => {
-    const tool = `import { execFileSync } from 'node:child_process';\nimport { mkdtempSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport { join } from 'node:path';\ntest('tar', () => { const dir = mkdtempSync(join(tmpdir(), 'inc-')); execFileSync('tar', ['-czf', join(dir, 'x.tgz'), '-C', dir, '.']); });\n`;
+    const tool = `import { execFileSync } from 'node:child_process';\nimport { mkdtempSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport { join } from 'node:path';\ntest('tar', () => { const src = mkdtempSync(join(tmpdir(), 'inc-src-')); const out = mkdtempSync(join(tmpdir(), 'inc-out-')); execFileSync('tar', ['-czf', join(out, 'x.tgz'), '-C', src, '.']); });\n`;
     const fixture = singleProject({ files: { 'tests/a.test.ts': tool } });
     expect(fixture.executed()).toEqual({ '.': 2 });
     expect(fixture.executed()).toEqual({ '.': 0 });

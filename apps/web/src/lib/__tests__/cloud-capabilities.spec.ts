@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import * as webWire from '@dltech/atlas-wire/web'
 
 import { CLOUD_CAPABILITIES } from '../cloud-capabilities'
