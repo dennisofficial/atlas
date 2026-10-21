@@ -1,5 +1,6 @@
 import { providerPartsFor } from '@dltech/atlas-harness'
-import { MockLanguageModelV4, simulateReadableStream } from 'ai/test'
+import { simulateReadableStream } from 'ai'
+import { MockLanguageModelV4 } from 'ai/test'
 
 const reportLine = (index: number): string =>
   `section ${index}: the worker drifted past its quota while the queue kept growing`

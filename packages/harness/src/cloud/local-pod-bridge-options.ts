@@ -4,9 +4,7 @@ import type { AttachOptions } from './local-cloud-attachment'
 import type { PodDriverConfig } from './local-pod/driver'
 import type { RunnerDriver } from './runner-driver'
 
-export type PodBridgeDriver = RunnerDriver & {
-  vaultPresent(args: { name: string }): Promise<boolean>
-}
+export type PodBridgeDriver = RunnerDriver
 
 export type PodLeaseRegistrar = (args: { threadId: ThreadId; token: string }) => Promise<void>
 

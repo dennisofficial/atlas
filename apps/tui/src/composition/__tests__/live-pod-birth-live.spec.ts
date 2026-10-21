@@ -165,7 +165,6 @@ describeLive('a pod birth through the live TUI wiring', () => {
         localLog: app.log,
         ids: app.ids,
         placement: app.sessionOwner,
-        captureContext: async () => undefined,
         onBegin: spy.onBegin,
         onNodeStart: spy.onNodeStart,
         onNodeDone: spy.onNodeDone,
@@ -248,7 +247,6 @@ describeLive('a pod birth through the live TUI wiring', () => {
           localLog: app.log,
           ids: app.ids,
           placement: app.sessionOwner,
-          captureContext: async () => undefined,
           open: async ({ prepareRuntime }) =>
             prepareRuntime({
               kind: ERuntimeKind.Cloud,

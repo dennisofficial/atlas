@@ -106,20 +106,15 @@ The TUI creates the pod and stages a fresh boot (`packages/harness/src/cloud/loc
   also gets the Vercel token, team and project, so serve can publish ports itself.
 - **`/atlas/home/bootstrap/workspace-spec.json`**, whose only inputs are the `projectId` and the
   optional model. Its `remoteUrl` and `githubToken` fields are always `null`.
-- **`/atlas/home/bootstrap/context.tar.gz`**, the context archive: `~/.atlas/mcp.json` plus the
-  local user layer of skills, the global `ATLAS.md` and the project's `*.local.md` files
-  (`packages/harness/src/cloud/context-archive-policy.ts`). A local pod stages only once: a
-  resume finds `/opt/atlas/pod-staged` and skips staging entirely
-  (`packages/harness/src/cloud/local-pod/pod-staged.ts`). On a fresh Vercel pod, or a resumed
-  one whose vault is missing, the archive is uploaded; a resumed pod that already holds a vault
-  gets none.
+  A local pod stages only once: a resume finds `/opt/atlas/pod-staged` and skips staging
+  entirely (`packages/harness/src/cloud/local-pod/pod-staged.ts`).
 - **The serve binary**, on dev builds only.
 
-No copy of the laptop's account vault, `secrets.json`, `settings.json`, git state, local checkout
-or GitHub token crosses. The settings above travel as environment variables, and a Vercel pod
-gets its Vercel credentials the same way. The context archive is the one piece of user-layer
-state still pushed from the laptop. The `atlas push` bundle is applied on top of it at boot, but
-does not replace it.
+No copy of the laptop's account vault, `secrets.json`, `settings.json`, `mcp.json`, skills,
+instructions, git state, local checkout or GitHub token crosses. The settings above travel as
+environment variables, and a Vercel pod gets its Vercel credentials the same way. The user layer
+reaches a pod only through the `atlas push` bundle
+([0011](decisions/0011-explicit-atlas-push.md)).
 
 ### What serve does, in order
 
@@ -151,20 +146,16 @@ does not replace it.
    (`apps/serve/src/cloud-state.ts`). The account lease blanks OAuth refresh tokens but keeps the
    current access token and its expiry. Secrets named `sandbox-serve:*` or `mcp-oauth:*` are
    client-held and skipped. On failure serve logs it and boots with whatever is on disk.
-7. **Context archive.** Serve extracts the staged archive unless `/atlas/home/context.stamp`
-   says it already has (`apps/serve/src/materialize-context.ts`).
-8. **`atlas push` bundle.** `GET /v1/published-bundles/current` returns the latest version the
+7. **`atlas push` bundle.** `GET /v1/published-bundles/current` returns the latest version the
    user published and a presigned download URL. Serve checks the size and SHA-256, then installs
-   only skill, `ATLAS.md` and `mcp.json` entries. Matching files the archive wrote are
-   overwritten; archive files the bundle doesn't name are left in place
-   (`apps/serve/src/published-bundle.ts`). No bundle is a no-op. This runs on every boot, so a
-   wake picks up a newer version ([0011](decisions/0011-explicit-atlas-push.md)).
-9. **Thread meta.** A fresh pod writes its thread meta with the `projectId`, and a local pod stamps
+   only skill, `ATLAS.md` and `mcp.json` entries (`apps/serve/src/published-bundle.ts`). It is
+   the only source of the user layer in a pod. No bundle is a no-op. This runs on every boot, so
+   a wake picks up a newer version ([0011](decisions/0011-explicit-atlas-push.md)).
+8. **Thread meta.** A fresh pod writes its thread meta with the `projectId`, and a local pod stamps
    `runner: local` (`apps/serve/src/serve-boot.ts`).
-10. **Compose.** Serve composes the shared harness with the pod's serve token as its Atlas Cloud
+9. **Compose.** Serve composes the shared harness with the pod's serve token as its Atlas Cloud
     credential (`apps/serve/src/compose-serve.ts`), then hands its handlers to the listener and
-    arms the idle timer (`apps/serve/src/serve-boot-finish.ts`). On a Vercel pod, composition
-    also starts the user-layer sync (below).
+    arms the idle timer (`apps/serve/src/serve-boot-finish.ts`).
 
 Two pulls happen after boot, on use:
 
@@ -180,14 +171,13 @@ Two pulls happen after boot, on use:
   and refreshes (`packages/harness/src/credentials/cloud-managed-credential-port.ts`)
   ([0005](decisions/0005-api-owns-oauth-tokens.md)).
 
-MCP server config reaches a pod through the bundle or the archive, not through `/v1/mcp-servers`,
+MCP server config reaches a pod through the bundle, not through `/v1/mcp-servers`,
 which is session-only.
 
-The user-layer sync engine (`/v1/user-files`, skills and instructions) differs by runner. A local
-pod gets `ATLAS_POD_NAME`, and the binding chooses a no-op whenever it is set
-(`packages/harness/src/composition/user-layer-sync-binding.ts`). A Vercel pod has no
-`ATLAS_POD_NAME`, so it binds the real engine with its serve token and syncs. Signed-in host
-sessions use it too.
+The user-layer sync engine (`/v1/user-files`, skills and instructions) never runs in a pod. Serve
+composes with its serve token as `ServeSessionToken`, and the binding chooses a no-op whenever that
+token is present, on either runner (`packages/harness/src/composition/user-layer-sync-binding.ts`).
+Only signed-in host sessions run the engine.
 
 ### The TUI's own stores in pod mode
 

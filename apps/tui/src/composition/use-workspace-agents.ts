@@ -1,4 +1,4 @@
-import type { MutableRefObject } from 'react'
+import type { RefObject } from 'react'
 
 import type { ModelSelection } from '@dltech/atlas-harness'
 
@@ -18,7 +18,7 @@ export function useWorkspaceAgents(args: {
   shells: ShellsControl
   selection: ModelSelection
   meters: readonly FooterMeter[]
-  viewedPicker: MutableRefObject<SwitcherViewed | undefined>
+  viewedPicker: RefObject<SwitcherViewed | undefined>
   onFocusComposer: () => void
 }) {
   const { app, conversation, shells, selection, meters, viewedPicker, onFocusComposer } = args

@@ -1,6 +1,5 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
 
-import type { SandboxTransferProgress } from './transfer-progress'
 
 import type {
   ChannelConnection,
@@ -54,17 +53,6 @@ export type CloudSandboxes = {
     projectId: string | null
     /** The thread's model ref, written into the boot spec so the cloud session runs the model it was on. */
     model?: string | undefined
-    /**
-     * Captures the skills/memory tar a fresh boot needs and uploads it through `put`. Deferred so
-     * a resume never pays the tar: create invokes it only once the drift probe has settled that
-     * the boot is fresh, before boot, so serve finds the archive on its first poll instead of
-     * retrying a 404 through its ninety-second budget. The caller owns failure semantics — a birth
-     * fails the move on an upload error, a wake warns and continues without the context.
-     */
-    captureContext?:
-      | ((put: (archive: Uint8Array) => Promise<void>) => Promise<void>)
-      | undefined
-    onTransferProgress?: ((progress: SandboxTransferProgress) => void) | undefined
     /** Fires the moment the wake finds a protocol-mismatched sandbox and starts rotating it. */
     onRotationStarted?: (() => void) | undefined
     /**

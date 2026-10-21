@@ -99,13 +99,13 @@ export function useSettings(args: {
     [app.agentTypes.shadowed, app.settings.definitions, app.settings.writeOrigin, held.resolution],
   )
 
-  const { accent, density, composer, imageRows, fenceWrap } = appearanceOf({
+  const { accent, density, composer, imageRows, fenceWrap, logo } = appearanceOf({
     resolution: held.resolution,
   })
 
   const appearance = useMemo(
-    () => ({ accent, density, composer, imageRows, fenceWrap }),
-    [accent, composer, density, imageRows, fenceWrap],
+    () => ({ accent, density, composer, imageRows, fenceWrap, logo }),
+    [accent, composer, density, imageRows, fenceWrap, logo],
   )
 
   useEffect(() => {

@@ -1,11 +1,14 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import React from 'react'
 
 import { Startup } from '../components/startup'
+import { glyph } from '../glyphs'
+import { logoCells, logoRows } from '../logo'
+import { applyLogo, ELogo, SHIPPED_LOGO } from '../logo-store'
 import { teardown } from '../markdown/__tests__/harness'
 import { EStartupPhase, type StartupFrame } from '../startup-model'
-import { WORDMARK_CELLS, WORDMARK_ROWS } from '../wordmark'
+import { expectNoLogo, HALF_CELL, inkedCells } from './logo-fixture'
 
 const WIDTH = 100
 
@@ -19,7 +22,9 @@ const STATUS = 'wiring the harness'
 
 const BENEATH = 'THE WORKSPACE UNDERNEATH'
 
-const HALF_CELL = '▀'
+afterEach(() => {
+  applyLogo(SHIPPED_LOGO)
+})
 
 const frame = (over: Partial<StartupFrame> = {}): StartupFrame => ({
   phase: EStartupPhase.Holding,
@@ -61,8 +66,6 @@ async function paint(args: {
     await teardown(setup)
   }
 }
-
-const inkedCells = (painted: string): number => painted.split(HALF_CELL).length - 1
 
 describe('the startup curtain', () => {
   it('shows the brand lockup in an 80-column terminal', async () => {
@@ -121,16 +124,41 @@ describe('the startup curtain', () => {
     expect(painted).not.toContain(STATUS)
   })
 
-  it('falls back to a one-line mark in a terminal too narrow to carry the wordmark', async () => {
-    const painted = await paint({ frame: frame(), width: WORDMARK_CELLS - 10 })
-    expect(painted).toContain('atlas')
+  it('falls back to the one-line name in a terminal too narrow for the wordmark', async () => {
+    applyLogo(ELogo.Wordmark)
+    const painted = await paint({ frame: frame(), width: logoCells(ELogo.Wordmark) - 10 })
+    expect(painted).not.toContain(HALF_CELL)
+    expect(painted).toContain(`${glyph.block} atlas`)
     expect(painted).not.toContain(BENEATH)
   })
 
-  it('falls back to it in a terminal too short for one too, rather than clipping the mark', async () => {
-    const painted = await paint({ frame: frame(), height: WORDMARK_ROWS + 1 })
-    expect(painted).toContain('atlas')
+  it('falls back to the one-line name in a terminal too short for the wordmark', async () => {
+    applyLogo(ELogo.Wordmark)
+    const painted = await paint({ frame: frame(), height: logoRows(ELogo.Wordmark) + 1 })
     expect(painted).not.toContain(HALF_CELL)
+    expect(painted).toContain(`${glyph.block} atlas`)
+    expect(painted).not.toContain(BENEATH)
+  })
+})
+
+describe('the startup curtain with the mark chosen', () => {
+  it('draws the mark where the wordmark would not fit', async () => {
+    applyLogo(ELogo.Mark)
+    const painted = await paint({ frame: frame(), width: logoCells(ELogo.Wordmark) - 10 })
+    expect(inkedCells(painted)).toBeGreaterThan(0)
+  })
+
+  it('draws nothing in a terminal too narrow for it', async () => {
+    applyLogo(ELogo.Mark)
+    const painted = await paint({ frame: frame(), width: logoCells(ELogo.Mark) - 10 })
+    expectNoLogo(painted)
+    expect(painted).not.toContain(BENEATH)
+  })
+
+  it('draws nothing in the mark slot of a terminal too short for it, rather than clipping it', async () => {
+    applyLogo(ELogo.Mark)
+    const painted = await paint({ frame: frame(), height: logoRows(ELogo.Mark) + 1 })
+    expectNoLogo(painted)
     expect(painted).not.toContain(BENEATH)
   })
 })

@@ -76,7 +76,7 @@ export function useThreadRouter(args: {
   const listing = useCallback((): Pick<ThreadStorePort, 'list'> => cloudListing(localApp), [localApp])
 
   const attach = useCallback(
-    async (threadId: string, projectDirectory: string | undefined): Promise<void> => {
+    async (threadId: string): Promise<void> => {
       if (threadId === args.activeThreadId && cloudSession !== null) return
 
       const bridge = await bridgeOf(threadId)
@@ -88,7 +88,6 @@ export function useThreadRouter(args: {
         threadId: toThreadId(threadId),
         move: containerMove,
         onReload: args.onReload,
-        ...(projectDirectory === undefined ? {} : { projectDirectory }),
       }).then(async (binding) => {
         try {
           await localApp.sessionOwner.adopt({
@@ -135,8 +134,7 @@ export function useThreadRouter(args: {
       })
 
       if ('cloud' in outcome) {
-        const located = await localApp.threads.find({ threadId: outcome.threadId })
-        await attach(outcome.threadId as string, located?.workspace ?? undefined)
+        await attach(outcome.threadId as string)
         return
       }
       if (!outcome.ok) {
@@ -175,7 +173,7 @@ export function useThreadRouter(args: {
       args.opened.bootCloudThreadId ??
       (args.opened.attachOnBoot === true ? args.opened.threadId : undefined)
     if (bootCloud === undefined || cloudSession !== null) return
-    void attach(bootCloud as string, localApp.workspace.workspace)
+    void attach(bootCloud as string)
   }, [attach, cloudSession, args.opened, localApp])
 
   const findSandbox = useCallback(
@@ -190,7 +188,7 @@ export function useThreadRouter(args: {
   const handleRetryAttach = useCallback(() => {
     const snapshot = localApp.sessionOwner.snapshot()
     if (snapshot.bound || snapshot.threadId === undefined) return
-    void attach(snapshot.threadId as string, localApp.workspace.workspace)
+    void attach(snapshot.threadId as string)
   }, [attach, localApp])
 
   return { handleOpen, listing, findSandbox, handleRetryAttach }

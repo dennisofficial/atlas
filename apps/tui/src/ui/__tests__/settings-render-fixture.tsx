@@ -10,6 +10,7 @@ import { SHIPPED_IMAGE_ROWS } from '../image-rows-store'
 import { SHIPPED_FENCE_WRAP } from '../fence-wrap-store'
 import { EComposerEdge } from '../composer-edge-store'
 import { EBlockDensity } from '../density-store'
+import { SHIPPED_LOGO } from '../logo-store'
 import { idleLogin } from '../settings-login-model'
 import { settingsModel, type SettingsState, type ShadowedAgentTypeSource } from '../settings-model'
 import { SIDEBAR_WIDTH } from '../theme'
@@ -28,6 +29,7 @@ export const SHIPPED_APPEARANCE: Appearance = {
   density: EBlockDensity.Comfort,
   composer: EComposerEdge.Slab, imageRows: SHIPPED_IMAGE_ROWS,
   fenceWrap: SHIPPED_FENCE_WRAP,
+  logo: SHIPPED_LOGO,
 }
 
 export const SECRETS_ORIGIN = '~/.atlas/secrets.json'

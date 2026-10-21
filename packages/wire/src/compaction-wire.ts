@@ -17,14 +17,14 @@ const operationIdSchema = z.string().min(1)
 export const compactHistoryParamsSchema = z.object({
   threadId: threadIdWireSchema,
   operationId: operationIdSchema,
-  scope: z.nativeEnum(EWireCompactScope).default(EWireCompactScope.Recent),
+  scope: z.enum(EWireCompactScope).default(EWireCompactScope.Recent),
 })
 export type CompactHistoryParams = z.infer<typeof compactHistoryParamsSchema>
 
 export const summariseHistoryParamsSchema = z.object({
   threadId: threadIdWireSchema,
   operationId: operationIdSchema,
-  anchor: z.nativeEnum(EWireCompactionAnchor),
+  anchor: z.enum(EWireCompactionAnchor),
   seq: seqSchema,
 })
 export type SummariseHistoryParams = z.infer<typeof summariseHistoryParamsSchema>

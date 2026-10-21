@@ -222,8 +222,8 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
     const result = await generateText({ model, prompt: 'ping' })
 
     expect(result.text).toBe('pong')
-    expect(result.reasoningText).toBe('thinking it over')
-    expect(result.reasoning[0]?.providerMetadata).toMatchObject({
+    expect(result.finalStep.reasoningText).toBe('thinking it over')
+    expect(result.finalStep.reasoning[0]?.providerOptions).toMatchObject({
       openai: { itemId: 'rs_stub', reasoningEncryptedContent: 'enc_stub' },
     })
   })

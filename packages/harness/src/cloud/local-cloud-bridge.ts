@@ -15,17 +15,14 @@ import {
 } from '@dltech/atlas-wire'
 import {
   bootstrapSpecOf,
-  CONTEXT_ARCHIVE_PATH,
   liveDriverWith,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
   type LiveSandbox,
-  vaultPresentInSandbox,
 } from './local-cloud-bootstrap'
 import { attachmentOf } from './local-cloud-attachment'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 import { registerInBackground } from './local-cloud-registration'
-import { transferBufferedArchive } from './buffered-transfer'
 
 export type { LocalCloudBridgeOptions, SandboxAuthorizer } from './local-cloud-bridge-options'
 
@@ -75,16 +72,7 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
           content: bootstrap,
         })
       }
-      const stagesFresh = freshBoot || !(await vaultPresentInSandbox(sandbox))
       await authorize(() => sandbox.domain(SANDBOX_SERVE_PORT))
-      if (createArgs.captureContext === undefined || !stagesFresh) return
-      await createArgs.captureContext((archive) =>
-        transferBufferedArchive({
-          archive,
-          upload: () => driver.writeBootstrapFileToSandbox({ sandbox, path: CONTEXT_ARCHIVE_PATH, content: archive }),
-          onProgress: (progress) => createArgs.onTransferProgress?.({ ...progress, transferId: 'context-upload', label: 'uploading local config' }),
-        }),
-      )
     }
 
     const environment: Record<string, string> = {

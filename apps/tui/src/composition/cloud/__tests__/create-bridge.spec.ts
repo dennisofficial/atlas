@@ -20,18 +20,10 @@ type FakeDriver = BridgeDriver & {
   readonly tokens: readonly (string | undefined)[]
 }
 
-const fakeDriver = (args: { created: boolean; vaultPresent?: boolean }): FakeDriver => {
+const fakeDriver = (args: { created: boolean }): FakeDriver => {
   const written: RecordedWrite[] = []
   const tokens: (string | undefined)[] = []
-  const sandbox = {
-    runCommand: async (params: { cmd: string; args?: string[] }) => {
-      const script = params.args?.[1] ?? params.cmd
-      if (script.includes('auth.json')) {
-        return { exitCode: args.vaultPresent === false ? 1 : 0 }
-      }
-      return { exitCode: 0 }
-    },
-  }
+  const sandbox = {}
   return {
     written,
     tokens,
@@ -110,23 +102,13 @@ describe('createCloudBridge sandboxes.create', () => {
     expect(JSON.parse(String(spec?.content))).toEqual({ remoteUrl: null, githubToken: null, projectId: 'proj_1' })
   })
 
-  it('never rewrites the workspace spec on a resume with a live vault', async () => {
-    const driver = fakeDriver({ created: false, vaultPresent: true })
+  it('never rewrites the workspace spec on a resume', async () => {
+    const driver = fakeDriver({ created: false })
     const bridge = bridgeWith({ driver, signedIn: false })
 
     await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(driver.written).toEqual([])
-  })
-
-  it('stages the portable snapshot on a resume whose vault never materialised', async () => {
-    const driver = fakeDriver({ created: false, vaultPresent: false })
-    const bridge = bridgeWith({ driver, signedIn: false })
-
-    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
-
-    const paths = driver.written.map((write) => write.path)
-    expect(paths).not.toContain('/atlas/home/bootstrap/workspace-spec.json')
   })
 
   it('sends the registration after the sandbox answers when signed in', async () => {
@@ -218,27 +200,5 @@ describe('createCloudBridge sandboxes.create', () => {
 
     expect(sandbox.state).toBe(ECloudSandboxState.Running)
     expect(Date.now() - started).toBeLessThan(1_000)
-  })
-
-  it('stages the context archive on a resume whose vault never materialised', async () => {
-    const driver = fakeDriver({ created: false, vaultPresent: false })
-    const archives: number[] = []
-    const bridge = createCloudBridge({
-      vercel: () => CONFIG,
-      attachmentToken: () => 'stable-serve-token',
-      driverWith: () => driver,
-    })
-
-    await bridge.sandboxes.create({
-      threadId: THREAD,
-      projectId: null,
-      captureContext: async (put) => {
-        archives.push(1)
-        await put(new Uint8Array(2))
-      },
-    })
-
-    expect(archives).toHaveLength(1)
-    expect(driver.written.map((write) => write.path)).toContain('/atlas/home/bootstrap/context.tar.gz')
   })
 })

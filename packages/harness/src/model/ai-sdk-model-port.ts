@@ -145,7 +145,7 @@ export async function runModelStream(args: {
   const accumulator = createPartAccumulator()
 
   try {
-    for await (const part of stream.fullStream) {
+    for await (const part of stream.stream) {
       tape.tap(part)
 
       // The SDK answers its own stream timeout with a graceful `abort` part, indistinguishable

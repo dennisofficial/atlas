@@ -10,10 +10,8 @@ import {
 import type { BirthInstall, SessionOwner, SessionRuntime } from '../composition/session-owner'
 import { ImagePullError } from '../execution/docker/image-pull'
 import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
-import type { CaptureContext } from './context-archive-policy'
 import type { CloudAttachment, CloudBridge, CloudSandbox } from './cloud-bridge'
 import { CloudError } from './cloud-transport'
-import type { SandboxTransferProgress } from './transfer-progress'
 import { VercelNotConfiguredError } from './vercel-credentials'
 
 export enum EBirthNode {
@@ -59,12 +57,9 @@ export type BirthArgs = {
   localLog: EventLogPort
   ids: IdPort
   placement: SessionOwner<SessionRuntime>
-  captureContext: CaptureContext
   onBegin?: ((args: { waves: readonly BirthWave[] }) => void) | undefined
   onNodeStart?: ((nodeId: string) => void) | undefined
   onNodeDone?: ((nodeId: string) => void) | undefined
-  onTransferProgress?: ((progress: SandboxTransferProgress) => void) | undefined
-  onWaveLabel?: ((nodeId: string, label: string) => void) | undefined
   open?: ((args: {
     attachment: CloudAttachment
     prepareRuntime: BirthInstall<SessionRuntime>['prepareRuntime']
@@ -103,16 +98,6 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
           threadId,
           projectId: args.projectId,
           model: args.model.ref,
-          onTransferProgress: args.onTransferProgress,
-          captureContext: async (put) => {
-            args.onWaveLabel?.(EBirthNode.Provision, 'sending local config to the pod')
-            try {
-              const archive = await args.captureContext()
-              if (archive !== undefined) await put(archive)
-            } finally {
-              args.onWaveLabel?.(EBirthNode.Provision, 'waiting for the pod')
-            }
-          },
         })
         done(EBirthNode.Provision)
 

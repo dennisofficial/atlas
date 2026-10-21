@@ -1,5 +1,5 @@
 import { ETldrStatus, transcriptOfRange, type Event } from '@dltech/atlas-core'
-import { streamObject, type LanguageModel } from 'ai'
+import { Output, streamText, type LanguageModel } from 'ai'
 import { z } from 'zod'
 
 const TLDR_INSTRUCTION = [
@@ -69,20 +69,20 @@ export async function tldrFor(args: {
   if (prompt === null) return null
 
   try {
-    const stream = streamObject({
+    const stream = streamText({
       model: args.model,
-      schema: tldrSchema,
+      output: Output.object({ schema: tldrSchema }),
       system: TLDR_INSTRUCTION,
       prompt,
       onError: () => undefined,
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
 
-    for await (const partial of stream.partialObjectStream) {
+    for await (const partial of stream.partialOutputStream) {
       if (typeof partial.summary === 'string') args.onChunk?.(partial.summary)
     }
 
-    const result = await stream.object
+    const result = await stream.output
     const text = result.summary.trim()
     return text.length === 0 ? null : { text, status: result.status }
   } catch {

@@ -56,7 +56,7 @@ export const qualityScopeIdentitySchema: z.ZodType<QualityScopeIdentity> = z.obj
 const decisionAnswerSchema = z.object({
   noul: probability.optional(),
   choice: z.string().optional(),
-  score: z.number().finite().optional(),
+  score: z.number().optional(),
   probabilities: z.record(z.string(), probability).optional(),
   confidence: probability.optional(),
 })
@@ -98,7 +98,7 @@ export const codeQualityReviewedSchema: z.ZodType<CodeQualityReviewedBody> = z.o
   detail: z.string().optional(),
   assessments: z.array(qualityAssessmentSchema).readonly(),
   findings: z.array(qualityFindingSchema).readonly(),
-  durationMs: z.number().finite().nonnegative(),
+  durationMs: z.number().nonnegative(),
   requestedModel: identifier.optional(),
   resolvedModel: identifier.optional(),
   evidencePath: identifier.optional(),

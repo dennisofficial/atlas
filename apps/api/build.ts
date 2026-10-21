@@ -51,7 +51,7 @@ async function writeJson({
 }
 
 function shippedMigrationNames(): string[] {
-  return readdirSync(join(import.meta.dir, 'prisma', 'migrations'), { withFileTypes: true })
+  return readdirSync(join(import.meta.dirname, 'prisma', 'migrations'), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort()
@@ -64,7 +64,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
   await mkdir(functionDir, { recursive: true })
 
   const result = await Bun.build({
-    entrypoints: [join(import.meta.dir, 'src', 'vercel.ts')],
+    entrypoints: [join(import.meta.dirname, 'src', 'vercel.ts')],
     outdir: functionDir,
     naming: 'index.js',
     target: 'bun',
@@ -79,7 +79,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
   }
 
   const runtime = await lockedRuntimePackages({
-    lockPath: join(import.meta.dir, '..', '..', 'bun.lock'),
+    lockPath: join(import.meta.dirname, '..', '..', 'bun.lock'),
     roots: RUNTIME_PACKAGES,
   })
   await writeJson({ path: join(functionDir, 'package.json'), value: { type: 'module', dependencies: runtime.dependencies } })
@@ -94,7 +94,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     throw new Error('Installing the runtime packages of the function failed')
   }
 
-  const tierSource = join(import.meta.dir, 'envs', TIER_FILE)
+  const tierSource = join(import.meta.dirname, 'envs', TIER_FILE)
   if (!existsSync(tierSource)) {
     throw new Error(`${TIER_FILE} not found at ${tierSource}; the committed tier must exist to ship in the bundle.`)
   }
@@ -118,5 +118,5 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
 }
 
 if (import.meta.main) {
-  await buildVercelOutput({ outDir: join(import.meta.dir, '.vercel', 'output') })
+  await buildVercelOutput({ outDir: join(import.meta.dirname, '.vercel', 'output') })
 }

@@ -161,7 +161,6 @@ const benchApp = (args: {
       titler: async () => null,
       notice: noticePortBinding(),
     }),
-    captureContext: async () => undefined,
     pullRequests: null,
     prEventSink: null,
     mcp: () => [],

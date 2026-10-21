@@ -6,7 +6,7 @@ export type WriteRecord = { name: string; path: string; content: Uint8Array | st
 
 export const POD_CONFIG = { cloudUrl: 'http://cloud.test', home: '/home/test/.atlas' }
 
-export const fakePodDriver = (args: { created: boolean; vaultPresent?: boolean }) => {
+export const fakePodDriver = (args: { created: boolean }) => {
   const events: string[] = []
   const writes: WriteRecord[] = []
   const created: PodProvisionArgs<RunnerPodHandle>[] = []
@@ -26,10 +26,6 @@ export const fakePodDriver = (args: { created: boolean; vaultPresent?: boolean }
       }
     },
     inspect: async () => undefined,
-    vaultPresent: async () => {
-      events.push('vault-probe')
-      return args.vaultPresent ?? false
-    },
     writeBootstrapFile: async (write) => {
       events.push(`write:${write.path}`)
       writes.push(write)

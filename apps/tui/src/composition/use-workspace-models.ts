@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import type { MutableRefObject } from 'react'
+import type { RefObject } from 'react'
 
 import {
   contextPressure,
@@ -27,7 +27,7 @@ import { useUsageMeters } from './use-usage-meters'
 import { useViewModel } from './use-view-model'
 
 export type ModelChoiceRelay = {
-  open: MutableRefObject<((id: string) => void) | null>
+  open: RefObject<((id: string) => void) | null>
   handleChoose: (id: string) => void
 }
 
@@ -160,7 +160,7 @@ export function useViewedAgent(args: {
   agentView: Pick<AgentView, 'selected' | 'scopedTo'>
   selection: ModelSelection
   meters: readonly FooterMeter[]
-  viewedPicker: MutableRefObject<SwitcherViewed | undefined>
+  viewedPicker: RefObject<SwitcherViewed | undefined>
 }) {
   const { app, conversation, agentView, selection, meters, viewedPicker } = args
 

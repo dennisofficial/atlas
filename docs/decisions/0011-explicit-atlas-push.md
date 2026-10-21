@@ -24,9 +24,9 @@ and birth does not depend on the laptop's state.
 
 ## Consequences
 
-- Until the context archive is deleted, a fresh birth still uploads the laptop's current user
-  layer, and Vercel pods still run the user-layer sync. The bundle is applied after the archive and
-  overwrites matching files; it does not remove files it doesn't name.
+- The context archive is deleted, so a birth uploads nothing from the laptop's user layer and the
+  bundle is the only source of skills, instructions and MCP config in a pod.
+- No pod runs the user-layer sync; it is a no-op in every pod.
 - A wake picks up a newer version, because the bundle is applied on every boot.
 - Memory never rides in a bundle; see 0009.
 - Old bundle blobs are not deleted.

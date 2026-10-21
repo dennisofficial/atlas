@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
-import { MockLanguageModelV4, simulateReadableStream } from 'ai/test'
+import { simulateReadableStream } from 'ai'
+import { MockLanguageModelV4 } from 'ai/test'
 
 import {
   stampDrafts,

@@ -1445,10 +1445,9 @@ worktrees, or uncommitted work cross: the remote is the only truth at birth, so 
 local checkout cannot leak into the cloud. Portable state (`local-state.json`) carries vault
 accounts, secrets, `settings.json`, and `mcp.json`, staged on the drive and installed into the
 sandbox's Atlas home before serve composes. The OAuth handoff rides the Cloud API as before.
-The context archive (`context.tar.gz`, written straight into the sandbox before serve launches)
-carries `mcp.json` plus the user layer — skills and instructions — captured from the same
-roots the user-layer sync reads, so a birth does not depend on sync having run; the sync
-(`/v1/user-files`) then keeps them live. There is no transcript at birth — the thread's history
+Portable state and the context archive are deleted: a pod now pulls its accounts, settings and
+secrets from Atlas Cloud at boot, and its skills, instructions and MCP config from the
+`atlas push` bundle ([pods](pods.md)). There is no transcript at birth — the thread's history
 starts in the sandbox.
 
 A birth that cannot finish — the credentials missing, the sandbox refusing, the attach failing —

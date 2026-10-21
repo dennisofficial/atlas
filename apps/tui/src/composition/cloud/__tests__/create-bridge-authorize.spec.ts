@@ -99,7 +99,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, projectId: null, captureContext: undefined })
+    await bridge.sandboxes.create({ threadId: THREAD, projectId: null })
 
     expect(events.filter((event) => event === 'authorize')).toHaveLength(1)
   })

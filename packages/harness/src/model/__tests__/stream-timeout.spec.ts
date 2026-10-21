@@ -4,7 +4,7 @@ import { MockLanguageModelV4 } from 'ai/test'
 
 import type { ProviderIdentity, ProviderPrompt } from '@dltech/atlas-core'
 
-import { simulateReadableStream } from 'ai/test'
+import { simulateReadableStream } from 'ai'
 
 import { runModelStream, type StreamTimeout } from '../ai-sdk-model-port'
 import { StreamStallError } from '../errors'

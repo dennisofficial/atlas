@@ -18,7 +18,6 @@ import {
   type PodHostPorts,
   type PodProvisionDeps,
 } from './driver-provision'
-import { VAULT_PROBE_PATH } from '../local-cloud-bootstrap'
 import { POD_INGRESS_CONTAINER_PORT } from './ingress'
 import {
   DEFAULT_POD_IMAGE,
@@ -57,7 +56,6 @@ const DEFAULT_SOCKET_PATH = '/var/run/docker.sock'
 const DEFAULT_VCPUS = 2
 const NANO_CPUS_PER_VCPU = 1e9
 const BOOTSTRAP_MKDIR_SECONDS = 20
-const VAULT_PROBE_SECONDS = 15
 
 const stateOf = (status: string): SandboxStateWire => {
   switch (status) {
@@ -159,16 +157,6 @@ export class DockerPodDriver implements RunnerDriver {
       throw new Error(`could not create ${posix.dirname(args.path)} in pod ${args.name}: ${await made.stderr()}`)
     }
     await this.engine.writeFile({ id: args.name, path: args.path, content: args.content, mode: 0o600 })
-  }
-
-  async vaultPresent(args: { name: string }): Promise<boolean> {
-    const probe = boundedScript({ script: `test -s ${VAULT_PROBE_PATH}`, seconds: VAULT_PROBE_SECONDS })
-    try {
-      const result = await this.engine.execSh({ id: args.name, script: probe.script, timeoutMs: probe.timeoutMs })
-      return result.exitCode === 0
-    } catch {
-      return false
-    }
   }
 
   async readResources(args: { name: string }): Promise<{ vcpus?: number; memoryMb?: number }> {

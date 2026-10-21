@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'
 
-import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
+import { dismissNotice } from '../../../ui/notice-store'
 import type { ContainerMoveControl } from '../../use-container-move'
 import { createCloudRunner } from '../cloud-runner'
 import { ECloudSandboxState } from '@dltech/atlas-harness'
@@ -57,21 +57,18 @@ describe('waking a cloud runner whose channel is not open', () => {
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
     const move = fakeMove()
-    const archive = Buffer.from('a fake tar.gz')
     const runner = createCloudRunner({
       bridge,
       channel,
       threadId: CLOUD_THREAD,
       projectId: null,
       move,
-      captureContext: async () => archive,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
 
     expect(bridge.created).toEqual([{ threadId: CLOUD_THREAD, projectId: null }])
-    expect(bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
@@ -92,7 +89,6 @@ describe('waking a cloud runner whose channel is not open', () => {
       channel,
       threadId: CLOUD_THREAD,
       projectId: 'proj_1',
-      captureContext: async () => undefined,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
@@ -104,33 +100,6 @@ describe('waking a cloud runner whose channel is not open', () => {
     await turn
   })
 
-  it('skips capturing and uploading the context archive when the sandbox resumed with it', async () => {
-    const bridge = fakeBridge({ sandbox: RESUMED })
-    const channel = fakeCloudChannel()
-    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
-    let captureCalls = 0
-    const runner = createCloudRunner({
-      bridge,
-      channel,
-      threadId: CLOUD_THREAD,
-      projectId: null,
-      captureContext: async () => {
-        captureCalls += 1
-        return Buffer.from('a fake tar.gz')
-      },
-    })
-
-    const turn = runner.runTurn({ threadId: CLOUD_THREAD })
-    await Bun.sleep(1)
-
-    expect(captureCalls).toBe(0)
-    expect(bridge.contextPuts).toEqual([])
-    expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
-
-    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-4') })
-    await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-4') })
-  })
-
   it('touches nothing move-shaped when no move control was given', async () => {
     const bridge = fakeBridge({ sandbox: CREATED })
     const channel = fakeCloudChannel()
@@ -140,7 +109,6 @@ describe('waking a cloud runner whose channel is not open', () => {
       channel,
       threadId: CLOUD_THREAD,
       projectId: null,
-      captureContext: async () => undefined,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
@@ -150,39 +118,6 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-2') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-2') })
-  })
-
-  it('warns rather than failing the wake when the context re-upload fails', async () => {
-    const bridge = fakeBridge({
-      sandbox: CREATED,
-      putContextFails: new Error('the control plane fell over'),
-    })
-    const channel = fakeCloudChannel()
-    channel.moveTo({ state: EConnectionView.Disconnected, detail: null })
-    const move = fakeMove()
-    const archive = Buffer.from('a fake tar.gz')
-    const runner = createCloudRunner({
-      bridge,
-      channel,
-      threadId: CLOUD_THREAD,
-      projectId: null,
-      move,
-      captureContext: async () => archive,
-    })
-
-    const turn = runner.runTurn({ threadId: CLOUD_THREAD })
-    await Bun.sleep(1)
-
-    expect(bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
-    expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
-    expect(move.calls.some((call) => call.startsWith('fail:'))).toBe(false)
-    const notice = currentNotices().find((entry) => entry.key === 'wake-context-put-failed')
-    expect(notice).toBeDefined()
-    expect(notice?.tone).toBe(ENoticeTone.Warn)
-    expect(notice?.text).toContain('the control plane fell over')
-
-    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-3') })
-    await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-3') })
   })
 
   it('expands the drawer with a rotation step when the wake rotates a build-drifted sandbox', async () => {
@@ -200,7 +135,6 @@ describe('waking a cloud runner whose channel is not open', () => {
       threadId: CLOUD_THREAD,
       projectId: null,
       move,
-      captureContext: async () => undefined,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
@@ -232,7 +166,6 @@ describe('waking a cloud runner whose channel is not open', () => {
       threadId: CLOUD_THREAD,
       projectId: null,
       move,
-      captureContext: async () => undefined,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
@@ -260,7 +193,6 @@ describe('waking a cloud runner whose channel is not open', () => {
       threadId: CLOUD_THREAD,
       projectId: null,
       move,
-      captureContext: async () => undefined,
     })
 
     await expect(runner.runTurn({ threadId: CLOUD_THREAD })).rejects.toThrow('no capacity in iad1')

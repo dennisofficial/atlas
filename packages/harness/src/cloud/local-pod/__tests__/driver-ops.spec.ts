@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import type { SandboxStateWire } from '@dltech/atlas-wire'
 
-import { VAULT_PROBE_PATH } from '../../local-cloud-bootstrap'
 import { driverWith, fakeEngine, GIB, NAME, SERVE_HOST_PORT, THREAD } from './fake-pod-engine'
 
 describe('DockerPodDriver name check', () => {
@@ -131,29 +130,5 @@ describe('DockerPodDriver bootstrap files and destroy', () => {
       `removeVolume:${NAME}-workspace`,
       `removeVolume:${NAME}-docker`,
     ])
-  })
-})
-
-describe('DockerPodDriver vault probe', () => {
-  it.each<['present' | 'absent' | 'throws', boolean]>([
-    ['present', true],
-    ['absent', false],
-    ['throws', false],
-  ])('answers %s as %s', async (vaultProbe, expected) => {
-    const fake = fakeEngine({ existing: { id: 'id-1', status: 'running' }, vaultProbe })
-    const driver = driverWith({ engine: fake.engine })
-
-    expect(await driver.vaultPresent({ name: NAME })).toBe(expected)
-  })
-
-  it('probes the vault file through a bounded exec', async () => {
-    const fake = fakeEngine({ existing: { id: 'id-1', status: 'running' } })
-    const driver = driverWith({ engine: fake.engine })
-
-    await driver.vaultPresent({ name: NAME })
-
-    expect(fake.scripts).toHaveLength(1)
-    expect(fake.scripts[0]).toStartWith('timeout -k 5 ')
-    expect(fake.scripts[0]).toContain(`test -s ${VAULT_PROBE_PATH}`)
   })
 })

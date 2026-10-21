@@ -945,7 +945,6 @@ export function fakeApp(args: {
     files: new FileBrowser({ root: args.workspaceRoot ?? FAKE_CONFIG.cwd }),
     accounts: fakeAccounts(args.accountsSeed),
     cloud: args.cloud ?? fakeCloud(),
-    captureContext: async () => undefined,
     openUrl: (url: string) => {
       openedUrls.push(url)
     },
