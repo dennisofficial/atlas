@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, type MutableRefObject } from 'react'
+import { useCallback, useMemo, useRef, type RefObject } from 'react'
 
 import type { EAuthProvider } from '@dltech/atlas-core'
 import type { AccountsService, BrowserTicket, UrlOpener } from '@dltech/atlas-harness'
@@ -26,7 +26,7 @@ export type BrowserLogin = {
 export function useBrowserLogin(args: {
   accounts: AccountsService
   openUrl: UrlOpener
-  held: MutableRefObject<AccountsState | null>
+  held: RefObject<AccountsState | null>
   put: (next: AccountsState | null) => void
   refresh: (change: (state: AccountsState) => AccountsState) => void
 }): BrowserLogin {

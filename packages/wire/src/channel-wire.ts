@@ -241,7 +241,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal(EClientFrame.Request),
     id: z.string().min(1),
-    op: z.nativeEnum(EClientRequest),
+    op: z.enum(EClientRequest),
     params: z.unknown(),
   }),
   z.object({ kind: z.literal(EClientFrame.Pong) }),

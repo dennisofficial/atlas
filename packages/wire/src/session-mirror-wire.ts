@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const sessionMirrorFileSchema = z.object({
   path: z.string().min(1),
-  bytes: z.number().int().safe().nonnegative(),
+  bytes: z.number().int().nonnegative(),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
 })
 export type SessionMirrorFile = z.infer<typeof sessionMirrorFileSchema>

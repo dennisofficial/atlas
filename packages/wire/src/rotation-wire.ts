@@ -11,7 +11,7 @@ export enum EWireRotationPhase {
 }
 
 export const rotationStateWireSchema = z.object({
-  phase: z.nativeEnum(EWireRotationPhase),
+  phase: z.enum(EWireRotationPhase),
   watermarkSeq: z.number().int().nonnegative().optional(),
   reason: z.string().nullish(),
 })

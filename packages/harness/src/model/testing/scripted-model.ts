@@ -1,5 +1,6 @@
 import type { LanguageModelV4FinishReason, LanguageModelV4StreamPart, LanguageModelV4Usage } from '@ai-sdk/provider'
-import { MockLanguageModelV4, simulateReadableStream } from 'ai/test'
+import { simulateReadableStream } from 'ai'
+import { MockLanguageModelV4 } from 'ai/test'
 
 import { EFinishReason, type ProviderOptions } from '@dltech/atlas-core'
 

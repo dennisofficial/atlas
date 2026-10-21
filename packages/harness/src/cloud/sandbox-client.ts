@@ -15,7 +15,7 @@ export enum ECloudSandboxState {
   Unknown = 'unknown',
 }
 
-export const sandboxStateSchema = z.nativeEnum(ECloudSandboxState)
+export const sandboxStateSchema = z.enum(ECloudSandboxState)
 
 export const wireSandboxClaimSchema = z.object({
   token: z.string().min(1),
