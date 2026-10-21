@@ -7,6 +7,7 @@ import { podPark, providerStopFor, sandboxPark, type SignalSender } from '../san
 
 const threadId = toThreadId('pod-park-owner')
 const controlPlaneUrl = 'https://control-plane.invalid'
+const token = 'serve-token'
 
 const VERCEL_ENV = {
   VERCEL_TOKEN: 'token',
@@ -36,7 +37,7 @@ describe('podPark', () => {
 describe('providerStopFor', () => {
   it('sends SIGTERM to pid 1 only when the pod stop is invoked', async () => {
     const { calls, sendSignal } = recordingSender()
-    const stop = providerStopFor({ threadId, controlPlaneUrl, env: { [POD_NAME_ENV]: 'pod-a' }, sendSignal })
+    const stop = providerStopFor({ threadId, controlPlaneUrl, token, env: { [POD_NAME_ENV]: 'pod-a' }, sendSignal })
 
     expect(calls).toEqual([])
     await stop()
@@ -45,7 +46,7 @@ describe('providerStopFor', () => {
 
   it('rejects without a sandbox or pod and never signals', async () => {
     const { calls, sendSignal } = recordingSender()
-    const stop = providerStopFor({ threadId, controlPlaneUrl, env: {}, sendSignal })
+    const stop = providerStopFor({ threadId, controlPlaneUrl, token, env: {}, sendSignal })
 
     await expect(stop()).rejects.toThrow('this runtime has no sandbox to stop')
     expect(calls).toEqual([])
@@ -62,7 +63,7 @@ describe('providerStopFor', () => {
             vercelStops += 1
           }
 
-    await providerStopFor({ threadId, controlPlaneUrl, env, sendSignal, sandboxStopFor })()
+    await providerStopFor({ threadId, controlPlaneUrl, token, env, sendSignal, sandboxStopFor })()
 
     expect(vercelStops).toBe(1)
     expect(calls).toEqual([])
@@ -72,7 +73,7 @@ describe('providerStopFor', () => {
     const { calls, sendSignal } = recordingSender()
     const env = { VERCEL_TOKEN: 'token', [POD_NAME_ENV]: 'pod-a' }
 
-    await providerStopFor({ threadId, controlPlaneUrl, env, sendSignal })()
+    await providerStopFor({ threadId, controlPlaneUrl, token, env, sendSignal })()
 
     expect(calls).toEqual([{ pid: 1, signal: 'SIGTERM' }])
   })

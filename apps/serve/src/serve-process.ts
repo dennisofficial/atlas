@@ -1,7 +1,8 @@
 import type { PortExposureOutcome } from '@dltech/atlas-core'
 
-import type { VercelDriver } from '@dltech/atlas-harness'
 import { LocalProcessPort } from '@dltech/atlas-harness'
+
+import type { PortExposer } from './api-port-exposer'
 
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -9,16 +10,12 @@ const messageOf = (failure: unknown): string =>
 /**
  * Inside a cloud sandbox "local" is the sandbox itself, so the inherited localhost answer would
  * name a machine the operator cannot reach. Exposures go straight to Vercel with the token the
- * sandbox was created with (VERCEL_TOKEN in its environment), growing the sandbox's routed port
- * list and answering with the public (unguessable-subdomain) URL.
+ * sandbox was created with (VERCEL_TOKEN in its environment), or through the API for a sandbox
+ * the API provisioned, growing the sandbox's routed port list and answering with the public
+ * (unguessable-subdomain) URL.
  */
 export class ServeProcessPort extends LocalProcessPort {
-  constructor(
-    private readonly exposure: {
-      driver: Pick<VercelDriver, 'exposePort'>
-      name: string
-    } | null,
-  ) {
+  constructor(private readonly exposure: PortExposer | null) {
     super()
   }
 
@@ -32,10 +29,7 @@ export class ServeProcessPort extends LocalProcessPort {
     }
 
     try {
-      const url = await this.exposure.driver.exposePort({
-        name: this.exposure.name,
-        port: args.containerPort,
-      })
+      const url = await this.exposure.exposePort({ port: args.containerPort })
       return {
         ok: true,
         exposure: {
