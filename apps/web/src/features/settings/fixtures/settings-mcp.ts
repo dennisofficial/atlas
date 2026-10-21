@@ -1,3 +1,5 @@
+import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
+
 export enum EMcpTransport {
   Stdio = 'stdio',
   Http = 'http',
@@ -15,6 +17,7 @@ export type SuggestedMcpServer = {
   id: string
   name: string
   description: string
+  brand: EBrand
 }
 
 export const PERSONAL_MCP_SERVERS: McpServer[] = [
@@ -60,32 +63,32 @@ export const WORKSPACE_MCP_SERVERS: McpServer[] = [
 
 export const SUGGESTED_MCP_SERVERS: SuggestedMcpServer[] = [
   {
-    id: 'sentry',
+    id: 'sentry', brand: EBrand.Sentry,
     name: 'Sentry',
     description: 'Give Atlas access to issues, events, and releases.',
   },
   {
-    id: 'posthog',
+    id: 'posthog', brand: EBrand.PostHog,
     name: 'PostHog',
     description: 'Give Atlas access to insights, flags, and session replays.',
   },
   {
-    id: 'vercel',
+    id: 'vercel', brand: EBrand.Vercel,
     name: 'Vercel',
     description: 'Give Atlas access to deployments, logs, and project settings.',
   },
   {
-    id: 'neon',
+    id: 'neon', brand: EBrand.Neon,
     name: 'Neon',
     description: 'Give Atlas access to Postgres branches and SQL queries.',
   },
   {
-    id: 'stripe',
+    id: 'stripe', brand: EBrand.Stripe,
     name: 'Stripe',
     description: 'Give Atlas access to customers, payments, and subscriptions.',
   },
   {
-    id: 'notion',
+    id: 'notion', brand: EBrand.Notion,
     name: 'Notion',
     description: 'Give Atlas access to pages, databases, and comments.',
   },

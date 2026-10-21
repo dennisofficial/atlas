@@ -1,3 +1,4 @@
+import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { SUGGESTED_MCP_SERVERS } from '../fixtures/settings-mcp'
@@ -9,9 +10,7 @@ export function McpSuggested() {
       <div className="grid grid-cols-2 gap-3">
         {SUGGESTED_MCP_SERVERS.map((server) => (
           <div key={server.id} className="flex items-start gap-3 rounded-lg border bg-card p-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-semibold">
-              {server.name.charAt(0)}
-            </div>
+            <BrandMark brand={server.brand} />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-sm font-medium">{server.name}</span>
               <p className="text-xs text-muted-foreground">{server.description}</p>

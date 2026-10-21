@@ -1,3 +1,4 @@
+import { EBrand } from "@dltech/atlas-ui/components/brand-mark";
 export enum EProjectSettingsPage {
   Overview = "overview",
   Sandbox = "sandbox",
@@ -220,13 +221,14 @@ export const MCP_SERVERS: readonly McpServer[] = [
 export interface SuggestedMcpServer {
   id: string;
   name: string;
+  brand?: EBrand;
 }
 
 export const SUGGESTED_MCP_SERVERS: readonly SuggestedMcpServer[] = [
-  { id: "sentry", name: "Sentry" },
-  { id: "vercel", name: "Vercel" },
-  { id: "neon", name: "Neon" },
-  { id: "stripe", name: "Stripe" },
-  { id: "figma", name: "Figma" },
+  { id: "sentry", name: "Sentry", brand: EBrand.Sentry },
+  { id: "vercel", name: "Vercel", brand: EBrand.Vercel },
+  { id: "neon", name: "Neon", brand: EBrand.Neon },
+  { id: "stripe", name: "Stripe", brand: EBrand.Stripe },
+  { id: "figma", name: "Figma", brand: EBrand.Figma },
   { id: "context7", name: "Context7" },
 ];

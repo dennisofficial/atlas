@@ -1,3 +1,5 @@
+import { EBrand } from "@dltech/atlas-ui/components/brand-mark";
+
 export const INSTRUCTIONS_CHAR_LIMIT = 8000;
 
 export const GLOBAL_INSTRUCTIONS = `# Global Instructions
@@ -150,7 +152,7 @@ export type ApiKeyEntry = { masked: string; added: string };
 export type ApiKeyProvider = {
   id: EProviderId;
   name: string;
-  letter: string;
+  brand: EBrand;
   description: string;
   key: ApiKeyEntry | null;
 };
@@ -159,28 +161,28 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   {
     id: EProviderId.Anthropic,
     name: "Anthropic",
-    letter: "A",
+    brand: EBrand.Anthropic,
     description: "Claude Opus and Claude Sonnet",
     key: { masked: "sk-ant-…a91f", added: "Added Oct 2" },
   },
   {
     id: EProviderId.OpenAI,
     name: "OpenAI",
-    letter: "O",
+    brand: EBrand.OpenAI,
     description: "GPT-5 and GPT-5 mini",
     key: { masked: "sk-proj-…7c0d", added: "Added Sep 18" },
   },
   {
     id: EProviderId.Google,
     name: "Google",
-    letter: "G",
+    brand: EBrand.Gemini,
     description: "Gemini models",
     key: null,
   },
   {
     id: EProviderId.OpenRouter,
     name: "OpenRouter",
-    letter: "R",
+    brand: EBrand.OpenRouter,
     description: "Any model behind one key",
     key: null,
   },

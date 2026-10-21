@@ -7,6 +7,7 @@ import { fetchMcpServers } from '../data/personal/mcp-api'
 import { QuerySection } from '../data/personal/query-boundary'
 import { useMcpStore } from '../data/personal/use-mcp-store'
 import { INTEGRATIONS, type Integration } from '../fixtures/settings-account'
+import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { AccountIntegrationRow } from '../parts/account-integration-row'
 import { McpServersSection } from '../parts/mcp-servers-section'
 import { McpSuggested } from '../parts/mcp-suggested'
@@ -22,7 +23,7 @@ export function githubIntegration(connection: GithubConnection): Integration {
   return {
     id: GITHUB_ID,
     name: 'GitHub',
-    letter: 'G',
+    brand: EBrand.GitHub,
     description: connection.connected
       ? (base?.description ?? '')
       : `${base?.description ?? ''} ${GITHUB_HINT}`.trim(),

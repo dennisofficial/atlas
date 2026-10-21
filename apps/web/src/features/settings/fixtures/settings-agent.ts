@@ -1,3 +1,5 @@
+import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
+
 export const INSTRUCTIONS_CHAR_LIMIT = 8000
 
 export enum EAgentRole {
@@ -113,7 +115,7 @@ export type ApiKeyEntry = { id: string; label: string; added: string }
 export type ApiKeyProvider = {
   id: EProviderId
   name: string
-  letter: string
+  brand: EBrand
   description: string
 }
 
@@ -121,19 +123,19 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   {
     id: EProviderId.Anthropic,
     name: 'Anthropic',
-    letter: 'A',
+    brand: EBrand.Anthropic,
     description: 'Claude Opus and Claude Sonnet',
   },
   {
     id: EProviderId.OpenAI,
     name: 'OpenAI',
-    letter: 'O',
+    brand: EBrand.OpenAI,
     description: 'GPT-5 and GPT-5 mini',
   },
   {
     id: EProviderId.OpenRouter,
     name: 'OpenRouter',
-    letter: 'R',
+    brand: EBrand.OpenRouter,
     description: 'Any model behind one key',
   },
 ]

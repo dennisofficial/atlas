@@ -1,3 +1,4 @@
+import { BrandMark } from "@dltech/atlas-ui/components/brand-mark";
 import { useState } from "react";
 import { ArrowUpRightIcon, EllipsisIcon, GlobeIcon, PlugIcon, TerminalIcon } from "lucide-react";
 
@@ -116,7 +117,7 @@ function SuggestedServers({ onConnect }: { onConnect: (id: string) => void }) {
             key={server.id}
             className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10"
           >
-            <MonogramTile label={server.name} />
+            {server.brand ? <BrandMark brand={server.brand} /> : <MonogramTile label={server.name} />}
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-sm font-medium">{server.name}</span>
               <span className="truncate text-sm text-muted-foreground">
