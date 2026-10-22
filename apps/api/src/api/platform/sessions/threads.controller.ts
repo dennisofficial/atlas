@@ -69,6 +69,9 @@ export class ThreadsController {
     @Req() request: AuthenticatedRequest,
     @Body() body: CreateThreadDto,
   ): Promise<ThreadDto | ThreadLaunchReply> {
+    if (request.sandbox !== undefined && body.firstMessage !== undefined) {
+      throw new ForbiddenException('a sandbox token cannot start a thread with a first message')
+    }
     await this.assertSandboxSpawn(request, body.agent)
     const userId = userIdOf(request)
     if (body.firstMessage === undefined) return this.threads.create({ userId, draft: body })
