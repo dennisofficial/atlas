@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { applyTranscriptCovered, transcriptCovered } from '../../ui/covered-store'
 import { teardown } from '../../ui/markdown/__tests__/harness'
-import { appWith, landed, onSettings, opened } from './app-settings-fixture'
+import { appWith, onSettings, opened } from './app-settings-fixture'
 
 beforeEach(() => applyTranscriptCovered(false))
 
-async function coveredOnceSettled({ within }: { within: number }): Promise<boolean> {
+async function coveredOnceSettled({
+  within,
+  awaiting = false,
+}: {
+  within: number
+  awaiting?: boolean
+}): Promise<boolean> {
   const deadline = Date.now() + within
-  while (transcriptCovered() && Date.now() < deadline) await Bun.sleep(5)
+  while (transcriptCovered() !== awaiting && Date.now() < deadline) await Bun.sleep(5)
   return transcriptCovered()
 }
 
@@ -31,12 +37,10 @@ describe('the pictures-covered flag', () => {
       expect(transcriptCovered()).toBe(false)
 
       setup.mockInput.pressKey('o', { ctrl: true })
-      await landed(setup)
-      expect(transcriptCovered()).toBe(true)
+      expect(await coveredOnceSettled({ within: 5_000, awaiting: true })).toBe(true)
 
       setup.mockInput.pressEscape()
-      await landed(setup)
-      expect(transcriptCovered()).toBe(false)
+      expect(await coveredOnceSettled({ within: 5_000 })).toBe(false)
     } finally {
       await teardown(setup)
     }
