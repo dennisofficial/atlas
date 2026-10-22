@@ -4,7 +4,8 @@ import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-
 
 import {
   createIsolatedContainer,
-  portToken, registeredPortToken,
+  portToken,
+  registeredPortToken,
   resolveSet,
   type DependencyContainer,
 } from '../../container/injection'

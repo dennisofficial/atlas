@@ -2,7 +2,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { EKilledBy } from '@dltech/atlas-core'
 
-import { closeRegistries, ELSEWHERE, job, openRegistry, recorded, SIGKILL_TRAPPING_TEARDOWN_MS, THREAD } from './shell-registry-fixture'
+import {
+  closeRegistries,
+  ELSEWHERE,
+  job,
+  openRegistry,
+  recorded,
+  SIGKILL_TRAPPING_TEARDOWN_MS,
+  THREAD,
+} from './shell-registry-fixture'
 
 afterEach(closeRegistries, SIGKILL_TRAPPING_TEARDOWN_MS)
 
@@ -21,9 +29,7 @@ describe('awaiting the endings a kill caused', async () => {
 
     expect(stillDying).toBe(0)
     await recorded({ log })
-    expect(
-      log?.appended.filter((draft) => draft.type === 'background-shell-ended'),
-    ).toHaveLength(1)
+    expect(log?.appended.filter((draft) => draft.type === 'background-shell-ended')).toHaveLength(1)
   })
 
   it('counts a shell that ignores the signal and leaves its ending to announce later', async () => {

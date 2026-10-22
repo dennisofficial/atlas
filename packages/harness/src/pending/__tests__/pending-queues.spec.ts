@@ -33,9 +33,12 @@ describe('the queues messages wait in, one per thread', () => {
     queues.forThread({ threadId: THREAD_A }).enqueue({ text: 'for A' })
     queues.forThread({ threadId: THREAD_B }).enqueue({ text: 'for B' })
 
-    expect(queues.forThread({ threadId: THREAD_A }).drain().map((said) => said.text)).toEqual([
-      'for A',
-    ])
+    expect(
+      queues
+        .forThread({ threadId: THREAD_A })
+        .drain()
+        .map((said) => said.text),
+    ).toEqual(['for A'])
     expect(textsOf(queues.forThread({ threadId: THREAD_B }))).toEqual(['for B'])
   })
 

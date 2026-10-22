@@ -6,9 +6,14 @@ import { exportedScopeOf, type SinkRecord } from './sink-record'
 
 export type RedactedRecord = { path: string; scope: ExportedScope; redaction: RedactionMaps }
 
-export type RedactOutcome = { ok: true; redacted: RedactedRecord } | { ok: false; unstableFields: readonly string[] }
+export type RedactOutcome =
+  | { ok: true; redacted: RedactedRecord }
+  | { ok: false; unstableFields: readonly string[] }
 
-export function redactSinkRecord({ record, redact }: {
+export function redactSinkRecord({
+  record,
+  redact,
+}: {
   record: SinkRecord
   redact: (text: string) => RedactionResult
 }): RedactOutcome {
@@ -35,7 +40,10 @@ export function redactScopeSnapshot({
     text === null ? { text: null, map: [] as readonly RedactionMapEntry[] } : one({ field, text })
   const many = ({ field, texts }: { field: string; texts: readonly string[] }) => {
     const results = texts.map((text) => one({ field, text }))
-    return { texts: results.map((result) => result.text), map: mergeRedactionMaps({ maps: results.map((result) => result.map) }) }
+    return {
+      texts: results.map((result) => result.text),
+      map: mergeRedactionMaps({ maps: results.map((result) => result.map) }),
+    }
   }
 
   const path = one({ field: 'path', text: sourcePath })
@@ -44,7 +52,10 @@ export function redactScopeSnapshot({
   const after = nullable({ field: 'after', text: source.after })
   const diff = one({ field: 'diff', text: source.diff })
   const context = many({ field: 'dependencyContext', texts: source.dependencyContext })
-  const evidenceTexts = many({ field: 'evidence', texts: source.evidence.flatMap((entry) => [entry.id, entry.label]) })
+  const evidenceTexts = many({
+    field: 'evidence',
+    texts: source.evidence.flatMap((entry) => [entry.id, entry.label]),
+  })
   const evidence: QualityEvidence[] = source.evidence.map((entry, index) => ({
     id: evidenceTexts.texts[index * 2] ?? entry.id,
     label: evidenceTexts.texts[index * 2 + 1] ?? entry.label,

@@ -145,7 +145,10 @@ describe('qualityNoticeOf', () => {
 
   it('reports an operational failure when nothing was flagged', () => {
     const notice = qualityNoticeOf([
-      review({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline }),
+      review({
+        status: EQualityReviewStatus.OperationalError,
+        reason: EQualitySkipReason.ReviewDeadline,
+      }),
     ])
 
     expect(notice?.findings).toBe(0)
@@ -169,7 +172,12 @@ describe('a tool row with a quality review attached', () => {
 
   it('shows the failure beside a review that timed out', async () => {
     const setup = await render(
-      call([review({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })]),
+      call([
+        review({
+          status: EQualityReviewStatus.OperationalError,
+          reason: EQualitySkipReason.ReviewDeadline,
+        }),
+      ]),
     )
     try {
       expect(setup.captureCharFrame()).toContain('review timed out')

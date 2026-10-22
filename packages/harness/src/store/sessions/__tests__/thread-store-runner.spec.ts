@@ -3,7 +3,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EExecutionLocation, EForkMode, EHarnessPlacement, ERunner, toThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  EForkMode,
+  EHarnessPlacement,
+  ERunner,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
@@ -69,7 +75,10 @@ describe('a thread’s runner', () => {
   it('stays undefined when the meta file predates the field', async () => {
     const { home, threads } = await openStore()
     const thread = await threads.create({ workspace: '/here' })
-    const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: thread.id }), threadId: thread.id })
+    const file = threadMetaFile({
+      sessionDir: sessionDirectory({ home, sessionId: thread.id }),
+      threadId: thread.id,
+    })
     const { runner, ...legacy } = newThreadMeta({ id: thread.id, at: '2026-01-01T00:00:00.000Z' })
     void runner
     await writeFile(file, JSON.stringify(legacy))
@@ -92,7 +101,10 @@ describe('a thread’s runner', () => {
 describe('a thread’s project', () => {
   it('reads back through find and list once chosen', async () => {
     const { threads } = await openStore()
-    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
+    const thread = await threads.create({
+      executionLocation: EExecutionLocation.Cloud,
+      workspace: '/here',
+    })
     expect(thread.projectId).toBeUndefined()
 
     await threads.chooseProject({ threadId: thread.id, projectId: 'proj_1' })
@@ -104,7 +116,10 @@ describe('a thread’s project', () => {
 
   it('records no workspace as a null project, which reads back absent', async () => {
     const { threads } = await openStore()
-    const thread = await threads.create({ executionLocation: EExecutionLocation.Cloud, workspace: '/here' })
+    const thread = await threads.create({
+      executionLocation: EExecutionLocation.Cloud,
+      workspace: '/here',
+    })
 
     await threads.chooseProject({ threadId: thread.id, projectId: null })
 

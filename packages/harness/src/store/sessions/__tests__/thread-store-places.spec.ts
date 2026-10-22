@@ -25,8 +25,16 @@ async function tempHome(): Promise<string> {
 }
 
 const said = (text: string): EventDraft => ({ type: 'user-said', text })
-const entered = (path: string, branch: string): EventDraft => ({ type: 'worktree-entered', path, branch })
-const exited = (path: string): EventDraft => ({ type: 'worktree-exited', path, action: EWorktreeExit.Keep })
+const entered = (path: string, branch: string): EventDraft => ({
+  type: 'worktree-entered',
+  path,
+  branch,
+})
+const exited = (path: string): EventDraft => ({
+  type: 'worktree-exited',
+  path,
+  action: EWorktreeExit.Keep,
+})
 const linked = ({ number, branch }: { number: number; branch: string }): EventDraft => ({
   type: 'pull-request-linked',
   number,
@@ -75,7 +83,10 @@ describe('the worktree a listed thread is standing in', () => {
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
-      drafts: [entered('/here/.worktrees/fix-a1b2', 'dennis/fix-a1b2'), exited('/here/.worktrees/fix-a1b2')],
+      drafts: [
+        entered('/here/.worktrees/fix-a1b2', 'dennis/fix-a1b2'),
+        exited('/here/.worktrees/fix-a1b2'),
+      ],
     })
 
     expect((await threads.list({ project: '/here' }))[0]?.worktree).toBeUndefined()
@@ -160,8 +171,12 @@ describe('the pull requests a listed thread is linked to', () => {
     })
 
     const listed = await threads.list({ project: '/here' })
-    expect(listed.find((row) => row.id === forked.id)?.pullRequests?.map((pr) => pr.number)).toEqual([401])
-    expect(listed.find((row) => row.id === source.id)?.pullRequests?.map((pr) => pr.number)).toEqual([401, 412])
+    expect(
+      listed.find((row) => row.id === forked.id)?.pullRequests?.map((pr) => pr.number),
+    ).toEqual([401])
+    expect(
+      listed.find((row) => row.id === source.id)?.pullRequests?.map((pr) => pr.number),
+    ).toEqual([401, 412])
   })
 
   it('a reference fork keeps the parent’s links beside its own', async () => {
@@ -181,7 +196,9 @@ describe('the pull requests a listed thread is linked to', () => {
     })
 
     const listed = await threads.list({ project: '/here' })
-    expect(listed.find((row) => row.id === forked.id)?.pullRequests?.map((pr) => pr.number)).toEqual([401, 412])
+    expect(
+      listed.find((row) => row.id === forked.id)?.pullRequests?.map((pr) => pr.number),
+    ).toEqual([401, 412])
   })
 
   it('leaves the session meta untouched on list — it is a read, not a cache refresh', async () => {
@@ -191,7 +208,10 @@ describe('the pull requests a listed thread is linked to', () => {
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
-      drafts: [entered('/here/.worktrees/fix-a1b2', 'dennis/fix-a1b2'), linked({ number: 401, branch: 'dennis/fix' })],
+      drafts: [
+        entered('/here/.worktrees/fix-a1b2', 'dennis/fix-a1b2'),
+        linked({ number: 401, branch: 'dennis/fix' }),
+      ],
     })
 
     const sessionDir = sessionDirectory({ home, sessionId: thread.id })
@@ -214,7 +234,9 @@ describe('the pull requests a listed thread is linked to', () => {
       drafts: [said('hello'), linked({ number: 401, branch: 'dennis/fix' })],
     })
 
-    expect((await threads.list({ project: '/here' }))[0]?.pullRequests?.map((pr) => pr.number)).toEqual([401])
+    expect(
+      (await threads.list({ project: '/here' }))[0]?.pullRequests?.map((pr) => pr.number),
+    ).toEqual([401])
 
     await threads.rewind({ threadId: thread.id, toSeq: 1 })
 

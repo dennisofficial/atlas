@@ -58,7 +58,13 @@ function Harness(props: { entries: readonly Entry[]; holder: Holder }): React.Re
     }
     for (const entry of props.entries.slice(section.span.start, section.span.end)) {
       mounted.push(
-        <box key={entry.key} id={entry.key} height={entry.rows} flexShrink={0} flexDirection="column">
+        <box
+          key={entry.key}
+          id={entry.key}
+          height={entry.rows}
+          flexShrink={0}
+          flexDirection="column"
+        >
           <text>{entry.label}</text>
         </box>,
       )
@@ -140,9 +146,7 @@ describe('the windowed transcript scroll anchor', () => {
   })
 
   it('keeps the reading position when older history prepends above the window', async () => {
-    const initial = Array.from({ length: ENTRY_COUNT }, (_, index) =>
-      entry(index + 150, SHORT),
-    )
+    const initial = Array.from({ length: ENTRY_COUNT }, (_, index) => entry(index + 150, SHORT))
     const older = Array.from({ length: 150 }, (_, index) => entry(index, TALL))
     const holder: Holder = { box: null, prepend: null }
     const setup = await testRender(

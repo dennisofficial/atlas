@@ -9,14 +9,15 @@ export const MAX_WORKTREE_NAME_LENGTH = 64
 
 export type RepositoryView = { root: string; worktrees: readonly Worktree[] }
 
-export type RepositoryLookup =
-  | { ok: true; view: RepositoryView }
-  | { ok: false; reason: string }
+export type RepositoryLookup = { ok: true; view: RepositoryView } | { ok: false; reason: string }
 
 export async function repositoryAt({ cwd }: { cwd: string }): Promise<RepositoryLookup> {
   const listing = await listWorktrees({ cwd })
   if (!listing.ok) {
-    return { ok: false, reason: `${cwd} is not inside a git repository, so there is nothing to branch from` }
+    return {
+      ok: false,
+      reason: `${cwd} is not inside a git repository, so there is nothing to branch from`,
+    }
   }
 
   const main = listing.worktrees.find((worktree) => worktree.isMain)
@@ -42,10 +43,8 @@ export async function canonicalPath({
   }
 }
 
-export const worktreeAt = (args: {
-  view: RepositoryView
-  path: string
-}): Worktree | undefined => args.view.worktrees.find((worktree) => worktree.path === args.path)
+export const worktreeAt = (args: { view: RepositoryView; path: string }): Worktree | undefined =>
+  args.view.worktrees.find((worktree) => worktree.path === args.path)
 
 export type WorktreeLookup =
   | { worktree: Worktree }

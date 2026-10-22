@@ -41,14 +41,17 @@ afterEach(async () => {
 const writeAgent = async (args: { directory: string; name: string; model?: string }) => {
   const file = join(args.directory, `${args.name}.md`)
   await mkdir(dirname(file), { recursive: true })
-  await writeFile(file, [
-    '---',
-    `name: ${args.name}`,
-    'description: Review changes',
-    ...(args.model === undefined ? [] : [`model: ${args.model}`]),
-    '---',
-    'Review the changes carefully.',
-  ].join('\n'))
+  await writeFile(
+    file,
+    [
+      '---',
+      `name: ${args.name}`,
+      'description: Review changes',
+      ...(args.model === undefined ? [] : [`model: ${args.model}`]),
+      '---',
+      'Review the changes carefully.',
+    ].join('\n'),
+  )
   return file
 }
 
@@ -67,49 +70,70 @@ const bind = async () => {
 
 const readJson = async (file: string): Promise<unknown> => JSON.parse(await readFile(file, 'utf8'))
 
-const pick = (settings: SettingsService, id: string) => rememberSettingModel({
-  settings,
-  target: { id, withEffort: false },
-  selection: { ref: { providerId: 'openai', modelId: 'gpt-5-codex' }, effort: EEffort.Medium },
-})
+const pick = (settings: SettingsService, id: string) =>
+  rememberSettingModel({
+    settings,
+    target: { id, withEffort: false },
+    selection: { ref: { providerId: 'openai', modelId: 'gpt-5-codex' }, effort: EEffort.Medium },
+  })
 
 describe('agent model scope across discovery, settings and child selection', () => {
   it('saves the repository winner locally, keeps shadow definitions out of settings and survives a restart', async () => {
     const userFile = join(home, 'settings.json')
     await mkdir(home, { recursive: true })
-    const original = '{"agents.type.reviewer":"anthropic/claude-opus-5","appearance.accent":"moss"}\n'
+    const original =
+      '{"agents.type.reviewer":"anthropic/claude-opus-5","appearance.accent":"moss"}\n'
     await writeFile(userFile, original)
     const repoAgent = await writeAgent({
-      directory: join(project, '.atlas', 'agents'), name: 'reviewer', model: 'openai/gpt-5-codex',
+      directory: join(project, '.atlas', 'agents'),
+      name: 'reviewer',
+      model: 'openai/gpt-5-codex',
     })
     await writeAgent({ directory: join(home, 'agents'), name: 'reviewer' })
 
     const first = await bind()
     const reviewer = first.catalog.types.find((type) => type.name === 'reviewer')
     expect(reviewer?.definedIn).toBe(repoAgent)
-    expect(first.catalog.shadowed.filter((type) => type.name === 'reviewer').map((type) => type.origin).sort())
-      .toEqual([EDefinitionOrigin.BuiltIn, EDefinitionOrigin.User].sort())
-    expect(first.settings.definitions.filter((definition) => definition.id === 'agents.type.reviewer')).toHaveLength(1)
-    expect(first.settings.definitions.find((definition) => definition.id === 'agents.type.reviewer')?.writeLayer)
-      .toBe(ESettingsLayer.Project)
+    expect(
+      first.catalog.shadowed
+        .filter((type) => type.name === 'reviewer')
+        .map((type) => type.origin)
+        .sort(),
+    ).toEqual([EDefinitionOrigin.BuiltIn, EDefinitionOrigin.User].sort())
+    expect(
+      first.settings.definitions.filter((definition) => definition.id === 'agents.type.reviewer'),
+    ).toHaveLength(1)
+    expect(
+      first.settings.definitions.find((definition) => definition.id === 'agents.type.reviewer')
+        ?.writeLayer,
+    ).toBe(ESettingsLayer.Project)
     expect(pick(first.settings, 'agents.type.reviewer')).toEqual({ ok: true })
     expect(await readFile(userFile, 'utf8')).toBe(original)
-    expect(await readJson(join(project, '.atlas', 'settings.json')))
-      .toEqual({ 'agents.type.reviewer': 'openai/gpt-5-codex' })
+    expect(await readJson(join(project, '.atlas', 'settings.json'))).toEqual({
+      'agents.type.reviewer': 'openai/gpt-5-codex',
+    })
 
     const second = await bind()
-    expect(second.settings.snapshot().resolution.settings.get('agents.type.reviewer')?.layer)
-      .toBe(ESettingsLayer.Project)
+    expect(second.settings.snapshot().resolution.settings.get('agents.type.reviewer')?.layer).toBe(
+      ESettingsLayer.Project,
+    )
     const fixture = await childModelFixture()
     const select = childModelSelection({
-      settings: second.settings, models: fixture.models, model: fixture.parent,
-      threads: fixture.threads, hooks: () => new HookChain({}),
+      settings: second.settings,
+      models: fixture.models,
+      model: fixture.parent,
+      threads: fixture.threads,
+      hooks: () => new HookChain({}),
     })
     if (reviewer === undefined) throw new Error('reviewer did not load')
-    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).ref).toBe('openai/gpt-5-codex')
+    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).ref).toBe(
+      'openai/gpt-5-codex',
+    )
     expect(second.settings.clear({ id: 'agents.type.reviewer' })).toEqual({ ok: true })
     expect(await readFile(userFile, 'utf8')).toBe(original)
-    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).ref).toBe('anthropic/claude-opus-5')
+    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).ref).toBe(
+      'anthropic/claude-opus-5',
+    )
   })
 
   it('keeps built-in, global and default model preferences in the user file', async () => {

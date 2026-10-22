@@ -270,7 +270,9 @@ describe('agent_list', () => {
       input: { agentType: 'explore', intent: 'mine', brief: 'do mine' },
     })
 
-    open_.runners.started[0]?.settle(failed('provider inference.net returned 402: credit exhausted'))
+    open_.runners.started[0]?.settle(
+      failed('provider inference.net returned 402: credit exhausted'),
+    )
     await settle()
     const outcome = await invoke({ tool: open_.list, threadId: open_.parent, input: {} })
 

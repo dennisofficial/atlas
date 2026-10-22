@@ -1,13 +1,7 @@
 import React from 'react'
 
 import { useClickRegion } from '../../hooks/use-click-region'
-import {
-  EKeyGroup,
-  EKeyLayer,
-  spellChord,
-  useKeyBindings,
-  type KeyDeclaration,
-} from '../../keys'
+import { EKeyGroup, EKeyLayer, spellChord, useKeyBindings, type KeyDeclaration } from '../../keys'
 import { glyph, theme } from '../../theme'
 import { Spans } from '../spans'
 import type { Span } from '../spans'

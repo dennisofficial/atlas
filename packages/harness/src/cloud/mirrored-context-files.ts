@@ -10,7 +10,11 @@ import type { ContextReader } from '../files/session-context'
 import { atlasDirectory } from '../store/paths'
 import { contextDirectory } from '../store/sessions/paths'
 import { registryFor } from '../store/sessions/registry'
-import { EClientRequest, listContextFilesReplySchema, readContextFileReplySchema } from './channel-wire'
+import {
+  EClientRequest,
+  listContextFilesReplySchema,
+  readContextFileReplySchema,
+} from './channel-wire'
 import {
   type ChannelConnection,
   type RemoteDeltaChannel,
@@ -19,19 +23,17 @@ import {
 import { EConnectionView } from './connection-view'
 
 type MirrorChannel = Pick<RemoteDeltaChannel, 'request'> &
-  Partial<
-    Pick<
-      RemoteDeltaChannel,
-      'subscribe' | 'threadId' | 'onReload' | 'onCheckpoint'
-    >
-  > & { connection?: (() => ChannelConnection) | undefined }
+  Partial<Pick<RemoteDeltaChannel, 'subscribe' | 'threadId' | 'onReload' | 'onCheckpoint'>> & {
+    connection?: (() => ChannelConnection) | undefined
+  }
 
 type MirrorEntry = { path: string; content: string }
 
 const mirrorableOf = (content: ContextFileContent): string | undefined =>
   content.type === 'text' && !content.truncated ? content.content : undefined
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export class MirroredContextFiles implements ContextReader {
   private readonly channel: MirrorChannel
@@ -71,7 +73,9 @@ export class MirroredContextFiles implements ContextReader {
     if (synced || mirrored.type === 'text') return mirrored
     return this.remote
       .load(path)
-      .catch((cause: unknown): ContextFileContent => ({ type: 'refused', reason: messageOf(cause) }))
+      .catch(
+        (cause: unknown): ContextFileContent => ({ type: 'refused', reason: messageOf(cause) }),
+      )
   }
 
   subscribe(listener: () => void): () => void {
@@ -84,17 +88,24 @@ export class MirroredContextFiles implements ContextReader {
       }
       if (signal.type === 'events-appended' || signal.type === 'step-ended') listener()
     }
-    const stop = channel.threadId === undefined ? undefined : channel.subscribe?.({
-      threadId: channel.threadId,
-      listener: handleSignal,
-    })
+    const stop =
+      channel.threadId === undefined
+        ? undefined
+        : channel.subscribe?.({
+            threadId: channel.threadId,
+            listener: handleSignal,
+          })
     const stopReload = channel.onReload?.(listener)
     const handleCheckpoint = (checkpoint: RuntimeCheckpoint) => {
       if (checkpoint.phase !== ERuntimePhase.Parked) return
       this.pullInBackground()
     }
     const stopCheckpoint = channel.onCheckpoint?.(handleCheckpoint)
-    return () => { stop?.(); stopReload?.(); stopCheckpoint?.() }
+    return () => {
+      stop?.()
+      stopReload?.()
+      stopCheckpoint?.()
+    }
   }
 
   private handleContextChanged(): void {

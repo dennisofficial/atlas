@@ -36,7 +36,6 @@ import {
 } from '../../../store/__tests__/harness'
 import type { JsonlThreadStore } from '../../../store/sessions/thread-store'
 
-
 class FakeAgents extends UnstaffedAgents {
   readonly relocations: RelocateChildrenArgs[] = []
 
@@ -96,7 +95,7 @@ class FakeShells extends UnstaffedShells {
     const snapshot = this.snapshots.find((one) => one.shellId === args.shellId)
     if (snapshot === undefined) return { ok: false, reason: 'unknown shell' }
     const killed = { ...snapshot, status: EShellStatus.Killed, killedBy: args.by }
-    this.snapshots = this.snapshots.map((one) => one === snapshot ? killed : one)
+    this.snapshots = this.snapshots.map((one) => (one === snapshot ? killed : one))
     return { ok: true, snapshot: killed }
   }
 }
@@ -152,7 +151,11 @@ const open = async (args: {
   services?: FakeServices
   shells?: FakeShells
   logPort?: CapturingLog
-}): Promise<{ tool: ExecutionLocationTool; fixture: StoreFixture; control: ExecutionLocationControl }> => {
+}): Promise<{
+  tool: ExecutionLocationTool
+  fixture: StoreFixture
+  control: ExecutionLocationControl
+}> => {
   const fixture = await openStoreFixture()
   fixtures.push(fixture)
   const control = controlOver({
@@ -176,7 +179,10 @@ const open = async (args: {
   return { tool, fixture, control }
 }
 
-const call = (tool: ExecutionLocationTool, args: { threadId: ThreadId; location: 'host' | 'docker' }) =>
+const call = (
+  tool: ExecutionLocationTool,
+  args: { threadId: ThreadId; location: 'host' | 'docker' },
+) =>
   tool.invoke({
     input: { location: args.location },
     signal: new AbortController().signal,
@@ -208,9 +214,7 @@ describe('execution_location', () => {
     const events = await fixture.log.readOwn({ threadId })
     expect(events.filter((one) => one.type === 'location-changed')).toHaveLength(1)
 
-    expect(shells.kills).toEqual([
-      { shellId: 'sh_1', by: EKilledBy.ContainerSwitch, threadId },
-    ])
+    expect(shells.kills).toEqual([{ shellId: 'sh_1', by: EKilledBy.ContainerSwitch, threadId }])
     expect(shells.endingsAwaited).toEqual([{ threadId, ms: KILL_SETTLE_MS }])
     expect(services.stops).toEqual([{ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch }])
     expect(agents.relocations).toEqual([
@@ -228,7 +232,8 @@ describe('execution_location', () => {
     const services = new FakeServices()
     const agents = new FakeAgents()
     const { tool, fixture, control } = await open({ shells, services, agents })
-    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Host })).id
+    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Host }))
+      .id
     snapshots.push(runningShell({ shellId: 'sh_1', threadId }))
     await control.state.activate({ threadId })
 
@@ -238,7 +243,9 @@ describe('execution_location', () => {
     if (!outcome.ok) expect(outcome.reason).toContain('background shells have not stopped')
     expect(control.state.current()).toBe(EExecutionLocation.Host)
     expect(control.state.of(threadId)).toBe(EExecutionLocation.Host)
-    expect((await fixture.threads.find({ threadId }))?.executionLocation).toBe(EExecutionLocation.Host)
+    expect((await fixture.threads.find({ threadId }))?.executionLocation).toBe(
+      EExecutionLocation.Host,
+    )
     expect(await fixture.log.readOwn({ threadId })).toEqual([])
     expect(shells.kills).toEqual([{ shellId: 'sh_1', by: EKilledBy.ContainerSwitch, threadId }])
     expect(shells.endingsAwaited).toEqual([{ threadId, ms: KILL_SETTLE_MS }])
@@ -262,7 +269,8 @@ describe('execution_location', () => {
 
   it('refuses to leave the cloud, which only the operator moves', async () => {
     const { tool, fixture, control } = await open({ initial: EExecutionLocation.Cloud })
-    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Cloud })).id
+    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Cloud }))
+      .id
     await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'host' })
@@ -303,7 +311,8 @@ describe('execution_location', () => {
       }
     }
     const { tool, fixture, control } = await open({ agents: new FailingAgents() })
-    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Host })).id
+    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Host }))
+      .id
     await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
@@ -344,9 +353,8 @@ describe('execution_location', () => {
     const agents = new FakeAgents()
     const { tool, fixture, control } = await open({ agents })
     const parent = (await fixture.threads.create({})).id
-    const child = (
-      await fixture.threads.create({ agent: { spawnedBy: parent, type: 'explore' } })
-    ).id
+    const child = (await fixture.threads.create({ agent: { spawnedBy: parent, type: 'explore' } }))
+      .id
     await control.state.activate({ threadId: parent })
 
     const outcome = await call(tool, { threadId: child, location: 'docker' })

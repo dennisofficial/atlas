@@ -93,7 +93,13 @@ export function BrandMark({ brand, className }: { brand: EBrand; className?: str
         className,
       )}
     >
-      <svg viewBox="0 0 24 24" className="size-4" fill={fill ?? 'currentColor'} fillRule="evenodd" role="img">
+      <svg
+        viewBox="0 0 24 24"
+        className="size-4"
+        fill={fill ?? 'currentColor'}
+        fillRule="evenodd"
+        role="img"
+      >
         <title>{title}</title>
         <path d={d} />
       </svg>

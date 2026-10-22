@@ -9,7 +9,13 @@ import { writeSessionMetaForRoot } from './session-meta'
 import { homeOf } from './thread-store-fields'
 import type { ThreadStoreContext } from './thread-store-context'
 
-export async function writePlacementMeta({ context, args }: { context: ThreadStoreContext; args: WritePlacementArgs }): Promise<void> {
+export async function writePlacementMeta({
+  context,
+  args,
+}: {
+  context: ThreadStoreContext
+  args: WritePlacementArgs
+}): Promise<void> {
   const { registry } = context
   const { threadId, record } = args
   const known = await registry.sessionDirOf({ threadId })
@@ -45,7 +51,12 @@ export async function writePlacementMeta({ context, args }: { context: ThreadSto
   })
   registry.registerThread({ sessionDir, threadId })
   if (sessionDir.endsWith(`/${threadId}`)) {
-    await writeSessionMetaForRoot({ registry, sessionDir, root: written, home: locationOfPlacement(record.placement) })
+    await writeSessionMetaForRoot({
+      registry,
+      sessionDir,
+      root: written,
+      home: locationOfPlacement(record.placement),
+    })
   }
 }
 
@@ -74,5 +85,10 @@ export async function updateThreadMeta({
     },
   })
   if (next === undefined || !sessionDir.endsWith(`/${threadId}`)) return
-  await writeSessionMetaForRoot({ registry, sessionDir, root: next, home: homeOf({ source: next, fromDir: sessionDir }) })
+  await writeSessionMetaForRoot({
+    registry,
+    sessionDir,
+    root: next,
+    home: homeOf({ source: next, fromDir: sessionDir }),
+  })
 }

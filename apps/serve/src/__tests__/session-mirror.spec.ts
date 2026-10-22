@@ -12,7 +12,11 @@ import {
   sessionManifestReplySchema,
 } from '@dltech/atlas-harness'
 
-import { answerSessionMirrorRead, isSessionMirrorOp, type SessionMirrorRouting } from '../session-mirror-requests'
+import {
+  answerSessionMirrorRead,
+  isSessionMirrorOp,
+  type SessionMirrorRouting,
+} from '../session-mirror-requests'
 import { createSessionMirrorReader } from '../session-mirror'
 import type { RequestFrame } from '../request-reply'
 
@@ -31,7 +35,9 @@ const frameOf = (op: EClientRequest, params: unknown): RequestFrame => ({
 
 const sha256Of = (content: string): string => createHash('sha256').update(content).digest('hex')
 
-async function fixture(files: Record<string, string>): Promise<{ routing: SessionMirrorRouting; revision: number }> {
+async function fixture(
+  files: Record<string, string>,
+): Promise<{ routing: SessionMirrorRouting; revision: number }> {
   const sessionDir = await mkdtemp(join(tmpdir(), 'atlas-serve-mirror-'))
   homes.push(sessionDir)
   for (const [path, content] of Object.entries(files)) {
@@ -40,7 +46,10 @@ async function fixture(files: Record<string, string>): Promise<{ routing: Sessio
   }
   const held = { revision: 3 }
   return {
-    routing: { reader: createSessionMirrorReader({ sessionDir: () => sessionDir }), revision: () => held.revision },
+    routing: {
+      reader: createSessionMirrorReader({ sessionDir: () => sessionDir }),
+      revision: () => held.revision,
+    },
     revision: held.revision,
   }
 }
@@ -60,7 +69,10 @@ describe('session-mirror ops', () => {
       lock: 'pid 1',
     })
 
-    const reply = await answerSessionMirrorRead({ frame: frameOf(EClientRequest.ReadSessionManifest, {}), mirror: routing })
+    const reply = await answerSessionMirrorRead({
+      frame: frameOf(EClientRequest.ReadSessionManifest, {}),
+      mirror: routing,
+    })
 
     expect(reply.kind).toBe(EServeFrame.Reply)
     expect(reply.ok).toBe(true)
@@ -78,14 +90,18 @@ describe('session-mirror ops', () => {
     const { routing, revision } = await fixture({ 'context/plan.md': '# plan\n' })
 
     const reply = await answerSessionMirrorRead({
-      frame: frameOf(EClientRequest.ReadSessionFiles, { paths: ['context/plan.md', 'context/gone.md'] }),
+      frame: frameOf(EClientRequest.ReadSessionFiles, {
+        paths: ['context/plan.md', 'context/gone.md'],
+      }),
       mirror: routing,
     })
 
     expect(reply.ok).toBe(true)
     const answer = readSessionFilesReplySchema.parse(reply.data)
     expect(answer.revision).toBe(revision)
-    expect(answer.files).toEqual([{ path: 'context/plan.md', encoding: 'utf8', content: '# plan\n' }])
+    expect(answer.files).toEqual([
+      { path: 'context/plan.md', encoding: 'utf8', content: '# plan\n' },
+    ])
     expect(answer.missing).toEqual(['context/gone.md'])
   })
 

@@ -114,7 +114,12 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   executionLocation: ExecutionLocationState
   sessionOwner: SessionOwner<SessionRuntime>
   executionPinned: boolean
-  moveTools: (args: Pick<Parameters<typeof moveLocalPlacement>[0], 'threadId' | 'target' | 'caller' | 'pause' | 'whenSettled' | 'onProgress' | 'cwd'>) => ReturnType<typeof moveLocalPlacement>
+  moveTools: (
+    args: Pick<
+      Parameters<typeof moveLocalPlacement>[0],
+      'threadId' | 'target' | 'caller' | 'pause' | 'whenSettled' | 'onProgress' | 'cwd'
+    >,
+  ) => ReturnType<typeof moveLocalPlacement>
   settings: SettingsService
   secrets: SecretsPort
   usage: AccountUsageService

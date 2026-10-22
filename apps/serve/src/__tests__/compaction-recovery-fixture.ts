@@ -20,7 +20,10 @@ import {
   type Summariser,
 } from '@dltech/atlas-harness'
 
-import { openStoreFixture, type StoreFixture } from '../../../../packages/harness/src/store/__tests__/harness'
+import {
+  openStoreFixture,
+  type StoreFixture,
+} from '../../../../packages/harness/src/store/__tests__/harness'
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
 
 import { openSeededStore } from './cloud-compaction-fixture'
@@ -98,7 +101,14 @@ export const startRecoveryServe = async (args: {
   mkdirSync(join(home, 'bootstrap'), { recursive: true })
   writeFileSync(
     join(home, 'bootstrap', 'workspace-spec.json'),
-    JSON.stringify({ remoteUrl: null, branch: null, commit: null, patch: '', githubToken: null, contextBundle: null }),
+    JSON.stringify({
+      remoteUrl: null,
+      branch: null,
+      commit: null,
+      patch: '',
+      githubToken: null,
+      contextBundle: null,
+    }),
   )
 
   const store = await openSeededStore()
@@ -234,7 +244,10 @@ export const attachMirrored = async (args: {
     writer: mirrorWriter({ home: () => mirror.home }),
     threadId,
   })
-  await until({ what: 'the channel to open', condition: () => channel.connection().state === EConnectionView.Connected })
+  await until({
+    what: 'the channel to open',
+    condition: () => channel.connection().state === EConnectionView.Connected,
+  })
   await until({ what: 'the first attach to reload the log', condition: () => reloads.length >= 1 })
   await syncer.converge()
   reloads.length = 0
@@ -281,7 +294,10 @@ export const serverEvents = async (served: RecoveryServe): Promise<Event[]> => {
 export const seqTypes = (events: readonly Event[]): string[] =>
   events.map((event) => `${event.seq}:${event.type}:${event.id}`)
 
-export const eventually = async (args: { what: string; probe: () => Promise<boolean> }): Promise<void> => {
+export const eventually = async (args: {
+  what: string
+  probe: () => Promise<boolean>
+}): Promise<void> => {
   for (let waited = 0; waited < 2_000; waited += 1) {
     if (await args.probe()) return
     await Bun.sleep(1)

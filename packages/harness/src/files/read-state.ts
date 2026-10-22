@@ -2,7 +2,6 @@ import { resolve } from 'node:path'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-
 export type FileView = { mtimeMs: number; size: number; wholeFile: boolean; digest: string }
 
 export type FileViewKey = { threadId: ThreadId; path: string }

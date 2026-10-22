@@ -40,12 +40,7 @@ export const readTextFile: TextFileReader = async (path) => {
   try {
     return await readFile(path, 'utf8')
   } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === 'ENOENT'
-    ) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
       return undefined
     }
     throw error

@@ -8,7 +8,11 @@ import {
   PromptFragment,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { createRemoteDeltaChannel, RemoteThreadStore, type RemoteDeltaChannel } from '@dltech/atlas-harness'
+import {
+  createRemoteDeltaChannel,
+  RemoteThreadStore,
+  type RemoteDeltaChannel,
+} from '@dltech/atlas-harness'
 import type { RosterWire } from '@dltech/atlas-wire'
 
 import { agentTypeNamed } from '../../../../packages/harness/src/agents/registry/__tests__/fixtures'
@@ -20,7 +24,11 @@ import {
 } from '../../../../packages/harness/src/agents/registry/__tests__/model-lifetime-fixture'
 import { subAgentPrompt } from '../../../../packages/harness/src/agents/registry/child-prompt'
 import type { ChildRunnerDeps } from '../../../../packages/harness/src/agents/registry/child-runner'
-import { CLAUDE, GPT, keyOf } from '../../../../packages/harness/src/composition/__tests__/child-model-fixtures'
+import {
+  CLAUDE,
+  GPT,
+  keyOf,
+} from '../../../../packages/harness/src/composition/__tests__/child-model-fixtures'
 import { InMemoryPromptRegistry } from '../../../../packages/harness/src/prompt/registry'
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 import { fakeServeApp } from './fakes'
@@ -91,7 +99,11 @@ async function attach(): Promise<Cloud> {
       ledger: opened.ledger,
       whenChildrenSettled: ({ threadId }) => opened.supervisor.whenChildrenSettled({ threadId }),
       roster: {
-        snapshot: () => ({ shells: [], agents: [...opened.supervisor.listEverywhere()], services: [] }),
+        snapshot: () => ({
+          shells: [],
+          agents: [...opened.supervisor.listEverywhere()],
+          services: [],
+        }),
         subscribe: (listener) => opened.supervisor.onChange(listener),
       },
     }),
@@ -118,9 +130,13 @@ async function attach(): Promise<Cloud> {
 
   const rosterWithChildOn: Cloud['rosterWithChildOn'] = ({ agentId, modelId }) =>
     new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`no roster showed ${agentId} on ${modelId}`)), 2_000)
+      const timer = setTimeout(
+        () => reject(new Error(`no roster showed ${agentId} on ${modelId}`)),
+        2_000,
+      )
       const off = channel.onRoster((roster) => {
-        if (roster.agents.find((agent) => agent.agentId === agentId)?.model?.modelId !== modelId) return
+        if (roster.agents.find((agent) => agent.agentId === agentId)?.model?.modelId !== modelId)
+          return
         clearTimeout(timer)
         off()
         resolve(roster)
@@ -147,7 +163,8 @@ const systemPromptOf = (mock: LifetimeAdapter['mock'], call: number): string => 
 }
 
 const statusOf = (opened: LifetimeOpened, agentId: ThreadId): EAgentStatus | undefined =>
-  opened.supervisor.list({ threadId: opened.main }).find((agent) => agent.agentId === agentId)?.status
+  opened.supervisor.list({ threadId: opened.main }).find((agent) => agent.agentId === agentId)
+    ?.status
 
 describe('an operator retargeting a supervised child over the cloud channel', () => {
   it('leaves the active runner on its old model, then rebuilds the next run on the pick', async () => {
@@ -214,7 +231,9 @@ describe('an operator retargeting a supervised child over the cloud channel', ()
     await threads.chooseModel({ threadId: childId, model: PICK, retarget: true })
     const roster = await rostered
 
-    expect(roster.agents.find((agent) => agent.agentId === siblingId)?.model?.modelId).toBe(CLAUDE.modelId)
+    expect(roster.agents.find((agent) => agent.agentId === siblingId)?.model?.modelId).toBe(
+      CLAUDE.modelId,
+    )
     expect(await opened.savedModel(childId)).toEqual(PICK)
     expect(await opened.savedModel(siblingId)).toEqual(SPAWNED)
     expect(parent.choice()).toEqual({ ref: CLAUDE, effort: EEffort.Medium })

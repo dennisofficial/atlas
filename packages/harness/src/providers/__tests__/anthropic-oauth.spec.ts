@@ -13,7 +13,9 @@ import { generatedText, recordingFetch, refusingFirstFetch, streamedText } from 
 
 const attributionText = (firstUserText: string): string => {
   const fingerprint = createHash('sha256')
-    .update(`59cf53e54c78${[4, 7, 20].map((index) => firstUserText[index] ?? '0').join('')}${CLAUDE_CODE_VERSION}`)
+    .update(
+      `59cf53e54c78${[4, 7, 20].map((index) => firstUserText[index] ?? '0').join('')}${CLAUDE_CODE_VERSION}`,
+    )
     .digest('hex')
     .slice(0, 3)
   return `x-anthropic-billing-header: cc_version=${CLAUDE_CODE_VERSION}.${fingerprint}; cc_entrypoint=atlas;`

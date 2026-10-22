@@ -76,9 +76,7 @@ describe('a sub-agent ending in the transcript', () => {
   it('says a failure was a failure, so the line can be read at a glance', () => {
     const entry = onlyAgentEntry(log([agentEnded({ status: EAgentStatus.Failed })]))
 
-    expect(entry.text).toBe(
-      'Sub-agent audit the credential failed after 3 turns and 12 tool calls',
-    )
+    expect(entry.text).toBe('Sub-agent audit the credential failed after 3 turns and 12 tool calls')
     expect(entry.failed).toBe(true)
   })
 
@@ -265,9 +263,7 @@ describe('a teammate reporting in the transcript', () => {
   })
 
   it('names the teammate by what it is doing, and calls it a teammate rather than a sub-agent', () => {
-    expect(onlyReportEntry(log([agentReported()])).text).toBe(
-      'Teammate build the admin reported',
-    )
+    expect(onlyReportEntry(log([agentReported()])).text).toBe('Teammate build the admin reported')
   })
 
   it('carries the whole report for the fold and the teammate it came from', () => {

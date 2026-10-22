@@ -18,7 +18,9 @@ const childInputSchema = z.object({
   model: z.object({ requested: z.string().min(1), promotable: z.boolean() }),
   liveConfig: z.object({ baseUrl: z.string() }).nullable(),
   deadlineMs: z.number().int().positive(),
-  rows: z.array(z.object({ caseId: z.string(), trialId: z.string(), variantId: z.string() })).readonly(),
+  rows: z
+    .array(z.object({ caseId: z.string(), trialId: z.string(), variantId: z.string() }))
+    .readonly(),
   cases: z.array(evalCaseSchema).readonly(),
   answers: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
   outputPath: z.string().min(1),
@@ -45,11 +47,22 @@ function devNullWritable(): Writable {
 const LOADER_FILE = 'loader.eval.ts'
 
 const ENTRY_BY_FEATURE: Readonly<Record<string, { file: string; register: string }>> = {
-  'code-quality/single-responsibility': { file: 'entry.code-quality.mjs', register: 'registerCodeQualityEval' },
+  'code-quality/single-responsibility': {
+    file: 'entry.code-quality.mjs',
+    register: 'registerCodeQualityEval',
+  },
   calculator: { file: 'entry.calculator.mjs', register: 'registerCalculatorEval' },
 }
 
-function loaderSource({ globalsPath, adapterPath, register }: { globalsPath: string; adapterPath: string; register: string }): string {
+function loaderSource({
+  globalsPath,
+  adapterPath,
+  register,
+}: {
+  globalsPath: string
+  adapterPath: string
+  register: string
+}): string {
   return [
     'import { readFile } from "node:fs/promises"',
     `const parsed = JSON.parse(await readFile(${JSON.stringify(globalsPath)}, "utf8"))`,
@@ -78,9 +91,7 @@ async function handleChild(): Promise<void> {
       model: input.model.requested,
       deadlineMs: input.deadlineMs,
       ...(input.mode === 'fake' ? { answers: input.answers ?? {} } : {}),
-      ...(input.liveConfig === null
-        ? {}
-        : { liveConfig: { baseUrl: input.liveConfig.baseUrl } }),
+      ...(input.liveConfig === null ? {} : { liveConfig: { baseUrl: input.liveConfig.baseUrl } }),
     },
     rows,
   }
@@ -90,7 +101,11 @@ async function handleChild(): Promise<void> {
   if (entry === undefined) throw new Error(`no compiled entry for feature "${input.featureId}"`)
   const adapterPath = resolve(join(distDirectory, entry.file))
   await mkdir(workDirectory, { recursive: true })
-  await writeFile(join(workDirectory, LOADER_FILE), loaderSource({ globalsPath, adapterPath, register: entry.register }), 'utf8')
+  await writeFile(
+    join(workDirectory, LOADER_FILE),
+    loaderSource({ globalsPath, adapterPath, register: entry.register }),
+    'utf8',
+  )
 
   await runEvalite({
     path: LOADER_FILE,

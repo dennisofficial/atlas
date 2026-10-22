@@ -119,18 +119,26 @@ describe('who owns a retry', () => {
 
 describe('AiSdkModelPort', () => {
   it('exposes the provider identity it was built with', () => {
-    expect(new AiSdkModelPort({ model: scriptedModel({ script: [{ text: 'hi' }] }), identity }).identity).toEqual(
-      identity,
-    )
+    expect(
+      new AiSdkModelPort({ model: scriptedModel({ script: [{ text: 'hi' }] }), identity }).identity,
+    ).toEqual(identity)
   })
 
   it('accumulates a scripted reasoning block and text into one turn', async () => {
     const result = await step({
-      model: scriptedModel({ script: [{ reasoning: { text: 'checking the diff', signature: 'sig-abc' }, text: 'two files' }] }),
+      model: scriptedModel({
+        script: [
+          { reasoning: { text: 'checking the diff', signature: 'sig-abc' }, text: 'two files' },
+        ],
+      }),
     })
 
     expect(result.parts).toEqual([
-      { type: 'reasoning', text: 'checking the diff', providerOptions: { anthropic: { signature: 'sig-abc' } } },
+      {
+        type: 'reasoning',
+        text: 'checking the diff',
+        providerOptions: { anthropic: { signature: 'sig-abc' } },
+      },
       { type: 'text', text: 'two files' },
     ])
     expect(result.finishReason).toBe(EFinishReason.Stop)
@@ -143,7 +151,10 @@ describe('AiSdkModelPort', () => {
 
     const prompt = model.doStreamCalls[0]?.prompt
     expect(prompt?.[0]).toEqual({ role: 'system', content: 'You are Atlas.' })
-    expect(prompt?.[1]).toEqual({ role: 'user', content: [{ type: 'text', text: 'what changed?' }] })
+    expect(prompt?.[1]).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: 'what changed?' }],
+    })
   })
 
   it('surfaces an error chunk as a failure rather than an empty turn', async () => {
@@ -206,17 +217,29 @@ describe('AiSdkModelPort', () => {
       },
     }).catch(() => undefined)
 
-    expect(seen.map((chunk) => chunk.type)).toEqual(['text-start', 'text-delta', 'text-end', 'error'])
+    expect(seen.map((chunk) => chunk.type)).toEqual([
+      'text-start',
+      'text-delta',
+      'text-end',
+      'error',
+    ])
   })
 
   it('reports the tool calls the model asked for', async () => {
     const model = scriptedModel({
-      script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] }],
+      script: [
+        {
+          text: 'reading',
+          calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }],
+        },
+      ],
     })
 
     const result = await step({ model, tools: [readFile] })
 
-    expect(result.toolCalls).toEqual([{ callId: toCallId('call-1'), name: 'read_file', input: { path: 'a.ts' } }])
+    expect(result.toolCalls).toEqual([
+      { callId: toCallId('call-1'), name: 'read_file', input: { path: 'a.ts' } },
+    ])
     expect(result.finishReason).toBe(EFinishReason.ToolCalls)
   })
 
@@ -224,7 +247,9 @@ describe('AiSdkModelPort', () => {
     const seen: Chunk[] = []
 
     await step({
-      model: scriptedModel({ script: [{ reasoning: { text: 'thinking', signature: 'sig-abc' }, text: 'answer' }] }),
+      model: scriptedModel({
+        script: [{ reasoning: { text: 'thinking', signature: 'sig-abc' }, text: 'answer' }],
+      }),
       onChunk: (chunk) => {
         seen.push(chunk)
         return chunk
@@ -264,7 +289,12 @@ describe('AiSdkModelPort', () => {
 
   it('carries a cache read and a cache write through, since the two bill at different rates', async () => {
     const result = await step({
-      model: cacheReportingModel({ noCache: 1_000, cacheRead: 38_000, cacheWrite: 2_000, output: 900 }),
+      model: cacheReportingModel({
+        noCache: 1_000,
+        cacheRead: 38_000,
+        cacheWrite: 2_000,
+        output: 900,
+      }),
     })
 
     expect(result.usage).toEqual({
@@ -291,14 +321,19 @@ describe('AiSdkModelPort', () => {
   })
 
   it('closes a block the stream left open', async () => {
-    const result = await step({ model: scriptedModel({ script: [{ text: 'half an answ', leaveTextOpen: true }] }) })
+    const result = await step({
+      model: scriptedModel({ script: [{ text: 'half an answ', leaveTextOpen: true }] }),
+    })
 
     expect(result.parts).toEqual([{ type: 'text', text: 'half an answ' }])
   })
 
   it('carries a signature from one turn into the prompt of the next', async () => {
     const model = scriptedModel({
-      script: [{ reasoning: { text: 'checking the diff', signature: 'sig-abc' }, text: 'two files' }, { text: 'and one more' }],
+      script: [
+        { reasoning: { text: 'checking the diff', signature: 'sig-abc' }, text: 'two files' },
+        { text: 'and one more' },
+      ],
     })
 
     const first = await step({ model })
@@ -316,7 +351,8 @@ describe('AiSdkModelPort', () => {
     })
 
     const last = model.doStreamCalls[1]?.prompt.at(-1)
-    if (last?.role !== 'assistant') throw new Error('expected the last prompt message to be the assistant turn')
+    if (last?.role !== 'assistant')
+      throw new Error('expected the last prompt message to be the assistant turn')
 
     const reasoning = last.content.find((part) => part.type === 'reasoning')
     expect(reasoning?.providerOptions).toEqual({ anthropic: { signature: 'sig-abc' } })

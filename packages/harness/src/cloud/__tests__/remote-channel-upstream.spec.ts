@@ -14,7 +14,8 @@ const sendIdsOf = (sent: readonly ClientFrame[]): string[] =>
 
 const lastSendOf = (sent: readonly ClientFrame[]): SendFrame => {
   const found = [...sent].reverse().find((frame) => frame.kind === EClientFrame.Send)
-  if (found === undefined || found.kind !== EClientFrame.Send) throw new Error('no send was written')
+  if (found === undefined || found.kind !== EClientFrame.Send)
+    throw new Error('no send was written')
   return found
 }
 
@@ -199,7 +200,10 @@ describe('a request riding the session socket', () => {
   it('rejects with the payload the sandbox refused it with', async () => {
     const { channel, receive, live } = readied()
 
-    const answer = channel.request({ op: EClientRequest.BrowseDirectory, params: { path: '/nope' } })
+    const answer = channel.request({
+      op: EClientRequest.BrowseDirectory,
+      params: { path: '/nope' },
+    })
     const sent = upstreamOf(live().sent)[0]
     const id = sent?.kind === EClientFrame.Request ? sent.id : ''
     receive({
@@ -231,9 +235,7 @@ describe('a request riding the session socket', () => {
     it('gives an ordinary read the default ten seconds', () => {
       const { channel, timeouts } = readied()
 
-      void channel
-        .request({ op: EClientRequest.ReadEvents, params: {} })
-        .catch(() => undefined)
+      void channel.request({ op: EClientRequest.ReadEvents, params: {} }).catch(() => undefined)
 
       expect(timeouts[0]?.delayMs).toBe(10_000)
     })
@@ -273,7 +275,10 @@ describe('a request riding the session socket', () => {
     it('keeps it pending and re-drives it on the next ready', async () => {
       const { channel, drop, retries, receive, live } = readied()
 
-      const answer = channel.request({ op: EClientRequest.CompletePaths, params: { prefix: 'src/clo' } })
+      const answer = channel.request({
+        op: EClientRequest.CompletePaths,
+        params: { prefix: 'src/clo' },
+      })
       const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
       drop()
 
@@ -327,7 +332,10 @@ describe('a request riding the session socket', () => {
       const { channel, drop, retries, receive, live } = readied()
 
       channel.send({ text: 'ahead of it' })
-      const answer = channel.request({ op: EClientRequest.ReadThread, params: { threadId: 'brn_cloud' } })
+      const answer = channel.request({
+        op: EClientRequest.ReadThread,
+        params: { threadId: 'brn_cloud' },
+      })
       drop()
 
       retries[0]?.run()
@@ -370,7 +378,9 @@ describe('a request riding the session socket', () => {
     retries[0]?.run()
     live().handlers.handleOpen()
     receive({ kind: EServeFrame.Ready, seq: 9 })
-    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual(
+      [],
+    )
   })
 
   it('rejects a rewind in flight when the socket closes, since it may have applied', async () => {
@@ -482,7 +492,9 @@ describe('a request against a parked channel', () => {
   it('fails a non-redrivable request in flight once the parked socket closes, since it may have applied', async () => {
     const { channel, receive, live } = readied({ requestTimeoutMs: 60_000 })
 
-    const answer = channel.request({ op: EClientRequest.Rewind, params: {} }).catch((error: unknown) => error)
+    const answer = channel
+      .request({ op: EClientRequest.Rewind, params: {} })
+      .catch((error: unknown) => error)
 
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
     live().handlers.handleClose()
@@ -507,7 +519,9 @@ describe('a request against a parked channel', () => {
     await Bun.sleep(1)
 
     expect(reattached).toBe(1)
-    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual(
+      [],
+    )
 
     live().handlers.handleOpen()
     receive({ kind: EServeFrame.Ready, seq: 2 })
@@ -559,7 +573,9 @@ describe('a request against a parked channel', () => {
 
     expect(failure).toBeInstanceOf(RemoteRequestLost)
     expect((failure as RemoteRequestLost).message).toContain('the sandbox is parked')
-    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual(
+      [],
+    )
   })
 
   it('keeps a request issued while the sandbox wakes and answers it on the fresh socket', async () => {

@@ -20,13 +20,18 @@ describe('context pane in a conversation', () => {
     process.env.ATLAS_HOME = home
     const root = contextDirectory({ sessionDir: sessionDirectory({ home, sessionId: THREAD }) })
     await mkdir(root, { recursive: true })
-    await writeFile(join(root, 'plan.ts'), Array.from({ length: 100 }, (_, index) => `const item${index + 1} = ${index + 1}`).join('\n'))
+    await writeFile(
+      join(root, 'plan.ts'),
+      Array.from({ length: 100 }, (_, index) => `const item${index + 1} = ${index + 1}`).join('\n'),
+    )
     const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'done' } }) })
     const opened = await spokenIn(app)
     const setup = await testRender(<App app={app} opened={opened} />, { width: 140, height: 38 })
     try {
       await setup.flush()
-      await act(async () => { await setup.mockInput.typeText('keep my draft') })
+      await act(async () => {
+        await setup.mockInput.typeText('keep my draft')
+      })
       await setup.flush()
       expect(setup.captureCharFrame()).toContain('what is in here?')
       expect(editorIn(setup.renderer.root)?.plainText).toBe('keep my draft')
@@ -34,16 +39,27 @@ describe('context pane in a conversation', () => {
       const row = rows.findIndex((line) => line.includes('plan.ts'))
       const column = (rows[row] ?? '').indexOf('plan.ts')
       expect(row).toBeGreaterThanOrEqual(0)
-      await act(async () => { await setup.mockMouse.click(column, row) })
+      await act(async () => {
+        await setup.mockMouse.click(column, row)
+      })
       await setup.flush()
       const viewer = setup.captureCharFrame()
       expect(viewer).toContain('const item1 = 1')
-      expect(viewer.split('\n').map((line) => line.slice(0, 96)).join('\n')).not.toContain('what is in here?')
+      expect(
+        viewer
+          .split('\n')
+          .map((line) => line.slice(0, 96))
+          .join('\n'),
+      ).not.toContain('what is in here?')
       expect(viewer).not.toContain('keep my draft')
       expect(editorIn(setup.renderer.root)?.plainText).toBe('keep my draft')
-      await act(async () => { await setup.mockInput.typeText('do not type this') })
+      await act(async () => {
+        await setup.mockInput.typeText('do not type this')
+      })
       expect(editorIn(setup.renderer.root)?.plainText).toBe('keep my draft')
-      await act(async () => { setup.mockInput.pressArrow('down') })
+      await act(async () => {
+        setup.mockInput.pressArrow('down')
+      })
       await setup.flush()
       expect(setup.captureCharFrame()).not.toContain('const item1 = 1')
       await act(async () => {

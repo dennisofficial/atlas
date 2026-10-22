@@ -4,7 +4,10 @@ import { vi } from 'vitest'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { BackgroundWork } from '../src/_core/ports/background-work'
 import { ProcessBackgroundWork } from '../src/_lib/background-work/background-work.providers'
-import { SandboxCredentials, type ThreadSandboxCredentials } from '../src/_core/ports/sandbox-credentials'
+import {
+  SandboxCredentials,
+  type ThreadSandboxCredentials,
+} from '../src/_core/ports/sandbox-credentials'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import {
   GithubSandboxWakeService,
@@ -63,7 +66,10 @@ export function mirroredRecord(args: {
 }
 
 export function seedParkedSandbox(partial: Partial<FakeCloudSandboxRow> = {}): void {
-  const record = mirroredRecord({ threadId: partial.threadId ?? 'thr-1', phase: ERuntimePhase.Parked })
+  const record = mirroredRecord({
+    threadId: partial.threadId ?? 'thr-1',
+    phase: ERuntimePhase.Parked,
+  })
   seedCloudSandbox({
     id: `sbx-${partial.threadId ?? 'thr-1'}`,
     threadId: 'thr-1',

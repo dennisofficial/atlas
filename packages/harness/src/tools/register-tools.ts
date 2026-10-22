@@ -15,7 +15,12 @@ import {
 import { AgentRegistryPort } from '../agents/registry/port'
 import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { ExecutionLocationToken } from '../composition/execution-location-state'
-import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../container/injection'
+import {
+  portToken,
+  registeredPortToken,
+  resolveSet,
+  type DependencyContainer,
+} from '../container/injection'
 import { OperatorInputPort } from '../operator-input/port'
 import {
   DeltaChannelToken,
@@ -76,7 +81,8 @@ const relocationLog = (resolver: DependencyContainer): EventLogPort => {
 }
 
 export function registerBuiltinTools({ container }: { container: DependencyContainer }): void {
-  const shellRegistry = (resolver: DependencyContainer) => resolver.resolve(registeredPortToken(ShellRegistryPort))
+  const shellRegistry = (resolver: DependencyContainer) =>
+    resolver.resolve(registeredPortToken(ShellRegistryPort))
   const serviceRegistry = (resolver: DependencyContainer) =>
     resolver.resolve(registeredPortToken(ServiceRegistryPort))
   const agentRegistry = (resolver: DependencyContainer) =>
@@ -133,7 +139,8 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
       ),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new GlobTool(resolver.resolve(registeredPortToken(AgentFileSystemPort))),
+    useFactory: (resolver) =>
+      new GlobTool(resolver.resolve(registeredPortToken(AgentFileSystemPort))),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ShellListTool(shellRegistry(resolver)),
@@ -148,20 +155,25 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) => new ShellInputTool(shellRegistry(resolver)),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new OperatorInputTool({
-      operatorInput: resolver.resolve(registeredPortToken(OperatorInputPort)),
-      threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
-    }),
-  })
-  container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new OperatorShellInputTool({
-      operatorInput: resolver.resolve(registeredPortToken(OperatorInputPort)),
-      threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
-    }),
+    useFactory: (resolver) =>
+      new OperatorInputTool({
+        operatorInput: resolver.resolve(registeredPortToken(OperatorInputPort)),
+        threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+      }),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
-      new ServiceStartTool(serviceRegistry(resolver), resolver.resolve(registeredPortToken(ProcessPort))),
+      new OperatorShellInputTool({
+        operatorInput: resolver.resolve(registeredPortToken(OperatorInputPort)),
+        threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+      }),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new ServiceStartTool(
+        serviceRegistry(resolver),
+        resolver.resolve(registeredPortToken(ProcessPort)),
+      ),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ServiceStopTool(serviceRegistry(resolver)),
@@ -171,16 +183,14 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   container.register(portToken(ToolDefinition), { useClass: TaskWriteTool })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new SkillTool(resolver.resolve(registeredPortToken(SkillRegistryPort))),
+    useFactory: (resolver) =>
+      new SkillTool(resolver.resolve(registeredPortToken(SkillRegistryPort))),
   })
   container.register(portToken(ToolDefinition), { useClass: SkillInstallTool })
   container.register(portToken(ToolDefinition), { useClass: McpEditTool })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
-      new AgentSpawnTool(
-        agentRegistry(resolver),
-        resolver.resolve(AgentTypesToken),
-      ),
+      new AgentSpawnTool(agentRegistry(resolver), resolver.resolve(AgentTypesToken)),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new AgentSayTool(agentRegistry(resolver)),
@@ -241,7 +251,8 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
       new CompositeToolRegistry({
         base: new InMemoryToolRegistry(resolver.resolveAll(portToken(ToolDefinition))),
         sources: resolveSet({ container: resolver, token: portToken(DynamicToolSource) }),
-        available: (name) => name !== 'execution_location' ||
+        available: (name) =>
+          name !== 'execution_location' ||
           resolver.resolve(ExecutionLocationToken).state.current() !== EExecutionLocation.Cloud,
       }),
   })

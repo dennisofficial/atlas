@@ -2,7 +2,12 @@ import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltec
 
 export const SERVE_TOKEN = 'serve-token-fake'
 
-export const apiKeyAccount = (args: { id: string; provider: EAuthProvider; apiKey: string; label: string }) => ({
+export const apiKeyAccount = (args: {
+  id: string
+  provider: EAuthProvider
+  apiKey: string
+  label: string
+}) => ({
   id: args.id,
   provider: args.provider,
   kind: EAuthKind.ApiKey,
@@ -54,13 +59,15 @@ export const startFakeCloud = (state: FakeCloudState): FakeCloud => {
       const { pathname: path, search } = new URL(request.url)
       const authorization = request.headers.get('authorization')
       requests.push({ path, search, authorization })
-      if (authorization !== `Bearer ${SERVE_TOKEN}`) return new Response('unauthorized', { status: 401 })
+      if (authorization !== `Bearer ${SERVE_TOKEN}`)
+        return new Response('unauthorized', { status: 401 })
       if (unauthorizedUntil.remaining > 0) {
         unauthorizedUntil.remaining -= 1
         return new Response('not registered yet', { status: 401 })
       }
       if (path === '/v1/account-lease') return Response.json(state.lease)
-      if (path === '/v1/sandboxes/self/config' && state.config !== undefined) return Response.json(state.config)
+      if (path === '/v1/sandboxes/self/config' && state.config !== undefined)
+        return Response.json(state.config)
       if (path === '/v1/settings') return Response.json({ settings: state.settings })
       if (path === '/v1/secrets') return Response.json({ secrets: state.secrets })
       return new Response('not found', { status: 404 })

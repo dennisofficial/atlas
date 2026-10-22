@@ -61,10 +61,14 @@ describe('ssh signing key HTTP surface', () => {
         SessionAuthGuard,
         SessionOrSandboxGuard,
         { provide: SecretCipherService, useValue: cipher },
-        { provide: GithubSigningKeysClient, useValue: new GithubSigningKeysClient({ fetchFn: github.fetchFn }) },
+        {
+          provide: GithubSigningKeysClient,
+          useValue: new GithubSigningKeysClient({ fetchFn: github.fetchFn }),
+        },
         {
           provide: GithubService,
-          useFactory: () => new GithubService(cipher, new EnvService({}), new GithubDeviceClient({})),
+          useFactory: () =>
+            new GithubService(cipher, new EnvService({}), new GithubDeviceClient({})),
         },
         {
           provide: SESSION_VERIFIER,
@@ -93,9 +97,15 @@ describe('ssh signing key HTTP surface', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
-    await http().post('/v1/ssh-signing-key').set(as('session-a')).send({ privateKey: key.privateKey }).expect(201)
+    await http()
+      .post('/v1/ssh-signing-key')
+      .set(as('session-a'))
+      .send({ privateKey: key.privateKey })
+      .expect(201)
   })
 
   afterEach(() => app.close())
@@ -144,13 +154,24 @@ describe('ssh signing key HTTP surface', () => {
       .expect(200)
     expect(rotated.body).toMatchObject({ publicKey: next.publicLine })
     await http().delete('/v1/ssh-signing-key').set(as('session-a')).expect(204)
-    await http().get('/v1/ssh-signing-key/status').set(as('session-a')).expect(200, { state: 'absent' })
+    await http()
+      .get('/v1/ssh-signing-key/status')
+      .set(as('session-a'))
+      .expect(200, { state: 'absent' })
   })
 
   it('validates the body', async () => {
     await http().post('/v1/ssh-signing-key').set(as('session-b')).send({}).expect(400)
-    await http().post('/v1/ssh-signing-key').set(as('session-b')).send({ privateKey: 'x'.repeat(9000) }).expect(400)
-    await http().post('/v1/ssh-signing-key').set(as('session-b')).send({ privateKey: 'garbage' }).expect(400)
+    await http()
+      .post('/v1/ssh-signing-key')
+      .set(as('session-b'))
+      .send({ privateKey: 'x'.repeat(9000) })
+      .expect(400)
+    await http()
+      .post('/v1/ssh-signing-key')
+      .set(as('session-b'))
+      .send({ privateKey: 'garbage' })
+      .expect(400)
   })
 
   it('requires a bearer', async () => {

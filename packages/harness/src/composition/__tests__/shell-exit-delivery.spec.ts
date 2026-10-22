@@ -59,12 +59,14 @@ async function openDelivery() {
   const prepare = shells.prepareNotifications?.bind(shells)
   if (prepare === undefined) throw new Error('shell intake preparation is unavailable')
   const intake = new MessageIntake({
-    sources: [{
-      prepare,
-      subscribe: (listener) => shells.onNotice(listener),
-      threadsAwaitingInput: () => shells.threadsAwaitingNotice(),
-      witness: (request) => shells.pendingNotices(request),
-    }],
+    sources: [
+      {
+        prepare,
+        subscribe: (listener) => shells.onNotice(listener),
+        threadsAwaitingInput: () => shells.threadsAwaitingNotice(),
+        witness: (request) => shells.pendingNotices(request),
+      },
+    ],
   })
   const runner = new PublishingTurnRunner({
     channel,
@@ -101,7 +103,12 @@ async function openDelivery() {
   })
   intake.register({
     threadId: other.id,
-    driver: { blocked: () => false, wake: () => { otherWakes += 1 } },
+    driver: {
+      blocked: () => false,
+      wake: () => {
+        otherWakes += 1
+      },
+    },
   })
   cleanups.push(async () => {
     intake.dispose()
@@ -123,14 +130,27 @@ async function openDelivery() {
       }
     },
   })
-  channel.subscribe({ threadId: other.id, listener: (signal) => { otherSignals.push(signal) } })
+  channel.subscribe({
+    threadId: other.id,
+    listener: (signal) => {
+      otherSignals.push(signal)
+    },
+  })
 
   return {
-    harness, owner, shells, model, ownerSignals, otherSignals,
+    harness,
+    owner,
+    shells,
+    model,
+    ownerSignals,
+    otherSignals,
     replied: replied.promise,
     published: () => publishedRead,
     wakes: () => ({ owner: ownerWakes, other: otherWakes }),
-    setBlocked: (value: boolean) => { blocked = value; intake.changed() },
+    setBlocked: (value: boolean) => {
+      blocked = value
+      intake.changed()
+    },
   }
 }
 
@@ -153,14 +173,14 @@ describe('background shell completion through shared delivery', () => {
       expect(delivery.wakes()).toEqual({ owner: 1, other: 0 })
       expect(delivery.otherSignals).toEqual([])
       expect(delivery.ownerSignals[0]?.type).toBe('events-appended')
-      expect(
-        published?.findLast((event) => event.type === 'background-shell-ended'),
-      ).toMatchObject({
-        type: 'background-shell-ended',
-        shellId: started.snapshot.shellId,
-        exitCode,
-        output: 'build result',
-      })
+      expect(published?.findLast((event) => event.type === 'background-shell-ended')).toMatchObject(
+        {
+          type: 'background-shell-ended',
+          shellId: started.snapshot.shellId,
+          exitCode,
+          output: 'build result',
+        },
+      )
       expect(started.snapshot.shellId).toMatch(/^shell_[0-9a-f]{32}$/)
       expect(events.filter((event) => event.type === 'background-shell-started')).toMatchObject([
         { shellId: started.snapshot.shellId },
@@ -182,7 +202,8 @@ describe('background shell completion through shared delivery', () => {
     delivery.setBlocked(true)
     const noticed = Promise.withResolvers<void>()
     const unsubscribe = delivery.shells.onNotice(() => {
-      if (delivery.shells.pendingNotices({ threadId: delivery.owner.id }).length > 0) noticed.resolve()
+      if (delivery.shells.pendingNotices({ threadId: delivery.owner.id }).length > 0)
+        noticed.resolve()
     })
     const started = await delivery.shells.start({
       threadId: delivery.owner.id,
@@ -194,7 +215,10 @@ describe('background shell completion through shared delivery', () => {
     unsubscribe()
 
     expect(delivery.wakes()).toEqual({ owner: 0, other: 0 })
-    expect(delivery.ownerSignals).toEqual([{ type: 'events-appended' }, { type: 'events-appended' }])
+    expect(delivery.ownerSignals).toEqual([
+      { type: 'events-appended' },
+      { type: 'events-appended' },
+    ])
     expect((await delivery.published())?.at(-1)?.type).toBe('background-shell-ended')
 
     delivery.setBlocked(false)

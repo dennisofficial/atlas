@@ -136,7 +136,8 @@ function FileRead(props: {
     [props.call, props.expand.expanded],
   )
   const named = outputOf(props.call).path
-  const path = typeof named === 'string' ? named : (targetOf({ call: props.call, cwd: props.cwd }) ?? '')
+  const path =
+    typeof named === 'string' ? named : (targetOf({ call: props.call, cwd: props.cwd }) ?? '')
 
   return (
     <>

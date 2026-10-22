@@ -18,7 +18,8 @@ import {
 } from '../sandbox'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const PREFIX = uniqueTestPrefix('sandbox')

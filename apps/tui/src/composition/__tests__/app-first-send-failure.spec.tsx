@@ -12,7 +12,10 @@ await grammarsReady()
 afterEach(() => dismissNotice())
 
 const noticeNaming = (text: string): Promise<boolean> =>
-  until({ holds: async () => currentNotices().some((notice) => notice.text.includes(text)), within: 20_000 })
+  until({
+    holds: async () => currentNotices().some((notice) => notice.text.includes(text)),
+    within: 20_000,
+  })
 
 describe('a first-send birth that fails partway', () => {
   it('names the cause, keeps the draft, places nothing on the host, and retries on the next send', async () => {
@@ -26,7 +29,9 @@ describe('a first-send birth that fails partway', () => {
       await mounted.command('first words')
 
       expect(await noticeNaming('the pod engine exploded')).toBe(true)
-      expect(await until({ holds: async () => mounted.draft() === 'first words', within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => mounted.draft() === 'first words', within: 20_000 }),
+      ).toBe(true)
       expect(bridge.destroyed).toContain(threadId)
       expect(app.sessionOwner.placement.snapshot(threadId)?.revision ?? 0).toBe(0)
       expect(app.threads.chosenLocations).toEqual([])
@@ -36,7 +41,9 @@ describe('a first-send birth that fails partway', () => {
 
       await mounted.command('')
 
-      expect(await until({ holds: async () => bridge.created.length === 2, within: 20_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.created.length === 2, within: 20_000 })).toBe(
+        true,
+      )
       expect(bridge.created.map((born) => born.threadId)).toEqual([threadId, threadId])
     } finally {
       await mounted.done()
@@ -57,25 +64,37 @@ describe('a first-send birth that fails partway', () => {
       mounted.dismiss()
 
       expect(await noticeNaming(BIRTH_CANCELLED_NOTICE)).toBe(true)
-      expect(await until({ holds: async () => mounted.draft() === 'cancel me', within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => mounted.draft() === 'cancel me', within: 20_000 }),
+      ).toBe(true)
       expect(bridge.destroyed).toEqual([])
       expect(app.threads.chosenLocations).toEqual([])
 
       await mounted.command('')
 
-      expect(await until({ holds: async () => mounted.draft() === 'cancel me', within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => mounted.draft() === 'cancel me', within: 20_000 }),
+      ).toBe(true)
       expect(bridge.created).toEqual([])
 
       held.release()
 
-      expect(await until({ holds: async () => bridge.destroyed.includes(threadId), within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => bridge.destroyed.includes(threadId), within: 20_000 }),
+      ).toBe(true)
       expect(bridge.trail.indexOf('destroy')).toBeGreaterThan(bridge.trail.indexOf('sandbox'))
       expect(bridge.created.map((born) => born.threadId)).toEqual([threadId])
-      expect(await mounted.frameHolds((frame) => !frame.includes('STARTING A POD') && frame.includes('pod ▾'))).toBe(true)
+      expect(
+        await mounted.frameHolds(
+          (frame) => !frame.includes('STARTING A POD') && frame.includes('pod ▾'),
+        ),
+      ).toBe(true)
 
       await mounted.command('')
 
-      expect(await until({ holds: async () => bridge.created.length === 2, within: 20_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.created.length === 2, within: 20_000 })).toBe(
+        true,
+      )
     } finally {
       held.release()
       await mounted.done()
@@ -100,7 +119,8 @@ describe('a first send whose preflight has not answered yet', () => {
       expect(
         await until({
           holds: async () =>
-            mounted.bridge.created.length > 0 && mounted.bridge.channel.sent.some((said) => said.text === 'first words'),
+            mounted.bridge.created.length > 0 &&
+            mounted.bridge.channel.sent.some((said) => said.text === 'first words'),
           within: 20_000,
         }),
       ).toBe(true)

@@ -30,13 +30,18 @@ const compacting = async (args: { served: Awaited<ReturnType<typeof startRecover
   return { actor, outcome }
 }
 
-const hasCompacted = async (served: Awaited<ReturnType<typeof startRecoveryServe>>): Promise<boolean> =>
+const hasCompacted = async (
+  served: Awaited<ReturnType<typeof startRecoveryServe>>,
+): Promise<boolean> =>
   (await serverEvents(served)).some((event) => event.type === 'history-compacted')
 
 describe('shutdown with a history compaction in flight', () => {
   it('aborts a summariser that honours the signal and writes nothing', async () => {
     const probe = probeSummariser({ held: true, honoursAbort: true })
-    const served = await startRecoveryServe({ summariser: probe.summariser, drainDeadlineMs: 2_000 })
+    const served = await startRecoveryServe({
+      summariser: probe.summariser,
+      drainDeadlineMs: 2_000,
+    })
     const before = seqTypes(await serverEvents(served))
     await compacting({ served })
     await probe.entered
@@ -50,7 +55,10 @@ describe('shutdown with a history compaction in flight', () => {
 
   it('settles promptly when the summariser ignores the abort, and a late result writes nothing', async () => {
     const probe = probeSummariser({ held: true })
-    const served = await startRecoveryServe({ summariser: probe.summariser, drainDeadlineMs: 5_000 })
+    const served = await startRecoveryServe({
+      summariser: probe.summariser,
+      drainDeadlineMs: 5_000,
+    })
     const before = seqTypes(await serverEvents(served))
     await compacting({ served })
     await probe.entered
@@ -97,7 +105,10 @@ describe('shutdown with a history compaction in flight', () => {
 
   it('makes no store write after the close has begun', async () => {
     const probe = probeSummariser({ held: true })
-    const served = await startRecoveryServe({ summariser: probe.summariser, drainDeadlineMs: 5_000 })
+    const served = await startRecoveryServe({
+      summariser: probe.summariser,
+      drainDeadlineMs: 5_000,
+    })
     await compacting({ served })
     await probe.entered
 
@@ -107,9 +118,11 @@ describe('shutdown with a history compaction in flight', () => {
     await Bun.sleep(100)
 
     expect(seqTypes(await serverEvents(served))).toEqual(after)
-    expect(served.writes.events.filter((name) => name.startsWith('compact') || name.startsWith('summarise'))).toEqual(
-      [],
-    )
+    expect(
+      served.writes.events.filter(
+        (name) => name.startsWith('compact') || name.startsWith('summarise'),
+      ),
+    ).toEqual([])
   })
 
   it('does not abort the compaction when only the requester disconnects', async () => {
@@ -205,7 +218,14 @@ describe('serve lifecycle close ordering', () => {
     held.open()
     await closing
 
-    expect(test.calls).toEqual(['abort-history', 'wait-settled', 'settled', 'bridge-close', 'hangup', 'server-stop'])
+    expect(test.calls).toEqual([
+      'abort-history',
+      'wait-settled',
+      'settled',
+      'bridge-close',
+      'hangup',
+      'server-stop',
+    ])
     expect(test.app.closed()).toBe(true)
   })
 

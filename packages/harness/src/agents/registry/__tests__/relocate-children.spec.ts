@@ -198,7 +198,11 @@ describe('relocating a stepping child', () => {
       .drainNotifications({ threadId: entry.parent })
       .drafts.flatMap((draft: EventDraft) => (draft.type === 'agent-ended' ? [draft] : []))
     expect(unlogged.map((draft) => draft.killedBy)).toEqual([EKilledBy.ContainerSwitch])
-    const logged = await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })
+    const logged = await loggedOfType({
+      harness: entry.harness,
+      threadId: entry.parent,
+      type: 'agent-ended',
+    })
     expect(logged.at(-1)?.status).toBe(EAgentStatus.Finished)
   })
 })

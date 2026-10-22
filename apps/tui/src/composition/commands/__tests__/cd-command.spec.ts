@@ -14,9 +14,7 @@ const run = async (args: {
     text: args.text,
     commands: localCommands(
       handlers(
-        args.onChangeDirectory === undefined
-          ? {}
-          : { onChangeDirectory: args.onChangeDirectory },
+        args.onChangeDirectory === undefined ? {} : { onChangeDirectory: args.onChangeDirectory },
       ),
     ),
     skills: [],
@@ -51,7 +49,10 @@ describe('the cd command', () => {
       },
     })
 
-    expect(dispatched).toEqual({ type: EDispatch.Ran, notice: 'this session is working in /work/atlas' })
+    expect(dispatched).toEqual({
+      type: EDispatch.Ran,
+      notice: 'this session is working in /work/atlas',
+    })
     expect(seen).toEqual([''])
   })
 

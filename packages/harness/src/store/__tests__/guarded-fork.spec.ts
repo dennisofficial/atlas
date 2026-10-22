@@ -84,7 +84,9 @@ describe('forkConversation', () => {
     if (!forked.ok) throw new Error(forked.reason)
 
     expect(forked.inherited).toBe(3)
-    expect((await fixture.log.readOwn({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([1, 2, 3])
+    expect((await fixture.log.readOwn({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([
+      1, 2, 3,
+    ])
     expect((await fixture.log.read({ threadId })).length).toBe(4)
   })
 
@@ -95,7 +97,9 @@ describe('forkConversation', () => {
     if (!forked.ok) throw new Error(forked.reason)
 
     expect(await fixture.log.readOwn({ threadId: forked.thread.id })).toEqual([])
-    expect((await fixture.log.read({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([1, 2, 3])
+    expect((await fixture.log.read({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([
+      1, 2, 3,
+    ])
   })
 
   it('continues the sequence above the fork point on both kinds of fork', async () => {
@@ -112,7 +116,9 @@ describe('forkConversation', () => {
       })
 
       expect(appended?.seq).toBe(4)
-      expect((await fixture.log.read({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([1, 2, 3, 4])
+      expect((await fixture.log.read({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([
+        1, 2, 3, 4,
+      ])
     }
   })
 
@@ -150,7 +156,9 @@ describe('loaded context across a reference fork', () => {
 
     expect(reoffered?.seq).toBe(1)
     expect(await fixture.log.readOwn({ threadId: forked.thread.id })).toEqual([])
-    expect((await fixture.log.read({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([1, 2, 3])
+    expect((await fixture.log.read({ threadId: forked.thread.id })).map((e) => e.seq)).toEqual([
+      1, 2, 3,
+    ])
   })
 
   it('appends a fresh row on the child when the content actually changed', async () => {
@@ -266,7 +274,11 @@ describe('rewinding across a fork boundary', () => {
 
     const forked = await forkAt({ threadId, seq: 3, mode: EForkMode.Reference })
     if (!forked.ok) throw new Error(forked.reason)
-    await fixture.log.append({ threadId: forked.thread.id, runId, drafts: [said('four'), said('five')] })
+    await fixture.log.append({
+      threadId: forked.thread.id,
+      runId,
+      drafts: [said('four'), said('five')],
+    })
 
     const rewound = await rewindThread({
       log: fixture.log,

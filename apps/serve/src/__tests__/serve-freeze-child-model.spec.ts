@@ -27,9 +27,17 @@ afterEach(async () => {
   for (const home of homes.splice(0, homes.length)) rmSync(home, { recursive: true, force: true })
 })
 
-const start = async (args: {
-  modelBridge?: { catalogue: never; effort: () => string; select: (next: { ref: string; effort: string }) => void } | undefined
-} = {}): Promise<{ handle: ServeHandle; app: FakeServeApp; client: TestClient }> => {
+const start = async (
+  args: {
+    modelBridge?:
+      | {
+          catalogue: never
+          effort: () => string
+          select: (next: { ref: string; effort: string }) => void
+        }
+      | undefined
+  } = {},
+): Promise<{ handle: ServeHandle; app: FakeServeApp; client: TestClient }> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-freeze-'))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
@@ -98,7 +106,10 @@ describe('a transcript write targeting a child or foreign thread', () => {
       kind: EClientFrame.Request,
       id: 'mod-child',
       op: EClientRequest.SetThreadModel,
-      params: { threadId: toThreadId('thread-child'), model: { ref: 'openai/gpt-5-codex', effort: 'low' } },
+      params: {
+        threadId: toThreadId('thread-child'),
+        model: { ref: 'openai/gpt-5-codex', effort: 'low' },
+      },
     })
 
     const reply = await client.waitFor(
@@ -121,7 +132,11 @@ describe('a set-thread-model op against a supervised agent', () => {
         kind: EClientFrame.Request,
         id: 'mod-agent',
         op: EClientRequest.SetThreadModel,
-        params: { threadId, model: { ref: 'anthropic/claude-opus-5', effort: 'high' }, retarget: true },
+        params: {
+          threadId,
+          model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+          retarget: true,
+        },
       },
       threadId,
       transcript: {

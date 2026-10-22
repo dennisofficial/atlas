@@ -151,9 +151,7 @@ function readLine({ file, line }: { file: string; line: number }): string {
 }
 
 function formatViolations({ violations }: { violations: Violation[] }): string {
-  return violations
-    .map(({ file, line, source }) => `  ${file}:${line}\n    ${source}`)
-    .join('\n')
+  return violations.map(({ file, line, source }) => `  ${file}:${line}\n    ${source}`).join('\n')
 }
 
 describe('api layer architecture', () => {
@@ -161,9 +159,7 @@ describe('api layer architecture', () => {
   const infraViolations = collectInfraViolations()
 
   it('platform never imports cloud', () => {
-    const fresh = layerViolations.filter(
-      (violation) => !GRANDFATHERED.has(keyOf(violation)),
-    )
+    const fresh = layerViolations.filter((violation) => !GRANDFATHERED.has(keyOf(violation)))
     expect(
       fresh,
       `new cross-layer imports are not allowed:\n${formatViolations({ violations: fresh })}`,
@@ -173,10 +169,7 @@ describe('api layer architecture', () => {
   it('keeps the grandfathered edge list in sync with the code', () => {
     const seen = new Set(layerViolations.map(keyOf))
     const stale = [...GRANDFATHERED].filter((entry) => !seen.has(entry))
-    expect(
-      stale,
-      'these edges no longer exist; remove them from GRANDFATHERED',
-    ).toEqual([])
+    expect(stale, 'these edges no longer exist; remove them from GRANDFATHERED').toEqual([])
   })
 
   it('shared infrastructure (_core, _lib, _module, db) never imports a layer', () => {

@@ -21,7 +21,11 @@ describe('mcpSpecSchema', () => {
       disabled: false,
     })
 
-    expect(parsed.transport).toEqual({ ...stdio, args: ['-y', '@linear/mcp'], env: { LINEAR_KEY: 'x' } })
+    expect(parsed.transport).toEqual({
+      ...stdio,
+      args: ['-y', '@linear/mcp'],
+      env: { LINEAR_KEY: 'x' },
+    })
   })
 
   it('takes an http server with headers', () => {
@@ -60,7 +64,9 @@ describe('mcpSpecSchema', () => {
   })
 
   it('rejects a transport kind outside the union', () => {
-    expect(names({ name: 'x', transport: { kind: 'sse', url: 'https://example.test' } })).toBe(false)
+    expect(names({ name: 'x', transport: { kind: 'sse', url: 'https://example.test' } })).toBe(
+      false,
+    )
   })
 
   it('rejects unknown fields rather than silently dropping them', () => {
@@ -81,7 +87,9 @@ describe('mcpConfigFileSchema', () => {
   })
 
   it('reads the wrapped mcpServers shape', () => {
-    const file = mcpConfigFileSchema.parse({ [MCP_SERVERS_FIELD]: { linear: { transport: stdio } } })
+    const file = mcpConfigFileSchema.parse({
+      [MCP_SERVERS_FIELD]: { linear: { transport: stdio } },
+    })
 
     expect(mcpServersOf(file)).toEqual({ linear: { transport: stdio } })
   })
@@ -103,16 +111,31 @@ describe('compatMcpEntryToNative', () => {
 
   it('translates a Claude Code stdio entry into the native transport shape', () => {
     expect(
-      compatMcpEntryToNative({ type: 'stdio', command: 'uvx', args: ['mcp-aws'], env: { KEY: 'x' } }),
-    ).toEqual({ transport: { kind: 'stdio', command: 'uvx', args: ['mcp-aws'], env: { KEY: 'x' } } })
+      compatMcpEntryToNative({
+        type: 'stdio',
+        command: 'uvx',
+        args: ['mcp-aws'],
+        env: { KEY: 'x' },
+      }),
+    ).toEqual({
+      transport: { kind: 'stdio', command: 'uvx', args: ['mcp-aws'], env: { KEY: 'x' } },
+    })
     expect(thenParses({ type: 'stdio', command: 'uvx', args: ['mcp-aws'] })).toBe(true)
   })
 
   it('translates a Claude Code http entry with headers', () => {
     expect(
-      compatMcpEntryToNative({ type: 'http', url: 'https://mcp.linear.app/mcp', headers: { authorization: 'Bearer x' } }),
+      compatMcpEntryToNative({
+        type: 'http',
+        url: 'https://mcp.linear.app/mcp',
+        headers: { authorization: 'Bearer x' },
+      }),
     ).toEqual({
-      transport: { kind: 'http', url: 'https://mcp.linear.app/mcp', headers: { authorization: 'Bearer x' } },
+      transport: {
+        kind: 'http',
+        url: 'https://mcp.linear.app/mcp',
+        headers: { authorization: 'Bearer x' },
+      },
     })
     expect(thenParses({ type: 'http', url: 'https://mcp.linear.app/mcp' })).toBe(true)
   })

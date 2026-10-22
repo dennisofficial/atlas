@@ -23,7 +23,9 @@ describe('CloudTransport', () => {
       fetchFn: fakeFetch({ status: 200, body: { ok: true } }),
     })
 
-    await expect(transport.request({ method: 'GET', path: '/v1/threads' })).resolves.toEqual({ ok: true })
+    await expect(transport.request({ method: 'GET', path: '/v1/threads' })).resolves.toEqual({
+      ok: true,
+    })
   })
 
   it('reaches rawRequest() with the same shared credentials', async () => {

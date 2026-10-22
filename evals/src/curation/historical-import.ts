@@ -59,7 +59,8 @@ type ImportedLog = {
   rejections: Located<HistoricalRejection>[]
 }
 
-const NOTICE = 'Raw private extraction containing source code. Not sanitized and not safe to send to any provider.'
+const NOTICE =
+  'Raw private extraction containing source code. Not sanitized and not safe to send to any provider.'
 
 function parseLine({ line }: { line: string }): unknown {
   try {
@@ -70,34 +71,77 @@ function parseLine({ line }: { line: string }): unknown {
 }
 
 const threadIdOf = (event: unknown): string | null =>
-  isRecord(event) && typeof event['threadId'] === 'string' && event['threadId'] !== '' ? event['threadId'] : null
+  isRecord(event) && typeof event['threadId'] === 'string' && event['threadId'] !== ''
+    ? event['threadId']
+    : null
 
-function importLog({ session, file, text }: { session: string; file: string; text: string }): ImportedLog {
+function importLog({
+  session,
+  file,
+  text,
+}: {
+  session: string
+  file: string
+  text: string
+}): ImportedLog {
   const lines = text.split('\n')
   if (lines[lines.length - 1] === '') lines.pop()
   const events = lines.map((line) => parseLine({ line }))
-  const threadIds = [...new Set(events.map(threadIdOf).filter((id): id is string => id !== null))].sort()
+  const threadIds = [
+    ...new Set(events.map(threadIdOf).filter((id): id is string => id !== null)),
+  ].sort()
   const recovery = recoverHistoricalChanges({ events })
   const stem = file.slice(0, -EVENTS_SUFFIX.length)
   const mismatched = threadIds.length > 0 && !(threadIds.length === 1 && threadIds[0] === stem)
   const mismatch: HistoricalRejection[] = mismatched
-    ? [{ kind: EHistoricalRejection.ThreadFileMismatch, detail: 'event thread ids differ from the log file name', index: 0, seq: null, threadId: threadIds[0] ?? null, callId: null, path: null }]
+    ? [
+        {
+          kind: EHistoricalRejection.ThreadFileMismatch,
+          detail: 'event thread ids differ from the log file name',
+          index: 0,
+          seq: null,
+          threadId: threadIds[0] ?? null,
+          callId: null,
+          path: null,
+        },
+      ]
     : []
-  const rejections = [...mismatch, ...recovery.rejections].map((rejection) => ({ ...rejection, session, file }))
+  const rejections = [...mismatch, ...recovery.rejections].map((rejection) => ({
+    ...rejection,
+    session,
+    file,
+  }))
   const kept = mismatched ? [] : recovery.changes
   return {
-    entry: { file, sha256: sha256Hex({ text }), threadIds, lines: lines.length, changes: kept.length, rejections: rejections.length },
+    entry: {
+      file,
+      sha256: sha256Hex({ text }),
+      threadIds,
+      lines: lines.length,
+      changes: kept.length,
+      rejections: rejections.length,
+    },
     changes: kept.map((change) => ({ ...change, session, file })),
     rejections,
   }
 }
 
 async function listEventLogs({ sessionDir }: { sessionDir: string }): Promise<string[]> {
-  const entries = await readdir(join(sessionDir, 'threads'), { withFileTypes: true }).catch(() => [])
-  return sortedNames(entries.filter((entry) => entry.isFile() && entry.name.endsWith(EVENTS_SUFFIX)).map((entry) => entry.name))
+  const entries = await readdir(join(sessionDir, 'threads'), { withFileTypes: true }).catch(
+    () => [],
+  )
+  return sortedNames(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(EVENTS_SUFFIX))
+      .map((entry) => entry.name),
+  )
 }
 
-async function readSession({ sessionDir }: { sessionDir: string }): Promise<{ entry: HistoricalSessionEntry; logs: ImportedLog[] }> {
+async function readSession({
+  sessionDir,
+}: {
+  sessionDir: string
+}): Promise<{ entry: HistoricalSessionEntry; logs: ImportedLog[] }> {
   const session = basename(sessionDir)
   const logs: ImportedLog[] = []
   for (const file of await listEventLogs({ sessionDir })) {
@@ -107,7 +151,8 @@ async function readSession({ sessionDir }: { sessionDir: string }): Promise<{ en
   return { entry: { session, logs: logs.map((log) => log.entry) }, logs }
 }
 
-const toJsonl = (records: readonly unknown[]): string => records.map((record) => `${JSON.stringify(record)}\n`).join('')
+const toJsonl = (records: readonly unknown[]): string =>
+  records.map((record) => `${JSON.stringify(record)}\n`).join('')
 
 async function writePrivate({ path, content }: { path: string; content: string }): Promise<void> {
   await writeFile(path, content, { encoding: 'utf8', mode: PRIVATE_FILE_MODE, flag: 'wx' })
@@ -123,7 +168,8 @@ export async function importHistoricalSessions({
   await assertOutputDirAbsent({ outputDir })
   const sortedDirs = sortedNames(sessionDirs)
   const names = sortedDirs.map((sessionDir) => basename(sessionDir))
-  if (new Set(names).size !== names.length) throw new Error('session directory names are not unique')
+  if (new Set(names).size !== names.length)
+    throw new Error('session directory names are not unique')
   for (const sessionDir of sortedDirs) await assertSessionDirExists({ sessionDir })
 
   const imported = []
@@ -145,7 +191,19 @@ export async function importHistoricalSessions({
   await mkdir(dirname(outputDir), { recursive: true })
   await mkdir(outputDir, { mode: PRIVATE_DIRECTORY_MODE })
   await writePrivate({ path: join(outputDir, HISTORICAL_CHANGES_FILE), content: toJsonl(changes) })
-  await writePrivate({ path: join(outputDir, HISTORICAL_REJECTIONS_FILE), content: toJsonl(rejections) })
-  await writePrivate({ path: join(outputDir, HISTORICAL_MANIFEST_FILE), content: `${JSON.stringify(manifest, null, 2)}\n` })
-  return { outputDir, sessions: imported.length, logs: logs.length, changes: changes.length, rejections: rejections.length }
+  await writePrivate({
+    path: join(outputDir, HISTORICAL_REJECTIONS_FILE),
+    content: toJsonl(rejections),
+  })
+  await writePrivate({
+    path: join(outputDir, HISTORICAL_MANIFEST_FILE),
+    content: `${JSON.stringify(manifest, null, 2)}\n`,
+  })
+  return {
+    outputDir,
+    sessions: imported.length,
+    logs: logs.length,
+    changes: changes.length,
+    rejections: rejections.length,
+  }
 }

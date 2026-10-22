@@ -36,7 +36,9 @@ describe('carryOverSystemPrompt', () => {
   it('folds operator instructions into Next action', () => {
     const prompt = carryOverSystemPrompt({ instructions: ' run the tests first ' })
 
-    expect(prompt).toContain("The operator's instructions for after the rotation: run the tests first")
+    expect(prompt).toContain(
+      "The operator's instructions for after the rotation: run the tests first",
+    )
     expect(prompt).toContain('Fold these into Next action')
   })
 })

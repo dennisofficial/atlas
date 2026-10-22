@@ -69,8 +69,8 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
   ]
 
   constructor(
-     private readonly launchDirectory: string,
-     private readonly worktreeDirectory: () => string,
+    private readonly launchDirectory: string,
+    private readonly worktreeDirectory: () => string,
   ) {
     super()
   }
@@ -83,10 +83,17 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     if (input.name !== undefined && input.path !== undefined) {
-      return { ok: false, reason: 'name creates a worktree and path enters one that exists, so pass exactly one of them' }
+      return {
+        ok: false,
+        reason:
+          'name creates a worktree and path enters one that exists, so pass exactly one of them',
+      }
     }
     if (input.name === undefined && input.path === undefined) {
-      return { ok: false, reason: 'pass name to create a worktree, or path to enter one that already exists' }
+      return {
+        ok: false,
+        reason: 'pass name to create a worktree, or path to enter one that already exists',
+      }
     }
 
     const found = await repositoryAt({ cwd: projectDirectory })
@@ -95,7 +102,10 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
     const { view } = found
 
     if (input.path !== undefined) {
-      const home = worktreeHomeOf({ repositoryRoot: view.root, directory: this.worktreeDirectory() })
+      const home = worktreeHomeOf({
+        repositoryRoot: view.root,
+        directory: this.worktreeDirectory(),
+      })
       const outcome = await adoptWorktree({
         view,
         path: input.path,
@@ -168,7 +178,15 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
     })
   }
 
-  private async leave({ cwd, path, homeDirectory }: { cwd: string; path: string; homeDirectory: string | undefined }): Promise<void> {
+  private async leave({
+    cwd,
+    path,
+    homeDirectory,
+  }: {
+    cwd: string
+    path: string
+    homeDirectory: string | undefined
+  }): Promise<void> {
     if (path === (homeDirectory ?? this.launchDirectory)) return
     await releaseWorktree({ cwd, path })
   }
@@ -187,7 +205,9 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
         NOW_THE_PROJECT_DIRECTORY,
         ...(args.staleBase === undefined
           ? []
-          : [`The fetch from origin failed (${args.staleBase}), so the branch was cut from whatever ${args.base} already pointed at locally.`]),
+          : [
+              `The fetch from origin failed (${args.staleBase}), so the branch was cut from whatever ${args.base} already pointed at locally.`,
+            ]),
       ].join(' '),
     }
   }

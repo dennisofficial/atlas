@@ -142,7 +142,10 @@ describe('the welcome screen in the hero placement shape', () => {
 
   it('stays on the cloud label while the sandbox provisions', async () => {
     const frame = await frameOf(
-      placed({ shape: 'hero', placement: { harness: EHarnessPlacement.Cloud, provisioning: true } }),
+      placed({
+        shape: 'hero',
+        placement: { harness: EHarnessPlacement.Cloud, provisioning: true },
+      }),
       WIDE,
     )
 

@@ -6,37 +6,37 @@
  * the run.
  */
 export interface RecordedInputs {
-  recorderOk: boolean;
+  recorderOk: boolean
   /** Why the file must never be cached (it started a child process), if it must not. */
-  uncacheable?: string;
+  uncacheable?: string
   /** argv and cwd of the first child processes the file started. */
-  spawned?: string[];
+  spawned?: string[]
   /** Module ids Vitest loaded; `mock:<path>` for modules replaced by a vi.mock factory. */
-  modules: string[];
+  modules: string[]
   /** Files read or opened successfully (`f:` keys). */
-  files: string[];
+  files: string[]
   /** Directories listed non-recursively (`d:` keys). */
-  dirs: string[];
+  dirs: string[]
   /** Directories listed with `recursive: true` (`r:` keys). */
-  trees: string[];
+  trees: string[]
   /** Existence checks and failed reads/stats/listings (`s:` keys). */
-  stats: string[];
+  stats: string[]
   /** Successful fs.stat targets (`m:` keys). */
-  statInfo: string[];
+  statInfo: string[]
   /** Successful fs.lstat targets (`l:` keys). */
-  lstatInfo: string[];
+  lstatInfo: string[]
   /** Env var names read; ENV_NAMES_MARKER if the test enumerated process.env. */
-  env: string[];
+  env: string[]
 }
 
 declare module 'vitest' {
   interface ProvidedContext {
-    incrementalRepoRoot: string;
+    incrementalRepoRoot: string
   }
 }
 
 declare module '@vitest/runner' {
   interface TaskMeta {
-    incremental?: RecordedInputs;
+    incremental?: RecordedInputs
   }
 }

@@ -8,8 +8,12 @@ describe('VercelBundleBlobStore without a token', () => {
   const pathname = 'bundles/user-a/x.tar.gz'
 
   it('answers service unavailable on every operation', async () => {
-    await expect(store.presignUpload({ pathname })).rejects.toBeInstanceOf(ServiceUnavailableException)
+    await expect(store.presignUpload({ pathname })).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    )
     await expect(store.head({ pathname })).rejects.toBeInstanceOf(ServiceUnavailableException)
-    await expect(store.presignDownload({ pathname })).rejects.toBeInstanceOf(ServiceUnavailableException)
+    await expect(store.presignDownload({ pathname })).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    )
   })
 })

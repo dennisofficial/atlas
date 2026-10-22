@@ -96,7 +96,15 @@ describe('tldrDue', () => {
       said('fix it'),
       replied('fixed, build running'),
       tldr({ anchorSeq: 1, throughSeq: 2, text: 'Fixed; build running.' }),
-      { type: 'background-shell-ended', shellId: 'bash_1', command: 'bun run build', status: EShellStatus.Exited, output: 'ok', droppedCharacters: 0, remainingCharacters: 2 },
+      {
+        type: 'background-shell-ended',
+        shellId: 'bash_1',
+        command: 'bun run build',
+        status: EShellStatus.Exited,
+        output: 'ok',
+        droppedCharacters: 0,
+        remainingCharacters: 2,
+      },
       replied('build green'),
     ])
     expect(tldrDue(events)).toEqual({ anchorSeq: 1, throughSeq: 5 })

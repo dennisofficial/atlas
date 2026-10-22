@@ -9,7 +9,8 @@ import { fakeApp, scriptedModelPort } from './fake-app'
 
 await grammarsReady()
 
-const worked = (frame: string): number => frame.split('\n').filter((row) => row.includes('Worked for')).length
+const worked = (frame: string): number =>
+  frame.split('\n').filter((row) => row.includes('Worked for')).length
 
 describe('the line a finished turn leaves behind', () => {
   it('stays where the turn ended when the next message is sent', async () => {

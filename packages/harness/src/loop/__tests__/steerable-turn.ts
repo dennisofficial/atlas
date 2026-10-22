@@ -61,7 +61,11 @@ function createComposerQueue(): ComposerQueue {
   }
 }
 
-function actingDuringStep(args: { model: ModelPort; onStep: number | 'each'; act: () => Promise<void> | void }): ModelPort {
+function actingDuringStep(args: {
+  model: ModelPort
+  onStep: number | 'each'
+  act: () => Promise<void> | void
+}): ModelPort {
   let taken = 0
 
   return {
@@ -115,14 +119,24 @@ export async function openSteerable(args: {
   const steered = ((): ModelPort => {
     if (args.types !== undefined) {
       const typed = args.types
-      return actingDuringStep({ model: harness.model, onStep: typed.onStep, act: () => queue.type(typed.text) })
+      return actingDuringStep({
+        model: harness.model,
+        onStep: typed.onStep,
+        act: () => queue.type(typed.text),
+      })
     }
     if (args.appends !== undefined) {
       const appended = args.appends
       return actingDuringStep({
         model: harness.model,
         onStep: appended.onStep,
-        act: () => appendStraightToLog({ log: harness.log, ids: harness.ids, threadId: thread.id, text: appended.text }),
+        act: () =>
+          appendStraightToLog({
+            log: harness.log,
+            ids: harness.ids,
+            threadId: thread.id,
+            text: appended.text,
+          }),
       })
     }
     return harness.model
@@ -141,7 +155,10 @@ export async function openSteerable(args: {
       ...(args.withQueue === false ? {} : { drainPending: queue.drain }),
       ...(args.hooks === undefined ? {} : { hooks: args.hooks }),
       ...(args.withTools === true
-        ? { tools: () => tools.declarations(), dispatch: new HookedToolDispatcher({ registry: tools, hooks: new HookChain({}) }) }
+        ? {
+            tools: () => tools.declarations(),
+            dispatch: new HookedToolDispatcher({ registry: tools, hooks: new HookChain({}) }),
+          }
         : {}),
     }),
   }
@@ -160,10 +177,11 @@ async function appendStraightToLog(args: {
   })
 }
 
-export const userTexts = (prompt: MockLanguageModelV4['doStreamCalls'][number]['prompt']): string[] =>
+export const userTexts = (
+  prompt: MockLanguageModelV4['doStreamCalls'][number]['prompt'],
+): string[] =>
   prompt.flatMap((message) =>
     message.role === 'user'
       ? message.content.flatMap((part) => (part.type === 'text' ? [part.text] : []))
       : [],
   )
-

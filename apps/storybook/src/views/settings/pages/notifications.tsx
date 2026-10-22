@@ -1,13 +1,13 @@
-import { Switch } from "@dltech/atlas-ui/components/switch";
+import { Switch } from '@dltech/atlas-ui/components/switch'
 
 import {
   NOTIFICATION_DEFAULTS,
   type ChannelState,
   type ENotifyChannel,
-} from "../../../fixtures/settings-interface";
-import { CURRENT_USER } from "../../../fixtures/settings";
-import { NotifyMatrixTable } from "../parts/interface-notify-matrix";
-import { QuietHourSelect } from "../parts/interface-quiet-hours";
+} from '../../../fixtures/settings-interface'
+import { CURRENT_USER } from '../../../fixtures/settings'
+import { NotifyMatrixTable } from '../parts/interface-notify-matrix'
+import { QuietHourSelect } from '../parts/interface-quiet-hours'
 import {
   Mono,
   SaveFooter,
@@ -15,25 +15,29 @@ import {
   SettingsPage,
   SettingsRow,
   SettingsSection,
-} from "../settings-layout";
-import { useDraft } from "../use-draft";
+} from '../settings-layout'
+import { useDraft } from '../use-draft'
 
 export function NotificationsPage() {
-  const draft = useDraft(NOTIFICATION_DEFAULTS);
-  const { value, setValue } = draft;
+  const draft = useDraft(NOTIFICATION_DEFAULTS)
+  const { value, setValue } = draft
 
   const handleChannelChange = (params: { channel: keyof ChannelState; enabled: boolean }) => {
-    setValue({ ...value, channels: { ...value.channels, [params.channel]: params.enabled } });
-  };
+    setValue({ ...value, channels: { ...value.channels, [params.channel]: params.enabled } })
+  }
 
-  const handleMatrixToggle = (params: { eventId: string; channel: ENotifyChannel; checked: boolean }) => {
-    const row = value.matrix[params.eventId];
-    if (!row) return;
+  const handleMatrixToggle = (params: {
+    eventId: string
+    channel: ENotifyChannel
+    checked: boolean
+  }) => {
+    const row = value.matrix[params.eventId]
+    if (!row) return
     setValue({
       ...value,
       matrix: { ...value.matrix, [params.eventId]: { ...row, [params.channel]: params.checked } },
-    });
-  };
+    })
+  }
 
   return (
     <SettingsPage title="Notifications" description="Decide where Atlas gets your attention.">
@@ -45,7 +49,7 @@ export function NotificationsPage() {
             control={
               <Switch
                 checked={value.channels.push}
-                onCheckedChange={(enabled) => handleChannelChange({ channel: "push", enabled })}
+                onCheckedChange={(enabled) => handleChannelChange({ channel: 'push', enabled })}
                 aria-label="Browser push"
               />
             }
@@ -60,7 +64,7 @@ export function NotificationsPage() {
             control={
               <Switch
                 checked={value.channels.email}
-                onCheckedChange={(enabled) => handleChannelChange({ channel: "email", enabled })}
+                onCheckedChange={(enabled) => handleChannelChange({ channel: 'email', enabled })}
                 aria-label="Email"
               />
             }
@@ -101,5 +105,5 @@ export function NotificationsPage() {
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
-  );
+  )
 }

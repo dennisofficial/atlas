@@ -311,9 +311,9 @@ describe('what a row says it will cost', () => {
     expect(pointConsequence({ state: stateOf({ points: WATERMARK, index: 0 }), index: 0 })).toBe(
       'compaction undone, 1 later message discarded',
     )
-    expect(pointConsequence({ state: stateOf({ points: [WATERMARK[0]], index: 0 }), index: 0 })).toBe(
-      'compaction undone, nothing else discarded',
-    )
+    expect(
+      pointConsequence({ state: stateOf({ points: [WATERMARK[0]], index: 0 }), index: 0 }),
+    ).toBe('compaction undone, nothing else discarded')
   })
 })
 
@@ -330,7 +330,10 @@ describe('what a verb says it will do', () => {
 
   it('leads a rewind onto a compaction with the compaction it undoes', () => {
     expect(
-      verbConsequence({ state: stateOf({ points: WATERMARK, index: 0 }), verb: ERewindVerb.ToHere }),
+      verbConsequence({
+        state: stateOf({ points: WATERMARK, index: 0 }),
+        verb: ERewindVerb.ToHere,
+      }),
     ).toBe('the compaction is undone and 1 later message and every reply are deleted')
   })
 

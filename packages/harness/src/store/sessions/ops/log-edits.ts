@@ -39,7 +39,9 @@ async function writeHead({
   at: string
 }): Promise<void> {
   const metaFile = threadMetaFile({ sessionDir, threadId })
-  const meta = readMetaSync({ file: metaFile, schema: threadMetaSchema }) ?? newThreadMeta({ id: threadId, at: clock.now() })
+  const meta =
+    readMetaSync({ file: metaFile, schema: threadMetaSchema }) ??
+    newThreadMeta({ id: threadId, at: clock.now() })
   await writeMeta({ file: metaFile, meta: { ...meta, head, updatedAt: at } })
 }
 
@@ -66,7 +68,10 @@ export async function truncateThreadLog({
     .map((event) => `${encodeEventLine({ draft: draftOf(event), envelope: envelopeOf(event) })}\n`)
     .join('')
   await writeFile(tmp, lines)
-  const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId }), schema: threadMetaSchema })
+  const meta = readMetaSync({
+    file: threadMetaFile({ sessionDir, threadId }),
+    schema: threadMetaSchema,
+  })
   const floor = meta?.forkMode === EForkMode.Reference ? (meta.forkSeq ?? 0) : 0
   const head = Math.max(retained.at(-1)?.seq ?? 0, floor)
   await writeHead({ clock, sessionDir, threadId, head, at: clock.now() })

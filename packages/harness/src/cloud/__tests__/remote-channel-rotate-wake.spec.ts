@@ -30,7 +30,9 @@ describe('a rotate requested against a parked sandbox', () => {
     await Bun.sleep(1)
 
     expect(reattached).toBe(1)
-    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual(
+      [],
+    )
 
     live().handlers.handleOpen()
     receive({ kind: EServeFrame.Ready, seq: 2 })

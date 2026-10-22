@@ -14,12 +14,7 @@ import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
 import { ChildAdmissions } from './child-admissions'
 import type { HasLiveWork, InheritOrphanedNotices, IntakeChanged } from './deps'
-import {
-  recordContext,
-  recordProgress,
-  type ChildState,
-  type SteerMessage,
-} from './child-state'
+import { recordContext, recordProgress, type ChildState, type SteerMessage } from './child-state'
 import { AgentJournal } from './agent-journal'
 import { recordEnding } from './child-endings'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
@@ -46,7 +41,9 @@ export class ChildSteps {
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
   private readonly settledListeners = new Set<() => void>()
   private readonly admissions = new ChildAdmissions({
-    onSettled: () => { if (!this.settling()) this.announceSettled() },
+    onSettled: () => {
+      if (!this.settling()) this.announceSettled()
+    },
   })
 
   constructor(args: {
@@ -183,7 +180,13 @@ export class ChildSteps {
     }
   }
 
-  private async finish({ child, status }: { child: ChildState; status: EAgentStatus }): Promise<void> {
+  private async finish({
+    child,
+    status,
+  }: {
+    child: ChildState
+    status: EAgentStatus
+  }): Promise<void> {
     if (this.roster.find(child.agentId) === undefined) return
 
     child.status = status
@@ -244,7 +247,13 @@ export class ChildSteps {
     this.roster.changed()
   }
 
-  private runnerFor({ child, agentType }: { child: ChildState; agentType: AgentType }): TurnRunner | Promise<TurnRunner> {
+  private runnerFor({
+    child,
+    agentType,
+  }: {
+    child: ChildState
+    agentType: AgentType
+  }): TurnRunner | Promise<TurnRunner> {
     return this.runners({
       agentType,
       threadId: child.agentId,

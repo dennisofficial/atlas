@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  EToolEffect,
-  toThreadId,
-  type ToolInvocation,
-} from '@dltech/atlas-core'
+import { EToolEffect, toThreadId, type ToolInvocation } from '@dltech/atlas-core'
 
 import { MAX_MODEL_TEXT_CHARACTERS, McpBridgeTool } from '../bridge/bridge-tool'
 import type { McpToolInfo } from '../transport'
@@ -18,7 +14,10 @@ const invocation = (): ToolInvocation => ({
   threadId: toThreadId('thread-1'),
 })
 
-const bridgeOf = (args: { info: McpToolInfo; transport?: InMemoryTransport | undefined }): McpBridgeTool =>
+const bridgeOf = (args: {
+  info: McpToolInfo
+  transport?: InMemoryTransport | undefined
+}): McpBridgeTool =>
   new McpBridgeTool({
     serverId: 'fs',
     info: args.info,
@@ -59,7 +58,9 @@ describe('McpBridgeTool effect and concurrency', () => {
   })
 
   it('maps destructiveHint to Destructive and not concurrency-safe', () => {
-    const tool = bridgeOf({ info: toolInfo({ name: 'drop', annotations: { destructiveHint: true } }) })
+    const tool = bridgeOf({
+      info: toolInfo({ name: 'drop', annotations: { destructiveHint: true } }),
+    })
 
     expect(tool.effect).toBe(EToolEffect.Destructive)
     expect(tool.isConcurrencySafe).toBeUndefined()
@@ -167,7 +168,9 @@ describe('McpBridgeTool invocation', () => {
 
   it('appends a truncation note past the character cap', async () => {
     const transport = new InMemoryTransport()
-    transport.response = { content: [{ type: 'text', text: 'x'.repeat(MAX_MODEL_TEXT_CHARACTERS + 10) }] }
+    transport.response = {
+      content: [{ type: 'text', text: 'x'.repeat(MAX_MODEL_TEXT_CHARACTERS + 10) }],
+    }
     const tool = bridgeOf({ info: toolInfo({ name: 'read' }), transport })
 
     const outcome = await tool.invoke(invocation())

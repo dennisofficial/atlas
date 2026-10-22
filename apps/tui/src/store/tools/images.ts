@@ -33,7 +33,9 @@ export function imageOf(call: ToolCall): ReadImage | null {
     byteLength: num(output.byteLength) ?? null,
     data: call.image?.data ?? null,
     inlined,
-    notSentReason: inlined ? null : (notSentReasonOf(call.modelText) ?? 'the tool kept it text-only'),
+    notSentReason: inlined
+      ? null
+      : (notSentReasonOf(call.modelText) ?? 'the tool kept it text-only'),
   }
 }
 

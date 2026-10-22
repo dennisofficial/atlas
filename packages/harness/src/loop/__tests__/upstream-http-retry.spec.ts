@@ -33,9 +33,12 @@ function replyStream(): Response {
       choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
     },
   ]
-  return new Response(`${chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join('')}data: [DONE]\n\n`, {
-    headers: { 'content-type': 'text/event-stream' },
-  })
+  return new Response(
+    `${chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join('')}data: [DONE]\n\n`,
+    {
+      headers: { 'content-type': 'text/event-stream' },
+    },
+  )
 }
 
 function httpHarness(args: { status: number; message: string; failures: number; code?: string }) {
@@ -47,7 +50,10 @@ function httpHarness(args: { status: number; message: string; failures: number; 
     fetch: () => {
       requests += 1
       if (requests > args.failures) return replyStream()
-      return Response.json({ error: { message: args.message, code: args.code } }, { status: args.status })
+      return Response.json(
+        { error: { message: args.message, code: args.code } },
+        { status: args.status },
+      )
     },
   })
   const provider = createOpenAICompatible({
@@ -118,21 +124,24 @@ describe('retrying upstream failures through HTTP and the installed SDK', () => 
     }
   })
 
-  it.each([401, 402, 403])('does not retry HTTP %i even with the upstream error message', async (status) => {
-    const harness = httpHarness({
-      status,
-      message: UPSTREAM_MESSAGE,
-      failures: 10,
-    })
-    try {
-      const result = await harness.run()
-      expect(result.ok).toBe(false)
-      expect(harness.requests()).toBe(1)
-      expect(harness.notices).toEqual([])
-    } finally {
-      harness.stop()
-    }
-  })
+  it.each([401, 402, 403])(
+    'does not retry HTTP %i even with the upstream error message',
+    async (status) => {
+      const harness = httpHarness({
+        status,
+        message: UPSTREAM_MESSAGE,
+        failures: 10,
+      })
+      try {
+        const result = await harness.run()
+        expect(result.ok).toBe(false)
+        expect(harness.requests()).toBe(1)
+        expect(harness.notices).toEqual([])
+      } finally {
+        harness.stop()
+      }
+    },
+  )
 
   it('does not retry a genuine HTTP 400 invalid request', async () => {
     const harness = httpHarness({

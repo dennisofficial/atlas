@@ -58,14 +58,22 @@ export const keyFetch = (state: Remote): typeof fetch => {
       return reply(
         200,
         state.githubConnected
-          ? { connected: true, login: 'octocat', scopes: ['repo'], connectedAt: '2026-01-01T00:00:00.000Z' }
+          ? {
+              connected: true,
+              login: 'octocat',
+              scopes: ['repo'],
+              connectedAt: '2026-01-01T00:00:00.000Z',
+            }
           : { connected: false },
       )
     }
     if (call === 'GET /v1/ssh-signing-key/status') return reply(200, statusBody())
     if (call === 'POST /v1/ssh-signing-key' || call === 'POST /v1/ssh-signing-key/rotate') {
       if (state.scopeMissing) {
-        return reply(403, { message: SSH_SIGNING_SCOPE_NOTICE, code: 'github-signing-scope-missing' })
+        return reply(403, {
+          message: SSH_SIGNING_SCOPE_NOTICE,
+          code: 'github-signing-scope-missing',
+        })
       }
       state.registered = true
       return reply(call.endsWith('rotate') ? 200 : 201, statusBody())

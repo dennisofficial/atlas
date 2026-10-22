@@ -114,17 +114,19 @@ export function fakeServiceRegistry(): FakeServices {
       if (handed.length === 0) return []
 
       settle(ended.filter((one) => one.threadId !== threadId))
-      return handed.map(({ snapshot }): EventDraft => ({
-        type: 'service-ended',
-        serviceId: snapshot.serviceId,
-        command: snapshot.command,
-        description: snapshot.description,
-        status: snapshot.status,
-        killedBy: snapshot.killedBy,
-        exitCode: snapshot.exitCode,
-        logPath: snapshot.logPath,
-        tail: `tail of ${snapshot.serviceId}`,
-      }))
+      return handed.map(
+        ({ snapshot }): EventDraft => ({
+          type: 'service-ended',
+          serviceId: snapshot.serviceId,
+          command: snapshot.command,
+          description: snapshot.description,
+          status: snapshot.status,
+          killedBy: snapshot.killedBy,
+          exitCode: snapshot.exitCode,
+          logPath: snapshot.logPath,
+          tail: `tail of ${snapshot.serviceId}`,
+        }),
+      )
     },
 
     pendingNotices: ({ threadId }) => notices(threadId),

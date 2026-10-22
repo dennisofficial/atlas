@@ -2,12 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { toRunId } from '@dltech/atlas-core'
 
-import {
-  EClientFrame,
-  EClientRequest,
-  EServeFrame,
-  ETurnStatus,
-} from '@dltech/atlas-harness'
+import { EClientFrame, EClientRequest, EServeFrame, ETurnStatus } from '@dltech/atlas-harness'
 
 import { connect } from './client'
 import {
@@ -87,7 +82,9 @@ describe('startServe', () => {
       kind: EClientFrame.Send,
       sendId: 'send-img' as never,
       text: 'go',
-      images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 2, height: 1 }],
+      images: [
+        { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 2, height: 1 },
+      ],
       context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'commit prose' }],
     })
     await Bun.sleep(20)
@@ -127,9 +124,7 @@ describe('startServe', () => {
 
     const frame = { kind: EClientFrame.Send, sendId: 'send-dup' as never, text: 'go' } as const
     client.send(frame)
-    await client.waitFor(
-      (f) => f.kind === EServeFrame.SendAcked && f.sendId === 'send-dup',
-    )
+    await client.waitFor((f) => f.kind === EServeFrame.SendAcked && f.sendId === 'send-dup')
 
     client.send({ ...frame })
     await Bun.sleep(30)
@@ -157,5 +152,4 @@ describe('startServe', () => {
     expect(refusal.kind === EServeFrame.Error ? refusal.message : '').toContain('event body')
     expect(app.appended).toEqual([])
   })
-
 })

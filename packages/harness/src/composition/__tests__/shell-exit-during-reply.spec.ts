@@ -53,11 +53,13 @@ it('answers a real shell ending during a model reply without replacing its live 
   const prepare = shells.prepareNotifications?.bind(shells)
   if (prepare === undefined) throw new Error('shell intake preparation is unavailable')
   const intake = new MessageIntake({
-    sources: [{
-      prepare,
-      subscribe: (listener) => shells.onNotice(listener),
-      threadsAwaitingInput: () => shells.threadsAwaitingNotice(),
-    }],
+    sources: [
+      {
+        prepare,
+        subscribe: (listener) => shells.onNotice(listener),
+        threadsAwaitingInput: () => shells.threadsAwaitingNotice(),
+      },
+    ],
   })
   let launched = false
   let inFlightPreserved = false
@@ -111,14 +113,17 @@ it('answers a real shell ending during a model reply without replacing its live 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(inFlightPreserved).toBe(true)
     expect((await readAtPublication)?.at(-1)).toMatchObject({
-      type: 'background-shell-ended', exitCode: 7, output: 'build failed',
+      type: 'background-shell-ended',
+      exitCode: 7,
+      output: 'build failed',
     })
     expect(model.doStreamCalls).toHaveLength(2)
     expect(JSON.stringify(model.doStreamCalls[1]?.prompt)).toContain('build failed')
     expect(events.filter((event) => event.type === 'background-shell-ended')).toHaveLength(1)
     expect(events.filter((event) => event.type === 'user-said')).toHaveLength(1)
     expect(events.at(-1)).toMatchObject({
-      type: 'assistant-said', parts: [{ type: 'text', text: 'received the build result' }],
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'received the build result' }],
     })
     expect(shells.pendingNotices({ threadId: owner.id })).toEqual([])
   } finally {

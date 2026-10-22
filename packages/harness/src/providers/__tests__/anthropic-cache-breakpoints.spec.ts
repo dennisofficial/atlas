@@ -28,9 +28,7 @@ const PROJECT_DIRECTORY = '/w'
 
 const MODEL_ID = 'claude-opus-5'
 
-const credentials: CredentialPort = credentialsHandingOut(
-  oauthCredential({ accessToken: 'token' }),
-)
+const credentials: CredentialPort = credentialsHandingOut(oauthCredential({ accessToken: 'token' }))
 
 const log = (drafts: readonly EventDraft[]): Event[] =>
   stampDrafts({
@@ -62,7 +60,10 @@ const FIXTURE_PROMPT: CompiledPrompt = {
 
 type CachedBlock = { cache_control?: { type: string; ttl?: string } }
 
-const sentBody = async (): Promise<{ system: CachedBlock[]; messages: { content: CachedBlock[] }[] }> => {
+const sentBody = async (): Promise<{
+  system: CachedBlock[]
+  messages: { content: CachedBlock[] }[]
+}> => {
   const { assembled } = assemble({
     rules: defaultRules({ prompt: () => FIXTURE_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
     annotators: defaultAnnotators(),
@@ -98,7 +99,9 @@ describe('the breakpoints the default annotators place', () => {
     const system = body.system
 
     expect(system.length).toBeGreaterThan(1)
-    expect(system.slice(0, -1).map((block) => block.cache_control)).not.toContain({ type: 'ephemeral' })
+    expect(system.slice(0, -1).map((block) => block.cache_control)).not.toContain({
+      type: 'ephemeral',
+    })
     expect(system[system.length - 1]?.cache_control).toEqual({
       type: 'ephemeral',
       ttl: ECacheTtl.OneHour,

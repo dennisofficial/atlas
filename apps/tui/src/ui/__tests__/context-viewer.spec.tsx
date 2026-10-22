@@ -13,7 +13,9 @@ const HEIGHT = 14
 const PNG = ((): string => {
   const rgba = new Uint8Array(8 * 8 * 4)
   for (let pixel = 0; pixel < 8 * 8; pixel += 1) rgba.set([220, 20, 60, 255], pixel * 4)
-  return Buffer.from(encodePng({ width: 8, height: 8, colourType: 6, bytesPerPixel: 4, samples: rgba })).toString('base64')
+  return Buffer.from(
+    encodePng({ width: 8, height: 8, colourType: 6, bytesPerPixel: 4, samples: rgba }),
+  ).toString('base64')
 })()
 
 /** Any of the quadrant glyphs the block sampler paints with. */
@@ -151,16 +153,24 @@ describe('the context viewer', () => {
         width={WIDTH}
         path="big.log"
         loading={false}
-        content={{ type: 'text', content: Array.from({ length: 500 }, (_, index) => `file-line-${index + 1}`).join('\n'), truncated: false }}
+        content={{
+          type: 'text',
+          content: Array.from({ length: 500 }, (_, index) => `file-line-${index + 1}`).join('\n'),
+          truncated: false,
+        }}
         onDismiss={() => undefined}
-        attachScroll={(box) => { held.box = box }}
+        attachScroll={(box) => {
+          held.box = box
+        }}
       />,
     )
     try {
       await setup.flush()
       expect(setup.captureCharFrame()).toContain('file-line-1')
       expect(setup.captureCharFrame()).not.toContain('file-line-500')
-      await act(async () => { held.box?.scrollTo(10000) })
+      await act(async () => {
+        held.box?.scrollTo(10000)
+      })
       await setup.flush()
       expect(setup.captureCharFrame()).toContain('500 file-line-500')
     } finally {
@@ -195,7 +205,9 @@ describe('the context viewer', () => {
         path="plan.md"
         loading={false}
         content={{ type: 'text', content: 'one', truncated: false }}
-        onDismiss={() => { dismissed += 1 }}
+        onDismiss={() => {
+          dismissed += 1
+        }}
         attachScroll={() => undefined}
       />,
     )
@@ -228,7 +240,9 @@ describe('the context viewer', () => {
         loading={false}
         content={{ type: 'text', content: `${lead}${'x'.repeat(120)}${tail}`, truncated: false }}
         onDismiss={() => undefined}
-        attachScroll={(box) => { held.box = box }}
+        attachScroll={(box) => {
+          held.box = box
+        }}
       />,
     )
     try {
@@ -240,12 +254,19 @@ describe('the context viewer', () => {
       let inner: ScrollBoxRenderable | undefined
       const find = (node: unknown): void => {
         const candidate = node as ScrollBoxRenderable
-        if (candidate instanceof ScrollBoxRenderable && candidate !== held.box &&
-          candidate.scrollWidth > candidate.viewport.width) inner = candidate
-        for (const child of (candidate as { getChildren?: () => unknown[] }).getChildren?.() ?? []) find(child)
+        if (
+          candidate instanceof ScrollBoxRenderable &&
+          candidate !== held.box &&
+          candidate.scrollWidth > candidate.viewport.width
+        )
+          inner = candidate
+        for (const child of (candidate as { getChildren?: () => unknown[] }).getChildren?.() ?? [])
+          find(child)
       }
       find(held.box)
-      await act(async () => { inner?.scrollBy({ x: 200, y: 0 }) })
+      await act(async () => {
+        inner?.scrollBy({ x: 200, y: 0 })
+      })
       await setup.flush()
       expect(setup.captureCharFrame()).toContain(tail.trim())
     } finally {

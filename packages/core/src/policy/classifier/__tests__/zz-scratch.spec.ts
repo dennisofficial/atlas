@@ -49,13 +49,21 @@ describe('scratch', () => {
   for (const [name, effect] of SEVEN) {
     it(`reports ${name}`, () => {
       const evidence = ev({ name, effect })
-      console.log(name, JSON.stringify(evidence.deeds), JSON.stringify(signalsFor({ evidence })), triageFor({ evidence }).triage)
+      console.log(
+        name,
+        JSON.stringify(evidence.deeds),
+        JSON.stringify(signalsFor({ evidence })),
+        triageFor({ evidence }).triage,
+      )
       expect(true).toBe(true)
     })
   }
 
   it('git pull ff-only into a sibling', () => {
-    const evidence = bashEvidence({ command: `git -C ${SIBLING} pull --ff-only`, facts: inAWorktree({ siblingChangedCount: 4 }) })
+    const evidence = bashEvidence({
+      command: `git -C ${SIBLING} pull --ff-only`,
+      facts: inAWorktree({ siblingChangedCount: 4 }),
+    })
     console.log('deeds', JSON.stringify(evidence.deeds))
     console.log('signals', JSON.stringify(signalsFor({ evidence })))
     console.log('triage', triageFor({ evidence }).triage)

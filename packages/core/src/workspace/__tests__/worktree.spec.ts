@@ -165,9 +165,9 @@ describe('where the project is', () => {
   })
 
   it('is where the session last moved, worktree or not', () => {
-    expect(projectDirectoryOf({ events: [moved('/Users/dev/other')], launchDirectory: LAUNCH })).toBe(
-      '/Users/dev/other',
-    )
+    expect(
+      projectDirectoryOf({ events: [moved('/Users/dev/other')], launchDirectory: LAUNCH }),
+    ).toBe('/Users/dev/other')
 
     const outOfAWorktree = [
       entered({ path: TREE, branch: 'dennis/eng-327' }),
@@ -235,20 +235,20 @@ describe('the home directory', () => {
   })
 
   it('resets again on the way back', () => {
-    const events = [
-      relocated('cloud'),
-      moved('/vercel/sandbox/workspace'),
-      relocated('host'),
-    ]
+    const events = [relocated('cloud'), moved('/vercel/sandbox/workspace'), relocated('host')]
 
     expect(homeDirectoryOf({ events, launchDirectory: LAUNCH })).toBe(LAUNCH)
   })
 
   it('folds unwritten drafts the same way', () => {
-    expect(homeDirectoryAfter({ drafts: [{ type: 'user-said', text: 'hi' }], home: LAUNCH })).toBe(LAUNCH)
+    expect(homeDirectoryAfter({ drafts: [{ type: 'user-said', text: 'hi' }], home: LAUNCH })).toBe(
+      LAUNCH,
+    )
 
     const exitedHome = homeDirectoryAfter({
-      drafts: [{ type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep, returnTo: LAUNCH }],
+      drafts: [
+        { type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep, returnTo: LAUNCH },
+      ],
       home: TREE,
     })
     expect(exitedHome).toBe(LAUNCH)
@@ -307,7 +307,9 @@ describe('folding drafts that have not been written yet', () => {
   it('keeps the worktree in hand when no draft moves it', () => {
     const active = { path: TREE, branch: 'dennis/eng-327', base: 'origin/main', adopted: false }
 
-    expect(activeWorktreeAfter({ drafts: [{ type: 'user-said', text: 'hi' }], active })).toEqual(active)
+    expect(activeWorktreeAfter({ drafts: [{ type: 'user-said', text: 'hi' }], active })).toEqual(
+      active,
+    )
   })
 
   it('takes the last entry in the batch, carrying whether it was adopted', () => {
@@ -344,7 +346,8 @@ describe('the git identity a cloud birth left on its location change', () => {
       from: 'host',
       to: 'cloud',
       cwd: '/workspace',
-      remoteUrl: args?.remoteUrl === undefined ? 'git@github.com:comp-ai/atlas.git' : args.remoteUrl,
+      remoteUrl:
+        args?.remoteUrl === undefined ? 'git@github.com:comp-ai/atlas.git' : args.remoteUrl,
       branch: args?.branch === undefined ? 'dennis/thing' : args.branch,
     })
 

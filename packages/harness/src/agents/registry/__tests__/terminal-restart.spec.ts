@@ -99,7 +99,10 @@ describe('a stopped teammate across a simulated move', () => {
     first.runners.started[0]?.settle(interrupted())
     await settled()
 
-    await appendAsParent(first, first.supervisor.drainNotifications({ threadId: first.parent }).drafts)
+    await appendAsParent(
+      first,
+      first.supervisor.drainNotifications({ threadId: first.parent }).drafts,
+    )
     await first.supervisor.closeAll()
 
     const second = await reopenAfter(first)
@@ -126,9 +129,7 @@ describe('resuming a terminal agent', () => {
     expect(!outcome.ok && outcome.reason).toContain('finished')
     expect(entry.runners.resumed).toEqual([])
     expect(entry.runners.started).toHaveLength(1)
-    expect(entry.supervisor.list({ threadId: entry.parent })[0]?.status).toBe(
-      EAgentStatus.Finished,
-    )
+    expect(entry.supervisor.list({ threadId: entry.parent })[0]?.status).toBe(EAgentStatus.Finished)
   })
 
   it('drops a resume for a teammate the user stopped, without un-ending it', async () => {
@@ -158,7 +159,10 @@ describe('resuming a terminal agent', () => {
     await first.supervisor.stop({ agentId: teammateId, threadId: first.parent, by: EKilledBy.User })
     first.runners.started[0]?.settle(interrupted())
     await settled()
-    await appendAsParent(first, first.supervisor.drainNotifications({ threadId: first.parent }).drafts)
+    await appendAsParent(
+      first,
+      first.supervisor.drainNotifications({ threadId: first.parent }).drafts,
+    )
     await first.supervisor.closeAll()
 
     const second = await reopenAfter(first)

@@ -21,22 +21,39 @@ const fakeApi = (args: { reply: Reply }) => {
       status: args.reply.status,
     })
   }) as typeof fetch
-  const client = new SigningKeyClient({ url: 'https://cloud.test/', token: 'sess_1', clientVersion: '1.0.0', fetchFn })
+  const client = new SigningKeyClient({
+    url: 'https://cloud.test/',
+    token: 'sess_1',
+    clientVersion: '1.0.0',
+    fetchFn,
+  })
   return { client, calls }
 }
 
-const registered = { state: 'registered', publicKey: 'ssh-ed25519 AAAA', createdAt: '2026-10-19T00:00:00.000Z' }
+const registered = {
+  state: 'registered',
+  publicKey: 'ssh-ed25519 AAAA',
+  createdAt: '2026-10-19T00:00:00.000Z',
+}
 
 describe('SigningKeyClient', () => {
   it('reads absent and registered status with the bearer token', async () => {
     const absent = fakeApi({ reply: { status: 200, body: { state: 'absent' } } })
     expect(await absent.client.status()).toEqual({ state: ESshSigningKeyState.Absent })
     expect(absent.calls).toEqual([
-      { method: 'GET', path: '/v1/ssh-signing-key/status', authorization: 'Bearer sess_1', body: undefined },
+      {
+        method: 'GET',
+        path: '/v1/ssh-signing-key/status',
+        authorization: 'Bearer sess_1',
+        body: undefined,
+      },
     ])
 
     const present = fakeApi({ reply: { status: 200, body: registered } })
-    expect(await present.client.status()).toEqual({ ...registered, state: ESshSigningKeyState.Registered })
+    expect(await present.client.status()).toEqual({
+      ...registered,
+      state: ESshSigningKeyState.Registered,
+    })
   })
 
   it('posts the private key on register and rotate', async () => {
@@ -49,7 +66,10 @@ describe('SigningKeyClient', () => {
       'POST /v1/ssh-signing-key',
       'POST /v1/ssh-signing-key/rotate',
     ])
-    expect(api.calls.map((call) => call.body)).toEqual([{ privateKey: 'PEM-1' }, { privateKey: 'PEM-2' }])
+    expect(api.calls.map((call) => call.body)).toEqual([
+      { privateKey: 'PEM-1' },
+      { privateKey: 'PEM-2' },
+    ])
   })
 
   it('deletes on revoke', async () => {
@@ -58,7 +78,12 @@ describe('SigningKeyClient', () => {
     await api.client.revoke()
 
     expect(api.calls).toEqual([
-      { method: 'DELETE', path: '/v1/ssh-signing-key', authorization: 'Bearer sess_1', body: undefined },
+      {
+        method: 'DELETE',
+        path: '/v1/ssh-signing-key',
+        authorization: 'Bearer sess_1',
+        body: undefined,
+      },
     ])
   })
 
@@ -73,7 +98,10 @@ describe('SigningKeyClient', () => {
 
   it('carries the response code and status on a refusal', async () => {
     const api = fakeApi({
-      reply: { status: 403, body: { code: 'github-signing-scope-missing', message: 'reconnect GitHub' } },
+      reply: {
+        status: 403,
+        body: { code: 'github-signing-scope-missing', message: 'reconnect GitHub' },
+      },
     })
 
     const error = await api.client.register({ privateKey: 'PEM' }).catch((cause: unknown) => cause)

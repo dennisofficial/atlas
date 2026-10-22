@@ -61,9 +61,13 @@ describe('inputFieldOf', () => {
 
 describe('createDeclaredPaths', () => {
   it('reports a tool it has never heard of as unregistered', () => {
-    const declaredPaths = createDeclaredPaths({ tools: [declaration({ name: 'read', pathFields: [pathField] })] })
+    const declaredPaths = createDeclaredPaths({
+      tools: [declaration({ name: 'read', pathFields: [pathField] })],
+    })
 
-    expect(declaredPaths.forTool('mcp__unknown__do')).toEqual({ kind: EPathDeclaration.Unregistered })
+    expect(declaredPaths.forTool('mcp__unknown__do')).toEqual({
+      kind: EPathDeclaration.Unregistered,
+    })
   })
 
   it('reports a registered tool that never declared its path fields as undeclared', () => {
@@ -73,7 +77,9 @@ describe('createDeclaredPaths', () => {
   })
 
   it('reports the declared fields of a tool that declared some', () => {
-    const declaredPaths = createDeclaredPaths({ tools: [declaration({ name: 'read', pathFields: [pathField] })] })
+    const declaredPaths = createDeclaredPaths({
+      tools: [declaration({ name: 'read', pathFields: [pathField] })],
+    })
 
     expect(declaredPaths.forTool('read')).toEqual({
       kind: EPathDeclaration.Declared,
@@ -82,7 +88,9 @@ describe('createDeclaredPaths', () => {
   })
 
   it('reads an empty declared array as declaring no paths, not as never declaring', () => {
-    const declaredPaths = createDeclaredPaths({ tools: [declaration({ name: 'bash', pathFields: TAKES_NO_PATHS })] })
+    const declaredPaths = createDeclaredPaths({
+      tools: [declaration({ name: 'bash', pathFields: TAKES_NO_PATHS })],
+    })
 
     expect(declaredPaths.forTool('bash')).toEqual({ kind: EPathDeclaration.Declared, fields: [] })
   })

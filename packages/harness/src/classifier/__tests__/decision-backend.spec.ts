@@ -14,7 +14,10 @@ const rig = (values: Record<string, string>, secrets: Record<string, string> = {
   return { settings, secrets: new MemorySecretsStore({ secrets }) }
 }
 
-const OPENAI_BODY = { model: 'gpt-6-luna', answers: [{ type: 'predicate', name: 'danger', probability: 0.4 }] }
+const OPENAI_BODY = {
+  model: 'gpt-6-luna',
+  answers: [{ type: 'predicate', name: 'danger', probability: 0.4 }],
+}
 
 const withFetch = async (
   respond: (url: string, init: RequestInit) => Response,
@@ -50,7 +53,10 @@ describe('liveDecisionsEndpoint', () => {
   })
 
   it('follows a provider switch without being rebuilt', () => {
-    const { settings, secrets } = rig({}, { 'decisions.token.typesafe': 'a', 'decisions.token.vercel': 'b' })
+    const { settings, secrets } = rig(
+      {},
+      { 'decisions.token.typesafe': 'a', 'decisions.token.vercel': 'b' },
+    )
     const live = liveDecisionsEndpoint({ settings, secrets })
 
     expect(live()?.endpoint.url).toBe('https://api.typesafe.ai')
@@ -83,11 +89,19 @@ describe('createDecisionClient', () => {
       async (seen) => {
         const outcome = await ask(createDecisionClient({ settings, secrets }))
 
-        expect(outcome).toEqual({ ok: true, answers: { danger: { noul: 0.4 } }, model: 'gpt-6-luna' })
+        expect(outcome).toEqual({
+          ok: true,
+          answers: { danger: { noul: 0.4 } },
+          model: 'gpt-6-luna',
+        })
         expect(seen).toHaveLength(1)
         expect(seen[0]?.url).toBe('https://api.openai.com/v1/decisions')
         expect((seen[0]?.init.headers as Record<string, string>).Authorization).toBe('Bearer sk-o')
-        const body = JSON.parse(String(seen[0]?.init.body)) as { model: string; input: string; questions: { type: string }[] }
+        const body = JSON.parse(String(seen[0]?.init.body)) as {
+          model: string
+          input: string
+          questions: { type: string }[]
+        }
         expect(body.model).toBe('gpt-6-luna')
         expect(body.input).toBe('s')
         expect(body.questions[0]?.type).toBe('predicate')
@@ -103,9 +117,12 @@ describe('createDecisionClient', () => {
         await ask(createDecisionClient({ settings, secrets }))
 
         expect(seen.length).toBeGreaterThan(0)
-        expect(seen.every((call) => call.url.startsWith('https://api.typesafe.ai') && call.url.includes('systemone'))).toBe(
-          true,
-        )
+        expect(
+          seen.every(
+            (call) =>
+              call.url.startsWith('https://api.typesafe.ai') && call.url.includes('systemone'),
+          ),
+        ).toBe(true)
       },
     )
   })
@@ -120,7 +137,9 @@ describe('createDecisionClient', () => {
       async (seen) => {
         await ask(createDecisionClient({ settings, secrets }))
 
-        expect(seen.every((call) => call.url.startsWith('http://laya.local:8080/v1/systemone'))).toBe(true)
+        expect(
+          seen.every((call) => call.url.startsWith('http://laya.local:8080/v1/systemone')),
+        ).toBe(true)
       },
     )
   })

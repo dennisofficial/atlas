@@ -7,7 +7,12 @@ import { agentTypeNamed, finished, openSupervisor, settled } from './fixtures'
 
 const restartsIn = async (
   s: Awaited<ReturnType<typeof openSupervisor>>,
-): Promise<readonly Extract<Awaited<ReturnType<typeof s.harness.log.readOwn>>[number], { type: 'agent-restarted' }>[]> => {
+): Promise<
+  readonly Extract<
+    Awaited<ReturnType<typeof s.harness.log.readOwn>>[number],
+    { type: 'agent-restarted' }
+  >[]
+> => {
   const events = await s.harness.log.readOwn({ threadId: s.parent })
   return events.filter((event) => event.type === 'agent-restarted')
 }

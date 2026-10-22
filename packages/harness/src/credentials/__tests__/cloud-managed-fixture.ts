@@ -17,9 +17,15 @@ import { CredentialError } from '../credential-error'
 import { fakeOauthApi, type FakeApi } from './oauth-api-fake'
 
 export const NOW = '2026-10-05T12:00:00.000Z'
-export const session: CloudSession = { url: 'https://cloud.test', token: 'fake-session', email: null }
+export const session: CloudSession = {
+  url: 'https://cloud.test',
+  token: 'fake-session',
+  email: null,
+}
 
-export const seed = (over: Partial<{ access: string; refresh: string; expiresAt: string }> = {}): AccountSecret => ({
+export const seed = (
+  over: Partial<{ access: string; refresh: string; expiresAt: string }> = {},
+): AccountSecret => ({
   kind: EAuthKind.Oauth,
   tokens: {
     accessToken: over.access ?? 'fake-access',
@@ -39,7 +45,11 @@ export const setup = (args: { signedIn?: boolean; api?: FakeApi } = {}) => {
   const local: CredentialPort = {
     read: async (request): Promise<Credential> => {
       localReads.push(String(request?.accountId))
-      return { kind: EAuthKind.ApiKey, accountId: request?.accountId ?? ('x' as never), apiKey: 'fake-key' }
+      return {
+        kind: EAuthKind.ApiKey,
+        accountId: request?.accountId ?? ('x' as never),
+        apiKey: 'fake-key',
+      }
     },
     discard: async () => undefined,
   }
@@ -49,7 +59,8 @@ export const setup = (args: { signedIn?: boolean; api?: FakeApi } = {}) => {
     local,
     clock,
     session: () => state.session,
-    clients: (s) => new OAuthConnectionsClient({ url: s.url, token: s.token, fetchFn: api.fetchFn }),
+    clients: (s) =>
+      new OAuthConnectionsClient({ url: s.url, token: s.token, fetchFn: api.fetchFn }),
     newConnectionId: () => `oauth_${++ids}`,
   })
   const addOauth = (secret: AccountSecret = seed(), extra: { importedFrom?: string } = {}) =>

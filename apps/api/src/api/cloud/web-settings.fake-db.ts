@@ -42,7 +42,10 @@ const tableOf = (args: { defaults?: Record<string, unknown> } = {}) => {
       rows.find((row) => matchesWhere(row, query.where)) ?? null,
     findUnique: async (query: { where: Record<string, unknown> }) =>
       rows.find((row) => matchesWhere(row, keyOf(query.where))) ?? null,
-    updateMany: async (query: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+    updateMany: async (query: {
+      where: Record<string, unknown>
+      data: Record<string, unknown>
+    }) => {
       const matched = rows.filter((row) => matchesWhere(row, query.where))
       for (const row of matched) Object.assign(row, query.data, { updatedAt: new Date() })
       return { count: matched.length }

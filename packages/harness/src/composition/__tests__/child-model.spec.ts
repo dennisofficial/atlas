@@ -116,7 +116,10 @@ describe('childModelSource', () => {
     const fixture = await childModelFixture({ parentEffort: EEffort.High })
     await fixture.spawn()
 
-    expect(await fixture.savedModel(fixture.threadId)).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.High })
+    expect(await fixture.savedModel(fixture.threadId)).toEqual({
+      ref: keyOf(CLAUDE),
+      effort: EEffort.High,
+    })
   })
 
   it('a thread already carrying a model streams that model on the first runner build', async () => {
@@ -173,7 +176,8 @@ describe('childModelSource', () => {
     expect(first.identity).toEqual(second.identity)
     const saved = await fixture.savedModel(threadId)
     expect(saved?.ref).toBe(`${first.identity.id}/${first.identity.modelId}`)
-    const builds = fixture.adapters[first.identity.id === 'anthropic' ? 'anthropic' : 'openai'].built
+    const builds =
+      fixture.adapters[first.identity.id === 'anthropic' ? 'anthropic' : 'openai'].built
     expect(builds).toHaveLength(2)
     expect(saved?.effort).toBe(builds[0]?.effortAt())
     expect(builds[0]?.effortAt()).toBe(builds[1]?.effortAt())

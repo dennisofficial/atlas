@@ -42,7 +42,9 @@ class SpyCloudClient extends CloudClient {
     return [account]
   }
 
-  override async readAccount(args: { accountId: Account['id'] }): Promise<StoredAccount | undefined> {
+  override async readAccount(args: {
+    accountId: Account['id']
+  }): Promise<StoredAccount | undefined> {
     this.calls.push({ method: 'readAccount', args: [args] })
     return stored
   }
@@ -77,7 +79,9 @@ class SpyCloudClient extends CloudClient {
     this.calls.push({ method: 'setActiveAccount', args: [args] })
   }
 
-  override async activeAccount(args: { provider: EAuthProvider }): Promise<Account['id'] | undefined> {
+  override async activeAccount(args: {
+    provider: EAuthProvider
+  }): Promise<Account['id'] | undefined> {
     this.calls.push({ method: 'activeAccount', args: [args] })
     return account.id
   }

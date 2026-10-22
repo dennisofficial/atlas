@@ -35,7 +35,7 @@ const source = [
   '    let path = @"C:\\logs\\out.txt"',
   '    let banner = """two',
   'lines"""',
-  '    let total\' = add 2 3',
+  "    let total' = add 2 3",
   '    let verbose = false',
   '#if DEBUG',
   '    printfn "argv = %A" argv',

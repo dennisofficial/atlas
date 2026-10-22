@@ -27,7 +27,10 @@ describe('migrateDecisionsSettings', () => {
 
   it('leaves an explicitly chosen provider and its tokens alone', () => {
     const held = rig({
-      values: { [ESettingId.DecisionsProvider]: 'openai', [ESettingId.DecisionsUrl]: 'https://api.typesafe.ai' },
+      values: {
+        [ESettingId.DecisionsProvider]: 'openai',
+        [ESettingId.DecisionsUrl]: 'https://api.typesafe.ai',
+      },
       secrets: { 'decisions.token': 'flat' },
     })
     held.run()
@@ -52,7 +55,9 @@ describe('migrateDecisionsSettings', () => {
   })
 
   it('treats a preset url carrying the systemone route as that preset', () => {
-    const held = rig({ values: { [ESettingId.DecisionsUrl]: 'https://api.typesafe.ai/v1/systemone' } })
+    const held = rig({
+      values: { [ESettingId.DecisionsUrl]: 'https://api.typesafe.ai/v1/systemone' },
+    })
     held.run()
 
     expect(providerOf(held.settings)).toBe('typesafe')
@@ -66,9 +71,9 @@ describe('migrateDecisionsSettings', () => {
     held.run()
 
     expect(providerOf(held.settings)).toBe('custom')
-    expect(textValueOf({ resolution: held.settings.snapshot().resolution, id: ESettingId.DecisionsUrl })).toBe(
-      'http://laya.local:8080',
-    )
+    expect(
+      textValueOf({ resolution: held.settings.snapshot().resolution, id: ESettingId.DecisionsUrl }),
+    ).toBe('http://laya.local:8080')
     expect(held.secrets.read('decisions.token.custom')).toBe('sk-flat')
     expect(held.secrets.read('decisions.token')).toBeUndefined()
   })

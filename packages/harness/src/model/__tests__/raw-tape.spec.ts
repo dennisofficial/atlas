@@ -54,7 +54,11 @@ describe('createRawTape', () => {
     tape.tap({ type: 'finish', usage: { inputTokens: 3 } })
     await tape.close()
 
-    expect(soleLines(directory).slice(0, 3).map((line) => JSON.parse(line))).toEqual([
+    expect(
+      soleLines(directory)
+        .slice(0, 3)
+        .map((line) => JSON.parse(line)),
+    ).toEqual([
       { type: 'text-delta', text: 'one' },
       { type: 'text-delta', text: 'two' },
       { type: 'finish', usage: { inputTokens: 3 } },
@@ -226,10 +230,12 @@ describe('a tape that fills a segment', () => {
     tape.tap({ type: 'text-delta', text: 'x'.repeat(500) })
     await tape.close()
 
-    expect(JSON.parse(tapeFiles(directory).flatMap((n) => linesIn(directory, n))[0] ?? '')).toEqual({
-      type: 'text-delta',
-      text: 'x'.repeat(500),
-    })
+    expect(JSON.parse(tapeFiles(directory).flatMap((n) => linesIn(directory, n))[0] ?? '')).toEqual(
+      {
+        type: 'text-delta',
+        text: 'x'.repeat(500),
+      },
+    )
   })
 })
 
@@ -276,10 +282,7 @@ describe('the tape directory budget', () => {
     await session({ directory, scope: 'newest', maximumDirectoryBytes: 200 })
 
     const remaining = tapeFiles(directory)
-    const bytes = remaining.reduce(
-      (total, name) => total + statSync(join(directory, name)).size,
-      0,
-    )
+    const bytes = remaining.reduce((total, name) => total + statSync(join(directory, name)).size, 0)
 
     expect(remaining.length).toBeLessThan(6)
     expect(bytes).toBeLessThanOrEqual(200)

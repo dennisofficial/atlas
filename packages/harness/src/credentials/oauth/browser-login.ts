@@ -25,7 +25,8 @@ export interface BrowserLoginClient {
 // 67727e7cf114cf3e1b71db368d74b24e32f6cb12): verifier = 64 random bytes and state = 32, both
 // base64url; the code exchange is a bare form POST with no originator or User-Agent header.
 const AUTHORIZE_URL = 'https://auth.openai.com/oauth/authorize'
-const BROWSER_SCOPE = 'openid profile email offline_access api.connectors.read api.connectors.invoke'
+const BROWSER_SCOPE =
+  'openid profile email offline_access api.connectors.read api.connectors.invoke'
 const ORIGINATOR = 'codex_cli_rs'
 
 export const browserPkce = (): { verifier: string; challenge: string; state: string } => {

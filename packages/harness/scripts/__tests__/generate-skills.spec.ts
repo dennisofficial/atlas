@@ -1,4 +1,13 @@
-import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -22,11 +31,23 @@ const write = (args: { path: string; content: string | Uint8Array }): void => {
 beforeEach(() => {
   workspace = mkdtempSync(join(tmpdir(), 'generate-skills-'))
   write({ path: join(workspace, 'src', 'skills', 'embedded-bundle.ts'), content: 'export {}\n' })
-  write({ path: join(workspace, 'skills', 'flat.md'), content: '---\nname: flat\ndescription: Flat.\n---\nBody `tick` ${x}\n' })
-  write({ path: join(workspace, 'skills', 'text-only', 'SKILL.md'), content: '---\nname: text-only\ndescription: T.\n---\n' })
-  write({ path: join(workspace, 'skills', 'rich', 'SKILL.md'), content: '---\nname: rich\ndescription: R.\n---\n' })
+  write({
+    path: join(workspace, 'skills', 'flat.md'),
+    content: '---\nname: flat\ndescription: Flat.\n---\nBody `tick` ${x}\n',
+  })
+  write({
+    path: join(workspace, 'skills', 'text-only', 'SKILL.md'),
+    content: '---\nname: text-only\ndescription: T.\n---\n',
+  })
+  write({
+    path: join(workspace, 'skills', 'rich', 'SKILL.md'),
+    content: '---\nname: rich\ndescription: R.\n---\n',
+  })
   write({ path: join(workspace, 'skills', 'rich', 'references', 'a.md'), content: '# A\n' })
-  write({ path: join(workspace, 'skills', 'rich', 'assets', 'page.jpg'), content: new Uint8Array([0, 255, 0]) })
+  write({
+    path: join(workspace, 'skills', 'rich', 'assets', 'page.jpg'),
+    content: new Uint8Array([0, 255, 0]),
+  })
   write({ path: join(workspace, 'skills', 'rich', 'assets', 'SKILL.md'), content: 'nested\n' })
   write({ path: join(workspace, 'skills', 'not-a-skill', 'notes.txt'), content: 'ignored\n' })
 })
@@ -51,8 +72,10 @@ describe('generateSkills', () => {
   })
 
   it('keeps a large entry corpus under the manifest line bound without truncating text', async () => {
-    const bodies = Array.from({ length: 3 }, (_, index) =>
-      `---\nname: long-${index}\ndescription: Long.\n---\n${'Body `tick` ${value}\n'.repeat(150)}`,
+    const bodies = Array.from(
+      { length: 3 },
+      (_, index) =>
+        `---\nname: long-${index}\ndescription: Long.\n---\n${'Body `tick` ${value}\n'.repeat(150)}`,
     )
     for (const [index, body] of bodies.entries()) {
       expect(body.split('\n').length).toBeGreaterThan(150)
@@ -77,7 +100,10 @@ describe('generateSkills', () => {
 
   it('is deterministic and splits modules at the size bound', async () => {
     for (let index = 0; index < 205; index += 1) {
-      write({ path: join(workspace, 'skills', 'rich', 'assets', `p-${index}.bin`), content: new Uint8Array([index % 256]) })
+      write({
+        path: join(workspace, 'skills', 'rich', 'assets', `p-${index}.bin`),
+        content: new Uint8Array([index % 256]),
+      })
     }
     const first = await generateSkills(layoutOf())
     const manifest = readFileSync(layoutOf().manifestFile, 'utf8')
@@ -87,14 +113,19 @@ describe('generateSkills', () => {
     expect(second).toEqual(first)
     expect(readFileSync(layoutOf().manifestFile, 'utf8')).toBe(manifest)
     for (const chunk of readdirSync(layoutOf().chunkDirectory)) {
-      expect(readFileSync(join(layoutOf().chunkDirectory, chunk), 'utf8').split('\n').length).toBeLessThanOrEqual(300)
+      expect(
+        readFileSync(join(layoutOf().chunkDirectory, chunk), 'utf8').split('\n').length,
+      ).toBeLessThanOrEqual(300)
     }
   })
 
   it('changes the bundle digest when a resource changes', async () => {
     await generateSkills(layoutOf())
     const before = readFileSync(layoutOf().manifestFile, 'utf8')
-    write({ path: join(workspace, 'skills', 'rich', 'assets', 'page.jpg'), content: new Uint8Array([9]) })
+    write({
+      path: join(workspace, 'skills', 'rich', 'assets', 'page.jpg'),
+      content: new Uint8Array([9]),
+    })
     await generateSkills(layoutOf())
 
     expect(readFileSync(layoutOf().manifestFile, 'utf8')).not.toBe(before)
@@ -131,14 +162,19 @@ describe('generateSkills', () => {
     await generateSkills(layoutOf())
     const bystander = join(layoutOf().chunkDirectory, 'notes.txt')
     writeFileSync(bystander, 'mine')
-    write({ path: join(workspace, 'skills', 'rich', 'assets', 'page.jpg'), content: new Uint8Array([4, 2]) })
+    write({
+      path: join(workspace, 'skills', 'rich', 'assets', 'page.jpg'),
+      content: new Uint8Array([4, 2]),
+    })
 
     const results = await Promise.all(Array.from({ length: 8 }, () => generateSkills(layoutOf())))
 
     expect(new Set(results.map((result) => JSON.stringify(result))).size).toBe(1)
     expect(readFileSync(bystander, 'utf8')).toBe('mine')
     expect(readdirSync(layoutOf().chunkDirectory).sort()).toEqual(['files-000.ts', 'notes.txt'])
-    expect(readdirSync(join(workspace, 'src', 'skills')).filter((name) => name.endsWith('.tmp'))).toEqual([])
+    expect(
+      readdirSync(join(workspace, 'src', 'skills')).filter((name) => name.endsWith('.tmp')),
+    ).toEqual([])
     expect(readFileSync(layoutOf().manifestFile, 'utf8')).toContain('bundle:')
   })
 

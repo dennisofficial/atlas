@@ -37,7 +37,12 @@ describe('fileProvisionLock', () => {
     expect(results).toEqual(['first', 'second'])
     const [leader] = (events[0] ?? '').split(':')
     const follower = leader === 'first' ? 'second' : 'first'
-    expect(events).toEqual([`${leader}:start`, `${leader}:end`, `${follower}:start`, `${follower}:end`])
+    expect(events).toEqual([
+      `${leader}:start`,
+      `${leader}:end`,
+      `${follower}:start`,
+      `${follower}:end`,
+    ])
   })
 
   it('does not serialize different names', async () => {
@@ -96,11 +101,20 @@ describe('fileProvisionLock', () => {
 
   it('gives up with the holder pid once the deadline passes', async () => {
     await writeFile(join(directory, 'atlas-pod-a.lock'), '424242')
-    const lock = fileProvisionLock({ directory, pollMs: 5, deadlineMs: 40, staleCheck: () => false })
+    const lock = fileProvisionLock({
+      directory,
+      pollMs: 5,
+      deadlineMs: 40,
+      staleCheck: () => false,
+    })
 
-    const failure = await lock({ name: 'atlas-pod-a', run: async () => 'never' }).catch((error: unknown) => error)
+    const failure = await lock({ name: 'atlas-pod-a', run: async () => 'never' }).catch(
+      (error: unknown) => error,
+    )
 
-    expect((failure as Error).message).toContain('pod atlas-pod-a is being provisioned by process 424242')
+    expect((failure as Error).message).toContain(
+      'pod atlas-pod-a is being provisioned by process 424242',
+    )
     expect((failure as Error).message).toContain('gave up waiting after')
     expect(await readdir(directory)).toEqual(['atlas-pod-a.lock'])
   })

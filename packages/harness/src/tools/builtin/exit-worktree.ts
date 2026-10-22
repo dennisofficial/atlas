@@ -36,11 +36,15 @@ const listOf = (inspection: WorktreeInspection): string => {
   if (inspection.changedCount > 0) {
     const sample = inspection.changedPaths.join(', ')
     const more = inspection.changedCount - inspection.changedPaths.length
-    parts.push(`${inspection.changedCount} uncommitted ${inspection.changedCount === 1 ? 'file' : 'files'} (${sample}${more > 0 ? `, and ${more} more` : ''})`)
+    parts.push(
+      `${inspection.changedCount} uncommitted ${inspection.changedCount === 1 ? 'file' : 'files'} (${sample}${more > 0 ? `, and ${more} more` : ''})`,
+    )
   }
   if (inspection.unpushedCommits > 0) {
     const against = inspection.comparedAgainst ?? 'its base'
-    parts.push(`${inspection.unpushedCommits} ${inspection.unpushedCommits === 1 ? 'commit' : 'commits'} not on ${against}`)
+    parts.push(
+      `${inspection.unpushedCommits} ${inspection.unpushedCommits === 1 ? 'commit' : 'commits'} not on ${against}`,
+    )
   }
   return parts.join(' and ')
 }
@@ -52,7 +56,7 @@ export class ExitWorktreeTool extends SchemaTool<typeof inputSchema> {
   readonly inputSchema = inputSchema
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME
 
-  constructor( private readonly launchDirectory: string) {
+  constructor(private readonly launchDirectory: string) {
     super()
   }
 
@@ -121,7 +125,10 @@ export class ExitWorktreeTool extends SchemaTool<typeof inputSchema> {
     })
 
     if (!removal.worktreeRemoved.ok) {
-      return { ok: false, reason: `git would not remove the worktree at ${path}: ${removal.worktreeRemoved.message}` }
+      return {
+        ok: false,
+        reason: `git would not remove the worktree at ${path}: ${removal.worktreeRemoved.message}`,
+      }
     }
 
     const branchNote =

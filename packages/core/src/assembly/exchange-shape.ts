@@ -218,7 +218,8 @@ function openingFaults(messages: readonly AssembledMessage[]): ExchangeFault[] {
     faultAt({
       fault: EExchangeFault.OpensWithAssistant,
       placed: { entry: first, index: 0 },
-      detail: 'the exchange opens with an assistant message, and the first message must be the user',
+      detail:
+        'the exchange opens with an assistant message, and the first message must be the user',
     }),
   ]
 }

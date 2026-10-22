@@ -77,10 +77,7 @@ export function Startup(props: {
 
   const where = tailOfPath({
     path: collapseHome({ cwd: props.cwd, home: props.home }),
-    cells: Math.max(
-      0,
-      props.width - SIDE_AIR - SEPARATOR.length - [...props.status].length,
-    ),
+    cells: Math.max(0, props.width - SIDE_AIR - SEPARATOR.length - [...props.status].length),
   })
 
   return (

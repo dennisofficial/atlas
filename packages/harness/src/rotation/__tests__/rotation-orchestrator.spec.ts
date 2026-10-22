@@ -14,7 +14,12 @@ import { JsonlThreadStore } from '../../store/sessions/thread-store'
 
 import type { RotationDeps } from '../rotation-deps'
 import { LocalRotation } from '../rotation-orchestrator'
-import { ERotationPhase, RotationBusy, type RotationSettle, type RotationStage } from '../rotation-port'
+import {
+  ERotationPhase,
+  RotationBusy,
+  type RotationSettle,
+  type RotationStage,
+} from '../rotation-port'
 
 const directories: string[] = []
 
@@ -111,15 +116,22 @@ describe('LocalRotation in-place flow', () => {
       settle: idleSettle(),
     })
 
-    if (outcome.kind !== 'rotated') throw new Error(`expected rotated, got ${JSON.stringify(outcome)}`)
+    if (outcome.kind !== 'rotated')
+      throw new Error(`expected rotated, got ${JSON.stringify(outcome)}`)
     expect(outcome).toMatchObject({ sessionId: main, threadId: main, watermarkSeq: head })
     expect(outcome.replaced).toBeGreaterThan(0)
-    expect(fixture.summaryCalls).toEqual([{ fromSeq: 1, throughSeq: head, instructions: 'run the tests first' }])
+    expect(fixture.summaryCalls).toEqual([
+      { fromSeq: 1, throughSeq: head, instructions: 'run the tests first' },
+    ])
 
     const events = await fixture.log.read({ threadId: main })
     const watermark = events.find((event) => event.type === 'history-compacted')
     if (watermark?.type !== 'history-compacted') throw new Error('no watermark event was appended')
-    expect(watermark).toMatchObject({ anchor: ECompactionAnchor.Prefix, throughSeq: head, summary: BRIEF })
+    expect(watermark).toMatchObject({
+      anchor: ECompactionAnchor.Prefix,
+      throughSeq: head,
+      summary: BRIEF,
+    })
     expect(compactedThrough(events)).toBe(head)
     expect(events.filter((event) => event.type === 'user-said')).toHaveLength(2)
     expect(events.every((event) => event.threadId === main)).toBe(true)
@@ -132,7 +144,12 @@ describe('LocalRotation in-place flow', () => {
     const stages: RotationStage[] = []
     rotation.subscribe((stage) => stages.push(stage))
 
-    await rotation.request({ sessionId: main, threadId: main, instructions: '', settle: idleSettle() })
+    await rotation.request({
+      sessionId: main,
+      threadId: main,
+      instructions: '',
+      settle: idleSettle(),
+    })
 
     expect(stages.map((stage) => stage.phase)).toEqual([
       ERotationPhase.Settling,
@@ -158,9 +175,14 @@ describe('LocalRotation settle boundary', () => {
       waitSettled: () => settledTurn.promise,
     }
 
-    const requested = fixture.rotation().request({ sessionId: main, threadId: main, instructions: '', settle })
+    const requested = fixture
+      .rotation()
+      .request({ sessionId: main, threadId: main, instructions: '', settle })
     await waitFor(() => paused)
-    const lateSeq = await fixture.say({ threadId: main, text: 'denied tool call lands before the watermark is read' })
+    const lateSeq = await fixture.say({
+      threadId: main,
+      text: 'denied tool call lands before the watermark is read',
+    })
 
     settledTurn.resolve({ status: ETurnStatus.RelocationPaused, runId: fixture.ids.nextRunId() })
     const outcome = await requested
@@ -179,16 +201,35 @@ describe('LocalRotation refusals and failures', () => {
     const gate = pending<string | null>()
     fixture.summariser = () => gate.promise
 
-    const first = rotation.request({ sessionId: main, threadId: main, instructions: 'a', settle: idleSettle() })
+    const first = rotation.request({
+      sessionId: main,
+      threadId: main,
+      instructions: 'a',
+      settle: idleSettle(),
+    })
     await waitFor(() => fixture.summaryCalls.length === 1)
 
     await expect(
-      rotation.request({ sessionId: main, threadId: main, instructions: 'b', settle: idleSettle() }),
+      rotation.request({
+        sessionId: main,
+        threadId: main,
+        instructions: 'b',
+        settle: idleSettle(),
+      }),
     ).rejects.toBeInstanceOf(RotationBusy)
 
     gate.resolve(BRIEF)
     expect((await first).kind).toBe('rotated')
-    expect((await rotation.request({ sessionId: main, threadId: main, instructions: '', settle: idleSettle() })).kind).not.toBe('failed')
+    expect(
+      (
+        await rotation.request({
+          sessionId: main,
+          threadId: main,
+          instructions: '',
+          settle: idleSettle(),
+        })
+      ).kind,
+    ).not.toBe('failed')
   })
 
   it('refuses an empty thread without summarising', async () => {
@@ -202,7 +243,10 @@ describe('LocalRotation refusals and failures', () => {
       settle: idleSettle(),
     })
 
-    expect(outcome).toEqual({ kind: 'refused', reason: expect.stringContaining('nothing to rotate') })
+    expect(outcome).toEqual({
+      kind: 'refused',
+      reason: expect.stringContaining('nothing to rotate'),
+    })
     expect(fixture.summaryCalls).toEqual([])
   })
 
@@ -212,7 +256,9 @@ describe('LocalRotation refusals and failures', () => {
     const before = await fixture.log.read({ threadId: main })
     fixture.summariser = async () => null
 
-    const outcome = await fixture.rotation().request({ sessionId: main, threadId: main, instructions: '', settle: idleSettle() })
+    const outcome = await fixture
+      .rotation()
+      .request({ sessionId: main, threadId: main, instructions: '', settle: idleSettle() })
 
     expect(outcome.kind).toBe('failed')
     expect(await fixture.log.read({ threadId: main })).toEqual(before)
@@ -229,7 +275,12 @@ describe('LocalRotation refusals and failures', () => {
     const rotation = fixture.rotation()
     const phases: ERotationPhase[] = []
     rotation.subscribe((stage) => phases.push(stage.phase))
-    const outcome = await rotation.request({ sessionId: main, threadId: main, instructions: '', settle: idleSettle() })
+    const outcome = await rotation.request({
+      sessionId: main,
+      threadId: main,
+      instructions: '',
+      settle: idleSettle(),
+    })
 
     expect(outcome).toEqual({ kind: 'failed', reason: 'the model fell over' })
     expect(phases.at(-1)).toBe(ERotationPhase.Failed)

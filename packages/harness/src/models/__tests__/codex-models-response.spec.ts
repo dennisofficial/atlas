@@ -55,10 +55,7 @@ const windowOf = (fields: Record<string, number>): number => {
 
 describe('toCodexModelCards', () => {
   it('keeps only listed models, ordered by ascending priority', () => {
-    expect(cards().map((card) => card.ref.modelId)).toEqual([
-      'gpt-5.1-codex',
-      'gpt-5.1-codex-mini',
-    ])
+    expect(cards().map((card) => card.ref.modelId)).toEqual(['gpt-5.1-codex', 'gpt-5.1-codex-mini'])
   })
 
   it('maps label, window, api and image tier', () => {

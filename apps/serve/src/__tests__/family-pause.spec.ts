@@ -74,14 +74,21 @@ const relocationPaused = (frame: { kind: EServeFrame; outcome?: unknown }): bool
 describe('pausing the whole family on a drain', () => {
   it('answers a failed pause with a readable error instead of relocation proof', async () => {
     const { handle } = await start({
-      family: { pauseChildren: async () => { throw new Error('child ending could not be persisted') } },
+      family: {
+        pauseChildren: async () => {
+          throw new Error('child ending could not be persisted')
+        },
+      },
     })
     const client = await connect({ port: handle.port, token: TOKEN })
     client.send(hello())
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
     client.send({ kind: EClientFrame.Pause })
     const error = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
-    expect(error).toMatchObject({ kind: EServeFrame.Error, message: 'child ending could not be persisted' })
+    expect(error).toMatchObject({
+      kind: EServeFrame.Error,
+      message: 'child ending could not be persisted',
+    })
     expect(client.frames.some(relocationPaused)).toBe(false)
   })
 

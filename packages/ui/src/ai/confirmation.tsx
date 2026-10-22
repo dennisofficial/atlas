@@ -1,9 +1,9 @@
-"use client";
+'use client'
 
-import type { KeyboardEvent, ReactNode } from "react";
-import { TerminalIcon } from "lucide-react";
+import type { KeyboardEvent, ReactNode } from 'react'
+import { TerminalIcon } from 'lucide-react'
 
-import { Button } from "#components/button";
+import { Button } from '#components/button'
 import {
   Item,
   ItemActions,
@@ -11,35 +11,35 @@ import {
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from "#components/item";
-import { Kbd } from "#components/kbd";
+} from '#components/item'
+import { Kbd } from '#components/kbd'
 
 export enum EConfirmationState {
-  Pending = "pending",
-  Approved = "approved",
-  Denied = "denied",
+  Pending = 'pending',
+  Approved = 'approved',
+  Denied = 'denied',
 }
 
 export interface ConfirmationProps {
-  title: ReactNode;
-  description?: ReactNode;
-  icon?: ReactNode;
-  state?: EConfirmationState;
-  evidence?: string[];
-  shortcuts?: boolean;
-  approveLabel?: string;
-  denyLabel?: string;
-  alwaysLabel?: string;
-  onApprove?: () => void;
-  onDeny?: () => void;
-  onApproveAlways?: () => void;
+  title: ReactNode
+  description?: ReactNode
+  icon?: ReactNode
+  state?: EConfirmationState
+  evidence?: string[]
+  shortcuts?: boolean
+  approveLabel?: string
+  denyLabel?: string
+  alwaysLabel?: string
+  onApprove?: () => void
+  onDeny?: () => void
+  onApproveAlways?: () => void
 }
 
 const RESOLVED_LABEL: Record<EConfirmationState, string | undefined> = {
   [EConfirmationState.Pending]: undefined,
-  [EConfirmationState.Approved]: "Approved",
-  [EConfirmationState.Denied]: "Denied",
-};
+  [EConfirmationState.Approved]: 'Approved',
+  [EConfirmationState.Denied]: 'Denied',
+}
 
 export function Confirmation({
   title,
@@ -48,24 +48,24 @@ export function Confirmation({
   state = EConfirmationState.Pending,
   evidence = [],
   shortcuts = true,
-  approveLabel = "Approve",
-  denyLabel = "Deny",
-  alwaysLabel = "Always allow",
+  approveLabel = 'Approve',
+  denyLabel = 'Deny',
+  alwaysLabel = 'Always allow',
   onApprove,
   onDeny,
   onApproveAlways,
 }: ConfirmationProps) {
-  const pending = state === EConfirmationState.Pending;
+  const pending = state === EConfirmationState.Pending
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!pending || !shortcuts || event.target !== event.currentTarget) return;
-    if (event.key === "Enter") {
-      event.preventDefault();
-      onApprove?.();
+    if (!pending || !shortcuts || event.target !== event.currentTarget) return
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      onApprove?.()
     }
-    if (event.key === "Escape") onDeny?.();
-    if (event.key === "a" && onApproveAlways) onApproveAlways();
-  };
+    if (event.key === 'Escape') onDeny?.()
+    if (event.key === 'a' && onApproveAlways) onApproveAlways()
+  }
 
   return (
     <Item
@@ -79,7 +79,7 @@ export function Confirmation({
       <ItemMedia variant="icon">{icon ?? <TerminalIcon />}</ItemMedia>
       <ItemContent>
         <ItemTitle>{title}</ItemTitle>
-        {RESOLVED_LABEL[state] ?? description ? (
+        {(RESOLVED_LABEL[state] ?? description) ? (
           <ItemDescription>{RESOLVED_LABEL[state] ?? description}</ItemDescription>
         ) : null}
         {pending && evidence.length > 0 ? (
@@ -94,21 +94,11 @@ export function Confirmation({
       </ItemContent>
       <ItemActions>
         {onApproveAlways ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!pending}
-            onClick={onApproveAlways}
-          >
+          <Button size="sm" variant="ghost" disabled={!pending} onClick={onApproveAlways}>
             {alwaysLabel}
           </Button>
         ) : null}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!pending}
-          onClick={onDeny}
-        >
+        <Button size="sm" variant="outline" disabled={!pending} onClick={onDeny}>
           {denyLabel}
           {shortcuts && pending ? <Kbd>Esc</Kbd> : null}
         </Button>
@@ -118,5 +108,5 @@ export function Confirmation({
         </Button>
       </ItemActions>
     </Item>
-  );
+  )
 }

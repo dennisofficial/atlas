@@ -4,13 +4,19 @@ import { fakeOauthApi } from '../../credentials/__tests__/oauth-api-fake'
 import { CloudError } from '../cloud-transport'
 import { oauthAccessResponseSchema } from '../oauth-connections-client'
 
-const tokens = { accessToken: 'fake-access', refreshToken: 'fake-refresh', expiresAt: '2026-10-05T13:00:00.000Z' }
+const tokens = {
+  accessToken: 'fake-access',
+  refreshToken: 'fake-refresh',
+  expiresAt: '2026-10-05T13:00:00.000Z',
+}
 
 describe('OAuthConnectionsClient', () => {
   it('uploads a seed and reads back an access-only response, tolerating additive fields', async () => {
     const api = fakeOauthApi()
 
-    const access = await api.client().handoff({ connectionId: 'oauth_1', provider: 'anthropic', tokens })
+    const access = await api
+      .client()
+      .handoff({ connectionId: 'oauth_1', provider: 'anthropic', tokens })
 
     expect(access.accessToken).toBe('fake-access')
     expect(access.generation).toBe(0)
@@ -23,7 +29,10 @@ describe('OAuthConnectionsClient', () => {
     const client = api.client()
     await client.handoff({ connectionId: 'oauth_1', provider: 'openai', tokens })
 
-    const next = await client.accessToken({ connectionId: 'oauth_1', rejectedAccessToken: 'fake-access' })
+    const next = await client.accessToken({
+      connectionId: 'oauth_1',
+      rejectedAccessToken: 'fake-access',
+    })
     await client.assignSandbox({ connectionId: 'oauth_1', threadId: 'thread-1' })
 
     expect(next.generation).toBe(1)
@@ -34,12 +43,20 @@ describe('OAuthConnectionsClient', () => {
     const api = fakeOauthApi()
     const client = api.client()
     await client.handoff({ connectionId: 'oauth_1', provider: 'anthropic', tokens })
-    const reauth = { connectionId: 'oauth_1', provider: 'anthropic' as const, tokens, authorizationId: 'auth_2', previousAuthorizationId: 'oauth_1' }
+    const reauth = {
+      connectionId: 'oauth_1',
+      provider: 'anthropic' as const,
+      tokens,
+      authorizationId: 'auth_2',
+      previousAuthorizationId: 'oauth_1',
+    }
 
     expect((await client.reauthorize(reauth)).authorizationId).toBe('auth_2')
     expect((await client.reauthorize(reauth)).generation).toBe(1)
 
-    const stale = await client.reauthorize({ ...reauth, authorizationId: 'auth_3' }).catch((error: unknown) => error)
+    const stale = await client
+      .reauthorize({ ...reauth, authorizationId: 'auth_3' })
+      .catch((error: unknown) => error)
     expect(stale).toBeInstanceOf(CloudError)
     expect((stale as CloudError).status).toBe(409)
   })
@@ -62,7 +79,16 @@ describe('OAuthConnectionsClient', () => {
   })
 
   it('refuses a body that is not an access response', () => {
-    expect(oauthAccessResponseSchema.safeParse({ accessToken: 'a', expiresAt: 'soon', generation: 0 }).success).toBe(false)
-    expect(oauthAccessResponseSchema.safeParse({ accessToken: 'a', expiresAt: '2026-10-05T13:00:00.000Z', generation: 'x' }).success).toBe(false)
+    expect(
+      oauthAccessResponseSchema.safeParse({ accessToken: 'a', expiresAt: 'soon', generation: 0 })
+        .success,
+    ).toBe(false)
+    expect(
+      oauthAccessResponseSchema.safeParse({
+        accessToken: 'a',
+        expiresAt: '2026-10-05T13:00:00.000Z',
+        generation: 'x',
+      }).success,
+    ).toBe(false)
   })
 })

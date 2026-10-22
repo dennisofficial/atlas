@@ -228,7 +228,10 @@ const argOf = (argv: readonly string[], flag: string): string | undefined =>
 function interestingRuns(calls: readonly (readonly ToolCall[])[]): Case[] {
   return calls
     .filter((group) => group.some((call) => classify({ call, cwd: CWD }).failed))
-    .map((group, index) => ({ name: `real run ${index + 1} — ${group.length} calls`, calls: group }))
+    .map((group, index) => ({
+      name: `real run ${index + 1} — ${group.length} calls`,
+      calls: group,
+    }))
 }
 
 if (import.meta.main) {
@@ -260,6 +263,9 @@ if (import.meta.main) {
   renderer.on('destroy', () => process.exit(0))
 
   createRoot(renderer).render(
-    <Prototype real={real} title={`${thread.thread.title ?? '(untitled)'} — runs containing a failure`} />,
+    <Prototype
+      real={real}
+      title={`${thread.thread.title ?? '(untitled)'} — runs containing a failure`}
+    />,
   )
 }

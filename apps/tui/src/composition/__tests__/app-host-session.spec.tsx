@@ -9,7 +9,13 @@ import { App } from '../app'
 import { fakeBridge } from '../cloud/__tests__/fixture'
 import { unstartedConversation } from '../open-conversation'
 import { until } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, fakeSignedOutCloud, scriptedModelPort, type FakeApp } from './fake-app'
+import {
+  FAKE_CONFIG,
+  fakeApp,
+  fakeSignedOutCloud,
+  scriptedModelPort,
+  type FakeApp,
+} from './fake-app'
 
 await grammarsReady()
 
@@ -56,7 +62,11 @@ async function mount(app: FakeApp) {
 async function seedHostThread(app: FakeApp): Promise<void> {
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
   await app.threads.rename({ threadId: thread.id, title: 'the old host thread' })
-  await app.log.append({ threadId: thread.id, runId: toRunId('run-old'), drafts: [{ type: 'user-said', text: 'hi' }] })
+  await app.log.append({
+    threadId: thread.id,
+    runId: toRunId('run-old'),
+    drafts: [{ type: 'user-said', text: 'hi' }],
+  })
 }
 
 describe('a session with experimental.pods off', () => {
@@ -68,10 +78,14 @@ describe('a session with experimental.pods off', () => {
       expect(app.cloud.session()).toBeNull()
       await mounted.command('take the linter to zero')
 
-      expect(await until({ holds: async () => (await mounted.frame()).includes(REPLY), within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => (await mounted.frame()).includes(REPLY), within: 20_000 }),
+      ).toBe(true)
       expect(mounted.bridge.created).toEqual([])
       expect(mounted.preflights()).toBe(0)
-      expect(app.sessionOwner.placement.of(app.sessionOwner.snapshot().threadId!)).toBe(EExecutionLocation.Host)
+      expect(app.sessionOwner.placement.of(app.sessionOwner.snapshot().threadId!)).toBe(
+        EExecutionLocation.Host,
+      )
       expect(await mounted.frame()).not.toContain('sign in to Atlas Cloud')
     } finally {
       await teardown(mounted.setup)

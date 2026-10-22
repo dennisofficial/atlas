@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { mixHex } from '../colour'
 import type { Span } from '../components/spans'
-import { FULLY_INKED, logoCells, logoHasNarrowLabel, logoRows, logoSpans, MARK_PIXELS } from '../logo'
+import {
+  FULLY_INKED,
+  logoCells,
+  logoHasNarrowLabel,
+  logoRows,
+  logoSpans,
+  MARK_PIXELS,
+} from '../logo'
 import { ELogo } from '../logo-store'
 import { theme } from '../theme'
 
@@ -50,7 +57,9 @@ describe('logoSpans', () => {
   })
 
   it('paints ink with a half block carrying both a foreground and a background', () => {
-    const inked = rowsOf().flat().filter((span) => span.text.includes('▀'))
+    const inked = rowsOf()
+      .flat()
+      .filter((span) => span.text.includes('▀'))
     expect(inked.length).toBeGreaterThan(0)
     for (const span of inked) {
       expect(span.fg).toMatch(/^#[0-9a-f]{6}$/)

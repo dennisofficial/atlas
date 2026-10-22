@@ -37,7 +37,9 @@ async function markerVersions({ home }: { home: string }): Promise<Semver[]> {
 
 async function legacyVersions({ home }: { home: string }): Promise<Semver[]> {
   try {
-    const parsed = parseSemver((await readFile(join(home, LEGACY_LAST_LAUNCHED_FILENAME), 'utf8')).trim())
+    const parsed = parseSemver(
+      (await readFile(join(home, LEGACY_LAST_LAUNCHED_FILENAME), 'utf8')).trim(),
+    )
     return parsed === null ? [] : [parsed]
   } catch (error) {
     if (errorCodeOf({ error }) === 'ENOENT') return []
@@ -59,7 +61,13 @@ enum EMarkerClaim {
   Taken = 'taken',
 }
 
-async function claimMarker({ home, version }: { home: string; version: string }): Promise<EMarkerClaim> {
+async function claimMarker({
+  home,
+  version,
+}: {
+  home: string
+  version: string
+}): Promise<EMarkerClaim> {
   await mkdir(launchedVersionsPathFor({ home }), { recursive: true })
   try {
     const handle = await open(join(launchedVersionsPathFor({ home }), version), 'wx')

@@ -1,4 +1,14 @@
-import { ATLAS_SETTINGS, ESettingId, ESettingsLayer, resolveSettings, toThreadId, type SecretPrompt, type SettingDefinition, type SettingsLayerInput, type TextPrompt } from '@dltech/atlas-core'
+import {
+  ATLAS_SETTINGS,
+  ESettingId,
+  ESettingsLayer,
+  resolveSettings,
+  toThreadId,
+  type SecretPrompt,
+  type SettingDefinition,
+  type SettingsLayerInput,
+  type TextPrompt,
+} from '@dltech/atlas-core'
 import React from 'react'
 import { Settings } from '../components/settings'
 import { EQualityHealthReadKind } from '../../composition/use-quality-health'
@@ -27,7 +37,8 @@ export const ORIGIN = '~/.atlas/settings.json'
 export const SHIPPED_APPEARANCE: Appearance = {
   accent: SHIPPED_ACCENT,
   density: EBlockDensity.Comfort,
-  composer: EComposerEdge.Slab, imageRows: SHIPPED_IMAGE_ROWS,
+  composer: EComposerEdge.Slab,
+  imageRows: SHIPPED_IMAGE_ROWS,
   fenceWrap: SHIPPED_FENCE_WRAP,
   logo: SHIPPED_LOGO,
 }
@@ -57,7 +68,9 @@ export const page = (args: {
       model={settingsModel({
         definitions,
         resolution,
-        ...(args.shadowedAgentTypes === undefined ? {} : { shadowedAgentTypes: args.shadowedAgentTypes }),
+        ...(args.shadowedAgentTypes === undefined
+          ? {}
+          : { shadowedAgentTypes: args.shadowedAgentTypes }),
         ...(args.writeOriginOf === undefined ? {} : { writeOriginOf: args.writeOriginOf }),
       })}
       state={args.state ?? { pageIndex: 0, rowIndex: 0 }}
@@ -103,10 +116,17 @@ export const rowsOf = async (node: React.ReactNode, width: number): Promise<stri
   (await frameOf(node, width)).split('\n')
 
 export const CUSTOM_DECISIONS: readonly SettingsLayerInput[] = [
-  { layer: ESettingsLayer.User, origin: 'user', values: { [ESettingId.DecisionsProvider]: 'custom' } },
+  {
+    layer: ESettingsLayer.User,
+    origin: 'user',
+    values: { [ESettingId.DecisionsProvider]: 'custom' },
+  },
 ]
 
-export const stateOf = (id: ESettingId, layers: readonly SettingsLayerInput[] = []): SettingsState => {
+export const stateOf = (
+  id: ESettingId,
+  layers: readonly SettingsLayerInput[] = [],
+): SettingsState => {
   const resolution = resolveSettings({ definitions: ATLAS_SETTINGS, layers })
   const model = settingsModel({ definitions: ATLAS_SETTINGS, resolution })
 

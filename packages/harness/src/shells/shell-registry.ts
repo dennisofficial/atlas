@@ -29,11 +29,7 @@ import {
   type ShellReadOutcome,
 } from './port'
 import { ShellReconciler } from './recovery'
-import {
-  RegistryState,
-  SILENT_FOR_AT_MOST_MS,
-  unknownShell,
-} from './registry-entries'
+import { RegistryState, SILENT_FOR_AT_MOST_MS, unknownShell } from './registry-entries'
 import { ShellEvents } from './registry-events'
 import { ShellLifecycle } from './registry-lifecycle'
 import { closeAllShells, detachAllShells, removeShells } from './registry-teardown'
@@ -156,7 +152,10 @@ export class BunShellRegistry extends ShellRegistryPort {
     return removeShells({ state: this.state, ...args })
   }
 
-  override reconcile(args: { threadId: ThreadId; ownOnly?: boolean }): Promise<readonly LostShell[]> {
+  override reconcile(args: {
+    threadId: ThreadId
+    ownOnly?: boolean
+  }): Promise<readonly LostShell[]> {
     this.admittedOwners.add(args.threadId)
     return this.reconciler?.reconcile(args) ?? Promise.resolve([])
   }

@@ -16,6 +16,5 @@ export type ExecutionLocationControl = {
   pinned: boolean
 }
 
-export const ExecutionLocationToken: InjectionToken<ExecutionLocationControl> = Symbol(
-  'atlas.ExecutionLocation',
-)
+export const ExecutionLocationToken: InjectionToken<ExecutionLocationControl> =
+  Symbol('atlas.ExecutionLocation')

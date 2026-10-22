@@ -24,13 +24,28 @@ const fakeLog = (): EventLogPort => {
   }
 
   return {
-    async append({ threadId, runId, drafts }: { threadId: ThreadId; runId: RunId; drafts: readonly EventDraft[] }) {
+    async append({
+      threadId,
+      runId,
+      drafts,
+    }: {
+      threadId: ThreadId
+      runId: RunId
+      drafts: readonly EventDraft[]
+    }) {
       const stored = of(threadId)
       return drafts.map((draft) => {
         const seq = stored.length + 1
         const event = stampEvent({
           draft,
-          envelope: { id: toEventId(`evt-${seq}`), seq, threadId, runId, depth: 0, at: clock.now() },
+          envelope: {
+            id: toEventId(`evt-${seq}`),
+            seq,
+            threadId,
+            runId,
+            depth: 0,
+            at: clock.now(),
+          },
         })
         stored.push(event)
         return event
@@ -50,7 +65,15 @@ const fakeLog = (): EventLogPort => {
       if (upTo === undefined) return [...stored]
       return stored.filter((event) => event.seq <= upTo)
     },
-    async replace({ threadId, runId, drafts }: { threadId: ThreadId; runId: RunId; drafts: readonly EventDraft[] }) {
+    async replace({
+      threadId,
+      runId,
+      drafts,
+    }: {
+      threadId: ThreadId
+      runId: RunId
+      drafts: readonly EventDraft[]
+    }) {
       const stamped = drafts.map((draft, index) =>
         stampEvent({
           draft,

@@ -16,7 +16,15 @@ import { inputHashOf, type SrpPilotJudgment } from '../efficacy-judgment'
 
 export const MODEL = JEV_QUALITY_MODEL
 
-export function makeScope({ id, kind, evidenceIds }: { id: string; kind: EQualityScopeKind; evidenceIds: readonly string[] }): QualityScope {
+export function makeScope({
+  id,
+  kind,
+  evidenceIds,
+}: {
+  id: string
+  kind: EQualityScopeKind
+  evidenceIds: readonly string[]
+}): QualityScope {
   return {
     id,
     workspaceNamespace: 'local:test',
@@ -33,14 +41,26 @@ export function makeScope({ id, kind, evidenceIds }: { id: string; kind: EQualit
     diff: 'diff',
     beforeHash: `before-${id}`,
     afterHash: `after-${id}`,
-    evidence: evidenceIds.map((evidenceId) => ({ id: evidenceId, label: evidenceId, changed: true })),
+    evidence: evidenceIds.map((evidenceId) => ({
+      id: evidenceId,
+      label: evidenceId,
+      changed: true,
+    })),
     dependencyContext: [],
     beforeLineRange: null,
     afterLineRange: null,
   }
 }
 
-export const decided = ({ impact, concern, evidenceIds = [] }: { impact: EQualityImpact; concern: boolean; evidenceIds?: readonly string[] }): SrpExpected => ({
+export const decided = ({
+  impact,
+  concern,
+  evidenceIds = [],
+}: {
+  impact: EQualityImpact
+  concern: boolean
+  evidenceIds?: readonly string[]
+}): SrpExpected => ({
   kind: ESrpExpectationKind.Decided,
   fields: { impact, currentConcern: concern, evidenceIds },
 })
@@ -67,12 +87,24 @@ export function makeCase({
     input: { scope: makeScope({ id, kind, evidenceIds }), policyIds: ['single-responsibility'] },
     expected,
     tags: [],
-    provenance: { group, method: 'test', sourceHash: `source-${id}`, sourceVersion: '1', completeness: 'complete' },
+    provenance: {
+      group,
+      method: 'test',
+      sourceHash: `source-${id}`,
+      sourceVersion: '1',
+      completeness: 'complete',
+    },
     review: { state: ECaseReviewState.Accepted, verifications: [] },
   }
 }
 
-export const judgmentFor = ({ evalCase, warranted }: { evalCase: EvalCase; warranted: boolean | null }): SrpPilotJudgment => ({
+export const judgmentFor = ({
+  evalCase,
+  warranted,
+}: {
+  evalCase: EvalCase
+  warranted: boolean | null
+}): SrpPilotJudgment => ({
   caseId: evalCase.id,
   inputHash: inputHashOf({ input: evalCase.input }),
   notificationWarranted: warranted,
@@ -134,13 +166,25 @@ export function rowOf({
     variantId,
     status: ERowStatus.Completed,
     expected: evalCase.expected,
-    actual: { assessments: [assessment], resolvedModel: model, timing: { preparationMs: 1, inferenceMs: 10, interpretationMs: 1 } },
+    actual: {
+      assessments: [assessment],
+      resolvedModel: model,
+      timing: { preparationMs: 1, inferenceMs: 10, interpretationMs: 1 },
+    },
     scores: {},
     timing: { ...timing, endToEndMs },
   }
 }
 
-export const failedRow = ({ evalCase, trialId = 'trial-1', status = ERowStatus.TaskError }: { evalCase: EvalCase; trialId?: string; status?: ERowStatus }): ResultRow => ({
+export const failedRow = ({
+  evalCase,
+  trialId = 'trial-1',
+  status = ERowStatus.TaskError,
+}: {
+  evalCase: EvalCase
+  trialId?: string
+  status?: ERowStatus
+}): ResultRow => ({
   caseId: evalCase.id,
   trialId,
   variantId: 'default',

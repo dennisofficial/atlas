@@ -7,7 +7,7 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../container/injection'
+import { portToken } from '../container/injection'
 
 export class InvalidateFactsHook extends AfterToolHook {
   readonly name = 'invalidateFacts'
@@ -15,7 +15,7 @@ export class InvalidateFactsHook extends AfterToolHook {
 
   private readonly facts: WorkspaceFactsPort
 
-  constructor( facts: WorkspaceFactsPort) {
+  constructor(facts: WorkspaceFactsPort) {
     super()
     this.facts = facts
   }

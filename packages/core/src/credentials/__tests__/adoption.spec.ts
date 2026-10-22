@@ -3,11 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { OauthTokens } from '../account'
 import { adoptionOf, EAdoption } from '../adoption'
 
-const tokens = (args: {
-  access: string
-  refresh: string
-  expiresAt?: string
-}): OauthTokens => ({
+const tokens = (args: { access: string; refresh: string; expiresAt?: string }): OauthTokens => ({
   accessToken: args.access,
   refreshToken: args.refresh,
   expiresAt: args.expiresAt ?? '2026-01-01T12:00:00.000Z',

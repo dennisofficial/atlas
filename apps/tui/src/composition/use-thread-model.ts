@@ -5,10 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { notify } from '../ui/notice-store'
 import type { SwitcherChoice, SwitcherTarget } from '../ui/switcher-model'
 import { EModelScope } from '../ui/switcher-model'
-import {
-  cloudModelFailureNotice,
-  modelPersistFailureNotice,
-} from './cloud/cloud-write-notices'
+import { cloudModelFailureNotice, modelPersistFailureNotice } from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
 import type { ModelSelection } from '@dltech/atlas-harness'
 import {

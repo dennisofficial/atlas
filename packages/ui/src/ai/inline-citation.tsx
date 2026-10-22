@@ -1,17 +1,13 @@
-import { Button } from "#components/button";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "#components/hover-card";
-import { hostnameOf, type Source } from "./sources";
+import { Button } from '#components/button'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '#components/hover-card'
+import { hostnameOf, type Source } from './sources'
 
 export interface InlineCitationProps extends Source {
-  excerpt?: string;
+  excerpt?: string
 }
 
 export function InlineCitation({ url, title, excerpt }: InlineCitationProps) {
-  const hostname = hostnameOf(url);
+  const hostname = hostnameOf(url)
 
   return (
     <HoverCard>
@@ -24,9 +20,7 @@ export function InlineCitation({ url, title, excerpt }: InlineCitationProps) {
       </HoverCardTrigger>
       <HoverCardContent className="flex w-64 flex-col gap-1">
         <div className="font-medium">{title ?? hostname}</div>
-        {excerpt ? (
-          <p className="text-xs text-muted-foreground">{excerpt}</p>
-        ) : null}
+        {excerpt ? <p className="text-xs text-muted-foreground">{excerpt}</p> : null}
         <a
           href={url}
           target="_blank"
@@ -38,5 +32,5 @@ export function InlineCitation({ url, title, excerpt }: InlineCitationProps) {
         </a>
       </HoverCardContent>
     </HoverCard>
-  );
+  )
 }

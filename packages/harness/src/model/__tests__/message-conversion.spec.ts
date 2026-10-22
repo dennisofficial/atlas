@@ -3,19 +3,35 @@ import type { ModelMessage } from 'ai'
 
 import type { AssistantMessage, Message, ToolMessage, UserMessage } from '@dltech/atlas-core'
 
-import { fromModelMessage, fromModelMessages, toModelMessage, toModelMessages } from '../message-conversion'
+import {
+  fromModelMessage,
+  fromModelMessages,
+  toModelMessage,
+  toModelMessages,
+} from '../message-conversion'
 
-const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+const PIXEL =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
 const userSaid: UserMessage = {
   role: 'user',
-  content: [{ type: 'text', text: 'what changed?', providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } } }],
+  content: [
+    {
+      type: 'text',
+      text: 'what changed?',
+      providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+    },
+  ],
 }
 
 const assistantSaid: AssistantMessage = {
   role: 'assistant',
   content: [
-    { type: 'reasoning', text: 'checking the diff', providerOptions: { anthropic: { signature: 'sig-abc' } } },
+    {
+      type: 'reasoning',
+      text: 'checking the diff',
+      providerOptions: { anthropic: { signature: 'sig-abc' } },
+    },
     { type: 'text', text: 'two files' },
     { type: 'tool-call', toolCallId: 'call-1', toolName: 'read_file', input: { path: 'a.ts' } },
   ],
@@ -25,7 +41,12 @@ const assistantSaid: AssistantMessage = {
 const toolReported: ToolMessage = {
   role: 'tool',
   content: [
-    { type: 'tool-result', toolCallId: 'call-1', toolName: 'read_file', output: { type: 'json', value: { lines: 12 } } },
+    {
+      type: 'tool-result',
+      toolCallId: 'call-1',
+      toolName: 'read_file',
+      output: { type: 'json', value: { lines: 12 } },
+    },
   ],
 }
 
@@ -33,7 +54,13 @@ describe('toModelMessage', () => {
   it('carries a user text part and its provider options through untouched', () => {
     expect(toModelMessage(userSaid)).toEqual({
       role: 'user',
-      content: [{ type: 'text', text: 'what changed?', providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } } }],
+      content: [
+        {
+          type: 'text',
+          text: 'what changed?',
+          providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+        },
+      ],
     })
   })
 
@@ -41,7 +68,11 @@ describe('toModelMessage', () => {
     expect(toModelMessage(assistantSaid)).toEqual({
       role: 'assistant',
       content: [
-        { type: 'reasoning', text: 'checking the diff', providerOptions: { anthropic: { signature: 'sig-abc' } } },
+        {
+          type: 'reasoning',
+          text: 'checking the diff',
+          providerOptions: { anthropic: { signature: 'sig-abc' } },
+        },
         { type: 'text', text: 'two files' },
         { type: 'tool-call', toolCallId: 'call-1', toolName: 'read_file', input: { path: 'a.ts' } },
       ],
@@ -62,7 +93,12 @@ describe('toModelMessage', () => {
     expect(toModelMessage(toolReported)).toEqual({
       role: 'tool',
       content: [
-        { type: 'tool-result', toolCallId: 'call-1', toolName: 'read_file', output: { type: 'json', value: { lines: 12 } } },
+        {
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          toolName: 'read_file',
+          output: { type: 'json', value: { lines: 12 } },
+        },
       ],
     })
   })
@@ -203,9 +239,7 @@ describe('fromModelMessage', () => {
 
     expect(fromModelMessage(withPdf)).toEqual({
       role: 'user',
-      content: [
-        { type: 'file', data: PIXEL, mediaType: 'application/pdf', filename: 'spec.pdf' },
-      ],
+      content: [{ type: 'file', data: PIXEL, mediaType: 'application/pdf', filename: 'spec.pdf' }],
     })
   })
 
@@ -287,7 +321,10 @@ describe('fromModelMessage', () => {
           type: 'tool-result',
           toolCallId: 'call-1',
           toolName: 'read',
-          output: { type: 'content', value: [{ type: 'image', data: PIXEL, mediaType: 'image/png' }] },
+          output: {
+            type: 'content',
+            value: [{ type: 'image', data: PIXEL, mediaType: 'image/png' }],
+          },
         },
       ],
     })
@@ -328,12 +365,19 @@ describe('toModelMessages tool call ids', () => {
     expect(sent).toEqual([
       {
         role: 'assistant',
-        content: [{ type: 'tool-call', toolCallId: 'bash_16', toolName: 'bash', input: { command: 'ls' } }],
+        content: [
+          { type: 'tool-call', toolCallId: 'bash_16', toolName: 'bash', input: { command: 'ls' } },
+        ],
       },
       {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolCallId: 'bash_16', toolName: 'bash', output: { type: 'text', value: 'ok' } },
+          {
+            type: 'tool-result',
+            toolCallId: 'bash_16',
+            toolName: 'bash',
+            output: { type: 'text', value: 'ok' },
+          },
         ],
       },
     ])
@@ -345,19 +389,30 @@ describe('toModelMessages tool call ids', () => {
     expect(toModelMessages(messages)).toEqual([
       {
         role: 'assistant',
-        content: [{ type: 'tool-call', toolCallId: 'read_68', toolName: 'bash', input: { command: 'ls' } }],
+        content: [
+          { type: 'tool-call', toolCallId: 'read_68', toolName: 'bash', input: { command: 'ls' } },
+        ],
       },
       {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolCallId: 'read_68', toolName: 'bash', output: { type: 'text', value: 'ok' } },
+          {
+            type: 'tool-result',
+            toolCallId: 'read_68',
+            toolName: 'bash',
+            output: { type: 'text', value: 'ok' },
+          },
         ],
       },
     ])
   })
 
   it('never collides a rewritten id with one the thread already carries', () => {
-    const sent = toModelMessages([calledWith('bash_16'), calledWith('bash:16'), reportedWith('bash:16')])
+    const sent = toModelMessages([
+      calledWith('bash_16'),
+      calledWith('bash:16'),
+      reportedWith('bash:16'),
+    ])
 
     const ids = sent.flatMap((message) =>
       typeof message.content === 'string'

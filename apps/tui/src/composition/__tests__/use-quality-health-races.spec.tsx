@@ -167,7 +167,10 @@ describe('useQualityHealth under failure and staleness', () => {
     await appendReview(swapped, THREAD)
 
     await act(async () => {
-      Object.assign(app.log, { readOwn: swapped.log.readOwn.bind(swapped.log), head: swapped.log.head.bind(swapped.log) })
+      Object.assign(app.log, {
+        readOwn: swapped.log.readOwn.bind(swapped.log),
+        head: swapped.log.head.bind(swapped.log),
+      })
       app.channel.publisherFor({ threadId: THREAD }).eventsAppended()
       await mounted.setup.flush()
     })

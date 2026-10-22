@@ -16,7 +16,11 @@ import { composeAtlas, type AtlasApp } from './compose'
 import type { AtlasConfig } from './config'
 import { diagnoseCredentialFailure, type CredentialDiagnosis } from './credential-diagnosis'
 import { noticePortBinding } from './notice-binding'
-import { openConversation, unstartedConversation, type OpenedConversation } from './open-conversation'
+import {
+  openConversation,
+  unstartedConversation,
+  type OpenedConversation,
+} from './open-conversation'
 import { type SettingsBinding } from '@dltech/atlas-harness'
 import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
 

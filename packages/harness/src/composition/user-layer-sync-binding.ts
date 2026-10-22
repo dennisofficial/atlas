@@ -18,7 +18,11 @@ export async function bindUserLayerSync(args: {
   /** Serve passes the drive home so `.agents`/`.claude` roots resolve under the persistent home. */
   home?: string | undefined
   override?:
-    | { home: string; atlasHome: string; client: Parameters<typeof createUserLayerSync>[0]['client'] }
+    | {
+        home: string
+        atlasHome: string
+        client: Parameters<typeof createUserLayerSync>[0]['client']
+      }
     | undefined
 }): Promise<{ boot: () => Promise<void> }> {
   const { container } = args
@@ -50,7 +54,9 @@ export async function bindUserLayerSync(args: {
           }
 
   if (binding === null) {
-    container.register(registeredPortToken(UserLayerSyncPort), { useValue: new NullUserLayerSync() })
+    container.register(registeredPortToken(UserLayerSyncPort), {
+      useValue: new NullUserLayerSync(),
+    })
     return { boot: async () => undefined }
   }
 

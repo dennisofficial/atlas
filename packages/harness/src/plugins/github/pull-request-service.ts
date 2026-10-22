@@ -95,7 +95,10 @@ export function createPullRequestService(args: {
     announcePolled({
       listener: args.onPolled,
       key: request.key,
-      repo: request.target.kind === 'checkout' ? repoOf(request.target.checkout) : request.target.link.repo,
+      repo:
+        request.target.kind === 'checkout'
+          ? repoOf(request.target.checkout)
+          : request.target.link.repo,
       reading,
     })
   }
@@ -106,10 +109,7 @@ export function createPullRequestService(args: {
       run: (owned) => ask({ ...request, owned }),
     })
 
-  const refreshTarget = async (request: {
-    target: PullTarget
-    force?: boolean
-  }): Promise<void> => {
+  const refreshTarget = async (request: { target: PullTarget; force?: boolean }): Promise<void> => {
     if (disposed) return
 
     const key = keyOf(request.target)
@@ -131,10 +131,7 @@ export function createPullRequestService(args: {
     return begin({ key, target: request.target })
   }
 
-  const refresh = (request: {
-    checkout: RepositoryCheckout
-    force?: boolean
-  }): Promise<void> =>
+  const refresh = (request: { checkout: RepositoryCheckout; force?: boolean }): Promise<void> =>
     refreshTarget({
       target: { kind: 'checkout', checkout: request.checkout },
       force: request.force === true,

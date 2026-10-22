@@ -47,7 +47,9 @@ describe('tool output between steps', () => {
     for (let i = 0; i < 100; i++) publisher.toolOutput({ callId, text: chunk })
 
     expect(seen).toHaveLength(100)
-    expect(seen.every((signal) => signal.type === 'tool-output' && signal.text === chunk)).toBe(true)
+    expect(seen.every((signal) => signal.type === 'tool-output' && signal.text === chunk)).toBe(
+      true,
+    )
 
     const replayed = channel.snapshot({ threadId })
     const retained = replayed.reduce(

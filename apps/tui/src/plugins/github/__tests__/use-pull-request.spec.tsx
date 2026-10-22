@@ -61,7 +61,9 @@ const FOUND: PullRequestReading = {
     state: EPullRequestState.Open,
     checks: EChecksState.Running,
     tally: { running: 1, passed: 4, failed: 0 },
-    mergeable: null, comments: [], reviews: [],
+    mergeable: null,
+    comments: [],
+    reviews: [],
   },
 }
 
@@ -125,7 +127,9 @@ const textOf = (section: SidebarSection | null, id: string): string | null => {
   const row = section?.rows.find((entry) => entry.id === id)
   return row === undefined
     ? null
-    : flattenedSpans({ row: row, cells: WIDE }).map((span) => span.text).join('')
+    : flattenedSpans({ row: row, cells: WIDE })
+        .map((span) => span.text)
+        .join('')
 }
 
 async function mounted(args: {
@@ -249,9 +253,7 @@ describe('usePullRequest', () => {
 
     try {
       expect(
-        await landed(
-          () => section()?.rows.length === 3 && probe.control?.footer?.overflow === 1,
-        ),
+        await landed(() => section()?.rows.length === 3 && probe.control?.footer?.overflow === 1),
       ).toBe(true)
 
       const rows = section()

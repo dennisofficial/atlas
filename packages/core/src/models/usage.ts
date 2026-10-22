@@ -36,7 +36,10 @@ function messageOfEvent(event: Event): Message | undefined {
     return {
       role: 'tool',
       content: [
-        resultPart({ name: event.name, output: { type: 'text', value: JSON.stringify(event.output) } }),
+        resultPart({
+          name: event.name,
+          output: { type: 'text', value: JSON.stringify(event.output) },
+        }),
       ],
     }
   }

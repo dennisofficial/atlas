@@ -110,9 +110,7 @@ describe('resumePlan', () => {
     const plan = resumePlan(events)
 
     expect(plan.kind).toBe(EResume.Nudge)
-    expect(resumeDrafts(events)).toEqual([
-      { type: 'nudge', text: RESUME_NUDGE, lifetimeSteps: 1 },
-    ])
+    expect(resumeDrafts(events)).toEqual([{ type: 'nudge', text: RESUME_NUDGE, lifetimeSteps: 1 }])
   })
 
   it('appends no second nudge, because a nudge is itself the last word', () => {

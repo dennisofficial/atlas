@@ -30,8 +30,8 @@ describe('project settings sections', () => {
   })
 
   it('builds hrefs with an encoded project id', () => {
-    expect(
-      hrefOfProjectSection({ projectId: 'a b', section: EProjectSettingsSection.Mcp }),
-    ).toBe('/projects/a%20b/settings/mcp')
+    expect(hrefOfProjectSection({ projectId: 'a b', section: EProjectSettingsSection.Mcp })).toBe(
+      '/projects/a%20b/settings/mcp',
+    )
   })
 })

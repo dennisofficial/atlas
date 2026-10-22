@@ -8,7 +8,13 @@ export const CONCERN_THRESHOLD_NAME = 'currentConcern>=0.5'
 
 export type Ratio = { numerator: number; denominator: number; value: number | null }
 
-export const ratioOf = ({ numerator, denominator }: { numerator: number; denominator: number }): Ratio => ({
+export const ratioOf = ({
+  numerator,
+  denominator,
+}: {
+  numerator: number
+  denominator: number
+}): Ratio => ({
   numerator,
   denominator,
   value: denominator === 0 ? null : numerator / denominator,
@@ -59,4 +65,5 @@ export type UnavailableRow = {
 
 export type ClassifiedRow = InterpretableRow | UnavailableRow
 
-export const isInterpretable = (row: ClassifiedRow): row is InterpretableRow => row.rowClass === ERowClass.Interpretable
+export const isInterpretable = (row: ClassifiedRow): row is InterpretableRow =>
+  row.rowClass === ERowClass.Interpretable

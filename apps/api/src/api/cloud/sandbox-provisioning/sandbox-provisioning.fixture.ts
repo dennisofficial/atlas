@@ -17,7 +17,9 @@ const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? 'b'.repeat(64) : undefined),
 } as unknown as EnvService)
 
-export function seedThread(partial: { projectId?: string | null; modelRef?: string | null } = {}): void {
+export function seedThread(
+  partial: { projectId?: string | null; modelRef?: string | null } = {},
+): void {
   fake.threads.push({
     id: 'thr-1',
     userId: 'usr-1',
@@ -55,7 +57,9 @@ export function fakeBoot(options: { held?: Promise<void>; failWith?: Error } = {
   }
 }
 
-export function fakeScoped(overrides: Partial<Record<'vercelCredentials' | 'accessibleProject', unknown>> = {}) {
+export function fakeScoped(
+  overrides: Partial<Record<'vercelCredentials' | 'accessibleProject', unknown>> = {},
+) {
   const scoped = {
     vercelCredentials: vi.fn(async () => CREDENTIALS),
     accessibleProject: vi.fn(async () => ({ id: 'prj-9', organizationId: 'org-1' })),

@@ -27,7 +27,9 @@ describe('the cloud pill', () => {
   })
 
   it('is hidden once the session has detached', () => {
-    expect(cloudPillOf({ connection: { state: EConnectionView.Detached, detail: null } })).toBeNull()
+    expect(
+      cloudPillOf({ connection: { state: EConnectionView.Detached, detail: null } }),
+    ).toBeNull()
   })
 
   it('joins the sidebar model only when it is shown', () => {

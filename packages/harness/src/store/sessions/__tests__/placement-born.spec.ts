@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { EExecutionLocation, EHarnessPlacement, EToolEnvironment, toRunId, toThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  EHarnessPlacement,
+  EToolEnvironment,
+  toRunId,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import { fakePlacementStore } from '../../../composition/__tests__/placement-store-fake'
 import { PlacementController, type PlacementStore } from '../../../composition/placement-controller'
@@ -36,7 +42,10 @@ describe('born-placed threads', () => {
     })
 
     const meta = tryReadThreadMeta({
-      file: threadMetaFile({ sessionDir: `${fixture.home}/sessions/${thread.thread.id}`, threadId: thread.thread.id }),
+      file: threadMetaFile({
+        sessionDir: `${fixture.home}/sessions/${thread.thread.id}`,
+        threadId: thread.thread.id,
+      }),
     })
     expect(meta?.executionLocation).toBe(EExecutionLocation.Cloud)
 
@@ -61,7 +70,10 @@ describe('born-placed threads', () => {
     expect(cloud?.placement).toEqual({ harness: EHarnessPlacement.Cloud })
 
     const host = await fixture.threads.readPlacement({ threadId: hostThread.thread.id })
-    expect(host?.placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
+    expect(host?.placement).toEqual({
+      harness: EHarnessPlacement.Host,
+      tools: EToolEnvironment.Host,
+    })
   })
 
   it('placeAtCreation stamps the born placement of a thread the store does not know yet', async () => {
@@ -104,7 +116,10 @@ describe('born-placed threads', () => {
       placement: { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' },
     })
 
-    expect(stamped.placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
+    expect(stamped.placement).toEqual({
+      harness: EHarnessPlacement.Host,
+      tools: EToolEnvironment.Host,
+    })
     expect(placement.of(threadId)).toBe(EExecutionLocation.Host)
   })
 })

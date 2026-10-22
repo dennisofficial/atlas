@@ -1,8 +1,4 @@
-import {
-  EQualityHealthStatus,
-  type QualityHealth,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EQualityHealthStatus, type QualityHealth, type ThreadId } from '@dltech/atlas-core'
 import React, { useMemo } from 'react'
 
 import {
@@ -35,9 +31,12 @@ const healthColour = (status: EQualityHealthStatus): string => {
 
 const detailSpans = (args: { health: QualityHealth }): Span[] => {
   const spans: Span[] = [{ text: args.health.path ?? '' }]
-  if (args.health.scope !== null) spans.push({ text: ` · ${args.health.scope.kind} ${args.health.scope.name}` })
-  if (args.health.policyIds.length > 0) spans.push({ text: ` · ${args.health.policyIds.join(', ')}`, fg: theme.hint })
-  if (args.health.recordedAt !== null) spans.push({ text: ` · ${args.health.recordedAt}`, fg: theme.hint })
+  if (args.health.scope !== null)
+    spans.push({ text: ` · ${args.health.scope.kind} ${args.health.scope.name}` })
+  if (args.health.policyIds.length > 0)
+    spans.push({ text: ` · ${args.health.policyIds.join(', ')}`, fg: theme.hint })
+  if (args.health.recordedAt !== null)
+    spans.push({ text: ` · ${args.health.recordedAt}`, fg: theme.hint })
   return spans
 }
 
@@ -51,9 +50,7 @@ const outcomeSpans = (args: { read: QualityHealthRead }): Span[] => {
     const spans: Span[] = [
       {
         text:
-          lastKnown === null
-            ? 'unavailable'
-            : `${OUTCOME_LABEL[lastKnown.status]} · unavailable`,
+          lastKnown === null ? 'unavailable' : `${OUTCOME_LABEL[lastKnown.status]} · unavailable`,
         fg: theme.error,
       },
       { text: ` · refresh failed: ${args.read.reason}`, fg: theme.hint },
@@ -73,11 +70,7 @@ const outcomeSpans = (args: { read: QualityHealthRead }): Span[] => {
   return spans
 }
 
-const headerText = (args: {
-  enabled: boolean
-  recording: boolean
-  threadId: ThreadId
-}): Span[] => [
+const headerText = (args: { enabled: boolean; recording: boolean; threadId: ThreadId }): Span[] => [
   { text: 'last recorded review', fg: theme.meta },
   { text: ` · thread ${args.threadId.slice(0, THREAD_LABEL_CELLS)}`, fg: theme.hint },
   { text: ` — review ${args.enabled ? 'enabled' : 'disabled'}`, fg: theme.hint },

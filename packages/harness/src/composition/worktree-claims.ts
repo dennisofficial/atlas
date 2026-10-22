@@ -1,6 +1,18 @@
-import { ENoticeTone, NOTICE_WARN_MS, projectDirectoryOf, type IdPort, type NoticePort, type ThreadId, type WorkspaceIdentity } from '@dltech/atlas-core'
+import {
+  ENoticeTone,
+  NOTICE_WARN_MS,
+  projectDirectoryOf,
+  type IdPort,
+  type NoticePort,
+  type ThreadId,
+  type WorkspaceIdentity,
+} from '@dltech/atlas-core'
 
-import { registeredPortToken, resolveIfPossible, type DependencyContainer } from '../container/injection'
+import {
+  registeredPortToken,
+  resolveIfPossible,
+  type DependencyContainer,
+} from '../container/injection'
 import { EventLogPort } from '@dltech/atlas-core'
 import { registerDisposable } from '../container/disposal'
 import { HookChainToken } from '../container/tokens'
@@ -64,7 +76,9 @@ async function sharesSpawnerWorktree(args: {
   if (spawner?.workspace === null || spawner?.workspace === undefined) return false
 
   const events = args.log === undefined ? [] : await args.log.readOwn({ threadId: spawnerId })
-  return projectDirectoryOf({ events, launchDirectory: spawner.workspace }) === args.projectDirectory
+  return (
+    projectDirectoryOf({ events, launchDirectory: spawner.workspace }) === args.projectDirectory
+  )
 }
 
 export async function releaseEndedWorktree(args: {
@@ -77,10 +91,19 @@ export async function releaseEndedWorktree(args: {
   if (launchDirectory === null || launchDirectory === undefined) return
   const events = args.log === undefined ? [] : await args.log.readOwn({ threadId: args.threadId })
   const workspace = projectDirectoryOf({ events, launchDirectory })
-  if (await sharesSpawnerWorktree({ threads: args.threads, log: args.log, threadId: args.threadId, projectDirectory: workspace })) return
+  if (
+    await sharesSpawnerWorktree({
+      threads: args.threads,
+      log: args.log,
+      threadId: args.threadId,
+      projectDirectory: workspace,
+    })
+  )
+    return
 
   const identity = await probeWorkspace({ cwd: workspace }).catch(() => undefined)
-  if (identity === undefined || identity.repo === null || identity.workspace === identity.repo) return
+  if (identity === undefined || identity.repo === null || identity.workspace === identity.repo)
+    return
 
   await releaseWorktree({ cwd: identity.repo, path: identity.workspace })
 }
@@ -93,7 +116,9 @@ export async function claimOpenedWorktree(args: {
   projectDirectory: string
   notice: NoticePort
 }): Promise<void> {
-  const log = args.log ?? resolveIfPossible({ container: args.container, token: registeredPortToken(EventLogPort) })
+  const log =
+    args.log ??
+    resolveIfPossible({ container: args.container, token: registeredPortToken(EventLogPort) })
   if (await sharesSpawnerWorktree({ ...args, log })) return
 
   const claimed = await claimWorktreeAt({

@@ -48,7 +48,11 @@ describe('GithubPrEventMailboxService', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
       kind: EPrEventKind.Comment,
-      payload: { url: 'https://github.com/compai/app/pull/42#issuecomment-1', authorLogin: 'dennis', body: 'hi' },
+      payload: {
+        url: 'https://github.com/compai/app/pull/42#issuecomment-1',
+        authorLogin: 'dennis',
+        body: 'hi',
+      },
     })
     await vi.waitFor(() => {
       expect(fake.prEvents.every((row) => row.deliveredAt !== null)).toBe(true)
@@ -57,7 +61,11 @@ describe('GithubPrEventMailboxService', () => {
     expect(fake.prEvents).toHaveLength(2)
     expect(receivedA).toHaveLength(1)
     expect(receivedB).toHaveLength(1)
-    expect(receivedA[0]).toMatchObject({ kind: 'comment', repoFullName: 'compai/app', prNumber: 42 })
+    expect(receivedA[0]).toMatchObject({
+      kind: 'comment',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
   })
 
   it('stamps only the row a live stream received — an offline subscriber still replays', async () => {

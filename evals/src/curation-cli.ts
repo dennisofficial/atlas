@@ -20,18 +20,22 @@ const HISTORY_SPEC = { '--session-dir': 'value', '--output-dir': 'value' } as co
 async function handleImportHistory({ argv }: { argv: readonly string[] }): Promise<number> {
   const args = parseArgs({ argv, spec: HISTORY_SPEC })
   const sessionDirs = args.lists['--session-dir'] ?? []
-  if (sessionDirs.length === 0) throw new ArgParseError('import-history requires at least one --session-dir')
+  if (sessionDirs.length === 0)
+    throw new ArgParseError('import-history requires at least one --session-dir')
   const outputDir = requireValue({ args, key: '--output-dir' })
   const { importHistoricalSessions } = await import('./curation/historical-import')
   const report = await importHistoricalSessions({ sessionDirs, outputDir })
-  console.log(`history: ${report.changes} changes, ${report.rejections} rejections across ${report.logs} logs -> ${report.outputDir}`)
+  console.log(
+    `history: ${report.changes} changes, ${report.rejections} rejections across ${report.logs} logs -> ${report.outputDir}`,
+  )
   return 0
 }
 
 async function handleExportExamples({ argv }: { argv: readonly string[] }): Promise<number> {
   const args = parseArgs({ argv, spec: EXPORT_SPEC })
   const sessionDirs = args.lists['--session-dir'] ?? []
-  if (sessionDirs.length === 0) throw new ArgParseError('export-examples requires at least one --session-dir')
+  if (sessionDirs.length === 0)
+    throw new ArgParseError('export-examples requires at least one --session-dir')
   const outputDir = requireValue({ args, key: '--output-dir' })
   const { exportExamples } = await import('./curation/inventory')
   const report = await exportExamples({
@@ -39,7 +43,9 @@ async function handleExportExamples({ argv }: { argv: readonly string[] }): Prom
     outputDir,
     deps: defaultExportDeps({ reparse: reparseScope }),
   })
-  console.log(`exported ${report.exported} examples, ${report.rejections.length} rejections -> ${report.outputDir}`)
+  console.log(
+    `exported ${report.exported} examples, ${report.rejections.length} rejections -> ${report.outputDir}`,
+  )
   return 0
 }
 
@@ -47,7 +53,9 @@ async function handleCurate({ argv }: { argv: readonly string[] }): Promise<numb
   const args = parseArgs({ argv, spec: CURATE_SPEC })
   const exportDir = requireValue({ args, key: '--export-dir' })
   const outputDir = requireValue({ args, key: '--output-dir' })
-  const { readExportDir, dedupeCandidates, candidateFromExport, writeCandidates } = await import('./curation/candidates')
+  const { readExportDir, dedupeCandidates, candidateFromExport, writeCandidates } = await import(
+    './curation/candidates'
+  )
   const { ECandidateMethod } = await import('./curation/candidates')
   const { examples } = await readExportDir({ exportDir })
   const candidates = examples.map((example) =>

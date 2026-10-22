@@ -7,7 +7,14 @@ import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, failed, fakeRunners, finished, loggedOfType, type FakeRunners } from './fixtures'
+import {
+  agentTypeNamed,
+  failed,
+  fakeRunners,
+  finished,
+  loggedOfType,
+  type FakeRunners,
+} from './fixtures'
 
 const EXPLORE = agentTypeNamed({ name: 'explore' })
 const TEAMMATE = agentTypeNamed({ name: TEAMMATE_AGENT_TYPE })
@@ -146,7 +153,9 @@ describe('when a finished child counts as delivered', () => {
 
     runners.started[0]?.settle(finished())
     runners.started[1]?.settle(finished())
-    await Promise.all([parent, other].map((threadId) => supervisor.whenChildrenSettled({ threadId })))
+    await Promise.all(
+      [parent, other].map((threadId) => supervisor.whenChildrenSettled({ threadId })),
+    )
     expect(supervisor.pendingNotices({ threadId: other })).toHaveLength(1)
 
     supervisor.drainNotifications({ threadId: other })
@@ -216,7 +225,11 @@ describe('when a finished child counts as delivered', () => {
 
   it('stamps nothing for a teammate report, because a report is not an ending', async () => {
     const { supervisor, parent } = await open()
-    const agentId = await spawnUnder({ supervisor, threadId: parent, agentType: TEAMMATE_AGENT_TYPE })
+    const agentId = await spawnUnder({
+      supervisor,
+      threadId: parent,
+      agentType: TEAMMATE_AGENT_TYPE,
+    })
     await settle()
 
     await supervisor.reportToParent({ threadId: agentId, text: 'an update' })

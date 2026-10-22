@@ -135,7 +135,9 @@ describe('objc lexical highlighting', () => {
   })
 
   it('reads NSString-style names as types', () => {
-    expect(textFor({ spec, source: 'NSString *label = @"x";', group: 'type' })).toEqual(['NSString'])
+    expect(textFor({ spec, source: 'NSString *label = @"x";', group: 'type' })).toEqual([
+      'NSString',
+    ])
   })
 
   it('leaves a message-send name alone', () => {

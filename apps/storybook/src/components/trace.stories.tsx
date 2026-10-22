@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { FileSearchIcon, SquareTerminalIcon, TriangleAlertIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { FileSearchIcon, SquareTerminalIcon, TriangleAlertIcon } from 'lucide-react'
 
-import { Spinner } from "@dltech/atlas-ui/components/spinner";
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
 import {
   Trace,
   TraceCollapsible,
@@ -11,10 +11,10 @@ import {
   TraceIcon,
   TraceLine,
   TraceTitle,
-} from "@dltech/atlas-ui/components/trace";
+} from '@dltech/atlas-ui/components/trace'
 
 const meta = {
-  title: "Components/Trace",
+  title: 'Components/Trace',
   component: Trace,
   decorators: [
     (Story) => (
@@ -23,11 +23,11 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Trace>;
+} satisfies Meta<typeof Trace>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -60,7 +60,7 @@ export const Default: Story = {
       </TraceLine>
     </Trace>
   ),
-};
+}
 
 export const Expandable: Story = {
   render: (args) => (
@@ -77,10 +77,10 @@ export const Expandable: Story = {
         </TraceCollapsibleTrigger>
         <TraceCollapsibleContent>
           <pre className="font-mono text-xs text-muted-foreground">
-            {"$ turbo run typecheck\n 6 packages in scope\n Tasks: 6 successful, 6 total"}
+            {'$ turbo run typecheck\n 6 packages in scope\n Tasks: 6 successful, 6 total'}
           </pre>
         </TraceCollapsibleContent>
       </TraceCollapsible>
     </Trace>
   ),
-};
+}

@@ -30,7 +30,15 @@ const picture = (args: { width: number; height: number }): string => {
     const left = pixel % args.width < args.width / 2
     rgba.set(left ? [220, 20, 60, 255] : [20, 60, 220, 255], pixel * 4)
   }
-  return Buffer.from(encodePng({ width: args.width, height: args.height, colourType: 6, bytesPerPixel: 4, samples: rgba })).toString('base64')
+  return Buffer.from(
+    encodePng({
+      width: args.width,
+      height: args.height,
+      colourType: 6,
+      bytesPerPixel: 4,
+      samples: rgba,
+    }),
+  ).toString('base64')
 }
 
 const SHAPES = {
@@ -50,11 +58,18 @@ interface Box {
 }
 
 const paintedBox = (rows: string[]): Box | null => {
-  const cells = rows.flatMap((line, row) => [...line].map((glyph, column) => ({ glyph, row, column }))).filter((cell) => GLYPH.test(cell.glyph))
+  const cells = rows
+    .flatMap((line, row) => [...line].map((glyph, column) => ({ glyph, row, column })))
+    .filter((cell) => GLYPH.test(cell.glyph))
   if (cells.length === 0) return null
   const rowsOf = cells.map((cell) => cell.row)
   const columnsOf = cells.map((cell) => cell.column)
-  return { top: Math.min(...rowsOf), bottom: Math.max(...rowsOf), left: Math.min(...columnsOf), right: Math.max(...columnsOf) }
+  return {
+    top: Math.min(...rowsOf),
+    bottom: Math.max(...rowsOf),
+    left: Math.min(...columnsOf),
+    right: Math.max(...columnsOf),
+  }
 }
 
 type DrawImageArgs = Parameters<OptimizedBuffer['drawImage']>
@@ -72,10 +87,16 @@ interface Capture {
 }
 
 const snapshotDraw = (args: DrawImageArgs): ImageDraw => {
-  const [image, x, y, width, height, , , sourceX, sourceY, sourceWidth, sourceHeight, protocol] = args
+  const [image, x, y, width, height, , , sourceX, sourceY, sourceWidth, sourceHeight, protocol] =
+    args
   return {
     destination: { x, y, width, height },
-    source: { x: sourceX ?? 0, y: sourceY ?? 0, width: sourceWidth ?? image.width, height: sourceHeight ?? image.height },
+    source: {
+      x: sourceX ?? 0,
+      y: sourceY ?? 0,
+      width: sourceWidth ?? image.width,
+      height: sourceHeight ?? image.height,
+    },
     bitmap: { width: image.width, height: image.height },
     protocol,
   }
@@ -96,14 +117,19 @@ async function frameOf(args: {
   useTerminal(args.program)
   const draws: ImageDraw[] = []
   const original = OptimizedBuffer.prototype.drawImage
-  const spy = vi.spyOn(OptimizedBuffer.prototype, 'drawImage').mockImplementation(function (this: OptimizedBuffer, ...call: DrawImageArgs) {
+  const spy = vi.spyOn(OptimizedBuffer.prototype, 'drawImage').mockImplementation(function (
+    this: OptimizedBuffer,
+    ...call: DrawImageArgs
+  ) {
     draws.push(snapshotDraw(call))
     return original.apply(this, call)
   })
   const setup = await testRender(
     <box flexDirection="row" width={WIDTH} height={HEIGHT}>
       <box flexDirection="column" width={LEFT_RAIL} flexShrink={0}>
-        {Array.from({ length: HEIGHT }, (_unused, row) => <text key={row}>{leftRail(row)}</text>)}
+        {Array.from({ length: HEIGHT }, (_unused, row) => (
+          <text key={row}>{leftRail(row)}</text>
+        ))}
       </box>
       <box flexDirection="column" width={VIEWER_WIDTH} flexShrink={0}>
         <ContextViewer
@@ -116,7 +142,9 @@ async function frameOf(args: {
         />
       </box>
       <box flexDirection="column" width={RIGHT_RAIL} flexShrink={0}>
-        {Array.from({ length: HEIGHT }, (_unused, row) => <text key={row}>{rightRail(row)}</text>)}
+        {Array.from({ length: HEIGHT }, (_unused, row) => (
+          <text key={row}>{rightRail(row)}</text>
+        ))}
       </box>
     </box>,
     { width: WIDTH, height: HEIGHT },
@@ -132,7 +160,8 @@ async function frameOf(args: {
   }
 }
 
-const rowOf = (rows: string[], needle: string): number => rows.findIndex((line) => line.includes(needle))
+const rowOf = (rows: string[], needle: string): number =>
+  rows.findIndex((line) => line.includes(needle))
 
 const expectChromeIntact = (rows: string[]): void => {
   rows.slice(0, HEIGHT).forEach((line, row) => {
@@ -145,7 +174,8 @@ const expectChromeIntact = (rows: string[]): void => {
   expect(rows.join('\n')).not.toContain('cannot display')
 }
 
-const lastKittyDraw = (draws: ImageDraw[]): ImageDraw | undefined => draws.filter((draw) => draw.protocol === 'kitty').at(-1)
+const lastKittyDraw = (draws: ImageDraw[]): ImageDraw | undefined =>
+  draws.filter((draw) => draw.protocol === 'kitty').at(-1)
 
 const nativeBox = (draws: ImageDraw[]): Box | null => {
   const draw = lastKittyDraw(draws)
@@ -163,21 +193,29 @@ const terminals = [
     capabilities: { kitty_graphics: true },
     boxOf: (capture: Capture): Box | null => nativeBox(capture.draws),
   },
-  { name: 'a terminal with no graphics capabilities', program: undefined, capabilities: {}, boxOf: glyphBox },
+  {
+    name: 'a terminal with no graphics capabilities',
+    program: undefined,
+    capabilities: {},
+    boxOf: glyphBox,
+  },
 ]
 
 describe.each(terminals)('a context image under $name', ({ program, capabilities, boxOf }) => {
-  it.each(Object.entries(SHAPES))('paints the %s picture inside the pane, between header and footer', async (_shape, data) => {
-    const capture = await frameOf({ data, program, capabilities })
-    const { rows } = capture
-    const box = boxOf(capture)
-    expectChromeIntact(rows)
-    expect(box).not.toBeNull()
-    expect(box?.top).toBeGreaterThan(rowOf(rows, 'context'))
-    expect(box?.bottom).toBeLessThan(rowOf(rows, FOOTER))
-    expect(box?.left).toBeGreaterThanOrEqual(LEFT_RAIL)
-    expect(box?.right).toBeLessThan(WIDTH - RIGHT_RAIL)
-  })
+  it.each(Object.entries(SHAPES))(
+    'paints the %s picture inside the pane, between header and footer',
+    async (_shape, data) => {
+      const capture = await frameOf({ data, program, capabilities })
+      const { rows } = capture
+      const box = boxOf(capture)
+      expectChromeIntact(rows)
+      expect(box).not.toBeNull()
+      expect(box?.top).toBeGreaterThan(rowOf(rows, 'context'))
+      expect(box?.bottom).toBeLessThan(rowOf(rows, FOOTER))
+      expect(box?.left).toBeGreaterThanOrEqual(LEFT_RAIL)
+      expect(box?.right).toBeLessThan(WIDTH - RIGHT_RAIL)
+    },
+  )
 
   it('keeps wide and tall pictures asymmetric: each fills one axis and letterboxes the other', async () => {
     const wide = boxOf(await frameOf({ data: SHAPES.wide, program, capabilities }))
@@ -185,7 +223,10 @@ describe.each(terminals)('a context image under $name', ({ program, capabilities
     expect(wide).not.toBeNull()
     expect(tall).not.toBeNull()
     if (wide === null || tall === null) return
-    const span = (box: Box) => ({ columns: box.right - box.left + 1, rows: box.bottom - box.top + 1 })
+    const span = (box: Box) => ({
+      columns: box.right - box.left + 1,
+      rows: box.bottom - box.top + 1,
+    })
     expect(span(wide).columns).toBeGreaterThan(span(tall).columns)
     expect(span(tall).rows).toBeGreaterThan(span(wide).rows)
     expect(span(wide).columns).toBeGreaterThan(span(wide).rows)
@@ -198,18 +239,21 @@ describe.each(terminals)('a context image under $name', ({ program, capabilities
 describe('a context image under Warp advertising kitty graphics: native draw', () => {
   const warp = { program: 'WarpTerminal', capabilities: { kitty_graphics: true } }
 
-  it.each(Object.entries(SHAPES))('hands the %s picture to the buffer as a kitty draw of the whole prepared bitmap', async (_shape, data) => {
-    const capture = await frameOf({ data, ...warp })
-    const draw = lastKittyDraw(capture.draws)
-    expect(draw).toBeDefined()
-    if (!draw) return
-    expect(draw.protocol).toBe('kitty')
-    expect(draw.source.x).toBe(0)
-    expect(draw.source.y).toBe(0)
-    expect(draw.source.width).toBe(draw.bitmap.width)
-    expect(draw.source.height).toBe(draw.bitmap.height)
-    expect(draw.bitmap.width).toBeGreaterThan(0)
-    expect(draw.bitmap.height).toBeGreaterThan(0)
-    expect(glyphBox(capture)).toBeNull()
-  })
+  it.each(Object.entries(SHAPES))(
+    'hands the %s picture to the buffer as a kitty draw of the whole prepared bitmap',
+    async (_shape, data) => {
+      const capture = await frameOf({ data, ...warp })
+      const draw = lastKittyDraw(capture.draws)
+      expect(draw).toBeDefined()
+      if (!draw) return
+      expect(draw.protocol).toBe('kitty')
+      expect(draw.source.x).toBe(0)
+      expect(draw.source.y).toBe(0)
+      expect(draw.source.width).toBe(draw.bitmap.width)
+      expect(draw.source.height).toBe(draw.bitmap.height)
+      expect(draw.bitmap.width).toBeGreaterThan(0)
+      expect(draw.bitmap.height).toBeGreaterThan(0)
+      expect(glyphBox(capture)).toBeNull()
+    },
+  )
 })

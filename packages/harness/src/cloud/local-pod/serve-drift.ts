@@ -16,7 +16,10 @@ export const serveDriftedFor = (args: {
   stamps: InstalledStamps
   desiredVersion: string | undefined
 }): boolean => {
-  if (args.stamps.protocol !== UNSTAMPED_PROTOCOL && args.stamps.protocol !== CHANNEL_PROTOCOL_VERSION) {
+  if (
+    args.stamps.protocol !== UNSTAMPED_PROTOCOL &&
+    args.stamps.protocol !== CHANNEL_PROTOCOL_VERSION
+  ) {
     return true
   }
   if (args.desiredVersion === undefined) return false

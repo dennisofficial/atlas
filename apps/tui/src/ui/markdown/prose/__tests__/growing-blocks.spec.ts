@@ -147,7 +147,18 @@ describe('growingProseBlocks', () => {
   })
 
   it('hands back the same settled block objects once more text has streamed in behind them', () => {
-    const settled = ['# Title', '', 'First paragraph.', '', '- a', '- b', '', '> quote', '', ''].join('\n')
+    const settled = [
+      '# Title',
+      '',
+      'First paragraph.',
+      '',
+      '- a',
+      '- b',
+      '',
+      '> quote',
+      '',
+      '',
+    ].join('\n')
     const before = growingProseBlocks(`${settled}Tail one`)
     const after = growingProseBlocks(`${settled}Tail one and more\n\nAnother paragraph`)
 

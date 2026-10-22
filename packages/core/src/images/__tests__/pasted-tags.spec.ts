@@ -10,7 +10,11 @@ describe('pastedTagSpans', () => {
       { start: 6, end: 6 + '[Pasted text #1 +3 lines]'.length, ordinal: 1, lines: 3 },
       {
         start: 6 + '[Pasted text #1 +3 lines]'.length + ' mid '.length,
-        end: 6 + '[Pasted text #1 +3 lines]'.length + ' mid '.length + '[Pasted text #2 +12 lines]'.length,
+        end:
+          6 +
+          '[Pasted text #1 +3 lines]'.length +
+          ' mid '.length +
+          '[Pasted text #2 +12 lines]'.length,
         ordinal: 2,
         lines: 12,
       },

@@ -41,7 +41,10 @@ export class CloudUserFilesClient {
     this.transport = new CloudTransport(args)
   }
 
-  async listUserFiles(args: { tree: string; sinceRevision?: number }): Promise<readonly UserFileMeta[]> {
+  async listUserFiles(args: {
+    tree: string
+    sinceRevision?: number
+  }): Promise<readonly UserFileMeta[]> {
     const since = args.sinceRevision === undefined ? '' : `&sinceRevision=${args.sinceRevision}`
     const body = await this.transport.request({
       method: 'GET',
@@ -51,7 +54,10 @@ export class CloudUserFilesClient {
     return userFileListResponseSchema.parse(body).files
   }
 
-  async getUserFiles(args: { tree: string; paths: readonly string[] }): Promise<readonly UserFileContent[]> {
+  async getUserFiles(args: {
+    tree: string
+    paths: readonly string[]
+  }): Promise<readonly UserFileContent[]> {
     const body = await this.transport.request({
       method: 'POST',
       path: '/v1/user-files/get',
@@ -83,7 +89,11 @@ export class CloudUserFilesClient {
     })
   }
 
-  async deleteUserFile(args: { tree: string; path: string; baseRevision: number }): Promise<{ revision: number }> {
+  async deleteUserFile(args: {
+    tree: string
+    path: string
+    baseRevision: number
+  }): Promise<{ revision: number }> {
     return this.mutate({
       tree: args.tree,
       path: args.path,
@@ -112,7 +122,9 @@ export class CloudUserFilesClient {
   }
 
   private async conflictAt(args: { tree: string; path: string }): Promise<UserFileConflict> {
-    const current = (await this.listUserFiles({ tree: args.tree })).find((file) => file.path === args.path)
+    const current = (await this.listUserFiles({ tree: args.tree })).find(
+      (file) => file.path === args.path,
+    )
     return new UserFileConflict({
       currentRevision: current?.revision ?? 0,
       contentHash: current?.contentHash ?? '',

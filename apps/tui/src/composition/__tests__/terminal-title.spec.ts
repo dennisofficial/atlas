@@ -10,15 +10,11 @@ describe('terminalTitleSequence', () => {
   })
 
   it('falls back to the directory basename when the thread is unnamed', () => {
-    expect(terminalTitleSequence({ name: null, directory: '/dev/atlas' })).toBe(
-      '\x1b]0;atlas\x07',
-    )
+    expect(terminalTitleSequence({ name: null, directory: '/dev/atlas' })).toBe('\x1b]0;atlas\x07')
   })
 
   it('ignores trailing slashes on the directory fallback', () => {
-    expect(terminalTitleSequence({ name: null, directory: '/dev/atlas/' })).toBe(
-      '\x1b]0;atlas\x07',
-    )
+    expect(terminalTitleSequence({ name: null, directory: '/dev/atlas/' })).toBe('\x1b]0;atlas\x07')
   })
 
   it('keeps the filesystem root as its own fallback', () => {
@@ -39,7 +35,11 @@ describe('terminalTitleSequence', () => {
 
   it('prefixes the title with a state glyph when one is given', () => {
     expect(
-      terminalTitleSequence({ name: 'Refresh token rotation', directory: '/dev/atlas', glyph: '🌒' }),
+      terminalTitleSequence({
+        name: 'Refresh token rotation',
+        directory: '/dev/atlas',
+        glyph: '🌒',
+      }),
     ).toBe('\x1b]0;🌒 Refresh token rotation\x07')
   })
 

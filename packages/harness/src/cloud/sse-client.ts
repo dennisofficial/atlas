@@ -61,7 +61,10 @@ type Attempt = {
   releaseAttempt: () => void
 }
 
-const untilAttemptAborts = async (args: { work: Promise<void>; signal: AbortSignal }): Promise<void> => {
+const untilAttemptAborts = async (args: {
+  work: Promise<void>
+  signal: AbortSignal
+}): Promise<void> => {
   let handleAbort: () => void = () => {}
   const aborted = new Promise<never>((_, reject) => {
     handleAbort = () => reject(new SseSilenceTimeout())

@@ -1,19 +1,19 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { BrandMark, EBrand } from "@dltech/atlas-ui/components/brand-mark";
+import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
 const meta = {
-  title: "Components/Brand Mark",
+  title: 'Components/Brand Mark',
   component: BrandMark,
   args: { brand: EBrand.Claude },
-  argTypes: { brand: { control: "select", options: Object.values(EBrand) } },
-} satisfies Meta<typeof BrandMark>;
+  argTypes: { brand: { control: 'select', options: Object.values(EBrand) } },
+} satisfies Meta<typeof BrandMark>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Default: Story = {};
+export const Default: Story = {}
 
 export const AllBrands: Story = {
   render: () => (
@@ -26,4 +26,4 @@ export const AllBrands: Story = {
       ))}
     </div>
   ),
-};
+}

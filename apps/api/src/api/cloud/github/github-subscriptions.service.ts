@@ -289,10 +289,7 @@ export class GithubSubscriptionsService {
     }
   }
 
-  private async liveCeiling(args: {
-    threadId: string | null
-    expiresAt: Date
-  }): Promise<Date> {
+  private async liveCeiling(args: { threadId: string | null; expiresAt: Date }): Promise<Date> {
     if (args.threadId === null) return args.expiresAt
     const sandbox = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
@@ -300,8 +297,7 @@ export class GithubSubscriptionsService {
     })
     return liveUntilOf({
       expiresAt: args.expiresAt,
-      sandboxLastActivityAt:
-        sandbox === null ? null : new Date(Date.parse(sandbox.lastActivityAt)),
+      sandboxLastActivityAt: sandbox === null ? null : new Date(Date.parse(sandbox.lastActivityAt)),
     })
   }
 
@@ -312,7 +308,6 @@ export class GithubSubscriptionsService {
     }
     return token
   }
-
 }
 
 const nextExpiry = () => new Date(Date.now() + SUBSCRIPTION_TTL_MS)

@@ -66,11 +66,9 @@ describe('sanitizedTitle', () => {
   })
 
   it('keeps at most ten words', () => {
-    expect(
-      sanitizedTitle(
-        'one two three four five six seven eight nine ten eleven twelve',
-      ),
-    ).toBe('one two three four five six seven eight nine ten')
+    expect(sanitizedTitle('one two three four five six seven eight nine ten eleven twelve')).toBe(
+      'one two three four five six seven eight nine ten',
+    )
   })
 
   it('cuts an overlong name at a word boundary rather than mid-word', () => {

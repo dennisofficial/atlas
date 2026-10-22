@@ -7,9 +7,7 @@ export type OperatorInputPending = {
   path: string
 }
 
-export type OperatorInputAnswerOutcome =
-  | { ok: true; bytes: number }
-  | { ok: false; reason: string }
+export type OperatorInputAnswerOutcome = { ok: true; bytes: number } | { ok: false; reason: string }
 
 export type OperatorInputRequestArgs = OperatorInputPending & {
   threadId: ThreadId

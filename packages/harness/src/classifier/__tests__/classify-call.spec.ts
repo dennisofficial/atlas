@@ -52,9 +52,18 @@ const judgedIn = (outcome: { drafts?: readonly EventDraft[] | undefined }) => {
 
 describe('the calls phase A clears without touching the workspace', () => {
   const cleared = [
-    { what: 'a read inside the project', call: callTo({ name: 'read', input: { path: `${OURS}/src/a.ts` } }) },
-    { what: 'a grep naming no path', call: callTo({ name: 'grep', input: { pattern: 'assemble' } }) },
-    { what: 'an edit inside the project', call: callTo({ name: 'edit', input: { path: `${OURS}/src/a.ts`, text: 'x' } }) },
+    {
+      what: 'a read inside the project',
+      call: callTo({ name: 'read', input: { path: `${OURS}/src/a.ts` } }),
+    },
+    {
+      what: 'a grep naming no path',
+      call: callTo({ name: 'grep', input: { pattern: 'assemble' } }),
+    },
+    {
+      what: 'an edit inside the project',
+      call: callTo({ name: 'edit', input: { path: `${OURS}/src/a.ts`, text: 'x' } }),
+    },
     { what: 'a bash test run', call: callTo({ name: 'bash', input: { command: 'bun test' } }) },
   ]
 

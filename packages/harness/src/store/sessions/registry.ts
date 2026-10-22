@@ -8,7 +8,14 @@ import { contextIdentityOf } from '../append-plan'
 import type { UnreadableRow } from '../decode-events'
 import { logFieldsOf } from '../logs'
 import { parseEventLines } from './lines'
-import { THREAD_META_FILE_SUFFIX, eventLogFile, sessionDirectory, sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
+import {
+  THREAD_META_FILE_SUFFIX,
+  eventLogFile,
+  sessionDirectory,
+  sessionsDirectory,
+  threadMetaFile,
+  threadsDirectory,
+} from './paths'
 import { readMetaSync, threadMetaSchema } from './meta'
 
 export type ThreadLog = {
@@ -58,7 +65,13 @@ export class SessionRegistry {
   handleFor({ sessionDir }: { sessionDir: string }): SessionHandle {
     const existing = this.handles.get(sessionDir)
     if (existing !== undefined) return existing
-    const handle: SessionHandle = { dir: sessionDir, threads: new Map(), files: new Map(), queue: Promise.resolve(), generation: 0 }
+    const handle: SessionHandle = {
+      dir: sessionDir,
+      threads: new Map(),
+      files: new Map(),
+      queue: Promise.resolve(),
+      generation: 0,
+    }
     this.handles.set(sessionDir, handle)
     return handle
   }
@@ -233,7 +246,13 @@ export class SessionRegistry {
     }
   }
 
-  private async readEventLog({ file, threadId }: { file: string; threadId: ThreadId }): Promise<string> {
+  private async readEventLog({
+    file,
+    threadId,
+  }: {
+    file: string
+    threadId: ThreadId
+  }): Promise<string> {
     try {
       return await readFile(file, 'utf8')
     } catch (error) {

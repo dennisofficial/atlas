@@ -219,9 +219,7 @@ describe('hostSandboxEnvironment', () => {
 })
 
 describe('mountedAtlasHomeSubtrees', () => {
-  const withAtlasHome = async (
-    run: (atlasHome: string) => void | Promise<void>,
-  ): Promise<void> => {
+  const withAtlasHome = async (run: (atlasHome: string) => void | Promise<void>): Promise<void> => {
     const atlasHome = await mkdtemp(join(tmpdir(), 'atlas-dev-home-'))
     try {
       await run(atlasHome)
@@ -237,9 +235,7 @@ describe('mountedAtlasHomeSubtrees', () => {
       await writeFile(join(atlasHome, 'auth.json'), '{"secret":true}')
       await writeFile(join(atlasHome, 'settings.json'), '{"theme":"dark"}')
 
-      expect(
-        mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
-      ).toEqual([
+      expect(mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome })).toEqual([
         { path: join(atlasHome, 'memory'), mode: EMountMode.ReadWrite },
         { path: join(atlasHome, 'skills'), mode: EMountMode.ReadWrite },
         { path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite },
@@ -252,9 +248,7 @@ describe('mountedAtlasHomeSubtrees', () => {
       await mkdir(join(atlasHome, 'services'))
       await mkdir(join(atlasHome, 'bin'))
 
-      expect(
-        mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
-      ).toEqual([
+      expect(mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome })).toEqual([
         { path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite },
         { path: join(atlasHome, 'services'), mode: EMountMode.ReadWrite },
         { path: join(atlasHome, 'bin'), mode: EMountMode.ReadWrite },
@@ -264,9 +258,9 @@ describe('mountedAtlasHomeSubtrees', () => {
 
   it('creates the sessions directory so a fresh home still mounts it', async () => {
     await withAtlasHome(async (atlasHome) => {
-      expect(
-        mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
-      ).toEqual([{ path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite }])
+      expect(mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome })).toEqual([
+        { path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite },
+      ])
       expect((await stat(join(atlasHome, 'sessions'))).isDirectory()).toBe(true)
     })
   })

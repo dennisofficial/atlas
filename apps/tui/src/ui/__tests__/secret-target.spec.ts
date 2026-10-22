@@ -102,9 +102,7 @@ describe('secretTargetOf', () => {
   )
 
   it('seals the decisions token under the default provider when none is chosen', () => {
-    expect(
-      secretTargetOf({ id: ESettingId.DecisionsToken, resolution: resolutionOn() }),
-    ).toEqual({
+    expect(secretTargetOf({ id: ESettingId.DecisionsToken, resolution: resolutionOn() })).toEqual({
       name: 'decisions.token.typesafe',
       label: 'decision API key',
       masked: true,
@@ -114,9 +112,7 @@ describe('secretTargetOf', () => {
   })
 
   it('seals the Vercel token under its own setting id', () => {
-    expect(
-      secretTargetOf({ id: ESettingId.VercelToken, resolution: resolutionOn() }),
-    ).toEqual({
+    expect(secretTargetOf({ id: ESettingId.VercelToken, resolution: resolutionOn() })).toEqual({
       name: 'sandbox.vercelToken',
       label: 'Vercel token',
       masked: true,

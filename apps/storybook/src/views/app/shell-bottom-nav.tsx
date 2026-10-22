@@ -1,26 +1,22 @@
-import { Activity, FolderKanban, MessagesSquare } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Activity, FolderKanban, MessagesSquare } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@dltech/atlas-ui/components/tooltip";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { EAppNav } from "./shell-types";
+import { EAppNav } from './shell-types'
 
 interface NavItem {
-  nav: EAppNav;
-  label: string;
-  Icon: LucideIcon;
+  nav: EAppNav
+  label: string
+  Icon: LucideIcon
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { nav: EAppNav.Threads, label: "Threads", Icon: MessagesSquare },
-  { nav: EAppNav.Activity, label: "Activity", Icon: Activity },
-  { nav: EAppNav.Projects, label: "Projects", Icon: FolderKanban },
-];
+  { nav: EAppNav.Threads, label: 'Threads', Icon: MessagesSquare },
+  { nav: EAppNav.Activity, label: 'Activity', Icon: Activity },
+  { nav: EAppNav.Projects, label: 'Projects', Icon: FolderKanban },
+]
 
 export function ShellBottomNav({ activeNav }: { activeNav: EAppNav }) {
   return (
@@ -35,11 +31,10 @@ export function ShellBottomNav({ activeNav }: { activeNav: EAppNav }) {
               <button
                 type="button"
                 aria-label={label}
-                aria-current={nav === activeNav ? "page" : undefined}
+                aria-current={nav === activeNav ? 'page' : undefined}
                 className={cn(
-                  "flex h-7 flex-1 items-center justify-center rounded-md text-muted-foreground outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none",
-                  nav === activeNav &&
-                    "bg-sidebar-accent text-sidebar-accent-foreground",
+                  'flex h-7 flex-1 items-center justify-center rounded-md text-muted-foreground outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none',
+                  nav === activeNav && 'bg-sidebar-accent text-sidebar-accent-foreground',
                 )}
               />
             }
@@ -50,5 +45,5 @@ export function ShellBottomNav({ activeNav }: { activeNav: EAppNav }) {
         </Tooltip>
       ))}
     </nav>
-  );
+  )
 }

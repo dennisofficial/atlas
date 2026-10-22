@@ -57,7 +57,7 @@ const operatorSaid = (
   steer: flags.steer ?? false,
   skills: [],
   files: [],
-    images: [],
+  images: [],
 })
 
 type ModelFlags = { streaming?: boolean; interrupted?: boolean }
@@ -230,7 +230,9 @@ export function transcript(args: {
       cwd={CWD}
       {...(args.turn ? { turn: args.turn } : {})}
       {...(args.reconnecting === undefined ? {} : { reconnecting: args.reconnecting })}
-      {...(args.reconnectingSince === undefined ? {} : { reconnectingSince: args.reconnectingSince })}
+      {...(args.reconnectingSince === undefined
+        ? {}
+        : { reconnectingSince: args.reconnectingSince })}
       {...(args.anchorKey ? { anchorKey: args.anchorKey } : {})}
       {...(args.sends === undefined ? {} : { sends: args.sends })}
       {...(args.pending ? { pending: args.pending } : {})}

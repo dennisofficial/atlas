@@ -28,7 +28,6 @@ export const THINKING = 'The loop reads the log, so position is derived rather t
 
 export const REPLY = 'Atlas derives every prompt from the event log.'
 
-
 export type Mounted = {
   app: FakeApp
   draftText: () => string | null

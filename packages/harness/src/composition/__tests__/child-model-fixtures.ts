@@ -80,8 +80,7 @@ function recordingAdapter(args: {
     cards: () => [cardFor(args.ref)],
     model: ({ effort }) => {
       const model = scriptedModel({
-        script:
-          args.steps ?? args.texts.map((text) => ({ text })),
+        script: args.steps ?? args.texts.map((text) => ({ text })),
         provider: args.ref.providerId,
         modelId: args.ref.modelId,
       })
@@ -123,11 +122,20 @@ export function childType(args?: { name?: string; model?: string }): AgentType {
 
 export const question = (text: string): Assembled => ({
   system: [],
-  messages: [{ message: { role: 'user', content: [{ type: 'text', text }] }, origin: { eventId: toEventId('ev-1'), seq: 1 } }],
+  messages: [
+    {
+      message: { role: 'user', content: [{ type: 'text', text }] },
+      origin: { eventId: toEventId('ev-1'), seq: 1 },
+    },
+  ],
 })
 
 export async function askModel(port: ModelPort): Promise<string> {
-  const step = await port.step({ assembled: question('hello'), tools: [], signal: new AbortController().signal })
+  const step = await port.step({
+    assembled: question('hello'),
+    tools: [],
+    signal: new AbortController().signal,
+  })
   const part = step.parts.find((one) => one.type === 'text')
   return part?.type === 'text' ? part.text : ''
 }
@@ -215,7 +223,10 @@ export async function childModelFixture(args?: {
       return created.thread.id
     },
     spawn: (request) =>
-      respawn()({ agentType: request?.agentType ?? childType(), threadId: request?.threadId ?? thread.id }),
+      respawn()({
+        agentType: request?.agentType ?? childType(),
+        threadId: request?.threadId ?? thread.id,
+      }),
     respawn,
     selection: () => childModelSelection(deps),
     savedModel: async (threadId) => (await threads.find({ threadId }))?.model,
@@ -229,8 +240,16 @@ export const pinSubagent = (fixture: ChildModelFixture, ref: ModelRef): void => 
   if (!written.ok) throw new Error('the subagent model pin did not land')
 }
 
-export const pinType = (fixture: ChildModelFixture, args: { type: string; ref: ModelRef }): void => {
-  fixture.settings.register(agentTypeModelDefinitions({ types: [{ name: args.type, origin: EDefinitionOrigin.BuiltIn }] }))
-  const written = fixture.settings.set({ id: agentTypeSettingId(args.type), value: keyOf(args.ref) })
+export const pinType = (
+  fixture: ChildModelFixture,
+  args: { type: string; ref: ModelRef },
+): void => {
+  fixture.settings.register(
+    agentTypeModelDefinitions({ types: [{ name: args.type, origin: EDefinitionOrigin.BuiltIn }] }),
+  )
+  const written = fixture.settings.set({
+    id: agentTypeSettingId(args.type),
+    value: keyOf(args.ref),
+  })
   if (!written.ok) throw new Error('the agent-type model pin did not land')
 }

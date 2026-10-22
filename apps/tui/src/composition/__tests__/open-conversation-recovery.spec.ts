@@ -20,7 +20,9 @@ const HERE = { workspace: FAKE_WORKSPACE, repo: null }
 
 const opened = (outcome: OpenOutcome): OpenedConversation => {
   if ('cloud' in outcome || !outcome.ok) {
-    throw new Error(`expected an opened conversation, got: ${'cloud' in outcome ? 'cloud' : outcome.reason}`)
+    throw new Error(
+      `expected an opened conversation, got: ${'cloud' in outcome ? 'cloud' : outcome.reason}`,
+    )
   }
   return outcome.conversation
 }
@@ -38,7 +40,9 @@ const said = (text: string): Event => ({
 
 const LOST = [{ shellId: 'bash_1', command: 'bun run build', description: undefined }]
 
-const reconcilingShells = (lost: readonly LostShell[]): { shells: ShellRegistryPort; asked: ThreadId[] } => {
+const reconcilingShells = (
+  lost: readonly LostShell[],
+): { shells: ShellRegistryPort; asked: ThreadId[] } => {
   const asked: ThreadId[] = []
   const shells = {
     reconcile: async ({ threadId }: { threadId: ThreadId }) => {

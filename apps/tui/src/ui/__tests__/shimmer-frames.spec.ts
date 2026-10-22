@@ -12,12 +12,18 @@ const TEXT_OFFSET = 2
 
 const ERROR_BASE = theme.error
 
-
-const expectedChunks = (now: number, label: string, base?: string): { text: string; fg: string | null }[] => {
+const expectedChunks = (
+  now: number,
+  label: string,
+  base?: string,
+): { text: string; fg: string | null }[] => {
   const cells = [...label].length + TEXT_OFFSET
   const crest = shimmerCrest({ nowMs: now, cells, spec: WORKING_SHIMMER })
   return [
-    { text: spinnerFrame(now), fg: shimmerColour(beaconHeat({ crest, spec: WORKING_SHIMMER }), base) },
+    {
+      text: spinnerFrame(now),
+      fg: shimmerColour(beaconHeat({ crest, spec: WORKING_SHIMMER }), base),
+    },
     { text: ' ', fg: null },
     ...shimmerSpans({
       text: label,
@@ -39,7 +45,11 @@ const hexOf = (rgba: { toInts(): number[] }): string =>
     .map((channel) => channel.toString(16).padStart(2, '0'))
     .join('')}`
 
-const actualChunks = (now: number, label: string, base?: string): { text: string; fg: string | null }[] =>
+const actualChunks = (
+  now: number,
+  label: string,
+  base?: string,
+): { text: string; fg: string | null }[] =>
   shimmerText({ label, base, now }).chunks.map((chunk) => ({
     text: chunk.text,
     fg: chunk.fg === undefined ? null : hexOf(chunk.fg),

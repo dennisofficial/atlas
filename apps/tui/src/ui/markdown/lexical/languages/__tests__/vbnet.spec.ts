@@ -124,11 +124,7 @@ describe('vbnet lexical highlighting', () => {
   })
 
   it('reads the built-in literals as constants', () => {
-    expect(textFor({ spec, source, group: 'constant.builtin' })).toEqual([
-      'True',
-      'Me',
-      'Nothing',
-    ])
+    expect(textFor({ spec, source, group: 'constant.builtin' })).toEqual(['True', 'Me', 'Nothing'])
   })
 
   it('folds keywords and types to any casing', () => {

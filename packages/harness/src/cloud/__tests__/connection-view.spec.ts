@@ -23,31 +23,91 @@ const facts = (overrides: Partial<ConnectionFacts>): ConnectionFacts => ({
 
 describe('connectionViewOf', () => {
   const table: readonly [string, Partial<ConnectionFacts>, EConnectionView][] = [
-    ['serving + open', { phase: ERuntimePhase.Serving, socket: ESocketLiveness.Open }, EConnectionView.Connected],
+    [
+      'serving + open',
+      { phase: ERuntimePhase.Serving, socket: ESocketLiveness.Open },
+      EConnectionView.Connected,
+    ],
     ['no record + open', { socket: ESocketLiveness.Open }, EConnectionView.Connected],
-    ['updating + open', { phase: ERuntimePhase.Updating, socket: ESocketLiveness.Open }, EConnectionView.Connected],
-    ['parking + open', { phase: ERuntimePhase.Parking, socket: ESocketLiveness.Open }, EConnectionView.Connected],
-    ['parked + open', { phase: ERuntimePhase.Parked, socket: ESocketLiveness.Open }, EConnectionView.Parked],
+    [
+      'updating + open',
+      { phase: ERuntimePhase.Updating, socket: ESocketLiveness.Open },
+      EConnectionView.Connected,
+    ],
+    [
+      'parking + open',
+      { phase: ERuntimePhase.Parking, socket: ESocketLiveness.Open },
+      EConnectionView.Connected,
+    ],
+    [
+      'parked + open',
+      { phase: ERuntimePhase.Parked, socket: ESocketLiveness.Open },
+      EConnectionView.Parked,
+    ],
     ['serving + closed', { phase: ERuntimePhase.Serving }, EConnectionView.Reconnecting],
-    ['serving + dialing', { phase: ERuntimePhase.Serving, socket: ESocketLiveness.Dialing }, EConnectionView.Reconnecting],
+    [
+      'serving + dialing',
+      { phase: ERuntimePhase.Serving, socket: ESocketLiveness.Dialing },
+      EConnectionView.Reconnecting,
+    ],
     ['no record + closed', {}, EConnectionView.Reconnecting],
     ['updating + closed', { phase: ERuntimePhase.Updating }, EConnectionView.Updating],
     ['waking + closed', { phase: ERuntimePhase.Waking }, EConnectionView.Waking],
-    ['provisioning + dialing', { phase: ERuntimePhase.Provisioning, socket: ESocketLiveness.Dialing }, EConnectionView.Waking],
+    [
+      'provisioning + dialing',
+      { phase: ERuntimePhase.Provisioning, socket: ESocketLiveness.Dialing },
+      EConnectionView.Waking,
+    ],
     ['parked + closed', { phase: ERuntimePhase.Parked }, EConnectionView.Parked],
     ['parking + closed', { phase: ERuntimePhase.Parking }, EConnectionView.Parked],
     ['never attached', { socket: ESocketLiveness.Unattached }, EConnectionView.Parked],
-    ['serving record, never attached', { phase: ERuntimePhase.Serving, socket: ESocketLiveness.Unattached }, EConnectionView.Parked],
-    ['local wake beats a parked record', { phase: ERuntimePhase.Parked, waking: true }, EConnectionView.Waking],
+    [
+      'serving record, never attached',
+      { phase: ERuntimePhase.Serving, socket: ESocketLiveness.Unattached },
+      EConnectionView.Parked,
+    ],
+    [
+      'local wake beats a parked record',
+      { phase: ERuntimePhase.Parked, waking: true },
+      EConnectionView.Waking,
+    ],
     ['wake beats a stale failure', { failure: 'gone', waking: true }, EConnectionView.Waking],
-    ['spent retries', { phase: ERuntimePhase.Serving, failure: 'did not reopen' }, EConnectionView.Disconnected],
-    ['failure beats a parked record', { phase: ERuntimePhase.Parked, failure: 'wake failed' }, EConnectionView.Disconnected],
-    ['detached beats everything', { socket: ESocketLiveness.Open, detached: true }, EConnectionView.Detached],
+    [
+      'spent retries',
+      { phase: ERuntimePhase.Serving, failure: 'did not reopen' },
+      EConnectionView.Disconnected,
+    ],
+    [
+      'failure beats a parked record',
+      { phase: ERuntimePhase.Parked, failure: 'wake failed' },
+      EConnectionView.Disconnected,
+    ],
+    [
+      'detached beats everything',
+      { socket: ESocketLiveness.Open, detached: true },
+      EConnectionView.Detached,
+    ],
     ['rotating wake beats waking', { waking: true, rotating: true }, EConnectionView.Updating],
-    ['rotating beats a serving record', { phase: ERuntimePhase.Serving, waking: true, rotating: true }, EConnectionView.Updating],
-    ['rotating beats a stale failure', { failure: 'gone', rotating: true }, EConnectionView.Updating],
-    ['an open socket beats rotating', { socket: ESocketLiveness.Open, rotating: true }, EConnectionView.Connected],
-    ['detached beats rotating', { rotating: true, waking: true, detached: true }, EConnectionView.Detached],
+    [
+      'rotating beats a serving record',
+      { phase: ERuntimePhase.Serving, waking: true, rotating: true },
+      EConnectionView.Updating,
+    ],
+    [
+      'rotating beats a stale failure',
+      { failure: 'gone', rotating: true },
+      EConnectionView.Updating,
+    ],
+    [
+      'an open socket beats rotating',
+      { socket: ESocketLiveness.Open, rotating: true },
+      EConnectionView.Connected,
+    ],
+    [
+      'detached beats rotating',
+      { rotating: true, waking: true, detached: true },
+      EConnectionView.Detached,
+    ],
   ]
 
   for (const [name, given, expected] of table) {
@@ -64,7 +124,9 @@ describe('connectionViewOf', () => {
   })
 
   it('names the swap while updating', () => {
-    expect(connectionViewOf(facts({ phase: ERuntimePhase.Updating })).detail).toBe('updating the pod')
+    expect(connectionViewOf(facts({ phase: ERuntimePhase.Updating })).detail).toBe(
+      'updating the pod',
+    )
   })
 
   it('names the swap while a wake rotates the sandbox', () => {
@@ -79,7 +141,12 @@ describe('view predicates', () => {
   it('wakes on send only while the container is away', () => {
     const waking = Object.values(EConnectionView).filter(wakesOnSend)
     expect(waking.sort()).toEqual(
-      [EConnectionView.Disconnected, EConnectionView.Parked, EConnectionView.Updating, EConnectionView.Waking].sort(),
+      [
+        EConnectionView.Disconnected,
+        EConnectionView.Parked,
+        EConnectionView.Updating,
+        EConnectionView.Waking,
+      ].sort(),
     )
   })
 

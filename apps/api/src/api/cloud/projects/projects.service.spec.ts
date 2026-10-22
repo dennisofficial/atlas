@@ -18,7 +18,10 @@ const input = (partial: Partial<SaveProjectDto> = {}): SaveProjectDto => ({
   name: 'atlas',
   repo: 'dennisofficial/atlas',
   baseBranch: 'main',
-  additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }, { repo: 'octocat/docs' }],
+  additionalRepos: [
+    { repo: 'octocat/Spoon-Knife', branch: 'test-branch' },
+    { repo: 'octocat/docs' },
+  ],
   ...partial,
 })
 
@@ -40,7 +43,10 @@ describe('ProjectsService', () => {
       name: 'atlas',
       repo: 'dennisofficial/atlas',
       baseBranch: 'main',
-      additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }, { repo: 'octocat/docs' }],
+      additionalRepos: [
+        { repo: 'octocat/Spoon-Knife', branch: 'test-branch' },
+        { repo: 'octocat/docs' },
+      ],
     })
     expect(created.createdAt).toBe('2026-10-20T12:00:01.000Z')
     expect(await service.read({ userId: USER_A, projectId: created.id })).toEqual(created)
@@ -51,7 +57,12 @@ describe('ProjectsService', () => {
       projectId: created.id,
       input: input({ name: 'renamed', repo: null, baseBranch: null, additionalRepos: [] }),
     })
-    expect(replaced).toMatchObject({ id: created.id, name: 'renamed', repo: null, additionalRepos: [] })
+    expect(replaced).toMatchObject({
+      id: created.id,
+      name: 'renamed',
+      repo: null,
+      additionalRepos: [],
+    })
     expect(replaced.updatedAt > created.updatedAt).toBe(true)
 
     await service.remove({ userId: USER_A, projectId: created.id })
@@ -69,7 +80,10 @@ describe('ProjectsService', () => {
 
   it('lists newest-updated first and only the caller’s own projects', async () => {
     const first = await service.create({ userId: USER_A, input: input({ name: 'first' }) })
-    const second = await service.create({ userId: USER_A, input: input({ name: 'second', repo: 'a/b', additionalRepos: [] }) })
+    const second = await service.create({
+      userId: USER_A,
+      input: input({ name: 'second', repo: 'a/b', additionalRepos: [] }),
+    })
     await service.create({ userId: USER_B, input: input({ name: 'theirs' }) })
 
     expect((await service.list({ userId: USER_A })).map((p) => p.id)).toEqual([second.id, first.id])
@@ -80,7 +94,9 @@ describe('ProjectsService', () => {
     const foreign = { userId: USER_B, projectId: created.id }
 
     await expect(service.read(foreign)).rejects.toBeInstanceOf(NotFoundException)
-    await expect(service.replace({ ...foreign, input: input() })).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.replace({ ...foreign, input: input() })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
     await expect(service.remove(foreign)).rejects.toBeInstanceOf(NotFoundException)
     await expect(service.workspace(foreign)).rejects.toBeInstanceOf(NotFoundException)
     expect(projectRows).toHaveLength(1)
@@ -94,7 +110,10 @@ describe('ProjectsService', () => {
       projectId: created.id,
       repo: 'dennisofficial/atlas',
       baseBranch: 'main',
-      additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }, { repo: 'octocat/docs' }],
+      additionalRepos: [
+        { repo: 'octocat/Spoon-Knife', branch: 'test-branch' },
+        { repo: 'octocat/docs' },
+      ],
       githubToken: 'gho_user-a',
     })
   })
@@ -112,7 +131,9 @@ describe('ProjectsService', () => {
     const row = projectRows[0]
     if (row !== undefined) row.additionalRepos = { not: 'an array' }
 
-    expect((await service.read({ userId: USER_A, projectId: created.id })).additionalRepos).toEqual([])
+    expect((await service.read({ userId: USER_A, projectId: created.id })).additionalRepos).toEqual(
+      [],
+    )
   })
 
   it('rejects additional repos without a primary repo', async () => {
@@ -124,7 +145,9 @@ describe('ProjectsService', () => {
 
   it('rejects duplicate repo names across primary and extras, case-insensitively, on create and replace', async () => {
     const clash = input({ additionalRepos: [{ repo: 'someone/Atlas' }] })
-    await expect(service.create({ userId: USER_A, input: clash })).rejects.toBeInstanceOf(BadRequestException)
+    await expect(service.create({ userId: USER_A, input: clash })).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
 
     const created = await service.create({ userId: USER_A, input: input() })
     await expect(

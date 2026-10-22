@@ -3,7 +3,12 @@ import { closeSync, constants, openSync, readSync, statSync } from 'node:fs'
 import { EKilledBy, EShellStatus } from '@dltech/atlas-core'
 
 import type { ShellInputOutcome } from './background-shell'
-import { EExitCause, type ControlResult, type DurableShellHandle, type ExitRecord } from './durable/client'
+import {
+  EExitCause,
+  type ControlResult,
+  type DurableShellHandle,
+  type ExitRecord,
+} from './durable/client'
 import type { ShellAttachment, ShellExit } from './port'
 import { toShellId } from './shell-id'
 import type { ShellFiles } from './storage'
@@ -51,7 +56,11 @@ export function exitOf(args: {
       return { ...base, status: EShellStatus.Killed, killedBy: EKilledBy.SessionEnd }
     case EExitCause.Terminated:
     case EExitCause.Killed:
-      return { ...base, status: EShellStatus.Killed, killedBy: args.killedBy ?? EKilledBy.Unrecorded }
+      return {
+        ...base,
+        status: EShellStatus.Killed,
+        killedBy: args.killedBy ?? EKilledBy.Unrecorded,
+      }
   }
 }
 
@@ -109,7 +118,13 @@ export function attachmentOf(args: {
           })
           return
         }
-        onExit(exitOf({ exit: outcome.exit, killedBy, endedAt: new Date(outcome.exit.endedAt).toISOString() }))
+        onExit(
+          exitOf({
+            exit: outcome.exit,
+            killedBy,
+            endedAt: new Date(outcome.exit.endedAt).toISOString(),
+          }),
+        )
       })
     },
     detach: async () => {

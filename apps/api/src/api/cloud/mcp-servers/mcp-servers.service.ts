@@ -116,9 +116,11 @@ export class McpServersService {
   }
 
   private toServerDto(row: McpServerConfigModel): McpServerDto {
-    const spec = toMcpSpec(JSON.parse(this.cipher.decrypt(row.sealedSpec)) as UpsertMcpServerDto & {
-      name: string
-    })
+    const spec = toMcpSpec(
+      JSON.parse(this.cipher.decrypt(row.sealedSpec)) as UpsertMcpServerDto & {
+        name: string
+      },
+    )
     return { ...spec, updatedAt: row.updatedAt.toISOString() }
   }
 }

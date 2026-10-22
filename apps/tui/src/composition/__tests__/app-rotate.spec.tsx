@@ -246,7 +246,10 @@ describe('/rotate', () => {
       await setup.flush()
 
       expect(
-        await until({ holds: async () => rotation.requests[0]?.signal?.aborted === true, within: 2_000 }),
+        await until({
+          holds: async () => rotation.requests[0]?.signal?.aborted === true,
+          within: 2_000,
+        }),
       ).toBe(true)
     } finally {
       await teardown(setup)
@@ -297,7 +300,9 @@ describe('/rotate', () => {
       await ran(setup, '/rotate')
 
       expect(rotation.requests).toHaveLength(1)
-      expect(await until({ holds: async () => rotation.requests.length === 1, within: 200 })).toBe(true)
+      expect(await until({ holds: async () => rotation.requests.length === 1, within: 200 })).toBe(
+        true,
+      )
     } finally {
       await teardown(setup)
     }

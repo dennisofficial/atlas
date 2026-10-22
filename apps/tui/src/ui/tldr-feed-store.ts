@@ -27,8 +27,7 @@ export const tldrFeed: TldrFeed = {
   },
 }
 
-export const pendingTldrOf = (threadId: ThreadId): PendingTldr | undefined =>
-  pending.get(threadId)
+export const pendingTldrOf = (threadId: ThreadId): PendingTldr | undefined => pending.get(threadId)
 
 export const subscribeTldrFeed = (listener: () => void): (() => void) => {
   listeners.add(listener)

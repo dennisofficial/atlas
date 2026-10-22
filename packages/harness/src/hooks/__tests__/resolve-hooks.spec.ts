@@ -27,7 +27,11 @@ import {
   type ProviderPrompt,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, type DependencyContainer } from '../../container/injection'
+import {
+  createIsolatedContainer,
+  portToken,
+  type DependencyContainer,
+} from '../../container/injection'
 import { WorkspaceRoot } from '../../container/tokens'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
@@ -65,7 +69,10 @@ const observe = (nudge: number): HookOrder => ({ stage: EStage.Observe, nudge })
 
 const text: Chunk = { type: 'text-delta', id: 'block-1', text: 'hello' }
 
-async function namesRun(args: { hooks: readonly OnChunkHook[]; seen: string[] }): Promise<string[]> {
+async function namesRun(args: {
+  hooks: readonly OnChunkHook[]
+  seen: string[]
+}): Promise<string[]> {
   await resolveHookChain({ container: containerWith(args.hooks) }).onChunk({ chunk: text })
   return args.seen
 }
@@ -187,7 +194,12 @@ function touchTool(invoked: string[]): ToolDefinition {
     effect: EToolEffect.Write,
     inputSchema: z.object({ path: z.string() }),
     pathFields: [
-      { field: 'path', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.Overwrites },
+      {
+        field: 'path',
+        presence: EPathPresence.Required,
+        form: EPathForm.Absolute,
+        content: EContentAccess.Overwrites,
+      },
     ],
     invoke: async ({ input }) => {
       invoked.push(pathOf(input))

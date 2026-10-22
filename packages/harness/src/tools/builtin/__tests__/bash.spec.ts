@@ -42,7 +42,9 @@ const outputOf = (outcome: ToolOutcome): Record<string, unknown> => {
 }
 
 const exists = async (path: string): Promise<boolean> =>
-  await stat(path).then(() => true).catch(() => false)
+  await stat(path)
+    .then(() => true)
+    .catch(() => false)
 
 const after = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -204,7 +206,9 @@ describe('choosing where the command runs', () => {
       threadId: toThreadId('thread-1'),
     })
 
-    expect(await realpath((outputOf(outcome).stdout as string).trim())).toBe(await realpath(elsewhere))
+    expect(await realpath((outputOf(outcome).stdout as string).trim())).toBe(
+      await realpath(elsewhere),
+    )
   }, 30_000)
 
   it('names the missing directory rather than blaming the shell', async () => {

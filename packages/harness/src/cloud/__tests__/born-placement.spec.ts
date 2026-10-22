@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { ATLAS_SETTINGS, EHarnessPlacement, ESettingId, EToolEnvironment, SecretsPort } from '@dltech/atlas-core'
+import {
+  ATLAS_SETTINGS,
+  EHarnessPlacement,
+  ESettingId,
+  EToolEnvironment,
+  SecretsPort,
+} from '@dltech/atlas-core'
 
 import { createSettingsService, MemorySettingsStore } from '../../settings'
 import { bornPlacementFor, cloudProvisioningConfigured } from '../born-placement'
@@ -47,7 +53,10 @@ const TOKEN = { [ESettingId.VercelToken]: 'vercel-token' }
 
 describe('bornPlacementFor', () => {
   it('is the host on a fully configured machine', () => {
-    const placement = bornPlacementFor({ settings: settingsWith(SCOPING), secrets: new FakeSecrets(TOKEN) })
+    const placement = bornPlacementFor({
+      settings: settingsWith(SCOPING),
+      secrets: new FakeSecrets(TOKEN),
+    })
 
     expect(placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
   })
@@ -70,11 +79,21 @@ describe('bornPlacementFor', () => {
 
 describe('cloudProvisioningConfigured', () => {
   it('needs the token, the team and the project', () => {
-    expect(cloudProvisioningConfigured({ settings: settingsWith(SCOPING), secrets: new FakeSecrets(TOKEN) })).toBe(true)
+    expect(
+      cloudProvisioningConfigured({
+        settings: settingsWith(SCOPING),
+        secrets: new FakeSecrets(TOKEN),
+      }),
+    ).toBe(true)
   })
 
   it('is false without the token', () => {
-    expect(cloudProvisioningConfigured({ settings: settingsWith(SCOPING), secrets: new FakeSecrets({}) })).toBe(false)
+    expect(
+      cloudProvisioningConfigured({
+        settings: settingsWith(SCOPING),
+        secrets: new FakeSecrets({}),
+      }),
+    ).toBe(false)
   })
 
   it('is false with a blank token', () => {

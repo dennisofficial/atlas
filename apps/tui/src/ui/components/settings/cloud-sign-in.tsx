@@ -1,7 +1,11 @@
 import React from 'react'
 
 import { useClickRegion } from '../../hooks/use-click-region'
-import { ESettingsLogin, isSettlingLogin, type SettingsLoginState } from '../../settings-login-model'
+import {
+  ESettingsLogin,
+  isSettlingLogin,
+  type SettingsLoginState,
+} from '../../settings-login-model'
 import { theme } from '../../theme'
 import { clipSpans, wrapCells } from '../sidebar/cells'
 import { Spans, type Span } from '../spans'

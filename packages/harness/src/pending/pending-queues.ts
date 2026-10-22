@@ -32,9 +32,9 @@ export function createPendingQueues<Command = never>(): PendingQueues<Command> {
     },
 
     threadsAwaitingInput() {
-      return [...queues].filter(([, queue]) =>
-        queue.getSnapshot().some((entry) => entry.kind === 'message'),
-      ).map(([threadId]) => threadId)
+      return [...queues]
+        .filter(([, queue]) => queue.getSnapshot().some((entry) => entry.kind === 'message'))
+        .map(([threadId]) => threadId)
     },
 
     waitingCount() {

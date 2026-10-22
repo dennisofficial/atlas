@@ -31,7 +31,8 @@ import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import {
   createIsolatedContainer,
   instanceCachingFactory,
-  portToken, registeredPortToken,
+  portToken,
+  registeredPortToken,
   type DependencyContainer,
 } from '../injection'
 import { AtlasHomeToken, HookChainToken, SessionRegistryToken, WorkspaceRoot } from '../tokens'

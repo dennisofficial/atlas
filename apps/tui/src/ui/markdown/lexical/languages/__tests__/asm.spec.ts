@@ -179,10 +179,9 @@ describe('asm lexical highlighting', () => {
   })
 
   it('reads a percent-prefixed gas register as a register', () => {
-    expect(textFor({ spec, source: '        movq    %rsp, %rbp', group: 'variable.builtin' })).toEqual([
-      'rsp',
-      'rbp',
-    ])
+    expect(
+      textFor({ spec, source: '        movq    %rsp, %rbp', group: 'variable.builtin' }),
+    ).toEqual(['rsp', 'rbp'])
   })
 
   it('folds uppercase mnemonics, registers and directives', () => {

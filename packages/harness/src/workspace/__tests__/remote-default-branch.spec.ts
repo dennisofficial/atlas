@@ -29,7 +29,10 @@ const originWithDefault = async (branch: string): Promise<string> => {
   await git({ cwd: root, argv: ['init', '--bare', `--initial-branch=${branch}`, bare] })
   const seed = join(root, 'seed')
   await git({ cwd: root, argv: ['init', `--initial-branch=${branch}`, seed] })
-  await git({ cwd: seed, argv: ['-c', 'user.email=a@b.c', '-c', 'user.name=n', 'commit', '--allow-empty', '-m', 'init'] })
+  await git({
+    cwd: seed,
+    argv: ['-c', 'user.email=a@b.c', '-c', 'user.name=n', 'commit', '--allow-empty', '-m', 'init'],
+  })
   await git({ cwd: seed, argv: ['push', bare, branch] })
   return bare
 }
@@ -74,7 +77,10 @@ describe('readOriginUrl', () => {
   it('reads the origin url', async () => {
     const checkout = await freshDirectory()
     await git({ cwd: checkout, argv: ['init'] })
-    await git({ cwd: checkout, argv: ['remote', 'add', 'origin', 'git@github.com:comp-ai/atlas.git'] })
+    await git({
+      cwd: checkout,
+      argv: ['remote', 'add', 'origin', 'git@github.com:comp-ai/atlas.git'],
+    })
 
     expect(await readOriginUrl({ cwd: checkout })).toBe('git@github.com:comp-ai/atlas.git')
   })

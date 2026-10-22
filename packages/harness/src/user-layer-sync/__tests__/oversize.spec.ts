@@ -40,8 +40,14 @@ describe('user-layer upload cap', () => {
         text: 'not syncing skills/.atlas/big.md to Atlas Cloud: 3.4 MB is over the 3.0 MB limit',
       },
     ])
-    expect(device.log.entries.some((entry) => entry.message.includes('not syncing skills/.atlas/big.md'))).toBe(true)
-    const state = JSON.parse(await Bun.file(join(device.atlasHome, 'sync', 'user-layer-sync.json')).text()) as {
+    expect(
+      device.log.entries.some((entry) =>
+        entry.message.includes('not syncing skills/.atlas/big.md'),
+      ),
+    ).toBe(true)
+    const state = JSON.parse(
+      await Bun.file(join(device.atlasHome, 'sync', 'user-layer-sync.json')).text(),
+    ) as {
       trees: Record<string, Record<string, unknown>>
     }
     expect(state.trees['skills']?.['.atlas/big.md']).toBeUndefined()

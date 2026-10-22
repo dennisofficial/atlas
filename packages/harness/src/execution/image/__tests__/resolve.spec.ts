@@ -81,7 +81,9 @@ describe('resolveContainerConfig precedence', () => {
     const user = await resolveContainerConfig({
       projectDirectory: DIR,
       atlasHome: '/operator/.atlas',
-      readText: readerOf({ '/operator/.atlas/Dockerfile': 'FROM ghcr.io/example/atlas-sandbox:1.0.0\n' }),
+      readText: readerOf({
+        '/operator/.atlas/Dockerfile': 'FROM ghcr.io/example/atlas-sandbox:1.0.0\n',
+      }),
     })
 
     expect(user.source).toBe(EConfigSource.Dockerfile)
@@ -96,7 +98,8 @@ describe('resolveContainerConfig precedence', () => {
       atlasHome: '/operator/.atlas',
       readText: readerOf({
         '/operator/.atlas/Dockerfile': 'FROM ghcr.io/example/atlas-sandbox:1.0.0\n',
-        [`${DIR}/.atlas/Dockerfile`]: 'FROM ghcr.io/example/atlas-sandbox:1.0.0\nRUN apt-get update\n',
+        [`${DIR}/.atlas/Dockerfile`]:
+          'FROM ghcr.io/example/atlas-sandbox:1.0.0\nRUN apt-get update\n',
       }),
     })
 

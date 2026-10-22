@@ -23,7 +23,9 @@ for (const adapter of shellAdapters) {
     describe('noticing a background shell stuck on a prompt', async () => {
       it('reports a running shell whose last line looks like a question as awaiting input', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = await registry.start(job({ command: `printf 'Overwrite? (y/n) '; sleep 30` }))
+        const started = await registry.start(
+          job({ command: `printf 'Overwrite? (y/n) '; sleep 30` }),
+        )
         if (!started.ok) throw new Error(started.reason)
 
         expect(await awaitingInputOf({ registry, shellId: started.snapshot.shellId })).toBe(true)
@@ -48,7 +50,9 @@ for (const adapter of shellAdapters) {
 
       it('says nothing of the sort about a shell printing ordinary progress', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = await registry.start(job({ command: `echo 'compiled 12 modules'; sleep 30` }))
+        const started = await registry.start(
+          job({ command: `echo 'compiled 12 modules'; sleep 30` }),
+        )
         if (!started.ok) throw new Error(started.reason)
         await Bun.sleep(300)
 
@@ -90,13 +94,16 @@ for (const adapter of shellAdapters) {
         expect(read.ok && read.delta.text).toBe('Password: ')
         const second = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
         expect(second.ok && second.delta.text).toBe('')
-        if (started.snapshot.outputPath === undefined) throw new Error('the shell must name its spool')
+        if (started.snapshot.outputPath === undefined)
+          throw new Error('the shell must name its spool')
         expect(await Bun.file(started.snapshot.outputPath).text()).toBe('Password: ')
       }, 15_000)
 
       it('queues nothing for a slow command, so it is left alone however long it runs', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = await registry.start(job({ command: `printf 'compiled 12 modules'; sleep 30` }))
+        const started = await registry.start(
+          job({ command: `printf 'compiled 12 modules'; sleep 30` }),
+        )
         if (!started.ok) throw new Error(started.reason)
         await Bun.sleep(PROMPT_SETTLE_MS + 500)
 

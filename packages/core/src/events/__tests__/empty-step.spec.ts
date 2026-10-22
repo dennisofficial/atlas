@@ -31,7 +31,10 @@ const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
     })),
   })
 
-const said = (text: string): EventDraft => ({ type: 'assistant-said', parts: [{ type: 'text', text }] })
+const said = (text: string): EventDraft => ({
+  type: 'assistant-said',
+  parts: [{ type: 'text', text }],
+})
 
 describe('silentStep', () => {
   it('reads a step with no parts and no tool calls as silent', () => {
@@ -43,11 +46,15 @@ describe('silentStep', () => {
   })
 
   it('reads reasoning without text as silent, since reasoning is not a reply', () => {
-    expect(silentStep({ parts: [{ type: 'reasoning', text: 'thinking' }], toolCalls: [] })).toBe(true)
+    expect(silentStep({ parts: [{ type: 'reasoning', text: 'thinking' }], toolCalls: [] })).toBe(
+      true,
+    )
   })
 
   it('reads any real text as an answer', () => {
-    expect(silentStep({ parts: [{ type: 'text', text: 'here is what I found' }], toolCalls: [] })).toBe(false)
+    expect(
+      silentStep({ parts: [{ type: 'text', text: 'here is what I found' }], toolCalls: [] }),
+    ).toBe(false)
   })
 
   it('reads a tool call as an answer however empty the text is', () => {
@@ -59,7 +66,9 @@ describe('silentStep', () => {
 
 describe('retriableEmptyStep', () => {
   it('flags a silent stop as worth a raw re-request', () => {
-    expect(retriableEmptyStep({ parts: [], toolCalls: [], finishReason: EFinishReason.Stop })).toBe(true)
+    expect(retriableEmptyStep({ parts: [], toolCalls: [], finishReason: EFinishReason.Stop })).toBe(
+      true,
+    )
   })
 
   it('flags whitespace-only text stopped cleanly as worth a raw re-request', () => {

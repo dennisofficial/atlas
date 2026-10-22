@@ -124,10 +124,22 @@ export type EventBody =
       interrupted?: boolean | undefined
       qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
     }
-  | { type: 'tool-denied'; callId: CallId; name: string; reason: string; interrupted?: boolean | undefined }
+  | {
+      type: 'tool-denied'
+      callId: CallId
+      name: string
+      reason: string
+      interrupted?: boolean | undefined
+    }
   | { type: 'approval-requested'; callId: CallId; reason: string }
   | { type: 'approval-answered'; callId: CallId; decision: EDecision; editedInput?: unknown }
-  | { type: 'context-loaded'; slot: string; key: string; content: string; triggeredBy?: string | undefined }
+  | {
+      type: 'context-loaded'
+      slot: string
+      key: string
+      content: string
+      triggeredBy?: string | undefined
+    }
   | { type: 'nudge'; text: string; lifetimeSteps: number }
   | {
       type: 'loop-watch-verdict'
@@ -155,7 +167,12 @@ export type EventBody =
       branch?: string | null | undefined
       cause?: ELocationChangeCause | undefined
     }
-  | { type: 'rotated'; predecessor: ThreadId; handoffPath: string; instructions?: string | undefined }
+  | {
+      type: 'rotated'
+      predecessor: ThreadId
+      handoffPath: string
+      instructions?: string | undefined
+    }
   | {
       type: 'parked'
       reason: string

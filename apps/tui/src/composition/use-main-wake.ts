@@ -53,10 +53,7 @@ export function useMainWake(args: {
     [shells, agents, services],
   )
 
-  const readShells = useCallback(
-    () => shells.pendingNotices({ threadId }),
-    [shells, threadId],
-  )
+  const readShells = useCallback(() => shells.pendingNotices({ threadId }), [shells, threadId])
   const readAgents = useCallback(() => agents.pendingNotices({ threadId }), [agents, threadId])
   const readServices = useCallback(
     () => services.pendingNotices({ threadId }),

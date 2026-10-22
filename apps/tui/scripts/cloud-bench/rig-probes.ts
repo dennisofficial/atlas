@@ -51,7 +51,8 @@ const SECTION_MARKER = '@@atlas-rig-section:'
 const CHECKPOINT_PATH = runtimeCheckpointFile({ atlasHome: SANDBOX_HOME_PATH })
 const SERVE_PID_PATH = `${SERVE_HOME}/atlas-serve.pid`
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const readsOf = (logLines: number): readonly { section: ESection; command: string }[] => [
   { section: ESection.Record, command: `cat ${CHECKPOINT_PATH}` },
@@ -63,7 +64,9 @@ const readsOf = (logLines: number): readonly { section: ESection; command: strin
 
 const probeScriptOf = (logLines: number): string =>
   readsOf(logLines)
-    .map(({ section, command }) => `echo '${SECTION_MARKER}${section}'; ${command} 2>/dev/null; echo`)
+    .map(
+      ({ section, command }) => `echo '${SECTION_MARKER}${section}'; ${command} 2>/dev/null; echo`,
+    )
     .join('; ')
 
 const sectionsOf = (stdout: string): Map<string, string> => {
@@ -91,7 +94,9 @@ const protocolOf = (text: string | null): number | null => {
   return Number.isInteger(protocol) ? protocol : null
 }
 
-const recordOf = (text: string | null): { record: RuntimeCheckpoint | null; recordError: string | null } => {
+const recordOf = (
+  text: string | null,
+): { record: RuntimeCheckpoint | null; recordError: string | null } => {
   if (text === null) return { record: null, recordError: null }
   let json: unknown
   try {
@@ -101,7 +106,10 @@ const recordOf = (text: string | null): { record: RuntimeCheckpoint | null; reco
   }
   const parsed = runtimeCheckpointSchema.safeParse(json)
   if (!parsed.success) {
-    return { record: null, recordError: `the lifecycle record does not match its schema: ${parsed.error.message}` }
+    return {
+      record: null,
+      recordError: `the lifecycle record does not match its schema: ${parsed.error.message}`,
+    }
   }
   return { record: parsed.data, recordError: null }
 }
@@ -160,7 +168,11 @@ export function createProbes(args: { credentials: VercelCredentials; cloudUrl: s
     if (sandbox === null || sandbox.status !== RUNNING) {
       throw new Error(`refusing to run in a sandbox that is not running (${status})`)
     }
-    const run = await sandboxSh({ sandbox, script, timeoutMs: timeoutMs ?? SANDBOX_QUICK_TIMEOUT_MS })
+    const run = await sandboxSh({
+      sandbox,
+      script,
+      timeoutMs: timeoutMs ?? SANDBOX_QUICK_TIMEOUT_MS,
+    })
     return (await run.stdout()).trimEnd()
   }
 
@@ -169,7 +181,9 @@ export function createProbes(args: { credentials: VercelCredentials; cloudUrl: s
       throw new Error(`refusing to destroy ${name}: the rig ledger never recorded it`)
     }
     log(`destroying sandbox ${name}`)
-    await new VercelDriver({ credentials: args.credentials, cloudUrl: args.cloudUrl }).destroy({ name })
+    await new VercelDriver({ credentials: args.credentials, cloudUrl: args.cloudUrl }).destroy({
+      name,
+    })
   }
 
   return { box, sh, destroy }

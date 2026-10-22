@@ -96,7 +96,9 @@ describe('numberDigits', () => {
   it('never shrinks below the floor, so a short file does not jitter', () => {
     expect(numberDigits({ lines: [] })).toBe(MIN_NUMBER_COLUMNS)
     expect(
-      numberDigits({ lines: [{ kind: EDiffLine.Elision, oldNumber: null, newNumber: null, text: '' }] }),
+      numberDigits({
+        lines: [{ kind: EDiffLine.Elision, oldNumber: null, newNumber: null, text: '' }],
+      }),
     ).toBe(MIN_NUMBER_COLUMNS)
   })
 

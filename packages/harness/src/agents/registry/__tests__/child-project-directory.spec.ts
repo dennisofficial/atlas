@@ -12,7 +12,12 @@ describe('the project directory a child is handed', () => {
   it('is the session launch directory when the parent never entered a worktree', async () => {
     const { supervisor, runners, parent, close } = await opened()
 
-    await supervisor.spawn({ threadId: parent, agentType: 'explore', brief: 'look around', intent: 'look' })
+    await supervisor.spawn({
+      threadId: parent,
+      agentType: 'explore',
+      brief: 'look around',
+      intent: 'look',
+    })
 
     expect(runners.started[0]?.request.projectDirectory).toBe('/launch')
     await close()
@@ -27,7 +32,12 @@ describe('the project directory a child is handed', () => {
       drafts: [{ type: 'worktree-entered', path: WORKTREE, branch: 'topic', base: 'origin/main' }],
     })
 
-    await supervisor.spawn({ threadId: parent, agentType: 'explore', brief: 'look around', intent: 'look' })
+    await supervisor.spawn({
+      threadId: parent,
+      agentType: 'explore',
+      brief: 'look around',
+      intent: 'look',
+    })
 
     expect(runners.started[0]?.request.projectDirectory).toBe(WORKTREE)
     await close()
@@ -44,10 +54,17 @@ describe('the project directory a child is handed', () => {
     await harness.log.append({
       threadId: parent,
       runId: toRunId('run_exit'),
-      drafts: [{ type: 'worktree-exited', path: WORKTREE, action: EWorktreeExit.Keep, returnTo: '/repo' }],
+      drafts: [
+        { type: 'worktree-exited', path: WORKTREE, action: EWorktreeExit.Keep, returnTo: '/repo' },
+      ],
     })
 
-    await supervisor.spawn({ threadId: parent, agentType: 'explore', brief: 'look around', intent: 'look' })
+    await supervisor.spawn({
+      threadId: parent,
+      agentType: 'explore',
+      brief: 'look around',
+      intent: 'look',
+    })
 
     expect(runners.started[0]?.request.projectDirectory).toBe('/repo')
     await close()

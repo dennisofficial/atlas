@@ -10,8 +10,7 @@ import {
 
 const URL = 'http://cloud.test'
 
-const responding =
-  (status: number, body?: unknown): typeof fetch =>
+const responding = (status: number, body?: unknown): typeof fetch =>
   (() =>
     Promise.resolve(
       new Response(body === undefined ? null : JSON.stringify(body), {
@@ -76,8 +75,7 @@ describe('beginCloudLogin', () => {
   })
 
   it('throws a CloudError when the host cannot be reached', async () => {
-    const down = (() =>
-      Promise.reject(new Error('connection refused'))) as unknown as typeof fetch
+    const down = (() => Promise.reject(new Error('connection refused'))) as unknown as typeof fetch
 
     const failure = await beginCloudLogin({ url: URL, fetchFn: down }).catch(
       (error: unknown) => error,
@@ -93,7 +91,11 @@ describe('pollCloudLogin', () => {
   it('maps a 200 to an approved outcome carrying the token', async () => {
     const outcome = await pollCloudLogin({
       ticket,
-      fetchFn: responding(200, { access_token: 'sess_new', token_type: 'Bearer', expires_in: 3600 }),
+      fetchFn: responding(200, {
+        access_token: 'sess_new',
+        token_type: 'Bearer',
+        expires_in: 3600,
+      }),
     })
 
     expect(outcome).toEqual({ status: ECloudLoginPoll.Approved, token: 'sess_new' })

@@ -10,7 +10,16 @@ import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/har
 import { dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import type { OpenedConversation } from '../open-conversation'
-import { open, promiseGate, spokenIn, spokenInRow, until, REPLY, THREAD, THINKING } from './app-fixture'
+import {
+  open,
+  promiseGate,
+  spokenIn,
+  spokenInRow,
+  until,
+  REPLY,
+  THREAD,
+  THINKING,
+} from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()

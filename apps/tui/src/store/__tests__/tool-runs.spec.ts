@@ -139,7 +139,12 @@ describe('a result that handed the model a picture', () => {
         modelText: '/repo/docs/shot.png — image/png, 8×8, 412 KB.',
         modelParts: [
           { type: 'text', text: '/repo/docs/shot.png — image/png, 8×8, 412 KB.' },
-          { type: 'image', data: 'aGVsbG8td29ybGQ=', mediaType: 'image/png', source: '/repo/docs/shot.png' },
+          {
+            type: 'image',
+            data: 'aGVsbG8td29ybGQ=',
+            mediaType: 'image/png',
+            source: '/repo/docs/shot.png',
+          },
         ],
       },
     ])
@@ -169,4 +174,3 @@ describe('a result that handed the model a picture', () => {
     expect(onlyCall(events).image).toBeUndefined()
   })
 })
-

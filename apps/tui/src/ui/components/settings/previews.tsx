@@ -92,9 +92,7 @@ function LogoScene(props: { appearance: Appearance; width: number }): React.Reac
 
 const PREVIEWS: Readonly<Record<string, SettingPreview>> = {
   [ESettingId.Accent]: {
-    render: ({ appearance, setting }) => (
-      <Swatches chosen={appearance.accent} setting={setting} />
-    ),
+    render: ({ appearance, setting }) => <Swatches chosen={appearance.accent} setting={setting} />,
   },
   [ESettingId.ComposerEdge]: {
     render: ({ width }) => <ComposerScene width={width} />,

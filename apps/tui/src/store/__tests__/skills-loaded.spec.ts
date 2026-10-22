@@ -19,21 +19,29 @@ const envelope = () => {
 }
 
 const skillLoaded = (key: string): Event =>
-  ({ ...envelope(), type: 'context-loaded', slot: EContextSlot.Skill, key, content: 'body' }) as Event
-
-const instructionsLoaded = (key: string): Event =>
   ({
     ...envelope(),
     type: 'context-loaded',
-    slot: EContextSlot.ProjectInstructions,
+    slot: EContextSlot.Skill,
     key,
     content: 'body',
-  })
+  }) as Event
+
+const instructionsLoaded = (key: string): Event => ({
+  ...envelope(),
+  type: 'context-loaded',
+  slot: EContextSlot.ProjectInstructions,
+  key,
+  content: 'body',
+})
 
 const said = (text: string): Event => ({ ...envelope(), type: 'user-said', text })
 
-const replied = (text: string): Event =>
-  ({ ...envelope(), type: 'assistant-said', parts: [{ type: 'text', text }] })
+const replied = (text: string): Event => ({
+  ...envelope(),
+  type: 'assistant-said',
+  parts: [{ type: 'text', text }],
+})
 
 const operatorEntries = (events: readonly Event[]): OperatorSaidEntry[] =>
   durableEntries({ events }).filter(
@@ -80,7 +88,11 @@ describe('skills loaded with a message', () => {
   })
 
   it('carries the skills through when two messages fold into one breath', () => {
-    const entries = operatorEntries([skillLoaded('pirate'), said('/pirate hello'), said('and again')])
+    const entries = operatorEntries([
+      skillLoaded('pirate'),
+      said('/pirate hello'),
+      said('and again'),
+    ])
 
     expect(entries).toHaveLength(1)
     expect(entries[0]?.skills).toEqual(['pirate'])

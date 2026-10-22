@@ -1,18 +1,33 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { ScrollArea, ScrollBar } from "@dltech/atlas-ui/components/scroll-area";
-import { Separator } from "@dltech/atlas-ui/components/separator";
+import { ScrollArea, ScrollBar } from '@dltech/atlas-ui/components/scroll-area'
+import { Separator } from '@dltech/atlas-ui/components/separator'
 
 const meta = {
-  title: "Components/Scroll Area",
+  title: 'Components/Scroll Area',
   component: ScrollArea,
-} satisfies Meta<typeof ScrollArea>;
+} satisfies Meta<typeof ScrollArea>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-const tools = ["read", "edit", "bash", "grep", "glob", "web_fetch", "web_search", "task_write", "skill", "mcp-edit", "write", "multi_edit", "shell_input", "shell_kill"];
+const tools = [
+  'read',
+  'edit',
+  'bash',
+  'grep',
+  'glob',
+  'web_fetch',
+  'web_search',
+  'task_write',
+  'skill',
+  'mcp-edit',
+  'write',
+  'multi_edit',
+  'shell_input',
+  'shell_kill',
+]
 
 export const Vertical: Story = {
   render: (args) => (
@@ -28,7 +43,7 @@ export const Vertical: Story = {
       </div>
     </ScrollArea>
   ),
-};
+}
 
 export const Horizontal: Story = {
   render: (args) => (
@@ -43,4 +58,4 @@ export const Horizontal: Story = {
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
   ),
-};
+}

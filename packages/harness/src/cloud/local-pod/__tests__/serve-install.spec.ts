@@ -19,7 +19,9 @@ const outcome = (args: { exitCode: number; stderr?: string }): PodExecResult => 
   stderr: async () => args.stderr ?? '',
 })
 
-const fakeEngine = (args?: { exitFor?: (script: string) => { exitCode: number; stderr?: string } }) => {
+const fakeEngine = (args?: {
+  exitFor?: (script: string) => { exitCode: number; stderr?: string }
+}) => {
   const execs: Exec[] = []
   const writes: Written[] = []
   const engine: PodServeEngine = {
@@ -108,7 +110,12 @@ describe('releaseServeInstaller', () => {
     }
 
     await expect(
-      releaseServeInstaller({ arch: EServeArch.X64 })({ engine, id: 'pod-id', name: 'pod', version: undefined }),
+      releaseServeInstaller({ arch: EServeArch.X64 })({
+        engine,
+        id: 'pod-id',
+        name: 'pod',
+        version: undefined,
+      }),
     ).rejects.toThrow(/failed to run: exec timed out/)
   })
 })
@@ -138,7 +145,12 @@ describe('devServeInstaller', () => {
     const fake = fakeEngine()
 
     await expect(
-      devServeInstaller(binary)({ engine: fake.engine, id: 'pod-id', name: 'pod', version: '1.2.3' }),
+      devServeInstaller(binary)({
+        engine: fake.engine,
+        id: 'pod-id',
+        name: 'pod',
+        version: '1.2.3',
+      }),
     ).rejects.toThrow(/dev-abc123.*1\.2\.3/)
     expect(fake.execs).toHaveLength(0)
     expect(fake.writes).toHaveLength(0)
@@ -175,11 +187,18 @@ describe('devServeInstaller', () => {
   it('removes the stage directory and rethrows when verification fails', async () => {
     const fake = fakeEngine({
       exitFor: (script) =>
-        script.includes('sha256 mismatch') ? { exitCode: 1, stderr: 'atlas-serve sha256 mismatch' } : { exitCode: 0 },
+        script.includes('sha256 mismatch')
+          ? { exitCode: 1, stderr: 'atlas-serve sha256 mismatch' }
+          : { exitCode: 0 },
     })
 
     await expect(
-      devServeInstaller(binary)({ engine: fake.engine, id: 'pod-id', name: 'pod', version: 'dev-abc123' }),
+      devServeInstaller(binary)({
+        engine: fake.engine,
+        id: 'pod-id',
+        name: 'pod',
+        version: 'dev-abc123',
+      }),
     ).rejects.toThrow(/sha256 mismatch/)
     expect(fake.execs.at(-1)!.script).toContain('rm -rf')
   })

@@ -115,11 +115,16 @@ describe('the tools that are not bash', () => {
       aCall({
         name: 'read',
         input: { path: '$TMPDIR/handoff-env-tier-filling.md' },
-        output: { path: '/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md', lines: 118 },
+        output: {
+          path: '/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md',
+          lines: 118,
+        },
       }),
     )
 
-    expect(read.line).toBe('/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md')
+    expect(read.line).toBe(
+      '/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md',
+    )
     expect(read.alone).toBe(
       'Read /var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md',
     )
@@ -139,7 +144,11 @@ describe('the tools that are not bash', () => {
 
   it('counts a grep in matches', () => {
     const grep = reading(
-      aCall({ name: 'grep', input: { pattern: 'useClickRegion' }, output: { matches: ['a', 'b'] } }),
+      aCall({
+        name: 'grep',
+        input: { pattern: 'useClickRegion' },
+        output: { matches: ['a', 'b'] },
+      }),
     )
 
     expect(grep.gather).toBe(EGather.Search)
@@ -305,7 +314,12 @@ describe('what a sub-agent call reads as', () => {
       aCall({
         name: 'agent_say',
         input: { agentId: 'thr_child', text: 'go on' },
-        output: { agentId: 'thr_child', queued: false, intent: 'vault audit', agentType: 'explore' },
+        output: {
+          agentId: 'thr_child',
+          queued: false,
+          intent: 'vault audit',
+          agentType: 'explore',
+        },
       }),
     )
     const resumed = reading(
@@ -319,7 +333,12 @@ describe('what a sub-agent call reads as', () => {
       aCall({
         name: 'agent_stop',
         input: { agentId: 'thr_child' },
-        output: { agentId: 'thr_child', agentType: 'builder', intent: 'wire the port', status: EAgentStatus.Running },
+        output: {
+          agentId: 'thr_child',
+          agentType: 'builder',
+          intent: 'wire the port',
+          status: EAgentStatus.Running,
+        },
       }),
     )
 
@@ -346,7 +365,9 @@ describe('what a sub-agent call reads as', () => {
   })
 
   it('falls back to the id for a call logged before outputs carried the intent', () => {
-    const said = reading(aCall({ name: 'agent_say', input: { agentId: 'thr_child', text: 'go on' } }))
+    const said = reading(
+      aCall({ name: 'agent_say', input: { agentId: 'thr_child', text: 'go on' } }),
+    )
     const resumed = reading(aCall({ name: 'agent_resume', input: { agentId: 'thr_child' } }))
 
     expect(said.line).toBe('Messaged thr_child')
@@ -513,7 +534,10 @@ describe('a call the model is still dictating', () => {
   })
 
   it('says the tool name until the arguments say anything at all', () => {
-    const reading = classify({ call: aCall({ name: 'write', state: ECallState.Pending }), cwd: CWD })
+    const reading = classify({
+      call: aCall({ name: 'write', state: ECallState.Pending }),
+      cwd: CWD,
+    })
 
     expect(reading.line).toBe('write')
     expect(reading.detail).toBe(EDetail.None)

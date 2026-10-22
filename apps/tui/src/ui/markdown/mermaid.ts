@@ -12,7 +12,9 @@ export function mermaidSources(args: { path: string; content: string }): readonl
   if (isMermaidPath(args.path)) return [args.content]
   if (!/\.(md|markdown)$/i.test(args.path)) return []
   return segmentMarkdown(args.content)
-    .filter((segment) => segment.kind === 'fence' && segment.language.trim().toLowerCase() === 'mermaid')
+    .filter(
+      (segment) => segment.kind === 'fence' && segment.language.trim().toLowerCase() === 'mermaid',
+    )
     .map((segment) => (segment.kind === 'fence' ? segment.source : ''))
     .filter((source) => source.trim().length > 0)
 }

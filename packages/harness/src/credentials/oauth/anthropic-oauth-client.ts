@@ -120,7 +120,11 @@ export class AnthropicOauthClient implements BrowserLoginClient {
     return url.toString()
   }
 
-  exchangeBrowserCode(args: { code: string; pkce: Pkce; redirectUri: string }): Promise<OauthLogin> {
+  exchangeBrowserCode(args: {
+    code: string
+    pkce: Pkce
+    redirectUri: string
+  }): Promise<OauthLogin> {
     return this.post({
       grant_type: 'authorization_code',
       code: args.code,
@@ -136,7 +140,9 @@ export class AnthropicOauthClient implements BrowserLoginClient {
     const [code, pastedState] = args.pasted.trim().split('#')
 
     if (pastedState !== undefined && pastedState !== args.pkce.state)
-      throw new OauthResponseError('the pasted code carries a different state than the login began with')
+      throw new OauthResponseError(
+        'the pasted code carries a different state than the login began with',
+      )
     if (code === undefined || code.length === 0)
       throw new OauthResponseError('the pasted value holds no code')
 

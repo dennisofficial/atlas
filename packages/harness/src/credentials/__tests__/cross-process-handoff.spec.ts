@@ -19,7 +19,12 @@ const settle = (ms: number) => new Promise((done) => setTimeout(done, ms))
 describe('a local refresh and a cloud handoff in different processes', () => {
   it('uploads the rotated refresh token when the local refresh holds the lock first', async () => {
     const account = await seedExpiredGrant(arena)
-    const refresher = arena.spawn({ mode: 'refresh', name: 'refresher', signal: 'redeeming', blockOn: 'finish-redeem' })
+    const refresher = arena.spawn({
+      mode: 'refresh',
+      name: 'refresher',
+      signal: 'redeeming',
+      blockOn: 'finish-redeem',
+    })
     await arena.reached('redeeming')
 
     const handoff = arena.spawn({ mode: 'handoff', name: 'handoff' })
@@ -42,12 +47,19 @@ describe('a local refresh and a cloud handoff in different processes', () => {
 
   it('never redeems the seed once the handoff has persisted its marker', async () => {
     const account = await seedExpiredGrant(arena)
-    const handoff = arena.spawn({ mode: 'handoff', name: 'handoff', signal: 'uploading', blockOn: 'finish-upload' })
+    const handoff = arena.spawn({
+      mode: 'handoff',
+      name: 'handoff',
+      signal: 'uploading',
+      blockOn: 'finish-upload',
+    })
     await arena.reached('uploading')
 
     const pending = (await arena.store.read(account.id))?.secret
     expect(pending && authorityOf(pending)?.connectionId).toBe('oauth_cross')
-    expect(pending?.kind === EAuthKind.Oauth && pending.tokens.refreshToken).toBe('fake-seed-refresh')
+    expect(pending?.kind === EAuthKind.Oauth && pending.tokens.refreshToken).toBe(
+      'fake-seed-refresh',
+    )
 
     const refresher = arena.spawn({ mode: 'refresh', name: 'refresher' })
     await refresher.finished

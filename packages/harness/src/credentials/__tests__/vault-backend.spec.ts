@@ -156,6 +156,8 @@ describe('a vault file that cannot be opened', () => {
   it('refuses a path that exists but cannot be read rather than reading it as empty', () => {
     mkdirSync(file)
 
-    expect(failureOf(() => fileVaultBackend(file).load()).failure).toBe(ECredentialFailure.Unreadable)
+    expect(failureOf(() => fileVaultBackend(file).load()).failure).toBe(
+      ECredentialFailure.Unreadable,
+    )
   })
 })

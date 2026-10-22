@@ -328,7 +328,11 @@ function ChipsMessage(props: { fixture: Fixture; width: number }): ReactNode {
   )
 }
 
-function BandChipsMessage(props: { fixture: Fixture; width: number; icons?: ChipIcons }): ReactNode {
+function BandChipsMessage(props: {
+  fixture: Fixture
+  width: number
+  icons?: ChipIcons
+}): ReactNode {
   const chips = chipList(props.fixture, theme.selectedBg, props.icons ?? CHIP_ICONS)
 
   return (
@@ -399,7 +403,10 @@ const ICON_SETS: readonly { name: string; icons: ChipIcons }[] = [
   { name: 'heavy — ◆ skill · ▤ file · ▩ image', icons: { skill: '◆', file: '▤', image: '▩' } },
   { name: 'outline — ✧ skill · ⬚ file · ▢ image', icons: { skill: '✧', file: '⬚', image: '▢' } },
   { name: 'emoji — ✨ skill · 📄 file · 🖼 image', icons: { skill: '✨', file: '📄', image: '🖼' } },
-  { name: 'nerd font — \u{f0d0} skill · \u{f15b} file · \u{f03e} image (tofu if your font lacks them)', icons: { skill: '\u{f0d0}', file: '\u{f15b}', image: '\u{f03e}' } },
+  {
+    name: 'nerd font — \u{f0d0} skill · \u{f15b} file · \u{f03e} image (tofu if your font lacks them)',
+    icons: { skill: '\u{f0d0}', file: '\u{f15b}', image: '\u{f03e}' },
+  },
   { name: 'none — words only', icons: { skill: '', file: '', image: '' } },
 ]
 
@@ -423,7 +430,10 @@ function IconsPage(props: { width: number }): ReactNode {
 }
 
 const GLYPH_CANDIDATES: readonly { name: string; mark?: Mark; line?: boolean }[] = [
-  { name: 'rounded bracket — ╭ opens, │ carries, ╰ closes', mark: { first: '╭', mid: '│', last: '╰' } },
+  {
+    name: 'rounded bracket — ╭ opens, │ carries, ╰ closes',
+    mark: { first: '╭', mid: '│', last: '╰' },
+  },
   { name: 'drawn line — a real border connects the rows, no glyphs at all', line: true },
   { name: 'bar — one heavy stroke per row', mark: '┃' },
   { name: 'connected, light — ├ carries, ╰ closes', mark: { mid: '├', last: '╰' } },
@@ -438,7 +448,9 @@ function GlyphsPage(props: { width: number }): ReactNode {
   return (
     <box flexDirection="column" gap={1} paddingTop={1} flexShrink={0}>
       <box paddingLeft={2}>
-        <text fg={theme.rule}>one band footer per candidate — which mark should attachments carry?</text>
+        <text fg={theme.rule}>
+          one band footer per candidate — which mark should attachments carry?
+        </text>
       </box>
       {GLYPH_CANDIDATES.map((candidate) => (
         <box key={candidate.name} flexDirection="column" flexShrink={0}>

@@ -4,13 +4,16 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { EWebSearchBackend, ToolDefinition, type ToolOutcome,
-  toThreadId,
-} from '@dltech/atlas-core'
+import { EWebSearchBackend, ToolDefinition, type ToolOutcome, toThreadId } from '@dltech/atlas-core'
 
 import { createHarnessContainer } from '../../container/create-harness-container'
 import { disposeAll } from '../../container/disposal'
-import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../../container/injection'
+import {
+  portToken,
+  registeredPortToken,
+  resolveSet,
+  type DependencyContainer,
+} from '../../container/injection'
 import {
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -78,11 +81,19 @@ async function containerRootedAt(root: string): Promise<DependencyContainer> {
   container.register(WorkspaceRoot, { useValue: root })
   container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
   container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
-  await container.resolve(registeredPortToken(ThreadStorePort)).create({ id: toThreadId('thread-1') })
+  await container
+    .resolve(registeredPortToken(ThreadStorePort))
+    .create({ id: toThreadId('thread-1') })
   return container
 }
 
-function toolNamed({ container, name }: { container: DependencyContainer; name: string }): ToolDefinition {
+function toolNamed({
+  container,
+  name,
+}: {
+  container: DependencyContainer
+  name: string
+}): ToolDefinition {
   const tools = resolveSet({ container, token: portToken(ToolDefinition) })
   const found = tools.find((tool) => tool.name === name)
   if (found === undefined) throw new Error(`the container resolved no tool named "${name}"`)
@@ -142,7 +153,9 @@ describe('the builtin tools resolved from the container', () => {
   })
 
   it('still invokes as a tool once it is a class rather than a literal', async () => {
-    const outcome = await invoke(toolNamed({ container, name: 'read' }), { path: join(root, 'kept.ts') })
+    const outcome = await invoke(toolNamed({ container, name: 'read' }), {
+      path: join(root, 'kept.ts'),
+    })
 
     expect(outcome.ok && outcome.modelText).toContain('export const kept = true')
   })
@@ -156,7 +169,11 @@ describe('tool registration across containers', () => {
 
     try {
       const globIn = async (root: string): Promise<ToolOutcome> =>
-        invoke(toolNamed({ container: await containerRootedAt(root), name: 'glob' }), { pattern: '*.ts' }, root)
+        invoke(
+          toolNamed({ container: await containerRootedAt(root), name: 'glob' }),
+          { pattern: '*.ts' },
+          root,
+        )
 
       const found = await globIn(first)
       const empty = await globIn(second)
@@ -217,7 +234,10 @@ describe('the background shell registry the tools share', () => {
       if (!started.ok) return
 
       const shellId = (started.output as { shellId: string }).shellId
-      const elsewhere = await invoke(toolNamed({ container: containers[1], name: 'shell_output' }), { shellId })
+      const elsewhere = await invoke(
+        toolNamed({ container: containers[1], name: 'shell_output' }),
+        { shellId },
+      )
 
       expect(elsewhere.ok).toBe(false)
     } finally {

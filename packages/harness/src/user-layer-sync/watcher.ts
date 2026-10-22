@@ -26,7 +26,9 @@ const DEBOUNCE_MS = 500
 const subdirectoriesOf = async (directory: string): Promise<readonly string[]> => {
   try {
     const entries = await readdir(directory, { recursive: true, withFileTypes: true })
-    return entries.filter((entry) => entry.isDirectory()).map((entry) => join(entry.parentPath, entry.name))
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(entry.parentPath, entry.name))
   } catch {
     return []
   }
@@ -55,15 +57,23 @@ export function watchUserLayer(args: {
     }, debounceMs)
   }
 
-  const open = (opened: { directory: string; recursive: boolean; accept?: WatchTarget['accept'] }): void => {
+  const open = (opened: {
+    directory: string
+    recursive: boolean
+    accept?: WatchTarget['accept']
+  }): void => {
     const key = `${opened.recursive ? 'r' : 'd'}:${opened.directory}`
     if (watchers.has(key)) return
-    const watcher = watchDirectory(opened.directory, { recursive: opened.recursive }, (_event, filename) => {
-      const name = filename === null ? null : basename(filename.toString())
-      if (name !== null && !isSyncableName(name)) return
-      if (name !== null && opened.accept !== undefined && !opened.accept(name)) return
-      fire()
-    })
+    const watcher = watchDirectory(
+      opened.directory,
+      { recursive: opened.recursive },
+      (_event, filename) => {
+        const name = filename === null ? null : basename(filename.toString())
+        if (name !== null && !isSyncableName(name)) return
+        if (name !== null && opened.accept !== undefined && !opened.accept(name)) return
+        fire()
+      },
+    )
     watcher.unref()
     watcher.on('error', () => undefined)
     watchers.set(key, watcher)

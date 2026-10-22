@@ -24,7 +24,11 @@ const HOST_HINT = '↓ to the footer chip, ⏎ for a pod'
 
 const CLOUD_HINT = '↓ to the footer chip, ⏎ to switch runner'
 
-export type WelcomePlacement = { harness: EHarnessPlacement; runner?: ERunner | undefined; provisioning: boolean }
+export type WelcomePlacement = {
+  harness: EHarnessPlacement
+  runner?: ERunner | undefined
+  provisioning: boolean
+}
 
 const POD_LABEL = 'pod'
 
@@ -50,11 +54,7 @@ export function WelcomeScreen(props: {
 
   return (
     <box flexDirection="column" flexShrink={0} alignItems="center">
-      {marked ? (
-        <LogoRows logo={chosen} />
-      ) : logoHasNarrowLabel(chosen) ? (
-        <NarrowLogo />
-      ) : null}
+      {marked ? <LogoRows logo={chosen} /> : logoHasNarrowLabel(chosen) ? <NarrowLogo /> : null}
       <text> </text>
       <text fg={theme.meta}>{PITCH}</text>
       <text> </text>

@@ -10,7 +10,8 @@ import { FakeSkillRegistry, fakeSkill } from './fake-skills'
 const OPUS: PromptContext = {
   agent: EPromptAgent.Main,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 }, projectDirectory: '/w'
+  model: { contextWindow: 1_000_000 },
+  projectDirectory: '/w',
 }
 
 const CORPUS = [
@@ -91,7 +92,10 @@ const occurrences = ({ text, needle }: { text: string; needle: string }): number
   text.split(needle).length - 1
 
 describe('the standing ui-design directive', () => {
-  const withUiDesign = [...CORPUS, fakeSkill({ name: 'ui-design', description: 'Design interfaces' })]
+  const withUiDesign = [
+    ...CORPUS,
+    fakeSkill({ name: 'ui-design', description: 'Design interfaces' }),
+  ]
 
   it('follows the generic preamble exactly once when ui-design is model-invocable', () => {
     const text = listingOver(new FakeSkillRegistry({ skills: withUiDesign }))

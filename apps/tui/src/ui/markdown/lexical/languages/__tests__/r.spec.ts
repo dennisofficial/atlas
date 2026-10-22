@@ -25,7 +25,7 @@ const source = [
   '',
   'evens <- Filter(function(n) n %% 2 == 0, 1:10)',
   'if (2 %in% evens) {',
-  "  cat(sprintf(\"total: %d\\n\", add(2, 3)), sep = '')",
+  '  cat(sprintf("total: %d\\n", add(2, 3)), sep = \'\')',
   '}',
   '',
   'grid <- data.frame(x = 1:3, y = c(2, 4, 6))',
@@ -59,12 +59,9 @@ describe('r lexical highlighting', () => {
   })
 
   it('reads the assignment arrows as operators', () => {
-    expect(textFor({ spec, source: 'a <- 1\nb <<- 2\n3 -> d\n4 ->> e', group: 'operator' })).toEqual([
-      '<-',
-      '<<-',
-      '->',
-      '->>',
-    ])
+    expect(
+      textFor({ spec, source: 'a <- 1\nb <<- 2\n3 -> d\n4 ->> e', group: 'operator' }),
+    ).toEqual(['<-', '<<-', '->', '->>'])
   })
 
   it('reads the percent-delimited infix forms as operators', () => {
@@ -97,9 +94,12 @@ describe('r lexical highlighting', () => {
   })
 
   it('reads the sequence, namespace and extraction operators', () => {
-    expect(
-      textFor({ spec, source: 'v <- stats::median(x[1:3]$w)', group: 'operator' }),
-    ).toEqual(['<-', '::', ':', '$'])
+    expect(textFor({ spec, source: 'v <- stats::median(x[1:3]$w)', group: 'operator' })).toEqual([
+      '<-',
+      '::',
+      ':',
+      '$',
+    ])
   })
 
   it('reads a leading-dot decimal as one number', () => {

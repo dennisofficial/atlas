@@ -100,7 +100,12 @@ import { threadHandle } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
 import type { ModelCatalogue } from '@dltech/atlas-harness'
 import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
-import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
+import {
+  createExecutionLocationState,
+  createSessionOwner,
+  ERuntimeKind,
+  type SessionRuntime,
+} from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { noticePortBinding } from '../notice-binding'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
@@ -319,8 +324,15 @@ class FakeCloudService extends CloudService {
       sessions,
       localAccounts: memoryAccountStore({ clock: new SystemClock() }),
       defaultUrl: 'http://localhost:3400',
-      signInOffer: { offered: () => offered, markOffered: () => { offered = true } },
-      ...(args.sessionsClientFor === undefined ? {} : { sessionsClientFor: args.sessionsClientFor }),
+      signInOffer: {
+        offered: () => offered,
+        markOffered: () => {
+          offered = true
+        },
+      },
+      ...(args.sessionsClientFor === undefined
+        ? {}
+        : { sessionsClientFor: args.sessionsClientFor }),
     })
     this.fakeClient = args.client
     this.onDownload = args.onDownload
@@ -625,17 +637,19 @@ export function fakeShellRegistry(): FakeShells {
       if (handed.length === 0) return []
 
       settle(ended.filter((one) => one.threadId !== threadId))
-      return handed.map(({ snapshot }): EventDraft => ({
-        type: 'background-shell-ended',
-        shellId: snapshot.shellId,
-        command: snapshot.command,
-        description: snapshot.description,
-        status: snapshot.status,
-        exitCode: snapshot.exitCode,
-        output: `output of ${snapshot.shellId}`,
-        droppedCharacters: 0,
-        remainingCharacters: 0,
-      }))
+      return handed.map(
+        ({ snapshot }): EventDraft => ({
+          type: 'background-shell-ended',
+          shellId: snapshot.shellId,
+          command: snapshot.command,
+          description: snapshot.description,
+          status: snapshot.status,
+          exitCode: snapshot.exitCode,
+          output: `output of ${snapshot.shellId}`,
+          droppedCharacters: 0,
+          remainingCharacters: 0,
+        }),
+      )
     },
 
     pendingNotices: ({ threadId }) => notices(threadId),
@@ -793,7 +807,10 @@ export function fakeApp(args: {
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
-  const workspace = args.workspace ?? { workspace: args.cwd ?? args.workspaceRoot ?? FAKE_CONFIG.cwd, repo: null }
+  const workspace = args.workspace ?? {
+    workspace: args.cwd ?? args.workspaceRoot ?? FAKE_CONFIG.cwd,
+    repo: null,
+  }
   const threads = fakeThreadStore({ log, workspace: workspace.workspace, repo: workspace.repo })
   const ids = new RandomIds()
   const ledger = fakeLedger()
@@ -802,8 +819,7 @@ export function fakeApp(args: {
     args.intake === true
       ? new MessageIntake({
           sources: [operatorSource(pending)],
-          submit: (given) =>
-            pending.forThread({ threadId: given.threadId }).enqueue(given),
+          submit: (given) => pending.forThread({ threadId: given.threadId }).enqueue(given),
         })
       : undefined
   const shells = fakeShellRegistry()
@@ -852,7 +868,11 @@ export function fakeApp(args: {
     return args.names ?? null
   }
 
-  const summariser = async ({ signal }: { signal?: AbortSignal | undefined }): Promise<string | null> => {
+  const summariser = async ({
+    signal,
+  }: {
+    signal?: AbortSignal | undefined
+  }): Promise<string | null> => {
     const delay = args.summariseDelayMs ?? 0
     if (delay > 0) {
       await new Promise<void>((resolve, reject) => {
@@ -1104,10 +1124,12 @@ export function fakeApp(args: {
             }),
           }),
     }),
-    secrets: args.secretsPort ?? new MemorySecretsStore({
-      label: '~/.atlas/secrets.json',
-      ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
-    }),
+    secrets:
+      args.secretsPort ??
+      new MemorySecretsStore({
+        label: '~/.atlas/secrets.json',
+        ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
+      }),
     prepareClose: (request) => {
       closeRequests.push(request)
     },

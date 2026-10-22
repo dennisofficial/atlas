@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  EShellStatus,
-  toThreadId,
-  type EventDraft,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EShellStatus, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import { bootId } from '../boot'
 import { ShellRecovery } from '../recovery'

@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Table,
   TableBody,
@@ -8,10 +8,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@dltech/atlas-ui/components/table";
+} from '@dltech/atlas-ui/components/table'
 
-import type { SandboxRow } from "../../../fixtures/settings-usage";
-import { Mono, SettingsCard } from "../settings-layout";
+import type { SandboxRow } from '../../../fixtures/settings-usage'
+import { Mono, SettingsCard } from '../settings-layout'
 
 export function SandboxStatus({ row }: { row: SandboxRow }) {
   if (row.runningFor) {
@@ -20,9 +20,9 @@ export function SandboxStatus({ row }: { row: SandboxRow }) {
         <span className="size-2 rounded-full bg-success" aria-hidden />
         Running for {row.runningFor}
       </span>
-    );
+    )
   }
-  return <span className="text-sm text-muted-foreground">Paused {row.pausedAgo}</span>;
+  return <span className="text-sm text-muted-foreground">Paused {row.pausedAgo}</span>
 }
 
 export function UsageSandboxTable({
@@ -30,9 +30,9 @@ export function UsageSandboxTable({
   actionLabel,
   actionIcon,
 }: {
-  rows: SandboxRow[];
-  actionLabel: string;
-  actionIcon: ReactNode;
+  rows: SandboxRow[]
+  actionLabel: string
+  actionIcon: ReactNode
 }) {
   return (
     <SettingsCard>
@@ -77,5 +77,5 @@ export function UsageSandboxTable({
         </TableBody>
       </Table>
     </SettingsCard>
-  );
+  )
 }

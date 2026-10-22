@@ -38,7 +38,13 @@ describe('folding services for the sidebar', () => {
 
   it('never folds a running service, however many settled ones crowd it', () => {
     const fold = foldServices({
-      services: [settled('svc_1'), settled('svc_2'), settled('svc_3'), settled('svc_4'), service({ serviceId: 'svc_5' })],
+      services: [
+        settled('svc_1'),
+        settled('svc_2'),
+        settled('svc_3'),
+        settled('svc_4'),
+        service({ serviceId: 'svc_5' }),
+      ],
       cap: 3,
     })
 

@@ -15,8 +15,15 @@ export type RawExport = {
   evals: readonly { name: string; results: readonly RawExportResult[] }[]
 }
 
-const rowKeyOf = ({ caseId, trialId, variantId }: { caseId: string; trialId: string; variantId: string }): string =>
-  `${caseId}::${trialId}::${variantId}`
+const rowKeyOf = ({
+  caseId,
+  trialId,
+  variantId,
+}: {
+  caseId: string
+  trialId: string
+  variantId: string
+}): string => `${caseId}::${trialId}::${variantId}`
 
 type Envelope = { caseId: string; trialId: string; variantId: string }
 
@@ -25,11 +32,17 @@ function readEnvelope({ input }: { input: unknown }): Envelope | null {
   const caseId: unknown = Reflect.get(input, 'caseId')
   const trialId: unknown = Reflect.get(input, 'trialId')
   const variantId: unknown = Reflect.get(input, 'variantId')
-  if (typeof caseId !== 'string' || typeof trialId !== 'string' || typeof variantId !== 'string') return null
+  if (typeof caseId !== 'string' || typeof trialId !== 'string' || typeof variantId !== 'string')
+    return null
   return { caseId, trialId, variantId }
 }
 
-function readTiming({ output }: { output: unknown }): { preparationMs: number; inferenceMs: number; interpretationMs: number; endToEndMs: number } {
+function readTiming({ output }: { output: unknown }): {
+  preparationMs: number
+  inferenceMs: number
+  interpretationMs: number
+  endToEndMs: number
+} {
   const zero = { preparationMs: 0, inferenceMs: 0, interpretationMs: 0, endToEndMs: 0 }
   if (typeof output !== 'object' || output === null) return zero
   const timing: unknown = Reflect.get(output, 'timing')
@@ -51,16 +64,25 @@ function isNotApplicable({ metadata }: { metadata: unknown }): boolean {
   return Reflect.get(metadata, 'notApplicable') === true
 }
 
-function readScores({ scores }: { scores: readonly { name: string; score: unknown; metadata?: unknown }[] }): Record<string, number> {
+function readScores({
+  scores,
+}: {
+  scores: readonly { name: string; score: unknown; metadata?: unknown }[]
+}): Record<string, number> {
   const out: Record<string, number> = {}
   for (const entry of scores) {
     if (isNotApplicable({ metadata: entry.metadata })) continue
-    if (typeof entry.score === 'number' && Number.isFinite(entry.score)) out[entry.name] = entry.score
+    if (typeof entry.score === 'number' && Number.isFinite(entry.score))
+      out[entry.name] = entry.score
   }
   return out
 }
 
-function readDifference({ scores }: { scores: readonly { name: string; score: unknown; metadata?: unknown }[] }): string | undefined {
+function readDifference({
+  scores,
+}: {
+  scores: readonly { name: string; score: unknown; metadata?: unknown }[]
+}): string | undefined {
   for (const entry of scores) {
     if (isNotApplicable({ metadata: entry.metadata })) continue
     if (typeof entry.score === 'number' && entry.score === 1) continue
@@ -113,7 +135,9 @@ export function normalizeRows({
       scores: readScores({ scores: result.scores }),
       ...(result.error === undefined || result.error === null
         ? {}
-        : { error: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) }),
+        : {
+            error: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
+          }),
       ...(difference === undefined ? {} : { difference }),
       timing: readTiming({ output: result.output }),
     }

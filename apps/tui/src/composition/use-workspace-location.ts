@@ -31,7 +31,10 @@ export type WorkspaceLocation = {
   handleContainerResources: () => string | undefined
 }
 
-type LocationProps = Pick<WorkspaceProps, 'app' | 'localApp' | 'opened' | 'createBridge' | 'onReload'>
+type LocationProps = Pick<
+  WorkspaceProps,
+  'app' | 'localApp' | 'opened' | 'createBridge' | 'onReload'
+>
 
 /**
  * /container. Threads are born-placed: the command reports where this one runs, and the only
@@ -50,8 +53,7 @@ export function useWorkspaceLocation(args: {
   const { props, conversation, execution, containerMove, shells } = args
 
   const containerBlockers = useCallback(
-    () =>
-      props.app.shells.list({ threadId: conversation.threadId }).filter(isShellRunning),
+    () => props.app.shells.list({ threadId: conversation.threadId }).filter(isShellRunning),
     [conversation.threadId, props.app],
   )
 
@@ -69,12 +71,21 @@ export function useWorkspaceLocation(args: {
       const from = execution.location
 
       void props.app
-        .moveTools({ threadId, target, onProgress: () => containerMove.handleRowActive('flipping') })
+        .moveTools({
+          threadId,
+          target,
+          onProgress: () => containerMove.handleRowActive('flipping'),
+        })
         .then((moved) => {
           if (!moved.ok) {
             const reason = moveFailedNotice({ target, from, detail: moved.reason })
             containerMove.handleFail(reason)
-            notify({ key: 'container-switch', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: reason })
+            notify({
+              key: 'container-switch',
+              tone: ENoticeTone.Warn,
+              ttlMs: NOTICE_WARN_MS,
+              text: reason,
+            })
             return
           }
           containerMove.handleSettle()
@@ -83,13 +94,17 @@ export function useWorkspaceLocation(args: {
         .catch((error: unknown) => {
           const reason = moveFailedNotice({ target, from, detail: messageOf(error) })
           containerMove.handleFail(reason)
-          notify({ key: 'container-switch', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: reason })
+          notify({
+            key: 'container-switch',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: reason,
+          })
         })
       return true
     },
     [containerMove, conversation.refresh, conversation.threadId, execution, props.app],
   )
-
 
   const containerGuard = useContainerGuard({ onSwitch: applyToolSwitch })
 

@@ -99,7 +99,12 @@ const sayEvents = async (fixture: ReturnType<typeof openStoreFixture>): Promise<
     threadId: THREAD,
     runId: toRunId('run-1'),
     drafts: [
-      { type: 'user-said', text: 'a message long enough to estimate a real token count from the log, so compaction can decide on a settled turn that left no fresh usage report'.repeat(4) },
+      {
+        type: 'user-said',
+        text: 'a message long enough to estimate a real token count from the log, so compaction can decide on a settled turn that left no fresh usage report'.repeat(
+          4,
+        ),
+      },
     ],
   })
 }
@@ -108,19 +113,19 @@ const sayTwoTurns = async (fixture: ReturnType<typeof openStoreFixture>): Promis
   await fixture.log.append({
     threadId: THREAD,
     runId: toRunId('run-1'),
-    drafts: [{ type: 'user-said', text: 'the earlier ask, the one a compaction can afford to hide' }],
+    drafts: [
+      { type: 'user-said', text: 'the earlier ask, the one a compaction can afford to hide' },
+    ],
   })
   await sayEvents(fixture)
 }
 
 const reportFullWindow = (channel: ReturnType<typeof createDeltaChannel>): void => {
-  channel
-    .publisherFor({ threadId: THREAD })
-    .onChunk({
-      type: 'finish',
-      reason: EFinishReason.Stop,
-      usage: { inputTokens: 150_000, outputTokens: 5_000 },
-    })
+  channel.publisherFor({ threadId: THREAD }).onChunk({
+    type: 'finish',
+    reason: EFinishReason.Stop,
+    usage: { inputTokens: 150_000, outputTokens: 5_000 },
+  })
 }
 
 describe('the turn policy the shared root composes', () => {
@@ -248,7 +253,11 @@ describe('the usage tracker the policy reads from', () => {
     })
 
     const publisher = channel.publisherFor({ threadId: THREAD })
-    publisher.onChunk({ type: 'finish', reason: EFinishReason.Stop, usage: { inputTokens: 150_000, outputTokens: 5_000 } })
+    publisher.onChunk({
+      type: 'finish',
+      reason: EFinishReason.Stop,
+      usage: { inputTokens: 150_000, outputTokens: 5_000 },
+    })
 
     const used = await usage.usageOf({ threadId: THREAD, outcome: completed })
     expect(used).toBe(155_000)

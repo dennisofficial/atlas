@@ -59,7 +59,12 @@ const readHomeLines = async (): Promise<Record<string, unknown>[]> => {
 describe('openSession durability', () => {
   it('records a startup failure to the home-level logs.jsonl and still settles as Failed', async () => {
     const session = await openSession({
-      config: { model: undefined, executionLocation: undefined, open: { mode: EOpenMode.New }, cwd: process.cwd() },
+      config: {
+        model: undefined,
+        executionLocation: undefined,
+        open: { mode: EOpenMode.New },
+        cwd: process.cwd(),
+      },
       command: 'atlas-spec',
       env: { ...process.env, ATLAS_DOCKER_SOCKET: join(process.cwd(), 'no-such-socket') },
       progress: createBootProgress(),
@@ -70,7 +75,9 @@ describe('openSession durability', () => {
 
     const lines = await readHomeLines()
     const own = lines.filter(
-      (line) => line.source === 'tui.open-session' && line.data !== undefined &&
+      (line) =>
+        line.source === 'tui.open-session' &&
+        line.data !== undefined &&
         (line.data as Record<string, unknown>).command === 'atlas-spec',
     )
     expect(own).toHaveLength(1)
@@ -140,5 +147,4 @@ describe('openSession resuming a thread whose meta says cloud', () => {
       if (session.type === ESession.Ready) await session.app.close()
     }
   }, 60_000)
-
 })

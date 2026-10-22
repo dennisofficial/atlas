@@ -59,7 +59,11 @@ describe('SandboxClient.readCheckpoint', () => {
     const client = new SandboxClient({
       url: 'https://cloud.test',
       token: 'sess_user',
-      fetchFn: fakeFetch({ status: 404, body: { message: 'sandbox not found' }, expect: () => undefined }),
+      fetchFn: fakeFetch({
+        status: 404,
+        body: { message: 'sandbox not found' },
+        expect: () => undefined,
+      }),
     })
 
     await expect(client.readCheckpoint({ threadId: 'thread-1' })).resolves.toBeNull()

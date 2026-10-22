@@ -25,7 +25,11 @@ class ScriptedProcess implements ProcessPort {
   readonly spawned: SpawnCommand[] = []
   readonly terminated: string[] = []
 
-  constructor(private readonly respond: (cmd: readonly string[]) => ProcessHandle | 'hang' | { exit: number; stdout?: string; stderr?: string }) {}
+  constructor(
+    private readonly respond: (
+      cmd: readonly string[],
+    ) => ProcessHandle | 'hang' | { exit: number; stdout?: string; stderr?: string },
+  ) {}
 
   which(_args: { command: string; threadId?: ThreadId | undefined }): string | null {
     return null
@@ -55,7 +59,8 @@ class ScriptedProcess implements ProcessPort {
 
 const healthyRepository = (cmd: readonly string[]) => {
   if (cmd[1] === 'rev-parse') return { exit: 0, stdout: '/repo\n/repo/.git\nfalse\n' }
-  if (cmd[1] === 'worktree') return { exit: 0, stdout: 'worktree /repo\0HEAD abc123\0branch refs/heads/main\0\0' }
+  if (cmd[1] === 'worktree')
+    return { exit: 0, stdout: 'worktree /repo\0HEAD abc123\0branch refs/heads/main\0\0' }
   if (cmd[1] === 'rev-list') return { exit: 0, stdout: 'abc123\n' }
   if (cmd[1] === 'config') return { exit: 0, stdout: 'git@github.com:org/repo.git\n' }
   return { exit: 0, stdout: 'main\n' }
@@ -72,7 +77,9 @@ describe('GitWorkspaceIdentity through the process port', () => {
     expect(identity).toEqual({ remote: 'github.com/org/repo', worktreePath: 'main:.' })
     expect(process.spawned.length).toBe(7)
     expect(process.spawned.every((spawn) => spawn.threadId === threadId)).toBe(true)
-    expect(process.spawned.every((spawn) => spawn.cwd === '/repo' && spawn.cmd[0] === 'git')).toBe(true)
+    expect(process.spawned.every((spawn) => spawn.cwd === '/repo' && spawn.cmd[0] === 'git')).toBe(
+      true,
+    )
   })
 
   it('terminates a probe that ignores exit and rejects within the bounded timeout', async () => {
@@ -80,9 +87,10 @@ describe('GitWorkspaceIdentity through the process port', () => {
     const adapter = new GitWorkspaceIdentity({ process, timeoutMs: 5_000 })
 
     const started = performance.now()
-    const failure = await adapter
-      .identify({ projectDirectory: '/repo', threadId })
-      .then(() => null, (error: unknown) => error)
+    const failure = await adapter.identify({ projectDirectory: '/repo', threadId }).then(
+      () => null,
+      (error: unknown) => error,
+    )
 
     expect(failure).toBeInstanceOf(WorkspaceIdentityDeadlineError)
     expect(String(failure)).toMatch(/exceeded 1000ms/)
@@ -112,9 +120,10 @@ describe('GitWorkspaceIdentity through the process port', () => {
     }))
     const adapter = new GitWorkspaceIdentity({ process })
 
-    const failure = await adapter
-      .identify({ projectDirectory: '/repo', threadId })
-      .then(() => null, (error: unknown) => error)
+    const failure = await adapter.identify({ projectDirectory: '/repo', threadId }).then(
+      () => null,
+      (error: unknown) => error,
+    )
 
     expect(failure).toBeInstanceOf(Error)
     expect(String(failure)).not.toContain('topsecret')

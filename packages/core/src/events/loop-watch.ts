@@ -112,11 +112,7 @@ const speechSimilarity = (a: ReadonlySet<string>, b: ReadonlySet<string>): numbe
  * pairwise, with no steering event inside the run (the window the caller passes is already cut at
  * the last one). Returns the seq of the first repeated speech so the caller can cut from there.
  */
-export function speechRepeatStart({
-  events,
-}: {
-  events: readonly Event[]
-}): number | undefined {
+export function speechRepeatStart({ events }: { events: readonly Event[] }): number | undefined {
   const since = events.slice(lastSteeringIndex(events) + 1)
   const speeches = since.filter(
     (event): event is Event & { type: 'assistant-said' } =>
@@ -226,9 +222,7 @@ export function loopCutTarget({
   seq: number
 }): number | undefined {
   const window = events.slice(lastSteeringIndex(events) + 1)
-  const speech = window.findLast(
-    (event) => event.seq <= seq && event.type === 'assistant-said',
-  )
+  const speech = window.findLast((event) => event.seq <= seq && event.type === 'assistant-said')
   return speech === undefined ? undefined : speech.seq - 1
 }
 
@@ -260,12 +254,16 @@ export function loopWatchCutNotice({ steps }: { steps: number }): string {
 }
 
 export function loopWatchCutNoticeDraft({ steps }: { steps: number }): EventDraft {
-  return { type: 'nudge', text: loopWatchCutNotice({ steps }), lifetimeSteps: LOOP_WATCH_NOTICE_STEPS }
+  return {
+    type: 'nudge',
+    text: loopWatchCutNotice({ steps }),
+    lifetimeSteps: LOOP_WATCH_NOTICE_STEPS,
+  }
 }
 
 export function loopWatchNotice(): string {
   return [
-    'Atlas\'s watchdog judged this turn to be looping: the recent steps above repeat the same kind of action without new information arriving between them.',
+    "Atlas's watchdog judged this turn to be looping: the recent steps above repeat the same kind of action without new information arriving between them.",
     'If you are waiting on something, end the turn with no tool call — the next event will wake you. If each round genuinely found something new, name what is still missing in one sentence, then either finish or hand back to the operator.',
   ].join(' ')
 }

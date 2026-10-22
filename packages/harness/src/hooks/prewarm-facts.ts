@@ -6,7 +6,7 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../container/injection'
+import { portToken } from '../container/injection'
 import { WorkspaceRoot } from '../container/tokens'
 
 export class PrewarmFactsHook extends BeforeTurnHook {
@@ -16,10 +16,7 @@ export class PrewarmFactsHook extends BeforeTurnHook {
   private readonly facts: WorkspaceFactsPort
   private readonly launchDirectory: string
 
-  constructor(
-     facts: WorkspaceFactsPort,
-     launchDirectory: string,
-  ) {
+  constructor(facts: WorkspaceFactsPort, launchDirectory: string) {
     super()
     this.facts = facts
     this.launchDirectory = launchDirectory

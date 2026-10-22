@@ -10,10 +10,7 @@ export function parseClientVersion(raw: string): ClientVersion | null {
   return [Number(major), Number(minor), Number(patch)]
 }
 
-export function isBelowMinimum(args: {
-  minimum: ClientVersion
-  received: ClientVersion
-}): boolean {
+export function isBelowMinimum(args: { minimum: ClientVersion; received: ClientVersion }): boolean {
   const [minimumMajor, minimumMinor, minimumPatch] = args.minimum
   const [receivedMajor, receivedMinor, receivedPatch] = args.received
   if (receivedMajor !== minimumMajor) return receivedMajor < minimumMajor

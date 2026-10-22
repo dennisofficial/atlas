@@ -8,8 +8,13 @@ describe('table hover invalidation', () => {
   it('keeps native content identity when the hovered URL does not belong to the table', async () => {
     const setup = await createTestRenderer({ width: 60, height: 10 })
     const table = new TextTableRenderable(setup.renderer, {
-      content: [[[{ __isChunk: true, text: 'name' }], [{ __isChunk: true, text: 'link' }]],
-        [[{ __isChunk: true, text: 'a' }], [{ __isChunk: true, text: 'Target', link: { url: 'one.md' } }]]],
+      content: [
+        [[{ __isChunk: true, text: 'name' }], [{ __isChunk: true, text: 'link' }]],
+        [
+          [{ __isChunk: true, text: 'a' }],
+          [{ __isChunk: true, text: 'Target', link: { url: 'one.md' } }],
+        ],
+      ],
     })
     setup.renderer.root.add(table)
     try {
@@ -25,6 +30,8 @@ describe('table hover invalidation', () => {
       const restored = table.content
       paintTableHover({ table, url: 'unrelated.md' })
       expect(table.content).toBe(restored)
-    } finally { setup.renderer.destroy() }
+    } finally {
+      setup.renderer.destroy()
+    }
   })
 })

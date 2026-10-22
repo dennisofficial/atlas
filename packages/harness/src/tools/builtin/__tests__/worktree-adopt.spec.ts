@@ -5,7 +5,6 @@ import { join } from 'node:path'
 
 import { EWorktreeExit, enteredWorktreeOf, exitedWorktreeOf, toThreadId } from '@dltech/atlas-core'
 
-
 import { EnterWorktreeTool } from '../enter-worktree'
 import { ExitWorktreeTool } from '../exit-worktree'
 

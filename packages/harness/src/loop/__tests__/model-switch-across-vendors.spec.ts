@@ -33,7 +33,9 @@ const ANTHROPIC: Choice = { provider: ANTHROPIC_PROVIDER_ID, modelId: 'claude-op
 const CODEX: Choice = { provider: 'openai', modelId: 'gpt-5-codex' }
 
 const markedParts = (assembled: Assembled): readonly unknown[] => [
-  ...assembled.system.flatMap((block) => (block.providerOptions === undefined ? [] : [block.providerOptions])),
+  ...assembled.system.flatMap((block) =>
+    block.providerOptions === undefined ? [] : [block.providerOptions],
+  ),
   ...assembled.messages.flatMap((entry) =>
     entry.message.content.flatMap((part) =>
       part.providerOptions === undefined ? [] : [part.providerOptions],
@@ -59,9 +61,14 @@ async function openSwitchable() {
     home: temp.home,
     model: switchable.model,
     prompt: fixturePrompt(),
-    assembly: defaultPipeline({ prompt: () => fixturePrompt(), launchDirectory: PROJECT_DIRECTORY }),
+    assembly: defaultPipeline({
+      prompt: () => fixturePrompt(),
+      launchDirectory: PROJECT_DIRECTORY,
+    }),
     hooks: new HookChain({
-      beforeStep: [{ name: 'recordAssembly', order: { stage: EStage.Observe, nudge: 0 }, run: recordAssembly }],
+      beforeStep: [
+        { name: 'recordAssembly', order: { stage: EStage.Observe, nudge: 0 }, run: recordAssembly },
+      ],
     }),
   })
   opened.push({ harness, temp })

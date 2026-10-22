@@ -4,7 +4,13 @@ import { ESettingId, EQualityReviewStatus, QualityReviewPort } from '@dltech/atl
 
 import { registeredPortToken } from '../../container/injection'
 import { CodeQualityReview } from '../../quality/engine'
-import { FakeDecisions, QualityRig, WIDGET_SOURCE, reviewsOf, typesOf } from './quality-test-fixtures'
+import {
+  FakeDecisions,
+  QualityRig,
+  WIDGET_SOURCE,
+  reviewsOf,
+  typesOf,
+} from './quality-test-fixtures'
 
 const POLICY_SETTING = 'quality.policies.singleResponsibility'
 const SRP_CONCERN_KEY = 'single-responsibility:currentConcern'
@@ -19,17 +25,22 @@ afterEach(async () => {
   await rig.dispose()
 })
 
-const reviewedStatuses = (drafts: Awaited<ReturnType<QualityRig['dispatchWrite']>>): EQualityReviewStatus[] =>
-  reviewsOf(drafts).map((record) => record.status)
+const reviewedStatuses = (
+  drafts: Awaited<ReturnType<QualityRig['dispatchWrite']>>,
+): EQualityReviewStatus[] => reviewsOf(drafts).map((record) => record.status)
 
 describe('bindQuality in the shared root', () => {
   it('registers the quality port after the DecisionPort and before the surface binds, and descriptors reach settings', () => {
     expect(rig.facts).toEqual({ decisionPortWasRegistered: true, qualityPortWasRegistered: true })
-    expect(rig.container.resolve(registeredPortToken(QualityReviewPort))).toBeInstanceOf(CodeQualityReview)
+    expect(rig.container.resolve(registeredPortToken(QualityReviewPort))).toBeInstanceOf(
+      CodeQualityReview,
+    )
 
     const definition = rig.app.settings.definitions.find((one) => one.id === POLICY_SETTING)
     expect(definition?.fallback).toBe(true)
-    expect(rig.app.settings.definitions.some((one) => one.id === ESettingId.QualityEnabled)).toBe(true)
+    expect(rig.app.settings.definitions.some((one) => one.id === ESettingId.QualityEnabled)).toBe(
+      true,
+    )
   })
 
   it('stays off by default: no decision call, no review record, the write still lands', async () => {
@@ -49,7 +60,11 @@ describe('bindQuality in the shared root', () => {
     const threadId = await rig.newThread()
     rig.enableReview()
 
-    const drafts = await rig.dispatchWrite({ threadId, relative: 'widget.ts', content: WIDGET_SOURCE })
+    const drafts = await rig.dispatchWrite({
+      threadId,
+      relative: 'widget.ts',
+      content: WIDGET_SOURCE,
+    })
 
     expect(typesOf(drafts)).toEqual(['tool-result', 'nudge'])
     expect(rig.decisions.calls[0]?.questionKeys).toContain(SRP_CONCERN_KEY)
@@ -69,7 +84,11 @@ describe('bindQuality in the shared root', () => {
     expect(afterFirst).toBeGreaterThan(0)
 
     rig.setting({ id: POLICY_SETTING, value: false })
-    const policyOff = await rig.dispatchWrite({ threadId, relative: 'b.ts', content: WIDGET_SOURCE })
+    const policyOff = await rig.dispatchWrite({
+      threadId,
+      relative: 'b.ts',
+      content: WIDGET_SOURCE,
+    })
     expect(rig.decisions.calls).toHaveLength(afterFirst)
     expect(typesOf(policyOff)).not.toContain('nudge')
 
@@ -79,7 +98,11 @@ describe('bindQuality in the shared root', () => {
 
     const before = rig.decisions.calls.length
     rig.setting({ id: ESettingId.QualityEnabled, value: false })
-    const masterOff = await rig.dispatchWrite({ threadId, relative: 'd.ts', content: WIDGET_SOURCE })
+    const masterOff = await rig.dispatchWrite({
+      threadId,
+      relative: 'd.ts',
+      content: WIDGET_SOURCE,
+    })
     expect(rig.decisions.calls).toHaveLength(before)
     expect(typesOf(masterOff)).toEqual(['tool-result'])
   })
@@ -89,7 +112,11 @@ describe('bindQuality in the shared root', () => {
     rig.enableReview()
     rig.decisions.mode = 'fault'
 
-    const drafts = await rig.dispatchWrite({ threadId, relative: 'fault.ts', content: WIDGET_SOURCE })
+    const drafts = await rig.dispatchWrite({
+      threadId,
+      relative: 'fault.ts',
+      content: WIDGET_SOURCE,
+    })
 
     expect(reviewedStatuses(drafts)).not.toContain(EQualityReviewStatus.Completed)
     expect(typesOf(drafts)).not.toContain('nudge')

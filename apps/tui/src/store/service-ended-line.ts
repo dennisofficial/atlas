@@ -1,4 +1,9 @@
-import { quotedShellCommand, serviceEnding, serviceFailed, type ServiceEnding } from '@dltech/atlas-core'
+import {
+  quotedShellCommand,
+  serviceEnding,
+  serviceFailed,
+  type ServiceEnding,
+} from '@dltech/atlas-core'
 
 export type ServiceEndedNotice = ServiceEnding & {
   serviceId: string

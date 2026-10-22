@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import {
-  WORKSPACE_SPEC_PATH,
-  type BridgeDriver,
-  type LiveSandbox,
-} from '../local-cloud-bootstrap'
+import { WORKSPACE_SPEC_PATH, type BridgeDriver, type LiveSandbox } from '../local-cloud-bootstrap'
 import { createLocalCloudBridge } from '../local-cloud-bridge'
 import { ECloudSandboxState } from '../sandbox-client'
 import type { SandboxPlacement, VercelSandboxConfig } from '@dltech/atlas-wire'
@@ -25,7 +21,9 @@ const fakeDriver = (args: { observed: boolean }) => {
   const liveSandbox = {}
   const driver: BridgeDriver = {
     inspect: async () =>
-      args.observed ? { state: ECloudSandboxState.Parked, url: 'https://old.vercel.run' } : undefined,
+      args.observed
+        ? { state: ECloudSandboxState.Parked, url: 'https://old.vercel.run' }
+        : undefined,
     createOrResume: async (createArgs) => {
       if (createArgs.putContextOnFreshBoot !== undefined) {
         await createArgs.putContextOnFreshBoot(liveSandbox as unknown as LiveSandbox)

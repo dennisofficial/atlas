@@ -28,17 +28,28 @@ export function createPartAccumulator(): PartAccumulator {
   let finishReason = EFinishReason.Other
   let usage: ModelUsage | undefined
 
-  const handleStart = (args: { id: string; kind: EBlockKind; providerMetadata: ProviderOptions | undefined }) => {
+  const handleStart = (args: {
+    id: string
+    kind: EBlockKind
+    providerMetadata: ProviderOptions | undefined
+  }) => {
     if (open.has(args.id)) return
     open.set(args.id, { kind: args.kind, text: '', providerOptions: args.providerMetadata })
     openedOrder.push(args.id)
   }
 
-  const handleDelta = (args: { id: string; text: string; providerMetadata: ProviderOptions | undefined }) => {
+  const handleDelta = (args: {
+    id: string
+    text: string
+    providerMetadata: ProviderOptions | undefined
+  }) => {
     const block = open.get(args.id)
     if (!block) return
     block.text += args.text
-    block.providerOptions = mergeProviderOptions({ base: block.providerOptions, incoming: args.providerMetadata })
+    block.providerOptions = mergeProviderOptions({
+      base: block.providerOptions,
+      incoming: args.providerMetadata,
+    })
   }
 
   const handleClose = (args: { id: string; providerMetadata: ProviderOptions | undefined }) => {
@@ -46,7 +57,10 @@ export function createPartAccumulator(): PartAccumulator {
     if (!block) return
     open.delete(args.id)
 
-    const providerOptions = mergeProviderOptions({ base: block.providerOptions, incoming: args.providerMetadata })
+    const providerOptions = mergeProviderOptions({
+      base: block.providerOptions,
+      incoming: args.providerMetadata,
+    })
     const carried = carriedProviderOptions(providerOptions)
 
     if (block.kind === EBlockKind.Reasoning) {
@@ -61,13 +75,25 @@ export function createPartAccumulator(): PartAccumulator {
   return {
     handle(chunk) {
       if (chunk.type === 'text-start') {
-        return handleStart({ id: chunk.id, kind: EBlockKind.Text, providerMetadata: chunk.providerMetadata })
+        return handleStart({
+          id: chunk.id,
+          kind: EBlockKind.Text,
+          providerMetadata: chunk.providerMetadata,
+        })
       }
       if (chunk.type === 'reasoning-start') {
-        return handleStart({ id: chunk.id, kind: EBlockKind.Reasoning, providerMetadata: chunk.providerMetadata })
+        return handleStart({
+          id: chunk.id,
+          kind: EBlockKind.Reasoning,
+          providerMetadata: chunk.providerMetadata,
+        })
       }
       if (chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') {
-        return handleDelta({ id: chunk.id, text: chunk.text, providerMetadata: chunk.providerMetadata })
+        return handleDelta({
+          id: chunk.id,
+          text: chunk.text,
+          providerMetadata: chunk.providerMetadata,
+        })
       }
       if (chunk.type === 'text-end' || chunk.type === 'reasoning-end') {
         return handleClose({ id: chunk.id, providerMetadata: chunk.providerMetadata })

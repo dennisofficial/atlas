@@ -101,7 +101,11 @@ export class CloudManagedCredentialPort extends CredentialPort {
       clients: this.clients,
       newConnectionId: args.newConnectionId,
     })
-    this.handoffWork = new OauthHandoffWork({ handoff: this.handoff, clock: args.clock, onFailure: args.onHandoffFailure })
+    this.handoffWork = new OauthHandoffWork({
+      handoff: this.handoff,
+      clock: args.clock,
+      onFailure: args.onHandoffFailure,
+    })
   }
 
   async read(request?: CredentialRequest): Promise<Credential> {
@@ -121,16 +125,22 @@ export class CloudManagedCredentialPort extends CredentialPort {
   }
 
   async discard(credential: Credential): Promise<void> {
-    if (credential.kind === EAuthKind.Oauth) this.rejected.set(credential.accountId, credential.accessToken)
+    if (credential.kind === EAuthKind.Oauth)
+      this.rejected.set(credential.accountId, credential.accessToken)
     await this.local.discard(credential)
   }
 
   async handoffAll(session: CloudSession, accountIds?: readonly AccountId[]): Promise<void> {
     const failures: string[] = []
     for (const account of await this.accounts.list()) {
-      if (account.kind !== EAuthKind.Oauth || (accountIds !== undefined && !accountIds.includes(account.id))) continue
+      if (
+        account.kind !== EAuthKind.Oauth ||
+        (accountIds !== undefined && !accountIds.includes(account.id))
+      )
+        continue
       const stored = await this.accounts.read(account.id)
-      if (stored === undefined || !isOauthHandoffCandidate({ stored, cloudUrl: session.url })) continue
+      if (stored === undefined || !isOauthHandoffCandidate({ stored, cloudUrl: session.url }))
+        continue
       try {
         await this.handoff.transfer({ accountId: account.id, session })
       } catch (error) {
@@ -145,11 +155,22 @@ export class CloudManagedCredentialPort extends CredentialPort {
     })
   }
 
-  prepareReplacement(args: { accountId: AccountId; secret: AccountSecret }): Promise<AccountSecret> {
-    return prepareOauthReplacement({ ...args, accounts: this.accounts, session: this.session(), client: this.clients })
+  prepareReplacement(args: {
+    accountId: AccountId
+    secret: AccountSecret
+  }): Promise<AccountSecret> {
+    return prepareOauthReplacement({
+      ...args,
+      accounts: this.accounts,
+      session: this.session(),
+      client: this.clients,
+    })
   }
 
-  private async owned(args: { chosen: StoredAccount; session: CloudSession | null }): Promise<OwnedOauth> {
+  private async owned(args: {
+    chosen: StoredAccount
+    session: CloudSession | null
+  }): Promise<OwnedOauth> {
     const existing = authorityOf(args.chosen.secret)
     const session = args.session
     const needsTransfer =
@@ -168,7 +189,12 @@ export class CloudManagedCredentialPort extends CredentialPort {
       } catch (error) {
         const current = await this.accounts.read(args.chosen.id)
         const authority = current === undefined ? undefined : authorityOf(current.secret)
-        if (isTransient(error) && current !== undefined && authority !== undefined && this.cachedUsable(current)) {
+        if (
+          isTransient(error) &&
+          current !== undefined &&
+          authority !== undefined &&
+          this.cachedUsable(current)
+        ) {
           return { stored: current, authority }
         }
         throw credentialErrorOf(error)
@@ -225,7 +251,8 @@ export class CloudManagedCredentialPort extends CredentialPort {
     authority: OauthAuthority
     session: CloudSession
   }): Promise<StoredAccount> {
-    const held = args.stored.secret.kind === EAuthKind.Oauth ? args.stored.secret.tokens.accessToken : ''
+    const held =
+      args.stored.secret.kind === EAuthKind.Oauth ? args.stored.secret.tokens.accessToken : ''
     const rejected = this.rejected.get(args.stored.id)
 
     const access = await this.clients(args.session).accessToken({
@@ -263,7 +290,8 @@ export class CloudManagedCredentialPort extends CredentialPort {
     const expiresAtMs = millisOf(stored.secret.tokens.expiresAt)
     if (expiresAtMs === null) return false
 
-    const dueMs = millisOf(authorityOf(stored.secret)?.refreshAfter) ?? expiresAtMs - DEFAULT_REFRESH_LEAD_MS
+    const dueMs =
+      millisOf(authorityOf(stored.secret)?.refreshAfter) ?? expiresAtMs - DEFAULT_REFRESH_LEAD_MS
 
     return Date.parse(this.clock.now()) < Math.min(dueMs, expiresAtMs)
   }

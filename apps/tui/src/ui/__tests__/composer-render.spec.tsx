@@ -17,12 +17,7 @@ import {
   RAIL_TAIL,
 } from '../borders'
 import { applyComposerEdge, EComposerEdge, SHIPPED_COMPOSER_EDGE } from '../composer-edge-store'
-import {
-  Composer,
-  composerTitle,
-  composerTone,
-  EComposerTone,
-} from '../components/composer'
+import { Composer, composerTitle, composerTone, EComposerTone } from '../components/composer'
 import { composerNoticeCells } from '../components/composer-title'
 import { ENamingPhase, type NamingState } from '../components/naming-line'
 import { FRAME_INSET } from '../components/frame'
@@ -262,12 +257,15 @@ describe('the bordered composer', () => {
       )
       try {
         await drawn(setup)
-        const spans = setup.captureSpans() as { lines: ({ spans: { bg?: { buffer: ArrayLike<number> } }[] } | undefined)[] }
+        const spans = setup.captureSpans() as {
+          lines: ({ spans: { bg?: { buffer: ArrayLike<number> } }[] } | undefined)[]
+        }
         const bgs = new Set<string>()
         for (const line of spans.lines) {
           for (const span of line?.spans ?? []) {
             const b = span.bg?.buffer
-            if (b && !(b[0] === 0 && b[1] === 0 && b[2] === 0 && b[3] === 0)) bgs.add(`${b[0]},${b[1]},${b[2]}`)
+            if (b && !(b[0] === 0 && b[1] === 0 && b[2] === 0 && b[3] === 0))
+              bgs.add(`${b[0]},${b[1]},${b[2]}`)
           }
         }
         return [...bgs]
@@ -332,7 +330,12 @@ describe('the bordered composer', () => {
   it('streams a too-long answer into the same form the settled title takes', async () => {
     applyComposerEdge(EComposerEdge.Bordered)
     const long = 'a session name long enough to overflow the composer title room entirely'
-    const settled = composerTitle({ title: long, width: WIDTH, badge: null, edge: EComposerEdge.Bordered })
+    const settled = composerTitle({
+      title: long,
+      width: WIDTH,
+      badge: null,
+      edge: EComposerEdge.Bordered,
+    })
     const frame = await frameOf(
       <Draft
         title={TITLE}
@@ -430,9 +433,7 @@ describe('composerNoticeCells', () => {
   })
 
   it('reports no room when the badge and title take the row between them', () => {
-    expect(
-      composerNoticeCells({ width: 20, badge: '⋯ 3 more rows', title: TITLE }),
-    ).toBe(0)
+    expect(composerNoticeCells({ width: 20, badge: '⋯ 3 more rows', title: TITLE })).toBe(0)
   })
 
   it('gives the corner its column back on a bordered edge', () => {

@@ -1,7 +1,6 @@
 export class AuthApiError extends Error {}
 
-export const UNREACHABLE =
-  'Could not reach Atlas Cloud — check your connection and retry.'
+export const UNREACHABLE = 'Could not reach Atlas Cloud — check your connection and retry.'
 
 export function normalizeUserCode(raw: string | null): string {
   return (raw ?? '').trim().replace(/-/g, '').toUpperCase()
@@ -82,10 +81,7 @@ export async function claimDeviceCode(userCode: string): Promise<void> {
 
 export type DeviceAction = 'approve' | 'deny'
 
-export async function actOnDevice(args: {
-  action: DeviceAction
-  userCode: string
-}): Promise<void> {
+export async function actOnDevice(args: { action: DeviceAction; userCode: string }): Promise<void> {
   let response: Response
   try {
     response = await fetch(`/api/auth/device/${args.action}`, {

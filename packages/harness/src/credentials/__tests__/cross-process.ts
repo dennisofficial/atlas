@@ -1,4 +1,11 @@
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -70,7 +77,10 @@ export const openArena = (): Arena => {
     spawn,
     open: (barrier) => appendFileSync(join(dir, barrier), ''),
     reached,
-    events: () => readFileSync(join(dir, 'events.log'), 'utf8').split('\n').filter((line) => line !== ''),
+    events: () =>
+      readFileSync(join(dir, 'events.log'), 'utf8')
+        .split('\n')
+        .filter((line) => line !== ''),
     close: async () => {
       await Promise.allSettled(running)
       rmSync(dir, { recursive: true, force: true })
@@ -85,6 +95,10 @@ export const seedExpiredGrant = (arena: Arena) =>
     origin: EAccountOrigin.Login,
     secret: {
       kind: EAuthKind.Oauth,
-      tokens: { accessToken: 'fake-old', refreshToken: 'fake-seed-refresh', expiresAt: '2026-10-05T11:00:00.000Z' },
+      tokens: {
+        accessToken: 'fake-old',
+        refreshToken: 'fake-seed-refresh',
+        expiresAt: '2026-10-05T11:00:00.000Z',
+      },
     },
   })

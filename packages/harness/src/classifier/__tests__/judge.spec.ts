@@ -136,7 +136,6 @@ describe('HaikuJudge', () => {
     )
   })
 
-
   it('leaves retries to the policy: one refusal is one attempt', async () => {
     const model = modelRefusing(retryable())
     const consultation = await consultWith({ model })

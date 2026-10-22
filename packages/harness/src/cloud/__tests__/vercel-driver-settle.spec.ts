@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import { VercelDriver } from '../vercel-driver'
-import { ESettleWait, type SettleWaitNotice, EVercelFailure, VercelFailure } from '@dltech/atlas-wire'
-import { CREDENTIALS, PINNED_VERSION, fakeSandbox, nameTakenError, notFound } from './vercel-driver-fixture'
+import {
+  ESettleWait,
+  type SettleWaitNotice,
+  EVercelFailure,
+  VercelFailure,
+} from '@dltech/atlas-wire'
+import {
+  CREDENTIALS,
+  PINNED_VERSION,
+  fakeSandbox,
+  nameTakenError,
+  notFound,
+} from './vercel-driver-fixture'
 
 describe('createOrResume riding out the name-registry settle', () => {
   it('retries a taken name and resumes once the registry catches up, narrating the wait', async () => {

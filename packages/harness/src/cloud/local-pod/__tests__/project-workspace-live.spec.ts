@@ -23,7 +23,8 @@ import { fileProvisionLock } from '../provision-lock'
 import { buildDevServe } from './dev-serve-build'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
@@ -48,14 +49,21 @@ const sweepOf = async (pod: LivePod): Promise<void> => {
     await work().catch((failure: unknown) => failures.push(failure))
   }
   await attempt(async () => {
-    for (const container of await engine.listContainers({ labels: { [podThreadLabel]: pod.threadId }, all: true })) {
+    for (const container of await engine.listContainers({
+      labels: { [podThreadLabel]: pod.threadId },
+      all: true,
+    })) {
       await attempt(() => engine.removeContainer({ id: container.id }))
     }
   })
   for (const name of [workspaceVolumeNameFor(pod), dindVolumeNameFor(pod)]) {
     await attempt(() => pods.removeVolume({ name }))
   }
-  if (failures.length > 0) throw new AggregateError(failures, `project-workspace-live cleanup of ${pod.podName} left resources behind`)
+  if (failures.length > 0)
+    throw new AggregateError(
+      failures,
+      `project-workspace-live cleanup of ${pod.podName} left resources behind`,
+    )
 }
 
 const dockerCli = async (args: readonly string[]): Promise<string> => {
@@ -72,7 +80,13 @@ const dockerCli = async (args: readonly string[]): Promise<string> => {
 const podReachableHost = async (): Promise<string> =>
   process.platform === 'darwin'
     ? 'host.docker.internal'
-    : await dockerCli(['network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}'])
+    : await dockerCli([
+        'network',
+        'inspect',
+        'bridge',
+        '--format',
+        '{{(index .IPAM.Config 0).Gateway}}',
+      ])
 
 const execIn = async (script: string) => {
   const result = await pods.execSh({ id: livePod.podName, script, timeoutMs: 60_000 })
@@ -112,7 +126,9 @@ describeDocker('serve clones the project a bootstrap names inside a live pod', (
             githubToken: null,
           })
         }
-        return new Response(JSON.stringify({ message: 'not found' }), { status: path === WORKSPACE_PATH ? 401 : 404 })
+        return new Response(JSON.stringify({ message: 'not found' }), {
+          status: path === WORKSPACE_PATH ? 401 : 404,
+        })
       },
     })
     devServe = await buildDevServe({ directory: join(workDirectory, 'serve') })
@@ -123,7 +139,11 @@ describeDocker('serve clones the project a bootstrap names inside a live pod', (
     const outcome = await Promise.allSettled([sweepOf(livePod)])
     if (workDirectory !== '') await rm(workDirectory, { recursive: true, force: true })
     const failed = outcome.filter((one) => one.status === 'rejected')
-    if (failed.length > 0) throw new AggregateError(failed.map((one) => one.reason), 'project-workspace-live cleanup failed')
+    if (failed.length > 0)
+      throw new AggregateError(
+        failed.map((one) => one.reason),
+        'project-workspace-live cleanup failed',
+      )
   }, 180_000)
 
   it('checks out each repo on its branch beside the primary, with clean origins', async () => {
@@ -156,12 +176,20 @@ describeDocker('serve clones the project a bootstrap names inside a live pod', (
 
     expect(await gitIn({ dir: PRIMARY_DIR, command: 'rev-parse --abbrev-ref HEAD' })).toBe('test')
     expect(await gitIn({ dir: PRIMARY_DIR, command: 'rev-parse HEAD' })).toBe(PRIMARY_HEAD)
-    expect(await gitIn({ dir: PRIMARY_DIR, command: 'remote get-url origin' })).toBe('https://github.com/octocat/Hello-World.git')
+    expect(await gitIn({ dir: PRIMARY_DIR, command: 'remote get-url origin' })).toBe(
+      'https://github.com/octocat/Hello-World.git',
+    )
 
-    expect(await gitIn({ dir: EXTRA_DIR, command: 'rev-parse --abbrev-ref HEAD' })).toBe('test-branch')
+    expect(await gitIn({ dir: EXTRA_DIR, command: 'rev-parse --abbrev-ref HEAD' })).toBe(
+      'test-branch',
+    )
     expect(await gitIn({ dir: EXTRA_DIR, command: 'rev-parse HEAD' })).toBe(EXTRA_HEAD)
-    expect(await gitIn({ dir: EXTRA_DIR, command: 'remote get-url origin' })).toBe('https://github.com/octocat/Spoon-Knife.git')
+    expect(await gitIn({ dir: EXTRA_DIR, command: 'remote get-url origin' })).toBe(
+      'https://github.com/octocat/Spoon-Knife.git',
+    )
 
-    expect(requests.some((request) => request.path === WORKSPACE_PATH && request.authorized)).toBe(true)
+    expect(requests.some((request) => request.path === WORKSPACE_PATH && request.authorized)).toBe(
+      true,
+    )
   }, 600_000)
 })

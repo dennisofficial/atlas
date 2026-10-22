@@ -283,7 +283,8 @@ describe('the actions modal', () => {
 
       const frame = await frameWhen({
         setup,
-        holds: (captured) => captured.includes('○ not signed in') && !captured.includes('Add an API key'),
+        holds: (captured) =>
+          captured.includes('○ not signed in') && !captured.includes('Add an API key'),
         describe: 'the actions modal to close back to the list',
       })
       expect(frame).toContain('○ not signed in')

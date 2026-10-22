@@ -39,7 +39,11 @@ export function bashDescription({
   ].join(' ')
 }
 
-export function exposureClause({ exposure }: { exposure: PortExposure | undefined }): readonly string[] {
+export function exposureClause({
+  exposure,
+}: {
+  exposure: PortExposure | undefined
+}): readonly string[] {
   if (exposure === undefined) return []
   if (exposure.hostPort === exposure.containerPort) {
     return [`It is reachable on the operator’s machine at ${exposure.url}.`]

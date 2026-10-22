@@ -124,7 +124,9 @@ describe('uploadDevServe', () => {
     const binary: DevServeBinary = { version: 'dev-feed', path: '/x', sha256: 'abc', bytes: 9 }
     const script = devServeAssembleScript({ binary, stageDir: '/opt/atlas/.upload-1', parts: 2 })
 
-    expect(script).toContain('cat "/opt/atlas/.upload-1/part-00000" "/opt/atlas/.upload-1/part-00001"')
+    expect(script).toContain(
+      'cat "/opt/atlas/.upload-1/part-00000" "/opt/atlas/.upload-1/part-00001"',
+    )
     expect(script.indexOf('size mismatch')).toBeLessThan(script.indexOf('sha256 mismatch'))
     expect(script.indexOf('sha256 mismatch')).toBeLessThan(script.indexOf('install -m 0755'))
     expect(script).toContain(`printf '%s' 'dev-feed' > "${SERVE_VERSION_PATH}"`)
@@ -185,7 +187,9 @@ describe('uploadServeInstaller', () => {
     const { sandbox, writes, scripts } = fakeSandbox({})
     const install = uploadServeInstaller(binary)
 
-    await expect(install({ sandbox, version: 'dev-bbbb' })).rejects.toThrow('cannot install dev-bbbb')
+    await expect(install({ sandbox, version: 'dev-bbbb' })).rejects.toThrow(
+      'cannot install dev-bbbb',
+    )
     await expect(install({ sandbox, version: undefined })).rejects.toThrow('cannot install latest')
     expect(writes).toHaveLength(0)
     expect(scripts).toHaveLength(0)

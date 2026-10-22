@@ -1,6 +1,10 @@
 import { ECaseReviewState, EVAL_CASE_SCHEMA_VERSION, type EvalCase } from '../src/case'
 import { sha256Hex } from '../src/hash'
-import { DATASET_MANIFEST_SCHEMA_VERSION, EDatasetSplit, type DatasetManifest } from '../src/manifest'
+import {
+  DATASET_MANIFEST_SCHEMA_VERSION,
+  EDatasetSplit,
+  type DatasetManifest,
+} from '../src/manifest'
 import type { CalculatorExpected, CalculatorInput } from './calculator'
 
 export const SMOKE_DATASET_VERSION = '1-smoke'
@@ -29,7 +33,8 @@ export const SMOKE_CASES: readonly EvalCase[] = smokeRows.map(({ id, input, expe
   review: { state: ECaseReviewState.Accepted, verifications: [] },
 }))
 
-export const smokeCasesText = (): string => `${SMOKE_CASES.map((evalCase) => JSON.stringify(evalCase)).join('\n')}\n`
+export const smokeCasesText = (): string =>
+  `${SMOKE_CASES.map((evalCase) => JSON.stringify(evalCase)).join('\n')}\n`
 
 export function smokeDatasetManifest({ casesText }: { casesText: string }): DatasetManifest {
   return {

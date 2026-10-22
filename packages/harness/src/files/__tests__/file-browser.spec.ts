@@ -18,7 +18,9 @@ const write = ({ at, content }: { at: string; content: string | Uint8Array }): v
 const browser = (): FileBrowser => new FileBrowser({ root })
 
 const namesUnder = async (directory: string): Promise<readonly string[]> =>
-  (await browser().list(directory)).map((entry) => (entry.isDirectory ? `${entry.name}/` : entry.name))
+  (await browser().list(directory)).map((entry) =>
+    entry.isDirectory ? `${entry.name}/` : entry.name,
+  )
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'atlas-browse-'))

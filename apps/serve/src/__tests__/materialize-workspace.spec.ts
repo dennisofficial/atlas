@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import { EWorkspaceState, EWorkspaceStep, WORKSPACE_SENTINEL } from '../materialize-workspace'
 
-import { argsOf, CWD, harness, revParseAnswers, spec, TIP, TOKEN } from './materialize-workspace-fixture'
+import {
+  argsOf,
+  CWD,
+  harness,
+  revParseAnswers,
+  spec,
+  TIP,
+  TOKEN,
+} from './materialize-workspace-fixture'
 
 const BRANCH_SPEC = {
   remoteUrl: 'https://github.com/octocat/Hello-World.git',
@@ -22,12 +30,7 @@ describe('ensureWorkspace', () => {
     expect(readiness).toEqual({ state: EWorkspaceState.Materialized })
     expect(emptied).toEqual([CWD])
     expect(argsOf(attempts)).toEqual([
-      [
-        'clone',
-        '--',
-        `https://x-access-token:${TOKEN}@github.com/dennisofficial/atlas.git`,
-        '.',
-      ],
+      ['clone', '--', `https://x-access-token:${TOKEN}@github.com/dennisofficial/atlas.git`, '.'],
       ['remote', 'set-url', 'origin', 'https://github.com/dennisofficial/atlas.git'],
       ['rev-parse', '--verify', 'HEAD'],
     ])
@@ -141,7 +144,10 @@ describe('ensureWorkspace', () => {
   it('clones each additional repo beside the workspace on its branch and scrubs the token', async () => {
     const { ensure, attempts, emptied } = harness({ answers: revParseAnswers })
 
-    const readiness = await ensure({ cwd: '/atlas/workspaces/Hello-World', fetchSpec: async () => spec(BRANCH_SPEC) })
+    const readiness = await ensure({
+      cwd: '/atlas/workspaces/Hello-World',
+      fetchSpec: async () => spec(BRANCH_SPEC),
+    })
 
     expect(readiness).toEqual({ state: EWorkspaceState.Materialized })
     expect(emptied).toEqual([
@@ -198,7 +204,10 @@ describe('ensureWorkspace', () => {
           : undefined,
     })
 
-    const readiness = await ensure({ cwd: '/atlas/workspaces/Hello-World', fetchSpec: async () => spec(BRANCH_SPEC) })
+    const readiness = await ensure({
+      cwd: '/atlas/workspaces/Hello-World',
+      fetchSpec: async () => spec(BRANCH_SPEC),
+    })
 
     expect(readiness).toMatchObject({ state: EWorkspaceState.Failed, step: EWorkspaceStep.Clone })
     expect(emptied.filter((path) => path === '/atlas/workspaces/Spoon-Knife')).toHaveLength(2)
@@ -210,11 +219,14 @@ describe('ensureWorkspace', () => {
     const { ensure, attempts, written } = harness({
       answers: revParseAnswers,
       fails: (attempt) =>
-        failDisarm && attempt.args[0] === 'remote' && attempt.cwd === '/atlas/workspaces/Spoon-Knife'
+        failDisarm &&
+        attempt.args[0] === 'remote' &&
+        attempt.cwd === '/atlas/workspaces/Spoon-Knife'
           ? { stderr: 'fatal: could not set the remote' }
           : undefined,
     })
-    const boot = () => ensure({ cwd: '/atlas/workspaces/Hello-World', fetchSpec: async () => spec(BRANCH_SPEC) })
+    const boot = () =>
+      ensure({ cwd: '/atlas/workspaces/Hello-World', fetchSpec: async () => spec(BRANCH_SPEC) })
 
     expect((await boot()).state).toBe(EWorkspaceState.Failed)
     failDisarm = false
@@ -247,11 +259,16 @@ describe('ensureWorkspace', () => {
     const { ensure, written } = harness({
       fails: (attempt) =>
         attempt.args.some((one) => one.includes('Spoon-Knife')) && attempt.args[0] === 'clone'
-          ? { stderr: `fatal: could not read https://x-access-token:${TOKEN}@github.com/octocat/Spoon-Knife.git` }
+          ? {
+              stderr: `fatal: could not read https://x-access-token:${TOKEN}@github.com/octocat/Spoon-Knife.git`,
+            }
           : undefined,
     })
 
-    const readiness = await ensure({ cwd: '/atlas/workspaces/Hello-World', fetchSpec: async () => spec(BRANCH_SPEC) })
+    const readiness = await ensure({
+      cwd: '/atlas/workspaces/Hello-World',
+      fetchSpec: async () => spec(BRANCH_SPEC),
+    })
 
     expect(readiness).toMatchObject({ state: EWorkspaceState.Failed, step: EWorkspaceStep.Clone })
     expect(JSON.stringify(readiness)).toContain('octocat/Spoon-Knife: ')
@@ -264,7 +281,8 @@ describe('ensureWorkspace', () => {
 
     const readiness = await ensure({
       cwd: CWD,
-      fetchSpec: async () => spec({ remoteUrl: null, projectId: 'proj-1', baseBranch: null, additionalRepos: [] }),
+      fetchSpec: async () =>
+        spec({ remoteUrl: null, projectId: 'proj-1', baseBranch: null, additionalRepos: [] }),
     })
 
     expect(readiness).toEqual({ state: EWorkspaceState.Skipped })

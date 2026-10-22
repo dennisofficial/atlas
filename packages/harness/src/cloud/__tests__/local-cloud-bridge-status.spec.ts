@@ -33,7 +33,9 @@ const fixture = (args: {
     writeBootstrapFile: async () => undefined,
     readResources: async () => ({}),
     updateResources: async () => {},
-    destroy: async () => { destroys += 1 },
+    destroy: async () => {
+      destroys += 1
+    },
   }
   const bridge = createLocalCloudBridge({
     vercel: () => ({
@@ -65,7 +67,9 @@ describe('non-waking cloud sandbox inspection', () => {
   it('retains provider evidence when the optional API is unavailable', async () => {
     const setup = fixture({
       observed: { state: ECloudSandboxState.Parked, sandboxSessionId: 'session-1' },
-      readCheckpoint: async () => { throw new Error('API unavailable') },
+      readCheckpoint: async () => {
+        throw new Error('API unavailable')
+      },
     })
     expect(await setup.bridge.sandboxes.find({ threadId })).toEqual({
       state: ECloudSandboxState.Parked,

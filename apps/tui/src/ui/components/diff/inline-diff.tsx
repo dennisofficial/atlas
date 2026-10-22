@@ -98,10 +98,7 @@ export function InlineDiff(props: {
           />
         ))}
       </Panel>
-      <DiffFooter
-        width={props.width}
-        left={filesSpans({ files: props.files ?? null })}
-      />
+      <DiffFooter width={props.width} left={filesSpans({ files: props.files ?? null })} />
     </box>
   )
 }

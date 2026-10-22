@@ -30,7 +30,10 @@ export function verifySha256(args: { data: Uint8Array; sidecarText: string }): b
   return actual === expected
 }
 
-export function shouldStage(args: { stagedVersion: Semver | null; targetVersion: Semver }): boolean {
+export function shouldStage(args: {
+  stagedVersion: Semver | null
+  targetVersion: Semver
+}): boolean {
   if (args.stagedVersion === null) return true
   return compareSemver(args.stagedVersion, args.targetVersion) < 0
 }

@@ -24,7 +24,9 @@ export function formatSize(bytes: number): string {
 export function publishedLine(summary: PublishedBundleSummary): string {
   const { skills, instructions, mcp } = summary.manifest
   const parts = [
-    ...(skills.length === 0 ? [] : [`${skills.length} ${skills.length === 1 ? 'skill' : 'skills'}`]),
+    ...(skills.length === 0
+      ? []
+      : [`${skills.length} ${skills.length === 1 ? 'skill' : 'skills'}`]),
     ...(instructions.length === 0 ? [] : ['ATLAS.md']),
     ...(mcp ? ['mcp.json'] : []),
   ]

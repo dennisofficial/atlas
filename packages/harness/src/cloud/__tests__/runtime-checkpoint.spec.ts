@@ -142,7 +142,10 @@ describe('persistRuntimeCheckpoint', () => {
       ERuntimePhase.Parked,
     ]
     for (const [index, phase] of chain.entries()) {
-      await persistRuntimeCheckpoint({ file, checkpoint: checkpoint({ revision: index + 1, phase }) })
+      await persistRuntimeCheckpoint({
+        file,
+        checkpoint: checkpoint({ revision: index + 1, phase }),
+      })
     }
     expect((await readPersistedRuntimeCheckpoint({ file }))?.phase).toBe(ERuntimePhase.Parked)
   })
@@ -158,17 +161,29 @@ describe('persistRuntimeCheckpoint', () => {
     const file = runtimeCheckpointFile({ atlasHome: scratchHome() })
     await persistRuntimeCheckpoint({
       file,
-      checkpoint: checkpoint({ revision: 1, phase: ERuntimePhase.Parked, runtimeId: 'old-runtime' }),
+      checkpoint: checkpoint({
+        revision: 1,
+        phase: ERuntimePhase.Parked,
+        runtimeId: 'old-runtime',
+      }),
     })
     await expect(
       persistRuntimeCheckpoint({
         file,
-        checkpoint: checkpoint({ revision: 2, phase: ERuntimePhase.Serving, runtimeId: 'old-runtime' }),
+        checkpoint: checkpoint({
+          revision: 2,
+          phase: ERuntimePhase.Serving,
+          runtimeId: 'old-runtime',
+        }),
       }),
     ).rejects.toThrow(/parked -> serving/)
     await persistRuntimeCheckpoint({
       file,
-      checkpoint: checkpoint({ revision: 2, phase: ERuntimePhase.Serving, runtimeId: 'new-runtime' }),
+      checkpoint: checkpoint({
+        revision: 2,
+        phase: ERuntimePhase.Serving,
+        runtimeId: 'new-runtime',
+      }),
     })
     expect((await readPersistedRuntimeCheckpoint({ file }))?.runtimeId).toBe('new-runtime')
   })
@@ -188,12 +203,8 @@ describe('acceptsRuntimeCheckpoint', () => {
   it('accepts strictly newer revisions only: older, equal, and altered-equal all drop', () => {
     const stored = checkpoint({ revision: 4, phase: ERuntimePhase.Serving })
     expect(acceptsRuntimeCheckpoint({ stored: null, reported: checkpoint() })).toBe(true)
-    expect(
-      acceptsRuntimeCheckpoint({ stored, reported: checkpoint({ revision: 5 }) }),
-    ).toBe(true)
-    expect(
-      acceptsRuntimeCheckpoint({ stored, reported: checkpoint({ revision: 3 }) }),
-    ).toBe(false)
+    expect(acceptsRuntimeCheckpoint({ stored, reported: checkpoint({ revision: 5 }) })).toBe(true)
+    expect(acceptsRuntimeCheckpoint({ stored, reported: checkpoint({ revision: 3 }) })).toBe(false)
     expect(acceptsRuntimeCheckpoint({ stored, reported: stored })).toBe(false)
     expect(
       acceptsRuntimeCheckpoint({

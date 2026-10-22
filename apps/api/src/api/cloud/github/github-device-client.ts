@@ -35,7 +35,8 @@ function asHttpResponse(value: unknown): GithubHttpResponse {
   return value as GithubHttpResponse
 }
 
-export const defaultGithubFetch: FetchFn = async (url, request) => asHttpResponse(await fetch(url, request))
+export const defaultGithubFetch: FetchFn = async (url, request) =>
+  asHttpResponse(await fetch(url, request))
 
 export type GithubPollOutcome =
   | { kind: 'granted'; accessToken: string; scope: string }

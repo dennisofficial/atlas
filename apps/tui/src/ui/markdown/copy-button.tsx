@@ -13,8 +13,7 @@ const LABELS = {
   failed: `${glyph.copy} blocked`,
 } as const
 
-export const COPY_BUTTON_WIDTH =
-  Math.max(...Object.values(LABELS).map((label) => label.length)) + 2
+export const COPY_BUTTON_WIDTH = Math.max(...Object.values(LABELS).map((label) => label.length)) + 2
 
 export function CopyButton(props: {
   text: string
@@ -45,12 +44,7 @@ export function CopyButton(props: {
   const label = shown ? ` ${LABELS[state]} ` : ''
 
   return (
-    <box
-      flexDirection="row"
-      justifyContent="flex-end"
-      width={COPY_BUTTON_WIDTH}
-      flexShrink={0}
-    >
+    <box flexDirection="row" justifyContent="flex-end" width={COPY_BUTTON_WIDTH} flexShrink={0}>
       {shown ? (
         <text
           fg={fg}

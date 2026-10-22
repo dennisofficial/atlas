@@ -119,7 +119,9 @@ describe('the default model pair', () => {
 
     expect(refKey(launched({ values, env }).ref)).toBe('anthropic/claude-haiku-4-5')
     expect(
-      refKey(launched({ requested: { model: { ref: 'anthropic/claude-sonnet-5' } }, values, env }).ref),
+      refKey(
+        launched({ requested: { model: { ref: 'anthropic/claude-sonnet-5' } }, values, env }).ref,
+      ),
     ).toBe('anthropic/claude-sonnet-5')
   })
 
@@ -216,16 +218,23 @@ describe('the pair a conversation carries', () => {
 
   it('writes back the qualified pair the store reads', () => {
     expect(
-      storedModel({ ref: { providerId: 'anthropic', modelId: 'claude-opus-5' }, effort: EEffort.High }),
+      storedModel({
+        ref: { providerId: 'anthropic', modelId: 'claude-opus-5' },
+        effort: EEffort.High,
+      }),
     ).toEqual({ ref: 'anthropic/claude-opus-5', effort: EEffort.High })
   })
 })
 
 describe('a launch pinned to one model', () => {
   it('is pinned only when the flag names a model something can answer for', () => {
-    expect(modelPinned({ requested: { model: { ref: 'anthropic/claude-opus-5' } }, catalogue })).toBe(true)
+    expect(
+      modelPinned({ requested: { model: { ref: 'anthropic/claude-opus-5' } }, catalogue }),
+    ).toBe(true)
     expect(modelPinned({ requested: { model: undefined }, catalogue })).toBe(false)
-    expect(modelPinned({ requested: { model: { ref: 'openai/gpt-5-codex' } }, catalogue })).toBe(false)
+    expect(modelPinned({ requested: { model: { ref: 'openai/gpt-5-codex' } }, catalogue })).toBe(
+      false,
+    )
     expect(modelPinned({ requested: { model: { ref: 'claude-opus-5' } }, catalogue })).toBe(false)
   })
 })

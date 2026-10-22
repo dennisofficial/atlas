@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { useState } from 'react'
+import { PlusIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Dialog,
   DialogClose,
@@ -11,56 +11,56 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@dltech/atlas-ui/components/dialog";
-import { Input } from "@dltech/atlas-ui/components/input";
-import { Label } from "@dltech/atlas-ui/components/label";
+} from '@dltech/atlas-ui/components/dialog'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { Label } from '@dltech/atlas-ui/components/label'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
-import { Textarea } from "@dltech/atlas-ui/components/textarea";
+} from '@dltech/atlas-ui/components/select'
+import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
-import { EMcpTransport, type McpServer } from "../../../fixtures/settings-mcp";
+import { EMcpTransport, type McpServer } from '../../../fixtures/settings-mcp'
 
 const TRANSPORT_ITEMS = [
-  { value: EMcpTransport.Stdio, label: "stdio" },
-  { value: EMcpTransport.Http, label: "http" },
-];
+  { value: EMcpTransport.Stdio, label: 'stdio' },
+  { value: EMcpTransport.Http, label: 'http' },
+]
 
 type Draft = {
-  name: string;
-  transport: EMcpTransport;
-  target: string;
-  extra: string;
-};
+  name: string
+  transport: EMcpTransport
+  target: string
+  extra: string
+}
 
-const EMPTY_DRAFT: Draft = { name: "", transport: EMcpTransport.Stdio, target: "", extra: "" };
+const EMPTY_DRAFT: Draft = { name: '', transport: EMcpTransport.Stdio, target: '', extra: '' }
 
 function toServerId(name: string) {
   return name
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 export function McpAddDialog({ onAdd }: { onAdd: (server: McpServer) => void }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(EMPTY_DRAFT);
-  const isStdio = draft.transport === EMcpTransport.Stdio;
-  const valid = toServerId(draft.name).length > 0 && draft.target.trim().length > 0;
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(EMPTY_DRAFT)
+  const isStdio = draft.transport === EMcpTransport.Stdio
+  const valid = toServerId(draft.name).length > 0 && draft.target.trim().length > 0
 
   const handleOpenChange = (next: boolean) => {
-    if (next) setDraft(EMPTY_DRAFT);
-    setOpen(next);
-  };
+    if (next) setDraft(EMPTY_DRAFT)
+    setOpen(next)
+  }
 
   const handleTransportChange = (value: EMcpTransport | null) => {
-    if (value) setDraft({ ...draft, transport: value });
-  };
+    if (value) setDraft({ ...draft, transport: value })
+  }
 
   const handleAdd = () => {
     onAdd({
@@ -68,9 +68,9 @@ export function McpAddDialog({ onAdd }: { onAdd: (server: McpServer) => void }) 
       transport: draft.transport,
       target: draft.target.trim(),
       enabled: true,
-    });
-    setOpen(false);
-  };
+    })
+    setOpen(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -115,27 +115,31 @@ export function McpAddDialog({ onAdd }: { onAdd: (server: McpServer) => void }) 
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mcp-target">{isStdio ? "Command" : "URL"}</Label>
+            <Label htmlFor="mcp-target">{isStdio ? 'Command' : 'URL'}</Label>
             <Input
               id="mcp-target"
               className="font-mono text-xs"
-              placeholder={isStdio ? "npx -y @modelcontextprotocol/server-everything" : "https://mcp.example.com/mcp"}
+              placeholder={
+                isStdio
+                  ? 'npx -y @modelcontextprotocol/server-everything'
+                  : 'https://mcp.example.com/mcp'
+              }
               value={draft.target}
               onChange={(event) => setDraft({ ...draft, target: event.target.value })}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mcp-extra">{isStdio ? "Environment" : "Headers"}</Label>
+            <Label htmlFor="mcp-extra">{isStdio ? 'Environment' : 'Headers'}</Label>
             <Textarea
               id="mcp-extra"
               rows={3}
               className="font-mono text-xs"
-              placeholder={isStdio ? "API_KEY=…" : "Authorization: Bearer …"}
+              placeholder={isStdio ? 'API_KEY=…' : 'Authorization: Bearer …'}
               value={draft.extra}
               onChange={(event) => setDraft({ ...draft, extra: event.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              {isStdio ? "One KEY=value per line." : "One Header: value per line."}
+              {isStdio ? 'One KEY=value per line.' : 'One Header: value per line.'}
             </p>
           </div>
         </div>
@@ -147,5 +151,5 @@ export function McpAddDialog({ onAdd }: { onAdd: (server: McpServer) => void }) 
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

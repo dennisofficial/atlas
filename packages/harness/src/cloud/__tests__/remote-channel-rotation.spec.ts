@@ -37,7 +37,11 @@ describe('a wake that turns out to be a serve swap', () => {
     receive({ kind: EServeFrame.Ready, seq: 1 })
 
     expect(channel.connection().state).toBe(EConnectionView.Connected)
-    expect(views).toEqual([EConnectionView.Waking, EConnectionView.Updating, EConnectionView.Connected])
+    expect(views).toEqual([
+      EConnectionView.Waking,
+      EConnectionView.Updating,
+      EConnectionView.Connected,
+    ])
   })
 
   it('drops the swap when the wake fails, reading Disconnected with the reason', async () => {

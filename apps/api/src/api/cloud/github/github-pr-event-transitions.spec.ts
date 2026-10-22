@@ -93,7 +93,14 @@ describe('transitionsOf', () => {
 
   it('emits mergeability immediately when the PR has no checks at all', () => {
     const events = transitionsOf({
-      prior: { state: 'open', headSha: 'abc', checksRunning: 0, checksPassed: 0, checksFailed: 0, mergeable: null },
+      prior: {
+        state: 'open',
+        headSha: 'abc',
+        checksRunning: 0,
+        checksPassed: 0,
+        checksFailed: 0,
+        mergeable: null,
+      },
       next: { ...base, checksRunning: 0, checksPassed: 0, checksFailed: 0, mergeable: true },
     })
     expect(kindsOf(events)).toEqual([EPrEventKind.Mergeability])
@@ -136,7 +143,14 @@ describe('transitionsOf', () => {
     expect(settled[0]?.payload.verdict).toBe('green')
 
     const steady = transitionsOf({
-      prior: { state: 'open', headSha: 'abc', checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: null },
+      prior: {
+        state: 'open',
+        headSha: 'abc',
+        checksRunning: 0,
+        checksPassed: 10,
+        checksFailed: 0,
+        mergeable: null,
+      },
       next: { ...base, checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: null },
       options,
     })
@@ -202,7 +216,14 @@ describe('transitionsOf', () => {
       expect(
         transitionsOf({
           prior: settledPrior,
-          next: { ...base, headSha: 'aaaaaaa1', checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: null },
+          next: {
+            ...base,
+            headSha: 'aaaaaaa1',
+            checksRunning: 0,
+            checksPassed: 10,
+            checksFailed: 0,
+            mergeable: null,
+          },
         }),
       ).toEqual([])
     })
@@ -211,8 +232,23 @@ describe('transitionsOf', () => {
   it('emits a state event when the PR merges or closes, regardless of timing', () => {
     for (const timing of ['fail-fast', 'settled'] as const) {
       const events = transitionsOf({
-        prior: { state: 'open', headSha: 'abc', checksRunning: 0, checksPassed: 3, checksFailed: 0, mergeable: true },
-        next: { state: 'merged', headSha: 'abc', url: 'https://x', checksRunning: 0, checksPassed: 3, checksFailed: 0, mergeable: true },
+        prior: {
+          state: 'open',
+          headSha: 'abc',
+          checksRunning: 0,
+          checksPassed: 3,
+          checksFailed: 0,
+          mergeable: true,
+        },
+        next: {
+          state: 'merged',
+          headSha: 'abc',
+          url: 'https://x',
+          checksRunning: 0,
+          checksPassed: 3,
+          checksFailed: 0,
+          mergeable: true,
+        },
         options: { verdictTiming: timing },
       })
       expect(kindsOf(events)).toEqual([EPrEventKind.State])

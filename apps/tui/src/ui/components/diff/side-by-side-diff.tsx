@@ -6,11 +6,7 @@ import { rowDigits, sideBySideColumns, type SideBySideColumns } from '../../diff
 import { theme } from '../../theme'
 import { Panel } from '../panel'
 import { useDiffChunks, type DiffEmphasis } from './diff-chunks'
-import {
-  DiffFooter,
-  separatedSpans,
-  SIDE_BY_SIDE_NOTE,
-} from './diff-footer'
+import { DiffFooter, separatedSpans, SIDE_BY_SIDE_NOTE } from './diff-footer'
 import { FileHeader, HunkHeading } from './diff-header'
 import { patchText } from './diff-patch'
 import { DIFF_CHROME } from './inline-diff'
@@ -34,7 +30,7 @@ function SideBySideHunk(props: {
   }, [props.hunk.lines, chunks])
 
   const chunksOf = (line: DiffLine | null): readonly TextChunk[] | null =>
-    line === null ? null : byLine.get(line) ?? null
+    line === null ? null : (byLine.get(line) ?? null)
 
   const emphasisOf = (line: DiffLine | null): ReturnType<DiffEmphasis> =>
     line === null || props.emphasis === null ? null : props.emphasis(line)

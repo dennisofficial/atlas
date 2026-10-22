@@ -126,7 +126,9 @@ describe.skipIf(process.env[LIVE_OPENAI_FLAG] !== '1')(
         stopWhen: stepCountIs(2),
       })
 
-      const firstAssistant = first.finalStep.response.messages.find((message) => message.role === 'assistant')
+      const firstAssistant = first.finalStep.response.messages.find(
+        (message) => message.role === 'assistant',
+      )
       const nativeReasoning =
         firstAssistant === undefined || typeof firstAssistant.content === 'string'
           ? undefined
@@ -173,9 +175,9 @@ describe.skipIf(process.env[LIVE_OPENAI_FLAG] !== '1')(
       expect(reasoningItems.length).toBeGreaterThan(0)
       for (const item of reasoningItems) {
         const summary = item['summary'] as { text: string }[] | undefined
-        expect(
-          (summary ?? []).some((entry) => entry.text.includes('anthropic thought')),
-        ).toBe(false)
+        expect((summary ?? []).some((entry) => entry.text.includes('anthropic thought'))).toBe(
+          false,
+        )
         expect((summary ?? []).some((entry) => entry.text.includes('bare thought'))).toBe(false)
       }
 

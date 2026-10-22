@@ -26,10 +26,12 @@ const channel = (overrides?: {
   return {
     request: async ({ op }: { op: EClientRequest; params: unknown }): Promise<unknown> =>
       overrides?.request !== undefined ? await overrides.request(op) : { states: [] },
-    onPrStates: overrides?.onPrStates ?? ((listener) => {
-      pushListeners.add(listener)
-      return () => pushListeners.delete(listener)
-    }),
+    onPrStates:
+      overrides?.onPrStates ??
+      ((listener) => {
+        pushListeners.add(listener)
+        return () => pushListeners.delete(listener)
+      }),
     onReload: () => () => undefined,
     onReady: () => () => undefined,
     push(states: readonly PrStateWire[]): void {
@@ -57,7 +59,10 @@ describe('a list-pr-states read lost to a socket drop', () => {
       channel: channel({
         request: () =>
           Promise.reject(
-            new RemoteRequestLost({ op: EClientRequest.ListPrStates, reason: 'the session socket closed' }),
+            new RemoteRequestLost({
+              op: EClientRequest.ListPrStates,
+              reason: 'the session socket closed',
+            }),
           ),
       }),
     })
@@ -69,7 +74,10 @@ describe('a list-pr-states read lost to a socket drop', () => {
     const fake = channel({
       request: () =>
         Promise.reject(
-          new RemoteRequestLost({ op: EClientRequest.ListPrStates, reason: 'the session socket closed' }),
+          new RemoteRequestLost({
+            op: EClientRequest.ListPrStates,
+            reason: 'the session socket closed',
+          }),
         ),
     })
     const reader = createRemotePrStateReader({ channel: fake })
@@ -83,7 +91,10 @@ describe('a list-pr-states read lost to a socket drop', () => {
 
   it('heals on the next answer once the channel is back', async () => {
     let answer: Promise<unknown> = Promise.reject(
-      new RemoteRequestLost({ op: EClientRequest.ListPrStates, reason: 'the session socket closed' }),
+      new RemoteRequestLost({
+        op: EClientRequest.ListPrStates,
+        reason: 'the session socket closed',
+      }),
     )
     const reader = createRemotePrStateReader({
       channel: channel({ request: () => answer }),

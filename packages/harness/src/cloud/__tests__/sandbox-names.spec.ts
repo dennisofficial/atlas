@@ -8,6 +8,8 @@ describe('sandboxNameFor', () => {
   })
 
   it('never carries characters Vercel would refuse', () => {
-    expect(sandboxNameFor({ threadId: 'brn_With Weïrd/Chars' })).toMatch(/^atlas-thread-[0-9a-f]{24}$/)
+    expect(sandboxNameFor({ threadId: 'brn_With Weïrd/Chars' })).toMatch(
+      /^atlas-thread-[0-9a-f]{24}$/,
+    )
   })
 })

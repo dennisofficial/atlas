@@ -61,9 +61,9 @@ describe('a stream that goes silent without closing', () => {
   })
 
   it('rejects when chunks stop arriving mid-stream', async () => {
-    await expect(
-      runStalled({ parts: midStreamSilence, streamTimeout: IMPATIENT }),
-    ).rejects.toThrow(StreamStallError)
+    await expect(runStalled({ parts: midStreamSilence, streamTimeout: IMPATIENT })).rejects.toThrow(
+      StreamStallError,
+    )
   })
 
   it('classifies the rejection as a retryable dropped connection', async () => {

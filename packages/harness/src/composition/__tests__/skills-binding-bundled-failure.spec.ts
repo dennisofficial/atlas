@@ -48,7 +48,12 @@ describe('liveSkillRegistry with an unusable bundled-skill cache', () => {
   it('loads the bundled skill and posts nothing when the cache is usable', async () => {
     const notices = recordingNotices()
 
-    const registry = await liveSkillRegistry({ atlasHome, home: project, cwd: project, notice: notices.port })
+    const registry = await liveSkillRegistry({
+      atlasHome,
+      home: project,
+      cwd: project,
+      notice: notices.port,
+    })
 
     expect(registry.byName('ui-design')?.directory).toContain(join(atlasHome, 'bin', 'skills'))
     expect(notices.posts).toEqual([])

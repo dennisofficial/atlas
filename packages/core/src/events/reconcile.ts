@@ -2,10 +2,7 @@ import { transcriptIdentityDigest, type EventIdentity } from './event-identity'
 
 export type PrefixDigest = (upTo: number) => Promise<{ count: number; digest: string }>
 
-export function prefixDigestOf(args: {
-  events: readonly EventIdentity[]
-  upTo: number
-}): string {
+export function prefixDigestOf(args: { events: readonly EventIdentity[]; upTo: number }): string {
   return transcriptIdentityDigest(args.events.filter((event) => event.seq <= args.upTo))
 }
 

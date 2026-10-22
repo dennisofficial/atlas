@@ -53,15 +53,19 @@ const carriedUsage = (usage: LanguageModelUsage | undefined): { usage?: ModelUsa
 }
 
 export function toCoreChunk(part: TextStreamPart<ToolSet>): Chunk | null {
-  if (part.type === 'text-start') return { type: 'text-start', id: part.id, ...carriedMetadata(part) }
-  if (part.type === 'text-delta') return { type: 'text-delta', id: part.id, text: part.text, ...carriedMetadata(part) }
+  if (part.type === 'text-start')
+    return { type: 'text-start', id: part.id, ...carriedMetadata(part) }
+  if (part.type === 'text-delta')
+    return { type: 'text-delta', id: part.id, text: part.text, ...carriedMetadata(part) }
   if (part.type === 'text-end') return { type: 'text-end', id: part.id, ...carriedMetadata(part) }
 
-  if (part.type === 'reasoning-start') return { type: 'reasoning-start', id: part.id, ...carriedMetadata(part) }
+  if (part.type === 'reasoning-start')
+    return { type: 'reasoning-start', id: part.id, ...carriedMetadata(part) }
   if (part.type === 'reasoning-delta') {
     return { type: 'reasoning-delta', id: part.id, text: part.text, ...carriedMetadata(part) }
   }
-  if (part.type === 'reasoning-end') return { type: 'reasoning-end', id: part.id, ...carriedMetadata(part) }
+  if (part.type === 'reasoning-end')
+    return { type: 'reasoning-end', id: part.id, ...carriedMetadata(part) }
 
   if (part.type === 'tool-input-start') {
     return { type: 'tool-input-start', callId: toCallId(part.id), name: part.toolName }
@@ -72,7 +76,12 @@ export function toCoreChunk(part: TextStreamPart<ToolSet>): Chunk | null {
   if (part.type === 'tool-input-end') return { type: 'tool-input-end', callId: toCallId(part.id) }
 
   if (part.type === 'tool-call') {
-    return { type: 'tool-call', callId: toCallId(part.toolCallId), name: part.toolName, input: part.input }
+    return {
+      type: 'tool-call',
+      callId: toCallId(part.toolCallId),
+      name: part.toolName,
+      input: part.input,
+    }
   }
 
   if (part.type === 'finish') {

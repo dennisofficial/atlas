@@ -37,8 +37,8 @@ export class WebSearchTool extends SchemaTool<typeof inputSchema> {
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(
-     private readonly backendOf: () => EWebSearchBackend,
-     private readonly secrets: SecretsPort,
+    private readonly backendOf: () => EWebSearchBackend,
+    private readonly secrets: SecretsPort,
   ) {
     super()
   }

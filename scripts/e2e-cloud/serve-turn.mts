@@ -308,7 +308,9 @@ if (childReadStatus !== 200) {
   fail(`the sandbox token cannot read the sub-agent's thread: last status ${childReadStatus}`)
 }
 if (!childAnswered) {
-  fail(`the sub-agent's answer never landed in its thread; events: ${lastChildEvents.slice(0, 600)}`)
+  fail(
+    `the sub-agent's answer never landed in its thread; events: ${lastChildEvents.slice(0, 600)}`,
+  )
 }
 log("sub-agent's answer committed and readable with the sandbox token")
 
@@ -350,7 +352,9 @@ const turnEnded = new Promise<unknown>((resolve) => {
 const outcome3 = await Promise.race([turnEnded, sleep(20_000).then(() => null)])
 const status3 = (outcome3 as { status?: string } | null)?.status
 if (status3 !== ETurnStatus.Completed) {
-  fail(`turn 3 should have completed on the serve with the first client gone, got ${JSON.stringify(outcome3)}`)
+  fail(
+    `turn 3 should have completed on the serve with the first client gone, got ${JSON.stringify(outcome3)}`,
+  )
 }
 const resumedText = streamedText(resumedSignals)
 if (

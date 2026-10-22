@@ -77,7 +77,7 @@ describe('PodLeasesService', () => {
     expect(fake.podLeaseRows).toHaveLength(1)
   })
 
-  it('releases only the owner\'s lease for the thread, and is idempotent', async () => {
+  it("releases only the owner's lease for the thread, and is idempotent", async () => {
     await service.register({ userId: 'user-a', threadId: 'brn_1', token: 'a1' })
     await service.register({ userId: 'user-a', threadId: 'brn_2', token: 'a2' })
     await service.register({ userId: 'user-b', threadId: 'brn_1', token: 'b1' })

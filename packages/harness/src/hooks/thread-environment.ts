@@ -23,7 +23,8 @@ const ENV_REFERENCE = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*
 const referencedNames = (path: string): string[] =>
   [...path.matchAll(ENV_REFERENCE)].map((match) => match[1] ?? match[2] ?? '')
 
-export const referencesShellEnv = (path: string): boolean => referencedNames(path).includes(ATLAS_SHELL_DIR_ENV)
+export const referencesShellEnv = (path: string): boolean =>
+  referencedNames(path).includes(ATLAS_SHELL_DIR_ENV)
 
 export const referencesSessionEnv = (path: string): boolean =>
   referencedNames(path).some((name) => RESERVED_SESSION_ENV.includes(name))

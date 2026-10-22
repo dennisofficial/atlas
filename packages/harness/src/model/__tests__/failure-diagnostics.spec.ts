@@ -28,7 +28,8 @@ const apiError = (args: {
       Authorization: 'Bearer sk-header-secret',
       'set-cookie': 'session-secret',
     },
-    responseBody: args.responseBody ?? '{"error":{"message":"body-secret","code":"upstream_error"}}',
+    responseBody:
+      args.responseBody ?? '{"error":{"message":"body-secret","code":"upstream_error"}}',
     ...(args.statusCode === undefined ? {} : { statusCode: args.statusCode }),
     ...(args.isRetryable === undefined ? {} : { isRetryable: args.isRetryable }),
     ...(args.data === undefined ? {} : { data: args.data }),

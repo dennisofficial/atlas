@@ -56,7 +56,9 @@ for (const adapter of shellAdapters) {
         await recorded({ log })
 
         const ended = log?.appended.find((draft) => draft.type === 'background-shell-ended')
-        expect(ended?.type === 'background-shell-ended' && ended.output.trim().endsWith(basename(root))).toBe(true)
+        expect(
+          ended?.type === 'background-shell-ended' && ended.output.trim().endsWith(basename(root)),
+        ).toBe(true)
       })
     })
 
@@ -87,9 +89,10 @@ for (const adapter of shellAdapters) {
         await recorded({ log })
 
         const ended = log?.appended.find((draft) => draft.type === 'background-shell-ended')
-        const lines = ended?.type === 'background-shell-ended'
-          ? ended.output.split('\n').filter(Boolean).sort()
-          : []
+        const lines =
+          ended?.type === 'background-shell-ended'
+            ? ended.output.split('\n').filter(Boolean).sort()
+            : []
         expect(lines).toEqual(['err', 'out'])
       })
 

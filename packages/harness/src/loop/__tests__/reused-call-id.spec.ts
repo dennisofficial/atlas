@@ -41,7 +41,9 @@ async function openHarnessWithWriter(): Promise<AtlasHarness> {
       script: [
         {
           text: 'writing it',
-          calls: [{ callId: 'call-1', name: 'write', input: { path: 'notes.md', content: '# fresh' } }],
+          calls: [
+            { callId: 'call-1', name: 'write', input: { path: 'notes.md', content: '# fresh' } },
+          ],
         },
         { text: 'written' },
       ],
@@ -63,7 +65,11 @@ function runnerFor(harness: AtlasHarness, root: string, log?: EventLogPort): Loo
         if (!parsed.success) return { ok: false, reason: 'write needs a path and content' }
 
         await Bun.write(join(root, parsed.data.path), parsed.data.content)
-        return { ok: true, output: { path: parsed.data.path }, modelText: `wrote ${parsed.data.path}` }
+        return {
+          ok: true,
+          output: { path: parsed.data.path },
+          modelText: `wrote ${parsed.data.path}`,
+        }
       },
     },
   ])
@@ -90,8 +96,19 @@ describe('a provider that hands out the same call id twice (kimi numbers calls p
       drafts: [
         { type: 'user-said', text: 'write old.md' },
         { type: 'assistant-said', parts: [{ type: 'text', text: 'on it' }] },
-        { type: 'tool-called', callId: toCallId('call-1'), name: 'write', input: { path: 'old.md' }, ordinal: 0 },
-        { type: 'tool-result', callId: toCallId('call-1'), name: 'write', output: { path: 'old.md' } },
+        {
+          type: 'tool-called',
+          callId: toCallId('call-1'),
+          name: 'write',
+          input: { path: 'old.md' },
+          ordinal: 0,
+        },
+        {
+          type: 'tool-result',
+          callId: toCallId('call-1'),
+          name: 'write',
+          output: { path: 'old.md' },
+        },
         { type: 'assistant-said', parts: [{ type: 'text', text: 'old.md written' }] },
       ],
     })
@@ -131,7 +148,10 @@ describe('the transcript where it happened (thread brn_55fd05fb, kimi-k3-fast, 2
               {
                 callId: 'bash_181',
                 name: 'bash',
-                input: { command: 'gh pr checks 377 2>&1 | grep -i fail', description: "List #377's failing checks" },
+                input: {
+                  command: 'gh pr checks 377 2>&1 | grep -i fail',
+                  description: "List #377's failing checks",
+                },
               },
             ],
           },
@@ -182,7 +202,10 @@ describe('the transcript where it happened (thread brn_55fd05fb, kimi-k3-fast, 2
       draft.type === 'tool-called' && index > 3 ? [draft.input as { command: string }] : [],
     )
     expect(stranded).toHaveLength(3)
-    expect(ran).toEqual([...stranded.map((call) => call.command), 'gh pr checks 377 2>&1 | grep -i fail'])
+    expect(ran).toEqual([
+      ...stranded.map((call) => call.command),
+      'gh pr checks 377 2>&1 | grep -i fail',
+    ])
 
     const events = await harness.log.read({ threadId: thread.id })
     const freshCall = events.filter((event) => event.type === 'tool-called').at(-1)

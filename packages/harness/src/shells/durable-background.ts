@@ -245,12 +245,14 @@ export function openBackgroundShell(spec: OpenShellSpec): BackgroundShell {
       persist()
     },
 
-    tail: (limit) =>
-      tailOf({ attachment, limit, finished: status !== EShellStatus.Running }),
+    tail: (limit) => tailOf({ attachment, limit, finished: status !== EShellStatus.Running }),
 
     writeInput: async (args): Promise<ShellInputOutcome> => {
       if (status !== EShellStatus.Running) {
-        return { ok: false, reason: `shell ${shellId} is no longer running, so it cannot take input` }
+        return {
+          ok: false,
+          reason: `shell ${shellId} is no longer running, so it cannot take input`,
+        }
       }
       const written = await attachment.writeInput(args)
       if (written.ok) awaitingSettled = false

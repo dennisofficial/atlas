@@ -24,7 +24,12 @@ export const kindOfTransport = (transport: EMcpTransport): EMcpTransportKind =>
 
 export type ProjectMcp = {
   query: CloudQuery<McpRow[]>
-  add: (args: { id: string; transport: EMcpTransport; target: string; extra: string }) => Promise<void>
+  add: (args: {
+    id: string
+    transport: EMcpTransport
+    target: string
+    extra: string
+  }) => Promise<void>
   toggle: (args: { id: string; enabled: boolean }) => Promise<void>
   remove: (id: string) => Promise<void>
 }

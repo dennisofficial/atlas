@@ -1,14 +1,14 @@
-import { CheckIcon, XIcon } from "lucide-react";
+import { CheckIcon, XIcon } from 'lucide-react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { BrandMark } from "@dltech/atlas-ui/components/brand-mark";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
+import { Button } from '@dltech/atlas-ui/components/button'
 
-import type { Integration } from "../../../fixtures/settings-account";
-import { Mono, SettingsRow } from "../settings-layout";
+import type { Integration } from '../../../fixtures/settings-account'
+import { Mono, SettingsRow } from '../settings-layout'
 
 export function AccountIntegrationRow({ integration }: { integration: Integration }) {
-  const connected = integration.connectedAs !== undefined;
+  const connected = integration.connectedAs !== undefined
 
   return (
     <SettingsRow
@@ -46,7 +46,9 @@ export function AccountIntegrationRow({ integration }: { integration: Integratio
           <li
             key={capability.label}
             className={
-              capability.granted && connected ? "flex items-center gap-1" : "flex items-center gap-1 text-muted-foreground"
+              capability.granted && connected
+                ? 'flex items-center gap-1'
+                : 'flex items-center gap-1 text-muted-foreground'
             }
           >
             {capability.granted && connected ? (
@@ -59,5 +61,5 @@ export function AccountIntegrationRow({ integration }: { integration: Integratio
         ))}
       </ul>
     </SettingsRow>
-  );
+  )
 }

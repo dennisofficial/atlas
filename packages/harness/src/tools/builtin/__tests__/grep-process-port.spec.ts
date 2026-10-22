@@ -58,7 +58,10 @@ class VendoredProcesses extends FakeProcesses {
     super(ripgrep, stdout, exitCode)
   }
 
-  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+  async vendored(args: {
+    command: string
+    threadId?: ThreadId | undefined
+  }): Promise<string | null> {
     this.vendoredProbes.push(args)
     return this.vendoredAnswer
   }
@@ -142,7 +145,10 @@ describe('GrepTool over a ProcessPort', () => {
 
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) throw new Error('unreachable')
-    expect(outcome.output).toMatchObject({ matches: ['/work/a.ts:2:const needle = 1'], paths: ['/work/a.ts'] })
+    expect(outcome.output).toMatchObject({
+      matches: ['/work/a.ts:2:const needle = 1'],
+      paths: ['/work/a.ts'],
+    })
   })
 
   it('prefers the vendored binary over a system ripgrep, probing with the calling thread', async () => {

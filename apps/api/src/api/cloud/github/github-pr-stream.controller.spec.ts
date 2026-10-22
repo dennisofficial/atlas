@@ -59,9 +59,7 @@ describe('GithubPrStreamController', () => {
     const { controller, drain } = controllerWith()
     drain.beginDrain()
 
-    expect(() => controller.handleStream(requestFor('usr_1'))).toThrow(
-      ServiceUnavailableException,
-    )
+    expect(() => controller.handleStream(requestFor('usr_1'))).toThrow(ServiceUnavailableException)
   })
 
   it('replays the cached states on open, then pushes live frames', async () => {
@@ -76,7 +74,10 @@ describe('GithubPrStreamController', () => {
     subscription.unsubscribe()
 
     expect(frames[0]).toEqual({ type: EPrRealtimeEvent.PrState, data: STATE })
-    expect(frames[1]).toEqual({ type: EPrRealtimeEvent.PrState, data: { ...STATE, checksPassed: 4 } })
+    expect(frames[1]).toEqual({
+      type: EPrRealtimeEvent.PrState,
+      data: { ...STATE, checksPassed: 4 },
+    })
   })
 
   it('completes the stream when the drain closes the fanout', async () => {
@@ -85,7 +86,12 @@ describe('GithubPrStreamController', () => {
 
     let completed = false
     const finished = new Promise<void>((resolve) => {
-      stream.subscribe({ complete: () => { completed = true; resolve() } })
+      stream.subscribe({
+        complete: () => {
+          completed = true
+          resolve()
+        },
+      })
     })
     drain.beginDrain()
 

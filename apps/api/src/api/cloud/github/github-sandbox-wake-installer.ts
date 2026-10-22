@@ -8,7 +8,9 @@ export class DevServeInstallRefusedError extends Error {
   }
 }
 
-export const releaseOnlyServeInstaller = (deps: { install?: ServeInstaller } = {}): ServeInstaller => {
+export const releaseOnlyServeInstaller = (
+  deps: { install?: ServeInstaller } = {},
+): ServeInstaller => {
   const install = deps.install ?? installServe
   return async (args) => {
     if (args.version !== undefined && isDevServeVersion(args.version)) {

@@ -47,7 +47,11 @@ describe('project mapping', () => {
   })
 
   it('round-trips the overview draft into a full save body', () => {
-    const draft = { ...overviewDraftOf(project), name: ' renamed ', additionalRepositories: ['a/b', ' ', 'c/d'] }
+    const draft = {
+      ...overviewDraftOf(project),
+      name: ' renamed ',
+      additionalRepositories: ['a/b', ' ', 'c/d'],
+    }
     expect(saveBodyOf({ project, draft, includeWorkspace: false })).toEqual({
       name: 'renamed',
       repo: 'dennisofficial/atlas',
@@ -101,13 +105,19 @@ describe('workspace picker mapping', () => {
 
   it('sends organizationId only when the capability is on and the value changed', () => {
     const draft = { ...overviewDraftOf(project), organizationId: 'org-1' }
-    expect(saveBodyOf({ project, draft, includeWorkspace: false })).not.toHaveProperty('organizationId')
+    expect(saveBodyOf({ project, draft, includeWorkspace: false })).not.toHaveProperty(
+      'organizationId',
+    )
     expect(saveBodyOf({ project, draft, includeWorkspace: true }).organizationId).toBe('org-1')
     const unchanged = overviewDraftOf(project)
-    expect(saveBodyOf({ project, draft: unchanged, includeWorkspace: true })).not.toHaveProperty('organizationId')
+    expect(saveBodyOf({ project, draft: unchanged, includeWorkspace: true })).not.toHaveProperty(
+      'organizationId',
+    )
     const moved = { ...project, organizationId: 'org-1' }
     const toPersonal = { ...overviewDraftOf(moved), organizationId: null }
-    expect(saveBodyOf({ project: moved, draft: toPersonal, includeWorkspace: true }).organizationId).toBeNull()
+    expect(
+      saveBodyOf({ project: moved, draft: toPersonal, includeWorkspace: true }).organizationId,
+    ).toBeNull()
   })
 })
 

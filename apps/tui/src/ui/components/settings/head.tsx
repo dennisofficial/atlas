@@ -15,10 +15,7 @@ const DIVIDER = ' │ '
 
 const GAP_CELLS = 1
 
-const tabSpans = (args: {
-  pages: readonly SettingPage[]
-  pageIndex: number
-}): Span[] =>
+const tabSpans = (args: { pages: readonly SettingPage[]; pageIndex: number }): Span[] =>
   args.pages.flatMap((page, index) => [
     ...(index === 0 ? [] : [{ text: TAB_GAP }]),
     { text: page.label, fg: index === args.pageIndex ? theme.accent : theme.hint },

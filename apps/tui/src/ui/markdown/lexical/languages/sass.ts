@@ -6,9 +6,34 @@ const SELECTOR_NAME = '[A-Za-z_-][A-Za-z0-9_-]*'
 const WORD = '[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*'
 
 const DIRECTIVES = [
-  'mixin', 'include', 'extend', 'use', 'forward', 'import', 'function', 'return', 'if', 'else',
-  'each', 'for', 'while', 'media', 'supports', 'container', 'layer', 'at-root', 'content',
-  'keyframes', 'font-face', 'charset', 'namespace', 'page', 'property', 'debug', 'warn', 'error',
+  'mixin',
+  'include',
+  'extend',
+  'use',
+  'forward',
+  'import',
+  'function',
+  'return',
+  'if',
+  'else',
+  'each',
+  'for',
+  'while',
+  'media',
+  'supports',
+  'container',
+  'layer',
+  'at-root',
+  'content',
+  'keyframes',
+  'font-face',
+  'charset',
+  'namespace',
+  'page',
+  'property',
+  'debug',
+  'warn',
+  'error',
 ]
 
 const atRule = pattern({
@@ -82,7 +107,14 @@ export const sass: LanguageSpec = {
   words: {
     keyword: ['and', 'or', 'not', 'from', 'through', 'in'],
     'constant.builtin': [
-      'true', 'false', 'null', 'none', 'inherit', 'initial', 'auto', 'transparent',
+      'true',
+      'false',
+      'null',
+      'none',
+      'inherit',
+      'initial',
+      'auto',
+      'transparent',
     ],
   },
 }

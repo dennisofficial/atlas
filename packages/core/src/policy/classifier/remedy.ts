@@ -37,10 +37,7 @@ const BY_DIMENSION: ReadonlyMap<ERiskDimension, string> = new Map([
     ERiskDimension.Reach,
     'Stay inside your own project directory, or name the outside path explicitly and say why it belongs to this task.',
   ],
-  [
-    ERiskDimension.SharedHistory,
-    'Add a commit rather than rewriting published history.',
-  ],
+  [ERiskDimension.SharedHistory, 'Add a commit rather than rewriting published history.'],
   [
     ERiskDimension.Exposure,
     'Do not send it. If the operator asked for this, let them say so in their own words.',

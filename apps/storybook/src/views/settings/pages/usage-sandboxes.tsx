@@ -1,18 +1,22 @@
-import { PauseIcon, PlayIcon, RefreshCwIcon } from "lucide-react";
+import { PauseIcon, PlayIcon, RefreshCwIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 
-import { PAUSED_SANDBOXES, RUNNING_SANDBOXES, type SandboxRow } from "../../../fixtures/settings-usage";
-import { UsageSandboxEmpty } from "../parts/usage-sandbox-empty";
-import { UsageSandboxTable } from "../parts/usage-sandbox-table";
-import { SettingsPage, SettingsSection } from "../settings-layout";
+import {
+  PAUSED_SANDBOXES,
+  RUNNING_SANDBOXES,
+  type SandboxRow,
+} from '../../../fixtures/settings-usage'
+import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
+import { UsageSandboxTable } from '../parts/usage-sandbox-table'
+import { SettingsPage, SettingsSection } from '../settings-layout'
 
 export function UsageSandboxesView({
   running,
   paused,
 }: {
-  running: SandboxRow[];
-  paused: SandboxRow[];
+  running: SandboxRow[]
+  paused: SandboxRow[]
 }) {
   return (
     <SettingsPage
@@ -41,9 +45,9 @@ export function UsageSandboxesView({
         Sandboxes are billed by the minute while running and pause automatically when idle.
       </p>
     </SettingsPage>
-  );
+  )
 }
 
 export function UsageSandboxesPage() {
-  return <UsageSandboxesView running={RUNNING_SANDBOXES} paused={PAUSED_SANDBOXES} />;
+  return <UsageSandboxesView running={RUNNING_SANDBOXES} paused={PAUSED_SANDBOXES} />
 }

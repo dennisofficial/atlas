@@ -12,7 +12,10 @@ describe('runSseStream silence watchdog', () => {
 
   it('replaces a silent stream after silenceTimeoutMs and drops exactly once', async () => {
     server = startServer({
-      responses: [{ status: 200, openEnded: true }, { status: 200, openEnded: true }],
+      responses: [
+        { status: 200, openEnded: true },
+        { status: 200, openEnded: true },
+      ],
     })
 
     const { drops, opens, handlers } = collect()
@@ -63,7 +66,10 @@ describe('runSseStream silence watchdog', () => {
 
   it('runs no watchdog during the retry wait: aborting mid-backoff settles with one drop', async () => {
     server = startServer({
-      responses: [{ status: 200, openEnded: true }, { status: 200, openEnded: true }],
+      responses: [
+        { status: 200, openEnded: true },
+        { status: 200, openEnded: true },
+      ],
     })
 
     const { drops, handlers } = collect()
@@ -88,7 +94,10 @@ describe('runSseStream silence watchdog', () => {
 
   it('retries a connection accepted but never answered, which no response timeout would catch', async () => {
     server = startServer({
-      responses: [{ status: 200, hangs: true }, { status: 200, openEnded: true }],
+      responses: [
+        { status: 200, hangs: true },
+        { status: 200, openEnded: true },
+      ],
     })
 
     const { drops, opens, handlers } = collect()

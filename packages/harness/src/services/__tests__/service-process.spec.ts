@@ -79,7 +79,10 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-const untilFileHolds = async (args: { path: string; needles: readonly string[] }): Promise<void> => {
+const untilFileHolds = async (args: {
+  path: string
+  needles: readonly string[]
+}): Promise<void> => {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     let log = ''
     try {

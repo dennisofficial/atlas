@@ -23,7 +23,9 @@ describe('BeforeTurn', () => {
   it('reaches the model on the very first step, so its context is in the prompt the turn opens with', async () => {
     const { runner, harness, model } = await openHooked({
       script: [{ text: 'auth' }],
-      hooks: new HookChain({ beforeTurn: [opening({ name: 'gitState', context: '3 files dirty' })] }),
+      hooks: new HookChain({
+        beforeTurn: [opening({ name: 'gitState', context: '3 files dirty' })],
+      }),
     })
     const thread = await harness.threads.create({})
 
@@ -36,15 +38,23 @@ describe('BeforeTurn', () => {
   it('lands its context as a context-loaded event slotted under the hook name', async () => {
     const { runner, harness } = await openHooked({
       script: [{ text: 'auth' }],
-      hooks: new HookChain({ beforeTurn: [opening({ name: 'gitState', context: '3 files dirty' })] }),
+      hooks: new HookChain({
+        beforeTurn: [opening({ name: 'gitState', context: '3 files dirty' })],
+      }),
     })
     const thread = await harness.threads.create({})
 
     await runner.say({ threadId: thread.id, text: 'what changed?' })
 
     const events = await harness.log.read({ threadId: thread.id })
-    expect(events.map((event) => event.type)).toEqual(['user-said', 'context-loaded', 'assistant-said'])
-    expect(events.flatMap((event) => (event.type === 'context-loaded' ? [event] : []))[0]).toMatchObject({
+    expect(events.map((event) => event.type)).toEqual([
+      'user-said',
+      'context-loaded',
+      'assistant-said',
+    ])
+    expect(
+      events.flatMap((event) => (event.type === 'context-loaded' ? [event] : []))[0],
+    ).toMatchObject({
       slot: 'gitState',
       key: HOOK_CONTEXT_KEY,
       content: '3 files dirty',
@@ -54,9 +64,14 @@ describe('BeforeTurn', () => {
   it('runs once per turn, not once per model step, so a tool round trip does not double it', async () => {
     const seen: string[] = []
     const { runner, harness } = await openHooked({
-      script: [{ text: 'looking', calls: [{ callId: 'call-1', name: 'touch', input: {} }] }, { text: 'auth' }],
+      script: [
+        { text: 'looking', calls: [{ callId: 'call-1', name: 'touch', input: {} }] },
+        { text: 'auth' },
+      ],
       withTools: true,
-      hooks: new HookChain({ beforeTurn: [opening({ name: 'gitState', context: '3 files dirty', seen })] }),
+      hooks: new HookChain({
+        beforeTurn: [opening({ name: 'gitState', context: '3 files dirty', seen })],
+      }),
     })
     const thread = await harness.threads.create({})
 
@@ -68,7 +83,9 @@ describe('BeforeTurn', () => {
   it('says the same thing on a second turn without adding a second event, because the log dedupes on the digest', async () => {
     const { runner, harness } = await openHooked({
       script: [{ text: 'first' }, { text: 'second' }],
-      hooks: new HookChain({ beforeTurn: [opening({ name: 'gitState', context: '3 files dirty' })] }),
+      hooks: new HookChain({
+        beforeTurn: [opening({ name: 'gitState', context: '3 files dirty' })],
+      }),
     })
     const thread = await harness.threads.create({})
 

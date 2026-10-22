@@ -54,10 +54,7 @@ describe('the GitHub row on the cloud settings page', () => {
   })
 
   it('shows the login and a disconnect affordance when connected', async () => {
-    const frame = await frameOf(
-      cloud({ github: { connection: { login: 'octocat' } } }),
-      WIDTH,
-    )
+    const frame = await frameOf(cloud({ github: { connection: { login: 'octocat' } } }), WIDTH)
 
     expect(frame).toContain('@octocat')
     expect(frame).toContain('connected')

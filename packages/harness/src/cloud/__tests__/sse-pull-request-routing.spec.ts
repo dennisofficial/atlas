@@ -48,15 +48,22 @@ const subscribe = ({ book, key }: { book: SseSubscriptionBook; key: string }): v
   book.recordSubscribe({
     key,
     handle: { id: key, repoFullName: 'owner/repo' },
-    by: key === BRANCH_KEY ? { kind: 'branch', branch: 'feature' } : { kind: 'number', number: LINK.number },
+    by:
+      key === BRANCH_KEY
+        ? { kind: 'branch', branch: 'feature' }
+        : { kind: 'number', number: LINK.number },
     state: state(),
   })
 }
 
 class PushPort extends PullRequestPort {
   readonly pushes = true
-  async read() { return { lookup: EPullRequestLookup.Absent } as const }
-  async readLinked() { return { lookup: EPullRequestLookup.Absent } as const }
+  async read() {
+    return { lookup: EPullRequestLookup.Absent } as const
+  }
+  async readLinked() {
+    return { lookup: EPullRequestLookup.Absent } as const
+  }
 }
 
 describe('SSE routing for checkout and linked aliases', () => {
@@ -69,7 +76,9 @@ describe('SSE routing for checkout and linked aliases', () => {
     try {
       subscribe({ book, key: first })
       subscribe({ book, key: second })
-      book.applyFrame({ data: JSON.stringify(state({ checksRunning: 1, checksPassed: 7, checksFailed: 1 })) })
+      book.applyFrame({
+        data: JSON.stringify(state({ checksRunning: 1, checksPassed: 7, checksFailed: 1 })),
+      })
 
       const branch = service.snapshot({ key: BRANCH_KEY })
       const linked = service.snapshot({ key: LINK_KEY })
@@ -84,7 +93,9 @@ describe('SSE routing for checkout and linked aliases', () => {
       expect(rows).toHaveLength(1)
       expect(rows[0]?.reading).toEqual(branch)
 
-      book.applyFrame({ data: JSON.stringify(state({ state: 'merged', checksRunning: 0, checksPassed: 9 })) })
+      book.applyFrame({
+        data: JSON.stringify(state({ state: 'merged', checksRunning: 0, checksPassed: 9 })),
+      })
       const merged = service.snapshot({ key: BRANCH_KEY })
       if (merged.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
       expect(merged.pullRequest.state).toBe(EPullRequestState.Merged)
@@ -107,7 +118,10 @@ describe('SSE routing for checkout and linked aliases', () => {
     book.applyFrame({ data: JSON.stringify(state({ state: 'merged' })) })
     const branch = book.holding({ key: BRANCH_KEY })?.reading
     const linked = book.holding({ key: LINK_KEY })?.reading
-    if (branch?.lookup !== EPullRequestLookup.Found || linked?.lookup !== EPullRequestLookup.Found) {
+    if (
+      branch?.lookup !== EPullRequestLookup.Found ||
+      linked?.lookup !== EPullRequestLookup.Found
+    ) {
       throw new Error('expected both aliases found')
     }
     expect(branch.pullRequest.number).toBe(902)
@@ -118,17 +132,23 @@ describe('SSE routing for checkout and linked aliases', () => {
   it('adopts the next PR opened on a branch whose remembered PR has merged', () => {
     const book = createSseSubscriptionBook({ now: () => 0, onReading: () => {} })
     subscribe({ book, key: BRANCH_KEY })
-    book.applyFrame({ data: JSON.stringify(state({ state: 'merged', checksPassed: 11, checksRunning: 0 })) })
+    book.applyFrame({
+      data: JSON.stringify(state({ state: 'merged', checksPassed: 11, checksRunning: 0 })),
+    })
 
     book.applyFrame({
-      data: JSON.stringify(state({ prNumber: 902, state: 'draft', checksRunning: 3, checksPassed: 0 })),
+      data: JSON.stringify(
+        state({ prNumber: 902, state: 'draft', checksRunning: 3, checksPassed: 0 }),
+      ),
     })
     const adopted = book.holding({ key: BRANCH_KEY })?.reading
     if (adopted?.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
     expect(adopted.pullRequest.number).toBe(902)
     expect(adopted.pullRequest.tally.running).toBe(3)
 
-    book.applyFrame({ data: JSON.stringify(state({ state: 'merged', checksPassed: 11, checksRunning: 0 })) })
+    book.applyFrame({
+      data: JSON.stringify(state({ state: 'merged', checksPassed: 11, checksRunning: 0 })),
+    })
     const stillAdopted = book.holding({ key: BRANCH_KEY })?.reading
     if (stillAdopted?.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
     expect(stillAdopted.pullRequest.number).toBe(902)

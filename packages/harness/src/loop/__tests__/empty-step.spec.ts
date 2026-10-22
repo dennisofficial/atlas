@@ -60,7 +60,9 @@ describe('a model step that comes back empty', () => {
     const events = await harness.log.read({ threadId: thread.id })
     expect(events.map((event) => event.type)).toEqual(['user-said', 'nudge', 'assistant-said'])
     const said = events.at(-1)
-    expect(said?.type !== 'assistant-said' ? undefined : said.placeholder).toBe(EAssistantPlaceholder.NoContent)
+    expect(said?.type !== 'assistant-said' ? undefined : said.placeholder).toBe(
+      EAssistantPlaceholder.NoContent,
+    )
   })
 
   it('records every spent retry in the cost ledger even when the turn ends with no content', async () => {

@@ -41,7 +41,9 @@ const refusal = JSON.stringify({
   },
 })
 
-const subscriptionCredentials = (...tokens: readonly string[]): CredentialPort & {
+const subscriptionCredentials = (
+  ...tokens: readonly string[]
+): CredentialPort & {
   readonly discarded: string[]
 } => {
   let handed = 0

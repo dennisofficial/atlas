@@ -7,35 +7,65 @@ import { createServeDrain } from '../serve-drain'
 const threadId = toThreadId('drain-owner')
 const gate = () => {
   let open = (): void => undefined
-  const done = new Promise<void>((resolve) => { open = resolve })
+  const done = new Promise<void>((resolve) => {
+    open = resolve
+  })
   return { done, open }
 }
 const receipt = (resumeParent: boolean): SandboxRotationReceipt => ({
-  version: 1, threadId, sandboxSessionId: 'session-1', resumeParent,
+  version: 1,
+  threadId,
+  sandboxSessionId: 'session-1',
+  resumeParent,
   checkpoint: {
-    threadId, sandboxSessionId: 'session-1', runtimeId: 'runtime-1', revision: 1,
-    phase: ERuntimePhase.Updating, reportedAt: '2026-10-03T00:00:00Z',
+    threadId,
+    sandboxSessionId: 'session-1',
+    runtimeId: 'runtime-1',
+    revision: 1,
+    phase: ERuntimePhase.Updating,
+    reportedAt: '2026-10-03T00:00:00Z',
     transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
   },
 })
-const fixture = (over: {
-  resumeParent?: boolean
-  pause?: () => Promise<void>
-  flushInput?: () => Promise<void>
-  seal?: () => Promise<SandboxRotationReceipt>
-} = {}) => {
+const fixture = (
+  over: {
+    resumeParent?: boolean
+    pause?: () => Promise<void>
+    flushInput?: () => Promise<void>
+    seal?: () => Promise<SandboxRotationReceipt>
+  } = {},
+) => {
   const calls: string[] = []
   const drain = createServeDrain({
     threadId,
     driver: {
-      beginRelocation: over.pause ?? (async () => { calls.push('confirmed-pause') }),
+      beginRelocation:
+        over.pause ??
+        (async () => {
+          calls.push('confirmed-pause')
+        }),
       relocationResumable: () => over.resumeParent ?? false,
     },
-    suspendIntake: () => { calls.push('suspend-intake') },
-    resumeIntake: () => { calls.push('resume-intake') },
-    flushInput: over.flushInput ?? (async () => { calls.push('input') }),
-    seal: over.seal ?? (async ({ resumeParent }) => { calls.push('seal'); return receipt(resumeParent) }),
-    retire: async ({ reason }) => { calls.push(`retire:${reason}`) },
+    suspendIntake: () => {
+      calls.push('suspend-intake')
+    },
+    resumeIntake: () => {
+      calls.push('resume-intake')
+    },
+    flushInput:
+      over.flushInput ??
+      (async () => {
+        calls.push('input')
+      }),
+    seal:
+      over.seal ??
+      (async ({ resumeParent }) => {
+        calls.push('seal')
+        return receipt(resumeParent)
+      }),
+    retire: async ({ reason }) => {
+      calls.push(`retire:${reason}`)
+    },
     log: () => undefined,
     replyFlushMs: 1,
   })
@@ -45,7 +75,11 @@ const fixture = (over: {
 describe('confirmed rotation preparation', () => {
   it('suspends intake, confirms the shared family pause, flushes inputs, and seals before replying', async () => {
     const test = fixture({ resumeParent: true })
-    expect(await test.drain({ reason: 'update' })).toEqual({ ok: true, prepared: true, receipt: receipt(true) })
+    expect(await test.drain({ reason: 'update' })).toEqual({
+      ok: true,
+      prepared: true,
+      receipt: receipt(true),
+    })
     expect(test.calls).toEqual(['suspend-intake', 'confirmed-pause', 'input', 'seal'])
   })
 
@@ -62,14 +96,22 @@ describe('confirmed rotation preparation', () => {
   })
 
   it('resumes intake after a failed family pause and never seals', async () => {
-    const test = fixture({ pause: async () => { throw new Error('child failed to pause') } })
+    const test = fixture({
+      pause: async () => {
+        throw new Error('child failed to pause')
+      },
+    })
     await expect(test.drain({ reason: 'update' })).rejects.toThrow('child failed to pause')
     await Bun.sleep(10)
     expect(test.calls).toEqual(['suspend-intake', 'resume-intake'])
   })
 
   it('resumes intake when queued input could not be saved', async () => {
-    const test = fixture({ flushInput: async () => { throw new Error('append failed') } })
+    const test = fixture({
+      flushInput: async () => {
+        throw new Error('append failed')
+      },
+    })
     await expect(test.drain({ reason: 'update' })).rejects.toThrow('append failed')
     expect(test.calls).not.toContain('seal')
     expect(test.calls).toContain('resume-intake')
@@ -77,16 +119,22 @@ describe('confirmed rotation preparation', () => {
 
   it('does not acknowledge or retire when persistence fails, and allows retry', async () => {
     let attempts = 0
-    const test = fixture({ seal: async () => {
-      attempts += 1
-      if (attempts === 1) throw new Error('disk unavailable')
-      return receipt(false)
-    } })
+    const test = fixture({
+      seal: async () => {
+        attempts += 1
+        if (attempts === 1) throw new Error('disk unavailable')
+        return receipt(false)
+      },
+    })
     await expect(test.drain({ reason: 'update' })).rejects.toThrow('disk unavailable')
     await Bun.sleep(10)
     expect(test.calls.some((call) => call.startsWith('retire'))).toBe(false)
     expect(test.calls).toContain('resume-intake')
-    expect(await test.drain({ reason: 'retry' })).toEqual({ ok: true, prepared: true, receipt: receipt(false) })
+    expect(await test.drain({ reason: 'retry' })).toEqual({
+      ok: true,
+      prepared: true,
+      receipt: receipt(false),
+    })
     await Bun.sleep(10)
     expect(test.calls.at(-1)).toBe('retire:retry')
     expect(test.calls.filter((call) => call === 'suspend-intake')).toHaveLength(2)

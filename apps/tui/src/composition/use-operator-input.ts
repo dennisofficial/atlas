@@ -7,10 +7,19 @@ import {
   type RemoteDeltaChannel,
   type RemoteTurnRunner,
 } from '@dltech/atlas-harness'
-import { decodePasteBytes, type KeyEvent, type PasteEvent, type TextareaRenderable } from '@opentui/core'
+import {
+  decodePasteBytes,
+  type KeyEvent,
+  type PasteEvent,
+  type TextareaRenderable,
+} from '@opentui/core'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
-import { operatorEditorText, operatorTextAfterEdit, operatorTextWithPaste } from '../ui/operator-input-text'
+import {
+  operatorEditorText,
+  operatorTextAfterEdit,
+  operatorTextWithPaste,
+} from '../ui/operator-input-text'
 import { chordMatches } from '../ui/keys'
 import type { AtlasApp } from './compose'
 
@@ -56,7 +65,8 @@ export function useOperatorInput(args: {
   const sourceHistory = useRef(new Map<string, string>())
 
   const update = useCallback((next: OperatorInputState | null) => {
-    if (next === null || next.request.requestId !== current.current?.request.requestId) sourceHistory.current.clear()
+    if (next === null || next.request.requestId !== current.current?.request.requestId)
+      sourceHistory.current.clear()
     if (next !== null) sourceHistory.current.set(operatorEditorText(next.typed), next.typed)
     current.current = next
     setState(next)
@@ -75,9 +85,11 @@ export function useOperatorInput(args: {
           return
         }
         generation.current++
-        update(signal.request === null
-          ? null
-          : { kind: 'awaiting', request: signal.request, typed: '', failure: null })
+        update(
+          signal.request === null
+            ? null
+            : { kind: 'awaiting', request: signal.request, typed: '', failure: null },
+        )
       },
     })
     return () => {
@@ -88,9 +100,11 @@ export function useOperatorInput(args: {
 
   const submit = useCallback(
     async (ready: OperatorInputReady) => {
-      const value = editor.current === null
-        ? ready.typed
-        : sourceHistory.current.get(editor.current.plainText) ?? operatorTextAfterEdit({ source: ready.typed, edited: editor.current.plainText })
+      const value =
+        editor.current === null
+          ? ready.typed
+          : (sourceHistory.current.get(editor.current.plainText) ??
+            operatorTextAfterEdit({ source: ready.typed, edited: editor.current.plainText }))
       const attempt = ++generation.current
       update({ kind: 'delivering', request: ready.request, typed: value })
       const fail = (reason: string) => {
@@ -136,29 +150,39 @@ export function useOperatorInput(args: {
     const before = current.current
     if (before?.kind !== 'awaiting' || editor.current === null || pasting.current) return
     const edited = editor.current.plainText
-    const typed = sourceHistory.current.get(edited) ?? operatorTextAfterEdit({ source: before.typed, edited })
+    const typed =
+      sourceHistory.current.get(edited) ?? operatorTextAfterEdit({ source: before.typed, edited })
     update({ ...before, typed })
   }, [update])
 
-  const handlePaste = useCallback((event: PasteEvent) => {
-    const before = current.current
-    const target = editor.current
-    if (before?.kind !== 'awaiting' || target === null) return
-    event.preventDefault()
-    event.stopPropagation()
-    const pasted = decodePasteBytes(event.bytes)
-    const selection = target.getSelection()
-    const start = target.editBuffer.getTextRange(0, selection === null ? target.cursorOffset : Math.min(selection.start, selection.end)).length
-    const end = target.editBuffer.getTextRange(0, selection === null ? target.cursorOffset : Math.max(selection.start, selection.end)).length
-    const source = operatorTextAfterEdit({ source: before.typed, edited: target.plainText })
-    pasting.current = true
-    try {
-      target.insertText(pasted)
-    } finally {
-      pasting.current = false
-    }
-    update({ ...before, typed: operatorTextWithPaste({ source, start, end, pasted }) })
-  }, [update])
+  const handlePaste = useCallback(
+    (event: PasteEvent) => {
+      const before = current.current
+      const target = editor.current
+      if (before?.kind !== 'awaiting' || target === null) return
+      event.preventDefault()
+      event.stopPropagation()
+      const pasted = decodePasteBytes(event.bytes)
+      const selection = target.getSelection()
+      const start = target.editBuffer.getTextRange(
+        0,
+        selection === null ? target.cursorOffset : Math.min(selection.start, selection.end),
+      ).length
+      const end = target.editBuffer.getTextRange(
+        0,
+        selection === null ? target.cursorOffset : Math.max(selection.start, selection.end),
+      ).length
+      const source = operatorTextAfterEdit({ source: before.typed, edited: target.plainText })
+      pasting.current = true
+      try {
+        target.insertText(pasted)
+      } finally {
+        pasting.current = false
+      }
+      update({ ...before, typed: operatorTextWithPaste({ source, start, end, pasted }) })
+    },
+    [update],
+  )
 
   const handleSubmit = useCallback(() => {
     const ready = current.current

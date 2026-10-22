@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { EToolEffect, toCallId, type Event, type EventDraft, type ToolDeclaration } from '@dltech/atlas-core'
+import {
+  EToolEffect,
+  toCallId,
+  type Event,
+  type EventDraft,
+  type ToolDeclaration,
+} from '@dltech/atlas-core'
 
 import { ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
 import { createSettlePending } from '../settle-pending'
@@ -148,10 +154,11 @@ describe('settling calls that each need to see what the one before them wrote', 
 
     await settle({ threadId, signal: new AbortController().signal })
 
-    const results = (await harness.log.read({ threadId })).filter((event) => event.type === 'tool-result')
-    expect(results.map((event) => (event.type === 'tool-result' ? String(event.callId) : ''))).toEqual([
-      'read-fast',
-      'read-slow',
-    ])
+    const results = (await harness.log.read({ threadId })).filter(
+      (event) => event.type === 'tool-result',
+    )
+    expect(
+      results.map((event) => (event.type === 'tool-result' ? String(event.callId) : '')),
+    ).toEqual(['read-fast', 'read-slow'])
   })
 })

@@ -8,7 +8,9 @@ export enum EForkRefusal {
   UnansweredApproval = 'unanswered-approval',
 }
 
-export type ForkTarget = { allowed: true } | { allowed: false; refusal: EForkRefusal; reason: string }
+export type ForkTarget =
+  | { allowed: true }
+  | { allowed: false; refusal: EForkRefusal; reason: string }
 
 export function forkTarget({
   events,

@@ -34,7 +34,11 @@ export async function scanContextSignature(args: {
   let capped = false
   while (pending.length > 0 && !capped) {
     const relative = pending.shift() ?? ''
-    const batch = await readBounded({ path: join(args.context, relative), budget: limit - lines.length, open })
+    const batch = await readBounded({
+      path: join(args.context, relative),
+      budget: limit - lines.length,
+      open,
+    })
     capped = batch.capped
     batch.entries.sort((left, right) => left.name.localeCompare(right.name))
     for (const entry of batch.entries) {

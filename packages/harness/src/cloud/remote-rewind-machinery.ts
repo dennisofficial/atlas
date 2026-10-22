@@ -5,7 +5,11 @@ import {
   type RewindCut,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { rewindApplyParamsSchema, type RewindApplyParams, type RewindCutWire } from '@dltech/atlas-wire'
+import {
+  rewindApplyParamsSchema,
+  type RewindApplyParams,
+  type RewindCutWire,
+} from '@dltech/atlas-wire'
 
 import { EClientRequest } from './channel-wire'
 import { RewindMachineryPort, type RewindRead } from '../store/rewind-machinery'
@@ -66,7 +70,11 @@ const unreachableKill = (cut: RewindCut): RewindKill => {
  * pre-rewind state.
  */
 export type ChannelRewindPort = {
-  apply(args: { threadId: ThreadId; cuts: readonly RewindCut[]; toSeq?: number | undefined }): Promise<void>
+  apply(args: {
+    threadId: ThreadId
+    cuts: readonly RewindCut[]
+    toSeq?: number | undefined
+  }): Promise<void>
 }
 
 const REWIND_APPLY_NOTICE_KEY = 'cloud:rewind-apply'

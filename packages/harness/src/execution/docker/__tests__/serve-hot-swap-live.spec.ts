@@ -65,7 +65,8 @@ describeDocker('serve hot-swap on a real sandbox container', () => {
       script: `set -eu\n${body}`,
       ...(user === undefined ? {} : { user }),
     })
-    if (outcome.exitCode !== 0) throw new Error(`sandbox script exited ${outcome.exitCode}\n${outcome.output}`)
+    if (outcome.exitCode !== 0)
+      throw new Error(`sandbox script exited ${outcome.exitCode}\n${outcome.output}`)
     return outcome.output
   }
 
@@ -201,45 +202,57 @@ chown 501:20 ${SENTINEL_PATH} ${TMP_PATH} /atlas/home/operational`,
     await expectOperatorStateIntact()
   }, 60_000)
 
-  it('treats the old serve as alive and keeps it when the pin matches', async () => {
-    const oldSha = await plantOldServe()
-    expect(await serveAlive()).toBe(true)
+  it(
+    'treats the old serve as alive and keeps it when the pin matches',
+    async () => {
+      const oldSha = await plantOldServe()
+      expect(await serveAlive()).toBe(true)
 
-    await launch(OLD_VERSION)
-    expect(logs.join('\n')).toContain('has a live serve answering /v1/health — keeping it')
-    expect(installs).toEqual([])
-    expect(await binarySha()).toBe(oldSha)
-    expect(await health()).toContain('"stub":"old-serve"')
-  }, 2 * 60_000)
+      await launch(OLD_VERSION)
+      expect(logs.join('\n')).toContain('has a live serve answering /v1/health — keeping it')
+      expect(installs).toEqual([])
+      expect(await binarySha()).toBe(oldSha)
+      expect(await health()).toContain('"stub":"old-serve"')
+    },
+    2 * 60_000,
+  )
 
-  it('keeps the old serve running and its binary, stamp, sandbox and operator state intact when the download is dead', async () => {
-    const oldSha = await plantOldServe()
+  it(
+    'keeps the old serve running and its binary, stamp, sandbox and operator state intact when the download is dead',
+    async () => {
+      const oldSha = await plantOldServe()
 
-    source.base = `http://${gateway}:1/release`
-    await expect(launch(NEW_VERSION)).rejects.toThrow(/failed to install into the sandbox/)
+      source.base = `http://${gateway}:1/release`
+      await expect(launch(NEW_VERSION)).rejects.toThrow(/failed to install into the sandbox/)
 
-    expect(installs).toEqual([NEW_VERSION])
-    expect(await binarySha()).toBe(oldSha)
-    expect(await script(`cat ${SERVE_VERSION_PATH}`)).toBe(OLD_VERSION)
-    expect(await script(`ls ${SERVE_HOME}`)).not.toContain('.next')
-    expect(await serveAlive()).toBe(true)
-    expect(await health()).toContain('"stub":"old-serve"')
-    await expectOperatorStateIntact()
-    await expectContainerSurvived()
-  }, 2 * 60_000)
+      expect(installs).toEqual([NEW_VERSION])
+      expect(await binarySha()).toBe(oldSha)
+      expect(await script(`cat ${SERVE_VERSION_PATH}`)).toBe(OLD_VERSION)
+      expect(await script(`ls ${SERVE_HOME}`)).not.toContain('.next')
+      expect(await serveAlive()).toBe(true)
+      expect(await health()).toContain('"stub":"old-serve"')
+      await expectOperatorStateIntact()
+      await expectContainerSurvived()
+    },
+    2 * 60_000,
+  )
 
-  it('keeps the old binary when the downloaded binary fails its sha256', async () => {
-    const oldSha = await plantOldServe()
+  it(
+    'keeps the old binary when the downloaded binary fails its sha256',
+    async () => {
+      const oldSha = await plantOldServe()
 
-    source.base = `http://${gateway}:${server?.port}/corrupt`
-    await expect(launch(NEW_VERSION)).rejects.toThrow(/sha256 mismatch/)
+      source.base = `http://${gateway}:${server?.port}/corrupt`
+      await expect(launch(NEW_VERSION)).rejects.toThrow(/sha256 mismatch/)
 
-    expect(await binarySha()).toBe(oldSha)
-    expect(await script(`cat ${SERVE_VERSION_PATH}`)).toBe(OLD_VERSION)
-    expect(await script(`ls ${SERVE_HOME}`)).not.toContain('.next')
-    await expectOperatorStateIntact()
-    await expectContainerSurvived()
-  }, 2 * 60_000)
+      expect(await binarySha()).toBe(oldSha)
+      expect(await script(`cat ${SERVE_VERSION_PATH}`)).toBe(OLD_VERSION)
+      expect(await script(`ls ${SERVE_HOME}`)).not.toContain('.next')
+      await expectOperatorStateIntact()
+      await expectContainerSurvived()
+    },
+    2 * 60_000,
+  )
 
   const expectSwapped = async (): Promise<void> => {
     expect(installs).toEqual([NEW_VERSION])
@@ -265,41 +278,53 @@ chown 501:20 ${SENTINEL_PATH} ${TMP_PATH} /atlas/home/operational`,
     await expectOperatorStateIntact()
   }
 
-  it('swaps a live, version-drifted serve in place: stopped, replaced, rebooted healthy, filesystem intact', async () => {
-    await plantOldServe()
-    source.base = `http://${gateway}:${server?.port}/release`
+  it(
+    'swaps a live, version-drifted serve in place: stopped, replaced, rebooted healthy, filesystem intact',
+    async () => {
+      await plantOldServe()
+      source.base = `http://${gateway}:${server?.port}/release`
 
-    const startedAt = performance.now()
-    await launch(NEW_VERSION)
-    console.info(
-      `live-drift hot-swap (stop + download + install + boot + healthy): ${Math.round(performance.now() - startedAt)}ms for ${newServeBytes} bytes`,
-    )
+      const startedAt = performance.now()
+      await launch(NEW_VERSION)
+      console.info(
+        `live-drift hot-swap (stop + download + install + boot + healthy): ${Math.round(performance.now() - startedAt)}ms for ${newServeBytes} bytes`,
+      )
 
-    expect(logs.join('\n')).toContain(
-      'stale against "9.9.9" — downloading the replacement first so a failed download leaves it serving',
-    )
-    expect(logs.join('\n')).toContain('needs "9.9.9" — stopping it to swap in place')
-    await expectSwapped()
-  }, 5 * 60_000)
+      expect(logs.join('\n')).toContain(
+        'stale against "9.9.9" — downloading the replacement first so a failed download leaves it serving',
+      )
+      expect(logs.join('\n')).toContain('needs "9.9.9" — stopping it to swap in place')
+      await expectSwapped()
+    },
+    5 * 60_000,
+  )
 
-  it('swaps in when the old serve is already stopped', async () => {
-    await plantOldServe()
-    await stopServe()
-    expect(await serveAlive()).toBe(false)
-    source.base = `http://${gateway}:${server?.port}/release`
+  it(
+    'swaps in when the old serve is already stopped',
+    async () => {
+      await plantOldServe()
+      await stopServe()
+      expect(await serveAlive()).toBe(false)
+      source.base = `http://${gateway}:${server?.port}/release`
 
-    await launch(NEW_VERSION)
+      await launch(NEW_VERSION)
 
-    expect(logs.join('\n')).toContain(`carries serve "${OLD_VERSION}"`)
-    await expectSwapped()
-  }, 5 * 60_000)
+      expect(logs.join('\n')).toContain(`carries serve "${OLD_VERSION}"`)
+      await expectSwapped()
+    },
+    5 * 60_000,
+  )
 
-  it('keeps the swapped serve on the next launch without downloading again', async () => {
-    installs.length = 0
-    logs.length = 0
-    await launch(NEW_VERSION)
-    expect(installs).toEqual([])
-    expect(logs.join('\n')).toContain('has a live serve answering /v1/health — keeping it')
-    expect(await binarySha()).toBe(newServeSha)
-  }, 2 * 60_000)
+  it(
+    'keeps the swapped serve on the next launch without downloading again',
+    async () => {
+      installs.length = 0
+      logs.length = 0
+      await launch(NEW_VERSION)
+      expect(installs).toEqual([])
+      expect(logs.join('\n')).toContain('has a live serve answering /v1/health — keeping it')
+      expect(await binarySha()).toBe(newServeSha)
+    },
+    2 * 60_000,
+  )
 })

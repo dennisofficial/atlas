@@ -44,7 +44,12 @@ describe('tracking a set of checkouts', () => {
       found({ number: 2, checks: EChecksState.None }),
     )
     expect(service.tracked()).toEqual([MAIN, MATE])
-    expect(service.states().map((state) => state.number).sort()).toEqual([1, 2])
+    expect(
+      service
+        .states()
+        .map((state) => state.number)
+        .sort(),
+    ).toEqual([1, 2])
     service.dispose()
   })
 
@@ -171,11 +176,7 @@ describe('an expecting window per checkout', () => {
     service.expectChecks({ checkout: MATE })
     await sleep(10)
 
-    expect(port.asked).toEqual([
-      checkoutKey(MAIN),
-      checkoutKey(MATE),
-      checkoutKey(MATE),
-    ])
+    expect(port.asked).toEqual([checkoutKey(MAIN), checkoutKey(MATE), checkoutKey(MATE)])
     service.dispose()
   })
 
@@ -210,4 +211,3 @@ describe('an expecting window per checkout', () => {
     service.dispose()
   })
 })
-

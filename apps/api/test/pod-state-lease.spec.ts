@@ -46,7 +46,9 @@ const fake = vi.hoisted(() => {
   const db = {
     agentAccount: {
       findMany: async (args: { where: { userId: string } }) =>
-        ownedBy(tables.accounts, args).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+        ownedBy(tables.accounts, args).sort(
+          (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+        ),
     },
     activeAccount: {
       findMany: async (args: { where: { userId: string } }) => ownedBy(tables.actives, args),
@@ -97,7 +99,12 @@ describe('account lease and pod-reachable settings and secrets', () => {
   const http = () => request(app.getHttpServer())
   const as = (token: string) => ({ authorization: `Bearer ${token}` })
 
-  const accountRow = (args: { id: string; userId: string; secret: AccountSecret; createdAt: string }): AccountRow => ({
+  const accountRow = (args: {
+    id: string
+    userId: string
+    secret: AccountSecret
+    createdAt: string
+  }): AccountRow => ({
     id: args.id,
     userId: args.userId,
     provider: args.secret.kind === EAuthKind.ApiKey ? 'openrouter' : 'anthropic',
@@ -125,7 +132,11 @@ describe('account lease and pod-reachable settings and secrets', () => {
         createdAt: '2026-10-02T00:00:00.000Z',
         secret: {
           kind: EAuthKind.Oauth,
-          tokens: { accessToken: 'access-a', refreshToken: 'refresh-a', expiresAt: '2026-10-20T00:00:00.000Z' },
+          tokens: {
+            accessToken: 'access-a',
+            refreshToken: 'refresh-a',
+            expiresAt: '2026-10-20T00:00:00.000Z',
+          },
           authority: { url: 'https://api.example.test', connectionId: 'conn-a' },
         },
       }),
@@ -150,18 +161,38 @@ describe('account lease and pod-reachable settings and secrets', () => {
       { userId: 'user-b', provider: 'openrouter', accountId: 'acc-key-b' },
     )
     const stamp = new Date('2026-10-03T00:00:00.000Z')
-    const settingOf = (userId: string, value: string): SettingRow => ({ userId, key: 'sandbox.image', value, updatedAt: stamp })
+    const settingOf = (userId: string, value: string): SettingRow => ({
+      userId,
+      key: 'sandbox.image',
+      value,
+      updatedAt: stamp,
+    })
     const secretOf = (userId: string, value: string): SecretRow => ({
       userId,
       name: 'VERCEL_TOKEN',
       sealedValue: cipher.encrypt(JSON.stringify(value)),
       updatedAt: stamp,
     })
-    tables.settings.splice(0, tables.settings.length, settingOf('user-a', 'image-a'), settingOf('user-b', 'image-b'))
-    tables.secrets.splice(0, tables.secrets.length, secretOf('user-a', 'vercel-a'), secretOf('user-b', 'vercel-b'))
+    tables.settings.splice(
+      0,
+      tables.settings.length,
+      settingOf('user-a', 'image-a'),
+      settingOf('user-b', 'image-b'),
+    )
+    tables.secrets.splice(
+      0,
+      tables.secrets.length,
+      secretOf('user-a', 'vercel-a'),
+      secretOf('user-b', 'vercel-b'),
+    )
 
     const module = await Test.createTestingModule({
-      controllers: [AccountsController, AccountLeaseController, SettingsController, SecretsController],
+      controllers: [
+        AccountsController,
+        AccountLeaseController,
+        SettingsController,
+        SecretsController,
+      ],
       providers: [
         AccountsService,
         SettingsService,
@@ -196,7 +227,9 @@ describe('account lease and pod-reachable settings and secrets', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -206,7 +239,10 @@ describe('account lease and pod-reachable settings and secrets', () => {
     const lease = await http().get('/v1/account-lease').set(as('pod-token-a')).expect(200)
 
     expect(lease.headers['cache-control']).toBe('no-store')
-    expect(lease.body.accounts.map((account: { id: string }) => account.id)).toEqual(['acc-key-a', 'acc-oauth-a'])
+    expect(lease.body.accounts.map((account: { id: string }) => account.id)).toEqual([
+      'acc-key-a',
+      'acc-oauth-a',
+    ])
     expect(lease.body.accounts[0]).toMatchObject({
       id: 'acc-key-a',
       provider: 'openrouter',
@@ -231,7 +267,9 @@ describe('account lease and pod-reachable settings and secrets', () => {
     await http().get('/v1/account-lease').set(as('pod-token-a')).expect(200)
 
     const stored = fake.tables.accounts.find((row) => row.id === 'acc-oauth-a')
-    expect(JSON.parse(cipher.decrypt(stored?.sealedSecret ?? '')).tokens.refreshToken).toBe('refresh-a')
+    expect(JSON.parse(cipher.decrypt(stored?.sealedSecret ?? '')).tokens.refreshToken).toBe(
+      'refresh-a',
+    )
   })
 
   it("gives another user's pod only its own rows", async () => {

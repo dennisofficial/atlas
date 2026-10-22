@@ -43,7 +43,9 @@ export async function loadDataset({
   }
   const manifest = parseDatasetManifest({ text: manifestText })
   if (manifest.featureId !== feature.id) {
-    throw new DatasetNotFoundError(`manifest featureId ${manifest.featureId} != suite ${feature.id}`)
+    throw new DatasetNotFoundError(
+      `manifest featureId ${manifest.featureId} != suite ${feature.id}`,
+    )
   }
   const casesPath = join(dirname(manifestPath), manifest.casesFile)
   let casesText: string

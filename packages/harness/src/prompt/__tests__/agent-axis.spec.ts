@@ -7,7 +7,8 @@ import { AtlasIdentityFragment } from '../fragments/identity'
 const contextFor = (agent: EPromptAgent): PromptContext => ({
   agent,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 }, projectDirectory: '/w'
+  model: { contextWindow: 1_000_000 },
+  projectDirectory: '/w',
 })
 
 describe('the identity fragment across the agent axis', () => {

@@ -58,11 +58,7 @@ const SHELL_ROSTER: RosterWire = {
   services: [],
 }
 
-const channelStub = (args: {
-  answer?: unknown
-  refuse?: boolean
-  pushes?: (() => void)[]
-}) => {
+const channelStub = (args: { answer?: unknown; refuse?: boolean; pushes?: (() => void)[] }) => {
   const rosterListeners = new Set<(roster: RosterWire) => void>()
   const reloadListeners = new Set<() => void>()
   const requests: { op: EClientRequest }[] = []

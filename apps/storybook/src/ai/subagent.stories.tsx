@@ -1,22 +1,26 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { EToolKind, EToolState, Subagent } from "@dltech/atlas-ui/ai/subagent";
+import { EToolKind, EToolState, Subagent } from '@dltech/atlas-ui/ai/subagent'
 
 const meta = {
-  title: "AI/Subagent",
+  title: 'AI/Subagent',
   component: Subagent,
   args: {
-    name: "research",
-    elapsed: "48s",
+    name: 'research',
+    elapsed: '48s',
     defaultOpen: true,
-    model: "claude-sonnet",
-    tools: ["bash", "read"],
-    prompt: "Find out why image optimization reruns on every deploy.",
+    model: 'claude-sonnet',
+    tools: ['bash', 'read'],
+    prompt: 'Find out why image optimization reruns on every deploy.',
     calls: [
-      { label: "grep -rn cacheKey scripts", output: "scripts/optimize-images.ts:14" },
-      { label: "scripts/optimize-images.ts", kind: EToolKind.Read, output: "const cacheKey = commitSha;" },
+      { label: 'grep -rn cacheKey scripts', output: 'scripts/optimize-images.ts:14' },
+      {
+        label: 'scripts/optimize-images.ts',
+        kind: EToolKind.Read,
+        output: 'const cacheKey = commitSha;',
+      },
     ],
-    result: "The cache is keyed on the commit SHA.",
+    result: 'The cache is keyed on the commit SHA.',
   },
   decorators: [
     (Story) => (
@@ -25,13 +29,13 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Subagent>;
+} satisfies Meta<typeof Subagent>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Done: Story = {};
+export const Done: Story = {}
 
 export const Running: Story = {
   args: {
@@ -39,10 +43,12 @@ export const Running: Story = {
     elapsed: undefined,
     result: undefined,
     calls: [
-      { label: "grep -rn cacheKey scripts", output: "scripts/optimize-images.ts:14" },
-      { label: "sed -n 13,15p scripts/optimize-images.ts", state: EToolState.Running },
+      { label: 'grep -rn cacheKey scripts', output: 'scripts/optimize-images.ts:14' },
+      { label: 'sed -n 13,15p scripts/optimize-images.ts', state: EToolState.Running },
     ],
   },
-};
+}
 
-export const Minimal: Story = { args: { model: undefined, tools: [], prompt: undefined, calls: [] } };
+export const Minimal: Story = {
+  args: { model: undefined, tools: [], prompt: undefined, calls: [] },
+}

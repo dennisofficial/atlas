@@ -35,7 +35,9 @@ describe('DockerPodDriver observation and resources', () => {
     const observed = await driver.inspect({ name: NAME })
 
     expect(observed?.state).toBe(expected)
-    expect(observed?.url).toBe(expected === 'running' ? `http://127.0.0.1:${SERVE_HOST_PORT}` : undefined)
+    expect(observed?.url).toBe(
+      expected === 'running' ? `http://127.0.0.1:${SERVE_HOST_PORT}` : undefined,
+    )
   })
 
   it('observes a missing pod as undefined', async () => {
@@ -64,7 +66,9 @@ describe('DockerPodDriver observation and resources', () => {
   })
 
   it('omits resources the pod does not set and answers empty for a missing pod', async () => {
-    const present = driverWith({ engine: fakeEngine({ existing: { id: 'id-1', status: 'running' } }).engine })
+    const present = driverWith({
+      engine: fakeEngine({ existing: { id: 'id-1', status: 'running' } }).engine,
+    })
     const missing = driverWith({ engine: fakeEngine().engine })
 
     expect(await present.readResources({ name: NAME })).toEqual({})
@@ -77,13 +81,19 @@ describe('DockerPodDriver bootstrap files and destroy', () => {
     const fake = fakeEngine()
     const driver = driverWith({ engine: fake.engine })
 
-    await driver.writeBootstrapFile({ name: NAME, path: '/root/.atlas/bootstrap/spec.json', content: '{}' })
+    await driver.writeBootstrapFile({
+      name: NAME,
+      path: '/root/.atlas/bootstrap/spec.json',
+      content: '{}',
+    })
 
     expect(fake.scripts).toHaveLength(1)
     expect(fake.scripts[0]).toStartWith('timeout -k 5 20 sh -c ')
     expect(fake.scripts[0]).toContain('mkdir -p')
     expect(fake.scripts[0]).toContain('/root/.atlas/bootstrap')
-    expect(fake.files).toEqual([{ id: NAME, path: '/root/.atlas/bootstrap/spec.json', mode: 0o600 }])
+    expect(fake.files).toEqual([
+      { id: NAME, path: '/root/.atlas/bootstrap/spec.json', mode: 0o600 },
+    ])
   })
 
   it('fails loudly when the directory cannot be created', async () => {
@@ -91,7 +101,11 @@ describe('DockerPodDriver bootstrap files and destroy', () => {
     const driver = driverWith({
       engine: {
         ...fake.engine,
-        execSh: async () => ({ exitCode: 1, stdout: async () => '', stderr: async () => 'read-only' }),
+        execSh: async () => ({
+          exitCode: 1,
+          stdout: async () => '',
+          stderr: async () => 'read-only',
+        }),
       },
     })
 

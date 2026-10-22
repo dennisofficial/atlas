@@ -71,7 +71,12 @@ describe('the rewind confirmation when the cut would destroy created work', () =
     const frame = await frameOf(
       dialog({
         rows: [
-          { id: 'bash_1', tag: 'shell', label: `Run ${'and on '.repeat(30)}${tail}`, running: true },
+          {
+            id: 'bash_1',
+            tag: 'shell',
+            label: `Run ${'and on '.repeat(30)}${tail}`,
+            running: true,
+          },
         ],
       }),
       WIDTH,

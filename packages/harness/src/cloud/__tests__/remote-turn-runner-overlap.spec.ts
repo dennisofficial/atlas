@@ -124,7 +124,10 @@ describe('overlapping explicit runs on one runner', () => {
     const accepted = runner.runTurn({ threadId: THREAD })
     runner.steer({ threadId: THREAD, text: 'also this' })
 
-    expect(attached.live().sent.at(-1)).toMatchObject({ kind: EClientFrame.Send, text: 'also this' })
+    expect(attached.live().sent.at(-1)).toMatchObject({
+      kind: EClientFrame.Send,
+      text: 'also this',
+    })
     attached.receive({ kind: EServeFrame.TurnEnded, outcome: completed('run-1') })
     await accepted
   })

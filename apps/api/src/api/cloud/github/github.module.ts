@@ -5,7 +5,10 @@ import { GithubService } from './github.service'
 
 @Module({
   controllers: [GithubController],
-  providers: [GithubService, { provide: GithubDeviceClient, useFactory: () => new GithubDeviceClient({}) }],
+  providers: [
+    GithubService,
+    { provide: GithubDeviceClient, useFactory: () => new GithubDeviceClient({}) },
+  ],
   exports: [GithubService],
 })
 export class GithubModule {}

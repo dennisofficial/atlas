@@ -53,7 +53,11 @@ describe('nodeWorkspaceFiles.writeBytes', () => {
     await writeFile(blocker, 'a file')
 
     await expect(
-      nodeWorkspaceFiles.writeBytes({ path: join(blocker, 'child'), bytes: bytes('x'), overwrite: false }),
+      nodeWorkspaceFiles.writeBytes({
+        path: join(blocker, 'child'),
+        bytes: bytes('x'),
+        overwrite: false,
+      }),
     ).rejects.toThrow()
   })
 })

@@ -150,8 +150,8 @@ export function WorkspaceMemberRow({
             <AlertDialogHeader>
               <AlertDialogTitle>Remove {member.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                {member.email} loses access to {workspaceName}, its shared secrets and sandboxes. Their
-                personal threads are kept.
+                {member.email} loses access to {workspaceName}, its shared secrets and sandboxes.
+                Their personal threads are kept.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

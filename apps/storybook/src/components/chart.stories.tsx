@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis } from 'recharts'
 
 import {
   ChartContainer,
@@ -8,32 +8,32 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@dltech/atlas-ui/components/chart";
+} from '@dltech/atlas-ui/components/chart'
 
 const meta = {
-  title: "Components/Chart",
+  title: 'Components/Chart',
   component: ChartContainer,
-  parameters: { layout: "padded" },
-} satisfies Meta<typeof ChartContainer>;
+  parameters: { layout: 'padded' },
+} satisfies Meta<typeof ChartContainer>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 const usage = [
-  { day: "Mon", opus: 186, sonnet: 80 },
-  { day: "Tue", opus: 305, sonnet: 200 },
-  { day: "Wed", opus: 237, sonnet: 120 },
-  { day: "Thu", opus: 73, sonnet: 190 },
-  { day: "Fri", opus: 209, sonnet: 130 },
-  { day: "Sat", opus: 114, sonnet: 90 },
-  { day: "Sun", opus: 160, sonnet: 140 },
-];
+  { day: 'Mon', opus: 186, sonnet: 80 },
+  { day: 'Tue', opus: 305, sonnet: 200 },
+  { day: 'Wed', opus: 237, sonnet: 120 },
+  { day: 'Thu', opus: 73, sonnet: 190 },
+  { day: 'Fri', opus: 209, sonnet: 130 },
+  { day: 'Sat', opus: 114, sonnet: 90 },
+  { day: 'Sun', opus: 160, sonnet: 140 },
+]
 
 const config = {
-  opus: { label: "claude-opus", color: "var(--chart-1)" },
-  sonnet: { label: "claude-sonnet", color: "var(--chart-2)" },
-} satisfies ChartConfig;
+  opus: { label: 'claude-opus', color: 'var(--chart-1)' },
+  sonnet: { label: 'claude-sonnet', color: 'var(--chart-2)' },
+} satisfies ChartConfig
 
 export const Bars: Story = {
   args: { config, children: <div /> },
@@ -49,7 +49,7 @@ export const Bars: Story = {
       </BarChart>
     </ChartContainer>
   ),
-};
+}
 
 export const Areas: Story = {
   args: { config, children: <div /> },
@@ -59,9 +59,23 @@ export const Areas: Story = {
         <CartesianGrid vertical={false} />
         <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
         <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-        <Area dataKey="sonnet" type="natural" fill="var(--color-sonnet)" fillOpacity={0.3} stroke="var(--color-sonnet)" stackId="a" />
-        <Area dataKey="opus" type="natural" fill="var(--color-opus)" fillOpacity={0.3} stroke="var(--color-opus)" stackId="a" />
+        <Area
+          dataKey="sonnet"
+          type="natural"
+          fill="var(--color-sonnet)"
+          fillOpacity={0.3}
+          stroke="var(--color-sonnet)"
+          stackId="a"
+        />
+        <Area
+          dataKey="opus"
+          type="natural"
+          fill="var(--color-opus)"
+          fillOpacity={0.3}
+          stroke="var(--color-opus)"
+          stackId="a"
+        />
       </AreaChart>
     </ChartContainer>
   ),
-};
+}

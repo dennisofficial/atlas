@@ -29,11 +29,16 @@ describe('the code quality settings', () => {
 
   it('labels the rows as specified', () => {
     expect(definitionOf(ESettingId.QualityEnabled)?.label).toBe('Code quality review')
-    expect(definitionOf(ESettingId.QualityRecordExamples)?.label).toBe('Record code-quality examples')
+    expect(definitionOf(ESettingId.QualityRecordExamples)?.label).toBe(
+      'Record code-quality examples',
+    )
   })
 
   it('carries exactly those two rows on the page', () => {
     const rows = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.CodeQuality })
-    expect(rows.map((row) => row.id)).toEqual([ESettingId.QualityEnabled, ESettingId.QualityRecordExamples])
+    expect(rows.map((row) => row.id)).toEqual([
+      ESettingId.QualityEnabled,
+      ESettingId.QualityRecordExamples,
+    ])
   })
 })

@@ -55,14 +55,22 @@ const imageBlockOf = (block: unknown): ImagePart | undefined => {
   return { type: 'image', data: record['data'], mediaType: record['mimeType'] }
 }
 
-const stringifyRaw = (raw: unknown): string => (typeof raw === 'string' ? raw : JSON.stringify(raw) ?? '')
+const stringifyRaw = (raw: unknown): string =>
+  typeof raw === 'string' ? raw : (JSON.stringify(raw) ?? '')
 
 const capText = (text: string): { text: string; truncated: boolean } => {
   if (text.length <= MAX_MODEL_TEXT_CHARACTERS) return { text, truncated: false }
-  return { text: `${text.slice(0, MAX_MODEL_TEXT_CHARACTERS)}\n${TRUNCATION_NOTE}`, truncated: true }
+  return {
+    text: `${text.slice(0, MAX_MODEL_TEXT_CHARACTERS)}\n${TRUNCATION_NOTE}`,
+    truncated: true,
+  }
 }
 
-function renderContent(raw: unknown): { parts: readonly ModelPart[]; text: string; hasImages: boolean } {
+function renderContent(raw: unknown): {
+  parts: readonly ModelPart[]
+  text: string
+  hasImages: boolean
+} {
   if (raw === undefined) return { parts: [], text: '', hasImages: false }
 
   if (!Array.isArray(raw)) {
@@ -80,7 +88,11 @@ function renderContent(raw: unknown): { parts: readonly ModelPart[]; text: strin
   }
   const joined = texts.map((part) => part.text).join('\n')
   const rendered = capText(joined)
-  return { parts: [{ type: 'text', text: rendered.text }, ...images], text: rendered.text, hasImages: images.length > 0 }
+  return {
+    parts: [{ type: 'text', text: rendered.text }, ...images],
+    text: rendered.text,
+    hasImages: images.length > 0,
+  }
 }
 
 export type TransportLookup = (serverId: string) => ServerTransport | undefined
@@ -117,7 +129,8 @@ export class McpBridgeTool extends ToolDefinition {
 
   override async invoke(args: ToolInvocation): Promise<ToolOutcome> {
     const transport = this.lookup(this.serverId)
-    if (transport === undefined) return { ok: false, reason: `the '${this.serverId}' MCP server is not connected` }
+    if (transport === undefined)
+      return { ok: false, reason: `the '${this.serverId}' MCP server is not connected` }
 
     let result
     try {

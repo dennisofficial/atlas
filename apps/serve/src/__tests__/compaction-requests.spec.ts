@@ -1,13 +1,24 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { EClientFrame, EClientRequest, LocalCompaction, type Summariser } from '@dltech/atlas-harness'
+import {
+  EClientFrame,
+  EClientRequest,
+  LocalCompaction,
+  type Summariser,
+} from '@dltech/atlas-harness'
 import { EWireCompactionAnchor, EWireCompactScope } from '@dltech/atlas-wire'
 
 import { createCompactionRequests } from '../compaction-requests'
 import { createHistoryAdmission } from '../history-admission'
 import type { RequestFrame } from '../request-reply'
 
-import { jsonlRows, openSeededStore, probeSummariser, seqOf, threadId } from './cloud-compaction-fixture'
+import {
+  jsonlRows,
+  openSeededStore,
+  probeSummariser,
+  seqOf,
+  threadId,
+} from './cloud-compaction-fixture'
 import type { StoreFixture } from '../../../../packages/harness/src/store/__tests__/harness'
 
 let store: StoreFixture | undefined
@@ -24,7 +35,11 @@ const request = (args: { id: string; op: EClientRequest; params: unknown }): Req
 
 const open = async (summarise: Summariser) => {
   store = await openSeededStore()
-  const admission = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => false })
+  const admission = createHistoryAdmission({
+    threadId: () => threadId,
+    intake: null,
+    unavailable: () => false,
+  })
   const changed: number[] = []
   const requests = createCompactionRequests({
     threadId,
@@ -96,9 +111,17 @@ describe('compaction requests over the real JSONL store', () => {
       summarise({ id: 'a', anchor: EWireCompactionAnchor.Prefix, seq: through }),
     )
 
-    expect(reply).toMatchObject({ ok: true, data: { type: 'compacted', fromSeq: events[0]!.seq, throughSeq: through } })
+    expect(reply).toMatchObject({
+      ok: true,
+      data: { type: 'compacted', fromSeq: events[0]!.seq, throughSeq: through },
+    })
     const rows = jsonlRows(store!)
-    expect(rows.filter((row) => row.seq < through && row.type !== 'context-loaded' && row.type !== 'history-compacted')).toEqual([])
+    expect(
+      rows.filter(
+        (row) =>
+          row.seq < through && row.type !== 'context-loaded' && row.type !== 'history-compacted',
+      ),
+    ).toEqual([])
     expect(rows.some((row) => row.seq === loaded && row.type === 'context-loaded')).toBe(true)
     expect(rows.filter((row) => row.seq > through).map((row) => row.type)).toEqual([
       'user-said',
@@ -116,9 +139,14 @@ describe('compaction requests over the real JSONL store', () => {
       summarise({ id: 'a', anchor: EWireCompactionAnchor.Suffix, seq: from }),
     )
 
-    expect(reply).toMatchObject({ ok: true, data: { type: 'compacted', fromSeq: from, throughSeq: head } })
+    expect(reply).toMatchObject({
+      ok: true,
+      data: { type: 'compacted', fromSeq: from, throughSeq: head },
+    })
     const rows = jsonlRows(store!)
-    expect(rows.filter((row) => row.seq >= from).map((row) => row.type)).toEqual(['history-compacted'])
+    expect(rows.filter((row) => row.seq >= from).map((row) => row.type)).toEqual([
+      'history-compacted',
+    ])
     expect(rows.filter((row) => row.seq < from)).toHaveLength(events.length - 2)
   })
 
@@ -129,7 +157,11 @@ describe('compaction requests over the real JSONL store', () => {
     const before = jsonlRows(store!)
 
     const reply = await requests.answer(
-      summarise({ id: 'a', anchor: EWireCompactionAnchor.Prefix, seq: seqOf({ events, match: 'tool-called' }) }),
+      summarise({
+        id: 'a',
+        anchor: EWireCompactionAnchor.Prefix,
+        seq: seqOf({ events, match: 'tool-called' }),
+      }),
     )
 
     expect(reply).toMatchObject({ ok: true, data: { type: 'refused' } })
@@ -147,17 +179,30 @@ describe('compaction requests over the real JSONL store', () => {
       request({
         id: 'f',
         op: EClientRequest.CompactHistory,
-        params: { threadId: 'thread-elsewhere', operationId: 'op', scope: EWireCompactScope.Recent },
+        params: {
+          threadId: 'thread-elsewhere',
+          operationId: 'op',
+          scope: EWireCompactScope.Recent,
+        },
       }),
     )
     const malformed = await requests.answer(
-      request({ id: 'm', op: EClientRequest.SummariseHistory, params: { threadId, operationId: 'op', anchor: 'middle', seq: -1 } }),
+      request({
+        id: 'm',
+        op: EClientRequest.SummariseHistory,
+        params: { threadId, operationId: 'op', anchor: 'middle', seq: -1 },
+      }),
     )
     const foreignCancel = await requests.answer(
-      request({ id: 'c', op: EClientRequest.CancelCompaction, params: { threadId: 'thread-elsewhere', operationId: 'op' } }),
+      request({
+        id: 'c',
+        op: EClientRequest.CancelCompaction,
+        params: { threadId: 'thread-elsewhere', operationId: 'op' },
+      }),
     )
 
-    for (const reply of [foreign, malformed, foreignCancel]) expect(reply).toMatchObject({ ok: false })
+    for (const reply of [foreign, malformed, foreignCancel])
+      expect(reply).toMatchObject({ ok: false })
     expect(probe.calls).toEqual([])
     expect(jsonlRows(store!)).toEqual(before)
   })
@@ -189,7 +234,11 @@ describe('compaction requests over the real JSONL store', () => {
     const running = requests.answer(compact({ id: 'a', operationId: 'op-running' }))
     await probe.entered
     const cancel = await requests.answer(
-      request({ id: 'c', op: EClientRequest.CancelCompaction, params: { threadId, operationId: 'op-running' } }),
+      request({
+        id: 'c',
+        op: EClientRequest.CancelCompaction,
+        params: { threadId, operationId: 'op-running' },
+      }),
     )
 
     expect(cancel).toMatchObject({ ok: true, data: { cancelled: true } })
@@ -208,7 +257,11 @@ describe('compaction requests over the real JSONL store', () => {
     const running = requests.answer(compact({ id: 'a', operationId: 'op-late' }))
     await probe.entered
     await requests.answer(
-      request({ id: 'c', op: EClientRequest.CancelCompaction, params: { threadId, operationId: 'op-late' } }),
+      request({
+        id: 'c',
+        op: EClientRequest.CancelCompaction,
+        params: { threadId, operationId: 'op-late' },
+      }),
     )
     probe.release()
 
@@ -224,7 +277,11 @@ describe('compaction requests over the real JSONL store', () => {
     const running = requests.answer(compact({ id: 'a', operationId: 'op-real' }))
     await probe.entered
     const stray = await requests.answer(
-      request({ id: 'c', op: EClientRequest.CancelCompaction, params: { threadId, operationId: 'op-other' } }),
+      request({
+        id: 'c',
+        op: EClientRequest.CancelCompaction,
+        params: { threadId, operationId: 'op-other' },
+      }),
     )
 
     expect(stray).toMatchObject({ ok: true, data: { cancelled: false } })

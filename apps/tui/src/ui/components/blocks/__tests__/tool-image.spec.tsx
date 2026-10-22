@@ -32,7 +32,13 @@ const writeRedPng = (args: { name: string; width: number; height: number }): str
   const path = join(directory, args.name)
   writeFileSync(
     path,
-    encodePng({ width: args.width, height: args.height, colourType: 6, bytesPerPixel: 4, samples: rgba }),
+    encodePng({
+      width: args.width,
+      height: args.height,
+      colourType: 6,
+      bytesPerPixel: 4,
+      samples: rgba,
+    }),
   )
   return path
 }
@@ -70,7 +76,11 @@ describe('an opened image read', () => {
   test('paints the picture, not just its name', async () => {
     const path = writeRedPng({ name: 'shot.png', width: 32, height: 32 })
     const { renderOnce, flush, captureCharFrame } = await testRender(
-      <ToolImage call={readCall({ path, mediaType: 'image/png', width: 32, height: 32 })} inner={40} cwd={directory} />,
+      <ToolImage
+        call={readCall({ path, mediaType: 'image/png', width: 32, height: 32 })}
+        inner={40}
+        cwd={directory}
+      />,
       { width: 44, height: 20 },
     )
 

@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { ECloudSandboxState, EConnectionView, ERuntimePhase, ETurnStatus, transcriptIdentityDigest } from '@dltech/atlas-harness'
+import {
+  ECloudSandboxState,
+  EConnectionView,
+  ERuntimePhase,
+  ETurnStatus,
+  transcriptIdentityDigest,
+} from '@dltech/atlas-harness'
 
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge } from '../cloud/__tests__/fixture'
 import { promiseGate, until, THREAD } from './app-fixture'
-import {
-  cleared,
-  mountInCloud,
-  nextFrameOf,
-  shown,
-  speaking,
-} from './app-container-cloud-fixture'
+import { cleared, mountInCloud, nextFrameOf, shown, speaking } from './app-container-cloud-fixture'
 import { FAKE_CONFIG } from './fake-app'
 
 await grammarsReady()
@@ -26,7 +26,10 @@ const command = async (mounted: Mounted, text: string): Promise<void> => {
   mounted.pressEnter()
 }
 
-const connected = async (mounted: Mounted, bridge: ReturnType<typeof fakeBridge>): Promise<void> => {
+const connected = async (
+  mounted: Mounted,
+  bridge: ReturnType<typeof fakeBridge>,
+): Promise<void> => {
   bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   await shown(mounted, 'CLOUD')
 }
@@ -40,7 +43,9 @@ describe('a thread born in the cloud', () => {
     try {
       expect(bridge.attached).toHaveLength(1)
       expect(bridge.attached[0]?.threadId).toBe(THREAD)
-      expect((await app.threads.find({ threadId: THREAD }))?.executionLocation).toBe(EExecutionLocation.Cloud)
+      expect((await app.threads.find({ threadId: THREAD }))?.executionLocation).toBe(
+        EExecutionLocation.Cloud,
+      )
     } finally {
       await mounted.done()
     }
@@ -194,7 +199,6 @@ describe('a thread born in the cloud', () => {
       await mounted.done()
     }
   }, 60_000)
-
 })
 
 describe('switching conversations while attached', () => {
@@ -220,7 +224,9 @@ describe('switching conversations while attached', () => {
 
   it('re-attaches when the cloud conversation is picked back up', async () => {
     const app = speaking()
-    const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' } })
+    const bridge = fakeBridge({
+      status: { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' },
+    })
     const mounted = await mountInCloud({ app, bridge })
 
     try {
@@ -232,7 +238,11 @@ describe('switching conversations while attached', () => {
       await command(mounted, '/resume opened-thread')
 
       expect(
-        await until({ holds: async () => bridge.attached.some((held) => held.threadId === THREAD && held !== bridge.attached[0]), within: 20_000 }),
+        await until({
+          holds: async () =>
+            bridge.attached.some((held) => held.threadId === THREAD && held !== bridge.attached[0]),
+          within: 20_000,
+        }),
       ).toBe(true)
 
       bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })

@@ -45,16 +45,11 @@ export function useWorkspaceFooter(args: {
   const { viewedSelection, viewedCard, readout } = viewed
 
   const surfaces = usePluginSurfaces({
-    surfaces: [
-      ...app.pluginSurfaces,
-      shellsSurface({ shells }),
-      servicesSurface({ services }),
-    ],
+    surfaces: [...app.pluginSurfaces, shellsSurface({ shells }), servicesSurface({ services })],
   })
 
   const footerModelLabel =
-    viewedCard?.label ??
-    (viewedSelection === null ? '' : modelLabel(viewedSelection.ref.modelId))
+    viewedCard?.label ?? (viewedSelection === null ? '' : modelLabel(viewedSelection.ref.modelId))
   const footerRow = useMemo(
     () =>
       footerLayout({
@@ -64,7 +59,15 @@ export function useWorkspaceFooter(args: {
         items: [...locationItems, ...surfaces.footerItems],
         context: readout,
       }),
-    [chromeWidth, footerModelLabel, locationItems, readout, selection.effort, surfaces.footerItems, viewedSelection],
+    [
+      chromeWidth,
+      footerModelLabel,
+      locationItems,
+      readout,
+      selection.effort,
+      surfaces.footerItems,
+      viewedSelection,
+    ],
   )
 
   const footerStrip = useFooterStrip({ items: footerRow.instruments.items, draft })

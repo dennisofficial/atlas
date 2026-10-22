@@ -122,7 +122,9 @@ describe('julia lexical highlighting', () => {
   })
 
   it('reads a bang-suffixed name whole', () => {
-    expect(textFor({ spec, source: 'push!(xs, 1.0)', group: 'function.builtin' })).toEqual(['push!'])
+    expect(textFor({ spec, source: 'push!(xs, 1.0)', group: 'function.builtin' })).toEqual([
+      'push!',
+    ])
   })
 
   it('keeps a bang out of an unspaced inequality', () => {

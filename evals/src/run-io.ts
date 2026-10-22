@@ -1,7 +1,14 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { ERowStatus, ERunMode, ERunStatus, type LoadedRun, type ResultRow, type RunSummary } from './results'
+import {
+  ERowStatus,
+  ERunMode,
+  ERunStatus,
+  type LoadedRun,
+  type ResultRow,
+  type RunSummary,
+} from './results'
 
 export class RunDirectoryError extends Error {
   constructor(message: string) {
@@ -47,7 +54,8 @@ export async function loadRunDirectory({ directory }: { directory: string }): Pr
   } catch {
     throw new RunDirectoryError(`no readable summary.json in ${directory}`)
   }
-  if (!isRunSummary(summaryParsed)) throw new RunDirectoryError(`summary.json in ${directory} fails the run summary shape`)
+  if (!isRunSummary(summaryParsed))
+    throw new RunDirectoryError(`summary.json in ${directory} fails the run summary shape`)
 
   let rowsText = ''
   try {
@@ -59,7 +67,8 @@ export async function loadRunDirectory({ directory }: { directory: string }): Pr
   for (const line of rowsText.split('\n')) {
     if (line.trim() === '') continue
     const parsed: unknown = JSON.parse(line)
-    if (!isResultRow(parsed)) throw new RunDirectoryError(`results.jsonl in ${directory} holds a malformed row`)
+    if (!isResultRow(parsed))
+      throw new RunDirectoryError(`results.jsonl in ${directory} holds a malformed row`)
     rows.push(parsed)
   }
   return { summary: summaryParsed, rows, directory }

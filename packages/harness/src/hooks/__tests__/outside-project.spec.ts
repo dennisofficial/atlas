@@ -16,7 +16,11 @@ const PROJECT = '/Users/dennis/Developer/atlas/.atlas/worktrees/highlight-loop'
 
 const hook = new OutsideProjectHook()
 
-const callOf = (args: { name: string; input: unknown; effect?: EToolEffect | undefined }): ToolCall => ({
+const callOf = (args: {
+  name: string
+  input: unknown
+  effect?: EToolEffect | undefined
+}): ToolCall => ({
   callId: toCallId('call-1'),
   name: args.name,
   input: args.input,
@@ -26,7 +30,12 @@ const callOf = (args: { name: string; input: unknown; effect?: EToolEffect | und
 
 const OK: ToolOutcome = { ok: true, output: {}, modelText: 'ok' }
 
-const run = (args: { name?: string; input?: unknown; result?: ToolOutcome; effect?: EToolEffect }) =>
+const run = (args: {
+  name?: string
+  input?: unknown
+  result?: ToolOutcome
+  effect?: EToolEffect
+}) =>
   hook.run({
     call: callOf({ name: args.name ?? 'write', input: args.input ?? {}, effect: args.effect }),
     result: args.result ?? OK,

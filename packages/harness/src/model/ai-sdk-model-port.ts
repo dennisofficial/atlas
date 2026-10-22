@@ -72,8 +72,7 @@ function withResponseDeadline(args: { model: LanguageModelV4; ttfbMs: number }):
     options.abortSignal?.addEventListener('abort', followCaller, { once: true })
 
     const timer = setTimeout(
-      () =>
-        deadline.abort(new StreamStallError('the provider did not answer the request in time')),
+      () => deadline.abort(new StreamStallError('the provider did not answer the request in time')),
       args.ttfbMs,
     )
 

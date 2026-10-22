@@ -75,7 +75,11 @@ describe('recordLoadedFiles', () => {
   it('skips a directory', async () => {
     const root = await scratch()
     const readState = new InMemoryFileReadState()
-    await recordLoadedFiles({ readState, threadId: thread, loaded: [{ path: root, wholeFile: true }] })
+    await recordLoadedFiles({
+      readState,
+      threadId: thread,
+      loaded: [{ path: root, wholeFile: true }],
+    })
 
     expect(readState.viewOf({ threadId: thread, path: root })).toBeUndefined()
   })

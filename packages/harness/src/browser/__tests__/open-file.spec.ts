@@ -7,7 +7,9 @@ const PATH = '/repo/src/main.ts'
 describe('editorLaunch', () => {
   describe('the OS default opener', () => {
     it('hands the path to the macOS opener, ignoring any line', () => {
-      expect(editorLaunch({ editor: EEditor.Default, platform: 'darwin', path: PATH, line: 42 })).toEqual({
+      expect(
+        editorLaunch({ editor: EEditor.Default, platform: 'darwin', path: PATH, line: 42 }),
+      ).toEqual({
         command: 'open',
         args: [PATH],
       })
@@ -30,7 +32,9 @@ describe('editorLaunch', () => {
 
   describe('cursor', () => {
     it('opens the file at a line through the -g flag', () => {
-      expect(editorLaunch({ editor: EEditor.Cursor, platform: 'darwin', path: PATH, line: 42 })).toEqual({
+      expect(
+        editorLaunch({ editor: EEditor.Cursor, platform: 'darwin', path: PATH, line: 42 }),
+      ).toEqual({
         command: 'cursor',
         args: ['-g', `${PATH}:42`],
       })
@@ -46,7 +50,9 @@ describe('editorLaunch', () => {
 
   describe('code', () => {
     it('opens the file at a line through the -g flag', () => {
-      expect(editorLaunch({ editor: EEditor.Code, platform: 'darwin', path: PATH, line: 7 })).toEqual({
+      expect(
+        editorLaunch({ editor: EEditor.Code, platform: 'darwin', path: PATH, line: 7 }),
+      ).toEqual({
         command: 'code',
         args: ['-g', `${PATH}:7`],
       })
@@ -62,7 +68,9 @@ describe('editorLaunch', () => {
 
   describe('zed', () => {
     it('opens the file at a line as a path:line argument', () => {
-      expect(editorLaunch({ editor: EEditor.Zed, platform: 'darwin', path: PATH, line: 3 })).toEqual({
+      expect(
+        editorLaunch({ editor: EEditor.Zed, platform: 'darwin', path: PATH, line: 3 }),
+      ).toEqual({
         command: 'zed',
         args: [`${PATH}:3`],
       })
@@ -78,7 +86,9 @@ describe('editorLaunch', () => {
 
   describe('warp', () => {
     it('opens the warp:// URI through the macOS opener', () => {
-      expect(editorLaunch({ editor: EEditor.Warp, platform: 'darwin', path: PATH, line: 9 })).toEqual({
+      expect(
+        editorLaunch({ editor: EEditor.Warp, platform: 'darwin', path: PATH, line: 9 }),
+      ).toEqual({
         command: 'open',
         args: [`warp://action/new_tab?path=${PATH}`],
       })

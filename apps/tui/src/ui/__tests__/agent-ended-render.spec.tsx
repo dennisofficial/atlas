@@ -2,7 +2,13 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
 import React from 'react'
 
-import { EAuthor, EEntryKind, EPendingKind, type AgentEndedEntry, type PendingRow } from '../../store'
+import {
+  EAuthor,
+  EEntryKind,
+  EPendingKind,
+  type AgentEndedEntry,
+  type PendingRow,
+} from '../../store'
 import { PendingBlock } from '../components/blocks/pending-block'
 import { EntryView } from '../components/entry-view'
 import { teardown } from '../markdown/__tests__/harness'

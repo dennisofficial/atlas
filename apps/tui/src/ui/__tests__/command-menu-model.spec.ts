@@ -10,11 +10,7 @@ import {
   type CommandMenuState,
 } from '../command-menu-model'
 
-const local = (args: {
-  name: string
-  summary: string
-  argumentHint?: string
-}): CommandSpec => ({
+const local = (args: { name: string; summary: string; argumentHint?: string }): CommandSpec => ({
   name: args.name,
   kind: ECommandKind.Local,
   summary: args.summary,

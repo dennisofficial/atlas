@@ -3,7 +3,12 @@ import type { CliRenderer, Renderable, Selection } from '@opentui/core'
 import { firstInkedColumn, lastInkedColumn } from './screen-rows'
 import { sourceSpanOf } from './source-spans'
 
-type Reach = { readonly top: number; readonly bottom: number; readonly from: number; readonly to: number }
+type Reach = {
+  readonly top: number
+  readonly bottom: number
+  readonly from: number
+  readonly to: number
+}
 
 type Piece = { readonly x: number; readonly text: string }
 

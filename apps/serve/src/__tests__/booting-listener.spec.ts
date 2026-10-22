@@ -5,7 +5,14 @@ import { EServeEvent, EWorkspaceState, startServe, type ServeHandle } from '../i
 
 import { connect } from './client'
 import { fakeServeApp } from './fakes'
-import { CONTROL_PLANE, hello, inMemoryContextFiles, releaseServeSpec, threadId, TOKEN } from './serve-spec-fixture'
+import {
+  CONTROL_PLANE,
+  hello,
+  inMemoryContextFiles,
+  releaseServeSpec,
+  threadId,
+  TOKEN,
+} from './serve-spec-fixture'
 
 const GUARDED_FIELDS = [
   'busy',

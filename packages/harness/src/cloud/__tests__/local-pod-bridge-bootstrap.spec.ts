@@ -10,10 +10,13 @@ describe('bootstrapSpecOf', () => {
   })
 
   it('writes the project id alongside the model when one is given', () => {
-    const spec = JSON.parse(
-      bootstrapSpecOf({ model: 'claude-x', projectId: 'proj-1' }),
-    )
+    const spec = JSON.parse(bootstrapSpecOf({ model: 'claude-x', projectId: 'proj-1' }))
 
-    expect(spec).toEqual({ remoteUrl: null, githubToken: null, projectId: 'proj-1', model: 'claude-x' })
+    expect(spec).toEqual({
+      remoteUrl: null,
+      githubToken: null,
+      projectId: 'proj-1',
+      model: 'claude-x',
+    })
   })
 })

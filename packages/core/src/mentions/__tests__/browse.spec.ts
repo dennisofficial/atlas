@@ -107,9 +107,10 @@ describe('browseCandidates', () => {
 
 describe('completedMentionPath', () => {
   it('spells a file out under the directory it was found in', () => {
-    expect(
-      completedMentionPath({ directory: 'apps/tui/', entry: file('app.tsx') }),
-    ).toEqual({ path: 'apps/tui/app.tsx', settled: true })
+    expect(completedMentionPath({ directory: 'apps/tui/', entry: file('app.tsx') })).toEqual({
+      path: 'apps/tui/app.tsx',
+      settled: true,
+    })
   })
 
   it('closes a directory with a slash and stays open for the next level', () => {

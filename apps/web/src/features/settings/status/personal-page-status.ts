@@ -13,7 +13,8 @@ export const PERSONAL_PAGE_STATUS = {
   },
   [ESettingsPage.UsageSandboxes]: {
     status: EPageStatus.Partial,
-    detail: 'Sandboxes come from Atlas Cloud. Repository, size and cost columns are not reported yet.',
+    detail:
+      'Sandboxes come from Atlas Cloud. Repository, size and cost columns are not reported yet.',
   },
   [ESettingsPage.Instructions]: {
     status: EPageStatus.Stored,
@@ -33,7 +34,8 @@ export const PERSONAL_PAGE_STATUS = {
   },
   [ESettingsPage.Appearance]: {
     status: EPageStatus.Stored,
-    detail: 'The theme is applied to this page; density, font size and motion are saved but not applied yet.',
+    detail:
+      'The theme is applied to this page; density, font size and motion are saved but not applied yet.',
   },
   [ESettingsPage.Notifications]: { status: EPageStatus.Stored },
   [ESettingsPage.Security]: {

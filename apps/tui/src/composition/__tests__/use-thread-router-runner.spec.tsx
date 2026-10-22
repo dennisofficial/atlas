@@ -63,8 +63,12 @@ describe('the thread router across runners', () => {
       })
       const sandbox = probe.router?.findSandbox()
 
-      expect(await sandbox?.find({ threadId: LOCAL_THREAD })).toEqual({ state: ERunner.Local } as never)
-      expect(await sandbox?.find({ threadId: VERCEL_THREAD })).toEqual({ state: ERunner.Vercel } as never)
+      expect(await sandbox?.find({ threadId: LOCAL_THREAD })).toEqual({
+        state: ERunner.Local,
+      } as never)
+      expect(await sandbox?.find({ threadId: VERCEL_THREAD })).toEqual({
+        state: ERunner.Vercel,
+      } as never)
       expect(asked).toEqual([ERunner.Local, ERunner.Vercel])
     } finally {
       await teardown(setup)

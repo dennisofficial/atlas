@@ -104,7 +104,9 @@ describe('the cloud settings rows', () => {
       WIDTH,
     )
 
-    expect(frame).toContain('Uploaded 2 accounts, 1 secret, 0 mcp servers and 3 settings to the cloud.')
+    expect(frame).toContain(
+      'Uploaded 2 accounts, 1 secret, 0 mcp servers and 3 settings to the cloud.',
+    )
   })
 
   it('reads out a download failure under its row', async () => {

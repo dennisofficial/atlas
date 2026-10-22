@@ -1,16 +1,28 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import {
-  EClientFrame, EServeFrame, ETurnStatus,
-  persistSandboxRotationReceipt, readPersistedRuntimeCheckpoint, readSandboxRotationReceipt,
-  runtimeCheckpointFile, transcriptIdentityDigest,
+  EClientFrame,
+  EServeFrame,
+  ETurnStatus,
+  persistSandboxRotationReceipt,
+  readPersistedRuntimeCheckpoint,
+  readSandboxRotationReceipt,
+  runtimeCheckpointFile,
+  transcriptIdentityDigest,
 } from '@dltech/atlas-harness'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
 import { createServeRotationRecovery } from '../serve-rotation-recovery'
 import { connect } from './client'
 import {
-  childId, cleanupRotationFixtures, gate, replacementSession, rotationFixture, sourceSession, threadId, token,
+  childId,
+  cleanupRotationFixtures,
+  gate,
+  replacementSession,
+  rotationFixture,
+  sourceSession,
+  threadId,
+  token,
 } from './serve-rotation-fixture'
 
 const eventually = async (predicate: () => boolean | Promise<boolean>): Promise<void> => {
@@ -32,25 +44,38 @@ afterEach(cleanupRotationFixtures)
 describe('serve sandbox rotation recovery without a client', () => {
   it('guards adoption, resumes from the durable log, and consumes only terminal completion across two boots', async () => {
     const fixture = await rotationFixture()
-    expect(fixture.receipt.checkpoint.transcript.digest).toBe(transcriptIdentityDigest(await fixture.store.log.read({ threadId })))
+    expect(fixture.receipt.checkpoint.transcript.digest).toBe(
+      transcriptIdentityDigest(await fixture.store.log.read({ threadId })),
+    )
     const guard = gate()
     const model = gate()
     const order: string[] = []
     const first = await fixture.boot({
       modelGate: model,
       family: {
-        freeze: async () => { order.push('guard'); await guard.promise },
+        freeze: async () => {
+          order.push('guard')
+          await guard.promise
+        },
         pauseChildren: async () => undefined,
-        resumeChildren: async () => { order.push('release') },
+        resumeChildren: async () => {
+          order.push('release')
+        },
       },
-      adopt: async () => { order.push('children'); return [childId] },
-      onResume: () => { order.push('resume') },
+      adopt: async () => {
+        order.push('children')
+        return [childId]
+      },
+      onResume: () => {
+        order.push('resume')
+      },
     })
     await eventually(() => order.includes('guard'))
     expect(first.resumed()).toBe(0)
     expect(first.app.adoptions()).toEqual([])
     const storedBefore = await checkpointAt(fixture.home)
-    if (storedBefore?.phase !== ERuntimePhase.Updating) throw new Error('expected the sealed updating record')
+    if (storedBefore?.phase !== ERuntimePhase.Updating)
+      throw new Error('expected the sealed updating record')
     const { receipt: _embedded, ...recordOnly } = storedBefore
     expect(recordOnly).toEqual(fixture.receipt.checkpoint)
     guard.release()
@@ -62,7 +87,11 @@ describe('serve sandbox rotation recovery without a client', () => {
       headers: { authorization: `Bearer ${token}` },
     })
     expect(health.status).toBe(200)
-    expect(await health.json()).toMatchObject({ rotationPreparationVersion: 1, sandboxSessionId: replacementSession, clients: 0 })
+    expect(await health.json()).toMatchObject({
+      rotationPreparationVersion: 1,
+      sandboxSessionId: replacementSession,
+      clients: 0,
+    })
     expect(await owed(fixture.home)).toBe(true)
     const progress = await checkpointAt(fixture.home)
     expect(progress?.phase).toBe(ERuntimePhase.Serving)
@@ -76,7 +105,9 @@ describe('serve sandbox rotation recovery without a client', () => {
     expect(second.resumed()).toBe(0)
     expect(second.ran()).toBe(0)
     expect(second.app.adoptions()).toEqual([threadId])
-    expect((await second.disk.log.read({ threadId })).filter((event) => event.type === 'nudge')).toHaveLength(1)
+    expect(
+      (await second.disk.log.read({ threadId })).filter((event) => event.type === 'nudge'),
+    ).toHaveLength(1)
   }, 20_000)
 
   it('retains the owed continuation after a model crash and resumes on a second fresh boot', async () => {
@@ -84,7 +115,9 @@ describe('serve sandbox rotation recovery without a client', () => {
     const model = gate()
     const first = await fixture.boot({ modelGate: model })
     const handle = await first.starting
-    await eventually(async () => (await first.disk.log.read({ threadId })).some((event) => event.type === 'nudge'))
+    await eventually(async () =>
+      (await first.disk.log.read({ threadId })).some((event) => event.type === 'nudge'),
+    )
     expect(await owed(fixture.home)).toBe(true)
     await first.modelEntered
     model.fail(new Error('process lost before committing a model result'))
@@ -100,7 +133,9 @@ describe('serve sandbox rotation recovery without a client', () => {
     secondModel.release()
     await eventually(async () => !(await owed(fixture.home)))
     expect(second.outcomes.map((outcome) => outcome.status)).toEqual([ETurnStatus.Completed])
-    expect((await second.disk.log.read({ threadId })).filter((event) => event.type === 'nudge')).toHaveLength(1)
+    expect(
+      (await second.disk.log.read({ threadId })).filter((event) => event.type === 'nudge'),
+    ).toHaveLength(1)
   }, 20_000)
 
   it('resumes the owed parent on a same-session boot and consumes the receipt only on completion', async () => {
@@ -121,9 +156,21 @@ describe('serve sandbox rotation recovery without a client', () => {
   it('preserves an approval pause instead of forcing the owed parent past it', async () => {
     const fixture = await rotationFixture()
     await fixture.store.log.append({
-      threadId, runId: toRunId('approval-pause'), drafts: [
-        { type: 'tool-called', callId: toCallId('approval-call'), name: 'write', input: {}, ordinal: 0 },
-        { type: 'approval-requested', callId: toCallId('approval-call'), reason: 'approval required' },
+      threadId,
+      runId: toRunId('approval-pause'),
+      drafts: [
+        {
+          type: 'tool-called',
+          callId: toCallId('approval-call'),
+          name: 'write',
+          input: {},
+          ordinal: 0,
+        },
+        {
+          type: 'approval-requested',
+          callId: toCallId('approval-call'),
+          reason: 'approval required',
+        },
       ],
     })
     const boot = await fixture.boot()
@@ -136,9 +183,13 @@ describe('serve sandbox rotation recovery without a client', () => {
 
   it('rejects a journal for another root before composing or starting children', async () => {
     const fixture = await rotationFixture()
-    await expect(createServeRotationRecovery({
-      atlasHome: fixture.home, threadId: toThreadId('foreign-root'),
-      sandboxSessionId: replacementSession, log: () => undefined,
-    })).rejects.toThrow('sandbox rotation belongs to rotation-root, not foreign-root')
+    await expect(
+      createServeRotationRecovery({
+        atlasHome: fixture.home,
+        threadId: toThreadId('foreign-root'),
+        sandboxSessionId: replacementSession,
+        log: () => undefined,
+      }),
+    ).rejects.toThrow('sandbox rotation belongs to rotation-root, not foreign-root')
   })
 })

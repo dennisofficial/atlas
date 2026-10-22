@@ -91,7 +91,11 @@ export class AgentSupervisor extends AgentRegistryPort {
       agentTypes: args.agentTypes,
       deps: args,
     })
-    this.delivery = new NoticeDelivery({ notices: this.notices, roster: this.roster, clock: args.clock })
+    this.delivery = new NoticeDelivery({
+      notices: this.notices,
+      roster: this.roster,
+      clock: args.clock,
+    })
     this.recovery = new ChildRecovery({
       log: args.log,
       threads: args.threads,
@@ -200,10 +204,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     return paused.map((child) => child.agentId)
   }
 
-  markChildrenRelocated(args: {
-    threadId: ThreadId
-    location: EExecutionLocation
-  }): Promise<void> {
+  markChildrenRelocated(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {
     return markThreadChildrenRelocated({ ...args, ...this.relocation })
   }
 

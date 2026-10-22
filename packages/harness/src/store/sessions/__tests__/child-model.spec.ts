@@ -43,7 +43,10 @@ describe('JsonlThreadStore child model at creation', () => {
 
     expect(child.model).toEqual(model)
     const sessionDir = sessionDirectory({ home, sessionId: root.id })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: child.id }), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: child.id }),
+      schema: threadMetaSchema,
+    })
     expect(meta).toMatchObject({ modelRef: model.ref, modelEffort: model.effort })
   })
 
@@ -51,7 +54,10 @@ describe('JsonlThreadStore child model at creation', () => {
     const home = await tempHome()
     const root = await openStore({ home }).create({ workspace: '/here' })
     const model = { ref: 'openai/gpt-5.1', effort: 'medium' }
-    const child = await openStore({ home }).create({ agent: { spawnedBy: root.id, type: 'builder' }, model })
+    const child = await openStore({ home }).create({
+      agent: { spawnedBy: root.id, type: 'builder' },
+      model,
+    })
 
     const reopened = openStore({ home })
     const found = await reopened.find({ threadId: child.id })
@@ -65,10 +71,12 @@ describe('JsonlThreadStore child model at creation', () => {
     const root = await threads.create({})
     const model = { ref: 'inference/kimi-k3-fast', effort: 'low' }
     const child = await threads.create({ agent: { spawnedBy: root.id, type: 'explore' }, model })
-    await expect(threads.chooseModel({ threadId: child.id, model: { ...model, effort: 'high' } }))
-      .rejects.toThrow('spawned with')
-    await expect(threads.chooseModel({ threadId: child.id, model: { ...model, ref: 'openai/gpt-5' } }))
-      .rejects.toThrow('spawned with')
+    await expect(
+      threads.chooseModel({ threadId: child.id, model: { ...model, effort: 'high' } }),
+    ).rejects.toThrow('spawned with')
+    await expect(
+      threads.chooseModel({ threadId: child.id, model: { ...model, ref: 'openai/gpt-5' } }),
+    ).rejects.toThrow('spawned with')
     expect((await threads.find({ threadId: child.id }))?.model).toEqual(model)
     await threads.chooseModel({ threadId: child.id, model })
     const legacy = await threads.create({ agent: { spawnedBy: root.id, type: 'teammate' } })
@@ -102,7 +110,10 @@ describe('JsonlThreadStore child model at creation', () => {
     const found = await threads.find({ threadId: thread.id })
     expect(found?.model).toBeUndefined()
     const sessionDir = sessionDirectory({ home, sessionId: thread.id })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: thread.id }), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: thread.id }),
+      schema: threadMetaSchema,
+    })
     expect(meta).toMatchObject({ modelRef: null, modelEffort: null })
   })
 

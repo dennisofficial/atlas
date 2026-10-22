@@ -4,7 +4,8 @@ import { DockerEngine, EngineRequestFailed } from '../engine'
 import { dockerUnavailableReason } from './live-docker'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const LABEL = { 'atlas-dev.spec': 'engine' }

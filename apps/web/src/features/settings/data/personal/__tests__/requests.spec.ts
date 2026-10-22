@@ -48,7 +48,11 @@ describe('personal secret save', () => {
       secrets: [stored],
     })
     expect(calls).toEqual([
-      { url: '/v1/secrets/API_KEY', method: 'PUT', body: { value: 'hunter2', kind: ESecretKind.Secret } },
+      {
+        url: '/v1/secrets/API_KEY',
+        method: 'PUT',
+        body: { value: 'hunter2', kind: ESecretKind.Secret },
+      },
     ])
   })
 
@@ -67,7 +71,10 @@ describe('personal secret save', () => {
     })
     expect(calls[0]?.body).toEqual({ value: 'new', kind: ESecretKind.Secret })
     expect(() =>
-      saveSecretEntry({ entry: { key: 'OTHER', value: '', kind: ESecretKind.Secret }, secrets: [stored] }),
+      saveSecretEntry({
+        entry: { key: 'OTHER', value: '', kind: ESecretKind.Secret },
+        secrets: [stored],
+      }),
     ).toThrow('A value is required')
     expect(calls).toHaveLength(1)
   })
@@ -86,7 +93,12 @@ describe('personal MCP add', () => {
         url: '/v1/mcp-servers/fs',
         method: 'PUT',
         body: {
-          transport: { kind: 'stdio', command: 'npx', args: ['-y', 'pkg'], env: { API_KEY: 'abc', REGION: 'eu' } },
+          transport: {
+            kind: 'stdio',
+            command: 'npx',
+            args: ['-y', 'pkg'],
+            env: { API_KEY: 'abc', REGION: 'eu' },
+          },
           disabled: false,
         },
       },

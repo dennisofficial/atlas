@@ -79,7 +79,10 @@ export class RecordFileStateHook extends AfterToolHook {
     if (digest === undefined) return
 
     const known = this.seen.viewOf({ threadId, path })
-    const wholeFile = known !== undefined && !(await movedSince({ view: known, stats, path, files: this.files, threadId })) && known.wholeFile
+    const wholeFile =
+      known !== undefined &&
+      !(await movedSince({ view: known, stats, path, files: this.files, threadId })) &&
+      known.wholeFile
 
     this.seen.record({
       threadId,

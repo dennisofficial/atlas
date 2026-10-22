@@ -45,7 +45,10 @@ const open = async (args: { readyAtMount?: boolean; wakesInto?: boolean; inFligh
 describe('settling before the channel is open', () => {
   it('keeps resume for an interrupted prefix once the first idle Ready is followed by Open', async () => {
     const { rig, screen } = await open({ readyAtMount: false })
-    await screen.until((frame) => frame.includes(RESUME_HINT), 'the resume hint on the mounted prefix')
+    await screen.until(
+      (frame) => frame.includes(RESUME_HINT),
+      'the resume hint on the mounted prefix',
+    )
 
     rig.wired.ready(false)
     await screen.quiet(500)
@@ -77,7 +80,10 @@ describe('settling before the channel is open', () => {
 
     rig.failIdentity(null)
     rig.wired.ready(false)
-    await screen.until((frame) => frame.includes(RESUME_HINT), 'the resume hint after a clean settle')
+    await screen.until(
+      (frame) => frame.includes(RESUME_HINT),
+      'the resume hint after a clean settle',
+    )
   }, 30_000)
 })
 

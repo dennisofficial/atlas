@@ -14,7 +14,8 @@ import { tailServeLog } from '../vercel-driver-probes'
 
 const directories: string[] = []
 afterEach(async () => {
-  for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true })
+  for (const directory of directories.splice(0))
+    await rm(directory, { recursive: true, force: true })
 })
 
 async function fixture() {
@@ -31,7 +32,9 @@ async function fixture() {
   const execute = async (script: string) => {
     const process = Bun.spawn(['sh', '-c', mapScript(script)], { stdout: 'pipe', stderr: 'pipe' })
     const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited,
+      new Response(process.stdout).text(),
+      new Response(process.stderr).text(),
+      process.exited,
     ])
     return { stdout, stderr, exitCode }
   }

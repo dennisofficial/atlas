@@ -26,7 +26,9 @@ const historyPrompt = (reasoning: AssistantContent): LanguageModelV4Prompt => [
   { role: 'assistant', content: reasoning },
   {
     role: 'assistant',
-    content: [{ type: 'tool-call', toolCallId: 'call_1', toolName: 'lookup', input: { city: 'paris' } }],
+    content: [
+      { type: 'tool-call', toolCallId: 'call_1', toolName: 'lookup', input: { city: 'paris' } },
+    ],
   },
   {
     role: 'tool',
@@ -60,8 +62,13 @@ const callWithHistory = async (args: {
 
 type AnthropicBlock = Record<string, unknown>
 
-const anthropicMessages = (recorder: RecordingFetch, index: number): { role: string; content: AnthropicBlock[] }[] => {
-  const body = recorder.requests[index]?.body as { messages: { role: string; content: AnthropicBlock[] }[] }
+const anthropicMessages = (
+  recorder: RecordingFetch,
+  index: number,
+): { role: string; content: AnthropicBlock[] }[] => {
+  const body = recorder.requests[index]?.body as {
+    messages: { role: string; content: AnthropicBlock[] }[]
+  }
   return body.messages
 }
 
@@ -70,7 +77,9 @@ const assistantMessages = (recorder: RecordingFetch, index: number) =>
 
 const thinkingBlocks = (recorder: RecordingFetch, index: number): AnthropicBlock[] =>
   anthropicMessages(recorder, index).flatMap((message) =>
-    message.content.filter((block) => block.type === 'thinking' || block.type === 'redacted_thinking'),
+    message.content.filter(
+      (block) => block.type === 'thinking' || block.type === 'redacted_thinking',
+    ),
   )
 
 describe('anthropic history reasoning compatibility', () => {
@@ -90,7 +99,10 @@ describe('anthropic history reasoning compatibility', () => {
 
   it('drops unsigned reasoning with one concise warning and keeps the rest of the turn', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
 
     await callWithHistory({
       recorder,
@@ -117,7 +129,10 @@ describe('anthropic history reasoning compatibility', () => {
 
   it('drops reasoning stamped by another provider', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
 
     await callWithHistory({
       recorder,
@@ -138,7 +153,10 @@ describe('anthropic history reasoning compatibility', () => {
 
   it('drops an assistant message left empty once its only part was reasoning', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
 
     await callWithHistory({
       recorder,
@@ -153,9 +171,16 @@ describe('anthropic history reasoning compatibility', () => {
 
   it('does not mutate the canonical history prompt it was handed', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
     const prompt = historyPrompt([
-      { type: 'reasoning', text: 'ephemeral', providerOptions: { anthropic: { signature: 'sig' } } },
+      {
+        type: 'reasoning',
+        text: 'ephemeral',
+        providerOptions: { anthropic: { signature: 'sig' } },
+      },
     ])
     const snapshot = JSON.parse(JSON.stringify(prompt)) as typeof prompt
 
@@ -166,7 +191,10 @@ describe('anthropic history reasoning compatibility', () => {
 
   it('replays signed reasoning as a thinking block, keeping it ahead of the answer text', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
 
     await callWithHistory({
       recorder,
@@ -181,14 +209,21 @@ describe('anthropic history reasoning compatibility', () => {
     })
 
     const [first] = assistantMessages(recorder, 0)
-    expect(first?.content[0]).toEqual({ type: 'thinking', thinking: 'the plan', signature: 'sig-abc' })
+    expect(first?.content[0]).toEqual({
+      type: 'thinking',
+      thinking: 'the plan',
+      signature: 'sig-abc',
+    })
     expect(first?.content[1]?.type).toBe('text')
     expect(warnings).toEqual([])
   })
 
   it('replays redacted thinking as a redacted_thinking block', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
 
     await callWithHistory({
       recorder,
@@ -209,7 +244,10 @@ describe('anthropic history reasoning compatibility', () => {
 
   it('migrates a legacy providerMetadata signature into providerOptions before replay', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
 
     const legacy = {
       type: 'reasoning',
@@ -233,7 +271,10 @@ describe('anthropic history reasoning compatibility', () => {
 
   it('applies on the subscription path too', async () => {
     watchWarnings()
-    const recorder = recordingFetch({ body: generatedText('done'), contentType: 'application/json' })
+    const recorder = recordingFetch({
+      body: generatedText('done'),
+      contentType: 'application/json',
+    })
 
     await callWithHistory({
       recorder,

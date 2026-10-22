@@ -10,7 +10,9 @@ export enum ERewindRefusal {
   BelowCompaction = 'below-compaction',
 }
 
-export type RewindTarget = { allowed: true } | { allowed: false; refusal: ERewindRefusal; reason: string }
+export type RewindTarget =
+  | { allowed: true }
+  | { allowed: false; refusal: ERewindRefusal; reason: string }
 
 export function rewindTarget({
   events,

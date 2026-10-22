@@ -116,5 +116,3 @@ export const isSandboxNameConflict = (failure: unknown): boolean => {
   }
   return SANDBOX_NAME_TAKEN.test(failureTextOf(failure))
 }
-
-

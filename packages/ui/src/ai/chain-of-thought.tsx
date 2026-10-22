@@ -1,45 +1,37 @@
-import { Badge } from "#components/badge";
-import { Trace } from "#components/trace";
-import { hostnameOf } from "./sources";
-import {
-  EStepStatus,
-  Step,
-  StatusIcon,
-  summarizeStatus,
-  traceStatusOf,
-} from "./internal/step";
+import { Badge } from '#components/badge'
+import { Trace } from '#components/trace'
+import { hostnameOf } from './sources'
+import { EStepStatus, Step, StatusIcon, summarizeStatus, traceStatusOf } from './internal/step'
 
-export { EStepStatus };
+export { EStepStatus }
 
 export interface ChainOfThoughtStep {
-  id: string;
-  title: string;
-  status?: EStepStatus;
-  results?: string[];
+  id: string
+  title: string
+  status?: EStepStatus
+  results?: string[]
 }
 
 export interface ChainOfThoughtProps {
-  steps: ChainOfThoughtStep[];
-  runningTitle?: string;
-  doneTitle?: (count: number) => string;
-  defaultOpen?: boolean;
+  steps: ChainOfThoughtStep[]
+  runningTitle?: string
+  doneTitle?: (count: number) => string
+  defaultOpen?: boolean
 }
 
 function defaultDoneTitle(count: number): string {
-  return `Researched in ${count} ${count === 1 ? "step" : "steps"}`;
+  return `Researched in ${count} ${count === 1 ? 'step' : 'steps'}`
 }
 
 export function ChainOfThought({
   steps,
-  runningTitle = "Researching",
+  runningTitle = 'Researching',
   doneTitle = defaultDoneTitle,
   defaultOpen,
 }: ChainOfThoughtProps) {
-  const status = summarizeStatus(
-    steps.map((step) => step.status ?? EStepStatus.Done),
-  );
-  const running = status === EStepStatus.Running;
-  const title = running ? runningTitle : doneTitle(steps.length);
+  const status = summarizeStatus(steps.map((step) => step.status ?? EStepStatus.Done))
+  const running = status === EStepStatus.Running
+  const title = running ? runningTitle : doneTitle(steps.length)
 
   return (
     <Trace>
@@ -73,5 +65,5 @@ export function ChainOfThought({
         </Trace>
       </Step>
     </Trace>
-  );
+  )
 }

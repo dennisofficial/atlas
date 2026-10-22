@@ -32,14 +32,20 @@ const rowOf = (kill: RewindKill): RewindConfirmRow => {
     return {
       id: kill.shellId,
       tag: SHELL_TAG,
-      label: shellNameLabel({ command: kill.command ?? kill.shellId, description: kill.description }),
+      label: shellNameLabel({
+        command: kill.command ?? kill.shellId,
+        description: kill.description,
+      }),
       running: kill.running,
     }
   }
   return {
     id: kill.serviceId,
     tag: SERVICE_TAG,
-    label: serviceNameLabel({ command: kill.command ?? kill.serviceId, description: kill.description ?? '' }),
+    label: serviceNameLabel({
+      command: kill.command ?? kill.serviceId,
+      description: kill.description ?? '',
+    }),
     running: kill.running,
   }
 }

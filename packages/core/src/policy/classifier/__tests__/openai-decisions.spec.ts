@@ -9,7 +9,9 @@ describe('translateQuestions', () => {
         concern: { type: 'noul', instructions: 'Is this a violation?' },
       },
     })
-    expect(wire).toEqual([{ type: 'predicate', name: 'concern', instructions: 'Is this a violation?' }])
+    expect(wire).toEqual([
+      { type: 'predicate', name: 'concern', instructions: 'Is this a violation?' },
+    ])
   })
 
   it('maps choice criteria to choices with descriptions', () => {
@@ -42,14 +44,21 @@ describe('translateQuestions', () => {
       },
     })
     expect(wire).toEqual([
-      { type: 'score', name: 'severity', instructions: 'How bad?', levels: [{ label: 'low' }, { label: 'high' }] },
+      {
+        type: 'score',
+        name: 'severity',
+        instructions: 'How bad?',
+        levels: [{ label: 'low' }, { label: 'high' }],
+      },
     ])
   })
 })
 
 describe('translateAnswers', () => {
   it('maps predicate probability to noul', () => {
-    const answers = translateAnswers({ answers: [{ type: 'predicate', name: 'concern', probability: 0.87 }] })
+    const answers = translateAnswers({
+      answers: [{ type: 'predicate', name: 'concern', probability: 0.87 }],
+    })
     expect(answers).toEqual({ concern: { noul: 0.87 } })
   })
 
@@ -69,7 +78,11 @@ describe('translateAnswers', () => {
       ],
     })
     expect(answers).toEqual({
-      impact: { choice: 'introduced', probabilities: { introduced: 0.8, unchanged: 0.2 }, confidence: 0.78 },
+      impact: {
+        choice: 'introduced',
+        probabilities: { introduced: 0.8, unchanged: 0.2 },
+        confidence: 0.78,
+      },
     })
   })
 
@@ -79,7 +92,9 @@ describe('translateAnswers', () => {
   })
 
   it('maps score with confidence', () => {
-    const answers = translateAnswers({ answers: [{ type: 'score', name: 'severity', score: 1.4, confidence: 0.6 }] })
+    const answers = translateAnswers({
+      answers: [{ type: 'score', name: 'severity', score: 1.4, confidence: 0.6 }],
+    })
     expect(answers).toEqual({ severity: { score: 1.4, confidence: 0.6 } })
   })
 })

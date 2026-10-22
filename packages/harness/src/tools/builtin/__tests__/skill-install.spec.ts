@@ -2,12 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  EContentAccess,
-  EToolEffect,
-  toThreadId,
-  type ToolOutcome,
-} from '@dltech/atlas-core'
+import { EContentAccess, EToolEffect, toThreadId, type ToolOutcome } from '@dltech/atlas-core'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { ESkillInstallLayer } from '../../../skills/install-writer'

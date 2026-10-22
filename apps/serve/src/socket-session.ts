@@ -17,7 +17,12 @@ import { createTurnCommands } from './socket-commands'
 import { createRequestRouter, messageOf } from './socket-requests'
 import { createDeferredFrames } from './socket-deferred-frames'
 import { createSocketGreeter } from './socket-greet'
-import type { HelloFrame, SessionHandlers, SessionHandlersArgs, SessionSocket } from './socket-session-types'
+import type {
+  HelloFrame,
+  SessionHandlers,
+  SessionHandlersArgs,
+  SessionSocket,
+} from './socket-session-types'
 import { createMutationTracker, isReadOnlyFrame, routeStateRequest } from './socket-state-requests'
 import { createStepAliaser, endsAliasedStep, retagged } from './step-alias'
 
@@ -52,7 +57,14 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     args.socket.send(encodeFrame(args.frame))
   }
 
-  const command = createTurnCommands({ threadId, driver, buffer, log, send, applyUserSettings: args.applyUserSettings })
+  const command = createTurnCommands({
+    threadId,
+    driver,
+    buffer,
+    log,
+    send,
+    applyUserSettings: args.applyUserSettings,
+  })
 
   const router = createRequestRouter({
     threadId,
@@ -76,7 +88,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     },
     agents,
     operatorInput: args.operatorInput,
-    context: args.context, mentions: args.mentions,
+    context: args.context,
+    mentions: args.mentions,
     transcript,
     selectModel,
   })
@@ -102,9 +115,23 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   }
 
   const greetRest = createSocketGreeter({
-    threadId: () => threadId, buffer, inFlight, liveStepId, driver, pending, operatorInput, checkpointField,
-    historyGeneration: () => historyGeneration, refusal, aliaser, attached, send, forSocket,
-    drive: (driven) => drive(driven), log, rotation: () => router.rotation.current(),
+    threadId: () => threadId,
+    buffer,
+    inFlight,
+    liveStepId,
+    driver,
+    pending,
+    operatorInput,
+    checkpointField,
+    historyGeneration: () => historyGeneration,
+    refusal,
+    aliaser,
+    attached,
+    send,
+    forSocket,
+    drive: (driven) => drive(driven),
+    log,
+    rotation: () => router.rotation.current(),
   })
 
   const greet = (args: { socket: SessionSocket; hello: HelloFrame }): void => {
@@ -155,7 +182,9 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   }
 
   const unsubscribePending = pending?.subscribe(() => {
-    broadcast(buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId }) }))
+    broadcast(
+      buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId }) }),
+    )
   })
 
   return {
@@ -222,7 +251,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     replayDeferred: deferred.replay,
 
     broadcastRoster() {
-      const frame: ServeFrame = { kind: EServeFrame.Roster, roster: rosterWireSchema.parse(snapshot()) }
+      const frame: ServeFrame = {
+        kind: EServeFrame.Roster,
+        roster: rosterWireSchema.parse(snapshot()),
+      }
       const encoded = encodeFrame(frame)
       for (const socket of attached) socket.send(encoded)
     },
@@ -244,7 +276,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       const clients = [...attached]
       log({ event: EServeEvent.ClientsParked, clients: clients.length, reason: args.reason })
       for (const socket of clients) {
-        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason, ...checkpointField() } })
+        send({
+          socket,
+          frame: { kind: EServeFrame.Parked, reason: args.reason, ...checkpointField() },
+        })
         socket.close(GOING_AWAY, args.reason)
       }
     },

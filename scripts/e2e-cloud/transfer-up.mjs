@@ -42,7 +42,8 @@ if (first.status !== 201) fail(`first open answered ${first.status}`)
 log('thread transferred up')
 
 const retry = await open('run_e2e-1', original)
-if (retry.status !== 201) fail(`retry open answered ${retry.status} — the transfer is not idempotent`)
+if (retry.status !== 201)
+  fail(`retry open answered ${retry.status} — the transfer is not idempotent`)
 log('transfer retry replays idempotently')
 
 const withMore = await open('run_e2e-2', [...original, userSaid('one more')])

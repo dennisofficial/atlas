@@ -10,7 +10,8 @@ const NEXT_PATH = '/opt/atlas/atlas.next'
 const MARKER_PATH = '/opt/atlas/atlas.next.version'
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text)
-const hexOf = (text: string): string => new Bun.CryptoHasher('sha256').update(bytes(text)).digest('hex')
+const hexOf = (text: string): string =>
+  new Bun.CryptoHasher('sha256').update(bytes(text)).digest('hex')
 
 const BINARY_CONTENTS = 'a fresh atlas binary'
 const CORRECT_HEX = hexOf(BINARY_CONTENTS)

@@ -3,24 +3,10 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
 import React, { act } from 'react'
 
-import {
-  PANEL_BOTTOM_EDGE,
-  PANEL_TOP_EDGE,
-  RAIL,
-  RAIL_HEAD,
-  RAIL_TAIL,
-} from '../../borders'
+import { PANEL_BOTTOM_EDGE, PANEL_TOP_EDGE, RAIL, RAIL_HEAD, RAIL_TAIL } from '../../borders'
 import { PANEL_INSET } from '../../components/panel'
-import {
-  applyBlockDensity,
-  EBlockDensity,
-  SHIPPED_DENSITY,
-} from '../../density-store'
-import {
-  applyFenceWrap,
-  EFenceWrap,
-  SHIPPED_FENCE_WRAP,
-} from '../../fence-wrap-store'
+import { applyBlockDensity, EBlockDensity, SHIPPED_DENSITY } from '../../density-store'
+import { applyFenceWrap, EFenceWrap, SHIPPED_FENCE_WRAP } from '../../fence-wrap-store'
 import { theme } from '../../theme'
 import { CONTENT_PADDING, gutterWidth } from '../fenced-block'
 import { MarkdownView } from '../markdown-view'

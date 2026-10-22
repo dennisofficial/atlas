@@ -38,7 +38,15 @@ export const scss: LanguageSpec = {
   words: {
     keyword: ['and', 'as', 'from', 'if', 'in', 'not', 'or', 'through', 'to'],
     'constant.builtin': [
-      'true', 'false', 'null', 'none', 'inherit', 'initial', 'unset', 'auto', 'currentColor',
+      'true',
+      'false',
+      'null',
+      'none',
+      'inherit',
+      'initial',
+      'unset',
+      'auto',
+      'currentColor',
       'transparent',
     ],
   },

@@ -10,8 +10,17 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup()
 })
 
-async function launchInOtherProcess({ shellDir, command }: { shellDir: string; command: string }): Promise<number> {
-  const launcher = Bun.spawn([process.execPath, launcherScript, shellDir, command], { stdout: 'pipe', stderr: 'inherit' })
+async function launchInOtherProcess({
+  shellDir,
+  command,
+}: {
+  shellDir: string
+  command: string
+}): Promise<number> {
+  const launcher = Bun.spawn([process.execPath, launcherScript, shellDir, command], {
+    stdout: 'pipe',
+    stderr: 'inherit',
+  })
   const [out, status] = await Promise.all([new Response(launcher.stdout).text(), launcher.exited])
   expect(status).toBe(0)
   return (JSON.parse(out.trim()) as { pid: number }).pid
@@ -55,10 +64,15 @@ describe('durable shell survives its launcher', () => {
   test('a shell that finished while nobody was attached reports its exact exit and full output', async () => {
     const scratch = await scratchDirectory()
     cleanups.push(scratch.cleanup)
-    await launchInOtherProcess({ shellDir: scratch.shellDir, command: 'echo one; echo two >&2; exit 3' })
+    await launchInOtherProcess({
+      shellDir: scratch.shellDir,
+      command: 'echo one; echo two >&2; exit 3',
+    })
 
     for (let attempt = 0; attempt < 100; attempt += 1) {
-      const status = JSON.parse(await readFile(join(scratch.shellDir, STATUS_FILE), 'utf8')) as { phase: string }
+      const status = JSON.parse(await readFile(join(scratch.shellDir, STATUS_FILE), 'utf8')) as {
+        phase: string
+      }
       if (status.phase === 'exited') break
       await new Promise((resolve) => setTimeout(resolve, 20))
     }

@@ -7,7 +7,13 @@ import { EForkRefusal, forkTarget } from '../fork-target'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
 import { stampDrafts } from '../stamp'
 
-const stampedFrom = ({ drafts, firstSeq }: { drafts: readonly EventDraft[]; firstSeq: number }): Event[] =>
+const stampedFrom = ({
+  drafts,
+  firstSeq,
+}: {
+  drafts: readonly EventDraft[]
+  firstSeq: number
+}): Event[] =>
   stampDrafts({
     drafts,
     envelopes: drafts.map((_, index) => ({
@@ -50,7 +56,13 @@ const compacted = (throughSeq: number, summary: string): EventDraft => ({
 })
 
 const exchange = (): Event[] =>
-  eventsFrom([said('clean the build'), replied('on it'), called('call-1'), resulted('call-1'), replied('done')])
+  eventsFrom([
+    said('clean the build'),
+    replied('on it'),
+    called('call-1'),
+    resulted('call-1'),
+    replied('done'),
+  ])
 
 const copyFork = (args: { events: readonly Event[]; seq: number }) =>
   forkTarget({ ...args, mode: EForkMode.Copy })

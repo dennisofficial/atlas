@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 
 import { projectOf, type ThreadId } from '@dltech/atlas-core'
 
@@ -15,13 +22,24 @@ import { messageOf } from './error-text'
 import { liveBridgeFor, liveBirthPreflightFor } from './live-pod'
 import type { ReloadedSession } from './reloaded-session'
 import type { OpenedConversation } from './open-conversation'
-import { appOf, attachmentOf, cloudAttachmentOf, keyOf, localAnchorOf, localBindingOf } from './session-binding'
+import {
+  appOf,
+  attachmentOf,
+  cloudAttachmentOf,
+  keyOf,
+  localAnchorOf,
+  localBindingOf,
+} from './session-binding'
 import type { CloudBridgeFactory, BirthPreflight } from './cloud/bridge-factory'
 import type { MoveStepTiming } from './use-container-move'
 import { Workspace } from './workspace'
 import { LIVE_WHATS_NEW_DEPS, useWhatsNew, type WhatsNewDeps } from './use-whats-new'
 
-export { cloudEnvironmentOf, reapExpiredSandboxesOnBoot, telemetryEnvironmentOf } from './live-cloud'
+export {
+  cloudEnvironmentOf,
+  reapExpiredSandboxesOnBoot,
+  telemetryEnvironmentOf,
+} from './live-cloud'
 
 type DraftReader = () => { threadId: ThreadId; text: string }
 
@@ -134,7 +152,11 @@ export function App(props: {
       void owner
         .activateLocal({
           threadId: opened.threadId,
-          binding: localBindingOf({ local: props.app, workspace: localAnchorOf({ local: props.app, opened }), opened }),
+          binding: localBindingOf({
+            local: props.app,
+            workspace: localAnchorOf({ local: props.app, opened }),
+            opened,
+          }),
         })
         .catch((error: unknown) => {
           notify({
@@ -145,21 +167,32 @@ export function App(props: {
           })
         })
         .finally(() => {
-          if (leaving !== undefined && leaving !== opened.threadId) owner.detach({ threadId: leaving })
+          if (leaving !== undefined && leaving !== opened.threadId)
+            owner.detach({ threadId: leaving })
         })
     },
     [owner, props.app],
   )
 
-  const handleLeaveCloud = useCallback((opened: OpenedConversation) => handleLocalOpened(opened, true), [handleLocalOpened])
-  const handleLocalSwap = useCallback((opened: OpenedConversation) => handleLocalOpened(opened, false), [handleLocalOpened])
+  const handleLeaveCloud = useCallback(
+    (opened: OpenedConversation) => handleLocalOpened(opened, true),
+    [handleLocalOpened],
+  )
+  const handleLocalSwap = useCallback(
+    (opened: OpenedConversation) => handleLocalOpened(opened, false),
+    [handleLocalOpened],
+  )
 
   const reloadedHere = reloaded !== null && reloaded.binding === snapshot.binding ? reloaded : null
   const cloudOpened = cloud === undefined ? undefined : attachment?.opened
-  const localOpened = attachment?.kind === 'local' && attachment.opened.threadId === reopened?.threadId ? attachment.opened : undefined
+  const localOpened =
+    attachment?.kind === 'local' && attachment.opened.threadId === reopened?.threadId
+      ? attachment.opened
+      : undefined
   const openedFor = reloadedHere?.opened ?? cloudOpened ?? localOpened ?? reopened ?? props.opened
   const carried = draftReader.current?.()
-  const draftText = carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''
+  const draftText =
+    carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''
 
   return (
     <KeyRegistryContext.Provider value={registry}>

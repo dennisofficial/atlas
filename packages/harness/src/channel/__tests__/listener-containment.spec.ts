@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { stampDrafts, toEventId, toRunId, toThreadId, type Event, type EventDraft, type EventLogPort } from '@dltech/atlas-core'
+import {
+  stampDrafts,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Event,
+  type EventDraft,
+  type EventLogPort,
+} from '@dltech/atlas-core'
 
 import { createDeltaChannel, EStepEnd, withDeltaPublishing, type ChannelListener } from '..'
 import { recorder } from './signals'
@@ -8,9 +16,11 @@ import { recorder } from './signals'
 const threadId = toThreadId('thread-1')
 const runId = toRunId('run-1')
 
-const exploding = (cause: Error): ChannelListener => () => {
-  throw cause
-}
+const exploding =
+  (cause: Error): ChannelListener =>
+  () => {
+    throw cause
+  }
 
 function appendOnlyLog(): EventLogPort {
   const rows: Event[] = []
@@ -111,7 +121,9 @@ describe('channel listener containment', () => {
     const boom = new Error('listener exploded')
     channel.subscribe({ threadId, listener: exploding(boom) })
 
-    channel.publisherFor({ threadId }).eventsAppended({ onListenerError: (cause) => void callSink.push(cause) })
+    channel
+      .publisherFor({ threadId })
+      .eventsAppended({ onListenerError: (cause) => void callSink.push(cause) })
     channel.publisherFor({ threadId }).eventsAppended()
 
     expect(callSink).toEqual([boom])
@@ -159,7 +171,11 @@ describe('durable append never fails because of a subscriber', () => {
     const { seen, listener } = recorder()
     channel.subscribe({ threadId, listener })
 
-    const appended = await log.append({ threadId, runId, drafts: [{ type: 'user-said', text: 'what changed?' }] })
+    const appended = await log.append({
+      threadId,
+      runId,
+      drafts: [{ type: 'user-said', text: 'what changed?' }],
+    })
 
     expect(appended).toHaveLength(1)
     expect(seen.map((signal) => signal.type)).toContain('events-appended')

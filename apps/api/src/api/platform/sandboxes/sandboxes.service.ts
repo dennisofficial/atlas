@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
 import { db } from '../../../db'
 import type { CloudSandboxModel } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -14,11 +10,7 @@ import { SandboxEndpointService } from './sandbox-endpoint'
 import { registerSandbox, type RegisterSandboxArgs } from './sandbox-register'
 import { findOrCreateClaimThread } from './sandbox-thread'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
-import type {
-  SandboxAttachmentDto,
-  SandboxListEntryDto,
-  SandboxStatusDto,
-} from './sandboxes.types'
+import type { SandboxAttachmentDto, SandboxListEntryDto, SandboxStatusDto } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
 import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
@@ -78,7 +70,9 @@ export class SandboxesService {
       tokenHash: minted.tokenHash,
       sealedToken: this.cipher.encrypt(minted.token),
       rotated: true,
-      ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
+      ...(args.gitToken === undefined
+        ? {}
+        : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
     return {
@@ -187,7 +181,10 @@ export class SandboxesService {
     }
   }
 
-  async park(args: { row: Pick<CloudSandboxModel, 'threadId' | 'name'>; reason: string }): Promise<void> {
+  async park(args: {
+    row: Pick<CloudSandboxModel, 'threadId' | 'name'>
+    reason: string
+  }): Promise<void> {
     await this.notifyParked(args)
     await this.vercel.stop({ threadId: args.row.threadId, name: args.row.name })
     await db.cloudSandbox.update({
@@ -213,5 +210,4 @@ export class SandboxesService {
       )
     }
   }
-
 }

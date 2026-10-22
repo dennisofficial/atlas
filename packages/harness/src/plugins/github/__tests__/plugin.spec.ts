@@ -57,7 +57,10 @@ const sessionsIn = async (args: { signedIn: boolean }): Promise<CloudSessionStor
 const resolved = async (args?: {
   signedIn?: boolean
   serve?: boolean
-}): Promise<{ plugin: GithubPlugin; contribution: Awaited<ReturnType<GithubPlugin['contribute']>> }> => {
+}): Promise<{
+  plugin: GithubPlugin
+  contribution: Awaited<ReturnType<GithubPlugin['contribute']>>
+}> => {
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: '/work/atlas' })
   container.register(ClientVersionToken, { useValue: 'test' })
@@ -158,8 +161,7 @@ describe('the github plugin as the loader sees it', () => {
     const fragments = contribution.promptFragments ?? []
     expect(fragments.map((fragment) => fragment.id)).toContain('github.ci-feed')
 
-    const text =
-      fragments.find((fragment) => fragment.id === 'github.ci-feed')?.text(CONTEXT) ?? ''
+    const text = fragments.find((fragment) => fragment.id === 'github.ci-feed')?.text(CONTEXT) ?? ''
     expect(text).toContain('Pull request updates')
     expect(text).toContain('end your turn')
     for (const kind of ['comment', 'review', 'verdict', 'mergeability', 'merged or closed']) {

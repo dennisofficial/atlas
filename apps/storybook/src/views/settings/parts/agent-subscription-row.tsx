@@ -1,35 +1,35 @@
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Progress } from "@dltech/atlas-ui/components/progress";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Progress } from '@dltech/atlas-ui/components/progress'
 
-import { SettingsRow } from "../settings-layout";
-import { BrandMark, type EBrand } from "@dltech/atlas-ui/components/brand-mark";
+import { SettingsRow } from '../settings-layout'
+import { BrandMark, type EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
 export type SubscriptionAccount = {
-  email: string;
-  plan: string;
-  limitUsedPercent: number;
-  limitHint: string;
-};
+  email: string
+  plan: string
+  limitUsedPercent: number
+  limitHint: string
+}
 
 export function SubscriptionRow({
   name,
   brand,
   idleDescription,
   signInLabel,
-  signOutLabel = "Sign out",
+  signOutLabel = 'Sign out',
   account,
   onSignIn,
   onSignOut,
 }: {
-  name: string;
-  brand: EBrand;
-  idleDescription: string;
-  signInLabel: string;
-  signOutLabel?: string;
-  account: SubscriptionAccount | null;
-  onSignIn: () => void;
-  onSignOut: () => void;
+  name: string
+  brand: EBrand
+  idleDescription: string
+  signInLabel: string
+  signOutLabel?: string
+  account: SubscriptionAccount | null
+  onSignIn: () => void
+  onSignOut: () => void
 }) {
   if (!account) {
     return (
@@ -48,7 +48,7 @@ export function SubscriptionRow({
           </Button>
         }
       />
-    );
+    )
   }
   return (
     <SettingsRow
@@ -75,5 +75,5 @@ export function SubscriptionRow({
         <p className="text-xs text-muted-foreground">{account.limitHint}</p>
       </div>
     </SettingsRow>
-  );
+  )
 }

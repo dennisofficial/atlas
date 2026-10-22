@@ -84,7 +84,11 @@ const settle = async (ms: number): Promise<void> =>
 const openCloudApp = async (args: { roster?: RosterWire | undefined }) => {
   const bridge = fakeBridge()
   const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
-  const { stores } = bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
+  const { stores } = bridge.attach({
+    threadId: CLOUD_THREAD,
+    url: 'https://sandbox.example',
+    token: 'tok',
+  })
   const channel: FakeCloudChannel = bridge.channel
   const attached = cloudApp({ app, channel, stores, runner: app.runner })
 
@@ -100,7 +104,9 @@ const openCloudApp = async (args: { roster?: RosterWire | undefined }) => {
   return { bridge, channel, attached }
 }
 
-const machineryOf = (app: { rewindMachinery?: RewindMachineryPort | undefined }): RewindMachineryPort => {
+const machineryOf = (app: {
+  rewindMachinery?: RewindMachineryPort | undefined
+}): RewindMachineryPort => {
   const machinery = app.rewindMachinery
   if (machinery === undefined) throw new Error('a cloud app must carry rewind machinery')
   return machinery
@@ -143,7 +149,9 @@ describe('rewind on a cloud thread', () => {
     })
 
     expect(result).toMatchObject({ ok: true })
-    const rewindRequests = channel.requests.filter((request) => request.op === EClientRequest.Rewind)
+    const rewindRequests = channel.requests.filter(
+      (request) => request.op === EClientRequest.Rewind,
+    )
     expect(rewindRequests).toHaveLength(1)
     expect(rewindRequests[0]?.params).toMatchObject({
       threadId: CLOUD_THREAD,
@@ -152,9 +160,9 @@ describe('rewind on a cloud thread', () => {
         { kind: 'agent', agentId: 'thr-child' },
       ],
     })
-    expect(
-      (await bridge.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type),
-    ).toEqual(['user-said'])
+    expect((await bridge.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type)).toEqual([
+      'user-said',
+    ])
   })
 
   it('prices the cut with liveness unknown when the sandbox cannot answer', async () => {
@@ -183,12 +191,17 @@ describe('rewind on a cloud thread', () => {
   it('preserves history when the sandbox refuses the rewind apply', async () => {
     const bridge = fakeBridge()
     const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
-    const { stores } = bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
+    const { stores } = bridge.attach({
+      threadId: CLOUD_THREAD,
+      url: 'https://sandbox.example',
+      token: 'tok',
+    })
     const channel: FakeCloudChannel = bridge.channel
     const attached = cloudApp({ app, channel, stores, runner: app.runner })
     const request = channel.request.bind(channel)
     channel.request = async (given) => {
-      if (given.op === EClientRequest.Rewind) throw new Error('the sandbox refused the rewind apply')
+      if (given.op === EClientRequest.Rewind)
+        throw new Error('the sandbox refused the rewind apply')
       return request(given)
     }
     await bridge.log.append({
@@ -199,18 +212,23 @@ describe('rewind on a cloud thread', () => {
     channel.pushRoster(LIVE_ROSTER)
     await settle(100)
 
-    await expect(rewindThread({
-      log: bridge.log,
-      threads: bridge.threads,
-      machinery: machineryOf(attached),
-      threadId: CLOUD_THREAD,
-      toSeq: 1,
-      confirmed: true,
-    })).rejects.toThrow('the sandbox refused the rewind apply')
+    await expect(
+      rewindThread({
+        log: bridge.log,
+        threads: bridge.threads,
+        machinery: machineryOf(attached),
+        threadId: CLOUD_THREAD,
+        toSeq: 1,
+        confirmed: true,
+      }),
+    ).rejects.toThrow('the sandbox refused the rewind apply')
 
-    expect(
-      (await bridge.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type),
-    ).toEqual(['user-said', 'tool-called', 'tool-result', 'user-said'])
+    expect((await bridge.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type)).toEqual([
+      'user-said',
+      'tool-called',
+      'tool-result',
+      'user-said',
+    ])
   })
 })
 

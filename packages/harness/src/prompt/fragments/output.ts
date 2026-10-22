@@ -1,6 +1,5 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
-
 export class OutputShapeFragment extends PromptFragment {
   readonly id = 'output.shape'
 

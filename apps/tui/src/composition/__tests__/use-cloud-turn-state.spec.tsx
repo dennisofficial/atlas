@@ -73,7 +73,12 @@ describe('a turn the sandbox starts by itself, with this TUI only watching', () 
       expect(screen.conversation().turnInFlight()).toBe(true)
 
       channel.signal({ type: 'step-started', stepId: STEP })
-      channel.signal({ type: 'step-ended', stepId: STEP, end: EStepEnd.Completed, supersededBy: null })
+      channel.signal({
+        type: 'step-ended',
+        stepId: STEP,
+        end: EStepEnd.Completed,
+        supersededBy: null,
+      })
       const gap = await screen.quiet(300)
       capture({ name: 'working-between-steps', frame: trimmed(gap) })
 
@@ -199,7 +204,10 @@ describe('mounting while the sandbox is already mid-turn', () => {
     const screen = await mounted({ app, opened })
 
     try {
-      const late = await screen.until((frame) => frame.includes(WORKING), 'the working line on a late mount')
+      const late = await screen.until(
+        (frame) => frame.includes(WORKING),
+        'the working line on a late mount',
+      )
       capture({ name: 'late-mount-working', frame: trimmed(late) })
       expect(late).not.toContain(RESUME_HINT)
       expect(screen.conversation().working).toBe(true)
@@ -211,7 +219,9 @@ describe('mounting while the sandbox is already mid-turn', () => {
         'the interrupting line',
       )
       capture({ name: 'late-mount-interrupting', frame: trimmed(interrupting) })
-      expect(channel.frames.filter((frame) => frame.kind === EClientFrame.Interrupt)).toHaveLength(1)
+      expect(channel.frames.filter((frame) => frame.kind === EClientFrame.Interrupt)).toHaveLength(
+        1,
+      )
 
       channel.acknowledgeInterrupt()
       await screen.until(
@@ -244,7 +254,10 @@ describe('mounting while the sandbox is already mid-turn', () => {
       await screen.until((frame) => frame.includes(WORKING), 'the working line on a late mount')
 
       channel.end(ETurnStatus.Completed)
-      const settled = await screen.until((frame) => !frame.includes(WORKING), 'the working line to clear')
+      const settled = await screen.until(
+        (frame) => !frame.includes(WORKING),
+        'the working line to clear',
+      )
 
       expect(settled).not.toContain(RESUME_HINT)
       expect(screen.conversation().working).toBe(false)

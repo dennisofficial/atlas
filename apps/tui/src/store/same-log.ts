@@ -7,8 +7,7 @@ import type { TurnSpend } from '@dltech/atlas-harness'
  * in a fresh array — identity is content equality here.
  */
 export const sameEvents = (args: { left: readonly Event[]; right: readonly Event[] }): boolean =>
-  args.left.length === args.right.length &&
-  args.left.every((event, at) => event === args.right[at])
+  args.left.length === args.right.length && args.left.every((event, at) => event === args.right[at])
 
 const SPEND_FIELDS: Record<keyof TurnSpend, true> = {
   runId: true,

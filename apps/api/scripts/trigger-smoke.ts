@@ -35,7 +35,9 @@ console.log(`triggered atlas-smoke as ${runId}`)
 
 const run = await waitForRun({ client: new TriggerClient({ accessToken: secretKey }), runId })
 if (!run.isSuccess || run.output?.ok !== true) {
-  console.error(`atlas-smoke ${runId} ended ${run.status}: ${JSON.stringify(run.error ?? run.output)}`)
+  console.error(
+    `atlas-smoke ${runId} ended ${run.status}: ${JSON.stringify(run.error ?? run.output)}`,
+  )
   process.exit(1)
 }
 console.log(`atlas-smoke ${runId} ${run.status}: ${JSON.stringify(run.output)}`)

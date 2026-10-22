@@ -69,8 +69,16 @@ describe('podCreateBody', () => {
     const hostConfig = podCreateBody(baseArgs).HostConfig
 
     expect(hostConfig?.Mounts).toEqual([
-      { Type: 'volume', Source: workspaceVolumeNameFor({ threadId: 'thread-1' }), Target: SANDBOX_WORKSPACES_PATH },
-      { Type: 'volume', Source: dindVolumeNameFor({ threadId: 'thread-1' }), Target: '/var/lib/docker' },
+      {
+        Type: 'volume',
+        Source: workspaceVolumeNameFor({ threadId: 'thread-1' }),
+        Target: SANDBOX_WORKSPACES_PATH,
+      },
+      {
+        Type: 'volume',
+        Source: dindVolumeNameFor({ threadId: 'thread-1' }),
+        Target: '/var/lib/docker',
+      },
     ])
     expect(hostConfig).not.toHaveProperty('Binds')
   })
@@ -81,7 +89,9 @@ describe('podCreateBody', () => {
     expect(hostConfig?.NanoCpus).toBe(2e9)
     expect(hostConfig?.MemoryReservation).toBe(2 * 2048 * 1024 * 1024)
     expect(memoryReservationBytesFor({ vcpus: 2 })).toBe(2 * 2048 * 1024 * 1024)
-    expect(podCreateBody({ ...baseArgs, vcpus: 4 }).HostConfig?.MemoryReservation).toBe(4 * 2048 * 1024 * 1024)
+    expect(podCreateBody({ ...baseArgs, vcpus: 4 }).HostConfig?.MemoryReservation).toBe(
+      4 * 2048 * 1024 * 1024,
+    )
     expect(hostConfig).not.toHaveProperty('Memory')
   })
 

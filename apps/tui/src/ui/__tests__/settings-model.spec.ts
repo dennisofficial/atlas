@@ -241,8 +241,12 @@ describe('conditional rows', () => {
 
     const moved = moveRow({ state: stranded, model: shrunk, delta: 0 })
 
-    expect(currentRow({ state: stranded, model: grown })?.definition.id).toBe(ESettingId.DecisionsToken)
-    expect(currentRow({ state: moved, model: shrunk })?.definition.id).toBe(ESettingId.DecisionsToken)
+    expect(currentRow({ state: stranded, model: grown })?.definition.id).toBe(
+      ESettingId.DecisionsToken,
+    )
+    expect(currentRow({ state: moved, model: shrunk })?.definition.id).toBe(
+      ESettingId.DecisionsToken,
+    )
   })
 
   it('still renders the other groups when every row of one group is hidden', () => {

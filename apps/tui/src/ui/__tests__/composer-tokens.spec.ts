@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { pastedTag } from '@dltech/atlas-core'
 
-import { snappedRange, tokenizablePaste, substitutePastedTokens, type LiveToken } from '../composer-tokens'
+import {
+  snappedRange,
+  tokenizablePaste,
+  substitutePastedTokens,
+  type LiveToken,
+} from '../composer-tokens'
 
 describe('a pasted block of text', () => {
   it('is tokenised once it is longer than a few lines', () => {

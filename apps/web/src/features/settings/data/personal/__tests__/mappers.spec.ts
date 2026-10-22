@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { EEffortLevel, EMemoryScope, EMemoryType, EMcpTransportKind, ESecretKind as EWireSecretKind } from '@dltech/atlas-wire/web'
+import {
+  EEffortLevel,
+  EMemoryScope,
+  EMemoryType,
+  EMcpTransportKind,
+  ESecretKind as EWireSecretKind,
+} from '@dltech/atlas-wire/web'
 
 import { EAgentRole, EEffort, EPreset, PRESETS } from '../../../fixtures/settings-agent'
 import { ESecretKind } from '../../../fixtures/settings-library'
@@ -10,7 +16,12 @@ import { apiKeyFor, subscriptionFor } from '../accounts-api'
 import { deviceNameOf, toDevice } from '../auth-session-api'
 import { base64ToUtf8, encodeFileContent, utf8ToBase64 } from '../file-encoding'
 import { docOf } from '../instructions-api'
-import { appearanceChanges, appearanceFrom, notificationChanges, notificationsFrom } from '../interface-settings'
+import {
+  appearanceChanges,
+  appearanceFrom,
+  notificationChanges,
+  notificationsFrom,
+} from '../interface-settings'
 import { splitCommandLine } from '../../command-line'
 import { toMcpServer, transportOf } from '../mcp-api'
 import { buildGroups, memoryQuery } from '../memory-api'
@@ -38,13 +49,23 @@ describe('file encoding', () => {
     expect(base64ToUtf8(utf8ToBase64('héllo ✓'))).toBe('héllo ✓')
     const encoded = await encodeFileContent('hello')
     expect(encoded.content).toBe('aGVsbG8=')
-    expect(encoded.contentHash).toBe('2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')
+    expect(encoded.contentHash).toBe(
+      '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+    )
   })
 
   it('treats missing and tombstoned instructions as empty', () => {
     expect(docOf({ files: [] })).toEqual({ text: '', revision: 0 })
-    expect(docOf({ files: [{ path: '.atlas/ATLAS.md', revision: 4, tombstonedAt: 'x', content: null }] })).toEqual({ text: '', revision: 4 })
-    expect(docOf({ files: [{ path: '.atlas/ATLAS.md', revision: 2, tombstonedAt: null, content: 'aGVsbG8=' }] })).toEqual({ text: 'hello', revision: 2 })
+    expect(
+      docOf({
+        files: [{ path: '.atlas/ATLAS.md', revision: 4, tombstonedAt: 'x', content: null }],
+      }),
+    ).toEqual({ text: '', revision: 4 })
+    expect(
+      docOf({
+        files: [{ path: '.atlas/ATLAS.md', revision: 2, tombstonedAt: null, content: 'aGVsbG8=' }],
+      }),
+    ).toEqual({ text: 'hello', revision: 2 })
   })
 })
 
@@ -77,15 +98,25 @@ describe('memory mapping', () => {
   })
 
   it('builds the entry query', () => {
-    expect(memoryQuery({ scope: EMemoryScope.Global, project: null, name: 'n' })).toBe('scope=global&name=n')
-    expect(memoryQuery({ scope: EMemoryScope.Project, project: 'a/b', name: 'n' })).toBe('scope=project&name=n&project=a%2Fb')
+    expect(memoryQuery({ scope: EMemoryScope.Global, project: null, name: 'n' })).toBe(
+      'scope=global&name=n',
+    )
+    expect(memoryQuery({ scope: EMemoryScope.Project, project: 'a/b', name: 'n' })).toBe(
+      'scope=project&name=n&project=a%2Fb',
+    )
   })
 })
 
 describe('secrets mapping', () => {
   it('maps a detail onto a library row', () => {
     const row = toLibrarySecret({
-      detail: { name: 'A', kind: EWireSecretKind.EnvVar, value: 'v', createdAt: ago(0), updatedAt: ago(2 * 3_600_000) },
+      detail: {
+        name: 'A',
+        kind: EWireSecretKind.EnvVar,
+        value: 'v',
+        createdAt: ago(0),
+        updatedAt: ago(2 * 3_600_000),
+      },
       addedBy: { name: 'Me', initials: 'M' },
       now: NOW,
     })
@@ -95,7 +126,10 @@ describe('secrets mapping', () => {
 
 describe('mcp mapping', () => {
   it('splits command lines with quotes', () => {
-    expect(splitCommandLine(`npx -y "a b" 'c d' e`)).toEqual({ command: 'npx', args: ['-y', 'a b', 'c d', 'e'] })
+    expect(splitCommandLine(`npx -y "a b" 'c d' e`)).toEqual({
+      command: 'npx',
+      args: ['-y', 'a b', 'c d', 'e'],
+    })
     expect(splitCommandLine('   ')).toEqual({ command: '', args: [] })
   })
 
@@ -137,7 +171,11 @@ describe('accounts mapping', () => {
       account({ id: '2', provider: 'anthropic', kind: 'api-key' }),
     ]
     expect(subscriptionFor({ accounts, provider: EProviderId.Anthropic })?.id).toBe('1')
-    expect(apiKeyFor({ accounts, provider: EProviderId.Anthropic })).toEqual({ id: '2', label: 'l', added: 'Added Oct 2' })
+    expect(apiKeyFor({ accounts, provider: EProviderId.Anthropic })).toEqual({
+      id: '2',
+      label: 'l',
+      added: 'Added Oct 2',
+    })
     expect(apiKeyFor({ accounts, provider: EProviderId.OpenAI })).toBeNull()
   })
 })
@@ -149,7 +187,12 @@ describe('models settings', () => {
   })
 
   it('maps stored values onto the effort slider and auto model', () => {
-    const config = modelsConfigFrom(new Map([['model.effort', 'xhigh'], ['model.id', 'openai/gpt-5']]))
+    const config = modelsConfigFrom(
+      new Map([
+        ['model.effort', 'xhigh'],
+        ['model.id', 'openai/gpt-5'],
+      ]),
+    )
     expect(config[EAgentRole.Main]).toEqual({ model: 'openai/gpt-5', effort: EEffort.High })
   })
 
@@ -182,25 +225,46 @@ describe('interface settings', () => {
     expect(saved.matrix.finished?.email).toBe(true)
     expect(saved.channels).toEqual({ push: true, email: true })
     const draft = { ...saved, quietFrom: '23:00' }
-    expect(notificationChanges({ saved, draft })).toEqual({ 'web.notifications.quietFrom': '23:00' })
+    expect(notificationChanges({ saved, draft })).toEqual({
+      'web.notifications.quietFrom': '23:00',
+    })
   })
 })
 
 describe('sessions and sandboxes', () => {
   it('names devices from the user agent', () => {
-    expect(deviceNameOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Chrome/120 Safari/537')).toBe('Chrome on macOS')
+    expect(
+      deviceNameOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Chrome/120 Safari/537'),
+    ).toBe('Chrome on macOS')
     expect(deviceNameOf(null)).toBe('Unknown device')
   })
 
   it('marks the current session', () => {
-    const session = { id: 'i', token: 't', userAgent: 'curl/8', ipAddress: '1.2.3.4', createdAt: ago(60_000 * 5), expiresAt: 'x' }
+    const session = {
+      id: 'i',
+      token: 't',
+      userAgent: 'curl/8',
+      ipAddress: '1.2.3.4',
+      createdAt: ago(60_000 * 5),
+      expiresAt: 'x',
+    }
     const device = toDevice({ session, currentToken: 't', now: NOW })
-    expect(device).toMatchObject({ id: 't', current: true, kind: EDeviceKind.Cli, meta: '1.2.3.4 · Last active 5m ago' })
+    expect(device).toMatchObject({
+      id: 't',
+      current: true,
+      kind: EDeviceKind.Cli,
+      meta: '1.2.3.4 · Last active 5m ago',
+    })
     expect(toDevice({ session, currentToken: 'other', now: NOW }).current).toBe(false)
   })
 
   it('splits sandboxes by state with unknown columns blank', () => {
-    const entry = (state: ESandboxState) => ({ threadId: state, name: 'n', state, lastActivityAt: ago(3_600_000) })
+    const entry = (state: ESandboxState) => ({
+      threadId: state,
+      name: 'n',
+      state,
+      lastActivityAt: ago(3_600_000),
+    })
     const { running, paused } = splitSandboxes({
       entries: [entry(ESandboxState.Running), entry(ESandboxState.Parked)],
       now: NOW,

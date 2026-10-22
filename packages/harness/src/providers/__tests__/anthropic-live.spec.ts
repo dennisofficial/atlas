@@ -72,13 +72,18 @@ async function openLiveHarness(
 
 const assistantText = (parts: readonly { type: string }[]): string =>
   parts
-    .filter((part): part is { type: 'text'; text: string } => part.type === 'text' && 'text' in part)
+    .filter(
+      (part): part is { type: 'text'; text: string } => part.type === 'text' && 'text' in part,
+    )
     .map((part) => part.text)
     .join('')
 
 const reasoningText = (parts: readonly { type: string }[]): string =>
   parts
-    .filter((part): part is { type: 'reasoning'; text: string } => part.type === 'reasoning' && 'text' in part)
+    .filter(
+      (part): part is { type: 'reasoning'; text: string } =>
+        part.type === 'reasoning' && 'text' in part,
+    )
     .map((part) => part.text)
     .join('')
 
@@ -102,14 +107,18 @@ const thinkingSignaturesIn = (value: unknown): string[] => {
   const entries = Object.entries(value)
   const isThinkingBlock = entries.some(([key, held]) => key === 'type' && held === 'thinking')
   const own = isThinkingBlock
-    ? entries.flatMap(([key, held]) => (key === 'signature' && typeof held === 'string' ? [held] : []))
+    ? entries.flatMap(([key, held]) =>
+        key === 'signature' && typeof held === 'string' ? [held] : [],
+      )
     : []
 
   return [...own, ...entries.flatMap(([, held]) => thinkingSignaturesIn(held))]
 }
 
 const failureOf = (outcome: { status: ETurnStatus; message?: string }): string =>
-  outcome.status === ETurnStatus.Failed ? `${outcome.status}: ${outcome.message ?? ''}` : outcome.status
+  outcome.status === ETurnStatus.Failed
+    ? `${outcome.status}: ${outcome.message ?? ''}`
+    : outcome.status
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -118,67 +127,70 @@ afterEach(async () => {
   }
 })
 
-describe.skipIf(!liveRunRequested())('a real turn against Anthropic on the subscription credential', () => {
-  // This spec reads the operator's real subscription credential out of the real Atlas home, so it
-  // opts out of the test-home guard. It is gated behind ATLAS_LIVE_ANTHROPIC and never runs in CI.
-  beforeAll(() => {
-    process.env[ATLAS_ALLOW_REAL_HOME_ENV] = '1'
-  })
-
-  it('answers with a real reply', async () => {
-    const { harness } = await openLiveHarness()
-    const thread = await harness.threads.create({})
-
-    const outcome = await harness.runner.say({
-      threadId: thread.id,
-      text: 'Reply with exactly the single word ATLAS and nothing else.',
+describe.skipIf(!liveRunRequested())(
+  'a real turn against Anthropic on the subscription credential',
+  () => {
+    // This spec reads the operator's real subscription credential out of the real Atlas home, so it
+    // opts out of the test-home guard. It is gated behind ATLAS_LIVE_ANTHROPIC and never runs in CI.
+    beforeAll(() => {
+      process.env[ATLAS_ALLOW_REAL_HOME_ENV] = '1'
     })
 
-    expect(failureOf(outcome)).toBe(ETurnStatus.Completed)
+    it('answers with a real reply', async () => {
+      const { harness } = await openLiveHarness()
+      const thread = await harness.threads.create({})
 
-    const events = await harness.log.read({ threadId: thread.id })
-    const reply = events.at(-1)
-    expect(assistantText(reply?.type === 'assistant-said' ? reply.parts : [])).toContain('ATLAS')
-  }, 120_000)
+      const outcome = await harness.runner.say({
+        threadId: thread.id,
+        text: 'Reply with exactly the single word ATLAS and nothing else.',
+      })
 
-  it('carries the thinking signature it was handed back into the next request unchanged', async () => {
-    const { harness, recorder } = await openLiveHarness()
-    const thread = await harness.threads.create({})
+      expect(failureOf(outcome)).toBe(ETurnStatus.Completed)
 
-    const first = await harness.runner.say({
-      threadId: thread.id,
-      text: 'Think about which of 17 and 19 is larger, then reply with just that number.',
-    })
-    expect(failureOf(first)).toBe(ETurnStatus.Completed)
+      const events = await harness.log.read({ threadId: thread.id })
+      const reply = events.at(-1)
+      expect(assistantText(reply?.type === 'assistant-said' ? reply.parts : [])).toContain('ATLAS')
+    }, 120_000)
 
-    const afterFirst = await harness.log.read({ threadId: thread.id })
-    const thought = afterFirst.at(-1)
-    const signature = reasoningSignature(thought?.type === 'assistant-said' ? thought.parts : [])
-    if (signature === undefined) throw new Error('the live reply carried no thinking signature')
+    it('carries the thinking signature it was handed back into the next request unchanged', async () => {
+      const { harness, recorder } = await openLiveHarness()
+      const thread = await harness.threads.create({})
 
-    const second = await harness.runner.say({
-      threadId: thread.id,
-      text: 'Now reply with exactly the single word AGAIN and nothing else.',
-    })
-    expect(failureOf(second)).toBe(ETurnStatus.Completed)
+      const first = await harness.runner.say({
+        threadId: thread.id,
+        text: 'Think about which of 17 and 19 is larger, then reply with just that number.',
+      })
+      expect(failureOf(first)).toBe(ETurnStatus.Completed)
 
-    expect(thinkingSignaturesIn(recorder.requests[1]?.body)).toContain(signature)
-  }, 180_000)
+      const afterFirst = await harness.log.read({ threadId: thread.id })
+      const thought = afterFirst.at(-1)
+      const signature = reasoningSignature(thought?.type === 'assistant-said' ? thought.parts : [])
+      if (signature === undefined) throw new Error('the live reply carried no thinking signature')
 
-  it('is handed thinking it can show, not a signature over an empty text', async () => {
-    const { harness } = await openLiveHarness(ADAPTIVE_LIVE_MODEL)
-    const thread = await harness.threads.create({})
+      const second = await harness.runner.say({
+        threadId: thread.id,
+        text: 'Now reply with exactly the single word AGAIN and nothing else.',
+      })
+      expect(failureOf(second)).toBe(ETurnStatus.Completed)
 
-    const outcome = await harness.runner.say({
-      threadId: thread.id,
-      text: 'Work out 27 * 43 in your head step by step, then reply with just the product.',
-    })
-    expect(failureOf(outcome)).toBe(ETurnStatus.Completed)
+      expect(thinkingSignaturesIn(recorder.requests[1]?.body)).toContain(signature)
+    }, 180_000)
 
-    const events = await harness.log.read({ threadId: thread.id })
-    const thought = events.at(-1)
-    const parts = thought?.type === 'assistant-said' ? thought.parts : []
-    expect(parts.some((part) => part.type === 'reasoning')).toBe(true)
-    expect(reasoningText(parts).trim().length).toBeGreaterThan(0)
-  }, 180_000)
-})
+    it('is handed thinking it can show, not a signature over an empty text', async () => {
+      const { harness } = await openLiveHarness(ADAPTIVE_LIVE_MODEL)
+      const thread = await harness.threads.create({})
+
+      const outcome = await harness.runner.say({
+        threadId: thread.id,
+        text: 'Work out 27 * 43 in your head step by step, then reply with just the product.',
+      })
+      expect(failureOf(outcome)).toBe(ETurnStatus.Completed)
+
+      const events = await harness.log.read({ threadId: thread.id })
+      const thought = events.at(-1)
+      const parts = thought?.type === 'assistant-said' ? thought.parts : []
+      expect(parts.some((part) => part.type === 'reasoning')).toBe(true)
+      expect(reasoningText(parts).trim().length).toBeGreaterThan(0)
+    }, 180_000)
+  },
+)

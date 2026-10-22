@@ -200,7 +200,10 @@ export async function openRig(): Promise<Rig> {
             log: harness.log,
             model: harness.model,
             ids: harness.ids,
-            assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
+            assembly: defaultPipeline({
+              prompt: () => EMPTY_PROMPT,
+              launchDirectory: PROJECT_DIRECTORY,
+            }),
             launchDirectory: PROJECT_DIRECTORY,
           },
           tools: new InMemoryToolRegistry([probe]),

@@ -4,7 +4,14 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { contextEntries, contextHash, dockerfileImageReference, EBuildContext, ensureBuiltImage, type ImageBuilder } from '../build'
+import {
+  contextEntries,
+  contextHash,
+  dockerfileImageReference,
+  EBuildContext,
+  ensureBuiltImage,
+  type ImageBuilder,
+} from '../build'
 
 let root: string
 
@@ -27,7 +34,7 @@ const seed = async (files: Record<string, string>): Promise<void> => {
 describe('contextEntries', () => {
   it('collects files sorted by their relative posix name, skipping .git', async () => {
     await seed({
-      'Dockerfile': 'FROM scratch\n',
+      Dockerfile: 'FROM scratch\n',
       'nested/b.txt': 'b',
       'a.txt': 'a',
       '.git/HEAD': 'ref: refs/heads/main\n',
@@ -46,7 +53,7 @@ describe('contextEntries', () => {
 
 describe('contextHash', () => {
   it('is stable for identical content and moves with any byte or name', async () => {
-    await seed({ 'Dockerfile': 'FROM scratch\n', 'a.txt': 'a' })
+    await seed({ Dockerfile: 'FROM scratch\n', 'a.txt': 'a' })
     const first = contextHash({ entries: await contextEntries({ directory: root }) })
     const again = contextHash({ entries: await contextEntries({ directory: root }) })
     expect(first).toBe(again)
@@ -78,7 +85,7 @@ const fakeBuilder = (args: {
 
 describe('ensureBuiltImage', () => {
   it('reuses an image whose context-hash label matches, without building', async () => {
-    await seed({ 'Dockerfile': 'FROM scratch\n' })
+    await seed({ Dockerfile: 'FROM scratch\n' })
     const dockerfile = join(root, 'Dockerfile')
     const hash = contextHash({ entries: await contextEntries({ directory: root }) })
     const { builder, builds } = fakeBuilder({
@@ -95,7 +102,7 @@ describe('ensureBuiltImage', () => {
   })
 
   it('builds on a hash miss, tagging and labelling the build with the hash', async () => {
-    await seed({ 'Dockerfile': 'FROM scratch\nCOPY a.txt /a.txt\n', 'a.txt': 'a' })
+    await seed({ Dockerfile: 'FROM scratch\nCOPY a.txt /a.txt\n', 'a.txt': 'a' })
     const { builder, builds } = fakeBuilder({})
 
     const reference = await ensureBuiltImage({
@@ -112,7 +119,7 @@ describe('ensureBuiltImage', () => {
   })
 
   it('lets a build failure surface rather than returning a reference that does not exist', async () => {
-    await seed({ 'Dockerfile': 'FROM scratch\n' })
+    await seed({ Dockerfile: 'FROM scratch\n' })
     const builder: ImageBuilder = {
       listImages: async () => [],
       buildImage: async () => {
@@ -130,7 +137,7 @@ describe('ensureBuiltImage', () => {
 
   it('a Dockerfile-only context ships just the Dockerfile, never its neighbours', async () => {
     await seed({
-      'Dockerfile': 'FROM ghcr.io/example/atlas-sandbox:1.0.0\n',
+      Dockerfile: 'FROM ghcr.io/example/atlas-sandbox:1.0.0\n',
       'auth.json': '{"token":"secret"}',
       'settings.json': '{"theme":"dark"}',
     })

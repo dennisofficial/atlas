@@ -85,7 +85,9 @@ export function contextHash(args: { entries: readonly TarEntry[] }): string {
   return hash.digest('hex').slice(0, 12)
 }
 
-export async function dockerfileImageReference(args: { dockerfile: DockerfileBuild }): Promise<string> {
+export async function dockerfileImageReference(args: {
+  dockerfile: DockerfileBuild
+}): Promise<string> {
   const entries = await dockerfileEntries(args)
   return `atlas-dockerfile:${contextHash({ entries })}`
 }

@@ -113,7 +113,8 @@ const CALLS: Record<string, (width: number) => ToolCall> = {
       from: 98,
       lines: stamped([...TS_SHORT, 'const over = 100', 'const hundred = 101'], width),
     }),
-  'read-edge': (width) => readCall({ file: `edge-${width}.ts`, from: 41, lines: stamped(TS_EDGE, width) }),
+  'read-edge': (width) =>
+    readCall({ file: `edge-${width}.ts`, from: 41, lines: stamped(TS_EDGE, width) }),
   'created-file': (width) =>
     call({
       name: 'write',
@@ -163,64 +164,64 @@ const CALLS: Record<string, (width: number) => ToolCall> = {
     }),
   'detail-output': () =>
     call({
-    name: 'bash',
-    input: { command: 'bun test --bail', description: 'Run the suite' },
-    output: {
-      stdout: [
-        'first line of output',
-        `a ${'very '.repeat(30)}long line`,
-        '界 wide output',
-        ...Array.from({ length: 13 }, (_u, index) => `out ${index + 1}`),
-      ].join('\n'),
+      name: 'bash',
+      input: { command: 'bun test --bail', description: 'Run the suite' },
+      output: {
+        stdout: [
+          'first line of output',
+          `a ${'very '.repeat(30)}long line`,
+          '界 wide output',
+          ...Array.from({ length: 13 }, (_u, index) => `out ${index + 1}`),
+        ].join('\n'),
         exitCode: 0,
       },
     }),
   'detail-matches': () =>
     call({
       name: 'grep',
-    input: { pattern: 'useStyledRows' },
-    output: {
-      matches: [
-        'src/ui/components/blocks/tool-code-lines.ts:68:export function useStyledRows(args: {',
-        'short.ts:7:const x: number = 1',
-        `a/very/long/path/that/keeps/going/until/it/must/be/clipped/${'deep/'.repeat(8)}file.ts:123: match: with: colons`,
-        ...Array.from(
-          { length: 12 },
-          (_u, index) => `src/more/${index}.ts:${index + 1}: hit ${index}`,
-        ),
-      ],
+      input: { pattern: 'useStyledRows' },
+      output: {
+        matches: [
+          'src/ui/components/blocks/tool-code-lines.ts:68:export function useStyledRows(args: {',
+          'short.ts:7:const x: number = 1',
+          `a/very/long/path/that/keeps/going/until/it/must/be/clipped/${'deep/'.repeat(8)}file.ts:123: match: with: colons`,
+          ...Array.from(
+            { length: 12 },
+            (_u, index) => `src/more/${index}.ts:${index + 1}: hit ${index}`,
+          ),
+        ],
       },
     }),
   'detail-paths': () =>
     call({
       name: 'glob',
-    input: { pattern: '**/*.ts' },
-    output: {
-      paths: [
-        `${CWD}/src/ui/theme.ts`,
-        `${CWD}/src/ui/${'nested/'.repeat(12)}far-too-long-to-fit.ts`,
-        ...Array.from({ length: 13 }, (_u, index) => `${CWD}/src/leaf-${index}.ts`),
-      ],
+      input: { pattern: '**/*.ts' },
+      output: {
+        paths: [
+          `${CWD}/src/ui/theme.ts`,
+          `${CWD}/src/ui/${'nested/'.repeat(12)}far-too-long-to-fit.ts`,
+          ...Array.from({ length: 13 }, (_u, index) => `${CWD}/src/leaf-${index}.ts`),
+        ],
       },
     }),
   'detail-reason': () =>
     call({
       name: 'write',
-    input: { path: `${CWD}/outside.ts` },
-    state: ECallState.Denied,
+      input: { path: `${CWD}/outside.ts` },
+      state: ECallState.Denied,
       note: 'the path is outside the workspace root, and this sentence keeps going long enough to wrap onto a second and third row even at a comfortable width',
     }),
   'detail-tests': () =>
     call({
       name: 'bash',
-    input: { command: 'bun test' },
-    output: {
-      stdout: [
-        '(fail) src/a.spec.ts > renders the thing',
-        '(fail) src/b.spec.ts > handles a tab\tin the name',
-        ' 41 pass',
-        ' 2 fail',
-      ].join('\n'),
+      input: { command: 'bun test' },
+      output: {
+        stdout: [
+          '(fail) src/a.spec.ts > renders the thing',
+          '(fail) src/b.spec.ts > handles a tab\tin the name',
+          ' 41 pass',
+          ' 2 fail',
+        ].join('\n'),
         exitCode: 1,
       },
     }),

@@ -77,7 +77,13 @@ describe('where a finished turn is drawn', () => {
 describe('a finished turn in the transcript', () => {
   it('stays gone when a summary replaced its rows and only spared bookkeeping survived', () => {
     const events: readonly Event[] = [
-      event({ type: 'context-loaded', slot: 'file', key: 'CLAUDE.md', content: 'guidance', seq: 1 }),
+      event({
+        type: 'context-loaded',
+        slot: 'file',
+        key: 'CLAUDE.md',
+        content: 'guidance',
+        seq: 1,
+      }),
       event({
         type: 'history-compacted',
         anchor: ECompactionAnchor.Prefix,

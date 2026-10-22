@@ -23,7 +23,11 @@ const service = new GithubAppInstallNoticeService(installations, ENV)
 function seedAppCovering(repoFullName: string): Promise<void> {
   const payload: GithubAppInstallationWebhookPayload = {
     action: 'created',
-    installation: { id: 1001, account: { login: 'trycompai', type: 'Organization' }, suspended_at: null },
+    installation: {
+      id: 1001,
+      account: { login: 'trycompai', type: 'Organization' },
+      suspended_at: null,
+    },
     repositories: [{ full_name: repoFullName }],
   }
   return installations.applyInstallation(payload)
@@ -69,7 +73,9 @@ describe('GithubAppInstallNoticeService', () => {
     expect(
       await service.shouldRecommend({ userId: 'usr_2', repoFullName: 'trycompai/comp-v2' }),
     ).toBe(true)
-    expect(await service.shouldRecommend({ userId: 'usr_1', repoFullName: 'other/repo' })).toBe(true)
+    expect(await service.shouldRecommend({ userId: 'usr_1', repoFullName: 'other/repo' })).toBe(
+      true,
+    )
   })
 
   it('builds the install url from the configured slug', () => {

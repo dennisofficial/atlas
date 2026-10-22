@@ -6,9 +6,22 @@ const planned = [
   { caseId: 'c2', trialId: 't1' },
 ]
 
-type RawResult = { input: unknown; output: unknown; scores: { name: string; score: unknown }[]; status: string }
+type RawResult = {
+  input: unknown
+  output: unknown
+  scores: { name: string; score: unknown }[]
+  status: string
+}
 
-const result = ({ caseId, trialId, overrides }: { caseId: string; trialId: string; overrides?: Partial<RawResult> }): RawResult => ({
+const result = ({
+  caseId,
+  trialId,
+  overrides,
+}: {
+  caseId: string
+  trialId: string
+  overrides?: Partial<RawResult>
+}): RawResult => ({
   input: { caseId, trialId, input: {} },
   output: {},
   scores: [{ name: 'exact-match', score: 1 }],
@@ -29,7 +42,11 @@ const exportOf = ({
 const validResults = (): RawResult[] => planned.map((row) => result(row))
 
 const kinds = ({ parsed }: { parsed: unknown }): EIntegrityProblem[] =>
-  validateRawExport({ parsed, startedAfter: '2026-10-06T11:00:00.000Z', plannedRows: planned }).problems.map((p) => p.kind)
+  validateRawExport({
+    parsed,
+    startedAfter: '2026-10-06T11:00:00.000Z',
+    plannedRows: planned,
+  }).problems.map((p) => p.kind)
 
 describe('validateRawExport', () => {
   it('accepts a complete fresh full export', () => {
@@ -42,13 +59,19 @@ describe('validateRawExport', () => {
   })
 
   it('tolerates extra fields', () => {
-    const parsed = { run: { id: 1, createdAt: '2026-10-06T12:00:00.000Z', runType: 'full', extra: 'x' }, evals: [{ name: 'f', extra: 1, results: validResults() }] }
+    const parsed = {
+      run: { id: 1, createdAt: '2026-10-06T12:00:00.000Z', runType: 'full', extra: 'x' },
+      evals: [{ name: 'f', extra: 1, results: validResults() }],
+    }
     expect(kinds({ parsed })).toEqual([])
   })
 
-  it.each([undefined, null, 'text', {}, { run: {}, evals: [] }])('flags invalid schema for %p', (parsed) => {
-    expect(kinds({ parsed })).toEqual([EIntegrityProblem.InvalidSchema])
-  })
+  it.each([undefined, null, 'text', {}, { run: {}, evals: [] }])(
+    'flags invalid schema for %p',
+    (parsed) => {
+      expect(kinds({ parsed })).toEqual([EIntegrityProblem.InvalidSchema])
+    },
+  )
 
   it('flags a stale artifact', () => {
     const parsed = exportOf({ results: validResults(), createdAt: '2026-10-06T10:59:59.000Z' })
@@ -66,39 +89,59 @@ describe('validateRawExport', () => {
   })
 
   it('flags duplicate rows', () => {
-    const parsed = exportOf({ results: [...validResults(), result({ caseId: 'c1', trialId: 't1' })] })
+    const parsed = exportOf({
+      results: [...validResults(), result({ caseId: 'c1', trialId: 't1' })],
+    })
     expect(kinds({ parsed })).toEqual([EIntegrityProblem.DuplicateRow])
   })
 
   it('flags extra rows with unknown identity or no envelope', () => {
     const parsed = exportOf({
-      results: [...validResults(), result({ caseId: 'zz', trialId: 't1' }), result({ caseId: 'c1', trialId: 't1', overrides: { input: 'bare' } })],
+      results: [
+        ...validResults(),
+        result({ caseId: 'zz', trialId: 't1' }),
+        result({ caseId: 'c1', trialId: 't1', overrides: { input: 'bare' } }),
+      ],
     })
     expect(kinds({ parsed })).toEqual([EIntegrityProblem.ExtraRow, EIntegrityProblem.ExtraRow])
   })
 
   it('treats case and trial identity as a pair', () => {
-    const parsed = exportOf({ results: [result({ caseId: 'c1', trialId: 't1' }), result({ caseId: 'c1', trialId: 't2' })] })
+    const parsed = exportOf({
+      results: [result({ caseId: 'c1', trialId: 't1' }), result({ caseId: 'c1', trialId: 't2' })],
+    })
     expect(kinds({ parsed })).toEqual([EIntegrityProblem.ExtraRow, EIntegrityProblem.MissingRow])
   })
 
   it.each([Number.NaN, 'high', null])('flags invalid score %p', (score) => {
     const parsed = exportOf({
-      results: [result({ caseId: 'c1', trialId: 't1', overrides: { scores: [{ name: 'a', score }] } }), result({ caseId: 'c2', trialId: 't1' })],
+      results: [
+        result({ caseId: 'c1', trialId: 't1', overrides: { scores: [{ name: 'a', score }] } }),
+        result({ caseId: 'c2', trialId: 't1' }),
+      ],
     })
     expect(kinds({ parsed })).toEqual([EIntegrityProblem.InvalidScore])
   })
 
   it('flags statuses other than success or fail', () => {
     const parsed = exportOf({
-      results: [result({ caseId: 'c1', trialId: 't1', overrides: { status: 'running' } }), result({ caseId: 'c2', trialId: 't1', overrides: { status: 'fail' } })],
+      results: [
+        result({ caseId: 'c1', trialId: 't1', overrides: { status: 'running' } }),
+        result({ caseId: 'c2', trialId: 't1', overrides: { status: 'fail' } }),
+      ],
     })
     expect(kinds({ parsed })).toEqual([EIntegrityProblem.IncompleteStatus])
   })
 
   it('aggregates every problem instead of stopping at the first', () => {
     const parsed = exportOf({
-      results: [result({ caseId: 'c1', trialId: 't1', overrides: { status: 'running', scores: [{ name: 'a', score: 'x' }] } })],
+      results: [
+        result({
+          caseId: 'c1',
+          trialId: 't1',
+          overrides: { status: 'running', scores: [{ name: 'a', score: 'x' }] },
+        }),
+      ],
       createdAt: '2026-01-01T00:00:00.000Z',
       runType: 'partial',
     })
@@ -111,7 +154,11 @@ describe('validateRawExport', () => {
         EIntegrityProblem.IncompleteStatus,
       ]),
     )
-    const report = validateRawExport({ parsed, startedAfter: '2026-10-06T11:00:00.000Z', plannedRows: planned })
+    const report = validateRawExport({
+      parsed,
+      startedAfter: '2026-10-06T11:00:00.000Z',
+      plannedRows: planned,
+    })
     expect(report.ok).toBe(false)
   })
 })

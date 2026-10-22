@@ -38,7 +38,11 @@ describe('respawnArgv', () => {
   })
 
   it('never emits more than one --resume flag', () => {
-    const argv = respawnArgv({ execPath: '/opt/atlas/atlas', cwd: '/repo', resumeHandle: 'fresh-handle' })
+    const argv = respawnArgv({
+      execPath: '/opt/atlas/atlas',
+      cwd: '/repo',
+      resumeHandle: 'fresh-handle',
+    })
 
     expect(argv.filter((token) => token === '--resume')).toHaveLength(1)
     expect(argv).toEqual(['/opt/atlas/atlas', '--cwd', '/repo', '--resume', 'fresh-handle'])

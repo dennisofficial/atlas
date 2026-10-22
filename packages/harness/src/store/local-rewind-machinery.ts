@@ -45,9 +45,7 @@ const withLiveness = (cut: RewindCut, threadId: ThreadId, registries: Registries
       running: snapshot?.status === EShellStatus.Running,
     }
   }
-  const snapshot = registries.services
-    .list()
-    .find((service) => service.serviceId === cut.serviceId)
+  const snapshot = registries.services.list().find((service) => service.serviceId === cut.serviceId)
   return {
     kind: 'service',
     serviceId: cut.serviceId,

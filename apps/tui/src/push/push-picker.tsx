@@ -53,7 +53,9 @@ export function PushPicker(props: {
   const { rows } = props
   const { width } = useTerminalDimensions()
   const cells = Math.max(0, width - PAD * 2)
-  const [state, setState] = useState<PickerState>(() => startState({ rows, showAll: props.showAll === true }))
+  const [state, setState] = useState<PickerState>(() =>
+    startState({ rows, showAll: props.showAll === true }),
+  )
   const scroller = useRef<ScrollBoxRenderable | null>(null)
   const attachScroller = useHiddenVerticalScrollbar(scroller)
   const finished = useRef(false)
@@ -69,19 +71,24 @@ export function PushPicker(props: {
     props.onDone(outcome)
   }
 
-  const handlePress = (id: string): void => setState((current) => ({ ...toggleSelected({ state: current, id }), cursorId: id }))
+  const handlePress = (id: string): void =>
+    setState((current) => ({ ...toggleSelected({ state: current, id }), cursorId: id }))
 
   useKeyboard((key) => {
     if (key.ctrl) {
       if (key.name === 'c') finish({ kind: EPickerOutcome.Cancelled })
       return
     }
-    if (key.name === 'up' || key.name === 'k') setState((current) => moveCursor({ state: current, rows, delta: -1 }))
-    else if (key.name === 'down' || key.name === 'j') setState((current) => moveCursor({ state: current, rows, delta: 1 }))
+    if (key.name === 'up' || key.name === 'k')
+      setState((current) => moveCursor({ state: current, rows, delta: -1 }))
+    else if (key.name === 'down' || key.name === 'j')
+      setState((current) => moveCursor({ state: current, rows, delta: 1 }))
     else if (key.name === 'space' && state.cursorId !== null) handlePress(state.cursorId)
-    else if (key.name === 'a' && key.shift) setState((current) => toggleAllShown({ state: current, rows }))
+    else if (key.name === 'a' && key.shift)
+      setState((current) => toggleAllShown({ state: current, rows }))
     else if (key.name === 'a') setState((current) => toggleShowAll({ state: current, rows }))
-    else if (key.name === 'return' || key.name === 'enter') finish({ kind: EPickerOutcome.Chosen, ids: total.ids })
+    else if (key.name === 'return' || key.name === 'enter')
+      finish({ kind: EPickerOutcome.Chosen, ids: total.ids })
     else if (key.name === 'escape' || key.name === 'q') finish({ kind: EPickerOutcome.Cancelled })
   })
 
@@ -103,17 +110,34 @@ export function PushPicker(props: {
   ]
 
   return (
-    <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.appBg} paddingLeft={PAD} paddingRight={PAD} paddingTop={1}>
+    <box
+      flexDirection="column"
+      width="100%"
+      height="100%"
+      backgroundColor={theme.appBg}
+      paddingLeft={PAD}
+      paddingRight={PAD}
+      paddingTop={1}
+    >
       <text wrapMode="none" flexShrink={0}>
         <span fg={theme.accent}>atlas push</span>
-        <span fg={theme.meta}>{'  publish skills, instructions and MCP config to Atlas Cloud'}</span>
+        <span fg={theme.meta}>
+          {'  publish skills, instructions and MCP config to Atlas Cloud'}
+        </span>
       </text>
-      <text wrapMode="none" flexShrink={0} fg={theme.hint}>{carriedLine}</text>
+      <text wrapMode="none" flexShrink={0} fg={theme.hint}>
+        {carriedLine}
+      </text>
       <scrollbox ref={attachScroller} flexGrow={1} flexShrink={1} flexBasis={0}>
         <box flexDirection="column" flexShrink={0}>
           {lines.map((line) =>
             line.kind === EPickerLine.Header ? (
-              <Header key={line.title} title={line.title} selected={line.selected} total={line.total} />
+              <Header
+                key={line.title}
+                title={line.title}
+                selected={line.selected}
+                total={line.total}
+              />
             ) : (
               <PickerRow
                 key={line.row.item.id}
@@ -131,7 +155,12 @@ export function PushPicker(props: {
         <Spans spans={totalSpans} />
       </text>
       <text wrapMode="none" flexShrink={0}>
-        <Spans spans={hintSpans({ hints: fitHints({ hints: hintsFor(state.showAll), cells }), keyColour: theme.meta })} />
+        <Spans
+          spans={hintSpans({
+            hints: fitHints({ hints: hintsFor(state.showAll), cells }),
+            keyColour: theme.meta,
+          })}
+        />
       </text>
     </box>
   )

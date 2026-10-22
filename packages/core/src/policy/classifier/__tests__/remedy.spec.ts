@@ -5,11 +5,7 @@ import { refusalFor, remedyFor } from '../remedy'
 import { riskSignal } from '../probes/kit'
 import type { RiskSignal } from '../signals'
 
-const signal = (over: {
-  id: string
-  dimension?: ERiskDimension
-  subject?: string
-}): RiskSignal =>
+const signal = (over: { id: string; dimension?: ERiskDimension; subject?: string }): RiskSignal =>
   riskSignal({
     dimension: over.dimension ?? ERiskDimension.Blast,
     severity: ESeverity.Grave,
@@ -27,7 +23,9 @@ describe('what a refused agent is told to do next', () => {
 
   it('falls back to the dimension when the exact signal has no step of its own', () => {
     const remedy = remedyFor({
-      standing: [signal({ id: 'contention:some-new-signal', dimension: ERiskDimension.Contention })],
+      standing: [
+        signal({ id: 'contention:some-new-signal', dimension: ERiskDimension.Contention }),
+      ],
     })
 
     expect(remedy).toContain('your own worktree')

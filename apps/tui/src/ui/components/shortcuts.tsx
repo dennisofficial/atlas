@@ -54,8 +54,16 @@ export function Shortcuts(props: {
     <Panel
       width={props.width}
       fill={theme.overlayBg}
-      label={<text fg={theme.meta} bg={theme.overlayBg}>{' Shortcuts '}</text>}
-      badge={<text fg={theme.hint} bg={theme.overlayBg}>{' esc close '}</text>}
+      label={
+        <text fg={theme.meta} bg={theme.overlayBg}>
+          {' Shortcuts '}
+        </text>
+      }
+      badge={
+        <text fg={theme.hint} bg={theme.overlayBg}>
+          {' esc close '}
+        </text>
+      }
     >
       <box flexDirection="column" flexShrink={0} gap={1}>
         {groups.map((group) => (

@@ -115,7 +115,9 @@ describe('pressing escape while the pod is updating', () => {
       expect(
         await until({
           holds: async () =>
-            (await mounted.nextFrame()).includes('the pod is updating — esc will interrupt once it is back'),
+            (await mounted.nextFrame()).includes(
+              'the pod is updating — esc will interrupt once it is back',
+            ),
           within: 20_000,
         }),
       ).toBe(true)
@@ -145,7 +147,10 @@ describe('sending a message to a parked sandbox', () => {
       bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       bridge.channel.moveTo({ state: EConnectionView.Parked, detail: null })
       expect(
-        await until({ holds: async () => (await mounted.nextFrame()).includes('☾'), within: 20_000 }),
+        await until({
+          holds: async () => (await mounted.nextFrame()).includes('☾'),
+          within: 20_000,
+        }),
       ).toBe(true)
       const createdBefore = bridge.created.length
       const sentBefore = bridge.channel.sent.length
@@ -166,14 +171,20 @@ describe('sending a message to a parked sandbox', () => {
       mounted.typeText('and this too')
       mounted.pressEnter()
       expect(
-        await until({ holds: async () => (await mounted.nextFrame()).includes('and this too'), within: 20_000 }),
+        await until({
+          holds: async () => (await mounted.nextFrame()).includes('and this too'),
+          within: 20_000,
+        }),
       ).toBe(true)
       expect(bridge.channel.sent.length).toBe(sentBefore)
 
       const wokenBefore = bridge.channel.woken.length
       releaseWake()
       expect(
-        await until({ holds: async () => bridge.channel.woken.length === wokenBefore + 1, within: 20_000 }),
+        await until({
+          holds: async () => bridge.channel.woken.length === wokenBefore + 1,
+          within: 20_000,
+        }),
       ).toBe(true)
       expect(bridge.channel.sent.length).toBe(sentBefore)
 
@@ -184,7 +195,9 @@ describe('sending a message to a parked sandbox', () => {
           holds: async () => {
             const texts = bridge.channel.sent.flatMap((said) => [
               said.text,
-              ...(said.context ?? []).flatMap((draft) => (draft.type === 'user-said' ? [draft.text] : [])),
+              ...(said.context ?? []).flatMap((draft) =>
+                draft.type === 'user-said' ? [draft.text] : [],
+              ),
             ])
             return texts.includes('wake up') && texts.includes('and this too')
           },

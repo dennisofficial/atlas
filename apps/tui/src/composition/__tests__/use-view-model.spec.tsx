@@ -42,7 +42,8 @@ const live: Mounted[] = []
 async function mount(args: { view: ViewArgs; app?: FakeApp }): Promise<Mounted> {
   const setup = await createTestRenderer({ width: 40, height: 4 })
   const root = createRoot(setup.renderer)
-  const app = args.app ?? fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: '' } }) })
+  const app =
+    args.app ?? fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: '' } }) })
   const probe: Probe = { current: null }
   const render = async (view: ViewArgs) => {
     await act(async () => {
@@ -79,13 +80,18 @@ function seedRow(app: FakeApp, model?: { ref: string; effort: string }): void {
   })
 }
 
-const choiceOn = (card: ModelCard, effort: EEffort): { ref: ModelCard['ref']; effort: EEffort } => ({
+const choiceOn = (
+  card: ModelCard,
+  effort: EEffort,
+): { ref: ModelCard['ref']; effort: EEffort } => ({
   ref: card.ref,
   effort,
 })
 
 const cardOf = (app: FakeApp, key: string): ModelCard => {
-  const card = app.models.providers.flatMap((provider) => provider.cards).find((held) => refKey(held.ref) === key)
+  const card = app.models.providers
+    .flatMap((provider) => provider.cards)
+    .find((held) => refKey(held.ref) === key)
   if (card === undefined) throw new Error(`the fake catalogue holds no ${key}`)
   return card
 }
@@ -115,7 +121,10 @@ describe('useViewModel', () => {
       app,
     })
 
-    expect(probe.current?.selection?.ref).toEqual({ providerId: 'anthropic', modelId: 'claude-opus-5' })
+    expect(probe.current?.selection?.ref).toEqual({
+      providerId: 'anthropic',
+      modelId: 'claude-opus-5',
+    })
     expect(probe.current?.selection?.effort).toBe(app.model.choice().effort)
   })
 
@@ -124,7 +133,10 @@ describe('useViewModel', () => {
     seedRow(app, { ref: 'anthropic/claude-opus-5', effort: 'low' })
     const { probe } = await mount({ view: { enabled: true }, app })
 
-    expect(probe.current?.selection?.ref).toEqual({ providerId: 'anthropic', modelId: 'claude-opus-5' })
+    expect(probe.current?.selection?.ref).toEqual({
+      providerId: 'anthropic',
+      modelId: 'claude-opus-5',
+    })
     expect(probe.current?.selection?.effort).toBe(EEffort.Low)
   })
 
@@ -134,7 +146,11 @@ describe('useViewModel', () => {
 
     expect(probe.current?.selection).toBeNull()
 
-    act(() => probe.current?.handlePicked({ choice: choiceOn(cardOf(app, 'anthropic/claude-opus-5'), EEffort.High) }))
+    act(() =>
+      probe.current?.handlePicked({
+        choice: choiceOn(cardOf(app, 'anthropic/claude-opus-5'), EEffort.High),
+      }),
+    )
     await settleWrites()
 
     expect(app.threads.chosenModels).toEqual([])
@@ -152,13 +168,24 @@ describe('useViewModel', () => {
       return inner(given)
     }
 
-    act(() => probe.current?.handlePicked({ choice: choiceOn(cardOf(app, 'anthropic/claude-opus-5'), EEffort.High) }))
+    act(() =>
+      probe.current?.handlePicked({
+        choice: choiceOn(cardOf(app, 'anthropic/claude-opus-5'), EEffort.High),
+      }),
+    )
     await settleWrites()
 
     expect(calls).toEqual([
-      { threadId: THREAD, model: { ref: 'anthropic/claude-opus-5', effort: EEffort.High }, retarget: true },
+      {
+        threadId: THREAD,
+        model: { ref: 'anthropic/claude-opus-5', effort: EEffort.High },
+        retarget: true,
+      },
     ])
-    expect(probe.current?.selection?.ref).toEqual({ providerId: 'anthropic', modelId: 'claude-opus-5' })
+    expect(probe.current?.selection?.ref).toEqual({
+      providerId: 'anthropic',
+      modelId: 'claude-opus-5',
+    })
     expect(probe.current?.selection?.effort).toBe(EEffort.High)
   })
 
@@ -174,11 +201,17 @@ describe('useViewModel', () => {
     }
     app.threads.chooseModel = refusing
 
-    act(() => probe.current?.handlePicked({ choice: choiceOn(cardOf(app, 'anthropic/claude-opus-5'), EEffort.High) }))
+    act(() =>
+      probe.current?.handlePicked({
+        choice: choiceOn(cardOf(app, 'anthropic/claude-opus-5'), EEffort.High),
+      }),
+    )
     await settleWrites()
 
     expect(probe.current?.selection).toEqual(prior)
-    expect(currentNotices().some((notice) => notice.text === 'this child is not yours to retune')).toBe(true)
+    expect(
+      currentNotices().some((notice) => notice.text === 'this child is not yours to retune'),
+    ).toBe(true)
   })
 
   it('ignores a model chosen for another thread', async () => {

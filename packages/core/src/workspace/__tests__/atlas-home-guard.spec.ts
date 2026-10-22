@@ -3,11 +3,7 @@ import { join } from 'node:path'
 
 import { describe, expect, test } from 'vitest'
 
-import {
-  ATLAS_ALLOW_REAL_HOME_ENV,
-  ATLAS_TESTING_ENV,
-  atlasHomeFrom,
-} from '../atlas-home'
+import { ATLAS_ALLOW_REAL_HOME_ENV, ATLAS_TESTING_ENV, atlasHomeFrom } from '../atlas-home'
 
 const FAKE_HOME = '/operator-home'
 const TEMP_DIR = tmpdir()
@@ -23,7 +19,9 @@ describe('atlasHomeFrom test guard', () => {
   })
 
   test('testing signal via ATLAS_TESTING, ATLAS_HOME unset throws naming the call', () => {
-    expect(() => resolve({ [ATLAS_TESTING_ENV]: '1' })).toThrow(/atlasHomeFrom.*refused.*real Atlas home/s)
+    expect(() => resolve({ [ATLAS_TESTING_ENV]: '1' })).toThrow(
+      /atlasHomeFrom.*refused.*real Atlas home/s,
+    )
   })
 
   test('testing signal via NODE_ENV=test, ATLAS_HOME unset throws', () => {
@@ -54,7 +52,9 @@ describe('atlasHomeFrom test guard', () => {
     const tempDirs = ['/private/var/folders/zz/T']
     const sibling = { NODE_ENV: 'test', ATLAS_HOME: '/private/var/folders/zz/Tother/atlas' }
     expect(() => atlasHomeFrom({ env: sibling, home: FAKE_HOME, tempDirs })).toThrow(/refused/)
-    expect(() => atlasHomeFrom({ env: { NODE_ENV: 'test' }, home: FAKE_HOME, tempDirs })).toThrow(/refused/)
+    expect(() => atlasHomeFrom({ env: { NODE_ENV: 'test' }, home: FAKE_HOME, tempDirs })).toThrow(
+      /refused/,
+    )
   })
 
   test('testing signal, ATLAS_HOME under repo scratch .atlas-home passes from any cwd', () => {
@@ -73,7 +73,11 @@ describe('atlasHomeFrom test guard', () => {
 
   test('escape hatch passes with ATLAS_HOME at a non-temp path', () => {
     expect(
-      resolve({ NODE_ENV: 'test', ATLAS_HOME: '/var/data/atlas', [ATLAS_ALLOW_REAL_HOME_ENV]: '1' }),
+      resolve({
+        NODE_ENV: 'test',
+        ATLAS_HOME: '/var/data/atlas',
+        [ATLAS_ALLOW_REAL_HOME_ENV]: '1',
+      }),
     ).toBe('/var/data/atlas')
   })
 

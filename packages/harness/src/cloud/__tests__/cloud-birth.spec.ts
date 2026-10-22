@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { EExecutionLocation, ERunner, toThreadId } from '@dltech/atlas-core'
 
 import { PlacementController } from '../../composition/placement-controller'
-import { createSessionOwner, ERuntimeKind, type SessionRuntime } from '../../composition/session-owner'
+import {
+  createSessionOwner,
+  ERuntimeKind,
+  type SessionRuntime,
+} from '../../composition/session-owner'
 import { ImagePullError } from '../../execution/docker/image-pull'
 import { CountingIds, openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import { BIRTH_WAVES, birthInCloud, EBirthFault, EBirthNode, type BirthArgs } from '../cloud-birth'
@@ -121,7 +125,10 @@ describe('birthInCloud', () => {
   it('reports an image pull failure as its own fault', async () => {
     const { birthArgs } = await setup()
     const failing = bridgeThat(async () => {
-      throw new ImagePullError({ image: 'ghcr.io/acme/atlas-sandbox:latest', cause: new Error('unreachable') })
+      throw new ImagePullError({
+        image: 'ghcr.io/acme/atlas-sandbox:latest',
+        cause: new Error('unreachable'),
+      })
     })
 
     const result = await birthInCloud(birthArgs({ bridge: failing, runner: ERunner.Local }))

@@ -14,7 +14,8 @@ export function noticeSources(args: {
     const source: Omit<IntakeSource, 'prepare'> = {
       subscribe: (listener) => registry.onNotice(listener),
       threadsAwaitingInput: () => registry.threadsAwaitingNotice(),
-      threadsWithPendingInput: () => registry.threadsWithPendingInput?.() ?? registry.threadsAwaitingNotice(),
+      threadsWithPendingInput: () =>
+        registry.threadsWithPendingInput?.() ?? registry.threadsAwaitingNotice(),
       witness: ({ threadId }) => registry.pendingNotices({ threadId }),
     }
     const prepare = registry.prepareNotifications?.bind(registry)

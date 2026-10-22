@@ -85,7 +85,9 @@ class StubEngine extends DockerEngine {
     return { id: `net-${args.name}` }
   }
 
-  override async createContainer(args: { body: { Image: string } }): Promise<{ id: string; warnings: string[] }> {
+  override async createContainer(args: {
+    body: { Image: string }
+  }): Promise<{ id: string; warnings: string[] }> {
     this.createCalls += 1
     this.exists = true
     this.running = true
@@ -136,8 +138,7 @@ const runTrue = async (port: DockerProcessPort): Promise<number> => {
   return await handle.exited
 }
 
-const statesOf = (seen: readonly SandboxStatus[]): ESandboxState[] =>
-  seen.map((one) => one.state)
+const statesOf = (seen: readonly SandboxStatus[]): ESandboxState[] => seen.map((one) => one.state)
 
 describe('DockerProcessPort recovering a sandbox that stopped behind its back', () => {
   it('restarts the container and retries the exec once, marking stopped then running', async () => {
@@ -204,9 +205,7 @@ describe('DockerProcessPort recovering a sandbox that stopped behind its back', 
     engine.listContainers = async (): Promise<ContainerSummary[]> => {
       if (firstList) {
         firstList = false
-        return [
-          { id: CONTAINER_ID, name: 'atlas-dev-stub', state: 'running', labels: {} },
-        ]
+        return [{ id: CONTAINER_ID, name: 'atlas-dev-stub', state: 'running', labels: {} }]
       }
       return await listedAsRunning()
     }

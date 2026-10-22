@@ -19,7 +19,9 @@ describe('a message typed while the last model step is running', () => {
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(model.doStreamCalls).toHaveLength(2)
-    expect(userTexts(model.doStreamCalls[1]?.prompt ?? [])).toContainEqual(expect.stringContaining('actually, do Y'))
+    expect(userTexts(model.doStreamCalls[1]?.prompt ?? [])).toContainEqual(
+      expect.stringContaining('actually, do Y'),
+    )
   })
 
   it('lands after the assistant turn it followed, so the exchange never ends on the assistant', async () => {
@@ -44,7 +46,9 @@ describe('a message typed while the last model step is running', () => {
 
     expect(queue.drains()).toBeGreaterThan(1)
     const events = await harness.log.read({ threadId })
-    expect(events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y')).toHaveLength(1)
+    expect(
+      events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y'),
+    ).toHaveLength(1)
   })
 
   it('costs a model step, so steering extends the turn rather than ending it', async () => {
@@ -63,7 +67,10 @@ describe('a message typed while the last model step is running', () => {
 describe('a message typed while a tool call is settling', () => {
   it('lands after the result rather than splitting the call from it', async () => {
     const { runner, harness, threadId } = await openSteerable({
-      script: [{ text: 'touching', calls: [{ callId: 'call-1', name: 'touch', input: {} }] }, { text: 'touched it' }],
+      script: [
+        { text: 'touching', calls: [{ callId: 'call-1', name: 'touch', input: {} }] },
+        { text: 'touched it' },
+      ],
       types: { text: 'actually, do Y', onStep: 1 },
       withTools: true,
     })
@@ -114,14 +121,18 @@ describe('a turn nobody steers', () => {
   })
 })
 
-const nudging = (text: string): AfterTurn => async () => ({
-  drafts: [{ type: 'nudge', text, lifetimeSteps: 1 }],
-})
+const nudging =
+  (text: string): AfterTurn =>
+  async () => ({
+    drafts: [{ type: 'nudge', text, lifetimeSteps: 1 }],
+  })
 
 describe('AfterTurn against a steered turn', () => {
   it('runs once at the end of the turn, not once per continuation', async () => {
     const hooks = new HookChain({
-      afterTurn: [{ name: 'observed', order: { stage: EStage.Observe, nudge: 0 }, run: nudging('observed') }],
+      afterTurn: [
+        { name: 'observed', order: { stage: EStage.Observe, nudge: 0 }, run: nudging('observed') },
+      ],
     })
     const { runner, harness, threadId } = await openSteerable({
       script: [{ text: 'starting on X' }, { text: 'switching to Y' }],

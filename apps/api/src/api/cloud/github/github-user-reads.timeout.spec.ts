@@ -57,7 +57,9 @@ describe('GithubUserReads outbound timeouts', () => {
   })
 
   it('requests the 8s timeout on every outbound call, including the hook lookup', async () => {
-    const answered = vi.fn(async () => new Response(JSON.stringify({ id: 1, events: [] }), { status: 200 }))
+    const answered = vi.fn(
+      async () => new Response(JSON.stringify({ id: 1, events: [] }), { status: 200 }),
+    )
     vi.stubGlobal('fetch', answered)
 
     await reads.getHook({ ...target, hookId: 1 })

@@ -33,7 +33,7 @@ export function FileHeader(props: {
       <box flexGrow={1} flexShrink={1} />
       <text wrapMode="none" flexShrink={0}>
         <span fg={theme.ok}>{`+${props.file.added}`}</span>
-        <span>{' '}</span>
+        <span> </span>
         <span fg={theme.error}>{`${MINUS_SIGN}${props.file.removed}`}</span>
       </text>
       <CopyButton text={props.patch} revealed={props.revealed} />

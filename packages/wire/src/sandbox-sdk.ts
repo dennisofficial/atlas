@@ -87,9 +87,7 @@ export type SandboxObservation = {
 
 /** The static SDK surface the driver uses, injectable so a spec never reaches Vercel. */
 export type VercelSdk = {
-  getOrCreate: (
-    params: Parameters<typeof Sandbox.getOrCreate>[0],
-  ) => Promise<Sandbox>
+  getOrCreate: (params: Parameters<typeof Sandbox.getOrCreate>[0]) => Promise<Sandbox>
   get: (params: Parameters<typeof Sandbox.get>[0]) => Promise<Sandbox>
 }
 

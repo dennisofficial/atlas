@@ -228,7 +228,15 @@ describe('claiming the worktree of an opened teammate', () => {
 })
 
 describe('releasing the worktree of an ended thread', () => {
-  const ownClaim = async ({ root, tree, threadId }: { root: string; tree: string; threadId: string }) => {
+  const ownClaim = async ({
+    root,
+    tree,
+    threadId,
+  }: {
+    root: string
+    tree: string
+    threadId: string
+  }) => {
     const locked = await lockWorktree({
       cwd: root,
       path: tree,
@@ -252,7 +260,7 @@ describe('releasing the worktree of an ended thread', () => {
     expect(await isLocked({ root, path: tree })).toBe(false)
   })
 
-  it('leaves the claim alone while the thread still sits in its spawner\'s worktree', async () => {
+  it("leaves the claim alone while the thread still sits in its spawner's worktree", async () => {
     const root = await repo()
     const tree = await worktree({ root, name: 'spawner-tree', branch: 'topic' })
     const spawnerId = toThreadId('thread-spawner')
@@ -270,12 +278,18 @@ describe('releasing the worktree of an ended thread', () => {
 
   it('does nothing for a thread that ended in a plain checkout', async () => {
     const root = await repo()
-    const threads = new StubThreads([threadSummary({ id: toThreadId('thread-main'), workspace: root })])
-    expect(releaseEndedWorktree({ threads, threadId: toThreadId('thread-main') })).resolves.toBeUndefined()
+    const threads = new StubThreads([
+      threadSummary({ id: toThreadId('thread-main'), workspace: root }),
+    ])
+    expect(
+      releaseEndedWorktree({ threads, threadId: toThreadId('thread-main') }),
+    ).resolves.toBeUndefined()
   })
 
   it('does nothing for a thread the store does not know', async () => {
     const threads = new StubThreads([])
-    expect(releaseEndedWorktree({ threads, threadId: toThreadId('thread-ghost') })).resolves.toBeUndefined()
+    expect(
+      releaseEndedWorktree({ threads, threadId: toThreadId('thread-ghost') }),
+    ).resolves.toBeUndefined()
   })
 })

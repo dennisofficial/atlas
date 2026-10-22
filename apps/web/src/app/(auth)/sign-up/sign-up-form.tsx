@@ -10,12 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@dltech/atlas-ui/components/card'
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from '@dltech/atlas-ui/components/field'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
 import Link from 'next/link'

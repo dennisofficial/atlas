@@ -20,8 +20,7 @@ const OPTIONS = EXIT_GUARD_OPTIONS
 
 const opened = () => openExitGuard()
 
-const at = (choice: EExitChoice): number =>
-  OPTIONS.findIndex((option) => option.choice === choice)
+const at = (choice: EExitChoice): number => OPTIONS.findIndex((option) => option.choice === choice)
 
 describe('exit guard options', () => {
   it('offers keeping shells first, then stopping and staying', () => {

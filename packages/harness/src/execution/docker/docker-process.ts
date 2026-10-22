@@ -28,9 +28,7 @@ type RunningExec = {
   signal: (signal: 'TERM' | 'KILL') => Promise<void>
 }
 
-const bridge = (
-  source: Promise<ReadableStream<Uint8Array>>,
-): ReadableStream<Uint8Array> =>
+const bridge = (source: Promise<ReadableStream<Uint8Array>>): ReadableStream<Uint8Array> =>
   new ReadableStream<Uint8Array>({
     start(controller) {
       source

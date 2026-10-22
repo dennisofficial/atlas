@@ -55,7 +55,9 @@ export class RemoteShellRegistry extends ShellRegistryPort {
   }
 
   read(_args: { shellId: string; threadId: ThreadId }): ShellReadOutcome {
-    return remoteActionRefused('a cloud session reads shell output in its sandbox, not on this machine')
+    return remoteActionRefused(
+      'a cloud session reads shell output in its sandbox, not on this machine',
+    )
   }
 
   peek(_args: { shellId: string; characters: number; threadId: ThreadId }): string | undefined {
@@ -70,11 +72,7 @@ export class RemoteShellRegistry extends ShellRegistryPort {
     return 0
   }
 
-  removeShells(_args: {
-    threadId: ThreadId
-    shellIds: readonly string[]
-    by: EKilledBy
-  }): void {}
+  removeShells(_args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void {}
 
   list(args: { threadId: ThreadId }): readonly ShellSnapshot[] {
     const held = this.scoped.get(args.threadId)

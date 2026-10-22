@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { EDefinitionOrigin, EPromptAgent, promptContextFor, type PromptContext } from '@dltech/atlas-core'
+import {
+  EDefinitionOrigin,
+  EPromptAgent,
+  promptContextFor,
+  type PromptContext,
+} from '@dltech/atlas-core'
 
 import { subAgentPrompt } from '../../agents/registry/child-prompt'
 import { BUILT_IN_AGENT_TYPES } from '../../agents/types/built-ins'
@@ -42,7 +47,10 @@ const occurrences = ({ text, needle }: { text: string; needle: string }): number
   text.split(needle).length - 1
 
 const textOf = ({ prompts, agent }: { prompts: PromptRegistry; agent: EPromptAgent }): string =>
-  prompts.compile(contextFor({ agent })).blocks.map((block) => block.text).join('\n\n')
+  prompts
+    .compile(contextFor({ agent }))
+    .blocks.map((block) => block.text)
+    .join('\n\n')
 
 describe('the standing ui-design directive in the shipped prompt registry', () => {
   it('appears exactly once for main and sub-agent contexts', () => {
@@ -76,11 +84,16 @@ describe('the standing ui-design directive in the shipped prompt registry', () =
     const absent = promptsOver(new FakeSkillRegistry({ skills: [fakeSkill({ name: 'research' })] }))
     const disabled = promptsOver(
       new FakeSkillRegistry({
-        skills: [fakeSkill({ name: 'research' }), fakeSkill({ name: 'ui-design', modelInvocable: false })],
+        skills: [
+          fakeSkill({ name: 'research' }),
+          fakeSkill({ name: 'ui-design', modelInvocable: false }),
+        ],
       }),
     )
 
-    expect(textOf({ prompts: absent, agent: EPromptAgent.Main })).toContain('Load the skill that matches your task')
+    expect(textOf({ prompts: absent, agent: EPromptAgent.Main })).toContain(
+      'Load the skill that matches your task',
+    )
     expect(textOf({ prompts: absent, agent: EPromptAgent.Main })).not.toContain('ui-design')
     expect(textOf({ prompts: disabled, agent: EPromptAgent.Main })).not.toContain('ui-design')
   })
@@ -96,7 +109,9 @@ describe('the standing ui-design directive in the shipped prompt registry', () =
   })
 
   it('never preloads the skill body, leaving that to the skill tool', () => {
-    expect(textOf({ prompts: promptsOver(withUiDesign()), agent: EPromptAgent.Main })).not.toContain(BODY)
+    expect(
+      textOf({ prompts: promptsOver(withUiDesign()), agent: EPromptAgent.Main }),
+    ).not.toContain(BODY)
   })
 
   it('does not depend on the advisory relevance hint, which is delivered outside the system prompt', () => {

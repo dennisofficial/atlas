@@ -22,7 +22,10 @@ export function WorkspaceChrome(props: {
   draft: DraftControls
   conversation: Pick<Conversation, 'working' | 'turn' | 'handle'>
   agentView: Pick<AgentView, 'addressing' | 'name'>
-  composer: Pick<ReturnType<typeof useWorkspaceComposer>, 'menus' | 'highlights' | 'handleCursorMoved'>
+  composer: Pick<
+    ReturnType<typeof useWorkspaceComposer>,
+    'menus' | 'highlights' | 'handleCursorMoved'
+  >
   panel: EChromePanel | null
   naming: NamingState | null
   footer: WorkspaceFooter

@@ -4,7 +4,12 @@ import { EDatasetSplit } from '../manifest'
 import { promotionEligible } from '../promotion'
 import { ERunMode, ERunStatus } from '../results'
 
-const summary = { promotable: true, mode: ERunMode.Live, status: ERunStatus.Complete, operationalFailures: 0 }
+const summary = {
+  promotable: true,
+  mode: ERunMode.Live,
+  status: ERunStatus.Complete,
+  operationalFailures: 0,
+}
 const dataset = { split: EDatasetSplit.Holdout, metricGates: [{ metricId: 'accuracy', min: 0.9 }] }
 
 describe('promotion eligibility', () => {
@@ -27,10 +32,16 @@ describe('promotion eligibility', () => {
   })
 
   it('does not promote a failed or regressed run', () => {
-    for (const status of [ERunStatus.ExecutionFailure, ERunStatus.IntegrityFailure, ERunStatus.QualityRegression]) {
+    for (const status of [
+      ERunStatus.ExecutionFailure,
+      ERunStatus.IntegrityFailure,
+      ERunStatus.QualityRegression,
+    ]) {
       expect(promotionEligible({ summary: { ...summary, status }, dataset })).toBe(false)
     }
-    expect(promotionEligible({ summary: { ...summary, operationalFailures: 1 }, dataset })).toBe(false)
+    expect(promotionEligible({ summary: { ...summary, operationalFailures: 1 }, dataset })).toBe(
+      false,
+    )
   })
 
   it('preserves a non-default model refusal', () => {

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  EXPOSURE_HOST_SUFFIX,
-  exposurePortFromHost,
-  exposureUrlFor,
-} from '../exposure'
+import { EXPOSURE_HOST_SUFFIX, exposurePortFromHost, exposureUrlFor } from '../exposure'
 
 describe('exposureUrlFor', () => {
   it('puts the container port in the hostname and the proxy port in the URL port', () => {

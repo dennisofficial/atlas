@@ -68,7 +68,12 @@ const rerankOutcome = (choice: string, fits: number): DecisionOutcome => ({
 describe('suggestSkill', () => {
   it('names nobody when the roster is empty, without calling the model', async () => {
     const decisions = new ScriptedDecisions([])
-    const suggestion = await suggestSkill({ decisions, candidates: [], request: 'hi', signal: SIGNAL })
+    const suggestion = await suggestSkill({
+      decisions,
+      candidates: [],
+      request: 'hi',
+      signal: SIGNAL,
+    })
     expect(suggestion).toEqual({ ok: true, name: undefined })
     expect(decisions.states).toHaveLength(0)
   })

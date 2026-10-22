@@ -10,7 +10,13 @@ export type LeaseTracker = {
   lastTouchAt: () => number
 }
 
-export function createLeaseTracker({ shellDir, startedAt }: { shellDir: string; startedAt: number }): LeaseTracker {
+export function createLeaseTracker({
+  shellDir,
+  startedAt,
+}: {
+  shellDir: string
+  startedAt: number
+}): LeaseTracker {
   let lastTouch = startedAt
   const seen = new Map<string, string>()
 

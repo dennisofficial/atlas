@@ -6,14 +6,20 @@ import { bindRuntimeCheckpoint } from '../runtime-checkpoint-binding'
 
 const checkpoint = (args: { phase: ERuntimePhase; revision: number }): RuntimeCheckpoint =>
   runtimeCheckpointSchema.parse({
-    threadId: 'thread', runtimeId: 'runtime', sandboxSessionId: 'session',
-    revision: args.revision, phase: args.phase, reportedAt: '2026-10-01T00:00:00.000Z',
+    threadId: 'thread',
+    runtimeId: 'runtime',
+    sandboxSessionId: 'session',
+    revision: args.revision,
+    phase: args.phase,
+    reportedAt: '2026-10-01T00:00:00.000Z',
     transcript: { head: args.revision, count: args.revision, digest: 'a'.repeat(64) },
   })
 
 const gate = () => {
   let open = (): void => undefined
-  const done = new Promise<void>((resolve) => { open = resolve })
+  const done = new Promise<void>((resolve) => {
+    open = resolve
+  })
   return { done, open }
 }
 
@@ -26,12 +32,17 @@ describe('serve checkpoint lifecycle binding', () => {
     let revision = 0
     const binding = bindRuntimeCheckpoint({
       log: () => undefined,
-      publish: (value) => { published.push(value) },
+      publish: (value) => {
+        published.push(value)
+      },
       capture: {
         capture: async ({ phase }) => {
           revision += 1
           phases.push(phase)
-          if (revision === 2) { entered.open(); await held.done }
+          if (revision === 2) {
+            entered.open()
+            await held.done
+          }
           return checkpoint({ phase, revision })
         },
         flush: async () => undefined,
@@ -89,7 +100,10 @@ describe('serve checkpoint lifecycle binding', () => {
         capture: async ({ phase }) => {
           revision += 1
           phases.push(phase)
-          if (revision === 2) { entered.open(); await held.done }
+          if (revision === 2) {
+            entered.open()
+            await held.done
+          }
           return checkpoint({ phase, revision })
         },
         flush: async () => undefined,
@@ -105,7 +119,12 @@ describe('serve checkpoint lifecycle binding', () => {
     await parkBegan
     binding.running()
     await binding.finalizePark()
-    expect(phases).toEqual([ERuntimePhase.Serving, ERuntimePhase.Serving, ERuntimePhase.Parking, ERuntimePhase.Parked])
+    expect(phases).toEqual([
+      ERuntimePhase.Serving,
+      ERuntimePhase.Serving,
+      ERuntimePhase.Parking,
+      ERuntimePhase.Parked,
+    ])
   })
 
   it('resumes Serving captures after a refused park reopens', async () => {
@@ -131,14 +150,21 @@ describe('serve checkpoint lifecycle binding', () => {
     binding.running()
     await Promise.resolve()
     await Promise.resolve()
-    expect(phases).toEqual([ERuntimePhase.Serving, ERuntimePhase.Parking, ERuntimePhase.Serving, ERuntimePhase.Serving])
+    expect(phases).toEqual([
+      ERuntimePhase.Serving,
+      ERuntimePhase.Parking,
+      ERuntimePhase.Serving,
+      ERuntimePhase.Serving,
+    ])
   })
 
   it('keeps checkpoint absent when the runtime cannot produce a valid identity', async () => {
     const published: RuntimeCheckpoint[] = []
     const binding = bindRuntimeCheckpoint({
       log: () => undefined,
-      publish: (value) => { published.push(value) },
+      publish: (value) => {
+        published.push(value)
+      },
       capture: {
         capture: async () => null,
         flush: async () => undefined,
@@ -163,10 +189,14 @@ describe('serve checkpoint lifecycle binding', () => {
           revision += 1
           phases.push(phase)
           if (phase === ERuntimePhase.Updating) {
-            if (resume === undefined) throw new Error('the updating seal must carry its resume payload')
+            if (resume === undefined)
+              throw new Error('the updating seal must carry its resume payload')
             const base = {
-              threadId: 'thread', runtimeId: 'runtime', sandboxSessionId: 'session',
-              revision, phase: ERuntimePhase.Updating as const,
+              threadId: 'thread',
+              runtimeId: 'runtime',
+              sandboxSessionId: 'session',
+              revision,
+              phase: ERuntimePhase.Updating as const,
               reportedAt: '2026-10-01T00:00:00.000Z',
               transcript: { head: revision, count: revision, digest: 'a'.repeat(64) },
             }
@@ -185,7 +215,9 @@ describe('serve checkpoint lifecycle binding', () => {
           }
           return checkpoint({ phase, revision })
         },
-        flush: async () => { flushed += 1 },
+        flush: async () => {
+          flushed += 1
+        },
         consumeReceipt: async () => undefined,
       },
     })
@@ -206,8 +238,14 @@ describe('serve checkpoint lifecycle binding', () => {
     const binding = bindRuntimeCheckpoint({
       log: () => undefined,
       publish: () => undefined,
-      capture: { capture: async () => null, flush: async () => undefined, consumeReceipt: async () => undefined },
+      capture: {
+        capture: async () => null,
+        flush: async () => undefined,
+        consumeReceipt: async () => undefined,
+      },
     })
-    await expect(binding.finalizeRotation({ resume: { parent: true } })).rejects.toThrow('no final rotation checkpoint')
+    await expect(binding.finalizeRotation({ resume: { parent: true } })).rejects.toThrow(
+      'no final rotation checkpoint',
+    )
   })
 })

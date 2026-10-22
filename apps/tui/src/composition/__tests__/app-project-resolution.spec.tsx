@@ -7,19 +7,38 @@ import { NO_PROJECTS_HINT } from '../../ui/components/project-prompt'
 import { NO_WORKSPACE_LABEL } from '../../ui/project-prompt-model'
 import { theme } from '../../ui/theme'
 import { until } from './app-fixture'
-import { bornThreadApp, fakeProjectsApi, mountUnborn, projectOf, type MountedUnborn } from './born-thread-fixture'
+import {
+  bornThreadApp,
+  fakeProjectsApi,
+  mountUnborn,
+  projectOf,
+  type MountedUnborn,
+} from './born-thread-fixture'
 
 await grammarsReady()
 
 afterEach(() => dismissNotice())
 
 const OTHER = [
-  projectOf({ id: 'proj-old', name: 'stale-proj', repo: 'acme/stale-proj', updatedAt: '2026-02-01T00:00:00.000Z' }),
-  projectOf({ id: 'proj-new', name: 'fresh-proj', repo: null, updatedAt: '2026-03-01T00:00:00.000Z' }),
+  projectOf({
+    id: 'proj-old',
+    name: 'stale-proj',
+    repo: 'acme/stale-proj',
+    updatedAt: '2026-02-01T00:00:00.000Z',
+  }),
+  projectOf({
+    id: 'proj-new',
+    name: 'fresh-proj',
+    repo: null,
+    updatedAt: '2026-03-01T00:00:00.000Z',
+  }),
 ]
 
 const noticeNaming = (text: string): Promise<boolean> =>
-  until({ holds: async () => currentNotices().some((notice) => notice.text.includes(text)), within: 20_000 })
+  until({
+    holds: async () => currentNotices().some((notice) => notice.text.includes(text)),
+    within: 20_000,
+  })
 
 const born = (mounted: MountedUnborn): Promise<boolean> =>
   until({ holds: async () => mounted.bridge.created.length > 0, within: 20_000 })
@@ -51,7 +70,9 @@ describe('resolving a project on the first send', () => {
     try {
       await mounted.command('make one')
 
-      expect(await mounted.frameHolds((frame) => frame.includes('CREATE A PROJECT FOR THIS REPOSITORY'))).toBe(true)
+      expect(
+        await mounted.frameHolds((frame) => frame.includes('CREATE A PROJECT FOR THIS REPOSITORY')),
+      ).toBe(true)
       const shown = await mounted.frame()
       expect(shown).toContain('acme/widgets')
       expect(shown).toContain('widgets')
@@ -62,7 +83,9 @@ describe('resolving a project on the first send', () => {
       mounted.input.pressEnter()
 
       expect(await born(mounted)).toBe(true)
-      expect(api.created).toEqual([{ name: 'widgets', repo: 'acme/widgets', baseBranch: 'main', additionalRepos: [] }])
+      expect(api.created).toEqual([
+        { name: 'widgets', repo: 'acme/widgets', baseBranch: 'main', additionalRepos: [] },
+      ])
       expect(mounted.bridge.created.map((made) => made.projectId)).toEqual(['proj-new'])
     } finally {
       await mounted.done()
@@ -86,7 +109,9 @@ describe('resolving a project on the first send', () => {
       mounted.input.pressEnter()
 
       expect(await born(mounted)).toBe(true)
-      expect(api.created).toEqual([{ name: 'Acme Web', repo: 'acme/widgets', baseBranch: 'develop', additionalRepos: [] }])
+      expect(api.created).toEqual([
+        { name: 'Acme Web', repo: 'acme/widgets', baseBranch: 'develop', additionalRepos: [] },
+      ])
     } finally {
       await mounted.done()
     }
@@ -118,7 +143,9 @@ describe('resolving a project on the first send', () => {
     try {
       await mounted.command('where to')
 
-      expect(await mounted.frameHolds((frame) => frame.includes('RUN THIS THREAD IN A PROJECT'))).toBe(true)
+      expect(
+        await mounted.frameHolds((frame) => frame.includes('RUN THIS THREAD IN A PROJECT')),
+      ).toBe(true)
       const shown = await mounted.frame()
       expect(shown.indexOf('fresh-proj')).toBeGreaterThan(-1)
       expect(shown.indexOf('fresh-proj')).toBeLessThan(shown.indexOf('stale-proj'))
@@ -130,7 +157,9 @@ describe('resolving a project on the first send', () => {
   }, 60_000)
 
   it('births with a null project when No workspace is chosen', async () => {
-    const mounted = await mountUnborn({ app: bornThreadApp({ api: fakeProjectsApi({ projects: OTHER }), origin: null }) })
+    const mounted = await mountUnborn({
+      app: bornThreadApp({ api: fakeProjectsApi({ projects: OTHER }), origin: null }),
+    })
 
     try {
       await mounted.command('no project')
@@ -149,7 +178,12 @@ describe('resolving a project on the first send', () => {
   }, 60_000)
 
   it('births on the chosen project when a row is picked', async () => {
-    const mounted = await mountUnborn({ app: bornThreadApp({ api: fakeProjectsApi({ projects: OTHER }), origin: 'https://gitlab.com/acme/widgets.git' }) })
+    const mounted = await mountUnborn({
+      app: bornThreadApp({
+        api: fakeProjectsApi({ projects: OTHER }),
+        origin: 'https://gitlab.com/acme/widgets.git',
+      }),
+    })
 
     try {
       await mounted.command('pick one')
@@ -167,7 +201,9 @@ describe('resolving a project on the first send', () => {
   }, 60_000)
 
   it('shows only No workspace and the hint when the account has no projects, and Esc restores the draft', async () => {
-    const mounted = await mountUnborn({ app: bornThreadApp({ api: fakeProjectsApi({ projects: [] }), origin: null }) })
+    const mounted = await mountUnborn({
+      app: bornThreadApp({ api: fakeProjectsApi({ projects: [] }), origin: null }),
+    })
 
     try {
       await mounted.command('empty')
@@ -199,7 +235,9 @@ describe('resolving a project on the first send', () => {
   }, 60_000)
 
   it('washes the project row under the pointer', async () => {
-    const mounted = await mountUnborn({ app: bornThreadApp({ api: fakeProjectsApi({ projects: OTHER }), origin: null }) })
+    const mounted = await mountUnborn({
+      app: bornThreadApp({ api: fakeProjectsApi({ projects: OTHER }), origin: null }),
+    })
 
     try {
       await mounted.command('hover')
@@ -211,7 +249,12 @@ describe('resolving a project on the first send', () => {
       expect(row).toBeGreaterThan(0)
 
       const groundAt = (): unknown => {
-        const painted = mounted.paintedLines() as unknown as { lines: ({ spans: { text: string; bg: { equals: (other: unknown) => boolean } }[] } | undefined)[] }
+        const painted = mounted.paintedLines() as unknown as {
+          lines: (
+            | { spans: { text: string; bg: { equals: (other: unknown) => boolean } }[] }
+            | undefined
+          )[]
+        }
         let at = 0
         for (const span of painted.lines[row]?.spans ?? []) {
           const width = [...span.text].length

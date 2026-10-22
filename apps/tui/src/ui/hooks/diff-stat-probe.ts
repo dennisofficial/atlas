@@ -7,10 +7,7 @@ import { parseShortStat, type DiffStat } from '../header-bar'
 
 export type DiffStatProbe = (args: { directory: string }) => Promise<DiffStat | null>
 
-export type GitRunner = (args: {
-  args: readonly string[]
-  cwd: string
-}) => Promise<GitRun>
+export type GitRunner = (args: { args: readonly string[]; cwd: string }) => Promise<GitRun>
 
 // git's well-known empty tree, the only tree hash that exists in every repository — the diff
 // base for a repository whose HEAD does not resolve yet.

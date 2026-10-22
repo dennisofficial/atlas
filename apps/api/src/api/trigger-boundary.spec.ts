@@ -47,7 +47,9 @@ describe('trigger.dev boundary', () => {
   it('lets only the dispatcher adapter import the trigger.dev SDK in src/api and src/_lib', () => {
     const offenders = SDK_SCOPES.flatMap((dir) => listTsFiles({ dir }))
       .filter((file) => file !== SDK_ADAPTER)
-      .filter((file) => specifiersOf({ file }).some((specifier) => specifier.startsWith('@trigger.dev/')))
+      .filter((file) =>
+        specifiersOf({ file }).some((specifier) => specifier.startsWith('@trigger.dev/')),
+      )
       .map((file) => relative({ file }))
     expect(offenders, 'inject JobDispatcher instead of calling the SDK').toEqual([])
   })

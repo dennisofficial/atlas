@@ -29,11 +29,17 @@ const ticket: CloudLoginTicket = {
   intervalMs: 1_000,
 }
 
-const setup = (handoffOauth: (session: CloudSession) => Promise<void>, accounts?: AccountStorePort) => {
+const setup = (
+  handoffOauth: (session: CloudSession) => Promise<void>,
+  accounts?: AccountStorePort,
+) => {
   const directory = mkdtempSync(join(tmpdir(), 'atlas-oauth-signin-'))
   directories.push(directory)
   process.env['ATLAS_HOME'] = directory
-  const sessions = new CloudSessionStore({ file: join(directory, 'cloud.json'), keyFile: join(directory, 'key') })
+  const sessions = new CloudSessionStore({
+    file: join(directory, 'cloud.json'),
+    keyFile: join(directory, 'key'),
+  })
   const local = memoryAccountStore({ clock })
   const fetchFn: typeof fetch = Object.assign(
     async () => Response.json({ user: { email: 'native@example.test' } }),
@@ -56,7 +62,11 @@ afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
 })
 
-const birth = { threadId: toThreadId('oauth-root'), token: 'fake-sandbox', serveUrl: 'https://sandbox.vercel.run' }
+const birth = {
+  threadId: toThreadId('oauth-root'),
+  token: 'fake-sandbox',
+  serveUrl: 'https://sandbox.vercel.run',
+}
 
 const addNativeOauth = (accounts: AccountStorePort) =>
   accounts.add({
@@ -65,7 +75,11 @@ const addNativeOauth = (accounts: AccountStorePort) =>
     label: 'native',
     secret: {
       kind: EAuthKind.Oauth,
-      tokens: { accessToken: 'fake-access', refreshToken: '', expiresAt: '2026-10-05T13:00:00.000Z' },
+      tokens: {
+        accessToken: 'fake-access',
+        refreshToken: '',
+        expiresAt: '2026-10-05T13:00:00.000Z',
+      },
       authority: { url: ticket.url, connectionId: 'oauth-native' },
     },
   })
@@ -98,7 +112,9 @@ describe('CloudService prepareSandboxOauth account store', () => {
 describe('CloudService OAuth activation', () => {
   it('persists the authenticated session before handing off OAuth and waits for completion', async () => {
     let release: (() => void) | undefined
-    const gate = new Promise<void>((resolve) => { release = resolve })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
     const calls: CloudSession[] = []
     let sessionStore: CloudSessionStore | undefined
     const { service, sessions } = setup(async (session) => {
@@ -108,18 +124,26 @@ describe('CloudService OAuth activation', () => {
     })
     sessionStore = sessions
     let complete = false
-    const login = service.finishLogin({ ticket, token: 'fake-session' }).then(() => { complete = true })
+    const login = service.finishLogin({ ticket, token: 'fake-session' }).then(() => {
+      complete = true
+    })
     await Promise.resolve()
     await Promise.resolve()
     expect(complete).toBe(false)
     release?.()
     await login
-    expect(calls).toEqual([{ url: ticket.url, token: 'fake-session', email: 'native@example.test' }])
+    expect(calls).toEqual([
+      { url: ticket.url, token: 'fake-session', email: 'native@example.test' },
+    ])
   })
 
   it('keeps the confirmed session available when a handoff fails so the pending grant can retry', async () => {
-    const { service, sessions } = setup(async () => { throw new Error('handoff unavailable') })
-    await expect(service.finishLogin({ ticket, token: 'fake-session' })).rejects.toThrow('handoff unavailable')
+    const { service, sessions } = setup(async () => {
+      throw new Error('handoff unavailable')
+    })
+    await expect(service.finishLogin({ ticket, token: 'fake-session' })).rejects.toThrow(
+      'handoff unavailable',
+    )
     expect(sessions.read()?.token).toBe('fake-session')
   })
 

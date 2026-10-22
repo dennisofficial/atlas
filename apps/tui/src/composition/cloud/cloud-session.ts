@@ -34,13 +34,24 @@ export type CloudSession = {
 
 const sameHealth = (left: CloudHealth, right: CloudHealth): boolean =>
   sameConnectionView({ left: left.view, right: right.view }) &&
-  left.stale === right.stale && left.lastSeenAt === right.lastSeenAt && left.failure === right.failure
+  left.stale === right.stale &&
+  left.lastSeenAt === right.lastSeenAt &&
+  left.failure === right.failure
 
-const NOTHING_TO_WAKE: ReadonlySet<EConnectionView> = new Set([EConnectionView.Connected, EConnectionView.Detached])
+const NOTHING_TO_WAKE: ReadonlySet<EConnectionView> = new Set([
+  EConnectionView.Connected,
+  EConnectionView.Detached,
+])
 
-const DIALING: ReadonlySet<EConnectionView> = new Set([EConnectionView.Waking, EConnectionView.Updating])
+const DIALING: ReadonlySet<EConnectionView> = new Set([
+  EConnectionView.Waking,
+  EConnectionView.Updating,
+])
 
-const RESTING_PHASES: ReadonlySet<ERuntimePhase> = new Set([ERuntimePhase.Parked, ERuntimePhase.Parking])
+const RESTING_PHASES: ReadonlySet<ERuntimePhase> = new Set([
+  ERuntimePhase.Parked,
+  ERuntimePhase.Parking,
+])
 
 const wakeFailureOf = (error: unknown): string => `the pod could not be woken — ${messageOf(error)}`
 
@@ -102,22 +113,26 @@ export function createCloudSession(args: {
     const request = reloadEpoch
     resyncing = true
     let retryScheduled = false
-    void args.onReload(reload).catch(() => {
-      // A resync can fail before it lands — the birth's binding is still committing when the
-      // serve's greeting reload arrives, so the TUI's handler rejects. Dropping the reload here
-      // would leave the open socket dimmed forever, so it goes back on the pending slot for a
-      // settle-timed retry — never an immediate re-flush, which would spin on a persistently
-      // rejecting handler.
-      if (closed || attachment !== connectionEpoch || request !== reloadEpoch) return
-      if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq) pendingReload = reload
-      scheduleRetry()
-      retryScheduled = true
-    }).finally(() => {
-      resyncing = false
-      if (closed) return
-      sync()
-      if (!retryScheduled) flushReload()
-    })
+    void args
+      .onReload(reload)
+      .catch(() => {
+        // A resync can fail before it lands — the birth's binding is still committing when the
+        // serve's greeting reload arrives, so the TUI's handler rejects. Dropping the reload here
+        // would leave the open socket dimmed forever, so it goes back on the pending slot for a
+        // settle-timed retry — never an immediate re-flush, which would spin on a persistently
+        // rejecting handler.
+        if (closed || attachment !== connectionEpoch || request !== reloadEpoch) return
+        if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq)
+          pendingReload = reload
+        scheduleRetry()
+        retryScheduled = true
+      })
+      .finally(() => {
+        resyncing = false
+        if (closed) return
+        sync()
+        if (!retryScheduled) flushReload()
+      })
   }
 
   const wake = (): void => {
@@ -126,14 +141,22 @@ export function createCloudSession(args: {
     if (NOTHING_TO_WAKE.has(state)) return
     if (DIALING.has(state) && channel.attachment() !== undefined) return
     channel.beginWake()
-    waking = args.wake().catch((error: unknown) => {
-      if (closed) return
-      const reason = wakeFailureOf(error)
-      channel.failWake({ reason })
-      notify({ key: CLOUD_WAKE_FAILED_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
-    }).finally(() => {
-      waking = null
-    })
+    waking = args
+      .wake()
+      .catch((error: unknown) => {
+        if (closed) return
+        const reason = wakeFailureOf(error)
+        channel.failWake({ reason })
+        notify({
+          key: CLOUD_WAKE_FAILED_NOTICE_KEY,
+          text: reason,
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+        })
+      })
+      .finally(() => {
+        waking = null
+      })
   }
 
   const settleOpen = (): void => {
@@ -159,7 +182,8 @@ export function createCloudSession(args: {
   })
   const unsubscribeReload = channel.onReload((reload) => {
     reloadEpoch += 1
-    if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq) pendingReload = reload
+    if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq)
+      pendingReload = reload
     sync()
     flushReload()
   })
@@ -172,9 +196,10 @@ export function createCloudSession(args: {
     failure = null
     sync()
   })
-  const unsubscribeApplied = args.subscribeApplied?.(() => {
-    if (!closed) sync()
-  }) ?? (() => undefined)
+  const unsubscribeApplied =
+    args.subscribeApplied?.(() => {
+      if (!closed) sync()
+    }) ?? (() => undefined)
 
   return {
     threadId: channel.threadId,
@@ -182,7 +207,9 @@ export function createCloudSession(args: {
     health: () => held,
     subscribe(listener) {
       listeners.add(listener)
-      return () => { listeners.delete(listener) }
+      return () => {
+        listeners.delete(listener)
+      }
     },
     reconnect: () => channel.reconnect(),
     wake,

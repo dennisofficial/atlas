@@ -16,7 +16,12 @@ export type RunManifest = {
   model: { requested: string; promotable: boolean }
   enabledPolicyIds: readonly string[]
   batchMode: 'batched' | 'per-policy-split'
-  planned: { uniqueCases: number; trialsPerCase: number; variants: readonly string[]; rows: readonly PlannedRow[] }
+  planned: {
+    uniqueCases: number
+    trialsPerCase: number
+    variants: readonly string[]
+    rows: readonly PlannedRow[]
+  }
   deadlineMs: number
   concurrency: number
   cacheDisabled: boolean

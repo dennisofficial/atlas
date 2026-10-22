@@ -115,19 +115,22 @@ export class RefreshingCredentialPort extends CredentialPort {
     const inFlight = this.refreshing.get(stored.id)
     if (inFlight !== undefined) return inFlight
 
-    const work = this.accounts.withAccountLock({
-      accountId: stored.id,
-      run: async () => {
-        const current = await this.accounts.read(stored.id)
-        if (current === undefined) throw this.noAccount(stored.provider, ENoAccountReason.NoneForProvider)
-        const decision = this.decisionFor(current)
-        if (decision === ERefresh.Fresh) return current
-        if (decision === ERefresh.Unrefreshable) throw this.expired(current)
-        return this.refresh(current)
-      },
-    }).finally(() => {
-      this.refreshing.delete(stored.id)
-    })
+    const work = this.accounts
+      .withAccountLock({
+        accountId: stored.id,
+        run: async () => {
+          const current = await this.accounts.read(stored.id)
+          if (current === undefined)
+            throw this.noAccount(stored.provider, ENoAccountReason.NoneForProvider)
+          const decision = this.decisionFor(current)
+          if (decision === ERefresh.Fresh) return current
+          if (decision === ERefresh.Unrefreshable) throw this.expired(current)
+          return this.refresh(current)
+        },
+      })
+      .finally(() => {
+        this.refreshing.delete(stored.id)
+      })
     this.refreshing.set(stored.id, work)
 
     return work
@@ -212,6 +215,9 @@ export class RefreshingCredentialPort extends CredentialPort {
         ? 'Atlas holds no accounts.'
         : `Atlas holds no ${label} account.`
 
-    return new CredentialError({ failure: ECredentialFailure.NotFound, message: `${detail} ${SIGN_IN}` })
+    return new CredentialError({
+      failure: ECredentialFailure.NotFound,
+      message: `${detail} ${SIGN_IN}`,
+    })
   }
 }

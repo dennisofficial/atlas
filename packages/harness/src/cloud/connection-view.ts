@@ -29,7 +29,10 @@ export type ConnectionFacts = {
   detached: boolean
 }
 
-const view = (state: EConnectionView, detail: string | null = null): ConnectionView => ({ state, detail })
+const view = (state: EConnectionView, detail: string | null = null): ConnectionView => ({
+  state,
+  detail,
+})
 
 const UPDATING_DETAIL = 'updating the pod'
 
@@ -39,7 +42,9 @@ const restingPhase = (phase: ERuntimePhase | null): boolean =>
 export function connectionViewOf(facts: ConnectionFacts): ConnectionView {
   if (facts.detached) return view(EConnectionView.Detached)
   if (facts.socket === ESocketLiveness.Open) {
-    return facts.phase === ERuntimePhase.Parked ? view(EConnectionView.Parked) : view(EConnectionView.Connected)
+    return facts.phase === ERuntimePhase.Parked
+      ? view(EConnectionView.Parked)
+      : view(EConnectionView.Connected)
   }
   if (facts.rotating) return view(EConnectionView.Updating, UPDATING_DETAIL)
   if (facts.waking) return view(EConnectionView.Waking)
@@ -53,8 +58,10 @@ export function connectionViewOf(facts: ConnectionFacts): ConnectionView {
   return view(EConnectionView.Reconnecting)
 }
 
-export const sameConnectionView = (args: { left: ConnectionView; right: ConnectionView }): boolean =>
-  args.left.state === args.right.state && args.left.detail === args.right.detail
+export const sameConnectionView = (args: {
+  left: ConnectionView
+  right: ConnectionView
+}): boolean => args.left.state === args.right.state && args.left.detail === args.right.detail
 
 const WAKES_ON_SEND: ReadonlySet<EConnectionView> = new Set([
   EConnectionView.Parked,

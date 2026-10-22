@@ -73,7 +73,9 @@ describe('AnthropicUsageClient', () => {
 
     await client.read({ accountId: ACCOUNT })
 
-    expect(credentials.requests).toEqual([{ provider: EAuthProvider.Anthropic, accountId: ACCOUNT }])
+    expect(credentials.requests).toEqual([
+      { provider: EAuthProvider.Anthropic, accountId: ACCOUNT },
+    ])
   })
 
   it('scopes the credential read to the Anthropic provider when no account is named', async () => {
@@ -128,7 +130,8 @@ describe('AnthropicUsageClient', () => {
 
   it('goes quiet rather than failing when the body is not json', async () => {
     const client = clientOf({
-      fetch: (async () => new Response('&lt;html&gt;', { status: 200 })) as unknown as typeof globalThis.fetch,
+      fetch: (async () =>
+        new Response('&lt;html&gt;', { status: 200 })) as unknown as typeof globalThis.fetch,
     })
     expect(await client.read({ accountId: ACCOUNT })).toBeNull()
   })

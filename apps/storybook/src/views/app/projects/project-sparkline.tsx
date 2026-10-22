@@ -1,13 +1,13 @@
-import { Area, AreaChart, YAxis } from "recharts";
+import { Area, AreaChart, YAxis } from 'recharts'
 
-import { ChartContainer, type ChartConfig } from "@dltech/atlas-ui/components/chart";
+import { ChartContainer, type ChartConfig } from '@dltech/atlas-ui/components/chart'
 
 const CONFIG: ChartConfig = {
-  activity: { label: "Activity", color: "var(--success)" },
-};
+  activity: { label: 'Activity', color: 'var(--success)' },
+}
 
 export function ProjectSparkline({ series, label }: { series: number[]; label: string }) {
-  const data = series.map((value, index) => ({ index, value }));
+  const data = series.map((value, index) => ({ index, value }))
   return (
     <ChartContainer
       config={CONFIG}
@@ -17,7 +17,7 @@ export function ProjectSparkline({ series, label }: { series: number[]; label: s
       aria-label={label}
     >
       <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
-        <YAxis hide domain={[0, "dataMax"]} />
+        <YAxis hide domain={[0, 'dataMax']} />
         <Area
           dataKey="value"
           type="monotone"
@@ -30,5 +30,5 @@ export function ProjectSparkline({ series, label }: { series: number[]; label: s
         />
       </AreaChart>
     </ChartContainer>
-  );
+  )
 }

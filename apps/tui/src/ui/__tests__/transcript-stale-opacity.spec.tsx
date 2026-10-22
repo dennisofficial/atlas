@@ -31,9 +31,7 @@ const entryOpacities = async (stale: boolean): Promise<Map<string, number>> => {
     const nodes: Node[] = []
     walk(setup.renderer.root, nodes)
     const keys = new Set(SETTLED.entries.map((entry) => entry.key))
-    return new Map(
-      nodes.filter((node) => keys.has(node.id)).map((node) => [node.id, node.opacity]),
-    )
+    return new Map(nodes.filter((node) => keys.has(node.id)).map((node) => [node.id, node.opacity]))
   } finally {
     await teardown(setup)
   }

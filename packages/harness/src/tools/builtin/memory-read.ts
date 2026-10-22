@@ -1,4 +1,10 @@
-import { EToolEffect, SchemaTool, TAKES_NO_PATHS, type ToolOutcome, type ToolRun } from '@dltech/atlas-core'
+import {
+  EToolEffect,
+  SchemaTool,
+  TAKES_NO_PATHS,
+  type ToolOutcome,
+  type ToolRun,
+} from '@dltech/atlas-core'
 import { EMemoryScope, MEMORY_NAME_PATTERN } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
@@ -14,7 +20,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Read the full body of one memory listed in the memory index.',
   'The scope is global or project, and the name is the one shown in the index.',
-  'The result starts with the memory\'s revision, which edit_memory needs.',
+  "The result starts with the memory's revision, which edit_memory needs.",
 ].join(' ')
 
 export class ReadMemoryTool extends SchemaTool<typeof inputSchema> {
@@ -35,7 +41,13 @@ export class ReadMemoryTool extends SchemaTool<typeof inputSchema> {
       if (entry === null) return { ok: false, reason: `there is no ${addressLabelOf(input)}` }
       return {
         ok: true,
-        output: { scope: input.scope, name: entry.name, type: entry.type, revision: entry.revision, lines: entry.body.split('\n').length },
+        output: {
+          scope: input.scope,
+          name: entry.name,
+          type: entry.type,
+          revision: entry.revision,
+          lines: entry.body.split('\n').length,
+        },
         modelText: `${entry.name} (${scopeLabelOf(entry.scope)}, ${entry.type}, revision ${entry.revision})\n${entry.description}\n\n${entry.body}`,
       }
     } catch (error) {

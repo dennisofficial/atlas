@@ -126,7 +126,8 @@ describe('scheme lexical highlighting', () => {
   })
 
   it('reads radix-prefixed, exactness-prefixed and signed hash numbers whole', () => {
-    const hashed = '(display #xff) (display #b1010) (display #e-1.5) (display #x-1f) (display #i1/3)'
+    const hashed =
+      '(display #xff) (display #b1010) (display #e-1.5) (display #x-1f) (display #i1/3)'
     expect(textFor({ spec, source: hashed, group: 'number' })).toEqual([
       '#xff',
       '#b1010',

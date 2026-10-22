@@ -75,7 +75,7 @@ describe("marking a thread's children relocated", () => {
     expect(stored?.executionLocation).toBe(EExecutionLocation.Cloud)
   })
 
-  it("leaves the children of every other thread exactly where they are", async () => {
+  it('leaves the children of every other thread exactly where they are', async () => {
     const sink = new FakeLocationSink()
     const entry = await openSupervisor({ sink })
     opened.push(entry)

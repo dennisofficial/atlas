@@ -124,10 +124,22 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   }
 
   const { intake, recordTeardownEndings } = bindIntake({
-    pending, shells, agents, services, log, ids, stopSandbox: args.stopSandbox, logPort, pluginSources: args.pluginSources,
+    pending,
+    shells,
+    agents,
+    services,
+    log,
+    ids,
+    stopSandbox: args.stopSandbox,
+    logPort,
+    pluginSources: args.pluginSources,
   })
 
-  const { runningShells, runningAgents, runningServices } = turnBackgroundState({ agents, shells, services })
+  const { runningShells, runningAgents, runningServices } = turnBackgroundState({
+    agents,
+    shells,
+    services,
+  })
   const compiledPrompt = ({ projectDirectory }: { projectDirectory: string }) =>
     prompts.compile(
       promptContextFor({
@@ -218,7 +230,8 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       tools: container.resolve(registeredPortToken(ToolRegistry)),
       hooks: container.resolve(HookChainToken),
       quality: container.isRegistered(registeredPortToken(QualityReviewPort), true)
-        ? container.resolve(registeredPortToken(QualityReviewPort)) : undefined,
+        ? container.resolve(registeredPortToken(QualityReviewPort))
+        : undefined,
       channel: args.channel,
       drainNotices: (request) => intake.prepare(request),
       intake,
@@ -236,7 +249,10 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
               agentType,
               agent: isTeammateType(agentType.name) ? EPromptAgent.Main : EPromptAgent.Sub,
               provider: childModel.identity,
-              model: { contextWindow: contextWindowOf(childModel) || promptModelOf(undefined).contextWindow },
+              model: {
+                contextWindow:
+                  contextWindowOf(childModel) || promptModelOf(undefined).contextWindow,
+              },
               projectDirectory,
               placement: executionLocation.current(),
             }),
@@ -258,7 +274,10 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const runner = ((): TurnRunner => {
     const publishing = new PublishingTurnRunner({ channel: args.channel, deps: turn })
     const feed = args.tldr.feed
-    if (feed === undefined || !toggleValueOf({ resolution: args.settled, id: ESettingId.TldrFooter })) {
+    if (
+      feed === undefined ||
+      !toggleValueOf({ resolution: args.settled, id: ESettingId.TldrFooter })
+    ) {
       return publishing
     }
 

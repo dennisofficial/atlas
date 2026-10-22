@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { worktreeLabel } from '../sandbox'
-import { removeTestSandboxes, uniqueTestPrefix, type TestCleanupEngine } from './docker-test-cleanup'
+import {
+  removeTestSandboxes,
+  uniqueTestPrefix,
+  type TestCleanupEngine,
+} from './docker-test-cleanup'
 
 type Call = string
 

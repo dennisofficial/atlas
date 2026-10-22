@@ -129,9 +129,9 @@ describe('NestedInstructionsHook', () => {
       input: { path: join(root, 'packages/core/src/foo.ts') },
     })
 
-    expect(outcome.drafts?.map((draft) => draft.type === 'context-loaded' && draft.content)).toEqual(
-      ['packages', 'core'],
-    )
+    expect(
+      outcome.drafts?.map((draft) => draft.type === 'context-loaded' && draft.content),
+    ).toEqual(['packages', 'core'])
   })
 
   it('stays silent for a touched file the project descent already covers', async () => {

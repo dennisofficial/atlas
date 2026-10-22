@@ -53,9 +53,7 @@ export function shellsLifecycle(events: readonly Event[]): ShellLifecycle[] {
 }
 
 export const lostShellsOf = (events: readonly Event[]): ShellLifecycle[] =>
-  shellsLifecycle(events).filter(
-    (lifecycle) => lifecycle.state === EShellLifecycleState.Lost,
-  )
+  shellsLifecycle(events).filter((lifecycle) => lifecycle.state === EShellLifecycleState.Lost)
 
 export const endedShellKeysOf = (events: readonly Event[]): ReadonlySet<string> =>
   endedKeysOf(events, shellLifecycleKind)
@@ -83,11 +81,15 @@ const isShellNotice = (event: Event): event is ShellNotice =>
 const progressBootOf = (event: Exclude<ShellNotice, EndedShell>): string | undefined =>
   event.type === 'background-shell-still-running' ? undefined : event.bootId
 
-export function shellEventContextsOf(events: readonly Event[]): ReadonlyMap<EventId, ShellEventContext> {
+export function shellEventContextsOf(
+  events: readonly Event[],
+): ReadonlyMap<EventId, ShellEventContext> {
   const lifecycles = shellsLifecycle(events)
   const lifecycleByStart = new Map(lifecycles.map((lifecycle) => [lifecycle.started.id, lifecycle]))
   const lifecycleByEnding = new Map(
-    lifecycles.flatMap((lifecycle) => (lifecycle.ending === undefined ? [] : [[lifecycle.ending.id, lifecycle] as const])),
+    lifecycles.flatMap((lifecycle) =>
+      lifecycle.ending === undefined ? [] : [[lifecycle.ending.id, lifecycle] as const],
+    ),
   )
 
   const startsByShell = new Map<string, StartedShell[]>()
@@ -106,7 +108,8 @@ export function shellEventContextsOf(events: readonly Event[]): ReadonlyMap<Even
     if (event.type === 'background-shell-ended') {
       seenEndings.add(event.id)
       const paired = lifecycleByEnding.get(event.id)
-      if (paired === undefined) orphanEndings.set(event.shellId, [...(orphanEndings.get(event.shellId) ?? []), event])
+      if (paired === undefined)
+        orphanEndings.set(event.shellId, [...(orphanEndings.get(event.shellId) ?? []), event])
       contexts.set(event.id, { started: paired?.started })
       continue
     }

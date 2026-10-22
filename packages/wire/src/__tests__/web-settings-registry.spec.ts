@@ -101,8 +101,12 @@ describe('cloud setting registry', () => {
 
 describe('workspace setting registry', () => {
   it('validates known keys and rejects unknown ones', () => {
-    expect(validateWorkspaceSetting({ key: 'workspace.defaultRegion', stored: stored('fra1') }).ok).toBe(true)
-    expect(validateWorkspaceSetting({ key: 'workspace.defaultRegion', stored: stored('mars1') }).ok).toBe(false)
+    expect(
+      validateWorkspaceSetting({ key: 'workspace.defaultRegion', stored: stored('fra1') }).ok,
+    ).toBe(true)
+    expect(
+      validateWorkspaceSetting({ key: 'workspace.defaultRegion', stored: stored('mars1') }).ok,
+    ).toBe(false)
     expect(validateWorkspaceSetting({ key: 'model.id', stored: stored('x') }).ok).toBe(false)
   })
 })

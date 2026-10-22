@@ -40,7 +40,12 @@ const countingDeps = (args: {
 }) => {
   const calls = { claims: 0, fetches: 0 }
   const deps: WhatsNewDeps = {
-    build: () => ({ kind: EBuildKind.Release, version: '1.32.1', releaseRepo: 'owner/atlas', buildSha: null }),
+    build: () => ({
+      kind: EBuildKind.Release,
+      version: '1.32.1',
+      releaseRepo: 'owner/atlas',
+      buildSha: null,
+    }),
     home: () => process.env.ATLAS_HOME ?? '',
     claim: async () => {
       calls.claims += 1
@@ -56,16 +61,26 @@ const countingDeps = (args: {
   return { deps, calls }
 }
 
-const mount = async (whatsNewDeps: WhatsNewDeps, placement: { cloud: boolean } = { cloud: false }) => {
+const mount = async (
+  whatsNewDeps: WhatsNewDeps,
+  placement: { cloud: boolean } = { cloud: false },
+) => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-whats-new-spec-'))
   const previousHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home
-  const app = fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing', reply: 'done' } }) })
+  const app = fakeApp({
+    model: scriptedModelPort({ script: { thinking: 'weighing', reply: 'done' } }),
+  })
   const disk = new FakeSessionDisk(home)
   app.log.mirrorTo(disk)
   app.threads.mirrorTo(disk)
   const bridge = fakeBridge()
-  bridge.sourceStores({ log: app.log, threads: app.threads, workspace: app.workspace.workspace, disk })
+  bridge.sourceStores({
+    log: app.log,
+    threads: app.threads,
+    workspace: app.workspace.workspace,
+    disk,
+  })
   const opened = placement.cloud ? await cloudOpened({ app, bridge }) : await spokenIn(app)
   await disk.writeSessionMeta({ threadId: opened.threadId })
   await disk.stampProvenance({ threadId: opened.threadId, archiveDigest: null })
@@ -97,7 +112,9 @@ const mount = async (whatsNewDeps: WhatsNewDeps, placement: { cloud: boolean } =
     showing,
     pressEscape: () => setup.mockInput.pressEscape(),
     connectCloud: async () => {
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(
+        true,
+      )
       bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       expect(await showing('CLOUD')).toBe(true)
     },
@@ -143,7 +160,12 @@ describe('release notes are owned by the app, not the keyed workspace', () => {
     try {
       expect(await mounted.showing(HEADING)).toBe(true)
       mounted.pressEscape()
-      expect(await until({ holds: async () => !(await mounted.frame()).includes(HEADING), within: 20_000 })).toBe(true)
+      expect(
+        await until({
+          holds: async () => !(await mounted.frame()).includes(HEADING),
+          within: 20_000,
+        }),
+      ).toBe(true)
       await mounted.connectCloud()
       mounted.reload()
       await settle(500)
@@ -165,7 +187,12 @@ describe('release notes are owned by the app, not the keyed workspace', () => {
     try {
       expect(await mounted.showing(LOADING)).toBe(true)
       mounted.pressEscape()
-      expect(await until({ holds: async () => !(await mounted.frame()).includes(HEADING), within: 20_000 })).toBe(true)
+      expect(
+        await until({
+          holds: async () => !(await mounted.frame()).includes(HEADING),
+          within: 20_000,
+        }),
+      ).toBe(true)
 
       fetchGate.release()
       await settle(500)

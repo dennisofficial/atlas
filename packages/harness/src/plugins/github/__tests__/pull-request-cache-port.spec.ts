@@ -33,7 +33,9 @@ const found = (args: { number: number }): PullRequestReading => ({
     state: EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
-    mergeable: null, comments: [], reviews: [],
+    mergeable: null,
+    comments: [],
+    reviews: [],
   },
 })
 
@@ -80,7 +82,10 @@ class ScriptedPullRequests extends PullRequestPort {
 describe('CachedPullRequestPort', () => {
   it('serves a freshened badge from peek without another read', async () => {
     const inner = new ScriptedPullRequests(() => found({ number: 1 }))
-    const port = new CachedPullRequestPort({ inner, file: join(mkdtempSync(join(tmpdir(), 'pr-port-')), 'badges.json') })
+    const port = new CachedPullRequestPort({
+      inner,
+      file: join(mkdtempSync(join(tmpdir(), 'pr-port-')), 'badges.json'),
+    })
 
     port.freshenBadge({ kind: 'checkout', checkout: checkout({ branch: 'main' }) })
     await flush()
@@ -107,12 +112,13 @@ describe('CachedPullRequestPort', () => {
         return { lookup: EPullRequestLookup.Absent }
       }
     })()
-    const port = new CachedPullRequestPort({ inner, file: join(mkdtempSync(join(tmpdir(), 'pr-port-')), 'badges.json') })
+    const port = new CachedPullRequestPort({
+      inner,
+      file: join(mkdtempSync(join(tmpdir(), 'pr-port-')), 'badges.json'),
+    })
 
     const branches = Array.from({ length: PULL_REQUEST_PORT_CONCURRENCY * 3 }, (_, i) => `b${i}`)
-    await Promise.all(
-      branches.map((branch) => port.read({ checkout: checkout({ branch }) })),
-    )
+    await Promise.all(branches.map((branch) => port.read({ checkout: checkout({ branch }) })))
 
     expect(peak).toBeLessThanOrEqual(PULL_REQUEST_PORT_CONCURRENCY)
     port.dispose()
@@ -122,9 +128,15 @@ describe('CachedPullRequestPort', () => {
     const slow = deferred<PullRequestReading>()
     const inner = new ScriptedPullRequests(() => found({ number: 2 }))
     inner.gate = (key) => (key.includes('slow') ? slow.promise : null)
-    const port = new CachedPullRequestPort({ inner, file: join(mkdtempSync(join(tmpdir(), 'pr-port-')), 'badges.json') })
+    const port = new CachedPullRequestPort({
+      inner,
+      file: join(mkdtempSync(join(tmpdir(), 'pr-port-')), 'badges.json'),
+    })
 
-    port.freshenBadge({ kind: 'checkout', checkout: checkout({ branch: 'slow', directory: '/slow' }) })
+    port.freshenBadge({
+      kind: 'checkout',
+      checkout: checkout({ branch: 'slow', directory: '/slow' }),
+    })
     await Promise.resolve()
 
     const fastCheckout = checkout({ branch: 'fast', directory: '/fast' })

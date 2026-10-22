@@ -29,7 +29,9 @@ class CountingAssertions extends SleepPrevention {
 
   override acquire(): () => void {
     this.acquired += 1
-    return () => { this.released += 1 }
+    return () => {
+      this.released += 1
+    }
   }
 }
 
@@ -50,9 +52,15 @@ class FakeAttachment implements ShellAttachment {
     this.shellId = toShellId(args.id ?? 'pending-shell')
   }
 
-  totalBytes(): number { return 0 }
-  async readOutput(): Promise<Uint8Array> { return new Uint8Array() }
-  async writeInput() { return { ok: false as const, reason: 'no input' } }
+  totalBytes(): number {
+    return 0
+  }
+  async readOutput(): Promise<Uint8Array> {
+    return new Uint8Array()
+  }
+  async writeInput() {
+    return { ok: false as const, reason: 'no input' }
+  }
 
   kill(by: EKilledBy): void {
     this.kills.push(by)
@@ -81,7 +89,9 @@ class FakeAttachment implements ShellAttachment {
 }
 
 class OrderedLog extends ControlledLog {
-  constructor(private readonly order: string[]) { super() }
+  constructor(private readonly order: string[]) {
+    super()
+  }
 
   override async append(args: Parameters<ControlledLog['append']>[0]) {
     const events = await super.append(args)
@@ -121,18 +131,36 @@ function setup() {
   })
   const registry = {
     start: (args: Parameters<ShellLifecycle['start']>[0]) => lifecycle.start(args),
-    closeAll: (args?: { killedBy?: EKilledBy; prepare?: () => Promise<void> }) => closeAllShells({
-      state, killedBy: args?.killedBy ?? EKilledBy.SessionEnd, prepare: args?.prepare,
-    }),
+    closeAll: (args?: { killedBy?: EKilledBy; prepare?: () => Promise<void> }) =>
+      closeAllShells({
+        state,
+        killedBy: args?.killedBy ?? EKilledBy.SessionEnd,
+        prepare: args?.prepare,
+      }),
     detachAll: () => detachAllShells(state),
     listEverywhere: () => [...state.tracked.values()].map((entry) => entry.shell.snapshot()),
   }
   const args = { threadId: THREAD, command: 'fake command', description: 'gated start' }
-  return { registry, args, attachment, secondAttachment, entered, launch, secondLaunch, log, assertions, order, launches: () => launches }
+  return {
+    registry,
+    args,
+    attachment,
+    secondAttachment,
+    entered,
+    launch,
+    secondLaunch,
+    log,
+    assertions,
+    order,
+    launches: () => launches,
+  }
 }
 
 async function expectFenced(fixture: ReturnType<typeof setup>): Promise<void> {
-  expect(await fixture.registry.start(fixture.args)).toMatchObject({ ok: false, reason: expect.stringContaining('closed') })
+  expect(await fixture.registry.start(fixture.args)).toMatchObject({
+    ok: false,
+    reason: expect.stringContaining('closed'),
+  })
   expect(fixture.launches()).toBe(1)
 }
 
@@ -155,7 +183,9 @@ describe('shell start admission during shutdown', () => {
     const starting = fixture.registry.start(fixture.args)
     await fixture.entered.promise
     let returned = false
-    const shutdown = fixture.registry.detachAll().then(() => { returned = true })
+    const shutdown = fixture.registry.detachAll().then(() => {
+      returned = true
+    })
     const backstop = fixture.registry.detachAll()
     await expectFenced(fixture)
     expect(returned).toBe(false)
@@ -177,7 +207,9 @@ describe('shell start admission during shutdown', () => {
     const starting = fixture.registry.start(fixture.args)
     await fixture.entered.promise
     let returned = false
-    const shutdown = fixture.registry.closeAll({ killedBy: EKilledBy.User }).then(() => { returned = true })
+    const shutdown = fixture.registry.closeAll({ killedBy: EKilledBy.User }).then(() => {
+      returned = true
+    })
     const backstop = fixture.registry.detachAll()
     const repeated = fixture.registry.closeAll()
     await expectFenced(fixture)
@@ -193,11 +225,24 @@ describe('shell start admission during shutdown', () => {
 
     fixture.attachment.finish()
     await Promise.all([shutdown, backstop, repeated])
-    expect(fixture.log.landedTypes()).toEqual(['background-shell-started', 'background-shell-ended'])
-    expect(fixture.log.landed.flat().find((draft) => draft.type === 'background-shell-ended')).toMatchObject({
-      status: EShellStatus.Killed, killedBy: EKilledBy.User, exitCode: 143,
+    expect(fixture.log.landedTypes()).toEqual([
+      'background-shell-started',
+      'background-shell-ended',
+    ])
+    expect(
+      fixture.log.landed.flat().find((draft) => draft.type === 'background-shell-ended'),
+    ).toMatchObject({
+      status: EShellStatus.Killed,
+      killedBy: EKilledBy.User,
+      exitCode: 143,
     })
-    expect(fixture.order).toEqual(['background-shell-started', 'kill', 'exit', 'background-shell-ended', 'detach'])
+    expect(fixture.order).toEqual([
+      'background-shell-started',
+      'kill',
+      'exit',
+      'background-shell-ended',
+      'detach',
+    ])
     await expectIdempotent(fixture)
   })
 
@@ -205,7 +250,9 @@ describe('shell start admission during shutdown', () => {
     const fixture = setup()
     const starting = fixture.registry.start(fixture.args)
     let returned = false
-    const shutdown = fixture.registry.detachAll().then(() => { returned = true })
+    const shutdown = fixture.registry.detachAll().then(() => {
+      returned = true
+    })
     await fixture.entered.promise
     await expectFenced(fixture)
     expect(returned).toBe(false)
@@ -220,7 +267,9 @@ describe('shell start admission during shutdown', () => {
     const first = fixture.registry.start(fixture.args)
     const second = fixture.registry.start(fixture.args)
     let returned = false
-    const shutdown = fixture.registry.detachAll().then(() => { returned = true })
+    const shutdown = fixture.registry.detachAll().then(() => {
+      returned = true
+    })
     fixture.launch.resolve({ ok: true, attachment: fixture.attachment })
     expect((await first).ok).toBe(true)
     expect(returned).toBe(false)
@@ -228,7 +277,10 @@ describe('shell start admission during shutdown', () => {
     fixture.secondLaunch.resolve({ ok: true, attachment: fixture.secondAttachment })
     expect((await second).ok).toBe(true)
     await shutdown
-    expect(fixture.log.landedTypes()).toEqual(['background-shell-started', 'background-shell-started'])
+    expect(fixture.log.landedTypes()).toEqual([
+      'background-shell-started',
+      'background-shell-started',
+    ])
     expect(fixture.attachment.kills).toEqual([])
     expect(fixture.secondAttachment.kills).toEqual([])
     expect(fixture.attachment.detaches).toBe(1)
@@ -242,10 +294,12 @@ describe('shell start admission during shutdown', () => {
     const fixture = setup()
     const preparation = gate<void>()
     const prepared = gate<void>()
-    const shutdown = fixture.registry.closeAll({ prepare: () => {
-      prepared.resolve()
-      return preparation.promise
-    } })
+    const shutdown = fixture.registry.closeAll({
+      prepare: () => {
+        prepared.resolve()
+        return preparation.promise
+      },
+    })
     const backstop = fixture.registry.detachAll()
     await prepared.promise
     expect((await fixture.registry.start(fixture.args)).ok).toBe(false)
@@ -262,7 +316,11 @@ describe('shell start admission during shutdown', () => {
       const starting = fixture.registry.start(fixture.args)
       await fixture.entered.promise
       let returned = false
-      const shutdown = (close ? fixture.registry.closeAll() : fixture.registry.detachAll()).then(() => { returned = true })
+      const shutdown = (close ? fixture.registry.closeAll() : fixture.registry.detachAll()).then(
+        () => {
+          returned = true
+        },
+      )
       await expectFenced(fixture)
       expect(returned).toBe(false)
       fixture.launch.reject(new Error('launch refused'))

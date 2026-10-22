@@ -44,7 +44,10 @@ describe('context ops', () => {
   it('answers list-context-files with the folder entries', async () => {
     const context = await fixture({ 'a.md': 'a', 'b.md': 'b' })
 
-    const reply = await answerContextRead({ frame: frameOf(EClientRequest.ListContextFiles, {}), context })
+    const reply = await answerContextRead({
+      frame: frameOf(EClientRequest.ListContextFiles, {}),
+      context,
+    })
 
     expect(reply.kind).toBe(EServeFrame.Reply)
     expect(reply.ok).toBe(true)
@@ -62,7 +65,10 @@ describe('context ops', () => {
     const root = join(home, 'never-created')
     const context = new ContextBrowser({ root })
 
-    const reply = await answerContextRead({ frame: frameOf(EClientRequest.ListContextFiles, undefined), context })
+    const reply = await answerContextRead({
+      frame: frameOf(EClientRequest.ListContextFiles, undefined),
+      context,
+    })
 
     expect(reply.ok).toBe(true)
     expect(reply.data).toEqual({ entries: [] })
@@ -71,7 +77,10 @@ describe('context ops', () => {
   it('answers read-context-file with the file content', async () => {
     const context = await fixture({ 'plan.md': '# plan\n' })
 
-    const reply = await answerContextRead({ frame: frameOf(EClientRequest.ReadContextFile, { path: 'plan.md' }), context })
+    const reply = await answerContextRead({
+      frame: frameOf(EClientRequest.ReadContextFile, { path: 'plan.md' }),
+      context,
+    })
 
     expect(reply.ok).toBe(true)
     expect(reply.data).toEqual({ file: { type: 'text', content: '# plan\n', truncated: false } })
@@ -80,7 +89,10 @@ describe('context ops', () => {
   it('refuses a traversal path instead of reading outside the folder', async () => {
     const context = await fixture({ 'plan.md': 'p' })
 
-    const reply = await answerContextRead({ frame: frameOf(EClientRequest.ReadContextFile, { path: '../plan.md' }), context })
+    const reply = await answerContextRead({
+      frame: frameOf(EClientRequest.ReadContextFile, { path: '../plan.md' }),
+      context,
+    })
 
     expect(reply.ok).toBe(true)
     const { file } = reply.data as { file: { type: string } }
@@ -93,7 +105,10 @@ describe('context ops', () => {
     await writeFile(join(root, 'big.txt'), 'x'.repeat(MAX_MENTION_BYTES + 5))
     const context = new ContextBrowser({ root })
 
-    const reply = await answerContextRead({ frame: frameOf(EClientRequest.ReadContextFile, { path: 'big.txt' }), context })
+    const reply = await answerContextRead({
+      frame: frameOf(EClientRequest.ReadContextFile, { path: 'big.txt' }),
+      context,
+    })
 
     const { file } = reply.data as { file: { type: string; truncated?: boolean; content?: string } }
     expect(file.type).toBe('text')
@@ -104,8 +119,14 @@ describe('context ops', () => {
   it('refuses malformed params with a legible message', async () => {
     const context = await fixture()
 
-    const list = await answerContextRead({ frame: frameOf(EClientRequest.ListContextFiles, 42), context })
-    const file = await answerContextRead({ frame: frameOf(EClientRequest.ReadContextFile, {}), context })
+    const list = await answerContextRead({
+      frame: frameOf(EClientRequest.ListContextFiles, 42),
+      context,
+    })
+    const file = await answerContextRead({
+      frame: frameOf(EClientRequest.ReadContextFile, {}),
+      context,
+    })
 
     expect(list.ok).toBe(false)
     expect(file.ok).toBe(false)

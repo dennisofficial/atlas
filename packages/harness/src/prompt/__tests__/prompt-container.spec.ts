@@ -4,7 +4,8 @@ import { PromptFragment } from '@dltech/atlas-core'
 
 import {
   createIsolatedContainer,
-  portToken, registeredPortToken,
+  portToken,
+  registeredPortToken,
   resolveSet,
   type DependencyContainer,
 } from '../../container/injection'

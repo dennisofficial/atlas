@@ -79,7 +79,7 @@ describe('ocaml lexical highlighting', () => {
   })
 
   it('keeps a type variable from swallowing a later string on the same line', () => {
-    const line = "let name_of : 'a -> string = fun _ -> \"anon\""
+    const line = 'let name_of : \'a -> string = fun _ -> "anon"'
     expect(textFor({ spec, source: line, group: 'string' })).toEqual(['"anon"'])
   })
 
@@ -161,7 +161,11 @@ describe('ocaml lexical highlighting', () => {
   })
 
   it('leaves the prefix negation operator to the operator path', () => {
-    expect(textFor({ spec, source: 'let n = ~-1 + 2', group: 'operator' })).toEqual(['=', '~-', '+'])
+    expect(textFor({ spec, source: 'let n = ~-1 + 2', group: 'operator' })).toEqual([
+      '=',
+      '~-',
+      '+',
+    ])
   })
 
   it('leaves an argument that merely precedes a parenthesis alone', () => {

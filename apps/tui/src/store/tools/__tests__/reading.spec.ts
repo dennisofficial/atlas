@@ -46,6 +46,8 @@ describe('what a call is still dictating', () => {
 
   it('claims nothing for a call that dictates no file content', () => {
     expect(dictatedContentOf(aCall({ name: 'bash', input: { command: 'ls' } }))).toBeUndefined()
-    expect(dictatedContentOf(aCall({ name: 'edit', input: { path: '/repo/a.ts' } }))).toBeUndefined()
+    expect(
+      dictatedContentOf(aCall({ name: 'edit', input: { path: '/repo/a.ts' } })),
+    ).toBeUndefined()
   })
 })

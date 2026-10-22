@@ -37,15 +37,20 @@ describe('teammate model settings', () => {
   })
 
   it('still displays an explicit teammate override', async () => {
-    const rows = await rowsOf(page({
-      definitions,
-      state,
-      layers: [{
-        layer: ESettingsLayer.User,
-        origin: '~/.atlas/settings.json',
-        values: { [agentTypeSettingId('teammate')]: 'openai/gpt-5' },
-      }],
-    }), WIDE)
+    const rows = await rowsOf(
+      page({
+        definitions,
+        state,
+        layers: [
+          {
+            layer: ESettingsLayer.User,
+            origin: '~/.atlas/settings.json',
+            values: { [agentTypeSettingId('teammate')]: 'openai/gpt-5' },
+          },
+        ],
+      }),
+      WIDE,
+    )
 
     expect(rowWith(rows, 'Teammates')).toContain('openai/gpt-5')
     expect(rowWith(rows, 'Teammates')).not.toContain('follow main agent')

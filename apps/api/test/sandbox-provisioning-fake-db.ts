@@ -38,9 +38,7 @@ export type ProvisioningSandboxRow = {
 
 const matches = (row: object, where: Where | undefined): boolean =>
   where === undefined ||
-  Object.entries(where).every(([key, condition]) =>
-    matchesValue((row as Where)[key], condition),
-  )
+  Object.entries(where).every(([key, condition]) => matchesValue((row as Where)[key], condition))
 
 export function createProvisioningFakeDb() {
   const threads: ProvisioningThreadRow[] = []
@@ -56,7 +54,11 @@ export function createProvisioningFakeDb() {
       const row = threads.find((one) => one.id === args.where.id)
       return row === undefined ? null : project({ ...row }, args.select)
     },
-    update: async (args: { where: { id: string }; data: Where; select?: Record<string, boolean> }) => {
+    update: async (args: {
+      where: { id: string }
+      data: Where
+      select?: Record<string, boolean>
+    }) => {
       const row = threads.find((one) => one.id === args.where.id)
       if (row === undefined) throw new Error('fake thread.update: no row')
       applyUpdate(row as unknown as Record<string, unknown>, args.data)

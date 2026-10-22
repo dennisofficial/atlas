@@ -134,8 +134,18 @@ describe('a queued message taken back into the draft', () => {
     const fourth = text.indexOf('#4')
     const second = text.indexOf('#2')
     const tokens: LiveToken[] = [
-      imageToken({ ordinal: 4, start: text.indexOf('[Image #4]'), end: text.indexOf('[Image #4]') + 11, image: shot({ path: '/a.png' }) }),
-      imageToken({ ordinal: 2, start: text.indexOf('[Image #2]'), end: text.indexOf('[Image #2]') + 11, image: shot({ path: '/b.png' }) }),
+      imageToken({
+        ordinal: 4,
+        start: text.indexOf('[Image #4]'),
+        end: text.indexOf('[Image #4]') + 11,
+        image: shot({ path: '/a.png' }),
+      }),
+      imageToken({
+        ordinal: 2,
+        start: text.indexOf('[Image #2]'),
+        end: text.indexOf('[Image #2]') + 11,
+        image: shot({ path: '/b.png' }),
+      }),
     ]
 
     const sending = submissionOf({ text, tokens, load: (path) => path })

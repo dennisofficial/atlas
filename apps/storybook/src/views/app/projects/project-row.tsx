@@ -1,22 +1,22 @@
-import { MessageSquareIcon, UsersIcon } from "lucide-react";
+import { MessageSquareIcon, UsersIcon } from 'lucide-react'
 
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { ProjectSparkline } from "./project-sparkline";
-import type { ProjectSummary } from "./projects.fixtures";
+import { ProjectSparkline } from './project-sparkline'
+import type { ProjectSummary } from './projects.fixtures'
 
 export function ProjectTile({ name, className }: { name: string; className?: string }) {
   return (
     <span
       aria-hidden
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-sm font-semibold uppercase text-foreground",
+        'flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-sm font-semibold uppercase text-foreground',
         className,
       )}
     >
       {name.charAt(0)}
     </span>
-  );
+  )
 }
 
 function Meta({ project }: { project: ProjectSummary }) {
@@ -34,11 +34,17 @@ function Meta({ project }: { project: ProjectSummary }) {
         <span className="font-mono tabular-nums">{project.members}</span>
       </span>
     </p>
-  );
+  )
 }
 
-export function ProjectRow({ project, showOwner }: { project: ProjectSummary; showOwner: boolean }) {
-  const handleClick = (event: React.MouseEvent) => event.preventDefault();
+export function ProjectRow({
+  project,
+  showOwner,
+}: {
+  project: ProjectSummary
+  showOwner: boolean
+}) {
+  const handleClick = (event: React.MouseEvent) => event.preventDefault()
   return (
     <li>
       <a
@@ -57,8 +63,11 @@ export function ProjectRow({ project, showOwner }: { project: ProjectSummary; sh
           ) : null}
           <Meta project={project} />
         </div>
-        <ProjectSparkline series={project.activity} label={`${project.name} activity, last 14 days`} />
+        <ProjectSparkline
+          series={project.activity}
+          label={`${project.name} activity, last 14 days`}
+        />
       </a>
     </li>
-  );
+  )
 }

@@ -62,7 +62,8 @@ describe('tool output streaming through settle-pending', () => {
     const settled = await settle({ threadId, signal: new AbortController().signal })
 
     expect(settled).toEqual({})
-    const byCall = (callId: string) => notices.filter((notice) => notice.callId === toCallId(callId))
+    const byCall = (callId: string) =>
+      notices.filter((notice) => notice.callId === toCallId(callId))
     expect(byCall('call-1')).toEqual([
       { callId: toCallId('call-1'), stream: 'stdout', text: 'begin call-1\n' },
       { callId: toCallId('call-1'), stream: 'stderr', text: 'end call-1\n' },
@@ -77,7 +78,10 @@ describe('tool output streaming through settle-pending', () => {
 
   it('leaves the tap undefined for the dispatcher when nobody listens', async () => {
     const harness = await openLog()
-    const { threadId } = await branchWithCalls({ harness, calls: [{ callId: 'call-1', name: 'read' }] })
+    const { threadId } = await branchWithCalls({
+      harness,
+      calls: [{ callId: 'call-1', name: 'read' }],
+    })
     let carried: unknown = 'untouched'
     const settle = createSettlePending({
       log: harness.log,

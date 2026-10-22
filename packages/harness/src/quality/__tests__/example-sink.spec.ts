@@ -34,15 +34,24 @@ const args = (overrides: Partial<QualityExampleRecordArgs> = {}): QualityExample
 describe('QualityExampleSink', () => {
   it('writes a complete labelless example under the resolved thread data directory', async () => {
     const lookups: unknown[] = []
-    const sink = new QualityExampleSink({ sessions: { sessionDirOf: async (lookup) => (lookups.push(lookup), sessionDir) } })
+    const sink = new QualityExampleSink({
+      sessions: { sessionDirOf: async (lookup) => (lookups.push(lookup), sessionDir) },
+    })
     const result = await sink.record(args())
     if (!result.ok) throw new Error(result.fault)
 
     expect(lookups).toEqual([{ threadId: THREAD }])
     expect(result.relativePath.startsWith('/')).toBe(false)
-    expect(result.relativePath).toMatch(new RegExp(`^threads/${THREAD}/quality/examples/[0-9a-f]{64}\\.json$`))
+    expect(result.relativePath).toMatch(
+      new RegExp(`^threads/${THREAD}/quality/examples/[0-9a-f]{64}\\.json$`),
+    )
     const saved = JSON.parse(await readFile(join(sessionDir, result.relativePath), 'utf8'))
-    expect(saved.provenance).toEqual({ toolName: 'write', threadId: THREAD, runId: RUN, callId: call.callId })
+    expect(saved.provenance).toEqual({
+      toolName: 'write',
+      threadId: THREAD,
+      runId: RUN,
+      callId: call.callId,
+    })
     expect(saved.path).toBe('src/a.ts')
     expect(saved.before).toBe('class Widget {}')
     expect(saved.after).toBe('class Widget { run() {} }')
@@ -52,8 +61,19 @@ describe('QualityExampleSink', () => {
     expect(saved.adapterVersion).toBe('ts-1')
     expect(saved.schemaVersion).toBe('1')
     expect(Object.keys(saved).sort()).toEqual([
-      'adapterVersion', 'after', 'before', 'dependencyContext', 'diff', 'evidence', 'hashes',
-      'path', 'policies', 'provenance', 'schemaVersion', 'scope', 'workspaceNamespace',
+      'adapterVersion',
+      'after',
+      'before',
+      'dependencyContext',
+      'diff',
+      'evidence',
+      'hashes',
+      'path',
+      'policies',
+      'provenance',
+      'schemaVersion',
+      'scope',
+      'workspaceNamespace',
     ])
   })
 
@@ -85,9 +105,13 @@ describe('QualityExampleSink', () => {
   })
 
   it('never throws on I/O failure', async () => {
-    const sink = new QualityExampleSink({ sessions: { sessionDirOf: async () => join(sessionDir, 'missing', '\0bad') } })
+    const sink = new QualityExampleSink({
+      sessions: { sessionDirOf: async () => join(sessionDir, 'missing', '\0bad') },
+    })
     expect((await sink.record(args())).ok).toBe(false)
-    const rejecting = new QualityExampleSink({ sessions: { sessionDirOf: async () => Promise.reject(new Error('lookup')) } })
+    const rejecting = new QualityExampleSink({
+      sessions: { sessionDirOf: async () => Promise.reject(new Error('lookup')) },
+    })
     expect((await rejecting.record(args())).ok).toBe(false)
   })
 

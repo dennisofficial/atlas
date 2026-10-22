@@ -88,7 +88,10 @@ describe('tri-state supervisor liveness', () => {
         return failure === undefined ? sendControl({ directory: shellDir, request }) : failure()
       },
     })
-    const early = await Promise.race([handle.settled.then((value) => value.kind), pause(200).then(() => 'pending')])
+    const early = await Promise.race([
+      handle.settled.then((value) => value.kind),
+      pause(200).then(() => 'pending'),
+    ])
     expect(early).toBe('pending')
     expect(await collect({ stream: handle.stdout })).toBe('finished\n')
     expect((await handle.settled).kind).toBe('exited')
@@ -120,7 +123,9 @@ describe('file lease lifecycle', () => {
     const first = await launchOrThrow({ shellDir, command: 'sleep 30' })
     await first.detach()
     const handles = await Promise.all(
-      Array.from({ length: 20 }, (_, index) => attachWith({ shellDir, transport: forward({ shellDir }), clientId: `quick-${index}` })),
+      Array.from({ length: 20 }, (_, index) =>
+        attachWith({ shellDir, transport: forward({ shellDir }), clientId: `quick-${index}` }),
+      ),
     )
     await Promise.all(handles.map((handle) => handle.detach()))
     await pause(300)
@@ -132,7 +137,11 @@ describe('file lease lifecycle', () => {
     const shellDir = await scratch()
     const first = await launchOrThrow({ shellDir, command: 'sleep 30' })
     await first.detach()
-    const handle = await attachWith({ shellDir, transport: forward({ shellDir }), clientId: 'steady' })
+    const handle = await attachWith({
+      shellDir,
+      transport: forward({ shellDir }),
+      clientId: 'steady',
+    })
     await pause(150)
     expect(await readdir(join(shellDir, LEASE_DIR))).toEqual(['steady.lease'])
     await handle.detach()
@@ -160,7 +169,12 @@ describe('requester against a silent server', () => {
 
   test('a server that accepts but never answers hello times out, and a later request reconnects', async () => {
     const { path, sockets } = await blackhole()
-    const requester = createSocketRequester({ socketPath: path, token: 't', identity: 'i', timeoutMs: 100 })
+    const requester = createSocketRequester({
+      socketPath: path,
+      token: 't',
+      identity: 'i',
+      timeoutMs: 100,
+    })
     const startedAt = Date.now()
     const first = await requester.request({ request: { type: 'heartbeat' } })
     expect(first.ok).toBe(false)
@@ -174,7 +188,12 @@ describe('requester against a silent server', () => {
 
   test('close while hello is pending resolves the waiting request immediately', async () => {
     const { path } = await blackhole()
-    const requester = createSocketRequester({ socketPath: path, token: 't', identity: 'i', timeoutMs: 10_000 })
+    const requester = createSocketRequester({
+      socketPath: path,
+      token: 't',
+      identity: 'i',
+      timeoutMs: 10_000,
+    })
     const waiting = requester.request({ request: { type: 'heartbeat' } })
     await pause(50)
     requester.close()

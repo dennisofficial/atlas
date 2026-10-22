@@ -7,8 +7,7 @@ import type { TransportDto, UpsertMcpServerDto } from './mcp-servers.dto'
 import { McpServersService } from './mcp-servers.service'
 import { EMcpTransportKind } from './mcp-servers.types'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 interface McpServerRow {
   id: string
@@ -174,9 +173,9 @@ describe('McpServersService', () => {
     await expect(
       service.put({ userId: USER_A, name: 'dots.not-ok', spec: { transport: stdioTransport() } }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    await expect(
-      service.remove({ userId: USER_A, name: 'bad name' }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    await expect(service.remove({ userId: USER_A, name: 'bad name' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
     await service.put({ userId: USER_A, name: 'ok_Name-9', spec: { transport: stdioTransport() } })
     expect(fake.servers).toHaveLength(1)
   })
@@ -189,7 +188,11 @@ describe('McpServersService', () => {
     })
 
     const listed = await service.list({ userId: USER_A })
-    expect(listed[0]?.transport).toEqual({ kind: 'stdio', command: 'npx', args: ['-y', 'some-server'] })
+    expect(listed[0]?.transport).toEqual({
+      kind: 'stdio',
+      command: 'npx',
+      args: ['-y', 'some-server'],
+    })
     expect(JSON.stringify(listed[0])).not.toContain('stray.example.com')
   })
 

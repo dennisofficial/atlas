@@ -58,7 +58,13 @@ function SizeCard({ size }: { size: SandboxSize }) {
   )
 }
 
-function SizePicker({ vcpus, onSave }: { vcpus: number | null; onSave: (vcpus: number | null) => Promise<boolean> }) {
+function SizePicker({
+  vcpus,
+  onSave,
+}: {
+  vcpus: number | null
+  onSave: (vcpus: number | null) => Promise<boolean>
+}) {
   const saved = sizeIdOf(vcpus)
   const [selected, setSelected] = useState(saved)
   const [saving, setSaving] = useState(false)

@@ -23,7 +23,7 @@ const source = [
   '  result = x * y * self.scale',
   '',
   'proc describe(c: Calculator): string =',
-  '  let tag = \'C\'',
+  "  let tag = 'C'",
   '  var parts = newSeq[string]()',
   '  parts.add(&"{tag}:{c.scale}")',
   '  if parts.len == 0:',
@@ -33,7 +33,7 @@ const source = [
   '  """',
   '',
   'let calc = Calculator(scale: 2)',
-  'let byteVal = 255\'u8',
+  "let byteVal = 255'u8",
   'let root = r"C:\\atlas\\" & "bin"',
   'echo add(2, 3)',
   'echo calc.multiply(5, 3)',
@@ -114,8 +114,9 @@ describe('nim lexical highlighting', () => {
       'multiply',
       'describe',
     ])
-    expect(textFor({ spec, source, group: 'function.builtin' }).filter((name) => name === 'echo'))
-      .toHaveLength(4)
+    expect(
+      textFor({ spec, source, group: 'function.builtin' }).filter((name) => name === 'echo'),
+    ).toHaveLength(4)
   })
 
   it('leaves a custom numeric literal suffix uncoloured', () => {

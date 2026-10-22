@@ -113,10 +113,12 @@ describe('groovy lexical highlighting', () => {
   })
 
   it('reads a capitalised name as a type and a primitive as a builtin type', () => {
-    expect(textFor({ spec, source: 'int n = new BigDecimal("2").intValue()', group: 'type' }))
-      .toEqual(['BigDecimal'])
-    expect(textFor({ spec, source: 'int n = new BigDecimal("2").intValue()', group: 'type.builtin' }))
-      .toEqual(['int'])
+    expect(
+      textFor({ spec, source: 'int n = new BigDecimal("2").intValue()', group: 'type' }),
+    ).toEqual(['BigDecimal'])
+    expect(
+      textFor({ spec, source: 'int n = new BigDecimal("2").intValue()', group: 'type.builtin' }),
+    ).toEqual(['int'])
   })
 
   it('reads a range as two numbers rather than one', () => {

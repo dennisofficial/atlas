@@ -2,11 +2,7 @@ import { readFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import {
-  EExecutionLocation,
-  type ProcessPort,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, type ProcessPort, type ThreadId } from '@dltech/atlas-core'
 
 import { IMPORTED_SHELL_ORIGIN, IMPORTED_SHELL_ORIGIN_FILE } from '../cloud/portable-session-file'
 import { atlasBinDirectory } from '../store/paths'
@@ -86,7 +82,9 @@ export class DurableShellLauncher extends ShellLauncherPort {
       sessionLock: docker
         ? undefined
         : { lockFile: created.sessionLock, pidNamespace: await pidNamespaceOf() },
-      transport: docker ? this.transport({ command, threadId: spec.threadId, dir: created.directory }) : undefined,
+      transport: docker
+        ? this.transport({ command, threadId: spec.threadId, dir: created.directory })
+        : undefined,
       launch: async (call) => {
         if (deps.processes.launchDetached === undefined) {
           throw new Error('the process port this thread runs on cannot launch detached commands')
@@ -109,7 +107,9 @@ export class DurableShellLauncher extends ShellLauncherPort {
   async inspect(args: { threadId: ThreadId }): Promise<readonly InspectedShell[]> {
     const sessionDir = await this.deps.sessions.sessionDirOf({ threadId: args.threadId })
     if (sessionDir === undefined) return []
-    const names = await readdir(shellsDirectory({ sessionDir, threadId: args.threadId })).catch(() => [])
+    const names = await readdir(shellsDirectory({ sessionDir, threadId: args.threadId })).catch(
+      () => [],
+    )
     const inspected: InspectedShell[] = []
     for (const name of names) {
       const found = await this.inspectOne({ sessionDir, threadId: args.threadId, name })
@@ -129,8 +129,14 @@ export class DurableShellLauncher extends ShellLauncherPort {
     const attached = await attachDurableShell({
       shellDir: files.directory,
       cursor: sizeOf(files.output),
-      transport: imported ? importedTransport : this.control({ threadId: args.threadId, dir: files.directory }).transport,
-    }).catch((error: unknown) => ({ ok: false as const, code: EAttachFailure.Invalid, reason: String(error) }))
+      transport: imported
+        ? importedTransport
+        : this.control({ threadId: args.threadId, dir: files.directory }).transport,
+    }).catch((error: unknown) => ({
+      ok: false as const,
+      code: EAttachFailure.Invalid,
+      reason: String(error),
+    }))
 
     if (!attached.ok) {
       if (attached.code === EAttachFailure.Missing) return undefined
@@ -142,7 +148,11 @@ export class DurableShellLauncher extends ShellLauncherPort {
     const startedAt = new Date(status?.startedAt ?? 0).toISOString()
     const attachment = attachmentOf({ handle, files, shellId, startedAt })
     if (snapshot.exit !== undefined) {
-      const exit = exitOf({ exit: snapshot.exit, killedBy: undefined, endedAt: new Date(snapshot.exit.endedAt).toISOString() })
+      const exit = exitOf({
+        exit: snapshot.exit,
+        killedBy: undefined,
+        endedAt: new Date(snapshot.exit.endedAt).toISOString(),
+      })
       return { state: EInspected.Finished, shellId, attachment, exit }
     }
     if (snapshot.lostReason !== undefined) {
@@ -161,7 +171,11 @@ export class DurableShellLauncher extends ShellLauncherPort {
     return { transport: this.transport({ ...args, command: [] }) }
   }
 
-  private transport(args: { threadId: ThreadId; dir: string; command: readonly string[] }): ControlTransport {
+  private transport(args: {
+    threadId: ThreadId
+    dir: string
+    command: readonly string[]
+  }): ControlTransport {
     return async ({ request }) => this.sendInContainer({ ...args, request })
   }
 
@@ -173,11 +187,13 @@ export class DurableShellLauncher extends ShellLauncherPort {
   }): Promise<ControlResult> {
     try {
       const prefix =
-        args.command.length > 0 ? args.command : supervisorCommand({
-          launcher: await this.deps.supervisor(),
-          docker: true,
-          configPath: '',
-        }).slice(0, -1)
+        args.command.length > 0
+          ? args.command
+          : supervisorCommand({
+              launcher: await this.deps.supervisor(),
+              docker: true,
+              configPath: '',
+            }).slice(0, -1)
       const handle = this.deps.processes.spawn({
         cmd: [...prefix, CONTROL_FLAG, args.dir, JSON.stringify(args.request)],
         cwd: args.dir,
@@ -186,9 +202,17 @@ export class DurableShellLauncher extends ShellLauncherPort {
       const [text] = await Promise.all([new Response(handle.stdout).text(), handle.exited])
       const parsed: unknown = JSON.parse(text.trim().split('\n').at(-1) ?? '')
       if (isControlResult(parsed)) return parsed
-      return { ok: false, code: EControlError.Unreachable, message: 'the control helper answered nothing usable' }
+      return {
+        ok: false,
+        code: EControlError.Unreachable,
+        message: 'the control helper answered nothing usable',
+      }
     } catch (error) {
-      return { ok: false, code: EControlError.Unreachable, message: error instanceof Error ? error.message : String(error) }
+      return {
+        ok: false,
+        code: EControlError.Unreachable,
+        message: error instanceof Error ? error.message : String(error),
+      }
     }
   }
 }
@@ -196,14 +220,18 @@ export class DurableShellLauncher extends ShellLauncherPort {
 const foreignPidsOutOfReach: ControlResult = {
   ok: false,
   code: EControlError.Unreachable,
-  message: 'the shell was imported from another machine, so its recorded pids do not name local processes',
+  message:
+    'the shell was imported from another machine, so its recorded pids do not name local processes',
 }
 
 const importedTransport: ControlTransport = () => Promise.resolve(foreignPidsOutOfReach)
 
 function importedFrom(directory: string): boolean {
   try {
-    return readFileSync(join(directory, IMPORTED_SHELL_ORIGIN_FILE), 'utf8').trim() === IMPORTED_SHELL_ORIGIN
+    return (
+      readFileSync(join(directory, IMPORTED_SHELL_ORIGIN_FILE), 'utf8').trim() ===
+      IMPORTED_SHELL_ORIGIN
+    )
   } catch {
     return false
   }

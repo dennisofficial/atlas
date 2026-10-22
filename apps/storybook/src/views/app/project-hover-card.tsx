@@ -1,45 +1,33 @@
-import {
-  BadgeCheck,
-  CircleCheck,
-  CircleX,
-  MessagesSquare,
-  Pin,
-  Settings,
-} from "lucide-react";
-import type { ReactNode } from "react";
+import { BadgeCheck, CircleCheck, CircleX, MessagesSquare, Pin, Settings } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import {
   Avatar,
   AvatarFallback,
   AvatarGroup,
   AvatarGroupCount,
-} from "@dltech/atlas-ui/components/avatar";
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
+} from '@dltech/atlas-ui/components/avatar'
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@dltech/atlas-ui/components/hover-card";
+} from '@dltech/atlas-ui/components/hover-card'
 
-import {
-  type AppProject,
-  ECiStatus,
-  type ProjectCommit,
-  RECENT_COMMITS,
-} from "../../fixtures/app";
+import { type AppProject, ECiStatus, type ProjectCommit, RECENT_COMMITS } from '../../fixtures/app'
 
-const VISIBLE_AVATARS = 2;
+const VISIBLE_AVATARS = 2
 
 export interface ProjectHoverCardProps {
-  project: AppProject;
-  defaultOpen?: boolean;
-  className?: string;
-  children: ReactNode;
+  project: AppProject
+  defaultOpen?: boolean
+  className?: string
+  children: ReactNode
 }
 
 function CommitAuthors({ authors }: { authors: string[] }) {
-  const overflow = authors.length - VISIBLE_AVATARS;
+  const overflow = authors.length - VISIBLE_AVATARS
   return (
     <AvatarGroup className="w-16 shrink-0 -space-x-1.5">
       {authors.slice(0, VISIBLE_AVATARS).map((initials) => (
@@ -47,11 +35,9 @@ function CommitAuthors({ authors }: { authors: string[] }) {
           <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
         </Avatar>
       ))}
-      {overflow > 0 && (
-        <AvatarGroupCount className="text-[10px]">+{overflow}</AvatarGroupCount>
-      )}
+      {overflow > 0 && <AvatarGroupCount className="text-[10px]">+{overflow}</AvatarGroupCount>}
     </AvatarGroup>
-  );
+  )
 }
 
 function CiIcon({ ci }: { ci: ECiStatus }) {
@@ -62,15 +48,11 @@ function CiIcon({ ci }: { ci: ECiStatus }) {
         aria-label="Checks passing"
         className="size-4 shrink-0 text-success"
       />
-    );
+    )
   }
   return (
-    <CircleX
-      role="img"
-      aria-label="Checks failing"
-      className="size-4 shrink-0 text-destructive"
-    />
-  );
+    <CircleX role="img" aria-label="Checks failing" className="size-4 shrink-0 text-destructive" />
+  )
 }
 
 function CommitRow({ commit }: { commit: ProjectCommit }) {
@@ -89,7 +71,7 @@ function CommitRow({ commit }: { commit: ProjectCommit }) {
         {commit.age}
       </span>
     </li>
-  );
+  )
 }
 
 export function ProjectHoverCardBody({ project }: { project: AppProject }) {
@@ -126,7 +108,7 @@ export function ProjectHoverCardBody({ project }: { project: AppProject }) {
         View all commits →
       </Button>
     </div>
-  );
+  )
 }
 
 export function ProjectHoverCard({
@@ -137,11 +119,7 @@ export function ProjectHoverCard({
 }: ProjectHoverCardProps) {
   return (
     <HoverCard defaultOpen={defaultOpen}>
-      <HoverCardTrigger
-        delay={350}
-        closeDelay={100}
-        render={<div className={className} />}
-      >
+      <HoverCardTrigger delay={350} closeDelay={100} render={<div className={className} />}>
         {children}
       </HoverCardTrigger>
       <HoverCardContent
@@ -154,5 +132,5 @@ export function ProjectHoverCard({
         <ProjectHoverCardBody project={project} />
       </HoverCardContent>
     </HoverCard>
-  );
+  )
 }

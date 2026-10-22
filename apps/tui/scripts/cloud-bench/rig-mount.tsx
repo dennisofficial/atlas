@@ -57,9 +57,17 @@ const flushTolerant = async (setup: Setup): Promise<void> => {
   }
 }
 
-const composeRigApp = async (args: { workspace: string; settings: SettingsBinding }): Promise<AtlasApp> => {
+const composeRigApp = async (args: {
+  workspace: string
+  settings: SettingsBinding
+}): Promise<AtlasApp> => {
   const harness = await composeHarness<undefined, never, PluginSurface>({
-    launch: { cwd: args.workspace, command: RIG_COMMAND, model: undefined, executionLocation: undefined },
+    launch: {
+      cwd: args.workspace,
+      command: RIG_COMMAND,
+      model: undefined,
+      executionLocation: undefined,
+    },
     env: process.env,
     settings: args.settings,
     clientVersion: RIG_COMMAND,
@@ -74,7 +82,12 @@ const composeRigApp = async (args: { workspace: string; settings: SettingsBindin
     pluginSurfaces: surfaces,
     pullRequests: null,
     prEventSink: null,
-    config: { model: undefined, executionLocation: undefined, open: { mode: EOpenMode.New }, cwd: args.workspace },
+    config: {
+      model: undefined,
+      executionLocation: undefined,
+      open: { mode: EOpenMode.New },
+      cwd: args.workspace,
+    },
     command: RIG_COMMAND,
   }
 }
@@ -101,7 +114,11 @@ const BIRTH_OVERLAY = 'STARTING A POD'
 const BIRTH_SETTLE_WITHIN_MS = 6 * 60_000
 const BIRTH_POLL_MS = 500
 
-const pollUntil = async (args: { setup: Setup; holds: () => Promise<boolean> | boolean; within: number }): Promise<boolean> => {
+const pollUntil = async (args: {
+  setup: Setup
+  holds: () => Promise<boolean> | boolean
+  within: number
+}): Promise<boolean> => {
   const deadline = Date.now() + args.within
   while (Date.now() < deadline) {
     await flushTolerant(args.setup)
@@ -111,7 +128,11 @@ const pollUntil = async (args: { setup: Setup; holds: () => Promise<boolean> | b
   return false
 }
 
-const flipChipToCloud = async (args: { setup: Setup; app: AtlasApp; born: () => boolean }): Promise<void> => {
+const flipChipToCloud = async (args: {
+  setup: Setup
+  app: AtlasApp
+  born: () => boolean
+}): Promise<void> => {
   const { setup } = args
   await frameShowing({ setup, text: LOCAL_CHIP, within: CHIP_WITHIN_MS })
   setup.mockInput.pressArrow('down')
@@ -130,7 +151,8 @@ const birthSettled = async (args: { setup: Setup; attached: () => boolean }): Pr
     within: BIRTH_SETTLE_WITHIN_MS,
     holds: () => args.attached() && !args.setup.captureCharFrame().includes(BIRTH_OVERLAY),
   })
-  if (!settledBirth) throw new Error(`the cloud birth never attached a channel and cleared "${BIRTH_OVERLAY}"`)
+  if (!settledBirth)
+    throw new Error(`the cloud birth never attached a channel and cleared "${BIRTH_OVERLAY}"`)
 }
 
 export async function mountRig(args: {
@@ -176,7 +198,8 @@ export async function mountRig(args: {
     ...inner.sandboxes,
     create: async (createArgs) => {
       bornThreadId ??= createArgs.threadId
-      const birth = births.get(createArgs.threadId) ?? Promise.resolve(args.onBirth?.(createArgs.threadId))
+      const birth =
+        births.get(createArgs.threadId) ?? Promise.resolve(args.onBirth?.(createArgs.threadId))
       births.set(createArgs.threadId, birth)
       await birth
       return inner.sandboxes.create(createArgs)

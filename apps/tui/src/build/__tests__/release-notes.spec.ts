@@ -15,7 +15,7 @@ describe('fetchReleaseNotes', () => {
     ].join('\n')
 
     globalThis.fetch = vi.fn(async () =>
-      Response.json([{ tag_name: 'tui-v1.46.2', body }])
+      Response.json([{ tag_name: 'tui-v1.46.2', body }]),
     ) as unknown as typeof fetch
 
     try {

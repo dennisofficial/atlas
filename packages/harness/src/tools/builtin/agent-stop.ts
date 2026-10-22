@@ -33,7 +33,7 @@ export class AgentStopTool extends SchemaTool<typeof inputSchema> {
   readonly inputSchema = inputSchema
   override readonly pathFields = TAKES_NO_PATHS
 
-  constructor( private readonly agents: AgentRegistrySource) {
+  constructor(private readonly agents: AgentRegistrySource) {
     super()
   }
 

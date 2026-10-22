@@ -255,9 +255,9 @@ describe('whether a child still counts as working', () => {
   })
 
   it('stops counting a settled child once nothing under it runs', () => {
-    expect(
-      isSubagentWorking(rows({ status: EAgentStatus.Finished, endedAt: STARTED })[0]!),
-    ).toBe(false)
+    expect(isSubagentWorking(rows({ status: EAgentStatus.Finished, endedAt: STARTED })[0]!)).toBe(
+      false,
+    )
   })
 })
 

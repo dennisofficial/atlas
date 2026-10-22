@@ -261,12 +261,19 @@ export class FrameDecoder {
         return { frames, error: 'frame is not valid JSON' }
       }
     }
-    if (this.buffer.length > MAX_FRAME_BYTES) return { frames, error: 'frame exceeds the size limit' }
+    if (this.buffer.length > MAX_FRAME_BYTES)
+      return { frames, error: 'frame exceeds the size limit' }
     return { frames, error: undefined }
   }
 }
 
-export function exitCodeOf({ code, signal }: { code: number | null; signal: string | null }): number {
+export function exitCodeOf({
+  code,
+  signal,
+}: {
+  code: number | null
+  signal: string | null
+}): number {
   if (code !== null) return code
   if (signal === null) return LOST_EXIT_CODE
   const number = Object.entries(constants.signals).find(([name]) => name === signal)?.[1]

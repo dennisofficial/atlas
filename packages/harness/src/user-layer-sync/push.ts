@@ -54,7 +54,11 @@ async function pushFile(args: { ctx: TreeSyncContext; key: string; path: string 
   }
 }
 
-async function pushDeletion(args: { ctx: TreeSyncContext; key: string; revision: number }): Promise<void> {
+async function pushDeletion(args: {
+  ctx: TreeSyncContext
+  key: string
+  revision: number
+}): Promise<void> {
   const { ctx, key } = args
   const located = ctx.layout.locate(key)
   if (located === null) return
@@ -63,7 +67,10 @@ async function pushDeletion(args: { ctx: TreeSyncContext; key: string; revision:
 
   const address = { tree: ctx.layout.tree, path: key }
   try {
-    const { revision } = await ctx.client.deleteUserFile({ ...address, baseRevision: args.revision })
+    const { revision } = await ctx.client.deleteUserFile({
+      ...address,
+      baseRevision: args.revision,
+    })
     ctx.state.set({ ...address, revision, contentHash: TOMBSTONE_HASH })
   } catch (error) {
     if (!(error instanceof UserFileConflict)) throw error

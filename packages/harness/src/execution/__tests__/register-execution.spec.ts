@@ -25,14 +25,18 @@ describe('registerExecution', () => {
   })
 
   it('aliases the agent filesystem port to the local adapter until a router overrides it', () => {
-    expect(wired().resolve(registeredPortToken(AgentFileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
+    expect(wired().resolve(registeredPortToken(AgentFileSystemPort))).toBeInstanceOf(
+      LocalFileSystemPort,
+    )
   })
 
   it('registers one shared docker engine for the container', () => {
     const wiredContainer = wired()
 
     expect(wiredContainer.resolve(DockerEngineToken)).toBeInstanceOf(DockerEngine)
-    expect(wiredContainer.resolve(DockerEngineToken)).toBe(wiredContainer.resolve(DockerEngineToken))
+    expect(wiredContainer.resolve(DockerEngineToken)).toBe(
+      wiredContainer.resolve(DockerEngineToken),
+    )
   })
 
   it('lets an isolated container rebind the process port without touching the original', () => {

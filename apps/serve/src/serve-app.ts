@@ -11,7 +11,13 @@ import type {
 import type { UserSettingsTarget } from './apply-user-settings'
 import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
 
-import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController, RecoveredAgents } from '@dltech/atlas-harness'
+import type {
+  AgentRegistryPort,
+  DeltaChannel,
+  OperatorInputPort,
+  PlacementController,
+  RecoveredAgents,
+} from '@dltech/atlas-harness'
 import type { FileBrowser, MentionReader } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
@@ -76,14 +82,24 @@ export type ServeFamily = {
 export type ServeRewind = {
   target: {
     removeChildren(args: { threadId: ThreadId; agentIds: readonly ThreadId[] }): Promise<void>
-    removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): Promise<void> | void
+    removeShells(args: {
+      threadId: ThreadId
+      shellIds: readonly string[]
+      by: EKilledBy
+    }): Promise<void> | void
     removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   }
   /**
    * The durable truncation, present because this serve's transcript is its own disk. Applied in
    * the same rewind apply that kills the cut processes; absent in fakes, which hold no log.
    */
-  truncate?: ((args: { threadId: ThreadId; toSeq: number; cutAgents: readonly ThreadId[] }) => Promise<void>) | undefined
+  truncate?:
+    | ((args: {
+        threadId: ThreadId
+        toSeq: number
+        cutAgents: readonly ThreadId[]
+      }) => Promise<void>)
+    | undefined
 }
 
 /**
@@ -108,7 +124,15 @@ export type ServeApp = {
   log: Pick<EventLogPort, 'append' | 'read' | 'readOwn' | 'head' | 'refresh'>
   threads: Pick<
     ThreadStorePort,
-    'find' | 'createWithFirstEvents' | 'spawned' | 'list' | 'rename' | 'chooseModel' | 'onRename' | 'onModelChosen' | 'writePlacement'
+    | 'find'
+    | 'createWithFirstEvents'
+    | 'spawned'
+    | 'list'
+    | 'rename'
+    | 'chooseModel'
+    | 'onRename'
+    | 'onModelChosen'
+    | 'writePlacement'
   >
   /** The live model the channel's set-thread-model op re-pins; absent in fakes. */
   modelBridge?: ServeModelBridge | undefined
@@ -126,13 +150,18 @@ export type ServeApp = {
   /** The shared message intake driving this serve's idle wake; absent in fakes. */
   intake?: MessageIntake | undefined
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
-  adoptChildren: (args: { threadId: ThreadId; resumeChildren?: readonly ThreadId[] | undefined }) => Promise<readonly ThreadId[]>
+  adoptChildren: (args: {
+    threadId: ThreadId
+    resumeChildren?: readonly ThreadId[] | undefined
+  }) => Promise<readonly ThreadId[]>
   /**
    * Settles the shells the last process lost — a start with no ending behind it gets a synthetic
    * unrecorded ending so the next open reads it off the transcript. Absent in a fake without a log.
    */
   recordLostShells?: ((args: { threadId: ThreadId }) => Promise<readonly LostShell[]>) | undefined
-  recordLostServices?: ((args: { threadId: ThreadId }) => Promise<readonly LostService[]>) | undefined
+  recordLostServices?:
+    | ((args: { threadId: ThreadId }) => Promise<readonly LostService[]>)
+    | undefined
   /**
    * Settles the agents the last process lost — a spawn with no ending behind it gets a synthetic
    * unrecorded ending so the roster stops reporting it as a live or stopped child. Runs in the

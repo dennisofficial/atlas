@@ -32,7 +32,11 @@ describe('createLocalPodBridge birth', () => {
       { threadId, token: serveToken },
     ])
     expect(created.map((one) => one.name)).toEqual([podNameFor({ threadId })])
-    expect(sandbox).toMatchObject({ url: 'http://127.0.0.1:20111', token: serveToken, created: true })
+    expect(sandbox).toMatchObject({
+      url: 'http://127.0.0.1:20111',
+      token: serveToken,
+      created: true,
+    })
   })
 
   it('writes the project id and model into the workspace spec', async () => {
@@ -60,7 +64,11 @@ describe('createLocalPodBridge birth', () => {
     await podBridgeWith({ driver }).sandboxes.create({ threadId, projectId: null })
 
     expect(created).toHaveLength(1)
-    expect(created[0]).toMatchObject({ name: podNameFor({ threadId }), threadId, token: serveToken })
+    expect(created[0]).toMatchObject({
+      name: podNameFor({ threadId }),
+      threadId,
+      token: serveToken,
+    })
   })
 
   it('forwards the operator environment and omits it when empty', async () => {
@@ -104,7 +112,9 @@ describe('createLocalPodBridge birth', () => {
       },
     })
 
-    await expect(bridge.sandboxes.create({ threadId, projectId: null })).rejects.toThrow('lease refused')
+    await expect(bridge.sandboxes.create({ threadId, projectId: null })).rejects.toThrow(
+      'lease refused',
+    )
     expect(events).toEqual(['create'])
     expect(writes).toEqual([])
   })
@@ -116,9 +126,9 @@ describe('createLocalPodBridge birth', () => {
     }
     const registered: Array<{ threadId: string; token: string }> = []
 
-    await expect(podBridgeWith({ driver, registered }).sandboxes.create({ threadId, projectId: null })).rejects.toThrow(
-      'token refused',
-    )
+    await expect(
+      podBridgeWith({ driver, registered }).sandboxes.create({ threadId, projectId: null }),
+    ).rejects.toThrow('token refused')
 
     expect(registered).toEqual([])
   })
@@ -127,6 +137,12 @@ describe('createLocalPodBridge birth', () => {
     const { driver } = fakePodDriver({ created: true })
     const bridge = podBridgeWith({ driver })
 
-    expect(Object.keys(bridge.sandboxes).sort()).toEqual(['create', 'destroy', 'find', 'readResources', 'updateResources'])
+    expect(Object.keys(bridge.sandboxes).sort()).toEqual([
+      'create',
+      'destroy',
+      'find',
+      'readResources',
+      'updateResources',
+    ])
   })
 })

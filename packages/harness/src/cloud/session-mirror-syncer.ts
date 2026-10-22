@@ -7,10 +7,7 @@ import {
   readSessionFilesReplySchema,
   sessionManifestReplySchema,
 } from './channel-wire'
-import {
-  type ChannelConnection,
-  type RemoteDeltaChannel,
-} from './remote-delta-channel'
+import { type ChannelConnection, type RemoteDeltaChannel } from './remote-delta-channel'
 import { EConnectionView } from './connection-view'
 import { readMirrorStamp, type MirrorStamp } from './session-mirror-stamp'
 import type { SessionMirrorFileWrite, SessionMirrorWriter } from './session-mirror-writer'
@@ -40,7 +37,8 @@ const diffOf = (args: {
   const pulls: string[] = []
   for (const file of args.remote) {
     const held = localFiles[file.path]
-    if (held === undefined || held.bytes !== file.bytes || held.sha256 !== file.sha256) pulls.push(file.path)
+    if (held === undefined || held.bytes !== file.bytes || held.sha256 !== file.sha256)
+      pulls.push(file.path)
   }
   const deletions = Object.keys(localFiles).filter((path) => !remoteByPath.has(path))
   return { pulls, deletions }
@@ -70,7 +68,10 @@ export function createSessionMirrorSync(args: {
     for (let at = 0; at < paths.length; at += FILES_PER_PULL) {
       const batch = paths.slice(at, at + FILES_PER_PULL)
       const reply = readSessionFilesReplySchema.parse(
-        await args.channel.request({ op: EClientRequest.ReadSessionFiles, params: { paths: batch } }),
+        await args.channel.request({
+          op: EClientRequest.ReadSessionFiles,
+          params: { paths: batch },
+        }),
       )
       for (const file of reply.files) {
         writes.push({
@@ -93,7 +94,9 @@ export function createSessionMirrorSync(args: {
     const local = await readMirrorStamp({ sessionDir })
     const diff = diffOf({ local, remote: reply.files })
     const stale =
-      local === undefined ? [] : await args.writer.findStaleDeletions({ threadId: args.threadId, stamp: local })
+      local === undefined
+        ? []
+        : await args.writer.findStaleDeletions({ threadId: args.threadId, stamp: local })
     const pulls = [...new Set([...diff.pulls, ...stale])]
     const deletions = diff.deletions.filter((path) => !stale.includes(path))
     const writes = await pullFiles(pulls)

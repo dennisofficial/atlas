@@ -53,16 +53,27 @@ export async function familyRecoveryFixture() {
       writeInput: async () => ({ ok: false, reason: 'unsupported' }),
       kill: (by) => {
         killed.push(threadId)
-        if (!ignoreKills) exits.get(threadId)?.({ status: EShellStatus.Killed, killedBy: by, totalBytes: 0 })
+        if (!ignoreKills)
+          exits.get(threadId)?.({ status: EShellStatus.Killed, killedBy: by, totalBytes: 0 })
       },
-      watch: ({ onExit }) => { exits.set(threadId, onExit) },
+      watch: ({ onExit }) => {
+        exits.set(threadId, onExit)
+      },
       detach: async () => undefined,
     }
     attachments.set(threadId, { state: EInspected.Live, shellId, attachment })
     await log.append({
       threadId,
       runId: ids.nextRunId(),
-      drafts: [{ type: 'background-shell-started', shellId, bootId: 'previous-boot', command: 'task', description: 'task' }],
+      drafts: [
+        {
+          type: 'background-shell-started',
+          shellId,
+          bootId: 'previous-boot',
+          command: 'task',
+          description: 'task',
+        },
+      ],
     })
   }
   const shells = new BunShellRegistry({
@@ -83,10 +94,22 @@ export async function familyRecoveryFixture() {
   })
   fixtures.push({ home, shells })
   return {
-    root: root.id, child: child.id, teammate: teammate.id, grandchild: grandchild.id,
-    stranger: stranger.id, shells, log, threads, seed, inspected, killed,
-    refuseKills: () => { ignoreKills = true },
-    finish: (threadId: ThreadId) => exits.get(threadId)?.({ status: EShellStatus.Exited, exitCode: 0, totalBytes: 0 }),
+    root: root.id,
+    child: child.id,
+    teammate: teammate.id,
+    grandchild: grandchild.id,
+    stranger: stranger.id,
+    shells,
+    log,
+    threads,
+    seed,
+    inspected,
+    killed,
+    refuseKills: () => {
+      ignoreKills = true
+    },
+    finish: (threadId: ThreadId) =>
+      exits.get(threadId)?.({ status: EShellStatus.Exited, exitCode: 0, totalBytes: 0 }),
   }
 }
 
@@ -95,10 +118,18 @@ describe('family shell recovery', () => {
     const f = await familyRecoveryFixture()
     for (const owner of [f.child, f.teammate, f.grandchild, f.stranger]) await f.seed(owner)
 
-    await Promise.all([f.shells.reconcile({ threadId: f.root }), f.shells.reconcile({ threadId: f.root })])
+    await Promise.all([
+      f.shells.reconcile({ threadId: f.root }),
+      f.shells.reconcile({ threadId: f.root }),
+    ])
 
     expect(f.inspected.sort()).toEqual([f.child, f.teammate, f.grandchild].sort())
-    expect(f.shells.listEverywhere().map((shell) => shell.threadId).sort()).toEqual([f.child, f.teammate, f.grandchild].sort())
+    expect(
+      f.shells
+        .listEverywhere()
+        .map((shell) => shell.threadId)
+        .sort(),
+    ).toEqual([f.child, f.teammate, f.grandchild].sort())
     const ended = new Promise<void>((resolve) => {
       const unsubscribe = f.shells.subscribe(() => {
         if (f.shells.list({ threadId: f.child })[0]?.status === EShellStatus.Running) return
@@ -109,13 +140,21 @@ describe('family shell recovery', () => {
     f.finish(f.child)
     await ended
     await f.shells.awaitEndings({ threadId: f.child, ms: 1000 })
-    expect((await f.log.readOwn({ threadId: f.child })).filter((event) => event.type === 'background-shell-ended')).toHaveLength(1)
+    expect(
+      (await f.log.readOwn({ threadId: f.child })).filter(
+        (event) => event.type === 'background-shell-ended',
+      ),
+    ).toHaveLength(1)
     expect(await f.log.readOwn({ threadId: f.root })).toEqual([])
     expect(f.shells.pendingNotices({ threadId: f.root })).toEqual([])
     expect(f.shells.pendingNotices({ threadId: f.child })).toHaveLength(1)
     for (const owner of [f.teammate, f.grandchild]) {
       await f.shells.stopOwners({ threadIds: [owner], by: EKilledBy.SessionEnd, ms: 1000 })
-      expect((await f.log.readOwn({ threadId: owner })).filter((event) => event.type === 'background-shell-ended')).toHaveLength(1)
+      expect(
+        (await f.log.readOwn({ threadId: owner })).filter(
+          (event) => event.type === 'background-shell-ended',
+        ),
+      ).toHaveLength(1)
       expect(f.shells.pendingNotices({ threadId: owner })).toHaveLength(1)
     }
     expect(await f.log.readOwn({ threadId: f.root })).toEqual([])
@@ -127,7 +166,9 @@ describe('family shell recovery', () => {
     await f.shells.closeAll({ threadId: f.root, killedBy: EKilledBy.SessionEnd })
     expect(f.killed.sort()).toEqual([f.child, f.teammate, f.grandchild].sort())
     expect(f.inspected).not.toContain(f.stranger)
-    expect((await f.log.readOwn({ threadId: f.stranger })).map((event) => event.type)).toEqual(['background-shell-started'])
+    expect((await f.log.readOwn({ threadId: f.stranger })).map((event) => event.type)).toEqual([
+      'background-shell-started',
+    ])
   })
 
   it('normal close discovers descendants of an admitted owner', async () => {

@@ -33,7 +33,9 @@ describe('the cloud-connection icon', () => {
   })
 
   it('is a failure mark when disconnected', () => {
-    expect(itemFor(EConnectionView.Disconnected)?.spans).toEqual([{ text: glyph.failed, fg: theme.warn }])
+    expect(itemFor(EConnectionView.Disconnected)?.spans).toEqual([
+      { text: glyph.failed, fg: theme.warn },
+    ])
   })
 
   it('spins and names the move while the container is in transition', () => {

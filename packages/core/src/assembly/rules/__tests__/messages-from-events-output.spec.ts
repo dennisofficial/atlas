@@ -10,18 +10,28 @@ const empty: Assembled = { system: [], messages: [] }
 describe('messagesFromEvents rendering a tool result', () => {
   const settled = (output: unknown) =>
     log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'write', input: { path: 'a.ts' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'write',
+        input: { path: 'a.ts' },
+        ordinal: 0,
+      },
       { type: 'tool-result', callId: toCallId('call-1'), name: 'write', output },
     ])
-
 
   const outputOf = (events: ReturnType<typeof log>) =>
     messagesFromEvents()(empty, contextFor({ events })).messages[1]?.message.content[0]
 
-
   it('renders a failed call as error text the model can read', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'read', input: { path: 'gone.ts' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'read',
+        input: { path: 'gone.ts' },
+        ordinal: 0,
+      },
       {
         type: 'tool-result',
         callId: toCallId('call-1'),
@@ -45,8 +55,19 @@ describe('messagesFromEvents rendering a tool result', () => {
 
   it('renders a structured output as text rather than proving it is JSON', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'edit', input: { path: 'a.ts' }, ordinal: 0 },
-      { type: 'tool-result', callId: toCallId('call-1'), name: 'edit', output: { replacements: 2 } },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'edit',
+        input: { path: 'a.ts' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-1'),
+        name: 'edit',
+        output: { replacements: 2 },
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -63,7 +84,13 @@ describe('messagesFromEvents rendering a tool result', () => {
 
   it('renders modelText rather than the structured output the TUI reads', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'edit', input: { path: 'a.ts' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'edit',
+        input: { path: 'a.ts' },
+        ordinal: 0,
+      },
       {
         type: 'tool-result',
         callId: toCallId('call-1'),
@@ -87,7 +114,13 @@ describe('messagesFromEvents rendering a tool result', () => {
 
   it('keeps an error louder than modelText when a producer sets both', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'edit', input: { path: 'a.ts' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'edit',
+        input: { path: 'a.ts' },
+        ordinal: 0,
+      },
       {
         type: 'tool-result',
         callId: toCallId('call-1'),
@@ -107,8 +140,20 @@ describe('messagesFromEvents rendering a tool result', () => {
 
   it('renders an empty modelText as readable text rather than an empty block', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'write', input: { path: 'a.ts' }, ordinal: 0 },
-      { type: 'tool-result', callId: toCallId('call-1'), name: 'write', output: 'ignored', modelText: '' },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'write',
+        input: { path: 'a.ts' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-1'),
+        name: 'write',
+        output: 'ignored',
+        modelText: '',
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -119,9 +164,15 @@ describe('messagesFromEvents rendering a tool result', () => {
   })
 
   it('renders a success with nothing to say as readable text, not an empty block', () => {
-    expect(outputOf(settled(undefined))).toMatchObject({ output: { type: 'text', value: '(no output)' } })
-    expect(outputOf(settled(null))).toMatchObject({ output: { type: 'text', value: '(no output)' } })
-    expect(outputOf(settled('   '))).toMatchObject({ output: { type: 'text', value: '(no output)' } })
+    expect(outputOf(settled(undefined))).toMatchObject({
+      output: { type: 'text', value: '(no output)' },
+    })
+    expect(outputOf(settled(null))).toMatchObject({
+      output: { type: 'text', value: '(no output)' },
+    })
+    expect(outputOf(settled('   '))).toMatchObject({
+      output: { type: 'text', value: '(no output)' },
+    })
   })
 
   it('describes an output JSON cannot serialise rather than throwing the rule away', () => {
@@ -151,9 +202,20 @@ describe('messagesFromEvents rendering a tool result', () => {
 })
 
 describe('messagesFromEvents rendering a tool result that carries parts', () => {
-  const withParts = (modelParts: readonly ({ type: 'text'; text: string } | { type: 'image'; data: string; mediaType: string })[]) =>
+  const withParts = (
+    modelParts: readonly (
+      | { type: 'text'; text: string }
+      | { type: 'image'; data: string; mediaType: string }
+    )[],
+  ) =>
     log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'read', input: { path: 'shot.png' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'read',
+        input: { path: 'shot.png' },
+        ordinal: 0,
+      },
       {
         type: 'tool-result',
         callId: toCallId('call-1'),

@@ -43,10 +43,7 @@ export async function listOrganizations(): Promise<Organization[]> {
   return (await response.json()) as Organization[]
 }
 
-export async function createOrganization(args: {
-  name: string
-  slug: string
-}): Promise<void> {
+export async function createOrganization(args: { name: string; slug: string }): Promise<void> {
   let response: Response
   try {
     response = await fetch('/api/auth/organization/create', {
@@ -60,9 +57,7 @@ export async function createOrganization(args: {
   if (!response.ok) await failWith(response, 'Could not create the organization')
 }
 
-export async function setActiveOrganization(args: {
-  organizationId: string
-}): Promise<void> {
+export async function setActiveOrganization(args: { organizationId: string }): Promise<void> {
   let response: Response
   try {
     response = await fetch('/api/auth/organization/set-active', {

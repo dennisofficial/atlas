@@ -15,7 +15,11 @@ const run = (args: {
   const result = Bun.spawnSync([SSH_KEYGEN, ...args.argv], {
     ...(args.stdin === undefined ? {} : { stdin: Buffer.from(args.stdin) }),
   })
-  return { code: result.exitCode, stdout: result.stdout.toString(), stderr: result.stderr.toString() }
+  return {
+    code: result.exitCode,
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+  }
 }
 
 describe('generateSigningKeyPair', () => {
@@ -110,7 +114,18 @@ describe('generateSigningKeyPair', () => {
     expect(run({ argv: ['-Y', 'sign', '-n', 'git', '-f', keyPath, payloadPath] }).code).toBe(0)
 
     const verified = run({
-      argv: ['-Y', 'verify', '-n', 'git', '-I', EMAIL, '-f', allowedPath, '-s', `${payloadPath}.sig`],
+      argv: [
+        '-Y',
+        'verify',
+        '-n',
+        'git',
+        '-I',
+        EMAIL,
+        '-f',
+        allowedPath,
+        '-s',
+        `${payloadPath}.sig`,
+      ],
       stdin: 'tampered',
     })
 

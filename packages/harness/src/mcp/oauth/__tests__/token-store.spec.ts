@@ -11,7 +11,12 @@ describe('McpOAuthStore', () => {
   it('round-trips an entry keyed by the server url', () => {
     const secrets = store()
     secrets.write(SERVER_URL, {
-      tokens: { accessToken: 'at', refreshToken: 'rt', expiresAt: '2026-01-01T00:00:00.000Z', scope: 'read' },
+      tokens: {
+        accessToken: 'at',
+        refreshToken: 'rt',
+        expiresAt: '2026-01-01T00:00:00.000Z',
+        scope: 'read',
+      },
       clientInfo: { clientId: 'cid' },
     })
 

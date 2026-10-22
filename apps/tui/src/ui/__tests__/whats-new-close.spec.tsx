@@ -101,7 +101,7 @@ const hoverAt = async (args: { setup: Setup; x: number; y: number }): Promise<vo
   await args.setup.flush()
 }
 
-describe('the what\'s new close button', () => {
+describe("the what's new close button", () => {
   it('draws the shared label with no cross, in every state at every width', async () => {
     for (const { state } of STATES) {
       for (const width of WIDTHS) {

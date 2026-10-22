@@ -18,7 +18,10 @@ export type CloudQuery<TData> =
 const asCloudError = (error: unknown): CloudApiError =>
   error instanceof CloudApiError
     ? error
-    : new CloudApiError({ message: error instanceof Error ? error.message : String(error), status: 0 })
+    : new CloudApiError({
+        message: error instanceof Error ? error.message : String(error),
+        status: 0,
+      })
 
 export function useCloudQuery<TData>(args: {
   key: string

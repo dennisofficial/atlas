@@ -12,12 +12,22 @@ import {
   type Summariser,
 } from '@dltech/atlas-harness'
 
-import { openStoreFixture, type StoreFixture } from '../../../../packages/harness/src/store/__tests__/harness'
+import {
+  openStoreFixture,
+  type StoreFixture,
+} from '../../../../packages/harness/src/store/__tests__/harness'
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
 import type { ServeApp } from '../serve-app'
 
 import { fakeRewindTarget, fakeServeApp } from './fakes'
-import { attach, gate, releaseServing, threadId, TOKEN, type Attached } from './serve-remote-fixture'
+import {
+  attach,
+  gate,
+  releaseServing,
+  threadId,
+  TOKEN,
+  type Attached,
+} from './serve-remote-fixture'
 
 export { gate, threadId }
 
@@ -60,7 +70,9 @@ export type SummariserProbe = {
   release: () => void
 }
 
-export const probeSummariser = (args: { held?: boolean; honoursAbort?: boolean } = {}): SummariserProbe => {
+export const probeSummariser = (
+  args: { held?: boolean; honoursAbort?: boolean } = {},
+): SummariserProbe => {
   const calls: SummariserProbe['calls'] = []
   const entered = gate()
   const released = gate()
@@ -143,7 +155,14 @@ export const startCompactionServe = async (args: {
   mkdirSync(join(home, 'bootstrap'), { recursive: true })
   writeFileSync(
     join(home, 'bootstrap', 'workspace-spec.json'),
-    JSON.stringify({ remoteUrl: null, branch: null, commit: null, patch: '', githubToken: null, contextBundle: null }),
+    JSON.stringify({
+      remoteUrl: null,
+      branch: null,
+      commit: null,
+      patch: '',
+      githubToken: null,
+      contextBundle: null,
+    }),
   )
 
   const store = await openSeededStore()

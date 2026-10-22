@@ -52,22 +52,23 @@ export function createPrEventForwarder(args: {
     const listed = await args.listThreads({ project: args.project }).catch(() => [])
     const active = args.activeThreadId()
 
-    const watching = listed
-      .filter(
-        (summary) =>
-          summary.executionLocation === EExecutionLocation.Cloud &&
-          summary.id !== active &&
-          (summary.pullRequests ?? []).some(
-            (link) => link.repo === repo && link.number === frame.prNumber,
-          ),
-      )
+    const watching = listed.filter(
+      (summary) =>
+        summary.executionLocation === EExecutionLocation.Cloud &&
+        summary.id !== active &&
+        (summary.pullRequests ?? []).some(
+          (link) => link.repo === repo && link.number === frame.prNumber,
+        ),
+    )
 
     for (const summary of watching) runners.set(summary.id, summary.runner ?? ERunner.Vercel)
     return watching.map((summary) => summary.id)
   }
 
   const parkedOrGone = async (threadId: ThreadId): Promise<boolean> => {
-    const status = await bridgeFor(threadId).sandboxes.find({ threadId }).catch(() => undefined)
+    const status = await bridgeFor(threadId)
+      .sandboxes.find({ threadId })
+      .catch(() => undefined)
     return status?.state !== ECloudSandboxState.Running
   }
 

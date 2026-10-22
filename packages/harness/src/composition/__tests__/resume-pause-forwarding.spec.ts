@@ -59,7 +59,7 @@ class IdleModel extends ModelPort {
 }
 
 describe('resuming a turn through the policy decorator', () => {
-  it('passes the caller\'s exact pause signal to the inner runner, and none when the caller gave none', async () => {
+  it("passes the caller's exact pause signal to the inner runner, and none when the caller gave none", async () => {
     const inner = new PauseRecordingRunner()
     const fixture = openStoreFixture()
     const channel = createDeltaChannel()
@@ -95,7 +95,7 @@ describe('resuming a turn through the policy decorator', () => {
 })
 
 describe('resuming a turn through the titling decorator', () => {
-  it('passes the caller\'s exact pause signal to the inner runner', async () => {
+  it("passes the caller's exact pause signal to the inner runner", async () => {
     const inner = new PauseRecordingRunner()
     const fixture = openStoreFixture()
     const titling = new TitlingTurnRunner({

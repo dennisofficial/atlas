@@ -22,7 +22,10 @@ const wakeThrough = async (args: {
   const attachment = attachmentOf({
     options: { sessionMirror: false, projectIdOf: args.projectIdOf },
     sandboxes,
-  })({ threadId: THREAD, ...(args.sandboxThreadId === undefined ? {} : { sandboxThreadId: args.sandboxThreadId }) })
+  })({
+    threadId: THREAD,
+    ...(args.sandboxThreadId === undefined ? {} : { sandboxThreadId: args.sandboxThreadId }),
+  })
   attachment.channel.reconnect?.()
   await Bun.sleep(20)
   attachment.channel.close?.()
@@ -55,7 +58,9 @@ describe('attachmentOf channel-driven wake', () => {
 
   it('wakes with no project when none is recorded, lookup fails, or no lookup is wired', async () => {
     const none = await wakeThrough({ projectIdOf: async () => null })
-    const failing = await wakeThrough({ projectIdOf: () => Promise.reject(new Error('store down')) })
+    const failing = await wakeThrough({
+      projectIdOf: () => Promise.reject(new Error('store down')),
+    })
     const unwired = await wakeThrough({})
 
     expect(none).toEqual([{ threadId: THREAD, projectId: null }])

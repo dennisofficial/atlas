@@ -1,24 +1,21 @@
-import { Archive, ExternalLink, Pin } from "lucide-react";
+import { Archive, ExternalLink, Pin } from 'lucide-react'
 
-import { SidebarMenuButton, SidebarMenuItem } from "@dltech/atlas-ui/components/sidebar";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { type AppThread, EThreadStatus } from "../../fixtures/app";
-import { RowAction } from "./shell-row-action";
-import { ThreadStatusIcon } from "./shell-status-icon";
-import { ThreadHoverCard } from "./thread-hover-card";
+import { type AppThread, EThreadStatus } from '../../fixtures/app'
+import { RowAction } from './shell-row-action'
+import { ThreadStatusIcon } from './shell-status-icon'
+import { ThreadHoverCard } from './thread-hover-card'
 
 export interface ThreadRowProps {
-  thread: AppThread;
-  active: boolean;
-  defaultCardOpen: boolean;
+  thread: AppThread
+  active: boolean
+  defaultCardOpen: boolean
 }
 
 function hasPullRequest(thread: AppThread): boolean {
-  return (
-    thread.status === EThreadStatus.PrOpen ||
-    thread.status === EThreadStatus.PrMerged
-  );
+  return thread.status === EThreadStatus.PrOpen || thread.status === EThreadStatus.PrMerged
 }
 
 export function ThreadRow({ thread, active, defaultCardOpen }: ThreadRowProps) {
@@ -28,8 +25,8 @@ export function ThreadRow({ thread, active, defaultCardOpen }: ThreadRowProps) {
         thread={thread}
         defaultOpen={defaultCardOpen}
         className={cn(
-          "group/thread flex items-center rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent",
-          active && "bg-sidebar-accent",
+          'group/thread flex items-center rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',
+          active && 'bg-sidebar-accent',
         )}
       >
         <SidebarMenuButton
@@ -55,5 +52,5 @@ export function ThreadRow({ thread, active, defaultCardOpen }: ThreadRowProps) {
         </div>
       </ThreadHoverCard>
     </SidebarMenuItem>
-  );
+  )
 }

@@ -40,7 +40,11 @@ describe('the vault locks', () => {
         },
       })
 
-    await Promise.all([hold(fileVaultLocks(file)), hold(fileVaultLocks(file)), hold(fileVaultLocks(file))])
+    await Promise.all([
+      hold(fileVaultLocks(file)),
+      hold(fileVaultLocks(file)),
+      hold(fileVaultLocks(file)),
+    ])
 
     expect(shared.peak).toBe(1)
   })
@@ -48,7 +52,9 @@ describe('the vault locks', () => {
   it('release after the callback throws', async () => {
     const locks = fileVaultLocks(file)
 
-    await expect(locks.account({ accountId: 'acc_1', run: async () => Promise.reject(new Error('boom')) })).rejects.toThrow('boom')
+    await expect(
+      locks.account({ accountId: 'acc_1', run: async () => Promise.reject(new Error('boom')) }),
+    ).rejects.toThrow('boom')
 
     expect(await locks.account({ accountId: 'acc_1', run: async () => 'again' })).toBe('again')
   })

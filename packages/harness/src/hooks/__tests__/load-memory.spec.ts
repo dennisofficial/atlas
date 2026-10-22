@@ -67,7 +67,13 @@ describe('LoadMemoryIndexHook', () => {
 
     expect(outcome).toEqual({})
     expect(state.text).toBe(
-      ['### Global', '- prefs — about prefs', '', '### Project org/repo', '- deploy — about deploy'].join('\n'),
+      [
+        '### Global',
+        '- prefs — about prefs',
+        '',
+        '### Project org/repo',
+        '- deploy — about deploy',
+      ].join('\n'),
     )
   })
 
@@ -97,7 +103,9 @@ describe('LoadMemoryIndexHook', () => {
     const hook = new LoadMemoryIndexHook({ port, state })
 
     await turn(hook)
-    expect(state.text).toBe('Memory is unavailable this session: sign in to Atlas Cloud to use memory.')
+    expect(state.text).toBe(
+      'Memory is unavailable this session: sign in to Atlas Cloud to use memory.',
+    )
 
     port.failure = null
     port.rows = [summary({ scope: EMemoryScope.Global, name: 'prefs' })]

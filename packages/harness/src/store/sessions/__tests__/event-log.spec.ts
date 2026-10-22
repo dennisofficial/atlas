@@ -44,7 +44,11 @@ describe('JsonlEventLog', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
 
-    await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'one' })] })
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'one' })],
+    })
     const stamped = await log.append({
       threadId: mainThread,
       runId: ids.nextRunId(),
@@ -137,8 +141,16 @@ describe('JsonlEventLog', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
 
-    const first = await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [contextLoaded({ key: 'claude-md' })] })
-    const second = await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [contextLoaded({ key: 'claude-md' })] })
+    const first = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [contextLoaded({ key: 'claude-md' })],
+    })
+    const second = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [contextLoaded({ key: 'claude-md' })],
+    })
 
     expect(second[0]?.id).toBe(first[0]?.id)
     expect(await log.head({ threadId: mainThread })).toBe(1)
@@ -151,12 +163,26 @@ describe('JsonlEventLog', () => {
     const first = await log.append({
       threadId: mainThread,
       runId: ids.nextRunId(),
-      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/Users/d/Developer/comp-v2/CLAUDE.md', content: 'same bytes' }],
+      drafts: [
+        {
+          type: 'context-loaded',
+          slot: 'project-instructions',
+          key: '/Users/d/Developer/comp-v2/CLAUDE.md',
+          content: 'same bytes',
+        },
+      ],
     })
     const second = await log.append({
       threadId: mainThread,
       runId: ids.nextRunId(),
-      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/atlas/workspaces/comp-v2/CLAUDE.md', content: 'same bytes' }],
+      drafts: [
+        {
+          type: 'context-loaded',
+          slot: 'project-instructions',
+          key: '/atlas/workspaces/comp-v2/CLAUDE.md',
+          content: 'same bytes',
+        },
+      ],
     })
 
     expect(second[0]?.id).toBe(first[0]?.id)
@@ -173,12 +199,26 @@ describe('JsonlEventLog', () => {
     await log.append({
       threadId: mainThread,
       runId: ids.nextRunId(),
-      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'old' }],
+      drafts: [
+        {
+          type: 'context-loaded',
+          slot: 'project-instructions',
+          key: '/repo/CLAUDE.md',
+          content: 'old',
+        },
+      ],
     })
     const second = await log.append({
       threadId: mainThread,
       runId: ids.nextRunId(),
-      drafts: [{ type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'new' }],
+      drafts: [
+        {
+          type: 'context-loaded',
+          slot: 'project-instructions',
+          key: '/repo/CLAUDE.md',
+          content: 'new',
+        },
+      ],
     })
 
     const reloaded = second[0]
@@ -195,8 +235,18 @@ describe('JsonlEventLog', () => {
       threadId: mainThread,
       runId: ids.nextRunId(),
       drafts: [
-        { type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'same bytes' },
-        { type: 'context-loaded', slot: 'nested-instructions', key: '/repo/CLAUDE.md', content: 'same bytes' },
+        {
+          type: 'context-loaded',
+          slot: 'project-instructions',
+          key: '/repo/CLAUDE.md',
+          content: 'same bytes',
+        },
+        {
+          type: 'context-loaded',
+          slot: 'nested-instructions',
+          key: '/repo/CLAUDE.md',
+          content: 'same bytes',
+        },
       ],
     })
 
@@ -208,12 +258,24 @@ describe('JsonlEventLog', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
 
-    const original = await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'old' })] })
-    const replaced = await log.replace({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'new-a' }), nudge({ text: 'new-b' })] })
+    const original = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'old' })],
+    })
+    const replaced = await log.replace({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'new-a' }), nudge({ text: 'new-b' })],
+    })
 
     expect(replaced.map((event) => event.seq)).toEqual([1, 2])
     expect(replaced[0]?.id).not.toBe(original[0]?.id)
-    expect((await log.read({ threadId: mainThread })).map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual(['new-a', 'new-b'])
+    expect(
+      (await log.read({ threadId: mainThread })).map((event) =>
+        event.type === 'nudge' ? event.text : event.type,
+      ),
+    ).toEqual(['new-a', 'new-b'])
   })
 
   it('serializes concurrent appends so seqs never collide', async () => {
@@ -221,7 +283,11 @@ describe('JsonlEventLog', () => {
     const { log, ids } = openLog({ home })
 
     const [a, b] = await Promise.all([
-      log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'a1' }), nudge({ text: 'a2' })] }),
+      log.append({
+        threadId: mainThread,
+        runId: ids.nextRunId(),
+        drafts: [nudge({ text: 'a1' }), nudge({ text: 'a2' })],
+      }),
       log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'b1' })] }),
     ])
 
@@ -233,20 +299,30 @@ describe('JsonlEventLog', () => {
   it('reads a thread whose meta file is corrupt, taking head from the log', async () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
-    await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'one' }), nudge({ text: 'two' })] })
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'one' }), nudge({ text: 'two' })],
+    })
 
     const sessionDir = sessionDirectory({ home, sessionId: mainThread })
     writeFileSync(threadMetaFile({ sessionDir, threadId: mainThread }), Buffer.alloc(64))
 
     const fresh = openLog({ home })
-    expect((await fresh.log.read({ threadId: mainThread })).map((event) => event.seq)).toEqual([1, 2])
+    expect((await fresh.log.read({ threadId: mainThread })).map((event) => event.seq)).toEqual([
+      1, 2,
+    ])
     expect(await fresh.log.head({ threadId: mainThread })).toBe(2)
   })
 
   it('skips a corrupt meta during the thread index scan', async () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
-    await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'one' })] })
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'one' })],
+    })
 
     const sessionDir = sessionDirectory({ home, sessionId: mainThread })
     writeFileSync(threadMetaFile({ sessionDir, threadId: mainThread }), '{ truncated')
@@ -263,7 +339,12 @@ describe('JsonlEventLog', () => {
     await log.append({
       threadId: mainThread,
       runId: ids.nextRunId(),
-      drafts: [nudge({ text: 'p1' }), nudge({ text: 'p2' }), nudge({ text: 'p3' }), nudge({ text: 'p4' })],
+      drafts: [
+        nudge({ text: 'p1' }),
+        nudge({ text: 'p2' }),
+        nudge({ text: 'p3' }),
+        nudge({ text: 'p4' }),
+      ],
     })
 
     const forkThread: ThreadId = toThreadId('brn_fork')
@@ -279,12 +360,20 @@ describe('JsonlEventLog', () => {
       },
     })
 
-    const stamped = await log.append({ threadId: forkThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'f1' })] })
+    const stamped = await log.append({
+      threadId: forkThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'f1' })],
+    })
     expect(stamped[0]?.seq).toBe(3)
 
     const read = await log.read({ threadId: forkThread })
     expect(read.map((event) => event.seq)).toEqual([1, 2, 3])
-    expect(read.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual(['p1', 'p2', 'f1'])
+    expect(read.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual([
+      'p1',
+      'p2',
+      'f1',
+    ])
   })
 
   it('replace on a reference fork keeps numbering above the fork point', async () => {
@@ -325,9 +414,16 @@ describe('JsonlEventLog', () => {
   it('recovers from a truncated tail on reopen', async () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
-    await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'one' })] })
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'one' })],
+    })
 
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: mainThread }), threadId: mainThread })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: mainThread }),
+      threadId: mainThread,
+    })
     appendFileSync(file, '{"v":1,"id":"evt_partial","seq":2,"thre')
 
     const reopened = openLog({ home })
@@ -339,32 +435,62 @@ describe('JsonlEventLog', () => {
   it('welds a torn tail away before appending, so the next batch starts on its own line', async () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
-    await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'one' })] })
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'one' })],
+    })
 
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: mainThread }), threadId: mainThread })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: mainThread }),
+      threadId: mainThread,
+    })
     appendFileSync(file, '{"v":1,"id":"evt_partial","seq":2,"thre')
 
-    const stamped = await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'two' })] })
+    const stamped = await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'two' })],
+    })
     const readBack = await log.read({ threadId: mainThread })
 
     expect(stamped.map((event) => event.seq)).toEqual([2])
-    expect(readBack.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual(['one', 'two'])
+    expect(readBack.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual([
+      'one',
+      'two',
+    ])
     expect(await log.head({ threadId: mainThread })).toBe(2)
   })
 
   it('re-reads the log when another writer touched it, instead of reusing a stale head', async () => {
     const home = await tempHome()
     const first = openLog({ home })
-    await first.log.append({ threadId: mainThread, runId: first.ids.nextRunId(), drafts: [nudge({ text: 'one' })] })
+    await first.log.append({
+      threadId: mainThread,
+      runId: first.ids.nextRunId(),
+      drafts: [nudge({ text: 'one' })],
+    })
 
     const outsider = openLog({ home })
-    await outsider.log.append({ threadId: mainThread, runId: outsider.ids.nextRunId(), drafts: [nudge({ text: 'outside' })] })
+    await outsider.log.append({
+      threadId: mainThread,
+      runId: outsider.ids.nextRunId(),
+      drafts: [nudge({ text: 'outside' })],
+    })
 
-    const stamped = await first.log.append({ threadId: mainThread, runId: first.ids.nextRunId(), drafts: [nudge({ text: 'two' })] })
+    const stamped = await first.log.append({
+      threadId: mainThread,
+      runId: first.ids.nextRunId(),
+      drafts: [nudge({ text: 'two' })],
+    })
 
     expect(stamped.map((event) => event.seq)).toEqual([3])
     const readBack = await first.log.read({ threadId: mainThread })
-    expect(readBack.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual(['one', 'outside', 'two'])
+    expect(readBack.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual([
+      'one',
+      'outside',
+      'two',
+    ])
     expect(await first.log.head({ threadId: mainThread })).toBe(3)
   })
 })

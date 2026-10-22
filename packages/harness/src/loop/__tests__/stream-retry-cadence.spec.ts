@@ -39,9 +39,13 @@ class UnansweredModel extends ModelPort {
         this.calls += 1
         if (this.calls <= this.failures) {
           return new Promise<never>(() => {
-            abortSignal?.addEventListener('abort', () => {
-              this.aborted += 1
-            }, { once: true })
+            abortSignal?.addEventListener(
+              'abort',
+              () => {
+                this.aborted += 1
+              },
+              { once: true },
+            )
           })
         }
         return {
@@ -69,18 +73,21 @@ function retrying(args: { failures: number }) {
   const slept: number[] = []
   const notices: RetryNotice[] = []
   const assembled: Assembled = { messages: [], system: [] }
-  const run = () => takeModelStepWithRetry({
-    model,
-    tools: [],
-    onChunk: undefined,
-    assembled,
-    signal: new AbortController().signal,
-    retry: {
-      jitter: () => 1,
-      sleep: async ({ ms }) => { slept.push(ms) },
-      onWaiting: (notice) => notices.push(notice),
-    },
-  })
+  const run = () =>
+    takeModelStepWithRetry({
+      model,
+      tools: [],
+      onChunk: undefined,
+      assembled,
+      signal: new AbortController().signal,
+      retry: {
+        jitter: () => 1,
+        sleep: async ({ ms }) => {
+          slept.push(ms)
+        },
+        onWaiting: (notice) => notices.push(notice),
+      },
+    })
   return { model, slept, notices, run }
 }
 
@@ -92,7 +99,9 @@ describe('default cadence for unanswered provider requests', () => {
       if (decision.retry) waitingMs += decision.delayMs
     }
     expect(DEFAULT_STREAM_TIMEOUT.ttfbMs).toBe(30_000)
-    expect(DEFAULT_RETRY_POLICY.maxAttempts * DEFAULT_STREAM_TIMEOUT.ttfbMs + waitingMs).toBe(165_000)
+    expect(DEFAULT_RETRY_POLICY.maxAttempts * DEFAULT_STREAM_TIMEOUT.ttfbMs + waitingMs).toBe(
+      165_000,
+    )
     expect(DEFAULT_STREAM_TIMEOUT.firstChunkMs).toBe(180_000)
     expect(DEFAULT_STREAM_TIMEOUT.chunkMs).toBe(120_000)
   })

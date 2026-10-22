@@ -86,7 +86,9 @@ const start = async (args: {
     compose: async () => app,
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     contextFiles: inMemoryContextFiles(),
-    ...(args.spec === undefined ? {} : { fetchFn: projectApiAnswering({ githubToken: args.spec.githubToken }) }),
+    ...(args.spec === undefined
+      ? {}
+      : { fetchFn: projectApiAnswering({ githubToken: args.spec.githubToken }) }),
   })
   running.push(handle)
   return handle

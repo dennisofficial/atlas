@@ -27,7 +27,14 @@ const call: ToolCall = {
 const succeeded = (output: unknown): ToolOutcome => ({ ok: true, output, modelText: 'done' })
 
 const draftsFor = async (result: ToolOutcome): Promise<readonly EventDraft[]> =>
-  (await new TrackWorktreeHook().run({ call, result, projectDirectory: '/project', signal: NEVER_ABORTED })).drafts ?? []
+  (
+    await new TrackWorktreeHook().run({
+      call,
+      result,
+      projectDirectory: '/project',
+      signal: NEVER_ABORTED,
+    })
+  ).drafts ?? []
 
 describe('what the hook records about worktrees', () => {
   it('records nothing when the tool moved no worktree', async () => {
@@ -56,7 +63,12 @@ describe('what the hook records about worktrees', () => {
     }
 
     expect(await draftsFor(succeeded(output))).toEqual([
-      { type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep, returnTo: '/Users/dev/project' },
+      {
+        type: 'worktree-exited',
+        path: TREE,
+        action: EWorktreeExit.Keep,
+        returnTo: '/Users/dev/project',
+      },
     ])
   })
 
@@ -67,8 +79,12 @@ describe('what the hook records about worktrees', () => {
   })
 
   it('ignores an output whose shape does not carry a usable move', async () => {
-    expect(await draftsFor(succeeded({ enteredWorktree: { path: '', branch: 'b', base: 'c' } }))).toEqual([])
-    expect(await draftsFor(succeeded({ exitedWorktree: { path: TREE, action: 'sideways' } }))).toEqual([])
+    expect(
+      await draftsFor(succeeded({ enteredWorktree: { path: '', branch: 'b', base: 'c' } })),
+    ).toEqual([])
+    expect(
+      await draftsFor(succeeded({ exitedWorktree: { path: TREE, action: 'sideways' } })),
+    ).toEqual([])
     expect(await draftsFor(succeeded(null))).toEqual([])
   })
 })

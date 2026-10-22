@@ -92,7 +92,9 @@ describe('resolveSubmission', () => {
   it('still reaches the shadowed local command through its qualifier', () => {
     const clash = [local('review'), skill('review')]
 
-    expect(resolveSubmission({ text: '/local:review', specs: clash }).local?.spec.name).toBe('review')
+    expect(resolveSubmission({ text: '/local:review', specs: clash }).local?.spec.name).toBe(
+      'review',
+    )
   })
 
   it('runs a local command through one of its aliases', () => {
@@ -109,7 +111,7 @@ describe('resolveSubmission', () => {
     expect(submission.local?.argumentText).toBe('later')
   })
 
-  it('lets a real name win over another command\'s alias', () => {
+  it("lets a real name win over another command's alias", () => {
     const specs = [local('new', ['restart']), local('restart')]
 
     expect(resolveSubmission({ text: '/restart', specs }).local?.spec.name).toBe('restart')
@@ -153,7 +155,9 @@ describe('commandCandidates', () => {
   it('matches a word inside a hyphenated name', () => {
     const specs = [skill('code-review')]
 
-    expect(commandCandidates({ text: '/rev', specs }).map((one) => one.name)).toEqual(['code-review'])
+    expect(commandCandidates({ text: '/rev', specs }).map((one) => one.name)).toEqual([
+      'code-review',
+    ])
   })
 
   it('matches an alias, returning the command it belongs to once', () => {

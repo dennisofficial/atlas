@@ -73,11 +73,20 @@ const varied = (): readonly Event[] =>
       consulted: true,
       elapsedMs: 4,
     },
-    called({ n: 3, name: PLAN_TOOL_NAME, input: { tasks: [{ text: 'step one', status: 'pending' }] } }),
+    called({
+      n: 3,
+      name: PLAN_TOOL_NAME,
+      input: { tasks: [{ text: 'step one', status: 'pending' }] },
+    }),
     result({ n: 3, name: PLAN_TOOL_NAME, output: {} }),
     { type: 'user-said', text: 'keep going' },
     { type: 'permission-revoked', grantId: 'grant-1' },
-    { type: 'worktree-exited', path: '/repo/.atlas/worktrees/feat', action: EWorktreeExit.Keep, returnTo: '/repo' },
+    {
+      type: 'worktree-exited',
+      path: '/repo/.atlas/worktrees/feat',
+      action: EWorktreeExit.Keep,
+      returnTo: '/repo',
+    },
     { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
     called({ n: 4, name: 'Read', input: { path: '/x' } }),
     result({ n: 4, name: 'Read', output: 'contents' }),
@@ -92,7 +101,12 @@ describe('the log accumulator', () => {
 
   it('anchors the home on the directory a location change restored, as the core fold does', () => {
     const events = log([
-      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host, cwd: '/restored/work' },
+      {
+        type: 'location-changed',
+        from: EExecutionLocation.Cloud,
+        to: EExecutionLocation.Host,
+        cwd: '/restored/work',
+      },
     ])
 
     expect(foldLogEvents({ events, effects }).home).toBe('/restored/work')
@@ -130,7 +144,11 @@ describe('the log accumulator', () => {
 
   it('answers an edited plan input the way the whole-array read does', () => {
     const drafts: EventDraft[] = [
-      called({ n: 1, name: PLAN_TOOL_NAME, input: { tasks: [{ text: 'original', status: 'pending' }] } }),
+      called({
+        n: 1,
+        name: PLAN_TOOL_NAME,
+        input: { tasks: [{ text: 'original', status: 'pending' }] },
+      }),
       {
         type: 'approval-answered',
         callId: callId(1),
@@ -147,7 +165,11 @@ describe('the log accumulator', () => {
 
   it('forgets a pending plan call its result never confirms', () => {
     const events = log([
-      called({ n: 1, name: PLAN_TOOL_NAME, input: { tasks: [{ text: 'draft', status: 'pending' }] } }),
+      called({
+        n: 1,
+        name: PLAN_TOOL_NAME,
+        input: { tasks: [{ text: 'draft', status: 'pending' }] },
+      }),
     ])
     const acc = foldLogEvents({ events, effects })
 

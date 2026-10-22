@@ -168,7 +168,13 @@ describe('what the transcript actually says', () => {
 
   it('reads disconnected instead of Working when the socket closes mid-turn', async () => {
     const frame = await frameOf(
-      transcript({ model: STREAMING, width: 80, turn: RUNNING, disconnected: true, onReconnect: () => undefined }),
+      transcript({
+        model: STREAMING,
+        width: 80,
+        turn: RUNNING,
+        disconnected: true,
+        onReconnect: () => undefined,
+      }),
       80,
     )
     expect(frame).toContain('disconnected')

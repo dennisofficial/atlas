@@ -19,7 +19,11 @@ const ORIGIN = 'user settings'
 
 const qualityIndex = SETTING_PAGES.findIndex((page) => page.id === ESettingPage.CodeQuality)
 
-async function renderHead(args: { cells: number; pageIndex: number; width?: number }): Promise<string> {
+async function renderHead(args: {
+  cells: number
+  pageIndex: number
+  width?: number
+}): Promise<string> {
   const setup = await testRender(
     <SettingsHead
       cells={args.cells}

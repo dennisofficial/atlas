@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Field, FieldGroup, FieldLabel } from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Field, FieldGroup, FieldLabel } from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
 import {
   Sheet,
   SheetClose,
@@ -12,16 +12,16 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@dltech/atlas-ui/components/sheet";
+} from '@dltech/atlas-ui/components/sheet'
 
 const meta = {
-  title: "Components/Sheet",
+  title: 'Components/Sheet',
   component: Sheet,
-} satisfies Meta<typeof Sheet>;
+} satisfies Meta<typeof Sheet>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -49,12 +49,12 @@ export const Default: Story = {
       </SheetContent>
     </Sheet>
   ),
-};
+}
 
 export const Sides: Story = {
   render: () => (
     <div className="flex flex-wrap gap-2">
-      {(["top", "right", "bottom", "left"] as const).map((side) => (
+      {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
         <Sheet key={side}>
           <SheetTrigger render={<Button variant="outline" />}>{side}</SheetTrigger>
           <SheetContent side={side}>
@@ -67,4 +67,4 @@ export const Sides: Story = {
       ))}
     </div>
   ),
-};
+}

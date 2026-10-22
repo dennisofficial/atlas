@@ -18,8 +18,7 @@ const write = ({ root, at, content }: { root: string; at: string; content: strin
   writeFileSync(path, content)
 }
 
-const userSource = () =>
-  new FilesystemSkillSource({ directory: home, origin: ESkillOrigin.User })
+const userSource = () => new FilesystemSkillSource({ directory: home, origin: ESkillOrigin.User })
 
 const projectSource = () =>
   new FilesystemSkillSource({ directory: repository, origin: ESkillOrigin.Project })

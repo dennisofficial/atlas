@@ -586,11 +586,7 @@ export function fakeEventLog(
         },
       })
 
-      const kept = [
-        ...spared,
-        watermark,
-        ...rows.filter((event) => event.seq > throughSeq),
-      ]
+      const kept = [...spared, watermark, ...rows.filter((event) => event.seq > throughSeq)]
       byThread.set(threadId, kept)
       void disk?.replaceAll({ threadId, events: kept })
       return compactable.length

@@ -27,9 +27,17 @@ afterEach(async () => {
   for (const home of homes.splice(0, homes.length)) rmSync(home, { recursive: true, force: true })
 })
 
-const start = async (args: {
-  modelBridge?: { catalogue: never; effort: () => string; select: (next: { ref: string; effort: string }) => void } | undefined
-} = {}): Promise<{ handle: ServeHandle; app: FakeServeApp; client: TestClient }> => {
+const start = async (
+  args: {
+    modelBridge?:
+      | {
+          catalogue: never
+          effort: () => string
+          select: (next: { ref: string; effort: string }) => void
+        }
+      | undefined
+  } = {},
+): Promise<{ handle: ServeHandle; app: FakeServeApp; client: TestClient }> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-ops-'))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
@@ -75,7 +83,11 @@ describe('the rename-thread op', () => {
     expect(app.renames).toEqual([{ threadId, title: 'wire the model pick' }])
 
     const pushed = await client.waitFor((frame) => frame.kind === EServeFrame.ThreadRenamed)
-    expect(pushed).toEqual({ kind: EServeFrame.ThreadRenamed, threadId, title: 'wire the model pick' })
+    expect(pushed).toEqual({
+      kind: EServeFrame.ThreadRenamed,
+      threadId,
+      title: 'wire the model pick',
+    })
   })
 
   it('refuses a rename with malformed params', async () => {
@@ -169,7 +181,6 @@ describe('the set-thread-model op', () => {
     expect(reply).toMatchObject({ ok: false })
     expect(app.chosenModels).toEqual([])
   })
-
 })
 
 describe('store-originated transcript changes', () => {

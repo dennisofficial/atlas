@@ -95,9 +95,9 @@ describe('SshSigningKeyService failure ordering', () => {
       adoptKey({ id: 9, key: keyA.publicLine })
       fake.raceNextCreate()
 
-      await expect(service.register({ userId: USER, privateKey: keyA.privateKey })).rejects.toBeInstanceOf(
-        ConflictException,
-      )
+      await expect(
+        service.register({ userId: USER, privateKey: keyA.privateKey }),
+      ).rejects.toBeInstanceOf(ConflictException)
 
       expect(deletedIds()).toEqual([])
     })
@@ -112,12 +112,18 @@ describe('SshSigningKeyService failure ordering', () => {
     })
 
     it('answers the scope code when identity answers 401', async () => {
-      github.override((call) => (call.url === `${GITHUB_API}/user` ? response({ status: 401 }) : undefined))
+      github.override((call) =>
+        call.url === `${GITHUB_API}/user` ? response({ status: 401 }) : undefined,
+      )
 
-      const failure = await service.register({ userId: USER, privateKey: keyA.privateKey }).catch((e: unknown) => e)
+      const failure = await service
+        .register({ userId: USER, privateKey: keyA.privateKey })
+        .catch((e: unknown) => e)
 
       expect(failure).toBeInstanceOf(ForbiddenException)
-      expect((failure as ForbiddenException).getResponse()).toMatchObject({ code: SSH_SIGNING_SCOPE_MISSING_CODE })
+      expect((failure as ForbiddenException).getResponse()).toMatchObject({
+        code: SSH_SIGNING_SCOPE_MISSING_CODE,
+      })
       expect(github.calls.some((call) => call.method === 'POST')).toBe(false)
     })
   })
@@ -147,10 +153,14 @@ describe('SshSigningKeyService failure ordering', () => {
         return undefined
       })
 
-      const failure = await service.rotate({ userId: USER, privateKey: keyB.privateKey }).catch((e: unknown) => e)
+      const failure = await service
+        .rotate({ userId: USER, privateKey: keyB.privateKey })
+        .catch((e: unknown) => e)
 
       expect(failure).toBeInstanceOf(ConflictException)
-      expect((failure as ConflictException).message).toBe('the signing key changed concurrently; retry')
+      expect((failure as ConflictException).message).toBe(
+        'the signing key changed concurrently; retry',
+      )
       expect(fake.keys[0]).toMatchObject({ githubKeyId: 555n, publicKey: keyA.publicLine })
       expect(deletedIds()).toEqual(['102'])
     })
@@ -175,15 +185,20 @@ describe('SshSigningKeyService failure ordering', () => {
           throw new Error('socket hang up')
         },
       ],
-    ])('still succeeds with the row swapped when deleting the old key fails with %s', async (_label, failWith) => {
-      github.override((call) => (call.method === 'DELETE' && call.url.endsWith('/101') ? failWith() : undefined))
+    ])(
+      'still succeeds with the row swapped when deleting the old key fails with %s',
+      async (_label, failWith) => {
+        github.override((call) =>
+          call.method === 'DELETE' && call.url.endsWith('/101') ? failWith() : undefined,
+        )
 
-      const status = await service.rotate({ userId: USER, privateKey: keyB.privateKey })
+        const status = await service.rotate({ userId: USER, privateKey: keyB.privateKey })
 
-      expect(status).toMatchObject({ publicKey: keyB.publicLine })
-      expect(fake.keys[0]).toMatchObject({ githubKeyId: 102n, publicKey: keyB.publicLine })
-      expect(deletedIds()).toEqual(['101'])
-    })
+        expect(status).toMatchObject({ publicKey: keyB.publicLine })
+        expect(fake.keys[0]).toMatchObject({ githubKeyId: 102n, publicKey: keyB.publicLine })
+        expect(deletedIds()).toEqual(['101'])
+      },
+    )
 
     it('never deletes the key when rotating to the same public key', async () => {
       adoptKey({ id: 101, key: keyA.publicLine })
@@ -214,14 +229,17 @@ describe('SshSigningKeyService failure ordering', () => {
       expect(deletedIds()).toEqual(['101'])
     })
 
-    it.each([403, 500])('resolves with the row gone when the github delete answers %i', async (status) => {
-      github.override((call) => (call.method === 'DELETE' ? response({ status }) : undefined))
+    it.each([403, 500])(
+      'resolves with the row gone when the github delete answers %i',
+      async (status) => {
+        github.override((call) => (call.method === 'DELETE' ? response({ status }) : undefined))
 
-      await expect(service.revoke({ userId: USER })).resolves.toBeUndefined()
+        await expect(service.revoke({ userId: USER })).resolves.toBeUndefined()
 
-      expect(fake.keys).toHaveLength(0)
-      expect(deletedIds()).toEqual(['101'])
-    })
+        expect(fake.keys).toHaveLength(0)
+        expect(deletedIds()).toEqual(['101'])
+      },
+    )
 
     it('leaves the github key alone and makes no github call when the row delete fails', async () => {
       fake.failNext('deleteMany')

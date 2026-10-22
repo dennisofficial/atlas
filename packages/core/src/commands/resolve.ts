@@ -17,7 +17,10 @@ function index(specs: readonly CommandSpec[]): ReadonlyMap<string, CommandSpec> 
 
   for (const spec of specs) {
     const held = byName.get(spec.name)
-    if (held === undefined || (held.kind === ECommandKind.Local && spec.kind === ECommandKind.Skill)) {
+    if (
+      held === undefined ||
+      (held.kind === ECommandKind.Local && spec.kind === ECommandKind.Skill)
+    ) {
       byName.set(spec.name, spec)
     }
   }

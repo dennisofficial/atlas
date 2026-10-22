@@ -2,7 +2,13 @@ import { ECommandGroup, ECommandKind, EContextSlot, type CommandSpec } from '@dl
 import { describe, expect, it } from 'vitest'
 
 import { dispatchSubmission, EDispatch, type LoadedSkill } from '../dispatch'
-import { ECommandEcho, ECommandEffect, ECommandTiming, RAN, type LocalCommand } from '../local-command'
+import {
+  ECommandEcho,
+  ECommandEffect,
+  ECommandTiming,
+  RAN,
+  type LocalCommand,
+} from '../local-command'
 import { ECompactScope } from '@dltech/atlas-harness'
 import { ERenamed } from '../../session-rename'
 import { localCommands } from '../registry'
@@ -57,7 +63,10 @@ describe('dispatchSubmission', () => {
   })
 
   it('reports a refusal with its reason', async () => {
-    const command = commandThat(() => ({ type: ECommandEffect.Refused, reason: 'nothing to compact' }))
+    const command = commandThat(() => ({
+      type: ECommandEffect.Refused,
+      reason: 'nothing to compact',
+    }))
 
     const result = await dispatchSubmission({ text: '/demo', commands: [command], skills: [] })
 
@@ -94,7 +103,9 @@ describe('dispatchSubmission', () => {
 
     expect(result.type).toBe(EDispatch.Send)
     if (result.type !== EDispatch.Send) return
-    expect(result.drafts.map((draft) => draft.type === 'context-loaded' && draft.key)).toEqual(['tdd'])
+    expect(result.drafts.map((draft) => draft.type === 'context-loaded' && draft.key)).toEqual([
+      'tdd',
+    ])
   })
 
   it('drafts nothing for a mention inside backticks', async () => {
@@ -169,7 +180,9 @@ describe('localCommands', () => {
     const commands = localCommands(handlers())
 
     expect(commands.length).toBeGreaterThan(0)
-    expect(commands.every((one) => one.summary !== '' && one.kind === ECommandKind.Local)).toBe(true)
+    expect(commands.every((one) => one.summary !== '' && one.kind === ECommandKind.Local)).toBe(
+      true,
+    )
   })
 
   it('marks the commands that must wait for the turn to settle', () => {
@@ -364,7 +377,9 @@ describe('the rename command', () => {
     })
 
     expect(dispatched.type).toBe(EDispatch.Refused)
-    expect(dispatched.type === EDispatch.Refused && dispatched.reason).toContain('/rename Doing something cool')
+    expect(dispatched.type === EDispatch.Refused && dispatched.reason).toContain(
+      '/rename Doing something cool',
+    )
   })
 
   it('says so when no name comes back, rather than leaving the ask silent', async () => {
@@ -375,7 +390,9 @@ describe('the rename command', () => {
     })
 
     expect(dispatched.type).toBe(EDispatch.Refused)
-    expect(dispatched.type === EDispatch.Refused && dispatched.reason).toContain('could not think of a name')
+    expect(dispatched.type === EDispatch.Refused && dispatched.reason).toContain(
+      'could not think of a name',
+    )
   })
 })
 
@@ -386,7 +403,11 @@ describe('the compact command and its scope', () => {
   it('compacts only the older turns when asked with no argument', async () => {
     const asked: ECompactScope[] = []
 
-    await dispatchSubmission({ text: '/compact', commands: commandsWith((s) => asked.push(s)), skills: [] })
+    await dispatchSubmission({
+      text: '/compact',
+      commands: commandsWith((s) => asked.push(s)),
+      skills: [],
+    })
 
     expect(asked).toEqual([ECompactScope.Recent])
   })

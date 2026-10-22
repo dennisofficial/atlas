@@ -13,7 +13,12 @@ describe('noticePortBinding', () => {
   it('posts a keyed notice with its tone and ttl', () => {
     const port = noticePortBinding()
 
-    port.notify({ key: 'mcp:fs', text: 'server failed', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+    port.notify({
+      key: 'mcp:fs',
+      text: 'server failed',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+    })
 
     const posted = currentNotices().find((notice) => notice.key === 'mcp:fs')
     expect(posted?.text).toBe('server failed')
@@ -36,6 +41,8 @@ describe('noticePortBinding', () => {
     port.notify({ text: 'one', tone: ENoticeTone.Done, ttlMs: 1000 })
     port.notify({ text: 'two', tone: ENoticeTone.Done, ttlMs: 1000 })
 
-    expect(currentNotices().filter((notice) => notice.text === 'one' || notice.text === 'two')).toHaveLength(2)
+    expect(
+      currentNotices().filter((notice) => notice.text === 'one' || notice.text === 'two'),
+    ).toHaveLength(2)
   })
 })

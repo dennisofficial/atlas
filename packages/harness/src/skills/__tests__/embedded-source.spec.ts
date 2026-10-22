@@ -32,7 +32,8 @@ const resource = (args: { path: string; bytes: Uint8Array }): EmbeddedSkillFile 
   read: async () => args.bytes,
 })
 
-const BUNDLED_TEXT = '---\nname: bundled\ndescription: Has resources.\n---\n\nRead references/guide.md.\n'
+const BUNDLED_TEXT =
+  '---\nname: bundled\ndescription: Has resources.\n---\n\nRead references/guide.md.\n'
 const PAGE = new Uint8Array([0, 0xff, 0xd8, 0, 7])
 
 const bundledEntry = (): EmbeddedSkillEntry => {
@@ -44,7 +45,10 @@ const bundledEntry = (): EmbeddedSkillEntry => {
     path: 'bundled/SKILL.md',
     text: BUNDLED_TEXT,
     bundle: {
-      digest: bundleDigestOf({ entry: { path: 'SKILL.md', digest: digestOfText(BUNDLED_TEXT) }, files }),
+      digest: bundleDigestOf({
+        entry: { path: 'SKILL.md', digest: digestOfText(BUNDLED_TEXT) },
+        files,
+      }),
       files,
     },
   }
@@ -106,11 +110,17 @@ describe('EmbeddedSkillSource', () => {
     const bundled = loaded.find((skill) => skill.spec.name === 'bundled')
 
     expect(loaded.map((skill) => skill.spec.name)).toEqual(['plain', 'bundled'])
-    expect(bundled?.directory).toBe(join(home, 'bin', 'skills', entry.bundle?.digest ?? '', 'bundled'))
+    expect(bundled?.directory).toBe(
+      join(home, 'bin', 'skills', entry.bundle?.digest ?? '', 'bundled'),
+    )
     expect(bundled?.entryPath).toBe(join(bundled?.directory ?? '', 'SKILL.md'))
     expect(bundled?.warnings).toEqual([])
-    expect(readFileSync(join(bundled?.directory ?? '', 'references/guide.md'), 'utf8')).toBe('# Guide\n')
-    expect(new Uint8Array(readFileSync(join(bundled?.directory ?? '', 'assets/SKILL.md')))).toEqual(PAGE)
+    expect(readFileSync(join(bundled?.directory ?? '', 'references/guide.md'), 'utf8')).toBe(
+      '# Guide\n',
+    )
+    expect(new Uint8Array(readFileSync(join(bundled?.directory ?? '', 'assets/SKILL.md')))).toEqual(
+      PAGE,
+    )
   })
 
   it('never turns bundled resources, even one named SKILL.md, into skills', async () => {

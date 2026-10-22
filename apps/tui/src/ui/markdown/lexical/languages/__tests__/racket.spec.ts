@@ -116,10 +116,7 @@ describe('racket lexical highlighting', () => {
   })
 
   it('reads a quoted symbol', () => {
-    expect(textFor({ spec, source, group: 'string.special.symbol' })).toEqual([
-      "'add",
-      "'multiply",
-    ])
+    expect(textFor({ spec, source, group: 'string.special.symbol' })).toEqual(["'add", "'multiply"])
   })
 
   it('reads a rational as one number', () => {

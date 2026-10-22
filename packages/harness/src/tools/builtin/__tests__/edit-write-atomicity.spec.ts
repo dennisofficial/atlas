@@ -1,5 +1,14 @@
 import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
-import { chmod, lstat, mkdtemp, readFile, readdir, stat, symlink, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  lstat,
+  mkdtemp,
+  readFile,
+  readdir,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'

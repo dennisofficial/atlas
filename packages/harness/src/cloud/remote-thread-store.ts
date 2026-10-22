@@ -101,10 +101,7 @@ export class RemoteThreadStore extends ThreadStorePort {
     return []
   }
 
-  async findNamed(args: {
-    project: string
-    handle: string
-  }): Promise<ThreadSummary | undefined> {
+  async findNamed(args: { project: string; handle: string }): Promise<ThreadSummary | undefined> {
     const reply = readThreadsReplySchema.parse(
       await this.channel.request({ op: EClientRequest.ReadThreads, params: {} }),
     )

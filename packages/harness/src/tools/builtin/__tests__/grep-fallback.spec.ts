@@ -44,9 +44,11 @@ class FakeProcesses implements ProcessPort {
 }
 
 const fakeFiles = (entries: readonly string[], stat?: FileSystemPort['stat']): FileSystemPort => ({
-  stat: stat ?? (async () => {
-    throw new Error('ENOENT')
-  }),
+  stat:
+    stat ??
+    (async () => {
+      throw new Error('ENOENT')
+    }),
   readLink: async () => null,
   readFile: async () => {
     throw new Error('ENOENT')

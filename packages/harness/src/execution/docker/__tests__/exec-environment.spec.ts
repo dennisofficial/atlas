@@ -22,9 +22,7 @@ describe('execEnvFor', () => {
         home: '/home/operator',
       }).PATH,
     ).toBe('/opt/mise/shims:/usr/local/bin:/home/operator/.local/bin')
-    expect(
-      execEnvFor({ requested: {}, imageEnv: [], home: '/home/operator' }).PATH,
-    ).toBeUndefined()
+    expect(execEnvFor({ requested: {}, imageEnv: [], home: '/home/operator' }).PATH).toBeUndefined()
   })
 
   it('replaces host temporary directories with /tmp when the image has none', () => {
@@ -149,7 +147,11 @@ describe('execEnvFor', () => {
     })
     expect(requested.UNSET).toBeUndefined()
     expect(Object.keys(requested)).toEqual([
-      'NODE_ENV', 'PORT_MARKER', 'EMPTY', 'UNSET', 'GIT_CONFIG_GLOBAL',
+      'NODE_ENV',
+      'PORT_MARKER',
+      'EMPTY',
+      'UNSET',
+      'GIT_CONFIG_GLOBAL',
     ])
     expect(imageEnv).toEqual(['NODE_ENV=production', 'IMAGE_ONLY=not-an-exec-override'])
   })
@@ -185,7 +187,9 @@ describe('execEnvFor', () => {
 
   it('fills absent temporary variables independently from image settings and /tmp', () => {
     expect(execEnvFor({ requested: {}, imageEnv: ['TMP=/run/tmp'] })).toEqual({
-      TMPDIR: '/tmp', TMP: '/run/tmp', TEMP: '/tmp',
+      TMPDIR: '/tmp',
+      TMP: '/run/tmp',
+      TEMP: '/tmp',
     })
   })
 
@@ -196,7 +200,9 @@ describe('execEnvFor', () => {
         imageEnv: ['HOME=/home/operator', 'GNUPGHOME=/run/atlas/gnupg', 'SSH_AUTH_SOCK='],
       }),
     ).toMatchObject({
-      HOME: '/home/operator', GNUPGHOME: '/run/atlas/gnupg', SSH_AUTH_SOCK: '',
+      HOME: '/home/operator',
+      GNUPGHOME: '/run/atlas/gnupg',
+      SSH_AUTH_SOCK: '',
     })
   })
 

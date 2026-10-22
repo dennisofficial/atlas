@@ -117,10 +117,7 @@ describe('AccountStoreProxy with a session', () => {
     signIn('sess_b')
     await proxy.list()
 
-    expect(fetchCalls.map((call) => call.authorization)).toEqual([
-      'Bearer sess_a',
-      'Bearer sess_b',
-    ])
+    expect(fetchCalls.map((call) => call.authorization)).toEqual(['Bearer sess_a', 'Bearer sess_b'])
   })
 
   it('reuses the remote store while the token is unchanged', async () => {
@@ -128,10 +125,7 @@ describe('AccountStoreProxy with a session', () => {
     await proxy.list()
     await proxy.list()
 
-    expect(fetchCalls.map((call) => call.authorization)).toEqual([
-      'Bearer sess_a',
-      'Bearer sess_a',
-    ])
+    expect(fetchCalls.map((call) => call.authorization)).toEqual(['Bearer sess_a', 'Bearer sess_a'])
   })
 
   it('sends the wired client version on remote calls', async () => {

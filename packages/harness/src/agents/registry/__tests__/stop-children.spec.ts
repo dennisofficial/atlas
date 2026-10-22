@@ -162,9 +162,7 @@ describe("stopping a thread's stepping children", () => {
 
     expect(stopped).toEqual([mine])
 
-    const theirSnapshot = entry.supervisor
-      .listEverywhere()
-      .find((one) => one.agentId === theirs)
+    const theirSnapshot = entry.supervisor.listEverywhere().find((one) => one.agentId === theirs)
     expect(theirSnapshot?.killedBy).toBeUndefined()
   })
 

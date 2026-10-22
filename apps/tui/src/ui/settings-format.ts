@@ -31,10 +31,7 @@ export const SECRET_NOT_SET = 'not set'
 
 export const OPTION_SEPARATOR = ' · '
 
-export function valueLabel(args: {
-  definition: SettingDefinition
-  value: SettingValue
-}): string {
+export function valueLabel(args: { definition: SettingDefinition; value: SettingValue }): string {
   const { definition, value } = args
 
   if (definition.kind === ESettingKind.Toggle) return value === true ? ON : OFF

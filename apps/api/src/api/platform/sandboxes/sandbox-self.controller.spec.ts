@@ -1,4 +1,9 @@
-import { UnauthorizedException, ValidationPipe, VersioningType, type INestApplication } from '@nestjs/common'
+import {
+  UnauthorizedException,
+  ValidationPipe,
+  VersioningType,
+  type INestApplication,
+} from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,8 +31,13 @@ const SANDBOX_TOKEN = 'sandbox-token'
 const POD_TOKEN = 'pod-token'
 
 const vercel = {
-  exposePort: vi.fn(async (_args: { threadId: string; name: string; port: number }) => 'https://atlas-5173.vercel.run'),
-  stopSession: vi.fn(async (_args: { threadId: string; name: string; sessionId?: string | undefined }) => undefined),
+  exposePort: vi.fn(
+    async (_args: { threadId: string; name: string; port: number }) =>
+      'https://atlas-5173.vercel.run',
+  ),
+  stopSession: vi.fn(
+    async (_args: { threadId: string; name: string; sessionId?: string | undefined }) => undefined,
+  ),
 }
 
 const as = (token: string): { authorization: string } => ({ authorization: `Bearer ${token}` })
@@ -46,7 +56,12 @@ describe('SandboxSelfController', () => {
           useValue: {
             async verifyTokenPrincipal(query: { token: string }) {
               if (query.token === SANDBOX_TOKEN) {
-                return { kind: ETokenPrincipalKind.Sandbox, id: 'sbx-1', threadId: 'thr-1', userId: 'usr-1' }
+                return {
+                  kind: ETokenPrincipalKind.Sandbox,
+                  id: 'sbx-1',
+                  threadId: 'thr-1',
+                  userId: 'usr-1',
+                }
               }
               if (query.token === POD_TOKEN) {
                 return { kind: ETokenPrincipalKind.Pod, threadId: 'thr-1', userId: 'usr-1' }
@@ -59,7 +74,9 @@ describe('SandboxSelfController', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -82,7 +99,11 @@ describe('SandboxSelfController', () => {
 
     expect(reply.status).toBe(201)
     expect(reply.body).toEqual({ url: 'https://atlas-5173.vercel.run' })
-    expect(vercel.exposePort).toHaveBeenCalledWith({ threadId: 'thr-1', name: 'atlas-thread-1', port: 5173 })
+    expect(vercel.exposePort).toHaveBeenCalledWith({
+      threadId: 'thr-1',
+      name: 'atlas-thread-1',
+      port: 5173,
+    })
   })
 
   it('rejects a port outside the valid range', async () => {
@@ -110,10 +131,16 @@ describe('SandboxSelfController', () => {
   })
 
   it('stops with no body at all', async () => {
-    const reply = await request(app.getHttpServer()).post('/v1/sandboxes/self/stop').set(as(SANDBOX_TOKEN))
+    const reply = await request(app.getHttpServer())
+      .post('/v1/sandboxes/self/stop')
+      .set(as(SANDBOX_TOKEN))
 
     expect(reply.status).toBe(204)
-    expect(vercel.stopSession).toHaveBeenCalledWith({ threadId: 'thr-1', name: 'atlas-thread-1', sessionId: undefined })
+    expect(vercel.stopSession).toHaveBeenCalledWith({
+      threadId: 'thr-1',
+      name: 'atlas-thread-1',
+      sessionId: undefined,
+    })
   })
 
   it('answers 404 when the token names a thread with no sandbox row', async () => {
@@ -129,7 +156,9 @@ describe('SandboxSelfController', () => {
 
   it('answers 401 with no token, an unknown token, or a pod token', async () => {
     for (const path of ['ports', 'stop']) {
-      const bare = await request(app.getHttpServer()).post(`/v1/sandboxes/self/${path}`).send({ port: 5173 })
+      const bare = await request(app.getHttpServer())
+        .post(`/v1/sandboxes/self/${path}`)
+        .send({ port: 5173 })
       const unknown = await request(app.getHttpServer())
         .post(`/v1/sandboxes/self/${path}`)
         .set(as('session-a'))

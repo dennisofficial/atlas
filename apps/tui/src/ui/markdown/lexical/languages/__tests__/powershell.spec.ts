@@ -161,16 +161,18 @@ describe('powershell lexical highlighting', () => {
 
   it('folds keywords to the case the script was written in', () => {
     expect(groupsIn({ spec, source: 'Foreach ($n In 1..3) { Return $n }' })).toContain('keyword')
-    expect(textFor({ spec, source: 'IF ($x -EQ 1) { WRITE-OUTPUT $x }', group: 'keyword' })).toEqual(
-      ['IF'],
-    )
+    expect(
+      textFor({ spec, source: 'IF ($x -EQ 1) { WRITE-OUTPUT $x }', group: 'keyword' }),
+    ).toEqual(['IF'])
     expect(
       textFor({ spec, source: 'IF ($x -EQ 1) { WRITE-OUTPUT $x }', group: 'function.builtin' }),
     ).toEqual(['WRITE-OUTPUT'])
   })
 
   it('reads a block comment before treating the hash as a line comment', () => {
-    expect(textFor({ spec, source: '<# note #>\n$x = 1', group: 'comment' })).toEqual(['<# note #>'])
+    expect(textFor({ spec, source: '<# note #>\n$x = 1', group: 'comment' })).toEqual([
+      '<# note #>',
+    ])
   })
 
   it('honours the backtick as the double-quoted escape', () => {

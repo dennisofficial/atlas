@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { theme } from '../theme'
-import {
-  headerBarModel,
-  headerLocation,
-  parseShortStat,
-} from '../header-bar'
+import { headerBarModel, headerLocation, parseShortStat } from '../header-bar'
 
 describe('parseShortStat', () => {
   it('reads insertions and deletions together', () => {

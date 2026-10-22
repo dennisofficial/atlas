@@ -2,7 +2,15 @@ import { readFileSync } from 'node:fs'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { toEventId, toRunId, toThreadId, type Event, type EventDraft, type EventEnvelope, type ThreadId } from '@dltech/atlas-core'
+import {
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Event,
+  type EventDraft,
+  type EventEnvelope,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { mirrorWriter } from '../mirror-writer'
 import { eventLogFile, sessionDirectory, threadMetaFile } from '../../store/sessions/paths'
@@ -59,7 +67,11 @@ describe('mirrorWriter', () => {
   it('appendDelta preserves the local prefix byte-for-byte and keeps sandbox stamps', async () => {
     const fixture = await open()
     const threadId = (await fixture.threads.create({})).id
-    await fixture.log.append({ threadId, runId: toRunId('local-run'), drafts: [{ type: 'user-said', text: 'one' }] })
+    await fixture.log.append({
+      threadId,
+      runId: toRunId('local-run'),
+      drafts: [{ type: 'user-said', text: 'one' }],
+    })
     const file = logFileOf({ home: fixture.home, threadId })
     const prefix = readFileSync(file, 'utf8')
 
@@ -108,7 +120,9 @@ describe('mirrorWriter', () => {
     ]
     await writer.rewriteFrom({ threadId, fromSeq: 2, events: mirrored })
 
-    const lines = readFileSync(file, 'utf8').split('\n').filter((line) => line !== '')
+    const lines = readFileSync(file, 'utf8')
+      .split('\n')
+      .filter((line) => line !== '')
     expect(lines).toHaveLength(3)
     expect(lines[0]).toBe(firstLine.trimEnd())
 
@@ -135,8 +149,20 @@ describe('mirrorWriter', () => {
 
     const writer = mirrorWriter({ home: () => fixture.home })
     const mirrored = [
-      mirrorEvent({ threadId, seq: 1, text: 'sandbox-one', at: '2026-10-01T00:00:01.000Z', runId: 'cloud-run-9' }),
-      mirrorEvent({ threadId, seq: 2, text: 'sandbox-two', at: '2026-10-01T00:00:02.000Z', runId: 'cloud-run-9' }),
+      mirrorEvent({
+        threadId,
+        seq: 1,
+        text: 'sandbox-one',
+        at: '2026-10-01T00:00:01.000Z',
+        runId: 'cloud-run-9',
+      }),
+      mirrorEvent({
+        threadId,
+        seq: 2,
+        text: 'sandbox-two',
+        at: '2026-10-01T00:00:02.000Z',
+        runId: 'cloud-run-9',
+      }),
     ]
     await writer.rewriteFrom({ threadId, fromSeq: 1, events: mirrored })
 

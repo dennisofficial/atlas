@@ -66,7 +66,10 @@ describe('a turn driven through the loop and read back out of the JSONL ledger',
 
   it('keeps one record per turn across several turns on one thread', async () => {
     const harness = await open({
-      script: [{ text: 'first', usage: usage(200) }, { text: 'second', usage: usage(400) }],
+      script: [
+        { text: 'first', usage: usage(200) },
+        { text: 'second', usage: usage(400) },
+      ],
     })
 
     const first = await harness.runner.say({ threadId: harness.threadId, text: 'one' })
@@ -75,7 +78,9 @@ describe('a turn driven through the loop and read back out of the JSONL ledger',
     const rows = await harness.recorded()
     expect(rows).toHaveLength(2)
     expect(new Set(rows.map((row) => row.runId))).toEqual(new Set([first.runId, second.runId]))
-    expect(rows.map((row) => row.inputTokens).sort((left, right) => left - right)).toEqual([200, 400])
+    expect(rows.map((row) => row.inputTokens).sort((left, right) => left - right)).toEqual([
+      200, 400,
+    ])
   })
 
   it('persists a crash under its own status rather than as a returned failure', async () => {

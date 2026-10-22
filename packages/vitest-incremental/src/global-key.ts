@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { isAbsolute, join, relative } from 'node:path';
-import { globSync } from 'tinyglobby';
-import { envDigest, Hasher, sha256 } from './fingerprint';
+import { readFileSync } from 'node:fs'
+import { isAbsolute, join, relative } from 'node:path'
+import { globSync } from 'tinyglobby'
+import { envDigest, Hasher, sha256 } from './fingerprint'
 
 /** Lockfiles and root manifests: any dependency change invalidates every result. */
 const ROOT_INPUTS = [
@@ -12,12 +12,12 @@ const ROOT_INPUTS = [
   'yarn.lock',
   'package-lock.json',
   'tsconfig.json',
-];
+]
 
-const IGNORE = ['**/node_modules/**'];
+const IGNORE = ['**/node_modules/**']
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
@@ -26,25 +26,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * `exports`/`main`/`imports` steer module resolution for every test.
  */
 function workspaceManifests(repoRoot: string): string[] {
-  let manifest: unknown;
+  let manifest: unknown
   try {
-    manifest = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
+    manifest = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
   } catch {
-    return [];
+    return []
   }
-  const declared = isRecord(manifest) ? manifest.workspaces : undefined;
-  const list = isRecord(declared) ? declared.packages : declared;
-  if (!Array.isArray(list)) return [];
+  const declared = isRecord(manifest) ? manifest.workspaces : undefined
+  const list = isRecord(declared) ? declared.packages : declared
+  if (!Array.isArray(list)) return []
   const toManifest = (glob: string) =>
-    `${glob.replace(/^\.\//, '').replace(/\/+$/, '')}/package.json`;
-  const globs = list.filter((glob): glob is string => typeof glob === 'string');
-  const include = globs.filter((glob) => !glob.startsWith('!')).map(toManifest);
-  const negated = globs.filter((glob) => glob.startsWith('!')).map((g) => toManifest(g.slice(1)));
-  if (include.length === 0) return [];
-  return globSync(include, { cwd: repoRoot, dot: true, ignore: [...IGNORE, ...negated] });
+    `${glob.replace(/^\.\//, '').replace(/\/+$/, '')}/package.json`
+  const globs = list.filter((glob): glob is string => typeof glob === 'string')
+  const include = globs.filter((glob) => !glob.startsWith('!')).map(toManifest)
+  const negated = globs.filter((glob) => glob.startsWith('!')).map((g) => toManifest(g.slice(1)))
+  if (include.length === 0) return []
+  return globSync(include, { cwd: repoRoot, dot: true, ignore: [...IGNORE, ...negated] })
 }
 
-const DEFAULT_ENV = ['CI', 'NODE_ENV', 'TZ', 'LANG', 'LC_ALL', 'NODE_OPTIONS'];
+const DEFAULT_ENV = ['CI', 'NODE_ENV', 'TZ', 'LANG', 'LC_ALL', 'NODE_OPTIONS']
 
 /**
  * Hash of everything that invalidates all of a project's results at once:
@@ -54,18 +54,17 @@ const DEFAULT_ENV = ['CI', 'NODE_ENV', 'TZ', 'LANG', 'LC_ALL', 'NODE_OPTIONS'];
  * selected env vars. A change selects a fresh cache directory.
  */
 export function computeGlobalKey(params: {
-  repoRoot: string;
-  projectRoot: string;
-  pluginDir: string;
-  configFiles: string[];
-  globalInputs: string[];
-  env: string[];
-  vitestVersion: string;
+  repoRoot: string
+  projectRoot: string
+  pluginDir: string
+  configFiles: string[]
+  globalInputs: string[]
+  env: string[]
+  vitestVersion: string
 }) {
-  const { repoRoot, projectRoot, pluginDir, configFiles, globalInputs, env, vitestVersion } =
-    params;
-  const project = relative(repoRoot, projectRoot) || '.';
-  const plugin = relative(repoRoot, pluginDir);
+  const { repoRoot, projectRoot, pluginDir, configFiles, globalInputs, env, vitestVersion } = params
+  const project = relative(repoRoot, projectRoot) || '.'
+  const plugin = relative(repoRoot, pluginDir)
   const patterns = [
     ...ROOT_INPUTS,
     `${project}/package.json`,
@@ -75,16 +74,16 @@ export function computeGlobalKey(params: {
     `${plugin}/*.js`,
     `${plugin}/shims/*.js`,
     ...globalInputs,
-  ];
+  ]
   const files = new Set([
     ...globSync(patterns, { cwd: repoRoot, dot: true, ignore: IGNORE }),
     ...workspaceManifests(repoRoot),
-  ]);
+  ])
   for (const file of configFiles) {
-    const rel = isAbsolute(file) ? relative(repoRoot, file) : file;
-    if (!rel.startsWith('..') && !rel.includes('node_modules/')) files.add(rel);
+    const rel = isAbsolute(file) ? relative(repoRoot, file) : file
+    if (!rel.startsWith('..') && !rel.includes('node_modules/')) files.add(rel)
   }
-  const hasher = new Hasher(repoRoot);
+  const hasher = new Hasher(repoRoot)
   const parts = [
     'schema=1',
     `project=${project}`,
@@ -93,6 +92,6 @@ export function computeGlobalKey(params: {
     `platform=${process.platform}-${process.arch}`,
     `env=${envDigest([...DEFAULT_ENV, ...env], process.env)}`,
     ...[...files].sort().map((file) => `${file}=${hasher.hash(`f:${file}`)}`),
-  ];
-  return { key: sha256(parts.join('\n')), inputs: files.size };
+  ]
+  return { key: sha256(parts.join('\n')), inputs: files.size }
 }

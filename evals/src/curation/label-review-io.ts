@@ -19,7 +19,15 @@ import { splitCases } from './splits'
 
 export { GoldenDatasetError } from './golden-writer'
 
-function decodeJsonlLines<T>({ text, schema, source }: { text: string; schema: z.ZodType<T>; source: string }): T[] {
+function decodeJsonlLines<T>({
+  text,
+  schema,
+  source,
+}: {
+  text: string
+  schema: z.ZodType<T>
+  source: string
+}): T[] {
   const decoded: T[] = []
   for (const [index, line] of text.split('\n').entries()) {
     if (line.trim() === '') continue
@@ -31,23 +39,45 @@ function decodeJsonlLines<T>({ text, schema, source }: { text: string; schema: z
     }
     const result = schema.safeParse(parsed)
     if (!result.success) {
-      throw new GoldenDatasetError(`${source} line ${index + 1}: ${result.error.issues[0]?.message ?? 'invalid'}`)
+      throw new GoldenDatasetError(
+        `${source} line ${index + 1}: ${result.error.issues[0]?.message ?? 'invalid'}`,
+      )
     }
     decoded.push(result.data)
   }
   return decoded
 }
 
-export async function readCandidatesFile({ path }: { path: string }): Promise<readonly Candidate[]> {
-  return decodeJsonlLines({ text: await readFile(path, 'utf8'), schema: candidateSchema, source: path })
+export async function readCandidatesFile({
+  path,
+}: {
+  path: string
+}): Promise<readonly Candidate[]> {
+  return decodeJsonlLines({
+    text: await readFile(path, 'utf8'),
+    schema: candidateSchema,
+    source: path,
+  })
 }
 
 export async function readLabelDrafts({ path }: { path: string }): Promise<readonly LabelDraft[]> {
-  return decodeJsonlLines({ text: await readFile(path, 'utf8'), schema: labelDraftSchema, source: path })
+  return decodeJsonlLines({
+    text: await readFile(path, 'utf8'),
+    schema: labelDraftSchema,
+    source: path,
+  })
 }
 
-export async function readLabelVerifications({ path }: { path: string }): Promise<readonly LabelVerification[]> {
-  return decodeJsonlLines({ text: await readFile(path, 'utf8'), schema: labelVerificationSchema, source: path })
+export async function readLabelVerifications({
+  path,
+}: {
+  path: string
+}): Promise<readonly LabelVerification[]> {
+  return decodeJsonlLines({
+    text: await readFile(path, 'utf8'),
+    schema: labelVerificationSchema,
+    source: path,
+  })
 }
 
 async function refuseExisting({ outputDir }: { outputDir: string }): Promise<void> {
@@ -82,7 +112,11 @@ export async function writeGoldenDataset({
   if (partition === undefined) {
     await writeDatasetDir({ dir: outputDir, cases, featureVersions, split, datasetVersion })
   } else {
-    const parts = splitCases({ cases, holdoutFraction: partition.holdoutFraction, seed: partition.seed })
+    const parts = splitCases({
+      cases,
+      holdoutFraction: partition.holdoutFraction,
+      seed: partition.seed,
+    })
     await writeDatasetDir({
       dir: join(outputDir, EDatasetSplit.Development),
       cases: parts.development,

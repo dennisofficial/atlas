@@ -72,9 +72,9 @@ describe('the sentence a run of gathering makes', () => {
     const segments = segmentsOf({ calls: [read('a.ts', 5), read('b.ts', 5), broken], cwd: CWD })
     const sentences = segments.filter((segment) => segment.kind === 'sentence')
 
-    expect(sentences.flatMap((segment) => segment.reads).some((entry) => entry.reading.failed)).toBe(
-      false,
-    )
+    expect(
+      sentences.flatMap((segment) => segment.reads).some((entry) => entry.reading.failed),
+    ).toBe(false)
     expect(sentences.map((segment) => measureOfSentence(segment.reads))).toEqual([' · 10 lines'])
   })
 })
@@ -84,7 +84,13 @@ describe('a picture the run read', () => {
     aCall({
       name: 'read',
       input: { path: `${CWD}/${path}` },
-      output: { path: `${CWD}/${path}`, mediaType: 'image/png', width: 120, height: 80, byteLength: 4096 },
+      output: {
+        path: `${CWD}/${path}`,
+        mediaType: 'image/png',
+        width: 120,
+        height: 80,
+        byteLength: 4096,
+      },
     })
 
   it('leaves the sentence, because it shows itself rather than counting', () => {
@@ -106,19 +112,14 @@ describe('a picture the run read', () => {
 describe('what does not join the sentence', () => {
   it('breaks the run where a named command fell, rather than reordering around it', () => {
     expect(
-      rowsOf([
-        read('a.ts', 5),
-        aShell({ command: 'bunx tsc --noEmit' }),
-        read('b.ts', 5),
-      ]),
+      rowsOf([read('a.ts', 5), aShell({ command: 'bunx tsc --noEmit' }), read('b.ts', 5)]),
     ).toEqual(['Read a.ts', 'Typecheck clean', 'Read b.ts'])
   })
 
   it('gives a change its own row', () => {
-    expect(rowsOf([read('a.ts', 5), aCall({ name: 'write', output: { path: `${CWD}/n.ts` } })])).toEqual([
-      'Read a.ts',
-      'Wrote n.ts',
-    ])
+    expect(
+      rowsOf([read('a.ts', 5), aCall({ name: 'write', output: { path: `${CWD}/n.ts` } })]),
+    ).toEqual(['Read a.ts', 'Wrote n.ts'])
   })
 
   it('collapses a command that repeated back to back', () => {
@@ -188,9 +189,9 @@ describe('two passes at one file', () => {
 
 describe('a group of one is not a group', () => {
   it('draws a lone gathered call as itself, with the words the model wrote', () => {
-    expect(rowsOf([aShell({ command: 'bun test', description: 'Wait for the full suite' })])).toEqual([
-      'Wait for the full suite',
-    ])
+    expect(
+      rowsOf([aShell({ command: 'bun test', description: 'Wait for the full suite' })]),
+    ).toEqual(['Wait for the full suite'])
   })
 
   it('gives a lone read a sentence rather than a bare path', () => {

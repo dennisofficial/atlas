@@ -90,7 +90,9 @@ const fromModelFilePart = (part: ModelFilePart): ImagePart | FilePart => {
   }
 }
 
-const fromModelUserContent = (content: UserContent): readonly (TextPart | ImagePart | FilePart)[] => {
+const fromModelUserContent = (
+  content: UserContent,
+): readonly (TextPart | ImagePart | FilePart)[] => {
   if (typeof content === 'string') return [{ type: 'text', text: content }]
 
   return content.map((part) => {
@@ -134,7 +136,8 @@ const fromModelToolResultOutput = (output: ModelToolResultOutput): ToolResultOut
   if (output.type === 'text') return { type: 'text', value: output.value }
   if (output.type === 'error-text') return { type: 'error-text', value: output.value }
   if (output.type === 'json') return { type: 'json', value: toCoreJsonValue(output.value) }
-  if (output.type === 'error-json') return { type: 'error-json', value: toCoreJsonValue(output.value) }
+  if (output.type === 'error-json')
+    return { type: 'error-json', value: toCoreJsonValue(output.value) }
 
   if (output.type === 'content') {
     return {
@@ -183,7 +186,8 @@ const fromModelToolContent = (content: ToolContent): readonly ToolResultPart[] =
   })
 
 export function fromModelMessage(message: ModelMessage): Message {
-  if (message.role === 'system') return refuse('a system message, which belongs in the instructions')
+  if (message.role === 'system')
+    return refuse('a system message, which belongs in the instructions')
 
   if (message.role === 'user') {
     const user: UserMessage = {

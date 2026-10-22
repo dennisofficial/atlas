@@ -22,9 +22,7 @@ export async function prepareContainerForOperator(args: {
     `if ! grep -q '^atlas:' /etc/shadow; then printf 'atlas:!:20000:0:99999:7:::\\n' >> /etc/shadow; fi`,
   ]
   const hostRoots = [config.worktree, ...(config.mounts ?? []).map((mount) => mount.path)]
-  const homeIsMounted = hostRoots.some((directory) =>
-    isUnderPath({ directory, path: config.home }),
-  )
+  const homeIsMounted = hostRoots.some((directory) => isUnderPath({ directory, path: config.home }))
   if (!homeIsMounted && config.home !== '/') {
     commands.push(`mkdir -p ${quoted(config.home)}`)
     commands.push(`chown ${config.uid}:${config.gid} ${quoted(config.home)}`)

@@ -12,8 +12,20 @@ import {
 import type { RosterWire } from '@dltech/atlas-wire'
 
 import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
-import { LoopTurnRunner, MessageIntake, PublishingTurnRunner, createPendingQueues, operatorSource } from '@dltech/atlas-harness'
-import { defaultPipeline, EMPTY_PROMPT, EFinishReason, type ModelPort, type ModelStepResult } from '@dltech/atlas-core'
+import {
+  LoopTurnRunner,
+  MessageIntake,
+  PublishingTurnRunner,
+  createPendingQueues,
+  operatorSource,
+} from '@dltech/atlas-harness'
+import {
+  defaultPipeline,
+  EMPTY_PROMPT,
+  EFinishReason,
+  type ModelPort,
+  type ModelStepResult,
+} from '@dltech/atlas-core'
 import type { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import type { ThreadSummary } from '@dltech/atlas-harness'
@@ -49,7 +61,9 @@ const fakeThreadWrites = (args: {
   renames: { threadId: ThreadId; title: string }[]
   chosenModels: { threadId: ThreadId; model: { ref: string; effort: string } }[]
   renameListeners: Set<(args: { threadId: ThreadId; title: string }) => void>
-  modelChosenListeners: Set<(args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void>
+  modelChosenListeners: Set<
+    (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
+  >
 }): ServeApp['threads'] => ({
   find: async (): Promise<ThreadSummary | undefined> => summaryOf(args.threadId),
   createWithFirstEvents: async (given: { drafts: readonly EventDraft[] }) => {

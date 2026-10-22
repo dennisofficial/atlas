@@ -48,7 +48,9 @@ export function OverviewPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await save(saveBodyOf({ project, draft, includeWorkspace: CLOUD_CAPABILITIES.projectWorkspace }))
+      await save(
+        saveBodyOf({ project, draft, includeWorkspace: CLOUD_CAPABILITIES.projectWorkspace }),
+      )
       toast.success('Project saved')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save the project')
@@ -140,7 +142,10 @@ export function OverviewPage() {
               onChange={(event) => update({ baseBranch: event.target.value })}
             />
           </SettingsRow>
-          <ShipRow value={draft.shipBehavior} onChange={(shipBehavior) => update({ shipBehavior })} />
+          <ShipRow
+            value={draft.shipBehavior}
+            onChange={(shipBehavior) => update({ shipBehavior })}
+          />
           <SettingsRow
             title="Additional repositories"
             description="Cloned next to the main repository, for threads that span repos."

@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useState } from 'react'
+import { EyeIcon, EyeOffIcon } from 'lucide-react'
 
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
 
-import { ESecretKind, type LibrarySecret } from "../../../fixtures/settings-library";
-import { LibraryRowMenu } from "./library-row-menu";
+import { ESecretKind, type LibrarySecret } from '../../../fixtures/settings-library'
+import { LibraryRowMenu } from './library-row-menu'
 
-const MASK = "••••••••";
+const MASK = '••••••••'
 
 export function SecretRow({
   secret,
@@ -16,20 +16,20 @@ export function SecretRow({
   onEdit,
   onDelete,
 }: {
-  secret: LibrarySecret;
-  showAddedBy: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
+  secret: LibrarySecret
+  showAddedBy: boolean
+  onEdit: () => void
+  onDelete: () => void
 }) {
-  const [revealed, setRevealed] = useState(false);
-  const isEnvVar = secret.kind === ESecretKind.EnvVar;
+  const [revealed, setRevealed] = useState(false)
+  const isEnvVar = secret.kind === ESecretKind.EnvVar
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate font-mono text-xs font-medium">{secret.key}</span>
-        <Badge variant={isEnvVar ? "outline" : "secondary"}>
-          {isEnvVar ? "Env var" : "Secret"}
+        <Badge variant={isEnvVar ? 'outline' : 'secondary'}>
+          {isEnvVar ? 'Env var' : 'Secret'}
         </Badge>
       </div>
       <div className="flex w-40 items-center gap-1">
@@ -40,7 +40,7 @@ export function SecretRow({
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label={revealed ? "Hide value" : "Reveal value"}
+            aria-label={revealed ? 'Hide value' : 'Reveal value'}
             onClick={() => setRevealed(!revealed)}
           >
             {revealed ? <EyeOffIcon /> : <EyeIcon />}
@@ -53,7 +53,7 @@ export function SecretRow({
             <AvatarFallback className="text-[10px]">{secret.addedBy.initials}</AvatarFallback>
           </Avatar>
           <span className="truncate text-xs text-muted-foreground">
-            {secret.addedBy.name.split(" ")[0]}
+            {secret.addedBy.name.split(' ')[0]}
           </span>
         </div>
       ) : null}
@@ -63,10 +63,10 @@ export function SecretRow({
       <LibraryRowMenu
         label={secret.key}
         actions={[
-          { label: "Edit", onSelect: onEdit },
-          { label: "Delete", onSelect: onDelete, destructive: true },
+          { label: 'Edit', onSelect: onEdit },
+          { label: 'Delete', onSelect: onDelete, destructive: true },
         ]}
       />
     </div>
-  );
+  )
 }

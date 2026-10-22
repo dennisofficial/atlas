@@ -21,11 +21,14 @@ describe('signing key wire schemas', () => {
     expect(sshSigningKeyLeaseSchema.parse(JSON.parse(JSON.stringify(lease)))).toEqual(lease)
   })
 
-  it.each(['publicKey', 'privateKey', 'userName', 'userEmail'])('refuses a lease with an empty %s', (field) => {
-    const lease = { publicKey: 'a', privateKey: 'b', userName: 'c', userEmail: 'd', [field]: '' }
+  it.each(['publicKey', 'privateKey', 'userName', 'userEmail'])(
+    'refuses a lease with an empty %s',
+    (field) => {
+      const lease = { publicKey: 'a', privateKey: 'b', userName: 'c', userEmail: 'd', [field]: '' }
 
-    expect(sshSigningKeyLeaseSchema.safeParse(lease).success).toBe(false)
-  })
+      expect(sshSigningKeyLeaseSchema.safeParse(lease).success).toBe(false)
+    },
+  )
 
   it('round-trips both status variants', () => {
     const absent = { state: ESshSigningKeyState.Absent as const }
@@ -40,7 +43,9 @@ describe('signing key wire schemas', () => {
   })
 
   it('refuses a registered status without a public key and an unknown state', () => {
-    expect(sshSigningKeyStatusSchema.safeParse({ state: 'registered', createdAt: 'x' }).success).toBe(false)
+    expect(
+      sshSigningKeyStatusSchema.safeParse({ state: 'registered', createdAt: 'x' }).success,
+    ).toBe(false)
     expect(sshSigningKeyStatusSchema.safeParse({ state: 'pending' }).success).toBe(false)
   })
 

@@ -57,7 +57,9 @@ describe('mcpSourcesFor', () => {
   it('reads the signed-in user layer from the local file, never the cloud', async () => {
     writeFileSync(
       join(directory, 'mcp.json'),
-      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
+      JSON.stringify({
+        linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } },
+      }),
     )
 
     const sources = mcpSourcesFor({ cwd: directory })
@@ -75,9 +77,7 @@ describe('mcpSourcesFor', () => {
 
   it('lets the local user file stand alone when a project layer shadows nothing', async () => {
     const sources = mcpSourcesFor({ cwd: directory })
-    const userLayer = sources.find(
-      (source) => source.origin === EDefinitionOrigin.User,
-    )
+    const userLayer = sources.find((source) => source.origin === EDefinitionOrigin.User)
 
     expect(userLayer).toBeInstanceOf(FileMcpSource)
   })

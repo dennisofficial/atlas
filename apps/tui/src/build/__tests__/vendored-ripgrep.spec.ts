@@ -37,7 +37,14 @@ describe('vendored ripgrep in a compiled binary', () => {
 
     const built = await runCapturing({
       cwd: tuiRoot,
-      command: ['bun', 'build', '--compile', join(import.meta.dirname, 'vendored-ripgrep-entry.ts'), '--outfile', binary],
+      command: [
+        'bun',
+        'build',
+        '--compile',
+        join(import.meta.dirname, 'vendored-ripgrep-entry.ts'),
+        '--outfile',
+        binary,
+      ],
     })
 
     expect(built.stderr).not.toContain('error:')

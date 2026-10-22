@@ -14,7 +14,14 @@ import {
 } from '../pod-create'
 import { POD_STAGED_PATH } from '../pod-staged'
 import type { PodServeLauncher } from '../serve-launch'
-import { driverWith, fakeEngine, INGRESS_HOST_PORT, NAME, SERVE_HOST_PORT, THREAD } from './fake-pod-engine'
+import {
+  driverWith,
+  fakeEngine,
+  INGRESS_HOST_PORT,
+  NAME,
+  SERVE_HOST_PORT,
+  THREAD,
+} from './fake-pod-engine'
 
 describe('DockerPodDriver createOrResume', () => {
   it('boots a fresh pod: volumes, container, start, ingress, staging, then serve launch', async () => {
@@ -129,7 +136,9 @@ describe('DockerPodDriver createOrResume', () => {
     const fake = fakeEngine({ existing: { id: 'old-id', status: 'exited' } })
     const driver = driverWith({ engine: fake.engine })
 
-    const failure = await driver.createOrResume({ name: NAME, threadId: THREAD }).catch((error: unknown) => error)
+    const failure = await driver
+      .createOrResume({ name: NAME, threadId: THREAD })
+      .catch((error: unknown) => error)
 
     expect((failure as Error).message).toContain('needs the serve token')
     expect(fake.calls).not.toContain('start:old-id')
@@ -196,7 +205,9 @@ describe('DockerPodDriver createOrResume', () => {
       },
     })
 
-    const failure = await driver.createOrResume({ name: NAME, threadId: THREAD, token: 'tok' }).catch((e: unknown) => e)
+    const failure = await driver
+      .createOrResume({ name: NAME, threadId: THREAD, token: 'tok' })
+      .catch((e: unknown) => e)
 
     expect(failure).toBe(original)
     expect(fake.calls).toContain('removePod:fresh-id')
@@ -236,7 +247,9 @@ describe('DockerPodDriver createOrResume', () => {
       },
     })
 
-    const failure = await driver.createOrResume({ name: NAME, threadId: THREAD, token: 'tok' }).catch((e: unknown) => e)
+    const failure = await driver
+      .createOrResume({ name: NAME, threadId: THREAD, token: 'tok' })
+      .catch((e: unknown) => e)
 
     expect(failure).toBe(original)
     expect(logged.some((line) => line.includes('volume busy'))).toBe(true)
@@ -251,7 +264,9 @@ describe('DockerPodDriver createOrResume', () => {
       },
     })
 
-    await driver.createOrResume({ name: NAME, threadId: THREAD, token: 'tok' }).catch(() => undefined)
+    await driver
+      .createOrResume({ name: NAME, threadId: THREAD, token: 'tok' })
+      .catch(() => undefined)
 
     expect(fake.calls.some((call) => call.startsWith('remove'))).toBe(false)
   })
@@ -259,11 +274,15 @@ describe('DockerPodDriver createOrResume', () => {
   it('throws when the pod publishes no serve host port', async () => {
     const fake = fakeEngine({
       existing: { id: 'old-id', status: 'exited' },
-      podDetails: { ports: [{ containerPort: POD_INGRESS_CONTAINER_PORT, hostPort: INGRESS_HOST_PORT }] },
+      podDetails: {
+        ports: [{ containerPort: POD_INGRESS_CONTAINER_PORT, hostPort: INGRESS_HOST_PORT }],
+      },
     })
     const driver = driverWith({ engine: fake.engine })
 
-    const failure = await driver.createOrResume({ name: NAME, threadId: THREAD, token: 'tok' }).catch((e: unknown) => e)
+    const failure = await driver
+      .createOrResume({ name: NAME, threadId: THREAD, token: 'tok' })
+      .catch((e: unknown) => e)
 
     expect((failure as Error).message).toContain('publishes no host port')
   })

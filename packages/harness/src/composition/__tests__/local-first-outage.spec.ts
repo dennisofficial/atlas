@@ -59,7 +59,6 @@ afterEach(async () => {
   await rm(atlasHome, { recursive: true, force: true })
 })
 
-
 const settingsBinding = (): SettingsBinding => ({
   service: createSettingsService({
     definitions: [
@@ -87,7 +86,12 @@ const seedLocalAccounts = async (): Promise<void> => {
         refreshToken: '',
         expiresAt: '2099-01-01T00:00:00.000Z',
       },
-      authority: { url: CLOUD_URL, connectionId: 'oauth-outage', generation: 1, refreshAfter: '2098-01-01T00:00:00.000Z' },
+      authority: {
+        url: CLOUD_URL,
+        connectionId: 'oauth-outage',
+        generation: 1,
+        refreshAfter: '2098-01-01T00:00:00.000Z',
+      },
     },
   })
 }
@@ -180,7 +184,9 @@ describe('a composed local session while Atlas Cloud is down', () => {
       await seedLocalAccounts()
       seedCloudSession()
 
-      const model = new ScriptedLocalModel({ script: [{ text: 'first answer' }, { text: 'second answer' }] })
+      const model = new ScriptedLocalModel({
+        script: [{ text: 'first answer' }, { text: 'second answer' }],
+      })
       const app = await compose({ model })
 
       const thread = await app.threads.create({})

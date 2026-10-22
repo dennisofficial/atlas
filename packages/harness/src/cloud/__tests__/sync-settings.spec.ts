@@ -31,7 +31,9 @@ const settingsFake = (): SettingsFake => {
     const path = String(input).replace('http://cloud.test', '')
     const method = init?.method ?? 'GET'
     const body =
-      typeof init?.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : undefined
+      typeof init?.body === 'string'
+        ? (JSON.parse(init.body) as Record<string, unknown>)
+        : undefined
 
     if (path === '/v1/settings' && method === 'GET') {
       if (fake.failList) return reply(500, { message: 'listing broke' })
@@ -69,7 +71,10 @@ describe('uploadLocalSettings', () => {
       },
     })
 
-    const count = await uploadLocalSettings({ client: clientOver(fake.fetchFn), localSettings: local })
+    const count = await uploadLocalSettings({
+      client: clientOver(fake.fetchFn),
+      localSettings: local,
+    })
 
     expect(count).toBe(5)
     expect(fake.put).toEqual([
@@ -94,7 +99,11 @@ describe('uploadLocalSettings', () => {
 describe('downloadRemoteSettings', () => {
   it('merges remote settings over the local document without dropping unrelated keys', async () => {
     const fake = settingsFake()
-    fake.remote.push({ key: 'sandbox.image', value: 'img-1', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remote.push({
+      key: 'sandbox.image',
+      value: 'img-1',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
     const local = new MemorySettingsStore()
     local.write({ values: { 'appearance.accent': 'moss', 'sandbox.image': 'old' } })
 
@@ -145,7 +154,11 @@ describe('downloadRemoteSettings', () => {
       { key: 'legacy.word', value: 'img-1', updatedAt: '2026-01-01T00:00:00.000Z' },
       { key: 'legacy.true', value: 'true', updatedAt: '2026-01-01T00:00:00.000Z' },
       { key: 'legacy.number', value: '42', updatedAt: '2026-01-01T00:00:00.000Z' },
-      { key: 'legacy.broken', value: 'atlas-setting:v1:not-json', updatedAt: '2026-01-01T00:00:00.000Z' },
+      {
+        key: 'legacy.broken',
+        value: 'atlas-setting:v1:not-json',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
     )
     const local = new MemorySettingsStore()
 
@@ -168,7 +181,11 @@ describe('downloadRemoteSettings', () => {
     fake.remote.push(
       { key: 'bad.array', value: 'atlas-setting:v1:["a"]', updatedAt: '2026-01-01T00:00:00.000Z' },
       { key: 'bad.null', value: 'atlas-setting:v1:null', updatedAt: '2026-01-01T00:00:00.000Z' },
-      { key: 'bad.object', value: 'atlas-setting:v1:{"a":1}', updatedAt: '2026-01-01T00:00:00.000Z' },
+      {
+        key: 'bad.object',
+        value: 'atlas-setting:v1:{"a":1}',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
     )
     const local = new MemorySettingsStore()
 
@@ -225,7 +242,11 @@ describe('downloadRemoteSettings', () => {
 
   it('throws a clear error when remote settings exist but no local store is wired', async () => {
     const fake = settingsFake()
-    fake.remote.push({ key: 'sandbox.image', value: 'img-1', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remote.push({
+      key: 'sandbox.image',
+      value: 'img-1',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
 
     const failure = await downloadRemoteSettings({
       client: clientOver(fake.fetchFn),

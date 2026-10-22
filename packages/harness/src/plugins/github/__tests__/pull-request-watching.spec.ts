@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  checkoutKey,
-  EPullRequestLookup,
-  NO_PULL_REQUEST_READING,
-  POLL_SETTLED_MS,
-} from '../pure'
+import { checkoutKey, EPullRequestLookup, NO_PULL_REQUEST_READING, POLL_SETTLED_MS } from '../pure'
 
 import { createPullRequestService } from '../pull-request-service'
 import {

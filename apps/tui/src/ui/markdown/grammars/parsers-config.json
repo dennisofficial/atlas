@@ -25,9 +25,7 @@
     },
     {
       "filetype": "bash",
-      "aliases": [
-        "shell"
-      ],
+      "aliases": ["shell"],
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-bash@0.25.1/tree-sitter-bash.wasm",
       "queries": {
         "highlights": [
@@ -37,9 +35,7 @@
     },
     {
       "filetype": "dockerfile",
-      "aliases": [
-        "docker"
-      ],
+      "aliases": ["docker"],
       "$comment": "Built locally rather than downloaded — no dockerfile wasm is published: npm's tree-sitter-dockerfile is a 0.0.1-security placeholder and the grammar ships no release artefacts. The build script is apps/tui/scripts/build-dockerfile-grammar.ts; it needs Docker and only runs when the wasm is missing, which for a normal checkout is never. The query is pinned to the same grammar tag the wasm was built from, per the same-version rule above.",
       "wasm": "src/ui/markdown/grammars/vendor/tree-sitter-dockerfile.wasm",
       "queries": {
@@ -61,9 +57,7 @@
       "filetype": "css",
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-css@0.25.0/tree-sitter-css.wasm",
       "queries": {
-        "highlights": [
-          "https://cdn.jsdelivr.net/npm/tree-sitter-css@0.25.0/queries/highlights.scm"
-        ]
+        "highlights": ["https://cdn.jsdelivr.net/npm/tree-sitter-css@0.25.0/queries/highlights.scm"]
       }
     },
     {
@@ -98,13 +92,9 @@
       "filetype": "go",
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-go@0.25.0/tree-sitter-go.wasm",
       "queries": {
-        "highlights": [
-          "https://cdn.jsdelivr.net/npm/tree-sitter-go@0.25.0/queries/highlights.scm"
-        ]
+        "highlights": ["https://cdn.jsdelivr.net/npm/tree-sitter-go@0.25.0/queries/highlights.scm"]
       },
-      "aliases": [
-        "golang"
-      ]
+      "aliases": ["golang"]
     },
     {
       "filetype": "rust",
@@ -117,22 +107,16 @@
     },
     {
       "filetype": "c",
-      "aliases": [
-        "h"
-      ],
+      "aliases": ["h"],
       "$comment": "The cpp entry already vendors this query as its base layer; this is the same query against C's own, much smaller grammar. Its first pattern is `(identifier) @variable`, so every name is coloured \u2014 that is upstream's choice, not a misconfiguration.",
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-c@0.24.1/tree-sitter-c.wasm",
       "queries": {
-        "highlights": [
-          "https://cdn.jsdelivr.net/npm/tree-sitter-c@0.24.1/queries/highlights.scm"
-        ]
+        "highlights": ["https://cdn.jsdelivr.net/npm/tree-sitter-c@0.24.1/queries/highlights.scm"]
       }
     },
     {
       "filetype": "cpp",
-      "aliases": [
-        "c++"
-      ],
+      "aliases": ["c++"],
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-cpp@0.23.4/tree-sitter-cpp.wasm",
       "queries": {
         "highlights": [
@@ -144,10 +128,7 @@
     },
     {
       "filetype": "javascript",
-      "aliases": [
-        "javascriptreact",
-        "jsx"
-      ],
+      "aliases": ["javascriptreact", "jsx"],
       "$comment": "One grammar for both: tree-sitter-javascript parses JSX natively, so `jsx` is the same parser with the JSX query appended. The query is inert on plain JS \u2014 no jsx nodes, no matches. Registering `javascript` here REPLACES the parser OpenTUI bundles, whose query gates two `(identifier)` patterns behind nvim's `#lua-match?`; the worker files unknown predicates as non-text predicates and never evaluates them, so every identifier matched @constant and rendered blue.",
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-javascript@0.25.0/tree-sitter-javascript.wasm",
       "queries": {
@@ -170,9 +151,7 @@
     },
     {
       "filetype": "typescriptreact",
-      "aliases": [
-        "tsx"
-      ],
+      "aliases": ["tsx"],
       "$comment": "Layered like cpp: this grammar's published highlights.scm is a DELTA and colours nothing on its own. nvim-treesitter writes `; inherits: javascript`; here the base queries are listed first and the generator concatenates them. Its own wasm, not typescript's: the two grammars disagree on `<T>expr`, which is a type assertion in .ts and JSX in .tsx.",
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-typescript@0.23.2/tree-sitter-tsx.wasm",
       "queries": {
@@ -185,9 +164,7 @@
     },
     {
       "filetype": "html",
-      "aliases": [
-        "htm"
-      ],
+      "aliases": ["htm"],
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-html@0.23.2/tree-sitter-html.wasm",
       "queries": {
         "highlights": [
@@ -197,25 +174,16 @@
     },
     {
       "filetype": "php",
-      "aliases": [
-        "php5",
-        "php7",
-        "php8",
-        "phtml"
-      ],
+      "aliases": ["php5", "php7", "php8", "phtml"],
       "$comment": "tree-sitter-php ships two grammars: `php` opens in HTML and enters PHP at `<?php`, `php_only` assumes the whole file is PHP. A fenced block is written as a file, opening tag included, so `php` is the one that parses it.",
       "wasm": "https://cdn.jsdelivr.net/npm/tree-sitter-php@0.24.2/tree-sitter-php.wasm",
       "queries": {
-        "highlights": [
-          "https://cdn.jsdelivr.net/npm/tree-sitter-php@0.24.2/queries/highlights.scm"
-        ]
+        "highlights": ["https://cdn.jsdelivr.net/npm/tree-sitter-php@0.24.2/queries/highlights.scm"]
       }
     },
     {
       "filetype": "lua",
-      "aliases": [
-        "luau"
-      ],
+      "aliases": ["luau"],
       "$comment": "49KB \u2014 an order of magnitude smaller than any other grammar here, because Lua's own is a small language. At that price the parse is strictly better than lexing it.",
       "wasm": "https://cdn.jsdelivr.net/npm/@tree-sitter-grammars/tree-sitter-lua@0.4.1/tree-sitter-lua.wasm",
       "queries": {
@@ -226,9 +194,7 @@
     },
     {
       "filetype": "toml",
-      "aliases": [
-        "tml"
-      ],
+      "aliases": ["tml"],
       "$comment": "24KB. The @tree-sitter-grammars build is the one with a wasm; plain tree-sitter-toml publishes queries only.",
       "wasm": "https://cdn.jsdelivr.net/npm/@tree-sitter-grammars/tree-sitter-toml@0.7.0/tree-sitter-toml.wasm",
       "queries": {

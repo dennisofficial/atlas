@@ -13,7 +13,12 @@ const CREATE = {
   body: { Image: IMAGE, Cmd: ['sleep', 'infinity'], User: '501:20' },
 }
 
-type RecordedRequest = { method: string; path: string; query: Record<string, string>; body: unknown }
+type RecordedRequest = {
+  method: string
+  path: string
+  query: Record<string, string>
+  body: unknown
+}
 const cleanups: Array<() => Promise<void>> = []
 
 afterEach(async () => {
@@ -57,7 +62,8 @@ describe('DockerEngine missing image recovery', () => {
     const { engine, requests } = await serveDaemon([created()])
 
     expect(await engine.createContainer(CREATE)).toEqual({
-      id: 'container-id', warnings: ['daemon warning'],
+      id: 'container-id',
+      warnings: ['daemon warning'],
     })
     expect(requests).toHaveLength(1)
   })
@@ -104,7 +110,9 @@ describe('DockerEngine missing image recovery', () => {
     const error: unknown = await engine.createContainer(CREATE).catch((error: unknown) => error)
     expect(error).toBeInstanceOf(ImagePullError)
     expect(error).toMatchObject({ image: IMAGE })
-    expect((error as ImagePullError).message).toContain('requested access to the resource is denied')
+    expect((error as ImagePullError).message).toContain(
+      'requested access to the resource is denied',
+    )
   })
 
   it('sends no authorization header with the pull', async () => {
@@ -148,28 +156,37 @@ describe('DockerEngine missing image recovery', () => {
 
   it('does not pull again when the retried create still cannot find the image', async () => {
     const { engine, requests } = await serveDaemon([
-      missingImage(), new Response('{"status":"Already exists"}\n'), missingImage(),
+      missingImage(),
+      new Response('{"status":"Already exists"}\n'),
+      missingImage(),
     ])
 
     const error: unknown = await engine.createContainer(CREATE).catch((error: unknown) => error)
     expect(error).toBeInstanceOf(EngineRequestFailed)
     expect(error).toMatchObject({ status: 404, message: `No such image: ${IMAGE}` })
     expect(requests.map((request) => request.path)).toEqual([
-      '/containers/create', '/images/create', '/containers/create',
+      '/containers/create',
+      '/images/create',
+      '/containers/create',
     ])
   })
 
-  it.each(['not JSON', 'null'])('rejects malformed pull progress without retrying: %s', async (output) => {
-    const { engine, requests } = await serveDaemon([missingImage(), new Response(output)])
+  it.each(['not JSON', 'null'])(
+    'rejects malformed pull progress without retrying: %s',
+    async (output) => {
+      const { engine, requests } = await serveDaemon([missingImage(), new Response(output)])
 
-    await expect(engine.createContainer(CREATE)).rejects.toThrow()
-    expect(requests).toHaveLength(2)
-  })
+      await expect(engine.createContainer(CREATE)).rejects.toThrow()
+      expect(requests).toHaveLength(2)
+    },
+  )
 
   it('does not pull when a different API reports a missing image', async () => {
     const { engine, requests } = await serveDaemon([missingImage()])
 
-    await expect(engine.inspectContainer({ id: 'missing' })).rejects.toThrow(`No such image: ${IMAGE}`)
+    await expect(engine.inspectContainer({ id: 'missing' })).rejects.toThrow(
+      `No such image: ${IMAGE}`,
+    )
     expect(requests).toHaveLength(1)
   })
 
@@ -199,7 +216,10 @@ describe('DockerEngine missing image recovery', () => {
     ])
 
     await expect(engine.createContainer(CREATE)).rejects.toThrow('registry access denied')
-    expect(requests.map((request) => request.path)).toEqual(['/containers/create', '/images/create'])
+    expect(requests.map((request) => request.path)).toEqual([
+      '/containers/create',
+      '/images/create',
+    ])
   })
 
   it('pulls the requested image and retries the identical create request once', async () => {
@@ -210,12 +230,23 @@ describe('DockerEngine missing image recovery', () => {
     ])
 
     expect(await engine.createContainer(CREATE)).toEqual({
-      id: 'container-id', warnings: ['daemon warning'],
+      id: 'container-id',
+      warnings: ['daemon warning'],
     })
     expect(requests).toEqual([
-      { method: 'POST', path: '/containers/create', query: { name: CREATE.name }, body: CREATE.body },
+      {
+        method: 'POST',
+        path: '/containers/create',
+        query: { name: CREATE.name },
+        body: CREATE.body,
+      },
       { method: 'POST', path: '/images/create', query: { fromImage: IMAGE }, body: undefined },
-      { method: 'POST', path: '/containers/create', query: { name: CREATE.name }, body: CREATE.body },
+      {
+        method: 'POST',
+        path: '/containers/create',
+        query: { name: CREATE.name },
+        body: CREATE.body,
+      },
     ])
   })
 })

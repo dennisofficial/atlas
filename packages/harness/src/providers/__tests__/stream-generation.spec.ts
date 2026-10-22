@@ -169,7 +169,11 @@ describe('collecting a streamed model response into a generation', () => {
     await expect(
       generationFromStream({
         result: resultOf({
-          parts: [{ type: 'text-delta', id: 't1', delta: 'par' }, { type: 'error', error: failure }, FINISH],
+          parts: [
+            { type: 'text-delta', id: 't1', delta: 'par' },
+            { type: 'error', error: failure },
+            FINISH,
+          ],
         }),
       }),
     ).rejects.toBe(failure)

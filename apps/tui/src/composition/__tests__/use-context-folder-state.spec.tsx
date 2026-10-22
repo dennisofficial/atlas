@@ -13,25 +13,53 @@ type Held = { current: ContextControl | null }
 type Source = { readers: ContextReaders; folderState?: ContextFolderStateStore | undefined }
 
 const levels = new Map<string, readonly DirectoryEntry[]>([
-  ['', [{ name: 'plan.md', isDirectory: false }, { name: 'notes', isDirectory: true }]],
-  ['notes', [{ name: 'deep', isDirectory: true }, { name: 'plan.md', isDirectory: false }]],
+  [
+    '',
+    [
+      { name: 'plan.md', isDirectory: false },
+      { name: 'notes', isDirectory: true },
+    ],
+  ],
+  [
+    'notes',
+    [
+      { name: 'deep', isDirectory: true },
+      { name: 'plan.md', isDirectory: false },
+    ],
+  ],
   ['notes/deep', [{ name: 'decision.md', isDirectory: false }]],
 ])
 const asked: string[] = []
 const readers: ContextReaders = {
-  list: async (directory) => { asked.push(directory ?? ''); return levels.get(directory ?? '') ?? [] },
+  list: async (directory) => {
+    asked.push(directory ?? '')
+    return levels.get(directory ?? '') ?? []
+  },
   load: async (path) => ({ type: 'text', content: path, truncated: false }),
   subscribe: () => () => {},
 }
 
 type Memory = ContextFolderStateStore & { saved: (readonly string[])[]; release: () => void }
 
-function memoryStore(args: { initial?: readonly string[]; hold?: boolean; failLoad?: boolean; failSave?: boolean } = {}): Memory {
+function memoryStore(
+  args: {
+    initial?: readonly string[]
+    hold?: boolean
+    failLoad?: boolean
+    failSave?: boolean
+  } = {},
+): Memory {
   let release: () => void = () => {}
-  const gate = args.hold === true ? new Promise<void>((resolve) => { release = resolve }) : Promise.resolve()
+  const gate =
+    args.hold === true
+      ? new Promise<void>((resolve) => {
+          release = resolve
+        })
+      : Promise.resolve()
   const saved: (readonly string[])[] = []
   return {
-    saved, release: () => release(),
+    saved,
+    release: () => release(),
     load: async () => {
       await gate
       if (args.failLoad === true) throw new Error('disk unreadable')
@@ -54,13 +82,26 @@ async function probe(first: Source) {
     return null
   }
   const setup = await testRender(<Probe />, { width: 20, height: 5 })
-  return { box, setup, swap: async (next: Source) => { await act(async () => { swap.current(next) }) } }
+  return {
+    box,
+    setup,
+    swap: async (next: Source) => {
+      await act(async () => {
+        swap.current(next)
+      })
+    },
+  }
 }
 
-const settle = async () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)) })
+const settle = async () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 30))
+  })
 const pathsOf = (box: Held) => box.current?.tree.rows.map((row) => row.path)
 const activate = async (args: { box: Held; path: string }) => {
-  await act(async () => { args.box.current?.handleOpen(args.path) })
+  await act(async () => {
+    args.box.current?.handleOpen(args.path)
+  })
   await settle()
 }
 
@@ -76,7 +117,9 @@ describe('context folder state in the browser hook', () => {
       expect(store.saved).toEqual([['notes/deep']])
       await activate({ box, path: 'notes/deep' })
       expect(store.saved.at(-1)).toEqual([])
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('restores closed folders after a remount and skips reading them', async () => {
@@ -89,7 +132,9 @@ describe('context folder state in the browser hook', () => {
       expect(asked).not.toContain('notes/deep')
       expect(asked).not.toContain('vanished/old')
       expect(store.saved).toEqual([])
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('waits for a slow load before walking the tree and ignores clicks meanwhile', async () => {
@@ -100,14 +145,20 @@ describe('context folder state in the browser hook', () => {
       await settle()
       expect(asked).toEqual([])
       expect(box.current?.tree.loading).toBe(true)
-      await act(async () => { box.current?.handleOpen('notes') })
+      await act(async () => {
+        box.current?.handleOpen('notes')
+      })
       expect(store.saved).toEqual([])
-      await act(async () => { store.release() })
+      await act(async () => {
+        store.release()
+      })
       await settle()
       expect(box.current?.tree.loading).toBe(false)
       expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
       expect(asked).not.toContain('notes')
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('does not leak closed folders into a different session store', async () => {
@@ -123,7 +174,9 @@ describe('context folder state in the browser hook', () => {
       await activate({ box, path: 'notes/deep' })
       expect(second.saved).toEqual([['notes/deep']])
       expect(first.saved).toEqual([])
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('warns and allows local toggles without overwriting unreadable saved choices', async () => {
@@ -138,7 +191,9 @@ describe('context folder state in the browser hook', () => {
       await activate({ box, path: 'notes' })
       expect(pathsOf(box)).toContain('notes/deep/decision.md')
       expect(store.saved).toEqual([])
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('warns when saving fails but keeps the toggle in the tree', async () => {
@@ -148,7 +203,9 @@ describe('context folder state in the browser hook', () => {
       await activate({ box, path: 'notes' })
       expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
       expect(currentNotices().some((notice) => notice.text.includes('disk full'))).toBe(true)
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('works without any store, staying open by default', async () => {
@@ -157,13 +214,23 @@ describe('context folder state in the browser hook', () => {
       await settle()
       await activate({ box, path: 'notes' })
       expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('drops old rows and shows unavailable when a swapped-in reader fails to list', async () => {
     let release: () => void = () => {}
-    const gate = new Promise<void>((resolve) => { release = resolve })
-    const failing: ContextReaders = { ...readers, list: async () => { await gate; throw new Error('offline') } }
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const failing: ContextReaders = {
+      ...readers,
+      list: async () => {
+        await gate
+        throw new Error('offline')
+      },
+    }
     const { box, setup, swap } = await probe({ readers })
     try {
       await settle()
@@ -171,21 +238,32 @@ describe('context folder state in the browser hook', () => {
       await swap({ readers: failing })
       expect(pathsOf(box)).toEqual([])
       expect(box.current?.tree.loading).toBe(true)
-      await act(async () => { release() })
+      await act(async () => {
+        release()
+      })
       await settle()
       expect(pathsOf(box)).toEqual([])
       expect(box.current?.tree.loading).toBe(false)
       expect(box.current?.tree.levels.get('')?.error).toBe('offline')
       expect(box.current?.tree.levels.get('')?.entries).toEqual([])
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('resets the open viewer when the reader changes and ignores stale activation', async () => {
     let release: () => void = () => {}
-    const gate = new Promise<void>((resolve) => { release = resolve })
-    const other: ContextReaders = { ...readers,
-      list: async (directory) => { await gate; return levels.get(directory ?? '') ?? [] },
-      load: async (path) => ({ type: 'text', content: `other ${path}`, truncated: false }) }
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const other: ContextReaders = {
+      ...readers,
+      list: async (directory) => {
+        await gate
+        return levels.get(directory ?? '') ?? []
+      },
+      load: async (path) => ({ type: 'text', content: `other ${path}`, truncated: false }),
+    }
     const { box, setup, swap } = await probe({ readers })
     try {
       await settle()
@@ -194,16 +272,25 @@ describe('context folder state in the browser hook', () => {
       await swap({ readers: other })
       expect(box.current?.viewer).toBeNull()
       expect(box.current?.tree.opened).toBeNull()
-      await act(async () => { box.current?.handleOpen('plan.md') })
+      await act(async () => {
+        box.current?.handleOpen('plan.md')
+      })
       expect(box.current?.viewer).toBeNull()
       await settle()
       expect(box.current?.viewer).toBeNull()
-      await act(async () => { release() })
+      await act(async () => {
+        release()
+      })
       await settle()
       await activate({ box, path: 'plan.md' })
-      expect(box.current?.viewer).toEqual({ state: EContextView.Ready, path: 'plan.md',
-        content: { type: 'text', content: 'other plan.md', truncated: false } })
-    } finally { await teardown(setup) }
+      expect(box.current?.viewer).toEqual({
+        state: EContextView.Ready,
+        path: 'plan.md',
+        content: { type: 'text', content: 'other plan.md', truncated: false },
+      })
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('gates file opens while a new store hydrates but keeps same-reader rows', async () => {
@@ -217,17 +304,25 @@ describe('context folder state in the browser hook', () => {
       await settle()
       expect(box.current?.tree.loading).toBe(true)
       expect(pathsOf(box)?.length).toBeGreaterThan(0)
-      await act(async () => { box.current?.handleOpen('plan.md') })
-      await act(async () => { box.current?.handleOpen('notes') })
+      await act(async () => {
+        box.current?.handleOpen('plan.md')
+      })
+      await act(async () => {
+        box.current?.handleOpen('notes')
+      })
       expect(box.current?.viewer).toBeNull()
       expect(held.saved).toEqual([])
-      await act(async () => { held.release() })
+      await act(async () => {
+        held.release()
+      })
       await settle()
       expect(box.current?.tree.loading).toBe(false)
       expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
       await activate({ box, path: 'plan.md' })
       expect(box.current?.viewer?.path).toBe('plan.md')
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('gates file opens while the store hydrates at mount', async () => {
@@ -235,10 +330,14 @@ describe('context folder state in the browser hook', () => {
     const { box, setup } = await probe({ readers, folderState: held })
     try {
       await settle()
-      await act(async () => { box.current?.handleOpen('plan.md') })
+      await act(async () => {
+        box.current?.handleOpen('plan.md')
+      })
       expect(box.current?.viewer).toBeNull()
       expect(box.current?.tree.opened).toBeNull()
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 
   it('saves the latest choice for each of several rapid toggles', async () => {
@@ -252,8 +351,14 @@ describe('context folder state in the browser hook', () => {
         box.current?.handleOpen('notes/deep')
       })
       await settle()
-      expect(store.saved.map((closed) => [...closed].sort())).toEqual([['notes/deep'], ['notes', 'notes/deep'], ['notes']])
+      expect(store.saved.map((closed) => [...closed].sort())).toEqual([
+        ['notes/deep'],
+        ['notes', 'notes/deep'],
+        ['notes'],
+      ])
       expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
-    } finally { await teardown(setup) }
+    } finally {
+      await teardown(setup)
+    }
   })
 })

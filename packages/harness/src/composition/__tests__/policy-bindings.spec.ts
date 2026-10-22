@@ -90,7 +90,7 @@ describe('grilling ceremony binding', () => {
         user: new MemorySettingsStore({ document: { values } }),
       }),
       secrets: new MemorySecretsStore(),
-    workspace: { workspace: process.cwd(), repo: null },
+      workspace: { workspace: process.cwd(), repo: null },
       credentials: alwaysAuthorised(),
       cwd: process.cwd(),
     })

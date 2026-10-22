@@ -116,7 +116,10 @@ export function substitutePastedTokens(args: {
   return text
 }
 
-export function tokenAtOffset(args: { editor: TextareaRenderable; offset: number }): LiveToken | null {
+export function tokenAtOffset(args: {
+  editor: TextareaRenderable
+  offset: number
+}): LiveToken | null {
   const tokens = liveTokens(args.editor)
   return tokens.find((token) => token.start < args.offset && args.offset < token.end) ?? null
 }
@@ -125,11 +128,10 @@ export function tokenAtOffset(args: { editor: TextareaRenderable; offset: number
  * A delete range that crosses a token's edge would shrink the extmark into a live half-label, so
  * the range grows to the token's boundary instead. Touching a boundary is not crossing it.
  */
-export function snappedRange(args: {
-  tokens: readonly LiveToken[]
+export function snappedRange(args: { tokens: readonly LiveToken[]; start: number; end: number }): {
   start: number
   end: number
-}): { start: number; end: number } {
+} {
   let { start, end } = args
   for (const token of args.tokens) {
     if (token.start < start && start < token.end) start = token.start
@@ -137,5 +139,3 @@ export function snappedRange(args: {
   }
   return { start, end }
 }
-
-

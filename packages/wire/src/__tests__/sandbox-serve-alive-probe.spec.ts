@@ -19,10 +19,10 @@ const probeAgainst = async (processes: Record<string, string>): Promise<number> 
     await mkdir(join(proc, pid), { recursive: true })
     await writeFile(join(proc, pid, 'cmdline'), cmdline)
   }
-  const script = SERVE_ALIVE_PROBE.replaceAll(`${SERVE_HOME}/atlas-serve.pid`, join(root, 'no.pid')).replaceAll(
-    '/proc/',
-    `${proc}/`,
-  )
+  const script = SERVE_ALIVE_PROBE.replaceAll(
+    `${SERVE_HOME}/atlas-serve.pid`,
+    join(root, 'no.pid'),
+  ).replaceAll('/proc/', `${proc}/`)
   const child = Bun.spawn(['sh', '-c', script], { stdout: 'ignore', stderr: 'ignore' })
   return child.exited
 }

@@ -162,14 +162,26 @@ describe('a child taking its first step', () => {
     const events = await spawned.harness.log.read({ threadId: spawned.agentId })
     expect(events.map((event) => event.type)).toEqual(['user-said', 'assistant-said'])
     const prompt = spawned.model.doStreamCalls[0]?.prompt ?? []
-    expect(prompt.some((message) => message.role === 'user' &&
-      Array.isArray(message.content) && message.content.some((part) =>
-        part.type === 'text' && /^<operator-said[^>]*>\ncount the call sites of assemble\n<\/operator-said>$/.test(part.text),
+    expect(
+      prompt.some(
+        (message) =>
+          message.role === 'user' &&
+          Array.isArray(message.content) &&
+          message.content.some(
+            (part) =>
+              part.type === 'text' &&
+              /^<operator-said[^>]*>\ncount the call sites of assemble\n<\/operator-said>$/.test(
+                part.text,
+              ),
+          ),
       ),
-    )).toBe(true)
+    ).toBe(true)
     const runtime = prompt.at(-1)
     expect(runtime?.role === 'user' ? runtime.content : []).toEqual([
-      expect.objectContaining({ type: 'text', text: expect.stringContaining('Project directory: /w.') }),
+      expect.objectContaining({
+        type: 'text',
+        text: expect.stringContaining('Project directory: /w.'),
+      }),
     ])
   })
 
@@ -179,7 +191,11 @@ describe('a child taking its first step', () => {
       agentType: agentTypeNamed({ name: 'explore' }),
     })
 
-    const [draft] = await loggedOfType({ harness: spawned.harness, threadId: spawned.parent, type: 'agent-ended' })
+    const [draft] = await loggedOfType({
+      harness: spawned.harness,
+      threadId: spawned.parent,
+      type: 'agent-ended',
+    })
     expect(draft?.prose).toBe('four call sites')
     expect(draft?.turns).toBe(1)
   })
@@ -192,7 +208,11 @@ describe('a child whose model keeps dropping its replies', () => {
       agentType: agentTypeNamed({ name: 'explore' }),
     })
 
-    const [draft] = await loggedOfType({ harness: spawned.harness, threadId: spawned.parent, type: 'agent-ended' })
+    const [draft] = await loggedOfType({
+      harness: spawned.harness,
+      threadId: spawned.parent,
+      type: 'agent-ended',
+    })
     expect(draft?.status).toBe(EAgentStatus.Finished)
     expect(draft?.prose).toBe(NO_CONTENT_TEXT)
 

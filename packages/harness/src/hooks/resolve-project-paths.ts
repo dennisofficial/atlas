@@ -13,7 +13,7 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../container/injection'
+import { portToken } from '../container/injection'
 import {
   ABSENT,
   createDeclaredPaths,
@@ -34,7 +34,8 @@ type Denial = Extract<BeforeToolOutcome, { decision: EBeforeToolDecision.Deny }>
 
 type ScopeLookup = { ok: true; scope: ThreadEnvironment } | { ok: false; denial: Denial }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export class ResolveProjectPathsHook extends BeforeToolHook {
   readonly name = 'resolveProjectPaths'
@@ -68,7 +69,10 @@ export class ResolveProjectPathsHook extends BeforeToolHook {
       if (value === ABSENT || typeof value !== 'string' || value.length === 0) continue
 
       let env: NodeJS.ProcessEnv | undefined
-      if (this.threadEnvironment !== undefined && (referencesSessionEnv(value) || referencesShellEnv(value))) {
+      if (
+        this.threadEnvironment !== undefined &&
+        (referencesSessionEnv(value) || referencesShellEnv(value))
+      ) {
         let scope: ThreadEnvironment = {}
         if (referencesSessionEnv(value)) {
           lookup ??= this.lookupScope({ path: value, threadId: call.threadId })
@@ -89,7 +93,10 @@ export class ResolveProjectPathsHook extends BeforeToolHook {
         continue
       }
 
-      input = { ...(input as Record<string, unknown>), [field.field]: resolve(projectDirectory, expanded.path) }
+      input = {
+        ...(input as Record<string, unknown>),
+        [field.field]: resolve(projectDirectory, expanded.path),
+      }
     }
 
     return { decision: EBeforeToolDecision.Allow, input }
@@ -107,11 +114,15 @@ export class ResolveProjectPathsHook extends BeforeToolHook {
     try {
       const scope = await this.threadEnvironment?.({ threadId: args.threadId })
       if (scope === undefined) {
-        return refuse(`thread ${args.threadId} is not registered in any session, so it has no session directory`)
+        return refuse(
+          `thread ${args.threadId} is not registered in any session, so it has no session directory`,
+        )
       }
       return { ok: true, scope }
     } catch (error) {
-      return refuse(`the session directory of thread ${args.threadId} could not be looked up: ${messageOf(error)}`)
+      return refuse(
+        `the session directory of thread ${args.threadId} could not be looked up: ${messageOf(error)}`,
+      )
     }
   }
 }

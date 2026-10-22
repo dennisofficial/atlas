@@ -30,9 +30,12 @@ describe('naming why a model call is worth trying again', () => {
     expect(retryReasonOf({})).toBe(ERetryReason.Network)
   })
 
-  it.each([400, 401, 403, 404, 413, 422])('refuses to retry %i, which will fail again', (status) => {
-    expect(retryReasonOf({ status })).toBeNull()
-  })
+  it.each([400, 401, 403, 404, 413, 422])(
+    'refuses to retry %i, which will fail again',
+    (status) => {
+      expect(retryReasonOf({ status })).toBeNull()
+    },
+  )
 })
 
 describe('trusting a provider that flags a failure retryable', () => {
@@ -101,14 +104,24 @@ describe('reading a failure that no retry will fix', () => {
 
 describe('planning the wait before trying again', () => {
   it('does not retry a failure that is the caller s fault', () => {
-    const decision = planRetry({ failure: { status: 401 }, attempts: 1, policy: POLICY, jitter: MAXIMUM_JITTER })
+    const decision = planRetry({
+      failure: { status: 401 },
+      attempts: 1,
+      policy: POLICY,
+      jitter: MAXIMUM_JITTER,
+    })
 
     expect(decision.retry).toBe(false)
   })
 
   it('backs off exponentially from the base delay', () => {
     const delays = [1, 2, 3, 4].map((attempts) => {
-      const decision = planRetry({ failure: { status: 529 }, attempts, policy: POLICY, jitter: MAXIMUM_JITTER })
+      const decision = planRetry({
+        failure: { status: 529 },
+        attempts,
+        policy: POLICY,
+        jitter: MAXIMUM_JITTER,
+      })
       return decision.retry ? decision.delayMs : null
     })
 
@@ -118,7 +131,12 @@ describe('planning the wait before trying again', () => {
   it('never waits longer than the ceiling, however far the backoff has doubled', () => {
     const patient: RetryPolicy = { ...POLICY, maxAttempts: 30 }
 
-    const decision = planRetry({ failure: { status: 529 }, attempts: 20, policy: patient, jitter: MAXIMUM_JITTER })
+    const decision = planRetry({
+      failure: { status: 529 },
+      attempts: 20,
+      policy: patient,
+      jitter: MAXIMUM_JITTER,
+    })
 
     expect(decision.retry && decision.delayMs).toBe(patient.maxDelayMs)
   })
@@ -154,7 +172,12 @@ describe('planning the wait before trying again', () => {
   })
 
   it('carries the reason so the operator is told what is being waited on', () => {
-    const decision = planRetry({ failure: { status: 429 }, attempts: 1, policy: POLICY, jitter: MAXIMUM_JITTER })
+    const decision = planRetry({
+      failure: { status: 429 },
+      attempts: 1,
+      policy: POLICY,
+      jitter: MAXIMUM_JITTER,
+    })
 
     expect(decision.retry && decision.reason).toBe(ERetryReason.RateLimited)
   })

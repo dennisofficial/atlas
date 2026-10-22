@@ -8,8 +8,7 @@ const HUNDRED_TOKENS = 'x'.repeat(400)
 
 const turn = (): readonly EventDraft[] => [said(HUNDRED_TOKENS), replied(HUNDRED_TOKENS)]
 
-const turns = (count: number): readonly EventDraft[] =>
-  Array.from({ length: count }, turn).flat()
+const turns = (count: number): readonly EventDraft[] => Array.from({ length: count }, turn).flat()
 
 describe('planCompaction', () => {
   it('proposes nothing for a thread that already fits the recency budget', () => {

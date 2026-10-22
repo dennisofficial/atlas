@@ -1,4 +1,10 @@
-import { EAgentRestart, EAgentStatus, isResumable, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
+import {
+  EAgentRestart,
+  EAgentStatus,
+  isResumable,
+  type EventLogPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from './port'
 import { resumableAfterTransfer } from './transferred-family'
@@ -35,16 +41,24 @@ export async function activateTransferredChildren(args: {
 
     for (const child of agents.list({ threadId: owner })) {
       owners.push(child.agentId)
-      const queuedContinuation = owed.has(child.agentId) && child.status !== EAgentStatus.Running &&
-        child.killedBy === undefined && !resumableAfterTransfer(child)
+      const queuedContinuation =
+        owed.has(child.agentId) &&
+        child.status !== EAgentStatus.Running &&
+        child.killedBy === undefined &&
+        !resumableAfterTransfer(child)
       if (!queuedContinuation && !resumableAfterTransfer(child)) continue
       if (!isResumable(await log.readOwn({ threadId: child.agentId }))) continue
       if (queuedContinuation && agents.wake === undefined) {
         throw new Error(`this registry cannot continue queued work for child ${child.agentId}`)
       }
-      const outcome = queuedContinuation && agents.wake !== undefined
-        ? await agents.wake({ agentId: child.agentId })
-        : await agents.resume({ agentId: child.agentId, threadId: owner, via: EAgentRestart.Relocation })
+      const outcome =
+        queuedContinuation && agents.wake !== undefined
+          ? await agents.wake({ agentId: child.agentId })
+          : await agents.resume({
+              agentId: child.agentId,
+              threadId: owner,
+              via: EAgentRestart.Relocation,
+            })
       if (outcome.ok) resumed.push(child.agentId)
     }
   }

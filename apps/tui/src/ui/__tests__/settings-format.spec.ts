@@ -6,7 +6,8 @@ import { valueLabel } from '../settings-format'
 
 const rangeOf = (id: ESettingId): RangeDefinition => {
   const found = ATLAS_SETTINGS.find((definition) => definition.id === id)
-  if (found === undefined || found.kind !== ESettingKind.Range) throw new Error(`${id} is not a range`)
+  if (found === undefined || found.kind !== ESettingKind.Range)
+    throw new Error(`${id} is not a range`)
   return found
 }
 

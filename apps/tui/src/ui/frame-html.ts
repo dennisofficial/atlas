@@ -38,7 +38,8 @@ function spanHtml(span: FrameSpan): string {
   if ((span.attributes & TextAttributes.BOLD) !== 0) style.push('font-weight:bold')
   if ((span.attributes & TextAttributes.ITALIC) !== 0) style.push('font-style:italic')
   if ((span.attributes & TextAttributes.UNDERLINE) !== 0) style.push('text-decoration:underline')
-  if ((span.attributes & TextAttributes.STRIKETHROUGH) !== 0) style.push('text-decoration:line-through')
+  if ((span.attributes & TextAttributes.STRIKETHROUGH) !== 0)
+    style.push('text-decoration:line-through')
 
   if (style.length === 0) return escapeHtml(span.text)
   return `<span style="${style.join(';')}">${escapeHtml(span.text)}</span>`

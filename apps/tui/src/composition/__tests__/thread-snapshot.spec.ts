@@ -77,7 +77,11 @@ describe('readThreadSnapshot', () => {
       effects,
       digest: transcriptIdentityDigest,
     })
-    await log.append({ threadId: THREAD, runId: toRunId('r2'), drafts: [{ type: 'user-said', text: 'late' }] })
+    await log.append({
+      threadId: THREAD,
+      runId: toRunId('r2'),
+      drafts: [{ type: 'user-said', text: 'late' }],
+    })
 
     const full = await log.read({ threadId: THREAD })
     expect(full).toHaveLength(11)

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { EQualityReviewStatus, LogPort, toCallId, type CodeQualityReviewedBody, type EventDraft, type LogEntry } from '@dltech/atlas-core'
+import {
+  EQualityReviewStatus,
+  LogPort,
+  toCallId,
+  type CodeQualityReviewedBody,
+  type EventDraft,
+  type LogEntry,
+} from '@dltech/atlas-core'
 
 import {
   FakeQuality,
@@ -30,7 +37,8 @@ const reviewsOf = (drafts: readonly { type: string }[]): readonly CodeQualityRev
   return (result as { qualityReviews: readonly CodeQualityReviewedBody[] }).qualityReviews
 }
 
-const reviewing = (drafts: readonly EventDraft[]): FakeQuality => new FakeQuality({ review: async () => drafts })
+const reviewing = (drafts: readonly EventDraft[]): FakeQuality =>
+  new FakeQuality({ review: async () => drafts })
 
 describe('a quality review whose logging sink throws', () => {
   it('still succeeds the write when the capture getter throws', async () => {
@@ -83,10 +91,22 @@ describe('a quality review whose logging sink throws', () => {
 
 describe('a quality review response that breaks the nudge and record rules', () => {
   const rejected: readonly [string, readonly EventDraft[]][] = [
-    ['a nudge that lives longer than one step', [reviewRecord, { ...reviewNudge, lifetimeSteps: 2 } satisfies NudgeDraft]],
-    ['a nudge that lives zero steps', [reviewRecord, { ...reviewNudge, lifetimeSteps: 0 } satisfies NudgeDraft]],
+    [
+      'a nudge that lives longer than one step',
+      [reviewRecord, { ...reviewNudge, lifetimeSteps: 2 } satisfies NudgeDraft],
+    ],
+    [
+      'a nudge that lives zero steps',
+      [reviewRecord, { ...reviewNudge, lifetimeSteps: 0 } satisfies NudgeDraft],
+    ],
     ['more than one nudge', [reviewRecord, reviewNudge, reviewNudge]],
-    ['a record for a different call', [{ ...reviewRecord, callId: toCallId('someone-elses') } satisfies ReviewRecordDraft, reviewNudge]],
+    [
+      'a record for a different call',
+      [
+        { ...reviewRecord, callId: toCallId('someone-elses') } satisfies ReviewRecordDraft,
+        reviewNudge,
+      ],
+    ],
   ]
 
   for (const [name, response] of rejected) {

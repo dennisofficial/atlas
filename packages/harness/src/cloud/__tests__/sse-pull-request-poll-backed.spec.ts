@@ -74,7 +74,10 @@ describe('the book remembers pollBacked per subscription', () => {
 
   it('re-emits when a resubscribe flips the entry from polled to realtime', () => {
     const emitted: PullRequestReading[] = []
-    const book = createSseSubscriptionBook({ now: () => 0, onReading: ({ reading }) => emitted.push(reading) })
+    const book = createSseSubscriptionBook({
+      now: () => 0,
+      onReading: ({ reading }) => emitted.push(reading),
+    })
     book.recordSubscribe({
       key: 'k',
       handle: { id: 'sub-1', repoFullName: 'owner/repo' },
@@ -174,7 +177,9 @@ describe('SsePullRequestPort subscribe outcome', () => {
   })
 
   it('survives a throwing recommendation consumer', async () => {
-    serve({ recommendAppInstall: { installUrl: 'https://x.test/install', repoFullName: 'owner/repo' } })
+    serve({
+      recommendAppInstall: { installUrl: 'https://x.test/install', repoFullName: 'owner/repo' },
+    })
     const port = portOf(() => {
       throw new Error('consumer broke')
     })

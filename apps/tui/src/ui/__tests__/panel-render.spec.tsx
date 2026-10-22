@@ -61,7 +61,9 @@ describe('panel caps follow the ground they cap', () => {
     try {
       const frame = setup.captureSpans()
       expect(edgeColour(frame, PANEL_TOP_EDGE)?.equals(parseColor(theme.userBg))).toBe(true)
-      expect(edgeColour(frame, PANEL_BOTTOM_EDGE, true)?.equals(parseColor(theme.userBand))).toBe(true)
+      expect(edgeColour(frame, PANEL_BOTTOM_EDGE, true)?.equals(parseColor(theme.userBand))).toBe(
+        true,
+      )
     } finally {
       await teardown(setup)
     }

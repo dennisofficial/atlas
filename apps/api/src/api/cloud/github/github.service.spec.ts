@@ -1,23 +1,14 @@
-import {
-  BadGatewayException,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common'
+import { BadGatewayException, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
-import type {
-  FetchFn,
-  GithubHttpRequest,
-  GithubHttpResponse,
-} from './github-device-client'
+import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
 import { GithubService } from './github.service'
 import { EGithubPollStatus } from './github.types'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 interface GithubConnectionRow {
   id: string
@@ -154,9 +145,9 @@ describe('GithubService', () => {
   ])('poll maps the %s error to %s', async (error, status) => {
     fetchImpl = async () => jsonResponse({ error })
 
-    await expect(
-      service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' }),
-    ).resolves.toEqual({ status })
+    await expect(service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })).resolves.toEqual({
+      status,
+    })
     expect(fake.connections).toHaveLength(0)
   })
 

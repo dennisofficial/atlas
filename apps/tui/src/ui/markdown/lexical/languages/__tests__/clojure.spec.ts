@@ -47,7 +47,7 @@ const source = [
   '  (case op',
   '    :add (fn [x y] (+ x y))',
   '    :multiply #(* %1 %2)',
-  "    (throw (ex-info \"unknown op\" {:op op ::hint 'dispatch}))))",
+  '    (throw (ex-info "unknown op" {:op op ::hint \'dispatch}))))',
   '',
   '(defn slug [text]',
   '  (str/replace text #"\\s+" "-"))',

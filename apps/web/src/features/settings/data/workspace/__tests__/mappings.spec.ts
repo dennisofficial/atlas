@@ -38,7 +38,12 @@ describe('mcp mapping', () => {
       transport: { kind: EMcpTransportKind.Stdio, command: 'npx', args: ['-y', 'x'] },
       updatedAt: '',
     })
-    expect(stdio).toEqual({ id: 'fs', kind: EMcpTransportKind.Stdio, target: 'npx -y x', enabled: true })
+    expect(stdio).toEqual({
+      id: 'fs',
+      kind: EMcpTransportKind.Stdio,
+      target: 'npx -y x',
+      enabled: true,
+    })
     const http = rowOfServer({
       name: 'l',
       transport: { kind: EMcpTransportKind.Http, url: 'https://a/mcp' },
@@ -50,8 +55,15 @@ describe('mcp mapping', () => {
   })
 
   it('builds upserts from drafts and toggles', () => {
-    expect(upsertOfDraft({ kind: EMcpTransportKind.Stdio, target: 'bun run x', extra: 'K=v' })).toEqual({
-      transport: { kind: EMcpTransportKind.Stdio, command: 'bun', args: ['run', 'x'], env: { K: 'v' } },
+    expect(
+      upsertOfDraft({ kind: EMcpTransportKind.Stdio, target: 'bun run x', extra: 'K=v' }),
+    ).toEqual({
+      transport: {
+        kind: EMcpTransportKind.Stdio,
+        command: 'bun',
+        args: ['run', 'x'],
+        env: { K: 'v' },
+      },
     })
     expect(upsertOfDraft({ kind: EMcpTransportKind.Http, target: ' https://a ' })).toEqual({
       transport: { kind: EMcpTransportKind.Http, url: 'https://a' },
@@ -156,9 +168,11 @@ describe('general mapping', () => {
       organization: { name: 'New' },
       settings: { 'workspace.defaultRegion': 'fra1', 'workspace.defaultModel': 'gpt-5' },
     })
-    expect(planGeneralSave({ saved: { ...saved, model: 'gpt-5' }, draft: saved }).settings).toEqual({
-      'workspace.defaultModel': null,
-    })
+    expect(planGeneralSave({ saved: { ...saved, model: 'gpt-5' }, draft: saved }).settings).toEqual(
+      {
+        'workspace.defaultModel': null,
+      },
+    )
   })
 
   it('sanitizes slugs and validates drafts', () => {

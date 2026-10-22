@@ -5,23 +5,46 @@ import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { theme } from '../../ui/theme'
 import { promiseGate, until } from './app-fixture'
-import { bornThreadApp, fakeProjectsApi, mountUnborn, projectOf, type MountedUnborn } from './born-thread-fixture'
+import {
+  bornThreadApp,
+  fakeProjectsApi,
+  mountUnborn,
+  projectOf,
+  type MountedUnborn,
+} from './born-thread-fixture'
 
 await grammarsReady()
 
 afterEach(() => dismissNotice())
 
 const OTHER = [
-  projectOf({ id: 'proj-old', name: 'stale-proj', repo: 'acme/stale-proj', updatedAt: '2026-02-01T00:00:00.000Z' }),
-  projectOf({ id: 'proj-new', name: 'fresh-proj', repo: null, updatedAt: '2026-03-01T00:00:00.000Z' }),
+  projectOf({
+    id: 'proj-old',
+    name: 'stale-proj',
+    repo: 'acme/stale-proj',
+    updatedAt: '2026-02-01T00:00:00.000Z',
+  }),
+  projectOf({
+    id: 'proj-new',
+    name: 'fresh-proj',
+    repo: null,
+    updatedAt: '2026-03-01T00:00:00.000Z',
+  }),
 ]
 
 const born = (mounted: MountedUnborn): Promise<boolean> =>
   until({ holds: async () => mounted.bridge.created.length > 0, within: 20_000 })
 
-const hoverWashAt = (args: { mounted: MountedUnborn; row: number; column: number }): boolean | undefined => {
+const hoverWashAt = (args: {
+  mounted: MountedUnborn
+  row: number
+  column: number
+}): boolean | undefined => {
   const painted = args.mounted.paintedLines() as unknown as {
-    lines: ({ spans: { text: string; bg: { equals: (other: unknown) => boolean } }[] } | undefined)[]
+    lines: (
+      | { spans: { text: string; bg: { equals: (other: unknown) => boolean } }[] }
+      | undefined
+    )[]
   }
   let at = 0
   for (const span of painted.lines[args.row]?.spans ?? []) {
@@ -44,7 +67,9 @@ describe('the project prompt', () => {
       expect(await mounted.frameHolds((frame) => frame.includes('/help'))).toBe(true)
 
       listing.release()
-      expect(await mounted.frameHolds((frame) => frame.includes('RUN THIS THREAD IN A PROJECT'))).toBe(true)
+      expect(
+        await mounted.frameHolds((frame) => frame.includes('RUN THIS THREAD IN A PROJECT')),
+      ).toBe(true)
       expect(await mounted.frame()).not.toContain('/help')
 
       mounted.input.pressArrow('down')
@@ -59,7 +84,9 @@ describe('the project prompt', () => {
   }, 60_000)
 
   it('washes the cancel footer under the pointer', async () => {
-    const mounted = await mountUnborn({ app: bornThreadApp({ api: fakeProjectsApi({ projects: OTHER }), origin: null }) })
+    const mounted = await mountUnborn({
+      app: bornThreadApp({ api: fakeProjectsApi({ projects: OTHER }), origin: null }),
+    })
 
     try {
       await mounted.command('hover footer')
@@ -91,11 +118,14 @@ describe('the project prompt', () => {
 
       expect(
         await until({
-          holds: async () => currentNotices().some((notice) => notice.text.includes('could not create the project')),
+          holds: async () =>
+            currentNotices().some((notice) => notice.text.includes('could not create the project')),
           within: 20_000,
         }),
       ).toBe(true)
-      expect(await until({ holds: async () => mounted.draft() === 'will fail', within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => mounted.draft() === 'will fail', within: 20_000 }),
+      ).toBe(true)
       expect(mounted.bridge.created).toEqual([])
     } finally {
       await mounted.done()

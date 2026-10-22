@@ -28,7 +28,10 @@ const toolResult = (part: Pick<ToolResultPart, 'output'>): ToolResultPart => ({
   output: part.output,
 })
 
-const toolMessage = (parts: readonly ToolResultPart[]): ToolMessage => ({ role: 'tool', content: parts })
+const toolMessage = (parts: readonly ToolResultPart[]): ToolMessage => ({
+  role: 'tool',
+  content: parts,
+})
 
 describe('hoistToolResultFiles', () => {
   it('leaves a conversation without tool-result images untouched', () => {
@@ -46,7 +49,10 @@ describe('hoistToolResultFiles', () => {
         toolResult({
           output: {
             type: 'content',
-            value: [{ type: 'text', text: '/tmp/shot.png — image/png, 2704×600.' }, image('/tmp/shot.png')],
+            value: [
+              { type: 'text', text: '/tmp/shot.png — image/png, 2704×600.' },
+              image('/tmp/shot.png'),
+            ],
           },
         }),
       ]),
@@ -55,18 +61,26 @@ describe('hoistToolResultFiles', () => {
     expect(hoistToolResultFiles({ messages })).toEqual([
       toolMessage([
         toolResult({
-          output: { type: 'content', value: [{ type: 'text', text: '/tmp/shot.png — image/png, 2704×600.' }] },
+          output: {
+            type: 'content',
+            value: [{ type: 'text', text: '/tmp/shot.png — image/png, 2704×600.' }],
+          },
         }),
       ]),
       {
         role: 'user',
-        content: [image('/tmp/shot.png'), { type: 'text', text: 'Image from the tool result above: /tmp/shot.png.' }],
+        content: [
+          image('/tmp/shot.png'),
+          { type: 'text', text: 'Image from the tool result above: /tmp/shot.png.' },
+        ],
       },
     ])
   })
 
   it('leaves a placeholder in the tool result when the image was its only content', () => {
-    const messages: Message[] = [toolMessage([toolResult({ output: { type: 'content', value: [image()] } })])]
+    const messages: Message[] = [
+      toolMessage([toolResult({ output: { type: 'content', value: [image()] } })]),
+    ]
 
     const hoisted = hoistToolResultFiles({ messages })
     const tool = hoisted[0]
@@ -74,7 +88,9 @@ describe('hoistToolResultFiles', () => {
     const part = tool.content[0]
     if (part?.output.type !== 'content') throw new Error('expected content output')
 
-    expect(part.output.value).toEqual([{ type: 'text', text: 'the attachment is in the next message' }])
+    expect(part.output.value).toEqual([
+      { type: 'text', text: 'the attachment is in the next message' },
+    ])
     expect(hoisted[1]).toEqual({
       role: 'user',
       content: [image(), { type: 'text', text: 'Image from the tool result above.' }],
@@ -82,10 +98,15 @@ describe('hoistToolResultFiles', () => {
   })
 
   it('gathers images from several results of one tool message into a single user message', () => {
-    const second: ToolResultPart = { ...toolResult({ output: { type: 'content', value: [image('/tmp/b.png')] } }), toolCallId: 'read_2' }
+    const second: ToolResultPart = {
+      ...toolResult({ output: { type: 'content', value: [image('/tmp/b.png')] } }),
+      toolCallId: 'read_2',
+    }
     const messages: Message[] = [
       toolMessage([
-        toolResult({ output: { type: 'content', value: [{ type: 'text', text: 'a' }, image('/tmp/a.png')] } }),
+        toolResult({
+          output: { type: 'content', value: [{ type: 'text', text: 'a' }, image('/tmp/a.png')] },
+        }),
         second,
       ]),
     ]
@@ -106,7 +127,10 @@ describe('hoistToolResultFiles', () => {
     const messages: Message[] = [
       toolMessage([
         toolResult({
-          output: { type: 'content', value: [{ type: 'text', text: 'spec.pdf' }, file('/tmp/spec.pdf')] },
+          output: {
+            type: 'content',
+            value: [{ type: 'text', text: 'spec.pdf' }, file('/tmp/spec.pdf')],
+          },
         }),
       ]),
     ]
@@ -120,7 +144,10 @@ describe('hoistToolResultFiles', () => {
     expect(part.output.value).toEqual([{ type: 'text', text: 'spec.pdf' }])
     expect(hoisted[1]).toEqual({
       role: 'user',
-      content: [file('/tmp/spec.pdf'), { type: 'text', text: 'File from the tool result above: /tmp/spec.pdf.' }],
+      content: [
+        file('/tmp/spec.pdf'),
+        { type: 'text', text: 'File from the tool result above: /tmp/spec.pdf.' },
+      ],
     })
   })
 

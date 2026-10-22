@@ -55,7 +55,9 @@ describe('parseAnthropicUsage', () => {
       [EUsageWindow.FiveHour]: null,
       [EUsageWindow.SevenDay]: null,
     })
-    expect(parseAnthropicUsage({ five_hour: { resets_at: null } })[EUsageWindow.FiveHour]).toBeNull()
+    expect(
+      parseAnthropicUsage({ five_hour: { resets_at: null } })[EUsageWindow.FiveHour],
+    ).toBeNull()
   })
 
   it('survives a body that is not the shape it expects', () => {

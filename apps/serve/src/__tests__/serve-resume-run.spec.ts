@@ -159,7 +159,9 @@ describe('a run frame carrying resume intent against a real serve socket', () =>
 
   it('refuses a second resume run while a turn is running, writing nothing and starting nothing', async () => {
     const held = gate()
-    const { app, client } = await start({ holdStep: (step) => (step === 1 ? held.opened : undefined) })
+    const { app, client } = await start({
+      holdStep: (step) => (step === 1 ? held.opened : undefined),
+    })
 
     client.send({ kind: EClientFrame.Run, resume: true })
     await client.waitFor(
@@ -186,7 +188,9 @@ describe('a run frame carrying resume intent against a real serve socket', () =>
 
   it('refuses a bare run while a turn is running instead of re-arming another turn', async () => {
     const held = gate()
-    const { app, client } = await start({ holdStep: (step) => (step === 1 ? held.opened : undefined) })
+    const { app, client } = await start({
+      holdStep: (step) => (step === 1 ? held.opened : undefined),
+    })
 
     client.send({ kind: EClientFrame.Run, resume: true })
     await client.waitFor(

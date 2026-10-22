@@ -84,7 +84,13 @@ async function createFile(args: {
     },
     modelText: args.existing === null ? created(args.path) : updated(args.path),
     ...(args.capture && args.captureFault === null
-      ? { fileChanges: makeChange({ path: args.path, before: args.capturedBefore, after: args.newString }) }
+      ? {
+          fileChanges: makeChange({
+            path: args.path,
+            before: args.capturedBefore,
+            after: args.newString,
+          }),
+        }
       : {}),
     ...(args.captureFault !== null ? { fileChangeFaults: [args.captureFault] } : {}),
   }
@@ -106,7 +112,12 @@ async function replaceInFile(args: {
   if (args.capture) {
     const read = await args.files.readTextForEdit({ path: args.path, threadId: args.threadId })
     raw = read.text
-    const captured = captureText({ path: args.path, text: read.text, strict: read.strict, changed: true })
+    const captured = captureText({
+      path: args.path,
+      text: read.text,
+      strict: read.strict,
+      changed: true,
+    })
     if (!captured.ok) captureFault = captured.diagnostic
     else before = captured.text
   } else {
@@ -153,7 +164,12 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
   override readonly pathFields: readonly DeclaredPathField[] = [
-    { field: 'path', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.Amends },
+    {
+      field: 'path',
+      presence: EPathPresence.Required,
+      form: EPathForm.Absolute,
+      content: EContentAccess.Amends,
+    },
   ]
 
   constructor(
@@ -185,16 +201,23 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
         }
 
         if (oldString === '') {
-          const existing =
-            stats === null ? null : await this.files.readFile({ path, threadId })
+          const existing = stats === null ? null : await this.files.readFile({ path, threadId })
           let createFault: QualityCoverageDiagnostic | null = null
           let capturedBefore: string | null = existing
           if (capture && existing !== null) {
             const read = await this.files.readTextForEdit({ path, threadId }).catch(() => null)
             if (read === null) {
-              createFault = captureUnavailableFault({ path, detail: 'the previous contents could not be read' })
+              createFault = captureUnavailableFault({
+                path,
+                detail: 'the previous contents could not be read',
+              })
             } else {
-              const captured = captureText({ path, text: read.text, strict: read.strict, changed: true })
+              const captured = captureText({
+                path,
+                text: read.text,
+                strict: read.strict,
+                changed: true,
+              })
               if (!captured.ok) createFault = captured.diagnostic
               else capturedBefore = captured.text
             }
@@ -230,4 +253,3 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
     return guarded.ok ? guarded.value : { ok: false, reason: guarded.reason }
   }
 }
-

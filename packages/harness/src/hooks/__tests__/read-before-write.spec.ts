@@ -165,15 +165,26 @@ describe('createReadBeforeWriteHook', () => {
   it('allows an amendment to a file that has never been read, since its old text is the anchor', async () => {
     const path = await fileHolding({ name: 'unread-edit.ts', text: 'export const a = 1\n' })
 
-    const outcome = await decide({ seen: new InMemoryFileReadState(), name: 'edit', input: { path } })
+    const outcome = await decide({
+      seen: new InMemoryFileReadState(),
+      name: 'edit',
+      input: { path },
+    })
 
     expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input: { path } })
   })
 
   it('still refuses a whole-file overwrite of that same unread file', async () => {
-    const path = await fileHolding({ name: 'unread-edit-then-write.ts', text: 'export const a = 1\n' })
+    const path = await fileHolding({
+      name: 'unread-edit-then-write.ts',
+      text: 'export const a = 1\n',
+    })
 
-    const outcome = await decide({ seen: new InMemoryFileReadState(), name: 'write', input: { path } })
+    const outcome = await decide({
+      seen: new InMemoryFileReadState(),
+      name: 'write',
+      input: { path },
+    })
 
     expect(denialReasonOf(outcome)).toContain('read it first')
   })
@@ -181,7 +192,11 @@ describe('createReadBeforeWriteHook', () => {
   it('tells a whole-file write it would replace all of the file', async () => {
     const path = await fileHolding({ name: 'unread-write.ts', text: 'export const a = 1\n' })
 
-    const outcome = await decide({ seen: new InMemoryFileReadState(), name: 'write', input: { path } })
+    const outcome = await decide({
+      seen: new InMemoryFileReadState(),
+      name: 'write',
+      input: { path },
+    })
 
     expect(denialReasonOf(outcome)).toContain(`write would replace all of ${path}`)
   })
@@ -189,7 +204,11 @@ describe('createReadBeforeWriteHook', () => {
   it('denies a write to an existing file that has never been read', async () => {
     const path = await fileHolding({ name: 'unread.ts', text: 'export const a = 1\n' })
 
-    const outcome = await decide({ seen: new InMemoryFileReadState(), name: 'write', input: { path } })
+    const outcome = await decide({
+      seen: new InMemoryFileReadState(),
+      name: 'write',
+      input: { path },
+    })
 
     const reason = denialReasonOf(outcome)
     expect(reason).toContain(path)
@@ -354,7 +373,8 @@ describe('createReadBeforeWriteHook', () => {
     await mkdir(path, { recursive: true })
 
     expect(
-      (await decide({ seen: new InMemoryFileReadState(), name: 'write', input: { path } })).decision,
+      (await decide({ seen: new InMemoryFileReadState(), name: 'write', input: { path } }))
+        .decision,
     ).toBe(EBeforeToolDecision.Allow)
   })
 

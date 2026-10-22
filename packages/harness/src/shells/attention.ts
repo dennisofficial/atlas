@@ -43,9 +43,12 @@ export class ShellAttentionQueue {
   }
 
   dropShells(args: { threadId: ThreadId; shellIds: readonly string[] }): void {
-    this.settle(this.queued.filter((notice) =>
-      notice.threadId !== args.threadId || !args.shellIds.includes(notice.snapshot.shellId),
-    ))
+    this.settle(
+      this.queued.filter(
+        (notice) =>
+          notice.threadId !== args.threadId || !args.shellIds.includes(notice.snapshot.shellId),
+      ),
+    )
   }
 
   threadsAwaiting(): readonly ThreadId[] {

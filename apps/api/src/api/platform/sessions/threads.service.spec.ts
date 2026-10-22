@@ -295,8 +295,8 @@ describe('ThreadsService', () => {
     expect(spawned).toHaveLength(1)
     expect(spawned[0]?.agent).toEqual({ spawnedBy: parent.id, type: 'explore' })
 
-    await expect(
-      service.spawned({ userId: USER_B, threadId: parent.id }),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.spawned({ userId: USER_B, threadId: parent.id })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
   })
 })

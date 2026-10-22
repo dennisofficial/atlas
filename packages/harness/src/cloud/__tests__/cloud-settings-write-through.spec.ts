@@ -3,13 +3,22 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ATLAS_SETTINGS, ESettingId, LogPort, type ClockPort, type LogEntry } from '@dltech/atlas-core'
+import {
+  ATLAS_SETTINGS,
+  ESettingId,
+  LogPort,
+  type ClockPort,
+  type LogEntry,
+} from '@dltech/atlas-core'
 
 import { CloudSessionStore } from '../cloud-session'
 import { CloudSettingsStore } from '../cloud-settings-store'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService, type SettingsService } from '../../settings/service'
-import { bindCloudSettingsWriteThrough, type WriteThroughBinding } from '../cloud-settings-write-through'
+import {
+  bindCloudSettingsWriteThrough,
+  type WriteThroughBinding,
+} from '../cloud-settings-write-through'
 import { encodeSettingValue } from '../sync-settings'
 
 const URL = 'http://cloud.test'
@@ -34,11 +43,17 @@ const apiFake = (): ApiFake => {
     const path = String(input).slice(URL.length)
     const method = init?.method ?? 'GET'
     const body =
-      typeof init?.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : undefined
+      typeof init?.body === 'string'
+        ? (JSON.parse(init.body) as Record<string, unknown>)
+        : undefined
     calls.push({ method, path, body })
     if (path === '/v1/settings' && method === 'GET') {
       return reply(200, {
-        settings: [...remote].map(([key, value]) => ({ key, value, updatedAt: '2026-01-01T00:00:00.000Z' })),
+        settings: [...remote].map(([key, value]) => ({
+          key,
+          value,
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        })),
       })
     }
     if (path.startsWith('/v1/settings/') && method === 'PUT') {

@@ -40,7 +40,10 @@ const SHORT_PAIRS = 40
 const WINDOWED_PAIRS = 130
 const WHEEL_NOTCHES = 10
 
-const RUNNING = { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' } as const
+const RUNNING = {
+  state: ECloudSandboxState.Running,
+  url: 'https://sandbox.example/thread',
+} as const
 
 type Mounted = Awaited<ReturnType<typeof testRender>>
 
@@ -51,7 +54,10 @@ const conversationOf = (args: { label: string; pairs: number; tail: string }): E
   const drafts: EventDraft[] = []
   for (let pair = 0; pair < args.pairs; pair += 1) {
     drafts.push({ type: 'user-said', text: `${args.label} question ${pair}` })
-    const filler = Array.from({ length: 4 }, (_, line) => `${args.label} answer ${pair} line ${line}`)
+    const filler = Array.from(
+      { length: 4 },
+      (_, line) => `${args.label} answer ${pair} line ${line}`,
+    )
     drafts.push({ type: 'assistant-said', parts: [{ type: 'text', text: filler.join('\n\n') }] })
   }
   drafts.push({ type: 'user-said', text: `${args.label} closing question` })
@@ -122,14 +128,18 @@ type Scroller = {
 }
 
 const isScroller = (node: unknown): node is Scroller =>
-  typeof node === 'object' && node !== null && 'scrollTo' in node && 'scrollHeight' in node && 'viewport' in node
+  typeof node === 'object' &&
+  node !== null &&
+  'scrollTo' in node &&
+  'scrollHeight' in node &&
+  'viewport' in node
 
 const findScroller = (node: unknown): Scroller | null =>
   isScroller(node)
     ? node
-    : ((node as { getChildren?: () => readonly unknown[] }).getChildren?.() ?? [])
+    : (((node as { getChildren?: () => readonly unknown[] }).getChildren?.() ?? [])
         .map(findScroller)
-        .find((found) => found !== null) ?? null
+        .find((found) => found !== null) ?? null)
 
 const scrollerOf = (setup: Mounted): Scroller => {
   const found = findScroller(setup.renderer.root)
@@ -137,7 +147,8 @@ const scrollerOf = (setup: Mounted): Scroller => {
   return found
 }
 
-const isAtBottom = (box: Scroller): boolean => box.scrollTop >= box.scrollHeight - box.viewport.height - 1
+const isAtBottom = (box: Scroller): boolean =>
+  box.scrollTop >= box.scrollHeight - box.viewport.height - 1
 
 async function scrollWithin(args: { setup: Mounted; where: 'top' | 'middle' }): Promise<void> {
   const box = scrollerOf(args.setup)
@@ -190,7 +201,10 @@ describe.each([
 async function mountCloudThread(args: { pairs: number }) {
   const app = appFor()
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
-  await app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+  await app.threads.chooseExecutionLocation({
+    threadId: thread.id,
+    location: EExecutionLocation.Cloud,
+  })
   await app.threads.rename({ threadId: thread.id, title: 'the cloud thread' })
   await app.log.append({
     threadId: thread.id,
@@ -205,19 +219,26 @@ async function mountCloudThread(args: { pairs: number }) {
   app.log.mirrorTo(disk)
   app.threads.mirrorTo(disk)
   const bridge = fakeBridge({ status: RUNNING })
-  bridge.sourceStores({ log: app.log, threads: app.threads, workspace: app.workspace.workspace, disk })
+  bridge.sourceStores({
+    log: app.log,
+    threads: app.threads,
+    workspace: app.workspace.workspace,
+    disk,
+  })
   const createBridge: CloudBridgeFactory = () => bridge
   await disk.writeSessionMeta({ threadId: THREAD })
   await disk.stampProvenance({ threadId: THREAD, archiveDigest: null })
 
-  const opened = { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: thread.id }
+  const opened = {
+    threadId: THREAD,
+    events: [],
+    turns: [],
+    name: null,
+    started: false,
+    bootCloudThreadId: thread.id,
+  }
   const setup = await testRender(
-    <App
-      app={app}
-      opened={opened}
-      createBridge={createBridge}
-      preflightBirth={async () => null}
-    />,
+    <App app={app} opened={opened} createBridge={createBridge} preflightBirth={async () => null} />,
     SIZE,
   )
 
@@ -243,7 +264,13 @@ async function reconnect({ bridge, setup }: { bridge: FakeBridge; setup: Mounted
   bridge.channel.ready(VOUCHED)
 }
 
-async function attachedAtEnd({ setup, bridge }: { setup: Mounted; bridge: FakeBridge }): Promise<void> {
+async function attachedAtEnd({
+  setup,
+  bridge,
+}: {
+  setup: Mounted
+  bridge: FakeBridge
+}): Promise<void> {
   await frameShowing({ setup, text: CLOUD_TAIL, within: 20_000 })
   bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   bridge.channel.ready(VOUCHED)

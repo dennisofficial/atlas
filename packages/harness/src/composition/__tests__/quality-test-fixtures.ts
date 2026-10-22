@@ -50,8 +50,13 @@ const GIT_ENV: Record<string, string> = {
 const ISOLATED_ENV_KEYS = ['ATLAS_HOME', 'HOME', ...Object.keys(GIT_ENV)]
 
 const git = (args: { cwd: string; argv: readonly string[] }): void => {
-  const result = Bun.spawnSync({ cmd: ['git', ...args.argv], cwd: args.cwd, env: { ...process.env, ...GIT_ENV } })
-  if (result.exitCode !== 0) throw new Error(`git ${args.argv.join(' ')}: ${result.stderr.toString()}`)
+  const result = Bun.spawnSync({
+    cmd: ['git', ...args.argv],
+    cwd: args.cwd,
+    env: { ...process.env, ...GIT_ENV },
+  })
+  if (result.exitCode !== 0)
+    throw new Error(`git ${args.argv.join(' ')}: ${result.stderr.toString()}`)
 }
 
 export class FakeDecisions extends DecisionPort {
@@ -71,10 +76,14 @@ export class FakeDecisions extends DecisionPort {
     for (const [key, question] of Object.entries(args.questions)) {
       if (key.endsWith(':currentConcern')) answers[key] = { noul: 0.9 }
       if (key.endsWith(':impact')) {
-        answers[key] = { choice: EQualityImpact.Introduced, probabilities: { [EQualityImpact.Introduced]: 0.95 } }
+        answers[key] = {
+          choice: EQualityImpact.Introduced,
+          probabilities: { [EQualityImpact.Introduced]: 0.95 },
+        }
       }
       if (key.endsWith(':focus') && question.type === 'choice') {
-        const candidate = Object.keys(question.criteria).find((id) => id !== 'none' && id !== 'uncertain') ?? 'none'
+        const candidate =
+          Object.keys(question.criteria).find((id) => id !== 'none' && id !== 'uncertain') ?? 'none'
         answers[key] = { choice: candidate, probabilities: { [candidate]: 0.95 } }
       }
     }
@@ -90,7 +99,10 @@ const settingsBinding = (): SettingsBinding => ({
   bindTo: () => {},
 })
 
-export type RegistrationFacts = { qualityPortWasRegistered: boolean; decisionPortWasRegistered: boolean }
+export type RegistrationFacts = {
+  qualityPortWasRegistered: boolean
+  decisionPortWasRegistered: boolean
+}
 
 export class QualityRig {
   private callCount = 0
@@ -118,9 +130,17 @@ export class QualityRig {
     const decisions = new FakeDecisions()
     const settings = settingsBinding()
     let captured: DependencyContainer | undefined
-    const facts: RegistrationFacts = { qualityPortWasRegistered: false, decisionPortWasRegistered: false }
+    const facts: RegistrationFacts = {
+      qualityPortWasRegistered: false,
+      decisionPortWasRegistered: false,
+    }
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: args.command, model: undefined, executionLocation: undefined },
+      launch: {
+        cwd: project,
+        command: args.command,
+        model: undefined,
+        executionLocation: undefined,
+      },
       env: {},
       settings,
       ports: testPortBindings(),
@@ -129,8 +149,14 @@ export class QualityRig {
         notice: recordingNotices().port,
         bind: ({ container }) => {
           captured = container
-          facts.decisionPortWasRegistered = container.isRegistered(registeredPortToken(DecisionPort), true)
-          facts.qualityPortWasRegistered = container.isRegistered(registeredPortToken(QualityReviewPort), true)
+          facts.decisionPortWasRegistered = container.isRegistered(
+            registeredPortToken(DecisionPort),
+            true,
+          )
+          facts.qualityPortWasRegistered = container.isRegistered(
+            registeredPortToken(QualityReviewPort),
+            true,
+          )
           container.register(registeredPortToken(DecisionPort), { useValue: decisions })
           bindQuality({ container, settings: settings.service })
           return undefined
@@ -148,7 +174,15 @@ export class QualityRig {
       await rm(home, { recursive: true, force: true })
       await rm(project, { recursive: true, force: true })
     }
-    return new QualityRig(app, captured, decisions, project, facts, process.env.ATLAS_HOME ?? '', cleanup)
+    return new QualityRig(
+      app,
+      captured,
+      decisions,
+      project,
+      facts,
+      process.env.ATLAS_HOME ?? '',
+      cleanup,
+    )
   }
 
   dispose(): Promise<void> {
@@ -168,7 +202,11 @@ export class QualityRig {
     return (await this.app.threads.create({})).id
   }
 
-  async dispatchWrite(args: { threadId: ThreadId; relative: string; content: string }): Promise<readonly EventDraft[]> {
+  async dispatchWrite(args: {
+    threadId: ThreadId
+    relative: string
+    content: string
+  }): Promise<readonly EventDraft[]> {
     this.callCount += 1
     const dispatcher = this.container.resolve(registeredPortToken(ToolDispatcher))
     return dispatcher.dispatch({
@@ -186,7 +224,11 @@ export class QualityRig {
   }
 
   async persist(args: { threadId: ThreadId; drafts: readonly EventDraft[] }): Promise<void> {
-    await this.app.log.append({ threadId: args.threadId, runId: this.app.ids.nextRunId(), drafts: args.drafts })
+    await this.app.log.append({
+      threadId: args.threadId,
+      runId: this.app.ids.nextRunId(),
+      drafts: args.drafts,
+    })
   }
 
   async exampleFiles(threadId: ThreadId): Promise<string[]> {
@@ -199,7 +241,8 @@ export class QualityRig {
   }
 }
 
-export const typesOf = (drafts: readonly EventDraft[]): string[] => drafts.map((draft) => draft.type)
+export const typesOf = (drafts: readonly EventDraft[]): string[] =>
+  drafts.map((draft) => draft.type)
 
 export const reviewsOf = (drafts: readonly EventDraft[]): CodeQualityReviewedBody[] =>
   drafts.flatMap((draft) => (draft.type === 'tool-result' ? [...(draft.qualityReviews ?? [])] : []))

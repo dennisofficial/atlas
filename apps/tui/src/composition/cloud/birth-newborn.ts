@@ -16,7 +16,11 @@ import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridgeFactory } from './bridge-factory'
 import { bornPlacementChip, startsTheThread } from './born-placement-chip'
 import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
-import { BIRTH_CANCELLED_NOTICE, CLOUD_BIRTH_NOTICE_KEY, birthFailedNotice } from './cloud-birth-notices'
+import {
+  BIRTH_CANCELLED_NOTICE,
+  CLOUD_BIRTH_NOTICE_KEY,
+  birthFailedNotice,
+} from './cloud-birth-notices'
 import { cloudReadinessOf } from './cloud-readiness'
 import { createCloudRunner, createCloudWake } from './cloud-runner'
 import { createCloudSession } from './cloud-session'
@@ -40,7 +44,8 @@ export function birthNewborn(args: {
   const { app, move, owner, threadId, runner, projectId } = args
   const bridge = args.createBridge({ runner })
   let cancelled = false
-  const destroySandbox = (): Promise<void> => bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
+  const destroySandbox = (): Promise<void> =>
+    bridge.sandboxes.destroy({ threadId }).catch(() => undefined)
   const failed = async (reason: string): Promise<void> => {
     await destroySandbox()
     move.handleFail(reason)
@@ -72,7 +77,11 @@ export function birthNewborn(args: {
     onBegin: ({ waves }) =>
       move.handleBegin({
         target: EExecutionLocation.Cloud,
-        rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })),
+        rows: waves.map((wave) => ({
+          id: wave.ids[0] ?? wave.label,
+          text: wave.label,
+          nodeIds: wave.ids,
+        })),
         heading: 'STARTING A POD',
         onCancel: handleCancel,
       }),
@@ -88,13 +97,36 @@ export function birthNewborn(args: {
           bornPlacementChip(app).retire(threadId)
         },
       })
-      const wake = createCloudWake({ bridge, channel: attachment.channel, threadId, projectId, move })
-      const turns = createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId, move, wake })
-      const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner: turns }) }
+      const wake = createCloudWake({
+        bridge,
+        channel: attachment.channel,
+        threadId,
+        projectId,
+        move,
+      })
+      const turns = createCloudRunner({
+        bridge,
+        channel: attachment.channel,
+        threadId,
+        projectId,
+        move,
+        wake,
+      })
+      const base = {
+        ...app,
+        ...cloudRuntimeParts({
+          channel: attachment.channel,
+          stores: attachment.stores,
+          runner: turns,
+        }),
+      }
       const opened = await openCloudConversation({ app: base, threadId })
       const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })
       if (cancelled) throw new Error(BIRTH_CANCELLED_NOTICE)
-      const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: attachment.stores.threads })
+      const stopMirroring = mirrorCloudRenames({
+        home: app.threads,
+        remote: attachment.stores.threads,
+      })
       const session = createCloudSession({
         channel: attachment.channel,
         sandboxes: bridge.sandboxes,

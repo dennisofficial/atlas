@@ -52,7 +52,10 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     env,
     cipher,
     new ThreadSandboxCredentialsService(
-      new ScopedConfigService(cipher, new WorkspaceVercelService(new WorkspaceAccessService(), cipher)),
+      new ScopedConfigService(
+        cipher,
+        new WorkspaceVercelService(new WorkspaceAccessService(), cipher),
+      ),
       env,
     ),
     sandboxWakeBootProvider.useFactory(),

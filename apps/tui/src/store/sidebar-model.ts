@@ -1,9 +1,4 @@
-import {
-  EExecutionLocation,
-  EPlanStatus,
-  type Event,
-  type Grant,
-} from "@dltech/atlas-core";
+import { EExecutionLocation, EPlanStatus, type Event, type Grant } from '@dltech/atlas-core'
 
 import {
   EShellStatus,
@@ -13,74 +8,74 @@ import {
   type SandboxLimits,
   type ShellSnapshot,
   type TurnSpend,
-} from "@dltech/atlas-harness";
+} from '@dltech/atlas-harness'
 
-import { commonestDimension, type ClassifierFold } from "./classifier-fold";
-import { foldLogEvents, type LogAccumulator } from "./log-accumulator";
-import type { SidebarCloud } from "./cloud-state";
-import { orderSections, type SidebarSection } from "../ui/sidebar-section";
-import type { TurnClock } from "../ui/turn-clock";
+import { commonestDimension, type ClassifierFold } from './classifier-fold'
+import { foldLogEvents, type LogAccumulator } from './log-accumulator'
+import type { SidebarCloud } from './cloud-state'
+import { orderSections, type SidebarSection } from '../ui/sidebar-section'
+import type { TurnClock } from '../ui/turn-clock'
 import {
   NOTHING_TALLIED,
   sidebarSpendOf,
   type ModelPriceLookup,
   type SidebarSpend,
-} from "./sidebar-spend";
-import { oneLineOf } from "./sidebar-text";
-import type { ECrewStanding } from "./crew-retirement";
-import type { SidebarSubagent } from "./subagent-row";
+} from './sidebar-spend'
+import { oneLineOf } from './sidebar-text'
+import type { ECrewStanding } from './crew-retirement'
+import type { SidebarSubagent } from './subagent-row'
 
 export enum ESidebarTaskState {
-  Done = "done",
-  Running = "running",
-  Pending = "pending",
+  Done = 'done',
+  Running = 'running',
+  Pending = 'pending',
 }
 
 export type SidebarTask = {
-  id: string;
-  label: string;
-  state: ESidebarTaskState;
-  activeForm?: string | undefined;
-};
+  id: string
+  label: string
+  state: ESidebarTaskState
+  activeForm?: string | undefined
+}
 
 export type SidebarTeammate = {
-  id: string;
-  name: string;
-  activity: string | null;
-};
+  id: string
+  name: string
+  activity: string | null
+}
 
 export type SidebarModel = {
-  title: string | null;
-  turnCount: number;
-  spend: SidebarSpend;
-  lastActivity: string | null;
-  todo?: readonly SidebarTask[];
-  subagents?: readonly SidebarSubagent[];
-  crewStandings?: ReadonlyMap<string, ECrewStanding>;
-  teammates?: readonly SidebarTeammate[];
-  sections?: readonly SidebarSection[];
-  classifier?: ClassifierFold;
-  grants?: readonly Grant[];
-  container?: SidebarContainer;
-  cloud?: SidebarCloud;
-};
+  title: string | null
+  turnCount: number
+  spend: SidebarSpend
+  lastActivity: string | null
+  todo?: readonly SidebarTask[]
+  subagents?: readonly SidebarSubagent[]
+  crewStandings?: ReadonlyMap<string, ECrewStanding>
+  teammates?: readonly SidebarTeammate[]
+  sections?: readonly SidebarSection[]
+  classifier?: ClassifierFold
+  grants?: readonly Grant[]
+  container?: SidebarContainer
+  cloud?: SidebarCloud
+}
 
-export type SidebarLimits = SandboxLimits;
+export type SidebarLimits = SandboxLimits
 
-export type SidebarContainer = SandboxContainer;
+export type SidebarContainer = SandboxContainer
 
 export const IDLE_SIDEBAR: SidebarModel = {
   title: null,
   turnCount: 0,
   spend: NOTHING_TALLIED,
   lastActivity: null,
-};
+}
 
 const TASK_STATE_OF: Record<EPlanStatus, ESidebarTaskState> = {
   [EPlanStatus.Pending]: ESidebarTaskState.Pending,
   [EPlanStatus.InProgress]: ESidebarTaskState.Running,
   [EPlanStatus.Completed]: ESidebarTaskState.Done,
-};
+}
 
 const sameSpend = (left: SidebarSpend, right: SidebarSpend): boolean =>
   left.costUsd === right.costUsd &&
@@ -105,13 +100,13 @@ export const sameSidebar = (left: SidebarModel, right: SidebarModel): boolean =>
   left.grants === right.grants
 
 export type SidebarEventFold = {
-  opening: string | null;
-  turnCount: number;
-  lastActivity: string | null;
-  todo: readonly SidebarTask[];
-  classifier: ClassifierFold | null;
-  grants: readonly Grant[];
-};
+  opening: string | null
+  turnCount: number
+  lastActivity: string | null
+  todo: readonly SidebarTask[]
+  classifier: ClassifierFold | null
+  grants: readonly Grant[]
+}
 
 export function sidebarFoldFrom(acc: LogAccumulator): SidebarEventFold {
   return {
@@ -134,31 +129,31 @@ export function sidebarFoldFrom(acc: LogAccumulator): SidebarEventFold {
             judgeUnreachable: acc.judgeUnreachable,
           },
     grants: [...acc.grants.values()].sort((one, other) => one.seq - other.seq),
-  };
+  }
 }
 
 export function sidebarFoldOf(events: readonly Event[]): SidebarEventFold {
-  return sidebarFoldFrom(foldLogEvents({ events, effects: () => undefined }));
+  return sidebarFoldFrom(foldLogEvents({ events, effects: () => undefined }))
 }
 
 export function sidebarFrom(args: {
-  fold: SidebarEventFold;
-  turn: TurnClock;
-  turns?: readonly TurnSpend[] | undefined;
-  priceOf?: ModelPriceLookup | undefined;
-  name?: string | null | undefined;
+  fold: SidebarEventFold
+  turn: TurnClock
+  turns?: readonly TurnSpend[] | undefined
+  priceOf?: ModelPriceLookup | undefined
+  name?: string | null | undefined
 }): SidebarModel {
-  const { fold, turn } = args;
-  const name = args.name ?? null;
+  const { fold, turn } = args
+  const name = args.name ?? null
 
   const spend = sidebarSpendOf({
     turns: args.turns ?? [],
     liveOutputTokens: turn.startedAt === null ? 0 : turn.outputTokens,
     liveInput: turn.startedAt === null ? undefined : turn.input,
     priceOf: args.priceOf,
-  });
-  const named = name === null ? null : oneLineOf(name);
-  const titleText = named ?? fold.opening;
+  })
+  const named = name === null ? null : oneLineOf(name)
+  const titleText = named ?? fold.opening
 
   return {
     title: titleText === null ? null : oneLineOf(titleText),
@@ -168,15 +163,15 @@ export function sidebarFrom(args: {
     ...(fold.todo.length === 0 ? {} : { todo: fold.todo }),
     ...(fold.classifier === null ? {} : { classifier: fold.classifier }),
     ...(fold.grants.length === 0 ? {} : { grants: fold.grants }),
-  };
+  }
 }
 
 export function deriveSidebar(args: {
-  events: readonly Event[];
-  turn: TurnClock;
-  turns?: readonly TurnSpend[] | undefined;
-  priceOf?: ModelPriceLookup | undefined;
-  name?: string | null | undefined;
+  events: readonly Event[]
+  turn: TurnClock
+  turns?: readonly TurnSpend[] | undefined
+  priceOf?: ModelPriceLookup | undefined
+  name?: string | null | undefined
 }): SidebarModel {
   return sidebarFrom({
     fold: sidebarFoldOf(args.events),
@@ -184,7 +179,7 @@ export function deriveSidebar(args: {
     turns: args.turns,
     priceOf: args.priceOf,
     name: args.name,
-  });
+  })
 }
 
 /**
@@ -194,59 +189,57 @@ export function deriveSidebar(args: {
  * for a purely visual choice.
  */
 export function withCrew(args: {
-  model: SidebarModel;
-  subagents: readonly SidebarSubagent[];
-  standings?: ReadonlyMap<string, ECrewStanding>;
+  model: SidebarModel
+  subagents: readonly SidebarSubagent[]
+  standings?: ReadonlyMap<string, ECrewStanding>
 }): SidebarModel {
-  const { model, subagents, standings } = args;
-  if (subagents.length === 0) return model;
-  if (standings === undefined) return { ...model, subagents };
+  const { model, subagents, standings } = args
+  if (subagents.length === 0) return model
+  if (standings === undefined) return { ...model, subagents }
 
-  return { ...model, subagents, crewStandings: standings };
+  return { ...model, subagents, crewStandings: standings }
 }
 
 export type CrewTiers = {
-  teammates: readonly SidebarSubagent[];
-  subagents: readonly SidebarSubagent[];
-};
+  teammates: readonly SidebarSubagent[]
+  subagents: readonly SidebarSubagent[]
+}
 
 export function crewTiersOf(subagents: readonly SidebarSubagent[]): CrewTiers {
   return {
     teammates: subagents.filter((subagent) => subagent.agentType === TEAMMATE_AGENT_TYPE),
     subagents: subagents.filter((subagent) => subagent.agentType !== TEAMMATE_AGENT_TYPE),
-  };
+  }
 }
 
 export function withSections(args: {
-  model: SidebarModel;
-  sections: readonly SidebarSection[];
+  model: SidebarModel
+  sections: readonly SidebarSection[]
 }): SidebarModel {
-  const sections = orderSections(args.sections);
-  if (sections.length === 0) return args.model;
+  const sections = orderSections(args.sections)
+  if (sections.length === 0) return args.model
 
-  return { ...args.model, sections };
+  return { ...args.model, sections }
 }
 
-export function exposedPortsOf(args: {
-  shells: readonly ShellSnapshot[];
-}): readonly BoundPort[] {
+export function exposedPortsOf(args: { shells: readonly ShellSnapshot[] }): readonly BoundPort[] {
   return args.shells
     .flatMap((shell) => {
-      if (shell.status !== EShellStatus.Running || shell.exposure === undefined) return [];
-      const { containerPort, hostPort } = shell.exposure;
-      return [{ containerPort, hostPort }];
+      if (shell.status !== EShellStatus.Running || shell.exposure === undefined) return []
+      const { containerPort, hostPort } = shell.exposure
+      return [{ containerPort, hostPort }]
     })
-    .sort((left, right) => left.containerPort - right.containerPort);
+    .sort((left, right) => left.containerPort - right.containerPort)
 }
 
 export function containerPillOf(args: {
-  location: EExecutionLocation;
-  container: SidebarContainer;
-  exposed: readonly BoundPort[];
+  location: EExecutionLocation
+  container: SidebarContainer
+  exposed: readonly BoundPort[]
 }): SidebarContainer | null {
-  if (args.location !== EExecutionLocation.Docker) return null;
+  if (args.location !== EExecutionLocation.Docker) return null
 
-  const { state, image, label, name, limits, reason } = args.container;
+  const { state, image, label, name, limits, reason } = args.container
   return {
     state,
     image,
@@ -255,23 +248,20 @@ export function containerPillOf(args: {
     ...(limits === undefined ? {} : { limits }),
     ports: args.exposed,
     ...(reason === undefined ? {} : { reason }),
-  };
+  }
 }
 
 export function withContainer(args: {
-  model: SidebarModel;
-  container: SidebarContainer | null;
+  model: SidebarModel
+  container: SidebarContainer | null
 }): SidebarModel {
-  if (args.container === null) return args.model;
+  if (args.container === null) return args.model
 
-  return { ...args.model, container: args.container };
+  return { ...args.model, container: args.container }
 }
 
-export function withCloud(args: {
-  model: SidebarModel;
-  cloud: SidebarCloud | null;
-}): SidebarModel {
-  if (args.cloud === null) return args.model;
+export function withCloud(args: { model: SidebarModel; cloud: SidebarCloud | null }): SidebarModel {
+  if (args.cloud === null) return args.model
 
-  return { ...args.model, cloud: args.cloud };
+  return { ...args.model, cloud: args.cloud }
 }

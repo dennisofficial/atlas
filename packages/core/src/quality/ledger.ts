@@ -16,8 +16,11 @@ export type QualityLedgerStep = {
 
 const keyOf = ({ policyId, scopeId }: QualityFindingKey): string => `${policyId}\u0000${scopeId}`
 
-export const findingId = ({ policyId, scopeId, episode }: QualityFindingKey & { episode: number }): string =>
-  `${policyId}:${scopeId}:${episode}`
+export const findingId = ({
+  policyId,
+  scopeId,
+  episode,
+}: QualityFindingKey & { episode: number }): string => `${policyId}:${scopeId}:${episode}`
 
 type Applied = { finding: QualityFinding | undefined; notify: boolean }
 
@@ -66,11 +69,20 @@ function updateActive({
   return { finding, notify }
 }
 
-function resolve({ existing, afterHash }: { existing: QualityFinding | undefined; afterHash: string | null }): Applied {
+function resolve({
+  existing,
+  afterHash,
+}: {
+  existing: QualityFinding | undefined
+  afterHash: string | null
+}): Applied {
   if (existing === undefined || existing.state === EQualityFindingState.Resolved) {
     return { finding: existing, notify: false }
   }
-  return { finding: { ...existing, state: EQualityFindingState.Resolved, lastAfterHash: afterHash }, notify: false }
+  return {
+    finding: { ...existing, state: EQualityFindingState.Resolved, lastAfterHash: afterHash },
+    notify: false,
+  }
 }
 
 function applyAssessment({
@@ -82,7 +94,8 @@ function applyAssessment({
   assessment: QualityAssessment
   afterHash: string | null
 }): Applied {
-  if (assessment.status !== EQualityReviewStatus.Completed) return { finding: existing, notify: false }
+  if (assessment.status !== EQualityReviewStatus.Completed)
+    return { finding: existing, notify: false }
   if (assessment.transition === EQualityTransition.None) return { finding: existing, notify: false }
   if (assessment.transition === EQualityTransition.Resolve) return resolve({ existing, afterHash })
 
@@ -104,11 +117,14 @@ export function applyAssessments({
   afterHash: string | null
   scopeDeleted: boolean
 }): QualityLedgerStep {
-  const table = new Map<string, QualityFinding>(previous.map((finding) => [keyOf(finding), finding]))
+  const table = new Map<string, QualityFinding>(
+    previous.map((finding) => [keyOf(finding), finding]),
+  )
   const notifiable: QualityFinding[] = []
 
   if (scopeDeleted) {
-    for (const [key, finding] of table) table.set(key, resolve({ existing: finding, afterHash: null }).finding ?? finding)
+    for (const [key, finding] of table)
+      table.set(key, resolve({ existing: finding, afterHash: null }).finding ?? finding)
     return { findings: [...table.values()], notifiable }
   }
 
@@ -136,5 +152,9 @@ export function foldQualityFindings({
   return byScope
 }
 
-export const activeFindings = ({ findings }: { findings: readonly QualityFinding[] }): readonly QualityFinding[] =>
+export const activeFindings = ({
+  findings,
+}: {
+  findings: readonly QualityFinding[]
+}): readonly QualityFinding[] =>
   findings.filter((finding) => finding.state === EQualityFindingState.Active)

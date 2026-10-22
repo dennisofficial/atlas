@@ -28,10 +28,12 @@ export enum EDefaultBranchSource {
 export type StepOutcome = { ok: true } | { ok: false; message: string }
 
 export type WorktreeListing =
-  { ok: true; worktrees: readonly Worktree[] } | { ok: false; message: string }
+  | { ok: true; worktrees: readonly Worktree[] }
+  | { ok: false; message: string }
 
 export type DefaultBranchResult =
-  { ok: true; branch: string; source: EDefaultBranchSource } | { ok: false; message: string }
+  | { ok: true; branch: string; source: EDefaultBranchSource }
+  | { ok: false; message: string }
 
 export type WorktreeAddResult =
   | { ok: true; path: string; branch: string }

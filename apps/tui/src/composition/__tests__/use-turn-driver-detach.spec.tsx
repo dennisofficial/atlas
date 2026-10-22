@@ -3,7 +3,12 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
 import React, { useRef } from 'react'
 
-import { createRemoteDeltaChannel, RemoteTurnDetached, RemoteTurnRunner, type TurnOutcome } from '@dltech/atlas-harness'
+import {
+  createRemoteDeltaChannel,
+  RemoteTurnDetached,
+  RemoteTurnRunner,
+  type TurnOutcome,
+} from '@dltech/atlas-harness'
 
 import { SHIPPED_THINKING } from '../../store'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
@@ -28,7 +33,9 @@ class DetachingRunner extends RemoteTurnRunner {
     })
     super({ channel, wake: async () => undefined })
     let detachTurn = (_reason: Error): void => undefined
-    this.outcome = new Promise<TurnOutcome>((_resolve, reject) => { detachTurn = reject })
+    this.outcome = new Promise<TurnOutcome>((_resolve, reject) => {
+      detachTurn = reject
+    })
     this.detachTurn = detachTurn
   }
 
@@ -47,14 +54,27 @@ function DriverProbe(props: { app: FakeApp; probe: Probe }): React.ReactNode {
   const started = useRef(true)
   const pendingMove = useRef<DirectoryMove | null>(null)
   const view = useThreadView({
-    app: props.app, threadId: THREAD, rows: EThreadRows.Own,
-    thinking: SHIPPED_THINKING, readClock: () => 0,
+    app: props.app,
+    threadId: THREAD,
+    rows: EThreadRows.Own,
+    thinking: SHIPPED_THINKING,
+    readClock: () => 0,
   })
   const driver = useTurnDriver({
-    app: props.app, threadId: THREAD, remoteChannel: null, started, pendingMove, view,
-    readClock: () => 0, onSettled: async () => undefined, onUndone: () => undefined,
-    setFailure: (failure) => { props.probe.failure = failure },
-    forgetUsage: () => undefined, cancelCompaction: () => false,
+    app: props.app,
+    threadId: THREAD,
+    remoteChannel: null,
+    started,
+    pendingMove,
+    view,
+    readClock: () => 0,
+    onSettled: async () => undefined,
+    onUndone: () => undefined,
+    setFailure: (failure) => {
+      props.probe.failure = failure
+    },
+    forgetUsage: () => undefined,
+    cancelCompaction: () => false,
   })
   props.probe.driver = driver
   return <text>{driver.working ? 'working' : 'idle'}</text>
@@ -67,16 +87,26 @@ const driverOf = (probe: Probe): TurnDriver => {
 
 describe('a turn the session detached from', () => {
   it('settles a detached waiter without marking a failure or reporting a crash', async () => {
-    const local = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' }, perChunkMs: 1 }) })
+    const local = fakeApp({
+      model: scriptedModelPort({ script: { thinking: '', reply: 'ok' }, perChunkMs: 1 }),
+    })
     let crashed = false
     const runner = new DetachingRunner()
     const app = {
       ...local,
       runner,
-      turnPolicy: { ...local.turnPolicy, onCrashed: async () => { crashed = true } },
+      turnPolicy: {
+        ...local.turnPolicy,
+        onCrashed: async () => {
+          crashed = true
+        },
+      },
     }
     const probe: Probe = { driver: null, failure: null }
-    const setup = await testRender(<DriverProbe app={app} probe={probe} />, { width: 60, height: 6 })
+    const setup = await testRender(<DriverProbe app={app} probe={probe} />, {
+      width: 60,
+      height: 6,
+    })
     await setup.flush()
     try {
       await driverOf(probe).drive([{ type: 'user-said', text: 'go' }])

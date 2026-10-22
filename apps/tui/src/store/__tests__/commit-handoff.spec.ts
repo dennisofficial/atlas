@@ -4,7 +4,16 @@ import { EStepEnd } from '@dltech/atlas-harness'
 
 import { deriveTranscript } from '../derive-transcript'
 import { EEntryKind } from '../transcript-model'
-import { ended, fromTheModel, log, reasoningDelta, refTo, started, stepOne, textDelta } from './fixture'
+import {
+  ended,
+  fromTheModel,
+  log,
+  reasoningDelta,
+  refTo,
+  started,
+  stepOne,
+  textDelta,
+} from './fixture'
 
 describe('the commit handoff', () => {
   const question = log([{ type: 'user-said', text: 'hello' }])
@@ -29,21 +38,31 @@ describe('the commit handoff', () => {
 
   it('shows the text exactly once after the step ends, before the durable event is held', () => {
     if (reply === undefined) throw new Error('fixture lost its reply')
-    const signals = [...streamed, ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: refTo(reply) })]
+    const signals = [
+      ...streamed,
+      ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: refTo(reply) }),
+    ]
 
     expect(answers(deriveTranscript({ events: question, signals }))).toEqual(['hi there'])
   })
 
   it('shows the text exactly once once the durable event supersedes the deltas', () => {
     if (reply === undefined) throw new Error('fixture lost its reply')
-    const signals = [...streamed, ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: refTo(reply) })]
+    const signals = [
+      ...streamed,
+      ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: refTo(reply) }),
+    ]
 
     expect(answers(deriveTranscript({ events: durable, signals }))).toEqual(['hi there'])
   })
 
   it('never duplicates and never flickers to empty across the whole handoff', () => {
     if (reply === undefined) throw new Error('fixture lost its reply')
-    const endSignal = ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: refTo(reply) })
+    const endSignal = ended({
+      stepId: stepOne,
+      end: EStepEnd.Completed,
+      supersededBy: refTo(reply),
+    })
 
     const frames = [
       { events: question, signals: streamed },
@@ -61,14 +80,16 @@ describe('the commit handoff', () => {
   })
 
   it('drops the deltas with nothing replacing them when the step committed nothing durable', () => {
-    const signals = [...streamed, ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: null })]
+    const signals = [
+      ...streamed,
+      ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: null }),
+    ]
     const model = deriveTranscript({ events: question, signals })
 
     expect(answers(model)).toEqual([])
     expect(model.streaming).toBe(false)
   })
 })
-
 
 describe('a step that completes with deltas still queued', () => {
   const durable = log([

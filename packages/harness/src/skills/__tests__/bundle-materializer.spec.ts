@@ -34,7 +34,11 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true })
 })
 
-const fileOf = (args: { path: string; bytes: Uint8Array; reads?: { count: number } }): EmbeddedSkillFile => ({
+const fileOf = (args: {
+  path: string
+  bytes: Uint8Array
+  reads?: { count: number }
+}): EmbeddedSkillFile => ({
   path: args.path,
   digest: digestOfBytes(args.bytes),
   read: async () => {
@@ -47,7 +51,10 @@ const SKILL_TEXT = '---\nname: demo\ndescription: A demo.\n---\n\nSee references
 const BINARY = new Uint8Array([0, 255, 254, 0, 1, 128, 0xff, 0xd8, 0, 0])
 const JSONC = new TextEncoder().encode('{\n  // comment\n  "a": 1,\n}\n')
 
-const entryOf = (args: { files: readonly EmbeddedSkillFile[]; text?: string }): EmbeddedSkillEntry => {
+const entryOf = (args: {
+  files: readonly EmbeddedSkillFile[]
+  text?: string
+}): EmbeddedSkillEntry => {
   const { files, text = SKILL_TEXT } = args
   return {
     path: 'demo/SKILL.md',
@@ -180,9 +187,21 @@ describe('materializeSkillBundle', () => {
 
   it('rejects bundle digests that are not 64 lowercase hex characters, before touching the cache', async () => {
     const files = standardFiles()
-    const digests = ['../escape', '..', 'a'.repeat(63), 'A'.repeat(64), `${'a'.repeat(63)}/`, '/abs', '']
+    const digests = [
+      '../escape',
+      '..',
+      'a'.repeat(63),
+      'A'.repeat(64),
+      `${'a'.repeat(63)}/`,
+      '/abs',
+      '',
+    ]
     for (const digest of digests) {
-      const entry: EmbeddedSkillEntry = { path: 'demo/SKILL.md', text: SKILL_TEXT, bundle: { digest, files } }
+      const entry: EmbeddedSkillEntry = {
+        path: 'demo/SKILL.md',
+        text: SKILL_TEXT,
+        bundle: { digest, files },
+      }
       await expect(materializeSkillBundle({ home, name: 'demo', entry })).rejects.toThrow('digest')
     }
     expect(existsSync(bundleCacheRoot(home))).toBe(false)
@@ -199,7 +218,15 @@ describe('materializeSkillBundle', () => {
   })
 
   it('rejects resource paths that escape the skill directory', async () => {
-    const escapes = ['../evil.txt', '/abs.txt', 'a/../../b.txt', 'a\\b.txt', 'a//b.txt', './a.txt', '']
+    const escapes = [
+      '../evil.txt',
+      '/abs.txt',
+      'a/../../b.txt',
+      'a\\b.txt',
+      'a//b.txt',
+      './a.txt',
+      '',
+    ]
     for (const path of escapes) {
       const entry = entryOf({ files: [fileOf({ path, bytes: new Uint8Array([1]) })] })
       await expect(materializeSkillBundle({ home, name: 'demo', entry })).rejects.toThrow()
@@ -212,9 +239,9 @@ describe('materializeSkillBundle', () => {
     const good = fileOf({ path: 'references/a.md', bytes: new Uint8Array([1, 2, 3]) })
     const bad: EmbeddedSkillFile = { ...good, read: async () => new Uint8Array([9]) }
 
-    await expect(materializeSkillBundle({ home, name: 'demo', entry: entryOf({ files: [bad] }) })).rejects.toThrow(
-      'does not match',
-    )
+    await expect(
+      materializeSkillBundle({ home, name: 'demo', entry: entryOf({ files: [bad] }) }),
+    ).rejects.toThrow('does not match')
     expect(readdirSync(bundleCacheRoot(home))).toEqual([])
   })
 
@@ -255,7 +282,11 @@ describe('materializeSkillBundle', () => {
   })
 
   it('keys the cache by bundle digest so changed content gets a fresh directory', async () => {
-    const first = await materializeSkillBundle({ home, name: 'demo', entry: entryOf({ files: standardFiles() }) })
+    const first = await materializeSkillBundle({
+      home,
+      name: 'demo',
+      entry: entryOf({ files: standardFiles() }),
+    })
     const second = await materializeSkillBundle({
       home,
       name: 'demo',

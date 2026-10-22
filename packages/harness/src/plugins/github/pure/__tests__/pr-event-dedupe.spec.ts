@@ -3,7 +3,9 @@ import { EPrEventKind } from '@dltech/atlas-core'
 
 import { createPrEventDedupe, type PrEventCandidate } from '../pr-event-dedupe'
 
-const candidate = (over: Partial<PrEventCandidate> & Pick<PrEventCandidate, 'id' | 'kind'>): PrEventCandidate => ({
+const candidate = (
+  over: Partial<PrEventCandidate> & Pick<PrEventCandidate, 'id' | 'kind'>,
+): PrEventCandidate => ({
   repo: 'github.com/owner/repo',
   prNumber: 7,
   ...over,
@@ -40,7 +42,8 @@ describe('createPrEventDedupe', () => {
 
   it('admits a flip-flop verdict each time it changes', () => {
     const dedupe = createPrEventDedupe()
-    const verdict = (id: string, value: string) => candidate({ id, kind: EPrEventKind.Verdict, verdict: value })
+    const verdict = (id: string, value: string) =>
+      candidate({ id, kind: EPrEventKind.Verdict, verdict: value })
 
     expect(dedupe.admit(verdict('a', 'green'))).toBe(true)
     expect(dedupe.admit(verdict('b', 'failed'))).toBe(true)
@@ -50,11 +53,21 @@ describe('createPrEventDedupe', () => {
   it('tracks mergeability and state independently of verdict', () => {
     const dedupe = createPrEventDedupe()
 
-    expect(dedupe.admit(candidate({ id: 'a', kind: EPrEventKind.Mergeability, mergeable: false }))).toBe(true)
-    expect(dedupe.admit(candidate({ id: 'b', kind: EPrEventKind.Mergeability, mergeable: false }))).toBe(false)
-    expect(dedupe.admit(candidate({ id: 'c', kind: EPrEventKind.Mergeability, mergeable: true }))).toBe(true)
-    expect(dedupe.admit(candidate({ id: 'd', kind: EPrEventKind.State, state: 'merged' }))).toBe(true)
-    expect(dedupe.admit(candidate({ id: 'e', kind: EPrEventKind.State, state: 'merged' }))).toBe(false)
+    expect(
+      dedupe.admit(candidate({ id: 'a', kind: EPrEventKind.Mergeability, mergeable: false })),
+    ).toBe(true)
+    expect(
+      dedupe.admit(candidate({ id: 'b', kind: EPrEventKind.Mergeability, mergeable: false })),
+    ).toBe(false)
+    expect(
+      dedupe.admit(candidate({ id: 'c', kind: EPrEventKind.Mergeability, mergeable: true })),
+    ).toBe(true)
+    expect(dedupe.admit(candidate({ id: 'd', kind: EPrEventKind.State, state: 'merged' }))).toBe(
+      true,
+    )
+    expect(dedupe.admit(candidate({ id: 'e', kind: EPrEventKind.State, state: 'merged' }))).toBe(
+      false,
+    )
   })
 
   it('keeps transition readings per pull request', () => {
@@ -77,7 +90,8 @@ describe('createPrEventDedupe', () => {
 
   it('does not let a replayed id resurface a transition it already consumed', () => {
     const dedupe = createPrEventDedupe()
-    const verdict = (id: string, value: string) => candidate({ id, kind: EPrEventKind.Verdict, verdict: value })
+    const verdict = (id: string, value: string) =>
+      candidate({ id, kind: EPrEventKind.Verdict, verdict: value })
 
     dedupe.admit(verdict('a', 'green'))
     dedupe.admit(verdict('b', 'failed'))

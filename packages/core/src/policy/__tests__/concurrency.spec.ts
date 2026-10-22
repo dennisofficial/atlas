@@ -40,7 +40,9 @@ describe('deciding whether one call may share a batch', () => {
   })
 
   it('is unsafe when the tool declares no opinion, so an unmarked tool never joins a batch', () => {
-    expect(isConcurrencySafeCall({ declaration: declaring({}), input: { path: 'a.ts' } })).toBe(false)
+    expect(isConcurrencySafeCall({ declaration: declaring({}), input: { path: 'a.ts' } })).toBe(
+      false,
+    )
   })
 
   it('is unsafe when no tool of that name is registered', () => {
@@ -90,7 +92,9 @@ const partition = (calls: readonly Named[]): string[][] =>
 
 describe('folding a step of calls into runs that may go at once', () => {
   it('gathers consecutive safe calls into one run', () => {
-    expect(partition([named('a', true), named('b', true), named('c', true)])).toEqual([['a', 'b', 'c']])
+    expect(partition([named('a', true), named('b', true), named('c', true)])).toEqual([
+      ['a', 'b', 'c'],
+    ])
   })
 
   it('gives every unsafe call a run of its own', () => {

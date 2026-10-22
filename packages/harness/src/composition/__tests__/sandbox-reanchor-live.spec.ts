@@ -5,7 +5,12 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { ATLAS_SETTINGS, EExecutionLocation, ProcessPort, toThreadId } from '@dltech/atlas-core'
-import { createHarnessContainer, createSettingsService, DockerEngine, MemorySettingsStore } from '@dltech/atlas-harness'
+import {
+  createHarnessContainer,
+  createSettingsService,
+  DockerEngine,
+  MemorySettingsStore,
+} from '@dltech/atlas-harness'
 
 import { registeredPortToken } from '../../container/injection'
 import { dockerUnavailableReason } from '../../execution/docker/__tests__/live-docker'
@@ -32,7 +37,10 @@ const fixture = async (marker: string): Promise<string> => {
 
 afterAll(async () => {
   if (available) {
-    const stale = await engine.listContainers({ labels: { [sessionLabel('atlas')]: SESSION }, all: true })
+    const stale = await engine.listContainers({
+      labels: { [sessionLabel('atlas')]: SESSION },
+      all: true,
+    })
     for (const one of stale) await engine.removeContainer({ id: one.id })
   }
   await Promise.all(directories.map((one) => rm(one, { recursive: true, force: true })))

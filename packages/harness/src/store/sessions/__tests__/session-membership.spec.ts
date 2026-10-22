@@ -42,15 +42,26 @@ describe('session membership at thread creation', () => {
     const successor = await threads.create({ title: 'rotated in', sessionId: main.id })
 
     const sessionDir = sessionDirectory({ home, sessionId: main.id })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: successor.id }), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: successor.id }),
+      schema: threadMetaSchema,
+    })
     expect(meta?.spawnerThreadId).toBeNull()
     expect(meta?.agentType).toBeNull()
 
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir }),
+      schema: sessionMetaSchema,
+    })
     expect(session?.id).toBe(main.id)
 
     const foreignDir = sessionDirectory({ home, sessionId: successor.id })
-    expect(readMetaSync({ file: threadMetaFile({ sessionDir: foreignDir, threadId: successor.id }), schema: threadMetaSchema })).toBeUndefined()
+    expect(
+      readMetaSync({
+        file: threadMetaFile({ sessionDir: foreignDir, threadId: successor.id }),
+        schema: threadMetaSchema,
+      }),
+    ).toBeUndefined()
   })
 
   it('keeps a main created with sessionId findable through the registry', async () => {
@@ -71,7 +82,10 @@ describe('session membership at thread creation', () => {
     const main = await threads.create({})
 
     const sessionDir = sessionDirectory({ home, sessionId: main.id })
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir }),
+      schema: sessionMetaSchema,
+    })
     expect(session?.id).toBe(main.id)
   })
 
@@ -82,7 +96,10 @@ describe('session membership at thread creation', () => {
     const child = await threads.create({ agent: { spawnedBy: main.id, type: 'explore' } })
 
     const sessionDir = sessionDirectory({ home, sessionId: main.id })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: child.id }), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: child.id }),
+      schema: threadMetaSchema,
+    })
     expect(meta?.spawnerThreadId).toBe(main.id)
   })
 
@@ -97,9 +114,15 @@ describe('session membership at thread creation', () => {
     })
 
     const sessionDir = sessionDirectory({ home, sessionId: main.id })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: thread.id }), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: thread.id }),
+      schema: threadMetaSchema,
+    })
     expect(meta?.spawnerThreadId).toBeNull()
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir }),
+      schema: sessionMetaSchema,
+    })
     expect(session?.id).toBe(main.id)
   })
 })

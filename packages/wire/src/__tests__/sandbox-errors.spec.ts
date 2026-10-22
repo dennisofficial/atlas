@@ -96,7 +96,9 @@ describe('isSandboxNameConflict', () => {
     })
     const driveFailure = new APIError(new Response(null, { status: 400 }), {
       json: {
-        error: { message: "A drive with the name 'atlas-drive-x' already exists for this project." },
+        error: {
+          message: "A drive with the name 'atlas-drive-x' already exists for this project.",
+        },
       },
     })
 

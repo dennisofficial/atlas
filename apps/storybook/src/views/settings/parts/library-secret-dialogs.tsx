@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from 'react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Dialog,
   DialogContent,
@@ -8,37 +8,37 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@dltech/atlas-ui/components/dialog";
-import { Input } from "@dltech/atlas-ui/components/input";
-import { Label } from "@dltech/atlas-ui/components/label";
-import { Textarea } from "@dltech/atlas-ui/components/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@dltech/atlas-ui/components/toggle-group";
+} from '@dltech/atlas-ui/components/dialog'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { Label } from '@dltech/atlas-ui/components/label'
+import { Textarea } from '@dltech/atlas-ui/components/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
-import { ELibraryScope, ESecretKind } from "../../../fixtures/settings-library";
+import { ELibraryScope, ESecretKind } from '../../../fixtures/settings-library'
 
-export type SecretEntry = { key: string; value: string; kind: ESecretKind };
+export type SecretEntry = { key: string; value: string; kind: ESecretKind }
 
 const SCOPE_NOTES: Record<ELibraryScope, string> = {
   [ELibraryScope.Personal]:
-    "Only you can see this. It overrides workspace values with the same key; project values override it.",
+    'Only you can see this. It overrides workspace values with the same key; project values override it.',
   [ELibraryScope.Workspace]:
     "Available to every member's threads. Personal values override it; project values override both.",
-};
+}
 
 export function parseBulkLines(text: string): SecretEntry[] {
   return text
-    .split("\n")
+    .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("#") && line.includes("="))
+    .filter((line) => line.length > 0 && !line.startsWith('#') && line.includes('='))
     .map((line) => {
-      const index = line.indexOf("=");
+      const index = line.indexOf('=')
       return {
         key: line.slice(0, index).trim(),
         value: line.slice(index + 1).trim(),
         kind: ESecretKind.EnvVar,
-      };
+      }
     })
-    .filter((entry) => entry.key.length > 0);
+    .filter((entry) => entry.key.length > 0)
 }
 
 function SecretForm({
@@ -47,27 +47,27 @@ function SecretForm({
   onCancel,
   onSubmit,
 }: {
-  scope: ELibraryScope;
-  initial: SecretEntry | null;
-  onCancel: () => void;
-  onSubmit: (entry: SecretEntry) => void;
+  scope: ELibraryScope
+  initial: SecretEntry | null
+  onCancel: () => void
+  onSubmit: (entry: SecretEntry) => void
 }) {
-  const editing = initial !== null;
-  const [key, setKey] = useState(initial?.key ?? "");
-  const [value, setValue] = useState("");
-  const [kind, setKind] = useState(initial?.kind ?? ESecretKind.Secret);
+  const editing = initial !== null
+  const [key, setKey] = useState(initial?.key ?? '')
+  const [value, setValue] = useState('')
+  const [kind, setKind] = useState(initial?.kind ?? ESecretKind.Secret)
 
   const handleKindChange = (next: readonly unknown[]) => {
-    const first = next[0];
-    if (first === ESecretKind.Secret || first === ESecretKind.EnvVar) setKind(first);
-  };
+    const first = next[0]
+    if (first === ESecretKind.Secret || first === ESecretKind.EnvVar) setKind(first)
+  }
 
-  const canSubmit = key.trim().length > 0 && (editing || value.length > 0);
+  const canSubmit = key.trim().length > 0 && (editing || value.length > 0)
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{editing ? "Edit value" : "Add a value"}</DialogTitle>
+        <DialogTitle>{editing ? 'Edit value' : 'Add a value'}</DialogTitle>
         <DialogDescription>{SCOPE_NOTES[scope]}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-3">
@@ -87,8 +87,8 @@ function SecretForm({
           <Input
             id="library-secret-value"
             className="font-mono text-xs"
-            type={kind === ESecretKind.Secret ? "password" : "text"}
-            placeholder={editing ? "Leave blank to keep the current value" : "Value"}
+            type={kind === ESecretKind.Secret ? 'password' : 'text'}
+            placeholder={editing ? 'Leave blank to keep the current value' : 'Value'}
             value={value}
             onChange={(event) => setValue(event.target.value)}
           />
@@ -107,8 +107,8 @@ function SecretForm({
           </ToggleGroup>
           <p className="text-xs text-muted-foreground">
             {kind === ESecretKind.Secret
-              ? "Secrets are encrypted and never shown again after saving."
-              : "Env vars are plain values you can reveal later."}
+              ? 'Secrets are encrypted and never shown again after saving.'
+              : 'Env vars are plain values you can reveal later.'}
           </p>
         </div>
       </div>
@@ -117,11 +117,11 @@ function SecretForm({
           Cancel
         </Button>
         <Button size="sm" disabled={!canSubmit} onClick={() => onSubmit({ key, value, kind })}>
-          {editing ? "Save" : "Add"}
+          {editing ? 'Save' : 'Add'}
         </Button>
       </DialogFooter>
     </>
-  );
+  )
 }
 
 export function SecretDialog({
@@ -131,11 +131,11 @@ export function SecretDialog({
   initial,
   onSubmit,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  scope: ELibraryScope;
-  initial: SecretEntry | null;
-  onSubmit: (entry: SecretEntry) => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  scope: ELibraryScope
+  initial: SecretEntry | null
+  onSubmit: (entry: SecretEntry) => void
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -145,53 +145,53 @@ export function SecretDialog({
           initial={initial}
           onCancel={() => onOpenChange(false)}
           onSubmit={(entry) => {
-            onSubmit(entry);
-            onOpenChange(false);
+            onSubmit(entry)
+            onOpenChange(false)
           }}
         />
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 function BulkForm({
   onCancel,
   onSubmit,
 }: {
-  onCancel: () => void;
-  onSubmit: (entries: SecretEntry[]) => void;
+  onCancel: () => void
+  onSubmit: (entries: SecretEntry[]) => void
 }) {
-  const [text, setText] = useState("");
-  const entries = parseBulkLines(text);
+  const [text, setText] = useState('')
+  const entries = parseBulkLines(text)
 
   return (
     <>
       <DialogHeader>
         <DialogTitle>Bulk add</DialogTitle>
         <DialogDescription>
-          Paste one <span className="font-mono text-xs">KEY=value</span> per line, like a .env
-          file. Lines are added as env vars.
+          Paste one <span className="font-mono text-xs">KEY=value</span> per line, like a .env file.
+          Lines are added as env vars.
         </DialogDescription>
       </DialogHeader>
       <Textarea
         className="min-h-40 font-mono text-xs"
-        placeholder={"ATLAS_LOG_LEVEL=debug\nVERCEL_TEAM_ID=team_dltech"}
+        placeholder={'ATLAS_LOG_LEVEL=debug\nVERCEL_TEAM_ID=team_dltech'}
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
       <DialogFooter>
         <span className="mr-auto self-center font-mono text-xs text-muted-foreground">
-          {entries.length} {entries.length === 1 ? "value" : "values"}
+          {entries.length} {entries.length === 1 ? 'value' : 'values'}
         </span>
         <Button variant="outline" size="sm" onClick={onCancel}>
           Cancel
         </Button>
         <Button size="sm" disabled={entries.length === 0} onClick={() => onSubmit(entries)}>
-          Add {entries.length > 0 ? entries.length : ""}
+          Add {entries.length > 0 ? entries.length : ''}
         </Button>
       </DialogFooter>
     </>
-  );
+  )
 }
 
 export function BulkAddDialog({
@@ -199,9 +199,9 @@ export function BulkAddDialog({
   onOpenChange,
   onSubmit,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (entries: SecretEntry[]) => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSubmit: (entries: SecretEntry[]) => void
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -209,11 +209,11 @@ export function BulkAddDialog({
         <BulkForm
           onCancel={() => onOpenChange(false)}
           onSubmit={(entries) => {
-            onSubmit(entries);
-            onOpenChange(false);
+            onSubmit(entries)
+            onOpenChange(false)
           }}
         />
       </DialogContent>
     </Dialog>
-  );
+  )
 }

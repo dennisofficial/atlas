@@ -55,7 +55,13 @@ async function pin(setup: Mounted): Promise<void> {
 }
 
 async function opened(app: FakeApp): Promise<Awaited<ReturnType<typeof testRender>>> {
-  const setup = await testRender(<App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />, WIDE)
+  const setup = await testRender(
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
+    WIDE,
+  )
   await setup.flush()
   await settle(250)
   await setup.flush()

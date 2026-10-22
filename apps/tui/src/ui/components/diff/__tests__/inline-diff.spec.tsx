@@ -9,7 +9,17 @@ import { inlineColumns, numberDigits } from '../../../diff-layout'
 import { grammarsReady, settle, teardown } from '../../../markdown/__tests__/harness'
 import { theme } from '../../../theme'
 import { DIFF_ROW_CAP, InlineDiff } from '../inline-diff'
-import { ELIDED, emphasiseNewCall, EMPHASIS_END, EMPHASIS_START, FILE, HUNK, NEW_CALL, OLD_CALL, WIDE_FILE } from './fixtures'
+import {
+  ELIDED,
+  emphasiseNewCall,
+  EMPHASIS_END,
+  EMPHASIS_START,
+  FILE,
+  HUNK,
+  NEW_CALL,
+  OLD_CALL,
+  WIDE_FILE,
+} from './fixtures'
 import { cellsOfRow, CONTENT_LEFT, contentColumns, isColour, rowOf, shown } from './harness'
 
 const WIDTHS = [60, 80, 100, 200] as const
@@ -119,7 +129,9 @@ describe('InlineDiff', () => {
     })
     const cells = cellsOfRow({ frame, row: rowOf(rows, NEW_CALL) })
 
-    expect(isColour({ cell: cells[CODE_AT + EMPHASIS_START], colour: theme.diff.wordBg })).toBe(true)
+    expect(isColour({ cell: cells[CODE_AT + EMPHASIS_START], colour: theme.diff.wordBg })).toBe(
+      true,
+    )
     expect(isColour({ cell: cells[CODE_AT + EMPHASIS_END - 1], colour: theme.diff.wordBg })).toBe(
       true,
     )

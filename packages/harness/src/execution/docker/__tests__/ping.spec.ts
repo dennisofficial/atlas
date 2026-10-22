@@ -49,7 +49,9 @@ describe('pingDocker', () => {
   })
 
   it('reports a missing socket without throwing', async () => {
-    const reason = await pingDocker({ socketPath: join(tmpdir(), 'atlas-ping-missing', 'docker.sock') })
+    const reason = await pingDocker({
+      socketPath: join(tmpdir(), 'atlas-ping-missing', 'docker.sock'),
+    })
     expect(typeof reason).toBe('string')
     expect(reason).not.toBe('')
   })

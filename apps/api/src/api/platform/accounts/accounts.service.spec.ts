@@ -7,8 +7,7 @@ import type { CreateAccountDto, SecretDto } from './accounts.dto'
 import { AccountsService } from './accounts.service'
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from './accounts.types'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 interface AgentAccountRow {
   id: string
@@ -43,9 +42,8 @@ const fake = vi.hoisted(() => {
       findMany: async (args: { where: { userId: string } }) =>
         accounts.filter((row) => row.userId === args.where.userId),
       findFirst: async (args: { where: { id: string; userId: string } }) =>
-        accounts.find(
-          (row) => row.id === args.where.id && row.userId === args.where.userId,
-        ) ?? null,
+        accounts.find((row) => row.id === args.where.id && row.userId === args.where.userId) ??
+        null,
       create: async (args: { data: Omit<AgentAccountRow, 'createdAt' | 'updatedAt'> }) => {
         const timestamp = new Date()
         const row = { ...args.data, createdAt: timestamp, updatedAt: timestamp }
@@ -77,9 +75,7 @@ const fake = vi.hoisted(() => {
             row.userId === args.where.userId_provider.userId &&
             row.provider === args.where.userId_provider.provider,
         ) ?? null,
-      create: async (args: {
-        data: Omit<ActiveAccountRow, 'createdAt' | 'updatedAt'>
-      }) => {
+      create: async (args: { data: Omit<ActiveAccountRow, 'createdAt' | 'updatedAt'> }) => {
         const timestamp = new Date()
         const row = { ...args.data, createdAt: timestamp, updatedAt: timestamp }
         actives.push(row)
@@ -237,9 +233,9 @@ describe('AccountsService', () => {
   it('remove omits accounts owned by another user', async () => {
     const account = await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-1')) })
 
-    await expect(
-      service.remove({ userId: USER_B, accountId: account.id }),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.remove({ userId: USER_B, accountId: account.id })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
     expect(fake.accounts).toHaveLength(1)
   })
 

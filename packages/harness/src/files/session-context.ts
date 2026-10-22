@@ -19,10 +19,15 @@ export type ContextReader = Pick<ContextBrowser, 'list' | 'load'> & {
 /** `catchUp` asks for one notification once watching starts, covering changes made before it did. */
 export type ContextSubscribeOptions = { catchUp?: boolean | undefined }
 
-export function createSessionContextReader(args: { threadId: ThreadId; home?: string; watchSeams?: WatchSeams }): ContextReader {
-  const directory = async () => registryFor({ home: args.home ?? atlasDirectory() })
-    .sessionDirFor({ threadId: args.threadId })
-  const browser = async () => new ContextBrowser({ root: contextDirectory({ sessionDir: await directory() }) })
+export function createSessionContextReader(args: {
+  threadId: ThreadId
+  home?: string
+  watchSeams?: WatchSeams
+}): ContextReader {
+  const directory = async () =>
+    registryFor({ home: args.home ?? atlasDirectory() }).sessionDirFor({ threadId: args.threadId })
+  const browser = async () =>
+    new ContextBrowser({ root: contextDirectory({ sessionDir: await directory() }) })
 
   return {
     list: async (path) => (await browser()).list(path),
@@ -31,12 +36,25 @@ export function createSessionContextReader(args: { threadId: ThreadId; home?: st
     subscribe: (listener, options) => {
       let stopped = false
       let close: () => void = () => {}
-      void directory().then((root) => {
-        if (stopped) return
-        close = watchContextDirectory({ sessionDir: root, onChange: listener, catchUp: options?.catchUp, ...args.watchSeams })
-        if (stopped) close()
-      }, () => { if (!stopped) listener() })
-      return () => { stopped = true; close() }
+      void directory().then(
+        (root) => {
+          if (stopped) return
+          close = watchContextDirectory({
+            sessionDir: root,
+            onChange: listener,
+            catchUp: options?.catchUp,
+            ...args.watchSeams,
+          })
+          if (stopped) close()
+        },
+        () => {
+          if (!stopped) listener()
+        },
+      )
+      return () => {
+        stopped = true
+        close()
+      }
     },
   }
 }

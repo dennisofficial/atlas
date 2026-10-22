@@ -16,7 +16,14 @@ export const buildDevServe = async (args: { directory: string }): Promise<DevSer
   await mkdir(args.directory, { recursive: true })
   const outfile = join(args.directory, 'atlas-serve')
   const build = Bun.spawn(
-    ['bun', join(REPOSITORY_ROOT, 'apps', 'serve', 'scripts', 'build-serve.ts'), '--target', linuxTargetOfHost(), '--outfile', outfile],
+    [
+      'bun',
+      join(REPOSITORY_ROOT, 'apps', 'serve', 'scripts', 'build-serve.ts'),
+      '--target',
+      linuxTargetOfHost(),
+      '--outfile',
+      outfile,
+    ],
     { cwd: REPOSITORY_ROOT, stdout: 'pipe', stderr: 'pipe' },
   )
   const [stdout, stderr, exitCode] = await Promise.all([
@@ -29,5 +36,10 @@ export const buildDevServe = async (args: { directory: string }): Promise<DevSer
   const sha256 = createHash('sha256')
     .update(await readFile(outfile))
     .digest('hex')
-  return { version: `dev-${sha256.slice(0, 12)}`, path: outfile, sha256, bytes: (await stat(outfile)).size }
+  return {
+    version: `dev-${sha256.slice(0, 12)}`,
+    path: outfile,
+    sha256,
+    bytes: (await stat(outfile)).size,
+  }
 }

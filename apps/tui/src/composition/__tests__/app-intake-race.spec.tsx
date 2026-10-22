@@ -23,7 +23,10 @@ const openFresh = async (app: FakeApp): Promise<Mounted> =>
     },
   })
 
-const countingModelPort = (args: { reply: string; onStep?: (() => Promise<void> | void) | undefined }): { port: ModelPort; calls: () => number } => {
+const countingModelPort = (args: {
+  reply: string
+  onStep?: (() => Promise<void> | void) | undefined
+}): { port: ModelPort; calls: () => number } => {
   let calls = 0
   return {
     calls: () => calls,
@@ -89,7 +92,11 @@ describe('a fresh idle send over the shared intake', () => {
         onChunk?.({ type: 'text-start', id: 'block' } satisfies Chunk)
         await new Promise((resolve) => setTimeout(resolve, 20))
         active -= 1
-        return { parts: [{ type: 'text', text: 'green' }], toolCalls: [], finishReason: EFinishReason.Stop }
+        return {
+          parts: [{ type: 'text', text: 'green' }],
+          toolCalls: [],
+          finishReason: EFinishReason.Stop,
+        }
       },
     }
     const app = fakeApp({ model: port, intake: true })

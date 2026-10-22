@@ -33,7 +33,9 @@ describe('the one recovery ladder', () => {
 
   it('fails waiting requests once the retries are spent, rather than at their timeout', async () => {
     const test = readied({ maxAttempts: 0, requestTimeoutMs: 60_000 })
-    const answer = test.channel.request({ op: EClientRequest.ReadEvents, params: {} }).catch((error: unknown) => error)
+    const answer = test.channel
+      .request({ op: EClientRequest.ReadEvents, params: {} })
+      .catch((error: unknown) => error)
     test.drop()
 
     expect(await answer).toBeInstanceOf(RemoteRequestLost)
@@ -41,7 +43,10 @@ describe('the one recovery ladder', () => {
 
   it('gives an Updating serve ten attempts, since the swap downloads a binary', () => {
     const test = readied()
-    test.receive({ kind: EServeFrame.Checkpoint, checkpoint: checkpointOf({ phase: ERuntimePhase.Updating, revision: 2 }) })
+    test.receive({
+      kind: EServeFrame.Checkpoint,
+      checkpoint: checkpointOf({ phase: ERuntimePhase.Updating, revision: 2 }),
+    })
     expect(test.channel.connection().state).toBe(EConnectionView.Connected)
 
     test.drop()
@@ -84,7 +89,10 @@ describe('waking a parked sandbox on send', () => {
 
     expect(test.channel.connection().state).toBe(EConnectionView.Connected)
     const sends = test.live().sent.filter((frame) => frame.kind === EClientFrame.Send)
-    expect(sends.map((frame) => (frame.kind === EClientFrame.Send ? frame.text : ''))).toEqual(['are you there', 'still there?'])
+    expect(sends.map((frame) => (frame.kind === EClientFrame.Send ? frame.text : ''))).toEqual([
+      'are you there',
+      'still there?',
+    ])
     expect(test.channel.unackedSendCount()).toBe(2)
   })
 
@@ -102,7 +110,9 @@ describe('waking a parked sandbox on send', () => {
     test.receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
     test.drop()
 
-    const answer = test.channel.request({ op: EClientRequest.ReadEvents, params: {} }).catch((error: unknown) => error)
+    const answer = test.channel
+      .request({ op: EClientRequest.ReadEvents, params: {} })
+      .catch((error: unknown) => error)
     await Bun.sleep(1)
 
     expect(test.channel.connection()).toEqual({
@@ -164,7 +174,9 @@ describe('a lifecycle record read out of band', () => {
   it('ignores a record for another thread', () => {
     const test = harness({ unattached: true })
 
-    test.channel.observeCheckpoint(checkpointOf({ phase: ERuntimePhase.Waking, revision: 3, threadId: 'brn_other' }))
+    test.channel.observeCheckpoint(
+      checkpointOf({ phase: ERuntimePhase.Waking, revision: 3, threadId: 'brn_other' }),
+    )
 
     expect(test.channel.connection().state).toBe(EConnectionView.Parked)
     expect(test.channel.checkpoint?.()).toBeNull()

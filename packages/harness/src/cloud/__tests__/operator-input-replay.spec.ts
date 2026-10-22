@@ -17,7 +17,10 @@ describe('remote operator input projection', () => {
     const off = channel.subscribe({ threadId: THREAD, listener: (signal) => seen.push(signal) })
     expect(seen).toContainEqual({ type: 'operator-input', request })
     receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'operator-input', request: null } })
-    expect(channel.snapshot({ threadId: THREAD })).not.toContainEqual({ type: 'operator-input', request })
+    expect(channel.snapshot({ threadId: THREAD })).not.toContainEqual({
+      type: 'operator-input',
+      request,
+    })
     off()
     channel.close()
   })
@@ -26,8 +29,15 @@ describe('remote operator input projection', () => {
     const { channel, receive } = readied()
     receive({ kind: EServeFrame.Signal, seq: 1, signal: { type: 'step-started', stepId: STEP } })
     receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'operator-input', request } })
-    receive({ kind: EServeFrame.Signal, seq: 3, signal: { type: 'step-ended', stepId: STEP, end: EStepEnd.Completed, supersededBy: null } })
-    expect(channel.snapshot({ threadId: THREAD })).toContainEqual({ type: 'operator-input', request })
+    receive({
+      kind: EServeFrame.Signal,
+      seq: 3,
+      signal: { type: 'step-ended', stepId: STEP, end: EStepEnd.Completed, supersededBy: null },
+    })
+    expect(channel.snapshot({ threadId: THREAD })).toContainEqual({
+      type: 'operator-input',
+      request,
+    })
     channel.close()
   })
 
@@ -36,12 +46,17 @@ describe('remote operator input projection', () => {
       const { channel, receive, live } = readied()
       receive({ kind: EServeFrame.Signal, seq: 1, signal: { type: 'operator-input', request } })
       channel[action]?.()
-      expect(channel.snapshot({ threadId: THREAD })).not.toContainEqual({ type: 'operator-input', request })
+      expect(channel.snapshot({ threadId: THREAD })).not.toContainEqual({
+        type: 'operator-input',
+        request,
+      })
       expect(live().sent.some((frame) => frame.kind === 'interrupt')).toBe(false)
     }
   })
 
   it('gives destination delivery longer than its 30-second timeout', () => {
-    expect(requestTimeoutFor({ op: EClientRequest.ProvideOperatorInput })).toBe(LONG_REQUEST_TIMEOUT_MS)
+    expect(requestTimeoutFor({ op: EClientRequest.ProvideOperatorInput })).toBe(
+      LONG_REQUEST_TIMEOUT_MS,
+    )
   })
 })

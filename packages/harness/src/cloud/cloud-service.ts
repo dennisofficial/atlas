@@ -139,10 +139,7 @@ export class CloudService {
     return beginCloudLogin({ url, fetchFn: this.fetchFn })
   }
 
-  async finishLogin(args: {
-    ticket: CloudLoginTicket
-    token: string
-  }): Promise<CloudLoginResult> {
+  async finishLogin(args: { ticket: CloudLoginTicket; token: string }): Promise<CloudLoginResult> {
     const { ticket, token } = args
     const email = await this.readSignedInEmail({ url: ticket.url, token })
 

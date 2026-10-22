@@ -72,7 +72,9 @@ export class ShellReconciler {
         for (const child of await this.deps.threads.spawned({ threadId })) owners.add(child.id)
       }
     }
-    const recovered = await Promise.all([...owners].map((threadId) => this.reconcileOwn({ threadId })))
+    const recovered = await Promise.all(
+      [...owners].map((threadId) => this.reconcileOwn({ threadId })),
+    )
     return recovered.flat()
   }
 
@@ -119,7 +121,9 @@ export class ShellReconciler {
     const { session, live } = this.deps
     const liveKeys = new Set((live?.() ?? []).map((shell) => `${shell.threadId} ${shell.shellId}`))
     return args.lost.filter((shell) => {
-      if (session?.state.entryFor({ shellId: shell.shellId, threadId: args.threadId }) !== undefined) {
+      if (
+        session?.state.entryFor({ shellId: shell.shellId, threadId: args.threadId }) !== undefined
+      ) {
         return false
       }
       if (shell.bootId === bootId) return false
@@ -136,7 +140,9 @@ export class ShellReconciler {
     const { session } = this.deps
     const { found, shell, threadId } = args
     if (found?.state === EInspected.Corrupt) {
-      this.deps.warn(`shell ${shell.shellId} is corrupt: ${found.reason} — it stays unresolved until the directory is repaired or removed`)
+      this.deps.warn(
+        `shell ${shell.shellId} is corrupt: ${found.reason} — it stays unresolved until the directory is repaired or removed`,
+      )
       return found.reason
     }
     if (session === undefined || found === undefined) {
@@ -147,7 +153,8 @@ export class ShellReconciler {
     const { attachment } = found
     const loaded = await loadCursor({ path: attachment.cursorPath })
     if (loaded.problem !== undefined) this.deps.warn(loaded.problem)
-    const finished: ShellExit | undefined = found.state === EInspected.Finished ? found.exit : undefined
+    const finished: ShellExit | undefined =
+      found.state === EInspected.Finished ? found.exit : undefined
     const entry = session.lifecycle.open({
       attachment,
       threadId,

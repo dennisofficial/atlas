@@ -11,7 +11,8 @@ import { EInline } from '../inline'
 
 function prose(source: string) {
   const block = proseBlocks(source)[0]
-  if (block === undefined || block.kind !== EProseBlock.Paragraph) throw new Error('not a paragraph')
+  if (block === undefined || block.kind !== EProseBlock.Paragraph)
+    throw new Error('not a paragraph')
   return block.content
 }
 

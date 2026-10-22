@@ -31,7 +31,9 @@ function cleanClosedPaths({ candidates }: { candidates: readonly unknown[] }): s
 }
 
 function isMissingFile({ error }: { error: unknown }): boolean {
-  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'ENOENT'
+  return (
+    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'ENOENT'
+  )
 }
 
 async function readClosedPaths({ path }: { path: string }): Promise<readonly string[]> {
@@ -56,10 +58,19 @@ async function readClosedPaths({ path }: { path: string }): Promise<readonly str
 const fileQueues = new Map<string, Promise<void>>()
 let admission: Promise<void> = Promise.resolve()
 
-function runAfterPriorWrites<T>({ file, run }: { file: string; run: () => Promise<T> }): Promise<T> {
+function runAfterPriorWrites<T>({
+  file,
+  run,
+}: {
+  file: string
+  run: () => Promise<T>
+}): Promise<T> {
   const previous = fileQueues.get(file) ?? Promise.resolve()
   const result = previous.then(run)
-  const tail = result.then(() => {}, () => {})
+  const tail = result.then(
+    () => {},
+    () => {},
+  )
   fileQueues.set(file, tail)
   void tail.then(() => {
     if (fileQueues.get(file) === tail) fileQueues.delete(file)
@@ -92,18 +103,23 @@ export function createSessionContextFolderStateStore(args: {
 }): ContextFolderStateStore {
   const registry = () => registryFor({ home: args.home ?? atlasDirectory() })
   const readableFile = async () =>
-    join(await registry().sessionDirFor({ threadId: args.threadId }), CONTEXT_FOLDER_STATE_FILE_NAME)
+    join(
+      await registry().sessionDirFor({ threadId: args.threadId }),
+      CONTEXT_FOLDER_STATE_FILE_NAME,
+    )
   const writableFile = async () => {
     const sessionDir = await registry().sessionDirOf({ threadId: args.threadId })
-    if (sessionDir === undefined) throw new Error(`no session directory is registered for thread ${args.threadId}`)
+    if (sessionDir === undefined)
+      throw new Error(`no session directory is registered for thread ${args.threadId}`)
     return join(sessionDir, CONTEXT_FOLDER_STATE_FILE_NAME)
   }
 
   return {
-    load: () => admitInInvocationOrder({
-      resolveFile: readableFile,
-      run: (file) => readClosedPaths({ path: file }),
-    }),
+    load: () =>
+      admitInInvocationOrder({
+        resolveFile: readableFile,
+        run: (file) => readClosedPaths({ path: file }),
+      }),
     save: (closed) => {
       const closedPaths = cleanClosedPaths({ candidates: closed })
       return admitInInvocationOrder({

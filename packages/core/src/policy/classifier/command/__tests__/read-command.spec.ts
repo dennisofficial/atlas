@@ -221,8 +221,9 @@ describe('reading a pipeline', () => {
 
   it('leaves a local file piped into an interpreter alone, having fetched nothing', () => {
     expect(read('cat script.sh | bash').segments[0]?.pipesIntoInterpreter).toBe(false)
-    expect(read('gh pr view 1 --json body | python3 -c "import sys"').segments[0]
-      ?.pipesIntoInterpreter).toBe(false)
+    expect(
+      read('gh pr view 1 --json body | python3 -c "import sys"').segments[0]?.pipesIntoInterpreter,
+    ).toBe(false)
   })
 
   it('does not flag a pipeline that ends in an ordinary filter', () => {

@@ -20,8 +20,8 @@ const signal = (args: {
   id: 'contention:dirty-worktree',
   subject: args.subject,
   detail: 'a detail line',
-  ungrantable: true,  unverified: false,
-
+  ungrantable: true,
+  unverified: false,
 })
 
 const STANDING: readonly RiskSignal[] = [signal({ subject: 'worktree:eng-412-sidebar' })]

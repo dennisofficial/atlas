@@ -24,7 +24,12 @@ const said = (text: string): EventDraft => ({
   parts: [{ type: 'text', text }],
 })
 
-const called = (args: { callId: string; name?: string; input?: unknown; ordinal?: number }): EventDraft => ({
+const called = (args: {
+  callId: string
+  name?: string
+  input?: unknown
+  ordinal?: number
+}): EventDraft => ({
   type: 'tool-called',
   callId: toCallId(args.callId),
   name: args.name ?? 'bash',
@@ -59,7 +64,10 @@ describe('loopCutPlan', () => {
   it('finds nothing on an empty or purely spoken thread', () => {
     expect(loopCutPlan({ events: [], repeatable: everything })).toBeUndefined()
     expect(
-      loopCutPlan({ events: eventsFrom([said('a'), said('b'), said('c')]), repeatable: everything }),
+      loopCutPlan({
+        events: eventsFrom([said('a'), said('b'), said('c')]),
+        repeatable: everything,
+      }),
     ).toBeUndefined()
   })
 
@@ -135,7 +143,15 @@ describe('loopCutPlan', () => {
     const events = eventsFrom([
       ...probeRound(1),
       ...probeRound(2),
-      { type: 'background-shell-still-running', shellId: 'bash_1', command: 'bun test', runningForMs: 1, silentForMs: 1, checkInMs: 1, tail: '' },
+      {
+        type: 'background-shell-still-running',
+        shellId: 'bash_1',
+        command: 'bun test',
+        runningForMs: 1,
+        silentForMs: 1,
+        checkInMs: 1,
+        tail: '',
+      },
       ...probeRound(3),
       ...probeRound(4),
     ])

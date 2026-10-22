@@ -89,7 +89,10 @@ export class LocalRotation extends RotationPort {
 
       if (!compacted.ok) {
         advance(ERotationPhase.Failed, compacted.reason)
-        return { kind: compacted.refusal === undefined ? 'failed' : 'refused', reason: compacted.reason }
+        return {
+          kind: compacted.refusal === undefined ? 'failed' : 'refused',
+          reason: compacted.reason,
+        }
       }
 
       advance(ERotationPhase.Done)

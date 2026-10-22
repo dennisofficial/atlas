@@ -27,7 +27,9 @@ export function postNotice(args: {
   if (next.length <= limit) return next
 
   const posted = next.length - 1
-  const oldestOtherExpiring = next.findIndex((held, index) => index !== posted && held.ttlMs !== null)
+  const oldestOtherExpiring = next.findIndex(
+    (held, index) => index !== posted && held.ttlMs !== null,
+  )
   const dropped = oldestOtherExpiring >= 0 ? oldestOtherExpiring : 0
   return next.filter((_, index) => index !== dropped)
 }
@@ -41,10 +43,7 @@ export function expireNotices(args: {
   )
 }
 
-export function clearNotice(args: {
-  notices: readonly Notice[]
-  key: string
-}): readonly Notice[] {
+export function clearNotice(args: { notices: readonly Notice[]; key: string }): readonly Notice[] {
   return args.notices.filter((notice) => notice.key !== args.key)
 }
 

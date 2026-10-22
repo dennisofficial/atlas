@@ -61,7 +61,9 @@ async function openArmed(): Promise<Interruptible> {
   return { harness, model, threadId: thread.id, interruption: controller.signal }
 }
 
-async function openWith(script: readonly ScriptedStep[]): Promise<{ harness: AtlasHarness; threadId: ThreadId }> {
+async function openWith(
+  script: readonly ScriptedStep[],
+): Promise<{ harness: AtlasHarness; threadId: ThreadId }> {
   const temp = createTempHome()
   const harness = await buildHarness({ home: temp.home, model: scriptedModel({ script }) })
   opened.push({ harness, temp })
@@ -103,12 +105,18 @@ async function openCutShortAt(args: {
   return { harness, threadId: thread.id, interruption: controller.signal }
 }
 
-const assistantTurns = (events: readonly Event[]) => events.filter((event) => event.type === 'assistant-said')
+const assistantTurns = (events: readonly Event[]) =>
+  events.filter((event) => event.type === 'assistant-said')
 
 describe('interrupting a step that had already asked for a tool', () => {
   it('records the call it emitted and settles it as something that never ran', async () => {
     const cut = await openCutShortAt({
-      script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] }],
+      script: [
+        {
+          text: 'reading',
+          calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }],
+        },
+      ],
       chunk: 'tool-call',
       tools: () => [readDeclaration],
     })
@@ -135,7 +143,12 @@ describe('interrupting a step that had already asked for a tool', () => {
 
   it('reports the exchange committed, because the model asked for work the log now holds', async () => {
     const cut = await openCutShortAt({
-      script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] }],
+      script: [
+        {
+          text: 'reading',
+          calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }],
+        },
+      ],
       chunk: 'tool-call',
       tools: () => [readDeclaration],
     })
@@ -151,7 +164,12 @@ describe('interrupting a step that had already asked for a tool', () => {
 
   it('leaves nothing pending, so no later turn tries to run what the developer stopped', async () => {
     const cut = await openCutShortAt({
-      script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] }],
+      script: [
+        {
+          text: 'reading',
+          calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }],
+        },
+      ],
       chunk: 'tool-call',
       tools: () => [readDeclaration],
     })
@@ -216,7 +234,9 @@ describe('interrupting a streaming reply', () => {
     const events = await cut.harness.log.read({ threadId: cut.threadId })
     expect(events.map((event) => event.type)).toEqual(['user-said', 'assistant-said'])
     const [thought] = assistantTurns(events)
-    expect(thought?.type === 'assistant-said' ? thought.parts.map((part) => part.type) : []).toEqual(['reasoning'])
+    expect(
+      thought?.type === 'assistant-said' ? thought.parts.map((part) => part.type) : [],
+    ).toEqual(['reasoning'])
   })
 
   it('appends nothing when the abort landed before any text arrived', async () => {
@@ -224,7 +244,11 @@ describe('interrupting a streaming reply', () => {
     const controller = new AbortController()
     controller.abort()
 
-    const outcome = await harness.runner.say({ threadId, text: 'what changed?', signal: controller.signal })
+    const outcome = await harness.runner.say({
+      threadId,
+      text: 'what changed?',
+      signal: controller.signal,
+    })
 
     expect(outcome.status).toBe(ETurnStatus.Interrupted)
     expect(outcome.status === ETurnStatus.Interrupted ? outcome.committed : undefined).toBe(false)
@@ -234,7 +258,11 @@ describe('interrupting a streaming reply', () => {
 
   it('waits for input on the next turn rather than re-asking', async () => {
     const armed = await openArmed()
-    await armed.harness.runner.say({ threadId: armed.threadId, text: 'what changed?', signal: armed.interruption })
+    await armed.harness.runner.say({
+      threadId: armed.threadId,
+      text: 'what changed?',
+      signal: armed.interruption,
+    })
     const asked = armed.model.doStreamCalls.length
 
     const outcome = await armed.harness.runner.runTurn({ threadId: armed.threadId })
@@ -247,13 +275,23 @@ describe('interrupting a streaming reply', () => {
 
   it('renders the interrupted turn back to the model unchanged', async () => {
     const armed = await openArmed()
-    await armed.harness.runner.say({ threadId: armed.threadId, text: 'what changed?', signal: armed.interruption })
+    await armed.harness.runner.say({
+      threadId: armed.threadId,
+      text: 'what changed?',
+      signal: armed.interruption,
+    })
 
     const outcome = await armed.harness.runner.say({ threadId: armed.threadId, text: 'go on' })
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     const prompt = armed.model.doStreamCalls[1]?.prompt ?? []
-    expect(prompt.map((message) => message.role)).toEqual(['system', 'user', 'assistant', 'user', 'user'])
+    expect(prompt.map((message) => message.role)).toEqual([
+      'system',
+      'user',
+      'assistant',
+      'user',
+      'user',
+    ])
 
     const replayed = prompt[2]
     if (replayed?.role !== 'assistant') throw new Error('the prompt replayed no assistant turn')

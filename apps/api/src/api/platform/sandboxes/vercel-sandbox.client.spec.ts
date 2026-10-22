@@ -95,10 +95,14 @@ describe('VercelSandboxClient', () => {
   it('reads a stopped sandbox as parked, a pending one as resuming, and a gone one as parked', async () => {
     const client = clientWith()
     sdk.status = 'stopped'
-    expect((await client.inspect({ threadId: THREAD, name: 'atlas-thread-abc' })).state).toBe(ESandboxState.Parked)
+    expect((await client.inspect({ threadId: THREAD, name: 'atlas-thread-abc' })).state).toBe(
+      ESandboxState.Parked,
+    )
 
     sdk.status = 'pending'
-    expect((await client.inspect({ threadId: THREAD, name: 'atlas-thread-abc' })).state).toBe(ESandboxState.Resuming)
+    expect((await client.inspect({ threadId: THREAD, name: 'atlas-thread-abc' })).state).toBe(
+      ESandboxState.Resuming,
+    )
 
     sdk.status = 'running'
     sdk.getFailure = new APIError({ status: 404 } as Response)
@@ -124,13 +128,16 @@ describe('VercelSandboxClient', () => {
     expect(sdk.stopped).toHaveLength(1)
 
     sdk.getFailure = new APIError({ status: 404 } as Response)
-    await expect(client.stop({ threadId: THREAD, name: 'atlas-thread-gone' })).resolves.toBeUndefined()
+    await expect(
+      client.stop({ threadId: THREAD, name: 'atlas-thread-gone' }),
+    ).resolves.toBeUndefined()
 
-    sdk.getFailure = new APIError(
-      { status: 410 } as Response,
-      { json: { error: { code: 'snapshot_not_found' } } },
-    )
-    await expect(client.stop({ threadId: THREAD, name: 'atlas-thread-gone' })).resolves.toBeUndefined()
+    sdk.getFailure = new APIError({ status: 410 } as Response, {
+      json: { error: { code: 'snapshot_not_found' } },
+    })
+    await expect(
+      client.stop({ threadId: THREAD, name: 'atlas-thread-gone' }),
+    ).resolves.toBeUndefined()
   })
 
   it('resolves credentials per thread and hands them to the SDK', async () => {
@@ -139,18 +146,30 @@ describe('VercelSandboxClient', () => {
     await new VercelSandboxClient(port).inspect({ threadId: THREAD, name: 'atlas-thread-abc' })
 
     expect(forThread).toHaveBeenCalledWith({ threadId: THREAD })
-    expect(sdk.getParams[0]).toMatchObject({ token: 'ws-token', teamId: 'team_1', projectId: 'prj_1' })
+    expect(sdk.getParams[0]).toMatchObject({
+      token: 'ws-token',
+      teamId: 'team_1',
+      projectId: 'prj_1',
+    })
   })
 
   it('exposes a new port alongside the routed ones and answers its domain', async () => {
-    const url = await clientWith().exposePort({ threadId: THREAD, name: 'atlas-thread-abc', port: 5173 })
+    const url = await clientWith().exposePort({
+      threadId: THREAD,
+      name: 'atlas-thread-abc',
+      port: 5173,
+    })
 
     expect(url).toBe('https://atlas-5173.vercel.run')
     expect(sdk.updates).toEqual([{ ports: [3000, 5173] }])
   })
 
   it('does not update a port that is already routed', async () => {
-    const url = await clientWith().exposePort({ threadId: THREAD, name: 'atlas-thread-abc', port: 3000 })
+    const url = await clientWith().exposePort({
+      threadId: THREAD,
+      name: 'atlas-thread-abc',
+      port: 3000,
+    })
 
     expect(url).toBe('https://atlas-3000.vercel.run')
     expect(sdk.updates).toHaveLength(0)
@@ -213,7 +232,11 @@ describe('VercelSandboxClient', () => {
     const client = clientWith()
 
     await expect(
-      client.notifyParked({ threadId: THREAD, name: 'atlas-thread-gone', reason: 'the sandbox was stopped' }),
+      client.notifyParked({
+        threadId: THREAD,
+        name: 'atlas-thread-gone',
+        reason: 'the sandbox was stopped',
+      }),
     ).rejects.toThrow()
   })
 
@@ -222,7 +245,11 @@ describe('VercelSandboxClient', () => {
     const client = clientWith()
 
     await expect(
-      client.notifyParked({ threadId: THREAD, name: 'atlas-thread-abc', reason: 'the sandbox was stopped' }),
+      client.notifyParked({
+        threadId: THREAD,
+        name: 'atlas-thread-abc',
+        reason: 'the sandbox was stopped',
+      }),
     ).rejects.toThrow('command timed out')
   })
 })

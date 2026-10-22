@@ -15,7 +15,10 @@ import { encodePng } from './png-fixture'
 const rgba = new Uint8Array(8 * 8 * 4)
 for (let pixel = 0; pixel < 8 * 8; pixel += 1) rgba.set([220, 20, 60, 255], pixel * 4)
 const PATH = join(mkdtempSync(join(tmpdir(), 'atlas-transcript-image-')), 'fixture.png')
-writeFileSync(PATH, encodePng({ width: 8, height: 8, colourType: 6, bytesPerPixel: 4, samples: rgba }))
+writeFileSync(
+  PATH,
+  encodePng({ width: 8, height: 8, colourType: 6, bytesPerPixel: 4, samples: rgba }),
+)
 
 const BUFFER = { width: 20, height: 12 }
 const IMAGE_ARGUMENT = 0
@@ -42,7 +45,12 @@ const settle = async (flush: () => Promise<void>): Promise<void> => {
 const paintBlocks = async (): Promise<string> => {
   const { renderOnce, flush, captureCharFrame } = await testRender(
     <box paddingTop={2} flexDirection="column">
-      <transcript-image source={PATH} protocol="blocks" fit="fit" style={{ width: 10, height: 5 }} />
+      <transcript-image
+        source={PATH}
+        protocol="blocks"
+        fit="fit"
+        style={{ width: 10, height: 5 }}
+      />
     </box>,
     { width: BUFFER.width, height: BUFFER.height },
   )
@@ -61,7 +69,10 @@ type Drawn = {
 const argumentsAt = (call: unknown[], indexes: readonly number[]): number[] =>
   indexes.map((index) => Number(call[index]))
 
-const drawnWith = async (args: { clipHeight: number | null; protocol: 'kitty' | 'auto' }): Promise<Drawn | null> => {
+const drawnWith = async (args: {
+  clipHeight: number | null
+  protocol: 'kitty' | 'auto'
+}): Promise<Drawn | null> => {
   process.env.TERM_PROGRAM = 'WarpTerminal'
   const seen: { node: TranscriptImageRenderable | null } = { node: null }
   const picture = (

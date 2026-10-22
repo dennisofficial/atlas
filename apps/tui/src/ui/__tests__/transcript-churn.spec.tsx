@@ -64,7 +64,10 @@ const thoughtThenSaid = (args: { thinking: string; text: string }) => ({
 
 const TWO_RUNS = deriveTranscript({
   events: clocked([
-    { draft: thoughtThenSaid({ thinking: 'weighing the approaches', text: 'Reading first.' }), at: AT },
+    {
+      draft: thoughtThenSaid({ thinking: 'weighing the approaches', text: 'Reading first.' }),
+      at: AT,
+    },
     { draft: called({ n: 1, name: 'read', input: { path: 'a.ts' } }), at: AT },
     { draft: result({ n: 1, name: 'read', output: { lines: 10 } }), at: AT },
     { draft: said('Editing next.'), at: AT },
@@ -83,7 +86,10 @@ const entryOf = (args: { model: TranscriptModel; kind: EntryKind; at?: number })
 
 type ToggleProbe = { toggle: ((key: string) => void) | null }
 
-function TogglingTranscript(props: { model: TranscriptModel; probe: ToggleProbe }): React.ReactNode {
+function TogglingTranscript(props: {
+  model: TranscriptModel
+  probe: ToggleProbe
+}): React.ReactNode {
   const [opened, setOpened] = useState<ReadonlySet<string>>(NOTHING_OPEN)
   const handleToggle = useCallback((key: string) => {
     setOpened((current) => {

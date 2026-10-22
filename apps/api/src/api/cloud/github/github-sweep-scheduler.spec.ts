@@ -9,7 +9,9 @@ afterEach(() => {
   vi.resetModules()
 })
 
-async function loadRealtimeModuleProviders(args: { vercel: string | undefined }): Promise<unknown[]> {
+async function loadRealtimeModuleProviders(args: {
+  vercel: string | undefined
+}): Promise<unknown[]> {
   if (args.vercel === undefined) delete process.env.VERCEL
   else process.env.VERCEL = args.vercel
   vi.resetModules()

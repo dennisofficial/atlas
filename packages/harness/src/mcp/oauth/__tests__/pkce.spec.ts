@@ -13,9 +13,7 @@ describe('generatePkce', () => {
   it('derives the challenge as base64url(SHA-256(verifier))', () => {
     const pkce = generatePkce()
 
-    expect(pkce.challenge).toBe(
-      createHash('sha256').update(pkce.verifier).digest('base64url'),
-    )
+    expect(pkce.challenge).toBe(createHash('sha256').update(pkce.verifier).digest('base64url'))
   })
 
   it('returns a 64-character hex state', () => {

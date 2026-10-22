@@ -41,7 +41,9 @@ class FakeMemoryPort extends MemoryPort {
   private guard(address?: MemoryAddress): void {
     if (this.failure !== null) throw this.failure
     if (address?.scope === EMemoryScope.Project && this.project === null) {
-      throw new MemoryUnavailable('this session has no GitHub repository, so only global memory is available')
+      throw new MemoryUnavailable(
+        'this session has no GitHub repository, so only global memory is available',
+      )
     }
   }
 
@@ -54,20 +56,32 @@ class FakeMemoryPort extends MemoryPort {
     return this.rows.get(this.key(args)) ?? null
   }
 
-  async write(args: MemoryAddress & { description: string; type: EMemoryType; body: string }): Promise<MemorySummary> {
+  async write(
+    args: MemoryAddress & { description: string; type: EMemoryType; body: string },
+  ): Promise<MemorySummary> {
     this.guard(args)
     const revision = (this.rows.get(this.key(args))?.revision ?? 0) + 1
-    const entry = { ...summaryOf({ ...args, revision }), description: args.description, type: args.type, body: args.body }
+    const entry = {
+      ...summaryOf({ ...args, revision }),
+      description: args.description,
+      type: args.type,
+      body: args.body,
+    }
     this.rows.set(this.key(args), entry)
     return entry
   }
 
-  async edit(args: MemoryAddress & { old: string; new: string; revision: number }): Promise<MemorySummary> {
+  async edit(
+    args: MemoryAddress & { old: string; new: string; revision: number },
+  ): Promise<MemorySummary> {
     this.guard(args)
     const row = this.rows.get(this.key(args))
     if (row === undefined) throw new MemoryEditRefused({ message: 'missing' })
     if (row.revision !== args.revision) {
-      throw new MemoryEditRefused({ code: 'memory-stale-revision', message: `stale: current revision is ${row.revision}` })
+      throw new MemoryEditRefused({
+        code: 'memory-stale-revision',
+        message: `stale: current revision is ${row.revision}`,
+      })
     }
     const next = { ...row, body: row.body.replace(args.old, args.new), revision: row.revision + 1 }
     this.rows.set(this.key(args), next)
@@ -80,7 +94,10 @@ class FakeMemoryPort extends MemoryPort {
   }
 }
 
-const invoke = (args: { tool: { invoke: (invocation: never) => Promise<ToolOutcome> }; input: unknown }) =>
+const invoke = (args: {
+  tool: { invoke: (invocation: never) => Promise<ToolOutcome> }
+  input: unknown
+}) =>
   args.tool.invoke({
     input: args.input,
     signal: new AbortController().signal,
@@ -113,13 +130,19 @@ describe('write_memory', () => {
   })
 
   it('rejects a name that is not a hyphenated slug', async () => {
-    const outcome = await invoke({ tool: new WriteMemoryTool(new FakeMemoryPort()), input: { ...WRITE, name: 'Bad Name' } })
+    const outcome = await invoke({
+      tool: new WriteMemoryTool(new FakeMemoryPort()),
+      input: { ...WRITE, name: 'Bad Name' },
+    })
 
     expect(outcome.ok).toBe(false)
   })
 
   it('rejects an unknown field', async () => {
-    const outcome = await invoke({ tool: new WriteMemoryTool(new FakeMemoryPort()), input: { ...WRITE, extra: 1 } })
+    const outcome = await invoke({
+      tool: new WriteMemoryTool(new FakeMemoryPort()),
+      input: { ...WRITE, extra: 1 },
+    })
 
     expect(outcome.ok).toBe(false)
   })
@@ -152,27 +175,44 @@ describe('read_memory', () => {
     const port = new FakeMemoryPort()
     await invoke({ tool: new WriteMemoryTool(port), input: WRITE })
 
-    const text = modelTextOf(await invoke({ tool: new ReadMemoryTool(port), input: { scope: 'global', name: 'bun-deflate' } }))
+    const text = modelTextOf(
+      await invoke({
+        tool: new ReadMemoryTool(port),
+        input: { scope: 'global', name: 'bun-deflate' },
+      }),
+    )
 
     expect(text).toContain('revision 1')
     expect(text).toContain('**Why:** x')
   })
 
   it('says a missing memory is missing', async () => {
-    const outcome = await invoke({ tool: new ReadMemoryTool(new FakeMemoryPort()), input: { scope: 'global', name: 'nope' } })
+    const outcome = await invoke({
+      tool: new ReadMemoryTool(new FakeMemoryPort()),
+      input: { scope: 'global', name: 'nope' },
+    })
 
     expect(outcome).toEqual({ ok: false, reason: 'there is no global memory "nope"' })
   })
 
   it('refuses a project read with no project', async () => {
-    const outcome = await invoke({ tool: new ReadMemoryTool(new FakeMemoryPort(null)), input: { scope: 'project', name: 'x' } })
+    const outcome = await invoke({
+      tool: new ReadMemoryTool(new FakeMemoryPort(null)),
+      input: { scope: 'project', name: 'x' },
+    })
 
     expect(outcome.ok).toBe(false)
   })
 })
 
 describe('edit_memory', () => {
-  const EDIT = { scope: 'global', name: 'bun-deflate', old: 'Fact.', new: 'Better fact.', revision: 1 }
+  const EDIT = {
+    scope: 'global',
+    name: 'bun-deflate',
+    old: 'Fact.',
+    new: 'Better fact.',
+    revision: 1,
+  }
 
   it('applies against the revision read', async () => {
     const port = new FakeMemoryPort()
@@ -201,7 +241,9 @@ describe('delete_memory', () => {
     await invoke({ tool: new WriteMemoryTool(port), input: WRITE })
     const input = { scope: 'global', name: 'bun-deflate' }
 
-    expect(modelTextOf(await invoke({ tool: new DeleteMemoryTool(port), input }))).toBe('Forgot bun-deflate (global).')
+    expect(modelTextOf(await invoke({ tool: new DeleteMemoryTool(port), input }))).toBe(
+      'Forgot bun-deflate (global).',
+    )
     expect(await invoke({ tool: new DeleteMemoryTool(port), input })).toEqual({
       ok: false,
       reason: 'there is no global memory "bun-deflate"',
@@ -213,7 +255,14 @@ describe('tool effects', () => {
   it('marks read as a read and the rest as writes', () => {
     const port = new FakeMemoryPort()
 
-    expect([new ReadMemoryTool(port), new WriteMemoryTool(port), new EditMemoryTool(port), new DeleteMemoryTool(port)].map((tool) => [tool.name, tool.effect])).toEqual([
+    expect(
+      [
+        new ReadMemoryTool(port),
+        new WriteMemoryTool(port),
+        new EditMemoryTool(port),
+        new DeleteMemoryTool(port),
+      ].map((tool) => [tool.name, tool.effect]),
+    ).toEqual([
       ['read_memory', 'read'],
       ['write_memory', 'write'],
       ['edit_memory', 'write'],

@@ -43,11 +43,13 @@ type FakeSocket = {
 
 type Keepalive = { intervalMs: number; run: () => void }
 
-const wiredHarness = (options: {
-  maxAttempts?: number | undefined
-  keepaliveMs?: number | undefined
-  scheduleKeepalive?: ((keepalive: Keepalive) => () => void) | undefined
-} = {}) => {
+const wiredHarness = (
+  options: {
+    maxAttempts?: number | undefined
+    keepaliveMs?: number | undefined
+    scheduleKeepalive?: ((keepalive: Keepalive) => () => void) | undefined
+  } = {},
+) => {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
 

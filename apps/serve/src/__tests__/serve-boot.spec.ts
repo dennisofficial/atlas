@@ -187,7 +187,10 @@ describe('startServe', () => {
     await start({})
 
     const home = process.env[ATLAS_HOME_ENV] ?? ''
-    const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const file = threadMetaFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     const meta = readMetaSync({ file, schema: threadMetaSchema })
 
     expect(meta).toBeDefined()
@@ -207,7 +210,10 @@ describe('startServe', () => {
     })
 
     const home = process.env[ATLAS_HOME_ENV] ?? ''
-    const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const file = threadMetaFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     expect(readMetaSync({ file, schema: threadMetaSchema })?.runner).toBe(ERunner.Local)
   })
 
@@ -238,7 +244,10 @@ describe('startServe', () => {
   })
 
   it('resolves a project the bootstrap names from the control plane and hands the materializer its branch and extras', async () => {
-    const seen: Array<{ cwd: string; spec: Awaited<ReturnType<Parameters<EnsureWorkspace>[0]['fetchSpec']>> }> = []
+    const seen: Array<{
+      cwd: string
+      spec: Awaited<ReturnType<Parameters<EnsureWorkspace>[0]['fetchSpec']>>
+    }> = []
     const requested: Array<{ url: string; authorization: string | null }> = []
     const ensureWorkspace: EnsureWorkspace = async ({ cwd, fetchSpec }) => {
       seen.push({ cwd, spec: await fetchSpec() })

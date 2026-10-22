@@ -17,7 +17,12 @@ import { ProjectsController } from './projects.controller'
 import { ProjectsService } from './projects.service'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 
-const BODY = { name: 'atlas', repo: 'dennisofficial/atlas', baseBranch: 'main', additionalRepos: [] }
+const BODY = {
+  name: 'atlas',
+  repo: 'dennisofficial/atlas',
+  baseBranch: 'main',
+  additionalRepos: [],
+}
 
 describe('project resources HTTP surface', () => {
   let app: INestApplication
@@ -139,7 +144,10 @@ describe('project resources HTTP surface', () => {
       .send({})
       .expect(400)
 
-    const listed = await http().get(`/v1/projects/${id}/mcp-servers`).set(as('session-a')).expect(200)
+    const listed = await http()
+      .get(`/v1/projects/${id}/mcp-servers`)
+      .set(as('session-a'))
+      .expect(200)
     expect(listed.body.servers).toEqual([
       expect.objectContaining({
         name: 'linear',
@@ -153,7 +161,11 @@ describe('project resources HTTP surface', () => {
     const id = await createAs('session-a')
     const as_b = as('session-b')
     await http().get(`/v1/projects/${id}/sandbox`).set(as_b).expect(404)
-    await http().put(`/v1/projects/${id}/sandbox`).set(as_b).send({ vcpus: 2, setupScript: '' }).expect(404)
+    await http()
+      .put(`/v1/projects/${id}/sandbox`)
+      .set(as_b)
+      .send({ vcpus: 2, setupScript: '' })
+      .expect(404)
     await http().get(`/v1/projects/${id}/secrets`).set(as_b).expect(404)
     await http().put(`/v1/projects/${id}/secrets/A`).set(as_b).send({ value: 'v' }).expect(404)
     await http().delete(`/v1/projects/${id}/secrets/A`).set(as_b).expect(404)

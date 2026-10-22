@@ -31,9 +31,7 @@ export const toneMark = (tone: ENoticeTone): string => {
 
 export function NoticeStack(props: { width: number }): React.ReactNode {
   useSyncExternalStore(subscribeNotices, noticeVersion)
-  const notices = currentNotices().filter(
-    (notice) => notice.position === ENoticePosition.Tray,
-  )
+  const notices = currentNotices().filter((notice) => notice.position === ENoticePosition.Tray)
   if (notices.length === 0 || props.width < NOTICE_MIN_CELLS) return null
 
   const cells = props.width - TRANSCRIPT_INSET

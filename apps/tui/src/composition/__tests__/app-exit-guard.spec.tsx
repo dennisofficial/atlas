@@ -77,7 +77,10 @@ function endingShell(args: { app: FakeApp; running: ShellSnapshot }): () => void
 
 async function opened(app: FakeApp): Promise<Mounted> {
   const setup = await testRender(
-    <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
     WIDE,
   )
   await setup.flush()
@@ -96,7 +99,9 @@ async function quit(setup: Mounted): Promise<string> {
 describe('quitting while a background shell is still running', () => {
   it('asks before it goes, naming the work that would stop', async () => {
     const setup = await opened(
-      appWith([shell({ shellId: 'bash_1', command: 'bun test', description: 'Wait for TUI suite' })]),
+      appWith([
+        shell({ shellId: 'bash_1', command: 'bun test', description: 'Wait for TUI suite' }),
+      ]),
     )
 
     try {

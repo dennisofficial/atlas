@@ -35,7 +35,13 @@ const quoteToken = (token: string): string => {
   return token.includes('"') ? `'${token}'` : `"${token}"`
 }
 
-export function joinCommandLine({ command, args }: { command: string; args: readonly string[] }): string {
+export function joinCommandLine({
+  command,
+  args,
+}: {
+  command: string
+  args: readonly string[]
+}): string {
   return [command, ...args].map(quoteToken).join(' ')
 }
 

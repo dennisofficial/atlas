@@ -143,7 +143,11 @@ describe('SleepPrevention', () => {
       spawnCaffeinate: ({ pid }) => {
         const spawned: Spawned = { pid, stopped: false }
         spawns.push(spawned)
-        return { stop: () => { spawned.stopped = true } }
+        return {
+          stop: () => {
+            spawned.stopped = true
+          },
+        }
       },
       powerSource: () =>
         new Promise<PowerSource>((resolve) => {

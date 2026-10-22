@@ -68,7 +68,9 @@ export async function titleFor(args: {
     const generated = await generateText({
       model,
       system: TITLE_INSTRUCTION,
-      ...(shown.length === 0 ? { prompt: asked } : { messages: askWithImages({ asked, images: shown }) }),
+      ...(shown.length === 0
+        ? { prompt: asked }
+        : { messages: askWithImages({ asked, images: shown }) }),
       output: Output.object({ schema: TITLE_SCHEMA }),
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })

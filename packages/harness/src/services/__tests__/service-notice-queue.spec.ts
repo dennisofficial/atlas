@@ -57,7 +57,9 @@ describe('reassigning a finished thread’s service notices', () => {
     const queue = new ServiceNoticeQueue({ logged: false })
     queue.queue(noticeOf('svc_1', THREAD))
     let rang = 0
-    queue.onNotice(() => { rang += 1 })
+    queue.onNotice(() => {
+      rang += 1
+    })
 
     queue.reassign({ from: CHILD, to: PARENT })
 

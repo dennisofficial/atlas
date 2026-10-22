@@ -8,7 +8,12 @@ import {
   type Event,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { EClientRequest, RemoteEventLog, RemoteThreadStore, type CloudChannel } from '@dltech/atlas-harness'
+import {
+  EClientRequest,
+  RemoteEventLog,
+  RemoteThreadStore,
+  type CloudChannel,
+} from '@dltech/atlas-harness'
 
 import { openCloudConversation } from '../cloud-app'
 import type { AtlasApp } from '../../compose'
@@ -56,7 +61,12 @@ const cloudAppOn = (args: { threadId: ThreadId }) => {
     url: 'https://sandbox.example',
     token: 'tok',
   })
-  const attached: AtlasApp = { ...app, threads: stores.threads, log: stores.log, ledger: stores.ledger }
+  const attached: AtlasApp = {
+    ...app,
+    threads: stores.threads,
+    log: stores.log,
+    ledger: stores.ledger,
+  }
   return { channel, app: attached }
 }
 

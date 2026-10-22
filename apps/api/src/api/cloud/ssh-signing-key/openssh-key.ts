@@ -46,7 +46,9 @@ function decodeBody(privateKey: string): Buffer {
   if (!trimmed.startsWith(PEM_HEADER) || !trimmed.endsWith(PEM_FOOTER)) {
     throw refuse('not an openssh pem')
   }
-  const base64 = trimmed.slice(PEM_HEADER.length, trimmed.length - PEM_FOOTER.length).replace(/\s+/g, '')
+  const base64 = trimmed
+    .slice(PEM_HEADER.length, trimmed.length - PEM_FOOTER.length)
+    .replace(/\s+/g, '')
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw refuse('not an openssh pem')
   return Buffer.from(base64, 'base64')
 }
@@ -69,7 +71,8 @@ function requirePrivateBlock(args: { block: Buffer; publicBytes: Buffer }): void
   if (!cursor.string().equals(args.publicBytes)) throw refuse('public key mismatch')
   const secret = cursor.string()
   if (secret.length !== ED25519_SECRET_BYTES) throw refuse('bad ed25519 private key')
-  if (!secret.subarray(ED25519_KEY_BYTES).equals(args.publicBytes)) throw refuse('public key mismatch')
+  if (!secret.subarray(ED25519_KEY_BYTES).equals(args.publicBytes))
+    throw refuse('public key mismatch')
   cursor.string()
   requirePadding(cursor.rest())
 }

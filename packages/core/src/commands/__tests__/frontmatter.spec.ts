@@ -5,7 +5,9 @@ import { splitFrontmatter } from '../frontmatter'
 
 describe('splitFrontmatter', () => {
   it('reads scalar fields and returns the body beneath', () => {
-    const { fields, body } = splitFrontmatter('---\nname: Advisor\ndescription: be blunt\n---\nBody here')
+    const { fields, body } = splitFrontmatter(
+      '---\nname: Advisor\ndescription: be blunt\n---\nBody here',
+    )
 
     expect(fields.get('name')).toBe('Advisor')
     expect(fields.get('description')).toBe('be blunt')

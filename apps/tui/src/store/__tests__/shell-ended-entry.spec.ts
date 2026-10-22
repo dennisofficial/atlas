@@ -7,19 +7,18 @@ import { isExpandable } from '../expandable'
 import { EEntryKind, type BackgroundShellEndedEntry } from '../transcript-model'
 import { log } from './fixture'
 
-const shellEnded = (over: Record<string, unknown> = {}) =>
-  ({
-    type: 'background-shell-ended' as const,
-    shellId: 'bash_1',
-    command: 'bun test',
-    description: 'Run full TUI suite',
-    status: EShellStatus.Exited,
-    exitCode: 0,
-    output: '261 pass, 0 fail\n',
-    droppedCharacters: 0,
-    remainingCharacters: 0,
-    ...over,
-  })
+const shellEnded = (over: Record<string, unknown> = {}) => ({
+  type: 'background-shell-ended' as const,
+  shellId: 'bash_1',
+  command: 'bun test',
+  description: 'Run full TUI suite',
+  status: EShellStatus.Exited,
+  exitCode: 0,
+  output: '261 pass, 0 fail\n',
+  droppedCharacters: 0,
+  remainingCharacters: 0,
+  ...over,
+})
 
 const onlyShellEntry = (events: readonly Event[]): BackgroundShellEndedEntry => {
   const entry = durableEntries({ events }).find(
@@ -61,7 +60,9 @@ describe('a background shell ending in the transcript', () => {
 
   it('says the developer was the one who killed it', () => {
     const entry = onlyShellEntry(
-      log([shellEnded({ status: EShellStatus.Killed, killedBy: EKilledBy.User, exitCode: undefined })]),
+      log([
+        shellEnded({ status: EShellStatus.Killed, killedBy: EKilledBy.User, exitCode: undefined }),
+      ]),
     )
 
     expect(entry.text).toBe('Background shell "Run full TUI suite" was killed by you')
@@ -69,7 +70,13 @@ describe('a background shell ending in the transcript', () => {
 
   it('says a rewind was what killed it', () => {
     const entry = onlyShellEntry(
-      log([shellEnded({ status: EShellStatus.Killed, killedBy: EKilledBy.Rewind, exitCode: undefined })]),
+      log([
+        shellEnded({
+          status: EShellStatus.Killed,
+          killedBy: EKilledBy.Rewind,
+          exitCode: undefined,
+        }),
+      ]),
     )
 
     expect(entry.text).toBe('Background shell "Run full TUI suite" was killed by a rewind')
@@ -78,7 +85,11 @@ describe('a background shell ending in the transcript', () => {
   it('says a shell lost to a closed session ended with it, not that atlas killed it', () => {
     const entry = onlyShellEntry(
       log([
-        shellEnded({ status: EShellStatus.Killed, killedBy: EKilledBy.Unrecorded, exitCode: undefined }),
+        shellEnded({
+          status: EShellStatus.Killed,
+          killedBy: EKilledBy.Unrecorded,
+          exitCode: undefined,
+        }),
       ]),
     )
 
@@ -189,7 +200,9 @@ describe('a background shell ending in the transcript', () => {
       ]),
     })
 
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(
+      2,
+    )
   })
 
   it('keeps a shell-kill ending that follows a clean exit, because it is not a teardown dupe', () => {
@@ -200,7 +213,9 @@ describe('a background shell ending in the transcript', () => {
       ]),
     })
 
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(
+      2,
+    )
   })
 
   it('keeps a session-end kill under a recycled id when no clean ending settled it', () => {
@@ -211,7 +226,9 @@ describe('a background shell ending in the transcript', () => {
       ]),
     })
 
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(
+      2,
+    )
   })
 
   it('hides a legacy teardown dupe whose kill was already delivered as a shell_kill result', () => {
@@ -227,7 +244,9 @@ describe('a background shell ending in the transcript', () => {
       ]),
     })
 
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(0)
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(
+      0,
+    )
   })
 
   it('keeps a model-kill ending that carried real output, because it is the telling', () => {
@@ -243,7 +262,9 @@ describe('a background shell ending in the transcript', () => {
       ]),
     })
 
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(1)
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(
+      1,
+    )
   })
 
   it('keeps a silent model-kill ending when no shell_kill result names the shell', () => {
@@ -251,13 +272,21 @@ describe('a background shell ending in the transcript', () => {
       events: log([shellEnded({ output: '', killedBy: EKilledBy.Model })]),
     })
 
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(1)
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(
+      1,
+    )
   })
 
   it('shows the ending once when a shell_kill result and its occurrence-written ending share a turn', () => {
     const entries = durableEntries({
       events: log([
-        { type: 'tool-called' as const, callId: 'call-1' as never, name: 'shell_kill', input: { shellId: 'bash_1' }, ordinal: 0 },
+        {
+          type: 'tool-called' as const,
+          callId: 'call-1' as never,
+          name: 'shell_kill',
+          input: { shellId: 'bash_1' },
+          ordinal: 0,
+        },
         {
           type: 'tool-result' as const,
           callId: 'call-1' as never,
@@ -300,6 +329,8 @@ describe('a background shell ending in the transcript', () => {
       ]),
     })
 
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(1)
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(
+      1,
+    )
   })
 })

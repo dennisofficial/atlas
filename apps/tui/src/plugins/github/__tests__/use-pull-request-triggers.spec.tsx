@@ -137,7 +137,9 @@ const branchOf = (probe: Probe): string | null => {
   const row = probe.control?.section?.rows.find((entry) => entry.id === 'branch')
   return row === undefined
     ? null
-    : flattenedSpans({ row: row, cells: WIDE }).map((span) => span.text).join('')
+    : flattenedSpans({ row: row, cells: WIDE })
+        .map((span) => span.text)
+        .join('')
 }
 
 const countingProbe = (): CheckoutProbe & { calls: string[] } => {

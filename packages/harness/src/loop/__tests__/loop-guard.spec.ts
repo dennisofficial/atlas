@@ -5,7 +5,11 @@ import { EToolEffect, type ToolDefinition } from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { HookChain } from '../../hooks/registry'
-import { scriptedModel, type ScriptedCall, type ScriptedStep } from '../../model/testing/scripted-model'
+import {
+  scriptedModel,
+  type ScriptedCall,
+  type ScriptedStep,
+} from '../../model/testing/scripted-model'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { createTempHome, type TempHome } from './temp-home'
@@ -109,7 +113,10 @@ describe('the loop guard', () => {
   it('leaves a repeated read-only shell command to the same cut', async () => {
     const { harness } = await openGuarded({
       script: [
-        ...pollingSteps(3, { name: 'bash', input: { command: 'git branch --show-current >/dev/null' } }),
+        ...pollingSteps(3, {
+          name: 'bash',
+          input: { command: 'git branch --show-current >/dev/null' },
+        }),
         { text: 'done' },
       ],
       tools: [fakeShell],
@@ -125,7 +132,10 @@ describe('the loop guard', () => {
 
   it('never cuts a shell command the classifier cannot prove read-only', async () => {
     const { harness, model } = await openGuarded({
-      script: [...pollingSteps(5, { name: 'bash', input: { command: 'bun test' } }), { text: 'green' }],
+      script: [
+        ...pollingSteps(5, { name: 'bash', input: { command: 'bun test' } }),
+        { text: 'green' },
+      ],
       tools: [fakeShell],
     })
     const thread = await harness.threads.create({})
@@ -142,7 +152,10 @@ describe('the loop guard', () => {
   it('never cuts a backgrounded command, which creates a shell', async () => {
     const { harness } = await openGuarded({
       script: [
-        ...pollingSteps(4, { name: 'bash', input: { command: 'git status', runInBackground: true } }),
+        ...pollingSteps(4, {
+          name: 'bash',
+          input: { command: 'git status', runInBackground: true },
+        }),
         { text: 'started them all' },
       ],
       tools: [fakeShell],

@@ -25,11 +25,7 @@ const devBinary = (version: string): DevServeBinary => ({
   bytes: 154_154_464,
 })
 
-const rig = (args: {
-  sdk: VercelSdk
-  devPin?: string
-  serveVersion?: string
-}) => {
+const rig = (args: { sdk: VercelSdk; devPin?: string; serveVersion?: string }) => {
   const resolved: number[] = []
   const uploaded: DevServeBinary[] = []
   const installs: (string | undefined)[] = []

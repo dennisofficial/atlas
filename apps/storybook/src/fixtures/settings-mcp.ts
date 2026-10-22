@@ -1,47 +1,47 @@
 export enum EMcpTransport {
-  Stdio = "stdio",
-  Http = "http",
+  Stdio = 'stdio',
+  Http = 'http',
 }
 
 export type McpServer = {
-  id: string;
-  transport: EMcpTransport;
-  target: string;
-  enabled: boolean;
-};
+  id: string
+  transport: EMcpTransport
+  target: string
+  enabled: boolean
+}
 
 export const PERSONAL_MCP_SERVERS: McpServer[] = [
   {
-    id: "filesystem",
+    id: 'filesystem',
     transport: EMcpTransport.Stdio,
-    target: "npx -y @modelcontextprotocol/server-filesystem ~/Developer",
+    target: 'npx -y @modelcontextprotocol/server-filesystem ~/Developer',
     enabled: true,
   },
   {
-    id: "context7",
+    id: 'context7',
     transport: EMcpTransport.Http,
-    target: "https://mcp.context7.com/mcp",
+    target: 'https://mcp.context7.com/mcp',
     enabled: true,
   },
   {
-    id: "playwright",
+    id: 'playwright',
     transport: EMcpTransport.Stdio,
-    target: "npx @playwright/mcp@latest --headless",
+    target: 'npx @playwright/mcp@latest --headless',
     enabled: false,
   },
-];
+]
 
 export const WORKSPACE_MCP_SERVERS: McpServer[] = [
   {
-    id: "linear",
+    id: 'linear',
     transport: EMcpTransport.Http,
-    target: "https://mcp.linear.app/mcp",
+    target: 'https://mcp.linear.app/mcp',
     enabled: true,
   },
   {
-    id: "postgres",
+    id: 'postgres',
     transport: EMcpTransport.Stdio,
-    target: "bunx @dltech/mcp-postgres --read-only",
+    target: 'bunx @dltech/mcp-postgres --read-only',
     enabled: true,
   },
-];
+]

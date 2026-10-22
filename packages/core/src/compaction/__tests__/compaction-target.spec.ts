@@ -44,7 +44,8 @@ describe('compactionTarget', () => {
     expect(compactionTarget({ events, throughSeq: 3 })).toEqual({
       allowed: false,
       refusal: ECompactionRefusal.SplitsToolCall,
-      reason: 'compacting through 3 would keep the result of bash (call-1) after compacting the call it answers',
+      reason:
+        'compacting through 3 would keep the result of bash (call-1) after compacting the call it answers',
     })
   })
 

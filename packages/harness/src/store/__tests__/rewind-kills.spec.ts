@@ -15,12 +15,7 @@ import type { ShellSnapshot } from '../../shells/background-shell'
 import { toShellId } from '../../shells/shell-id'
 import { LocalRewindMachinery } from '../local-rewind-machinery'
 import { rewindThread } from '../rewind'
-import {
-  openStoreFixture,
-  UnstaffedServices,
-  UnstaffedShells,
-  type StoreFixture,
-} from './harness'
+import { openStoreFixture, UnstaffedServices, UnstaffedShells, type StoreFixture } from './harness'
 
 let fixture: StoreFixture
 
@@ -39,7 +34,15 @@ class ScriptedShells extends UnstaffedShells {
   private live: { threadId: ThreadId; snapshot: ShellSnapshot }[] = []
   readonly removed: { shellId: string; by: EKilledBy }[] = []
 
-  place({ threadId, shellId, command }: { threadId: ThreadId; shellId: string; command: string }): void {
+  place({
+    threadId,
+    shellId,
+    command,
+  }: {
+    threadId: ThreadId
+    shellId: string
+    command: string
+  }): void {
     const at = new Date(Date.UTC(2026, 0, 1)).toISOString()
     this.live.push({
       threadId,
@@ -97,7 +100,13 @@ class ScriptedServices extends UnstaffedServices {
     return this.live
   }
 
-  override removeServices({ serviceIds, by }: { serviceIds: readonly string[]; by: EKilledBy }): void {
+  override removeServices({
+    serviceIds,
+    by,
+  }: {
+    serviceIds: readonly string[]
+    by: EKilledBy
+  }): void {
     for (const serviceId of serviceIds) this.removed.push({ serviceId, by })
     this.live = this.live.filter((snapshot) => !serviceIds.includes(snapshot.serviceId))
   }
@@ -162,7 +171,15 @@ const openShellThread = async (): Promise<{ threadId: ThreadId; shells: Scripted
   await fixture.log.append({
     threadId: thread.id,
     runId,
-    drafts: [said('msg_1'), startedInBackground, backgrounded, replied('on it'), said('msg_2'), shellEnded, said('msg_3')],
+    drafts: [
+      said('msg_1'),
+      startedInBackground,
+      backgrounded,
+      replied('on it'),
+      said('msg_2'),
+      shellEnded,
+      said('msg_3'),
+    ],
   })
   shells.place({ threadId: thread.id, shellId: 'bash_1', command: 'npm test' })
   return { threadId: thread.id, shells }
@@ -258,7 +275,10 @@ describe('rewindThread on a thread with a background shell', () => {
 })
 
 describe('rewindThread on a thread with a service', () => {
-  const openServiceThread = async (): Promise<{ threadId: ThreadId; services: ScriptedServices }> => {
+  const openServiceThread = async (): Promise<{
+    threadId: ThreadId
+    services: ScriptedServices
+  }> => {
     fixture = await openStoreFixture()
     const services = new ScriptedServices()
     const thread = await fixture.threads.create({ title: 'services' })

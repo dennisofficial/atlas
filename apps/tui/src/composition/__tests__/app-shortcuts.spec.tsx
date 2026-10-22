@@ -6,12 +6,7 @@ import React from 'react'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { EKeyGroup } from '../../ui/keys'
 import { App } from '../app'
-import {
-  fakeApp,
-  failingThenStallingModelPort,
-  scriptedModelPort,
-  type FakeApp,
-} from './fake-app'
+import { fakeApp, failingThenStallingModelPort, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -38,7 +33,13 @@ async function landed(setup: Mounted): Promise<void> {
 }
 
 async function opened(app: FakeApp): Promise<Mounted> {
-  const setup = await testRender(<App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />, WIDE)
+  const setup = await testRender(
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
+    WIDE,
+  )
   await setup.flush()
   await settle(250)
   await setup.flush()
@@ -79,7 +80,9 @@ describe('the shortcuts list', () => {
   }, 60_000)
 
   it('lists a block key only while the block that owns it is on screen', async () => {
-    const failing = fakeApp({ model: failingThenStallingModelPort({ message: 'overloaded_error' }) })
+    const failing = fakeApp({
+      model: failingThenStallingModelPort({ message: 'overloaded_error' }),
+    })
     const healthy = await opened(appWith())
 
     try {

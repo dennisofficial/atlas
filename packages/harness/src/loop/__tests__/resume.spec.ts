@@ -82,7 +82,9 @@ describe('a conversation that outlives the process that started it', () => {
   })
 
   it('carries a thinking signature written by one process into the next process prompt', async () => {
-    const first = await attach([{ reasoning: { text: 'checking the diff', signature: 'sig-abc' }, text: 'two files' }])
+    const first = await attach([
+      { reasoning: { text: 'checking the diff', signature: 'sig-abc' }, text: 'two files' },
+    ])
     const thread = (await first.harness.threads.create({})).id
     await first.harness.runner.say({ threadId: thread, text: 'what changed?' })
     await first.release()

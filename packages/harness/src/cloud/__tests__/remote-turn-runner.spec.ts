@@ -4,7 +4,13 @@ import { EConnectionView } from '../connection-view'
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
-import { EClientFrame, EClientRequest, encodeFrame, EServeFrame, type ClientFrame } from '../channel-wire'
+import {
+  EClientFrame,
+  EClientRequest,
+  encodeFrame,
+  EServeFrame,
+  type ClientFrame,
+} from '../channel-wire'
 import { RemoteTurnDetached, RemoteTurnRunner } from '../remote-turn-runner'
 
 import { harness, OTHER_THREAD, THREAD } from './remote-channel-fixture'
@@ -70,7 +76,10 @@ describe('a turn driven over the session socket', () => {
     const turn = runner.runTurn({ threadId: THREAD })
     runner.steer({ threadId: THREAD, text: 'check the tests too' })
 
-    expect(live().sent.at(-1)).toMatchObject({ kind: EClientFrame.Send, text: 'check the tests too' })
+    expect(live().sent.at(-1)).toMatchObject({
+      kind: EClientFrame.Send,
+      text: 'check the tests too',
+    })
 
     endTurn(receive, completed('run-1'))
     await expect(turn).resolves.toEqual(completed('run-1'))
@@ -159,7 +168,9 @@ describe('a turn driven over the session socket', () => {
       },
     })
 
-    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' } as never))
+    live().handlers.handleMessage(
+      encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' } as never),
+    )
     live().handlers.handleClose()
     expect(channel.connection().state).toBe(EConnectionView.Parked)
 
@@ -186,7 +197,9 @@ describe('a turn driven over the session socket', () => {
       },
     })
 
-    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' } as never))
+    live().handlers.handleMessage(
+      encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' } as never),
+    )
     live().handlers.handleClose()
 
     const turn = runner.runTurn({ threadId: THREAD })
@@ -261,9 +274,7 @@ describe('a turn asked of a sandbox that is asleep', () => {
     expect(woken).toBe(1)
 
     live().handlers.handleOpen()
-    live().handlers.handleMessage(
-      '{"kind":"ready","seq":1}',
-    )
+    live().handlers.handleMessage('{"kind":"ready","seq":1}')
     endTurn(receive, completed('run-1'))
 
     await expect(turn).resolves.toEqual(completed('run-1'))
@@ -283,9 +294,7 @@ describe('a turn asked of a sandbox that is asleep', () => {
       },
     })
 
-    await expect(runner.runTurn({ threadId: THREAD })).rejects.toThrow(
-      'the pod could not be woken',
-    )
+    await expect(runner.runTurn({ threadId: THREAD })).rejects.toThrow('the pod could not be woken')
     expect(live().sent).toHaveLength(1)
   })
 })
@@ -315,7 +324,10 @@ describe('a turn the socket outlives', () => {
         test.channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
       },
     })
-    const turn = runner.runTurn({ threadId: THREAD, ...(options?.signal === undefined ? {} : { signal: options.signal }) })
+    const turn = runner.runTurn({
+      threadId: THREAD,
+      ...(options?.signal === undefined ? {} : { signal: options.signal }),
+    })
     test.receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
     test.drop()
     return { ...test, turn, wakes: () => wakes }
@@ -429,7 +441,9 @@ describe('a turn the socket outlives', () => {
       (error: unknown) => error,
     )
     expect(failure).toBeInstanceOf(RemoteTurnDetached)
-    expect((failure as RemoteTurnDetached).message).toBe('The session socket closed and did not reopen after 0 attempts.')
+    expect((failure as RemoteTurnDetached).message).toBe(
+      'The session socket closed and did not reopen after 0 attempts.',
+    )
   })
 
   it('keeps waiting through a reconnect, since the turn runs on server-side', async () => {
@@ -471,7 +485,10 @@ describe('taking back the last queued message from the sandbox', () => {
 
     const taken = runner.takeBackPending({ threadId: THREAD })
     const asked = askedOf(live().sent)
-    expect(asked).toMatchObject({ op: EClientRequest.TakeBackPending, params: { threadId: THREAD } })
+    expect(asked).toMatchObject({
+      op: EClientRequest.TakeBackPending,
+      params: { threadId: THREAD },
+    })
     receive({
       kind: EServeFrame.Reply,
       replyTo: asked?.id ?? '',
@@ -518,7 +535,12 @@ describe('taking back the last queued message from the sandbox', () => {
     const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
 
     const taken = runner.takeBackPending({ threadId: THREAD })
-    receive({ kind: EServeFrame.Reply, replyTo: askedOf(live().sent)?.id ?? '', ok: true, data: { taken: null } })
+    receive({
+      kind: EServeFrame.Reply,
+      replyTo: askedOf(live().sent)?.id ?? '',
+      ok: true,
+      data: { taken: null },
+    })
 
     await expect(taken).resolves.toBeNull()
   })
@@ -530,7 +552,12 @@ describe('taking back the last queued message from the sandbox', () => {
     const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
 
     const taken = runner.takeBackPending({ threadId: THREAD })
-    receive({ kind: EServeFrame.Reply, replyTo: askedOf(live().sent)?.id ?? '', ok: true, data: 'nope' })
+    receive({
+      kind: EServeFrame.Reply,
+      replyTo: askedOf(live().sent)?.id ?? '',
+      ok: true,
+      data: 'nope',
+    })
 
     await expect(taken).resolves.toBeNull()
   })

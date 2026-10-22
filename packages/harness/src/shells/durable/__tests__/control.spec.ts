@@ -28,7 +28,11 @@ async function scratch(): Promise<string> {
   return made.shellDir
 }
 
-async function captureStdout({ run }: { run: () => Promise<number> }): Promise<{ code: number; out: string }> {
+async function captureStdout({
+  run,
+}: {
+  run: () => Promise<number>
+}): Promise<{ code: number; out: string }> {
   const original = process.stdout.write.bind(process.stdout)
   let out = ''
   process.stdout.write = ((chunk: string | Uint8Array): boolean => {
@@ -62,7 +66,9 @@ describe('control socket', () => {
       const socket = connect(meta.socketPath)
       let data = ''
       socket.on('connect', () => {
-        socket.write(`${JSON.stringify({ type: 'hello', id: 1, token: 'wrong', identity: meta.identity })}\n`)
+        socket.write(
+          `${JSON.stringify({ type: 'hello', id: 1, token: 'wrong', identity: meta.identity })}\n`,
+        )
         socket.write(`${JSON.stringify({ type: 'kill', id: 2 })}\n`)
       })
       socket.on('data', (chunk) => (data += chunk.toString()))
@@ -79,7 +85,10 @@ describe('control socket', () => {
     const shellDir = await scratch()
     const handle = await launchOrThrow({ shellDir, command: 'read line; echo "echo:$line"' })
     const probe = await sendControl({ directory: shellDir, request: { type: 'probe' } })
-    expect(probe).toEqual({ ok: true, probe: { supervisorAlive: true, childAlive: true, reachable: true } })
+    expect(probe).toEqual({
+      ok: true,
+      probe: { supervisorAlive: true, childAlive: true, reachable: true },
+    })
 
     const sent = await sendControl({
       directory: shellDir,
@@ -104,14 +113,23 @@ describe('control socket', () => {
     const handle = await launchOrThrow({ shellDir, command: 'cat' })
     const { code, out } = await captureStdout({
       run: () =>
-        runShellSupervisor(['--control', shellDir, JSON.stringify({ type: 'input', dataBase64: Buffer.from('hi\n').toString('base64') })]),
+        runShellSupervisor([
+          '--control',
+          shellDir,
+          JSON.stringify({ type: 'input', dataBase64: Buffer.from('hi\n').toString('base64') }),
+        ]),
     })
     expect(code).toBe(0)
     expect(JSON.parse(out.trim())).toEqual({ ok: true })
-    await runShellSupervisor(['--control', shellDir, JSON.stringify({ type: 'closeInput' })]).catch(() => 2)
+    await runShellSupervisor(['--control', shellDir, JSON.stringify({ type: 'closeInput' })]).catch(
+      () => 2,
+    )
     expect(await collect({ stream: handle.stdout })).toBe('hi\n')
 
-    expect((await captureStdout({ run: () => runShellSupervisor(['--control', shellDir, 'not json']) })).code).toBe(2)
+    expect(
+      (await captureStdout({ run: () => runShellSupervisor(['--control', shellDir, 'not json']) }))
+        .code,
+    ).toBe(2)
     expect((await captureStdout({ run: () => runShellSupervisor([]) })).code).toBe(2)
   })
 
@@ -119,9 +137,12 @@ describe('control socket', () => {
     const shellDir = await scratch()
     const handle = await launchOrThrow({ shellDir, command: 'sleep 300' })
     const entry = join(import.meta.dirname, '..', 'supervisor-main.ts')
-    const child = Bun.spawn([process.execPath, entry, '--control', shellDir, JSON.stringify({ type: 'terminate' })], {
-      stdout: 'pipe',
-    })
+    const child = Bun.spawn(
+      [process.execPath, entry, '--control', shellDir, JSON.stringify({ type: 'terminate' })],
+      {
+        stdout: 'pipe',
+      },
+    )
     const [out, status] = await Promise.all([new Response(child.stdout).text(), child.exited])
     expect(status).toBe(0)
     expect(JSON.parse(out.trim())).toEqual({ ok: true })
@@ -132,7 +153,13 @@ describe('control socket', () => {
 describe('transport and file lease', () => {
   test('a custom transport carries every control call and a file lease keeps the shell alive', async () => {
     const shellDir = await scratch()
-    const first = await launchOrThrow({ shellDir, ttlMs: 600, tickMs: 50, leaseMs: 150, command: 'cat' })
+    const first = await launchOrThrow({
+      shellDir,
+      ttlMs: 600,
+      tickMs: 50,
+      leaseMs: 150,
+      command: 'cat',
+    })
     await first.detach()
 
     const calls: string[] = []
@@ -142,7 +169,8 @@ describe('transport and file lease', () => {
       leaseMode: ELeaseMode.File,
       transport: async ({ request }): Promise<ControlResult> => {
         calls.push(request.type)
-        if (request.type === 'probe') return { ok: true, probe: { supervisorAlive: true, childAlive: true, reachable: true } }
+        if (request.type === 'probe')
+          return { ok: true, probe: { supervisorAlive: true, childAlive: true, reachable: true } }
         return sendControl({ directory: shellDir, request })
       },
     })
@@ -157,9 +185,20 @@ describe('transport and file lease', () => {
 
   test('without any lease the same shell expires', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, ttlMs: 400, tickMs: 50, leaseMs: 150, command: 'cat' })
+    const handle = await launchOrThrow({
+      shellDir,
+      ttlMs: 400,
+      tickMs: 50,
+      leaseMs: 150,
+      command: 'cat',
+    })
     await handle.detach()
-    const again = await attachDurableShell({ shellDir, pollMs: 20, leaseMode: ELeaseMode.File, transport: ({ request }) => sendControl({ directory: shellDir, request }) })
+    const again = await attachDurableShell({
+      shellDir,
+      pollMs: 20,
+      leaseMode: ELeaseMode.File,
+      transport: ({ request }) => sendControl({ directory: shellDir, request }),
+    })
     if (!again.ok) throw new Error(again.reason)
     await again.handle.detach()
     const settled = await Promise.race([
@@ -183,7 +222,8 @@ describe('refusal codes', () => {
     await handle.exited
     const result = await sendControl({ directory: shellDir, request: { type: 'heartbeat' } })
     expect(result.ok).toBe(false)
-    if (!result.ok) expect([EControlError.Unreachable, EControlError.Timeout]).toContain(result.code)
+    if (!result.ok)
+      expect([EControlError.Unreachable, EControlError.Timeout]).toContain(result.code)
     expect(SOCKET_FILE).toBe('control.sock')
     await readUntil({ stream: handle.stdout, pattern: '' })
   })

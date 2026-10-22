@@ -176,7 +176,10 @@ describe('serve local stores after the cloud pull', () => {
 
     const credential = await port.read({ provider: EAuthProvider.Anthropic })
 
-    expect(credential).toMatchObject({ kind: EAuthKind.Oauth, accessToken: 'fake-sandbox-access-1' })
+    expect(credential).toMatchObject({
+      kind: EAuthKind.Oauth,
+      accessToken: 'fake-sandbox-access-1',
+    })
     expect(refreshCalls).toHaveLength(1)
     expect(refreshCalls[0]).toContain('fake-sandbox-refresh-0')
 
@@ -247,7 +250,10 @@ describe('serve local stores after the cloud pull', () => {
     })
 
     const credential = await secondPort.read({ provider: EAuthProvider.Anthropic })
-    expect(credential).toMatchObject({ kind: EAuthKind.Oauth, accessToken: 'fake-sandbox-access-1' })
+    expect(credential).toMatchObject({
+      kind: EAuthKind.Oauth,
+      accessToken: 'fake-sandbox-access-1',
+    })
 
     const held = await secondStore.read(account.id)
     expect(held?.secret.kind).toBe(EAuthKind.Oauth)

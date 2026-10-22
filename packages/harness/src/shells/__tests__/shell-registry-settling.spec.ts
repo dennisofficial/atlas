@@ -13,13 +13,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { HookChain, type HookChainSource } from '../../hooks/registry'
-import {
-  closeRegistries,
-  job,
-  openRegistry,
-  settle,
-  THREAD,
-} from './shell-registry-fixture'
+import { closeRegistries, job, openRegistry, settle, THREAD } from './shell-registry-fixture'
 
 process.env.ATLAS_HOME = join(mkdtempSync(join(tmpdir(), 'atlas-settling-')), '.atlas-home')
 
@@ -35,11 +29,19 @@ class BlockingHook extends AfterShellHook {
   }
 }
 
-const blockedAfterShell = (): { hooks: HookChainSource; entered: Promise<void>; release: () => void } => {
+const blockedAfterShell = (): {
+  hooks: HookChainSource
+  entered: Promise<void>
+  release: () => void
+} => {
   let releaseHook = (): void => undefined
   let announceEntered = (): void => undefined
-  const entered = new Promise<void>((resolve) => { announceEntered = resolve })
-  const gate = new Promise<void>((resolve) => { releaseHook = resolve })
+  const entered = new Promise<void>((resolve) => {
+    announceEntered = resolve
+  })
+  const gate = new Promise<void>((resolve) => {
+    releaseHook = resolve
+  })
   const hook = new BlockingHook('blocked', { stage: EStage.Observe, nudge: 0 }, async () => {
     announceEntered()
     await gate

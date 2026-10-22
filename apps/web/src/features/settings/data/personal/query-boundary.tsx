@@ -56,7 +56,8 @@ export function QueryBody<TData>({
   rows?: number
   children: (data: TData) => ReactNode
 }) {
-  if (query.state === EQueryState.Loading) return <QueryLoading {...(rows === undefined ? {} : { rows })} />
+  if (query.state === EQueryState.Loading)
+    return <QueryLoading {...(rows === undefined ? {} : { rows })} />
   if (query.state === EQueryState.Failed) {
     return <QueryFailure error={query.error} onRetry={query.reload} />
   }

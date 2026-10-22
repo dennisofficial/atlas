@@ -91,7 +91,13 @@ describe('the retry log for a failed model step', () => {
   it('never persists the request, headers, url, or response body', async () => {
     const serialized = JSON.stringify(await runFailingTurn())
 
-    for (const secret of ['hunter2', 'sk-url-secret', 'sk-header-secret', 'prompt-secret', 'body-secret']) {
+    for (const secret of [
+      'hunter2',
+      'sk-url-secret',
+      'sk-header-secret',
+      'prompt-secret',
+      'body-secret',
+    ]) {
       expect(serialized).not.toContain(secret)
     }
   })

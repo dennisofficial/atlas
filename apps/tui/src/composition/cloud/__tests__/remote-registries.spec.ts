@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  EAgentStatus,
-  EServiceStatus,
-  EShellStatus,
-  toThreadId,
-} from '@dltech/atlas-core'
+import { EAgentStatus, EServiceStatus, EShellStatus, toThreadId } from '@dltech/atlas-core'
 import { type RosterWire } from '@dltech/atlas-wire'
 import { EClientRequest, RemoteRequestFailed } from '@dltech/atlas-harness'
 
@@ -234,11 +229,11 @@ describe('the remote registries a cloud session reads', () => {
     const { shells, agents, services } = registriesOf(stub.channel)
     await settle()
 
-    expect(
-      shells.kill({ shellId: 'bash_1', by: 'user' as never, threadId: THREAD }).ok,
-    ).toBe(false)
+    expect(shells.kill({ shellId: 'bash_1', by: 'user' as never, threadId: THREAD }).ok).toBe(false)
     expect(shells.peek({ shellId: 'bash_1', characters: 100, threadId: THREAD })).toBeUndefined()
-    expect((await agents.spawn({ threadId: THREAD, agentType: 'explore', brief: 'x', intent: 'x' })).ok).toBe(false)
+    expect(
+      (await agents.spawn({ threadId: THREAD, agentType: 'explore', brief: 'x', intent: 'x' })).ok,
+    ).toBe(false)
     expect(services.stop({ serviceId: 'svc_1', by: 'user' as never }).ok).toBe(false)
   })
 
@@ -281,7 +276,11 @@ describe('the remote registries a cloud session reads', () => {
   it('hands the sandbox’s refusal back verbatim rather than inventing one', async () => {
     const stub = stubChannel({
       answer: LIVE,
-      steerAnswer: { ok: false, reason: 'agent child-explore is already taking a step; steer it with a message or stop it first' },
+      steerAnswer: {
+        ok: false,
+        reason:
+          'agent child-explore is already taking a step; steer it with a message or stop it first',
+      },
     })
     const { agents } = registriesOf(stub.channel)
     await settle()
@@ -290,7 +289,8 @@ describe('the remote registries a cloud session reads', () => {
 
     expect(outcome).toEqual({
       ok: false,
-      reason: 'agent child-explore is already taking a step; steer it with a message or stop it first',
+      reason:
+        'agent child-explore is already taking a step; steer it with a message or stop it first',
     })
   })
 

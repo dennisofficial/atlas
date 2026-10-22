@@ -102,7 +102,9 @@ describe('snapshotOf failureCause', () => {
     state.status = EAgentStatus.Failed
     state.failureCause = 'provider inference.net returned 402: credit exhausted'
 
-    expect(snapshotOf(state).failureCause).toBe('provider inference.net returned 402: credit exhausted')
+    expect(snapshotOf(state).failureCause).toBe(
+      'provider inference.net returned 402: credit exhausted',
+    )
   })
 
   it('omits the cause when nothing recorded one', () => {
@@ -127,8 +129,14 @@ describe('snapshotOf failureCause', () => {
       failureCause: 'provider inference.net returned 402: credit exhausted',
     }
 
-    const state = recoveredChild({ agent, spawnedBy: toThreadId('thread-parent'), at: '2026-01-01T00:02:00.000Z' })
-    expect(snapshotOf(state).failureCause).toBe('provider inference.net returned 402: credit exhausted')
+    const state = recoveredChild({
+      agent,
+      spawnedBy: toThreadId('thread-parent'),
+      at: '2026-01-01T00:02:00.000Z',
+    })
+    expect(snapshotOf(state).failureCause).toBe(
+      'provider inference.net returned 402: credit exhausted',
+    )
   })
 })
 

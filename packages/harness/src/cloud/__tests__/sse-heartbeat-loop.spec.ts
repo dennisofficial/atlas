@@ -40,8 +40,12 @@ const harness = (args: {
       beats.push({ id, at: fake.clock.now!() })
       await args.beat?.(id)
     },
-    onEmpty: () => { counters.empties += 1 },
-    onNeedsCatchUp: () => { counters.catchUps += 1 },
+    onEmpty: () => {
+      counters.empties += 1
+    },
+    onNeedsCatchUp: () => {
+      counters.catchUps += 1
+    },
   })
   return { loop, fake, beats, counters, entries }
 }
@@ -65,7 +69,10 @@ describe('heartbeat loop', () => {
     const release: (() => void)[] = []
     const h = harness({
       keys: ['a'],
-      beat: () => new Promise<void>((resolve) => { release.push(resolve) }),
+      beat: () =>
+        new Promise<void>((resolve) => {
+          release.push(resolve)
+        }),
     })
     h.loop.start()
 
@@ -123,7 +130,9 @@ describe('heartbeat loop', () => {
     it(`asks for a catch-up immediately on a terminal ${status}`, async () => {
       const h = harness({
         keys: ['a'],
-        beat: async () => { throw new CloudError({ status, message: 'terminal' }) },
+        beat: async () => {
+          throw new CloudError({ status, message: 'terminal' })
+        },
       })
       h.loop.start()
 

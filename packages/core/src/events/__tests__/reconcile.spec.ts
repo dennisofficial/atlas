@@ -44,7 +44,9 @@ describe('transcriptIdentityDigest', () => {
 
 describe('prefixDigestOf', () => {
   it('digests only events at or below upTo', () => {
-    expect(prefixDigestOf({ events: remote, upTo: 3 })).toBe(transcriptIdentityDigest(remote.slice(0, 3)))
+    expect(prefixDigestOf({ events: remote, upTo: 3 })).toBe(
+      transcriptIdentityDigest(remote.slice(0, 3)),
+    )
   })
 
   it('is unaffected by events above upTo', () => {
@@ -53,7 +55,9 @@ describe('prefixDigestOf', () => {
 
   it('ignores order and non-identity fields', () => {
     const reversed = [...remote].reverse()
-    expect(prefixDigestOf({ events: reversed, upTo: 5 })).toBe(prefixDigestOf({ events: remote, upTo: 5 }))
+    expect(prefixDigestOf({ events: reversed, upTo: 5 })).toBe(
+      prefixDigestOf({ events: remote, upTo: 5 }),
+    )
   })
 })
 

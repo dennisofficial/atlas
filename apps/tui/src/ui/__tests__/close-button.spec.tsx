@@ -34,10 +34,14 @@ const paintedAt = (args: { spans: Spans; cell: number }) => {
 }
 
 const bgIs = (args: { setup: Setup; cell: number; color: string }): boolean =>
-  paintedAt({ spans: args.setup.captureSpans(), cell: args.cell })?.bg.equals(parseColor(args.color)) ?? false
+  paintedAt({ spans: args.setup.captureSpans(), cell: args.cell })?.bg.equals(
+    parseColor(args.color),
+  ) ?? false
 
 const fgIs = (args: { setup: Setup; cell: number; color: string }): boolean =>
-  paintedAt({ spans: args.setup.captureSpans(), cell: args.cell })?.fg.equals(parseColor(args.color)) ?? false
+  paintedAt({ spans: args.setup.captureSpans(), cell: args.cell })?.fg.equals(
+    parseColor(args.color),
+  ) ?? false
 
 const findLabel = (node: Renderable): TextRenderable | undefined => {
   if (node instanceof TextRenderable && node.plainText === LABEL) return node
@@ -135,7 +139,10 @@ describe('the shared close button colours', () => {
   it('washes the seven cells on hover and restores them on leave, for either background', async () => {
     for (const bg of [undefined, theme.panelBg]) {
       const rest = bg ?? theme.overlayBg
-      const setup = await mountButton({ onClose: () => undefined, ...(bg === undefined ? {} : { bg }) })
+      const setup = await mountButton({
+        onClose: () => undefined,
+        ...(bg === undefined ? {} : { bg }),
+      })
 
       try {
         await pointAt({ setup, cell: FIRST })

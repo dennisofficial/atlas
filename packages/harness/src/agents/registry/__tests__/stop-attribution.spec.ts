@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { agentEnding, EAgentStatus, EKilledBy, type EventOfType } from '@dltech/atlas-core'
 
-import { finished, interrupted, loggedOfType, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
+import {
+  finished,
+  interrupted,
+  loggedOfType,
+  openSupervisor,
+  settled,
+  type OpenedSupervisor,
+} from './fixtures'
 
 const opened: OpenedSupervisor[] = []
 
@@ -29,7 +36,9 @@ async function spawned(): Promise<OpenedSupervisor> {
 type Ending = EventOfType<'agent-ended'>
 
 const lastEnding = async (open: OpenedSupervisor): Promise<Ending> => {
-  const ending = (await loggedOfType({ harness: open.harness, threadId: open.parent, type: 'agent-ended' })).at(-1)
+  const ending = (
+    await loggedOfType({ harness: open.harness, threadId: open.parent, type: 'agent-ended' })
+  ).at(-1)
   if (ending === undefined) throw new Error('the parent was told nothing')
   return ending
 }
@@ -44,7 +53,11 @@ describe('a sub-agent the operator stopped', () => {
   it('records the operator on the ending the parent is handed', async () => {
     const open = await spawned()
 
-    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
+    await open.supervisor.stop({
+      agentId: agentIdOf(open),
+      threadId: open.parent,
+      by: EKilledBy.User,
+    })
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
 
@@ -57,7 +70,11 @@ describe('a sub-agent the operator stopped', () => {
   it('records the parent when the parent stopped it, so the two never read alike', async () => {
     const open = await spawned()
 
-    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.Model })
+    await open.supervisor.stop({
+      agentId: agentIdOf(open),
+      threadId: open.parent,
+      by: EKilledBy.Model,
+    })
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
 
@@ -69,7 +86,11 @@ describe('a sub-agent the operator stopped', () => {
   it('is stopped rather than failed when the abort came back as a throw', async () => {
     const open = await spawned()
 
-    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
+    await open.supervisor.stop({
+      agentId: agentIdOf(open),
+      threadId: open.parent,
+      by: EKilledBy.User,
+    })
     open.runners.started[0]?.fail(new Error('the model stream was aborted'))
     await open.supervisor.closeAll()
 
@@ -132,7 +153,11 @@ describe('a sub-agent still stepping when the session closes', () => {
   it('keeps an operator stop that was already in flight', async () => {
     const open = await spawned()
 
-    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
+    await open.supervisor.stop({
+      agentId: agentIdOf(open),
+      threadId: open.parent,
+      by: EKilledBy.User,
+    })
     const closing = open.supervisor.closeAll()
     open.runners.started[0]?.settle(interrupted())
     await closing

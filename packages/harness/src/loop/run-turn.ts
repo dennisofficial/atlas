@@ -62,9 +62,7 @@ export type TurnDeps = {
   onContext?: ((args: { tokens: number; window: number }) => void) | undefined
   dispatch?: ToolDispatcher | undefined
   hooks?: HookChain | undefined
-  drainPending?:
-    | ((args: { threadId: ThreadId }) => Promise<PendingDrain>)
-    | undefined
+  drainPending?: ((args: { threadId: ThreadId }) => Promise<PendingDrain>) | undefined
   spend?: TurnLedgerDeps | undefined
   compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
   applyLoopCut?: ApplyLoopCut | undefined
@@ -101,7 +99,8 @@ export class LoopTurnRunner extends TurnRunner {
 
     const tools = deps.tools ?? (() => [])
     const countTokens =
-      deps.countTokens ?? ((assembled: Assembled) => estimateTokensFor(imageTierOf(deps.model))(assembled))
+      deps.countTokens ??
+      ((assembled: Assembled) => estimateTokensFor(imageTierOf(deps.model))(assembled))
 
     this.tracked = {
       log: deps.log,
@@ -190,10 +189,7 @@ export class LoopTurnRunner extends TurnRunner {
     await this.log.append({
       threadId,
       runId: this.ids.nextRunId(),
-      drafts: [
-        ...(context ?? []),
-        saidBody({ text, requestId, images, files }),
-      ],
+      drafts: [...(context ?? []), saidBody({ text, requestId, images, files })],
     })
     return this.runTurn({
       threadId,

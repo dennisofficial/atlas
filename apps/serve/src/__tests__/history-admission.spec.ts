@@ -87,7 +87,11 @@ describe('history admission', () => {
   })
 
   it('holds for rotation exclusively against the history hold, in both directions', () => {
-    const history = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => false })
+    const history = createHistoryAdmission({
+      threadId: () => threadId,
+      intake: null,
+      unavailable: () => false,
+    })
     const release = history.holdForRotation()
     expect(history.held()).toBe(true)
     expect(() => history.hold()).toThrow('the session is rotating — wait for it to finish')
@@ -103,9 +107,19 @@ describe('history admission', () => {
   })
 
   it('rotation tolerates a running turn but not a workspace handoff', () => {
-    const history = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => true, relocating: () => false })
+    const history = createHistoryAdmission({
+      threadId: () => threadId,
+      intake: null,
+      unavailable: () => true,
+      relocating: () => false,
+    })
     expect(() => history.holdForRotation()()).not.toThrow()
-    const handoff = createHistoryAdmission({ threadId: () => threadId, intake: null, unavailable: () => true, relocating: () => true })
+    const handoff = createHistoryAdmission({
+      threadId: () => threadId,
+      intake: null,
+      unavailable: () => true,
+      relocating: () => true,
+    })
     expect(() => handoff.holdForRotation()).toThrow('workspace handoff')
   })
 })

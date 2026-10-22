@@ -71,7 +71,7 @@ class PauseRecordingRunner extends TurnRunner {
 }
 
 describe('TldrTurnRunner resume', () => {
-  it('passes the caller\'s exact pause signal to the inner runner and answers its outcome', async () => {
+  it("passes the caller's exact pause signal to the inner runner and answers its outcome", async () => {
     const inner = new PauseRecordingRunner()
     const runner = new TldrTurnRunner({
       inner,

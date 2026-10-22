@@ -1,14 +1,7 @@
 import { posix } from 'node:path'
 
 import { tarEntries } from '../image/tar'
-import {
-  asLabels,
-  asRecord,
-  asString,
-  EngineRequestFailed,
-  raw,
-  request,
-} from './engine-http'
+import { asLabels, asRecord, asString, EngineRequestFailed, raw, request } from './engine-http'
 import { demuxExecStream } from './frames'
 import { parseBoundPorts, type BoundPort } from './ports'
 
@@ -40,13 +33,17 @@ const DEFAULT_FILE_MODE = 0o600
 
 const asNumberOrZero = (value: unknown): number => (typeof value === 'number' ? value : 0)
 
-const missing = (error: unknown): boolean => error instanceof EngineRequestFailed && error.status === 404
+const missing = (error: unknown): boolean =>
+  error instanceof EngineRequestFailed && error.status === 404
 
-const alreadyStarted = (error: unknown): boolean => error instanceof EngineRequestFailed && error.status === 304
+const alreadyStarted = (error: unknown): boolean =>
+  error instanceof EngineRequestFailed && error.status === 304
 
 const labelFilters = (labels: Record<string, string | undefined>): string =>
   JSON.stringify({
-    label: Object.entries(labels).map(([key, value]) => (value === undefined ? key : `${key}=${value}`)),
+    label: Object.entries(labels).map(([key, value]) =>
+      value === undefined ? key : `${key}=${value}`,
+    ),
   })
 
 export class DockerPodEngine {
@@ -129,7 +126,9 @@ export class DockerPodEngine {
     })
   }
 
-  async listVolumes(args: { labels: Record<string, string | undefined> }): Promise<VolumeSummary[]> {
+  async listVolumes(args: {
+    labels: Record<string, string | undefined>
+  }): Promise<VolumeSummary[]> {
     const body = asRecord(
       await request({
         socketPath: this.socketPath,
@@ -164,7 +163,8 @@ export class DockerPodEngine {
     content: Uint8Array | string
     mode?: number | undefined
   }): Promise<void> {
-    const body = typeof args.content === 'string' ? new TextEncoder().encode(args.content) : args.content
+    const body =
+      typeof args.content === 'string' ? new TextEncoder().encode(args.content) : args.content
     const tarBody = tarEntries({
       entries: [{ name: posix.basename(args.path), mode: args.mode ?? DEFAULT_FILE_MODE, body }],
     })
@@ -191,7 +191,11 @@ export class DockerPodEngine {
     }
   }
 
-  private async runSh(args: { id: string; script: string; signal: AbortSignal }): Promise<PodExecResult> {
+  private async runSh(args: {
+    id: string
+    script: string
+    signal: AbortSignal
+  }): Promise<PodExecResult> {
     const created = asRecord(
       await request({
         socketPath: this.socketPath,

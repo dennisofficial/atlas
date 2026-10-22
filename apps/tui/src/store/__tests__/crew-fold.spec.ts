@@ -102,10 +102,7 @@ describe('crew fold', () => {
     const rows = [...settledRows(4), RUNNING]
     const folded = fold({
       rows,
-      standings: standings([
-        ...[...allSettled(settledRows(4))],
-        [RUNNING.id, ECrewStanding.Live],
-      ]),
+      standings: standings([...[...allSettled(settledRows(4))], [RUNNING.id, ECrewStanding.Live]]),
     })
 
     expect(ids(folded.shown)).toEqual(['settled-2', 'settled-3', 'running'])

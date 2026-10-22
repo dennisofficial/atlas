@@ -104,7 +104,9 @@ describe('a child the process lost, found again at recovery', () => {
   it('hands the parent whatever the child had said before it went', async () => {
     const open = await crashedWith([spoke('I had read four files')])
 
-    const { settled: [snapshot] } = await open.supervisor.recordLostAgents({
+    const {
+      settled: [snapshot],
+    } = await open.supervisor.recordLostAgents({
       threadId: open.parent,
     })
 
@@ -115,7 +117,9 @@ describe('a child the process lost, found again at recovery', () => {
   it('counts a child lost before it said anything, rather than refusing to settle it', async () => {
     const open = await crashedWith([])
 
-    const { settled: [snapshot] } = await open.supervisor.recordLostAgents({
+    const {
+      settled: [snapshot],
+    } = await open.supervisor.recordLostAgents({
       threadId: open.parent,
     })
 

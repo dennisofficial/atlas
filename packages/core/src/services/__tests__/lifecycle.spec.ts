@@ -25,15 +25,15 @@ describe('mayStillBeAlive', () => {
 
 describe('stopActionFor', () => {
   it('SIGTERMs a service that has never been stopped', () => {
-    expect(
-      stopActionFor({ status: EServiceStatus.Running, stopSignalled: false }),
-    ).toBe(EStopAction.Term)
+    expect(stopActionFor({ status: EServiceStatus.Running, stopSignalled: false })).toBe(
+      EStopAction.Term,
+    )
   })
 
   it('SIGKILLs a service that already ignored a stop', () => {
-    expect(
-      stopActionFor({ status: EServiceStatus.Killed, stopSignalled: true }),
-    ).toBe(EStopAction.Kill)
+    expect(stopActionFor({ status: EServiceStatus.Killed, stopSignalled: true })).toBe(
+      EStopAction.Kill,
+    )
   })
 
   it('answers in prose without signalling a service confirmed dead', () => {

@@ -131,7 +131,11 @@ export async function openExitPathHarness(args: {
   const log = new JsonlEventLog(home, sessionRegistry, clock, ids)
   const thread = await new JsonlThreadStore(home, sessionRegistry, clock, ids, log).create({})
 
-  const ledger = args.ledger ?? (args.persist === true ? new JsonlTurnLedger({ home, registry: sessionRegistry }) : fakeLedger())
+  const ledger =
+    args.ledger ??
+    (args.persist === true
+      ? new JsonlTurnLedger({ home, registry: sessionRegistry })
+      : fakeLedger())
   const failures: unknown[] = []
   const model = scriptedPort(args.script)
   const registry = new InMemoryToolRegistry([touchTool])
@@ -150,7 +154,9 @@ export async function openExitPathHarness(args: {
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
       tools: () => registry.declarations(),
       hooks,
-      ...(mode === EDispatchMode.None ? {} : { dispatch: new HookedToolDispatcher({ registry, hooks }) }),
+      ...(mode === EDispatchMode.None
+        ? {}
+        : { dispatch: new HookedToolDispatcher({ registry, hooks }) }),
       spend: { ledger, clock, onLedgerFailure: (error) => failures.push(error) },
     }),
     close: async () => {

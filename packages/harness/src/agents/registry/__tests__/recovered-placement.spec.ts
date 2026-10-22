@@ -118,7 +118,9 @@ describe('a teammate whose durable placement the live routing map has not loaded
     if (!spawned.ok) throw new Error(spawned.reason)
     await supervisor.whenChildrenSettled({ threadId: rig.parent })
 
-    expect(reachedBy(rig, spawned.snapshot.agentId)).toEqual(dockerForBoth(spawned.snapshot.agentId))
+    expect(reachedBy(rig, spawned.snapshot.agentId)).toEqual(
+      dockerForBoth(spawned.snapshot.agentId),
+    )
   })
 
   it('routes to the Host parent when nothing hydrates the child, which is the regression', async () => {

@@ -1,24 +1,24 @@
-import { useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { useState } from 'react'
+import { CheckIcon, CopyIcon } from 'lucide-react'
 
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Button } from '@dltech/atlas-ui/components/button'
 
-import { WORKSPACE_DETAILS } from "../../../fixtures/settings-workspace";
-import { Mono, SettingsCard, SettingsRow, SettingsSection } from "../settings-layout";
+import { WORKSPACE_DETAILS } from '../../../fixtures/settings-workspace'
+import { Mono, SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
 
 function CopyIdButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
   const handleCopy = () => {
-    navigator.clipboard?.writeText(value).catch(() => undefined);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  };
+    navigator.clipboard?.writeText(value).catch(() => undefined)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1500)
+  }
   return (
     <Button variant="ghost" size="icon-sm" aria-label="Copy workspace ID" onClick={handleCopy}>
       {copied ? <CheckIcon className="text-success" /> : <CopyIcon />}
     </Button>
-  );
+  )
 }
 
 export function WorkspaceDetailsCard() {
@@ -54,5 +54,5 @@ export function WorkspaceDetailsCard() {
         />
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }

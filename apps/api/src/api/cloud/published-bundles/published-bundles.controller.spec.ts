@@ -86,7 +86,9 @@ describe('published bundles HTTP surface', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -94,7 +96,10 @@ describe('published bundles HTTP surface', () => {
 
   describe('POST /v1/published-bundles/uploads', () => {
     it('issues a pathname under the caller prefix to a session', async () => {
-      const res = await http().post('/v1/published-bundles/uploads').set(as('session-a')).expect(201)
+      const res = await http()
+        .post('/v1/published-bundles/uploads')
+        .set(as('session-a'))
+        .expect(201)
 
       expect(res.headers['cache-control']).toBe('no-store')
       expect(res.body).toMatchObject({
@@ -118,7 +123,12 @@ describe('published bundles HTTP surface', () => {
       const second = await commit('session-a')
 
       expect(first.status).toBe(201)
-      expect(first.body).toMatchObject({ version: 1, sha256: SHA, sizeBytes: 1234, manifest: MANIFEST })
+      expect(first.body).toMatchObject({
+        version: 1,
+        sha256: SHA,
+        sizeBytes: 1234,
+        manifest: MANIFEST,
+      })
       expect(second.status).toBe(201)
       expect(second.body.version).toBe(2)
       const other = await commit('session-b')
@@ -193,12 +203,20 @@ describe('published bundles HTTP surface', () => {
       const res = await http().get('/v1/published-bundles/current').set(as('session-a')).expect(200)
 
       expect(res.headers['cache-control']).toBe('no-store')
-      expect(res.body).toMatchObject({ version: 2, sha256: SHA, sizeBytes: 1234, manifest: MANIFEST })
+      expect(res.body).toMatchObject({
+        version: 2,
+        sha256: SHA,
+        sizeBytes: 1234,
+        manifest: MANIFEST,
+      })
       expect(res.body.downloadUrl).toBe(`https://blob.test/get/${fake.bundles[1]?.pathname}?sig=1`)
     })
 
     it("serves the user's own pod", async () => {
-      const res = await http().get('/v1/published-bundles/current').set(as('pod-token-a')).expect(200)
+      const res = await http()
+        .get('/v1/published-bundles/current')
+        .set(as('pod-token-a'))
+        .expect(200)
 
       expect(res.body.version).toBe(2)
     })

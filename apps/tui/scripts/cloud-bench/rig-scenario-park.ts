@@ -26,13 +26,18 @@ const REFUSAL = /refusing the lifecycle transition|serve\.park-stop-failed|serve
 
 const minutesOf = (ms: number): string => `${(ms / 60_000).toFixed(2)} min`
 
-const idleToParkOf = (args: { repliedAt: string | undefined; parkedAtMs: number | null }): number | null => {
+const idleToParkOf = (args: {
+  repliedAt: string | undefined
+  parkedAtMs: number | null
+}): number | null => {
   if (args.repliedAt === undefined || args.parkedAtMs === null) return null
   return args.parkedAtMs - Number(args.repliedAt)
 }
 
 const noticeText = (notices: readonly { tone: string; text: string }[]): string =>
-  notices.length === 0 ? 'none' : notices.map((notice) => `[${notice.tone}] ${notice.text}`).join(' | ')
+  notices.length === 0
+    ? 'none'
+    : notices.map((notice) => `[${notice.tone}] ${notice.text}`).join(' | ')
 
 async function runPark(ctx: ScenarioContext): Promise<ScenarioEvidence> {
   const rig = ctx.rig()
@@ -47,7 +52,14 @@ async function runPark(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     return concluded({
       step: STEP,
       evidence: { ...base, observations: [], logs: [] },
-      criteria: [{ name: 'channel attached', expected: 'an attached cloud channel', observed: 'no channel', held: false }],
+      criteria: [
+        {
+          name: 'channel attached',
+          expected: 'an attached cloud channel',
+          observed: 'no channel',
+          held: false,
+        },
+      ],
     })
   }
 
@@ -60,7 +72,10 @@ async function runPark(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     const notices = warnNotices()
     const banner = bannerIn(frame)
     const sidebar = frameLineFor({ frame, view: EConnectionView.Parked })
-    const idleToPark = idleToParkOf({ repliedAt: ctx.shared.get('turnRepliedAt'), parkedAtMs: park.parkedAtMs })
+    const idleToPark = idleToParkOf({
+      repliedAt: ctx.shared.get('turnRepliedAt'),
+      parkedAtMs: park.parkedAtMs,
+    })
     const settled: Observation = {
       at: new Date().toISOString(),
       step: park.parkedAtMs === null ? 'park wait timed out' : 'parked',
@@ -72,17 +87,37 @@ async function runPark(ctx: ScenarioContext): Promise<ScenarioEvidence> {
     }
 
     const criteria: Criterion[] = [
-      { name: 'client record phase', expected: ERuntimePhase.Parked, observed: phase ?? 'none', held: phase === ERuntimePhase.Parked },
+      {
+        name: 'client record phase',
+        expected: ERuntimePhase.Parked,
+        observed: phase ?? 'none',
+        held: phase === ERuntimePhase.Parked,
+      },
       {
         name: 'provider not running',
         expected: [...PARKED_PROVIDERS].join(' / '),
         observed: park.provider,
         held: PARKED_PROVIDERS.has(park.provider),
       },
-      { name: 'channel view', expected: EConnectionView.Parked, observed: view, held: view === EConnectionView.Parked },
-      { name: 'warn notices', expected: 'none', observed: noticeText(notices), held: notices.length === 0 },
+      {
+        name: 'channel view',
+        expected: EConnectionView.Parked,
+        observed: view,
+        held: view === EConnectionView.Parked,
+      },
+      {
+        name: 'warn notices',
+        expected: 'none',
+        observed: noticeText(notices),
+        held: notices.length === 0,
+      },
       { name: 'frame banner', expected: 'none', observed: banner ?? 'none', held: banner === null },
-      { name: 'sidebar shows parked', expected: 'a "○ parked" frame line', observed: sidebar ?? 'no such line', held: sidebar !== null },
+      {
+        name: 'sidebar shows parked',
+        expected: 'a "○ parked" frame line',
+        observed: sidebar ?? 'no such line',
+        held: sidebar !== null,
+      },
       {
         name: 'first idle attempt parks',
         expected: 'no refused or failed park in the serve log',

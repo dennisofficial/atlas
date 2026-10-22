@@ -1,6 +1,6 @@
-import { AccountProfileCard } from "../parts/account-profile-card";
-import { AccountWorkspacesCard } from "../parts/account-workspaces-card";
-import { SettingsPage, SettingsSection } from "../settings-layout";
+import { AccountProfileCard } from '../parts/account-profile-card'
+import { AccountWorkspacesCard } from '../parts/account-workspaces-card'
+import { SettingsPage, SettingsSection } from '../settings-layout'
 
 export function AccountPage() {
   return (
@@ -8,12 +8,9 @@ export function AccountPage() {
       <SettingsSection title="Profile">
         <AccountProfileCard />
       </SettingsSection>
-      <SettingsSection
-        title="Workspaces"
-        description="Workspaces you are a member of."
-      >
+      <SettingsSection title="Workspaces" description="Workspaces you are a member of.">
         <AccountWorkspacesCard />
       </SettingsSection>
     </SettingsPage>
-  );
+  )
 }

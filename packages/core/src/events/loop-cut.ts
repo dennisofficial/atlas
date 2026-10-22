@@ -210,12 +210,19 @@ export function loopCutPlan({
 }
 
 const unitMatches = (unit: readonly Round[], anchor: readonly Round[]): boolean =>
-  unit.length === anchor.length && unit.every((round, index) => {
+  unit.length === anchor.length &&
+  unit.every((round, index) => {
     const expected = anchor[index]
     return expected !== undefined && sameRound(round, expected)
   })
 
-export function loopCutNotice({ names, repeats }: { names: readonly string[]; repeats: number }): string {
+export function loopCutNotice({
+  names,
+  repeats,
+}: {
+  names: readonly string[]
+  repeats: number
+}): string {
   const tools = names.join(', ')
   return [
     `Atlas cut a runaway loop from this thread: ${tools} was called with identical input and returned an identical result ${repeats} times in a row, so those repeats were removed from the history you see — the first occurrence and its result are still above.`,

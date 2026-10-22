@@ -35,8 +35,12 @@ describe('the placement chip in the composer footer', () => {
       await mounted.flipChip()
 
       expect(await mounted.frameHolds((frame) => frame.includes('☁ cloud ▾'))).toBe(true)
-      expect(currentNotices().map((notice) => notice.text)).not.toContain(CLOUD_NOT_CONFIGURED_NOTICE)
-      expect(app.settings.snapshot().document.values[ESettingId.LastBornPlacement]).toBe(ERunner.Vercel)
+      expect(currentNotices().map((notice) => notice.text)).not.toContain(
+        CLOUD_NOT_CONFIGURED_NOTICE,
+      )
+      expect(app.settings.snapshot().document.values[ESettingId.LastBornPlacement]).toBe(
+        ERunner.Vercel,
+      )
       expect(mounted.bridge.created.length).toBe(0)
       expect(mounted.bridge.destroyed.length).toBe(0)
     } finally {
@@ -50,8 +54,12 @@ describe('the placement chip in the composer footer', () => {
     try {
       await mounted.command('no vercel here')
 
-      expect(await until({ holds: async () => mounted.bridge.created.length === 1, within: 20_000 })).toBe(true)
-      expect(currentNotices().map((notice) => notice.text)).not.toContain(CLOUD_NOT_CONFIGURED_NOTICE)
+      expect(
+        await until({ holds: async () => mounted.bridge.created.length === 1, within: 20_000 }),
+      ).toBe(true)
+      expect(currentNotices().map((notice) => notice.text)).not.toContain(
+        CLOUD_NOT_CONFIGURED_NOTICE,
+      )
     } finally {
       await mounted.done()
     }

@@ -16,7 +16,15 @@ const kindsOf = (agents: ReadonlyMap<ThreadId, { spawnedBy: ThreadId; type: stri
     find: async ({ threadId }: { threadId: ThreadId }) => {
       asked += 1
       const agent = agents.get(threadId)
-      return { id: threadId, head: 0, createdAt: '', updatedAt: '', workspace: null, repo: null, agent }
+      return {
+        id: threadId,
+        head: 0,
+        createdAt: '',
+        updatedAt: '',
+        workspace: null,
+        repo: null,
+        agent,
+      }
     },
   } as unknown as ThreadStorePort
 

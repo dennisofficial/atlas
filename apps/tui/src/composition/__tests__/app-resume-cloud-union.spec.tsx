@@ -12,7 +12,14 @@ import { App } from '../app'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory } from '../cloud/bridge-factory'
 import { spokenIn, until } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, fakeCloud, fakeSignedOutCloud, scriptedModelPort, type FakeApp } from './fake-app'
+import {
+  FAKE_CONFIG,
+  fakeApp,
+  fakeCloud,
+  fakeSignedOutCloud,
+  scriptedModelPort,
+  type FakeApp,
+} from './fake-app'
 
 await grammarsReady()
 
@@ -33,7 +40,11 @@ const speaking = (args: { cloud: FakeApp['cloud'] }): FakeApp =>
     cloud: args.cloud,
   })
 
-const wireThread = (args: { id: string; title: string; workspace?: string | undefined }): WireThread => ({
+const wireThread = (args: {
+  id: string
+  title: string
+  workspace?: string | undefined
+}): WireThread => ({
   id: args.id,
   title: args.title,
   head: 1,
@@ -49,7 +60,10 @@ const wireThread = (args: { id: string; title: string; workspace?: string | unde
  * handed back by a fetchFn that never leaves the process, so the spec exercises the union through
  * the same transport the production listing calls.
  */
-const cloudWithThreads = (args: { threads: readonly WireThread[]; fail?: boolean }): FakeApp['cloud'] => {
+const cloudWithThreads = (args: {
+  threads: readonly WireThread[]
+  fail?: boolean
+}): FakeApp['cloud'] => {
   const fetchFn = (async () => {
     if (args.fail === true) throw new Error('the control plane is unreachable')
     return new Response(JSON.stringify(args.threads), { status: 200 })
@@ -137,7 +151,9 @@ describe('/resume listing local and cloud threads together', () => {
 
       await mounted.pick()
 
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
       expect(bridge.attached[0]?.threadId).toBe(toThreadId(wire.id))
     } finally {
       await mounted.done()
@@ -147,10 +163,15 @@ describe('/resume listing local and cloud threads together', () => {
   it('shows one row for a thread both stores know — the cloud local record wins', async () => {
     const flippedId = toThreadId('the-cloud-thread')
     const app = speaking({
-      cloud: cloudWithThreads({ threads: [wireThread({ id: flippedId, title: 'the cloud thread' })] }),
+      cloud: cloudWithThreads({
+        threads: [wireThread({ id: flippedId, title: 'the cloud thread' })],
+      }),
     })
     await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null, id: flippedId })
-    await app.threads.chooseExecutionLocation({ threadId: flippedId, location: EExecutionLocation.Cloud })
+    await app.threads.chooseExecutionLocation({
+      threadId: flippedId,
+      location: EExecutionLocation.Cloud,
+    })
     await app.threads.rename({ threadId: flippedId, title: 'the cloud thread' })
     const mounted = await mount({ app, bridge: fakeBridge({ status: RUNNING_STATUS }) })
 

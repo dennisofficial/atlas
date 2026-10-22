@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CopyIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { CopyIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Kbd } from "@dltech/atlas-ui/components/kbd";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Kbd } from '@dltech/atlas-ui/components/kbd'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@dltech/atlas-ui/components/tooltip";
+} from '@dltech/atlas-ui/components/tooltip'
 
 const meta = {
-  title: "Components/Tooltip",
+  title: 'Components/Tooltip',
   component: Tooltip,
   decorators: [
     (Story) => (
@@ -20,27 +20,29 @@ const meta = {
       </TooltipProvider>
     ),
   ],
-} satisfies Meta<typeof Tooltip>;
+} satisfies Meta<typeof Tooltip>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
     <Tooltip {...args}>
-      <TooltipTrigger render={<Button variant="outline" size="icon" aria-label="Copy session ID" />}>
+      <TooltipTrigger
+        render={<Button variant="outline" size="icon" aria-label="Copy session ID" />}
+      >
         <CopyIcon />
       </TooltipTrigger>
       <TooltipContent>Copy session ID</TooltipContent>
     </Tooltip>
   ),
-};
+}
 
 export const Sides: Story = {
   render: () => (
     <div className="flex flex-wrap gap-2">
-      {(["top", "right", "bottom", "left"] as const).map((side) => (
+      {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
         <Tooltip key={side}>
           <TooltipTrigger render={<Button variant="outline" />}>{side}</TooltipTrigger>
           <TooltipContent side={side}>Tooltip on the {side}</TooltipContent>
@@ -48,7 +50,7 @@ export const Sides: Story = {
       ))}
     </div>
   ),
-};
+}
 
 export const WithShortcut: Story = {
   render: () => (
@@ -59,4 +61,4 @@ export const WithShortcut: Story = {
       </TooltipContent>
     </Tooltip>
   ),
-};
+}

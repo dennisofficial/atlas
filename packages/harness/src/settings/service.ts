@@ -74,7 +74,8 @@ export function createSettingsService(args: {
   function readLayer(store: SettingsStorePort, layer: ESettingsLayer) {
     const read = store.read()
     const cached = layer === ESettingsLayer.Project ? layerReads.project : layerReads.user
-    const document = read.problem === undefined ? read.document : (cached ?? EMPTY_SETTINGS_DOCUMENT)
+    const document =
+      read.problem === undefined ? read.document : (cached ?? EMPTY_SETTINGS_DOCUMENT)
     return {
       input: { layer, origin: store.origin(), values: document.values },
       document,

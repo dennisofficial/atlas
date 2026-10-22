@@ -16,7 +16,9 @@ export class SessionWalkError extends Error {
 }
 
 const errorCodeOf = (error: unknown): string | undefined =>
-  error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : undefined
+  error instanceof Error && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : undefined
 
 enum EEntryKind {
   File = 'file',
@@ -37,7 +39,10 @@ const kindOf = async (args: { path: string; entry: Dirent }): Promise<EEntryKind
   }
 }
 
-const listDirectory = async (args: { directory: string; rootMissingIsAbsent: boolean }): Promise<Dirent[] | undefined> => {
+const listDirectory = async (args: {
+  directory: string
+  rootMissingIsAbsent: boolean
+}): Promise<Dirent[] | undefined> => {
   try {
     return await readdir(args.directory, { withFileTypes: true })
   } catch (cause) {
@@ -52,7 +57,10 @@ const visit = async (args: {
   isRoot: boolean
   found: string[]
 }): Promise<boolean> => {
-  const entries = await listDirectory({ directory: args.directory, rootMissingIsAbsent: args.isRoot })
+  const entries = await listDirectory({
+    directory: args.directory,
+    rootMissingIsAbsent: args.isRoot,
+  })
   if (entries === undefined) return false
   for (const entry of entries) {
     const path = join(args.directory, entry.name)
@@ -66,7 +74,9 @@ const visit = async (args: {
   return true
 }
 
-export async function walkRegularFiles(args: { root: string }): Promise<readonly string[] | undefined> {
+export async function walkRegularFiles(args: {
+  root: string
+}): Promise<readonly string[] | undefined> {
   const found: string[] = []
   const present = await visit({ directory: args.root, prefix: '', isRoot: true, found })
   if (!present) return undefined

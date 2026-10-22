@@ -22,10 +22,10 @@ const guard = (canEdit: boolean) => {
   if (!canEdit) throw new Error(READ_ONLY_MESSAGE)
 }
 
-export function useWorkspaceSecretsStore(args: {
-  organizationId: string
-  canEdit: boolean
-}): { query: CloudQuery<LibrarySecret[]>; store: SecretsStore } {
+export function useWorkspaceSecretsStore(args: { organizationId: string; canEdit: boolean }): {
+  query: CloudQuery<LibrarySecret[]>
+  store: SecretsStore
+} {
   const { query: raw, save, remove } = useSecretsResource(workspaceBase(args.organizationId))
   const { canEdit } = args
   const secrets = useMemo(
@@ -64,10 +64,10 @@ export function useWorkspaceSecretsStore(args: {
 const transportOfKind = (kind: EMcpTransportKind): EMcpTransport =>
   kind === EMcpTransportKind.Http ? EMcpTransport.Http : EMcpTransport.Stdio
 
-export function useWorkspaceMcpStore(args: {
-  organizationId: string
-  canEdit: boolean
-}): { ready: CloudQuery<unknown>; store: McpStore } {
+export function useWorkspaceMcpStore(args: { organizationId: string; canEdit: boolean }): {
+  ready: CloudQuery<unknown>
+  store: McpStore
+} {
   const { query, put, remove } = useMcpResource(workspaceBase(args.organizationId))
   const { canEdit } = args
   const raw = query.state === EQueryState.Ready ? query.data : null

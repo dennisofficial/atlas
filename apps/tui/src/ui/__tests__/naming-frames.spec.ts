@@ -49,7 +49,9 @@ describe('the generating line', () => {
 
   test('a rename that never answers still paints the width the old name held', () => {
     const painted = namingGenerating({ startCells: TITLE.length, line: NAMING_SIDEBAR_LINE })
-    expect([...painted.chunks.reduce((text, chunk) => text + chunk.text, '')].length).toBe(TITLE.length)
+    expect([...painted.chunks.reduce((text, chunk) => text + chunk.text, '')].length).toBe(
+      TITLE.length,
+    )
   })
 })
 
@@ -126,7 +128,12 @@ describe('the streaming line', () => {
 
 describe('the settled line', () => {
   test('paints the title and nothing else', () => {
-    expect(namingSettled({ title: TITLE, line: NAMING_SIDEBAR_LINE }).chunks.reduce((text, chunk) => text + chunk.text, '')).toBe(TITLE)
+    expect(
+      namingSettled({ title: TITLE, line: NAMING_SIDEBAR_LINE }).chunks.reduce(
+        (text, chunk) => text + chunk.text,
+        '',
+      ),
+    ).toBe(TITLE)
   })
 })
 
@@ -142,7 +149,10 @@ describe('a slab-backed line', () => {
   })
 
   test('pads the settled title with a cell of ground on each side', () => {
-    const painted = namingSettled({ title: TITLE, line: SLAB_LINE }).chunks.reduce((text, chunk) => text + chunk.text, '')
+    const painted = namingSettled({ title: TITLE, line: SLAB_LINE }).chunks.reduce(
+      (text, chunk) => text + chunk.text,
+      '',
+    )
     expect(painted).toBe(` ${TITLE} `)
   })
 
@@ -170,7 +180,12 @@ describe('a slab-backed line', () => {
   })
 
   test('a line with no ground paints flush, pad following bg', () => {
-    expect(namingSettled({ title: TITLE, line: NAMING_SIDEBAR_LINE }).chunks.reduce((text, chunk) => text + chunk.text, '')).toBe(TITLE)
+    expect(
+      namingSettled({ title: TITLE, line: NAMING_SIDEBAR_LINE }).chunks.reduce(
+        (text, chunk) => text + chunk.text,
+        '',
+      ),
+    ).toBe(TITLE)
   })
 })
 

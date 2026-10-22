@@ -64,7 +64,11 @@ const fetcherWith = (args: {
 
 describe('projectWorkspaceSpecFetcher', () => {
   it('answers an empty workspace, with no request, when the bootstrap names no project', async () => {
-    const home = homeWith({ remoteUrl: 'git@github.com:a/b.git', githubToken: 'laptop', model: 'm' })
+    const home = homeWith({
+      remoteUrl: 'git@github.com:a/b.git',
+      githubToken: 'laptop',
+      model: 'm',
+    })
     const { fetchSpec, calls } = fetcherWith({ home, answers: [] })
 
     await expect(fetchSpec()).resolves.toEqual({ remoteUrl: null, githubToken: null, model: 'm' })
@@ -75,12 +79,21 @@ describe('projectWorkspaceSpecFetcher', () => {
     const home = homeWith({ remoteUrl: null, githubToken: null, projectId: null })
     const { fetchSpec, calls } = fetcherWith({ home, answers: [] })
 
-    await expect(fetchSpec()).resolves.toEqual({ remoteUrl: null, githubToken: null, model: undefined })
+    await expect(fetchSpec()).resolves.toEqual({
+      remoteUrl: null,
+      githubToken: null,
+      model: undefined,
+    })
     expect(calls).toEqual([])
   })
 
   it('reads the project workspace with the serve token and merges it over the bootstrap', async () => {
-    const home = homeWith({ remoteUrl: null, githubToken: 'laptop', model: 'claude-x', projectId: 'proj-1' })
+    const home = homeWith({
+      remoteUrl: null,
+      githubToken: 'laptop',
+      model: 'claude-x',
+      projectId: 'proj-1',
+    })
     const { fetchSpec, calls } = fetcherWith({ home, answers: [() => Response.json(WORKSPACE)] })
 
     await expect(fetchSpec()).resolves.toEqual({
@@ -92,7 +105,10 @@ describe('projectWorkspaceSpecFetcher', () => {
       additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }],
     })
     expect(calls).toEqual([
-      { url: 'https://api.example.com/v1/projects/proj-1/workspace', authorization: 'Bearer serve-token' },
+      {
+        url: 'https://api.example.com/v1/projects/proj-1/workspace',
+        authorization: 'Bearer serve-token',
+      },
     ])
   })
 
@@ -100,10 +116,23 @@ describe('projectWorkspaceSpecFetcher', () => {
     const home = homeWith({ remoteUrl: null, githubToken: null, projectId: 'proj-1' })
     const { fetchSpec } = fetcherWith({
       home,
-      answers: [() => Response.json({ ...WORKSPACE, repo: null, baseBranch: null, additionalRepos: [], githubToken: null })],
+      answers: [
+        () =>
+          Response.json({
+            ...WORKSPACE,
+            repo: null,
+            baseBranch: null,
+            additionalRepos: [],
+            githubToken: null,
+          }),
+      ],
     })
 
-    await expect(fetchSpec()).resolves.toMatchObject({ remoteUrl: null, githubToken: null, baseBranch: null })
+    await expect(fetchSpec()).resolves.toMatchObject({
+      remoteUrl: null,
+      githubToken: null,
+      baseBranch: null,
+    })
   })
 
   it('retries a 401 after two seconds until the lease lands', async () => {
@@ -119,7 +148,10 @@ describe('projectWorkspaceSpecFetcher', () => {
       ],
     })
 
-    await expect(fetchSpec()).resolves.toMatchObject({ projectId: 'proj-1', githubToken: 'gho_brokered' })
+    await expect(fetchSpec()).resolves.toMatchObject({
+      projectId: 'proj-1',
+      githubToken: 'gho_brokered',
+    })
     expect(calls).toHaveLength(3)
     expect(sleeps).toEqual([2000, 2000])
   })
@@ -168,7 +200,10 @@ describe('projectWorkspaceSpecFetcher', () => {
 
   it('encodes the project id into the path', async () => {
     const home = homeWith({ remoteUrl: null, githubToken: null, projectId: 'a/b c' })
-    const { fetchSpec, calls } = fetcherWith({ home, answers: [() => new Response('x', { status: 404 })] })
+    const { fetchSpec, calls } = fetcherWith({
+      home,
+      answers: [() => new Response('x', { status: 404 })],
+    })
 
     await fetchSpec().catch(() => undefined)
 

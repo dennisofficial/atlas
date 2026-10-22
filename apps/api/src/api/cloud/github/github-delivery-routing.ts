@@ -1,9 +1,6 @@
 import type { GithubPrStateModel } from '../../../db'
 import type { CheckTarget } from './github-pr-state-fields'
-import type {
-  GithubBranchRouting,
-  GithubPrStateDto,
-} from './github-realtime.types'
+import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import type {
   GithubCheckRunWebhookPayload,
   GithubCheckSuiteWebhookPayload,
@@ -50,7 +47,10 @@ export function subscriberWhereOf(args: {
   }
   return {
     repoFullName: args.repoFullName,
-    AND: [live, { OR: [{ prNumber: args.prNumber }, { branch: { equals: routing.headBranch, not: '' } }] }],
+    AND: [
+      live,
+      { OR: [{ prNumber: args.prNumber }, { branch: { equals: routing.headBranch, not: '' } }] },
+    ],
   }
 }
 

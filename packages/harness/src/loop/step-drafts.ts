@@ -23,7 +23,8 @@ export function draftsFor(result: ModelStepResult): EventDraft[] {
 
 export function interruptedDrafts(result: ModelStepResult): EventDraft[] {
   const drafts: EventDraft[] = []
-  if (result.parts.length > 0) drafts.push({ type: 'assistant-said', parts: result.parts, interrupted: true })
+  if (result.parts.length > 0)
+    drafts.push({ type: 'assistant-said', parts: result.parts, interrupted: true })
 
   result.toolCalls.forEach((call, ordinal) => {
     drafts.push(calledDraft({ call, ordinal }))

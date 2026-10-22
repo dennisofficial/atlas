@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-import { EMPTY_PUBLISH_STATE, loadPublishState, publishStateFile, savePublishState } from '../publish-state'
+import {
+  EMPTY_PUBLISH_STATE,
+  loadPublishState,
+  publishStateFile,
+  savePublishState,
+} from '../publish-state'
 import { makeFixture, type PublishFixture } from './fixture'
 
 let fixture: PublishFixture | undefined

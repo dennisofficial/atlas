@@ -87,9 +87,7 @@ const isRefusal = (value: unknown | ConfigRefusal): value is ConfigRefusal =>
 const isReservedPath = (path: string): boolean => {
   if (path === '/') return true
   return RESERVED_CONTAINER_PATHS.some((reserved) => {
-    return (
-      path === reserved || path.startsWith(`${reserved}/`) || reserved.startsWith(`${path}/`)
-    )
+    return path === reserved || path.startsWith(`${reserved}/`) || reserved.startsWith(`${path}/`)
   })
 }
 
@@ -164,7 +162,10 @@ export function parseContainerJson(args: { text: string; file: string }): Parsed
 
 const UNSUPPORTED_COMMAND_SHAPE = 'postCreateCommand (only the string form is supported)'
 
-export function parseDevcontainerJson(args: { text: string; file: string }): ParsedDevcontainerJson {
+export function parseDevcontainerJson(args: {
+  text: string
+  file: string
+}): ParsedDevcontainerJson {
   const raw = parseJson(args)
   if (isRefusal(raw)) return { ok: false, refusal: raw }
 

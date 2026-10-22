@@ -144,7 +144,11 @@ export async function mountWithRetries(args: {
         args.log?.(
           `Vercel still has sandbox ${args.name}'s name taken (attempt ${attempt}/${args.retry.attempts}) — waiting for the provider to release it`,
         )
-        args.onSettleWait?.({ reason: ESettleWait.NameConflict, attempt, attempts: args.retry.attempts })
+        args.onSettleWait?.({
+          reason: ESettleWait.NameConflict,
+          attempt,
+          attempts: args.retry.attempts,
+        })
         await retrySleep(args.retry)
         continue
       }

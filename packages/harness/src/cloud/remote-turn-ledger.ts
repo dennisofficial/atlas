@@ -36,7 +36,9 @@ export class RemoteTurnLedger extends TurnLedgerPort {
 
   record(_spend: TurnSpend): Promise<void> {
     return Promise.reject(
-      new Error('the sandbox owns the turn ledger while the session runs there — reads only over the channel'),
+      new Error(
+        'the sandbox owns the turn ledger while the session runs there — reads only over the channel',
+      ),
     )
   }
 

@@ -18,7 +18,8 @@ export type PortConstructor<T> = abstract new (...args: never[]) => T
 // tsyringe 4.10 defines `InjectionToken<T>` over `{ new (...args: any[]): T }`, which an abstract
 // constructor is not assignable to, so a port cannot be handed to `register`/`resolve`/`inject`
 // unaided. https://github.com/microsoft/tsyringe/blob/master/src/providers/injection-token.ts
-export const portToken = <T>(port: PortConstructor<T>): InjectionToken<T> => port as InjectionToken<T>
+export const portToken = <T>(port: PortConstructor<T>): InjectionToken<T> =>
+  port as InjectionToken<T>
 
 /**
  * The token a session port resolves through. Only contracts the core port registry names produce

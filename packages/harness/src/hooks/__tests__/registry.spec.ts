@@ -20,7 +20,10 @@ import {
 
 import { HookChain, type RegisteredHook } from '../registry'
 
-const allow: BeforeTool = async ({ call }) => ({ decision: EBeforeToolDecision.Allow, input: call.input })
+const allow: BeforeTool = async ({ call }) => ({
+  decision: EBeforeToolDecision.Allow,
+  input: call.input,
+})
 
 const record: AfterTool = async () => ({})
 
@@ -29,7 +32,11 @@ const policy = (nudge: number): HookOrder => ({ stage: EStage.Policy, nudge })
 const observe = (nudge: number): HookOrder => ({ stage: EStage.Observe, nudge })
 
 const assembled: Assembled = { system: [], messages: [] }
-const prompt: ProviderPrompt = { instructions: [], messages: [], provider: { id: 'test', modelId: 'test' } }
+const prompt: ProviderPrompt = {
+  instructions: [],
+  messages: [],
+  provider: { id: 'test', modelId: 'test' },
+}
 const delta: Chunk = { type: 'text-delta', id: 'block-1', text: 'hello' }
 const threadId = toThreadId('thread-1')
 
@@ -37,7 +44,11 @@ const noting = (args: { name: string; seen: string[] }): void => {
   args.seen.push(args.name)
 }
 
-const notingStep = (args: { name: string; order: HookOrder; seen: string[] }): RegisteredHook<BeforeStep> => ({
+const notingStep = (args: {
+  name: string
+  order: HookOrder
+  seen: string[]
+}): RegisteredHook<BeforeStep> => ({
   name: args.name,
   order: args.order,
   run: async ({ assembled: given }) => {
@@ -59,7 +70,11 @@ const notingRequest = (args: {
   },
 })
 
-const notingChunk = (args: { name: string; order: HookOrder; seen: string[] }): RegisteredHook<OnChunk> => ({
+const notingChunk = (args: {
+  name: string
+  order: HookOrder
+  seen: string[]
+}): RegisteredHook<OnChunk> => ({
   name: args.name,
   order: args.order,
   run: async (given) => {
@@ -68,7 +83,11 @@ const notingChunk = (args: { name: string; order: HookOrder; seen: string[] }): 
   },
 })
 
-const notingTurn = (args: { name: string; order: HookOrder; seen: string[] }): RegisteredHook<AfterTurn> => ({
+const notingTurn = (args: {
+  name: string
+  order: HookOrder
+  seen: string[]
+}): RegisteredHook<AfterTurn> => ({
   name: args.name,
   order: args.order,
   run: async () => {
@@ -229,14 +248,20 @@ describe('HookChain', () => {
       ],
     })
 
-    expect(await chain.onThreadOpen({ threadId, projectDirectory: '/repo/.claude/worktrees/x' })).toEqual([])
+    expect(
+      await chain.onThreadOpen({ threadId, projectDirectory: '/repo/.claude/worktrees/x' }),
+    ).toEqual([])
     expect(seen).toEqual(['/repo/.claude/worktrees/x'])
   })
 
   it('renders additionalContext as a context-loaded draft slotted under the hook that returned it', async () => {
     const chain = new HookChain({
       beforeTurn: [
-        { name: 'gitState', order: observe(0), run: async () => ({ additionalContext: '3 files dirty' }) },
+        {
+          name: 'gitState',
+          order: observe(0),
+          run: async () => ({ additionalContext: '3 files dirty' }),
+        },
       ],
     })
 

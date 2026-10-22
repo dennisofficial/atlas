@@ -15,7 +15,9 @@ const idlePark = {
 } as const
 
 const shapeOf = (events: Parameters<typeof deriveTranscript>[0]['events']) =>
-  deriveTranscript({ events, signals: [] }).entries.map((entry) => [entry.kind, entry.text] as const)
+  deriveTranscript({ events, signals: [] }).entries.map(
+    (entry) => [entry.kind, entry.text] as const,
+  )
 
 describe('a parked event in the log', () => {
   it('leaves a thread that only ever parked with an empty transcript', () => {

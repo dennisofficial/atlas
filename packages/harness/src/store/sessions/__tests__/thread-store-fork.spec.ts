@@ -60,7 +60,12 @@ describe('JsonlThreadStore.fork', () => {
     const home = await tempHome()
     const { log, threads, parentId } = await openParent({ home })
 
-    const child = await threads.fork({ from: parentId, seq: 3, mode: EForkMode.Copy, title: 'the copy' })
+    const child = await threads.fork({
+      from: parentId,
+      seq: 3,
+      mode: EForkMode.Copy,
+      title: 'the copy',
+    })
 
     expect(child.head).toBe(3)
     expect(child.parent).toEqual({ threadId: parentId, forkSeq: 3 })
@@ -70,12 +75,17 @@ describe('JsonlThreadStore.fork', () => {
     expect(child.repo).toBe('/repo')
 
     const sessionDir = sessionDirectory({ home, sessionId: child.id })
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir }),
+      schema: sessionMetaSchema,
+    })
     expect(session).toMatchObject({ id: child.id, title: 'the copy' })
 
     const prefix = await log.read({ threadId: parentId, upTo: 3 })
     const copied = await log.read({ threadId: child.id })
-    expect(copied.map((event) => [event.seq, event.type])).toEqual(prefix.map((event) => [event.seq, event.type]))
+    expect(copied.map((event) => [event.seq, event.type])).toEqual(
+      prefix.map((event) => [event.seq, event.type]),
+    )
     expect(copied.every((event) => event.threadId === child.id)).toBe(true)
     expect(copied.map((event) => event.id)).not.toEqual(prefix.map((event) => event.id))
     expect((await log.read({ threadId: parentId })).length).toBe(5)
@@ -86,7 +96,11 @@ describe('JsonlThreadStore.fork', () => {
     const { log, threads, ids, parentId } = await openParent({ home })
     const child = await threads.fork({ from: parentId, seq: 3, mode: EForkMode.Copy })
 
-    const appended = await log.append({ threadId: child.id, runId: ids.nextRunId(), drafts: [said('elsewhere')] })
+    const appended = await log.append({
+      threadId: child.id,
+      runId: ids.nextRunId(),
+      drafts: [said('elsewhere')],
+    })
 
     expect(appended.map((event) => event.seq)).toEqual([4])
     expect((await log.read({ threadId: child.id })).map((event) => event.seq)).toEqual([1, 2, 3, 4])
@@ -112,7 +126,10 @@ describe('JsonlThreadStore.fork', () => {
   it('carries the chosen model onto a fork', async () => {
     const home = await tempHome()
     const { threads, parentId } = await openParent({ home })
-    await threads.chooseModel({ threadId: parentId, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } })
+    await threads.chooseModel({
+      threadId: parentId,
+      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+    })
 
     const fork = await threads.fork({ from: parentId, seq: 1, mode: EForkMode.Reference })
 
@@ -132,9 +149,9 @@ describe('JsonlThreadStore.fork', () => {
     const home = await tempHome()
     const { threads, parentId } = await openParent({ home })
 
-    await expect(threads.fork({ from: parentId, seq: 9, mode: EForkMode.Reference })).rejects.toBeInstanceOf(
-      ForkSeqOutOfRange,
-    )
+    await expect(
+      threads.fork({ from: parentId, seq: 9, mode: EForkMode.Reference }),
+    ).rejects.toBeInstanceOf(ForkSeqOutOfRange)
   })
 
   it('lists a fork as its own root in the source’s project', async () => {
@@ -176,7 +193,9 @@ describe('JsonlThreadStore.createWithFirstEvents', () => {
     })
 
     expect(opened.thread.agent).toEqual({ spawnedBy: spawner.id, type: 'explore' })
-    expect((await threads.spawned({ threadId: spawner.id })).map((row) => row.id)).toEqual([opened.thread.id])
+    expect((await threads.spawned({ threadId: spawner.id })).map((row) => row.id)).toEqual([
+      opened.thread.id,
+    ])
     expect((await log.read({ threadId: opened.thread.id })).map((event) => event.seq)).toEqual([1])
   })
 
@@ -184,8 +203,8 @@ describe('JsonlThreadStore.createWithFirstEvents', () => {
     const home = await tempHome()
     const { threads, ids } = openStore({ home })
 
-    await expect(threads.createWithFirstEvents({ runId: ids.nextRunId(), drafts: [] })).rejects.toBeInstanceOf(
-      ThreadNeedsOpeningDrafts,
-    )
+    await expect(
+      threads.createWithFirstEvents({ runId: ids.nextRunId(), drafts: [] }),
+    ).rejects.toBeInstanceOf(ThreadNeedsOpeningDrafts)
   })
 })

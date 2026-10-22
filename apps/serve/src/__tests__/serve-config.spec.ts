@@ -64,9 +64,9 @@ describe('serveConfig', () => {
     const { [EServeEnv.CloudUrl]: _url, ...noUrl } = injected
 
     expect(serveConfig({ env: noUrl }).controlPlaneUrl).toBe(DEFAULT_CLOUD_URL)
-    expect(serveConfig({ env: noUrl, controlPlaneUrl: 'http://localhost:3400' }).controlPlaneUrl).toBe(
-      'http://localhost:3400',
-    )
+    expect(
+      serveConfig({ env: noUrl, controlPlaneUrl: 'http://localhost:3400' }).controlPlaneUrl,
+    ).toBe('http://localhost:3400')
   })
 
   it('refuses a port that is not a port', () => {

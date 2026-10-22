@@ -103,13 +103,13 @@ describe('deciding which binding owns a press', () => {
 
   it('reports a press nobody wanted, so the composer still gets the key', () => {
     expect(pressHandled({ press: pressed, bindings: [] })).toBe(false)
-    expect(
-      pressHandled({ press: pressed, bindings: [placed({ run: () => false })] }),
-    ).toBe(false)
+    expect(pressHandled({ press: pressed, bindings: [placed({ run: () => false })] })).toBe(false)
   })
 
   it('treats a handler that returns nothing as having taken the press', () => {
-    expect(pressHandled({ press: pressed, bindings: [placed({ run: () => undefined })] })).toBe(true)
+    expect(pressHandled({ press: pressed, bindings: [placed({ run: () => undefined })] })).toBe(
+      true,
+    )
   })
 })
 

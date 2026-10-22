@@ -55,7 +55,8 @@ describe('a teammate row reads its own tracked checkout', () => {
     const service = createPullRequestService({ pullRequests: port() })
     const reader = {
       service,
-      checkoutFor: ({ threadId }: { threadId: typeof mate }) => (threadId === mate ? checkout : null),
+      checkoutFor: ({ threadId }: { threadId: typeof mate }) =>
+        threadId === mate ? checkout : null,
     }
     service.track({ checkouts: [checkout] })
     await service.refresh({ checkout, force: true })

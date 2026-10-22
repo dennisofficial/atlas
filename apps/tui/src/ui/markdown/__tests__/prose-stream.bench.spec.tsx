@@ -65,7 +65,9 @@ describe.skipIf(!benching)('streaming prose bench', () => {
     console.log(
       `[bench] growing parse per chunk:  total ${growing.total.toFixed(1)} ms, last chunk ${growing.last.toFixed(2)} ms`,
     )
-    console.log(`[bench] segmenting (growingSegments + steadySegments): ${growing.segmenting.toFixed(1)} ms`)
+    console.log(
+      `[bench] segmenting (growingSegments + steadySegments): ${growing.segmenting.toFixed(1)} ms`,
+    )
   })
 
   it('reports end-to-end MarkdownView time per chunk', async () => {

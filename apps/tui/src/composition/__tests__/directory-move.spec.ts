@@ -19,7 +19,9 @@ const HOME = process.env.HOME ?? '/home/nobody'
 
 describe('where a /cd argument points', () => {
   it('takes an absolute path as it is', () => {
-    expect(cdTargetOf({ argument: '/srv/elsewhere', current: '/work/atlas' })).toBe('/srv/elsewhere')
+    expect(cdTargetOf({ argument: '/srv/elsewhere', current: '/work/atlas' })).toBe(
+      '/srv/elsewhere',
+    )
   })
 
   it('resolves a relative path against the current directory, not the launch one', () => {

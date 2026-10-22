@@ -38,7 +38,11 @@ const cloudMove = (over: { settleThrough?: number; fail?: string } = {}): Contai
   }
   const nextPending = move.rows.find((row) => row.mark === 'pending')
   if (nextPending !== undefined) {
-    move = startMoveNode({ move, nodeId: nextPending.nodeIds[0] ?? nextPending.id, now: STARTED_AT + 4_000 })
+    move = startMoveNode({
+      move,
+      nodeId: nextPending.nodeIds[0] ?? nextPending.id,
+      now: STARTED_AT + 4_000,
+    })
   }
   return over.fail === undefined ? move : failMove({ move, reason: over.fail })
 }
@@ -68,10 +72,7 @@ describe('a move while it runs', () => {
   })
 
   it('never counts backwards when the clock lags the row', async () => {
-    const frame = await frameOf(
-      overlay({ move: cloudMove(), now: STARTED_AT }),
-      80,
-    )
+    const frame = await frameOf(overlay({ move: cloudMove(), now: STARTED_AT }), 80)
 
     expect(frame).toContain('waiting for the pod (0s)')
     expect(frame).not.toContain('(-')

@@ -15,7 +15,11 @@ import { MessageIntake, noticeSources, operatorSource } from '@dltech/atlas-harn
 import { PublishingTurnRunner } from '@dltech/atlas-harness'
 import { createPendingQueues } from '@dltech/atlas-harness'
 import { BunServiceRegistry, BunShellRegistry } from '@dltech/atlas-harness'
-import { DurableShellLauncher, ShellStorage, prepareSupervisorLauncher } from '@dltech/atlas-harness'
+import {
+  DurableShellLauncher,
+  ShellStorage,
+  prepareSupervisorLauncher,
+} from '@dltech/atlas-harness'
 import { LocalProcessPort } from '@dltech/atlas-harness'
 import { BashTool } from '@dltech/atlas-harness'
 import { HookedToolDispatcher, InMemoryToolRegistry } from '@dltech/atlas-harness'

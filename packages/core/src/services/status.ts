@@ -22,7 +22,8 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.Model) return 'was stopped at your request'
   if (killedBy === EKilledBy.SessionEnd) return 'was stopped because the session was closing'
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
-  if (killedBy === EKilledBy.IdlePark) return 'was stopped because the sandbox parked after sitting idle'
+  if (killedBy === EKilledBy.IdlePark)
+    return 'was stopped because the sandbox parked after sitting idle'
   return 'was stopped'
 }
 

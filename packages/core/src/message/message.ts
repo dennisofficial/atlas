@@ -1,5 +1,12 @@
 import type { ProviderOptions } from '../provider'
-import type { FilePart, ImagePart, ReasoningPart, TextPart, ToolCallPart, ToolResultPart } from './parts'
+import type {
+  FilePart,
+  ImagePart,
+  ReasoningPart,
+  TextPart,
+  ToolCallPart,
+  ToolResultPart,
+} from './parts'
 
 export type UserMessage = {
   role: 'user'

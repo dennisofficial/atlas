@@ -1,4 +1,11 @@
-import { toCallId, toEventId, toRunId, toThreadId, type Event, type EventBody } from '@dltech/atlas-core'
+import {
+  toCallId,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Event,
+  type EventBody,
+} from '@dltech/atlas-core'
 import { sessionDigest } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'vitest'
 

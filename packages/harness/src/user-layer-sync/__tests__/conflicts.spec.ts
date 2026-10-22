@@ -36,7 +36,9 @@ describe('push conflict', () => {
 
     const deviceId = await b.deviceId()
     expect(await readAt(join(b.atlasHome, 'skills', 'topic.md'))).toBe('from A')
-    expect(await readAt(join(b.atlasHome, 'skills', `topic.conflict-${deviceId}.md`))).toBe('from B')
+    expect(await readAt(join(b.atlasHome, 'skills', `topic.conflict-${deviceId}.md`))).toBe(
+      'from B',
+    )
     expect(server.text({ tree: 'skills', path: '.atlas/topic.md' })).toBe('from A')
   })
 
@@ -66,7 +68,9 @@ describe('tombstone grace rule', () => {
 
     const deviceId = await a.deviceId()
     expect(await namesIn(join(a.atlasHome, 'skills'))).toEqual([`note.conflict-${deviceId}.md`])
-    expect(await readAt(join(a.atlasHome, 'skills', `note.conflict-${deviceId}.md`))).toBe('edited offline')
+    expect(await readAt(join(a.atlasHome, 'skills', `note.conflict-${deviceId}.md`))).toBe(
+      'edited offline',
+    )
   })
 
   it('removes an untouched local copy without leaving a conflict copy', async () => {

@@ -28,7 +28,9 @@ describe('moving recovered shell families', () => {
       by: EKilledBy.ContainerSwitch,
       ms: 1000,
     })
-    expect(stopped.map((shell) => shell.threadId).sort()).toEqual([f.child, f.teammate, f.grandchild].sort())
+    expect(stopped.map((shell) => shell.threadId).sort()).toEqual(
+      [f.child, f.teammate, f.grandchild].sort(),
+    )
     expect(f.killed).not.toContain(f.stranger)
   })
 
@@ -37,9 +39,17 @@ describe('moving recovered shell families', () => {
     await f.seed(f.child)
     f.refuseKills()
     let committed = false
-    await expect(f.shells.stopOwners({
-      threadIds: [f.child], by: EKilledBy.ContainerSwitch, ms: 1,
-    }).then(() => { committed = true })).rejects.toThrow('have not stopped')
+    await expect(
+      f.shells
+        .stopOwners({
+          threadIds: [f.child],
+          by: EKilledBy.ContainerSwitch,
+          ms: 1,
+        })
+        .then(() => {
+          committed = true
+        }),
+    ).rejects.toThrow('have not stopped')
     expect(committed).toBe(false)
   })
 
@@ -48,7 +58,8 @@ describe('moving recovered shell families', () => {
     await f.seed(f.child)
     const rootSummary = await f.threads.find({ threadId: f.root })
     const childSummary = await f.threads.find({ threadId: f.child })
-    if (rootSummary === undefined || childSummary === undefined) throw new Error('missing fixture family')
+    if (rootSummary === undefined || childSummary === undefined)
+      throw new Error('missing fixture family')
     const visited: string[] = []
     const threads = {
       spawned: async ({ threadId }: { threadId: typeof f.root }) => {

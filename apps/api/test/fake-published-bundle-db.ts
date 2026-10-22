@@ -30,16 +30,21 @@ export function createFakePublishedBundleDb() {
       return latest === undefined ? null : { ...latest }
     },
     aggregate: async (args: { where: { userId: string } }) => {
-      const versions = bundles.filter((one) => one.userId === args.where.userId).map((one) => one.version)
+      const versions = bundles
+        .filter((one) => one.userId === args.where.userId)
+        .map((one) => one.version)
       return { _max: { version: versions.length === 0 ? null : Math.max(...versions) } }
     },
     create: async (args: { data: CreateData }) => {
-      if (bundles.some((one) => one.pathname === args.data.pathname)) throw uniqueViolation(['pathname'])
+      if (bundles.some((one) => one.pathname === args.data.pathname))
+        throw uniqueViolation(['pathname'])
       if (collideNextVersion) {
         collideNextVersion = false
         throw uniqueViolation(['userId', 'version'])
       }
-      if (bundles.some((one) => one.userId === args.data.userId && one.version === args.data.version)) {
+      if (
+        bundles.some((one) => one.userId === args.data.userId && one.version === args.data.version)
+      ) {
         throw uniqueViolation(['userId', 'version'])
       }
       sequence += 1

@@ -4,8 +4,18 @@ import { ERunner, ESettingId } from '@dltech/atlas-core'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { currentNotices, dismissNotice } from '../../../ui/notice-store'
-import { fakeApp, fakeSignedOutCloud, scriptedModelPort, type FakeApp } from '../../__tests__/fake-app'
-import { bornWith, CLOUD_NOT_CONFIGURED_NOTICE, preferredRunner, rememberPlacement } from '../born-cloud'
+import {
+  fakeApp,
+  fakeSignedOutCloud,
+  scriptedModelPort,
+  type FakeApp,
+} from '../../__tests__/fake-app'
+import {
+  bornWith,
+  CLOUD_NOT_CONFIGURED_NOTICE,
+  preferredRunner,
+  rememberPlacement,
+} from '../born-cloud'
 import { bornPlacementChip } from '../born-placement-chip'
 
 afterEach(() => dismissNotice())
@@ -16,12 +26,17 @@ const appOn = (args: { signedIn: boolean; vercel: boolean }): FakeApp =>
     ...(args.signedIn ? {} : { cloud: fakeSignedOutCloud() }),
     ...(args.vercel ? { secrets: { [ESettingId.VercelToken]: 'vercel-token' } } : {}),
     settings: {
-      values: args.vercel ? { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1' } : {},
+      values: args.vercel
+        ? { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1' }
+        : {},
     },
   })
 
 const rig = (args: { app: FakeApp; choice?: ERunner; preflight?: string | null }) => {
-  const calls = { births: [] as { threadId: ThreadId; runner: ERunner; projectId: string | null }[], signIns: 0 }
+  const calls = {
+    births: [] as { threadId: ThreadId; runner: ERunner; projectId: string | null }[],
+    signIns: 0,
+  }
   const threadId = args.app.ids.nextThreadId()
   const run = bornWith({
     app: args.app,
@@ -106,7 +121,8 @@ describe('where a thread is born on its first send', () => {
 
   it('names Docker Desktop and births nothing when the pod preflight refuses', async () => {
     const app = appOn({ signedIn: true, vercel: false })
-    const refusal = "Docker isn't answering at /x (nope) — start Docker Desktop, or point ATLAS_DOCKER_SOCKET at a running engine"
+    const refusal =
+      "Docker isn't answering at /x (nope) — start Docker Desktop, or point ATLAS_DOCKER_SOCKET at a running engine"
     const { calls, run } = rig({ app, preflight: refusal })
 
     await run

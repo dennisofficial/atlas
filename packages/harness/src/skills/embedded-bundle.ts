@@ -19,11 +19,14 @@ export type EmbeddedSkillEntry = {
 
 export class UnsafeBundlePath extends Error {
   constructor(path: string) {
-    super(`bundled skill path ${JSON.stringify(path)} is not a plain relative path inside the skill directory`)
+    super(
+      `bundled skill path ${JSON.stringify(path)} is not a plain relative path inside the skill directory`,
+    )
   }
 }
 
-export const digestOfBytes = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
+export const digestOfBytes = (bytes: Uint8Array): string =>
+  createHash('sha256').update(bytes).digest('hex')
 
 export const digestOfText = (text: string): string => digestOfBytes(Buffer.from(text))
 
@@ -66,9 +69,7 @@ export const bundleDigestOf = (args: {
   entry: { path: string; digest: string }
   files: readonly { path: string; digest: string }[]
 }): string => {
-  const lines = [args.entry, ...args.files]
-    .map((file) => `${file.path}\0${file.digest}\n`)
-    .sort()
+  const lines = [args.entry, ...args.files].map((file) => `${file.path}\0${file.digest}\n`).sort()
   return createHash('sha256').update(lines.join('')).digest('hex')
 }
 

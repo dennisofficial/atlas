@@ -110,7 +110,10 @@ export function CodeLines(props: {
   const filetype = useMemo(() => pathToFiletype(props.path) ?? 'text', [props.path])
   const texts = useMemo(() => props.lines.map((line) => line.text), [props.lines])
   const chunks = useHighlighted({ lines: texts, filetype })
-  const digits = props.lines.reduce((max, line) => Math.max(max, String(line.number ?? '').length), 2)
+  const digits = props.lines.reduce(
+    (max, line) => Math.max(max, String(line.number ?? '').length),
+    2,
+  )
   const columns = Math.max(1, props.inner - props.indent.length - digits - 1)
   const rows = useRowChunks({ texts, chunks, columns })
   const start = Math.min(rows.length, props.window?.start ?? 0)

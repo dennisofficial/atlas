@@ -31,7 +31,7 @@ export function ToolImage(props: {
   const covered = useTranscriptCovered()
   const image = imageOf(props.call)
   const bytes = React.useMemo(
-    () => image?.data == null ? null : Buffer.from(image.data, 'base64'),
+    () => (image?.data == null ? null : Buffer.from(image.data, 'base64')),
     [image?.data],
   )
   const summary = imageSummary({ call: props.call, cwd: props.cwd })
@@ -64,7 +64,9 @@ export function ToolImage(props: {
       </text>
       {!image.inlined ? (
         <text wrapMode="none" width={props.inner} flexShrink={0}>
-          <span fg={theme.hint}>{`${INDENT}Not sent to the model: ${image.notSentReason ?? ''}`}</span>
+          <span
+            fg={theme.hint}
+          >{`${INDENT}Not sent to the model: ${image.notSentReason ?? ''}`}</span>
         </text>
       ) : !shown || span === null || span.columns < 1 || span.rows < 1 ? null : (
         <box paddingLeft={INDENT.length} flexShrink={0}>

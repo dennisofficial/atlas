@@ -54,7 +54,10 @@ export class TldrTurnRunner extends TurnRunner {
     return this.drive({ threadId: args.threadId, run: () => this.inner.resume(args) })
   }
 
-  private async drive(args: { threadId: ThreadId; run: () => Promise<TurnOutcome> }): Promise<TurnOutcome> {
+  private async drive(args: {
+    threadId: ThreadId
+    run: () => Promise<TurnOutcome>
+  }): Promise<TurnOutcome> {
     const outcome = await args.run()
     if (outcome.status === ETurnStatus.Completed) {
       void this.write({ threadId: args.threadId }).catch((error: unknown) => this.onMishap?.(error))
@@ -79,7 +82,11 @@ export class TldrTurnRunner extends TurnRunner {
       if (result === null) return
 
       const still = tldrDue(await this.log.read({ threadId: args.threadId }))
-      if (still === undefined || still.anchorSeq !== due.anchorSeq || still.throughSeq !== due.throughSeq) {
+      if (
+        still === undefined ||
+        still.anchorSeq !== due.anchorSeq ||
+        still.throughSeq !== due.throughSeq
+      ) {
         return
       }
 

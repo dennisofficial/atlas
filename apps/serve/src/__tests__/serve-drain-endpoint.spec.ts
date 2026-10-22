@@ -5,7 +5,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { toRunId } from '@dltech/atlas-core'
-import { EClientFrame, EServeFrame, ETurnStatus, toSendId, readSandboxRotationReceipt } from '@dltech/atlas-harness'
+import {
+  EClientFrame,
+  EServeFrame,
+  ETurnStatus,
+  toSendId,
+  readSandboxRotationReceipt,
+} from '@dltech/atlas-harness'
 import { sandboxDrainReplySchema } from '@dltech/atlas-wire'
 
 import { startServe, EWorkspaceState, type ServeHandle } from '../index'
@@ -77,7 +83,11 @@ const boot = async (over: { holdTurn?: Promise<void>; failChildPause?: boolean }
     cwd: '/workspace',
     compose: async () => app,
     write: () => undefined,
-    exit: (code) => { exitCode = code; order.push('exit'); exited.open() },
+    exit: (code) => {
+      exitCode = code
+      order.push('exit')
+      exited.open()
+    },
     contextFiles: inMemoryContextFiles(),
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     fetchFn: (async () => new Response(null, { status: 204 })) as unknown as typeof fetch,
@@ -172,16 +182,26 @@ describe('POST /v1/drain', () => {
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
     client.send({ kind: EClientFrame.Send, sendId: toSendId('initial'), text: 'start' })
-    await client.waitFor((frame) => frame.kind === EServeFrame.SendAcked && frame.sendId === toSendId('initial'))
-    client.send({ kind: EClientFrame.Send, sendId: toSendId('queued'), text: 'do not lose this input' })
-    await client.waitFor((frame) => frame.kind === EServeFrame.SendAcked && frame.sendId === toSendId('queued'))
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.SendAcked && frame.sendId === toSendId('initial'),
+    )
+    client.send({
+      kind: EClientFrame.Send,
+      sendId: toSendId('queued'),
+      text: 'do not lose this input',
+    })
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.SendAcked && frame.sendId === toSendId('queued'),
+    )
     expect(test.app.pending?.waitingCount()).toBe(1)
     const draining = test.post({ token: TOKEN })
     await Bun.sleep(10)
     holding.open()
     const proof = sandboxDrainReplySchema.parse(await (await draining).json())
     const events = await test.app.log.read({ threadId })
-    expect(events.filter((event) => event.type === 'user-said').map((event) => event.text)).toEqual(['start', 'do not lose this input'])
+    expect(events.filter((event) => event.type === 'user-said').map((event) => event.text)).toEqual(
+      ['start', 'do not lose this input'],
+    )
     expect(test.app.pending?.waitingCount()).toBe(0)
     expect(proof.receipt.checkpoint.transcript.count).toBe(events.length)
     await test.exited.opened

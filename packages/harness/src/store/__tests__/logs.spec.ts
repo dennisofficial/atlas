@@ -23,7 +23,13 @@ function open(): { home: string; logs: JsonlLog; rootId: ThreadId } {
   return { home, logs, rootId: toThreadId('thread-root') }
 }
 
-async function plantThread({ home, threadId }: { home: string; threadId: ThreadId }): Promise<void> {
+async function plantThread({
+  home,
+  threadId,
+}: {
+  home: string
+  threadId: ThreadId
+}): Promise<void> {
   const meta = newThreadMeta({ id: threadId, at: AT })
   await writeMeta({
     file: threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId }),
@@ -59,7 +65,9 @@ describe('JsonlLog', () => {
     })
     await flush(logs)
 
-    const rows = linesOf({ file: sessionLogsFile({ sessionDir: sessionDirectory({ home, sessionId: rootId }) }) })
+    const rows = linesOf({
+      file: sessionLogsFile({ sessionDir: sessionDirectory({ home, sessionId: rootId }) }),
+    })
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
       v: 1,
@@ -79,7 +87,12 @@ describe('JsonlLog', () => {
     await flush(logs)
 
     const rows = linesOf({ file: join(home, 'logs.jsonl') })
-    expect(rows[0]).toMatchObject({ severity: 'error', source: 'tui.boot', message: 'composition root failed', error: 'boom' })
+    expect(rows[0]).toMatchObject({
+      severity: 'error',
+      source: 'tui.boot',
+      message: 'composition root failed',
+      error: 'boom',
+    })
     expect(rows[0]?.threadId).toBeUndefined()
   })
 
@@ -97,9 +110,15 @@ describe('JsonlLog', () => {
     const home = mkdtempSync(join(tmpdir(), 'atlas-jsonl-logs-'))
     homes.push(home)
     rmSync(home, { recursive: true, force: true })
-    const logs = new JsonlLog({ home, registry: new SessionRegistry(home), clock: new SteppingClock() })
+    const logs = new JsonlLog({
+      home,
+      registry: new SessionRegistry(home),
+      clock: new SteppingClock(),
+    })
 
-    expect(() => logs.error({ source: 'spec', message: 'lost', threadId: toThreadId('x') })).not.toThrow()
+    expect(() =>
+      logs.error({ source: 'spec', message: 'lost', threadId: toThreadId('x') }),
+    ).not.toThrow()
     await flush(logs)
   })
 
@@ -123,7 +142,9 @@ describe('logFieldsOf', () => {
   })
 
   it('folds an Error cause into the message', () => {
-    const fields = logFieldsOf({ error: new Error('birth failed', { cause: new Error('sandbox 504') }) })
+    const fields = logFieldsOf({
+      error: new Error('birth failed', { cause: new Error('sandbox 504') }),
+    })
     expect(fields.error).toBe('birth failed — cause: sandbox 504')
   })
 

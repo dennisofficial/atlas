@@ -10,9 +10,9 @@ describe('the PR verdict timing setting', () => {
     expect(definition?.page).toBe(ESettingPage.Experimental)
     expect(definition?.kind).toBe(ESettingKind.Choice)
     expect(definition && 'fallback' in definition && definition.fallback).toBe('fail-fast')
-    expect(definition && 'environmentVariable' in definition && definition.environmentVariable).toBe(
-      'ATLAS_PR_VERDICT_TIMING',
-    )
+    expect(
+      definition && 'environmentVariable' in definition && definition.environmentVariable,
+    ).toBe('ATLAS_PR_VERDICT_TIMING')
   })
 
   it('offers fail-fast and settled as the only timings', () => {

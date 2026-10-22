@@ -287,7 +287,10 @@ describe('the wiring the composition root uses', () => {
     const call = callOf({ input: { command: 'git push' } })
     for (const hook of chain.afterTool)
       await hook.run({ call, result: SUCCEEDED, projectDirectory: '/repo', signal: NEVER_ABORTED })
-    await chain.afterShell({ threadId: THREAD, shell: endedShell({ command: 'git push', exitCode: 0 }) })
+    await chain.afterShell({
+      threadId: THREAD,
+      shell: endedShell({ command: 'git push', exitCode: 0 }),
+    })
 
     expect(expected()).toHaveLength(2)
   })

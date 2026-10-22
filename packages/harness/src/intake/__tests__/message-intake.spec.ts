@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { EAgentStatus, isTurnTaking, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  isTurnTaking,
+  toThreadId,
+  type EventDraft,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { createPendingQueues } from '../../pending'
 import { MessageIntake, type IntakeSource } from '../message-intake'
@@ -23,7 +29,11 @@ function source() {
       listeners.add(listener)
       return () => void listeners.delete(listener)
     },
-    threadsAwaitingInput: () => [...new Set(entries.filter((entry) => isTurnTaking(entry.draft)).map((entry) => entry.threadId))],
+    threadsAwaitingInput: () => [
+      ...new Set(
+        entries.filter((entry) => isTurnTaking(entry.draft)).map((entry) => entry.threadId),
+      ),
+    ],
     prepare: ({ threadId }) => {
       const captured = entries.filter((entry) => entry.threadId === threadId)
       return {
@@ -87,7 +97,10 @@ describe('shared thread intake', () => {
     notices.enqueue({ threadId: MAIN, draft: said('report') })
     pending.forThread({ threadId: MAIN }).enqueue({ text: 'steer' })
     const batch = await intake.prepare({ threadId: MAIN })
-    expect(batch.drafts.map((draft) => draft.type === 'user-said' ? draft.text : '')).toEqual(['report', 'steer'])
+    expect(batch.drafts.map((draft) => (draft.type === 'user-said' ? draft.text : ''))).toEqual([
+      'report',
+      'steer',
+    ])
     expect(pending.waitingCount()).toBe(1)
     batch.acknowledge()
     expect(pending.waitingCount()).toBe(0)
@@ -113,8 +126,25 @@ describe('shared thread intake', () => {
     let main = 0
     let child = 0
     let busy = false
-    intake.register({ threadId: MAIN, driver: { blocked: () => false, wake: () => { main += 1 } } })
-    intake.register({ threadId: CHILD, driver: { blocked: () => busy, wake: () => { child += 1; busy = true } } })
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          main += 1
+        },
+      },
+    })
+    intake.register({
+      threadId: CHILD,
+      driver: {
+        blocked: () => busy,
+        wake: () => {
+          child += 1
+          busy = true
+        },
+      },
+    })
     notices.enqueue({ threadId: CHILD, draft: said('child shell ended') })
     await flush()
     expect(main).toBe(0)
@@ -127,7 +157,16 @@ describe('shared thread intake', () => {
     const intake = new MessageIntake({ sources: [notices.input] })
     let busy = true
     let wakes = 0
-    intake.register({ threadId: MAIN, driver: { blocked: () => busy, wake: () => { wakes += 1; busy = true } } })
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => busy,
+        wake: () => {
+          wakes += 1
+          busy = true
+        },
+      },
+    })
     notices.enqueue({ threadId: MAIN, draft: said('arrived after final drain') })
     await flush()
     expect(wakes).toBe(0)
@@ -143,7 +182,16 @@ describe('shared thread intake', () => {
     const intake = new MessageIntake({ sources: [operatorSource(pending)] })
     let busy = true
     let wakes = 0
-    intake.register({ threadId: MAIN, driver: { blocked: () => busy, wake: () => { wakes += 1; busy = true } } })
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => busy,
+        wake: () => {
+          wakes += 1
+          busy = true
+        },
+      },
+    })
     pending.forThread({ threadId: MAIN }).enqueue({ text: 'late steer' })
     await flush()
     busy = false
@@ -159,7 +207,16 @@ describe('shared thread intake', () => {
     let overlay = true
     let busy = false
     let wakes = 0
-    intake.register({ threadId: MAIN, driver: { blocked: () => overlay || busy, wake: () => { wakes += 1; busy = true } } })
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => overlay || busy,
+        wake: () => {
+          wakes += 1
+          busy = true
+        },
+      },
+    })
     notices.enqueue({ threadId: MAIN, draft: said('report') })
     await flush()
     expect(wakes).toBe(0)
@@ -174,10 +231,21 @@ describe('shared thread intake', () => {
     const notices = source()
     const intake = new MessageIntake({ sources: [notices.input] })
     let finish = (): void => undefined
-    const pending = new Promise<void>((resolve) => { finish = resolve })
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve
+    })
     let wakes = 0
     let busy = false
-    intake.register({ threadId: MAIN, driver: { blocked: () => busy, wake: () => { wakes += 1; return pending } } })
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => busy,
+        wake: () => {
+          wakes += 1
+          return pending
+        },
+      },
+    })
     notices.enqueue({ threadId: MAIN, draft: said('first') })
     await flush()
     notices.enqueue({ threadId: MAIN, draft: said('second') })
@@ -195,7 +263,16 @@ describe('shared thread intake', () => {
     const notices = source()
     const intake = new MessageIntake({ sources: [notices.input] })
     let wakes = 0
-    intake.register({ threadId: MAIN, driver: { blocked: () => false, wake: () => { wakes += 1; throw new Error('failed') } } })
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+          throw new Error('failed')
+        },
+      },
+    })
     notices.enqueue({ threadId: MAIN, draft: said('report') })
     await flush()
     expect(wakes).toBe(3)
@@ -219,7 +296,10 @@ describe('shared thread intake', () => {
           const blockedWhenFiring = checks % 2 === 0 && checks <= 6
           return woke || blockedWhenFiring
         },
-        wake: () => { wakes += 1; woke = true },
+        wake: () => {
+          wakes += 1
+          woke = true
+        },
       },
     })
     notices.enqueue({ threadId: MAIN, draft: said('report') })
@@ -240,7 +320,10 @@ describe('shared thread intake', () => {
           checks += 1
           return checks === 2
         },
-        wake: () => { wakes += 1; throw new Error('failed') },
+        wake: () => {
+          wakes += 1
+          throw new Error('failed')
+        },
       },
     })
     notices.enqueue({ threadId: MAIN, draft: said('report') })
@@ -258,7 +341,9 @@ describe('shared thread intake', () => {
     const failed: IntakeSource = {
       subscribe: () => () => undefined,
       threadsAwaitingInput: () => [],
-      prepare: () => { throw new Error('cannot prepare') },
+      prepare: () => {
+        throw new Error('cannot prepare')
+      },
     }
     const intake = new MessageIntake({ sources: [operatorSource(pending), failed] })
     queue.enqueue({ text: 'keep this editable' })
@@ -274,7 +359,15 @@ describe('shared thread intake', () => {
     const notices = source()
     const intake = new MessageIntake({ sources: [notices.input] })
     let wakes = 0
-    intake.register({ threadId: MAIN, driver: { blocked: () => false, wake: () => { wakes += 1 } } })
+    intake.register({
+      threadId: MAIN,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+        },
+      },
+    })
     notices.enqueue({ threadId: MAIN, draft: said('report') })
     intake.dispose()
     await flush()

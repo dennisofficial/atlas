@@ -58,8 +58,8 @@ describe('contextTone', () => {
   })
 
   it('lets absolute tokens outrank the percent floor', () => {
-    expect(
-      contextTone({ percent: CONTEXT_WARN_PERCENT + 1, tokens: CONTEXT_DANGER_TOKENS }),
-    ).toBe(theme.error)
+    expect(contextTone({ percent: CONTEXT_WARN_PERCENT + 1, tokens: CONTEXT_DANGER_TOKENS })).toBe(
+      theme.error,
+    )
   })
 })

@@ -53,7 +53,9 @@ export function prEventNoticeOf(frame: PrEventFrame): PrEventDraft {
   }
 }
 
-export function parsePrEventFrame(args: { data: string }): { frame: PrEventFrame } | { failure: string } {
+export function parsePrEventFrame(args: {
+  data: string
+}): { frame: PrEventFrame } | { failure: string } {
   let raw: unknown
   try {
     raw = JSON.parse(args.data)
@@ -63,7 +65,11 @@ export function parsePrEventFrame(args: { data: string }): { frame: PrEventFrame
 
   const parsed = prEventFrameSchema.safeParse(raw)
   if (parsed.success) return { frame: parsed.data }
-  return { failure: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ') }
+  return {
+    failure: parsed.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join('; '),
+  }
 }
 
 /** A bad frame or a throwing consumer is logged and dropped: one notice must never end the stream. */

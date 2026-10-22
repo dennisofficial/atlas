@@ -126,7 +126,10 @@ function MemoryEdit({
   const bodyTooLong = bodyLength > MEMORY_MAX_BODY_CHARS
   const canSave =
     !saving &&
-    draft.dirty && draft.value.description.trim().length > 0 && !descriptionTooLong && !bodyTooLong
+    draft.dirty &&
+    draft.value.description.trim().length > 0 &&
+    !descriptionTooLong &&
+    !bodyTooLong
   const handleSave = () => {
     onSave({ ...entry, ...draft.value })
   }
@@ -144,7 +147,8 @@ function MemoryEdit({
           <FieldLabel htmlFor="memory-name">Name</FieldLabel>
           <Input id="memory-name" readOnly value={entry.name} className="font-mono text-xs" />
           <FieldDescription>
-            The name is the memory&apos;s identity; to rename, create a new memory and delete this one.
+            The name is the memory&apos;s identity; to rename, create a new memory and delete this
+            one.
           </FieldDescription>
         </Field>
         <Field>

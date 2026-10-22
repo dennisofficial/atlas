@@ -1,44 +1,72 @@
-import { FolderGit2Icon, FolderXIcon } from "lucide-react";
+import { FolderGit2Icon, FolderXIcon } from 'lucide-react'
 
-import { Kbd } from "@dltech/atlas-ui/components/kbd";
-import { TooltipProvider } from "@dltech/atlas-ui/components/tooltip";
+import { Kbd } from '@dltech/atlas-ui/components/kbd'
+import { TooltipProvider } from '@dltech/atlas-ui/components/tooltip'
 
-import { AppShell } from "../app-shell";
-import { Composer } from "../session/composer";
-import { SessionView } from "../session/session-view";
-import { DEFAULT_PROJECT_ID, MODEL_LABEL, PENDING_THREAD_ID, pendingThreadOf, projectLabelOf, titleOf } from "./new-thread-data";
-import { useNewThreadFlow, type NewThreadFlow } from "./new-thread-flow";
-import { podChipOf, podStateOf } from "./new-thread-pod";
-import { NewThreadTranscript } from "./new-thread-transcript";
-import { EFirstMessage, ENewThreadOutcome, EPodProgress, isFailedPod, isStartingPod } from "./new-thread-types";
-import { ProjectPicker } from "./project-picker";
+import { AppShell } from '../app-shell'
+import { Composer } from '../session/composer'
+import { SessionView } from '../session/session-view'
+import {
+  DEFAULT_PROJECT_ID,
+  MODEL_LABEL,
+  PENDING_THREAD_ID,
+  pendingThreadOf,
+  projectLabelOf,
+  titleOf,
+} from './new-thread-data'
+import { useNewThreadFlow, type NewThreadFlow } from './new-thread-flow'
+import { podChipOf, podStateOf } from './new-thread-pod'
+import { NewThreadTranscript } from './new-thread-transcript'
+import {
+  EFirstMessage,
+  ENewThreadOutcome,
+  EPodProgress,
+  isFailedPod,
+  isStartingPod,
+} from './new-thread-types'
+import { ProjectPicker } from './project-picker'
 
 export interface NewThreadViewProps {
-  initialPod?: EPodProgress;
-  initialMessage?: EFirstMessage;
-  initialProjectId?: string | null;
-  outcome?: ENewThreadOutcome;
-  autoRun?: boolean;
+  initialPod?: EPodProgress
+  initialMessage?: EFirstMessage
+  initialProjectId?: string | null
+  outcome?: ENewThreadOutcome
+  autoRun?: boolean
 }
 
-function badgeLabelOf({ pod, message }: { pod: EPodProgress; message: EFirstMessage }): string | null {
-  if (message === EFirstMessage.Done) return "Idle";
-  return isFailedPod(pod) ? "Failed" : null;
+function badgeLabelOf({
+  pod,
+  message,
+}: {
+  pod: EPodProgress
+  message: EFirstMessage
+}): string | null {
+  if (message === EFirstMessage.Done) return 'Idle'
+  return isFailedPod(pod) ? 'Failed' : null
 }
 
-function placeholderOf({ pod, message }: { pod: EPodProgress; message: EFirstMessage }): string | undefined {
-  if (message === EFirstMessage.Running) return "Queue a message for when Atlas is done…";
-  if (isStartingPod(pod) && message === EFirstMessage.None) return "The pod is still starting — you can write your message now…";
-  return undefined;
+function placeholderOf({
+  pod,
+  message,
+}: {
+  pod: EPodProgress
+  message: EFirstMessage
+}): string | undefined {
+  if (message === EFirstMessage.Running) return 'Queue a message for when Atlas is done…'
+  if (isStartingPod(pod) && message === EFirstMessage.None)
+    return 'The pod is still starting — you can write your message now…'
+  return undefined
 }
 
 function TakeBackHint({ starting }: { starting: boolean }) {
   return (
     <p className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
       <Kbd>Esc</Kbd>
-      <span>{starting ? "to edit your message — the pod keeps starting" : "to edit your message"}</span>
+      <span>
+        {starting ? 'to edit your message — the pod keeps starting' : 'to edit your message'}
+      </span>
     </p>
-  );
+  )
 }
 
 function Welcome({ flow }: { flow: NewThreadFlow }) {
@@ -58,7 +86,7 @@ function Welcome({ flow }: { flow: NewThreadFlow }) {
         </div>
       </Composer>
     </div>
-  );
+  )
 }
 
 export function NewThreadView({
@@ -68,8 +96,8 @@ export function NewThreadView({
   outcome = ENewThreadOutcome.Success,
   autoRun = false,
 }: NewThreadViewProps) {
-  const flow = useNewThreadFlow({ initialPod, initialMessage, initialProjectId, outcome, autoRun });
-  const { pod, message } = flow;
+  const flow = useNewThreadFlow({ initialPod, initialMessage, initialProjectId, outcome, autoRun })
+  const { pod, message } = flow
 
   if (pod === EPodProgress.None) {
     return (
@@ -78,10 +106,15 @@ export function NewThreadView({
           <Welcome flow={flow} />
         </AppShell>
       </TooltipProvider>
-    );
+    )
   }
 
-  const pendingThread = pendingThreadOf({ prompt: flow.prompt, projectId: flow.projectId, pod, message });
+  const pendingThread = pendingThreadOf({
+    prompt: flow.prompt,
+    projectId: flow.projectId,
+    pod,
+    message,
+  })
 
   return (
     <SessionView
@@ -96,7 +129,12 @@ export function NewThreadView({
         podStatus: podChipOf(pod),
       }}
       shell={{ activeThreadId: pendingThread ? PENDING_THREAD_ID : undefined, pendingThread }}
-      pod={podStateOf({ pod, projectId: flow.projectId, visibleSteps: flow.visibleSteps, onRetry: flow.handleRetry })}
+      pod={podStateOf({
+        pod,
+        projectId: flow.projectId,
+        visibleSteps: flow.visibleSteps,
+        onRetry: flow.handleRetry,
+      })}
       renderTranscript={({ onOpenFile }) => (
         <NewThreadTranscript
           pod={pod}
@@ -120,9 +158,13 @@ export function NewThreadView({
           onRemoveQueued={flow.handleRemoveQueued}
           showContext={false}
           onEscape={flow.handleTakeBack}
-          hint={message === EFirstMessage.Pending ? <TakeBackHint starting={isStartingPod(pod)} /> : undefined}
+          hint={
+            message === EFirstMessage.Pending ? (
+              <TakeBackHint starting={isStartingPod(pod)} />
+            ) : undefined
+          }
         />
       }
     />
-  );
+  )
 }

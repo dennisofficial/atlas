@@ -1,5 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
-import { Controller, Get, UnauthorizedException, UseGuards, ValidationPipe, VersioningType } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  UnauthorizedException,
+  UseGuards,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,9 +16,18 @@ import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { OauthConnectionsController } from '../oauth-connections/oauth-connections.controller'
-import { FakeClock, FakeIssuer, FakeStore, grantOf } from '../oauth-connections/oauth-connections.fakes'
+import {
+  FakeClock,
+  FakeIssuer,
+  FakeStore,
+  grantOf,
+} from '../oauth-connections/oauth-connections.fakes'
 import { OauthConnectionsService } from '../oauth-connections/oauth-connections.service'
-import { OauthClock, OauthConnectionStore, OauthIssuer } from '../oauth-connections/oauth-connections.types'
+import {
+  OauthClock,
+  OauthConnectionStore,
+  OauthIssuer,
+} from '../oauth-connections/oauth-connections.types'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
@@ -58,7 +74,10 @@ describe('pod lease bearer on the HTTP surface', () => {
   const http = () => request(app.getHttpServer())
   const as = (token: string) => ({ authorization: `Bearer ${token}` })
   const upload = (token: string) =>
-    http().put('/v1/oauth-connections/conn-1').set(as(token)).send({ provider: 'anthropic', tokens: grantOf(START) })
+    http()
+      .put('/v1/oauth-connections/conn-1')
+      .set(as(token))
+      .send({ provider: 'anthropic', tokens: grantOf(START) })
 
   beforeEach(async () => {
     store = new FakeStore()
@@ -104,7 +123,9 @@ describe('pod lease bearer on the HTTP surface', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -133,7 +154,11 @@ describe('pod lease bearer on the HTTP surface', () => {
       .send({ provider: 'anthropic', tokens: grantOf(START) })
       .expect(200)
 
-    await http().post('/v1/oauth-connections/conn-1/access-token').set(as('pod-token-a')).send({}).expect(404)
+    await http()
+      .post('/v1/oauth-connections/conn-1/access-token')
+      .set(as('pod-token-a'))
+      .send({})
+      .expect(404)
   })
 
   it('is refused on a route that is not @PodReachable, threadless or not', async () => {
@@ -143,7 +168,11 @@ describe('pod lease bearer on the HTTP surface', () => {
   })
 
   it('is unauthorized on the session-only lease routes and on connection management', async () => {
-    await http().put('/v1/pod-leases/thread-pod-a').set(as('pod-token-a')).send({ token: 'x' }).expect(401)
+    await http()
+      .put('/v1/pod-leases/thread-pod-a')
+      .set(as('pod-token-a'))
+      .send({ token: 'x' })
+      .expect(401)
     await http().delete('/v1/pod-leases/thread-pod-a').set(as('pod-token-a')).expect(401)
     await upload('pod-token-a').expect(401)
     expect(leases.register).not.toHaveBeenCalled()

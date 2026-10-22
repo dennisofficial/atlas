@@ -27,35 +27,47 @@ describe('scriptKindForPath', () => {
 
 describe('parseQualitySource', () => {
   it('collects named functions, classes and methods', () => {
-    const source = parse('/p/a.ts', [
-      'export function helper() { return 1 }',
-      'export class Greeter {',
-      '  greet() { return helper() }',
-      '  get name() { return "g" }',
-      '}',
-    ].join('\n'))
-    const qualified = source.declarations.map((declaration) => `${declaration.kind}:${declaration.qualifiedName}`)
+    const source = parse(
+      '/p/a.ts',
+      [
+        'export function helper() { return 1 }',
+        'export class Greeter {',
+        '  greet() { return helper() }',
+        '  get name() { return "g" }',
+        '}',
+      ].join('\n'),
+    )
+    const qualified = source.declarations.map(
+      (declaration) => `${declaration.kind}:${declaration.qualifiedName}`,
+    )
     expect(qualified).toEqual([
       'function:helper',
       'class:Greeter',
       'method:Greeter.greet',
       'method:Greeter.name',
     ])
-    const method = source.declarations.find((declaration) => declaration.qualifiedName === 'Greeter.greet')
+    const method = source.declarations.find(
+      (declaration) => declaration.qualifiedName === 'Greeter.greet',
+    )
     expect(method?.parentQualifiedName).toBe('Greeter')
   })
 
   it('collects named arrow functions and nested functions', () => {
-    const source = parse('/p/a.ts', [
-      'export const outer = () => {',
-      '  const inner = () => 1',
-      '  return inner()',
-      '}',
-      'function nested() { function deep() { return 2 } return deep() }',
-    ].join('\n'))
+    const source = parse(
+      '/p/a.ts',
+      [
+        'export const outer = () => {',
+        '  const inner = () => 1',
+        '  return inner()',
+        '}',
+        'function nested() { function deep() { return 2 } return deep() }',
+      ].join('\n'),
+    )
     const qualified = source.declarations.map((declaration) => declaration.qualifiedName)
     expect(qualified).toEqual(['outer', 'outer.inner', 'nested', 'nested.deep'])
-    const inner = source.declarations.find((declaration) => declaration.qualifiedName === 'outer.inner')
+    const inner = source.declarations.find(
+      (declaration) => declaration.qualifiedName === 'outer.inner',
+    )
     expect(inner?.kind).toBe(EQualityScopeKind.Function)
     expect(inner?.parentQualifiedName).toBe('outer')
   })
@@ -93,13 +105,19 @@ describe('parseQualitySource', () => {
   })
 
   it('collects import statements and top-level evidence labels', () => {
-    const source = parse('/p/a.ts', [
+    const source = parse(
+      '/p/a.ts',
+      [
+        "import { z } from 'zod'",
+        "import path from 'node:path'",
+        'export const answer = 42',
+        'function useAnswer() { return answer }',
+      ].join('\n'),
+    )
+    expect(source.importStatements).toEqual([
       "import { z } from 'zod'",
       "import path from 'node:path'",
-      'export const answer = 42',
-      'function useAnswer() { return answer }',
-    ].join('\n'))
-    expect(source.importStatements).toEqual(["import { z } from 'zod'", "import path from 'node:path'"])
+    ])
     expect(source.evidenceLabels).toEqual(['answer', 'useAnswer'])
   })
 
@@ -112,7 +130,12 @@ describe('parseQualitySource', () => {
     const greetSpaced = spaced.declarations[0]
     const salute = renamed.declarations[0]
     const altered = changed.declarations[0]
-    if (greetFirst === undefined || greetSpaced === undefined || salute === undefined || altered === undefined) {
+    if (
+      greetFirst === undefined ||
+      greetSpaced === undefined ||
+      salute === undefined ||
+      altered === undefined
+    ) {
       throw new Error('expected declarations')
     }
     expect(greetFirst.structuralHash).toBe(greetSpaced.structuralHash)

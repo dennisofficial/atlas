@@ -26,7 +26,9 @@ describe('the last chosen born placement', () => {
     expect(definition?.kind).toBe(ESettingKind.Choice)
     expect(definition?.page).toBe(ESettingPage.Hidden)
     expect(
-      definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.Hidden }).map((row) => row.id),
+      definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.Hidden }).map(
+        (row) => row.id,
+      ),
     ).toContain(ESettingId.LastBornPlacement)
   })
 

@@ -1,37 +1,37 @@
-import { useState } from "react";
-import { ExternalLinkIcon, LockIcon, RotateCwIcon } from "lucide-react";
+import { useState } from 'react'
+import { ExternalLinkIcon, LockIcon, RotateCwIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { StatusDot } from "./status-dot";
-import { EDotTone } from "./session-types";
-import { EPreviewStatus, PREVIEW_URLS, type PreviewUrl } from "./session-previews";
+import { StatusDot } from './status-dot'
+import { EDotTone } from './session-types'
+import { EPreviewStatus, PREVIEW_URLS, type PreviewUrl } from './session-previews'
 
 export interface PreviewTabProps {
-  initialPreviewId?: string;
+  initialPreviewId?: string
 }
 
 const STATUS_TONE: Record<EPreviewStatus, EDotTone> = {
   [EPreviewStatus.Live]: EDotTone.Live,
   [EPreviewStatus.Starting]: EDotTone.Pending,
   [EPreviewStatus.Stopped]: EDotTone.Idle,
-};
+}
 
 const STATUS_LABEL: Record<EPreviewStatus, string> = {
-  [EPreviewStatus.Live]: "Live",
-  [EPreviewStatus.Starting]: "Starting",
-  [EPreviewStatus.Stopped]: "Stopped",
-};
+  [EPreviewStatus.Live]: 'Live',
+  [EPreviewStatus.Starting]: 'Starting',
+  [EPreviewStatus.Stopped]: 'Stopped',
+}
 
 interface UrlRowProps {
-  preview: PreviewUrl;
-  selected: boolean;
-  onSelect: (id: string) => void;
+  preview: PreviewUrl
+  selected: boolean
+  onSelect: (id: string) => void
 }
 
 function UrlRow({ preview, selected, onSelect }: UrlRowProps) {
-  const handleSelect = () => onSelect(preview.id);
+  const handleSelect = () => onSelect(preview.id)
 
   return (
     <li>
@@ -40,20 +40,24 @@ function UrlRow({ preview, selected, onSelect }: UrlRowProps) {
         aria-pressed={selected}
         onClick={handleSelect}
         className={cn(
-          "flex w-full min-w-0 items-center gap-2 px-3 py-1.5 text-left text-sm outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
-          selected && "bg-muted",
+          'flex w-full min-w-0 items-center gap-2 px-3 py-1.5 text-left text-sm outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
+          selected && 'bg-muted',
         )}
       >
         <StatusDot tone={STATUS_TONE[preview.status]} />
         <span className="shrink-0 text-foreground">{preview.label}</span>
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{preview.url}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">{STATUS_LABEL[preview.status]}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+          {preview.url}
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {STATUS_LABEL[preview.status]}
+        </span>
         <span className="w-10 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
           :{preview.port}
         </span>
       </button>
     </li>
-  );
+  )
 }
 
 function PlaceholderPage({ preview }: { preview: PreviewUrl }) {
@@ -61,16 +65,18 @@ function PlaceholderPage({ preview }: { preview: PreviewUrl }) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
         <p className="text-sm text-foreground">
-          {preview.status === EPreviewStatus.Starting ? "Waiting for port " : "Nothing is listening on port "}
+          {preview.status === EPreviewStatus.Starting
+            ? 'Waiting for port '
+            : 'Nothing is listening on port '}
           <span className="font-mono">{preview.port}</span>
         </p>
         <p className="text-xs text-muted-foreground">
           {preview.status === EPreviewStatus.Starting
-            ? "The dev server is still booting."
-            : "Start the server in a Terminal shell to expose it."}
+            ? 'The dev server is still booting.'
+            : 'Start the server in a Terminal shell to expose it.'}
         </p>
       </div>
-    );
+    )
   }
 
   return (
@@ -86,7 +92,7 @@ function PlaceholderPage({ preview }: { preview: PreviewUrl }) {
       <div className="h-3 w-full rounded bg-muted" />
       <div className="h-3 w-5/6 rounded bg-muted" />
     </div>
-  );
+  )
 }
 
 function BrowserFrame({ preview }: { preview: PreviewUrl }) {
@@ -106,14 +112,14 @@ function BrowserFrame({ preview }: { preview: PreviewUrl }) {
       </div>
       <PlaceholderPage preview={preview} />
     </div>
-  );
+  )
 }
 
 export function PreviewTab({ initialPreviewId = PREVIEW_URLS[0]?.id }: PreviewTabProps) {
-  const [selectedId, setSelectedId] = useState(initialPreviewId ?? "");
-  const selected = PREVIEW_URLS.find((preview) => preview.id === selectedId) ?? PREVIEW_URLS[0];
+  const [selectedId, setSelectedId] = useState(initialPreviewId ?? '')
+  const selected = PREVIEW_URLS.find((preview) => preview.id === selectedId) ?? PREVIEW_URLS[0]
 
-  if (!selected) return null;
+  if (!selected) return null
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -122,10 +128,15 @@ export function PreviewTab({ initialPreviewId = PREVIEW_URLS[0]?.id }: PreviewTa
       </p>
       <ul className="shrink-0 border-b border-border pb-1">
         {PREVIEW_URLS.map((preview) => (
-          <UrlRow key={preview.id} preview={preview} selected={preview.id === selected.id} onSelect={setSelectedId} />
+          <UrlRow
+            key={preview.id}
+            preview={preview}
+            selected={preview.id === selected.id}
+            onSelect={setSelectedId}
+          />
         ))}
       </ul>
       <BrowserFrame preview={selected} />
     </div>
-  );
+  )
 }

@@ -64,7 +64,10 @@ describe('lexical scanner', () => {
 
   it('honours a doubled-quote escape instead of a backslash', () => {
     expect(
-      textOf({ spec: { rules: [singleQuoted({ escape: null, doubled: true })] }, source: "'a''b'" }),
+      textOf({
+        spec: { rules: [singleQuoted({ escape: null, doubled: true })] },
+        source: "'a''b'",
+      }),
     ).toEqual([["'a''b'", 'string']])
   })
 
@@ -92,7 +95,10 @@ describe('lexical scanner', () => {
 
   it('applies a line-start rule only to the first token on a line', () => {
     expect(
-      textOf({ spec: { rules: [lineComment({ open: 'C', atLineStart: true })] }, source: 'x C y\nC z' }),
+      textOf({
+        spec: { rules: [lineComment({ open: 'C', atLineStart: true })] },
+        source: 'x C y\nC z',
+      }),
     ).toEqual([['C z', 'comment']])
   })
 
@@ -115,9 +121,9 @@ describe('lexical scanner', () => {
   })
 
   it('reads numbers in every default base', () => {
-    expect(textOf({ spec: {}, source: '0xFF 0b1010 1_000 3.14 1e9' }).map(([text]) => text)).toEqual(
-      ['0xFF', '0b1010', '1_000', '3.14', '1e9'],
-    )
+    expect(
+      textOf({ spec: {}, source: '0xFF 0b1010 1_000 3.14 1e9' }).map(([text]) => text),
+    ).toEqual(['0xFF', '0b1010', '1_000', '3.14', '1e9'])
   })
 
   it('runs adjacent operator characters together', () => {
@@ -136,7 +142,10 @@ describe('lexical scanner', () => {
   it('resumes line-start tracking after a multiline token', () => {
     const spec = {
       operators: '',
-      rules: [quoted({ open: '"""', multiline: true }), lineComment({ open: '%', atLineStart: true })],
+      rules: [
+        quoted({ open: '"""', multiline: true }),
+        lineComment({ open: '%', atLineStart: true }),
+      ],
     }
     expect(textOf({ spec, source: '"""a\nb""" % not a comment\n% a comment' })).toEqual([
       ['"""a\nb"""', 'string'],
@@ -161,7 +170,10 @@ describe('lexical scanner', () => {
   it('narrows the identifier alphabet when the language declares one', () => {
     expect(
       textOf({
-        spec: { identifier: /[A-Za-z_+*/<>=!?-][A-Za-z0-9_+*/<>=!?-]*/, words: { keyword: ['defn'] } },
+        spec: {
+          identifier: /[A-Za-z_+*/<>=!?-][A-Za-z0-9_+*/<>=!?-]*/,
+          words: { keyword: ['defn'] },
+        },
         source: '(defn add [a b] (+ a b))',
       }),
     ).toEqual([['defn', 'keyword']])

@@ -43,16 +43,31 @@ describe('JsonlThreadStore.create', () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
 
-    const thread = await threads.create({ title: 'refactor the log', workspace: '/here', repo: '/repo' })
+    const thread = await threads.create({
+      title: 'refactor the log',
+      workspace: '/here',
+      repo: '/repo',
+    })
 
     expect(thread.title).toBe('refactor the log')
     expect(thread.head).toBe(0)
     expect(await threads.find({ threadId: thread.id })).toEqual(thread)
 
     const sessionDir = sessionDirectory({ home, sessionId: thread.id })
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
-    expect(session).toMatchObject({ format: 1, id: thread.id, title: 'refactor the log', home: 'host' })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: thread.id }), schema: threadMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir }),
+      schema: sessionMetaSchema,
+    })
+    expect(session).toMatchObject({
+      format: 1,
+      id: thread.id,
+      title: 'refactor the log',
+      home: 'host',
+    })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: thread.id }),
+      schema: threadMetaSchema,
+    })
     expect(meta).toMatchObject({ workspace: '/here', repo: '/repo', spawnerThreadId: null })
   })
 
@@ -91,7 +106,10 @@ describe('JsonlThreadStore field choices', () => {
 
     expect(await threads.find({ threadId: thread.id })).toMatchObject({ title: 'after', head: 1 })
     const sessionDir = sessionDirectory({ home, sessionId: thread.id })
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir }),
+      schema: sessionMetaSchema,
+    })
     expect(session?.title).toBe('after')
   })
 
@@ -129,7 +147,10 @@ describe('JsonlThreadStore field choices', () => {
     await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said('hello')] })
     const before = await threads.find({ threadId: thread.id })
 
-    await threads.chooseModel({ threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } })
+    await threads.chooseModel({
+      threadId: thread.id,
+      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+    })
 
     const after = await threads.find({ threadId: thread.id })
     expect(after?.model).toEqual({ ref: 'anthropic/claude-opus-5', effort: 'high' })
@@ -143,12 +164,22 @@ describe('JsonlThreadStore field choices', () => {
     const heard: { threadId: string; model: { ref: string; effort: string } }[] = []
 
     const forget = threads.onModelChosen((chosen) => heard.push(chosen))
-    await threads.chooseModel({ threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } })
-    expect(heard).toEqual([{ threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } }])
+    await threads.chooseModel({
+      threadId: thread.id,
+      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+    })
+    expect(heard).toEqual([
+      { threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
+    ])
 
     forget()
-    await threads.chooseModel({ threadId: toThreadId('missing'), model: { ref: 'x/y', effort: 'low' } })
-    expect(heard).toEqual([{ threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } }])
+    await threads.chooseModel({
+      threadId: toThreadId('missing'),
+      model: { ref: 'x/y', effort: 'low' },
+    })
+    expect(heard).toEqual([
+      { threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
+    ])
   })
 
   it('remembers the chosen execution location', async () => {
@@ -157,8 +188,13 @@ describe('JsonlThreadStore field choices', () => {
     const thread = await threads.create({ workspace: '/here' })
 
     expect((await threads.find({ threadId: thread.id }))?.executionLocation).toBeUndefined()
-    await threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Docker })
-    expect((await threads.find({ threadId: thread.id }))?.executionLocation).toBe(EExecutionLocation.Docker)
+    await threads.chooseExecutionLocation({
+      threadId: thread.id,
+      location: EExecutionLocation.Docker,
+    })
+    expect((await threads.find({ threadId: thread.id }))?.executionLocation).toBe(
+      EExecutionLocation.Docker,
+    )
   })
 
   it('materializes a never-written thread when it is placed somewhere, so a later boot can route it', async () => {
@@ -173,7 +209,10 @@ describe('JsonlThreadStore field choices', () => {
     expect(found?.executionLocation).toBe(EExecutionLocation.Cloud)
     expect(found?.workspace).toBeNull()
     const dir = sessionDirectory({ home, sessionId: threadId })
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir: dir }), schema: sessionMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir: dir }),
+      schema: sessionMetaSchema,
+    })
     expect(session?.home).toBe(EExecutionLocation.Cloud)
   })
 
@@ -206,11 +245,17 @@ describe('JsonlThreadStore supervision', () => {
     const { threads } = openStore({ home })
     const spawner = await threads.create({ title: 'main', workspace: '/here' })
 
-    const child = await threads.create({ workspace: '/here', agent: { spawnedBy: spawner.id, type: 'explore' } })
+    const child = await threads.create({
+      workspace: '/here',
+      agent: { spawnedBy: spawner.id, type: 'explore' },
+    })
 
     expect(child.agent).toEqual({ spawnedBy: spawner.id, type: 'explore' })
     const rootDir = sessionDirectory({ home, sessionId: spawner.id })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir: rootDir, threadId: child.id }), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir: rootDir, threadId: child.id }),
+      schema: threadMetaSchema,
+    })
     expect(meta?.spawnerThreadId).toBe(spawner.id)
   })
 
@@ -221,7 +266,10 @@ describe('JsonlThreadStore supervision', () => {
     const first = await threads.create({ agent: { spawnedBy: spawner.id, type: 'explore' } })
     const second = await threads.create({ agent: { spawnedBy: spawner.id, type: 'builder' } })
 
-    expect((await threads.spawned({ threadId: spawner.id })).map((row) => row.id)).toEqual([first.id, second.id])
+    expect((await threads.spawned({ threadId: spawner.id })).map((row) => row.id)).toEqual([
+      first.id,
+      second.id,
+    ])
     expect(await threads.spawned({ threadId: first.id })).toEqual([])
   })
 
@@ -229,7 +277,10 @@ describe('JsonlThreadStore supervision', () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })
     const root = await threads.create({ title: 'main', workspace: '/here' })
-    const child = await threads.create({ workspace: '/here', agent: { spawnedBy: root.id, type: 'explore' } })
+    const child = await threads.create({
+      workspace: '/here',
+      agent: { spawnedBy: root.id, type: 'explore' },
+    })
     await log.append({ threadId: child.id, runId: ids.nextRunId(), drafts: [said('agent work')] })
 
     expect((await threads.list({ project: '/here' })).map((row) => row.id)).toEqual([root.id])
@@ -244,7 +295,10 @@ describe('JsonlThreadStore supervision', () => {
     const child = await threads.create({ agent: { spawnedBy: older.id, type: 'explore' } })
     await log.append({ threadId: child.id, runId: ids.nextRunId(), drafts: [said('agent work')] })
 
-    expect((await threads.list({ project: '/here' })).map((row) => row.title)).toEqual(['older', 'newer'])
+    expect((await threads.list({ project: '/here' })).map((row) => row.title)).toEqual([
+      'older',
+      'newer',
+    ])
   })
 })
 
@@ -273,9 +327,16 @@ describe('JsonlThreadStore listing', () => {
     const onMain = await threads.create({ title: 'on main', workspace: '/repo', repo: '/repo' })
     await threads.create({ title: 'on feature', workspace: '/wt/feature', repo: '/repo' })
     await threads.create({ title: 'theirs', workspace: '/wt/other', repo: '/other' })
-    await log.append({ threadId: onMain.id, runId: ids.nextRunId(), drafts: [said('touched last')] })
+    await log.append({
+      threadId: onMain.id,
+      runId: ids.nextRunId(),
+      drafts: [said('touched last')],
+    })
 
-    expect((await threads.list({ project: '/repo' })).map((row) => row.title)).toEqual(['on main', 'on feature'])
+    expect((await threads.list({ project: '/repo' })).map((row) => row.title)).toEqual([
+      'on main',
+      'on feature',
+    ])
   })
 
   it('still lists a main-checkout thread that predates repo attribution', async () => {
@@ -285,7 +346,9 @@ describe('JsonlThreadStore listing', () => {
     await threads.create({ title: 'legacy worktree', workspace: '/wt/old', repo: null })
 
     expect((await threads.list({ project: '/repo' })).map((row) => row.title)).toEqual(['legacy'])
-    expect((await threads.list({ project: '/wt/old' })).map((row) => row.title)).toEqual(['legacy worktree'])
+    expect((await threads.list({ project: '/wt/old' })).map((row) => row.title)).toEqual([
+      'legacy worktree',
+    ])
   })
 
   it('takes no more threads than the limit asked for', async () => {
@@ -299,13 +362,22 @@ describe('JsonlThreadStore listing', () => {
   it('finds a thread by name however far down the picker’s window it has fallen', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })
-    const target = await threads.create({ title: 'Migrating to prod GHCR binary', workspace: '/here' })
-    for (let newer = 0; newer < 50; newer += 1) await threads.create({ title: `newer ${newer}`, workspace: '/here' })
+    const target = await threads.create({
+      title: 'Migrating to prod GHCR binary',
+      workspace: '/here',
+    })
+    for (let newer = 0; newer < 50; newer += 1)
+      await threads.create({ title: `newer ${newer}`, workspace: '/here' })
 
     expect(await threads.list({ project: '/here' })).toHaveLength(50)
-    const found = await threads.findNamed({ project: '/here', handle: 'migrating-to-prod-ghcr-binary' })
+    const found = await threads.findNamed({
+      project: '/here',
+      handle: 'migrating-to-prod-ghcr-binary',
+    })
     expect(found?.id).toBe(target.id)
-    expect((await threads.findNamed({ project: '/here', handle: 'migrating to prod ghcr binary' }))?.id).toBe(target.id)
+    expect(
+      (await threads.findNamed({ project: '/here', handle: 'migrating to prod ghcr binary' }))?.id,
+    ).toBe(target.id)
     expect(await threads.findNamed({ project: '/here', handle: 'nobody' })).toBeUndefined()
   })
 })
@@ -327,10 +399,16 @@ describe('JsonlThreadStore queued meta writes', () => {
     expect(found?.head).toBe(1)
 
     const sessionDir = sessionDirectory({ home, sessionId: thread.id })
-    const raw = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: thread.id }), schema: threadMetaSchema })
+    const raw = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: thread.id }),
+      schema: threadMetaSchema,
+    })
     expect(raw?.title).toBe('after')
     expect(raw?.head).toBe(1)
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
+    const session = readMetaSync({
+      file: sessionMetaFile({ sessionDir }),
+      schema: sessionMetaSchema,
+    })
     expect(session?.title).toBe('after')
   })
 })

@@ -47,10 +47,15 @@ describe('DockerPodDriver staging, recovery and locking', () => {
   })
 
   it('throws instead of guessing when the marker probe fails to run', async () => {
-    const fake = fakeEngine({ existing: { id: 'old-id', status: 'exited' }, markerProbeExitCode: 126 })
+    const fake = fakeEngine({
+      existing: { id: 'old-id', status: 'exited' },
+      markerProbeExitCode: 126,
+    })
     const driver = driverWith({ engine: fake.engine })
 
-    const failure = await driver.createOrResume({ name: NAME, threadId: THREAD, token: 'tok' }).catch((e: unknown) => e)
+    const failure = await driver
+      .createOrResume({ name: NAME, threadId: THREAD, token: 'tok' })
+      .catch((e: unknown) => e)
 
     expect((failure as Error).message).toContain('could not check whether pod')
     expect(fake.files).toEqual([])
@@ -60,7 +65,9 @@ describe('DockerPodDriver staging, recovery and locking', () => {
     const fake = fakeEngine({ loseCreateResponse: true })
     const driver = driverWith({ engine: fake.engine })
 
-    const failure = await driver.createOrResume({ name: NAME, threadId: THREAD, token: 'tok' }).catch((e: unknown) => e)
+    const failure = await driver
+      .createOrResume({ name: NAME, threadId: THREAD, token: 'tok' })
+      .catch((e: unknown) => e)
 
     expect((failure as Error).message).toBe('connection reset')
     const removals = fake.calls.filter((call) => call.startsWith('remove'))
@@ -82,7 +89,9 @@ describe('DockerPodDriver staging, recovery and locking', () => {
       },
     })
 
-    await driver.createOrResume({ name: NAME, threadId: THREAD, token: 'tok' }).catch(() => undefined)
+    await driver
+      .createOrResume({ name: NAME, threadId: THREAD, token: 'tok' })
+      .catch(() => undefined)
 
     expect(fake.calls.some((call) => call.startsWith('removePod'))).toBe(false)
     expect(fake.calls.filter((call) => call.startsWith('removeVolume'))).toHaveLength(2)

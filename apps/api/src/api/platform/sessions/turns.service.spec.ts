@@ -6,7 +6,11 @@ vi.mock('../../../db', async () => {
   return { db: fakeSessionDb().db as unknown as PrismaClient }
 })
 
-import { fakeSessionDb, type FakeThreadRow, type FakeTurnRow } from '../../../../test/fake-session-db.js'
+import {
+  fakeSessionDb,
+  type FakeThreadRow,
+  type FakeTurnRow,
+} from '../../../../test/fake-session-db.js'
 import { TurnsService } from './turns.service'
 
 const USER_A = 'user-a'

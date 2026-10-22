@@ -55,8 +55,16 @@ function dispatcherFor(args: {
   })
 }
 
-const settled = (dispatcher: HookedToolDispatcher, call = readCall): Promise<readonly EventDraft[]> =>
-  dispatcher.dispatch({ call, signal: new AbortController().signal, projectDirectory: WORKSPACE_DIRECTORY, events: [] })
+const settled = (
+  dispatcher: HookedToolDispatcher,
+  call = readCall,
+): Promise<readonly EventDraft[]> =>
+  dispatcher.dispatch({
+    call,
+    signal: new AbortController().signal,
+    projectDirectory: WORKSPACE_DIRECTORY,
+    events: [],
+  })
 
 describe('dispatch is total: every failure mode still answers the model with a draft', () => {
   it('answers when the tool itself throws', async () => {

@@ -4,8 +4,7 @@ import { envConfigValidation } from './validation'
 const VALID_ENV = {
   DATABASE_URL: 'postgresql://atlas:atlas@localhost:5433/atlas',
   SECRET_KEY: 'a-secret-key-with-at-least-32-characters',
-  SECRETS_ENCRYPTION_KEY:
-    'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+  SECRETS_ENCRYPTION_KEY: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
   TRIGGER_SECRET_KEY: 'tr_dev_test-fixture-not-a-real-key',
 }
 

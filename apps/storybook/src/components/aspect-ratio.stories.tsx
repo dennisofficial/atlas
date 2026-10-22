@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { AspectRatio } from "@dltech/atlas-ui/components/aspect-ratio";
+import { AspectRatio } from '@dltech/atlas-ui/components/aspect-ratio'
 
 const meta = {
-  title: "Components/Aspect Ratio",
+  title: 'Components/Aspect Ratio',
   component: AspectRatio,
-  argTypes: { ratio: { control: { type: "number", min: 0.5, max: 3, step: 0.05 } } },
+  argTypes: { ratio: { control: { type: 'number', min: 0.5, max: 3, step: 0.05 } } },
   args: { ratio: 16 / 9 },
-} satisfies Meta<typeof AspectRatio>;
+} satisfies Meta<typeof AspectRatio>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -24,7 +24,7 @@ export const Default: Story = {
       </AspectRatio>
     </div>
   ),
-};
+}
 
 export const Square: Story = {
   args: { ratio: 1 },
@@ -38,4 +38,4 @@ export const Square: Story = {
       </AspectRatio>
     </div>
   ),
-};
+}

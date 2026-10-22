@@ -91,7 +91,11 @@ describe('a child model that falls back to the session model', () => {
   })
 
   it('fails plainly when the child already runs the parent model, since there is nowhere to fall to', async () => {
-    const primary = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet', fault: authFault(401) })
+    const primary = new StubModel({
+      id: 'anthropic',
+      modelId: 'claude-sonnet',
+      fault: authFault(401),
+    })
 
     const port = childFallbackModel({ primary, parentFor: () => undefined, onFallback: () => {} })
 
@@ -100,7 +104,11 @@ describe('a child model that falls back to the session model', () => {
 
   it('surfaces the parent model s fault when the fallback also fails', async () => {
     const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: authFault(401) })
-    const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet', fault: authFault(500) })
+    const parent = new StubModel({
+      id: 'anthropic',
+      modelId: 'claude-sonnet',
+      fault: authFault(500),
+    })
 
     const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
 

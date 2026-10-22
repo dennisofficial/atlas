@@ -52,7 +52,12 @@ async function openThread({
 }: {
   home: string
   drafts: readonly EventDraft[]
-}): Promise<{ log: JsonlEventLog; threads: JsonlThreadStore; ids: CountingIds; threadId: ThreadId }> {
+}): Promise<{
+  log: JsonlEventLog
+  threads: JsonlThreadStore
+  ids: CountingIds
+  threadId: ThreadId
+}> {
   const store = openStore({ home })
   const thread = await store.threads.create({ title: 'work', workspace: '/here' })
   await store.log.append({ threadId: thread.id, runId: store.ids.nextRunId(), drafts })
@@ -65,33 +70,50 @@ const shapeOf = async ({ log, threadId }: { log: JsonlEventLog; threadId: Thread
 describe('JsonlThreadStore.rewind', () => {
   it('drops the suffix, moves the head back, and lets the next append take the freed seq', async () => {
     const home = await tempHome()
-    const { log, threads, ids, threadId } = await openThread({ home, drafts: [said('one'), said('two'), said('three')] })
+    const { log, threads, ids, threadId } = await openThread({
+      home,
+      drafts: [said('one'), said('two'), said('three')],
+    })
 
     await threads.rewind({ threadId: threadId, toSeq: 1 })
 
     expect(await shapeOf({ log, threadId })).toEqual([[1, 'user-said']])
     expect((await threads.find({ threadId: threadId }))?.head).toBe(1)
 
-    const appended = await log.append({ threadId: threadId, runId: ids.nextRunId(), drafts: [said('two again')] })
+    const appended = await log.append({
+      threadId: threadId,
+      runId: ids.nextRunId(),
+      drafts: [said('two again')],
+    })
     expect(appended.map((event) => event.seq)).toEqual([2])
     expect((await threads.find({ threadId: threadId }))?.head).toBe(2)
   })
 
   it('empties the thread when rewound to zero', async () => {
     const home = await tempHome()
-    const { log, threads, ids, threadId } = await openThread({ home, drafts: [said('one'), said('two')] })
+    const { log, threads, ids, threadId } = await openThread({
+      home,
+      drafts: [said('one'), said('two')],
+    })
 
     await threads.rewind({ threadId: threadId, toSeq: 0 })
 
     expect(await shapeOf({ log, threadId })).toEqual([])
     expect((await threads.find({ threadId: threadId }))?.head).toBe(0)
-    const appended = await log.append({ threadId: threadId, runId: ids.nextRunId(), drafts: [said('fresh')] })
+    const appended = await log.append({
+      threadId: threadId,
+      runId: ids.nextRunId(),
+      drafts: [said('fresh')],
+    })
     expect(appended[0]?.seq).toBe(1)
   })
 
   it('regenerates every surviving event id, because a rewrite must never mutate a body under a stable id', async () => {
     const home = await tempHome()
-    const { log, threads, threadId } = await openThread({ home, drafts: [said('one'), said('two'), said('three')] })
+    const { log, threads, threadId } = await openThread({
+      home,
+      drafts: [said('one'), said('two'), said('three')],
+    })
     const before = (await log.read({ threadId: threadId })).map((event) => event.id)
 
     await threads.rewind({ threadId: threadId, toSeq: 2 })
@@ -112,11 +134,24 @@ describe('JsonlThreadStore.rewind', () => {
 
     await threads.rewind({ threadId: root, toSeq: 1, cutAgents: [lonely.id, parent.id] })
 
-    expect(readMetaSync({ file: threadMetaFile({ sessionDir, threadId: lonely.id }), schema: threadMetaSchema })).toBeUndefined()
+    expect(
+      readMetaSync({
+        file: threadMetaFile({ sessionDir, threadId: lonely.id }),
+        schema: threadMetaSchema,
+      }),
+    ).toBeUndefined()
     expect(existsSync(eventLogFile({ sessionDir, threadId: lonely.id }))).toBe(false)
-    const detached = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: parent.id }), schema: threadMetaSchema })
+    const detached = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: parent.id }),
+      schema: threadMetaSchema,
+    })
     expect(detached).toMatchObject({ spawnerThreadId: null, agentType: null })
-    expect(readMetaSync({ file: threadMetaFile({ sessionDir, threadId: grandchild.id }), schema: threadMetaSchema })).toBeDefined()
+    expect(
+      readMetaSync({
+        file: threadMetaFile({ sessionDir, threadId: grandchild.id }),
+        schema: threadMetaSchema,
+      }),
+    ).toBeDefined()
     expect((await threads.find({ threadId: parent.id }))?.agent).toBeUndefined()
   })
 })
@@ -226,7 +261,10 @@ describe('JsonlThreadStore.summarise', () => {
 
   it('persists the rewrite across a fresh registry', async () => {
     const home = await tempHome()
-    const { threads, threadId } = await openThread({ home, drafts: [said('one'), said('two'), said('three')] })
+    const { threads, threadId } = await openThread({
+      home,
+      drafts: [said('one'), said('two'), said('three')],
+    })
 
     await threads.summarise({
       threadId: threadId,
@@ -260,6 +298,11 @@ describe('JsonlThreadStore.summarise', () => {
       cutAgents: [agent.id],
     })
 
-    expect(readMetaSync({ file: threadMetaFile({ sessionDir, threadId: agent.id }), schema: threadMetaSchema })).toBeUndefined()
+    expect(
+      readMetaSync({
+        file: threadMetaFile({ sessionDir, threadId: agent.id }),
+        schema: threadMetaSchema,
+      }),
+    ).toBeUndefined()
   })
 })

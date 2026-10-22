@@ -50,7 +50,7 @@ export class AgentListTool extends SchemaTool<typeof inputSchema> {
   override readonly pathFields = TAKES_NO_PATHS
   override readonly isConcurrencySafe = (): boolean => true
 
-  constructor( private readonly agents: AgentRegistrySource) {
+  constructor(private readonly agents: AgentRegistrySource) {
     super()
   }
 

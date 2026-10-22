@@ -1,22 +1,18 @@
 // PROTOTYPE — throwaway. The invented data the round-2 surfaces have no producer for yet.
 
-import { EAgentStatus } from "@dltech/atlas-core";
+import { EAgentStatus } from '@dltech/atlas-core'
 
-import {
-  ESidebarTaskState,
-  IDLE_SIDEBAR,
-  type SidebarModel,
-} from "../src/store";
-import type { Hint } from "../src/ui/hint-layout";
+import { ESidebarTaskState, IDLE_SIDEBAR, type SidebarModel } from '../src/store'
+import type { Hint } from '../src/ui/hint-layout'
 
 export const HINTS: readonly Hint[] = [
-  { key: "⇥", label: "next page" },
-  { key: "ctrl+c", label: "quit" },
-];
+  { key: '⇥', label: 'next page' },
+  { key: 'ctrl+c', label: 'quit' },
+]
 
 export const FED_SIDEBAR: SidebarModel = {
   ...IDLE_SIDEBAR,
-  title: "Refresh-token rotation",
+  title: 'Refresh-token rotation',
   turnCount: 14,
   spend: {
     totals: {
@@ -31,60 +27,60 @@ export const FED_SIDEBAR: SidebarModel = {
   },
   todo: [
     {
-      id: "k1",
-      label: "Revocation store on jti",
+      id: 'k1',
+      label: 'Revocation store on jti',
       state: ESidebarTaskState.Done,
     },
     {
-      id: "k2",
-      label: "Issue and rotate a pair",
+      id: 'k2',
+      label: 'Issue and rotate a pair',
       state: ESidebarTaskState.Done,
     },
     {
-      id: "k3",
-      label: "Cover rotation and reuse",
+      id: 'k3',
+      label: 'Cover rotation and reuse',
       state: ESidebarTaskState.Running,
     },
     {
-      id: "k4",
-      label: "Reject a revoked jti",
+      id: 'k4',
+      label: 'Reject a revoked jti',
       state: ESidebarTaskState.Pending,
     },
     {
-      id: "k5",
-      label: "Drop the old column",
+      id: 'k5',
+      label: 'Drop the old column',
       state: ESidebarTaskState.Pending,
     },
   ],
   subagents: [
     {
-      id: "s1",
-      name: "test-writer",
+      id: 's1',
+      name: 'test-writer',
       status: EAgentStatus.Running,
-      startedAt: "2026-01-01T00:00:00.000Z",
+      startedAt: '2026-01-01T00:00:00.000Z',
       endedAt: null,
-      state: "1m 4s",
-      model: "Claude Haiku 4.5",
+      state: '1m 4s',
+      model: 'Claude Haiku 4.5',
       selected: false,
       failureReason: null,
     },
     {
-      id: "s2",
-      name: "migration",
+      id: 's2',
+      name: 'migration',
       status: EAgentStatus.Blocked,
-      startedAt: "2026-01-01T00:00:00.000Z",
+      startedAt: '2026-01-01T00:00:00.000Z',
       endedAt: null,
-      state: "blocked · 12s",
+      state: 'blocked · 12s',
       model: null,
       selected: false,
       failureReason: null,
     },
   ],
   teammates: [
-    { id: "t1", name: "dana", activity: "reviewing #412" },
-    { id: "t2", name: "omar", activity: null },
+    { id: 't1', name: 'dana', activity: 'reviewing #412' },
+    { id: 't2', name: 'omar', activity: null },
   ],
-};
+}
 
 export const PATCH = `diff --git a/src/auth/auth.service.ts b/src/auth/auth.service.ts
 --- a/src/auth/auth.service.ts
@@ -107,4 +103,4 @@ export const PATCH = `diff --git a/src/auth/auth.service.ts b/src/auth/auth.serv
 +    await this.revoked.add(claim.jti, claim.exp)
 +    return this.issue(claim.sub)
 +  }
-`;
+`

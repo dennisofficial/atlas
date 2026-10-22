@@ -12,14 +12,19 @@ describe('codex version pin', () => {
   })
 
   test('the generate script file exists and rewrites CODEX_VERSION in codex-version.ts', async () => {
-    const script = await readFile(new URL('scripts/generate-codex-version.ts', HARNESS_ROOT), 'utf8')
+    const script = await readFile(
+      new URL('scripts/generate-codex-version.ts', HARNESS_ROOT),
+      'utf8',
+    )
     expect(script).toContain("'../src/providers/codex-version'")
     expect(script).toContain('CODEX_VERSION')
     expect(script).toContain('openai/codex/releases/latest')
   })
 
   test('package.json wires generate:codex-version to the script', async () => {
-    const manifest: unknown = JSON.parse(await readFile(new URL('package.json', HARNESS_ROOT), 'utf8'))
+    const manifest: unknown = JSON.parse(
+      await readFile(new URL('package.json', HARNESS_ROOT), 'utf8'),
+    )
     const scripts = (manifest as { scripts?: Record<string, string> }).scripts
     expect(scripts?.['generate:codex-version']).toBe('bun scripts/generate-codex-version.ts')
   })

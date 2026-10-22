@@ -279,7 +279,11 @@ describe('a tool call that has only been streamed', () => {
       textDelta({ stepId: stepOne, blockId: 't1', text: 'let me look' }),
       toolCall({ stepId: stepOne, n: 1, name: 'read' }),
     ]
-    const endSignal = ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: refTo(reply) })
+    const endSignal = ended({
+      stepId: stepOne,
+      end: EStepEnd.Completed,
+      supersededBy: refTo(reply),
+    })
 
     const frames = [
       { events: [], signals: streamed },

@@ -25,12 +25,12 @@ const PATCH = [
   '--- a/src/ui/theme.ts',
   '+++ b/src/ui/theme.ts',
   '@@ -11,8 +11,8 @@ export const theme: Palette = {',
-  '   appBg:\'#282422\',',
+  "   appBg:'#282422',",
   '-  accent: ACCENT,',
   '-  codeInline: ACCENT,',
   '+  accent: accentHex(chosen),',
   '+  codeInline: accentHex(chosen),',
-  '   dim: \'#6b625c\',',
+  "   dim: '#6b625c',",
 ].join('\n')
 
 const DIFF: DiffFile | undefined = parseUnifiedDiff(PATCH)[0]

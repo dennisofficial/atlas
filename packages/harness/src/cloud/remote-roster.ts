@@ -109,5 +109,4 @@ export const rosterAgents = (args: {
 }): readonly AgentSnapshot[] =>
   args.roster.agents.filter((agent) => agent.spawnedBy === args.threadId).map(toAgentSnapshot)
 
-export const rosterServices = (roster: RosterWire): readonly ServiceSnapshot[] =>
-  roster.services
+export const rosterServices = (roster: RosterWire): readonly ServiceSnapshot[] => roster.services

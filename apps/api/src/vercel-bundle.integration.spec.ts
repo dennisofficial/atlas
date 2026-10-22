@@ -23,7 +23,15 @@ const SETUP_TIMEOUT_MS = 240_000
 
 const describeLive = process.env.ATLAS_LIVE_DOCKER === '1' ? describe : describe.skip
 
-function sh({ file, args, env }: { file: string; args: string[]; env?: NodeJS.ProcessEnv }): string {
+function sh({
+  file,
+  args,
+  env,
+}: {
+  file: string
+  args: string[]
+  env?: NodeJS.ProcessEnv
+}): string {
   return execFileSync(file, args, {
     cwd: API_ROOT,
     encoding: 'utf8',
@@ -60,7 +68,8 @@ describeLive('vercel bundle (built output served from a read-only container)', (
   let isolatedDir: string
   let api: BundleApi | undefined
   const bundleOutput = (): string => api?.output() ?? ''
-  const withOutput = (message: string): string => `${message}\n--- bundle output ---\n${bundleOutput()}`
+  const withOutput = (message: string): string =>
+    `${message}\n--- bundle output ---\n${bundleOutput()}`
   const authed = { authorization: `Bearer ${SESSION_TOKEN}` }
   const baseUrl = (): string => api?.baseUrl ?? ''
 
@@ -68,7 +77,10 @@ describeLive('vercel bundle (built output served from a read-only container)', (
     outDir = mkdtempSync(join(tmpdir(), 'atlas-vercel-output-'))
     sh({
       file: 'bun',
-      args: ['-e', `import { buildVercelOutput } from './build'; await buildVercelOutput({ outDir: ${JSON.stringify(outDir)} })`],
+      args: [
+        '-e',
+        `import { buildVercelOutput } from './build'; await buildVercelOutput({ outDir: ${JSON.stringify(outDir)} })`,
+      ],
       env: minimalEnv({}),
     })
 
@@ -91,7 +103,19 @@ describeLive('vercel bundle (built output served from a read-only container)', (
       INSERT INTO "User" (id, name, email, "updatedAt") VALUES ('usr_bundle', 'Bundle Spec', 'bundle@spec.test', now());
       INSERT INTO "Session" (id, token, "expiresAt", "updatedAt", "userId")
         VALUES ('ses_bundle', '${SESSION_TOKEN}', now() + interval '1 day', now(), 'usr_bundle');`
-    docker(['exec', names.postgres, 'psql', '-U', 'atlas', '-d', 'atlas', '-v', 'ON_ERROR_STOP=1', '-c', seed])
+    docker([
+      'exec',
+      names.postgres,
+      'psql',
+      '-U',
+      'atlas',
+      '-d',
+      'atlas',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-c',
+      seed,
+    ])
 
     api = await startBundleApi({
       names,
@@ -158,14 +182,20 @@ describeLive('vercel bundle (built output served from a read-only container)', (
   })
 
   it('accepts a correctly signed github app webhook with the raw body intact', async () => {
-    const response = await fetch(`${baseUrl()}/v1/github/app/hook`, signedHookRequest({ secret: WEBHOOK_SECRET }))
+    const response = await fetch(
+      `${baseUrl()}/v1/github/app/hook`,
+      signedHookRequest({ secret: WEBHOOK_SECRET }),
+    )
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(200)
     expect(JSON.parse(text)).toEqual({ received: true })
   })
 
   it('rejects a github app webhook signed with the wrong secret', async () => {
-    const response = await fetch(`${baseUrl()}/v1/github/app/hook`, signedHookRequest({ secret: 'wrong-secret' }))
+    const response = await fetch(
+      `${baseUrl()}/v1/github/app/hook`,
+      signedHookRequest({ secret: 'wrong-secret' }),
+    )
     expect(response.status, withOutput(await response.text())).toBe(401)
   })
 })

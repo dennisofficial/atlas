@@ -51,10 +51,13 @@ const chunk = (text: string, fg: RGBA, bg: string | undefined): TextChunk => ({
  * same ` ${title} ` the settled title in that seat renders. Lines with no ground of their own
  * (the sidebar) paint flush, so the pad follows `bg`, not the caller.
  */
-const pad = (text: string, bg: string | undefined): string => (bg === undefined ? text : ` ${text} `)
+const pad = (text: string, bg: string | undefined): string =>
+  bg === undefined ? text : ` ${text} `
 
 const padChunks = (chunks: TextChunk[], args: { fg: RGBA; bg: string | undefined }): TextChunk[] =>
-  args.bg === undefined ? chunks : [chunk(' ', args.fg, args.bg), ...chunks, chunk(' ', args.fg, args.bg)]
+  args.bg === undefined
+    ? chunks
+    : [chunk(' ', args.fg, args.bg), ...chunks, chunk(' ', args.fg, args.bg)]
 
 /**
  * The generating phase: a line of noise dots reshuffled every tick, dimmed toward the ground the
@@ -64,7 +67,9 @@ export function namingGenerating(args: { startCells: number; line: NamingLine })
   const dimmed = colourOf({ from: args.line.fg, to: args.line.towards, amount: args.line.dim })
   return new StyledText(
     padChunks(
-      Array.from({ length: Math.max(0, args.startCells) }, () => chunk(randomNoise(), dimmed, args.line.bg)),
+      Array.from({ length: Math.max(0, args.startCells) }, () =>
+        chunk(randomNoise(), dimmed, args.line.bg),
+      ),
       { fg: dimmed, bg: args.line.bg },
     ),
   )
@@ -87,7 +92,10 @@ export function namingStreaming(args: {
   const title = [...(padded ? ` ${args.title} ` : args.title)]
   const progress = Math.max(0, Math.min(1, (args.now - args.startedAt) / NAMING_SETTLE_MS))
   const settled = Math.floor(progress * title.length)
-  const cells = Math.max(1, Math.round(args.startCells + (title.length - args.startCells) * progress))
+  const cells = Math.max(
+    1,
+    Math.round(args.startCells + (title.length - args.startCells) * progress),
+  )
 
   const settledFg = rgbaOf(args.line.fg)
   const noiseFg = colourOf({ from: args.line.fg, to: args.line.towards, amount: args.line.dim })
@@ -128,7 +136,10 @@ export function namingGlideCells(args: {
 }): number {
   return Math.max(
     1,
-    Math.round(args.startCells + (args.finalCells - args.startCells) * Math.max(0, Math.min(1, args.progress))),
+    Math.round(
+      args.startCells +
+        (args.finalCells - args.startCells) * Math.max(0, Math.min(1, args.progress)),
+    ),
   )
 }
 
@@ -156,7 +167,11 @@ export function freshStartCells(args: { kind: 'sidebar' | 'composer'; maxCells: 
 
 export const NAMING_SIDEBAR_LINE: NamingLine = { fg: theme.bright, towards: theme.appBg, dim: 0.45 }
 
-export const namingComposerLine = (args: { fg: string; towards: string; bg?: string }): NamingLine => ({
+export const namingComposerLine = (args: {
+  fg: string
+  towards: string
+  bg?: string
+}): NamingLine => ({
   fg: args.fg,
   towards: args.towards,
   dim: 0.35,

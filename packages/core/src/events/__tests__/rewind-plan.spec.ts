@@ -25,7 +25,13 @@ const startedService = (callId: string): EventDraft => ({
   input: { command: 'npm run dev', description: 'dev server' },
   ordinal: 0,
 })
-const serviceRunning = ({ callId, serviceId }: { callId: string; serviceId: string }): EventDraft => ({
+const serviceRunning = ({
+  callId,
+  serviceId,
+}: {
+  callId: string
+  serviceId: string
+}): EventDraft => ({
   type: 'tool-result',
   callId: toCallId(callId),
   name: 'service_start',
@@ -98,7 +104,10 @@ describe('rewindPlan for background shells', () => {
   })
 
   it('keeps a shell whose start the log no longer holds, the way summarisation leaves it', () => {
-    const events = eventsFrom([said('msg_1'), shellEnded({ shellId: 'bash_7', output: 'from a compacted era' })])
+    const events = eventsFrom([
+      said('msg_1'),
+      shellEnded({ shellId: 'bash_7', output: 'from a compacted era' }),
+    ])
 
     const plan = rewindPlan({ events, toSeq: 1 })
 

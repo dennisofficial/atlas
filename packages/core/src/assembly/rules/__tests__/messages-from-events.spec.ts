@@ -55,7 +55,13 @@ describe('messagesFromEvents', () => {
   it('appends a tool call to the assistant message it was emitted with', () => {
     const events = log([
       { type: 'assistant-said', parts: [{ type: 'text', text: 'listing' }] },
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: { cmd: 'ls' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'bash',
+        input: { cmd: 'ls' },
+        ordinal: 0,
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -75,7 +81,13 @@ describe('messagesFromEvents', () => {
 
   it('renders a settled call as a tool message carrying its text output', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: { cmd: 'ls' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'bash',
+        input: { cmd: 'ls' },
+        ordinal: 0,
+      },
       { type: 'tool-result', callId: toCallId('call-1'), name: 'bash', output: 'a.ts' },
     ])
 
@@ -99,10 +111,27 @@ describe('messagesFromEvents', () => {
 
   it('coalesces consecutive settlements, denials included, into one tool message', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'glob', input: { pattern: '*' }, ordinal: 0 },
-      { type: 'tool-called', callId: toCallId('call-2'), name: 'bash', input: { command: 'rm -rf /' }, ordinal: 1 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'glob',
+        input: { pattern: '*' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-2'),
+        name: 'bash',
+        input: { command: 'rm -rf /' },
+        ordinal: 1,
+      },
       { type: 'tool-result', callId: toCallId('call-1'), name: 'glob', output: 'a.ts' },
-      { type: 'tool-denied', callId: toCallId('call-2'), name: 'bash', reason: 'outside the workspace root' },
+      {
+        type: 'tool-denied',
+        callId: toCallId('call-2'),
+        name: 'bash',
+        reason: 'outside the workspace root',
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -111,7 +140,12 @@ describe('messagesFromEvents', () => {
     expect(assembled.messages[1]?.message).toEqual({
       role: 'tool',
       content: [
-        { type: 'tool-result', toolCallId: 'call-1', toolName: 'glob', output: { type: 'text', value: 'a.ts' } },
+        {
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          toolName: 'glob',
+          output: { type: 'text', value: 'a.ts' },
+        },
         {
           type: 'tool-result',
           toolCallId: 'call-2',
@@ -125,10 +159,22 @@ describe('messagesFromEvents', () => {
 
   it('starts a new group when the assistant speaks between settlements', () => {
     const events = log([
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'glob', input: { pattern: '*' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'glob',
+        input: { pattern: '*' },
+        ordinal: 0,
+      },
       { type: 'tool-result', callId: toCallId('call-1'), name: 'glob', output: 'a.ts' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'now reading it' }] },
-      { type: 'tool-called', callId: toCallId('call-2'), name: 'read', input: { path: 'a.ts' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-2'),
+        name: 'read',
+        input: { path: 'a.ts' },
+        ordinal: 0,
+      },
       { type: 'tool-result', callId: toCallId('call-2'), name: 'read', output: 'export {}' },
     ])
 
@@ -145,14 +191,24 @@ describe('messagesFromEvents', () => {
       { type: 'tool-call', toolCallId: 'call-2', toolName: 'read', input: { path: 'a.ts' } },
     ])
     expect(assembled.messages[3]?.message.content).toEqual([
-      { type: 'tool-result', toolCallId: 'call-2', toolName: 'read', output: { type: 'text', value: 'export {}' } },
+      {
+        type: 'tool-result',
+        toolCallId: 'call-2',
+        toolName: 'read',
+        output: { type: 'text', value: 'export {}' },
+      },
     ])
   })
 
   it('renders loaded context as a user message, and a live nudge after it', () => {
     const events = log([
       { type: 'user-said', text: 'run it' },
-      { type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'rules' },
+      {
+        type: 'context-loaded',
+        slot: 'project-instructions',
+        key: '/repo/CLAUDE.md',
+        content: 'rules',
+      },
       { type: 'nudge', text: 'keep going', lifetimeSteps: 1 },
     ])
 
@@ -171,15 +227,26 @@ describe('messagesFromEvents', () => {
 
   it('renders only the latest load of a file, so a re-read supersedes rather than repeats', () => {
     const events = log([
-      { type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'old rules' },
+      {
+        type: 'context-loaded',
+        slot: 'project-instructions',
+        key: '/repo/CLAUDE.md',
+        content: 'old rules',
+      },
       { type: 'user-said', text: 'run it' },
-      { type: 'context-loaded', slot: 'project-instructions', key: '/repo/CLAUDE.md', content: 'new rules' },
+      {
+        type: 'context-loaded',
+        slot: 'project-instructions',
+        key: '/repo/CLAUDE.md',
+        content: 'new rules',
+      },
     ])
 
-    const rendered = messagesFromEvents()(empty, contextFor({ events })).messages.flatMap((entry) =>
-      entry.message.role === 'user'
-        ? entry.message.content.flatMap((part) => (part.type === 'text' ? [part.text] : []))
-        : [],
+    const rendered = messagesFromEvents()(empty, contextFor({ events })).messages.flatMap(
+      (entry) =>
+        entry.message.role === 'user'
+          ? entry.message.content.flatMap((part) => (part.type === 'text' ? [part.text] : []))
+          : [],
     )
 
     expect(rendered.filter((text) => text.includes('old rules'))).toEqual([])
@@ -196,7 +263,9 @@ describe('messagesFromEvents', () => {
     const seeded: Assembled = { system: [{ text: 'preamble' }], messages: [] }
     const events = log([{ type: 'user-said', text: 'hello' }])
 
-    expect(messagesFromEvents()(seeded, contextFor({ events })).system).toEqual([{ text: 'preamble' }])
+    expect(messagesFromEvents()(seeded, contextFor({ events })).system).toEqual([
+      { text: 'preamble' },
+    ])
   })
 })
 
@@ -211,7 +280,10 @@ describe('messagesFromEvents and nudges', () => {
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
     expect(assembled.messages.at(-1)).toEqual({
-      message: { role: 'user', content: [{ type: 'text', text: envelopedAs({ tag: 'system-notice', body: 'carry on' }) }] },
+      message: {
+        role: 'user',
+        content: [{ type: 'text', text: envelopedAs({ tag: 'system-notice', body: 'carry on' }) }],
+      },
       origin: { eventId: toEventId('event-3'), seq: 3 },
     })
   })
@@ -289,7 +361,9 @@ describe('messagesFromEvents and nudges', () => {
 
     const notice = assembled.messages[1]?.message.content[0]
     expect(notice?.type).toBe('text')
-    expect(notice?.type === 'text' ? notice.text : '').toContain('<system-notice kind="background-shell-matched"')
+    expect(notice?.type === 'text' ? notice.text : '').toContain(
+      '<system-notice kind="background-shell-matched"',
+    )
   })
 })
 
@@ -331,20 +405,31 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(false)
+    expect(
+      texts(assembled).some((text) =>
+        text.includes('<system-notice kind="background-shell-ended"'),
+      ),
+    ).toBe(false)
   })
 
   it('renders an ending that lands after the model has spoken past the kill', () => {
     const events = log([
       killCall,
       killResult,
-      { type: 'assistant-said', parts: [{ type: 'text', text: 'killed it; starting a fresh one' }] },
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'killed it; starting a fresh one' }],
+      },
       shellEnded,
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
+    expect(
+      texts(assembled).some((text) =>
+        text.includes('<system-notice kind="background-shell-ended"'),
+      ),
+    ).toBe(true)
   })
 
   it('renders an ending whose shell no shell_kill ever answered', () => {
@@ -352,7 +437,11 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
+    expect(
+      texts(assembled).some((text) =>
+        text.includes('<system-notice kind="background-shell-ended"'),
+      ),
+    ).toBe(true)
   })
 
   it('renders an ending under a recycled shell id whose command no shell_kill named', () => {
@@ -360,7 +449,11 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
+    expect(
+      texts(assembled).some((text) =>
+        text.includes('<system-notice kind="background-shell-ended"'),
+      ),
+    ).toBe(true)
   })
 
   it('suppresses an ending that landed before the kill result in the same stretch', () => {
@@ -368,7 +461,11 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(false)
+    expect(
+      texts(assembled).some((text) =>
+        text.includes('<system-notice kind="background-shell-ended"'),
+      ),
+    ).toBe(false)
   })
 
   it('lets one kill result cover one ending, so a recycled id ending still renders', () => {
@@ -376,7 +473,11 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).filter((text) => text.includes('<system-notice kind="background-shell-ended"'))).toHaveLength(1)
+    expect(
+      texts(assembled).filter((text) =>
+        text.includes('<system-notice kind="background-shell-ended"'),
+      ),
+    ).toHaveLength(1)
   })
 
   it('does not let a kill result that failed muzzle the ending', () => {
@@ -385,6 +486,10 @@ describe('a shell ending after a shell_kill', () => {
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
-    expect(texts(assembled).some((text) => text.includes('<system-notice kind="background-shell-ended"'))).toBe(true)
+    expect(
+      texts(assembled).some((text) =>
+        text.includes('<system-notice kind="background-shell-ended"'),
+      ),
+    ).toBe(true)
   })
 })

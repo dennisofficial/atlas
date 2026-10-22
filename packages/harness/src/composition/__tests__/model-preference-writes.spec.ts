@@ -17,9 +17,13 @@ describe('model preference write failures', () => {
       user: new MemorySettingsStore({ refuse: 'read-only file system' }),
     })
 
-    expect(rememberSettingModel({
-      settings, target: { id: ESettingId.ModelId, withEffort: true }, selection,
-    })).toEqual({ ok: false, message: 'read-only file system' })
+    expect(
+      rememberSettingModel({
+        settings,
+        target: { id: ESettingId.ModelId, withEffort: true },
+        selection,
+      }),
+    ).toEqual({ ok: false, message: 'read-only file system' })
     expect(settings.version()).toBe(0)
   })
 
@@ -39,9 +43,13 @@ describe('model preference write failures', () => {
       },
     })
 
-    expect(rememberSettingModel({
-      settings, target: { id: ESettingId.ModelId, withEffort: true }, selection,
-    })).toEqual({ ok: false, message: 'effort write failed' })
+    expect(
+      rememberSettingModel({
+        settings,
+        target: { id: ESettingId.ModelId, withEffort: true },
+        selection,
+      }),
+    ).toEqual({ ok: false, message: 'effort write failed' })
     expect(store.document().values[ESettingId.ModelId]).toBe('anthropic/claude-sonnet-5')
     expect(store.document().values[ESettingId.ModelEffort]).toBeUndefined()
   })

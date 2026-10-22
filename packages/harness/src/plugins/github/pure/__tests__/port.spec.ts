@@ -31,6 +31,8 @@ describe('samePullRequestReading pollBacked', () => {
   })
 
   it('treats two polled readings as the same', () => {
-    expect(samePullRequestReading(found({ pollBacked: true }), found({ pollBacked: true }))).toBe(true)
+    expect(samePullRequestReading(found({ pollBacked: true }), found({ pollBacked: true }))).toBe(
+      true,
+    )
   })
 })

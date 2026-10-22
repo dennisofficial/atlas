@@ -16,7 +16,11 @@ import { FileSettingsStore } from '../file-store'
 import { MemorySettingsStore } from '../memory-store'
 import { createSettingsService } from '../service'
 
-const serviceWith = (args: { user: MemorySettingsStore; project?: MemorySettingsStore; env?: Record<string, string> }) =>
+const serviceWith = (args: {
+  user: MemorySettingsStore
+  project?: MemorySettingsStore
+  env?: Record<string, string>
+}) =>
   createSettingsService({
     definitions: ATLAS_SETTINGS,
     user: args.user,
@@ -91,14 +95,18 @@ describe('createSettingsService', () => {
     const held = serviceWith({
       user: new MemorySettingsStore({ document: { values: { [ESettingId.SidebarWidth]: 34 } } }),
       project,
-    }).snapshot().resolution.settings.get(ESettingId.SidebarWidth)
+    })
+      .snapshot()
+      .resolution.settings.get(ESettingId.SidebarWidth)
 
     expect(held?.value).toBe(60)
     expect(held?.layer).toBe(ESettingsLayer.Project)
   })
 
   it('reports a refused write instead of pretending it saved', () => {
-    const service = serviceWith({ user: new MemorySettingsStore({ refuse: 'read-only file system' }) })
+    const service = serviceWith({
+      user: new MemorySettingsStore({ refuse: 'read-only file system' }),
+    })
 
     expect(service.set({ id: ESettingId.Accent, value: 'moss' })).toEqual({
       ok: false,
@@ -117,7 +125,9 @@ describe('createSettingsService', () => {
 
   it('registers late definitions and resolves values held for them', () => {
     const service = serviceWith({
-      user: new MemorySettingsStore({ document: { values: { 'agents.type.explore': 'openai/gpt-5' } } }),
+      user: new MemorySettingsStore({
+        document: { values: { 'agents.type.explore': 'openai/gpt-5' } },
+      }),
     })
     let told = 0
     service.subscribe(() => {
@@ -153,7 +163,8 @@ describe('createSettingsService', () => {
 })
 
 describe('FileSettingsStore', () => {
-  const fileIn = (name: string): string => join(mkdtempSync(join(tmpdir(), 'atlas-settings-')), name)
+  const fileIn = (name: string): string =>
+    join(mkdtempSync(join(tmpdir(), 'atlas-settings-')), name)
 
   it('reads no settings from a file that is not there', () => {
     const store = new FileSettingsStore({ file: fileIn('settings.json'), label: 'user' })

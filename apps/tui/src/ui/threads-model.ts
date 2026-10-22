@@ -162,10 +162,10 @@ const overflowCells = (count: number): number => `+${count}`.length + CHIP_PAD
  * chips the width denied, so it must fit where they could not: it is tried at every cut rather
  * than assumed.
  */
-export function visibleChips(args: {
-  chips: readonly ThreadChip[]
-  cells: number
-}): { shown: readonly ThreadChip[]; overflow: number } {
+export function visibleChips(args: { chips: readonly ThreadChip[]; cells: number }): {
+  shown: readonly ThreadChip[]
+  overflow: number
+} {
   const { chips, cells } = args
   if (rowOf(chips) <= cells) return { shown: chips, overflow: 0 }
 

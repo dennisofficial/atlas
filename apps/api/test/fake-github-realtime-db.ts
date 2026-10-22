@@ -83,7 +83,9 @@ export function createFakeSubscriptionTable(args: {
       )
     },
     upsert: async (query: {
-      where: { userId_repoFullName_branch: { userId: string; repoFullName: string; branch: string } }
+      where: {
+        userId_repoFullName_branch: { userId: string; repoFullName: string; branch: string }
+      }
       create: Omit<FakeSubscriptionRow, 'id' | 'createdAt'> & { id?: string; createdAt?: Date }
       update: Partial<FakeSubscriptionRow>
     }) => {
@@ -209,7 +211,10 @@ export function createFakePrEventTable(args: {
         query.orderBy === undefined
           ? matched
           : [...matched].sort((left, right) => {
-              const [field, direction] = Object.entries(query.orderBy ?? {})[0] ?? ['createdAt', 'asc']
+              const [field, direction] = Object.entries(query.orderBy ?? {})[0] ?? [
+                'createdAt',
+                'asc',
+              ]
               const a = (left as unknown as Where)[field] as Date
               const b = (right as unknown as Where)[field] as Date
               const compare = a.getTime() - b.getTime()

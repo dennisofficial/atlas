@@ -23,7 +23,11 @@ describe('resolveSettings', () => {
         origin: 'environment',
         values: { 'demo.choice': 'always' },
       },
-      { layer: ESettingsLayer.User, origin: '~/.atlas/settings.json', values: { 'demo.choice': 'never' } },
+      {
+        layer: ESettingsLayer.User,
+        origin: '~/.atlas/settings.json',
+        values: { 'demo.choice': 'never' },
+      },
     ])
 
     const held = resolution.settings.get('demo.choice')

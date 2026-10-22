@@ -39,12 +39,20 @@ describe('transcriptIdentityDigest', () => {
   it('ignores the order the reader returned events in', () => {
     const first = saidEvent({ id: 'a', seq: 1 })
     const second = saidEvent({ id: 'b', seq: 2 })
-    expect(transcriptIdentityDigest([second, first])).toBe(transcriptIdentityDigest([first, second]))
+    expect(transcriptIdentityDigest([second, first])).toBe(
+      transcriptIdentityDigest([first, second]),
+    )
   })
 
   it('ignores fields outside the identity', () => {
     const base = saidEvent({ id: 'a', seq: 1, text: 'one' })
-    const restamped = saidEvent({ id: 'a', seq: 1, text: 'two', runId: 'run-9', at: '2030-01-01T00:00:00.000Z' })
+    const restamped = saidEvent({
+      id: 'a',
+      seq: 1,
+      text: 'two',
+      runId: 'run-9',
+      at: '2030-01-01T00:00:00.000Z',
+    })
     expect(transcriptIdentityDigest([restamped])).toBe(transcriptIdentityDigest([base]))
   })
 

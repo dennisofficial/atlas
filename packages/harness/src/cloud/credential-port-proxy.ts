@@ -1,8 +1,4 @@
-import {
-  CredentialPort,
-  type Credential,
-  type CredentialRequest,
-} from '@dltech/atlas-core'
+import { CredentialPort, type Credential, type CredentialRequest } from '@dltech/atlas-core'
 
 import { BrokeredCredentialPort } from '../credentials/brokered-credential-port'
 import type { RefreshingCredentialPort } from '../credentials/refreshing-credential-port'

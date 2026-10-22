@@ -79,10 +79,16 @@ export const agentSnapshotWireSchema = z.object({
   failureCause: z.string().optional(),
   turns: z.number().int().nonnegative(),
   toolCalls: z.number().int().nonnegative(),
-  lastTool: z.string().nullish().transform((value) => value ?? undefined),
+  lastTool: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? undefined),
   startedAt: z.string(),
   steppingSince: z.string().optional(),
-  endedAt: z.string().nullish().transform((value) => value ?? undefined),
+  endedAt: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? undefined),
   deliveredAt: z.string().optional(),
   context: z
     .object({ tokens: z.number().int().nonnegative(), window: z.number().int().nonnegative() })

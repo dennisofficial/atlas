@@ -83,7 +83,10 @@ describe('builds for different targets', () => {
         keep: 3,
       })
 
-    await Promise.all([resolverFor(ELinuxServeTarget.X64)({}), resolverFor(ELinuxServeTarget.Arm64)({})])
+    await Promise.all([
+      resolverFor(ELinuxServeTarget.X64)({}),
+      resolverFor(ELinuxServeTarget.Arm64)({}),
+    ])
 
     expect(running.peak).toBe(1)
   })
@@ -100,7 +103,13 @@ describe('devServeBuildArgvOf', () => {
   it('passes the target and outfile to the serve build script', () => {
     const argv = devServeBuildArgvOf({ target: ELinuxServeTarget.Arm64, outfile: '/stage/out' })
 
-    expect(argv.slice(1)).toEqual(['scripts/build-serve.ts', '--target', 'bun-linux-arm64', '--outfile', '/stage/out'])
+    expect(argv.slice(1)).toEqual([
+      'scripts/build-serve.ts',
+      '--target',
+      'bun-linux-arm64',
+      '--outfile',
+      '/stage/out',
+    ])
   })
 })
 
@@ -135,8 +144,12 @@ describe('devServeResolverFor targets', () => {
 
         expect(process.arch).toBe('arm64')
         expect(asLiveCloudCallsIt).toBeDefined()
-        expect(asLiveCloudCallsIt).toBe(devServeResolverFor(build, { target: ELinuxServeTarget.X64 }))
-        expect(asLiveCloudCallsIt).not.toBe(devServeResolverFor(build, { target: ELinuxServeTarget.Arm64 }))
+        expect(asLiveCloudCallsIt).toBe(
+          devServeResolverFor(build, { target: ELinuxServeTarget.X64 }),
+        )
+        expect(asLiveCloudCallsIt).not.toBe(
+          devServeResolverFor(build, { target: ELinuxServeTarget.Arm64 }),
+        )
       }
     })
   })

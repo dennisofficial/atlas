@@ -14,7 +14,12 @@ import {
   type RotationStateWire,
 } from '@dltech/atlas-wire'
 
-import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+import {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { ServeTurnDriver } from './turn-driver'
 
@@ -58,8 +63,10 @@ export function createRotationRequests(args: {
   let current: RotationStateWire | undefined
   let finished: Promise<void> | undefined
 
-  const reply = (frame: RequestFrame, data: RotateReply): ReplyFrame => answeredRequest({ replyTo: frame.id, data })
-  const refused = (frame: RequestFrame, reason: string): ReplyFrame => reply(frame, { type: 'refused', reason })
+  const reply = (frame: RequestFrame, data: RotateReply): ReplyFrame =>
+    answeredRequest({ replyTo: frame.id, data })
+  const refused = (frame: RequestFrame, reason: string): ReplyFrame =>
+    reply(frame, { type: 'refused', reason })
 
   const publish = (rotation: RotationStateWire): void => {
     current = rotation
@@ -120,7 +127,8 @@ export function createRotationRequests(args: {
 
   const answer = async (frame: RequestFrame): Promise<ReplyFrame> => {
     const parsed = rotateRequestParamsSchema.safeParse(frame.params)
-    if (!parsed.success) return refusedRequest({ replyTo: frame.id, message: 'invalid rotate request' })
+    if (!parsed.success)
+      return refusedRequest({ replyTo: frame.id, message: 'invalid rotate request' })
     if (args.rotation === undefined) return refused(frame, 'this serve cannot rotate')
     const params = parsed.data
     if (params.threadId !== args.threadId) return refused(frame, 'this sandbox serves one thread')
@@ -132,7 +140,11 @@ export function createRotationRequests(args: {
       return refused(frame, reasonOf(error))
     }
 
-    const driving = drive({ rotation: args.rotation, instructions: params.instructions ?? '', release })
+    const driving = drive({
+      rotation: args.rotation,
+      instructions: params.instructions ?? '',
+      release,
+    })
     finished = driving.finished
     void driving.finished.then(() => {
       if (finished === driving.finished) finished = undefined

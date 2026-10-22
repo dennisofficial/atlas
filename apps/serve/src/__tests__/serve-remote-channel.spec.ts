@@ -4,14 +4,7 @@ import { toRunId } from '@dltech/atlas-core'
 
 import { EServeFrame, ETurnStatus } from '@dltech/atlas-harness'
 
-import {
-  attach,
-  gate,
-  releaseServing,
-  startServing,
-  threadId,
-  until,
-} from './serve-remote-fixture'
+import { attach, gate, releaseServing, startServing, threadId, until } from './serve-remote-fixture'
 
 afterEach(releaseServing)
 
@@ -129,7 +122,9 @@ describe('a real remote channel over a real serve socket', () => {
     await until({
       what: 'the serve to commit the woken message',
       condition: () =>
-        app.appended.some((draft) => draft.type === 'user-said' && draft.text === 'woken while away'),
+        app.appended.some(
+          (draft) => draft.type === 'user-said' && draft.text === 'woken while away',
+        ),
     })
     await Bun.sleep(50)
     client.retries[0]?.()

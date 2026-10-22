@@ -19,7 +19,10 @@ import {
 
 const layer = (partial: Partial<ScopeLayer>): ScopeLayer => ({ ...EMPTY_SCOPE_LAYER, ...partial })
 
-const server = (url: string): ScopedMcpServer => ({ name: 'docs', spec: { transport: { kind: EMcpTransportKind.Http, url } } })
+const server = (url: string): ScopedMcpServer => ({
+  name: 'docs',
+  spec: { transport: { kind: EMcpTransportKind.Http, url } },
+})
 
 describe('resolveScopedConfig', () => {
   it('lets project beat user beat workspace beat default for one key', () => {
@@ -70,7 +73,9 @@ describe('resolveScopedConfig', () => {
   it('merges mcp servers by name and sorts every list', () => {
     const resolved = resolveScopedConfig({
       defaults: EMPTY_SCOPE_LAYER,
-      workspace: layer({ mcpServers: [server('https://w.dev'), { name: 'alpha', spec: { disabled: true } }] }),
+      workspace: layer({
+        mcpServers: [server('https://w.dev'), { name: 'alpha', spec: { disabled: true } }],
+      }),
       user: layer({}),
       project: layer({ mcpServers: [server('https://p.dev')] }),
     })
@@ -103,17 +108,32 @@ describe('project setting registry', () => {
     expect(PROJECT_SETTING_REGISTRY.has('model.id')).toBe(true)
     expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelTeamId')).toBe(false)
     expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelToken')).toBe(false)
-    expect(validateProjectSetting({ key: 'sandbox.vercelProjectId', stored: encodeSettingValue('prj_1') }).ok).toBe(true)
+    expect(
+      validateProjectSetting({
+        key: 'sandbox.vercelProjectId',
+        stored: encodeSettingValue('prj_1'),
+      }).ok,
+    ).toBe(true)
     expect(validateProjectSetting({ key: 'nope', stored: 'x' }).ok).toBe(false)
   })
 })
 
 describe('workspace vercel credential', () => {
   it('reads without a token and takes an optional write-only token', () => {
-    expect(workspaceVercelCredentialSchema.safeParse({ configured: false, teamId: null, updatedAt: null }).success).toBe(true)
+    expect(
+      workspaceVercelCredentialSchema.safeParse({
+        configured: false,
+        teamId: null,
+        updatedAt: null,
+      }).success,
+    ).toBe(true)
     expect(workspaceVercelCredentialUpsertSchema.safeParse({ teamId: 'team_1' }).success).toBe(true)
-    expect(workspaceVercelCredentialUpsertSchema.safeParse({ token: 'v', teamId: 'team_1' }).success).toBe(true)
-    expect(workspaceVercelCredentialUpsertSchema.safeParse({ token: '', teamId: 'team_1' }).success).toBe(false)
+    expect(
+      workspaceVercelCredentialUpsertSchema.safeParse({ token: 'v', teamId: 'team_1' }).success,
+    ).toBe(true)
+    expect(
+      workspaceVercelCredentialUpsertSchema.safeParse({ token: '', teamId: 'team_1' }).success,
+    ).toBe(false)
     expect(workspaceVercelCredentialUpsertSchema.safeParse({ token: 'v' }).success).toBe(false)
   })
 })

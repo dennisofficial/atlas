@@ -12,7 +12,11 @@ import { settleLostChildren, unloggedChildren } from './lost-children'
 import type { AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
 import type { RecoveredAgents } from './snapshot'
-import { refreshTransferredFamily, storedModelOf, type TransferredOwner } from './transferred-family'
+import {
+  refreshTransferredFamily,
+  storedModelOf,
+  type TransferredOwner,
+} from './transferred-family'
 
 export class ChildRecovery {
   private readonly log: EventLogPort

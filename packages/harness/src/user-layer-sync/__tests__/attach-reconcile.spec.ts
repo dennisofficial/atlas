@@ -60,13 +60,19 @@ afterEach(() => {
   for (const engine of engines.splice(0)) engine.stop()
 })
 
-async function rig(args: { watch: (rig: () => Rig) => WatchDirectory; schedule: Schedule }): Promise<Rig> {
+async function rig(args: {
+  watch: (rig: () => Rig) => WatchDirectory
+  schedule: Schedule
+}): Promise<Rig> {
   const server = new FakeUserFilesServer()
   const device = await makeDevice({ server, name: 'attach' })
   const skillsDirectory = join(device.atlasHome, 'skills')
   await writeAt({ path: join(skillsDirectory, 'first.md'), content: '# first' })
   let scans = 0
-  const trees: readonly TreeLayout[] = userLayerTrees({ atlasHome: device.atlasHome, home: device.home }).map((tree) =>
+  const trees: readonly TreeLayout[] = userLayerTrees({
+    atlasHome: device.atlasHome,
+    home: device.home,
+  }).map((tree) =>
     tree.tree === EUserLayerTree.Skills
       ? {
           ...tree,
@@ -123,7 +129,10 @@ describe('attach reconcile', () => {
 
   it('pushes a file whose event the watch dropped just after attach', async () => {
     const manual = new ManualSchedule()
-    const attached = await rig({ watch: () => new DroppingWatch().watch, schedule: manual.schedule })
+    const attached = await rig({
+      watch: () => new DroppingWatch().watch,
+      schedule: manual.schedule,
+    })
     await attached.engine.start()
 
     await writeAt({ path: attached.skillFile('late.md'), content: '# late' })
@@ -136,7 +145,10 @@ describe('attach reconcile', () => {
 
   it('arms the delayed catch-up once, 50 ms after attach', async () => {
     const manual = new ManualSchedule()
-    const attached = await rig({ watch: () => new DroppingWatch().watch, schedule: manual.schedule })
+    const attached = await rig({
+      watch: () => new DroppingWatch().watch,
+      schedule: manual.schedule,
+    })
 
     await attached.engine.start()
 
@@ -147,7 +159,10 @@ describe('attach reconcile', () => {
 describe('steady state', () => {
   it('runs the boot, attach and delayed reconciles, pushes nothing extra and never repeats', async () => {
     const manual = new ManualSchedule()
-    const attached = await rig({ watch: () => new DroppingWatch().watch, schedule: manual.schedule })
+    const attached = await rig({
+      watch: () => new DroppingWatch().watch,
+      schedule: manual.schedule,
+    })
 
     await attached.engine.start()
     expect(attached.skillScans()).toBe(2)
@@ -180,7 +195,10 @@ describe('steady state', () => {
 describe('stop', () => {
   it('cancels the delayed catch-up and runs no reconcile afterwards', async () => {
     const manual = new ManualSchedule()
-    const attached = await rig({ watch: () => new DroppingWatch().watch, schedule: manual.schedule })
+    const attached = await rig({
+      watch: () => new DroppingWatch().watch,
+      schedule: manual.schedule,
+    })
     await attached.engine.start()
     await writeAt({ path: attached.skillFile('late.md'), content: '# late' })
 

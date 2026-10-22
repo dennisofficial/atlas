@@ -12,7 +12,10 @@ import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 const contextWith = (args: {
   params: Record<string, string>
   authorization?: string
-}): { context: ExecutionContext; request: { auth?: unknown; sandbox?: unknown; pod?: unknown } } => {
+}): {
+  context: ExecutionContext
+  request: { auth?: unknown; sandbox?: unknown; pod?: unknown }
+} => {
   const request: {
     params: Record<string, string>
     headers: Record<string, string>
@@ -135,8 +138,10 @@ describe('SessionOrSandboxGuard', () => {
 
     await expect(
       guard.canActivate(
-        contextWith({ params: { threadId: 'brn_elsewhere' }, authorization: 'Bearer sandbox-token' })
-          .context,
+        contextWith({
+          params: { threadId: 'brn_elsewhere' },
+          authorization: 'Bearer sandbox-token',
+        }).context,
       ),
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
@@ -240,7 +245,10 @@ describe('SessionOrSandboxGuard', () => {
     expect(request.sandbox).toEqual({ sandboxId: 'sbx_1', threadId: 'brn_1' })
   })
   describe('a pod lease token', () => {
-    const podGuard = (args: { reflector?: Reflector; assertThreadInFamily?: ReturnType<typeof vi.fn> }) => {
+    const podGuard = (args: {
+      reflector?: Reflector
+      assertThreadInFamily?: ReturnType<typeof vi.fn>
+    }) => {
       const verify = vi.fn()
       const guard = guardWith({
         verifier: { verify } as unknown as SessionVerifier,
@@ -289,7 +297,8 @@ describe('SessionOrSandboxGuard', () => {
 
       await expect(
         guard.canActivate(
-          contextWith({ params: { threadId: 'brn_pod' }, authorization: 'Bearer pod-token' }).context,
+          contextWith({ params: { threadId: 'brn_pod' }, authorization: 'Bearer pod-token' })
+            .context,
         ),
       ).rejects.toBeInstanceOf(ForbiddenException)
       expect(assertThreadInFamily).not.toHaveBeenCalled()

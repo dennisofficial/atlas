@@ -72,7 +72,7 @@ describe('smalltalk lexical highlighting', () => {
   it('reads a double-quoted span as a comment and a single-quoted one as a string', () => {
     const inverted = ['"a \'quoted\' aside"', 'Transcript showCr: \'say "hi"\'.'].join('\n')
 
-    expect(textFor({ spec, source: inverted, group: 'comment' })).toEqual(["\"a 'quoted' aside\""])
+    expect(textFor({ spec, source: inverted, group: 'comment' })).toEqual(['"a \'quoted\' aside"'])
     expect(textFor({ spec, source: inverted, group: 'string' })).toEqual(['\'say "hi"\''])
   })
 
@@ -128,19 +128,20 @@ describe('smalltalk lexical highlighting', () => {
       '#(',
       '#multiply:by:',
     ])
-    expect(textFor({ spec, source: 'sel := #at:put:. op := #+. q := #\'odd one\'.', group: 'string.special.symbol' })).toEqual([
-      '#at:put:',
-      '#+',
-      "#'odd one'",
-    ])
+    expect(
+      textFor({
+        spec,
+        source: "sel := #at:put:. op := #+. q := #'odd one'.",
+        group: 'string.special.symbol',
+      }),
+    ).toEqual(['#at:put:', '#+', "#'odd one'"])
   })
 
   it('reads a dollar-prefixed character literal', () => {
     expect(textFor({ spec, source, group: 'character' })).toEqual(['$a'])
-    expect(textFor({ spec, source: "Transcript nextPut: $'; nextPut: $ .", group: 'character' })).toEqual([
-      "$'",
-      '$ ',
-    ])
+    expect(
+      textFor({ spec, source: "Transcript nextPut: $'; nextPut: $ .", group: 'character' }),
+    ).toEqual(["$'", '$ '])
   })
 
   it('reads block parameters as parameters', () => {
@@ -206,10 +207,7 @@ describe('smalltalk lexical highlighting', () => {
       "'after'",
     ])
     expect(groupsIn({ spec, source: wrapped })).not.toContain('string.special.symbol')
-    expect(textFor({ spec, source: wrapped, group: 'type' })).toEqual([
-      'Calculator',
-      'Transcript',
-    ])
+    expect(textFor({ spec, source: wrapped, group: 'type' })).toEqual(['Calculator', 'Transcript'])
   })
 
   it('reads the backslash binary selectors as operators', () => {

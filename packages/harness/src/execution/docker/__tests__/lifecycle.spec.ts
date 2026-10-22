@@ -471,9 +471,24 @@ describe('ReclaimWorktreeSandboxHook', () => {
   it('removes every session’s sandbox anchored at the worktree the session just removed', async () => {
     const { engine: withNetworks, recorded: withNetworksRecorded } = fakeEngine({
       containers: [
-        { id: 'gone-a', state: 'running', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-a' },
-        { id: 'gone-b', state: 'exited', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-b' },
-        { id: 'kept', state: 'running', worktree: '/repo/.atlas/worktrees/live', session: 'thread-c' },
+        {
+          id: 'gone-a',
+          state: 'running',
+          worktree: '/repo/.atlas/worktrees/merged',
+          session: 'thread-a',
+        },
+        {
+          id: 'gone-b',
+          state: 'exited',
+          worktree: '/repo/.atlas/worktrees/merged',
+          session: 'thread-b',
+        },
+        {
+          id: 'kept',
+          state: 'running',
+          worktree: '/repo/.atlas/worktrees/live',
+          session: 'thread-c',
+        },
       ],
       networks: [
         { id: 'net-merged', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-a' },

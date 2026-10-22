@@ -28,7 +28,8 @@ describe('what a running command has printed so far', () => {
   })
 
   it('attaches the live tail to the call it belongs to', async () => {
-    store.setEvents({ events: log([called({ n: 1, name: 'bash', input: { command: 'bun run build' } })]),
+    store.setEvents({
+      events: log([called({ n: 1, name: 'bash', input: { command: 'bun run build' } })]),
     })
 
     channel
@@ -41,8 +42,7 @@ describe('what a running command has printed so far', () => {
   })
 
   it('grows the tail as more output streams', async () => {
-    store.setEvents({ events: log([called({ n: 1, name: 'bash' })]),
-    })
+    store.setEvents({ events: log([called({ n: 1, name: 'bash' })]) })
     const publisher = channel.publisherFor({ threadId: fixtureThreadId })
 
     publisher.toolOutput({ callId: callId(1), text: 'compiling 1/3\n' })
@@ -70,8 +70,7 @@ describe('what a running command has printed so far', () => {
 
   it('drops the tail once the call settles — the durable output takes over', async () => {
     const publisher = channel.publisherFor({ threadId: fixtureThreadId })
-    store.setEvents({ events: log([called({ n: 1, name: 'bash' })]),
-    })
+    store.setEvents({ events: log([called({ n: 1, name: 'bash' })]) })
     publisher.toolOutput({ callId: callId(1), text: 'half way\n' })
     await sleep(A_FRAME_OR_TWO)
     expect(liveOutputOf(store, 1)).toBe('half way\n')
@@ -95,8 +94,7 @@ describe('what a running command has printed so far', () => {
   })
 
   it('leaves no tail behind on resetSteps, so a rewind leaves nothing half-printed', async () => {
-    store.setEvents({ events: log([called({ n: 1, name: 'bash' })]),
-    })
+    store.setEvents({ events: log([called({ n: 1, name: 'bash' })]) })
     channel
       .publisherFor({ threadId: fixtureThreadId })
       .toolOutput({ callId: callId(1), text: 'half way\n' })

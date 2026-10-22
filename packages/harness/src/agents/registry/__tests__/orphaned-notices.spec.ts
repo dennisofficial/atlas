@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { fakeRunners, finished, loggedOfType, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
+import {
+  fakeRunners,
+  finished,
+  loggedOfType,
+  openSupervisor,
+  settled,
+  type OpenedSupervisor,
+} from './fixtures'
 
 let opened: OpenedSupervisor | undefined
 

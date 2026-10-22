@@ -24,13 +24,17 @@ async function selectedRoot({
   const safe = safeIdOf({ id })
   if (safe === undefined) return undefined
   const sessionDir = sessionDirectory({ home, sessionId: toThreadId(safe) })
-  const root = await readMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(safe) }), schema: threadMetaSchema }).catch(
-    () => undefined,
-  )
+  const root = await readMeta({
+    file: threadMetaFile({ sessionDir, threadId: toThreadId(safe) }),
+    schema: threadMetaSchema,
+  }).catch(() => undefined)
   if (root === undefined || root.spawnerThreadId !== null) return undefined
   if (root.repo !== project && root.workspace !== project) return undefined
   const metas = await readThreadMetas({ sessionDir })
-  const activityAt = metas.reduce((latest, meta) => (meta.updatedAt > latest ? meta.updatedAt : latest), root.updatedAt)
+  const activityAt = metas.reduce(
+    (latest, meta) => (meta.updatedAt > latest ? meta.updatedAt : latest),
+    root.updatedAt,
+  )
   return { sessionDir, root, activityAt }
 }
 

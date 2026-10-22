@@ -18,10 +18,16 @@ export type CloudStateBinding = {
   cloudBacked: boolean
 }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : 'unknown failure')
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : 'unknown failure'
 
 const warn = (args: { notice: NoticePort; key: string; text: string }): void =>
-  args.notice.notify({ key: args.key, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: args.text })
+  args.notice.notify({
+    key: args.key,
+    tone: ENoticeTone.Warn,
+    ttlMs: NOTICE_WARN_MS,
+    text: args.text,
+  })
 
 async function warmSecrets(container: DependencyContainer): Promise<void> {
   const secrets = container.resolve(SecretsStoreToken)
@@ -115,5 +121,8 @@ export async function bindCloudState(args: {
     budgetMs: args.budgetMs ?? CLOUD_STATE_PULL_BUDGET_MS,
   })
 
-  return { settings: swapUserLayer({ container, settings: args.settings, cloud, notice }), cloudBacked: true }
+  return {
+    settings: swapUserLayer({ container, settings: args.settings, cloud, notice }),
+    cloudBacked: true,
+  }
 }

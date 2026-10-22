@@ -58,7 +58,9 @@ const serveCompose = async (args?: {
   return app
 }
 
-const recordCloud = (body: (input: { url: string; init?: RequestInit | undefined }) => Response | Promise<Response>) => {
+const recordCloud = (
+  body: (input: { url: string; init?: RequestInit | undefined }) => Response | Promise<Response>,
+) => {
   const calls: { url: string; method: string }[] = []
   const realFetch = globalThis.fetch
   globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
@@ -139,7 +141,12 @@ describe('serve launch user-layer sync', () => {
       }).write({ url: 'https://cloud.test', token: 'sess', email: null })
 
       const app = await composeHarness<undefined, never>({
-        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        launch: {
+          cwd: project,
+          command: 'atlas-test',
+          model: undefined,
+          executionLocation: undefined,
+        },
         env: {},
         settings: {
           service: createSettingsService({
@@ -161,7 +168,9 @@ describe('serve launch user-layer sync', () => {
       while (cloud.calls.length === 0 && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 20))
       }
-      expect(cloud.calls.some((call) => call.url.startsWith('https://cloud.test/v1/user-files'))).toBe(true)
+      expect(
+        cloud.calls.some((call) => call.url.startsWith('https://cloud.test/v1/user-files')),
+      ).toBe(true)
     } finally {
       cloud.restore()
     }

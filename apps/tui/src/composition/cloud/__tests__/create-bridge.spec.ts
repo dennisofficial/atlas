@@ -28,7 +28,9 @@ const fakeDriver = (args: { created: boolean }): FakeDriver => {
     written,
     tokens,
     inspect: async () =>
-      args.created ? undefined : { state: ECloudSandboxState.Running, url: 'https://sb.vercel.run' },
+      args.created
+        ? undefined
+        : { state: ECloudSandboxState.Running, url: 'https://sb.vercel.run' },
     createOrResume: async (createArgs) => {
       tokens.push(createArgs.token)
       await createArgs.putContextOnFreshBoot?.(sandbox as never)
@@ -99,7 +101,11 @@ describe('createCloudBridge sandboxes.create', () => {
     expect(paths).toContain('/atlas/home/bootstrap/workspace-spec.json')
 
     const spec = driver.written.find((write) => write.path.endsWith('workspace-spec.json'))
-    expect(JSON.parse(String(spec?.content))).toEqual({ remoteUrl: null, githubToken: null, projectId: 'proj_1' })
+    expect(JSON.parse(String(spec?.content))).toEqual({
+      remoteUrl: null,
+      githubToken: null,
+      projectId: 'proj_1',
+    })
   })
 
   it('never rewrites the workspace spec on a resume', async () => {

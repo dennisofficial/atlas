@@ -66,7 +66,11 @@ export async function nudgeSilentStep({
 
   if (silentSteps + 1 > EMPTY_STEP_NUDGES_PER_TURN) {
     if (finish !== undefined && finish !== EFinishReason.Stop) {
-      return { kind: 'failed', message: decidedFinishFault(finish), cause: { silentSteps: silentSteps + 1, finish } }
+      return {
+        kind: 'failed',
+        message: decidedFinishFault(finish),
+        cause: { silentSteps: silentSteps + 1, finish },
+      }
     }
     return { kind: 'no-content' }
   }

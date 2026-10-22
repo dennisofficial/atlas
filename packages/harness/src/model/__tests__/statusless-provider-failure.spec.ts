@@ -6,7 +6,9 @@ import { ModelStreamError } from '../errors'
 import { modelFailureOf } from '../failure'
 
 type FailureInput = { code: string; message: string }
-const factories: ReadonlyArray<readonly [string, (input: FailureInput) => APICallError | StreamProviderError]> = [
+const factories: ReadonlyArray<
+  readonly [string, (input: FailureInput) => APICallError | StreamProviderError]
+> = [
   [
     'API',
     ({ code, message }) =>

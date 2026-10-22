@@ -1,4 +1,4 @@
-import type { VitestPluginContext } from 'vitest/node';
+import type { VitestPluginContext } from 'vitest/node'
 
 /**
  * `repoRoot`, `cacheDir` and `summaryFile` configure the whole run: every
@@ -8,17 +8,17 @@ import type { VitestPluginContext } from 'vitest/node';
  */
 export interface IncrementalTestsOptions {
   /** Defaults to whether VITEST_INCREMENTAL selects a mode (see `incrementalTests`). */
-  enabled?: boolean;
+  enabled?: boolean
   /** Paths in the cache are relative to this. Defaults to the nearest ancestor declaring `workspaces`. Same for all projects. */
-  repoRoot?: string;
+  repoRoot?: string
   /** Defaults to `<repoRoot>/.cache/incremental-tests`. Same for all projects. */
-  cacheDir?: string;
+  cacheDir?: string
   /** Extra repo-relative globs whose contents invalidate every result of this project. */
-  globalInputs?: string[];
+  globalInputs?: string[]
   /** Extra env var names whose values invalidate every result of this project. */
-  env?: string[];
+  env?: string[]
   /** Write a JSON run summary here. Defaults to VITEST_INCREMENTAL_SUMMARY. Same for all projects. */
-  summaryFile?: string;
+  summaryFile?: string
 }
 
 /**
@@ -29,6 +29,6 @@ export interface IncrementalTestsOptions {
  * delete the cache first. Any other value throws.
  */
 export declare function incrementalTests(options?: IncrementalTestsOptions): {
-  name: string;
-  configureVitest(context: VitestPluginContext): void;
-};
+  name: string
+  configureVitest(context: VitestPluginContext): void
+}

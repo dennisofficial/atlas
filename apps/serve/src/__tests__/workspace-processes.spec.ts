@@ -44,7 +44,9 @@ const shellOperations = (args: {
       args.shells.filter((shell) => shell.threadId === threadId).map(snapshotOf),
     kill: ({ shellId, threadId, by }: { shellId: string; threadId: ThreadId; by: EKilledBy }) => {
       args.killReasons?.push(by)
-      const shell = args.shells.find((candidate) => candidate.shellId === shellId && candidate.threadId === threadId)
+      const shell = args.shells.find(
+        (candidate) => candidate.shellId === shellId && candidate.threadId === threadId,
+      )
       if (shell === undefined) return { ok: false as const, reason: 'unknown shell' }
       args.killed.push(shellId)
       if (args.killedShellsEnd !== false) shell.status = EShellStatus.Killed
@@ -80,8 +82,7 @@ const harness = (args: {
     root,
     ...(args.killedBy === undefined ? {} : { killedBy: args.killedBy }),
     threads: {
-      spawned: async ({ threadId }) =>
-        threadId === root ? [{ id: child } as never] : [],
+      spawned: async ({ threadId }) => (threadId === root ? [{ id: child } as never] : []),
     },
     shells: {
       ...shellOperations({ ...args, killed, killReasons }),
@@ -97,7 +98,8 @@ const harness = (args: {
         killReasons.push(by)
         stopped.push(serviceId)
         const service = services.find((candidate) => candidate.serviceId === serviceId)
-        if (service !== undefined && args.serviceEnds !== false) service.status = EServiceStatus.Killed
+        if (service !== undefined && args.serviceEnds !== false)
+          service.status = EServiceStatus.Killed
         return { ok: true } as never
       },
       awaitEndings: async () => args.serviceStragglers ?? 0,
@@ -105,7 +107,10 @@ const harness = (args: {
     },
     log: {
       append: async (given) => {
-        if (failAppend) { failAppend = false; throw new Error('process ending append failed') }
+        if (failAppend) {
+          failAppend = false
+          throw new Error('process ending append failed')
+        }
         appended.push({ threadId: given.threadId, drafts: given.drafts })
         return []
       },
@@ -128,7 +133,11 @@ describe('stopping the workspace processes before a capture', () => {
 
   for (const unresolved of [{ serviceEnds: false }, { serviceStragglers: 1 }]) {
     it(`refuses a service that has not confirmed its ending: ${JSON.stringify(unresolved)}`, async () => {
-      const test = harness({ shells: [], services: [{ serviceId: 'svc', status: EServiceStatus.Running }], ...unresolved })
+      const test = harness({
+        shells: [],
+        services: [{ serviceId: 'svc', status: EServiceStatus.Running }],
+        ...unresolved,
+      })
       await expect(test.stop()).rejects.toThrow('background processes are still writing')
       expect(test.appended).toEqual([])
     })
@@ -138,7 +147,8 @@ describe('stopping the workspace processes before a capture', () => {
     const ended = { type: 'shell-ended', shellId: 'a' } as unknown as EventDraft
     const test = harness({
       shells: [{ shellId: 'a', threadId: root, status: EShellStatus.Running }],
-      endings: { root: [ended] }, appendFailsOnce: true,
+      endings: { root: [ended] },
+      appendFailsOnce: true,
     })
     await expect(test.stop()).rejects.toThrow('process ending append failed')
     await test.stop()
@@ -228,7 +238,9 @@ describe('ending the family shells before a move capture', () => {
     const killed: string[] = []
     const end = endFamilyShellsFor({
       root,
-      threads: { spawned: async ({ threadId }) => (threadId === root ? [{ id: child } as never] : []) },
+      threads: {
+        spawned: async ({ threadId }) => (threadId === root ? [{ id: child } as never] : []),
+      },
       shells: {
         ...shellOperations({ ...args, killed }),
       },

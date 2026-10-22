@@ -4,7 +4,11 @@ import { secretDetailSchema, type SecretDetail } from '@dltech/atlas-wire/web'
 
 import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
 
-import { ESecretKind, type LibraryMember, type LibrarySecret } from '../../fixtures/settings-library'
+import {
+  ESecretKind,
+  type LibraryMember,
+  type LibrarySecret,
+} from '../../fixtures/settings-library'
 import type { SecretEntry } from '../../parts/library-secret-dialogs'
 import { relativeTime } from './relative-time'
 
@@ -21,7 +25,10 @@ export function toLibrarySecret(args: {
     key: detail.name,
     kind: detail.kind === 'env' ? ESecretKind.EnvVar : ESecretKind.Secret,
     value: detail.value,
-    updated: relativeTime({ from: detail.updatedAt, ...(args.now === undefined ? {} : { now: args.now }) }),
+    updated: relativeTime({
+      from: detail.updatedAt,
+      ...(args.now === undefined ? {} : { now: args.now }),
+    }),
     addedBy: args.addedBy,
   }
 }

@@ -63,7 +63,9 @@ describe('CodexLoopbackServer', () => {
     const { redirectUri } = await server.listen()
     const callback = server.waitForCallback({ state: 'state-1' })
 
-    const redirect = await fetch(`${redirectUri}?code=the-code&state=state-1`, { redirect: 'manual' })
+    const redirect = await fetch(`${redirectUri}?code=the-code&state=state-1`, {
+      redirect: 'manual',
+    })
 
     expect(redirect.status).toBe(302)
     expect(redirect.headers.get('location')).toBe('http://127.0.0.1:1455/success')

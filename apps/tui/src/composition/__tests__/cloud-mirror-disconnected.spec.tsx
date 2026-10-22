@@ -16,7 +16,10 @@ const SYNCED_ANSWER = 'The packages are migrated.'
 
 const CHANNEL_DOWN = 'the channel is disconnected'
 
-const FINAL = { type: 'assistant-said' as const, parts: [{ type: 'text' as const, text: SYNCED_ANSWER }] }
+const FINAL = {
+  type: 'assistant-said' as const,
+  parts: [{ type: 'text' as const, text: SYNCED_ANSWER }],
+}
 
 const cleanups: (() => Promise<void>)[] = []
 

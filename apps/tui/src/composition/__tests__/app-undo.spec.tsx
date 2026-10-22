@@ -21,12 +21,16 @@ const CALL = 'write_file'
 const REFUSED = 'dispatched but unsettled'
 
 async function strandedCall(): Promise<FakeApp> {
-  const app = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: SPOKEN } }) })
+  const app = fakeApp({
+    model: scriptedModelPort({ script: { thinking: THINKING, reply: SPOKEN } }),
+  })
 
   await app.log.append({
     threadId: THREAD,
     runId: toRunId('run-before'),
-    drafts: [{ type: 'tool-called', callId: toCallId('call-1'), name: CALL, input: {}, ordinal: 0 }],
+    drafts: [
+      { type: 'tool-called', callId: toCallId('call-1'), name: CALL, input: {}, ordinal: 0 },
+    ],
   })
 
   return {
@@ -47,7 +51,10 @@ describe('escape on a turn that committed nothing', () => {
   it('empties the thread of the exchange and hands the message back to the composer', async () => {
     const mounted = await open({
       app: fakeApp({
-        model: scriptedModelPort({ script: { thinking: THINKING, reply: SPOKEN }, perChunkMs: 200 }),
+        model: scriptedModelPort({
+          script: { thinking: THINKING, reply: SPOKEN },
+          perChunkMs: 200,
+        }),
       }),
     })
 
@@ -84,7 +91,10 @@ describe('escape on a turn that committed nothing', () => {
   it('leaves the log alone once the model has spoken, and keeps the composer empty', async () => {
     const mounted = await open({
       app: fakeApp({
-        model: scriptedModelPort({ script: { thinking: THINKING, reply: SPOKEN }, perChunkMs: 300 }),
+        model: scriptedModelPort({
+          script: { thinking: THINKING, reply: SPOKEN },
+          perChunkMs: 300,
+        }),
       }),
     })
 

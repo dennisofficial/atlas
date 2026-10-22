@@ -24,7 +24,12 @@ const cardFor = (api: string): ModelCard => ({
   imageTier: EImageTier.Standard,
 })
 
-const origin = { eventId: toEventId('evt_1'), runId: toRunId('run_1'), threadId: toThreadId('thread_1'), seq: 1 }
+const origin = {
+  eventId: toEventId('evt_1'),
+  runId: toRunId('run_1'),
+  threadId: toThreadId('thread_1'),
+  seq: 1,
+}
 
 const assembledWithToolImage: Assembled = {
   system: [],
@@ -79,7 +84,9 @@ describe('a tool-result image bound for a completions-API model', () => {
     if (anchor?.role !== 'user' || typeof anchor.content === 'string') {
       throw new Error('expected the hoisted image in a user message')
     }
-    expect(anchor.content.some((part) => part.type === 'file' && part.mediaType === 'image/png')).toBe(true)
+    expect(
+      anchor.content.some((part) => part.type === 'file' && part.mediaType === 'image/png'),
+    ).toBe(true)
   })
 
   it('stays inside the tool message for an API that carries tool images natively', async () => {

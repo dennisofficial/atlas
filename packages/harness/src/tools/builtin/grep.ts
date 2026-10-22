@@ -58,7 +58,8 @@ type SearchArguments = {
   context: number | undefined
 }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 function ripgrepSearcher(args: SearchArguments & { binary: string }): Searcher {
   return {
@@ -175,7 +176,9 @@ function renderModelText(args: {
   }
 
   if (args.complaint.length > 0) {
-    sections.push(`Some paths could not be searched, so these results may be incomplete: ${args.complaint}`)
+    sections.push(
+      `Some paths could not be searched, so these results may be incomplete: ${args.complaint}`,
+    )
   }
 
   return sections.join('\n\n')
@@ -192,7 +195,12 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     isGrepOutput(output) ? output.paths : []
   readonly inputSchema = inputSchema
   override readonly pathFields: readonly DeclaredPathField[] = [
-    { field: 'path', presence: EPathPresence.Optional, form: EPathForm.Absolute, content: EContentAccess.None },
+    {
+      field: 'path',
+      presence: EPathPresence.Optional,
+      form: EPathForm.Absolute,
+      content: EContentAccess.None,
+    },
   ]
 
   constructor(
@@ -221,9 +229,7 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
           ok: false,
           reason: await missingPathReason({
             path: searchPath,
-            ...(resolved.anchored
-              ? { resolvedFrom: { raw: rawPath, projectDirectory } }
-              : {}),
+            ...(resolved.anchored ? { resolvedFrom: { raw: rawPath, projectDirectory } } : {}),
           }),
         }
       }
@@ -251,7 +257,10 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
           searchPath,
           cwd: projectDirectory,
           include: glob,
-          excludeSegments: [...VERSION_CONTROL_DIRECTORIES, ...DIRECTORIES_RIPGREP_SKIPS_BY_GITIGNORE],
+          excludeSegments: [
+            ...VERSION_CONTROL_DIRECTORIES,
+            ...DIRECTORIES_RIPGREP_SKIPS_BY_GITIGNORE,
+          ],
           caseInsensitive: caseInsensitive ?? false,
           context,
           signal,
@@ -311,4 +320,3 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     }
   }
 }
-

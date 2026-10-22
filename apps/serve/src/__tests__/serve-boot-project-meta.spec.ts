@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { ATLAS_HOME_ENV } from '@dltech/atlas-core'
 
-import { readMetaSync, sessionDirectory, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
+import {
+  readMetaSync,
+  sessionDirectory,
+  threadMetaFile,
+  threadMetaSchema,
+} from '@dltech/atlas-harness'
 
 import { fakeServeApp } from './fakes'
 import { releaseServeSpec, start, startWithDriveSpec, threadId } from './serve-spec-fixture'
@@ -11,7 +16,10 @@ afterEach(releaseServeSpec)
 
 const bornProjectId = () => {
   const home = process.env[ATLAS_HOME_ENV] ?? ''
-  const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+  const file = threadMetaFile({
+    sessionDir: sessionDirectory({ home, sessionId: threadId }),
+    threadId,
+  })
   return readMetaSync({ file, schema: threadMetaSchema })?.projectId
 }
 

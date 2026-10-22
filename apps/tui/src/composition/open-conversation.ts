@@ -233,7 +233,12 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
     return {
       ok: true,
       conversation: {
-        ...(await readOpenedConversation({ thread, log: args.log, ledger: args.ledger, effects: args.effects })),
+        ...(await readOpenedConversation({
+          thread,
+          log: args.log,
+          ledger: args.ledger,
+          effects: args.effects,
+        })),
         attachOnBoot: true,
       },
     }
@@ -259,6 +264,13 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
 
   return {
     ok: true,
-    conversation: await readOpenedConversation({ thread, log: args.log, ledger: args.ledger, effects: args.effects, lost, lostShells }),
+    conversation: await readOpenedConversation({
+      thread,
+      log: args.log,
+      ledger: args.ledger,
+      effects: args.effects,
+      lost,
+      lostShells,
+    }),
   }
 }

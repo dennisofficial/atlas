@@ -17,5 +17,13 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["src", "prisma", "test", "build.ts", "trigger.config.ts", "trigger-tier-extension.ts", "scripts/trigger-smoke.ts"]
+  "include": [
+    "src",
+    "prisma",
+    "test",
+    "build.ts",
+    "trigger.config.ts",
+    "trigger-tier-extension.ts",
+    "scripts/trigger-smoke.ts"
+  ]
 }

@@ -53,7 +53,9 @@ type FileStatus =
   | { kind: EStatus.Present; stats: FileStat }
 
 const errorCodeOf = (error: unknown): string =>
-  error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : 'unknown'
+  error instanceof Error && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : 'unknown'
 
 async function statusOf(args: {
   path: string

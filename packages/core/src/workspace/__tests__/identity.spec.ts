@@ -53,9 +53,9 @@ describe('workspaceFrom', () => {
   })
 
   it('falls back to the cwd when the toplevel is empty, as a bare repo reports', () => {
-    expect(workspaceFrom({ cwd: '/Users/dev/bare', toplevel: '', commonDir: '/Users/dev/bare' })).toEqual(
-      { workspace: '/Users/dev/bare', repo: null },
-    )
+    expect(
+      workspaceFrom({ cwd: '/Users/dev/bare', toplevel: '', commonDir: '/Users/dev/bare' }),
+    ).toEqual({ workspace: '/Users/dev/bare', repo: null })
   })
 
   it('strips a trailing slash so one directory is one workspace', () => {
@@ -89,9 +89,9 @@ describe('workspaceFrom', () => {
 
 describe('launchWorktreeOf', () => {
   it('names the worktree when the workspace is not the repo', () => {
-    expect(
-      launchWorktreeOf({ workspace: '/Users/dev/wt/feature', repo: '/Users/dev/atlas' }),
-    ).toBe('/Users/dev/wt/feature')
+    expect(launchWorktreeOf({ workspace: '/Users/dev/wt/feature', repo: '/Users/dev/atlas' })).toBe(
+      '/Users/dev/wt/feature',
+    )
   })
 
   it('names nothing on the main checkout, where workspace and repo are one', () => {

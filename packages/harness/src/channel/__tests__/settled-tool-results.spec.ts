@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { defaultPipeline, EMPTY_PROMPT, EToolEffect, type Event, type ToolDefinition } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EMPTY_PROMPT,
+  EToolEffect,
+  type Event,
+  type ToolDefinition,
+} from '@dltech/atlas-core'
 
 import { createDeltaChannel, PublishingTurnRunner, type DeltaChannel } from '..'
 import { buildHarness, ETurnStatus, type AtlasHarness } from '../../loop'
@@ -81,7 +87,10 @@ describe('a turn that settles a tool call', () => {
         log: harness.log,
         model: harness.model,
         ids: harness.ids,
-        assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
+        assembly: defaultPipeline({
+          prompt: () => EMPTY_PROMPT,
+          launchDirectory: PROJECT_DIRECTORY,
+        }),
         tools: () => registry.declarations(),
         dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
       },

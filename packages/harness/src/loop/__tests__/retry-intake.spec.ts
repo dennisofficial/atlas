@@ -39,14 +39,20 @@ const quietTeammateEnded: EventDraft = {
 
 const typesOf = (events: readonly { type: string }[]): string[] => events.map((event) => event.type)
 
-async function harnessLog(harness: { log: EventLogPort }, threadId: Parameters<EventLogPort['read']>[0]['threadId']) {
+async function harnessLog(
+  harness: { log: EventLogPort },
+  threadId: Parameters<EventLogPort['read']>[0]['threadId'],
+) {
   return harness.log.read({ threadId })
 }
 
-function openFailingOnce(opened: Opened, args: {
-  failAppend?: number
-  actOnFirstStep?: () => void
-}) {
+function openFailingOnce(
+  opened: Opened,
+  args: {
+    failAppend?: number
+    actOnFirstStep?: () => void
+  },
+) {
   const { harness, queue } = opened
 
   let steps = 0
@@ -82,11 +88,19 @@ function openFailingOnce(opened: Opened, args: {
   const flakyLog = Object.create(harness.log) as EventLogPort
   flakyLog.append = async (appendArgs) => {
     appends += 1
-    if (args.failAppend !== undefined && appends === args.failAppend) throw new Error('log is wedged')
+    if (args.failAppend !== undefined && appends === args.failAppend)
+      throw new Error('log is wedged')
     return originalAppend(appendArgs)
   }
 
-  return { flakyModel, flakyLog, ackingDrain, acks: () => acknowledged, releases: () => released, steps: () => steps }
+  return {
+    flakyModel,
+    flakyLog,
+    ackingDrain,
+    acks: () => acknowledged,
+    releases: () => released,
+    steps: () => steps,
+  }
 }
 
 function openTurn(args: {
@@ -97,7 +111,10 @@ function openTurn(args: {
   policy?: RetryPolicy
 }) {
   return openSteerable({ script: args.script }).then((opened) => {
-    const { flakyModel, flakyLog, ackingDrain, acks, releases, steps } = openFailingOnce(opened, args)
+    const { flakyModel, flakyLog, ackingDrain, acks, releases, steps } = openFailingOnce(
+      opened,
+      args,
+    )
 
     const runner = new LoopTurnRunner({
       log: flakyLog,
@@ -112,7 +129,16 @@ function openTurn(args: {
       },
     })
 
-    return { runner, harness: opened.harness, model: opened.model, queue: opened.queue, threadId: opened.threadId, acks, releases, steps }
+    return {
+      runner,
+      harness: opened.harness,
+      model: opened.model,
+      queue: opened.queue,
+      threadId: opened.threadId,
+      acks,
+      releases,
+      steps,
+    }
   })
 }
 
@@ -127,7 +153,9 @@ describe('a retry that runs after input arrived while the first request was fail
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(model.doStreamCalls).toHaveLength(1)
-    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContainEqual(expect.stringContaining('actually, do Y'))
+    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContainEqual(
+      expect.stringContaining('actually, do Y'),
+    )
   })
 
   it('acknowledges the drained batch once it is durable, not before', async () => {
@@ -141,7 +169,9 @@ describe('a retry that runs after input arrived while the first request was fail
     expect(queue.drains()).toBeGreaterThan(1)
     expect(acks()).toBeGreaterThan(0)
     const events = await harnessLog(harness, threadId)
-    expect(events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y')).toHaveLength(1)
+    expect(
+      events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y'),
+    ).toHaveLength(1)
   })
 
   it('releases the intake lease when the log refuses the drain append, so nothing is acknowledged or lost', async () => {
@@ -158,7 +188,9 @@ describe('a retry that runs after input arrived while the first request was fail
     expect(acks()).toBe(1)
     expect(releases()).toBe(1)
     const events = await harnessLog(harness, threadId)
-    expect(events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y')).toHaveLength(0)
+    expect(
+      events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y'),
+    ).toHaveLength(0)
   })
 
   it('releases the intake lease when the log refuses the retry-time append, acknowledging nothing', async () => {
@@ -176,7 +208,9 @@ describe('a retry that runs after input arrived while the first request was fail
     expect(acks()).toBe(1)
     expect(releases()).toBe(1)
     const events = await harnessLog(harness, threadId)
-    expect(events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y')).toHaveLength(0)
+    expect(
+      events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y'),
+    ).toHaveLength(0)
   })
 
   it('keeps the drained batch acknowledged when the log refuses the assistant append after a retry succeeds', async () => {
@@ -192,7 +226,9 @@ describe('a retry that runs after input arrived while the first request was fail
     expect(acks()).toBe(2)
     expect(releases()).toBe(0)
     const events = await harnessLog(harness, threadId)
-    expect(events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y')).toHaveLength(1)
+    expect(
+      events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y'),
+    ).toHaveLength(1)
     expect(events.filter((event) => event.type === 'assistant-said')).toHaveLength(0)
   })
 })
@@ -208,9 +244,13 @@ describe('input that lands while a retry is backing off', () => {
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(model.doStreamCalls).toHaveLength(1)
-    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContainEqual(expect.stringContaining('actually, do Y'))
+    expect(userTexts(model.doStreamCalls[0]?.prompt ?? [])).toContainEqual(
+      expect.stringContaining('actually, do Y'),
+    )
     const events = await harnessLog(harness, threadId)
-    expect(events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y')).toHaveLength(1)
+    expect(
+      events.filter((event) => event.type === 'user-said' && event.text === 'actually, do Y'),
+    ).toHaveLength(1)
   })
 })
 
@@ -246,7 +286,9 @@ describe('an interrupt that lands while a retry is waiting to re-ask', () => {
       },
     })
 
-    await expect(runner.say({ threadId, text: 'do X', signal: controller.signal })).rejects.toThrow('overloaded')
+    await expect(runner.say({ threadId, text: 'do X', signal: controller.signal })).rejects.toThrow(
+      'overloaded',
+    )
 
     expect(steps).toBe(1)
     expect(opened.model.doStreamCalls).toHaveLength(0)

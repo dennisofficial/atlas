@@ -50,7 +50,10 @@ export function createRedactor(): Redactor {
     },
     redact: (text) => {
       const longestFirst = [...held].sort((left, right) => right.length - left.length)
-      const scrubbed = longestFirst.reduce((current, secret) => current.split(secret).join(REDACTED), text)
+      const scrubbed = longestFirst.reduce(
+        (current, secret) => current.split(secret).join(REDACTED),
+        text,
+      )
       return scrubbed
         .replace(/team_[A-Za-z0-9]+/g, `team_${REDACTED}`)
         .replace(/prj_[A-Za-z0-9]+/g, `prj_${REDACTED}`)
@@ -88,9 +91,15 @@ const failureBlock = (failure: ScenarioFailure): string =>
     `- observed: ${failure.observed}`,
   ].join('\n')
 
-export function renderEvidence(args: { evidence: ScenarioEvidence; redact: (text: string) => string }): string {
+export function renderEvidence(args: {
+  evidence: ScenarioEvidence
+  redact: (text: string) => string
+}): string {
   const { evidence } = args
-  const sections: string[] = [`# Scenario ${evidence.id} — ${evidence.title}`, `Verdict: **${evidence.verdict}**`]
+  const sections: string[] = [
+    `# Scenario ${evidence.id} — ${evidence.title}`,
+    `Verdict: **${evidence.verdict}**`,
+  ]
   if (evidence.reason !== undefined) sections.push(`## Reason\n${evidence.reason}`)
   if (evidence.failure !== undefined) sections.push(failureBlock(evidence.failure))
   if (evidence.commands.length > 0) {
@@ -98,7 +107,8 @@ export function renderEvidence(args: { evidence: ScenarioEvidence; redact: (text
       `## Commands\n${evidence.commands.map((command, index) => `${index + 1}. ${command}`).join('\n')}`,
     )
   }
-  if (evidence.observations.length > 0) sections.push(`## Observations\n${observationTable(evidence.observations)}`)
+  if (evidence.observations.length > 0)
+    sections.push(`## Observations\n${observationTable(evidence.observations)}`)
   for (const log of evidence.logs) sections.push(`## ${log.label}\n${fenced(log.text)}`)
   return args.redact(`${sections.join('\n\n')}\n`)
 }
@@ -118,18 +128,29 @@ export function trustOf(args: { version: string | null; protocol: number | null 
   trusted: boolean
   reason: string
 } {
-  if (args.version === null) return { trusted: false, reason: 'the serve version stamp was never read' }
-  if (args.protocol === null) return { trusted: false, reason: 'the serve protocol stamp was never read' }
+  if (args.version === null)
+    return { trusted: false, reason: 'the serve version stamp was never read' }
+  if (args.protocol === null)
+    return { trusted: false, reason: 'the serve protocol stamp was never read' }
   if (!args.version.startsWith(DEV_VERSION_PREFIX)) {
-    return { trusted: false, reason: `serve ${args.version} is a released build, not a ${DEV_VERSION_PREFIX} build` }
+    return {
+      trusted: false,
+      reason: `serve ${args.version} is a released build, not a ${DEV_VERSION_PREFIX} build`,
+    }
   }
   if (args.protocol !== TRUSTED_PROTOCOL) {
-    return { trusted: false, reason: `serve speaks protocol ${args.protocol}, expected ${TRUSTED_PROTOCOL}` }
+    return {
+      trusted: false,
+      reason: `serve speaks protocol ${args.protocol}, expected ${TRUSTED_PROTOCOL}`,
+    }
   }
   return { trusted: true, reason: `serve ${args.version} on protocol ${TRUSTED_PROTOCOL}` }
 }
 
-export function sawInOrder(args: { timeline: readonly string[]; states: readonly string[] }): boolean {
+export function sawInOrder(args: {
+  timeline: readonly string[]
+  states: readonly string[]
+}): boolean {
   let matched = 0
   for (const state of args.timeline) {
     if (matched === args.states.length) return true

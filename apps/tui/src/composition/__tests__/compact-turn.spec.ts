@@ -47,8 +47,6 @@ const turns = (count: number): readonly EventDraft[] =>
 
 const summarises = (summary: string | null) => async () => summary
 
-
-
 describe('compacting a conversation the operator asked to compact', () => {
   it('records a summary and reports how much of the thread it covered', async () => {
     const log = fakeEventLog(stamped(turns(40)))

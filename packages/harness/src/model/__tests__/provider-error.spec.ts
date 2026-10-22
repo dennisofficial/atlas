@@ -32,7 +32,9 @@ describe('reading the provider identifiers off an error', () => {
   })
 
   it('accepts a numeric code', () => {
-    expect(providerErrorOf(apiError({ data: { error: { code: 502 } } }))).toEqual({ providerCode: 502 })
+    expect(providerErrorOf(apiError({ data: { error: { code: 502 } } }))).toEqual({
+      providerCode: 502,
+    })
   })
 
   it('falls back to the response body when there is no structured data', () => {
@@ -49,14 +51,18 @@ describe('reading the provider identifiers off an error', () => {
   it('prefers structured data over the response body', () => {
     const responseBody = JSON.stringify({ error: { code: 'from_body' } })
 
-    expect(providerErrorOf(apiError({ data: { error: { code: 'from_data' } }, responseBody }))).toEqual({
+    expect(
+      providerErrorOf(apiError({ data: { error: { code: 'from_data' } }, responseBody })),
+    ).toEqual({
       providerCode: 'from_data',
     })
   })
 
   it('fills a missing code from the response body while keeping the structured type', () => {
     const data = { error: { type: 'invalid_request_error' } }
-    const responseBody = JSON.stringify({ error: { type: 'server_error', code: 'insufficient_quota' } })
+    const responseBody = JSON.stringify({
+      error: { type: 'server_error', code: 'insufficient_quota' },
+    })
     expect(providerErrorOf(apiError({ data, responseBody }))).toEqual({
       providerType: 'invalid_request_error',
       providerCode: 'insufficient_quota',
@@ -65,7 +71,9 @@ describe('reading the provider identifiers off an error', () => {
 
   it('fills a missing type without replacing a structured code', () => {
     const data = { error: { code: 'insufficient_quota' } }
-    const responseBody = JSON.stringify({ error: { type: 'invalid_request_error', code: 'upstream_error' } })
+    const responseBody = JSON.stringify({
+      error: { type: 'invalid_request_error', code: 'upstream_error' },
+    })
     expect(providerErrorOf(apiError({ data, responseBody }))).toEqual({
       providerType: 'invalid_request_error',
       providerCode: 'insufficient_quota',
@@ -96,9 +104,12 @@ describe('reading the provider identifiers off an error', () => {
     expect(providerErrorOf(apiError({ data: { code: 'top', type: 'top' } }))).toEqual({})
   })
 
-  it.each([[null], [undefined], ['text'], [42], [{}], [[]], [{ data: 'str' }]])('returns nothing for %p', (value) => {
-    expect(providerErrorOf(value)).toEqual({})
-  })
+  it.each([[null], [undefined], ['text'], [42], [{}], [[]], [{ data: 'str' }]])(
+    'returns nothing for %p',
+    (value) => {
+      expect(providerErrorOf(value)).toEqual({})
+    },
+  )
 })
 
 describe('reading an error that is not a provider error', () => {

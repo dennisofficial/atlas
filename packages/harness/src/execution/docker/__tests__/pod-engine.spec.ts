@@ -24,7 +24,8 @@ const concat = (parts: readonly Uint8Array[]): Uint8Array => {
   return joined
 }
 
-const octal = (field: Uint8Array): number => parseInt(new TextDecoder().decode(field).replace(/\0.*$/, '').trim(), 8)
+const octal = (field: Uint8Array): number =>
+  parseInt(new TextDecoder().decode(field).replace(/\0.*$/, '').trim(), 8)
 
 const firstTarEntry = (archive: Uint8Array) => {
   const text = (field: { start: number; end: number }) =>
@@ -56,7 +57,9 @@ describe('DockerPodEngine request shapes', () => {
   })
 
   it('creates a labelled volume', async () => {
-    const { engine, requests } = await serveDaemon(() => Response.json({ Name: 'vol' }, { status: 201 }))
+    const { engine, requests } = await serveDaemon(() =>
+      Response.json({ Name: 'vol' }, { status: 201 }),
+    )
 
     await engine.createVolume({ name: 'vol', labels: { team: 'pods' } })
 
@@ -161,7 +164,8 @@ describe('DockerPodEngine writeFile', () => {
 describe('DockerPodEngine execSh', () => {
   it('collects both streams and the exit code', async () => {
     const { engine, requests } = await serveDaemon((request) => {
-      if (request.path === '/containers/abc/exec') return Response.json({ Id: 'exec-1' }, { status: 201 })
+      if (request.path === '/containers/abc/exec')
+        return Response.json({ Id: 'exec-1' }, { status: 201 })
       if (request.path === '/exec/exec-1/start') {
         return new Response(
           concat([
@@ -195,8 +199,10 @@ describe('DockerPodEngine execSh', () => {
   it('polls until the exec reports an exit code', async () => {
     let inspects = 0
     const { engine } = await serveDaemon((request) => {
-      if (request.path === '/containers/abc/exec') return Response.json({ Id: 'exec-1' }, { status: 201 })
-      if (request.path === '/exec/exec-1/start') return new Response(frame({ stream: 1, text: 'ok' }))
+      if (request.path === '/containers/abc/exec')
+        return Response.json({ Id: 'exec-1' }, { status: 201 })
+      if (request.path === '/exec/exec-1/start')
+        return new Response(frame({ stream: 1, text: 'ok' }))
       inspects += 1
       return inspects < 3
         ? Response.json({ Running: true, ExitCode: null })
@@ -212,7 +218,8 @@ describe('DockerPodEngine execSh', () => {
   it('rejects naming the timeout and cancels the exec stream it was reading', async () => {
     let cancelled = false
     const { engine } = await serveDaemon((request) => {
-      if (request.path === '/containers/abc/exec') return Response.json({ Id: 'exec-1' }, { status: 201 })
+      if (request.path === '/containers/abc/exec')
+        return Response.json({ Id: 'exec-1' }, { status: 201 })
       return new Response(
         new ReadableStream<Uint8Array>({
           start: (controller) => controller.enqueue(frame({ stream: 1, text: 'partial' })),
@@ -256,8 +263,10 @@ describe('DockerPodEngine execSh', () => {
   it('stops polling for an exit code once the deadline passes', async () => {
     let inspects = 0
     const { engine } = await serveDaemon((request) => {
-      if (request.path === '/containers/abc/exec') return Response.json({ Id: 'exec-1' }, { status: 201 })
-      if (request.path === '/exec/exec-1/start') return new Response(frame({ stream: 1, text: 'ok' }))
+      if (request.path === '/containers/abc/exec')
+        return Response.json({ Id: 'exec-1' }, { status: 201 })
+      if (request.path === '/exec/exec-1/start')
+        return new Response(frame({ stream: 1, text: 'ok' }))
       inspects += 1
       return Response.json({ Running: true, ExitCode: null })
     })

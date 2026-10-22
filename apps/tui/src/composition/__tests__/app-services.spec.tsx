@@ -31,7 +31,11 @@ const logFile = (text: string): string => {
   return path
 }
 
-const running = (over: { serviceId: string; command: string; logPath: string }): ServiceSnapshot => ({
+const running = (over: {
+  serviceId: string
+  command: string
+  logPath: string
+}): ServiceSnapshot => ({
   serviceId: over.serviceId,
   command: over.command,
   description: over.command,

@@ -91,7 +91,11 @@ describe('a stream that raises rather than announcing the abort', () => {
     const controller = new AbortController()
 
     const result = await stepWith({
-      model: raisingModel({ head: HEAD, error: new Error('socket closed'), waitFor: controller.signal }),
+      model: raisingModel({
+        head: HEAD,
+        error: new Error('socket closed'),
+        waitFor: controller.signal,
+      }),
       signal: controller.signal,
       onChunk: abortOnFirstDelta(controller),
     })

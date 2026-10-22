@@ -29,7 +29,12 @@ import { SettingsDetail } from './settings/detail'
 import { SettingsHead } from './settings/head'
 import { SecretPrompt } from './settings/secret-prompt'
 import { TextSettingPrompt } from './settings/text-prompt'
-import { SelectableSettingLine, SettingsGroupHeader, SettingsLine, SETTINGS_PAD } from './settings/rows'
+import {
+  SelectableSettingLine,
+  SettingsGroupHeader,
+  SettingsLine,
+  SETTINGS_PAD,
+} from './settings/rows'
 import { QualityHealthStatus } from './settings/quality-health'
 import { clipSpans } from './sidebar/cells'
 import { Spans, type Span } from './spans'
@@ -94,7 +99,10 @@ function FooterLine(props: {
     >
       <text>
         <Spans
-          spans={clipSpans({ spans: [status, { text: ' '.repeat(gap) }, ...hints], cells: props.cells })}
+          spans={clipSpans({
+            spans: [status, { text: ' '.repeat(gap) }, ...hints],
+            cells: props.cells,
+          })}
         />
       </text>
     </SettingsLine>
@@ -237,7 +245,9 @@ export function Settings(props: {
                       setting={row}
                       cells={cells}
                       override={props.secretOf(row.definition.id)}
-                      selected={selected !== undefined && settingRowKey(row) === settingRowKey(selected)}
+                      selected={
+                        selected !== undefined && settingRowKey(row) === settingRowKey(selected)
+                      }
                       onSelect={() =>
                         props.onSelect({
                           pageIndex: props.state.pageIndex,
@@ -255,11 +265,7 @@ export function Settings(props: {
           ) : props.textPrompt !== null ? (
             <TextSettingPrompt prompt={props.textPrompt} cells={cells} />
           ) : (
-            <SettingsBand
-              width={columnWidth}
-              setting={selected}
-              appearance={props.appearance}
-            />
+            <SettingsBand width={columnWidth} setting={selected} appearance={props.appearance} />
           )}
           <FooterLine
             cells={cells}

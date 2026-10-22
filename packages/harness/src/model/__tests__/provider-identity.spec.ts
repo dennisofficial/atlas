@@ -18,7 +18,10 @@ describe('providerIdentityOf', () => {
   it('reads the identity the model reports at the moment it is asked', () => {
     const switchable = switchableOver({ provider: 'anthropic', modelId: 'claude-opus-5' })
 
-    expect(providerIdentityOf(switchable.model)).toEqual({ id: 'anthropic', modelId: 'claude-opus-5' })
+    expect(providerIdentityOf(switchable.model)).toEqual({
+      id: 'anthropic',
+      modelId: 'claude-opus-5',
+    })
 
     switchable.select({ provider: 'openai', modelId: 'gpt-5-codex' })
 

@@ -105,7 +105,10 @@ describe('composition with a user skill home', () => {
     }
     const agentDirectory = join(atlasHome, '.agents', 'agents')
     await mkdir(agentDirectory, { recursive: true })
-    await writeFile(join(agentDirectory, 'skill-home-agent.md'), '---\ndescription: Not a skill\n---\nAgent prompt.')
+    await writeFile(
+      join(agentDirectory, 'skill-home-agent.md'),
+      '---\ndescription: Not a skill\n---\nAgent prompt.',
+    )
 
     const app = await compose(atlasHome)
     expect(app.skillRegistry.byName('skill-home-collision')?.body).toBe('Atlas wins')
@@ -137,7 +140,11 @@ describe('composition with a user skill home', () => {
   it('preserves edits, additions and deletions when composing again against the same persistent home', async () => {
     const directory = join(atlasHome, '.agents', 'skills')
     await writeSkill({ directory, name: 'skill-home-edited', body: 'Old body.' })
-    const deleted = await writeSkill({ directory, name: 'skill-home-deleted', body: 'Delete this.' })
+    const deleted = await writeSkill({
+      directory,
+      name: 'skill-home-deleted',
+      body: 'Delete this.',
+    })
     const first = await compose(atlasHome)
     expect(first.skillRegistry.byName('skill-home-deleted')).toBeDefined()
     await first.close()

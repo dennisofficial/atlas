@@ -62,11 +62,16 @@ export function planDelivery(facts: ImageFacts): DeliveryPlan {
 }
 
 const readUint32BE = (bytes: Uint8Array, offset: number): number =>
-  ((bytes[offset] ?? 0) << 24) | ((bytes[offset + 1] ?? 0) << 16) | ((bytes[offset + 2] ?? 0) << 8) | (bytes[offset + 3] ?? 0)
+  ((bytes[offset] ?? 0) << 24) |
+  ((bytes[offset + 1] ?? 0) << 16) |
+  ((bytes[offset + 2] ?? 0) << 8) |
+  (bytes[offset + 3] ?? 0)
 
-const readUint16BE = (bytes: Uint8Array, offset: number): number => ((bytes[offset] ?? 0) << 8) | (bytes[offset + 1] ?? 0)
+const readUint16BE = (bytes: Uint8Array, offset: number): number =>
+  ((bytes[offset] ?? 0) << 8) | (bytes[offset + 1] ?? 0)
 
-const readUint16LE = (bytes: Uint8Array, offset: number): number => (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8)
+const readUint16LE = (bytes: Uint8Array, offset: number): number =>
+  (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8)
 
 const readUint24LE = (bytes: Uint8Array, offset: number): number =>
   (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8) | ((bytes[offset + 2] ?? 0) << 16)
@@ -88,7 +93,9 @@ export function pngSize(bytes: Uint8Array): ImageSize | null {
   return { width: readUint32BE(bytes, 16), height: readUint32BE(bytes, 20) }
 }
 
-const JPEG_SIZE_MARKERS = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf])
+const JPEG_SIZE_MARKERS = new Set([
+  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
+])
 
 /** Dimensions live in whichever SOFn frame header appears first; every other segment is skipped. */
 export function jpegSize(bytes: Uint8Array): ImageSize | null {
@@ -142,7 +149,11 @@ export function webpSize(bytes: Uint8Array): ImageSize | null {
 
   if (chunk === 'VP8L') {
     const packed = readUint32BE(bytes, 21)
-    const bits = ((packed >>> 24) & 0xff) | (((packed >>> 16) & 0xff) << 8) | (((packed >>> 8) & 0xff) << 16) | ((packed & 0xff) << 24)
+    const bits =
+      ((packed >>> 24) & 0xff) |
+      (((packed >>> 16) & 0xff) << 8) |
+      (((packed >>> 8) & 0xff) << 16) |
+      ((packed & 0xff) << 24)
     return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 }
   }
 
@@ -153,7 +164,12 @@ export function webpSize(bytes: Uint8Array): ImageSize | null {
   return null
 }
 
-export const SUPPORTED_IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const
+export const SUPPORTED_IMAGE_MEDIA_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+] as const
 
 export type SupportedImageMediaType = (typeof SUPPORTED_IMAGE_MEDIA_TYPES)[number]
 
@@ -241,7 +257,10 @@ export function jpegWellFormed(bytes: Uint8Array): boolean {
  * every later turn re-sends it, and a provider that rejects it fails every later turn — so the
  * answer here is the gate between "picture" and "text-only".
  */
-export function decodesAsImage(args: { bytes: Uint8Array; mediaType: SupportedImageMediaType }): boolean {
+export function decodesAsImage(args: {
+  bytes: Uint8Array
+  mediaType: SupportedImageMediaType
+}): boolean {
   if (args.mediaType === 'image/jpeg') return jpegWellFormed(args.bytes)
   return imageSize({ bytes: args.bytes, mediaType: args.mediaType }) !== null
 }

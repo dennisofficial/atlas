@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { EProjectSettingsPage } from "../../fixtures/project-settings";
-import { ProjectSettingsShell } from "./project-settings-shell";
-import { SandboxPage } from "./sandbox-page";
+import { EProjectSettingsPage } from '../../fixtures/project-settings'
+import { ProjectSettingsShell } from './project-settings-shell'
+import { SandboxPage } from './sandbox-page'
 
 const meta = {
-  title: "Views/Project Settings/Sandbox",
-  parameters: { layout: "fullscreen" },
-} satisfies Meta;
+  title: 'Views/Project Settings/Sandbox',
+  parameters: { layout: 'fullscreen' },
+} satisfies Meta
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -19,7 +19,7 @@ export const Default: Story = {
       <SandboxPage />
     </ProjectSettingsShell>
   ),
-};
+}
 
 export const VercelUnavailable: Story = {
   render: () => (
@@ -27,4 +27,4 @@ export const VercelUnavailable: Story = {
       <SandboxPage vercelEnabled={false} />
     </ProjectSettingsShell>
   ),
-};
+}

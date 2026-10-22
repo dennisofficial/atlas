@@ -4,7 +4,11 @@ import { lstat, mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/prom
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { buildContextArchive, extractContextArchive, TAR_NOT_FOUND_MESSAGE } from '../context-archive'
+import {
+  buildContextArchive,
+  extractContextArchive,
+  TAR_NOT_FOUND_MESSAGE,
+} from '../context-archive'
 
 const freshDirectory = async (prefix: string): Promise<string> => mkdtemp(join(tmpdir(), prefix))
 

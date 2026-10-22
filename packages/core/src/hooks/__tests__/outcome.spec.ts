@@ -4,14 +4,22 @@ import { HOOK_CONTEXT_KEY, hookOutcomeDrafts } from '../outcome'
 
 describe('hookOutcomeDrafts', () => {
   it('turns additionalContext into a context-loaded draft slotted under the hook that spoke', () => {
-    expect(hookOutcomeDrafts({ hookName: 'gitState', outcome: { additionalContext: '3 files dirty' } })).toEqual([
+    expect(
+      hookOutcomeDrafts({ hookName: 'gitState', outcome: { additionalContext: '3 files dirty' } }),
+    ).toEqual([
       { type: 'context-loaded', slot: 'gitState', key: HOOK_CONTEXT_KEY, content: '3 files dirty' },
     ])
   })
 
   it('gives one hook the same slot and key every time, so its context supersedes rather than piles up', () => {
-    const first = hookOutcomeDrafts({ hookName: 'gitState', outcome: { additionalContext: '3 files dirty' } })
-    const second = hookOutcomeDrafts({ hookName: 'gitState', outcome: { additionalContext: '1 file dirty' } })
+    const first = hookOutcomeDrafts({
+      hookName: 'gitState',
+      outcome: { additionalContext: '3 files dirty' },
+    })
+    const second = hookOutcomeDrafts({
+      hookName: 'gitState',
+      outcome: { additionalContext: '1 file dirty' },
+    })
 
     expect(first[0]).toMatchObject({ slot: 'gitState', key: HOOK_CONTEXT_KEY })
     expect(second[0]).toMatchObject({ slot: 'gitState', key: HOOK_CONTEXT_KEY })
@@ -19,7 +27,10 @@ describe('hookOutcomeDrafts', () => {
 
   it('keeps two hooks in separate slots even when they say the same thing', () => {
     const one = hookOutcomeDrafts({ hookName: 'gitState', outcome: { additionalContext: 'same' } })
-    const other = hookOutcomeDrafts({ hookName: 'testState', outcome: { additionalContext: 'same' } })
+    const other = hookOutcomeDrafts({
+      hookName: 'testState',
+      outcome: { additionalContext: 'same' },
+    })
 
     expect([one[0], other[0]]).toMatchObject([{ slot: 'gitState' }, { slot: 'testState' }])
   })
@@ -38,10 +49,9 @@ describe('hookOutcomeDrafts', () => {
       drafts: [{ type: 'nudge' as const, text: 'commit first', lifetimeSteps: 1 }],
     }
 
-    expect(hookOutcomeDrafts({ hookName: 'gitState', outcome }).map((draft) => draft.type)).toEqual([
-      'context-loaded',
-      'nudge',
-    ])
+    expect(hookOutcomeDrafts({ hookName: 'gitState', outcome }).map((draft) => draft.type)).toEqual(
+      ['context-loaded', 'nudge'],
+    )
   })
 
   it('returns nothing for a hook that had nothing to say', () => {
@@ -49,12 +59,17 @@ describe('hookOutcomeDrafts', () => {
   })
 
   it('drops blank context rather than spending tokens on an empty reminder', () => {
-    expect(hookOutcomeDrafts({ hookName: 'quiet', outcome: { additionalContext: '   \n' } })).toEqual([])
+    expect(
+      hookOutcomeDrafts({ hookName: 'quiet', outcome: { additionalContext: '   \n' } }),
+    ).toEqual([])
   })
 
   it('leaves the content byte-identical, so the log can dedupe on its digest', () => {
     const content = '  leading and trailing space matters  '
-    const [draft] = hookOutcomeDrafts({ hookName: 'gitState', outcome: { additionalContext: content } })
+    const [draft] = hookOutcomeDrafts({
+      hookName: 'gitState',
+      outcome: { additionalContext: content },
+    })
 
     expect(draft).toMatchObject({ content })
   })

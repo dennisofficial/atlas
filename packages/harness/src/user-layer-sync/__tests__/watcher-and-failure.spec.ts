@@ -6,7 +6,14 @@ import { UserFileConflict } from '../../cloud/user-files-client'
 import type { UserLayerSyncClient } from '../client'
 import { watchUserLayer, type UserLayerWatchHandle } from '../watcher'
 
-import { FakeUserFilesServer, makeDevice, readAt, scratchDirectory, writeAt, type Device } from './fixture'
+import {
+  FakeUserFilesServer,
+  makeDevice,
+  readAt,
+  scratchDirectory,
+  writeAt,
+  type Device,
+} from './fixture'
 
 const handles: UserLayerWatchHandle[] = []
 const devices: Device[] = []

@@ -87,7 +87,12 @@ const copier: ToolDeclaration = {
   inputSchema: z.strictObject({ path: z.string(), into: z.string() }),
   pathFields: [
     absoluteField(EContentAccess.Reads),
-    { field: 'into', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.None },
+    {
+      field: 'into',
+      presence: EPathPresence.Required,
+      form: EPathForm.Absolute,
+      content: EContentAccess.None,
+    },
   ],
 }
 
@@ -152,7 +157,13 @@ const viewNow = async ({
   return { mtimeMs: stats.mtimeMs, size: stats.size, wholeFile, digest }
 }
 
-const fileHolding = async ({ name, content }: { name: string; content: string }): Promise<string> => {
+const fileHolding = async ({
+  name,
+  content,
+}: {
+  name: string
+  content: string
+}): Promise<string> => {
   const path = join(root, name)
   await writeFile(path, content)
   return path
@@ -173,7 +184,10 @@ const recordFor = async ({
 }) => {
   const outcome = await createRecordFileStateHook({ seen, tools }).run({
     call: callTo({ name, input, threadId }),
-    result, projectDirectory: '/project', signal: NEVER_ABORTED })
+    result,
+    projectDirectory: '/project',
+    signal: NEVER_ABORTED,
+  })
 
   return { outcome, seen }
 }
@@ -184,7 +198,9 @@ describe('createRecordFileStateHook', () => {
     const { seen } = await recordFor({ name: 'read', input: { path } })
     const stats = await stat(path)
 
-    expect(seen.viewOf({ threadId: parent, path })).toEqual(await viewNow({ path, wholeFile: true }))
+    expect(seen.viewOf({ threadId: parent, path })).toEqual(
+      await viewNow({ path, wholeFile: true }),
+    )
   })
 
   it('records a partial view for a read that asked for an offset', async () => {
@@ -240,7 +256,11 @@ describe('createRecordFileStateHook', () => {
   it('records a whole-file view for an overwrite, even over a partial one', async () => {
     const path = await fileHolding({ name: 'overwritten.ts', content: 'a\n' })
     const seen = new InMemoryFileReadState()
-    seen.record({ threadId: parent, path, view: { mtimeMs: 1, size: 2, wholeFile: false, digest: 'stale' } })
+    seen.record({
+      threadId: parent,
+      path,
+      view: { mtimeMs: 1, size: 2, wholeFile: false, digest: 'stale' },
+    })
 
     await recordFor({ name: 'write', input: { path }, seen })
 
@@ -250,7 +270,11 @@ describe('createRecordFileStateHook', () => {
   it('carries a partial view forward through an amend rather than widening it', async () => {
     const path = await fileHolding({ name: 'amended-partially.ts', content: 'a\n' })
     const seen = new InMemoryFileReadState()
-    seen.record({ threadId: parent, path, view: { mtimeMs: 1, size: 2, wholeFile: false, digest: 'stale' } })
+    seen.record({
+      threadId: parent,
+      path,
+      view: { mtimeMs: 1, size: 2, wholeFile: false, digest: 'stale' },
+    })
 
     await recordFor({ name: 'edit', input: { path }, seen })
 
@@ -275,7 +299,9 @@ describe('createRecordFileStateHook', () => {
 
     const after = await stat(path)
 
-    expect(seen.viewOf({ threadId: parent, path })).toEqual(await viewNow({ path, wholeFile: true }))
+    expect(seen.viewOf({ threadId: parent, path })).toEqual(
+      await viewNow({ path, wholeFile: true }),
+    )
     expect(after.size).not.toBe(before.size)
   })
 
@@ -296,20 +322,34 @@ describe('createRecordFileStateHook', () => {
   })
 
   it('records nothing for a path that is missing, a directory, or not a string', async () => {
-    const { seen } = await recordFor({ name: 'read', input: { path: join(root, 'never-written.ts') } })
+    const { seen } = await recordFor({
+      name: 'read',
+      input: { path: join(root, 'never-written.ts') },
+    })
 
     expect(seen.viewOf({ threadId: parent, path: join(root, 'never-written.ts') })).toBeUndefined()
-    expect((await recordFor({ name: 'read', input: { path: root } })).seen.viewOf({ threadId: parent, path: root })).toBeUndefined()
+    expect(
+      (await recordFor({ name: 'read', input: { path: root } })).seen.viewOf({
+        threadId: parent,
+        path: root,
+      }),
+    ).toBeUndefined()
     expect((await recordFor({ name: 'read', input: { path: 42 } })).outcome).toEqual({})
     expect((await recordFor({ name: 'read', input: { path: 'relative.ts' } })).outcome).toEqual({})
   })
 
   it('records a partial view of each file a search showed lines of', async () => {
     const shown = await fileHolding({ name: 'matched.ts', content: 'todo\n' })
-    const { seen } = await recordFor({ name: 'rg', input: { path: root }, result: showing([shown]) })
+    const { seen } = await recordFor({
+      name: 'rg',
+      input: { path: root },
+      result: showing([shown]),
+    })
     const stats = await stat(shown)
 
-    expect(seen.viewOf({ threadId: parent, path: shown })).toEqual(await viewNow({ path: shown, wholeFile: false }))
+    expect(seen.viewOf({ threadId: parent, path: shown })).toEqual(
+      await viewNow({ path: shown, wholeFile: false }),
+    )
   })
 
   it('keeps a whole-file view that a search only re-confirmed, so a later overwrite still stands', async () => {
@@ -333,7 +373,9 @@ describe('createRecordFileStateHook', () => {
 
     await recordFor({ name: 'rg', input: { path: root }, result: showing([path]), seen })
 
-    expect(seen.viewOf({ threadId: parent, path })).toEqual(await viewNow({ path, wholeFile: false }))
+    expect(seen.viewOf({ threadId: parent, path })).toEqual(
+      await viewNow({ path, wholeFile: false }),
+    )
   })
 
   it('ignores a revealed path that is relative, missing, or not a regular file', async () => {
@@ -351,7 +393,10 @@ describe('createRecordFileStateHook', () => {
 
 describe('createRecordFileStateHook attributing each view to its own thread', () => {
   it('records a read under the reading thread and nowhere else', async () => {
-    const path = await fileHolding({ name: 'read-by-one-thread.ts', content: 'export const a = 1\n' })
+    const path = await fileHolding({
+      name: 'read-by-one-thread.ts',
+      content: 'export const a = 1\n',
+    })
     const { seen } = await recordFor({ name: 'read', input: { path }, threadId: child })
     const stats = await stat(path)
 
@@ -375,12 +420,21 @@ describe('createRecordFileStateHook attributing each view to its own thread', ()
   it('widens an amend to whole-file only against the amending thread’s own prior view', async () => {
     const path = await fileHolding({ name: 'amended-by-child.ts', content: 'a\n' })
     const seen = new InMemoryFileReadState()
-    seen.record({ threadId: parent, path, view: { mtimeMs: 1, size: 2, wholeFile: false, digest: 'stale' } })
+    seen.record({
+      threadId: parent,
+      path,
+      view: { mtimeMs: 1, size: 2, wholeFile: false, digest: 'stale' },
+    })
 
     await recordFor({ name: 'edit', input: { path }, seen, threadId: child })
 
     expect(seen.viewOf({ threadId: child, path })?.wholeFile).toBe(true)
-    expect(seen.viewOf({ threadId: parent, path })).toEqual({ mtimeMs: 1, size: 2, wholeFile: false, digest: 'stale' })
+    expect(seen.viewOf({ threadId: parent, path })).toEqual({
+      mtimeMs: 1,
+      size: 2,
+      wholeFile: false,
+      digest: 'stale',
+    })
   })
 
   it('leaves the other thread’s view untouched when a write moves the file on disk', async () => {

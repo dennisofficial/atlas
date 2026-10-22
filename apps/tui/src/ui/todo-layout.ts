@@ -44,10 +44,7 @@ export type TodoFold = {
   hidden: number
 }
 
-export function foldTodo(args: {
-  tasks: readonly SidebarTask[]
-  expanded: boolean
-}): TodoFold {
+export function foldTodo(args: { tasks: readonly SidebarTask[]; expanded: boolean }): TodoFold {
   const completed = args.tasks.filter((task) => task.state === ESidebarTaskState.Done)
   const folded = completed.length - TODO_DONE_TAIL
   if (folded < TODO_FOLD_MIN) return { shown: args.tasks, hidden: 0 }

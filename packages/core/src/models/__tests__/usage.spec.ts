@@ -45,8 +45,19 @@ describe('estimating what the thread will carry into the next turn', () => {
 
   it('counts a tool call and its result, which are the bulk of a long turn', () => {
     const events = eventsFrom([
-      { type: 'tool-called', callId: toCallId('c1'), name: 'read', input: { path: '/a' }, ordinal: 1 },
-      { type: 'tool-result', callId: toCallId('c1'), name: 'read', output: { text: 'q'.repeat(400) } },
+      {
+        type: 'tool-called',
+        callId: toCallId('c1'),
+        name: 'read',
+        input: { path: '/a' },
+        ordinal: 1,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('c1'),
+        name: 'read',
+        output: { text: 'q'.repeat(400) },
+      },
     ])
 
     expect(estimateEventTokens(events)).toBeGreaterThan(100)

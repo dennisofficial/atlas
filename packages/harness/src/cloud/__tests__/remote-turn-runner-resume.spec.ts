@@ -74,7 +74,11 @@ describe('resume intent over the run frame', () => {
 })
 
 describe('the held working state across a reconnect', () => {
-  const working = { kind: EServeFrame.Signal, seq: 2, signal: { type: 'turn-working', working: true } } as const
+  const working = {
+    kind: EServeFrame.Signal,
+    seq: 2,
+    signal: { type: 'turn-working', working: true },
+  } as const
 
   it('holds busy for a late subscriber while the sandbox reports a turn in flight', () => {
     const attached = readied()
@@ -98,7 +102,10 @@ describe('the held working state across a reconnect', () => {
 
     expect(attached.channel.snapshot({ threadId: THREAD })).toEqual([])
     const seen: string[] = []
-    attached.channel.subscribe({ threadId: THREAD, listener: (signal) => void seen.push(signal.type) })
+    attached.channel.subscribe({
+      threadId: THREAD,
+      listener: (signal) => void seen.push(signal.type),
+    })
     expect(seen).toEqual([])
   })
 })

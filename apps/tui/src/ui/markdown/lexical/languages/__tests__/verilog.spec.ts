@@ -16,7 +16,7 @@ const source = [
   '    output wire [7:0]  total',
   ');',
   '',
-  '  localparam [`WIDTH-1:0] MASK = 8\'b1010_1010;',
+  "  localparam [`WIDTH-1:0] MASK = 8'b1010_1010;",
   '  reg [31:0] and_result;',
   '',
   '  function [7:0] add(input [7:0] x, input [7:0] y);',
@@ -32,8 +32,8 @@ const source = [
   '  assign total = add(a, b) & MASK;',
   '',
   '  always @(posedge clk) begin',
-  '    if (and_result == 32\'hDEAD_BEEF) begin',
-  '      and_result <= 1\'b0;',
+  "    if (and_result == 32'hDEAD_BEEF) begin",
+  "      and_result <= 1'b0;",
   '    end else begin',
   '      multiply(a, b);',
   '    end',
@@ -152,9 +152,9 @@ describe('verilog lexical highlighting', () => {
   })
 
   it('keeps a control keyword out of the call group', () => {
-    expect(textFor({ spec, source: 'foreach (bus[i]) total += bus[i];', group: 'keyword' })).toEqual(
-      ['foreach'],
-    )
+    expect(
+      textFor({ spec, source: 'foreach (bus[i]) total += bus[i];', group: 'keyword' }),
+    ).toEqual(['foreach'])
   })
 
   it('leaves a signal whose name opens with a keyword alone', () => {

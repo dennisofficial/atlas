@@ -5,7 +5,13 @@ import { MessageIntake, type IntakeDriver } from '../../../intake/message-intake
 import { operatorSource } from '../../../intake/sources'
 import type { AgentType } from '../../types'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, finished, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
+import {
+  agentTypeNamed,
+  finished,
+  openSupervisor,
+  settled,
+  type OpenedSupervisor,
+} from './fixtures'
 
 const EXPLORE = agentTypeNamed({ name: 'explore' })
 
@@ -174,8 +180,7 @@ describe('a child finish with a shared intake wired', () => {
     const pending = createPendingQueues()
     const intake = new MessageIntake({
       sources: [operatorSource(pending)],
-      submit: (args) =>
-        pending.forThread({ threadId: args.threadId }).enqueue(args),
+      submit: (args) => pending.forThread({ threadId: args.threadId }).enqueue(args),
     })
 
     const supervisor = new AgentSupervisor({
@@ -224,7 +229,7 @@ describe('a child finish with a shared intake wired', () => {
 
       expect(temp.runners.started).toHaveLength(2)
       const events = await temp.harness.log.read({ threadId: childId })
-      const saidTexts = events.flatMap((event) => event.type === 'user-said' ? [event.text] : [])
+      const saidTexts = events.flatMap((event) => (event.type === 'user-said' ? [event.text] : []))
       expect(saidTexts).toContain('after you settled')
     } finally {
       intake.dispose()

@@ -111,7 +111,9 @@ describe('cloud transport operational log', () => {
 
     expect(failure).toBeInstanceOf(Error)
     expect(log.entries).toHaveLength(4)
-    expect(log.entries.slice(0, 3).every((entry) => entry.severity === ELogSeverity.Warn)).toBe(true)
+    expect(log.entries.slice(0, 3).every((entry) => entry.severity === ELogSeverity.Warn)).toBe(
+      true,
+    )
     expect(log.entries[3]?.severity).toBe(ELogSeverity.Error)
     expect(log.entries[3]?.data?.['cause']).toBe('status 429')
   })

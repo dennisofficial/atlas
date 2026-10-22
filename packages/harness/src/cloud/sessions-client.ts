@@ -138,11 +138,7 @@ export class SessionsClient {
     })
   }
 
-  async chooseThreadModel(args: {
-    threadId: string
-    ref: string
-    effort: string
-  }): Promise<void> {
+  async chooseThreadModel(args: { threadId: string; ref: string; effort: string }): Promise<void> {
     await this.request({
       method: 'PATCH',
       path: `/v1/threads/${args.threadId}/model`,

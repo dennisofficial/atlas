@@ -40,7 +40,11 @@ const viewNow = async ({
   return { mtimeMs: stats.mtimeMs, size: stats.size, wholeFile, digest }
 }
 
-const invoke = (tool: EditTool | WriteTool, input: unknown, threadId: ThreadId): Promise<ToolOutcome> =>
+const invoke = (
+  tool: EditTool | WriteTool,
+  input: unknown,
+  threadId: ThreadId,
+): Promise<ToolOutcome> =>
   tool.invoke({
     input,
     signal: new AbortController().signal,
@@ -132,7 +136,11 @@ describe('two threads writing one file they have both read', () => {
 
     await writeFile(path, 'the winner\n')
 
-    await invoke(new WriteTool(new VerifyingWriteGuard(seen)), { path, content: 'the loser\n' }, parent)
+    await invoke(
+      new WriteTool(new VerifyingWriteGuard(seen)),
+      { path, content: 'the loser\n' },
+      parent,
+    )
 
     expect(await readFile(path, 'utf8')).toBe('the winner\n')
   })

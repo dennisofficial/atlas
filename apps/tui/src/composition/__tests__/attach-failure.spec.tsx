@@ -9,7 +9,12 @@ import { createRoot } from '@opentui/react'
 import React, { act } from 'react'
 
 import { EExecutionLocation, toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
-import { ECloudSandboxState, EConnectionView, ERuntimeKind, type CloudConnection } from '@dltech/atlas-harness'
+import {
+  ECloudSandboxState,
+  EConnectionView,
+  ERuntimeKind,
+  type CloudConnection,
+} from '@dltech/atlas-harness'
 
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
@@ -31,13 +36,20 @@ afterEach(() => {
 
 const REASON = 'the sandbox could not wake'
 
-const RUNNING = { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' } as const
+const RUNNING = {
+  state: ECloudSandboxState.Running,
+  url: 'https://sandbox.example/thread',
+} as const
 
-const appFor = (): FakeApp => fakeApp({ model: scriptedModelPort({ script: { thinking: 'a', reply: 'b' } }) })
+const appFor = (): FakeApp =>
+  fakeApp({ model: scriptedModelPort({ script: { thinking: 'a', reply: 'b' } }) })
 
 const failingOnce = async (app: FakeApp) => {
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
-  await app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+  await app.threads.chooseExecutionLocation({
+    threadId: thread.id,
+    location: EExecutionLocation.Cloud,
+  })
   await app.threads.rename({ threadId: thread.id, title: 'the cloud thread' })
   const bridge: FakeBridge = fakeBridge({ status: RUNNING })
   await bridge.log.append({
@@ -64,12 +76,21 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
     const mounted = await mountCloud({
       app,
       bridge,
-     
-      opened: { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId },
+
+      opened: {
+        threadId: THREAD,
+        events: [],
+        turns: [],
+        name: null,
+        started: false,
+        bootCloudThreadId: threadId,
+      },
     })
 
     try {
-      expect(await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 }),
+      ).toBe(true)
       mounted.pressEscape()
       await settle(300)
       const frame = await mounted.showing('✗ cloud')
@@ -101,7 +122,9 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
       await mounted.command('/resume')
       await mounted.command('cloud thread')
       await mounted.command('')
-      expect(await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 }),
+      ).toBe(true)
       mounted.pressEscape()
       await settle(300)
 
@@ -116,7 +139,9 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
       expect(row).toBeGreaterThanOrEqual(0)
       await mounted.click({ x: (lines[row] ?? '').indexOf('reconnect') + 2, y: row })
 
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(
+        true,
+      )
       const attached = await mounted.showing('said inside the sandbox')
       expect(attached).not.toContain('○ disconnected')
       const owner = app.sessionOwner.snapshot()
@@ -140,7 +165,9 @@ describe('the reconnect the transcript advertises on a failed attach', () => {
       await mounted.command('/resume')
       await mounted.command('cloud thread')
       await mounted.command('')
-      expect(await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => wakes.failures === 0 && apologised(), within: 10_000 }),
+      ).toBe(true)
       mounted.pressEscape()
       await settle(300)
       const failed = await mounted.showing('ctrl+r reconnect')
@@ -149,8 +176,12 @@ describe('the reconnect the transcript advertises on a failed attach', () => {
 
       mounted.pressCtrl('r')
 
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 5_000 })).toBe(true)
-      expect(await until({ holds: async () => app.sessionOwner.snapshot().bound, within: 20_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 5_000 })).toBe(
+        true,
+      )
+      expect(
+        await until({ holds: async () => app.sessionOwner.snapshot().bound, within: 20_000 }),
+      ).toBe(true)
       expect(bridge.attached[0]?.threadId).toBe(threadId)
     } finally {
       await mounted.done()
@@ -208,7 +239,10 @@ describe('a host session after an earlier cloud attach failure', () => {
   it('renders the transcript undimmed and free of the disconnected row', async () => {
     const app = appFor()
     const opened = await spokenIn(app)
-    await app.executionLocation.activate({ threadId: opened.threadId, fallback: EExecutionLocation.Host })
+    await app.executionLocation.activate({
+      threadId: opened.threadId,
+      fallback: EExecutionLocation.Host,
+    })
     recordAttachFailure({ threadId: OTHER, detail: REASON })
 
     const home = mkdtempSync(join(tmpdir(), 'atlas-attach-failure-spec-'))

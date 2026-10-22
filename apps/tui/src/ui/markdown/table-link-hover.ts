@@ -1,4 +1,12 @@
-import { RGBA, rgbToHex, TextTableRenderable, type MarkdownRenderable, type Renderable, type TextChunk, type TextTableContent } from '@opentui/core'
+import {
+  RGBA,
+  rgbToHex,
+  TextTableRenderable,
+  type MarkdownRenderable,
+  type Renderable,
+  type TextChunk,
+  type TextTableContent,
+} from '@opentui/core'
 import { useLayoutEffect, type RefObject } from 'react'
 import { useRenderer } from '@opentui/react'
 
@@ -48,12 +56,19 @@ function decorate(args: { content: TextTableContent; url: string | null }): Text
 export function paintTableHover(args: { table: TextTableRenderable; url: string | null }): void {
   const { table } = args
   const known = decorated.get(table)
-  const original = known !== undefined && known.applied === table.content ? known.original : table.content
+  const original =
+    known !== undefined && known.applied === table.content ? known.original : table.content
   const applied = decorate({ content: original, url: args.url })
-  const unchanged = applied.length === table.content.length && applied.every((row, index) => {
-    const current = table.content[index]
-    return current !== undefined && row.length === current.length && row.every((cell, column) => cell === current[column])
-  })
+  const unchanged =
+    applied.length === table.content.length &&
+    applied.every((row, index) => {
+      const current = table.content[index]
+      return (
+        current !== undefined &&
+        row.length === current.length &&
+        row.every((cell, column) => cell === current[column])
+      )
+    })
   if (unchanged) return
   decorated.set(table, { original, applied })
   table.content = applied

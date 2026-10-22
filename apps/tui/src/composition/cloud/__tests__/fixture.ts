@@ -155,8 +155,7 @@ export function fakeCloudChannel(
 
   let booted: Promise<void> = Promise.resolve()
 
-  let held: ChannelConnection =
-    args.connection ?? { state: EConnectionView.Waking, detail: null }
+  let held: ChannelConnection = args.connection ?? { state: EConnectionView.Waking, detail: null }
   let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
   let closed = false
   let runs = 0
@@ -223,7 +222,8 @@ export function fakeCloudChannel(
     pause: () => {
       const runId = toRunId(`serve-${channelThreadId}`)
       queueMicrotask(() => {
-        for (const listener of [...turnEndings]) listener({ status: ETurnStatus.RelocationPaused, runId })
+        for (const listener of [...turnEndings])
+          listener({ status: ETurnStatus.RelocationPaused, runId })
       })
     },
     resume: () => {
@@ -619,7 +619,9 @@ export function fakeBridge(
 ): FakeBridge {
   // The fake serve's session directory: every remote write lands here, the way
   // the sandbox actually holds it.
-  const disk = new FakeSessionDisk(join(tmpdir(), `atlas-fake-cloud-${SPEC_SHARD}-${Math.random().toString(36).slice(2)}`))
+  const disk = new FakeSessionDisk(
+    join(tmpdir(), `atlas-fake-cloud-${SPEC_SHARD}-${Math.random().toString(36).slice(2)}`),
+  )
   const log = fakeEventLog([], { disk })
   const threads = args.threadStore ?? fakeThreadStore({ log, disk })
   const ledger = fakeLedger()

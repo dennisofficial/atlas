@@ -45,7 +45,10 @@ export type RuntimeCheckpointCapture = {
    * Zeroes a sealed rotation receipt's obligations through the same serialized write chain as the
    * captures, so a cadence capture can never clobber a consumption nor the other way around.
    */
-  consumeReceipt(args: { parent?: boolean; children?: readonly string[] | undefined }): Promise<void>
+  consumeReceipt(args: {
+    parent?: boolean
+    children?: readonly string[] | undefined
+  }): Promise<void>
   changed(): void
   flush(args: { timeoutMs: number }): Promise<void>
   readPersisted(): Promise<RuntimeCheckpoint | null>
@@ -239,7 +242,9 @@ export function createRuntimeCheckpointCapture(
         args.phase === ERuntimePhase.Serving &&
         owedReceipt !== undefined &&
         (owedReceipt.resumeParent || (owedReceipt.resumeChildren ?? []).length > 0)
-      checkpoint = owedCarries ? { ...base, phase: args.phase, receipt: owedReceipt } : { ...base, phase: args.phase }
+      checkpoint = owedCarries
+        ? { ...base, phase: args.phase, receipt: owedReceipt }
+        : { ...base, phase: args.phase }
     }
     try {
       await persistRuntimeCheckpoint({ file, checkpoint })
@@ -302,7 +307,9 @@ export function createRuntimeCheckpointCapture(
     }
     await persistRuntimeCheckpoint({
       file,
-      checkpoint: discharged ? { ...next, phase: ERuntimePhase.Serving } : { ...next, phase: ERuntimePhase.Serving, receipt: consumed },
+      checkpoint: discharged
+        ? { ...next, phase: ERuntimePhase.Serving }
+        : { ...next, phase: ERuntimePhase.Serving, receipt: consumed },
     })
   }
 

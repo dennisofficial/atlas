@@ -213,9 +213,9 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
 
     await attached.runTurn()
     await until(() => attached.seen.length === attached.expectedLines().length)
-    const lastSeq = attached.observer.frames.flatMap((frame) =>
-      frame.kind === EServeFrame.Signal ? [frame.seq] : [],
-    ).at(-1)
+    const lastSeq = attached.observer.frames
+      .flatMap((frame) => (frame.kind === EServeFrame.Signal ? [frame.seq] : []))
+      .at(-1)
     if (lastSeq === undefined) throw new Error('the first turn published no signal')
 
     attached.dropSignalSeqs.add(lastSeq + 1)
@@ -248,7 +248,9 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
 
     expect(attached.reloads).toEqual([])
     expect(attached.seen).toEqual(attached.expectedLines())
-    expect(attached.seen.filter((line) => line.startsWith('error:'))).toEqual(['error:turn 2 failed'])
+    expect(attached.seen.filter((line) => line.startsWith('error:'))).toEqual([
+      'error:turn 2 failed',
+    ])
     expect(attached.seen.at(-1)).toBe('turn-ended')
   })
 
@@ -265,7 +267,9 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
     attached.sockets.at(-1)?.close()
     await until(() => attached.retries.length === 1)
     release()
-    await until(() => attached.observer.frames.some((frame) => frame.kind === EServeFrame.TurnEnded))
+    await until(() =>
+      attached.observer.frames.some((frame) => frame.kind === EServeFrame.TurnEnded),
+    )
 
     attached.retries.shift()?.()
     await until(() => attached.seen.at(-1) === 'turn-ended')

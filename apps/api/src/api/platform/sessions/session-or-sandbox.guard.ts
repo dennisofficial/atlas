@@ -96,9 +96,11 @@ export class SessionOrSandboxGuard implements CanActivate {
   }
 
   private reachable(args: { context: ExecutionContext; key: string }): boolean {
-    return this.reflector.getAllAndOverride<boolean>(args.key, [
-      args.context.getHandler(),
-      args.context.getClass(),
-    ]) === true
+    return (
+      this.reflector.getAllAndOverride<boolean>(args.key, [
+        args.context.getHandler(),
+        args.context.getClass(),
+      ]) === true
+    )
   }
 }

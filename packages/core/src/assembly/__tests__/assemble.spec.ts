@@ -53,7 +53,12 @@ describe('assemble', () => {
 
   it('records the token count each rule left behind', () => {
     const { trace } = assemble({
-      rules: [defineRule({ name: 'fourChars', apply: () => ({ system: [{ text: 'abcd' }], messages: [] }) })],
+      rules: [
+        defineRule({
+          name: 'fourChars',
+          apply: () => ({ system: [{ text: 'abcd' }], messages: [] }),
+        }),
+      ],
       ctx: contextFor({ events: [] }),
     })
 
@@ -96,7 +101,8 @@ describe('assemble', () => {
     })
 
     expect(
-      defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }).at(-1)?.ruleName,
+      defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }).at(-1)
+        ?.ruleName,
     ).toBe('worktreeBlock')
     expect(assembled.system.map((block) => block.text)).toEqual([DOCTRINE])
     expect(assembled.messages).toEqual([])
@@ -130,7 +136,10 @@ describe('assemble', () => {
       name: 'stampRulesThatRan',
       apply: (input, trace) => {
         namesSeen.push(trace.map((step) => step.name))
-        return { system: [...input.system, { text: trace.map((step) => step.name).join(',') }], messages: input.messages }
+        return {
+          system: [...input.system, { text: trace.map((step) => step.name).join(',') }],
+          messages: input.messages,
+        }
       },
     })
 

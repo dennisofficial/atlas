@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { EShellStatus, toThreadId, type EventLogPort, type IdPort, type NoticePort } from '@dltech/atlas-core'
+import {
+  EShellStatus,
+  toThreadId,
+  type EventLogPort,
+  type IdPort,
+  type NoticePort,
+} from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../../agents/registry/port'
 import { createIsolatedContainer } from '../../container/injection'
@@ -67,7 +73,9 @@ const closeWith = async (args: { shells: readonly unknown[]; stopShells: boolean
   const notices: string[] = []
   await closeSession({
     container: createIsolatedContainer(),
-    notice: { notify: (post: { text: string }) => void notices.push(post.text) } as unknown as NoticePort,
+    notice: {
+      notify: (post: { text: string }) => void notices.push(post.text),
+    } as unknown as NoticePort,
     usage: { dispose: () => undefined } as unknown as AccountUsageService,
     recordTeardownEndings: made.bound.recordTeardownEndings,
     request: { stopShells: args.stopShells },

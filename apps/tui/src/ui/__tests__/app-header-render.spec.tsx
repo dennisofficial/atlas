@@ -9,9 +9,7 @@ import { CWD, frameOf } from './transcript-fixture'
 const WIDE = 120
 
 const screen = (diff: { added: number; removed: number } | null): React.ReactNode => (
-  <Screen
-    header={<HeaderBar width={WIDE} projectDirectory={CWD} repoRoot={CWD} diff={diff} />}
-  >
+  <Screen header={<HeaderBar width={WIDE} projectDirectory={CWD} repoRoot={CWD} diff={diff} />}>
     <text>transcript body</text>
   </Screen>
 )

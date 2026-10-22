@@ -4,7 +4,12 @@ import type { DecisionAnswer, DecisionQuestion } from '../../ports/decision.port
 
 export type OpenAiWireQuestion =
   | { type: 'predicate'; name: string; instructions: string }
-  | { type: 'choice'; name: string; instructions: string; choices: { value: string; description: string }[] }
+  | {
+      type: 'choice'
+      name: string
+      instructions: string
+      choices: { value: string; description: string }[]
+    }
   | { type: 'score'; name: string; instructions: string; levels: { label: string }[] }
 
 // The decisions API echoes `model` and a refusal answer carries no probability:
@@ -38,13 +43,17 @@ export function translateQuestions(args: {
   questions: Record<string, DecisionQuestion>
 }): OpenAiWireQuestion[] {
   return Object.entries(args.questions).map(([name, question]): OpenAiWireQuestion => {
-    if (question.type === 'noul') return { type: 'predicate', name, instructions: question.instructions }
+    if (question.type === 'noul')
+      return { type: 'predicate', name, instructions: question.instructions }
     if (question.type === 'choice') {
       return {
         type: 'choice',
         name,
         instructions: question.instructions,
-        choices: Object.entries(question.criteria).map(([value, description]) => ({ value, description })),
+        choices: Object.entries(question.criteria).map(([value, description]) => ({
+          value,
+          description,
+        })),
       }
     }
     return {

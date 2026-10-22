@@ -5,7 +5,12 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { DynamicToolSource, EToolEffect, EWebSearchBackend, type ToolDefinition } from '@dltech/atlas-core'
+import {
+  DynamicToolSource,
+  EToolEffect,
+  EWebSearchBackend,
+  type ToolDefinition,
+} from '@dltech/atlas-core'
 
 import { portToken, registeredPortToken } from '../injection'
 import { WebSearchBackendToken, WorktreeDirectoryToken, WorkspaceRoot } from '../tokens'
@@ -69,7 +74,9 @@ describe('the ToolRegistry the container hands out', () => {
 
     const registry = container.resolve(registeredPortToken(ToolRegistry))
 
-    expect(registry.declarations().map((declaration) => declaration.name)).toContain('mcp__fs__read')
+    expect(registry.declarations().map((declaration) => declaration.name)).toContain(
+      'mcp__fs__read',
+    )
     expect(registry.find('mcp__fs__read')?.description).toBe('the mcp__fs__read tool')
   })
 

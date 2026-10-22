@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_WARN_PERCENT, EMeterBand, EUsageWindow, type AccountUsage } from '@dltech/atlas-core'
+import {
+  DEFAULT_WARN_PERCENT,
+  EMeterBand,
+  EUsageWindow,
+  type AccountUsage,
+} from '@dltech/atlas-core'
 
 import { EFooterMeters, footerMetersOf, usageMeters } from '../usage-meters'
 
@@ -35,7 +40,9 @@ const metersOf = (args: {
 
 describe('usageMeters', () => {
   it('reads both windows as labelled percentages', () => {
-    expect(metersOf({ usage: usage({ fiveHour: { utilization: 34 }, sevenDay: { utilization: 61 } }) })).toEqual([
+    expect(
+      metersOf({ usage: usage({ fiveHour: { utilization: 34 }, sevenDay: { utilization: 61 } }) }),
+    ).toEqual([
       { label: '5h', band: EMeterBand.Normal, text: '34%' },
       { label: 'wk', band: EMeterBand.Normal, text: '61%' },
     ])
@@ -78,7 +85,9 @@ describe('usageMeters', () => {
 
   it('drops the weekly window, then both, as the operator asks for less', () => {
     const both = usage({ fiveHour: { utilization: 34 }, sevenDay: { utilization: 61 } })
-    expect(metersOf({ usage: both, show: EFooterMeters.Session }).map((meter) => meter.label)).toEqual(['5h'])
+    expect(
+      metersOf({ usage: both, show: EFooterMeters.Session }).map((meter) => meter.label),
+    ).toEqual(['5h'])
     expect(metersOf({ usage: both, show: EFooterMeters.Context })).toEqual([])
   })
 })

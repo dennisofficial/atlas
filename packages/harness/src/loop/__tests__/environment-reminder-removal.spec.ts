@@ -32,7 +32,10 @@ describe('a turn without recurring environment reminders', () => {
       const model = scriptedModel({
         script: [
           { text: 'checking', calls: [{ callId: 'probe-1', name: 'probe', input: { round: 1 } }] },
-          { text: 'checking next', calls: [{ callId: 'probe-2', name: 'probe', input: { round: 2 } }] },
+          {
+            text: 'checking next',
+            calls: [{ callId: 'probe-2', name: 'probe', input: { round: 2 } }],
+          },
           { text: 'finished' },
         ],
       })
@@ -77,11 +80,13 @@ describe('a turn without recurring environment reminders', () => {
 
       expect(outcome.status).toBe(ETurnStatus.Completed)
       expect(model.doStreamCalls).toHaveLength(3)
-      expect(model.doStreamCalls.map((call) => call.prompt.map((message) => message.role))).toEqual([
-        ['user', 'user'],
-        ['user', 'assistant', 'tool', 'user'],
-        ['user', 'assistant', 'tool', 'assistant', 'tool', 'user'],
-      ])
+      expect(model.doStreamCalls.map((call) => call.prompt.map((message) => message.role))).toEqual(
+        [
+          ['user', 'user'],
+          ['user', 'assistant', 'tool', 'user'],
+          ['user', 'assistant', 'tool', 'assistant', 'tool', 'user'],
+        ],
+      )
       const tails = model.doStreamCalls.map((call) => call.prompt.at(-1))
       for (const tail of tails) {
         expect(tail?.role).toBe('user')

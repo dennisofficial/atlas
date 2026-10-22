@@ -107,7 +107,9 @@ describe('the panel it opens with', () => {
   })
 
   it('wraps a long message over lines instead of cutting it off', async () => {
-    const rows = written(await rowsOf({ state: stateOf({ points: [said({ seq: 1, text: LONG })], index: 0 }) }))
+    const rows = written(
+      await rowsOf({ state: stateOf({ points: [said({ seq: 1, text: LONG })], index: 0 }) }),
+    )
     expect(rowWith(rows, 'tighten the loop')).not.toBe('')
     expect(rowWith(rows, 'branch of work')).not.toBe('')
     expect(rowWith(rows, 'tighten the loop')).not.toBe(rowWith(rows, 'branch of work'))
@@ -115,7 +117,9 @@ describe('the panel it opens with', () => {
 
   it('spends no more than its line budget on one row', async () => {
     const flood = Array.from({ length: 40 }, (_unused, index) => `word${index + 1}`).join(' ')
-    const rows = written(await rowsOf({ state: stateOf({ points: [said({ seq: 1, text: flood })], index: 0 }) }))
+    const rows = written(
+      await rowsOf({ state: stateOf({ points: [said({ seq: 1, text: flood })], index: 0 }) }),
+    )
     expect(rowWith(rows, 'word1')).not.toBe('')
     expect(rowWith(rows, '…')).not.toBe('')
     expect(rowWith(rows, 'word40')).toBe('')

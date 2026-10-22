@@ -12,7 +12,11 @@ import {
 
 const INPUT_WRITE_WAIT_MS = 1_000
 
-const refuse = (code: EControlError, message: string): ControlResult => ({ ok: false, code, message })
+const refuse = (code: EControlError, message: string): ControlResult => ({
+  ok: false,
+  code,
+  message,
+})
 
 export function createShellActions({
   child,
@@ -47,7 +51,8 @@ export function createShellActions({
       const stdin = child.stdin
       if (isExited()) return refuse(EControlError.AlreadyExited, 'the shell has exited')
       if (!stdinOpen || stdin === null) return refuse(EControlError.InputClosed, 'stdin is closed')
-      if (data.length > INPUT_WRITE_MAX_BYTES) return refuse(EControlError.InputTooLarge, 'input chunk too large')
+      if (data.length > INPUT_WRITE_MAX_BYTES)
+        return refuse(EControlError.InputTooLarge, 'input chunk too large')
       if (inFlightInputBytes + data.length > INPUT_BUFFER_BUDGET_BYTES)
         return refuse(
           EControlError.InputBackpressure,
@@ -68,7 +73,11 @@ export function createShellActions({
         stdin.write(data, (error) => {
           inFlightInputBytes -= data.length
           clearTimeout(timer)
-          resolve(error ? refuse(EControlError.InputClosed, `stdin rejected the input: ${error.message}`) : { ok: true })
+          resolve(
+            error
+              ? refuse(EControlError.InputClosed, `stdin rejected the input: ${error.message}`)
+              : { ok: true },
+          )
         })
       })
     },
@@ -80,7 +89,9 @@ export function createShellActions({
       }),
     signal: ({ signal }) =>
       guarded(() =>
-        signalGroup({ pgid, signal }) ? { ok: true } : refuse(EControlError.AlreadyExited, 'no process group'),
+        signalGroup({ pgid, signal })
+          ? { ok: true }
+          : refuse(EControlError.AlreadyExited, 'no process group'),
       ),
     terminate: () =>
       guarded(() => {

@@ -5,7 +5,14 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider, ESettingId, toAccountId } from '@dltech/atlas-core'
+import {
+  EAccountOrigin,
+  EAccountStatus,
+  EAuthKind,
+  EAuthProvider,
+  ESettingId,
+  toAccountId,
+} from '@dltech/atlas-core'
 
 import { CloudSessionStore } from '../../cloud/cloud-session'
 import { encodeSettingValue } from '../../cloud/sync-settings'
@@ -51,7 +58,9 @@ const handle = async (request: Request): Promise<Response> => {
     return Response.json({ accountId: ACCOUNT.id })
   }
   if (request.method === 'GET' && path === '/v1/secrets') {
-    return Response.json({ secrets: [{ name: 'search.tavily', value: 'cloud-secret', updatedAt: STAMP }] })
+    return Response.json({
+      secrets: [{ name: 'search.tavily', value: 'cloud-secret', updatedAt: STAMP }],
+    })
   }
   if (request.method === 'GET' && path === '/v1/settings') {
     return Response.json({
@@ -125,7 +134,9 @@ describe('composeHarness with cloudState on', () => {
     signIn()
     const { app } = await compose(true)
 
-    expect((await app.accounts.list()).map((account) => account.id)).toEqual([toAccountId('acc_cloud')])
+    expect((await app.accounts.list()).map((account) => account.id)).toEqual([
+      toAccountId('acc_cloud'),
+    ])
     expect(app.secrets.read('search.tavily')).toBe('cloud-secret')
     expect(requestsTo('accounts').length).toBeGreaterThan(0)
     expect(existsSync(atlasSecretsFile())).toBe(false)
@@ -140,7 +151,9 @@ describe('composeHarness with cloudState on', () => {
     app.secrets.write({ name: 'search.exa', value: 'goes-to-cloud' })
 
     await eventually(() => requestsTo('secrets').some((call) => call.method === 'PUT'))
-    const puts = requestsTo('secrets').filter((call) => call.method === 'PUT').map((call) => call.path)
+    const puts = requestsTo('secrets')
+      .filter((call) => call.method === 'PUT')
+      .map((call) => call.path)
     expect(puts).toEqual(['/v1/secrets/search.exa'])
     expect(app.secrets.read('sandbox-serve:thr_1')).toBe('local-token')
     expect(existsSync(atlasSecretsFile())).toBe(true)
@@ -150,9 +163,13 @@ describe('composeHarness with cloudState on', () => {
     signIn()
     const { app } = await compose(true)
 
-    expect(app.settings.snapshot().resolution.settings.get(ESettingId.SmoothStreaming)?.value).toBe(false)
+    expect(app.settings.snapshot().resolution.settings.get(ESettingId.SmoothStreaming)?.value).toBe(
+      false,
+    )
 
-    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({ ok: true })
+    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({
+      ok: true,
+    })
     expect(app.settings.set({ id: ESettingId.Accent, value: 'moss' })).toEqual({ ok: true })
 
     await eventually(() => requestsTo('settings').some((call) => call.method === 'PUT'))
@@ -162,7 +179,9 @@ describe('composeHarness with cloudState on', () => {
 
     expect(localSettingsFile()[ESettingId.Accent]).toBe('moss')
     expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBeUndefined()
-    expect(app.settings.snapshot().resolution.settings.get(ESettingId.ThinkingBlocks)?.value).toBe('hidden')
+    expect(app.settings.snapshot().resolution.settings.get(ESettingId.ThinkingBlocks)?.value).toBe(
+      'hidden',
+    )
   })
 
   it('does not post the legacy local-accounts notice even when the cloud holds no accounts', async () => {
@@ -179,7 +198,9 @@ describe('composeHarness with cloudState on', () => {
 
     expect(await app.accounts.list()).toEqual([])
     app.secrets.write({ name: 'search.exa', value: 'local-only' })
-    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({ ok: true })
+    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({
+      ok: true,
+    })
 
     expect(calls).toEqual([])
     expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBe('hidden')
@@ -194,7 +215,9 @@ describe.each([false, undefined])('composeHarness with cloudState %p', (cloudSta
     expect(await app.accounts.list()).toEqual([])
     expect(app.secrets.read('search.tavily')).toBeUndefined()
     app.secrets.write({ name: 'search.exa', value: 'local-only' })
-    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({ ok: true })
+    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({
+      ok: true,
+    })
     await Bun.sleep(50)
 
     expect(calls.filter((call) => /^\/v1\/(accounts|secrets|settings)/.test(call.path))).toEqual([])

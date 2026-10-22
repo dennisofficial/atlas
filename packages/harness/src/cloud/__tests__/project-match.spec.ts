@@ -58,6 +58,8 @@ describe('matchProject', () => {
     const newer = projectOf({ id: 'newer', updatedAt: '2026-10-05T00:00:00.000Z' })
     const middle = projectOf({ id: 'middle', updatedAt: '2026-10-03T00:00:00.000Z' })
 
-    expect(matchProject({ projects: [older, newer, middle], repo: 'comp-ai/atlas' })?.id).toBe('newer')
+    expect(matchProject({ projects: [older, newer, middle], repo: 'comp-ai/atlas' })?.id).toBe(
+      'newer',
+    )
   })
 })

@@ -32,7 +32,11 @@ type PendingRowsInput = Parameters<typeof pendingRows>[0]
 export function usePendingRows(args: {
   queued: PendingRowsInput['entries']
   remoteEntries: PendingRowsInput['remoteEntries']
-  wakeNotices: { shells: PendingRowsInput['notices']; agents: PendingRowsInput['agents']; services: PendingRowsInput['services'] }
+  wakeNotices: {
+    shells: PendingRowsInput['notices']
+    agents: PendingRowsInput['agents']
+    services: PendingRowsInput['services']
+  }
   sending: PendingRowsInput['sending']
 }): readonly PendingRow[] {
   const { queued, remoteEntries, wakeNotices, sending } = args

@@ -1,14 +1,16 @@
 'use client'
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@dltech/atlas-ui/components/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@dltech/atlas-ui/components/select'
 
 import { EQueryState } from '@/lib/use-cloud-query'
 
-import {
-  organizationIdOfValue,
-  workspaceOptionsOf,
-  workspaceValueOf,
-} from './data/project-mapping'
+import { organizationIdOfValue, workspaceOptionsOf, workspaceValueOf } from './data/project-mapping'
 import { useOrganizations } from './data/use-organizations'
 import { SettingsRow } from './settings-layout'
 

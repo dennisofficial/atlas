@@ -86,11 +86,7 @@ describe('haskell lexical highlighting', () => {
   })
 
   it('reads dotted and qualifying uppercase names as modules', () => {
-    expect(textFor({ spec, source, group: 'module' })).toEqual([
-      'Data.List',
-      'Data.Maybe',
-      'List',
-    ])
+    expect(textFor({ spec, source, group: 'module' })).toEqual(['Data.List', 'Data.Maybe', 'List'])
   })
 
   it('reads a name applied to a parenthesised argument as a call', () => {

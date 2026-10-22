@@ -22,8 +22,16 @@ beforeEach(async () => {
   git({
     cwd: join(root, 'repository'),
     argv: [
-      '-c', 'user.name=Sandbox Test', '-c', 'user.email=sandbox@example.invalid',
-      '-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'fixture',
+      '-c',
+      'user.name=Sandbox Test',
+      '-c',
+      'user.email=sandbox@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '--allow-empty',
+      '-m',
+      'fixture',
     ],
   })
 })
@@ -65,22 +73,25 @@ describe('Git metadata in host sandbox configuration', () => {
     const worktree = join(root, 'linked')
     const metadata = join(repository, '.git')
     git({ cwd: repository, argv: ['worktree', 'add', '-b', 'linked', worktree] })
-    const configFor = (mode: EMountMode) => sandboxConfigFromHost({
-      worktree,
-      session: worktree,
-      limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
-      atlasHomeSubtrees: [],
-      resolution: {
-        image: { kind: EImageKind.Image, reference: 'node:22-trixie-slim' },
-        env: {},
-        mounts: [{ path: metadata, mode }],
-        source: EConfigSource.ContainerJson,
-        notes: [],
-        refusals: [],
-      },
-    })
+    const configFor = (mode: EMountMode) =>
+      sandboxConfigFromHost({
+        worktree,
+        session: worktree,
+        limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
+        atlasHomeSubtrees: [],
+        resolution: {
+          image: { kind: EImageKind.Image, reference: 'node:22-trixie-slim' },
+          env: {},
+          mounts: [{ path: metadata, mode }],
+          source: EConfigSource.ContainerJson,
+          notes: [],
+          refusals: [],
+        },
+      })
 
-    expect(configFor(EMountMode.ReadWrite).mounts).toEqual([{ path: metadata, mode: EMountMode.ReadWrite }])
+    expect(configFor(EMountMode.ReadWrite).mounts).toEqual([
+      { path: metadata, mode: EMountMode.ReadWrite },
+    ])
     expect(() => configFor(EMountMode.ReadOnly)).toThrow(/Git metadata.*read-write/)
   })
 
@@ -89,12 +100,14 @@ describe('Git metadata in host sandbox configuration', () => {
     const worktree = join(root, 'linked')
     git({ cwd: repository, argv: ['worktree', 'add', '-b', 'linked', worktree] })
 
-    const body = sandboxCreateBody(sandboxConfigFromHost({
-      worktree,
-      session: worktree,
-      limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
-      atlasHomeSubtrees: [],
-    }))
+    const body = sandboxCreateBody(
+      sandboxConfigFromHost({
+        worktree,
+        session: worktree,
+        limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
+        atlasHomeSubtrees: [],
+      }),
+    )
 
     const binds = body.HostConfig?.Binds ?? []
     expect(binds).toContain(`${worktree}:${worktree}`)

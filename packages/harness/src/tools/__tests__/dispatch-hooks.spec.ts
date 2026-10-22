@@ -36,16 +36,29 @@ describe('dispatching a call the before-tool hooks judge', () => {
           {
             name: 'boundary',
             order: { stage: EStage.Guard, nudge: 0 },
-            run: async () => ({ decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' }),
+            run: async () => ({
+              decision: EBeforeToolDecision.Deny,
+              reason: 'outside the workspace root',
+            }),
           },
         ],
       }),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts).toEqual([
-      { type: 'tool-denied', callId: toCallId('call-1'), name: 'read', reason: 'outside the workspace root' },
+      {
+        type: 'tool-denied',
+        callId: toCallId('call-1'),
+        name: 'read',
+        reason: 'outside the workspace root',
+      },
     ])
     expect(invoked).toEqual([])
   })
@@ -78,7 +91,12 @@ describe('dispatching a call the before-tool hooks judge', () => {
       }),
     })
 
-    await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(seen).toEqual([
       { hook: 'first', input: { path: 'a.ts' }, effect: EToolEffect.Write },
@@ -112,7 +130,12 @@ describe('dispatching a call the before-tool hooks judge', () => {
       }),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts).toHaveLength(1)
     expect(drafts[0]?.type).toBe('tool-denied')
@@ -124,7 +147,11 @@ describe('dispatching a call the before-tool hooks judge', () => {
 })
 
 describe('the after-tool observers', () => {
-  const observer = (args: { name: string; nudge: number; seen: string[] }): RegisteredHook<AfterTool> => ({
+  const observer = (args: {
+    name: string
+    nudge: number
+    seen: string[]
+  }): RegisteredHook<AfterTool> => ({
     name: args.name,
     order: { stage: EStage.Observe, nudge: args.nudge },
     run: async ({ call, result }) => {
@@ -136,13 +163,26 @@ describe('the after-tool observers', () => {
   it('observes a success in order and appends its drafts after the result', async () => {
     const seen: string[] = []
     const dispatcher = new HookedToolDispatcher({
-      registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }) })]),
+      registry: new InMemoryToolRegistry([
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }),
+        }),
+      ]),
       hooks: new HookChain({
-        afterTool: [observer({ name: 'second', nudge: 20, seen }), observer({ name: 'first', nudge: 10, seen })],
+        afterTool: [
+          observer({ name: 'second', nudge: 20, seen }),
+          observer({ name: 'first', nudge: 10, seen }),
+        ],
       }),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts.map((draft) => draft.type)).toEqual(['tool-result', 'nudge', 'nudge'])
     expect(seen).toEqual(['first:read:true', 'second:read:true'])
@@ -161,7 +201,12 @@ describe('the after-tool observers', () => {
       hooks: new HookChain({ afterTool: [observer({ name: 'audit', nudge: 0, seen })] }),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(seen).toEqual(['audit:read:false'])
     expect(drafts.map((draft) => draft.type)).toEqual(['tool-result', 'nudge'])
@@ -170,7 +215,12 @@ describe('the after-tool observers', () => {
   it('cannot annul a result by throwing', async () => {
     const seen: string[] = []
     const dispatcher = new HookedToolDispatcher({
-      registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }) })]),
+      registry: new InMemoryToolRegistry([
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }),
+        }),
+      ]),
       hooks: new HookChain({
         afterTool: [
           {
@@ -185,7 +235,12 @@ describe('the after-tool observers', () => {
       }),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts.map((draft) => draft.type)).toEqual(['tool-result', 'nudge'])
     expect(seen).toEqual(['later:read:true'])
@@ -194,7 +249,12 @@ describe('the after-tool observers', () => {
   it('is not consulted about a call that never ran', async () => {
     const seen: string[] = []
     const dispatcher = new HookedToolDispatcher({
-      registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }) })]),
+      registry: new InMemoryToolRegistry([
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }),
+        }),
+      ]),
       hooks: new HookChain({
         beforeTool: [
           {
@@ -207,7 +267,12 @@ describe('the after-tool observers', () => {
       }),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts.map((draft) => draft.type)).toEqual(['tool-denied'])
     expect(seen).toEqual([])
@@ -220,7 +285,10 @@ describe('the thread a call belongs to', () => {
     const observed: ToolCall[] = []
     const dispatcher = new HookedToolDispatcher({
       registry: new InMemoryToolRegistry([
-        toolNamed({ name: 'read', invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }) }),
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }),
+        }),
       ]),
       hooks: new HookChain({
         beforeTool: [
@@ -261,7 +329,10 @@ describe('the thread a call belongs to', () => {
     const guarded: ToolCall[] = []
     const dispatcher = new HookedToolDispatcher({
       registry: new InMemoryToolRegistry([
-        toolNamed({ name: 'read', invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }) }),
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: true, output: 'ok', modelText: 'rendered' }),
+        }),
       ]),
       hooks: new HookChain({
         beforeTool: [

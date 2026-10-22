@@ -29,15 +29,33 @@ describe('a remote turn ending with an error instead of an outcome', () => {
       channel.signal({ type: 'turn-working', working: true })
       await screen.until((frame) => frame.includes('esc to interrupt'), 'automatic working state')
       let settled = false
-      const waiting = screen.conversation().whenSettled().then(() => { settled = true })
+      const waiting = screen
+        .conversation()
+        .whenSettled()
+        .then(() => {
+          settled = true
+        })
       const ran: string[] = []
       screen.conversation().handleQueueSettled({
-        name: 'done', text: '/done', dropsQueue: false, losesWaiting: false,
-        run: () => { ran.push('done'); return { type: ECommandEffect.Ran } },
+        name: 'done',
+        text: '/done',
+        dropsQueue: false,
+        losesWaiting: false,
+        run: () => {
+          ran.push('done')
+          return { type: ECommandEffect.Ran }
+        },
       })
       await app.log.append({
-        threadId: THREAD, runId: toRunId('run-failed'),
-        drafts: [{ type: 'assistant-said', parts: [{ type: 'text', text: 'partial answer' }], interrupted: true }],
+        threadId: THREAD,
+        runId: toRunId('run-failed'),
+        drafts: [
+          {
+            type: 'assistant-said',
+            parts: [{ type: 'text', text: 'partial answer' }],
+            interrupted: true,
+          },
+        ],
       })
       channel.signal({ type: 'turn-working', working: false })
       await screen.quiet(100)
@@ -49,24 +67,36 @@ describe('a remote turn ending with an error instead of an outcome', () => {
       expect(frame).toContain('partial answer')
       expect(ran).toEqual(['done'])
       expect(screen.conversation().turnInFlight()).toBe(false)
-    } finally { await screen.done() }
+    } finally {
+      await screen.done()
+    }
   }, 30_000)
 
   it('settles a locally driven remote turn after the runner rejects', async () => {
     const { channel, screen } = await arranged()
     try {
       screen.conversation().handleSend({ text: 'start a turn' })
-      await screen.until(() => channel.frames.some((frame) => frame.kind === EClientFrame.Send), 'the remote say')
+      await screen.until(
+        () => channel.frames.some((frame) => frame.kind === EClientFrame.Send),
+        'the remote say',
+      )
       channel.signal({ type: 'turn-working', working: true })
       let settled = false
-      const waiting = screen.conversation().whenSettled().then(() => { settled = true })
+      const waiting = screen
+        .conversation()
+        .whenSettled()
+        .then(() => {
+          settled = true
+        })
       channel.signal({ type: 'turn-working', working: false })
       channel.fail(MESSAGE)
       await screen.until(() => settled, 'driven failed turn settlement')
       await waiting
       expect(screen.conversation().working).toBe(false)
       expect(screen.conversation().turnInFlight()).toBe(false)
-    } finally { await screen.done() }
+    } finally {
+      await screen.done()
+    }
   }, 30_000)
 
   it('does not settle a working turn because a send or transport reports an unrelated error', async () => {
@@ -75,7 +105,12 @@ describe('a remote turn ending with an error instead of an outcome', () => {
       channel.signal({ type: 'turn-working', working: true })
       await screen.until((frame) => frame.includes('esc to interrupt'), 'working state')
       let settled = false
-      void screen.conversation().whenSettled().then(() => { settled = true })
+      void screen
+        .conversation()
+        .whenSettled()
+        .then(() => {
+          settled = true
+        })
       channel.fail('A send was refused.')
       await screen.quiet(100)
       expect(settled).toBe(false)
@@ -83,6 +118,8 @@ describe('a remote turn ending with an error instead of an outcome', () => {
       channel.signal({ type: 'turn-working', working: false })
       channel.fail(MESSAGE)
       await screen.until(() => settled, 'actual failed turn settlement')
-    } finally { await screen.done() }
+    } finally {
+      await screen.done()
+    }
   }, 30_000)
 })

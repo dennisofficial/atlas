@@ -55,13 +55,20 @@ describe('openai multi-step reasoning through the real SDK', () => {
     const second = requests[1]
     expect(second).toBeDefined()
     const items = second?.['input'] as Record<string, unknown>[]
-    expect(items.some((item) => item.type === 'item_reference' && item['id'] === 'rs_live_1')).toBe(true)
+    expect(items.some((item) => item.type === 'item_reference' && item['id'] === 'rs_live_1')).toBe(
+      true,
+    )
     expect(
       items.some(
-        (item) => item.type === 'function_call' && item['call_id'] === 'call_1' && item['name'] === 'lookup',
+        (item) =>
+          item.type === 'function_call' &&
+          item['call_id'] === 'call_1' &&
+          item['name'] === 'lookup',
       ),
     ).toBe(true)
-    expect(items.some((item) => item.type === 'function_call_output' && item['call_id'] === 'call_1')).toBe(true)
+    expect(
+      items.some((item) => item.type === 'function_call_output' && item['call_id'] === 'call_1'),
+    ).toBe(true)
     expect(warnings).toEqual([])
   })
 

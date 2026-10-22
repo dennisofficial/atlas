@@ -17,7 +17,10 @@ function ControlProbe(props: { probe: Probe }): React.ReactNode {
 
 type PressedKey = { name: string; ctrl?: boolean; eventType: string }
 
-const key = (over: { name: string; ctrl?: boolean }): PressedKey => ({ eventType: 'press', ...over })
+const key = (over: { name: string; ctrl?: boolean }): PressedKey => ({
+  eventType: 'press',
+  ...over,
+})
 
 const arrange = async () => {
   const probe: Probe = { control: null }
@@ -97,7 +100,9 @@ describe('cancelling a cloud birth', () => {
     await mounted.flush()
 
     expect(mounted.control().now).toBeGreaterThan(first)
-    expect(mounted.control().now - (mounted.control().move?.startedAt ?? 0)).toBeGreaterThanOrEqual(0)
+    expect(mounted.control().now - (mounted.control().move?.startedAt ?? 0)).toBeGreaterThanOrEqual(
+      0,
+    )
   })
 
   it('records a context upload reading through the control surface', async () => {

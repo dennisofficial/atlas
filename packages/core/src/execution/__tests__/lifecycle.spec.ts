@@ -12,27 +12,28 @@ describe('idleStopDue', () => {
   }
 
   it('never fires while a background shell is running, however long the quiet', () => {
-    expect(
-      idleStopDue({ ...due, runningShells: 1, now: due.lastBashAt + 60 * 60_000 }),
-    ).toBe(false)
+    expect(idleStopDue({ ...due, runningShells: 1, now: due.lastBashAt + 60 * 60_000 })).toBe(false)
   })
 
   it('never fires while a service is running, however long the quiet', () => {
     expect(
-      idleStopDue({ ...due, runningShells: 0, runningServices: 1, now: due.lastBashAt + 60 * 60_000 }),
+      idleStopDue({
+        ...due,
+        runningShells: 0,
+        runningServices: 1,
+        now: due.lastBashAt + 60 * 60_000,
+      }),
     ).toBe(false)
   })
 
   it('fires once the last shell and service have ended and the window has passed', () => {
-    expect(
-      idleStopDue({ ...due, runningShells: 0, now: due.lastBashAt + 30 * 60_000 }),
-    ).toBe(true)
+    expect(idleStopDue({ ...due, runningShells: 0, now: due.lastBashAt + 30 * 60_000 })).toBe(true)
   })
 
   it('waits for the whole window rather than firing early', () => {
-    expect(
-      idleStopDue({ ...due, runningShells: 0, now: due.lastBashAt + 30 * 60_000 - 1 }),
-    ).toBe(false)
+    expect(idleStopDue({ ...due, runningShells: 0, now: due.lastBashAt + 30 * 60_000 - 1 })).toBe(
+      false,
+    )
   })
 })
 
@@ -70,9 +71,9 @@ describe('serveIdleDue', () => {
   })
 
   it('never fires while a background shell is running, however long the quiet', () => {
-    expect(
-      serveIdleDue({ ...due, runningShells: 1, now: due.lastActivityAt + 60 * 60_000 }),
-    ).toBe(false)
+    expect(serveIdleDue({ ...due, runningShells: 1, now: due.lastActivityAt + 60 * 60_000 })).toBe(
+      false,
+    )
   })
 
   it('never fires while a service is running with a client attached, however long the quiet', () => {
@@ -94,9 +95,9 @@ describe('serveIdleDue', () => {
   })
 
   it('fires on a silent sandbox at the short window even with a client attached', () => {
-    expect(
-      serveIdleDue({ ...due, clientsAttached: 1, now: due.lastActivityAt + 5 * 60_000 }),
-    ).toBe(true)
+    expect(serveIdleDue({ ...due, clientsAttached: 1, now: due.lastActivityAt + 5 * 60_000 })).toBe(
+      true,
+    )
   })
 
   it('never fires while input is queued, however long the quiet', () => {

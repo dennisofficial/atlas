@@ -32,7 +32,9 @@ const appWith = (args?: { effort?: string; quickModel?: string }): FakeApp =>
           settings: {
             values: {
               ...(args.effort === undefined ? {} : { [ESettingId.ModelEffort]: args.effort }),
-              ...(args.quickModel === undefined ? {} : { [ESettingId.QuickModel]: args.quickModel }),
+              ...(args.quickModel === undefined
+                ? {}
+                : { [ESettingId.QuickModel]: args.quickModel }),
             },
           },
         }),
@@ -57,7 +59,10 @@ const writtenFor = (app: FakeApp, id: ESettingId): unknown =>
 
 async function opened(app: FakeApp): Promise<Mounted> {
   const setup = await testRender(
-    <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
     WIDE,
   )
   await setup.flush()
@@ -116,14 +121,25 @@ const rowShowing = (setup: Mounted, needle: string): string =>
 describe('the model-kind settings rows', () => {
   it('opens an unset teammate picker on the current main agent rather than the sub-agent model', async () => {
     const app = appWith()
-    app.settings.register(agentTypeModelDefinitions({ types: [{ name: 'teammate', origin: EDefinitionOrigin.BuiltIn }] }))
+    app.settings.register(
+      agentTypeModelDefinitions({
+        types: [{ name: 'teammate', origin: EDefinitionOrigin.BuiltIn }],
+      }),
+    )
     app.settings.set({ id: ESettingId.ModelId, value: 'anthropic/claude-opus-5' })
     app.settings.set({ id: ESettingId.SubagentModel, value: 'anthropic/claude-haiku-4-5' })
     const setup = await testRender(
-      <App app={app} opened={{
-        threadId: THREAD, events: [], turns: [], name: null, started: true,
-        model: { ref: 'anthropic/claude-sonnet-5', effort: EEffort.High },
-      }} />,
+      <App
+        app={app}
+        opened={{
+          threadId: THREAD,
+          events: [],
+          turns: [],
+          name: null,
+          started: true,
+          model: { ref: 'anthropic/claude-sonnet-5', effort: EEffort.High },
+        }}
+      />,
       WIDE,
     )
 

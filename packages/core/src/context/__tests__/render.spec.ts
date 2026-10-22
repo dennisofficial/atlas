@@ -24,7 +24,9 @@ describe('contextBlock provenance', () => {
   it('says a local project file is not checked in', () => {
     expect(
       blockFor({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.local.md' }),
-    ).toContain("Contents of /repo/CLAUDE.local.md (the user's private project instructions, not checked in):")
+    ).toContain(
+      "Contents of /repo/CLAUDE.local.md (the user's private project instructions, not checked in):",
+    )
   })
 
   it('treats an AGENTS.local.md the same way as a CLAUDE.local.md', () => {
@@ -34,19 +36,24 @@ describe('contextBlock provenance', () => {
   })
 
   it('does not mistake a file merely containing the word local for a local file', () => {
-    expect(blockFor({ slot: EContextSlot.ProjectInstructions, key: '/repo/local/CLAUDE.md' })).toContain(
-      'checked into the codebase',
-    )
+    expect(
+      blockFor({ slot: EContextSlot.ProjectInstructions, key: '/repo/local/CLAUDE.md' }),
+    ).toContain('checked into the codebase')
   })
 
   it('marks a user file as global and private', () => {
-    expect(blockFor({ slot: EContextSlot.UserInstructions, key: '/home/dev/.claude/CLAUDE.md' })).toContain(
+    expect(
+      blockFor({ slot: EContextSlot.UserInstructions, key: '/home/dev/.claude/CLAUDE.md' }),
+    ).toContain(
       "Contents of /home/dev/.claude/CLAUDE.md (the user's private global instructions for all projects):",
     )
   })
 
   it('explains why a nested file appeared, since the model did not ask for it', () => {
-    const block = blockFor({ slot: EContextSlot.NestedInstructions, key: '/repo/apps/tui/CLAUDE.md' })
+    const block = blockFor({
+      slot: EContextSlot.NestedInstructions,
+      key: '/repo/apps/tui/CLAUDE.md',
+    })
 
     expect(block).toContain('Contents of /repo/apps/tui/CLAUDE.md')
     expect(block).toContain('a tool touched a file beneath it')

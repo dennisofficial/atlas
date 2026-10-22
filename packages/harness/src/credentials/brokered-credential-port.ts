@@ -154,10 +154,7 @@ export class BrokeredCredentialPort extends CredentialPort {
     return work
   }
 
-  private async mint(args: {
-    session: CloudSession
-    accountId: AccountId
-  }): Promise<MintedToken> {
+  private async mint(args: { session: CloudSession; accountId: AccountId }): Promise<MintedToken> {
     const client = cloudClientFor({
       session: args.session,
       ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
@@ -192,7 +189,9 @@ export class BrokeredCredentialPort extends CredentialPort {
       accessToken: args.brokered.accessToken,
       expiresAt: args.brokered.expiresAt,
       freshUntilMs:
-        expiresAtMs === null ? nowMs + DEFAULT_REFRESH_SKEW_MS : expiresAtMs - DEFAULT_REFRESH_SKEW_MS,
+        expiresAtMs === null
+          ? nowMs + DEFAULT_REFRESH_SKEW_MS
+          : expiresAtMs - DEFAULT_REFRESH_SKEW_MS,
       usableUntilMs: expiresAtMs ?? Number.POSITIVE_INFINITY,
     }
     this.held.set(args.accountId, minted)
@@ -211,10 +210,7 @@ export class BrokeredCredentialPort extends CredentialPort {
     return Date.parse(this.clock.now())
   }
 
-  private async chosenAccount(args: {
-    provider: EAuthProvider
-    accountId: AccountId | undefined
-  }) {
+  private async chosenAccount(args: { provider: EAuthProvider; accountId: AccountId | undefined }) {
     try {
       return await this.fetchChosenAccount(args)
     } catch (error) {

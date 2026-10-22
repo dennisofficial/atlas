@@ -15,7 +15,8 @@ describe('createPullRequestService onPolled', () => {
     const polled: Array<{ key: string; repo: string; number: number }> = []
     const service = createPullRequestService({
       pullRequests: pullRequestsAnswering(found({ number: 9 }), ABSENT),
-      onPolled: ({ key, repo, pullRequest }) => polled.push({ key, repo, number: pullRequest.number }),
+      onPolled: ({ key, repo, pullRequest }) =>
+        polled.push({ key, repo, number: pullRequest.number }),
     })
     const checkout = aCheckout()
 
@@ -55,4 +56,3 @@ describe('createPullRequestService onPolled', () => {
     service.dispose()
   })
 })
-

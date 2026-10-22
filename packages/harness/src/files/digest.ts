@@ -9,7 +9,9 @@ export async function digestOf(args: {
 }): Promise<string | undefined> {
   const files = args.files ?? new LocalFileSystemPort()
   try {
-    return Bun.hash.wyhash(await files.readBytes({ path: args.path, threadId: args.threadId })).toString(16)
+    return Bun.hash
+      .wyhash(await files.readBytes({ path: args.path, threadId: args.threadId }))
+      .toString(16)
   } catch {
     return undefined
   }

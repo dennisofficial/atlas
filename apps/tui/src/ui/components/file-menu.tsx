@@ -42,7 +42,9 @@ function FileRow(props: { path: string; cells: number; selected: boolean }): Rea
   return (
     <box height={1} flexShrink={0}>
       <text>
-        <Spans spans={rowSpans({ path: props.path, cells: props.cells, selected: props.selected })} />
+        <Spans
+          spans={rowSpans({ path: props.path, cells: props.cells, selected: props.selected })}
+        />
       </text>
     </box>
   )
@@ -62,7 +64,11 @@ export function FileMenu(props: {
     <Panel
       width={props.width}
       fill={theme.overlayBg}
-      label={<text fg={theme.meta} bg={theme.overlayBg}>{props.label ?? ' Files '}</text>}
+      label={
+        <text fg={theme.meta} bg={theme.overlayBg}>
+          {props.label ?? ' Files '}
+        </text>
+      }
       badge={<text fg={theme.hint} bg={theme.overlayBg}>{` ${counted} · ⇥ ${verb} `}</text>}
     >
       <box flexDirection="column" flexShrink={0}>

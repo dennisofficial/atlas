@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { EJournalSkip } from '../journal'
-import {
-  deltaOf,
-  openJournal,
-  OTHER_SHELL,
-  SHELL,
-  snapshotOf,
-  THREAD,
-} from './journal-fixture'
+import { deltaOf, openJournal, OTHER_SHELL, SHELL, snapshotOf, THREAD } from './journal-fixture'
 
 const matchedArgs = {
   threadId: THREAD,
@@ -77,7 +70,9 @@ describe('the shell event journal', () => {
 
   it('carries the hooked drafts in the same append call as the ended draft', async () => {
     const { journal, log } = openJournal()
-    const hooked = [{ type: 'context-loaded' as const, slot: 'after-shell', key: 'test', content: 'done' }]
+    const hooked = [
+      { type: 'context-loaded' as const, slot: 'after-shell', key: 'test', content: 'done' },
+    ]
 
     await journal.ended({ ...endedArgs, hooked })
 
@@ -145,7 +140,9 @@ describe('the shell event journal', () => {
 
     await journal.disown({ threadId: THREAD, shellId: SHELL })
 
-    expect(await journal.started({ threadId: THREAD, shellId: SHELL, snapshot: snapshotOf() })).toEqual({
+    expect(
+      await journal.started({ threadId: THREAD, shellId: SHELL, snapshot: snapshotOf() }),
+    ).toEqual({
       appended: false,
       reason: EJournalSkip.Superseded,
     })
@@ -210,7 +207,10 @@ describe('the shell event journal', () => {
   it('refuses progress and duplicate endings after an ending was enqueued', async () => {
     const { journal, log } = openJournal()
     const ending = journal.ended(endedArgs)
-    expect(await journal.matched(matchedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
+    expect(await journal.matched(matchedArgs)).toEqual({
+      appended: false,
+      reason: EJournalSkip.Ended,
+    })
     expect(await journal.ended(endedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
     await ending
     expect(log.landedTypes()).toEqual(['background-shell-ended'])
@@ -220,7 +220,10 @@ describe('the shell event journal', () => {
     const { journal, log } = openJournal()
     log.failNext = new Error('disk full')
     expect(await journal.ended(endedArgs)).toEqual({ appended: false, reason: EJournalSkip.Failed })
-    expect(await journal.matched(matchedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
+    expect(await journal.matched(matchedArgs)).toEqual({
+      appended: false,
+      reason: EJournalSkip.Ended,
+    })
     expect(await journal.ended(endedArgs)).toEqual({ appended: true })
     expect(await journal.ended(endedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
     expect(log.landedTypes()).toEqual(['background-shell-ended'])

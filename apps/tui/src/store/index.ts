@@ -28,7 +28,11 @@ export {
   shellEndingFailed,
   type ShellEnding,
 } from './shell-ended-line'
-export { serviceEndedLine, serviceEndingFailed, type ServiceEndedNotice } from './service-ended-line'
+export {
+  serviceEndedLine,
+  serviceEndingFailed,
+  type ServiceEndedNotice,
+} from './service-ended-line'
 export { prEventLine, prEventFailed } from './pr-event-line'
 export {
   advancedGate,

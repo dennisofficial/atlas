@@ -9,4 +9,8 @@ export {
 } from './rotation-port'
 export { LocalRotation } from './rotation-orchestrator'
 export type { RotationDeps } from './rotation-deps'
-export { carryOverSummariser, carryOverSystemPrompt, type RotationSummariser } from './carry-over-summary'
+export {
+  carryOverSummariser,
+  carryOverSystemPrompt,
+  type RotationSummariser,
+} from './carry-over-summary'

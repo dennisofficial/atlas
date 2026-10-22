@@ -31,7 +31,13 @@ async function open(): Promise<Fixture> {
   const rootId = toThreadId('thread-root')
   const sessionDir = sessionDirectory({ home, sessionId: rootId })
   const registry = new SessionRegistry(home)
-  const fixture: Fixture = { home, sessionDir, rootId, registry, ledger: new JsonlTurnLedger({ home, registry }) }
+  const fixture: Fixture = {
+    home,
+    sessionDir,
+    rootId,
+    registry,
+    ledger: new JsonlTurnLedger({ home, registry }),
+  }
   fixtures.push(fixture)
   await plantThread({ fixture, threadId: rootId })
   return fixture
@@ -94,7 +100,9 @@ describe('JsonlTurnLedger', () => {
   it('records the terminal status a turn actually reached', async () => {
     const { ledger, rootId } = await open()
 
-    await ledger.record(spendOf({ threadId: rootId, runId: toRunId('run-1'), status: 'interrupted' }))
+    await ledger.record(
+      spendOf({ threadId: rootId, runId: toRunId('run-1'), status: 'interrupted' }),
+    )
     await ledger.record(spendOf({ threadId: rootId, runId: toRunId('run-2'), status: 'failed' }))
 
     expect((await ledger.forThread({ threadId: rootId })).map((spend) => spend.status)).toEqual([
@@ -123,10 +131,20 @@ describe('JsonlTurnLedger', () => {
     const { ledger, rootId } = await open()
 
     await ledger.record(
-      spendOf({ threadId: rootId, runId: toRunId('run-late'), status: 'completed', startedAt: '2026-09-23T11:00:00.000Z' }),
+      spendOf({
+        threadId: rootId,
+        runId: toRunId('run-late'),
+        status: 'completed',
+        startedAt: '2026-09-23T11:00:00.000Z',
+      }),
     )
     await ledger.record(
-      spendOf({ threadId: rootId, runId: toRunId('run-early'), status: 'completed', startedAt: '2026-09-23T09:00:00.000Z' }),
+      spendOf({
+        threadId: rootId,
+        runId: toRunId('run-early'),
+        status: 'completed',
+        startedAt: '2026-09-23T09:00:00.000Z',
+      }),
     )
 
     expect((await ledger.forThread({ threadId: rootId })).map((spend) => spend.runId)).toEqual([
@@ -204,7 +222,9 @@ describe('JsonlTurnLedger', () => {
     const { ledger, rootId, sessionDir } = await open()
     await ledger.record(spendOf({ threadId: rootId, runId: toRunId('run-1'), status: 'completed' }))
 
-    const line = JSON.parse(readFileSync(ledgerFile({ sessionDir }), 'utf8').trim()) as { v?: number }
+    const line = JSON.parse(readFileSync(ledgerFile({ sessionDir }), 'utf8').trim()) as {
+      v?: number
+    }
     expect(line.v).toBe(1)
   })
 
@@ -213,11 +233,17 @@ describe('JsonlTurnLedger', () => {
     const spend = spendOf({ threadId: rootId, runId: toRunId('run-1'), status: 'completed' })
     appendFileSync(ledgerFile({ sessionDir }), `${JSON.stringify({ v: 2, ...spend })}\n`)
 
-    await expect(ledger.forThread({ threadId: rootId })).rejects.toBeInstanceOf(LedgerFromNewerAtlasError)
+    await expect(ledger.forThread({ threadId: rootId })).rejects.toBeInstanceOf(
+      LedgerFromNewerAtlasError,
+    )
   })
 
   it('parseLedgerLines returns TurnSpend rows without the storage-only v field', () => {
-    const spend = spendOf({ threadId: toThreadId('thread-x'), runId: toRunId('run-1'), status: 'completed' })
+    const spend = spendOf({
+      threadId: toThreadId('thread-x'),
+      runId: toRunId('run-1'),
+      status: 'completed',
+    })
     const rows = parseLedgerLines({ text: `${JSON.stringify({ v: 1, ...spend })}\n` })
     expect(rows).toEqual([spend])
     expect('v' in (rows[0] ?? {})).toBe(false)
@@ -230,18 +256,39 @@ describe('JsonlTurnLedger.forThreadTree', () => {
     const childId = toThreadId('thread-child')
     const grandchildId = toThreadId('thread-grandchild')
     const unrelatedId = toThreadId('thread-unrelated')
-    await plantThread({ fixture, threadId: childId, spawnerThreadId: fixture.rootId, createdAt: '2026-09-23T10:01:00.000Z' })
-    await plantThread({ fixture, threadId: grandchildId, spawnerThreadId: childId, createdAt: '2026-09-23T10:02:00.000Z' })
+    await plantThread({
+      fixture,
+      threadId: childId,
+      spawnerThreadId: fixture.rootId,
+      createdAt: '2026-09-23T10:01:00.000Z',
+    })
+    await plantThread({
+      fixture,
+      threadId: grandchildId,
+      spawnerThreadId: childId,
+      createdAt: '2026-09-23T10:02:00.000Z',
+    })
     await plantThread({ fixture, threadId: unrelatedId, createdAt: '2026-09-23T10:03:00.000Z' })
 
-    await fixture.ledger.record(spendOf({ threadId: fixture.rootId, runId: toRunId('run-own'), status: 'completed' }))
-    await fixture.ledger.record(spendOf({ threadId: childId, runId: toRunId('run-child'), status: 'completed' }))
-    await fixture.ledger.record(spendOf({ threadId: grandchildId, runId: toRunId('run-grand'), status: 'completed' }))
-    await fixture.ledger.record(spendOf({ threadId: unrelatedId, runId: toRunId('run-unrelated'), status: 'completed' }))
+    await fixture.ledger.record(
+      spendOf({ threadId: fixture.rootId, runId: toRunId('run-own'), status: 'completed' }),
+    )
+    await fixture.ledger.record(
+      spendOf({ threadId: childId, runId: toRunId('run-child'), status: 'completed' }),
+    )
+    await fixture.ledger.record(
+      spendOf({ threadId: grandchildId, runId: toRunId('run-grand'), status: 'completed' }),
+    )
+    await fixture.ledger.record(
+      spendOf({ threadId: unrelatedId, runId: toRunId('run-unrelated'), status: 'completed' }),
+    )
 
     const tree = await fixture.ledger.forThreadTree({ threadId: fixture.rootId })
     expect(tree.own.map((spend) => spend.runId)).toEqual([toRunId('run-own')])
-    expect(tree.delegated.map((spend) => spend.runId)).toEqual([toRunId('run-child'), toRunId('run-grand')])
+    expect(tree.delegated.map((spend) => spend.runId)).toEqual([
+      toRunId('run-child'),
+      toRunId('run-grand'),
+    ])
   })
 
   it('refuses to under-count a supervision chain deeper than the walk follows', async () => {
@@ -265,8 +312,12 @@ describe('sumSessionSpend', () => {
     const childId = toThreadId('thread-child')
     await plantThread({ fixture, threadId: childId, spawnerThreadId: fixture.rootId })
 
-    await fixture.ledger.record(spendOf({ threadId: fixture.rootId, runId: toRunId('run-1'), status: 'completed' }))
-    await fixture.ledger.record(spendOf({ threadId: childId, runId: toRunId('run-2'), status: 'completed' }))
+    await fixture.ledger.record(
+      spendOf({ threadId: fixture.rootId, runId: toRunId('run-1'), status: 'completed' }),
+    )
+    await fixture.ledger.record(
+      spendOf({ threadId: childId, runId: toRunId('run-2'), status: 'completed' }),
+    )
     const replayed = spendOf({ threadId: childId, runId: toRunId('run-2'), status: 'completed' })
     await fixture.ledger.record({ ...replayed, inputTokens: 50_000 })
 

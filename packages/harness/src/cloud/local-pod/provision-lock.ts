@@ -18,7 +18,10 @@ const DEFAULT_DEADLINE_MS = 10 * 60 * 1000
 const UNREADABLE_LOCK_GRACE_MS = 30_000
 
 const errorCodeOf = (failure: unknown): string | undefined =>
-  typeof failure === 'object' && failure !== null && 'code' in failure && typeof failure.code === 'string'
+  typeof failure === 'object' &&
+  failure !== null &&
+  'code' in failure &&
+  typeof failure.code === 'string'
     ? failure.code
     : undefined
 

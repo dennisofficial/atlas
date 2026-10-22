@@ -21,9 +21,11 @@ import { keepOpen, openHooked } from './hooked-turn'
 
 const PROJECT_DIRECTORY = '/w'
 
-const nudging = (text: string): AfterTurn => async () => ({
-  drafts: [{ type: 'nudge', text, lifetimeSteps: 1 }],
-})
+const nudging =
+  (text: string): AfterTurn =>
+  async () => ({
+    drafts: [{ type: 'nudge', text, lifetimeSteps: 1 }],
+  })
 
 const publishedDeltas = (signals: readonly ChannelSignal[]): string[] =>
   signals.flatMap((signal) =>
@@ -40,7 +42,13 @@ describe('BeforeStep', () => {
     const { runner, harness, model } = await openHooked({
       script: [{ text: 'auth' }],
       hooks: new HookChain({
-        beforeStep: [{ name: 'insistOnBrevity', order: { stage: EStage.Policy, nudge: 0 }, run: insistOnBrevity }],
+        beforeStep: [
+          {
+            name: 'insistOnBrevity',
+            order: { stage: EStage.Policy, nudge: 0 },
+            run: insistOnBrevity,
+          },
+        ],
       }),
     })
     const thread = await harness.threads.create({})
@@ -64,7 +72,13 @@ describe('BeforeStep', () => {
     const { runner, harness, model } = await openHooked({
       script: [{ text: 'unreachable' }],
       hooks: new HookChain({
-        beforeStep: [{ name: 'blankEveryText', order: { stage: EStage.Policy, nudge: 0 }, run: blankEveryText }],
+        beforeStep: [
+          {
+            name: 'blankEveryText',
+            order: { stage: EStage.Policy, nudge: 0 },
+            run: blankEveryText,
+          },
+        ],
       }),
     })
     const thread = await harness.threads.create({})
@@ -72,7 +86,9 @@ describe('BeforeStep', () => {
     const outcome = await runner.say({ threadId: thread.id, text: 'what changed?' })
 
     expect(outcome.status).toBe(ETurnStatus.Failed)
-    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(/text block holding no text/)
+    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(
+      /text block holding no text/,
+    )
     expect(model.doStreamCalls).toHaveLength(0)
   })
 })
@@ -109,7 +125,11 @@ describe('AfterTurn', () => {
       script: [{ text: 'auth' }],
       hooks: new HookChain({
         afterTurn: [
-          { name: 'observed', order: { stage: EStage.Observe, nudge: 0 }, run: nudging('observed') },
+          {
+            name: 'observed',
+            order: { stage: EStage.Observe, nudge: 0 },
+            run: nudging('observed'),
+          },
           { name: 'guarded', order: { stage: EStage.Guard, nudge: 0 }, run: nudging('guarded') },
         ],
       }),
@@ -119,7 +139,12 @@ describe('AfterTurn', () => {
     await runner.say({ threadId: thread.id, text: 'what changed?' })
 
     const events = await harness.log.read({ threadId: thread.id })
-    expect(events.map((event) => event.type)).toEqual(['user-said', 'assistant-said', 'nudge', 'nudge'])
+    expect(events.map((event) => event.type)).toEqual([
+      'user-said',
+      'assistant-said',
+      'nudge',
+      'nudge',
+    ])
     expect(events.flatMap((event) => (event.type === 'nudge' ? [event.text] : []))).toEqual([
       'guarded',
       'observed',
@@ -128,10 +153,19 @@ describe('AfterTurn', () => {
 
   it('runs once per turn, not once per model step, so a tool round trip does not double it', async () => {
     const { runner, harness } = await openHooked({
-      script: [{ text: 'looking', calls: [{ callId: 'call-1', name: 'touch', input: {} }] }, { text: 'auth' }],
+      script: [
+        { text: 'looking', calls: [{ callId: 'call-1', name: 'touch', input: {} }] },
+        { text: 'auth' },
+      ],
       withTools: true,
       hooks: new HookChain({
-        afterTurn: [{ name: 'observed', order: { stage: EStage.Observe, nudge: 0 }, run: nudging('observed') }],
+        afterTurn: [
+          {
+            name: 'observed',
+            order: { stage: EStage.Observe, nudge: 0 },
+            run: nudging('observed'),
+          },
+        ],
       }),
     })
     const thread = await harness.threads.create({})
@@ -152,7 +186,9 @@ describe('OnChunk against the delta channel', () => {
     }
 
     const hooks = new HookChain({
-      onChunk: [{ name: 'secret-redaction', order: { stage: EStage.Guard, nudge: 0 }, run: redact }],
+      onChunk: [
+        { name: 'secret-redaction', order: { stage: EStage.Guard, nudge: 0 }, run: redact },
+      ],
     })
 
     const temp = createTempHome()
@@ -170,7 +206,16 @@ describe('OnChunk against the delta channel', () => {
 
     const runner = new PublishingTurnRunner({
       channel,
-      deps: { log: harness.log, model: harness.model, ids: harness.ids, assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }), hooks },
+      deps: {
+        log: harness.log,
+        model: harness.model,
+        ids: harness.ids,
+        assembly: defaultPipeline({
+          prompt: () => EMPTY_PROMPT,
+          launchDirectory: PROJECT_DIRECTORY,
+        }),
+        hooks,
+      },
     })
 
     const outcome = await runner.say({ threadId: thread.id, text: 'what changed?' })

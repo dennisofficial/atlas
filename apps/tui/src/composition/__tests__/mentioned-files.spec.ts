@@ -57,7 +57,9 @@ describe('mentionedFileDrafts', () => {
 
     const drafts = await draftsFor('look through @pkg/')
     expect(drafts).toHaveLength(1)
-    expect((drafts[0] as { content: string }).content).toBe('pkg/ is a directory holding:\n\none.ts')
+    expect((drafts[0] as { content: string }).content).toBe(
+      'pkg/ is a directory holding:\n\none.ts',
+    )
   })
 
   it('says so when a file was too large to attach whole', async () => {

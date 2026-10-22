@@ -135,7 +135,8 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     type: z.literal('tool-dispatched'),
     callId: callIdSchema,
     name: z.string(),
-  }),  z.object({
+  }),
+  z.object({
     type: z.literal('tool-result'),
     callId: callIdSchema,
     name: z.string(),
@@ -171,7 +172,11 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     content: z.string(),
     triggeredBy: z.string().optional(),
   }),
-  z.object({ type: z.literal('nudge'), text: z.string(), lifetimeSteps: z.number().int().nonnegative() }),
+  z.object({
+    type: z.literal('nudge'),
+    text: z.string(),
+    lifetimeSteps: z.number().int().nonnegative(),
+  }),
   z.object({
     type: z.literal('code-quality-reviewed'),
     callId: callIdSchema,

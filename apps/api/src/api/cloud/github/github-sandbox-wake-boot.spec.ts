@@ -53,12 +53,18 @@ function harness(options: { created: boolean; launchFails?: boolean }) {
 
 describe('VercelSandboxWakeBoot', () => {
   it('resumes from the snapshot, launches the pinned serve under the stored token, and never deletes', async () => {
-    const { boot, args, launch, deleted, getOrCreateParams, onFreshSandbox } = harness({ created: false })
+    const { boot, args, launch, deleted, getOrCreateParams, onFreshSandbox } = harness({
+      created: false,
+    })
 
     const result = await boot.boot(args)
 
     expect(result).toEqual({ serveUrl: 'https://atlas-3000.vercel.run', created: false })
-    expect(getOrCreateParams[0]).toMatchObject({ name: 'atlas-sandbox-abc', persistent: true, resume: true })
+    expect(getOrCreateParams[0]).toMatchObject({
+      name: 'atlas-sandbox-abc',
+      persistent: true,
+      resume: true,
+    })
     expect(getOrCreateParams[0]).not.toHaveProperty('mounts')
     expect(launch).toHaveBeenCalledTimes(1)
     expect(launch.mock.calls[0]?.[0]).toMatchObject({

@@ -199,12 +199,14 @@ describe('giving the worktree back', () => {
 
     await enter.invoke(invocation({ input: { path: parent }, projectDirectory: root }))
     const parentClaim = await lockOf({ root, path: parent })
-    const outcome = await enter.invoke(invocation({
-      input: { path: child },
-      projectDirectory: parent,
-      homeDirectory: parent,
-      threadId: toThreadId('teammate-child'),
-    }))
+    const outcome = await enter.invoke(
+      invocation({
+        input: { path: child },
+        projectDirectory: parent,
+        homeDirectory: parent,
+        threadId: toThreadId('teammate-child'),
+      }),
+    )
 
     expect(outcome.ok).toBe(true)
     expect(await lockOf({ root, path: parent })).toEqual(parentClaim)

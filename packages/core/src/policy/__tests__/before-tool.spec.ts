@@ -26,9 +26,18 @@ describe('resolveBeforeTool', () => {
     const resolution = resolveBeforeTool({
       call,
       outcomes: [
-        { hookName: 'absolutise', outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/w/src/a.ts' } } },
-        { hookName: 'realpath', outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/private/w/src/a.ts' } } },
-        { hookName: 'observe', outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/private/w/src/a.ts' } } },
+        {
+          hookName: 'absolutise',
+          outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/w/src/a.ts' } },
+        },
+        {
+          hookName: 'realpath',
+          outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/private/w/src/a.ts' } },
+        },
+        {
+          hookName: 'observe',
+          outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/private/w/src/a.ts' } },
+        },
       ],
     })
 
@@ -43,15 +52,30 @@ describe('resolveBeforeTool', () => {
     const resolution = resolveBeforeTool({
       call,
       outcomes: [
-        { hookName: 'absolutise', outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/w/src/a.ts' } } },
-        { hookName: 'boundary', outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' } },
-        { hookName: 'observe', outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/w/src/a.ts' } } },
+        {
+          hookName: 'absolutise',
+          outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/w/src/a.ts' } },
+        },
+        {
+          hookName: 'boundary',
+          outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' },
+        },
+        {
+          hookName: 'observe',
+          outcome: { decision: EBeforeToolDecision.Allow, input: { path: '/w/src/a.ts' } },
+        },
       ],
     })
 
     expect(resolution).toEqual({
       outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' },
-      dissenters: [{ hookName: 'boundary', decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' }],
+      dissenters: [
+        {
+          hookName: 'boundary',
+          decision: EBeforeToolDecision.Deny,
+          reason: 'outside the workspace root',
+        },
+      ],
       drafts: [],
     })
   })
@@ -60,8 +84,14 @@ describe('resolveBeforeTool', () => {
     const resolution = resolveBeforeTool({
       call,
       outcomes: [
-        { hookName: 'boundary', outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' } },
-        { hookName: 'secrets', outcome: { decision: EBeforeToolDecision.Deny, reason: 'touches .env.keys' } },
+        {
+          hookName: 'boundary',
+          outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' },
+        },
+        {
+          hookName: 'secrets',
+          outcome: { decision: EBeforeToolDecision.Deny, reason: 'touches .env.keys' },
+        },
       ],
     })
 
@@ -69,7 +99,10 @@ describe('resolveBeforeTool', () => {
       decision: EBeforeToolDecision.Deny,
       reason: 'outside the workspace root',
     })
-    expect(resolution.dissenters.map((dissent) => dissent.hookName)).toEqual(['boundary', 'secrets'])
+    expect(resolution.dissenters.map((dissent) => dissent.hookName)).toEqual([
+      'boundary',
+      'secrets',
+    ])
   })
 })
 
@@ -106,7 +139,10 @@ describe('resolveBeforeTool when a hook returns a decision without a reason', ()
     const { outcome } = resolveBeforeTool({
       call,
       outcomes: [
-        { hookName: 'silentGuard', outcome: acrossABoundary({ decision: EBeforeToolDecision.Deny }) },
+        {
+          hookName: 'silentGuard',
+          outcome: acrossABoundary({ decision: EBeforeToolDecision.Deny }),
+        },
         {
           hookName: 'boundary',
           outcome: { decision: EBeforeToolDecision.Deny, reason: 'are you sure?' },
@@ -135,7 +171,10 @@ describe('the drafts a consulted hook leaves behind', () => {
             drafts: [noted('judged clear')],
           },
         },
-        { hookName: 'boundary', outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' } },
+        {
+          hookName: 'boundary',
+          outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' },
+        },
       ],
     })
 
@@ -167,9 +206,16 @@ describe('the drafts a consulted hook leaves behind', () => {
       outcomes: [
         {
           hookName: 'classify',
-          outcome: { decision: EBeforeToolDecision.Allow, input: call.input, drafts: [noted('judged clear')] },
+          outcome: {
+            decision: EBeforeToolDecision.Allow,
+            input: call.input,
+            drafts: [noted('judged clear')],
+          },
         },
-        { hookName: 'boundary', outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' } },
+        {
+          hookName: 'boundary',
+          outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' },
+        },
       ],
     })
 
@@ -183,15 +229,27 @@ describe('the drafts a consulted hook leaves behind', () => {
       outcomes: [
         {
           hookName: 'first',
-          outcome: { decision: EBeforeToolDecision.Allow, input: call.input, drafts: [noted('one')] },
+          outcome: {
+            decision: EBeforeToolDecision.Allow,
+            input: call.input,
+            drafts: [noted('one')],
+          },
         },
         {
           hookName: 'second',
-          outcome: { decision: EBeforeToolDecision.Allow, input: call.input, drafts: [noted('two'), noted('three')] },
+          outcome: {
+            decision: EBeforeToolDecision.Allow,
+            input: call.input,
+            drafts: [noted('two'), noted('three')],
+          },
         },
         {
           hookName: 'third',
-          outcome: { decision: EBeforeToolDecision.Allow, input: call.input, drafts: [noted('four')] },
+          outcome: {
+            decision: EBeforeToolDecision.Allow,
+            input: call.input,
+            drafts: [noted('four')],
+          },
         },
       ],
     })
@@ -203,7 +261,12 @@ describe('the drafts a consulted hook leaves behind', () => {
     expect(
       resolveBeforeTool({
         call,
-        outcomes: [{ hookName: 'quiet', outcome: { decision: EBeforeToolDecision.Allow, input: call.input } }],
+        outcomes: [
+          {
+            hookName: 'quiet',
+            outcome: { decision: EBeforeToolDecision.Allow, input: call.input },
+          },
+        ],
       }).drafts,
     ).toEqual([])
   })

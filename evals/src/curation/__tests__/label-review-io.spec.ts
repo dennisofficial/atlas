@@ -34,7 +34,12 @@ const golden = () => {
   return buildGoldenCases({
     featureId: 'calculator',
     candidates: ids.map(candidate),
-    drafts: ids.map((id) => ({ candidateId: id, expected: { result: 3 }, generator: 'model', generatedAt: 't' })),
+    drafts: ids.map((id) => ({
+      candidateId: id,
+      expected: { result: 3 },
+      generator: 'model',
+      generatedAt: 't',
+    })),
     verifications: ids.map((id) => ({
       candidateId: id,
       verifier: 'alice',
@@ -68,8 +73,14 @@ describe('writeGoldenDataset', () => {
 
     const manifest = JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8'))
     expect(manifest.counts).toEqual({ accepted: 7, rejected: 0 })
-    expect((await readFile(join(outputDir, 'refused.jsonl'), 'utf8')).trim().split('\n')).toHaveLength(1)
-    const loaded = await loadDataset({ feature, datasetPath: join(outputDir, 'manifest.json'), suite: 'calculator' })
+    expect(
+      (await readFile(join(outputDir, 'refused.jsonl'), 'utf8')).trim().split('\n'),
+    ).toHaveLength(1)
+    const loaded = await loadDataset({
+      feature,
+      datasetPath: join(outputDir, 'manifest.json'),
+      suite: 'calculator',
+    })
     expect(loaded.cases).toHaveLength(7)
   })
 
@@ -87,8 +98,16 @@ describe('writeGoldenDataset', () => {
       datasetVersion: 'v1',
     })
 
-    const development = await loadDataset({ feature, datasetPath: join(outputDir, 'development', 'manifest.json'), suite: 'calculator' })
-    const holdout = await loadDataset({ feature, datasetPath: join(outputDir, 'holdout', 'manifest.json'), suite: 'calculator' })
+    const development = await loadDataset({
+      feature,
+      datasetPath: join(outputDir, 'development', 'manifest.json'),
+      suite: 'calculator',
+    })
+    const holdout = await loadDataset({
+      feature,
+      datasetPath: join(outputDir, 'holdout', 'manifest.json'),
+      suite: 'calculator',
+    })
     expect(development.manifest.split).toBe(EDatasetSplit.Development)
     expect(holdout.manifest.split).toBe(EDatasetSplit.Holdout)
     const ids = [...development.cases, ...holdout.cases].map((entry) => entry.id).sort()
@@ -101,7 +120,14 @@ describe('writeGoldenDataset', () => {
     const dir = await makeTmpDir()
     created.push(dir)
     await expect(
-      writeGoldenDataset({ outputDir: dir, cases: [], refused: [], featureVersions: versions, split: EDatasetSplit.Development, datasetVersion: 'v1' }),
+      writeGoldenDataset({
+        outputDir: dir,
+        cases: [],
+        refused: [],
+        featureVersions: versions,
+        split: EDatasetSplit.Development,
+        datasetVersion: 'v1',
+      }),
     ).rejects.toThrow('output directory already exists')
   })
 })

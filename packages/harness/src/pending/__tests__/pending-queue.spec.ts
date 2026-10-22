@@ -165,10 +165,9 @@ describe('commands queued between the messages', () => {
     expect(textsOf(queue)).toEqual(['parent instruction', 'peer instruction'])
 
     const batch = queue.prepare()
-    expect(batch.drafts.map((draft) => draft.type === 'user-said' ? draft.text : draft.type)).toEqual([
-      'parent instruction',
-      'peer instruction',
-    ])
+    expect(
+      batch.drafts.map((draft) => (draft.type === 'user-said' ? draft.text : draft.type)),
+    ).toEqual(['parent instruction', 'peer instruction'])
     batch.acknowledge()
     expect(textsOf(queue)).toEqual([])
   })

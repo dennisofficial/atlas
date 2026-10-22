@@ -10,13 +10,19 @@ const RESTORING_SIGNALS = ['SIGINT', 'SIGTERM'] as const
 export type SourceMark = { repoRoot: string; mark: string; restore: () => Promise<void> }
 
 const git = async (args: { cwd: string; argv: readonly string[] }): Promise<string> => {
-  const proc = Bun.spawn({ cmd: ['git', ...args.argv], cwd: args.cwd, stdout: 'pipe', stderr: 'pipe' })
+  const proc = Bun.spawn({
+    cmd: ['git', ...args.argv],
+    cwd: args.cwd,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ])
-  if (exitCode !== 0) throw new Error(`git ${args.argv.join(' ')} exited ${exitCode}: ${stderr.trim()}`)
+  if (exitCode !== 0)
+    throw new Error(`git ${args.argv.join(' ')} exited ${exitCode}: ${stderr.trim()}`)
   return stdout
 }
 
@@ -24,10 +30,17 @@ export const markLineOf = (mark: string): string => `\nprocess.env.ATLAS_RIG_MAR
 
 export const freshMark = (): string => randomBytes(MARK_BYTES).toString('hex')
 
-export async function markSourceAt(args: { repoRoot: string; mark?: string | undefined }): Promise<SourceMark> {
-  const dirty = (await git({ cwd: args.repoRoot, argv: ['status', '--porcelain', SERVE_MAIN_PATH] })).trim()
+export async function markSourceAt(args: {
+  repoRoot: string
+  mark?: string | undefined
+}): Promise<SourceMark> {
+  const dirty = (
+    await git({ cwd: args.repoRoot, argv: ['status', '--porcelain', SERVE_MAIN_PATH] })
+  ).trim()
   if (dirty.length > 0) {
-    throw new Error(`refusing to mark ${SERVE_MAIN_PATH}: it already has uncommitted changes (${dirty})`)
+    throw new Error(
+      `refusing to mark ${SERVE_MAIN_PATH}: it already has uncommitted changes (${dirty})`,
+    )
   }
   const file = join(args.repoRoot, SERVE_MAIN_PATH)
   const original = await readFile(file)
@@ -69,6 +82,8 @@ export async function markSourceAt(args: { repoRoot: string; mark?: string | und
 }
 
 export async function markServeSource(): Promise<SourceMark> {
-  const repoRoot = (await git({ cwd: import.meta.dirname, argv: ['rev-parse', '--show-toplevel'] })).trim()
+  const repoRoot = (
+    await git({ cwd: import.meta.dirname, argv: ['rev-parse', '--show-toplevel'] })
+  ).trim()
   return markSourceAt({ repoRoot })
 }

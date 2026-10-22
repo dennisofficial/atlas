@@ -30,7 +30,8 @@ const listWithin = (args: {
 }): Promise<readonly MemorySummary[]> =>
   new Promise((resolve, reject) => {
     const expiry = setTimeout(
-      () => reject(new MemoryUnavailable(`the memory index did not load within ${args.deadlineMs}ms`)),
+      () =>
+        reject(new MemoryUnavailable(`the memory index did not load within ${args.deadlineMs}ms`)),
       args.deadlineMs,
     )
     args.port
@@ -47,7 +48,11 @@ export class LoadMemoryIndexHook extends BeforeTurnHook {
   private readonly state: MemoryIndexState
   private readonly deadlineMs: number
 
-  constructor(args: { port: MemoryPort; state: MemoryIndexState; deadlineMs?: number | undefined }) {
+  constructor(args: {
+    port: MemoryPort
+    state: MemoryIndexState
+    deadlineMs?: number | undefined
+  }) {
     super()
     this.port = args.port
     this.state = args.state

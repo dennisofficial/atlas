@@ -8,9 +8,7 @@ import {
 } from '../plugins/github/pure'
 import type { SubscriptionHandle, SubscriptionPrState } from './pr-subscription-client'
 
-export type SubscriptionBy =
-  | { kind: 'branch'; branch: string }
-  | { kind: 'number'; number: number }
+export type SubscriptionBy = { kind: 'branch'; branch: string } | { kind: 'number'; number: number }
 
 export type BookEntry = {
   key: string
@@ -120,7 +118,11 @@ export function createSseSubscriptionBook(args: {
     args.onReading({ key, reading })
   }
 
-  const addRoute = (route: { index: Map<string, Set<string>>; identity: string; key: string }): void => {
+  const addRoute = (route: {
+    index: Map<string, Set<string>>
+    identity: string
+    key: string
+  }): void => {
     const keys = route.index.get(route.identity) ?? new Set<string>()
     keys.add(route.key)
     route.index.set(route.identity, keys)
@@ -142,7 +144,10 @@ export function createSseSubscriptionBook(args: {
     if (entry === undefined || entry.by.kind !== 'branch') return
     addRoute({
       index: byBranch,
-      identity: branchIdentityOf({ repoFullName: entry.handle.repoFullName, branch: entry.by.branch }),
+      identity: branchIdentityOf({
+        repoFullName: entry.handle.repoFullName,
+        branch: entry.by.branch,
+      }),
       key,
     })
   }
@@ -192,7 +197,9 @@ export function createSseSubscriptionBook(args: {
       }
 
       if (typeof state.headBranch !== 'string') return
-      const discovered = byBranch.get(branchIdentityOf({ repoFullName: state.repoFullName, branch: state.headBranch }))
+      const discovered = byBranch.get(
+        branchIdentityOf({ repoFullName: state.repoFullName, branch: state.headBranch }),
+      )
       for (const key of discovered ?? []) {
         const entry = entries.get(key)
         if (entry === undefined) continue
@@ -218,7 +225,10 @@ export function createSseSubscriptionBook(args: {
 const sameShown = (left: PullRequestReading, right: PullRequestReading): boolean => {
   if (left.lookup !== EPullRequestLookup.Found || right.lookup !== EPullRequestLookup.Found) {
     if (left.lookup !== right.lookup) return false
-    if (left.lookup === EPullRequestLookup.Unavailable && right.lookup === EPullRequestLookup.Unavailable) {
+    if (
+      left.lookup === EPullRequestLookup.Unavailable &&
+      right.lookup === EPullRequestLookup.Unavailable
+    ) {
       return left.retryable === right.retryable
     }
     return true

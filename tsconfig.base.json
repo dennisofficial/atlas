@@ -1,12 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": [
-      "ES2023"
-    ],
-    "types": [
-      "bun"
-    ],
+    "lib": ["ES2023"],
+    "types": ["bun"],
     "module": "Preserve",
     "moduleResolution": "bundler",
     "strict": true,
@@ -19,7 +15,5 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "files": [
-    "vitest-setup/matchers.d.ts"
-  ]
+  "files": ["vitest-setup/matchers.d.ts"]
 }

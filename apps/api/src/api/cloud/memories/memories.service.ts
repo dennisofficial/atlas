@@ -70,7 +70,10 @@ function toEntry(row: MemoryModel): MemoryEntry {
   return memoryEntrySchema.parse({ ...toSummary(row), body: row.body })
 }
 
-function matchStartsOf(args: { text: string; needle: string }): { first: number; another: boolean } {
+function matchStartsOf(args: { text: string; needle: string }): {
+  first: number
+  another: boolean
+} {
   const first = args.text.indexOf(args.needle)
   return { first, another: first >= 0 && args.text.indexOf(args.needle, first + 1) >= 0 }
 }
@@ -127,7 +130,9 @@ export class MemoriesService {
     return toSummary(row)
   }
 
-  async edit(args: MemoryKey & { old: string; replacement: string; revision: number }): Promise<MemorySummary> {
+  async edit(
+    args: MemoryKey & { old: string; replacement: string; revision: number },
+  ): Promise<MemorySummary> {
     const key = storedKeyOf(args)
     return db.$transaction(async (tx) => {
       const row = await tx.memory.findUnique({ where: uniqueKeyOf(key) })
@@ -150,7 +155,9 @@ export class MemoriesService {
       }
       const body = replaceOnce({ text: row.body, old: args.old, replacement: args.replacement })
       if (body.length > MAX_MEMORY_BODY_CHARS) {
-        throw new BadRequestException(`a memory body is at most ${MAX_MEMORY_BODY_CHARS} characters`)
+        throw new BadRequestException(
+          `a memory body is at most ${MAX_MEMORY_BODY_CHARS} characters`,
+        )
       }
       const updated = await tx.memory.updateMany({
         where: { id: row.id, userId: key.userId, revision: row.revision },
@@ -158,7 +165,8 @@ export class MemoriesService {
       })
       const fresh = await tx.memory.findUnique({ where: uniqueKeyOf(key) })
       if (fresh === null) throw new NotFoundException('no such memory')
-      if (updated.count === 0) throw staleRevision({ expected: args.revision, current: fresh.revision })
+      if (updated.count === 0)
+        throw staleRevision({ expected: args.revision, current: fresh.revision })
       return toSummary(fresh)
     })
   }

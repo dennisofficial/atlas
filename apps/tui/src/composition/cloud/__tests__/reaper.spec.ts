@@ -66,8 +66,7 @@ const fixture = (given: Partial<Fixture>) => {
           record('row', threadId)
           if (held.failDestroyOn?.includes(threadId) === true) throw new Error('vercel is down')
         },
-        findThread: async ({ threadId }: { threadId: ThreadId }) =>
-          held.threads.get(threadId),
+        findThread: async ({ threadId }: { threadId: ThreadId }) => held.threads.get(threadId),
         flipToHost: async ({ threadId }) => record('flip', threadId),
         recordExpired: async ({ threadId }) => record('expired-event', threadId),
         notify: (text) => {
@@ -159,7 +158,9 @@ describe('reapExpiredCloudSandboxes', () => {
     await given.run()
 
     expect(given.calls).toEqual([])
-    expect(given.notices).toEqual(['the cloud sandbox reaper could not list sandboxes: api is unreachable'])
+    expect(given.notices).toEqual([
+      'the cloud sandbox reaper could not list sandboxes: api is unreachable',
+    ])
   })
 
   it('stamps the marker when it notifies a list failure', async () => {
@@ -189,7 +190,9 @@ describe('reapExpiredCloudSandboxes', () => {
 
     await given.run()
 
-    expect(given.notices).toEqual(['the cloud sandbox reaper could not list sandboxes: quota exceeded'])
+    expect(given.notices).toEqual([
+      'the cloud sandbox reaper could not list sandboxes: quota exceeded',
+    ])
     expect(given.held.mark).toEqual({ message: 'quota exceeded', notifiedAt: NOW })
   })
 
@@ -204,7 +207,9 @@ describe('reapExpiredCloudSandboxes', () => {
 
     await given.run()
 
-    expect(given.notices).toEqual(['the cloud sandbox reaper could not list sandboxes: api is unreachable'])
+    expect(given.notices).toEqual([
+      'the cloud sandbox reaper could not list sandboxes: api is unreachable',
+    ])
   })
 
   it('clears the marker after a successful list', async () => {

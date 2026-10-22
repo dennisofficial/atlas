@@ -54,7 +54,10 @@ describe('pendingCalls', () => {
       { draft: called({ callId: 'call-2', ordinal: 0 }), runId: 'run-2' },
     ])
 
-    expect(pendingCalls(events).map((call) => call.runId)).toEqual([toRunId('run-1'), toRunId('run-2')])
+    expect(pendingCalls(events).map((call) => call.runId)).toEqual([
+      toRunId('run-1'),
+      toRunId('run-2'),
+    ])
   })
 
   it('is empty for a conversation of spoken turns only', () => {
@@ -93,7 +96,12 @@ describe('pendingCalls', () => {
   it('drops a call once it is denied', () => {
     const events = eventsFrom([
       called({ callId: 'call-1', ordinal: 0 }),
-      { type: 'tool-denied', callId: toCallId('call-1'), name: 'read_file', reason: 'outside workspace' },
+      {
+        type: 'tool-denied',
+        callId: toCallId('call-1'),
+        name: 'read_file',
+        reason: 'outside workspace',
+      },
     ])
 
     expect(pendingCalls(events)).toEqual([])
@@ -139,7 +147,10 @@ describe('a call id the provider hands out twice', () => {
     const events = eventsAcrossRuns([
       { draft: called({ callId: 'call-1', ordinal: 0 }), runId: 'run-1' },
       { draft: resulted({ callId: 'call-1' }), runId: 'run-1' },
-      { draft: called({ callId: 'call-1', ordinal: 0, input: { path: '/fresh' } }), runId: 'run-2' },
+      {
+        draft: called({ callId: 'call-1', ordinal: 0, input: { path: '/fresh' } }),
+        runId: 'run-2',
+      },
     ])
 
     expect(pendingCalls(events).map((call) => [call.runId, call.input])).toEqual([
@@ -202,7 +213,9 @@ describe('a call id the provider hands out twice', () => {
 
 describe('answeredApproval', () => {
   it('is undefined when nothing answered the call', () => {
-    const events = eventsFrom([{ type: 'approval-requested', callId: toCallId('call-1'), reason: 'writes' }])
+    const events = eventsFrom([
+      { type: 'approval-requested', callId: toCallId('call-1'), reason: 'writes' },
+    ])
 
     expect(answeredApproval({ events, callId: toCallId('call-1') })).toBeUndefined()
   })

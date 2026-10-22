@@ -128,7 +128,13 @@ const isInside = ({ directory, path }: { directory: string; path: string }): boo
   return offset !== '' && offset !== '..' && !offset.startsWith('../')
 }
 
-const anchorBesideGitDirectory = ({ gitDirectory, toplevel }: { gitDirectory: string; toplevel: string }): string =>
+const anchorBesideGitDirectory = ({
+  gitDirectory,
+  toplevel,
+}: {
+  gitDirectory: string
+  toplevel: string
+}): string =>
   isInside({ directory: gitDirectory, path: toplevel }) ? gitDirectory : dirname(gitDirectory)
 
 const ATLAS_WORKTREE_MARKER = '/.atlas/worktrees/'
@@ -138,10 +144,17 @@ const anchorLinkedWorktree = (toplevel: string): string => {
   return marker > 0 ? toplevel.slice(0, marker) : dirname(toplevel)
 }
 
-async function readConfiguredWorkTree({ probe, commonDir }: { probe: GitProbe; commonDir: string }): Promise<string | null> {
+async function readConfiguredWorkTree({
+  probe,
+  commonDir,
+}: {
+  probe: GitProbe
+  commonDir: string
+}): Promise<string | null> {
   const configured = await probe.run(['config', '--get', 'core.worktree'])
   if (configured.exitCode === NOT_FOUND_EXIT_CODE) return null
-  if (configured.exitCode !== 0) throw new Error(`git config failed (git exit ${configured.exitCode})`)
+  if (configured.exitCode !== 0)
+    throw new Error(`git config failed (git exit ${configured.exitCode})`)
   const [path] = linesOf(configured.stdout)
   return path === undefined ? null : resolve(commonDir, path)
 }
@@ -154,7 +167,8 @@ async function resolveMainRoot(args: {
 }): Promise<string> {
   const [primary, ...linked] = args.worktrees
   if (primary === undefined) throw new Error('git listed no worktrees for this repository')
-  if (primary.bare) return anchorBesideGitDirectory({ gitDirectory: primary.path, toplevel: args.toplevel })
+  if (primary.bare)
+    return anchorBesideGitDirectory({ gitDirectory: primary.path, toplevel: args.toplevel })
   if (resolve(primary.path) !== args.commonDir) return primary.path
 
   const configured = await readConfiguredWorkTree({ probe: args.probe, commonDir: args.commonDir })
@@ -180,8 +194,14 @@ async function readLayout(probe: GitProbe): Promise<RepositoryLayout | null> {
   }
 
   const listed = await probe.run(['worktree', 'list', '--porcelain', '-z'])
-  if (listed.exitCode !== 0) throw new Error(`git worktree list failed (git exit ${listed.exitCode})`)
-  const mainRoot = await resolveMainRoot({ probe, toplevel, commonDir, worktrees: parseWorktrees(listed.stdout) })
+  if (listed.exitCode !== 0)
+    throw new Error(`git worktree list failed (git exit ${listed.exitCode})`)
+  const mainRoot = await resolveMainRoot({
+    probe,
+    toplevel,
+    commonDir,
+    worktrees: parseWorktrees(listed.stdout),
+  })
 
   const roots = await probe.run(['rev-list', '--max-parents=0', 'HEAD'])
   if (roots.exitCode !== 0) return null
@@ -206,7 +226,8 @@ async function readNormalizedOrigin(probe: GitProbe): Promise<string | null> {
 async function readBranch(probe: GitProbe): Promise<string> {
   const branch = await probe.run(['symbolic-ref', '--short', '-q', 'HEAD'])
   if (branch.exitCode === NOT_FOUND_EXIT_CODE) return DETACHED_BRANCH
-  if (branch.exitCode !== 0) throw new Error(`git symbolic-ref failed (git exit ${branch.exitCode})`)
+  if (branch.exitCode !== 0)
+    throw new Error(`git symbolic-ref failed (git exit ${branch.exitCode})`)
   const [name] = linesOf(branch.stdout)
   return name ?? DETACHED_BRANCH
 }
@@ -216,7 +237,10 @@ export class GitWorkspaceIdentity implements WorkspaceIdentityPort {
   private readonly timeoutMs: number
   private readonly layouts = new Map<string, RepositoryLayout>()
 
-  constructor({ process, timeoutMs = WORKSPACE_IDENTITY_TIMEOUT_MS }: { process: ProcessPort; timeoutMs?: number }) {
+  constructor({
+    process,
+    timeoutMs = WORKSPACE_IDENTITY_TIMEOUT_MS,
+  }: { process: ProcessPort; timeoutMs?: number }) {
     this.process = process
     this.timeoutMs = boundedTimeout(timeoutMs)
   }

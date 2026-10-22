@@ -112,15 +112,15 @@ describe('pascal lexical highlighting', () => {
   })
 
   it('reads uppercase keywords as keywords', () => {
-    expect(textFor({ spec, source: 'PROCEDURE Nudge; BEGIN Halt END;', group: 'keyword' })).toEqual([
-      'PROCEDURE',
-      'BEGIN',
-      'END',
-    ])
+    expect(textFor({ spec, source: 'PROCEDURE Nudge; BEGIN Halt END;', group: 'keyword' })).toEqual(
+      ['PROCEDURE', 'BEGIN', 'END'],
+    )
   })
 
   it('reads a mixed-case type name as a type', () => {
-    expect(textFor({ spec, source: 'Verbose: Boolean = True;', group: 'type' })).toEqual(['Boolean'])
+    expect(textFor({ spec, source: 'Verbose: Boolean = True;', group: 'type' })).toEqual([
+      'Boolean',
+    ])
   })
 
   it('reads a doubled quote as part of the string', () => {

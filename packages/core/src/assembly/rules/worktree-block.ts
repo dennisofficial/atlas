@@ -24,13 +24,14 @@ const leavingLineOf = (worktree: ActiveWorktree): string =>
     ? "exit_worktree returns the session to the repository's main checkout and leaves this worktree exactly where it is; it will not remove a worktree Atlas did not create."
     : "exit_worktree returns the session to the repository's main checkout, keeping or removing this worktree as the developer asks."
 
-const RESOLUTION_LINE = 'Paths you pass to a tool resolve against it and a bash command starts there.'
+const RESOLUTION_LINE =
+  'Paths you pass to a tool resolve against it and a bash command starts there.'
 
 const CLOUD_LOCATION_LINE =
   "Execution location: a cloud sandbox with full isolation — this filesystem, /tmp, and localhost belong to the sandbox; the operator's machine cannot see any of it. Hand files over through the conversation or an exposed port."
 
 const DOCKER_LOCATION_LINE =
-  'Execution location: a Docker container on the operator\'s machine — only the project directory and explicitly mounted paths are shared with the host; everything else you write, /tmp included, stays inside the container.'
+  "Execution location: a Docker container on the operator's machine — only the project directory and explicitly mounted paths are shared with the host; everything else you write, /tmp included, stays inside the container."
 
 const locationLineOf = (location: EExecutionLocation): string | undefined => {
   if (location === EExecutionLocation.Cloud) return CLOUD_LOCATION_LINE
@@ -75,7 +76,8 @@ export function worktreeBlock({
     apply: (input, ctx) => {
       const lastMessage = input.messages.at(-1)
       const lastEvent = ctx.events.at(-1)
-      if (lastMessage?.message.role === 'assistant' && lastMessage.origin.eventId === lastEvent?.id) return input
+      if (lastMessage?.message.role === 'assistant' && lastMessage.origin.eventId === lastEvent?.id)
+        return input
 
       const home = homeDirectoryOf({ events: ctx.events, launchDirectory })
       const worktree = activeWorktreeOf(ctx.events)
@@ -83,7 +85,11 @@ export function worktreeBlock({
       const location = currentLocationOf(ctx.events)
       const note = projectDirectoryNote({ directory: home, worktree, mainCheckout, location })
 
-      return appendedAtTail({ input, ctx, text: systemContext({ slot: 'workspace', key: 'directory', content: note }) })
+      return appendedAtTail({
+        input,
+        ctx,
+        text: systemContext({ slot: 'workspace', key: 'directory', content: note }),
+      })
     },
   })
 }

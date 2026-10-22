@@ -62,22 +62,28 @@ describe('tarEntries', () => {
 
   it('refuses a name no ustar header can hold', () => {
     const name = `${'x'.repeat(200)}.txt`
-    expect(() =>
-      tarEntries({ entries: [{ name, body: new Uint8Array(0) }] }),
-    ).toThrow(/too long/)
+    expect(() => tarEntries({ entries: [{ name, body: new Uint8Array(0) }] })).toThrow(/too long/)
   })
 
   it('carries directories, symlinks and executable modes, not just files', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'atlas-tar-kinds-'))
     try {
       const archive = join(directory, 'context.tar')
-      await writeFile(archive, tarEntries({
-        entries: [
-          { name: 'bin/', kind: ETarEntryKind.Directory, mode: 0o755 },
-          { name: 'bin/run.sh', kind: ETarEntryKind.File, mode: 0o755, body: new TextEncoder().encode('#!/bin/sh\n') },
-          { name: 'latest', kind: ETarEntryKind.Symlink, linkname: 'bin/run.sh' },
-        ],
-      }))
+      await writeFile(
+        archive,
+        tarEntries({
+          entries: [
+            { name: 'bin/', kind: ETarEntryKind.Directory, mode: 0o755 },
+            {
+              name: 'bin/run.sh',
+              kind: ETarEntryKind.File,
+              mode: 0o755,
+              body: new TextEncoder().encode('#!/bin/sh\n'),
+            },
+            { name: 'latest', kind: ETarEntryKind.Symlink, linkname: 'bin/run.sh' },
+          ],
+        }),
+      )
 
       const extract = join(directory, 'out')
       Bun.spawnSync(['mkdir', '-p', extract])

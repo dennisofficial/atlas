@@ -4,7 +4,12 @@ import { createRoot, type Root } from '@opentui/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import React, { act } from 'react'
 
-import { installLinkClickOpen, linkHoverUrl, notifyLinkHover, subscribeLinkHover } from '../link-click'
+import {
+  installLinkClickOpen,
+  linkHoverUrl,
+  notifyLinkHover,
+  subscribeLinkHover,
+} from '../link-click'
 import { bindPathLinks, unbindPathLinks } from '../path-links'
 import { currentNotices, dismissNotice, ENoticePosition, ENoticeTone } from '../../ui/notice-store'
 
@@ -58,7 +63,11 @@ async function mount(args: { selectable?: boolean; linkUrl?: string } = {}): Pro
       <box width={WIDTH} height={HEIGHT}>
         <text selectable={args.selectable ?? false}>
           <span>see the </span>
-          <span fg="#6495ed" attributes={TextAttributes.UNDERLINE} link={{ url: args.linkUrl ?? LINK_URL }}>
+          <span
+            fg="#6495ed"
+            attributes={TextAttributes.UNDERLINE}
+            link={{ url: args.linkUrl ?? LINK_URL }}
+          >
             pull request
           </span>
           <span> for details</span>

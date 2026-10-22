@@ -23,7 +23,15 @@ afterEach(async () => {
   for (const fixture of fixtures.splice(0)) await fixture.close()
 })
 
-const remoteEvent = ({ threadId, seq, text }: { threadId: ThreadId; seq: number; text: string }): Event => {
+const remoteEvent = ({
+  threadId,
+  seq,
+  text,
+}: {
+  threadId: ThreadId
+  seq: number
+  text: string
+}): Event => {
   const draft: EventDraft = { type: 'user-said', text }
   const envelope: EventEnvelope = {
     id: toEventId(`remote-evt-${seq}`),
@@ -168,7 +176,9 @@ describe('MirroredEventLog completion notification', () => {
   })
 
   it('stays silent for reads and for a sync that finds nothing new', async () => {
-    const { fixture, channel, remote, threadId, log, listen } = await rig({ localTexts: ['one', 'two'] })
+    const { fixture, channel, remote, threadId, log, listen } = await rig({
+      localTexts: ['one', 'two'],
+    })
     remote.push(...(await fixture.log.readOwn({ threadId })))
     const { notified } = listen()
 
@@ -207,8 +217,13 @@ describe('MirroredEventLog completion notification', () => {
   })
 
   it('publishes when a divergence rewrite changes identity without moving the head', async () => {
-    const { remote, threadId, log, snapshots, listen, fixture } = await rig({ localTexts: ['one', 'two'] })
-    remote.push(remoteEvent({ threadId, seq: 1, text: 'one' }), remoteEvent({ threadId, seq: 2, text: 'two' }))
+    const { remote, threadId, log, snapshots, listen, fixture } = await rig({
+      localTexts: ['one', 'two'],
+    })
+    remote.push(
+      remoteEvent({ threadId, seq: 1, text: 'one' }),
+      remoteEvent({ threadId, seq: 2, text: 'two' }),
+    )
     const { notified } = listen()
 
     await log.converge()
@@ -218,6 +233,9 @@ describe('MirroredEventLog completion notification', () => {
     expect(notified.count).toBe(1)
     expect(await Promise.all(snapshots)).toEqual([[1, 2]])
     const landed = await fixture.log.readOwn({ threadId })
-    expect(landed.map((event) => event.id)).toEqual([toEventId('remote-evt-1'), toEventId('remote-evt-2')])
+    expect(landed.map((event) => event.id)).toEqual([
+      toEventId('remote-evt-1'),
+      toEventId('remote-evt-2'),
+    ])
   })
 })

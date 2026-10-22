@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { EExecutionLocation, EHarnessPlacement, EToolEnvironment, toThreadId, type ThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  EHarnessPlacement,
+  EToolEnvironment,
+  toThreadId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import { PlacementController } from '../placement-controller'
@@ -38,7 +44,8 @@ const binding = (args: { kind: ERuntimeKind; name: string; cwd: string }): Probe
   return made
 }
 
-const cloudBinding = (name = 'cloud') => binding({ kind: ERuntimeKind.Cloud, name, cwd: '/sandbox' })
+const cloudBinding = (name = 'cloud') =>
+  binding({ kind: ERuntimeKind.Cloud, name, cwd: '/sandbox' })
 
 async function setup() {
   const fixture = openStoreFixture()
@@ -53,7 +60,10 @@ async function setup() {
 
 // install's work stages the birth's runtime through the handle's prepareRuntime before committing,
 // exactly as the real birth's open step does.
-const bornInCloud = async (args: { owner: Awaited<ReturnType<typeof setup>>['owner']; threadId?: ThreadId }) =>
+const bornInCloud = async (args: {
+  owner: Awaited<ReturnType<typeof setup>>['owner']
+  threadId?: ThreadId
+}) =>
   args.owner.install({
     threadId: args.threadId ?? THREAD,
     work: async (handle) => {
@@ -94,12 +104,14 @@ describe('session owner', () => {
 
   it('install keeps the local placement and releases its freeze when the work fails before committing', async () => {
     const { owner, local } = await setup()
-    await expect(owner.install({
-      threadId: THREAD,
-      work: async () => {
-        throw new Error('sandbox never woke')
-      },
-    })).rejects.toThrow('sandbox never woke')
+    await expect(
+      owner.install({
+        threadId: THREAD,
+        work: async () => {
+          throw new Error('sandbox never woke')
+        },
+      }),
+    ).rejects.toThrow('sandbox never woke')
     expect(owner.snapshot().location).toBe(EExecutionLocation.Host)
     expect(owner.snapshot().binding).toBe(local)
     expect(local.frozen).toBe(1)
@@ -108,33 +120,39 @@ describe('session owner', () => {
 
   it('install keeps the committed cloud placement and its freeze when the work fails after the commit', async () => {
     const { owner, local } = await setup()
-    await expect(owner.install({
-      threadId: THREAD,
-      work: async (handle) => {
-        handle.prepareRuntime(cloudBinding())
-        await handle.commit(CLOUD)
-        throw new Error('socket dropped')
-      },
-    })).rejects.toThrow('socket dropped')
+    await expect(
+      owner.install({
+        threadId: THREAD,
+        work: async (handle) => {
+          handle.prepareRuntime(cloudBinding())
+          await handle.commit(CLOUD)
+          throw new Error('socket dropped')
+        },
+      }),
+    ).rejects.toThrow('socket dropped')
     expect(owner.snapshot().location).toBe(EExecutionLocation.Cloud)
     expect(local.released).toBe(0)
   })
 
   it('install refuses to commit a local placement as a cloud birth', async () => {
     const { owner } = await setup()
-    await expect(owner.install({
-      threadId: THREAD,
-      work: async (handle) => {
-        handle.prepareRuntime(cloudBinding())
-        await handle.commit({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
-      },
-    })).rejects.toThrow('commits a cloud placement')
+    await expect(
+      owner.install({
+        threadId: THREAD,
+        work: async (handle) => {
+          handle.prepareRuntime(cloudBinding())
+          await handle.commit({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
+        },
+      }),
+    ).rejects.toThrow('commits a cloud placement')
     expect(owner.snapshot().location).toBe(EExecutionLocation.Host)
   })
 
   it('adopts a cloud runtime only for a thread whose placement is cloud', async () => {
     const { owner } = await setup()
-    await expect(owner.adopt({ threadId: THREAD, binding: cloudBinding() })).rejects.toThrow('not in the cloud')
+    await expect(owner.adopt({ threadId: THREAD, binding: cloudBinding() })).rejects.toThrow(
+      'not in the cloud',
+    )
 
     await bornInCloud({ owner })
     const adopted = cloudBinding()

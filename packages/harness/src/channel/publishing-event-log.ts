@@ -2,12 +2,18 @@ import type { EventLogPort } from '@dltech/atlas-core'
 
 import type { DeltaChannel } from './delta-channel'
 
-export function withDeltaPublishing(args: { log: EventLogPort; channel: DeltaChannel }): EventLogPort {
+export function withDeltaPublishing(args: {
+  log: EventLogPort
+  channel: DeltaChannel
+}): EventLogPort {
   return {
     async append(appendArgs) {
       const events = await args.log.append(appendArgs)
       const visible = events.filter((event) => event.type !== 'tool-dispatched')
-      if (visible.length > 0) args.channel.publisherFor({ threadId: appendArgs.threadId }).settleAppend({ events: visible })
+      if (visible.length > 0)
+        args.channel
+          .publisherFor({ threadId: appendArgs.threadId })
+          .settleAppend({ events: visible })
       return events
     },
 

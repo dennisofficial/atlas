@@ -37,7 +37,16 @@ async function execute(args: { command: readonly string[]; allowFailure?: boolea
 function transport({ shellDir }: { shellDir: string }): ControlTransport {
   return async ({ request }) => {
     const result = await execute({
-      command: ['docker', 'exec', container, 'bun', join(root, 'supervisor.js'), '--control', shellDir, JSON.stringify(request)],
+      command: [
+        'docker',
+        'exec',
+        container,
+        'bun',
+        join(root, 'supervisor.js'),
+        '--control',
+        shellDir,
+        JSON.stringify(request),
+      ],
     })
     return JSON.parse(result.stdout.trim())
   }
@@ -70,7 +79,16 @@ process.exit(0);
 async function launch(args: { name: string; command: string; limit?: number }) {
   const shellDir = join(root, args.name)
   const result = await execute({
-    command: [process.execPath, '-e', launcherSource, container, root, shellDir, args.command, String(args.limit ?? 65536)],
+    command: [
+      process.execPath,
+      '-e',
+      launcherSource,
+      container,
+      root,
+      shellDir,
+      args.command,
+      String(args.limit ?? 65536),
+    ],
   })
   const launched: { launcherPid: number; childPid: number } = JSON.parse(result.stdout.trim())
   expect(() => process.kill(launched.launcherPid, 0)).toThrow()
@@ -91,7 +109,11 @@ async function attach(args: { shellDir: string; cursor?: number }) {
 async function descriptors(args: { childPid: number }) {
   const result = await execute({
     command: [
-      'docker', 'exec', container, 'bun', '-e',
+      'docker',
+      'exec',
+      container,
+      'bun',
+      '-e',
       `console.log(JSON.stringify([1,2].map(fd=>require('node:fs').readlinkSync('/proc/${args.childPid}/fd/'+fd))))`,
     ],
   })
@@ -101,7 +123,10 @@ async function descriptors(args: { childPid: number }) {
 describeDocker('real Docker durable supervisor', () => {
   beforeAll(async () => {
     await execute({ command: ['docker', 'info', '--format', '{{.ServerVersion}}'] })
-    const available = await execute({ command: ['docker', 'image', 'inspect', image], allowFailure: true })
+    const available = await execute({
+      command: ['docker', 'image', 'inspect', image],
+      allowFailure: true,
+    })
     if (available.code !== 0) await execute({ command: ['docker', 'pull', image] })
     root = await mkdtemp('/tmp/atlas-durable-docker-')
     await mkdir(join(root, 'home'))
@@ -109,26 +134,43 @@ describeDocker('real Docker durable supervisor', () => {
     await writeFile(join(root, 'supervisor.js'), await bundleSupervisorSource())
     await execute({
       command: [
-        'docker', 'run', '-d', '--name', container,
-        '--user', `${process.getuid?.() ?? 0}:${process.getgid?.() ?? 0}`,
-        '--mount', `type=bind,src=${root},dst=${root}`,
-        '--env', `ATLAS_HOME=${join(root, 'home')}`,
-        '--entrypoint', 'bun', image, '-e',
+        'docker',
+        'run',
+        '-d',
+        '--name',
+        container,
+        '--user',
+        `${process.getuid?.() ?? 0}:${process.getgid?.() ?? 0}`,
+        '--mount',
+        `type=bind,src=${root},dst=${root}`,
+        '--env',
+        `ATLAS_HOME=${join(root, 'home')}`,
+        '--entrypoint',
+        'bun',
+        image,
+        '-e',
         'process.on("SIGTERM", () => process.exit(0)); setInterval(() => {}, 60000)',
       ],
     })
     created = true
-    const mounted = await execute({ command: ['docker', 'exec', container, 'cat', join(root, 'mount-marker')] })
+    const mounted = await execute({
+      command: ['docker', 'exec', container, 'cat', join(root, 'mount-marker')],
+    })
     expect(mounted.stdout).toBe(container)
   }, 180000)
 
   afterAll(async () => {
     if (created) {
-      const inspected = await execute({ command: ['docker', 'inspect', '--format', '{{.Name}}', container] })
+      const inspected = await execute({
+        command: ['docker', 'inspect', '--format', '{{.Name}}', container],
+      })
       expect(inspected.stdout.trim()).toBe(`/${container}`)
       await execute({ command: ['docker', 'kill', container] })
       await execute({ command: ['docker', 'rm', container] })
-      const absent = await execute({ command: ['docker', 'inspect', container], allowFailure: true })
+      const absent = await execute({
+        command: ['docker', 'inspect', container],
+        allowFailure: true,
+      })
       expect(absent.code).not.toBe(0)
     }
     if (root) {
@@ -142,7 +184,8 @@ describeDocker('real Docker durable supervisor', () => {
   test('survives its launcher, resumes input and spool cursor after detach, and records exact exit', async () => {
     const launched = await launch({
       name: 'interactive',
-      command: 'echo ready; read first; echo "first:$first"; read second; echo "second:$second"; exit 7',
+      command:
+        'echo ready; read first; echo "first:$first"; read second; echo "second:$second"; exit 7',
     })
     const control = transport(launched)
     expect(await control({ request: { type: 'probe' } })).toEqual({
@@ -150,7 +193,8 @@ describeDocker('real Docker durable supervisor', () => {
       probe: { supervisorAlive: true, childAlive: true, reachable: true },
     })
     expect(await descriptors(launched)).toEqual([
-      join(launched.shellDir, 'spool.out'), join(launched.shellDir, 'spool.out'),
+      join(launched.shellDir, 'spool.out'),
+      join(launched.shellDir, 'spool.out'),
     ])
     const first = await attach(launched)
     const ready = await readUntil({ stream: first.stdout, pattern: 'ready\n' })
@@ -158,11 +202,15 @@ describeDocker('real Docker durable supervisor', () => {
     expect(await first.writeInput('hello\n')).toEqual({ ok: true })
     expect(new TextDecoder().decode((await ready.reader.read()).value)).toBe('first:hello\n')
     const cursor = first.spoolOffset()
-    const leases = (await readdir(join(launched.shellDir, 'leases'))).filter(name => name.endsWith('.lease'))
+    const leases = (await readdir(join(launched.shellDir, 'leases'))).filter((name) =>
+      name.endsWith('.lease'),
+    )
     expect(leases).toHaveLength(1)
     await first.detach()
     expect(await first.settled).toEqual({ kind: 'detached' })
-    expect((await readdir(join(launched.shellDir, 'leases'))).filter(name => name.endsWith('.lease'))).toEqual([])
+    expect(
+      (await readdir(join(launched.shellDir, 'leases'))).filter((name) => name.endsWith('.lease')),
+    ).toEqual([])
     const second = await attach({ shellDir: launched.shellDir, cursor })
     expect(await second.writeInput('world\n')).toEqual({ ok: true })
     expect(await collect({ stream: second.stdout })).toBe('second:world\n')
@@ -177,11 +225,18 @@ describeDocker('real Docker durable supervisor', () => {
   }, 30000)
 
   test('kernel file-size cap stops a direct spool writer with exact SIGXFSZ exit', async () => {
-    const launched = await launch({ name: 'cap', command: 'echo cap-ready; read go; exec yes', limit: 2048 })
+    const launched = await launch({
+      name: 'cap',
+      command: 'echo cap-ready; read go; exec yes',
+      limit: 2048,
+    })
     const handle = await attach(launched)
-    expect((await readUntil({ stream: handle.stdout, pattern: 'cap-ready\n' })).text).toBe('cap-ready\n')
+    expect((await readUntil({ stream: handle.stdout, pattern: 'cap-ready\n' })).text).toBe(
+      'cap-ready\n',
+    )
     expect(await descriptors(launched)).toEqual([
-      join(launched.shellDir, 'spool.out'), join(launched.shellDir, 'spool.out'),
+      join(launched.shellDir, 'spool.out'),
+      join(launched.shellDir, 'spool.out'),
     ])
     expect(await handle.writeInput('go\n')).toEqual({ ok: true })
     expect(await handle.exited).toBe(153)
@@ -189,7 +244,12 @@ describeDocker('real Docker durable supervisor', () => {
     expect(settled.kind).toBe('exited')
     if (settled.kind !== 'exited') throw new Error(JSON.stringify(settled))
     expect(settled.exit).toMatchObject({
-      code: null, signal: 'SIGXFSZ', exitCode: 153, cause: 'output-limit', spoolBytes: 2048, limitBytes: 2048,
+      code: null,
+      signal: 'SIGXFSZ',
+      exitCode: 153,
+      cause: 'output-limit',
+      spoolBytes: 2048,
+      limitBytes: 2048,
       overflowEvidence: ['spool-at-limit', 'leader-killed-by-sigxfsz'],
     })
     const replay = await attach(launched)
@@ -208,9 +268,14 @@ describeDocker('real Docker durable supervisor', () => {
           command: 'echo kept-through-teardown; sleep 300',
         })
         const handle = await attach(launched)
-        return { ok: true as const, attachment: attachmentOf({ handle, files, shellId, startedAt: new Date().toISOString() }) }
+        return {
+          ok: true as const,
+          attachment: attachmentOf({ handle, files, shellId, startedAt: new Date().toISOString() }),
+        }
       }
-      async inspect() { return [] }
+      async inspect() {
+        return []
+      }
     }
     const log = new RecordingLog()
     const registry = new BunShellRegistry({
@@ -221,12 +286,17 @@ describeDocker('real Docker durable supervisor', () => {
       log,
       ids: new RandomIds(),
     })
-    const started = await registry.start({ threadId, command: 'echo kept-through-teardown; sleep 300', description: 'verify Docker teardown' })
+    const started = await registry.start({
+      threadId,
+      command: 'echo kept-through-teardown; sleep 300',
+      description: 'verify Docker teardown',
+    })
     if (!started.ok) throw new Error(started.reason)
     await registry.closeAll()
     const ending = log.appended.find((draft) => draft.type === 'background-shell-ended')
     expect(ending?.type).toBe('background-shell-ended')
-    if (ending?.type !== 'background-shell-ended') throw new Error('the owner needs a durable ending')
+    if (ending?.type !== 'background-shell-ended')
+      throw new Error('the owner needs a durable ending')
     expect(ending.output).toContain('kept-through-teardown')
     expect(ending.killedBy).toBe(EKilledBy.SessionEnd)
     expect(await readFile(files.output, 'utf8')).toContain('kept-through-teardown')

@@ -64,7 +64,8 @@ export class McpOAuthFlow {
   async currentToken(args: { serverUrl: string }): Promise<string | undefined> {
     const entry = this.deps.store.read(args.serverUrl)
     if (entry?.tokens === undefined) return undefined
-    if (!isExpired({ tokens: entry.tokens, clock: this.deps.clock })) return entry.tokens.accessToken
+    if (!isExpired({ tokens: entry.tokens, clock: this.deps.clock }))
+      return entry.tokens.accessToken
 
     const refreshed = await this.tryRefresh({ serverUrl: args.serverUrl })
     return refreshed?.accessToken
@@ -83,7 +84,12 @@ export class McpOAuthFlow {
     const prm = await this.protectedResourceMetadata({ serverUrl: args.serverUrl, challenge })
     const asMetadata = await this.authorizationServerMetadata({ serverUrl: args.serverUrl, prm })
 
-    const clientInfo = await this.ensureClient({ serverUrl: args.serverUrl, asMetadata, challenge, prm })
+    const clientInfo = await this.ensureClient({
+      serverUrl: args.serverUrl,
+      asMetadata,
+      challenge,
+      prm,
+    })
     if (clientInfo.kind === 'failed') {
       return { outcome: EMcpAuthOutcome.NeedsClientRegistration, reason: clientInfo.reason }
     }
@@ -158,7 +164,9 @@ export class McpOAuthFlow {
           : { clientSecret: entry.clientInfo.clientSecret }),
         ...(asMetadata.token_endpoint_auth_methods_supported === undefined
           ? {}
-          : { tokenEndpointAuthMethodsSupported: asMetadata.token_endpoint_auth_methods_supported }),
+          : {
+              tokenEndpointAuthMethodsSupported: asMetadata.token_endpoint_auth_methods_supported,
+            }),
         clock: this.deps.clock,
         fetch: this.fetch,
       })
@@ -188,7 +196,8 @@ export class McpOAuthFlow {
     serverUrl: string
     prm?: ProtectedResourceMetadata | undefined
   }): Promise<AuthorizationServerMetadata> {
-    const authServerUrl = args.prm?.authorization_servers[0] ?? new URL('/', args.serverUrl).toString()
+    const authServerUrl =
+      args.prm?.authorization_servers[0] ?? new URL('/', args.serverUrl).toString()
     return discoverAuthorizationServerMetadata({ authServerUrl, fetch: this.fetch })
   }
 
@@ -215,7 +224,12 @@ export class McpOAuthFlow {
     try {
       const value = await registerClient({
         registrationEndpoint: args.asMetadata.registration_endpoint,
-        metadata: { redirectUris: [this.deps.callbacks.redirectUri(await this.deps.callbacks.ensureRunning())], ...(scope === undefined ? {} : { scope }) },
+        metadata: {
+          redirectUris: [
+            this.deps.callbacks.redirectUri(await this.deps.callbacks.ensureRunning()),
+          ],
+          ...(scope === undefined ? {} : { scope }),
+        },
         fetch: this.fetch,
       })
       this.deps.store.write(args.serverUrl, { clientInfo: value })

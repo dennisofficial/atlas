@@ -66,7 +66,8 @@ export function useWhatsNew({ deps }: { deps: WhatsNewDeps }): WhatsNewControl {
       })
       if (cancelled) return
 
-      const state: WhatsNewState = outcome.kind === 'ok' ? { kind: 'ready', rows: outcome.rows } : { kind: 'failed' }
+      const state: WhatsNewState =
+        outcome.kind === 'ok' ? { kind: 'ready', rows: outcome.rows } : { kind: 'failed' }
       setView((current) => (current === null || current.to !== to ? current : { from, to, state }))
     }
     void open()

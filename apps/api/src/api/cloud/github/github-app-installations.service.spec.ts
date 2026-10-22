@@ -54,14 +54,22 @@ describe('GithubAppInstallationsService', () => {
     await service.applyInstallation(installationPayload({ repos: ['trycompai/comp-v2'] }))
     await service.applyRepositories({
       action: 'added',
-      installation: { id: 1001, account: { login: 'trycompai', type: 'Organization' }, suspended_at: null },
+      installation: {
+        id: 1001,
+        account: { login: 'trycompai', type: 'Organization' },
+        suspended_at: null,
+      },
       repositories_added: [{ full_name: 'trycompai/comp-v3' }],
     })
     expect(await service.coversRepo({ repoFullName: 'trycompai/comp-v3' })).toBe(true)
 
     await service.applyRepositories({
       action: 'removed',
-      installation: { id: 1001, account: { login: 'trycompai', type: 'Organization' }, suspended_at: null },
+      installation: {
+        id: 1001,
+        account: { login: 'trycompai', type: 'Organization' },
+        suspended_at: null,
+      },
       repositories_removed: [{ full_name: 'trycompai/comp-v2' }],
     })
     expect(await service.coversRepo({ repoFullName: 'trycompai/comp-v2' })).toBe(false)

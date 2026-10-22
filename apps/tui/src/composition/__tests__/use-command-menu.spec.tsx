@@ -97,10 +97,7 @@ describe('the command menu control', () => {
     try {
       controlOf(probe).handleTextChanged('/c')
       await flush()
-      expect(controlOf(probe).state?.matches.map((spec) => spec.name)).toEqual([
-        'compact',
-        'clear',
-      ])
+      expect(controlOf(probe).state?.matches.map((spec) => spec.name)).toEqual(['compact', 'clear'])
 
       controlOf(probe).handleTextChanged('/czz')
       await flush()

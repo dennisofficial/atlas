@@ -15,9 +15,9 @@ describe('the sweep arithmetic', () => {
 
   it('never puts the crest behind the line, whatever the clock says', () => {
     for (const now of [0, -1, -100_000, 1_700_000_000_000]) {
-      expect(
-        shimmerCrest({ nowMs: now, cells: 40, spec: WORKING_SHIMMER }),
-      ).toBeGreaterThanOrEqual(0)
+      expect(shimmerCrest({ nowMs: now, cells: 40, spec: WORKING_SHIMMER })).toBeGreaterThanOrEqual(
+        0,
+      )
     }
   })
 

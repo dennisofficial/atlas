@@ -46,11 +46,25 @@ function openStore({ home }: { home: string }): {
 }
 
 const said = (text: string): EventDraft => ({ type: 'user-said', text })
-const entered = (path: string, branch: string): EventDraft => ({ type: 'worktree-entered', path, branch })
+const entered = (path: string, branch: string): EventDraft => ({
+  type: 'worktree-entered',
+  path,
+  branch,
+})
 
-
-async function stampMetaAt({ home, threadId, at }: { home: string; threadId: string; at: string }): Promise<void> {
-  const file = threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: toThreadId(threadId) }), threadId: toThreadId(threadId) })
+async function stampMetaAt({
+  home,
+  threadId,
+  at,
+}: {
+  home: string
+  threadId: string
+  at: string
+}): Promise<void> {
+  const file = threadMetaFile({
+    sessionDir: sessionDirectory({ home, sessionId: toThreadId(threadId) }),
+    threadId: toThreadId(threadId),
+  })
   const parsed = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>
   await writeFile(file, JSON.stringify({ ...parsed, updatedAt: at }, null, 2))
 }
@@ -65,8 +79,16 @@ describe('listing order', () => {
     await log.append({ threadId: newer.id, runId: ids.nextRunId(), drafts: [said('new turn')] })
 
     await stampMetaAt({ home, threadId: older.id, at: '2026-01-01T00:00:00.000Z' })
-    const child = await threads.create({ title: 'child', workspace: '/work', agent: { spawnedBy: older.id, type: 'explorer' } })
-    await log.append({ threadId: child.id, runId: ids.nextRunId(), drafts: [said('child just ran')] })
+    const child = await threads.create({
+      title: 'child',
+      workspace: '/work',
+      agent: { spawnedBy: older.id, type: 'explorer' },
+    })
+    await log.append({
+      threadId: child.id,
+      runId: ids.nextRunId(),
+      drafts: [said('child just ran')],
+    })
 
     const rows = await listRoots({ home, project: '/work' })
     expect(rows[0]?.id).toBe(older.id)
@@ -83,7 +105,12 @@ describe('listing order', () => {
     await log.append({ threadId: second.id, runId: ids.nextRunId(), drafts: [said('b')] })
     await stampMetaAt({ home, threadId: second.id, at: '2026-01-01T00:00:00.000Z' })
 
-    const forked = await threads.fork({ from: second.id, seq: 1, mode: EForkMode.Reference, title: 'second fork' })
+    const forked = await threads.fork({
+      from: second.id,
+      seq: 1,
+      mode: EForkMode.Reference,
+      title: 'second fork',
+    })
     await log.append({ threadId: forked.id, runId: ids.nextRunId(), drafts: [said('fork turn')] })
 
     const rows = await listRoots({ home, project: '/work' })
@@ -121,12 +148,19 @@ describe('listing places on a cold registry', () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
     const thread = await threads.create({ title: 'giant', workspace: '/work' })
-    await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [entered('/work/.wt/first', 'dennis/first')] })
+    await log.append({
+      threadId: thread.id,
+      runId: ids.nextRunId(),
+      drafts: [entered('/work/.wt/first', 'dennis/first')],
+    })
     for (let turnIndex = 0; turnIndex < 200; turnIndex += 1) {
       await log.append({
         threadId: thread.id,
         runId: ids.nextRunId(),
-        drafts: [said('noise'), { type: 'assistant-said', parts: [{ type: 'text', text: 'x'.repeat(50_000) }] }],
+        drafts: [
+          said('noise'),
+          { type: 'assistant-said', parts: [{ type: 'text', text: 'x'.repeat(50_000) }] },
+        ],
       })
     }
 
@@ -171,7 +205,10 @@ describe('listing places on a cold registry', () => {
 
     expect((await listRoots({ home, project: '/work' }))[0]?.worktree?.branch).toBe('dennis/first')
 
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: thread.id }), threadId: thread.id })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: thread.id }),
+      threadId: thread.id,
+    })
     await log.append({
       threadId: thread.id,
       runId: ids.nextRunId(),
@@ -197,7 +234,9 @@ describe('listing reads', () => {
     await listRoots({ home, project: '/work' })
 
     expect((await stat(sessionMetaFile({ sessionDir }))).mtimeMs).toBeLessThanOrEqual(beforeSession)
-    expect((await stat(threadMetaFile({ sessionDir, threadId: thread.id }))).mtimeMs).toBeLessThanOrEqual(beforeThread)
+    expect(
+      (await stat(threadMetaFile({ sessionDir, threadId: thread.id }))).mtimeMs,
+    ).toBeLessThanOrEqual(beforeThread)
   })
 
   it('keeps the legacy session-meta schema, with the worktree a bare path and pull requests bare numbers', async () => {
@@ -207,7 +246,10 @@ describe('listing reads', () => {
     const file = sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: thread.id }) })
     const meta = readMetaSync({ file, schema: sessionMetaSchema })
     if (meta === undefined) throw new Error('no session meta')
-    await writeFile(file, JSON.stringify({ ...meta, worktree: '/work/.wt/old', pullRequests: [401] }, null, 2))
+    await writeFile(
+      file,
+      JSON.stringify({ ...meta, worktree: '/work/.wt/old', pullRequests: [401] }, null, 2),
+    )
 
     const parsed = readMetaSync({ file, schema: sessionMetaSchema })
     expect(parsed?.worktree).toBe('/work/.wt/old')
@@ -235,7 +277,10 @@ describe('listing with a progress callback', () => {
 
     expect(emissions.length).toBeGreaterThan(1)
     expect(emissions[0]?.[0]?.worktree).toBeUndefined()
-    expect(emissions.at(-1)?.[0]?.worktree).toEqual({ path: '/work/.wt/progressive', branch: 'dennis/progressive' })
+    expect(emissions.at(-1)?.[0]?.worktree).toEqual({
+      path: '/work/.wt/progressive',
+      branch: 'dennis/progressive',
+    })
     expect([...rows]).toEqual([...(emissions.at(-1) ?? [])])
   })
 
@@ -268,10 +313,19 @@ describe('listing selected roots directly', () => {
 
     for (let index = 0; index < 60; index += 1) {
       const thread = await threads.create({ title: `noise-${index}`, workspace: '/work' })
-      await log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said(`noise ${index}`)] })
+      await log.append({
+        threadId: thread.id,
+        runId: ids.nextRunId(),
+        drafts: [said(`noise ${index}`)],
+      })
     }
 
-    const rows = await listRoots({ home, project: '/work', limit: Number.POSITIVE_INFINITY, enrich: [older.id] })
+    const rows = await listRoots({
+      home,
+      project: '/work',
+      limit: Number.POSITIVE_INFINITY,
+      enrich: [older.id],
+    })
     expect(rows.map((row) => row.id)).toEqual([older.id])
     expect(rows[0]?.worktree).toEqual({ path: '/work/.wt/older', branch: 'dennis/older' })
   })
@@ -281,7 +335,11 @@ describe('listing selected roots directly', () => {
     const { log, threads, ids } = openStore({ home })
     const parent = await threads.create({ title: 'parent', workspace: '/work' })
     await log.append({ threadId: parent.id, runId: ids.nextRunId(), drafts: [said('hello')] })
-    const child = await threads.create({ title: 'child', workspace: '/work', agent: { spawnedBy: parent.id, type: 'explorer' } })
+    const child = await threads.create({
+      title: 'child',
+      workspace: '/work',
+      agent: { spawnedBy: parent.id, type: 'explorer' },
+    })
     const elsewhere = await threads.create({ title: 'elsewhere', workspace: '/other' })
 
     const rows = await listRoots({

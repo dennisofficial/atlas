@@ -133,18 +133,18 @@ describe('runtimeCheckpointSchema', () => {
   })
 
   it('rejects a revision beyond the PostgreSQL integer range the API stores it in', () => {
-    expect(
-      runtimeCheckpointSchema.safeParse(checkpoint({ revision: 2147483647 })).success,
-    ).toBe(true)
-    expect(
-      runtimeCheckpointSchema.safeParse(checkpoint({ revision: 2147483648 })).success,
-    ).toBe(false)
+    expect(runtimeCheckpointSchema.safeParse(checkpoint({ revision: 2147483647 })).success).toBe(
+      true,
+    )
+    expect(runtimeCheckpointSchema.safeParse(checkpoint({ revision: 2147483648 })).success).toBe(
+      false,
+    )
   })
 
   it('rejects unknown fields at the top level and inside the transcript', () => {
-    expect(
-      runtimeCheckpointSchema.safeParse({ ...checkpoint(), debug: 'extra' }).success,
-    ).toBe(false)
+    expect(runtimeCheckpointSchema.safeParse({ ...checkpoint(), debug: 'extra' }).success).toBe(
+      false,
+    )
     expect(
       runtimeCheckpointSchema.safeParse({
         ...checkpoint(),
@@ -175,9 +175,7 @@ describe('RUNTIME_PHASE_SUCCESSORS', () => {
     ]
     for (const from of Object.values(ERuntimePhase)) {
       for (const to of Object.values(ERuntimePhase)) {
-        expect(canTransition({ from, to })).toBe(
-          legal.some(([f, t]) => f === from && t === to),
-        )
+        expect(canTransition({ from, to })).toBe(legal.some(([f, t]) => f === from && t === to))
       }
     }
   })
@@ -226,12 +224,16 @@ describe('checkpoint on the channel frames', () => {
   })
 
   it('drops a checkpoint frame whose payload is not a checkpoint', () => {
-    expect(decodeServeFrame(JSON.stringify({ kind: EServeFrame.Checkpoint, checkpoint: {} }))).toBeNull()
+    expect(
+      decodeServeFrame(JSON.stringify({ kind: EServeFrame.Checkpoint, checkpoint: {} })),
+    ).toBeNull()
   })
 
   it('keeps a ready frame whose checkpoint metadata is malformed, reading it as unknown', () => {
     expect(
-      decodeServeFrame(JSON.stringify({ kind: EServeFrame.Ready, seq: 7, checkpoint: { bogus: 1 } })),
+      decodeServeFrame(
+        JSON.stringify({ kind: EServeFrame.Ready, seq: 7, checkpoint: { bogus: 1 } }),
+      ),
     ).toEqual({ kind: EServeFrame.Ready, seq: 7, checkpoint: null })
   })
 
@@ -250,9 +252,9 @@ describe('readRuntimeCheckpointReplySchema', () => {
   })
 
   it('accepts a stored checkpoint', () => {
-    expect(
-      readRuntimeCheckpointReplySchema.safeParse({ checkpoint: checkpoint() }).success,
-    ).toBe(true)
+    expect(readRuntimeCheckpointReplySchema.safeParse({ checkpoint: checkpoint() }).success).toBe(
+      true,
+    )
   })
 
   it('registers the client request op', () => {

@@ -187,7 +187,9 @@ export function crewActivityOf(args: {
   return { shells, subagents }
 }
 
-export function crewRowReading(subagent: Pick<SidebarSubagent, 'status' | 'activity'>): ESubagentReading {
+export function crewRowReading(
+  subagent: Pick<SidebarSubagent, 'status' | 'activity'>,
+): ESubagentReading {
   const reading = subagentReading(subagent)
   if (reading === ESubagentReading.Settled && subagent.activity !== undefined) {
     return ESubagentReading.Live

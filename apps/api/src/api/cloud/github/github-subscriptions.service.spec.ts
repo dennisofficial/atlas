@@ -7,7 +7,11 @@ vi.mock('../../../db', async () => {
   return { db: fakeGithubDb().db as unknown as PrismaClient }
 })
 
-import { fakeGithubDb, seedCloudSandbox, type FakeSubscriptionRow } from '../../../../test/fake-github-db'
+import {
+  fakeGithubDb,
+  seedCloudSandbox,
+  type FakeSubscriptionRow,
+} from '../../../../test/fake-github-db'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
@@ -66,7 +70,11 @@ describe('GithubSubscriptionsService', () => {
   it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
     const service = serviceWith({ token: 'ghu_1' })
 
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     expect(dto.pollBacked).toBe(false)
     expect(fake.subscriptions).toHaveLength(1)
@@ -183,7 +191,11 @@ describe('GithubSubscriptionsService', () => {
   it('marks the subscription poll-backed when the hook cannot be created', async () => {
     const service = serviceWith({ token: 'ghu_1', ensureHook: 'poll-backed' })
 
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     expect(dto.pollBacked).toBe(true)
     expect(dto.state?.prNumber).toBe(42)
@@ -192,8 +204,16 @@ describe('GithubSubscriptionsService', () => {
   it('re-subscribing refreshes the expiry instead of duplicating the row', async () => {
     const service = serviceWith({ token: 'ghu_1', ensureHook: 'existing' })
 
-    const first = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
-    const second = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const first = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
+    const second = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     expect(fake.subscriptions).toHaveLength(1)
     expect(second.id).toBe(first.id)
@@ -229,7 +249,11 @@ describe('GithubSubscriptionsService', () => {
 
   it('heartbeat pushes the expiry out five minutes', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
     fake.subscriptions[0]!.expiresAt = new Date(Date.now() - 60_000)
 
     const beat = await service.heartbeat({ userId: 'usr_1', subscriptionId: dto.id })
@@ -239,7 +263,11 @@ describe('GithubSubscriptionsService', () => {
 
   it('heartbeat on a subscription owned by someone else 404s', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     await expect(
       service.heartbeat({ userId: 'usr_2', subscriptionId: dto.id }),
@@ -248,7 +276,11 @@ describe('GithubSubscriptionsService', () => {
 
   it('unsubscribe removes the row and marks the repo idle when nothing live remains', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
     fake.repoHooks.push({
       repoFullName: 'compai/app',
       hookId: 101n,
@@ -268,7 +300,11 @@ describe('GithubSubscriptionsService', () => {
 
   it('unsubscribe keeps the repo active while another subscription is live', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
     fake.subscriptions.push({
       id: 'sub-other',
       userId: 'usr_2',
@@ -466,7 +502,11 @@ describe('sandbox link and park survival', () => {
 
   it('heartbeat from a sandbox re-points the link', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     await service.heartbeat({
       userId: 'usr_1',

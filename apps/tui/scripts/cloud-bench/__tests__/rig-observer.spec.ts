@@ -3,9 +3,18 @@ import { type CloudConnection, EConnectionView } from '@dltech/atlas-harness'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { dismissNotice, ENoticeTone, notify } from '../../../src/ui/notice-store'
-import { bannerIn, waitFor, type WatchableChannel, warnNotices, watchChannel } from '../rig-observer'
+import {
+  bannerIn,
+  waitFor,
+  type WatchableChannel,
+  warnNotices,
+  watchChannel,
+} from '../rig-observer'
 
-const checkpointAt = (args: { phase: ERuntimePhase.Serving | ERuntimePhase.Parked; revision: number }) =>
+const checkpointAt = (args: {
+  phase: ERuntimePhase.Serving | ERuntimePhase.Parked
+  revision: number
+}) =>
   ({
     threadId: 'thr_rig',
     runtimeId: 'rt_rig',
@@ -22,7 +31,10 @@ type FakeChannel = WatchableChannel & {
   listenerCount: () => number
 }
 
-const fakeChannel = (args: { state: EConnectionView; checkpoint: RuntimeCheckpoint | null }): FakeChannel => {
+const fakeChannel = (args: {
+  state: EConnectionView
+  checkpoint: RuntimeCheckpoint | null
+}): FakeChannel => {
   const connectionListeners = new Set<(connection: CloudConnection) => void>()
   const checkpointListeners = new Set<(checkpoint: RuntimeCheckpoint) => void>()
   let connection: CloudConnection = { state: args.state, detail: null }
@@ -147,7 +159,9 @@ describe('waitFor', () => {
   })
 
   test('accepts an async condition', async () => {
-    expect(await waitFor({ what: 'async', holds: async () => true, within: 100, every: 5 })).toBe(true)
+    expect(await waitFor({ what: 'async', holds: async () => true, within: 100, every: 5 })).toBe(
+      true,
+    )
   })
 
   test('resolves false after the deadline', async () => {

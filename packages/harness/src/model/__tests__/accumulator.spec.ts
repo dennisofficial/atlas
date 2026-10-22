@@ -44,9 +44,23 @@ describe('createPartAccumulator', () => {
   it('merges provider metadata from the start chunk, every delta and the end chunk', () => {
     const result = drive([
       { type: 'reasoning-start', id: 'r0', providerMetadata: { anthropic: { fromStart: 'a' } } },
-      { type: 'reasoning-delta', id: 'r0', text: 'one ', providerMetadata: { anthropic: { fromDelta: 'b' } } },
-      { type: 'reasoning-delta', id: 'r0', text: 'two', providerMetadata: { openai: { fromOtherNamespace: 'c' } } },
-      { type: 'reasoning-end', id: 'r0', providerMetadata: { anthropic: { signature: 'sig-abc' } } },
+      {
+        type: 'reasoning-delta',
+        id: 'r0',
+        text: 'one ',
+        providerMetadata: { anthropic: { fromDelta: 'b' } },
+      },
+      {
+        type: 'reasoning-delta',
+        id: 'r0',
+        text: 'two',
+        providerMetadata: { openai: { fromOtherNamespace: 'c' } },
+      },
+      {
+        type: 'reasoning-end',
+        id: 'r0',
+        providerMetadata: { anthropic: { signature: 'sig-abc' } },
+      },
       { type: 'finish', reason: EFinishReason.Stop },
     ])
 
@@ -66,12 +80,20 @@ describe('createPartAccumulator', () => {
     const result = drive([
       { type: 'reasoning-start', id: 'r0' },
       { type: 'reasoning-delta', id: 'r0', text: 'thinking' },
-      { type: 'reasoning-end', id: 'r0', providerMetadata: { anthropic: { signature: 'sig-abc' } } },
+      {
+        type: 'reasoning-end',
+        id: 'r0',
+        providerMetadata: { anthropic: { signature: 'sig-abc' } },
+      },
       { type: 'finish', reason: EFinishReason.Stop },
     ])
 
     expect(result.parts).toEqual([
-      { type: 'reasoning', text: 'thinking', providerOptions: { anthropic: { signature: 'sig-abc' } } },
+      {
+        type: 'reasoning',
+        text: 'thinking',
+        providerOptions: { anthropic: { signature: 'sig-abc' } },
+      },
     ])
   })
 
@@ -97,7 +119,9 @@ describe('createPartAccumulator', () => {
       { type: 'finish', reason: EFinishReason.ToolCalls },
     ])
 
-    expect(result.toolCalls).toEqual([{ callId: toCallId('call-1'), name: 'read_file', input: { path: 'a.ts' } }])
+    expect(result.toolCalls).toEqual([
+      { callId: toCallId('call-1'), name: 'read_file', input: { path: 'a.ts' } },
+    ])
     expect(result.finishReason).toBe(EFinishReason.ToolCalls)
   })
 
@@ -112,9 +136,12 @@ describe('createPartAccumulator', () => {
   })
 
   it('reports Other when the stream never said why it finished', () => {
-    expect(drive([{ type: 'text-start', id: 't0' }, { type: 'text-end', id: 't0' }]).finishReason).toBe(
-      EFinishReason.Other,
-    )
+    expect(
+      drive([
+        { type: 'text-start', id: 't0' },
+        { type: 'text-end', id: 't0' },
+      ]).finishReason,
+    ).toBe(EFinishReason.Other)
   })
 
   it('drops a text block the provider opened and closed without saying anything', () => {
@@ -165,7 +192,11 @@ describe('createPartAccumulator', () => {
   it('keeps a reasoning block the provider closed empty, whose signature still has to round-trip', () => {
     const result = drive([
       { type: 'reasoning-start', id: 'r0' },
-      { type: 'reasoning-end', id: 'r0', providerMetadata: { anthropic: { signature: 'sig-abc' } } },
+      {
+        type: 'reasoning-end',
+        id: 'r0',
+        providerMetadata: { anthropic: { signature: 'sig-abc' } },
+      },
       { type: 'finish', reason: EFinishReason.Stop },
     ])
 

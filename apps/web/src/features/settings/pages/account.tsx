@@ -45,10 +45,7 @@ function AccountContent({ data, reload }: { data: AccountData; reload: () => voi
           onSave={handleSaveName}
         />
       </SettingsSection>
-      <SettingsSection
-        title="Workspaces"
-        description="Workspaces you are a member of."
-      >
+      <SettingsSection title="Workspaces" description="Workspaces you are a member of.">
         <AccountWorkspacesCard workspaces={data.workspaces} />
       </SettingsSection>
     </SettingsPage>

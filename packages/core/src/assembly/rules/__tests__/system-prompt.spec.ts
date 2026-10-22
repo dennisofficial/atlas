@@ -15,7 +15,8 @@ const compiled = (...texts: readonly string[]): CompiledPrompt => ({
   skipped: [],
 })
 
-const fixed = (prompt: CompiledPrompt) => systemPrompt({ prompt: () => prompt, launchDirectory: LAUNCH })
+const fixed = (prompt: CompiledPrompt) =>
+  systemPrompt({ prompt: () => prompt, launchDirectory: LAUNCH })
 
 describe('systemPrompt', () => {
   it('pushes the compiled blocks onto the system it was handed', () => {
@@ -25,7 +26,10 @@ describe('systemPrompt', () => {
   })
 
   it('appends after the blocks already there and leaves them untouched', () => {
-    const assembled = fixed(compiled('doctrine'))({ system: [{ text: 'earlier' }], messages: [] }, ctx)
+    const assembled = fixed(compiled('doctrine'))(
+      { system: [{ text: 'earlier' }], messages: [] },
+      ctx,
+    )
 
     expect(assembled.system).toEqual([{ text: 'earlier' }, { text: 'doctrine' }])
   })
@@ -102,7 +106,10 @@ describe('what the rule compiles, and what it only reads', () => {
       launchDirectory: LAUNCH,
     })
 
-    rule({ system: [], messages: [] }, contextFor({ events: log([{ type: 'user-said', text: 'hi' }]) }))
+    rule(
+      { system: [], messages: [] },
+      contextFor({ events: log([{ type: 'user-said', text: 'hi' }]) }),
+    )
 
     expect(seen).toEqual([LAUNCH])
   })
@@ -118,7 +125,12 @@ describe('what the rule compiles, and what it only reads', () => {
     })
 
     const events = log([
-      { type: 'worktree-entered', path: '/w/.atlas/worktrees/eng-327', branch: 'dennis/eng-327', base: 'origin/main' },
+      {
+        type: 'worktree-entered',
+        path: '/w/.atlas/worktrees/eng-327',
+        branch: 'dennis/eng-327',
+        base: 'origin/main',
+      },
     ])
 
     rule({ system: [], messages: [] }, contextFor({ events }))

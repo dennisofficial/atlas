@@ -103,8 +103,20 @@ describe('createPullRequestTransitions', () => {
   it('names the tip on a settled checks label', async () => {
     const h = harness()
     h.push(found({ headSha: '0123456789abcdef' }))
-    h.push(found({ headSha: '0123456789abcdef', tally: { running: 0, passed: 3, failed: 0 }, checks: EChecksState.Passing }))
-    h.push(found({ headSha: '0123456789abcdef', tally: { running: 0, passed: 2, failed: 1 }, checks: EChecksState.Failing }))
+    h.push(
+      found({
+        headSha: '0123456789abcdef',
+        tally: { running: 0, passed: 3, failed: 0 },
+        checks: EChecksState.Passing,
+      }),
+    )
+    h.push(
+      found({
+        headSha: '0123456789abcdef',
+        tally: { running: 0, passed: 2, failed: 1 },
+        checks: EChecksState.Failing,
+      }),
+    )
 
     const outcome = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
     expect(outcome.additionalContext).toContain('checks passing on 0123456\n')
@@ -124,8 +136,20 @@ describe('createPullRequestTransitions', () => {
   it('leaves the tip off a running label and off an empty sha', async () => {
     const h = harness()
     h.push(found({ headSha: '' }))
-    h.push(found({ headSha: '', tally: { running: 0, passed: 3, failed: 0 }, checks: EChecksState.Passing }))
-    h.push(found({ headSha: 'cccccc77', tally: { running: 1, passed: 3, failed: 0 }, checks: EChecksState.Running }))
+    h.push(
+      found({
+        headSha: '',
+        tally: { running: 0, passed: 3, failed: 0 },
+        checks: EChecksState.Passing,
+      }),
+    )
+    h.push(
+      found({
+        headSha: 'cccccc77',
+        tally: { running: 1, passed: 3, failed: 0 },
+        checks: EChecksState.Running,
+      }),
+    )
 
     const outcome = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
     expect(outcome.additionalContext).toContain('checks passing\n')
@@ -163,7 +187,10 @@ describe('createPullRequestTransitions', () => {
   it('hands a transition only to the thread standing on that checkout', async () => {
     const h = harness()
     h.push(found(), mateCheckout)
-    h.push(found({ checks: EChecksState.Failing, tally: { running: 0, passed: 0, failed: 2 } }), mateCheckout)
+    h.push(
+      found({ checks: EChecksState.Failing, tally: { running: 0, passed: 0, failed: 2 } }),
+      mateCheckout,
+    )
 
     const main = await h.transitions.beforeTurn(beforeTurn(THREAD_A))
     const mate = await h.transitions.beforeTurn(beforeTurn(THREAD_B))
@@ -178,7 +205,9 @@ describe('createPullRequestTransitions', () => {
     h.push(found(), mateCheckout)
     h.push(found({ checks: EChecksState.Failing, tally: { running: 0, passed: 0, failed: 1 } }))
 
-    expect((await h.transitions.beforeTurn(beforeTurn(THREAD_A))).additionalContext).toContain('failing')
+    expect((await h.transitions.beforeTurn(beforeTurn(THREAD_A))).additionalContext).toContain(
+      'failing',
+    )
     expect((await h.transitions.beforeTurn(beforeTurn(THREAD_B))).additionalContext).toBeUndefined()
   })
 

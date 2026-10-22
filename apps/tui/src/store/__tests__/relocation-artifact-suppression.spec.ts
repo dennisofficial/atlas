@@ -87,9 +87,7 @@ describe('legacy session-relocation context injections', () => {
   } as const
 
   it('drops a logged session-slot execution-location injection from the transcript', () => {
-    const entries = entriesOf(
-      log([{ type: 'user-said', text: 'hello' }, relocationInjection]),
-    )
+    const entries = entriesOf(log([{ type: 'user-said', text: 'hello' }, relocationInjection]))
 
     expect(entries.filter((entry) => entry.kind === EEntryKind.SystemContext)).toHaveLength(0)
   })

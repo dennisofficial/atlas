@@ -1,13 +1,13 @@
-import { RadioGroupItem } from "@dltech/atlas-ui/components/radio-group";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { ETheme } from "../../../fixtures/settings-interface";
+import { ETheme } from '../../../fixtures/settings-interface'
 
 const THEME_LABELS: Record<ETheme, { title: string; hint: string }> = {
-  [ETheme.Dark]: { title: "Dark", hint: "Easy on the eyes" },
-  [ETheme.Light]: { title: "Light", hint: "High daylight contrast" },
-  [ETheme.System]: { title: "System", hint: "Follow your OS" },
-};
+  [ETheme.Dark]: { title: 'Dark', hint: 'Easy on the eyes' },
+  [ETheme.Light]: { title: 'Light', hint: 'High daylight contrast' },
+  [ETheme.System]: { title: 'System', hint: 'Follow your OS' },
+}
 
 function MiniApp() {
   return (
@@ -26,7 +26,7 @@ function MiniApp() {
         <div className="h-3 rounded-sm border bg-muted" />
       </div>
     </div>
-  );
+  )
 }
 
 function ThemePreview({ theme }: { theme: ETheme }) {
@@ -35,9 +35,9 @@ function ThemePreview({ theme }: { theme: ETheme }) {
       <div className="light h-full">
         <MiniApp />
       </div>
-    );
+    )
   }
-  if (theme === ETheme.Dark) return <MiniApp />;
+  if (theme === ETheme.Dark) return <MiniApp />
   return (
     <div className="relative h-full">
       <MiniApp />
@@ -45,16 +45,16 @@ function ThemePreview({ theme }: { theme: ETheme }) {
         <MiniApp />
       </div>
     </div>
-  );
+  )
 }
 
 export function ThemeCard({ theme, selected }: { theme: ETheme; selected: boolean }) {
-  const label = THEME_LABELS[theme];
+  const label = THEME_LABELS[theme]
   return (
     <label
       className={cn(
-        "flex cursor-pointer flex-col gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-foreground/30",
-        selected && "border-foreground/70 hover:border-foreground/70",
+        'flex cursor-pointer flex-col gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-foreground/30',
+        selected && 'border-foreground/70 hover:border-foreground/70',
       )}
     >
       <div className="h-24">
@@ -68,5 +68,5 @@ export function ThemeCard({ theme, selected }: { theme: ETheme; selected: boolea
         </div>
       </div>
     </label>
-  );
+  )
 }

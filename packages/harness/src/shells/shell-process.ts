@@ -137,12 +137,18 @@ export async function readShell(args: {
   onOutput?: ((chunk: ToolOutputChunk) => void) | undefined
 }): Promise<ShellOutput> {
   const tapFor = (stream: ToolOutputChunk['stream']): ((chunk: string) => void) | undefined =>
-    args.onOutput === undefined
-      ? undefined
-      : (chunk) => args.onOutput?.({ stream, text: chunk })
+    args.onOutput === undefined ? undefined : (chunk) => args.onOutput?.({ stream, text: chunk })
 
-  const stdout = drainTail({ stream: args.shell.stdout, limit: args.limit, onChunk: tapFor('stdout') })
-  const stderr = drainTail({ stream: args.shell.stderr, limit: args.limit, onChunk: tapFor('stderr') })
+  const stdout = drainTail({
+    stream: args.shell.stdout,
+    limit: args.limit,
+    onChunk: tapFor('stdout'),
+  })
+  const stderr = drainTail({
+    stream: args.shell.stderr,
+    limit: args.limit,
+    onChunk: tapFor('stderr'),
+  })
 
   const exitCode = await args.shell.exited
   await withinReadGrace(Promise.all([stdout.done, stderr.done]))
@@ -160,4 +166,3 @@ export function render(tail: Tail): string {
   const dropped = Math.max(tail.droppedLines + (firstBreak === -1 ? 0 : 1), 1)
   return `... [${dropped} lines truncated] ...\n\n${kept}`
 }
-

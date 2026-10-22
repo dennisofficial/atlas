@@ -25,9 +25,15 @@ export type PreparedStep =
   | { ok: true; compacted: true }
   | ({ ok: false } & PreparedFailure)
 
-export function preparedFailureMessage(failure: PreparedFailure): { message: string; cause: unknown } {
+export function preparedFailureMessage(failure: PreparedFailure): {
+  message: string
+  cause: unknown
+} {
   if (failure.kind === 'overflow') {
-    return { message: overflowReport(failure), cause: { tokens: failure.tokens, window: failure.window } }
+    return {
+      message: overflowReport(failure),
+      cause: { tokens: failure.tokens, window: failure.window },
+    }
   }
   return { message: failure.message, cause: failure.cause }
 }
@@ -93,7 +99,8 @@ export async function prepareStepAssembly(
   const window = contextWindowOf(deps.model)
   deps.onContext?.({ tokens, window })
 
-  if (await deps.compact({ threadId: args.threadId, tokens, window })) return { ok: true, compacted: true }
+  if (await deps.compact({ threadId: args.threadId, tokens, window }))
+    return { ok: true, compacted: true }
   if (overflowsWindow({ tokens, window })) return { ok: false, kind: 'overflow', tokens, window }
 
   const faults = exchangeFaults(assembled)

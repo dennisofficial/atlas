@@ -130,7 +130,9 @@ describe('attaching to a cloud session', () => {
   })
 
   it('never adopts the thread, even with no workspace attribution behind it', async () => {
-    await expect(attachOver({ events: [said('said inside the sandbox', 1)] })).resolves.toBeDefined()
+    await expect(
+      attachOver({ events: [said('said inside the sandbox', 1)] }),
+    ).resolves.toBeDefined()
   })
 
   it('claims no local session lock for a transcript the sandbox owns', async () => {

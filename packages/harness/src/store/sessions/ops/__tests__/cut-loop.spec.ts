@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import {
-  loopCutNoticeDraft,
-  toCallId,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { loopCutNoticeDraft, toCallId, type EventDraft } from '@dltech/atlas-core'
 
 import { createLoopCut } from '../cut-loop'
 import { closeOpsFixtures, openOpsFixture, openThread, type OpsFixture } from './fixture'
@@ -39,14 +35,24 @@ const probeRound = (ordinal: number, input?: unknown): EventDraft[] => [
 const notice = loopCutNoticeDraft({ names: ['bash'], repeats: 2 })
 
 const cut = (fixture: OpsFixture) =>
-  createLoopCut({ log: fixture.log, registry: fixture.registry, clock: fixture.clock, ids: fixture.ids })
+  createLoopCut({
+    log: fixture.log,
+    registry: fixture.registry,
+    clock: fixture.clock,
+    ids: fixture.ids,
+  })
 
 describe('createLoopCut over the sessions store', () => {
   it('deletes the repeat suffix and appends the notice above the new head', async () => {
     const fixture = await openOpsFixture()
     const threadId = await openThread({
       fixture,
-      drafts: [{ type: 'user-said', text: 'work' }, ...probeRound(1), ...probeRound(2), ...probeRound(3)],
+      drafts: [
+        { type: 'user-said', text: 'work' },
+        ...probeRound(1),
+        ...probeRound(2),
+        ...probeRound(3),
+      ],
     })
 
     const applied = await cut(fixture)({ threadId, toSeq: 4, throughSeq: 10, notice })
@@ -62,7 +68,12 @@ describe('createLoopCut over the sessions store', () => {
     const fixture = await openOpsFixture()
     const threadId = await openThread({
       fixture,
-      drafts: [{ type: 'user-said', text: 'work' }, ...probeRound(1), ...probeRound(2), ...probeRound(3)],
+      drafts: [
+        { type: 'user-said', text: 'work' },
+        ...probeRound(1),
+        ...probeRound(2),
+        ...probeRound(3),
+      ],
     })
 
     const applied = await cut(fixture)({ threadId, toSeq: 4, throughSeq: 6, notice })
@@ -105,7 +116,12 @@ describe('createLoopCut over the sessions store', () => {
     const fixture = await openOpsFixture()
     const threadId = await openThread({
       fixture,
-      drafts: [{ type: 'user-said', text: 'work' }, ...probeRound(1), ...probeRound(2), ...probeRound(3)],
+      drafts: [
+        { type: 'user-said', text: 'work' },
+        ...probeRound(1),
+        ...probeRound(2),
+        ...probeRound(3),
+      ],
     })
 
     const applied = await cut(fixture)({ threadId, toSeq: 99, throughSeq: 10, notice })
@@ -118,7 +134,12 @@ describe('createLoopCut over the sessions store', () => {
     const fixture = await openOpsFixture()
     const threadId = await openThread({
       fixture,
-      drafts: [{ type: 'user-said', text: 'work' }, ...probeRound(1), ...probeRound(2), ...probeRound(3)],
+      drafts: [
+        { type: 'user-said', text: 'work' },
+        ...probeRound(1),
+        ...probeRound(2),
+        ...probeRound(3),
+      ],
     })
 
     const [applied] = await Promise.all([

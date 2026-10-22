@@ -68,7 +68,12 @@ const hookNote = (slot: string, content: string): ContextAttachment => ({
 
 async function frameOf(run: ToolRun, opened?: ReadonlySet<string>): Promise<string> {
   const setup = await testRender(
-    <ToolRunBlock run={run} width={WIDTH} cwd={CWD} {...(opened === undefined ? {} : { opened })} />,
+    <ToolRunBlock
+      run={run}
+      width={WIDTH}
+      cwd={CWD}
+      {...(opened === undefined ? {} : { opened })}
+    />,
     { width: WIDTH, height: HEIGHT },
   )
   await setup.flush()
@@ -79,7 +84,9 @@ async function frameOf(run: ToolRun, opened?: ReadonlySet<string>): Promise<stri
 
 describe('context attached to a tool call', () => {
   it('hangs an instruction file under the call that pulled it in, named by its path', async () => {
-    const frame = await frameOf(runOf([read('apps/api/src/index.ts', [instructions('apps/api/CLAUDE.md')])]))
+    const frame = await frameOf(
+      runOf([read('apps/api/src/index.ts', [instructions('apps/api/CLAUDE.md')])]),
+    )
 
     const rows = frame.split('\n')
     const call = rows.findIndex((row) => row.includes('apps/api/src/index.ts'))

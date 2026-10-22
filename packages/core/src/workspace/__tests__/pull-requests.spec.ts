@@ -73,7 +73,10 @@ describe('the pull requests a session has linked', () => {
   })
 
   it('credits a repeat link to the thread that linked it last', () => {
-    const later = { ...linked({ number: 401, branch: 'dennis/first' }), threadId: toThreadId('br_2') }
+    const later = {
+      ...linked({ number: 401, branch: 'dennis/first' }),
+      threadId: toThreadId('br_2'),
+    }
 
     const [folded] = pullRequestsOf([linked({ number: 401, branch: 'dennis/first' }), later])
 
@@ -81,14 +84,13 @@ describe('the pull requests a session has linked', () => {
   })
 })
 
-
 describe('folding drafts that have not been written yet', () => {
   it('keeps the linked set when no draft adds one', () => {
     const existing = pullRequestsOf([linked({ number: 401, branch: 'dennis/first' })])
 
-    expect(pullRequestsAfter({ drafts: [{ type: 'user-said', text: 'hi' }], linked: existing })).toBe(
-      existing,
-    )
+    expect(
+      pullRequestsAfter({ drafts: [{ type: 'user-said', text: 'hi' }], linked: existing }),
+    ).toBe(existing)
   })
 
   it('appends a draft link after the written ones', () => {

@@ -76,7 +76,13 @@ describe('a settled tool block left alone', () => {
 
   test('an edit diff draws no idle frames once its hunk is highlighted', async () => {
     const { frames, frame } = await idleFrames(
-      <ToolDetail detail={EDetail.Diff} call={EDIT} inner={80} cwd="/tmp" expand={NOT_EXPANDABLE} />,
+      <ToolDetail
+        detail={EDetail.Diff}
+        call={EDIT}
+        inner={80}
+        cwd="/tmp"
+        expand={NOT_EXPANDABLE}
+      />,
     )
     expect(frame).toContain('const y = b')
     expect(frames).toBe(0)

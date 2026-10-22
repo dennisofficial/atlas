@@ -12,7 +12,7 @@ import {
 } from '../runtime-checkpoint'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
-describe("rotation receipt on the lifecycle record", () => {
+describe('rotation receipt on the lifecycle record', () => {
   it('zeroes a parent obligation on the sealed receipt', async () => {
     const home = mkdtempSync(join(tmpdir(), 'probe-'))
     const receipt = {
@@ -21,8 +21,12 @@ describe("rotation receipt on the lifecycle record", () => {
       sandboxSessionId: 's1',
       resumeParent: true,
       checkpoint: {
-        threadId: 't1', sandboxSessionId: 's1', runtimeId: 'r1', revision: 1,
-        phase: ERuntimePhase.Updating as const, reportedAt: new Date().toISOString(),
+        threadId: 't1',
+        sandboxSessionId: 's1',
+        runtimeId: 'r1',
+        revision: 1,
+        phase: ERuntimePhase.Updating as const,
+        reportedAt: new Date().toISOString(),
         transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
       },
     }

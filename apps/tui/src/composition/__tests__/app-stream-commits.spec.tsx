@@ -68,7 +68,9 @@ describe('a burst of model chunks inside one paced frame', () => {
 
       const painted = await frame(setup)
       expect(painted).toContain('word word word')
-      expect(painted).toContain(`↓ ${Math.ceil(('opening '.length + CHUNK_TEXT.length * CHUNKS) / 4)} tokens`)
+      expect(painted).toContain(
+        `↓ ${Math.ceil(('opening '.length + CHUNK_TEXT.length * CHUNKS) / 4)} tokens`,
+      )
     } finally {
       await teardown(setup)
     }

@@ -15,9 +15,13 @@ import { ESrpExpectationKind, srpExpectedSchema, type SrpExpected } from './expe
 
 export const CODE_QUALITY_FEATURE_ID = 'code-quality/single-responsibility'
 
-const qualityEvidenceSchema = z.object({ id: z.string().min(1), label: z.string(), changed: z.boolean() }).readonly()
+const qualityEvidenceSchema = z
+  .object({ id: z.string().min(1), label: z.string(), changed: z.boolean() })
+  .readonly()
 
-const lineRangeSchema = z.object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() }).nullable()
+const lineRangeSchema = z
+  .object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })
+  .nullable()
 
 const qualityScopeSchema: z.ZodType<QualityScope> = z.object({
   id: z.string().min(1),
@@ -49,18 +53,30 @@ export const codeQualityInputSchema: z.ZodType<CodeQualityInput> = z.object({
 export const codeQualityOutputSchema: z.ZodType<CodeQualityOutput> = z.object({
   assessments: z.array(qualityAssessmentSchema).readonly(),
   resolvedModel: z.string().nullable(),
-  timing: z.object({ preparationMs: z.number(), inferenceMs: z.number(), interpretationMs: z.number() }),
+  timing: z.object({
+    preparationMs: z.number(),
+    inferenceMs: z.number(),
+    interpretationMs: z.number(),
+  }),
 })
 
 export type PolicyResolver = (args: { policyIds: readonly string[] }) => readonly QualityPolicy[]
 
-type Runner = ({ input, model, deadlineMs }: {
+type Runner = ({
+  input,
+  model,
+  deadlineMs,
+}: {
   input: CodeQualityInput
   model: string
   deadlineMs: number
 }) => Promise<CodeQualityOutput>
 
-export function createCodeQualityFeature({ runner }: { runner: Runner }): EvalFeature<CodeQualityInput, SrpExpected, CodeQualityOutput> {
+export function createCodeQualityFeature({
+  runner,
+}: {
+  runner: Runner
+}): EvalFeature<CodeQualityInput, SrpExpected, CodeQualityOutput> {
   return {
     id: CODE_QUALITY_FEATURE_ID,
     inputSchemaVersion: '1',
@@ -69,7 +85,8 @@ export function createCodeQualityFeature({ runner }: { runner: Runner }): EvalFe
     inputSchema: codeQualityInputSchema,
     expectedSchema: srpExpectedSchema,
     outputSchema: codeQualityOutputSchema,
-    run: async ({ input, context }) => runner({ input, model: context.model, deadlineMs: context.deadlineMs }),
+    run: async ({ input, context }) =>
+      runner({ input, model: context.model, deadlineMs: context.deadlineMs }),
     evaluators: [
       {
         id: 'srp-exact-tuple',
@@ -92,21 +109,40 @@ export function createCodeQualityFeature({ runner }: { runner: Runner }): EvalFe
         grade: ({ expected, actual }): EvaluatorGrade => gradeEvidenceIds({ expected, actual }),
       },
     ],
-    reduceDataset: ({ rows }: { rows: readonly DatasetReducerRow<SrpExpected, CodeQualityOutput>[] }) =>
-      reduceConfusion({ rows }),
+    reduceDataset: ({
+      rows,
+    }: {
+      rows: readonly DatasetReducerRow<SrpExpected, CodeQualityOutput>[]
+    }) => reduceConfusion({ rows }),
   }
 }
 
-function reduceConfusion({ rows }: { rows: readonly DatasetReducerRow<SrpExpected, CodeQualityOutput>[] }): readonly DatasetAggregate[] {
-  const counts: Record<string, number> = { tp: 0, fp: 0, tn: 0, fn: 0, abstainCorrect: 0, abstainWrong: 0, decided: 0, abstained: 0 }
+function reduceConfusion({
+  rows,
+}: {
+  rows: readonly DatasetReducerRow<SrpExpected, CodeQualityOutput>[]
+}): readonly DatasetAggregate[] {
+  const counts: Record<string, number> = {
+    tp: 0,
+    fp: 0,
+    tn: 0,
+    fn: 0,
+    abstainCorrect: 0,
+    abstainWrong: 0,
+    decided: 0,
+    abstained: 0,
+  }
   for (const row of rows) {
     const assessment = row.actual.assessments.find((a) => a.policyId === 'single-responsibility')
     const predictedConcern =
-      assessment !== undefined && assessment.status === EQualityReviewStatus.Completed &&
-      assessment.currentConcernProbability !== null && assessment.currentConcernProbability >= 0.5
+      assessment !== undefined &&
+      assessment.status === EQualityReviewStatus.Completed &&
+      assessment.currentConcernProbability !== null &&
+      assessment.currentConcernProbability >= 0.5
     if (row.expected.kind === ESrpExpectationKind.Abstain) {
       counts.abstained = (counts.abstained ?? 0) + 1
-      const abstained = assessment === undefined || assessment.status !== EQualityReviewStatus.Completed
+      const abstained =
+        assessment === undefined || assessment.status !== EQualityReviewStatus.Completed
       if (abstained) counts.abstainCorrect = (counts.abstainCorrect ?? 0) + 1
       else counts.abstainWrong = (counts.abstainWrong ?? 0) + 1
       continue
@@ -131,6 +167,9 @@ function reduceConfusion({ rows }: { rows: readonly DatasetReducerRow<SrpExpecte
   }
   const precision = ratios.precision ?? null
   const recall = ratios.recall ?? null
-  ratios.f1 = precision === null || recall === null || precision + recall === 0 ? null : (2 * precision * recall) / (precision + recall)
+  ratios.f1 =
+    precision === null || recall === null || precision + recall === 0
+      ? null
+      : (2 * precision * recall) / (precision + recall)
   return [{ id: 'srp-confusion', counts, ratios }]
 }

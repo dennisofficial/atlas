@@ -213,10 +213,23 @@ describe('imagesInContext', () => {
 describe('corruptImagesDropped', () => {
   const corruptJpeg = (): string => {
     const bytes = new Uint8Array([
-      0xff, 0xd8,
-      0xff, 0xdb, 0x00, 0x83,
+      0xff,
+      0xd8,
+      0xff,
+      0xdb,
+      0x00,
+      0x83,
       ...Array.from({ length: 129 }, () => 0x06),
-      0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x50, 0x00, 0x78, 0x03,
+      0xff,
+      0xc0,
+      0x00,
+      0x11,
+      0x08,
+      0x00,
+      0x50,
+      0x00,
+      0x78,
+      0x03,
     ])
     return btoa(String.fromCharCode(...bytes))
   }
@@ -247,7 +260,9 @@ describe('corruptImagesDropped', () => {
 
     const parts = partsOf(output)
     expect(parts.filter((part) => part === 'image')).toEqual([])
-    expect(parts.some((part) => part.startsWith('[image dropped from context: shot.jpg'))).toBe(true)
+    expect(parts.some((part) => part.startsWith('[image dropped from context: shot.jpg'))).toBe(
+      true,
+    )
   })
 
   it('leaves a valid image part alone', () => {

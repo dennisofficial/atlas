@@ -24,7 +24,11 @@ const PATCH_TWO = `--- a/src/a.ts
 `
 
 const edit = (diff: string) =>
-  aCall({ name: 'edit', input: { path: `${CWD}/src/a.ts` }, output: { path: `${CWD}/src/a.ts`, diff } })
+  aCall({
+    name: 'edit',
+    input: { path: `${CWD}/src/a.ts` },
+    output: { path: `${CWD}/src/a.ts`, diff },
+  })
 
 describe('mergedDiffOf', () => {
   it('stacks both passes into one file, with a seam where the second pass begins', () => {

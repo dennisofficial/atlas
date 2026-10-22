@@ -171,10 +171,23 @@ describe('an ending', () => {
     opened.runners.started[0]?.settle(finished())
     await opened.supervisor.closeAll()
 
-    const logged = await loggedOfType({ harness: opened.harness, threadId: opened.parent, type: 'agent-ended' })
-    expect(logged.map(({ type, agentId, agentType, intent, status, prose, turns, toolCalls }) => ({
-      type, agentId, agentType, intent, status, prose, turns, toolCalls,
-    }))).toEqual([
+    const logged = await loggedOfType({
+      harness: opened.harness,
+      threadId: opened.parent,
+      type: 'agent-ended',
+    })
+    expect(
+      logged.map(({ type, agentId, agentType, intent, status, prose, turns, toolCalls }) => ({
+        type,
+        agentId,
+        agentType,
+        intent,
+        status,
+        prose,
+        turns,
+        toolCalls,
+      })),
+    ).toEqual([
       {
         type: 'agent-ended',
         agentId,
@@ -238,7 +251,11 @@ describe('stopping', () => {
     opened.runners.started[0]?.settle(interrupted())
     await opened.supervisor.closeAll()
 
-    const [ending] = await loggedOfType({ harness: opened.harness, threadId: opened.parent, type: 'agent-ended' })
+    const [ending] = await loggedOfType({
+      harness: opened.harness,
+      threadId: opened.parent,
+      type: 'agent-ended',
+    })
     expect(ending?.status).toBe(EAgentStatus.Stopped)
   })
 

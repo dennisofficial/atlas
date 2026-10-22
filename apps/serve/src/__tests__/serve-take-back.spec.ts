@@ -43,13 +43,22 @@ const attach = async (handle: ServeHandle): Promise<TestClient> => {
 }
 
 const start = async (
-  args: { holdStep?: (step: number) => Promise<void> | undefined; withoutPending?: boolean; intake?: boolean } = {},
+  args: {
+    holdStep?: (step: number) => Promise<void> | undefined
+    withoutPending?: boolean
+    intake?: boolean
+  } = {},
 ): Promise<{ handle: ServeHandle; app: FakeServeApp; client: TestClient }> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-take-back-'))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home
-  const app = fakeServeApp({ threadId, root: '/workspace', intake: args.intake === true, holdStep: args.holdStep })
+  const app = fakeServeApp({
+    threadId,
+    root: '/workspace',
+    intake: args.intake === true,
+    holdStep: args.holdStep,
+  })
   const handle = await startServe({
     threadId,
     port: 0,
@@ -72,14 +81,20 @@ const pendingChanged = (frame: ServeFrame, entries?: number | readonly string[])
   return JSON.stringify(frame.signal.entries.map((entry) => entry.text)) === JSON.stringify(entries)
 }
 
-const takeBack = async (args: { client: TestClient; id: string; params?: unknown }): Promise<ServeFrame> => {
+const takeBack = async (args: {
+  client: TestClient
+  id: string
+  params?: unknown
+}): Promise<ServeFrame> => {
   args.client.send({
     kind: EClientFrame.Request,
     id: args.id,
     op: EClientRequest.TakeBackPending,
     params: args.params === undefined ? { threadId } : args.params,
   })
-  return await args.client.waitFor((frame) => frame.kind === EServeFrame.Reply && frame.replyTo === args.id)
+  return await args.client.waitFor(
+    (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === args.id,
+  )
 }
 
 describe('the take-back-pending op', () => {
@@ -90,7 +105,10 @@ describe('the take-back-pending op', () => {
 
     const reply = await takeBack({ client, id: 'tb-1' })
 
-    expect(reply).toMatchObject({ ok: true, data: { taken: { text: 'actually, never mind', images: [], files: [] } } })
+    expect(reply).toMatchObject({
+      ok: true,
+      data: { taken: { text: 'actually, never mind', images: [], files: [] } },
+    })
     expect(app.pending?.forThread({ threadId }).getSnapshot()).toHaveLength(0)
     await client.waitFor((frame) => pendingChanged(frame, 0))
   })
@@ -151,15 +169,23 @@ describe('pending-changed broadcasts', () => {
 
     client.send({ kind: EClientFrame.Send, sendId: 'send-1' as never, text: 'first' })
     await entered.opened
-    client.send({ kind: EClientFrame.Send, sendId: 'send-2' as never, text: 'queued behind the turn' })
+    client.send({
+      kind: EClientFrame.Send,
+      sendId: 'send-2' as never,
+      text: 'queued behind the turn',
+    })
 
-    const announced = await client.waitFor((frame) => pendingChanged(frame, ['queued behind the turn']))
+    const announced = await client.waitFor((frame) =>
+      pendingChanged(frame, ['queued behind the turn']),
+    )
     expect(announced).toMatchObject({
       signal: { entries: [{ text: 'queued behind the turn', reserved: false }] },
     })
 
     const late = await attach(handle)
-    const snapshot = await late.waitFor((frame) => pendingChanged(frame, ['queued behind the turn']))
+    const snapshot = await late.waitFor((frame) =>
+      pendingChanged(frame, ['queued behind the turn']),
+    )
     const ready = late.frames.findIndex((frame) => frame.kind === EServeFrame.Ready)
     expect(late.frames.indexOf(snapshot)).toBeGreaterThan(ready)
     held.open()
@@ -174,6 +200,8 @@ describe('pending-changed broadcasts', () => {
     const late = await attach(handle)
     const snapshot = await late.waitFor((frame) => pendingChanged(frame, 1))
 
-    expect(snapshot).toMatchObject({ signal: { entries: [{ text: 'handed to the loop', reserved: true }] } })
+    expect(snapshot).toMatchObject({
+      signal: { entries: [{ text: 'handed to the loop', reserved: true }] },
+    })
   })
 })

@@ -32,7 +32,9 @@ for (const adapter of shellAdapters) {
     describe('an ending written at occurrence', async () => {
       it('writes the whole remaining output into the log the moment the shell settles', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = await registry.start(job({ command: `printf 'first\\n'; sleep 0.3; printf 'second\\n'` }))
+        const started = await registry.start(
+          job({ command: `printf 'first\\n'; sleep 0.3; printf 'second\\n'` }),
+        )
         if (!started.ok) throw new Error(started.reason)
         await printed({ registry, shellId: started.snapshot.shellId, text: 'first' })
 

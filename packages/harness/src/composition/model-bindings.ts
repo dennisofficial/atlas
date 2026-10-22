@@ -9,7 +9,12 @@ import {
 } from '@dltech/atlas-core'
 
 import type { DependencyContainer } from '../container/injection'
-import { DockerEngineToken, LanguageModelToken, ModelCardSourceToken, SelectableModelToken } from '../container/tokens'
+import {
+  DockerEngineToken,
+  LanguageModelToken,
+  ModelCardSourceToken,
+  SelectableModelToken,
+} from '../container/tokens'
 import { CodexModelsCatalogue } from '../models/codex-models-catalogue'
 import { cardsForProvider } from '../models/generated-catalogue'
 import { CODEX_VERSION } from '../providers/codex-version'

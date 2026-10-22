@@ -34,8 +34,12 @@ export const writeContextEntries = async (args: {
     const target = entryTargetOf({ path: entry.path, ...args.targets })
     if (target === null) continue
     try {
-      if (!args.overwrite && await args.files.exists(target)) continue
-      await args.files.writeBytes({ path: target, bytes: await entry.readBytes(), overwrite: args.overwrite })
+      if (!args.overwrite && (await args.files.exists(target))) continue
+      await args.files.writeBytes({
+        path: target,
+        bytes: await entry.readBytes(),
+        overwrite: args.overwrite,
+      })
       written += 1
     } catch (error) {
       return { written, failed: `could not write ${entry.path}: ${messageOf(error)}` }

@@ -91,8 +91,8 @@ export function DeviceAuthorizer() {
         {step === EDeviceStep.Ready && (
           <>
             <p className="text-sm text-muted-foreground">
-              A device is asking to sign in to your Atlas account. Confirm the code matches what
-              the device shows.
+              A device is asking to sign in to your Atlas account. Confirm the code matches what the
+              device shows.
             </p>
             <p
               aria-label="Device code"

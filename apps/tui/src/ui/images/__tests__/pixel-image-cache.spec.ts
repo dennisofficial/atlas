@@ -3,7 +3,8 @@ import { NativeImage } from '@opentui/core'
 
 import { PixelImageCache } from '../pixel-image-cache'
 
-const source = (): NativeImage => NativeImage.fromRgba(new Uint8Array(128 * 256 * 4).fill(255), 128, 256)
+const source = (): NativeImage =>
+  NativeImage.fromRgba(new Uint8Array(128 * 256 * 4).fill(255), 128, 256)
 
 const placement = (pixels: { width: number; height: number }) => ({
   source: { x: 0, y: 128, width: 128, height: 128 },

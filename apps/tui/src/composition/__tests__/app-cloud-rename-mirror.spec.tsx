@@ -86,7 +86,8 @@ describe('a rename the sandbox announces', () => {
 
     expect(
       await until({
-        holds: async () => (await app.threads.find({ threadId: thread.id }))?.title === 'third name',
+        holds: async () =>
+          (await app.threads.find({ threadId: thread.id }))?.title === 'third name',
         within: 10_000,
       }),
     ).toBe(true)

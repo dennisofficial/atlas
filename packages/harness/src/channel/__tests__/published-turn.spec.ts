@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { defaultPipeline, EMPTY_PROMPT, toCallId, type Event, type EventOfType } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EMPTY_PROMPT,
+  toCallId,
+  type Event,
+  type EventOfType,
+} from '@dltech/atlas-core'
 
 import type { LanguageModel } from 'ai'
 
@@ -39,9 +45,14 @@ const depsOf = (harness: AtlasHarness): TurnDeps => ({
   assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
 })
 
-const deltasOf = (signals: readonly ChannelSignal[], kind: 'text-delta' | 'reasoning-delta'): string =>
+const deltasOf = (
+  signals: readonly ChannelSignal[],
+  kind: 'text-delta' | 'reasoning-delta',
+): string =>
   signals
-    .flatMap((signal) => (signal.type === 'chunk' && signal.chunk.type === kind ? [signal.chunk.text] : []))
+    .flatMap((signal) =>
+      signal.type === 'chunk' && signal.chunk.type === kind ? [signal.chunk.text] : [],
+    )
     .join('')
 
 const errorsOf = (signals: readonly ChannelSignal[]): string[] =>
@@ -189,7 +200,9 @@ describe('running a turn', () => {
   })
 
   it('hands over to the interrupted durable event when the operator stops the reply', async () => {
-    const harness = await openHarnessWith(interruptibleModel({ head: 'auth and the ', tail: 'router' }))
+    const harness = await openHarnessWith(
+      interruptibleModel({ head: 'auth and the ', tail: 'router' }),
+    )
     const thread = await harness.threads.create({})
     const channel = createDeltaChannel()
     const { seen, listener } = recorder()
@@ -210,7 +223,11 @@ describe('running a turn', () => {
       },
     })
 
-    const outcome = await runner.say({ threadId: thread.id, text: 'what changed?', signal: controller.signal })
+    const outcome = await runner.say({
+      threadId: thread.id,
+      text: 'what changed?',
+      signal: controller.signal,
+    })
 
     expect(outcome.status).toBe(ETurnStatus.Interrupted)
     const durable = assistantEvent(await harness.log.read({ threadId: thread.id }))

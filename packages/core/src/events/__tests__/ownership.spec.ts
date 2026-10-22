@@ -169,7 +169,11 @@ describe('liveOwnedUnits', () => {
   })
 
   it('ignores an ending for a unit the log never started', () => {
-    const events = draftsAsEvents([shellEnded('bash_ghost'), serviceEnded('svc-ghost'), agentEnded('ghost')])
+    const events = draftsAsEvents([
+      shellEnded('bash_ghost'),
+      serviceEnded('svc-ghost'),
+      agentEnded('ghost'),
+    ])
 
     expect(liveOwnedUnits(events)).toEqual({ shells: [], services: [], agents: [] })
   })
@@ -193,6 +197,9 @@ describe('liveOwnedUnits', () => {
     const rewound = all.slice(2)
 
     expect(liveOwnedUnits(rewound).shells).toEqual([])
-    expect(liveOwnedUnits(all.slice(0, 2)).shells.map((unit) => unit.shellId)).toEqual(['bash_1', 'bash_2'])
+    expect(liveOwnedUnits(all.slice(0, 2)).shells.map((unit) => unit.shellId)).toEqual([
+      'bash_1',
+      'bash_2',
+    ])
   })
 })

@@ -69,7 +69,9 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
     brief: string
     intent: string
   }): Promise<AgentOutcome> {
-    return remoteActionRefused('a cloud session spawns sub-agents in its sandbox, not on this machine')
+    return remoteActionRefused(
+      'a cloud session spawns sub-agents in its sandbox, not on this machine',
+    )
   }
 
   say(args: {
@@ -93,7 +95,9 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
   }
 
   reportToParent(_args: { threadId: ThreadId; text: string }): Promise<AgentOutcome> {
-    return remoteActionRefused('a cloud session reports to its main agent in its sandbox, not on this machine')
+    return remoteActionRefused(
+      'a cloud session reports to its main agent in its sandbox, not on this machine',
+    )
   }
 
   resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome> {
@@ -101,11 +105,16 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
   }
 
   wake(_args: { agentId: ThreadId }): Promise<AgentOutcome> {
-    return remoteActionRefused('a cloud session wakes sub-agents in its sandbox, not on this machine')
+    return remoteActionRefused(
+      'a cloud session wakes sub-agents in its sandbox, not on this machine',
+    )
   }
 
   stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): Promise<AgentOutcome> {
-    return this.steer({ op: EClientRequest.StopAgent, params: { threadId: args.threadId, agentId: args.agentId } })
+    return this.steer({
+      op: EClientRequest.StopAgent,
+      params: { threadId: args.threadId, agentId: args.agentId },
+    })
   }
 
   /**
@@ -119,7 +128,10 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
     const data = await this.channel.request({ op: args.op, params: args.params })
     const parsed = agentOutcomeWireSchema.safeParse(data)
     if (!parsed.success) {
-      return { ok: false, reason: 'the sandbox answered the steer with a shape this build does not know' }
+      return {
+        ok: false,
+        reason: 'the sandbox answered the steer with a shape this build does not know',
+      }
     }
 
     const outcome = parsed.data

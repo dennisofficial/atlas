@@ -11,11 +11,14 @@ describe('mermaid detection', () => {
   })
 
   it('reads a .mmd file as the diagram itself', () => {
-    expect(mermaidSources({ path: 'flow.mmd', content: 'flowchart TD\n A-->B' })).toEqual(['flowchart TD\n A-->B'])
+    expect(mermaidSources({ path: 'flow.mmd', content: 'flowchart TD\n A-->B' })).toEqual([
+      'flowchart TD\n A-->B',
+    ])
   })
 
   it('pulls each mermaid fence out of a markdown file', () => {
-    const md = '# Title\n\n```mermaid\nflowchart TD\n A-->B\n```\n\ntext\n\n```ts\nconst a = 1\n```\n\n```mermaid\nsequenceDiagram\n A->>B: hi\n```\n'
+    const md =
+      '# Title\n\n```mermaid\nflowchart TD\n A-->B\n```\n\ntext\n\n```ts\nconst a = 1\n```\n\n```mermaid\nsequenceDiagram\n A->>B: hi\n```\n'
     expect(mermaidSources({ path: 'doc.md', content: md })).toEqual([
       'flowchart TD\n A-->B',
       'sequenceDiagram\n A->>B: hi',
@@ -23,7 +26,9 @@ describe('mermaid detection', () => {
   })
 
   it('finds nothing in a markdown file with no mermaid fence', () => {
-    expect(mermaidSources({ path: 'doc.md', content: '# Title\n\n```ts\nconst a = 1\n```\n' })).toEqual([])
+    expect(
+      mermaidSources({ path: 'doc.md', content: '# Title\n\n```ts\nconst a = 1\n```\n' }),
+    ).toEqual([])
   })
 
   it('ignores a non-markdown, non-mermaid file', () => {

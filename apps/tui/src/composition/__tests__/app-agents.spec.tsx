@@ -5,10 +5,7 @@ import {
   toThreadId,
   type ProviderIdentity,
 } from '@dltech/atlas-core'
-import {
-  EKilledBy,
-  type RecoveredAgents,
-} from '@dltech/atlas-harness'
+import { EKilledBy, type RecoveredAgents } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
 import React, { act } from 'react'
@@ -126,7 +123,11 @@ describe('a sub-agent in the sidebar', () => {
     const setup = await opened(app)
 
     try {
-      const running = setup.captureCharFrame().split('\n').find((line) => line.includes(CHILD_INTENT)) ?? ''
+      const running =
+        setup
+          .captureCharFrame()
+          .split('\n')
+          .find((line) => line.includes(CHILD_INTENT)) ?? ''
       expect(running).not.toContain('grep')
 
       act(() => app.agents.end({ agentId: CHILD }))
@@ -168,9 +169,9 @@ describe('a sub-agent in the sidebar', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('SUB-AGENTS  0/1')
       expect(frame).toContain(`${CHILD_INTENT}`)
-      expect(
-        frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? '',
-      ).not.toContain('done')
+      expect(frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? '').not.toContain(
+        'done',
+      )
     } finally {
       await teardown(setup)
     }

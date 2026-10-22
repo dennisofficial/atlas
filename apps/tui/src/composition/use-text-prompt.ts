@@ -91,14 +91,13 @@ export function useTextPrompt(args: {
 
         event.preventDefault()
         event.stopPropagation()
-        setPrompt((held) => (held === null ? null : typeIntoTextPrompt({ prompt: held, text: pasted })))
+        setPrompt((held) =>
+          held === null ? null : typeIntoTextPrompt({ prompt: held, text: pasted }),
+        )
       },
       [prompt],
     ),
   )
 
-  return useMemo(
-    () => ({ prompt, open, close, handleKey }),
-    [close, handleKey, open, prompt],
-  )
+  return useMemo(() => ({ prompt, open, close, handleKey }), [close, handleKey, open, prompt])
 }

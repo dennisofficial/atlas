@@ -43,7 +43,12 @@ describe('summaryFor', () => {
   it('returns the summary the model wrote, trimmed', async () => {
     const model = modelSaying('  you were rotating the session token  ')
 
-    const summary = await summaryFor({ model, events: events(['rotate the token']), fromSeq: 1, throughSeq: 1 })
+    const summary = await summaryFor({
+      model,
+      events: events(['rotate the token']),
+      fromSeq: 1,
+      throughSeq: 1,
+    })
 
     expect(summary).toBe('you were rotating the session token')
   })
@@ -71,9 +76,7 @@ describe('summaryFor', () => {
   it('asks nothing of the model when the range has no transcript', async () => {
     const model = modelSaying('a summary')
 
-    await expect(
-      summaryFor({ model, events: [], fromSeq: 1, throughSeq: 1 }),
-    ).resolves.toBeNull()
+    await expect(summaryFor({ model, events: [], fromSeq: 1, throughSeq: 1 })).resolves.toBeNull()
     expect(model.doGenerateCalls).toHaveLength(0)
   })
 

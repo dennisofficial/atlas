@@ -64,7 +64,10 @@ describe('cloudRequest with retry opted in', () => {
 
   it('retries a fetch-level network failure', async () => {
     const { request, calls } = harness({
-      replies: [{ status: 200, networkError: true }, { status: 200, body: [] }],
+      replies: [
+        { status: 200, networkError: true },
+        { status: 200, body: [] },
+      ],
     })
 
     expect(await request({ retry: true })).toEqual([])

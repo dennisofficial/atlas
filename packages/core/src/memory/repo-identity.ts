@@ -4,7 +4,10 @@ const GIT_SUFFIX = '.git'
 
 const joinIdentity = (args: { host: string; path: string }): string | null => {
   const host = args.host.toLowerCase()
-  const path = args.path.replace(/\/+$/, '').replace(/\.git$/, '').replace(/^\/+/, '')
+  const path = args.path
+    .replace(/\/+$/, '')
+    .replace(/\.git$/, '')
+    .replace(/^\/+/, '')
   if (host === '' || path === '') return null
   return `${host}/${path}`
 }

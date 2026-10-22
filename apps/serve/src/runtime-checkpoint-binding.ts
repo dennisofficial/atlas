@@ -21,7 +21,10 @@ export type RuntimeCheckpointBinding = {
    * Zeroes a sealed rotation receipt's obligations through the capture's serialized write chain,
    * so it can never lose to a cadence capture writing the same file.
    */
-  consumeReceipt: (args: { parent?: boolean; children?: readonly string[] | undefined }) => Promise<void>
+  consumeReceipt: (args: {
+    parent?: boolean
+    children?: readonly string[] | undefined
+  }) => Promise<void>
 }
 
 export function bindRuntimeCheckpoint(args: {
@@ -54,9 +57,13 @@ export function bindRuntimeCheckpoint(args: {
     finalized = true
     await pending
     if (held?.phase !== final.phase) {
-      await capture({ phase: final.phase, ...(final.resume === undefined ? {} : { resume: final.resume }) })
+      await capture({
+        phase: final.phase,
+        ...(final.resume === undefined ? {} : { resume: final.resume }),
+      })
     }
-    if (held?.phase !== final.phase) throw new Error(`this runtime has no final ${final.label} checkpoint`)
+    if (held?.phase !== final.phase)
+      throw new Error(`this runtime has no final ${final.label} checkpoint`)
     await args.capture.flush({ timeoutMs: 1_000 })
   }
 
@@ -73,9 +80,16 @@ export function bindRuntimeCheckpoint(args: {
         again = false
         await capture({ phase: ERuntimePhase.Serving })
       } while (again && !capturesHeld())
-    })().catch((failure: unknown) => {
-      args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
-    }).finally(() => { pending = null })
+    })()
+      .catch((failure: unknown) => {
+        args.log({
+          event: EServeEvent.CheckpointPersistFailed,
+          reason: failure instanceof Error ? failure.message : String(failure),
+        })
+      })
+      .finally(() => {
+        pending = null
+      })
   }
 
   const reopenToServing = async (): Promise<void> => {
@@ -94,7 +108,8 @@ export function bindRuntimeCheckpoint(args: {
     },
     parkReopened: reopenToServing,
     finalizePark: () => finalize({ phase: ERuntimePhase.Parked, label: 'park' }),
-    finalizeRotation: ({ resume }) => finalize({ phase: ERuntimePhase.Updating, label: 'rotation', resume }),
+    finalizeRotation: ({ resume }) =>
+      finalize({ phase: ERuntimePhase.Updating, label: 'rotation', resume }),
     rotationReopened: reopenToServing,
     consumeReceipt: (given) => args.capture.consumeReceipt(given),
   }

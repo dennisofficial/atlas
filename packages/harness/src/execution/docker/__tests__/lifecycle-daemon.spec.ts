@@ -8,15 +8,11 @@ import { DockerEngine } from '../engine'
 import { stopSandbox, sweepSandboxes } from '../lifecycle'
 import { removeTestSandboxes, uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
-import {
-  DEFAULT_SANDBOX_IMAGE,
-  ensureSandbox,
-  worktreeLabel,
-  type SandboxConfig,
-} from '../sandbox'
+import { DEFAULT_SANDBOX_IMAGE, ensureSandbox, worktreeLabel, type SandboxConfig } from '../sandbox'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const PREFIX = uniqueTestPrefix('lifecycle')

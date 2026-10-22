@@ -36,18 +36,26 @@ describe('isSettingVisible', () => {
 
     expect(isSettingVisible({ definition: hidden, resolution })).toBe(false)
     expect(seen).toEqual([resolution])
-    expect(isSettingVisible({ definition: { ...toggle, visibleWhen: () => true }, resolution })).toBe(true)
+    expect(
+      isSettingVisible({ definition: { ...toggle, visibleWhen: () => true }, resolution }),
+    ).toBe(true)
   })
 })
 
 describe('the decisions rows', () => {
   const visibleOn = (provider?: string) =>
-    [ESettingId.DecisionsProvider, ESettingId.DecisionsUrl, ESettingId.DecisionsModel, ESettingId.DecisionsToken].filter(
-      (id) =>
-        isSettingVisible({
-          definition: definitionOf(id),
-          resolution: resolutionOf(provider === undefined ? {} : { [ESettingId.DecisionsProvider]: provider }),
-        }),
+    [
+      ESettingId.DecisionsProvider,
+      ESettingId.DecisionsUrl,
+      ESettingId.DecisionsModel,
+      ESettingId.DecisionsToken,
+    ].filter((id) =>
+      isSettingVisible({
+        definition: definitionOf(id),
+        resolution: resolutionOf(
+          provider === undefined ? {} : { [ESettingId.DecisionsProvider]: provider },
+        ),
+      }),
     )
 
   it('shows only the provider and key on a preset', () => {

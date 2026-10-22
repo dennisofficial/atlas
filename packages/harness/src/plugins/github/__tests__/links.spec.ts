@@ -34,7 +34,9 @@ const foundReading = (number: number): PullRequestReading => ({
     state: EPullRequestState.Open,
     checks: EChecksState.Passing,
     tally: NO_CHECKS,
-    mergeable: null, comments: [], reviews: [],
+    mergeable: null,
+    comments: [],
+    reviews: [],
   },
 })
 
@@ -87,7 +89,9 @@ const linkEvent = (args: {
 
 describe('recording a link at turn end', () => {
   it('drafts the pull request the tracked checkout stands on', async () => {
-    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: foundReading(401) }),
+    )
 
     const outcome = await links.recordFound({ threadId: THREAD_A })
 
@@ -114,7 +118,9 @@ describe('recording a link at turn end', () => {
   })
 
   it('drafts a found pull request only once until the log publishes it', async () => {
-    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: foundReading(401) }),
+    )
 
     await links.recordFound({ threadId: THREAD_A })
     const again = await links.recordFound({ threadId: THREAD_A })
@@ -147,13 +153,17 @@ describe('recording a link at turn end', () => {
   })
 
   it('drafts nothing for a thread that stands on no checkout', async () => {
-    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }, [THREAD_A]))
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: foundReading(401) }, [THREAD_A]),
+    )
 
     expect((await links.recordFound({ threadId: THREAD_B })).drafts).toBeUndefined()
   })
 
   it('forgets the session drafts when the thread changes', async () => {
-    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: foundReading(401) }),
+    )
 
     await links.recordFound({ threadId: THREAD_A })
     await links.forgetThread({ threadId: THREAD_B, projectDirectory: '/repo' })
@@ -165,7 +175,9 @@ describe('recording a link at turn end', () => {
 
 describe('linking a checkout that was dropped from tracking', () => {
   it('drafts the pull request from the reading the dropped checkout last held', () => {
-    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: foundReading(401) }),
+    )
 
     const drafts = links.linkDropped({ checkouts: [CHECKOUT] })
 
@@ -190,14 +202,18 @@ describe('linking a checkout that was dropped from tracking', () => {
   })
 
   it('drafts nothing for a pull request the log already holds', () => {
-    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: foundReading(401) }),
+    )
     links.projection.publish({ events: [linkEvent({ number: 401, branch: 'dennis/first' })] })
 
     expect(links.linkDropped({ checkouts: [CHECKOUT] })).toEqual([])
   })
 
   it('drafts a dropped pull request only once until the log publishes it', () => {
-    const links = createPullRequestLinks(standing({ checkout: CHECKOUT, reading: foundReading(401) }))
+    const links = createPullRequestLinks(
+      standing({ checkout: CHECKOUT, reading: foundReading(401) }),
+    )
 
     links.linkDropped({ checkouts: [CHECKOUT] })
     expect(links.linkDropped({ checkouts: [CHECKOUT] })).toEqual([])

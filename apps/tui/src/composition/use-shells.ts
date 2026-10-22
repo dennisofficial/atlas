@@ -118,15 +118,19 @@ export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId
       return
     }
     let active = true
-    void Promise.resolve(app.shells.peek({ shellId: openId, characters: PEEKED_CHARACTERS, threadId })).then(
+    void Promise.resolve(
+      app.shells.peek({ shellId: openId, characters: PEEKED_CHARACTERS, threadId }),
+    ).then(
       (text) => {
-        if (active) setOutput((current) => current === (text ?? '') ? current : (text ?? ''))
+        if (active) setOutput((current) => (current === (text ?? '') ? current : (text ?? '')))
       },
       () => {
-        if (active) setOutput((current) => current === '' ? current : '')
+        if (active) setOutput((current) => (current === '' ? current : ''))
       },
     )
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [app, openId, printed, threadId])
 
   const handleOpen = useCallback(

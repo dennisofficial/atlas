@@ -40,7 +40,11 @@ const registryOf = (target: SettingsTarget): ReadonlyMap<string, CloudSettingEnt
   target.kind === ESettingsTarget.Personal ? CLOUD_SETTING_REGISTRY : WORKSPACE_SETTING_REGISTRY
 
 export async function fetchSettings(target: SettingsTarget): Promise<SettingValues> {
-  const body = await cloudJson({ method: EHttpMethod.Get, path: pathOf(target), schema: settingListSchema })
+  const body = await cloudJson({
+    method: EHttpMethod.Get,
+    path: pathOf(target),
+    schema: settingListSchema,
+  })
   return new Map(body.settings.map((setting) => [setting.key, decodeSettingValue(setting.value)]))
 }
 

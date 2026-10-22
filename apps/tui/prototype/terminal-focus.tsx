@@ -48,7 +48,8 @@ function FocusProbe(): React.ReactNode {
   const [log, setLog] = useState<readonly string[]>([])
 
   useEffect(() => {
-    const note = (line: string): void => setLog((current) => [...current.slice(-9), `${stamp()}  ${line}`])
+    const note = (line: string): void =>
+      setLog((current) => [...current.slice(-9), `${stamp()}  ${line}`])
 
     const sniff = (sequence: string): void => note(`stdin ${JSON.stringify(sequence)}`)
     sequenceListeners.add(sniff)
@@ -79,7 +80,15 @@ function FocusProbe(): React.ReactNode {
   })
 
   return (
-    <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0} paddingLeft={2} paddingTop={1} gap={1}>
+    <box
+      flexDirection="column"
+      flexGrow={1}
+      flexShrink={1}
+      flexBasis={0}
+      paddingLeft={2}
+      paddingTop={1}
+      gap={1}
+    >
       <text fg={theme.rule}>switch windows and watch the accent — ctrl+c quit</text>
       <text fg={theme.hint}>
         {`${process.env.TERM_PROGRAM ?? 'unknown terminal'} · TERM=${process.env.TERM ?? '?'}${process.env.TMUX ? ' · inside tmux' : ''}`}
@@ -93,7 +102,9 @@ function FocusProbe(): React.ReactNode {
         </text>
         <text fg={theme.codeInline}>inline code tinted with it</text>
         <text>
-          <span bg={theme.caretBg} fg={theme.caretFg}> </span>
+          <span bg={theme.caretBg} fg={theme.caretFg}>
+            {' '}
+          </span>
           <span fg={theme.body}> the caret block</span>
         </text>
       </box>

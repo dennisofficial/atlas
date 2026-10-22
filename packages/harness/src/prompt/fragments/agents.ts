@@ -1,6 +1,5 @@
 import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
-
 export class DelegationFragment extends PromptFragment {
   readonly id = 'agents.delegation'
 

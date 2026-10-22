@@ -1,13 +1,25 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { EClientFrame, EServeFrame, ETurnStatus, readSandboxRotationReceipt, toSendId } from '@dltech/atlas-harness'
+import {
+  EClientFrame,
+  EServeFrame,
+  ETurnStatus,
+  readSandboxRotationReceipt,
+  toSendId,
+} from '@dltech/atlas-harness'
 
 import { createServeRotationRecovery } from '../serve-rotation-recovery'
 import { createServeWorkspaceSession } from '../serve-workspace-session'
 import type { ServeTurnDriver, TurnRunOptions } from '../turn-driver'
 import { connect } from './client'
 import { fakeServeApp } from './fakes'
-import { cleanupRotationFixtures, rotationFixture, sourceSession, threadId, token } from './serve-rotation-fixture'
+import {
+  cleanupRotationFixtures,
+  rotationFixture,
+  sourceSession,
+  threadId,
+  token,
+} from './serve-rotation-fixture'
 
 const noop = (): void => undefined
 
@@ -21,12 +33,24 @@ const parentOwed = async (home: string): Promise<boolean> =>
 afterEach(cleanupRotationFixtures)
 
 const recordingDriver = (runs: (TurnRunOptions | undefined)[]): ServeTurnDriver => ({
-  beginRelocation: async () => undefined, relocationResumable: () => false, busy: () => false,
-  say: async () => undefined, run: (options) => { runs.push(options) }, sayOrRun: () => false,
-  interrupt: noop, pause: noop, resume: noop,
-  running: () => false, outcomePending: () => false, settled: async () => undefined,
-  attach: () => noop, holdHistory: () => noop,
-  beginRotation: () => ({ pause: noop, waitSettled: async () => null }), holdForRotation: () => noop,
+  beginRelocation: async () => undefined,
+  relocationResumable: () => false,
+  busy: () => false,
+  say: async () => undefined,
+  run: (options) => {
+    runs.push(options)
+  },
+  sayOrRun: () => false,
+  interrupt: noop,
+  pause: noop,
+  resume: noop,
+  running: () => false,
+  outcomePending: () => false,
+  settled: async () => undefined,
+  attach: () => noop,
+  holdHistory: () => noop,
+  beginRotation: () => ({ pause: noop, waitSettled: async () => null }),
+  holdForRotation: () => noop,
 })
 
 describe('in-place swap over a receipt sealed in the same sandbox session', () => {
@@ -35,16 +59,28 @@ describe('in-place swap over a receipt sealed in the same sandbox session', () =
     expect(fixture.receipt.sandboxSessionId).toBe(sourceSession)
     const app = fakeServeApp({ threadId, root: '/workspace', intake: true, log: fixture.store.log })
     const recovery = await createServeRotationRecovery({
-      atlasHome: fixture.home, threadId, sandboxSessionId: sourceSession, log: noop,
+      atlasHome: fixture.home,
+      threadId,
+      sandboxSessionId: sourceSession,
+      log: noop,
     })
     expect(recovery.deferred).toBe(true)
     expect(recovery.owed).toEqual({ parent: true, children: [] })
     await recovery.guard({
       app,
-      checkpoint: { current: () => null, parkReopened: async () => undefined, consumeReceipt: async () => undefined },
+      checkpoint: {
+        current: () => null,
+        parkReopened: async () => undefined,
+        consumeReceipt: async () => undefined,
+      },
     })
     const session = createServeWorkspaceSession({
-      threadId, app, deferStartChildren: true, log: noop, settling: { count: 0 }, note: noop,
+      threadId,
+      app,
+      deferStartChildren: true,
+      log: noop,
+      settling: { count: 0 },
+      note: noop,
     })
     const runs: (TurnRunOptions | undefined)[] = []
     await recovery.recover({ session, driver: recordingDriver(runs) })
@@ -61,7 +97,11 @@ describe('in-place swap over a receipt sealed in the same sandbox session', () =
     const client = await connect({ port: handle.port, token })
     client.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Send, sendId: toSendId('send-after-swap'), text: 'new work after the swap' })
+    client.send({
+      kind: EClientFrame.Send,
+      sendId: toSendId('send-after-swap'),
+      text: 'new work after the swap',
+    })
     const ended = await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
     expect(ended.kind === EServeFrame.TurnEnded && ended.outcome.status).toBe(ETurnStatus.Completed)
     expect(JSON.stringify(client.frames)).not.toContain('accepts no new work')
@@ -75,7 +115,8 @@ describe('in-place swap over a receipt sealed in the same sandbox session', () =
     const firstHandle = await first.starting
     await settledOnce(first.outcomes)
     expect(first.outcomes.map((outcome) => outcome.status)).toEqual([ETurnStatus.Completed])
-    for (let attempt = 0; attempt < 2000 && (await parentOwed(fixture.home)); attempt += 1) await Bun.sleep(5)
+    for (let attempt = 0; attempt < 2000 && (await parentOwed(fixture.home)); attempt += 1)
+      await Bun.sleep(5)
     expect(await parentOwed(fixture.home)).toBe(false)
     await firstHandle.close()
     const second = await fixture.boot({ sessionId: sourceSession })

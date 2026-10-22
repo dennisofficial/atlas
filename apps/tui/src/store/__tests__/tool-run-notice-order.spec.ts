@@ -133,11 +133,9 @@ const keysOf = (drafts: readonly EventDraft[]) =>
 
 describe('a visible notice between tool batches', () => {
   it('splits the run so calls before and after a sub-agent ending keep their order', () => {
-    expect(keysOf([readCall(1), readResult(1), subAgentEnded(), readCall(2), readResult(2)])).toEqual([
-      'tools:call-1',
-      expect.any(String),
-      'tools:call-2',
-    ])
+    expect(
+      keysOf([readCall(1), readResult(1), subAgentEnded(), readCall(2), readResult(2)]),
+    ).toEqual(['tools:call-1', expect.any(String), 'tools:call-2'])
   })
 
   it('splits at every notice the transcript prints', () => {

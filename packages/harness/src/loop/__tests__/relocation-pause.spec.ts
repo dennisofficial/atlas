@@ -89,7 +89,11 @@ describe('pausing a turn for relocation', () => {
   it('is not an abort: the same turn ignores a pause signal left unpaused', async () => {
     const { harness, threadId } = await openWith([{ text: 'all done' }])
 
-    const outcome = await harness.runner.say({ threadId, text: 'what changed?', pause: new PauseSignal() })
+    const outcome = await harness.runner.say({
+      threadId,
+      text: 'what changed?',
+      pause: new PauseSignal(),
+    })
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
   })

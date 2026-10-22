@@ -33,7 +33,8 @@ export function createThreadKinds(args: { threads: ThreadStorePort }): ThreadKin
     const resolved = threads
       .find({ threadId: request.threadId })
       .then((thread) => {
-        if (thread?.agent === undefined || isTeammateType(thread.agent.type)) return request.threadId
+        if (thread?.agent === undefined || isTeammateType(thread.agent.type))
+          return request.threadId
         return ownerOf({
           threadId: thread.agent.spawnedBy,
           seen: new Set([...seen, request.threadId]),

@@ -17,11 +17,7 @@ import {
   shouldPublishLatest,
   type LatestRelease,
 } from '../build/latest-release-state'
-import {
-  EStageOutcome,
-  realSelfUpdatePorts,
-  stageUpdate,
-} from '../build/self-update'
+import { EStageOutcome, realSelfUpdatePorts, stageUpdate } from '../build/self-update'
 import { repoRootOf, sourceStateStamp } from '../build/stamp'
 import { atlasDirectory } from '@dltech/atlas-harness'
 import { ENoticeTone, notify } from '../ui/notice-store'
@@ -219,10 +215,7 @@ export async function checkForUpdate(): Promise<void> {
   const sharedPath = latestReleasePathFor(atlasDirectory())
 
   const published = await readLatestRelease(sharedPath)
-  if (
-    published !== null &&
-    releaseStaged({ running: build.version, staged: published.version })
-  ) {
+  if (published !== null && releaseStaged({ running: build.version, staged: published.version })) {
     notify({
       key: 'release-staged',
       tone: ENoticeTone.Success,
@@ -243,7 +236,12 @@ export async function checkForUpdate(): Promise<void> {
 
   const version = formatSemver(latest.version)
   if (!shouldPublishLatest({ candidate: version, published })) {
-    notify({ key: 'release-staged', tone: ENoticeTone.Success, sticky: true, text: installedNotice(version) })
+    notify({
+      key: 'release-staged',
+      tone: ENoticeTone.Success,
+      sticky: true,
+      text: installedNotice(version),
+    })
     return
   }
 
@@ -338,4 +336,3 @@ export async function releaseWatchProbe(): Promise<ReleaseWatch | null> {
       notify({ key: 'release-staged', tone: ENoticeTone.Success, sticky: true, text }),
   })
 }
-

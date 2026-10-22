@@ -95,7 +95,9 @@ describe('the take-back-pending request', () => {
     }
 
     expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
-    expect(String(takeBackPendingParamsSchema.parse({ threadId: 'brn_cloud' }).threadId)).toBe('brn_cloud')
+    expect(String(takeBackPendingParamsSchema.parse({ threadId: 'brn_cloud' }).threadId)).toBe(
+      'brn_cloud',
+    )
   })
 
   it('parses a reply with nothing to take back', () => {
@@ -116,7 +118,9 @@ describe('the take-back-pending request', () => {
   })
 
   it('drops a reply whose taken message has no text', () => {
-    expect(takeBackPendingReplySchema.safeParse({ taken: { images: [], files: [] } }).success).toBe(false)
+    expect(takeBackPendingReplySchema.safeParse({ taken: { images: [], files: [] } }).success).toBe(
+      false,
+    )
   })
 })
 

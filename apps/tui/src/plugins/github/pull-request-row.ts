@@ -51,12 +51,16 @@ export function pullRequestRow(args: {
       strike: gone,
     },
   ]
-  const titled: Span[] = [...number, { text: ` ${pullRequest.state}`, fg: theme.meta, strike: gone }]
+  const titled: Span[] = [
+    ...number,
+    { text: ` ${pullRequest.state}`, fg: theme.meta, strike: gone },
+  ]
   const running: Span[] =
     tally.running === 0
       ? []
       : [{ text: `${spinnerFrame(now)} ${tally.running} running`, fg: theme.warn }]
-  const passed: Span[] = tally.passed === 0 ? [] : [{ text: `${tally.passed} ${PASSED}`, fg: theme.ok }]
+  const passed: Span[] =
+    tally.passed === 0 ? [] : [{ text: `${tally.passed} ${PASSED}`, fg: theme.ok }]
   const failed: Span[] =
     tally.failed === 0 ? [] : [{ text: `${tally.failed} ${FAILED}`, fg: theme.error }]
 

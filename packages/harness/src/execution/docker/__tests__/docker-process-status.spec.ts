@@ -68,7 +68,9 @@ describeDocker('DockerProcessPort sandbox status', () => {
   }, 60_000)
 
   it("announces failed with the daemon's reason when the container cannot be created", async () => {
-    const missingWorktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-status-failed-')))
+    const missingWorktree = await realpath(
+      await mkdtemp(join(tmpdir(), 'atlas-dev-status-failed-')),
+    )
     extraWorktrees.push(missingWorktree)
     const seen: SandboxStatus[] = []
     const port = new DockerProcessPort({
@@ -84,7 +86,8 @@ describeDocker('DockerProcessPort sandbox status', () => {
     await expect(runTrue(port)).rejects.toThrow()
 
     const failed = seen.at(-1)
-    if (failed?.state !== ESandboxState.Failed) throw new Error(`expected failed, got ${failed?.state ?? 'nothing'}`)
+    if (failed?.state !== ESandboxState.Failed)
+      throw new Error(`expected failed, got ${failed?.state ?? 'nothing'}`)
     expect(failed.reason).toContain('atlas-dev-no-such-image')
   }, 60_000)
 

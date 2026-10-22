@@ -34,7 +34,12 @@ describe('replacedRanges', () => {
   it('names the range of a suffix summary that discarded the tail', () => {
     const events = eventsFrom([
       said('keep this'),
-      compactedRange({ fromSeq: 2, throughSeq: 8, summary: 'the tail', anchor: ECompactionAnchor.Suffix }),
+      compactedRange({
+        fromSeq: 2,
+        throughSeq: 8,
+        summary: 'the tail',
+        anchor: ECompactionAnchor.Suffix,
+      }),
       loaded('file', 'CLAUDE.md', 'guidance'),
     ])
 

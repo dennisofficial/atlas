@@ -46,10 +46,17 @@ beforeEach(() => {
       authorization: headers.get('authorization'),
       clientVersion: headers.get('atlas-client-version'),
     })
-    return new Response(JSON.stringify({ secrets: [{ name: 'remote.key', value: 'cloud-value', updatedAt: '2026-01-01T00:00:00.000Z' }] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({
+        secrets: [
+          { name: 'remote.key', value: 'cloud-value', updatedAt: '2026-01-01T00:00:00.000Z' },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    )
   }) as typeof fetch
 })
 
@@ -132,10 +139,7 @@ describe('SecretsStoreProxy with a session', () => {
     expect(proxy.read('remote.key')).toBeUndefined()
 
     await proxy.warm()
-    expect(fetchCalls.map((call) => call.authorization)).toEqual([
-      'Bearer sess_a',
-      'Bearer sess_b',
-    ])
+    expect(fetchCalls.map((call) => call.authorization)).toEqual(['Bearer sess_a', 'Bearer sess_b'])
   })
 
   it('warms the remote store on the first read after a mid-process sign-in', async () => {

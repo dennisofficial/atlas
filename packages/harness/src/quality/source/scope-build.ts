@@ -10,7 +10,11 @@ import {
 } from '@dltech/atlas-core'
 
 import { renderScopeDiff } from './scope-diff'
-import { QUALITY_SOURCE_ADAPTER_VERSION, hashScopeText, type ParsedDeclaration } from './typescript-parser'
+import {
+  QUALITY_SOURCE_ADAPTER_VERSION,
+  hashScopeText,
+  type ParsedDeclaration,
+} from './typescript-parser'
 
 export type KnownScopeIds = Map<string, string>
 
@@ -21,7 +25,13 @@ export function scopeIdOf(args: {
   qualifiedName: string
   position: number
 }): string {
-  const key = [args.workspaceNamespace, args.relativePath, args.kind, args.qualifiedName, String(args.position)].join('\n')
+  const key = [
+    args.workspaceNamespace,
+    args.relativePath,
+    args.kind,
+    args.qualifiedName,
+    String(args.position),
+  ].join('\n')
   return createHash('sha256').update(key, 'utf8').digest('hex')
 }
 
@@ -145,7 +155,8 @@ export function declarationScope(args: {
     kind: after?.kind ?? before?.kind ?? EQualityScopeKind.Function,
     name: after?.name ?? before?.name ?? '',
     parentScopeId: args.parentScopeId,
-    before: before === null ? null : declarationText({ text: args.beforeText, declaration: before }),
+    before:
+      before === null ? null : declarationText({ text: args.beforeText, declaration: before }),
     after: after === null ? null : declarationText({ text: args.afterText, declaration: after }),
     structuralHash: after?.structuralHash ?? before?.structuralHash ?? '',
     beforeLineRange: before?.lineRange ?? null,

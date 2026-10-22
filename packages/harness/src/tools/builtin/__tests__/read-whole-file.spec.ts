@@ -54,7 +54,10 @@ describe('ReadTool.revealsWholeFile against what the read actually returned', ()
   for (const file of ['many.txt', 'one.txt', 'empty.txt']) {
     for (const window of windows) {
       it(`never claims the whole of ${file} through ${window.name} when the read was truncated`, async () => {
-        const { claimsWhole, truncated } = await readWith({ path: join(root, file), ...window.input })
+        const { claimsWhole, truncated } = await readWith({
+          path: join(root, file),
+          ...window.input,
+        })
         if (claimsWhole) expect(truncated).toBe(false)
       })
     }

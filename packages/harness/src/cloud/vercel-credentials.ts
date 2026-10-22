@@ -1,4 +1,10 @@
-import { ESettingId, ESettingsLayer, rangeValueOf, textValueOf, type SecretsPort } from '@dltech/atlas-core'
+import {
+  ESettingId,
+  ESettingsLayer,
+  rangeValueOf,
+  textValueOf,
+  type SecretsPort,
+} from '@dltech/atlas-core'
 
 import type { SettingsService } from '../settings/service'
 
@@ -8,7 +14,9 @@ const SETTINGS_POINTER = 'settings (ctrl+o) › cloud'
 
 export class VercelNotConfiguredError extends Error {
   constructor(detail: string) {
-    super(`cloud sandboxes run on your own Vercel account — ${detail} under ${SETTINGS_POINTER}, then try again`)
+    super(
+      `cloud sandboxes run on your own Vercel account — ${detail} under ${SETTINGS_POINTER}, then try again`,
+    )
     this.name = 'VercelNotConfiguredError'
   }
 }

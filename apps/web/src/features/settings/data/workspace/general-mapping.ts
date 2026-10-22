@@ -13,7 +13,8 @@ export type GeneralSave = {
   settings: SettingChanges
 }
 
-export const modelOfSetting = (stored: string): string => (stored === '' ? NO_DEFAULT_MODEL : stored)
+export const modelOfSetting = (stored: string): string =>
+  stored === '' ? NO_DEFAULT_MODEL : stored
 
 export const sanitizeSlug = (raw: string): string => raw.toLowerCase().replace(/[^a-z0-9-]/g, '')
 

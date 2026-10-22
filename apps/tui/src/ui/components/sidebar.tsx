@@ -1,62 +1,55 @@
-import { homedir } from "node:os";
+import { homedir } from 'node:os'
 
-import { RGBA } from "@opentui/core";
-import React from "react";
+import { RGBA } from '@opentui/core'
+import React from 'react'
 
-import { useAppearance } from "../hooks/use-appearance";
-import { collapseHome, compactPath } from "../paths";
-import { theme } from "../theme";
-import type { ServiceSnapshot, ShellSnapshot } from "@dltech/atlas-harness";
+import { useAppearance } from '../hooks/use-appearance'
+import { collapseHome, compactPath } from '../paths'
+import { theme } from '../theme'
+import type { ServiceSnapshot, ShellSnapshot } from '@dltech/atlas-harness'
 
-import type { SidebarModel } from "../../store";
-import type { SidebarCrewFold } from "../../store/subagent-row";
-import { BackPill } from "./back-pill";
-import { SIDEBAR_GUTTER, SIDEBAR_PADDING, sidebarCells } from "./sidebar/cells";
-import { ESidebarPlace } from "../sidebar-section";
-import { CloudSection } from "./sidebar/cloud";
-import { ContainerSection } from "./sidebar/container";
-import { ContextSection, type ContextSectionProps } from "./sidebar/context";
-import { ContributedSections } from "./sidebar/contributed";
-import { SubagentsSection, TeammatesSection } from "./sidebar/crew";
-import { GrantsSection } from "./sidebar/grants";
-import { HeadSection } from "./sidebar/head";
-import type { NamingState } from "./naming-line";
-import { ServicesSection } from "./sidebar/services";
-import { ShellsSection } from "./sidebar/shells";
-import { TodoSection } from "./sidebar/todo";
-import { useRelaxedThumb } from "../scrollbar-thumb";
+import type { SidebarModel } from '../../store'
+import type { SidebarCrewFold } from '../../store/subagent-row'
+import { BackPill } from './back-pill'
+import { SIDEBAR_GUTTER, SIDEBAR_PADDING, sidebarCells } from './sidebar/cells'
+import { ESidebarPlace } from '../sidebar-section'
+import { CloudSection } from './sidebar/cloud'
+import { ContainerSection } from './sidebar/container'
+import { ContextSection, type ContextSectionProps } from './sidebar/context'
+import { ContributedSections } from './sidebar/contributed'
+import { SubagentsSection, TeammatesSection } from './sidebar/crew'
+import { GrantsSection } from './sidebar/grants'
+import { HeadSection } from './sidebar/head'
+import type { NamingState } from './naming-line'
+import { ServicesSection } from './sidebar/services'
+import { ShellsSection } from './sidebar/shells'
+import { TodoSection } from './sidebar/todo'
+import { useRelaxedThumb } from '../scrollbar-thumb'
 
-const CONTAINER_MOUNTS = new Set(["/workspace", "/app", "/repo", "/src"]);
+const CONTAINER_MOUNTS = new Set(['/workspace', '/app', '/repo', '/src'])
 
 const rootLabel = (args: { root: string; repoName?: string | undefined }): string => {
-  if (args.repoName !== undefined && CONTAINER_MOUNTS.has(args.root)) return args.repoName;
-  return collapseHome({ cwd: args.root, home: homedir() });
-};
+  if (args.repoName !== undefined && CONTAINER_MOUNTS.has(args.root)) return args.repoName
+  return collapseHome({ cwd: args.root, home: homedir() })
+}
 
 const worktreeLabel = (args: { worktree: string; root: string }): string =>
   args.worktree.startsWith(`${args.root}/`)
     ? args.worktree.slice(args.root.length + 1)
-    : collapseHome({ cwd: args.worktree, home: homedir() });
+    : collapseHome({ cwd: args.worktree, home: homedir() })
 
 function SidebarFooter(props: {
-  root: string;
-  worktree: string | null;
-  version: string;
-  cells: number;
-  repoName?: string | undefined;
+  root: string
+  worktree: string | null
+  version: string
+  cells: number
+  repoName?: string | undefined
 }): React.ReactNode {
-  const where = rootLabel({ root: props.root, repoName: props.repoName });
+  const where = rootLabel({ root: props.root, repoName: props.repoName })
 
   return (
-    <box
-      flexDirection="column"
-      flexShrink={0}
-      paddingTop={1}
-      paddingRight={SIDEBAR_GUTTER}
-    >
-      <text fg={theme.dim}>
-        {compactPath({ path: where, cells: props.cells })}
-      </text>
+    <box flexDirection="column" flexShrink={0} paddingTop={1} paddingRight={SIDEBAR_GUTTER}>
+      <text fg={theme.dim}>{compactPath({ path: where, cells: props.cells })}</text>
       {props.worktree === null ? null : (
         <text fg={theme.meta}>
           {compactPath({
@@ -73,10 +66,10 @@ function SidebarFooter(props: {
         <text fg={theme.dim}>{props.version}</text>
       </box>
     </box>
-  );
+  )
 }
 
-const SCRIM = RGBA.fromInts(0, 0, 0, 70);
+const SCRIM = RGBA.fromInts(0, 0, 0, 70)
 
 /**
  * The scrim is the floating sidebar's sibling rather than its parent so that folding and unfolding
@@ -93,7 +86,7 @@ function Scrim(): React.ReactNode {
       right={0}
       backgroundColor={SCRIM}
     />
-  );
+  )
 }
 
 /**
@@ -103,33 +96,33 @@ function Scrim(): React.ReactNode {
  * the transcript would keep the whole terminal and draw underneath it.
  */
 function DerivedSidebar(props: {
-  width: number;
-  model: SidebarModel;
-  root: string;
-  worktree: string | null;
-  version: string;
-  repoName?: string | undefined;
-  overlay?: boolean;
-  accented?: boolean;
-  shells?: readonly ShellSnapshot[];
-  shellNow?: number;
-  shellFold?: SidebarCrewFold;
-  services?: readonly ServiceSnapshot[];
-  serviceNow?: number;
-  serviceFold?: SidebarCrewFold;
-  onOpenShell?: (shellId: string) => void;
-  onOpenService?: (serviceId: string) => void;
-  context?: Omit<ContextSectionProps, 'cells'>;
-  onSelectSubagent?: (agentId: string) => void;
-  onRevokeGrant?: (grantId: string) => void;
-  naming?: NamingState | null | undefined;
-  back?: { label: string; onBack: () => void } | undefined;
+  width: number
+  model: SidebarModel
+  root: string
+  worktree: string | null
+  version: string
+  repoName?: string | undefined
+  overlay?: boolean
+  accented?: boolean
+  shells?: readonly ShellSnapshot[]
+  shellNow?: number
+  shellFold?: SidebarCrewFold
+  services?: readonly ServiceSnapshot[]
+  serviceNow?: number
+  serviceFold?: SidebarCrewFold
+  onOpenShell?: (shellId: string) => void
+  onOpenService?: (serviceId: string) => void
+  context?: Omit<ContextSectionProps, 'cells'>
+  onSelectSubagent?: (agentId: string) => void
+  onRevokeGrant?: (grantId: string) => void
+  naming?: NamingState | null | undefined
+  back?: { label: string; onBack: () => void } | undefined
 }): React.ReactNode {
-  useAppearance();
-  const { model } = props;
-  const cells = sidebarCells({ width: props.width });
-  const floating = props.overlay === true;
-  const attachThumb = useRelaxedThumb();
+  useAppearance()
+  const { model } = props
+  const cells = sidebarCells({ width: props.width })
+  const floating = props.overlay === true
+  const attachThumb = useRelaxedThumb()
 
   return (
     <>
@@ -142,7 +135,7 @@ function DerivedSidebar(props: {
         paddingTop={1}
         paddingBottom={1}
         paddingLeft={SIDEBAR_PADDING}
-        position={floating ? "absolute" : "relative"}
+        position={floating ? 'absolute' : 'relative'}
         zIndex={floating ? 20 : 0}
         top={0}
         bottom={0}
@@ -169,48 +162,40 @@ function DerivedSidebar(props: {
             {model.container === undefined ? null : (
               <ContainerSection container={model.container} cells={cells} />
             )}
-            {model.cloud === undefined ? null : (
-              <CloudSection cloud={model.cloud} cells={cells} />
-            )}
+            {model.cloud === undefined ? null : <CloudSection cloud={model.cloud} cells={cells} />}
             <ContributedSections
               sections={model.sections ?? []}
               place={ESidebarPlace.Facts}
               cells={cells}
             />
-            {props.context === undefined ? null : <ContextSection {...props.context} cells={cells} />}
+            {props.context === undefined ? null : (
+              <ContextSection {...props.context} cells={cells} />
+            )}
             <ShellsSection
               shells={props.shells ?? []}
               now={props.shellNow ?? Date.now()}
               cells={cells}
               fold={props.shellFold}
-              {...(props.onOpenShell === undefined
-                ? {}
-                : { onOpen: props.onOpenShell })}
+              {...(props.onOpenShell === undefined ? {} : { onOpen: props.onOpenShell })}
             />
             <ServicesSection
               services={props.services ?? []}
               now={props.serviceNow ?? Date.now()}
               cells={cells}
               fold={props.serviceFold}
-              {...(props.onOpenService === undefined
-                ? {}
-                : { onOpen: props.onOpenService })}
+              {...(props.onOpenService === undefined ? {} : { onOpen: props.onOpenService })}
             />
             <GrantsSection
               grants={model.grants ?? []}
               cells={cells}
-              {...(props.onRevokeGrant === undefined
-                ? {}
-                : { onRevoke: props.onRevokeGrant })}
+              {...(props.onRevokeGrant === undefined ? {} : { onRevoke: props.onRevokeGrant })}
             />
             <TodoSection tasks={model.todo ?? []} cells={cells} />
             <SubagentsSection
               subagents={model.subagents ?? []}
               cells={cells}
               standings={model.crewStandings}
-              {...(props.onSelectSubagent === undefined
-                ? {}
-                : { onOpen: props.onSelectSubagent })}
+              {...(props.onSelectSubagent === undefined ? {} : { onOpen: props.onSelectSubagent })}
             />
             <TeammatesSection teammates={model.teammates ?? []} cells={cells} />
             <ContributedSections
@@ -229,7 +214,7 @@ function DerivedSidebar(props: {
         />
       </box>
     </>
-  );
+  )
 }
 
-export const Sidebar = React.memo(DerivedSidebar);
+export const Sidebar = React.memo(DerivedSidebar)

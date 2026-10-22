@@ -33,7 +33,9 @@ const verifier = {
 }
 
 const secretsStub = {
-  list: vi.fn(async () => [{ name: 'web.searchKey', value: 'sk-1', updatedAt: '2026-01-01T00:00:00.000Z' }]),
+  list: vi.fn(async () => [
+    { name: 'web.searchKey', value: 'sk-1', updatedAt: '2026-01-01T00:00:00.000Z' },
+  ]),
   set: vi.fn(async () => undefined),
   remove: vi.fn(async () => undefined),
 }

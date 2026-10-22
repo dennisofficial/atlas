@@ -3,7 +3,11 @@ import type { DirectoryEntry } from '@dltech/atlas-core'
 import type { ContextFileContent } from '../files/context-browser'
 import type { ContextReader } from '../files/session-context'
 
-import { EClientRequest, listContextFilesReplySchema, readContextFileReplySchema } from './channel-wire'
+import {
+  EClientRequest,
+  listContextFilesReplySchema,
+  readContextFileReplySchema,
+} from './channel-wire'
 import type { RemoteDeltaChannel } from './remote-delta-channel'
 
 type ContextChannel = Pick<RemoteDeltaChannel, 'request'> &
@@ -35,13 +39,24 @@ export class RemoteContextFiles implements ContextReader {
 
   subscribe(listener: () => void): () => void {
     const { channel } = this
-    const stop = channel.threadId === undefined ? undefined : channel.subscribe?.({
-      threadId: channel.threadId,
-      listener: (signal) => {
-        if (signal.type === 'context-changed' || signal.type === 'events-appended' || signal.type === 'step-ended') listener()
-      },
-    })
+    const stop =
+      channel.threadId === undefined
+        ? undefined
+        : channel.subscribe?.({
+            threadId: channel.threadId,
+            listener: (signal) => {
+              if (
+                signal.type === 'context-changed' ||
+                signal.type === 'events-appended' ||
+                signal.type === 'step-ended'
+              )
+                listener()
+            },
+          })
     const stopReload = channel.onReload?.(listener)
-    return () => { stop?.(); stopReload?.() }
+    return () => {
+      stop?.()
+      stopReload?.()
+    }
   }
 }

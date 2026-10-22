@@ -166,7 +166,15 @@ describe('settling a step whose calls may share a batch', () => {
         trace,
         draftsFor: (call) => {
           controller.abort()
-          return [{ type: 'tool-result', callId: call.callId, name: call.name, output: 'ok', modelText: 'ok' }]
+          return [
+            {
+              type: 'tool-result',
+              callId: call.callId,
+              name: call.name,
+              output: 'ok',
+              modelText: 'ok',
+            },
+          ]
         },
       }),
       tools: () => TOOLS,
@@ -194,7 +202,9 @@ describe('settling a step whose calls may share a batch', () => {
     await harness.log.append({
       threadId: thread.id,
       runId: secondRun,
-      drafts: [{ type: 'tool-called', callId: toCallId('call-2'), name: 'read', input: {}, ordinal: 1 }],
+      drafts: [
+        { type: 'tool-called', callId: toCallId('call-2'), name: 'read', input: {}, ordinal: 1 },
+      ],
     })
     const settle = createSettlePending({
       log: harness.log,

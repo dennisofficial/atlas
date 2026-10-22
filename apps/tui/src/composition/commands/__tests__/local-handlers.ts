@@ -12,9 +12,7 @@ const renamed = async (argumentText: string): Promise<Renaming> => ({
   name: argumentText,
 })
 
-export const handlers = (
-  overrides: Partial<LocalCommandHandlers> = {},
-): LocalCommandHandlers => ({
+export const handlers = (overrides: Partial<LocalCommandHandlers> = {}): LocalCommandHandlers => ({
   onChangeDirectory: async () => RAN,
   onContainer: () => 'on the host',
   onContainerResources: stub,

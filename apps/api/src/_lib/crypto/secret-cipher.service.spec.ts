@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from './secret-cipher.service'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 function cipherWith(key: string): SecretCipherService {
   return new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: key }))

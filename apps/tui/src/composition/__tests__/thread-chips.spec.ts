@@ -34,7 +34,9 @@ const found = (args: { number: number; state?: EPullRequestState }): PullRequest
     state: args.state ?? EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
-    mergeable: null, comments: [], reviews: [],
+    mergeable: null,
+    comments: [],
+    reviews: [],
   },
 })
 
@@ -146,7 +148,9 @@ describe('the incremental pills of an open picker', () => {
     })
 
     handle.sync({
-      rows: [row({ threadId: 't1', pullRequests: [link({ number: 403, branch: 'dennis/third' })] })],
+      rows: [
+        row({ threadId: 't1', pullRequests: [link({ number: 403, branch: 'dennis/third' })] }),
+      ],
     })
     port.push('github.com/dennis/atlas#403', found({ number: 403 }))
     await settleMicrotasks()
@@ -195,7 +199,9 @@ describe('the incremental pills of an open picker', () => {
     })
 
     handle.sync({
-      rows: [row({ threadId: 't1', pullRequests: [link({ number: 405, branch: 'dennis/fifth' })] })],
+      rows: [
+        row({ threadId: 't1', pullRequests: [link({ number: 405, branch: 'dennis/fifth' })] }),
+      ],
     })
     handle.stop()
     port.push('github.com/dennis/atlas#405', found({ number: 405 }))

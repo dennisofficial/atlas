@@ -94,13 +94,16 @@ describe('cloud continuation ownership', () => {
         mounted.driver().handleResumeFresh()
         await new Promise((resolve) => setTimeout(resolve, 0))
       })
-      expect(mounted.probe.failure).toBe('The read-events request was never answered: the sandbox is parked.')
+      expect(mounted.probe.failure).toBe(
+        'The read-events request was never answered: the sandbox is parked.',
+      )
     } finally {
       await mounted.done()
     }
   })
 
-  it('ignores Resume and Retry when Ready says the sandbox is still running', async () => {    const mounted = await mountCloudResume()
+  it('ignores Resume and Retry when Ready says the sandbox is still running', async () => {
+    const mounted = await mountCloudResume()
     try {
       mounted.channel.ready({ turnInFlight: true })
       expect(mounted.driver().turnInFlight()).toBe(true)
