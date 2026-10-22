@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EStepEnd } from '@dltech/atlas-harness'
+import { EStepEnd } from '../../channel'
 
 import { deriveTranscript } from '../derive-transcript'
 import { EEntryKind } from '../transcript-model'

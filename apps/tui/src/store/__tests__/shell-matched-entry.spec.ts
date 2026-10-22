@@ -2,10 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import type { Event } from '@dltech/atlas-core'
 
-import { durableEntries } from '../durable-entries'
+import {
+  durableEntries,
+  EEntryKind,
+  type BackgroundShellMatchedEntry,
+} from '@dltech/atlas-client/transcript'
 import { isExpandable } from '../expandable'
-import { EEntryKind, type BackgroundShellMatchedEntry } from '../transcript-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const shellMatched = (over: Record<string, unknown> = {}) => ({
   type: 'background-shell-matched' as const,

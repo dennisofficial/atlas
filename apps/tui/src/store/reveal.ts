@@ -1,7 +1,7 @@
 import type { Event } from '@dltech/atlas-core'
-import type { StepSignal } from '@dltech/atlas-harness'
+import type { StepSignal } from '@dltech/atlas-client/channel'
 
-import { liveSteps, runKey, stepsOfSignals } from './in-flight-steps'
+import { liveSteps, runKey, stepsOfSignals, type RevealGate } from '@dltech/atlas-client/transcript'
 
 export const FRAME_MS = 33
 
@@ -10,8 +10,6 @@ const REVEAL_HORIZON_MS = 150
 const REVEAL_MIN_CHARS = 3
 
 const REVEAL_BURST_CAP = 600
-
-export type RevealGate = { key: string; revealed: number }
 
 export type TailRun = { key: string; text: string }
 
@@ -58,11 +56,6 @@ export function advancedGate(args: {
 export const gateIsDraining = (args: { gate: RevealGate | null; tail: TailRun | null }): boolean =>
   args.tail !== null &&
   (args.gate?.key !== args.tail.key || args.gate.revealed < args.tail.text.length)
-
-export function revealedText(args: { key: string; text: string; gate: RevealGate | null }): string {
-  if (args.gate === null || args.gate.key !== args.key) return args.text
-  return args.text.slice(0, args.gate.revealed)
-}
 
 /**
  * Proportional drain rather than a measured character rate, because a rate estimate is open-loop and

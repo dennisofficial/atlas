@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EPendingKind, pendingRows } from '../pending-rows'
-import { EEntryKind } from '../transcript-model'
+import { EEntryKind } from '@dltech/atlas-client/transcript'
 
 const service = (over: Partial<ServiceSnapshot> = {}): ServiceSnapshot => ({
   serviceId: 'svc_1',

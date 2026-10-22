@@ -37,8 +37,8 @@ import {
   sentenceOf,
   str,
   type Read,
-} from '../src/store/tools'
-import { CWD } from '../src/store/tools/__tests__/fixture'
+} from '@dltech/atlas-client/transcript'
+import { CWD } from '@dltech/atlas-client/transcript-tools-fixture'
 import { theme } from '../src/ui/theme'
 import { SYNTHETIC, type Case } from './failure/cases'
 import { rowsOf } from './failure/rules'

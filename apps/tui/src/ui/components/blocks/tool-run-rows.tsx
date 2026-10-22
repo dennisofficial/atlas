@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 
 import type { ToolCall } from '../../../store'
-import type { EDetail, Read } from '../../../store/tools'
+import type { EDetail, Read } from '@dltech/atlas-client/transcript'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { useHighWater } from '../../hooks/use-high-water'
 import { tailOfPath } from '../../paths'

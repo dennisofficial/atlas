@@ -5,6 +5,10 @@
   "type": "module",
   "exports": {
     "./channel": "./src/channel/index.ts",
+    "./transcript": "./src/transcript/index.ts",
+    "./transcript-fixture": "./src/transcript/__tests__/fixture.ts",
+    "./transcript-tool-fixture": "./src/transcript/__tests__/tool-fixture.ts",
+    "./transcript-tools-fixture": "./src/transcript/tools/__tests__/fixture.ts",
     "./channel-fixture": "./src/channel/__tests__/remote-channel-fixture.ts"
   },
   "scripts": {

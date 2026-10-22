@@ -2,10 +2,9 @@ import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy, EServiceStatus, type Event } from '@dltech/atlas-core'
 
-import { durableEntries } from '../durable-entries'
+import { durableEntries, EEntryKind, type ServiceEndedEntry } from '@dltech/atlas-client/transcript'
 import { isExpandable } from '../expandable'
-import { EEntryKind, type ServiceEndedEntry } from '../transcript-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const serviceEnded = (over: Record<string, unknown> = {}) => ({
   type: 'service-ended' as const,

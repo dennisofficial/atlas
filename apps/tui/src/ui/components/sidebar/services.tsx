@@ -2,7 +2,7 @@ import React from 'react'
 
 import type { ServiceSnapshot } from '@dltech/atlas-harness'
 
-import { plural } from '../../../store/tools/reading'
+import { plural } from '@dltech/atlas-client/transcript'
 import type { SidebarCrewFold } from '../../../store/subagent-row'
 import { usePress } from '../../hooks/use-press'
 import { isServiceRunning, serviceNameLabel, serviceReadout } from '../../services-model'

@@ -3,9 +3,8 @@ import { testRender } from '@opentui/react/test-utils'
 import { afterAll, describe, expect, test } from 'bun:test'
 import React from 'react'
 
-import { durableEntries } from '../../../store/durable-entries'
-import { EEntryKind, type TranscriptEntry } from '../../../store/transcript-model'
-import { log } from '../../../store/__tests__/fixture'
+import { durableEntries, EEntryKind, type TranscriptEntry } from '@dltech/atlas-client/transcript'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 import { EntryView } from '../entry-view'
 
 type Setup = Awaited<ReturnType<typeof testRender>>

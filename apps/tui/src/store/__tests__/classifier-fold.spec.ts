@@ -11,7 +11,7 @@ import { describe, expect, it } from 'bun:test'
 import { IDLE_TURN } from '../../ui/turn-clock'
 import { deriveSidebar } from '../sidebar-model'
 import { classifierFold } from '../classifier-fold'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 let minted = 0
 

@@ -21,7 +21,7 @@ import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useState } from 'react'
 
 import { shellsItem } from '../src/composition/shells-surface'
-import { plural } from '../src/store/tools/reading'
+import { plural } from '@dltech/atlas-client/transcript'
 import { EChecksState, EPullRequestState, type PullRequestBadge } from '@dltech/atlas-harness'
 
 import { pullRequestItem } from '../src/plugins/github/surface'

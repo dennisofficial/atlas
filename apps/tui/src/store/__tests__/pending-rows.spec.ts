@@ -17,7 +17,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EPendingKind, pendingRows, type RemotePendingEntry } from '../pending-rows'
-import { EEntryKind } from '../transcript-model'
+import { EEntryKind } from '@dltech/atlas-client/transcript'
 
 const typed = (id: string, text: string) => ({
   kind: 'message' as const,

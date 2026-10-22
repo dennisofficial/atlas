@@ -1,5 +1,4 @@
-import { settled } from './tool-runs'
-import { EEntryKind, type TranscriptEntry } from './transcript-model'
+import { settled, EEntryKind, type TranscriptEntry } from '@dltech/atlas-client/transcript'
 
 export function isExpandable(entry: TranscriptEntry): boolean {
   if (entry.kind === EEntryKind.ModelThought) {

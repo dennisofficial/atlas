@@ -9,8 +9,8 @@ import {
 } from '@dltech/atlas-harness'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
-import { EEntryKind } from '../transcript-model'
-import { fixtureThreadId, log } from './fixture'
+import { EEntryKind } from '@dltech/atlas-client/transcript'
+import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 

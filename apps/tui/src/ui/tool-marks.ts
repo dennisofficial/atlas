@@ -10,7 +10,7 @@
  * style, and only the quiet majority is turned down.
  */
 
-import { EToolClass } from '../store/tools'
+import { EToolClass } from '@dltech/atlas-client/transcript'
 import { theme } from './theme'
 
 export enum EMark {

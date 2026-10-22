@@ -3,7 +3,7 @@ import React from 'react'
 import { EContextSlot } from '@dltech/atlas-core'
 
 import type { ContextAttachment, ToolCall } from '../../../store'
-import { relativise } from '../../../store/tools'
+import { relativise } from '@dltech/atlas-client/transcript'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { tailOfPath } from '../../paths'
 import { wrapWords } from '../../text-flow'

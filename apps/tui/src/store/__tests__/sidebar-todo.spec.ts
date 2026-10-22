@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { IDLE_TURN } from '../../ui/turn-clock'
 import { deriveSidebar, ESidebarTaskState } from '../sidebar-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const CALL_ONE = toCallId('call-1')
 

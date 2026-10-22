@@ -1,6 +1,6 @@
 import React from 'react'
 
-import type { SystemContextEntry, SystemContextItem } from '../../../store/transcript-model'
+import type { SystemContextEntry, SystemContextItem } from '@dltech/atlas-client/transcript'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { glyph, theme, TRANSCRIPT_INSET } from '../../theme'
 import { injectionKey } from './system-context-expansion'

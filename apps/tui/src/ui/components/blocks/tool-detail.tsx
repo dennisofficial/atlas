@@ -21,7 +21,7 @@ import {
   relativise,
   strings,
   targetOf,
-} from '../../../store/tools'
+} from '@dltech/atlas-client/transcript'
 import { stripAnsi } from '../../ansi'
 import { tailOfPath } from '../../paths'
 import { wrapWords } from '../../text-flow'

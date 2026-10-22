@@ -10,8 +10,7 @@ import {
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { durableEntries } from '../../store/durable-entries'
-import { EEntryKind } from '../../store/transcript-model'
+import { durableEntries, EEntryKind } from '@dltech/atlas-client/transcript'
 import { autoCompactAfterTurn, EAutoCompact } from '@dltech/atlas-core'
 
 import { compactTurn, ECompaction } from '@dltech/atlas-harness'

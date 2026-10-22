@@ -1,7 +1,7 @@
 import React from 'react'
 
 import type { ToolCall } from '../../../store'
-import { hostOf, num, outputOf, records, str } from '../../../store/tools'
+import { hostOf, num, outputOf, records, str } from '@dltech/atlas-client/transcript'
 import { wrapWords } from '../../text-flow'
 import { theme } from '../../theme'
 import { MoreToggle, shownOf, type Expander } from './more-toggle'

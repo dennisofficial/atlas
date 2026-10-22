@@ -18,7 +18,7 @@ import {
 import React, { useMemo } from 'react'
 
 import type { ToolCall } from '../../../store'
-import { diffOf, outputOf, relativise, str } from '../../../store/tools'
+import { diffOf, outputOf, relativise, str } from '@dltech/atlas-client/transcript'
 import { DIFF_CONTEXT, DIFF_INSET } from '../blocks/tool-detail'
 import { InlineDiff } from './inline-diff'
 

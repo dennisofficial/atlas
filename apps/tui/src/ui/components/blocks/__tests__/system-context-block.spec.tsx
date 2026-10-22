@@ -2,7 +2,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { afterAll, describe, expect, test } from 'bun:test'
 import React, { act, useState } from 'react'
 
-import { EAuthor, EEntryKind, type SystemContextEntry } from '../../../../store/transcript-model'
+import { EAuthor, EEntryKind, type SystemContextEntry } from '@dltech/atlas-client/transcript'
 import { SystemContextBlock } from '../system-context-block'
 import { injectionKey, openedInjectionsOf } from '../system-context-expansion'
 

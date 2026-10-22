@@ -9,15 +9,15 @@ import {
   type Event,
 } from '@dltech/atlas-core'
 
-import { durableEntries } from '../durable-entries'
-import { isExpandable } from '../expandable'
 import {
+  durableEntries,
   EEntryKind,
   type AgentEndedEntry,
   type AgentReportedEntry,
   type AgentRestartedEntry,
-} from '../transcript-model'
-import { log } from './fixture'
+} from '@dltech/atlas-client/transcript'
+import { isExpandable } from '../expandable'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const REPORT =
   'Every call site is in `packages/harness/src/loop`. Nothing outside it touches the port.'

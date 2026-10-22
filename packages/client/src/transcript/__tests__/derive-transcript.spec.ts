@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAssistantPlaceholder } from '@dltech/atlas-core'
-import { EStepEnd, type StepId, type StepSignal } from '@dltech/atlas-harness'
+import { EStepEnd, type StepId, type StepSignal } from '../../channel'
 
 import { deriveTranscript } from '../derive-transcript'
 import { EThinkingVisibility } from '../thinking-fold'

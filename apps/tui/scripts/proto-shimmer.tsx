@@ -21,7 +21,7 @@ import { createTestRenderer } from '@opentui/core/testing'
 import { createRoot, useKeyboard, useRenderer } from '@opentui/react'
 import React, { useEffect, useRef, useState } from 'react'
 
-import { EDetail } from '../src/store/tools'
+import { EDetail } from '@dltech/atlas-client/transcript'
 import { NOT_EXPANDABLE } from '../src/ui/components/blocks/more-toggle'
 import { ToolDetail } from '../src/ui/components/blocks/tool-detail'
 import { mixHex } from '../src/ui/colour'

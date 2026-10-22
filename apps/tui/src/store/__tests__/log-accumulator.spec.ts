@@ -28,8 +28,8 @@ import {
   foldLogEvents,
 } from '../log-accumulator'
 import { sidebarFoldFrom, sidebarFoldOf } from '../sidebar-model'
-import { log } from './fixture'
-import { callId, called, result } from './tool-fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
+import { callId, called, result } from '@dltech/atlas-client/transcript-tool-fixture'
 
 const effects = (name: string) => (name === 'Read' ? EToolEffect.Read : undefined)
 

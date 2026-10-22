@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EStepEnd } from '@dltech/atlas-harness'
+import { EStepEnd } from '../../channel'
 
 import { prunedSignals } from '../in-flight-steps'
 import { ended, log, refTo, started, stepOne, stepTwo, textDelta } from './fixture'

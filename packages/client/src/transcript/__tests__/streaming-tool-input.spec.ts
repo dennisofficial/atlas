@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toCallId } from '@dltech/atlas-core'
 
-import { stepsOfSignals } from '../in-flight-steps'
+import { stepsOfSignalsAt } from '../in-flight-steps'
 import {
   started,
   stepOne,
@@ -13,8 +13,10 @@ import {
   toolInputStart,
 } from './fixture'
 
-const callsOf = (signals: Parameters<typeof stepsOfSignals>[0]) =>
-  stepsOfSignals(signals).at(0)?.calls ?? []
+const OPENED_AT = new Date('2026-03-04T05:06:07.000Z')
+
+const callsOf = (signals: Parameters<typeof stepsOfSignalsAt>[0]['signals']) =>
+  stepsOfSignalsAt({ signals, now: () => OPENED_AT }).at(0)?.calls ?? []
 
 describe('a tool call the model is still dictating', () => {
   it('names the call as soon as the model reaches for the tool', () => {
@@ -29,7 +31,7 @@ describe('a tool call the model is still dictating', () => {
         callId: toCallId('call-1'),
         name: 'write_file',
         input: undefined,
-        at: expect.any(String),
+        at: OPENED_AT.toISOString(),
         precededByBlocks: 1,
       },
     ])
@@ -75,7 +77,7 @@ describe('a tool call the model is still dictating', () => {
         callId: toCallId('call-1'),
         name: 'write_file',
         input: { path: 'notes.md', content: 'ab' },
-        at: expect.any(String),
+        at: OPENED_AT.toISOString(),
         precededByBlocks: 0,
       },
     ])
@@ -92,17 +94,24 @@ describe('a tool call the model is still dictating', () => {
   })
 
   it('stamps when the call opened, so the transcript can count up while it runs', () => {
-    const before = Date.now()
     const calls = callsOf([
       started(stepOne),
       toolInputStart({ stepId: stepOne, callId: 'call-1', name: 'bash' }),
     ])
-    const at = calls.at(0)?.at
 
-    expect(typeof at).toBe('string')
-    const ms = Date.parse(at ?? '')
-    expect(ms).toBeGreaterThanOrEqual(before)
-    expect(ms).toBeLessThanOrEqual(Date.now())
+    expect(calls.at(0)?.at).toBe('2026-03-04T05:06:07.000Z')
+  })
+
+  it('leaves the call unstamped when no clock is given, so the projection stays deterministic', () => {
+    const steps = stepsOfSignalsAt({
+      signals: [
+        started(stepOne),
+        toolInputStart({ stepId: stepOne, callId: 'call-1', name: 'bash' }),
+      ],
+      now: undefined,
+    })
+
+    expect(steps.at(0)?.calls.at(0)?.at).toBeNull()
   })
 
   it('keeps parallel calls apart while both are being dictated', () => {

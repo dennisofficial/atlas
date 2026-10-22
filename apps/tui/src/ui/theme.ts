@@ -1,5 +1,6 @@
 export { ACCENT, CODE_BLUE, SERVICE_BLUE, theme } from './palette'
 export type { Palette } from './palette'
+export { formatElapsed } from '@dltech/atlas-client/transcript'
 export { glyph, SPINNER_FRAMES, SPINNER_FRAME_MS, spinnerFrame } from './glyphs'
 
 export const ALT = process.platform === 'darwin' ? 'opt' : 'alt'
@@ -17,16 +18,6 @@ export const SIDEBAR_FOLD_BELOW = 120
 export const MIN_TRANSCRIPT_WIDTH = 40
 
 export const SIDE_BY_SIDE_MIN_TERMINAL_WIDTH = 140
-
-export function formatElapsed(ms: number): string {
-  const seconds = Math.floor(ms / 1000)
-  if (seconds < 60) return `${seconds}s`
-
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ${seconds % 60}s`
-
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
-}
 
 const MERIDIEM_PIVOT = 12
 

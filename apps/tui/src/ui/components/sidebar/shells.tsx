@@ -3,7 +3,7 @@ import React from 'react'
 import type { ShellSnapshot } from '@dltech/atlas-harness'
 
 import type { SidebarCrewFold } from '../../../store/subagent-row'
-import { plural } from '../../../store/tools/reading'
+import { plural } from '@dltech/atlas-client/transcript'
 import { usePress } from '../../hooks/use-press'
 import { shellNameLabel, shellSidebarReadout } from '../../shells-model'
 import { glyph, theme } from '../../theme'

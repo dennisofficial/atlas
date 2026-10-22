@@ -7,7 +7,7 @@ import { createConversationStore } from '../conversation-store'
 import { foldLogEvents } from '../log-accumulator'
 import { createLogWindow } from '../log-window'
 import { sidebarFoldFrom, sidebarFoldOf } from '../sidebar-model'
-import { fixtureThreadId, log } from './fixture'
+import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 
 const effects = (name: string) => (name === 'Read' ? EToolEffect.Read : undefined)
 

@@ -3,11 +3,11 @@ export {
   agentEndingFailed,
   agentQuietLine,
   type AgentEndingRow,
-} from './agent-ended-line'
+} from '@dltech/atlas-client/transcript'
 export { createConversationStore, type ConversationStore } from './conversation-store'
 export { sameEvents } from './same-log'
-export { deriveTranscript } from './derive-transcript'
-export { durableEntries } from './durable-entries'
+export { deriveTranscript } from '@dltech/atlas-client/transcript'
+export { durableEntries } from '@dltech/atlas-client/transcript'
 export { isExpandable, newestExpandableKey } from './expandable'
 export {
   liveSteps,
@@ -17,7 +17,7 @@ export {
   withoutFailedTail,
   type InFlightStep,
   type StepBlock,
-} from './in-flight-steps'
+} from '@dltech/atlas-client/transcript'
 export {
   createPendingQueue,
   createPendingQueues,
@@ -32,21 +32,20 @@ export {
   shellEndedLine,
   shellEndingFailed,
   type ShellEnding,
-} from './shell-ended-line'
+} from '@dltech/atlas-client/transcript'
 export {
   serviceEndedLine,
   serviceEndingFailed,
   type ServiceEndedNotice,
-} from './service-ended-line'
-export { prEventLine, prEventFailed } from './pr-event-line'
+} from '@dltech/atlas-client/transcript'
+export { prEventLine, prEventFailed } from '@dltech/atlas-client/transcript'
+export { revealedText, type RevealGate } from '@dltech/atlas-client/transcript'
 export {
   advancedGate,
   attachedGate,
   FRAME_MS,
   gateIsDraining,
-  revealedText,
   tailRunOf,
-  type RevealGate,
   type TailRun,
 } from './reveal'
 export {
@@ -60,14 +59,14 @@ export {
   type LiveToolRun,
   type ToolCall,
   type ToolRun,
-} from './tool-runs'
+} from '@dltech/atlas-client/transcript'
 export {
   EThinkingVisibility,
   foldThoughts,
   SHIPPED_THINKING,
   thinkingVisibilityOf,
   toolsAboveThoughts,
-} from './thinking-fold'
+} from '@dltech/atlas-client/transcript'
 export {
   EAuthor,
   EEntryKind,
@@ -87,7 +86,7 @@ export {
   type TranscriptEntry,
   type TranscriptModel,
   type TurnEndedEntry,
-} from './transcript-model'
+} from '@dltech/atlas-client/transcript'
 export {
   deriveSidebar,
   ESidebarTaskState,

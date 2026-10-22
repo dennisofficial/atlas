@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EStepEnd, type StepSignal } from '@dltech/atlas-harness'
 
-import { liveSteps, stepsOfSignals, type InFlightStep } from '../in-flight-steps'
+import { liveSteps, stepsOfSignals, type InFlightStep } from '@dltech/atlas-client/transcript'
 import { createStepTracker } from '../step-tracker'
 import {
   ended,
@@ -15,7 +15,7 @@ import {
   textDelta,
   toolInputDelta,
   toolInputStart,
-} from './fixture'
+} from '@dltech/atlas-client/transcript-fixture'
 
 const tracked = (signals: readonly StepSignal[]) => {
   const tracker = createStepTracker()

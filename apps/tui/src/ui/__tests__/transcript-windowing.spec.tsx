@@ -6,8 +6,8 @@ import { WINDOW_CAP } from '../entry-window'
 
 const { deriveTranscript, createConversationStore } = await import('../../store')
 const { createDeltaChannel } = await import('@dltech/atlas-harness')
-const { fixtureThreadId } = await import('../../store/__tests__/fixture')
-const { clocked, said } = await import('../../store/__tests__/tool-fixture')
+const { fixtureThreadId } = await import('@dltech/atlas-client/transcript-fixture')
+const { clocked, said } = await import('@dltech/atlas-client/transcript-tool-fixture')
 const { Transcript } = await import('../components/transcript')
 const { transcriptViewport } = await import('../transcript-viewport-store')
 const { grammarsReady, teardown } = await import('../markdown/__tests__/harness')

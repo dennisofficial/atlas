@@ -1,7 +1,8 @@
 import { replacedRanges, type Event } from '@dltech/atlas-core'
-import { ETurnStatus, type TurnSpend } from '@dltech/atlas-harness'
+import { ETurnStatus } from '../channel'
 
 import { EAuthor, EEntryKind, type TurnEndedEntry } from './transcript-model'
+import type { TurnSpend } from './turn-spend'
 
 const SHOWN: readonly string[] = [ETurnStatus.Completed, ETurnStatus.Interrupted]
 
