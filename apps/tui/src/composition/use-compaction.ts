@@ -1,16 +1,8 @@
-import {
-  ECompactionAnchor,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { ECompactionAnchor, type ThreadId } from '@dltech/atlas-core'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { Compacting } from '../ui/components/compacting'
-import {
-  ECompaction,
-  ECompactScope,
-  LocalCompaction,
-  type Compaction,
-} from '@dltech/atlas-harness'
+import { ECompaction, ECompactScope, LocalCompaction, type Compaction } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
 const compactionCrashed = (fault: unknown): string =>

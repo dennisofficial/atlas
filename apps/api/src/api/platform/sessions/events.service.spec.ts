@@ -198,7 +198,10 @@ describe('EventsService', () => {
       const replaced = await service.replace({
         userId: USER_A,
         threadId: 'brn_one',
-        draft: { runId: 'run_2', drafts: [draft('user-said'), draft('assistant-said'), draft('tool-called')] },
+        draft: {
+          runId: 'run_2',
+          drafts: [draft('user-said'), draft('assistant-said'), draft('tool-called')],
+        },
       })
 
       expect(replaced.map((event) => event.seq)).toEqual([1, 2, 3])

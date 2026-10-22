@@ -12,7 +12,6 @@ import {
   type RunId,
 } from '@dltech/atlas-core'
 
-
 export class RandomIds implements IdPort {
   nextThreadId(): ThreadId {
     return toThreadId(`brn_${randomUUID()}`)

@@ -14,7 +14,13 @@ export const SERVE_SEND = Symbol('SERVE_SEND')
 const SERVE_SEND_TIMEOUT_MS = 15_000
 const SESSION_PATH = '/v1/session'
 
-export type ServeSendArgs = { url: string; token: string; threadId: string; sendId: string; text: string }
+export type ServeSendArgs = {
+  url: string
+  token: string
+  threadId: string
+  sendId: string
+  text: string
+}
 
 export type ServeSend = (args: ServeSendArgs) => Promise<void>
 
@@ -61,7 +67,11 @@ export function deliverToServe(
       lastEventSeq: 0,
       protocol: CHANNEL_PROTOCOL_VERSION,
     })
-    const send = clientFrameSchema.parse({ kind: EClientFrame.Send, sendId: args.sendId, text: args.text })
+    const send = clientFrameSchema.parse({
+      kind: EClientFrame.Send,
+      sendId: args.sendId,
+      text: args.text,
+    })
     let settled = false
     let socket: ServeSocket | undefined
     const timer = setTimeout(
@@ -93,7 +103,8 @@ export function deliverToServe(
             if (frame.kind === EServeFrame.Error) finish(new Error(frame.message))
             if (frame.kind === EServeFrame.SendAcked && frame.sendId === args.sendId) finish()
           },
-          handleEnd: () => finish(new Error('serve closed the connection before acknowledging the message')),
+          handleEnd: () =>
+            finish(new Error('serve closed the connection before acknowledging the message')),
         },
       })
     } catch (failure) {

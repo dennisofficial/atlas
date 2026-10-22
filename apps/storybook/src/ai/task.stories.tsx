@@ -1,16 +1,21 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { EStepStatus, EToolKind, Task } from "@dltech/atlas-ui/ai/task";
+import { EStepStatus, EToolKind, Task } from '@dltech/atlas-ui/ai/task'
 
 const meta = {
-  title: "AI/Task",
+  title: 'AI/Task',
   component: Task,
   args: {
-    title: "Found the project files",
+    title: 'Found the project files',
     defaultOpen: true,
     steps: [
-      { id: "1", kind: EToolKind.Search, label: "app/page.tsx" },
-      { id: "2", kind: EToolKind.Read, label: "app/page.tsx", href: "https://example.com/files/app/page.tsx" },
+      { id: '1', kind: EToolKind.Search, label: 'app/page.tsx' },
+      {
+        id: '2',
+        kind: EToolKind.Read,
+        label: 'app/page.tsx',
+        href: 'https://example.com/files/app/page.tsx',
+      },
     ],
   },
   decorators: [
@@ -20,32 +25,32 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Task>;
+} satisfies Meta<typeof Task>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Done: Story = {};
+export const Done: Story = {}
 
 export const Running: Story = {
   args: {
-    title: "Updating the page metadata",
+    title: 'Updating the page metadata',
     status: EStepStatus.Running,
     steps: [
-      { id: "1", kind: EToolKind.Read, label: "app/layout.tsx" },
-      { id: "2", kind: EToolKind.Edit, label: "app/layout.tsx", status: EStepStatus.Running },
+      { id: '1', kind: EToolKind.Read, label: 'app/layout.tsx' },
+      { id: '2', kind: EToolKind.Edit, label: 'app/layout.tsx', status: EStepStatus.Running },
     ],
   },
-};
+}
 
 export const Failed: Story = {
   args: {
-    title: "Failed to update the page metadata",
+    title: 'Failed to update the page metadata',
     status: EStepStatus.Error,
     steps: [
-      { id: "1", kind: EToolKind.Read, label: "app/layout.tsx" },
-      { id: "2", kind: EToolKind.Edit, label: "app/layout.tsx", status: EStepStatus.Error },
+      { id: '1', kind: EToolKind.Read, label: 'app/layout.tsx' },
+      { id: '2', kind: EToolKind.Edit, label: 'app/layout.tsx', status: EStepStatus.Error },
     ],
   },
-};
+}

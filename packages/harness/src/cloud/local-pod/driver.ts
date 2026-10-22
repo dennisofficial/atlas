@@ -1,6 +1,10 @@
 import { posix } from 'node:path'
 
-import { SANDBOX_SERVE_PORT, type DevServeResolver, type SandboxStateWire } from '@dltech/atlas-wire'
+import {
+  SANDBOX_SERVE_PORT,
+  type DevServeResolver,
+  type SandboxStateWire,
+} from '@dltech/atlas-wire'
 
 import { DockerEngine } from '../../execution/docker/engine'
 import { DockerPodEngine } from '../../execution/docker/pod-engine'
@@ -115,7 +119,8 @@ export class DockerPodDriver implements RunnerDriver {
     },
   ) {
     this.engine =
-      args.engine ?? dockerEngineAt(args.socketPath ?? process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_SOCKET_PATH)
+      args.engine ??
+      dockerEngineAt(args.socketPath ?? process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_SOCKET_PATH)
     this.injectedLaunch = args.launchServe
     this.hostPorts = args.hostPorts ?? defaultHostPorts
     this.provisionLock = args.provisionLock ?? fileProvisionLock()
@@ -142,21 +147,34 @@ export class DockerPodDriver implements RunnerDriver {
     const state = stateOf(pod.status)
     if (state !== 'running') return { state }
     const serve = pod.ports.find((port) => port.containerPort === SANDBOX_SERVE_PORT)
-    return serve === undefined
-      ? { state }
-      : { state, url: `http://127.0.0.1:${serve.hostPort}` }
+    return serve === undefined ? { state } : { state, url: `http://127.0.0.1:${serve.hostPort}` }
   }
 
-  async writeBootstrapFile(args: { name: string; path: string; content: Uint8Array | string }): Promise<void> {
+  async writeBootstrapFile(args: {
+    name: string
+    path: string
+    content: Uint8Array | string
+  }): Promise<void> {
     const mkdir = boundedScript({
       script: `mkdir -p ${shellQuoted(posix.dirname(args.path))}`,
       seconds: BOOTSTRAP_MKDIR_SECONDS,
     })
-    const made = await this.engine.execSh({ id: args.name, script: mkdir.script, timeoutMs: mkdir.timeoutMs })
+    const made = await this.engine.execSh({
+      id: args.name,
+      script: mkdir.script,
+      timeoutMs: mkdir.timeoutMs,
+    })
     if (made.exitCode !== 0) {
-      throw new Error(`could not create ${posix.dirname(args.path)} in pod ${args.name}: ${await made.stderr()}`)
+      throw new Error(
+        `could not create ${posix.dirname(args.path)} in pod ${args.name}: ${await made.stderr()}`,
+      )
     }
-    await this.engine.writeFile({ id: args.name, path: args.path, content: args.content, mode: 0o600 })
+    await this.engine.writeFile({
+      id: args.name,
+      path: args.path,
+      content: args.content,
+      mode: 0o600,
+    })
   }
 
   async readResources(args: { name: string }): Promise<{ vcpus?: number; memoryMb?: number }> {
@@ -185,7 +203,9 @@ export class DockerPodDriver implements RunnerDriver {
       workspaceVolumeNameOf({ podName: args.name }),
       dindVolumeNameOf({ podName: args.name }),
     ]) {
-      await this.engine.removeVolume({ name: volume }).catch((failure: unknown) => failures.push(failure))
+      await this.engine
+        .removeVolume({ name: volume })
+        .catch((failure: unknown) => failures.push(failure))
     }
     if (failures.length > 0) {
       throw new AggregateError(failures, `destroy of pod ${args.name} left resources behind`)
@@ -210,10 +230,15 @@ export class DockerPodDriver implements RunnerDriver {
     const { devServe, log } = this.args
     if (devServe === undefined) {
       const install = releaseServeInstaller({ arch: podServeArchOf() })
-      return { launchServe: this.injectedLaunch ?? this.launcherWith(install), version: this.args.serveVersion }
+      return {
+        launchServe: this.injectedLaunch ?? this.launcherWith(install),
+        version: this.args.serveVersion,
+      }
     }
     const binary = await devServe({ log })
-    log?.(`dev serve ${binary.version} resolved — installing it into pods instead of downloading a release`)
+    log?.(
+      `dev serve ${binary.version} resolved — installing it into pods instead of downloading a release`,
+    )
     return {
       launchServe: this.injectedLaunch ?? this.launcherWith(devServeInstaller(binary)),
       version: binary.version,

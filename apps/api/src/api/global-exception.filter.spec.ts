@@ -1,11 +1,5 @@
 import type { INestApplication } from '@nestjs/common'
-import {
-  BadRequestException,
-  Controller,
-  Get,
-  Logger,
-  Param,
-} from '@nestjs/common'
+import { BadRequestException, Controller, Get, Logger, Param } from '@nestjs/common'
 import { HttpAdapterHost } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
@@ -135,16 +129,21 @@ describe('GlobalExceptionFilter', () => {
     })
   })
 
-  it.each(['timeout', 'abort'])('maps a %s DOMException to 502 upstream timed out', async (kind) => {
-    const response = await hit({ kind }).expect(502)
-    expect(response.body).toEqual({ statusCode: 502, message: 'upstream request timed out' })
-  })
+  it.each(['timeout', 'abort'])(
+    'maps a %s DOMException to 502 upstream timed out',
+    async (kind) => {
+      const response = await hit({ kind }).expect(502)
+      expect(response.body).toEqual({ statusCode: 502, message: 'upstream request timed out' })
+    },
+  )
 
   it('maps anything else to a generic 500 and logs the original error', async () => {
     const response = await hit({ kind: 'unknown' }).expect(500)
     expect(response.body).toEqual({ statusCode: 500, message: 'Internal server error' })
     expect(response.text).not.toContain('postgres://')
-    expect(errorLog).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('postgres://') }))
+    expect(errorLog).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('postgres://') }),
+    )
   })
 
   it('keeps a 4xx http-errors style error as its own status', async () => {

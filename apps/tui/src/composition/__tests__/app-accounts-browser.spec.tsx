@@ -62,7 +62,10 @@ const browserApp = (): Browser => {
     cancelled: () => cancels,
     finish: async () => {
       resolve(
-        await accounts.addApiKey({ provider: EAuthProvider.OpenAI, apiKey: 'sk-browser-signed-in' }),
+        await accounts.addApiKey({
+          provider: EAuthProvider.OpenAI,
+          apiKey: 'sk-browser-signed-in',
+        }),
       )
     },
     fail: (reason) => reject(new Error(reason)),
@@ -73,7 +76,13 @@ async function opened(app: FakeApp): Promise<Mounted> {
   const setup = await testRender(
     <App
       app={app}
-      opened={{ threadId: toThreadId('opened-thread'), events: [], turns: [], name: null, started: true }}
+      opened={{
+        threadId: toThreadId('opened-thread'),
+        events: [],
+        turns: [],
+        name: null,
+        started: true,
+      }}
       credentialNotice={null}
     />,
     WIDE,
@@ -206,7 +215,8 @@ describe('the OpenAI browser sign-in', () => {
 
       const frame = await frameWhen({
         setup,
-        holds: (captured) => captured.includes('MODEL PROVIDERS') && !captured.includes('waiting for the browser'),
+        holds: (captured) =>
+          captured.includes('MODEL PROVIDERS') && !captured.includes('waiting for the browser'),
         describe: 'the prompt to close back to the list',
       })
 

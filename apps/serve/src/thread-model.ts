@@ -1,7 +1,16 @@
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
-import { setThreadModelParamsSchema, type ThreadStorePort, type ThreadSummary } from '@dltech/atlas-harness'
+import {
+  setThreadModelParamsSchema,
+  type ThreadStorePort,
+  type ThreadSummary,
+} from '@dltech/atlas-harness'
 
-import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+import {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 import type { TranscriptReaders } from './requests'
 
 async function belongsToServedSession(args: {
@@ -36,19 +45,34 @@ export async function answerSetThreadModel(args: {
   const { model, retarget } = parsed.data
   const served = await args.transcript.threads.find({ threadId: args.threadId })
   if (served?.agent !== undefined) {
-    return refusedRequest({ replyTo: args.frame.id, message: 'a supervised agent runs the model it was spawned with' })
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'a supervised agent runs the model it was spawned with',
+    })
   }
   const threadId = toThreadId(parsed.data.threadId)
-  const target = threadId === args.threadId ? served : await args.transcript.threads.find({ threadId })
-  if (served === undefined || target === undefined || target.id !== threadId || !await belongsToServedSession({
-    threads: args.transcript.threads,
-    target,
-    servedId: args.threadId,
-  })) {
-    return refusedRequest({ replyTo: args.frame.id, message: 'the model target does not belong to this served session' })
+  const target =
+    threadId === args.threadId ? served : await args.transcript.threads.find({ threadId })
+  if (
+    served === undefined ||
+    target === undefined ||
+    target.id !== threadId ||
+    !(await belongsToServedSession({
+      threads: args.transcript.threads,
+      target,
+      servedId: args.threadId,
+    }))
+  ) {
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'the model target does not belong to this served session',
+    })
   }
   if (target.agent !== undefined && retarget !== true) {
-    return refusedRequest({ replyTo: args.frame.id, message: 'a supervised agent needs an explicit operator retarget to change its model' })
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'a supervised agent needs an explicit operator retarget to change its model',
+    })
   }
   await args.transcript.threads.chooseModel({
     threadId,

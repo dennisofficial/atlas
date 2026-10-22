@@ -69,7 +69,12 @@ describe('dedupeCallIds', () => {
   })
 
   it('renames each repeated call afresh, never handing the same new id out twice', () => {
-    const drafts = [called('bash_181', 0), denied('bash_181'), called('bash_181', 1), denied('bash_181')]
+    const drafts = [
+      called('bash_181', 0),
+      denied('bash_181'),
+      called('bash_181', 1),
+      denied('bash_181'),
+    ]
 
     expect(dedupeCallIds({ drafts, taken: new Set(['bash_181']) })).toEqual([
       called('bash_181~2', 0),

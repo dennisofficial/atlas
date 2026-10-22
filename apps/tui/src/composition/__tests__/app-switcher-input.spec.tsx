@@ -22,7 +22,10 @@ const READ_MS = 60
 
 async function opened(app: FakeApp): Promise<Mounted> {
   const setup = await testRender(
-    <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
     WIDE,
   )
   await setup.flush()

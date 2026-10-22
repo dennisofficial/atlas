@@ -184,7 +184,15 @@ describe('moveLocalPlacement', () => {
     const shells = new FakeShells([runningShell({ shellId: 'sh_1', threadId })])
     await control.state.activate({ threadId })
 
-    const outcome = await move({ control, fixture, threadId, target: EExecutionLocation.Docker, shells, services, agents })
+    const outcome = await move({
+      control,
+      fixture,
+      threadId,
+      target: EExecutionLocation.Docker,
+      shells,
+      services,
+      agents,
+    })
 
     expect(outcome.ok).toBe(true)
     expect(control.state.current()).toBe(EExecutionLocation.Docker)
@@ -234,9 +242,15 @@ describe('moveLocalPlacement', () => {
     const fixture = await openFixture()
     const control = controlOver({ initial: EExecutionLocation.Host, threads: fixture.threads })
     const parent = (await fixture.threads.create({})).id
-    const child = (await fixture.threads.create({ agent: { spawnedBy: parent, type: 'explore' } })).id
+    const child = (await fixture.threads.create({ agent: { spawnedBy: parent, type: 'explore' } }))
+      .id
 
-    const outcome = await move({ control, fixture, threadId: child, target: EExecutionLocation.Docker })
+    const outcome = await move({
+      control,
+      fixture,
+      threadId: child,
+      target: EExecutionLocation.Docker,
+    })
 
     expect(outcome.ok).toBe(false)
     if (!outcome.ok) expect(outcome.reason).toContain('sub-agents follow')
@@ -249,11 +263,19 @@ describe('moveLocalPlacement', () => {
     const control = controlOver({ initial: EExecutionLocation.Host, threads: fixture.threads })
     const agents = new FakeAgents()
     const main = (await fixture.threads.create({})).id
-    const teammate = (await fixture.threads.create({ agent: { spawnedBy: main, type: 'teammate' } })).id
+    const teammate = (
+      await fixture.threads.create({ agent: { spawnedBy: main, type: 'teammate' } })
+    ).id
     await control.state.activate({ threadId: main })
     await control.state.load({ threadId: teammate })
 
-    const outcome = await move({ control, fixture, threadId: teammate, target: EExecutionLocation.Docker, agents })
+    const outcome = await move({
+      control,
+      fixture,
+      threadId: teammate,
+      target: EExecutionLocation.Docker,
+      agents,
+    })
 
     expect(outcome.ok).toBe(true)
     expect(control.state.of(teammate)).toBe(EExecutionLocation.Docker)
@@ -301,7 +323,14 @@ describe('moveLocalPlacement', () => {
     const shells = new FakeShells([runningShell({ shellId: 'sh_1', threadId })])
     await control.state.activate({ threadId })
 
-    const outcome = await move({ control, fixture, threadId, target: EExecutionLocation.Docker, engine: downEngine, shells })
+    const outcome = await move({
+      control,
+      fixture,
+      threadId,
+      target: EExecutionLocation.Docker,
+      engine: downEngine,
+      shells,
+    })
 
     expect(outcome.ok).toBe(false)
     if (!outcome.ok) expect(outcome.reason).toContain('Docker daemon is not answering')
@@ -311,7 +340,11 @@ describe('moveLocalPlacement', () => {
 
   it('refuses to move a session the launch pinned', async () => {
     const fixture = await openFixture()
-    const control = controlOver({ initial: EExecutionLocation.Host, threads: fixture.threads, pinned: true })
+    const control = controlOver({
+      initial: EExecutionLocation.Host,
+      threads: fixture.threads,
+      pinned: true,
+    })
     const threadId = (await fixture.threads.create({})).id
 
     const outcome = await move({ control, fixture, threadId, target: EExecutionLocation.Docker })
@@ -323,7 +356,8 @@ describe('moveLocalPlacement', () => {
   it('refuses to leave the cloud, which only the operator moves', async () => {
     const fixture = await openFixture()
     const control = controlOver({ initial: EExecutionLocation.Cloud, threads: fixture.threads })
-    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Cloud })).id
+    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Cloud }))
+      .id
     await control.state.activate({ threadId })
 
     const outcome = await move({ control, fixture, threadId, target: EExecutionLocation.Host })
@@ -333,12 +367,14 @@ describe('moveLocalPlacement', () => {
     expect(control.state.current()).toBe(EExecutionLocation.Cloud)
   })
 
-  it('kills the moving sub-agent\'s shells with the root\'s but leaves a teammate\'s running', async () => {
+  it("kills the moving sub-agent's shells with the root's but leaves a teammate's running", async () => {
     const fixture = await openFixture()
     const control = controlOver({ initial: EExecutionLocation.Host, threads: fixture.threads })
     const root = (await fixture.threads.create({})).id
     const child = (await fixture.threads.create({ agent: { spawnedBy: root, type: 'explore' } })).id
-    const teammate = (await fixture.threads.create({ agent: { spawnedBy: root, type: 'teammate' } })).id
+    const teammate = (
+      await fixture.threads.create({ agent: { spawnedBy: root, type: 'teammate' } })
+    ).id
     const shells = new FakeShells([
       runningShell({ shellId: 'sh_root', threadId: root }),
       runningShell({ shellId: 'sh_child', threadId: child }),
@@ -346,7 +382,13 @@ describe('moveLocalPlacement', () => {
     ])
     await control.state.activate({ threadId: root })
 
-    const outcome = await move({ control, fixture, threadId: root, target: EExecutionLocation.Docker, shells })
+    const outcome = await move({
+      control,
+      fixture,
+      threadId: root,
+      target: EExecutionLocation.Docker,
+      shells,
+    })
 
     expect(outcome.ok).toBe(true)
     expect(shells.kills).toEqual([
@@ -366,7 +408,13 @@ describe('moveLocalPlacement', () => {
     const shells = new FakeShells([runningShell({ shellId: 'sh_1', threadId })], 1)
     await control.state.activate({ threadId })
 
-    const outcome = await move({ control, fixture, threadId, target: EExecutionLocation.Docker, shells })
+    const outcome = await move({
+      control,
+      fixture,
+      threadId,
+      target: EExecutionLocation.Docker,
+      shells,
+    })
 
     expect(outcome.ok).toBe(false)
     if (!outcome.ok) expect(outcome.reason).toContain('background shells have not stopped')
@@ -383,7 +431,13 @@ describe('moveLocalPlacement', () => {
     const threadId = (await fixture.threads.create({})).id
     await control.state.activate({ threadId })
 
-    const outcome = await move({ control, fixture, threadId, target: EExecutionLocation.Host, agents })
+    const outcome = await move({
+      control,
+      fixture,
+      threadId,
+      target: EExecutionLocation.Host,
+      agents,
+    })
 
     expect(outcome.ok).toBe(true)
     if (outcome.ok) {
@@ -392,6 +446,8 @@ describe('moveLocalPlacement', () => {
     }
     expect(agents.relocations).toEqual([])
     expect(await fixture.log.readOwn({ threadId })).toEqual([])
-    expect(control.state.snapshot(threadId)?.placement).toEqual(placementOf(EExecutionLocation.Host))
+    expect(control.state.snapshot(threadId)?.placement).toEqual(
+      placementOf(EExecutionLocation.Host),
+    )
   })
 })

@@ -21,7 +21,9 @@ describe('the settings page code-quality status', () => {
       expect(frame).toContain('Record code-quality examples')
       expect(frame).toContain('last recorded review')
       expect(frame).toContain('no recorded review')
-      expect(frame.indexOf('last recorded review')).toBeLessThan(frame.indexOf('Code quality review'))
+      expect(frame.indexOf('last recorded review')).toBeLessThan(
+        frame.indexOf('Code quality review'),
+      )
 
       setup.mockInput.pressTab({ shift: true })
       await landed(setup)

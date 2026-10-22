@@ -18,7 +18,9 @@ export async function appendPending({
   threadId,
   signal,
 }: {
-  drain: ((args: { threadId: ThreadId; signal?: AbortSignal | undefined }) => Promise<PendingDrain>) | undefined
+  drain:
+    | ((args: { threadId: ThreadId; signal?: AbortSignal | undefined }) => Promise<PendingDrain>)
+    | undefined
   log: EventLogPort
   ids: IdPort
   threadId: ThreadId

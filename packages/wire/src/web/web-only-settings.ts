@@ -17,8 +17,7 @@ const webEntry = (args: {
   key: string
   schema: CloudSettingEntry['schema']
   fallback: CloudSettingEntry['fallback']
-}): [string, CloudSettingEntry] =>
-  settingEntry({ ...args, consumer: ESettingConsumer.None })
+}): [string, CloudSettingEntry] => settingEntry({ ...args, consumer: ESettingConsumer.None })
 
 const boolEntry = (args: { key: string; fallback: boolean }) =>
   webEntry({ key: args.key, schema: z.boolean(), fallback: args.fallback })
@@ -56,9 +55,17 @@ export const WEB_ONLY_SETTING_ENTRIES = [
     schema: z.enum(EModelPreset),
     fallback: EModelPreset.Balanced,
   }),
-  webEntry({ key: 'web.models.subagentEffort', schema: effortSchema, fallback: EEffortLevel.Medium }),
+  webEntry({
+    key: 'web.models.subagentEffort',
+    schema: effortSchema,
+    fallback: EEffortLevel.Medium,
+  }),
   webEntry({ key: 'web.models.classifierModel', schema: z.string(), fallback: '' }),
-  webEntry({ key: 'web.models.classifierEffort', schema: effortSchema, fallback: EEffortLevel.Low }),
+  webEntry({
+    key: 'web.models.classifierEffort',
+    schema: effortSchema,
+    fallback: EEffortLevel.Low,
+  }),
   ...EXPERIMENTAL_DEFAULTS.map(([name, fallback]) =>
     boolEntry({ key: `web.experimental.${name}`, fallback }),
   ),

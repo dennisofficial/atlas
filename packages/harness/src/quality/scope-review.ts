@@ -33,7 +33,8 @@ export type UnitResult =
       resolvedModel?: string | undefined
     }
 
-const describeError = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const describeError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const failed = (facts: {
   status: EQualityReviewStatus
@@ -83,7 +84,8 @@ export async function executeUnit({
     requestedModel: JEV_QUALITY_MODEL,
   })
   const cached = cache.get({ key })
-  if (cached !== undefined) return { kind: 'assessed', assessments: cached, resolvedModel: JEV_QUALITY_MODEL }
+  if (cached !== undefined)
+    return { kind: 'assessed', assessments: cached, resolvedModel: JEV_QUALITY_MODEL }
 
   const raced = await settleUnderBudget({
     signal,
@@ -148,7 +150,11 @@ export async function executeUnit({
   }
 }
 
-function statusOf({ assessments }: { assessments: readonly QualityAssessment[] }): EQualityReviewStatus {
+function statusOf({
+  assessments,
+}: {
+  assessments: readonly QualityAssessment[]
+}): EQualityReviewStatus {
   if (assessments.some((assessment) => assessment.status === EQualityReviewStatus.Completed)) {
     return EQualityReviewStatus.Completed
   }
@@ -172,9 +178,7 @@ export async function reviewScopeJob({
   signal: AbortSignal
 }): Promise<UnitResult[]> {
   const executed = await Promise.all(
-    job.plan.units.map((unit) =>
-      executeUnit({ decisions, cache, scope: job.scope, unit, signal }),
-    ),
+    job.plan.units.map((unit) => executeUnit({ decisions, cache, scope: job.scope, unit, signal })),
   )
   const rejected = job.plan.rejected.map((entry): UnitResult => ({ kind: 'failed', ...entry }))
   return [...executed, ...rejected]
@@ -220,12 +224,19 @@ export function recordScope({
   }
 
   const assessments = assessed.flatMap((result) => result.assessments)
-  const step = applyAssessments({ previous, assessments, afterHash: scope.afterHash, scopeDeleted: false })
+  const step = applyAssessments({
+    previous,
+    assessments,
+    afterHash: scope.afterHash,
+    scopeDeleted: false,
+  })
   const policies = job.plan.units.flatMap((unit) => unit.policies)
   const notifiable = step.notifiable.flatMap((finding): NotifiableEntry[] => {
     const assessment = assessments.find((candidate) => candidate.policyId === finding.policyId)
     const policy = policies.find((candidate) => candidate.id === finding.policyId)
-    return assessment === undefined || policy === undefined ? [] : [{ finding, assessment, scope, policy }]
+    return assessment === undefined || policy === undefined
+      ? []
+      : [{ finding, assessment, scope, policy }]
   })
   const firstFailure = failures[0]
   const record = buildRecord({

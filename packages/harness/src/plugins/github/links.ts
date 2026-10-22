@@ -84,7 +84,14 @@ export function createPullRequestLinks(args: {
       drafted.add(identity)
       return {
         drafts: [
-          { type: 'pull-request-linked', number, url, repo, branch: checkout.branch, worktreePath: checkout.directory },
+          {
+            type: 'pull-request-linked',
+            number,
+            url,
+            repo,
+            branch: checkout.branch,
+            worktreePath: checkout.directory,
+          },
         ],
       }
     },

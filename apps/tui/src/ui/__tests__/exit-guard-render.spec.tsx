@@ -20,7 +20,9 @@ const RUNNING: readonly ExitGuardRow[] = [{ id: 'sh-1', tag: 'shell', label: RUN
 
 const OPTIONS = EXIT_GUARD_OPTIONS
 
-const guard = (over: { width?: number; running?: readonly ExitGuardRow[]; selected?: number } = {}) => (
+const guard = (
+  over: { width?: number; running?: readonly ExitGuardRow[]; selected?: number } = {},
+) => (
   <ExitGuard
     width={over.width ?? WIDTH}
     running={over.running ?? RUNNING}

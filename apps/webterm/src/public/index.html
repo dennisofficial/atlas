@@ -32,7 +32,7 @@
     <script src="https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
     <script src="https://unpkg.com/@xterm/addon-webgl@0.18.0/lib/addon-webgl.js"></script>
     <script>
-      (function () {
+      (() => {
         var token = new URLSearchParams(location.search).get('token') || '';
         var term = new Terminal({
           fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
@@ -70,14 +70,14 @@
           }
         }
 
-        ws.onopen = function () {
+        ws.onopen = () => {
           term.focus();
           sendResize();
         };
-        ws.onmessage = function (ev) {
+        ws.onmessage = (ev) => {
           if (typeof ev.data === 'string') {
             try {
-              var msg = JSON.parse(ev.data);
+              const msg = JSON.parse(ev.data);
               if (msg.t === 'exit') {
                 term.write('\r\n\x1b[33m[session exited with code ' + msg.code + ' — reload to restart]\x1b[0m\r\n');
               }
@@ -88,23 +88,23 @@
           }
           term.write(new Uint8Array(ev.data));
         };
-        ws.onclose = function () {
+        ws.onclose = () => {
           term.write('\r\n\x1b[31m[connection closed]\x1b[0m\r\n');
         };
-        ws.onerror = function () {
+        ws.onerror = () => {
           term.write('\r\n\x1b[31m[connection error]\x1b[0m\r\n');
         };
 
-        term.onData(function (data) {
+        term.onData((data) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ t: 'in', d: data }));
           }
         });
-        term.onResize(function () {
+        term.onResize(() => {
           sendResize();
         });
 
-        new ResizeObserver(function () {
+        new ResizeObserver(() => {
           fit.fit();
         }).observe(document.getElementById('frame'));
 
@@ -112,16 +112,16 @@
         // webfont finish loading, so it measures against unsettled geometry and
         // settles on too many rows — the bottom rows overflow until a manual
         // resize refits. Refit once those settle.
-        window.addEventListener('load', function () {
+        window.addEventListener('load', () => {
           fit.fit();
         });
         if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(function () {
+          document.fonts.ready.then(() => {
             fit.fit();
           });
         }
 
-        setInterval(function () {
+        setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ t: 'ping' }));
           }

@@ -24,7 +24,11 @@ async function tempHome(): Promise<string> {
 }
 
 const said = (text: string): EventDraft => ({ type: 'user-said', text })
-const entered = (path: string, branch: string): EventDraft => ({ type: 'worktree-entered', path, branch })
+const entered = (path: string, branch: string): EventDraft => ({
+  type: 'worktree-entered',
+  path,
+  branch,
+})
 const linked = (pr: LinkedPullRequest): EventDraft => ({ type: 'pull-request-linked', ...pr })
 
 function openLog({ home }: { home: string }): { log: JsonlEventLog; ids: CountingIds } {
@@ -33,7 +37,15 @@ function openLog({ home }: { home: string }): { log: JsonlEventLog; ids: Countin
   return { log: new JsonlEventLog(home, registry, new SteppingClock(), ids), ids }
 }
 
-function segmentOf({ home, threadId, upTo }: { home: string; threadId: string; upTo?: number }): PlaceSegment {
+function segmentOf({
+  home,
+  threadId,
+  upTo,
+}: {
+  home: string
+  threadId: string
+  upTo?: number
+}): PlaceSegment {
   return {
     threadId: toThreadId(threadId),
     sessionDir: sessionDirectory({ home, sessionId: toThreadId(threadId) }),
@@ -46,9 +58,16 @@ describe('the encoded event line the reader depends on', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
     const threadId = toThreadId('spec-thread-encoding')
-    await log.append({ threadId, runId: ids.nextRunId(), drafts: [entered('/work/.wt/order', 'dennis/order')] })
+    await log.append({
+      threadId,
+      runId: ids.nextRunId(),
+      drafts: [entered('/work/.wt/order', 'dennis/order')],
+    })
 
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     const line = (await readFile(file, 'utf8')).split('\n')[0] ?? ''
     expect(line.indexOf('"type"')).toBeLessThan(line.indexOf('"body"'))
   })
@@ -59,7 +78,11 @@ describe('the bounded place reader', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
     const threadId = toThreadId('spec-thread-giant-line')
-    await log.append({ threadId, runId: ids.nextRunId(), drafts: [entered('/work/.wt/first', 'dennis/first')] })
+    await log.append({
+      threadId,
+      runId: ids.nextRunId(),
+      drafts: [entered('/work/.wt/first', 'dennis/first')],
+    })
     await log.append({
       threadId,
       runId: ids.nextRunId(),
@@ -74,11 +97,18 @@ describe('the bounded place reader', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
     const threadId = toThreadId('spec-thread-external')
-    await log.append({ threadId, runId: ids.nextRunId(), drafts: [entered('/work/.wt/one', 'dennis/one')] })
+    await log.append({
+      threadId,
+      runId: ids.nextRunId(),
+      drafts: [entered('/work/.wt/one', 'dennis/one')],
+    })
     const first = await placesForSegments({ segments: [segmentOf({ home, threadId })] })
     expect(first.worktree?.branch).toBe('dennis/one')
 
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     const before = await stat(file)
     const line = JSON.stringify({
       v: 1,
@@ -103,10 +133,19 @@ describe('the bounded place reader', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
     const threadId = toThreadId('spec-thread-replaced')
-    await log.append({ threadId, runId: ids.nextRunId(), drafts: [entered('/work/.wt/one', 'dennis/one')] })
-    expect((await placesForSegments({ segments: [segmentOf({ home, threadId })] })).worktree?.branch).toBe('dennis/one')
+    await log.append({
+      threadId,
+      runId: ids.nextRunId(),
+      drafts: [entered('/work/.wt/one', 'dennis/one')],
+    })
+    expect(
+      (await placesForSegments({ segments: [segmentOf({ home, threadId })] })).worktree?.branch,
+    ).toBe('dennis/one')
 
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     const replacement = JSON.stringify({
       v: 1,
       id: 'spec-event-replacement',
@@ -120,15 +159,18 @@ describe('the bounded place reader', () => {
     })
     await writeFile(file, `${replacement}\n`, 'utf8')
 
-    expect((await placesForSegments({ segments: [segmentOf({ home, threadId })] })).worktree?.branch).toBe(
-      'dennis/replaced',
-    )
+    expect(
+      (await placesForSegments({ segments: [segmentOf({ home, threadId })] })).worktree?.branch,
+    ).toBe('dennis/replaced')
   })
 
   it('reads a line whose type key carries whitespace, as legacy JSON pretty-printing wrote it', async () => {
     const home = await tempHome()
     const threadId = toThreadId('spec-thread-whitespace')
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     await mkdir(join(file, '..'), { recursive: true })
     await writeFile(
       file,
@@ -146,7 +188,10 @@ describe('the bounded place reader', () => {
   it('reassembles a multi-byte path split across a read block boundary', async () => {
     const home = await tempHome()
     const threadId = toThreadId('spec-thread-utf8')
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     await mkdir(join(file, '..'), { recursive: true })
     const filler = JSON.stringify({
       v: 1,
@@ -168,7 +213,11 @@ describe('the bounded place reader', () => {
       depth: 0,
       at: '2026-01-01T00:00:01.000Z',
       type: 'worktree-entered',
-      body: { type: 'worktree-entered', path: '/work/.wt/日本語のブランチ', branch: 'dennis/日本語' },
+      body: {
+        type: 'worktree-entered',
+        path: '/work/.wt/日本語のブランチ',
+        branch: 'dennis/日本語',
+      },
     })
     await writeFile(file, `${filler}\n${line}\n`, 'utf8')
 
@@ -180,8 +229,15 @@ describe('the bounded place reader', () => {
     const home = await tempHome()
     const { log, ids } = openLog({ home })
     const threadId = toThreadId('spec-thread-torn')
-    await log.append({ threadId, runId: ids.nextRunId(), drafts: [entered('/work/.wt/whole', 'dennis/whole')] })
-    const file = eventLogFile({ sessionDir: sessionDirectory({ home, sessionId: threadId }), threadId })
+    await log.append({
+      threadId,
+      runId: ids.nextRunId(),
+      drafts: [entered('/work/.wt/whole', 'dennis/whole')],
+    })
+    const file = eventLogFile({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+      threadId,
+    })
     await appendFile(file, '{"v":1,"type":"worktree-entered","body":{"path":"/never', 'utf8')
 
     const places = await placesForSegments({ segments: [segmentOf({ home, threadId })] })
@@ -198,7 +254,12 @@ describe('the bounded place reader', () => {
       drafts: [
         said('first'),
         entered('/work/.wt/before-fork', 'dennis/before-fork'),
-        linked({ number: 401, url: 'https://github.com/acme/app/pull/401', repo: 'github.com/acme/app', branch: 'dennis/a' }),
+        linked({
+          number: 401,
+          url: 'https://github.com/acme/app/pull/401',
+          repo: 'github.com/acme/app',
+          branch: 'dennis/a',
+        }),
         entered('/work/.wt/after-fork', 'dennis/after-fork'),
       ],
     })

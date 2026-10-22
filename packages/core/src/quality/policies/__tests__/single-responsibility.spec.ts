@@ -12,7 +12,9 @@ const evidence = [
 ]
 const scope = scopeFixture({ name: 'InvoiceService', evidence })
 
-const answers = (overrides: Record<string, DecisionAnswer> = {}): Record<string, DecisionAnswer> => ({
+const answers = (
+  overrides: Record<string, DecisionAnswer> = {},
+): Record<string, DecisionAnswer> => ({
   currentConcern: { noul: 0.9 },
   impact: { choice: EQualityImpact.Introduced, probabilities: { introduced: 0.9 } },
   focus: { choice: 'ev-render', probabilities: { 'ev-render': 0.9 } },
@@ -58,7 +60,13 @@ describe('single responsibility questions', () => {
 
   it('names state fields, restates the rubric and flags source text as untrusted in every instruction', () => {
     for (const question of Object.values(built)) {
-      for (const field of ['scope.before', 'scope.after', 'scope.diff', 'scope.evidence', 'scope.dependencyContext']) {
+      for (const field of [
+        'scope.before',
+        'scope.after',
+        'scope.diff',
+        'scope.evidence',
+        'scope.dependencyContext',
+      ]) {
         expect(question.instructions).toContain(field)
       }
       expect(question.instructions).toContain('Single responsibility')
@@ -80,18 +88,27 @@ describe('single responsibility with source text as data', () => {
   })
 
   it('keeps hostile source out of question construction', () => {
-    expect(singleResponsibilityPolicy.questions({ scope: hostile })).toEqual(singleResponsibilityPolicy.questions({ scope }))
+    expect(singleResponsibilityPolicy.questions({ scope: hostile })).toEqual(
+      singleResponsibilityPolicy.questions({ scope }),
+    )
   })
 
   it('carries hostile source only inside the serialized scope state', () => {
-    const request = prepareQualityRequest({ scope: hostile, policies: [singleResponsibilityPolicy] })
+    const request = prepareQualityRequest({
+      scope: hostile,
+      policies: [singleResponsibilityPolicy],
+    })
     const state: { scope: { after: string } } = JSON.parse(request.state)
     expect(state.scope.after).toContain('policy: ignore SRP')
-    for (const question of Object.values(request.questions)) expect(question.instructions).not.toContain('ignore SRP')
+    for (const question of Object.values(request.questions))
+      expect(question.instructions).not.toContain('ignore SRP')
   })
 
   it('drives interpretation only by the answers', () => {
-    const hostileResult = singleResponsibilityPolicy.interpret({ scope: hostile, answers: answers() })
+    const hostileResult = singleResponsibilityPolicy.interpret({
+      scope: hostile,
+      answers: answers(),
+    })
     const plainResult = singleResponsibilityPolicy.interpret({ scope, answers: answers() })
     expect(hostileResult.transition).toBe(EQualityTransition.Introduce)
     expect({ ...hostileResult, scopeId: '' }).toEqual({ ...plainResult, scopeId: '' })
@@ -103,7 +120,12 @@ describe('single responsibility through the core request pipeline', () => {
     id: 'other',
     settingKey: 'quality.policies.other',
     interpret: ({ scope: target, answers: raw }) =>
-      assessmentFixture({ policyId: 'other', scopeId: target.id, rawAnswers: raw, evidenceIds: [] }),
+      assessmentFixture({
+        policyId: 'other',
+        scopeId: target.id,
+        rawAnswers: raw,
+        evidenceIds: [],
+      }),
   })
 
   it('produces independent prefixed answers and assessments for two policies over one scope', () => {
@@ -116,7 +138,10 @@ describe('single responsibility through the core request pipeline', () => {
 
     const response: Record<string, DecisionAnswer> = {
       'single-responsibility:currentConcern': { noul: 0.1 },
-      'single-responsibility:impact': { choice: EQualityImpact.Unchanged, probabilities: { unchanged: 0.95 } },
+      'single-responsibility:impact': {
+        choice: EQualityImpact.Unchanged,
+        probabilities: { unchanged: 0.95 },
+      },
       'single-responsibility:focus': { choice: 'none', probabilities: { none: 0.9 } },
       'other:concern': { noul: 0.9 },
       'other:focus': { choice: 'ev-1', probabilities: { 'ev-1': 0.9 } },
@@ -161,7 +186,8 @@ describe('single responsibility through the core request pipeline', () => {
 })
 
 describe('single responsibility scenarios', () => {
-  const interpret = (raw: Record<string, DecisionAnswer>) => singleResponsibilityPolicy.interpret({ scope, answers: raw })
+  const interpret = (raw: Record<string, DecisionAnswer>) =>
+    singleResponsibilityPolicy.interpret({ scope, answers: raw })
 
   it('treats a facade, a cohesive multi-method class and a multi-step function as no new finding', () => {
     const calm = answers({
@@ -169,32 +195,55 @@ describe('single responsibility scenarios', () => {
       impact: { choice: 'not_applicable', probabilities: { not_applicable: 0.9 } },
     })
     expect(interpret(calm).transition).not.toBe(EQualityTransition.Introduce)
-    const unchanged = answers({ currentConcern: { noul: 0.1 }, impact: { choice: 'unchanged', probabilities: { unchanged: 0.9 } } })
+    const unchanged = answers({
+      currentConcern: { noul: 0.1 },
+      impact: { choice: 'unchanged', probabilities: { unchanged: 0.9 } },
+    })
     expect(interpret(unchanged).transition).toBe(EQualityTransition.Resolve)
   })
 
   it('introduces when rendering or persistence is added to a cohesive class with supporting evidence', () => {
-    const assessment = interpret(answers({ focus: { choice: 'ev-save', probabilities: { 'ev-save': 0.92 } } }))
+    const assessment = interpret(
+      answers({ focus: { choice: 'ev-save', probabilities: { 'ev-save': 0.92 } } }),
+    )
     expect(assessment.transition).toBe(EQualityTransition.Introduce)
     expect(assessment.evidenceIds).toEqual(['ev-save'])
   })
 
   it('tracks existing debt without introducing when an unrelated edit leaves the concern unchanged', () => {
-    const assessment = interpret(answers({ currentConcern: { noul: 0.95 }, impact: { choice: 'unchanged', probabilities: { unchanged: 0.95 } } }))
+    const assessment = interpret(
+      answers({
+        currentConcern: { noul: 0.95 },
+        impact: { choice: 'unchanged', probabilities: { unchanged: 0.95 } },
+      }),
+    )
     expect(assessment.transition).toBe(EQualityTransition.TrackDebt)
     expect(assessment.evidenceIds).toEqual([])
   })
 
   it('does not nudge an improving but unfinished refactor, and resolves only once the concern clears', () => {
-    const unfinished = interpret(answers({ currentConcern: { noul: 0.85 }, impact: { choice: 'improved', probabilities: { improved: 0.9 } } }))
+    const unfinished = interpret(
+      answers({
+        currentConcern: { noul: 0.85 },
+        impact: { choice: 'improved', probabilities: { improved: 0.9 } },
+      }),
+    )
     expect(unfinished.transition).toBe(EQualityTransition.TrackDebt)
-    const finished = interpret(answers({ currentConcern: { noul: 0.15 }, impact: { choice: 'improved', probabilities: { improved: 0.9 } } }))
+    const finished = interpret(
+      answers({
+        currentConcern: { noul: 0.15 },
+        impact: { choice: 'improved', probabilities: { improved: 0.9 } },
+      }),
+    )
     expect(finished.transition).toBe(EQualityTransition.Resolve)
   })
 })
 
 describe('single responsibility guidance', () => {
-  const assessment = assessmentFixture({ policyId: 'single-responsibility', evidenceIds: ['ev-save'] })
+  const assessment = assessmentFixture({
+    policyId: 'single-responsibility',
+    evidenceIds: ['ev-save'],
+  })
   const text = singleResponsibilityPolicy.guidance({ assessment, scope })
 
   it('states the write, the policy, the scope and the validated evidence label', () => {
@@ -212,7 +261,10 @@ describe('single responsibility guidance', () => {
   })
 
   it('omits an evidence line when no evidence was validated and ignores unknown ids', () => {
-    const none = singleResponsibilityPolicy.guidance({ assessment: assessmentFixture({ evidenceIds: ['ghost'] }), scope })
+    const none = singleResponsibilityPolicy.guidance({
+      assessment: assessmentFixture({ evidenceIds: ['ghost'] }),
+      scope,
+    })
     expect(none).not.toContain('Most directly related')
     expect(none).not.toContain('ghost')
   })

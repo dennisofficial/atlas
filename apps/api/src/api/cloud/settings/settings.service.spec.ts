@@ -94,9 +94,7 @@ describe('SettingsService', () => {
     await service.set({ userId: USER_A, key: 'sandbox.image', value: 'new-value' })
 
     expect(fake.settings).toHaveLength(1)
-    expect(fake.settings[0]?.updatedAt.getTime()).toBeGreaterThan(
-      updatedAtBefore?.getTime() ?? 0,
-    )
+    expect(fake.settings[0]?.updatedAt.getTime()).toBeGreaterThan(updatedAtBefore?.getTime() ?? 0)
     expect((await service.list({ userId: USER_A }))[0]?.value).toBe('new-value')
   })
 
@@ -132,9 +130,9 @@ describe('SettingsService', () => {
     await expect(
       service.set({ userId: USER_A, key: 'k'.repeat(201), value: 'x' }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    await expect(
-      service.remove({ userId: USER_A, key: 'k'.repeat(201) }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    await expect(service.remove({ userId: USER_A, key: 'k'.repeat(201) })).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
     expect(fake.settings).toHaveLength(0)
   })
 

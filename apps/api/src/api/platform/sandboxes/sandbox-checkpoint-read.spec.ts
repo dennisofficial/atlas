@@ -84,10 +84,12 @@ describe('SandboxCheckpointController reads', () => {
 
 describe('storedCheckpointOf', () => {
   it('parses a valid payload only when payload, revision column, and row thread agree', () => {
+    expect(storedCheckpointOf({ threadId: THREAD, checkpoint: checkpoint(), revision: 3 })).toEqual(
+      checkpoint(),
+    )
     expect(
-      storedCheckpointOf({ threadId: THREAD, checkpoint: checkpoint(), revision: 3 }),
-    ).toEqual(checkpoint())
-    expect(storedCheckpointOf({ threadId: THREAD, checkpoint: checkpoint(), revision: 4 })).toBeNull()
+      storedCheckpointOf({ threadId: THREAD, checkpoint: checkpoint(), revision: 4 }),
+    ).toBeNull()
     expect(
       storedCheckpointOf({
         threadId: 'brn_other',
@@ -106,9 +108,9 @@ describe('storedCheckpointOf', () => {
 
   it('reads a parked phase as a first-class stored value', () => {
     const parked = checkpoint({ phase: ERuntimePhase.Parked, revision: 9 })
-    expect(
-      storedCheckpointOf({ threadId: THREAD, checkpoint: parked, revision: 9 }),
-    ).toEqual(parked)
+    expect(storedCheckpointOf({ threadId: THREAD, checkpoint: parked, revision: 9 })).toEqual(
+      parked,
+    )
   })
 
   it('reads a retired phase value as unparseable rather than serving it', () => {
@@ -121,4 +123,3 @@ describe('storedCheckpointOf', () => {
     ).toBeNull()
   })
 })
-

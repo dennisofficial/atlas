@@ -24,9 +24,7 @@ export type DirectoryMovePorts = {
   threadOpened: (args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>
 }
 
-export async function moveTowards(args: {
-  path: string
-}): Promise<DirectoryMove> {
+export async function moveTowards(args: { path: string }): Promise<DirectoryMove> {
   const canonical = await realpath(args.path).catch(() => args.path)
   const identity: WorkspaceIdentity = await probeWorkspace({ cwd: canonical })
   return { path: identity.workspace, repo: identity.repo }

@@ -32,21 +32,41 @@ it('keeps an inherited parent lock when relocated home and active directories di
   const child = toThreadId('brn_child_lock')
   const ids = new CountingIds('family-lock')
   await store.threads.createWithFirstEvents({
-    threadId: parent, runId: ids.nextRunId(), workspace: repository, repo: repository,
-    drafts: [{ type: 'user-said', text: 'parent' }, { type: 'worktree-entered', path: tree, branch: 'parent', adopted: true }],
+    threadId: parent,
+    runId: ids.nextRunId(),
+    workspace: repository,
+    repo: repository,
+    drafts: [
+      { type: 'user-said', text: 'parent' },
+      { type: 'worktree-entered', path: tree, branch: 'parent', adopted: true },
+    ],
   })
   await store.threads.createWithFirstEvents({
-    threadId: child, runId: ids.nextRunId(), workspace: tree, repo: repository,
-    agent: { spawnedBy: parent, type: 'teammate' }, drafts: [{ type: 'user-said', text: 'inherited' }],
+    threadId: child,
+    runId: ids.nextRunId(),
+    workspace: tree,
+    repo: repository,
+    agent: { spawnedBy: parent, type: 'teammate' },
+    drafts: [{ type: 'user-said', text: 'inherited' }],
   })
-  const reason = worktreeLockToken({ label: `thread ${parent}`, identity: { pid: process.pid, start: await startTimeOf({ pid: process.pid }) } })
+  const reason = worktreeLockToken({
+    label: `thread ${parent}`,
+    identity: { pid: process.pid, start: await startTimeOf({ pid: process.pid }) },
+  })
   await lockWorktree({ cwd: repository, path: tree, reason })
   const locked = async () => {
     const listed = await listWorktrees({ cwd: repository })
     if (!listed.ok) throw new Error(listed.message)
     return listed.worktrees.find((item) => item.path === tree)?.lockedReason
   }
-  await claimOpenedWorktree({ container: createIsolatedContainer(), threads: store.threads, log: store.log, threadId: child, projectDirectory: tree, notice: recordingNotices().port })
+  await claimOpenedWorktree({
+    container: createIsolatedContainer(),
+    threads: store.threads,
+    log: store.log,
+    threadId: child,
+    projectDirectory: tree,
+    notice: recordingNotices().port,
+  })
   expect(await locked()).toBe(reason)
   await releaseEndedWorktree({ threads: store.threads, log: store.log, threadId: child })
   expect(await locked()).toBe(reason)

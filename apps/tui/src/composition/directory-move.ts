@@ -24,11 +24,9 @@ export const directoryRefusal = (path: string): string | null =>
 export const IN_A_CONTAINER =
   '/cd moves the session on the host — this conversation runs in a container, where the directory is fixed. /container off first'
 
-export const currentDirectoryNotice = (path: string): string =>
-  `this session is working in ${path}`
+export const currentDirectoryNotice = (path: string): string => `this session is working in ${path}`
 
-export const movedDirectoryNotice = (path: string): string =>
-  `this session now works in ${path}`
+export const movedDirectoryNotice = (path: string): string => `this session now works in ${path}`
 
 export const alreadyThereNotice = (path: string): string => `already working in ${path}`
 

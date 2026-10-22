@@ -1,5 +1,10 @@
 import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
-import type { PendingEntryWire, PrStateWire, RosterWire, RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type {
+  PendingEntryWire,
+  PrStateWire,
+  RosterWire,
+  RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
 
 import type { DeltaChannel, Unsubscribe } from '../channel/delta-channel'
 import { EStepEnd } from '../channel/signal'

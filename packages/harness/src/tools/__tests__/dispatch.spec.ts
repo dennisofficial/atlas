@@ -30,11 +30,21 @@ const SESSION_DIRECTORY = '/workspace'
 describe('dispatching a call for a tool nobody registered', () => {
   it('answers the model with an error result naming the tool and what is available', async () => {
     const dispatcher = new HookedToolDispatcher({
-      registry: new InMemoryToolRegistry([toolNamed({ name: 'glob', invoke: async () => ({ ok: true, output: '', modelText: 'rendered' }) })]),
+      registry: new InMemoryToolRegistry([
+        toolNamed({
+          name: 'glob',
+          invoke: async () => ({ ok: true, output: '', modelText: 'rendered' }),
+        }),
+      ]),
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts).toHaveLength(1)
     expect(drafts[0]?.type).toBe('tool-result')
@@ -60,7 +70,12 @@ describe('dispatching a call no hook objects to', () => {
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts).toEqual([
       {
@@ -80,12 +95,20 @@ describe('dispatching a call the tool itself cannot complete', () => {
   it('renders a refused invocation as an error result the model can read', async () => {
     const dispatcher = new HookedToolDispatcher({
       registry: new InMemoryToolRegistry([
-        toolNamed({ name: 'read', invoke: async () => ({ ok: false, reason: 'a.ts does not exist' }) }),
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: false, reason: 'a.ts does not exist' }),
+        }),
       ]),
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts).toEqual([
       {
@@ -111,7 +134,12 @@ describe('dispatching a call the tool itself cannot complete', () => {
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts).toHaveLength(1)
     const error = drafts[0]?.type === 'tool-result' ? drafts[0].error?.message : undefined
@@ -135,7 +163,12 @@ describe('the two projections of a successful result', () => {
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts).toEqual([
       {
@@ -151,12 +184,20 @@ describe('the two projections of a successful result', () => {
   it('leaves an empty model-facing text empty rather than deciding what the model reads', async () => {
     const dispatcher = new HookedToolDispatcher({
       registry: new InMemoryToolRegistry([
-        toolNamed({ name: 'read', invoke: async () => ({ ok: true, output: 'contents', modelText: '' }) }),
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: true, output: 'contents', modelText: '' }),
+        }),
       ]),
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts[0]?.type === 'tool-result' ? drafts[0].modelText : 'absent').toBe('')
   })
@@ -164,12 +205,20 @@ describe('the two projections of a successful result', () => {
   it('leaves the model-facing text off a failure, whose voice is the error', async () => {
     const dispatcher = new HookedToolDispatcher({
       registry: new InMemoryToolRegistry([
-        toolNamed({ name: 'read', invoke: async () => ({ ok: false, reason: 'a.ts does not exist' }) }),
+        toolNamed({
+          name: 'read',
+          invoke: async () => ({ ok: false, reason: 'a.ts does not exist' }),
+        }),
       ]),
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch({ call: readCall, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    const drafts = await dispatcher.dispatch({
+      call: readCall,
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(drafts[0]?.type === 'tool-result' ? drafts[0].modelText : 'present').toBeUndefined()
   })
@@ -262,7 +311,12 @@ describe('dispatching a call the schema accepts and completes', () => {
       hooks: new HookChain({}),
     })
 
-    await dispatcher.dispatch({ call: { ...readCall, input: { path: 'a.ts' } }, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    await dispatcher.dispatch({
+      call: { ...readCall, input: { path: 'a.ts' } },
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(invocations[0]?.input).toEqual({ path: 'a.ts', limit: 50 })
   })
@@ -281,7 +335,12 @@ describe('dispatching a call the schema accepts and completes', () => {
       }),
     })
 
-    await dispatcher.dispatch({ call: { ...readCall, input: { path: 'a.ts' } }, signal: new AbortController().signal, projectDirectory: SESSION_DIRECTORY, events: [] })
+    await dispatcher.dispatch({
+      call: { ...readCall, input: { path: 'a.ts' } },
+      signal: new AbortController().signal,
+      projectDirectory: SESSION_DIRECTORY,
+      events: [],
+    })
 
     expect(seen).toEqual([{ path: 'a.ts', limit: 50 }])
   })
@@ -300,9 +359,7 @@ const speaking = (args: {
   run: async ({ call }) => ({ ...args.outcome(call), drafts: [noted(args.text)] }),
 })
 
-const dispatcherHearing = (
-  hooks: readonly RegisteredHook<BeforeTool>[],
-): HookedToolDispatcher =>
+const dispatcherHearing = (hooks: readonly RegisteredHook<BeforeTool>[]): HookedToolDispatcher =>
   new HookedToolDispatcher({
     registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke: succeeds })]),
     hooks: new HookChain({ beforeTool: hooks }),
@@ -337,7 +394,10 @@ describe('what a before-tool hook says while the dispatcher decides', () => {
         speaking({
           name: 'guard',
           text: 'judged unsafe',
-          outcome: () => ({ decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' }),
+          outcome: () => ({
+            decision: EBeforeToolDecision.Deny,
+            reason: 'outside the workspace root',
+          }),
         }),
       ]),
     )
@@ -365,7 +425,12 @@ describe('what a before-tool hook says while the dispatcher decides', () => {
     expect(drafts).toEqual([
       noted('judged clear'),
       noted('denied by boundary'),
-      { type: 'tool-denied', callId: toCallId('call-1'), name: 'read', reason: 'writes need a human' },
+      {
+        type: 'tool-denied',
+        callId: toCallId('call-1'),
+        name: 'read',
+        reason: 'writes need a human',
+      },
     ])
   })
 

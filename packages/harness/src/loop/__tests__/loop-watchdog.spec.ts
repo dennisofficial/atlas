@@ -15,7 +15,14 @@ import {
   type ToolDefinition,
 } from '@dltech/atlas-core'
 
-import { buildHarness, ELoopWatch, ETurnStatus, jevLoopWatch, type AtlasHarness, type LoopVerdict } from '..'
+import {
+  buildHarness,
+  ELoopWatch,
+  ETurnStatus,
+  jevLoopWatch,
+  type AtlasHarness,
+  type LoopVerdict,
+} from '..'
 import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookedToolDispatcher } from '../../tools/dispatch'
@@ -107,7 +114,9 @@ describe('jevLoopWatch', () => {
     const decisions = new FakeDecisions(looping(0.99))
     const watch = jevLoopWatch({ decisions, enabled: () => false })
 
-    expect((await watch({ events: watchableEvents(), signal: SIGNAL })).verdict).toBe(ELoopWatch.Clear)
+    expect((await watch({ events: watchableEvents(), signal: SIGNAL })).verdict).toBe(
+      ELoopWatch.Clear,
+    )
     expect(decisions.calls).toBe(0)
   })
 
@@ -129,7 +138,7 @@ describe('jevLoopWatch', () => {
     expect(lowVerdict).toEqual({ verdict: ELoopWatch.Clear, noul: 0.1 })
   })
 
-  it('reads the judge\'s loop-start pick only when it names a rendered step', async () => {
+  it("reads the judge's loop-start pick only when it names a rendered step", async () => {
     const pointed = jevLoopWatch({
       decisions: new FakeDecisions(looping(0.8, '2')),
       enabled: () => true,
@@ -144,8 +153,12 @@ describe('jevLoopWatch', () => {
     })
 
     expect((await pointed({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq).toBe(2)
-    expect((await unreadable({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq).toBeUndefined()
-    expect((await offWindow({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq).toBeUndefined()
+    expect(
+      (await unreadable({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq,
+    ).toBeUndefined()
+    expect(
+      (await offWindow({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq,
+    ).toBeUndefined()
   })
 
   it('fails open when the decision model cannot answer', async () => {
@@ -382,7 +395,13 @@ describe('the loop watchdog in a turn', () => {
     const nudges = nudgeTexts(events)
     expect(nudges).toHaveLength(1)
     expect(nudges[0]).toContain('cut')
-    expect(events.some((event) => event.type === 'assistant-said' && event.parts.some((part) => part.type === 'text' && part.text.includes('(1)')))).toBe(false)
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'assistant-said' &&
+          event.parts.some((part) => part.type === 'text' && part.text.includes('(1)')),
+      ),
+    ).toBe(false)
   })
 
   it('records each consulted verdict in the log, with its probability and pick', async () => {
@@ -403,9 +422,11 @@ describe('the loop watchdog in a turn', () => {
       (event) => event.type === 'loop-watch-verdict',
     )
     expect(verdicts.length).toBeGreaterThan(0)
-    expect(verdicts.some((event) => event.looping && event.probability === 0.83 && event.loopStartSeq === 2)).toBe(
-      true,
-    )
+    expect(
+      verdicts.some(
+        (event) => event.looping && event.probability === 0.83 && event.loopStartSeq === 2,
+      ),
+    ).toBe(true)
   })
 
   it('records an unreachable judge with its fault instead of a probability', async () => {
@@ -422,7 +443,11 @@ describe('the loop watchdog in a turn', () => {
       (event) => event.type === 'loop-watch-verdict',
     )
     expect(verdicts.length).toBeGreaterThan(0)
-    expect(verdicts.every((event) => event.consulted && !event.looping && event.fault === 'answered 502')).toBe(true)
+    expect(
+      verdicts.every(
+        (event) => event.consulted && !event.looping && event.fault === 'answered 502',
+      ),
+    ).toBe(true)
   })
 
   it('records a cleared verdict with the probability the judge scored', async () => {

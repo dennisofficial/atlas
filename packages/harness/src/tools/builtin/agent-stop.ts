@@ -12,7 +12,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { AgentRegistrySourceToken, type AgentRegistrySource } from './agent-tokens'
+import { type AgentRegistrySource } from './agent-tokens'
 
 const inputSchema = z.strictObject({
   agentId: z.string().min(1),
@@ -33,7 +33,7 @@ export class AgentStopTool extends SchemaTool<typeof inputSchema> {
   readonly inputSchema = inputSchema
   override readonly pathFields = TAKES_NO_PATHS
 
-  constructor( private readonly agents: AgentRegistrySource) {
+  constructor(private readonly agents: AgentRegistrySource) {
     super()
   }
 

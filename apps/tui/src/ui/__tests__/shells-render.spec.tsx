@@ -23,20 +23,21 @@ const STARTED_AT = '2026-08-27T12:00:00.000Z'
 
 const NOW = Date.parse(STARTED_AT) + 64_000
 
-const shell = (over: Omit<Partial<ShellSnapshot>, 'shellId'> & { shellId: string }): ShellSnapshot =>
-  ({
-    threadId: toThreadId('thread'),
-    command: 'bun test --watch',
-    description: 'Watch the tests',
-    status: EShellStatus.Running,
-    pid: 4242,
-    startedAt: STARTED_AT,
-    lastOutputAt: STARTED_AT,
-    totalCharacters: 0,
-    awaitingInput: false,
-    ...over,
-    shellId: toShellId(over.shellId),
-  })
+const shell = (
+  over: Omit<Partial<ShellSnapshot>, 'shellId'> & { shellId: string },
+): ShellSnapshot => ({
+  threadId: toThreadId('thread'),
+  command: 'bun test --watch',
+  description: 'Watch the tests',
+  status: EShellStatus.Running,
+  pid: 4242,
+  startedAt: STARTED_AT,
+  lastOutputAt: STARTED_AT,
+  totalCharacters: 0,
+  awaitingInput: false,
+  ...over,
+  shellId: toShellId(over.shellId),
+})
 
 async function framed(node: React.ReactNode): Promise<string[]> {
   const setup = await testRender(
@@ -54,10 +55,7 @@ async function framed(node: React.ReactNode): Promise<string[]> {
   }
 }
 
-const sidebarRows = (
-  shells: readonly ShellSnapshot[],
-  fold?: SidebarCrewFold,
-): Promise<string[]> =>
+const sidebarRows = (shells: readonly ShellSnapshot[], fold?: SidebarCrewFold): Promise<string[]> =>
   framed(
     <Sidebar
       width={SIDEBAR_WIDTH}

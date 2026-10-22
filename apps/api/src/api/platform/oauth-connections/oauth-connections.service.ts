@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { ReauthorizeConnectionDto, UploadConnectionDto } from './oauth-connections.dto'
 import {
@@ -48,15 +53,22 @@ export class OauthConnectionsService {
       provider: args.draft.provider,
       sealedTokens: this.seal(tokens),
     })
-    if (inserted) return this.toDto({ tokens, row: { generation: 0, authorizationId: args.connectionId } })
+    if (inserted)
+      return this.toDto({ tokens, row: { generation: 0, authorizationId: args.connectionId } })
     return this.issueAccessToken({ userId: args.userId, connectionId: args.connectionId })
   }
 
   async metadata(args: { userId: string; connectionId: string }): Promise<{
-    provider: string; authorizationId: string; generation: number
+    provider: string
+    authorizationId: string
+    generation: number
   }> {
     const row = await this.authorizedRow(args)
-    return { provider: row.provider, authorizationId: row.authorizationId, generation: row.generation }
+    return {
+      provider: row.provider,
+      authorizationId: row.authorizationId,
+      generation: row.generation,
+    }
   }
 
   async reauthorize(args: {
@@ -72,7 +84,10 @@ export class OauthConnectionsService {
     const current = () => this.issueAccessToken({ userId, connectionId })
     if (row.authorizationId === draft.authorizationId) return current()
 
-    const tokens: StoredTokens = { ...draft.tokens, issuedAt: new Date(this.clock.now()).toISOString() }
+    const tokens: StoredTokens = {
+      ...draft.tokens,
+      issuedAt: new Date(this.clock.now()).toISOString(),
+    }
     const replaced = await this.store.reauthorize({
       id: connectionId,
       userId,
@@ -134,7 +149,8 @@ export class OauthConnectionsService {
     sandboxId?: string
   }): Promise<ConnectionRow> {
     const row = await this.store.find({ id: args.connectionId })
-    if (row === null || row.userId !== args.userId) throw new NotFoundException('connection not found')
+    if (row === null || row.userId !== args.userId)
+      throw new NotFoundException('connection not found')
     if (args.sandboxId === undefined) return row
     const assigned = await this.store.isAssigned({
       connectionId: args.connectionId,
@@ -181,7 +197,9 @@ export class OauthConnectionsService {
     })
     if (!claimed) return undefined
     const fence = { id: args.row.id, attemptId, generation: args.row.generation }
-    const unavailable = new ServiceUnavailableException('the token issuer is unavailable; retry shortly')
+    const unavailable = new ServiceUnavailableException(
+      'the token issuer is unavailable; retry shortly',
+    )
 
     try {
       const issued = await this.issuer.refresh({

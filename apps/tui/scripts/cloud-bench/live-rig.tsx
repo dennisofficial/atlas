@@ -56,7 +56,8 @@ const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 const redactor = createRedactor()
 let liveRun: Run | null = null
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const holdKnownSecrets = (): void => {
   const token = liveRun?.current?.channel()?.attachment()?.token
@@ -68,14 +69,21 @@ const log = (line: string): void => {
   console.log(redactor.redact(`${new Date().toISOString()} ${line}`))
 }
 
-const headOf = (scenario: ScenarioHead): ScenarioHead => ({ id: scenario.id, slug: scenario.slug, title: scenario.title })
+const headOf = (scenario: ScenarioHead): ScenarioHead => ({
+  id: scenario.id,
+  slug: scenario.slug,
+  title: scenario.title,
+})
 
 const requireRig = (run: Run): RigApp => {
   if (run.current === null) throw new Error('the App is not mounted')
   return run.current
 }
 
-const mountWith = async (args: { run: Run; resumeThreadId?: ThreadId | undefined }): Promise<RigApp> => {
+const mountWith = async (args: {
+  run: Run
+  resumeThreadId?: ThreadId | undefined
+}): Promise<RigApp> => {
   const { mountRig } = await import('./rig-mount')
   const handleBirth = async (threadId: ThreadId): Promise<void> => {
     const name = sandboxNameFor({ threadId })
@@ -98,7 +106,10 @@ const closeWithin = async (rig: RigApp): Promise<void> => {
     () => 'closed',
     (error: unknown) => `close failed: ${messageOf(error)}`,
   )
-  const outcome = await Promise.race([closed, Bun.sleep(CLOSE_WITHIN_MS).then(() => 'close timed out')])
+  const outcome = await Promise.race([
+    closed,
+    Bun.sleep(CLOSE_WITHIN_MS).then(() => 'close timed out'),
+  ])
   if (outcome !== 'closed') log(`App ${outcome}`)
 }
 
@@ -128,7 +139,11 @@ const attempt = async (args: { run: Run; scenario: Scenario }): Promise<Scenario
     return await scenario.run(contextOf(run))
   } catch (error) {
     log(`scenario ${scenario.id} failed: ${messageOf(error)}`)
-    return failedEvidence({ scenario: headOf(scenario), error, tails: await failureTails({ rig: run.current, probes: run.probes }) })
+    return failedEvidence({
+      scenario: headOf(scenario),
+      error,
+      tails: await failureTails({ rig: run.current, probes: run.probes }),
+    })
   } finally {
     run.inFlight = null
   }
@@ -137,18 +152,31 @@ const attempt = async (args: { run: Run; scenario: Scenario }): Promise<Scenario
 const trustGate = async (run: Run): Promise<{ trust: RigTrust; log: EvidenceLog }> => {
   const rig = run.current
   const attachment = rig?.channel()?.attachment()
-  const untrusted = (reason: string) => ({ trust: { trusted: false, reason }, log: { label: 'trust gate', text: `UNTRUSTED: ${reason}` } })
-  if (rig === null || rig === undefined || attachment === undefined) return untrusted('no attached channel to read the stamps and Ready from')
+  const untrusted = (reason: string) => ({
+    trust: { trusted: false, reason },
+    log: { label: 'trust gate', text: `UNTRUSTED: ${reason}` },
+  })
+  if (rig === null || rig === undefined || attachment === undefined)
+    return untrusted('no attached channel to read the stamps and Ready from')
   redactor.hold(attachment.token)
   try {
-    const probe = await run.probes.box({ name: sandboxNameFor({ threadId: rig.threadId }), logLines: 1 })
-    const readyProtocol = await helloProtocol({ url: attachment.url, token: attachment.token, threadId: rig.threadId }).catch(
-      (error: unknown) => {
-        log(`trust gate: raw hello failed: ${messageOf(error)}`)
-        return null
-      },
-    )
-    const trust = combinedTrust({ version: probe.version, boxProtocol: probe.protocol, readyProtocol })
+    const probe = await run.probes.box({
+      name: sandboxNameFor({ threadId: rig.threadId }),
+      logLines: 1,
+    })
+    const readyProtocol = await helloProtocol({
+      url: attachment.url,
+      token: attachment.token,
+      threadId: rig.threadId,
+    }).catch((error: unknown) => {
+      log(`trust gate: raw hello failed: ${messageOf(error)}`)
+      return null
+    })
+    const trust = combinedTrust({
+      version: probe.version,
+      boxProtocol: probe.protocol,
+      readyProtocol,
+    })
     const text = [
       `provider ${probe.provider}`,
       `version stamp ${probe.version ?? 'unread'}`,
@@ -174,7 +202,9 @@ const runScenario = async (args: { run: Run; scenario: Scenario }): Promise<void
   const { run, scenario } = args
   const notRunReason = notRunReasonOf({ id: scenario.id, verdicts: run.verdicts })
   let evidence =
-    notRunReason === null ? await attempt({ run, scenario }) : notRunEvidence({ scenario: headOf(scenario), reason: notRunReason })
+    notRunReason === null
+      ? await attempt({ run, scenario })
+      : notRunEvidence({ scenario: headOf(scenario), reason: notRunReason })
   run.verdicts.set(scenario.id, evidence.verdict)
   if (scenario.id === FRESH_ID) {
     const gate = await trustGate(run)
@@ -189,11 +219,19 @@ const finish = async (args: { run: Run; interruptedBy: string | null }): Promise
   const { run } = args
   holdKnownSecrets()
   if (run.inFlight !== null && args.interruptedBy !== null) {
-    const evidence = failedEvidence({ scenario: run.inFlight, error: new Error(`interrupted by ${args.interruptedBy}`), tails: [] })
-    await record({ run, evidence }).catch((error: unknown) => log(`could not write the interrupted evidence: ${messageOf(error)}`))
+    const evidence = failedEvidence({
+      scenario: run.inFlight,
+      error: new Error(`interrupted by ${args.interruptedBy}`),
+      tails: [],
+    })
+    await record({ run, evidence }).catch((error: unknown) =>
+      log(`could not write the interrupted evidence: ${messageOf(error)}`),
+    )
   }
   if (run.current !== null) await closeWithin(run.current)
-  const swept = run.args.keep ? { destroyed: [], failures: [] } : await destroyLedgerNames({ ledger: run.ledger, probes: run.probes, log })
+  const swept = run.args.keep
+    ? { destroyed: [], failures: [] }
+    : await destroyLedgerNames({ ledger: run.ledger, probes: run.probes, log })
   const summary = renderSummary({
     startedAt: run.startedAt,
     finishedAt: new Date().toISOString(),
@@ -222,7 +260,9 @@ const finishOnce = (args: { run: Run; interruptedBy: string | null }): Promise<n
 const installSignalHandlers = (run: Run): void => {
   for (const signal of SIGNALS) {
     const handleSignal = (): void => {
-      log(`${signal}: writing the summary and destroying ledger sandboxes${run.args.keep ? ' (kept: --keep)' : ''}`)
+      log(
+        `${signal}: writing the summary and destroying ledger sandboxes${run.args.keep ? ' (kept: --keep)' : ''}`,
+      )
       void finishOnce({ run, interruptedBy: signal }).then(
         (code) => process.exit(code),
         () => process.exit(INTERRUPT_EXIT),
@@ -232,7 +272,11 @@ const installSignalHandlers = (run: Run): void => {
   }
 }
 
-const runCleanup = async (args: { env: RigEnv; ledger: Ledger; probes: Probes }): Promise<number> => {
+const runCleanup = async (args: {
+  env: RigEnv
+  ledger: Ledger
+  probes: Probes
+}): Promise<number> => {
   const swept = await destroyLedgerNames({ ledger: args.ledger, probes: args.probes, log })
   log(`cleanup: destroyed ${swept.destroyed.length}, failed ${swept.failures.length}`)
   await args.env.cleanup()

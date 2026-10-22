@@ -1,4 +1,4 @@
-import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
+import { type ServeFrame } from '@dltech/atlas-harness'
 
 export type SessionMirrorRevision = {
   current(): number

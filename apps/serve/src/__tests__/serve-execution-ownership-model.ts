@@ -23,10 +23,13 @@ export function scriptedPort(args: {
       if (preparation !== undefined) {
         let onAbort = (): void => undefined
         try {
-          await Promise.race([preparation, new Promise<never>((_resolve, reject) => {
-            onAbort = () => reject(new Error('test model aborted'))
-            signal?.addEventListener('abort', onAbort, { once: true })
-          })])
+          await Promise.race([
+            preparation,
+            new Promise<never>((_resolve, reject) => {
+              onAbort = () => reject(new Error('test model aborted'))
+              signal?.addEventListener('abort', onAbort, { once: true })
+            }),
+          ])
         } finally {
           signal?.removeEventListener('abort', onAbort)
         }

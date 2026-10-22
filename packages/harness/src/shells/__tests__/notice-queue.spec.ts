@@ -8,10 +8,7 @@ import { toShellId } from '../shell-id'
 
 const THREAD = toThreadId('thread-under-test')
 
-const snapshotOf = (args: {
-  shellId: string
-  status: EShellStatus
-}): ShellSnapshot => ({
+const snapshotOf = (args: { shellId: string; status: EShellStatus }): ShellSnapshot => ({
   shellId: toShellId(args.shellId),
   threadId: THREAD,
   command: 'echo done',
@@ -105,7 +102,9 @@ describe('reassigning a finished thread’s notices', () => {
     const queue = new ShellAttentionQueue()
     queue.queue({ kind: ENotice.Ended, snapshot: endedSnapshotOf('bash_1'), threadId: THREAD })
     let rang = 0
-    queue.onNotice(() => { rang += 1 })
+    queue.onNotice(() => {
+      rang += 1
+    })
 
     queue.reassign({ from: CHILD, to: PARENT })
 

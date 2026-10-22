@@ -1,33 +1,21 @@
-import {
-  CircleCheckIcon,
-  CircleDotIcon,
-  CircleIcon,
-  CircleXIcon,
-  RouteIcon,
-} from "lucide-react";
+import { CircleCheckIcon, CircleDotIcon, CircleIcon, CircleXIcon, RouteIcon } from 'lucide-react'
 
-import { Trace } from "#components/trace";
-import {
-  EStepStatus,
-  Step,
-  StepLine,
-  summarizeStatus,
-  traceStatusOf,
-} from "./internal/step";
+import { Trace } from '#components/trace'
+import { EStepStatus, Step, StepLine, summarizeStatus, traceStatusOf } from './internal/step'
 
-export { EStepStatus };
+export { EStepStatus }
 
 export interface PlanStep {
-  id: string;
-  title: string;
-  status: EStepStatus;
+  id: string
+  title: string
+  status: EStepStatus
 }
 
 export interface PlanProps {
-  title: string;
-  steps: PlanStep[];
-  description?: string;
-  defaultOpen?: boolean;
+  title: string
+  steps: PlanStep[]
+  description?: string
+  defaultOpen?: boolean
 }
 
 const STEP_ICON = {
@@ -35,22 +23,15 @@ const STEP_ICON = {
   [EStepStatus.Running]: <CircleDotIcon />,
   [EStepStatus.Pending]: <CircleIcon />,
   [EStepStatus.Error]: <CircleXIcon />,
-};
-
-export function countDone(steps: PlanStep[]): number {
-  return steps.filter((step) => step.status === EStepStatus.Done).length;
 }
 
-export function Plan({
-  title,
-  steps,
-  description,
-  defaultOpen = true,
-}: PlanProps) {
-  const unfinished = steps.some((step) => step.status !== EStepStatus.Done);
-  const status = unfinished
-    ? summarizeStatus(steps.map((step) => step.status))
-    : EStepStatus.Done;
+export function countDone(steps: PlanStep[]): number {
+  return steps.filter((step) => step.status === EStepStatus.Done).length
+}
+
+export function Plan({ title, steps, description, defaultOpen = true }: PlanProps) {
+  const unfinished = steps.some((step) => step.status !== EStepStatus.Done)
+  const status = unfinished ? summarizeStatus(steps.map((step) => step.status)) : EStepStatus.Done
 
   return (
     <Trace>
@@ -58,7 +39,7 @@ export function Plan({
         icon={<RouteIcon />}
         title={title}
         description={`${countDone(steps)} of ${steps.length} done`}
-        status={status === EStepStatus.Running ? "running" : undefined}
+        status={status === EStepStatus.Running ? 'running' : undefined}
         defaultOpen={defaultOpen}
         contentClassName="flex flex-col gap-3"
       >
@@ -75,5 +56,5 @@ export function Plan({
         </Trace>
       </Step>
     </Trace>
-  );
+  )
 }

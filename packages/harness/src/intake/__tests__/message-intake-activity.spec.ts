@@ -33,7 +33,9 @@ describe('intake activity', () => {
     intake.submit({ threadId: THREAD, text: 'work' })
     await flush()
     let releaseAppend = (): void => undefined
-    const gate = new Promise<void>((resolve) => { releaseAppend = resolve })
+    const gate = new Promise<void>((resolve) => {
+      releaseAppend = resolve
+    })
     const committing = intake.commit({ threadId: THREAD, append: () => gate })
     await flush()
     expect(intake.busy()).toBe(true)
@@ -56,11 +58,19 @@ describe('intake activity', () => {
   it('is busy while a wake is in flight, and settles when it does', async () => {
     const { intake } = fixture()
     let finish = (): void => undefined
-    const pendingWake = new Promise<void>((resolve) => { finish = resolve })
+    const pendingWake = new Promise<void>((resolve) => {
+      finish = resolve
+    })
     let blocked = false
     intake.register({
       threadId: THREAD,
-      driver: { blocked: () => blocked, wake: () => { blocked = true; return pendingWake } },
+      driver: {
+        blocked: () => blocked,
+        wake: () => {
+          blocked = true
+          return pendingWake
+        },
+      },
     })
     intake.submit({ threadId: THREAD, text: 'wake for this' })
     await flush()
@@ -87,7 +97,15 @@ describe('intake activity', () => {
   it('does not count suspension itself as busy, and resume restarts scheduling', async () => {
     const { intake } = fixture()
     let wakes = 0
-    intake.register({ threadId: THREAD, driver: { blocked: () => false, wake: () => { wakes += 1 } } })
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+        },
+      },
+    })
     intake.suspend()
     intake.submit({ threadId: THREAD, text: 'held while parked' })
     await flush()
@@ -124,7 +142,13 @@ describe('intake activity subscription', () => {
     let wakes = 0
     intake.register({
       threadId: THREAD,
-      driver: { blocked: () => false, wake: () => { wakes += 1; throw new Error('failed') } },
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+          throw new Error('failed')
+        },
+      },
     })
     intake.submit({ threadId: THREAD, text: 'report' })
     await flush()

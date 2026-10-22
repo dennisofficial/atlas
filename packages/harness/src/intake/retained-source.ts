@@ -14,14 +14,20 @@ export function retainedSource(args: {
   const witnesses = new Map<ThreadId, { pending: unknown; retained: unknown }>()
   return {
     subscribe: args.subscribe,
-    threadsWithPendingInput: () => [...new Set([
-      ...(args.threadsWithPendingInput?.() ?? args.threadsAwaitingInput()),
-      ...retained.keys(),
-    ])],
-    threadsAwaitingInput: () => [...new Set([
-      ...args.threadsAwaitingInput(),
-      ...[...retained].filter(([, drafts]) => drafts.some(isTurnTaking)).map(([threadId]) => threadId),
-    ])],
+    threadsWithPendingInput: () => [
+      ...new Set([
+        ...(args.threadsWithPendingInput?.() ?? args.threadsAwaitingInput()),
+        ...retained.keys(),
+      ]),
+    ],
+    threadsAwaitingInput: () => [
+      ...new Set([
+        ...args.threadsAwaitingInput(),
+        ...[...retained]
+          .filter(([, drafts]) => drafts.some(isTurnTaking))
+          .map(([threadId]) => threadId),
+      ]),
+    ],
     witness: ({ threadId }) => {
       const pending = args.witness({ threadId })
       const held = retained.get(threadId)

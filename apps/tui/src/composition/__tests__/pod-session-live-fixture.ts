@@ -26,7 +26,11 @@ export const READ_TRIGGER = 'read the marker'
 export type RecordedRequest = { body: ChatBody }
 
 type ChatMessage = { role: string; content?: unknown }
-type ChatBody = { stream?: boolean; tools?: { function?: { name?: string } }[]; messages: ChatMessage[] }
+type ChatBody = {
+  stream?: boolean
+  tools?: { function?: { name?: string } }[]
+  messages: ChatMessage[]
+}
 
 export type FakeModel = {
   url: string
@@ -39,7 +43,9 @@ const textOf = (content: unknown): string => {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
   return content
-    .map((part: unknown) => (typeof part === 'object' && part !== null && 'text' in part ? String(part.text) : ''))
+    .map((part: unknown) =>
+      typeof part === 'object' && part !== null && 'text' in part ? String(part.text) : '',
+    )
     .join('')
 }
 
@@ -60,9 +66,13 @@ const replyFor = ({ body, marker }: { body: ChatBody; marker: string }): Reply =
   if (!offersBash || last?.role !== 'user') return { text: 'ok' }
   const said = saidSinceLastAnswer({ messages: body.messages })
   if (said.includes(WRITE_TRIGGER)) {
-    return { command: `printf '%s' '${marker}' > pod-marker.txt && pwd`, description: 'write the marker' }
+    return {
+      command: `printf '%s' '${marker}' > pod-marker.txt && pwd`,
+      description: 'write the marker',
+    }
   }
-  if (said.includes(READ_TRIGGER)) return { command: 'cat pod-marker.txt', description: 'read the marker' }
+  if (said.includes(READ_TRIGGER))
+    return { command: 'cat pod-marker.txt', description: 'read the marker' }
   return { text: 'ok' }
 }
 
@@ -72,7 +82,9 @@ const chunk = (delta: object, finish: string | null) => ({
   created: 1,
   model: MODEL_ID,
   choices: [{ index: 0, delta, finish_reason: finish }],
-  ...(finish === null ? {} : { usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
+  ...(finish === null
+    ? {}
+    : { usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
 })
 
 const streamOf = (reply: Reply): Response => {
@@ -90,7 +102,10 @@ const streamOf = (reply: Reply): Response => {
                   type: 'function',
                   function: {
                     name: 'bash',
-                    arguments: JSON.stringify({ command: reply.command, description: reply.description }),
+                    arguments: JSON.stringify({
+                      command: reply.command,
+                      description: reply.description,
+                    }),
                   },
                 },
               ],
@@ -99,7 +114,10 @@ const streamOf = (reply: Reply): Response => {
           ),
           chunk({}, 'tool_calls'),
         ]
-  const body = [...frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`), 'data: [DONE]\n\n'].join('')
+  const body = [
+    ...frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`),
+    'data: [DONE]\n\n',
+  ].join('')
   return new Response(body, { headers: { 'content-type': 'text/event-stream' } })
 }
 
@@ -110,7 +128,11 @@ const completionOf = (reply: Reply): Response =>
     created: 1,
     model: MODEL_ID,
     choices: [
-      { index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'text' in reply ? reply.text : 'ok' } },
+      {
+        index: 0,
+        finish_reason: 'stop',
+        message: { role: 'assistant', content: 'text' in reply ? reply.text : 'ok' },
+      },
     ],
     usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   })
@@ -122,7 +144,8 @@ export const startFakeModel = ({ marker }: { marker: string }): FakeModel => {
     port: 0,
     hostname: '0.0.0.0',
     fetch: async (request) => {
-      if (new URL(request.url).pathname !== '/v1/chat/completions') return new Response('not found', { status: 404 })
+      if (new URL(request.url).pathname !== '/v1/chat/completions')
+        return new Response('not found', { status: 404 })
       const body = (await request.json()) as ChatBody
       requests.push(body)
       authorizations.push(request.headers.get('authorization'))
@@ -140,7 +163,13 @@ export const startFakeModel = ({ marker }: { marker: string }): FakeModel => {
   }
 }
 
-export const dockerCli = async ({ socket, args }: { socket: string; args: readonly string[] }): Promise<string> => {
+export const dockerCli = async ({
+  socket,
+  args,
+}: {
+  socket: string
+  args: readonly string[]
+}): Promise<string> => {
   const child = Bun.spawn(['docker', ...args], {
     env: { ...process.env, DOCKER_HOST: `unix://${socket}` },
     stdout: 'pipe',

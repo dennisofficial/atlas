@@ -108,7 +108,10 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
   })
 }
 
-async function composed(args: { bind: boolean; model?: ReturnType<typeof scriptedModel> }): Promise<{
+async function composed(args: {
+  bind: boolean
+  model?: ReturnType<typeof scriptedModel>
+}): Promise<{
   agents: AgentRegistryPort
   services: ServiceRegistryPort
   threads: ThreadStorePort
@@ -149,7 +152,12 @@ const settled = async (agents: AgentRegistryPort, agentId: ThreadId): Promise<EA
   const deadline = Date.now() + 5_000
   while (Date.now() < deadline) {
     const found = agents.listEverywhere().find((one) => one.agentId === agentId)
-    if (found !== undefined && found.status !== EAgentStatus.Running && agents.threadsAwaitingNotice().length > 0) return found.status
+    if (
+      found !== undefined &&
+      found.status !== EAgentStatus.Running &&
+      agents.threadsAwaitingNotice().length > 0
+    )
+      return found.status
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
   throw new Error('the child never settled')
@@ -232,7 +240,6 @@ describe('the ending a parent is meant to be woken by', () => {
     expect(agents.drainNotifications({ threadId: parent }).wakesTurn).toBe(true)
     expect(agents.pendingNotices({ threadId: parent })).toHaveLength(0)
   }, 30_000)
-
 })
 
 function gatedModel(): { model: ReturnType<typeof scriptedModel>; release: () => void } {

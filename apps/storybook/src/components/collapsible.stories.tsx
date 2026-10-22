@@ -1,23 +1,27 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ChevronsUpDownIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { ChevronsUpDownIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@dltech/atlas-ui/components/collapsible";
+} from '@dltech/atlas-ui/components/collapsible'
 
 const meta = {
-  title: "Components/Collapsible",
+  title: 'Components/Collapsible',
   component: Collapsible,
-} satisfies Meta<typeof Collapsible>;
+} satisfies Meta<typeof Collapsible>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-const files = ["apps/web/src/app/page.tsx", "apps/web/src/app/layout.tsx", "apps/web/src/lib/session.ts"];
+const files = [
+  'apps/web/src/app/page.tsx',
+  'apps/web/src/app/layout.tsx',
+  'apps/web/src/lib/session.ts',
+]
 
 export const Default: Story = {
   render: (args) => (
@@ -39,7 +43,7 @@ export const Default: Story = {
       </CollapsibleContent>
     </Collapsible>
   ),
-};
+}
 
 export const DefaultOpen: Story = {
   render: (args) => (
@@ -50,4 +54,4 @@ export const DefaultOpen: Story = {
       </CollapsibleContent>
     </Collapsible>
   ),
-};
+}

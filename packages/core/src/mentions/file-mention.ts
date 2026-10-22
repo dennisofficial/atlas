@@ -86,11 +86,7 @@ export function activeFilePathQuery(text: string): string | null {
   return text.slice(start)
 }
 
-export function completedFilePath(args: {
-  text: string
-  path: string
-  settled?: boolean
-}): string {
+export function completedFilePath(args: { text: string; path: string; settled?: boolean }): string {
   const query = activeFilePathQuery(args.text)
   if (query === null) return args.text
 

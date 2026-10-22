@@ -30,7 +30,9 @@ export type RegisteredMcp = {
   store: HandleStore
   rejections: readonly McpRejection[]
   /** Drives an interactive sign-in for a server that answered 401; absent when there is no secrets store. */
-  signIn: ((args: { serverUrl: string; wwwAuthenticate?: string }) => Promise<McpAuthResult>) | undefined
+  signIn:
+    | ((args: { serverUrl: string; wwwAuthenticate?: string }) => Promise<McpAuthResult>)
+    | undefined
 }
 
 const oauthFlowFrom = (container: DependencyContainer): McpOAuthFlow | undefined => {
@@ -59,7 +61,9 @@ export async function registerMcp(args: {
   await store.connectAll()
 
   args.container.register(portToken(DynamicToolSource), { useValue: store })
-  args.container.register(portToken(BeforeTurnHook), { useValue: new McpInstructionsHook({ store }) })
+  args.container.register(portToken(BeforeTurnHook), {
+    useValue: new McpInstructionsHook({ store }),
+  })
   registerDisposable({ container: args.container, close: () => store.closeAll() })
 
   const signIn =

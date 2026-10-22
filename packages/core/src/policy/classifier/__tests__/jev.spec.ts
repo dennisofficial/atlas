@@ -86,7 +86,9 @@ describe('jevLoopQuestions', () => {
   })
 
   it('names the difference between a loop and honest iteration', () => {
-    expect(jevLoopQuestions({ steps })[JEV_LOOP_KEY]?.instructions).toContain('progress, not a loop')
+    expect(jevLoopQuestions({ steps })[JEV_LOOP_KEY]?.instructions).toContain(
+      'progress, not a loop',
+    )
   })
 })
 
@@ -103,9 +105,9 @@ describe('jevAnswersSchema', () => {
   })
 
   it('rejects a probability outside 0..1', () => {
-    expect(
-      jevAnswersSchema.safeParse({ answers: { [JEV_RISK_KEY]: { noul: 1.4 } } }).success,
-    ).toBe(false)
+    expect(jevAnswersSchema.safeParse({ answers: { [JEV_RISK_KEY]: { noul: 1.4 } } }).success).toBe(
+      false,
+    )
   })
 
   it('reads whichever question keys the caller asked for', () => {
@@ -151,7 +153,10 @@ describe('jevAnswersSchema', () => {
   })
 
   it('preserves the top-level model identity', () => {
-    const parsed = jevAnswersSchema.safeParse({ model: 'jev-1.13.0', answers: { q: { noul: 0.2 } } })
+    const parsed = jevAnswersSchema.safeParse({
+      model: 'jev-1.13.0',
+      answers: { q: { noul: 0.2 } },
+    })
     expect(parsed.success).toBe(true)
     if (parsed.success) expect(parsed.data.model).toBe('jev-1.13.0')
   })

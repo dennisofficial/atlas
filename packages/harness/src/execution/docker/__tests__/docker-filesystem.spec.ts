@@ -31,9 +31,9 @@ describe('DockerFileSystemPort stat', () => {
       stderr: "stat: cannot statx '/work/missing': No such file or directory",
     }))
 
-    const failure = await files.stat({ path: '/work/missing', threadId: THREAD }).catch(
-      (error: unknown) => error,
-    )
+    const failure = await files
+      .stat({ path: '/work/missing', threadId: THREAD })
+      .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(RemoteFileError)
     expect((failure as RemoteFileError).code).toBe('ENOENT')
@@ -83,7 +83,7 @@ describe('DockerFileSystemPort read', () => {
   it('surfaces a missing file as ENOENT', async () => {
     const files = port(() => ({
       exitCode: 1,
-      stderr: "base64: /work/gone: No such file or directory",
+      stderr: 'base64: /work/gone: No such file or directory',
     }))
 
     const failure = await files.readBytes({ path: '/work/gone' }).catch((error: unknown) => error)
@@ -92,7 +92,7 @@ describe('DockerFileSystemPort read', () => {
   })
 
   it('returns null from readLink when the path is not a symlink', async () => {
-    const files = port(() => ({ exitCode: 1, stderr: "readlink: /work/f: Invalid argument" }))
+    const files = port(() => ({ exitCode: 1, stderr: 'readlink: /work/f: Invalid argument' }))
 
     expect(await files.readLink({ path: '/work/f' })).toBeNull()
   })
@@ -139,9 +139,14 @@ describe('DockerFileSystemPort readTextForEdit', () => {
   })
 
   it('surfaces a missing file as ENOENT', async () => {
-    const files = port(() => ({ exitCode: 1, stderr: 'base64: /work/gone: No such file or directory' }))
+    const files = port(() => ({
+      exitCode: 1,
+      stderr: 'base64: /work/gone: No such file or directory',
+    }))
 
-    const failure = await files.readTextForEdit({ path: '/work/gone' }).catch((error: unknown) => error)
+    const failure = await files
+      .readTextForEdit({ path: '/work/gone' })
+      .catch((error: unknown) => error)
 
     expect((failure as RemoteFileError).code).toBe('ENOENT')
   })

@@ -9,7 +9,12 @@ import { worktreeBlock } from '../worktree-block'
 const LAUNCH = '/w'
 const TREE = '/w/.atlas/worktrees/eng-327'
 
-const entered = { type: 'worktree-entered' as const, path: TREE, branch: 'dennis/eng-327', base: 'origin/main' }
+const entered = {
+  type: 'worktree-entered' as const,
+  path: TREE,
+  branch: 'dennis/eng-327',
+  base: 'origin/main',
+}
 
 const relocated = (to: EExecutionLocation) => ({
   type: 'location-changed' as const,
@@ -17,7 +22,10 @@ const relocated = (to: EExecutionLocation) => ({
   to,
 })
 
-const assembleWith = (events: ReturnType<typeof log>, options?: { repoRoot?: string; launch?: string }) => {
+const assembleWith = (
+  events: ReturnType<typeof log>,
+  options?: { repoRoot?: string; launch?: string },
+) => {
   const ctx = contextFor({ events })
   const withMessages = messagesFromEvents()({ system: [], messages: [] }, ctx)
   return worktreeBlock({ launchDirectory: options?.launch ?? LAUNCH, repoRoot: options?.repoRoot })(
@@ -31,7 +39,8 @@ const textsOf = (assembled: ReturnType<typeof assembleWith>): string[] =>
     entry.message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
   )
 
-const noteOf = (assembled: ReturnType<typeof assembleWith>): string => textsOf(assembled).at(-1) ?? ''
+const noteOf = (assembled: ReturnType<typeof assembleWith>): string =>
+  textsOf(assembled).at(-1) ?? ''
 
 describe('telling the model the project directory and any active worktree', () => {
   it('states the launch directory even when no worktree was ever entered', () => {
@@ -48,10 +57,12 @@ describe('telling the model the project directory and any active worktree', () =
   })
 
   it('keeps an invalid assistant tail visible to exchange validation', () => {
-    const assembled = assembleWith(log([
-      { type: 'user-said', text: 'request' },
-      { type: 'assistant-said', parts: [{ type: 'text', text: 'answer' }] },
-    ]))
+    const assembled = assembleWith(
+      log([
+        { type: 'user-said', text: 'request' },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'answer' }] },
+      ]),
+    )
 
     expect(assembled.messages.at(-1)?.message.role).toBe('assistant')
     expect(textsOf(assembled)).toEqual([operatorSaidAs('request'), 'answer'])
@@ -63,19 +74,26 @@ describe('telling the model the project directory and any active worktree', () =
     expect(note).toContain(`Project directory: ${TREE}`)
     expect(note).toContain('dennis/eng-327')
     expect(note).toContain('branched from origin/main')
-    expect(note).toContain("main checkout is at /w;")
+    expect(note).toContain('main checkout is at /w;')
   })
 
   it('never leaves the system prompt, and rides a user-role reminder anchored to the last event', () => {
     const assembled = assembleWith(
-      log([{ type: 'user-said', text: 'hello' }, entered, { type: 'user-said', text: 'much later' }]),
+      log([
+        { type: 'user-said', text: 'hello' },
+        entered,
+        { type: 'user-said', text: 'much later' },
+      ]),
     )
     const tail = assembled.messages.at(-1)
 
     expect(assembled.system).toEqual([])
     expect(tail?.message.role).toBe('user')
     expect(tail?.origin.seq).toBe(3)
-    expect(textsOf(assembled).slice(0, 2)).toEqual([operatorSaidAs('hello'), operatorSaidAs('much later')])
+    expect(textsOf(assembled).slice(0, 2)).toEqual([
+      operatorSaidAs('hello'),
+      operatorSaidAs('much later'),
+    ])
     expect(noteOf(assembled)).toStartWith('<system-context source="workspace"')
     expect(noteOf(assembled)).toContain(TREE)
   })
@@ -98,7 +116,9 @@ describe('telling the model the project directory and any active worktree', () =
 
   it('says an adopted worktree has no upstream rather than naming a base it does not have', () => {
     const note = noteOf(
-      assembleWith(log([{ type: 'worktree-entered', path: TREE, branch: 'lonely', adopted: true }])),
+      assembleWith(
+        log([{ type: 'worktree-entered', path: TREE, branch: 'lonely', adopted: true }]),
+      ),
     )
 
     expect(note).toContain('which has no upstream')
@@ -115,7 +135,10 @@ describe('telling the model the project directory and any active worktree', () =
   it('returns to the plain project directory once the worktree is exited, naming where it went back to', () => {
     const note = noteOf(
       assembleWith(
-        log([entered, { type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep, returnTo: '/repo' }]),
+        log([
+          entered,
+          { type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep, returnTo: '/repo' },
+        ]),
       ),
     )
 
@@ -168,13 +191,18 @@ describe('telling the model the project directory and any active worktree', () =
     const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Docker)])))
 
     expect(note).toContain('Execution location: a Docker container')
-    expect(note).toContain('only the project directory and explicitly mounted paths are shared with the host')
+    expect(note).toContain(
+      'only the project directory and explicitly mounted paths are shared with the host',
+    )
   })
 
   it('drops the sentence again once the session is back on the host', () => {
     const note = noteOf(
       assembleWith(
-        log([relocated(EExecutionLocation.Cloud), { ...relocated(EExecutionLocation.Host), from: EExecutionLocation.Cloud }]),
+        log([
+          relocated(EExecutionLocation.Cloud),
+          { ...relocated(EExecutionLocation.Host), from: EExecutionLocation.Cloud },
+        ]),
       ),
     )
 
@@ -184,7 +212,10 @@ describe('telling the model the project directory and any active worktree', () =
   it('answers the latest move when the session reached the cloud twice', () => {
     const note = noteOf(
       assembleWith(
-        log([relocated(EExecutionLocation.Docker), { ...relocated(EExecutionLocation.Cloud), from: EExecutionLocation.Docker }]),
+        log([
+          relocated(EExecutionLocation.Docker),
+          { ...relocated(EExecutionLocation.Cloud), from: EExecutionLocation.Docker },
+        ]),
       ),
     )
 

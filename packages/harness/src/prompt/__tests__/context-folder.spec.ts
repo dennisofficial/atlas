@@ -9,7 +9,12 @@ import {
   type PromptContext,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, registeredPortToken, resolveSet } from '../../container/injection'
+import {
+  createIsolatedContainer,
+  portToken,
+  registeredPortToken,
+  resolveSet,
+} from '../../container/injection'
 import { GrillingCeremonyEnabledToken } from '../../container/tokens'
 import { SkillRegistryPort } from '../../skills/port'
 import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
@@ -79,7 +84,9 @@ describe('the grilling ceremony flag', () => {
   })
 
   it('never compiles into a sub-agent prompt even when on', () => {
-    const prompt = registered({ grilling: true }).resolve(registeredPortToken(PromptRegistry)).compile(SUB)
+    const prompt = registered({ grilling: true })
+      .resolve(registeredPortToken(PromptRegistry))
+      .compile(SUB)
     expect(prompt.parts.some((part) => part.id === 'plan.grilling-ceremony')).toBe(false)
   })
 

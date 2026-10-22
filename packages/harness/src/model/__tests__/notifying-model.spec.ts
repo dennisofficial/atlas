@@ -112,9 +112,7 @@ describe('createNotifyingModel', () => {
     const caught = await capture(wrapped.doGenerate(OPTIONS))
 
     expect(caught).toBe(fault)
-    expect(faults).toEqual([
-      { providerId: 'anthropic', modelId: 'claude-haiku-4-5', fault },
-    ])
+    expect(faults).toEqual([{ providerId: 'anthropic', modelId: 'claude-haiku-4-5', fault }])
   })
 
   it('rethrows the original error even when onFault throws', async () => {
@@ -167,9 +165,7 @@ describe('createNotifyingModel', () => {
     const caught = await capture(wrapped.doStream(OPTIONS))
 
     expect(caught).toBe(fault)
-    expect(faults).toEqual([
-      { providerId: 'anthropic', modelId: 'claude-haiku-4-5', fault },
-    ])
+    expect(faults).toEqual([{ providerId: 'anthropic', modelId: 'claude-haiku-4-5', fault }])
   })
 
   it('reports a mid-stream error chunk once per call and still delivers it to the consumer', async () => {
@@ -194,28 +190,36 @@ describe('createNotifyingModel', () => {
     ])
   })
 
-  it.each([false, true])('reports a rejected stream reader once, prior error part: %s', async (errorPart) => {
-    const fault = retryable()
-    let delivered = false
-    const inner = new MockLanguageModelV4({
-      doStream: async () => ({ stream: new ReadableStream<LanguageModelV4StreamPart>({
-        pull(controller) {
-          if (errorPart && !delivered) {
-            delivered = true
-            controller.enqueue({ type: 'error', error: fault })
-            return
-          }
-          controller.error(fault)
-        },
-      }) }),
-    })
-    const faults: ModelFault[] = []
-    const wrapped = createNotifyingModel({ model: inner, onFault: (reading) => faults.push(reading) })
+  it.each([false, true])(
+    'reports a rejected stream reader once, prior error part: %s',
+    async (errorPart) => {
+      const fault = retryable()
+      let delivered = false
+      const inner = new MockLanguageModelV4({
+        doStream: async () => ({
+          stream: new ReadableStream<LanguageModelV4StreamPart>({
+            pull(controller) {
+              if (errorPart && !delivered) {
+                delivered = true
+                controller.enqueue({ type: 'error', error: fault })
+                return
+              }
+              controller.error(fault)
+            },
+          }),
+        }),
+      })
+      const faults: ModelFault[] = []
+      const wrapped = createNotifyingModel({
+        model: inner,
+        onFault: (reading) => faults.push(reading),
+      })
 
-    await expect(collect((await wrapped.doStream(OPTIONS)).stream)).rejects.toBe(fault)
-    expect(faults).toHaveLength(1)
-    expect(faults[0]?.fault).toBe(fault)
-  })
+      await expect(collect((await wrapped.doStream(OPTIONS)).stream)).rejects.toBe(fault)
+      expect(faults).toHaveLength(1)
+      expect(faults[0]?.fault).toBe(fault)
+    },
+  )
 
   it('reports only the first error chunk when one stream carries several', async () => {
     const chunks = [

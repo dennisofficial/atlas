@@ -20,7 +20,11 @@ const generated = (text: string): LanguageModelV4GenerateResult => ({
   warnings: [],
 })
 
-const delta = (text: string): LanguageModelV4StreamPart => ({ type: 'text-delta', id: 'one', delta: text })
+const delta = (text: string): LanguageModelV4StreamPart => ({
+  type: 'text-delta',
+  id: 'one',
+  delta: text,
+})
 
 const streamOf = (parts: readonly LanguageModelV4StreamPart[]): LanguageModelV4StreamResult => ({
   stream: new ReadableStream<LanguageModelV4StreamPart>({

@@ -1,7 +1,13 @@
 import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-import { ELogSeverity, LogPort, type ClockPort, type LogEntry, type ThreadId } from '@dltech/atlas-core'
+import {
+  ELogSeverity,
+  LogPort,
+  type ClockPort,
+  type LogEntry,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { sessionDirectory, sessionLogsFile } from './sessions/paths'
 import { ATLAS_LOGS_FILE_NAME } from './paths'
@@ -43,7 +49,10 @@ export class JsonlLog extends LogPort {
 
   record(entry: LogEntry): void {
     const line = `${JSON.stringify(this.lineOf({ entry }))}\n`
-    const write = entry.threadId === undefined ? this.appendGlobal({ line }) : this.appendSession({ line, entry })
+    const write =
+      entry.threadId === undefined
+        ? this.appendGlobal({ line })
+        : this.appendSession({ line, entry })
     const tracked = write.catch(() => {})
     this.pending.add(tracked)
     void tracked.finally(() => this.pending.delete(tracked))

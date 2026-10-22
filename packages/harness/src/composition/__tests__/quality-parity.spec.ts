@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EDefinitionOrigin, EFinishReason, EQualityReviewStatus, QualityReviewPort, TEAMMATE_AGENT_TYPE, toThreadId } from '@dltech/atlas-core'
+import {
+  EDefinitionOrigin,
+  EFinishReason,
+  EQualityReviewStatus,
+  QualityReviewPort,
+  TEAMMATE_AGENT_TYPE,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import { buildChildRunner, drainedSteering } from '../../agents/registry/child-runner'
 import type { AgentType } from '../../agents/types'
@@ -34,7 +41,13 @@ const writingModel = (rig: QualityRig) =>
     model: scriptedModel({
       script: [
         {
-          calls: [{ callId: 'child-write', name: 'write', input: { path: `${rig.project}/child.ts`, content: WIDGET_SOURCE } }],
+          calls: [
+            {
+              callId: 'child-write',
+              name: 'write',
+              input: { path: `${rig.project}/child.ts`, content: WIDGET_SOURCE },
+            },
+          ],
           finishReason: EFinishReason.ToolCalls,
         },
         { text: 'done' },
@@ -77,12 +90,19 @@ describe.each([
 
     const threadId = await rig.newThread()
     rig.enableReview()
-    const drafts = await rig.dispatchWrite({ threadId, relative: 'root.ts', content: WIDGET_SOURCE })
+    const drafts = await rig.dispatchWrite({
+      threadId,
+      relative: 'root.ts',
+      content: WIDGET_SOURCE,
+    })
     expect(typesOf(drafts)).toEqual(['tool-result', 'nudge'])
     expect(reviewsOf(drafts)).toHaveLength(1)
   })
 
-  it.each([{ kind: 'sub-agent', name: 'child' }, { kind: 'teammate', name: TEAMMATE_AGENT_TYPE }])(
+  it.each([
+    { kind: 'sub-agent', name: 'child' },
+    { kind: 'teammate', name: TEAMMATE_AGENT_TYPE },
+  ])(
     'reviews a real write by a $kind through the same real policy and logs the record',
     async ({ name }) => {
       const rig = await rigFor(command)

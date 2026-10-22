@@ -68,11 +68,19 @@ describe('precisionRecallF1', () => {
 
 describe('exactMatchAccuracy', () => {
   it('reports the ratio with numerator and denominator', () => {
-    expect(exactMatchAccuracy({ matches: 3, total: 4 })).toEqual({ value: 0.75, numerator: 3, denominator: 4 })
+    expect(exactMatchAccuracy({ matches: 3, total: 4 })).toEqual({
+      value: 0.75,
+      numerator: 3,
+      denominator: 4,
+    })
   })
 
   it('has null value for an empty total', () => {
-    expect(exactMatchAccuracy({ matches: 0, total: 0 })).toEqual({ value: null, numerator: 0, denominator: 0 })
+    expect(exactMatchAccuracy({ matches: 0, total: 0 })).toEqual({
+      value: null,
+      numerator: 0,
+      denominator: 0,
+    })
   })
 })
 
@@ -110,9 +118,28 @@ describe('timingStats', () => {
 describe('repeatFlipCount', () => {
   it('counts only cases with at least two trials and mixed outcomes', () => {
     const rowsByCase = new Map([
-      ['stable-pass', [{ trialId: 't1', passed: true }, { trialId: 't2', passed: true }]],
-      ['stable-fail', [{ trialId: 't1', passed: false }, { trialId: 't2', passed: false }]],
-      ['flips', [{ trialId: 't1', passed: true }, { trialId: 't2', passed: false }, { trialId: 't3', passed: true }]],
+      [
+        'stable-pass',
+        [
+          { trialId: 't1', passed: true },
+          { trialId: 't2', passed: true },
+        ],
+      ],
+      [
+        'stable-fail',
+        [
+          { trialId: 't1', passed: false },
+          { trialId: 't2', passed: false },
+        ],
+      ],
+      [
+        'flips',
+        [
+          { trialId: 't1', passed: true },
+          { trialId: 't2', passed: false },
+          { trialId: 't3', passed: true },
+        ],
+      ],
       ['single', [{ trialId: 't1', passed: true }]],
     ])
     expect(repeatFlipCount({ rowsByCase })).toBe(1)

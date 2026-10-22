@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { MoreHorizontalIcon } from "lucide-react";
+import { useState } from 'react'
+import { MoreHorizontalIcon } from 'lucide-react'
 
 import {
   AlertDialog,
@@ -10,9 +10,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@dltech/atlas-ui/components/alert-dialog";
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Button } from "@dltech/atlas-ui/components/button";
+} from '@dltech/atlas-ui/components/alert-dialog'
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,8 +24,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
-import { TableCell, TableRow } from "@dltech/atlas-ui/components/table";
+} from '@dltech/atlas-ui/components/dropdown-menu'
+import { TableCell, TableRow } from '@dltech/atlas-ui/components/table'
 
 import {
   ASSIGNABLE_ROLE_OPTIONS,
@@ -33,29 +33,27 @@ import {
   ROLE_LABELS,
   parseRole,
   type WorkspaceMember,
-} from "../../../fixtures/settings-workspace";
-import { Mono } from "../settings-layout";
-import { WorkspaceSelect } from "./workspace-select";
+} from '../../../fixtures/settings-workspace'
+import { Mono } from '../settings-layout'
+import { WorkspaceSelect } from './workspace-select'
 
 function MemberActions({
   member,
   onRoleChange,
   onRemoveRequest,
 }: {
-  member: WorkspaceMember;
-  onRoleChange: (role: EWorkspaceRole) => void;
-  onRemoveRequest: () => void;
+  member: WorkspaceMember
+  onRoleChange: (role: EWorkspaceRole) => void
+  onRemoveRequest: () => void
 }) {
   const handleRoleValue = (next: string) => {
-    const role = parseRole(next);
-    if (role) onRoleChange(role);
-  };
+    const role = parseRole(next)
+    if (role) onRoleChange(role)
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${member.name}`} />
-        }
+        render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${member.name}`} />}
       >
         <MoreHorizontalIcon />
       </DropdownMenuTrigger>
@@ -78,7 +76,7 @@ function MemberActions({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }
 
 export function WorkspaceMemberRow({
@@ -86,16 +84,16 @@ export function WorkspaceMemberRow({
   onRoleChange,
   onRemove,
 }: {
-  member: WorkspaceMember;
-  onRoleChange: (role: EWorkspaceRole) => void;
-  onRemove: () => void;
+  member: WorkspaceMember
+  onRoleChange: (role: EWorkspaceRole) => void
+  onRemove: () => void
 }) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const isOwner = member.role === EWorkspaceRole.Owner;
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const isOwner = member.role === EWorkspaceRole.Owner
   const handleRoleValue = (next: string) => {
-    const role = parseRole(next);
-    if (role) onRoleChange(role);
-  };
+    const role = parseRole(next)
+    if (role) onRoleChange(role)
+  }
   return (
     <TableRow>
       <TableCell className="py-2.5 pl-4">
@@ -154,5 +152,5 @@ export function WorkspaceMemberRow({
         </AlertDialog>
       </TableCell>
     </TableRow>
-  );
+  )
 }

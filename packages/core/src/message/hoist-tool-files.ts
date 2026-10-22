@@ -21,7 +21,10 @@ const anchorFor = (parts: readonly (ImagePart | FilePart)[]): string => {
   return `${label} from the tool result above${where}.`
 }
 
-function splitPart(part: ToolResultPart): { kept: ToolResultPart; files: (ImagePart | FilePart)[] } {
+function splitPart(part: ToolResultPart): {
+  kept: ToolResultPart
+  files: (ImagePart | FilePart)[]
+} {
   if (part.output.type !== 'content') return { kept: part, files: [] }
 
   const files = part.output.value.filter(
@@ -56,7 +59,9 @@ export function hoistToolResultFiles(args: { messages: readonly Message[] }): Me
     const toolMessage: ToolMessage = {
       role: 'tool',
       content: split.map((part) => part.kept),
-      ...(message.providerOptions === undefined ? {} : { providerOptions: message.providerOptions }),
+      ...(message.providerOptions === undefined
+        ? {}
+        : { providerOptions: message.providerOptions }),
     }
     hoisted.push(toolMessage)
 

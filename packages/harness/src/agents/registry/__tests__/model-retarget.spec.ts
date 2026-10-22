@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { defaultPipeline, EAgentStatus, EEffort, EKilledBy, PromptFragment, type ThreadId } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EAgentStatus,
+  EEffort,
+  EKilledBy,
+  PromptFragment,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type { MockLanguageModelV4 } from 'ai/test'
 
 import { CLAUDE, GPT, keyOf } from '../../../composition/__tests__/child-model-fixtures'
@@ -57,16 +64,21 @@ const systemPromptOf = (mock: MockLanguageModelV4, call: number): string => {
 }
 
 const statusOf = (opened: LifetimeOpened, agentId: ThreadId): EAgentStatus | undefined =>
-  opened.supervisor.list({ threadId: opened.main }).find((agent) => agent.agentId === agentId)?.status
+  opened.supervisor.list({ threadId: opened.main }).find((agent) => agent.agentId === agentId)
+    ?.status
 
 const modelOf = (opened: LifetimeOpened, agentId: ThreadId) =>
-  opened.supervisor.list({ threadId: opened.main }).find((agent) => agent.agentId === agentId)?.model
+  opened.supervisor.list({ threadId: opened.main }).find((agent) => agent.agentId === agentId)
+    ?.model
 
 describe('a stopped child retargeted to another model', () => {
   it('rebuilds on the picked provider with the picked effort and prompt, leaving parent and sibling alone', async () => {
     const opened = await open()
     const { supervisor, main, adapters, parent } = opened
-    adapters.anthropic.setScript([{ text: 'the sibling, on claude' }, { text: 'the sibling again, on claude' }])
+    adapters.anthropic.setScript([
+      { text: 'the sibling, on claude' },
+      { text: 'the sibling again, on claude' },
+    ])
     adapters.openai.setScript([{ text: 'the retargeted child, on gpt' }])
 
     const siblingId = await spawnChild(opened)

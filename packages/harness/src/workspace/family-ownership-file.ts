@@ -23,12 +23,17 @@ export const familyOwnershipSchema = z.object({
 export type FamilyOwnership = z.infer<typeof familyOwnershipSchema>
 export type FamilyCheckout = FamilyOwnership['checkouts'][number]
 
-const fileOf = ({ sessionDir }: { sessionDir: string }): string => join(sessionDir, FAMILY_OWNERSHIP_FILE)
+const fileOf = ({ sessionDir }: { sessionDir: string }): string =>
+  join(sessionDir, FAMILY_OWNERSHIP_FILE)
 
 const isMissing = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'ENOENT'
 
-export async function readFamilyOwnership({ sessionDir }: { sessionDir: string }): Promise<FamilyOwnership | null> {
+export async function readFamilyOwnership({
+  sessionDir,
+}: {
+  sessionDir: string
+}): Promise<FamilyOwnership | null> {
   let raw: string
   try {
     raw = await readFile(fileOf({ sessionDir }), 'utf8')

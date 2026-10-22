@@ -52,7 +52,13 @@ export function createHeartbeatLoop(args: {
     args.onNeedsCatchUp()
   }
 
-  const beatEntry = async ({ key, tickEpoch }: { key: string; tickEpoch: number }): Promise<void> => {
+  const beatEntry = async ({
+    key,
+    tickEpoch,
+  }: {
+    key: string
+    tickEpoch: number
+  }): Promise<void> => {
     await sleep(jitter(args.intervalMs))
     if (tickEpoch !== epoch) return
     const entry = args.book.holding({ key })

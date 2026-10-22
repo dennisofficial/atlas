@@ -1,8 +1,4 @@
-import {
-  EExecutionLocation,
-  locationOfPlacement,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, locationOfPlacement, type ThreadId } from '@dltech/atlas-core'
 
 import type { PlacementController } from './placement-controller'
 import { createSessionFreezes } from './session-freezes'
@@ -49,7 +45,10 @@ export function createSessionOwner<Adapters>(args: {
   const releaseFreeze = (threadId: ThreadId): void => freezes.release(threadId)
 
   const holdFreeze = (threadId: ThreadId): Promise<void> =>
-    freezes.hold({ threadId, freeze: (cloud?.threadId === threadId ? cloud.binding : local).freeze ?? baseFreeze })
+    freezes.hold({
+      threadId,
+      freeze: (cloud?.threadId === threadId ? cloud.binding : local).freeze ?? baseFreeze,
+    })
 
   const retiring = createRetirementQueue<RuntimeBinding<Adapters>>()
 
@@ -58,9 +57,7 @@ export function createSessionOwner<Adapters>(args: {
     for (const listener of [...listeners]) {
       try {
         listener()
-      } catch {
-        continue
-      }
+      } catch {}
     }
   }
 
@@ -102,8 +99,10 @@ export function createSessionOwner<Adapters>(args: {
     const threadId = placement.activeThread()
     const location = placement.current()
     const record = threadId === undefined ? undefined : placement.snapshot(threadId)
-    const attached = location === EExecutionLocation.Cloud && cloud !== undefined && cloud.threadId === threadId
-    const binding = location !== EExecutionLocation.Cloud ? local : attached ? cloud?.binding : undefined
+    const attached =
+      location === EExecutionLocation.Cloud && cloud !== undefined && cloud.threadId === threadId
+    const binding =
+      location !== EExecutionLocation.Cloud ? local : attached ? cloud?.binding : undefined
     const bound = binding !== undefined
     if (
       cached !== undefined &&
@@ -121,7 +120,8 @@ export function createSessionOwner<Adapters>(args: {
 
   const require = (): RuntimeBinding<Adapters> => {
     const view = snapshot()
-    if (view.binding === undefined) throw new Error('the cloud runtime is not attached — nothing may run until it is')
+    if (view.binding === undefined)
+      throw new Error('the cloud runtime is not attached — nothing may run until it is')
     return view.binding
   }
 
@@ -212,7 +212,8 @@ export function createSessionOwner<Adapters>(args: {
     activateLocal: async ({ threadId, binding, fallback }) => {
       await placement.activate({ threadId, fallback })
       if (binding !== undefined) local = binding
-      if (cloud?.threadId === threadId && placement.of(threadId) !== EExecutionLocation.Cloud) retireCloud()
+      if (cloud?.threadId === threadId && placement.of(threadId) !== EExecutionLocation.Cloud)
+        retireCloud()
       if (placement.of(threadId) !== EExecutionLocation.Cloud) releaseFreeze(threadId)
       notify()
     },

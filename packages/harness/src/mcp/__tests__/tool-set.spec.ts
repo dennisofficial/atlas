@@ -6,10 +6,7 @@ import { z } from 'zod'
 
 import { toToolSet } from '../../model/tool-set'
 
-const declarationOf = (args: {
-  name: string
-  jsonSchema?: unknown
-}): ToolDeclaration => ({
+const declarationOf = (args: { name: string; jsonSchema?: unknown }): ToolDeclaration => ({
   name: args.name,
   description: `the ${args.name} tool`,
   effect: EToolEffect.Write,

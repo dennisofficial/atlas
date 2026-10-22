@@ -90,7 +90,9 @@ export class ThreadsController {
     const sandbox = request.sandbox
     if (sandbox === undefined) return
     if (agent === undefined) {
-      throw new ForbiddenException('a sandbox token creates only sub-agent threads of its own family')
+      throw new ForbiddenException(
+        'a sandbox token creates only sub-agent threads of its own family',
+      )
     }
     await this.sandboxes.assertThreadInFamily({
       sandboxThreadId: sandbox.threadId,

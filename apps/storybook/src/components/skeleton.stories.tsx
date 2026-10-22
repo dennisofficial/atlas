@@ -1,15 +1,15 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Skeleton } from "@dltech/atlas-ui/components/skeleton";
+import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 const meta = {
-  title: "Components/Skeleton",
+  title: 'Components/Skeleton',
   component: Skeleton,
-} satisfies Meta<typeof Skeleton>;
+} satisfies Meta<typeof Skeleton>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -21,7 +21,7 @@ export const Default: Story = {
       </div>
     </div>
   ),
-};
+}
 
 export const List: Story = {
   render: () => (
@@ -31,4 +31,4 @@ export const List: Story = {
       ))}
     </div>
   ),
-};
+}

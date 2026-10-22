@@ -5,7 +5,9 @@ export enum EPickerOutcome {
   Cancelled = 'cancelled',
 }
 
-export type PickerOutcome = { kind: EPickerOutcome.Chosen; ids: readonly string[] } | { kind: EPickerOutcome.Cancelled }
+export type PickerOutcome =
+  | { kind: EPickerOutcome.Chosen; ids: readonly string[] }
+  | { kind: EPickerOutcome.Cancelled }
 
 export enum EPickerLine {
   Header = 'header',
@@ -16,7 +18,11 @@ export type PickerLine =
   | { kind: EPickerLine.Header; title: string; selected: number; total: number }
   | { kind: EPickerLine.Row; row: PlanRow }
 
-export type PickerState = { selected: ReadonlySet<string>; cursorId: string | null; showAll: boolean }
+export type PickerState = {
+  selected: ReadonlySet<string>
+  cursorId: string | null
+  showAll: boolean
+}
 
 const SECTIONS: readonly { kind: EPublishKind; title: string }[] = [
   { kind: EPublishKind.Skill, title: 'Skills' },
@@ -24,7 +30,13 @@ const SECTIONS: readonly { kind: EPublishKind; title: string }[] = [
   { kind: EPublishKind.Mcp, title: 'MCP config' },
 ]
 
-export function listOf({ rows, showAll }: { rows: readonly PlanRow[]; showAll: boolean }): readonly PlanRow[] {
+export function listOf({
+  rows,
+  showAll,
+}: {
+  rows: readonly PlanRow[]
+  showAll: boolean
+}): readonly PlanRow[] {
   const shown = showAll ? rows : rows.filter((row) => row.status !== EPublishStatus.Unchanged)
   return SECTIONS.flatMap((section) => shown.filter((row) => row.item.kind === section.kind))
 }
@@ -32,12 +44,24 @@ export function listOf({ rows, showAll }: { rows: readonly PlanRow[]; showAll: b
 export const carriedOver = (rows: readonly PlanRow[]): number =>
   rows.filter((row) => row.status === EPublishStatus.Unchanged).length
 
-export function startState({ rows, showAll }: { rows: readonly PlanRow[]; showAll: boolean }): PickerState {
+export function startState({
+  rows,
+  showAll,
+}: {
+  rows: readonly PlanRow[]
+  showAll: boolean
+}): PickerState {
   const selected = new Set(rows.filter((row) => row.selected).map((row) => row.item.id))
   return { selected, cursorId: listOf({ rows, showAll })[0]?.item.id ?? null, showAll }
 }
 
-export function toggleAllShown({ state, rows }: { state: PickerState; rows: readonly PlanRow[] }): PickerState {
+export function toggleAllShown({
+  state,
+  rows,
+}: {
+  state: PickerState
+  rows: readonly PlanRow[]
+}): PickerState {
   const shown = listOf({ rows, showAll: state.showAll }).map((row) => row.item.id)
   const selected = new Set(state.selected)
   const everyShownSelected = shown.every((id) => selected.has(id))
@@ -48,7 +72,13 @@ export function toggleAllShown({ state, rows }: { state: PickerState; rows: read
   return { ...state, selected }
 }
 
-export function pickerLines({ list, selected }: { list: readonly PlanRow[]; selected: ReadonlySet<string> }): readonly PickerLine[] {
+export function pickerLines({
+  list,
+  selected,
+}: {
+  list: readonly PlanRow[]
+  selected: ReadonlySet<string>
+}): readonly PickerLine[] {
   return SECTIONS.flatMap((section): PickerLine[] => {
     const own = list.filter((row) => row.item.kind === section.kind)
     if (own.length === 0) return []
@@ -60,7 +90,15 @@ export function pickerLines({ list, selected }: { list: readonly PlanRow[]; sele
   })
 }
 
-export function moveCursor({ state, rows, delta }: { state: PickerState; rows: readonly PlanRow[]; delta: number }): PickerState {
+export function moveCursor({
+  state,
+  rows,
+  delta,
+}: {
+  state: PickerState
+  rows: readonly PlanRow[]
+  delta: number
+}): PickerState {
   const list = listOf({ rows, showAll: state.showAll })
   if (list.length === 0) return state
   const at = list.findIndex((row) => row.item.id === state.cursorId)
@@ -75,17 +113,32 @@ export function toggleSelected({ state, id }: { state: PickerState; id: string }
   return { ...state, selected }
 }
 
-export function toggleShowAll({ state, rows }: { state: PickerState; rows: readonly PlanRow[] }): PickerState {
+export function toggleShowAll({
+  state,
+  rows,
+}: {
+  state: PickerState
+  rows: readonly PlanRow[]
+}): PickerState {
   const showAll = !state.showAll
   const list = listOf({ rows, showAll })
   const kept = list.some((row) => row.item.id === state.cursorId)
   return { ...state, showAll, cursorId: kept ? state.cursorId : (list[0]?.item.id ?? null) }
 }
 
-export function selectionOf({ rows, selected }: { rows: readonly PlanRow[]; selected: ReadonlySet<string> }): {
+export function selectionOf({
+  rows,
+  selected,
+}: {
+  rows: readonly PlanRow[]
+  selected: ReadonlySet<string>
+}): {
   ids: readonly string[]
   bytes: number
 } {
   const chosen = rows.filter((row) => selected.has(row.item.id))
-  return { ids: chosen.map((row) => row.item.id), bytes: chosen.reduce((total, row) => total + row.item.bytes, 0) }
+  return {
+    ids: chosen.map((row) => row.item.id),
+    bytes: chosen.reduce((total, row) => total + row.item.bytes, 0),
+  }
 }

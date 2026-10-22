@@ -28,7 +28,11 @@ export {
   shellEndingFailed,
   type ShellEnding,
 } from './shell-ended-line'
-export { serviceEndedLine, serviceEndingFailed, type ServiceEndedNotice } from './service-ended-line'
+export {
+  serviceEndedLine,
+  serviceEndingFailed,
+  type ServiceEndedNotice,
+} from './service-ended-line'
 export { prEventLine, prEventFailed } from './pr-event-line'
 export {
   advancedGate,
@@ -88,7 +92,7 @@ export {
   type SidebarTeammate,
 } from './sidebar-model'
 export { cloudPillOf, isResting, type SidebarCloud } from './cloud-state'
-export { type SidebarCrewFold, type SidebarSubagent } from './subagent-row'
+export type { SidebarCrewFold, SidebarSubagent } from './subagent-row'
 export {
   IDLE_PROGRESS,
   turnAdvanced,

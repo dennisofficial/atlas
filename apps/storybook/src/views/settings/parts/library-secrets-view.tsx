@@ -1,28 +1,24 @@
-import { useState, type ReactNode } from "react";
-import { KeyRoundIcon, PlusIcon } from "lucide-react";
+import { useState, type ReactNode } from 'react'
+import { KeyRoundIcon, PlusIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@dltech/atlas-ui/components/empty";
+} from '@dltech/atlas-ui/components/empty'
 
 import {
   ELibraryScope,
   type LibrarySecret,
   type LibraryMember,
-} from "../../../fixtures/settings-library";
-import { SettingsCard, SettingsPage, SettingsSection } from "../settings-layout";
-import { LibraryConfirmDialog } from "./library-confirm-dialog";
-import {
-  BulkAddDialog,
-  SecretDialog,
-  type SecretEntry,
-} from "./library-secret-dialogs";
-import { SecretRow } from "./library-secret-row";
+} from '../../../fixtures/settings-library'
+import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
+import { LibraryConfirmDialog } from './library-confirm-dialog'
+import { BulkAddDialog, SecretDialog, type SecretEntry } from './library-secret-dialogs'
+import { SecretRow } from './library-secret-row'
 
 export function SecretsView({
   scope,
@@ -32,27 +28,27 @@ export function SecretsView({
   initial,
   currentMember,
 }: {
-  scope: ELibraryScope;
-  description: ReactNode;
-  sectionDescription: string;
-  lead?: ReactNode;
-  initial: LibrarySecret[];
-  currentMember: LibraryMember;
+  scope: ELibraryScope
+  description: ReactNode
+  sectionDescription: string
+  lead?: ReactNode
+  initial: LibrarySecret[]
+  currentMember: LibraryMember
 }) {
-  const [secrets, setSecrets] = useState(initial);
-  const [addOpen, setAddOpen] = useState(false);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [editing, setEditing] = useState<LibrarySecret | null>(null);
-  const [deleting, setDeleting] = useState<LibrarySecret | null>(null);
+  const [secrets, setSecrets] = useState(initial)
+  const [addOpen, setAddOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [editing, setEditing] = useState<LibrarySecret | null>(null)
+  const [deleting, setDeleting] = useState<LibrarySecret | null>(null)
 
   const handleAdd = (entry: SecretEntry) => {
     setSecrets((current) => [
-      { id: `new-${entry.key}`, ...entry, updated: "just now", addedBy: currentMember },
+      { id: `new-${entry.key}`, ...entry, updated: 'just now', addedBy: currentMember },
       ...current.filter((secret) => secret.key !== entry.key),
-    ]);
-  };
+    ])
+  }
 
-  const handleBulkAdd = (entries: SecretEntry[]) => entries.forEach(handleAdd);
+  const handleBulkAdd = (entries: SecretEntry[]) => entries.forEach(handleAdd)
 
   const handleEdit = (entry: SecretEntry) => {
     setSecrets((current) =>
@@ -62,19 +58,19 @@ export function SecretsView({
               ...secret,
               kind: entry.kind,
               value: entry.value || secret.value,
-              updated: "just now",
+              updated: 'just now',
             }
           : secret,
       ),
-    );
-  };
+    )
+  }
 
   const handleDelete = () => {
-    setSecrets((current) => current.filter((secret) => secret.id !== deleting?.id));
-    setDeleting(null);
-  };
+    setSecrets((current) => current.filter((secret) => secret.id !== deleting?.id))
+    setDeleting(null)
+  }
 
-  const isWorkspace = scope === ELibraryScope.Workspace;
+  const isWorkspace = scope === ELibraryScope.Workspace
 
   return (
     <SettingsPage title="Secrets & Env Vars" description={description}>
@@ -102,7 +98,7 @@ export function SecretsView({
               </EmptyMedia>
               <EmptyTitle>No secrets or environment variables yet.</EmptyTitle>
               <EmptyDescription>
-                Add a value and it is injected into {isWorkspace ? "every member's" : "your"}{" "}
+                Add a value and it is injected into {isWorkspace ? "every member's" : 'your'}{' '}
                 sandboxes.
               </EmptyDescription>
             </EmptyHeader>
@@ -131,7 +127,7 @@ export function SecretsView({
         onSubmit={handleAdd}
       />
       <SecretDialog
-        key={`edit-${editing?.id ?? "none"}`}
+        key={`edit-${editing?.id ?? 'none'}`}
         open={editing !== null}
         onOpenChange={(open) => (open ? undefined : setEditing(null))}
         scope={scope}
@@ -147,15 +143,15 @@ export function SecretsView({
       <LibraryConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => (open ? undefined : setDeleting(null))}
-        title={`Delete ${deleting?.key ?? "value"}?`}
+        title={`Delete ${deleting?.key ?? 'value'}?`}
         description={
           isWorkspace
-            ? "Threads in this workspace stop receiving it on their next sandbox start."
-            : "Your threads stop receiving it on their next sandbox start."
+            ? 'Threads in this workspace stop receiving it on their next sandbox start.'
+            : 'Your threads stop receiving it on their next sandbox start.'
         }
         confirmLabel="Delete"
         onConfirm={handleDelete}
       />
     </SettingsPage>
-  );
+  )
 }

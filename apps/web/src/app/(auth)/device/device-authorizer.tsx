@@ -91,15 +91,15 @@ export function DeviceAuthorizer() {
         {step === EDeviceStep.Ready && (
           <>
             <p className="text-sm text-muted-foreground">
-              A device is asking to sign in to your Atlas account. Confirm the code matches what
-              the device shows.
+              A device is asking to sign in to your Atlas account. Confirm the code matches what the
+              device shows.
             </p>
-            <p
+            <output
               aria-label="Device code"
-              className="rounded-lg border bg-muted px-4 py-3 text-center font-mono text-2xl font-medium tracking-widest text-foreground"
+              className="block rounded-lg border bg-muted px-4 py-3 text-center font-mono text-2xl font-medium tracking-widest text-foreground"
             >
               {userCode}
-            </p>
+            </output>
             <div className="flex flex-col gap-2">
               <Button size="lg" onClick={() => void handleAct('approve')}>
                 Approve

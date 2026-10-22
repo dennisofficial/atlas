@@ -73,7 +73,8 @@ export const fakeEngine = (args?: {
       hostConfig: { nanoCpus: 0, memoryBytes: 0 },
     }),
     info: async () => ({ cpus: 64, memoryBytes: 1024 ** 4 }),
-    listNetworks: async () => networks.map((name, index) => ({ id: `net-${index}`, name, labels: {} })),
+    listNetworks: async () =>
+      networks.map((name, index) => ({ id: `net-${index}`, name, labels: {} })),
     createNetwork: async (network) => {
       networks.push(network.name)
       return { id: `net-${networks.length - 1}` }
@@ -91,7 +92,8 @@ export const fakeEngine = (args?: {
       execs.push({ cmd: execArgs.cmd, user: execArgs.user })
       return { id: `exec-${execs.length}` }
     },
-    startExec: async () => new ReadableStream<Uint8Array>({ start: (controller) => controller.close() }),
+    startExec: async () =>
+      new ReadableStream<Uint8Array>({ start: (controller) => controller.close() }),
     inspectExec: async () => ({ running: false, exitCode: exitCodes.shift() ?? 0 }),
     images: {
       listImages: async () => [],

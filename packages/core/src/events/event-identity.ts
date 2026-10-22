@@ -55,7 +55,8 @@ const compressChunk = ({
     const later = schedule[index - 2] ?? 0
     const smallSigma0 = rotateRight(earlier, 7) ^ rotateRight(earlier, 18) ^ (earlier >>> 3)
     const smallSigma1 = rotateRight(later, 17) ^ rotateRight(later, 19) ^ (later >>> 10)
-    schedule[index] = ((schedule[index - 16] ?? 0) + smallSigma0 + (schedule[index - 7] ?? 0) + smallSigma1) >>> 0
+    schedule[index] =
+      ((schedule[index - 16] ?? 0) + smallSigma0 + (schedule[index - 7] ?? 0) + smallSigma1) >>> 0
   }
 
   let a = state[0] ?? 0
@@ -70,7 +71,8 @@ const compressChunk = ({
   for (let round = 0; round < SHA256_WORDS; round++) {
     const bigSigma1 = rotateRight(e, 6) ^ rotateRight(e, 11) ^ rotateRight(e, 25)
     const choice = (e & f) ^ (~e & g)
-    const temp1 = (h + bigSigma1 + choice + (SHA256_ROUND_CONSTANTS[round] ?? 0) + (schedule[round] ?? 0)) >>> 0
+    const temp1 =
+      (h + bigSigma1 + choice + (SHA256_ROUND_CONSTANTS[round] ?? 0) + (schedule[round] ?? 0)) >>> 0
     const bigSigma0 = rotateRight(a, 2) ^ rotateRight(a, 13) ^ rotateRight(a, 22)
     const majority = (a & b) ^ (a & c) ^ (b & c)
     const temp2 = (bigSigma0 + majority) >>> 0
@@ -107,7 +109,11 @@ export function sha256Hex(bytes: Uint8Array): string {
   return hex
 }
 
-const identityOf = (event: EventIdentity): [string, number, string] => [event.id, event.seq, event.type]
+const identityOf = (event: EventIdentity): [string, number, string] => [
+  event.id,
+  event.seq,
+  event.type,
+]
 
 const bySeq = (a: [string, number, string], b: [string, number, string]): number => a[1] - b[1]
 

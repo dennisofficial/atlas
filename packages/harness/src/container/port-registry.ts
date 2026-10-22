@@ -23,28 +23,38 @@ import type { UserLayerSyncPort } from '../user-layer-sync/port'
 
 declare module '@dltech/atlas-core' {
   interface PortRegistryEntries {
-    readonly ThreadStorePort: PortRegistryEntry<ThreadStorePort> & { readonly transport: 'detached' }
+    readonly ThreadStorePort: PortRegistryEntry<ThreadStorePort> & {
+      readonly transport: 'detached'
+    }
     readonly TurnLedgerPort: PortRegistryEntry<TurnLedgerPort> & { readonly transport: 'detached' }
     readonly SessionAuthorityPort: PortRegistryEntry<SessionAuthorityPort> & {
       readonly transport: 'none'
     }
     readonly RotationPort: PortRegistryEntry<RotationPort> & { readonly transport: 'detached' }
-    readonly FileReadStatePort: PortRegistryEntry<FileReadStatePort> & { readonly transport: 'none' }
+    readonly FileReadStatePort: PortRegistryEntry<FileReadStatePort> & {
+      readonly transport: 'none'
+    }
     readonly FileWriteGuardPort: PortRegistryEntry<FileWriteGuardPort> & {
       readonly transport: 'none'
     }
     readonly ShellRegistryPort: PortRegistryEntry<ShellRegistryPort> & {
       readonly transport: 'detached'
     }
-    readonly ShellLauncherPort: PortRegistryEntry<ShellLauncherPort> & { readonly transport: 'none' }
+    readonly ShellLauncherPort: PortRegistryEntry<ShellLauncherPort> & {
+      readonly transport: 'none'
+    }
     readonly AgentRegistryPort: PortRegistryEntry<AgentRegistryPort> & {
       readonly transport: 'detached'
     }
     readonly ServiceRegistryPort: PortRegistryEntry<ServiceRegistryPort> & {
       readonly transport: 'detached'
     }
-    readonly OperatorInputPort: PortRegistryEntry<OperatorInputPort> & { readonly transport: 'none' }
-    readonly SkillRegistryPort: PortRegistryEntry<SkillRegistryPort> & { readonly transport: 'none' }
+    readonly OperatorInputPort: PortRegistryEntry<OperatorInputPort> & {
+      readonly transport: 'none'
+    }
+    readonly SkillRegistryPort: PortRegistryEntry<SkillRegistryPort> & {
+      readonly transport: 'none'
+    }
     readonly ToolRegistry: PortRegistryEntry<ToolRegistry> & { readonly transport: 'none' }
     readonly ToolDispatcher: PortRegistryEntry<ToolDispatcher> & { readonly transport: 'none' }
     readonly PromptRegistry: PortRegistryEntry<PromptRegistry> & { readonly transport: 'none' }
@@ -56,7 +66,9 @@ declare module '@dltech/atlas-core' {
     readonly AppInstallRecommendationSink: PortRegistryEntry<AppInstallRecommendationSink> & {
       readonly transport: 'none'
     }
-    readonly UserLayerSyncPort: PortRegistryEntry<UserLayerSyncPort> & { readonly transport: 'none' }
+    readonly UserLayerSyncPort: PortRegistryEntry<UserLayerSyncPort> & {
+      readonly transport: 'none'
+    }
     readonly MemoryPort: PortRegistryEntry<MemoryPort> & { readonly transport: 'none' }
   }
 }

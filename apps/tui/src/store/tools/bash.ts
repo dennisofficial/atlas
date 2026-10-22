@@ -162,17 +162,65 @@ const subjectOf = (command: string): string =>
   'a change'
 
 const MATCHERS: readonly Matcher[] = [
-  { when: /^git\s+push\b/, read: (shell) => named({ line: `Pushed to ${branchOf(shell.command)}`, note: shell.ok ? 'pushed' : 'failed', failed: !shell.ok }) },
-  { when: /^git\s+commit\b/, read: (shell) => named({ line: `Committed “${subjectOf(shell.command)}”`, note: shell.ok ? 'committed' : 'failed', failed: !shell.ok }) },
-  { when: /^git\s+add\b/, read: (shell) => named({ line: 'Staged the changes', note: shell.ok ? 'staged' : 'failed', failed: !shell.ok }) },
-  { when: /^git\s+(status|diff|log|show)\b/, read: (shell) => gathered({ gather: EGather.Read, shell }) },
+  {
+    when: /^git\s+push\b/,
+    read: (shell) =>
+      named({
+        line: `Pushed to ${branchOf(shell.command)}`,
+        note: shell.ok ? 'pushed' : 'failed',
+        failed: !shell.ok,
+      }),
+  },
+  {
+    when: /^git\s+commit\b/,
+    read: (shell) =>
+      named({
+        line: `Committed “${subjectOf(shell.command)}”`,
+        note: shell.ok ? 'committed' : 'failed',
+        failed: !shell.ok,
+      }),
+  },
+  {
+    when: /^git\s+add\b/,
+    read: (shell) =>
+      named({
+        line: 'Staged the changes',
+        note: shell.ok ? 'staged' : 'failed',
+        failed: !shell.ok,
+      }),
+  },
+  {
+    when: /^git\s+(status|diff|log|show)\b/,
+    read: (shell) => gathered({ gather: EGather.Read, shell }),
+  },
   { when: /\b(bun|npm|pnpm|yarn)\s+(run\s+)?test\b/, read: testsRead },
   { when: /\b(tsc|typecheck)\b/, read: typecheckRead },
-  { when: /^(rm|mv|cp|mkdir|chmod|touch)\b/, read: (shell) => named({ line: said(shell), note: shell.ok ? 'done' : 'failed', failed: !shell.ok, detail: EDetail.None }) },
-  { when: /^(sleep|timeout)\b/, read: (shell) => gathered({ gather: EGather.Run, shell, counts: false }) },
-  { when: /^(sed\s+-n|cat|head|tail|wc)\b/, read: (shell) => gathered({ gather: EGather.Read, shell }) },
-  { when: /^(grep|rg|ugrep|ack)\b/, read: (shell) => gathered({ gather: EGather.Search, shell, empty: NO_MATCHES }) },
-  { when: /^(ls|find|tree)\b/, read: (shell) => gathered({ gather: EGather.List, shell, counts: false }) },
+  {
+    when: /^(rm|mv|cp|mkdir|chmod|touch)\b/,
+    read: (shell) =>
+      named({
+        line: said(shell),
+        note: shell.ok ? 'done' : 'failed',
+        failed: !shell.ok,
+        detail: EDetail.None,
+      }),
+  },
+  {
+    when: /^(sleep|timeout)\b/,
+    read: (shell) => gathered({ gather: EGather.Run, shell, counts: false }),
+  },
+  {
+    when: /^(sed\s+-n|cat|head|tail|wc)\b/,
+    read: (shell) => gathered({ gather: EGather.Read, shell }),
+  },
+  {
+    when: /^(grep|rg|ugrep|ack)\b/,
+    read: (shell) => gathered({ gather: EGather.Search, shell, empty: NO_MATCHES }),
+  },
+  {
+    when: /^(ls|find|tree)\b/,
+    read: (shell) => gathered({ gather: EGather.List, shell, counts: false }),
+  },
 ]
 
 /**

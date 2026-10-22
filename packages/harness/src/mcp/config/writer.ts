@@ -75,8 +75,7 @@ async function readTable(args: { path: string }): Promise<ReadTable> {
   }
 
   const data = file.data as Record<string, unknown>
-  const wrapped =
-    Object.keys(data).length === 1 && data[MCP_SERVERS_FIELD] !== undefined
+  const wrapped = Object.keys(data).length === 1 && data[MCP_SERVERS_FIELD] !== undefined
 
   return { ok: true, wrapped, servers: { ...mcpServersOf(file.data) } }
 }
@@ -187,9 +186,7 @@ async function applyEdit(args: { input: McpEditInput; path: string }): Promise<T
   if (!read.ok) return { ok: false, reason: read.reason }
 
   const applied =
-    input.action === EMcpEditAction.Remove
-      ? remove({ input, read })
-      : upsert({ input, read })
+    input.action === EMcpEditAction.Remove ? remove({ input, read }) : upsert({ input, read })
   if (!applied.ok) return { ok: false, reason: applied.reason }
 
   const file = read.wrapped ? { [MCP_SERVERS_FIELD]: applied.servers } : applied.servers

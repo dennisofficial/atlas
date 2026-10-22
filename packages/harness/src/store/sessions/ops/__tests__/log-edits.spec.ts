@@ -29,8 +29,16 @@ function nudge({ text }: { text: string }): EventDraft {
   return { type: 'nudge', text, lifetimeSteps: 1 }
 }
 
-function openOps({ home }: { home: string }): { registry: SessionRegistry; clock: SteppingClock; ids: CountingIds } {
-  return { registry: new SessionRegistry(home), clock: new SteppingClock(), ids: new CountingIds('spec') }
+function openOps({ home }: { home: string }): {
+  registry: SessionRegistry
+  clock: SteppingClock
+  ids: CountingIds
+} {
+  return {
+    registry: new SessionRegistry(home),
+    clock: new SteppingClock(),
+    ids: new CountingIds('spec'),
+  }
 }
 
 describe('appendDrafts', () => {
@@ -65,7 +73,10 @@ describe('appendDrafts', () => {
     expect(stamped.map((event) => event.seq)).toEqual([2])
     const reopened = new SessionRegistry(home)
     const log = await reopened.readThreadLog({ sessionDir, threadId })
-    expect(log.events.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual(['one', 'two'])
+    expect(log.events.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual([
+      'one',
+      'two',
+    ])
   })
 
   it('re-reads the log when another writer touched it, instead of reusing a stale head', async () => {
@@ -107,6 +118,10 @@ describe('appendDrafts', () => {
     expect(stamped.map((event) => event.seq)).toEqual([3])
     const reopened = new SessionRegistry(home)
     const log = await reopened.readThreadLog({ sessionDir, threadId })
-    expect(log.events.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual(['one', 'outside', 'two'])
+    expect(log.events.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual([
+      'one',
+      'outside',
+      'two',
+    ])
   })
 })

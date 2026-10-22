@@ -37,9 +37,6 @@ describe('the tag standing in for a picture in the draft', () => {
     ])
   })
 
-
-
-
   it('reports where each tag sits so the composer can paint it', () => {
     expect(imageTagSpans('see [Image #3] here')).toEqual([{ start: 4, end: 14, ordinal: 3 }])
   })
@@ -82,7 +79,9 @@ describe('whether a picture can ride along as bytes', () => {
   })
 
   it('turns down one past the inline ceiling', () => {
-    expect(inlinable({ path: '/a.png', data: 'A'.repeat(8 * 1024 * 1024), width: 10, height: 10 })).toBe(false)
+    expect(
+      inlinable({ path: '/a.png', data: 'A'.repeat(8 * 1024 * 1024), width: 10, height: 10 }),
+    ).toBe(false)
   })
 
   it('takes one inside it', () => {

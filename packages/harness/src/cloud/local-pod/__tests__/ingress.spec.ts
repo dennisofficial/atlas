@@ -65,7 +65,11 @@ describe('ensurePodIngress', () => {
   it('throws with the log tail when the proxy never answers', async () => {
     const fake = fakeEngine({ listeningAfterLaunch: false })
 
-    const failure = await ensurePodIngress({ engine: fake.engine, id: 'pod', ingressHostPort: 23_457 }).then(
+    const failure = await ensurePodIngress({
+      engine: fake.engine,
+      id: 'pod',
+      ingressHostPort: 23_457,
+    }).then(
       () => undefined,
       (error: unknown) => error,
     )

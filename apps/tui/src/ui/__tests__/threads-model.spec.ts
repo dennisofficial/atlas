@@ -110,7 +110,10 @@ describe('the rows a listing becomes', () => {
   it('carries where a thread runs, so the row can badge a cloud one', () => {
     const rows = threadRows({
       threads: [
-        { ...listing({ id: 'cloud', title: 'the cloud thread' }), executionLocation: EExecutionLocation.Cloud },
+        {
+          ...listing({ id: 'cloud', title: 'the cloud thread' }),
+          executionLocation: EExecutionLocation.Cloud,
+        },
         listing({ id: 'local' }),
       ],
       activeThreadId: '',

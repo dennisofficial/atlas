@@ -77,7 +77,13 @@ export async function rewindThread({
   const read = await machinery.snapshot({ cuts: plan.cuts, threadId })
 
   if (read.kills.length > 0 && !confirmed) {
-    return { ok: false, needsConfirmation: true, toSeq, reachable: read.reachable, kills: read.kills }
+    return {
+      ok: false,
+      needsConfirmation: true,
+      toSeq,
+      reachable: read.reachable,
+      kills: read.kills,
+    }
   }
 
   const cutAgents = plan.cuts.flatMap((cut) => (cut.kind === 'agent' ? [cut.agentId] : []))

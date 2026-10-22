@@ -11,7 +11,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-
 const description = [
   'Write your plan down where the developer can see it: it renders as a checklist beside the conversation.',
   '',

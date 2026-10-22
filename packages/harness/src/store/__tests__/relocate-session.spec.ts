@@ -65,10 +65,7 @@ class FakeAgents extends UnstaffedAgents {
   }
 }
 
-const service = (
-  serviceId: string,
-  status: ServiceSnapshot['status'],
-): ServiceSnapshot => ({
+const service = (serviceId: string, status: ServiceSnapshot['status']): ServiceSnapshot => ({
   serviceId,
   command: 'bun dev',
   description: `${serviceId} description`,
@@ -136,9 +133,7 @@ describe('relocating a session to another execution location', () => {
 
     expect(services.stops).toEqual([{ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch }])
     expect(services.endingsAwaited).toHaveLength(1)
-    expect(agents.relocations).toEqual([
-      { threadId: parent, location: EExecutionLocation.Docker },
-    ])
+    expect(agents.relocations).toEqual([{ threadId: parent, location: EExecutionLocation.Docker }])
 
     expect(result).toEqual({
       stoppedServices: [running],

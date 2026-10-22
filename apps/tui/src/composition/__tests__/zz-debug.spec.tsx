@@ -14,7 +14,10 @@ const THREAD = toThreadId('debug-thread')
 it('dumps settings navigation', async () => {
   const app = fakeApp({ model: scriptedModelPort({ script: { thinking: 't', reply: 'done' } }) })
   const setup = await testRender(
-    <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
     { width: 150, height: 40 },
   )
   await setup.flush()

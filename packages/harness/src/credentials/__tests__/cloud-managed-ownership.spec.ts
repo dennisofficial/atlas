@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  authorityOf,
-  EAccountOrigin,
-  EAuthKind,
-  EAuthProvider,
-} from '@dltech/atlas-core'
+import { authorityOf, EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 import { CredentialError } from '../credential-error'
 import { seed, session, setup, settledSecret } from './cloud-managed-fixture'
 
 describe('cloud-managed credential ownership', () => {
-
   it('never delegates a cloud-owned grant to the local refresher after sign-out or outage', async () => {
     const { api, accounts, port, state, localReads, addOauth } = setup()
     const account = await addOauth()
@@ -27,11 +21,15 @@ describe('cloud-managed credential ownership', () => {
       accountId: account.id,
       secret: { ...stored, tokens: { ...stored.tokens, expiresAt: '2026-10-05T11:00:00.000Z' } },
     })
-    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow('Sign back in to Atlas Cloud')
+    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow(
+      'Sign back in to Atlas Cloud',
+    )
 
     state.session = session
     api.down = true
-    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toBeInstanceOf(CredentialError)
+    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toBeInstanceOf(
+      CredentialError,
+    )
     expect(localReads).toEqual([])
   })
 
@@ -69,14 +67,16 @@ describe('cloud-managed credential ownership', () => {
 
     expect(localReads).toEqual([key.id, local.id])
     expect(api.calls).toEqual([])
-    expect(authorityOf((await settledSecret(accounts, local.id)))).toBeUndefined()
+    expect(authorityOf(await settledSecret(accounts, local.id))).toBeUndefined()
   })
 
   it('refuses a grant imported from a CLI with a reauthorization remedy and never uploads it', async () => {
     const { api, port, addOauth } = setup()
     await addOauth(seed(), { importedFrom: 'claude-code' })
 
-    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow('Sign in again with /auth')
+    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow(
+      'Sign in again with /auth',
+    )
     expect(api.calls).toEqual([])
   })
 
@@ -88,7 +88,9 @@ describe('cloud-managed credential ownership', () => {
     state.session = { ...session, url: 'https://other.test' }
     const before = api.calls.length
 
-    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow('different Atlas Cloud API')
+    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow(
+      'different Atlas Cloud API',
+    )
     expect(api.calls.length).toBe(before)
   })
 
@@ -132,7 +134,7 @@ describe('cloud-managed credential ownership', () => {
 
     await port.handoffAll(session)
 
-    expect(authorityOf((await settledSecret(accounts, one.id)))?.url).toBe(session.url)
+    expect(authorityOf(await settledSecret(accounts, one.id))?.url).toBe(session.url)
     expect(api.connections.size).toBe(1)
   })
 })

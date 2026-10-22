@@ -40,7 +40,12 @@ describe('the placement chip before the first send', () => {
   it('reads pod with a caret when the thread will start in a local pod', () => {
     const chip = locationPillOf({
       location: EExecutionLocation.Cloud,
-      placement: { harness: EHarnessPlacement.Cloud, runner: ERunner.Local, provisioning: false, onFlip },
+      placement: {
+        harness: EHarnessPlacement.Cloud,
+        runner: ERunner.Local,
+        provisioning: false,
+        onFlip,
+      },
     })
 
     expect(chip?.spans).toEqual([{ text: ' pod ▾ ', fg: theme.appBg }])
@@ -50,7 +55,12 @@ describe('the placement chip before the first send', () => {
   it('reads cloud with a caret when the thread will start in a Vercel sandbox', () => {
     const chip = locationPillOf({
       location: EExecutionLocation.Cloud,
-      placement: { harness: EHarnessPlacement.Cloud, runner: ERunner.Vercel, provisioning: false, onFlip },
+      placement: {
+        harness: EHarnessPlacement.Cloud,
+        runner: ERunner.Vercel,
+        provisioning: false,
+        onFlip,
+      },
     })
 
     expect(chip?.spans).toEqual([{ text: ' ☁ cloud ▾ ', fg: theme.appBg }])

@@ -35,7 +35,9 @@ describe('systemContext', () => {
       key: '/repo/CLAUDE.md',
       content: 'rules',
     })
-    expect(out).toContain('Contents of /repo/CLAUDE.md (project instructions, checked into the codebase):')
+    expect(out).toContain(
+      'Contents of /repo/CLAUDE.md (project instructions, checked into the codebase):',
+    )
   })
 
   it('never emits an envelope without provenance, even for an unknown slot', () => {

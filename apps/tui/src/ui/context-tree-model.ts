@@ -8,7 +8,10 @@ export function sortContextEntries(entries: readonly DirectoryEntry[]): readonly
   return [...entries].sort((left, right) => {
     const folders = Number(right.isDirectory) - Number(left.isDirectory)
     if (folders !== 0) return folders
-    const named = left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
+    const named = left.name.localeCompare(right.name, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    })
     if (named !== 0) return named
     return left.name < right.name ? -1 : left.name > right.name ? 1 : 0
   })
@@ -31,7 +34,10 @@ export function contextTreeRows(args: {
   return rows
 }
 
-export function toggleContextClosed(args: { closed: ReadonlySet<string>; path: string }): ReadonlySet<string> {
+export function toggleContextClosed(args: {
+  closed: ReadonlySet<string>
+  path: string
+}): ReadonlySet<string> {
   const next = new Set(args.closed)
   if (next.has(args.path)) next.delete(args.path)
   else next.add(args.path)

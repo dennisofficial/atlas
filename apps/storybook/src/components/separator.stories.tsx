@@ -1,16 +1,16 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Separator } from "@dltech/atlas-ui/components/separator";
+import { Separator } from '@dltech/atlas-ui/components/separator'
 
 const meta = {
-  title: "Components/Separator",
+  title: 'Components/Separator',
   component: Separator,
-  argTypes: { orientation: { control: "inline-radio", options: ["horizontal", "vertical"] } },
-} satisfies Meta<typeof Separator>;
+  argTypes: { orientation: { control: 'inline-radio', options: ['horizontal', 'vertical'] } },
+} satisfies Meta<typeof Separator>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Horizontal: Story = {
   render: () => (
@@ -23,7 +23,7 @@ export const Horizontal: Story = {
       <p className="text-sm">Sessions, tools, and plugins.</p>
     </div>
   ),
-};
+}
 
 export const Vertical: Story = {
   render: () => (
@@ -35,4 +35,4 @@ export const Vertical: Story = {
       <span>Plugins</span>
     </div>
   ),
-};
+}

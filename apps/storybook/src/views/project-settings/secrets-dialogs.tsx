@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { useState } from 'react'
+import { PlusIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Dialog,
   DialogClose,
@@ -11,59 +11,59 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@dltech/atlas-ui/components/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
-import { Textarea } from "@dltech/atlas-ui/components/textarea";
+} from '@dltech/atlas-ui/components/dialog'
+import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
-const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
+const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/
 
 export interface SecretPair {
-  name: string;
-  value: string;
+  name: string
+  value: string
 }
 
 export function parseEnvLines(text: string): { pairs: SecretPair[]; invalid: number[] } {
-  const pairs: SecretPair[] = [];
-  const invalid: number[] = [];
-  text.split("\n").forEach((raw, index) => {
-    const line = raw.trim();
-    if (line === "" || line.startsWith("#")) return;
-    const separator = line.indexOf("=");
-    const name = separator === -1 ? "" : line.slice(0, separator).trim();
+  const pairs: SecretPair[] = []
+  const invalid: number[] = []
+  text.split('\n').forEach((raw, index) => {
+    const line = raw.trim()
+    if (line === '' || line.startsWith('#')) return
+    const separator = line.indexOf('=')
+    const name = separator === -1 ? '' : line.slice(0, separator).trim()
     if (!SECRET_NAME.test(name)) {
-      invalid.push(index + 1);
-      return;
+      invalid.push(index + 1)
+      return
     }
-    pairs.push({ name, value: line.slice(separator + 1) });
-  });
-  return { pairs, invalid };
+    pairs.push({ name, value: line.slice(separator + 1) })
+  })
+  return { pairs, invalid }
 }
 
 export function AddSecretDialog({
   defaultOpen = false,
   onAdd,
 }: {
-  defaultOpen?: boolean;
-  onAdd: (pair: SecretPair) => void;
+  defaultOpen?: boolean
+  onAdd: (pair: SecretPair) => void
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const [name, setName] = useState("");
-  const [value, setValue] = useState("");
-  const nameInvalid = name !== "" && !SECRET_NAME.test(name);
-  const canSave = SECRET_NAME.test(name) && value !== "";
+  const [open, setOpen] = useState(defaultOpen)
+  const [name, setName] = useState('')
+  const [value, setValue] = useState('')
+  const nameInvalid = name !== '' && !SECRET_NAME.test(name)
+  const canSave = SECRET_NAME.test(name) && value !== ''
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-    if (next) return;
-    setName("");
-    setValue("");
-  };
+    setOpen(next)
+    if (next) return
+    setName('')
+    setValue('')
+  }
   const handleSubmit = () => {
-    if (!canSave) return;
-    onAdd({ name, value });
-    handleOpenChange(false);
-  };
+    if (!canSave) return
+    onAdd({ name, value })
+    handleOpenChange(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -102,7 +102,9 @@ export function AddSecretDialog({
             value={value}
             onChange={(event) => setValue(event.target.value)}
           />
-          <FieldDescription>Encrypted at rest. Nobody can read it back after saving.</FieldDescription>
+          <FieldDescription>
+            Encrypted at rest. Nobody can read it back after saving.
+          </FieldDescription>
         </Field>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -112,30 +114,30 @@ export function AddSecretDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 export function BulkAddDialog({
   defaultOpen = false,
-  initialText = "",
+  initialText = '',
   onAdd,
 }: {
-  defaultOpen?: boolean;
-  initialText?: string;
-  onAdd: (pairs: SecretPair[]) => void;
+  defaultOpen?: boolean
+  initialText?: string
+  onAdd: (pairs: SecretPair[]) => void
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const [text, setText] = useState(initialText);
-  const { pairs, invalid } = parseEnvLines(text);
+  const [open, setOpen] = useState(defaultOpen)
+  const [text, setText] = useState(initialText)
+  const { pairs, invalid } = parseEnvLines(text)
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-    if (!next) setText("");
-  };
+    setOpen(next)
+    if (!next) setText('')
+  }
   const handleSubmit = () => {
-    onAdd(pairs);
-    handleOpenChange(false);
-  };
+    onAdd(pairs)
+    handleOpenChange(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -153,14 +155,14 @@ export function BulkAddDialog({
             id="bulk-secrets"
             className="min-h-40 font-mono text-xs md:text-xs"
             spellCheck={false}
-            placeholder={"API_KEY=…\nDATABASE_URL=…"}
+            placeholder={'API_KEY=…\nDATABASE_URL=…'}
             aria-invalid={invalid.length > 0 || undefined}
             value={text}
             onChange={(event) => setText(event.target.value)}
           />
           {invalid.length > 0 ? (
             <FieldError>
-              {invalid.length === 1 ? "Line" : "Lines"} {invalid.join(", ")} skipped: not KEY=value.
+              {invalid.length === 1 ? 'Line' : 'Lines'} {invalid.join(', ')} skipped: not KEY=value.
             </FieldError>
           ) : (
             <FieldDescription>Blank lines and # comments are ignored.</FieldDescription>
@@ -169,10 +171,12 @@ export function BulkAddDialog({
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button disabled={pairs.length === 0} onClick={handleSubmit}>
-            {pairs.length === 0 ? "Add secrets" : `Add ${pairs.length} ${pairs.length === 1 ? "secret" : "secrets"}`}
+            {pairs.length === 0
+              ? 'Add secrets'
+              : `Add ${pairs.length} ${pairs.length === 1 ? 'secret' : 'secrets'}`}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

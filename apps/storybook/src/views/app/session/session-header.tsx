@@ -4,42 +4,45 @@ import {
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   type LucideIcon,
-} from "lucide-react";
+} from 'lucide-react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
-import { SidebarTrigger } from "@dltech/atlas-ui/components/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@dltech/atlas-ui/components/tooltip";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 
-import { PodStatusChip } from "./pod-status-chip";
-import type { PodChipConfig } from "./pod-status";
-import { ESessionState } from "./session-types";
+import { PodStatusChip } from './pod-status-chip'
+import type { PodChipConfig } from './pod-status'
+import { ESessionState } from './session-types'
 
 export interface HeaderSubtitle {
-  label: string;
-  icon: LucideIcon;
+  label: string
+  icon: LucideIcon
 }
 
 export interface SessionHeaderProps {
-  state?: ESessionState;
-  title?: string;
-  subtitle?: HeaderSubtitle;
-  detail?: string;
-  badgeLabel?: string | null;
-  podStatus?: PodChipConfig;
-  panelOpen: boolean;
-  onTogglePanel: () => void;
+  state?: ESessionState
+  title?: string
+  subtitle?: HeaderSubtitle
+  detail?: string
+  badgeLabel?: string | null
+  podStatus?: PodChipConfig
+  panelOpen: boolean
+  onTogglePanel: () => void
 }
 
-const DEFAULT_TITLE = "Rebase ui on shadcn base-nova";
+const DEFAULT_TITLE = 'Rebase ui on shadcn base-nova'
 
-const DEFAULT_SUBTITLE: HeaderSubtitle = { label: "dennis/shadcn-ui-storybook", icon: GitBranchIcon };
+const DEFAULT_SUBTITLE: HeaderSubtitle = {
+  label: 'dennis/shadcn-ui-storybook',
+  icon: GitBranchIcon,
+}
 
 const STATE_LABEL: Record<ESessionState, string> = {
-  [ESessionState.Running]: "Running",
-  [ESessionState.Idle]: "Idle",
-  [ESessionState.ApprovalPending]: "Needs approval",
-};
+  [ESessionState.Running]: 'Running',
+  [ESessionState.Idle]: 'Idle',
+  [ESessionState.ApprovalPending]: 'Needs approval',
+}
 
 export function SessionHeader({
   state = ESessionState.Running,
@@ -51,11 +54,11 @@ export function SessionHeader({
   panelOpen,
   onTogglePanel,
 }: SessionHeaderProps) {
-  const label = panelOpen ? "Hide panel" : "Show panel";
-  const PanelIcon = panelOpen ? PanelRightCloseIcon : PanelRightOpenIcon;
-  const hasPullRequest = badgeLabel === undefined && state === ESessionState.Idle;
-  const badge = badgeLabel === undefined ? STATE_LABEL[state] : badgeLabel;
-  const SubtitleIcon = subtitle.icon;
+  const label = panelOpen ? 'Hide panel' : 'Show panel'
+  const PanelIcon = panelOpen ? PanelRightCloseIcon : PanelRightOpenIcon
+  const hasPullRequest = badgeLabel === undefined && state === ESessionState.Idle
+  const badge = badgeLabel === undefined ? STATE_LABEL[state] : badgeLabel
+  const SubtitleIcon = subtitle.icon
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-3">
@@ -78,7 +81,15 @@ export function SessionHeader({
         {podStatus ? <PodStatusChip {...podStatus} /> : null}
         <Tooltip>
           <TooltipTrigger
-            render={<Button variant="ghost" size="icon-sm" aria-label={label} aria-pressed={panelOpen} onClick={onTogglePanel} />}
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={label}
+                aria-pressed={panelOpen}
+                onClick={onTogglePanel}
+              />
+            }
           >
             <PanelIcon />
           </TooltipTrigger>
@@ -86,5 +97,5 @@ export function SessionHeader({
         </Tooltip>
       </div>
     </header>
-  );
+  )
 }

@@ -8,7 +8,13 @@
  * file in exactly the state it was computed against.
  */
 
-import { collapseUnchanged, EDiffLine, type DiffFile, type DiffHunk, type DiffLine } from '@dltech/atlas-core'
+import {
+  collapseUnchanged,
+  EDiffLine,
+  type DiffFile,
+  type DiffHunk,
+  type DiffLine,
+} from '@dltech/atlas-core'
 import React, { useMemo } from 'react'
 
 import type { ToolCall } from '../../../store'

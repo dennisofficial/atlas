@@ -105,7 +105,10 @@ export async function composeAtlas(args: {
   env: Record<string, string | undefined>
   settings: SettingsBinding
 }): Promise<AtlasApp> {
-  const pods = toggleValueOf({ resolution: args.settings.service.snapshot().resolution, id: ESettingId.ExperimentalPods })
+  const pods = toggleValueOf({
+    resolution: args.settings.service.snapshot().resolution,
+    id: ESettingId.ExperimentalPods,
+  })
   const app = await composeHarness<TuiSurface, QueuedSettled, PluginSurface>({
     launch: {
       cwd: args.config.cwd,
@@ -163,7 +166,9 @@ export async function composeAtlas(args: {
         })()
 
         const recordDismissal = ((): ((args: { repo: string }) => void) | undefined => {
-          const store = ((): { read(): { url: string; token: string; email: string | null } | null } | null => {
+          const store = ((): {
+            read(): { url: string; token: string; email: string | null } | null
+          } | null => {
             try {
               return container.resolve(CloudSessionStoreToken)
             } catch {

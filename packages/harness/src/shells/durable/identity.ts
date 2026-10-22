@@ -14,7 +14,9 @@ const MAX_JSON_BYTES = 1024 * 1024
 
 const lockFileSchema = z.object({ pid: z.number().int(), start: z.string().optional() })
 
-export type ReadOutcome<T> = { ok: true; value: T } | { ok: false; reason: string; missing: boolean }
+export type ReadOutcome<T> =
+  | { ok: true; value: T }
+  | { ok: false; reason: string; missing: boolean }
 
 export function newDurableIdentity(): string {
   return randomBytes(24).toString('hex')
@@ -24,7 +26,13 @@ export function newControlToken(): string {
   return randomBytes(32).toString('hex')
 }
 
-export function tokensMatch({ expected, presented }: { expected: string; presented: string }): boolean {
+export function tokensMatch({
+  expected,
+  presented,
+}: {
+  expected: string
+  presented: string
+}): boolean {
   const left = Buffer.from(expected)
   const right = Buffer.from(presented)
   return left.length === right.length && timingSafeEqual(left, right)
@@ -48,7 +56,8 @@ export async function pidNamespaceOf(): Promise<string | undefined> {
 }
 
 export async function lockClaimIsActive({ claim }: { claim: SessionLockClaim }): Promise<boolean> {
-  if (claim.pidNamespace !== undefined && claim.pidNamespace !== (await pidNamespaceOf())) return false
+  if (claim.pidNamespace !== undefined && claim.pidNamespace !== (await pidNamespaceOf()))
+    return false
 
   const lock = await readJsonFile({ path: claim.lockFile, schema: lockFileSchema })
   if (!lock.ok) return false
@@ -68,7 +77,8 @@ export function messageOf({ error }: { error: unknown }): string {
 export async function ensurePrivateDirectory({ path }: { path: string }): Promise<void> {
   await mkdir(path, { recursive: true, mode: 0o700 })
   const stats = await lstat(path)
-  if (stats.isSymbolicLink() || !stats.isDirectory()) throw new Error(`${path} is not a plain directory`)
+  if (stats.isSymbolicLink() || !stats.isDirectory())
+    throw new Error(`${path} is not a plain directory`)
   if (stats.uid !== process.getuid?.()) throw new Error(`${path} is owned by another user`)
   if ((stats.mode & 0o077) !== 0) await chmod(path, 0o700)
 }
@@ -129,7 +139,8 @@ export async function readTextFile({ path }: { path: string }): Promise<ReadOutc
     try {
       const stats = await handle.stat()
       assertOwnRegularFile({ stats, path })
-      if (stats.size > MAX_JSON_BYTES) return { ok: false, reason: `${path} is too large`, missing: false }
+      if (stats.size > MAX_JSON_BYTES)
+        return { ok: false, reason: `${path} is too large`, missing: false }
       return { ok: true, value: await handle.readFile('utf8') }
     } finally {
       await handle.close()

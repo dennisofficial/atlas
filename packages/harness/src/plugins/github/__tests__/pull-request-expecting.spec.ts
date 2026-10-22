@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  checkoutKey,
-  EChecksState,
-  EPullRequestLookup,
-  POLL_FLOOR_MS,
-  POLL_RUNNING_MS,
-  POLL_SETTLED_MS,
-} from '../pure'
+import { EChecksState, POLL_FLOOR_MS, POLL_RUNNING_MS } from '../pure'
 
 import { createPullRequestService, EXPECTING_CHECKS_MS } from '../pull-request-service'
 import {

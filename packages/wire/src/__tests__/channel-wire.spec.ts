@@ -23,7 +23,13 @@ describe('the send frame', () => {
       sendId: 'send-2' as never,
       text: 'look at this',
       images: [
-        { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 560, height: 280 },
+        {
+          path: '/tmp/shot.png',
+          mediaType: 'image/png',
+          data: 'aGVsbG8=',
+          width: 560,
+          height: 280,
+        },
       ],
       context: [
         { type: 'context-loaded', slot: 'skill', key: 'commit', content: 'commit prose' },
@@ -100,4 +106,3 @@ describe('the ready frame', () => {
     expect(decoded?.kind === EServeFrame.Ready ? decoded.transcriptCurrent : undefined).toBe(false)
   })
 })
-

@@ -94,7 +94,8 @@ export function createSpoolReader({
           if (cancelled) return
           const end = endOf()
           const size = await sizeOf()
-          const limit = end.kind === 'ended' && end.bytes !== undefined ? Math.min(size, end.bytes) : size
+          const limit =
+            end.kind === 'ended' && end.bytes !== undefined ? Math.min(size, end.bytes) : size
           if (offset < limit) {
             const length = Math.min(SPOOL_READ_BYTES, limit - offset)
             const bytes = await readAt({ length })
@@ -124,4 +125,8 @@ export function createSpoolReader({
 export const emptyStream = (): ReadableStream<Uint8Array> =>
   new ReadableStream<Uint8Array>({ start: (controller) => controller.close() })
 
-export const inertWaker = (): Waker => ({ wait: () => Promise.resolve(), nudge: () => undefined, close: () => undefined })
+export const inertWaker = (): Waker => ({
+  wait: () => Promise.resolve(),
+  nudge: () => undefined,
+  close: () => undefined,
+})

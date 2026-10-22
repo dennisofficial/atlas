@@ -7,7 +7,9 @@ import { EExecutionLocation, EHarnessPlacement, toRunId } from '@dltech/atlas-co
 import { openStoreFixture, type StoreFixture } from '../../__tests__/harness'
 
 const held: StoreFixture[] = []
-afterEach(async () => { for (const fixture of held.splice(0)) await fixture.close() })
+afterEach(async () => {
+  for (const fixture of held.splice(0)) await fixture.close()
+})
 
 describe('session home after an ownership change', () => {
   it('keeps root discovery metadata in sync with the thread placement', async () => {
@@ -20,9 +22,14 @@ describe('session home after an ownership change', () => {
     })
     await fixture.threads.writePlacement({
       threadId: thread.thread.id,
-      record: { placement: { harness: EHarnessPlacement.Cloud, driveName: 'test-drive' }, revision: 1 },
+      record: {
+        placement: { harness: EHarnessPlacement.Cloud, driveName: 'test-drive' },
+        revision: 1,
+      },
     })
-    const meta: unknown = JSON.parse(await readFile(join(fixture.home, 'sessions', thread.thread.id, 'meta.json'), 'utf8'))
+    const meta: unknown = JSON.parse(
+      await readFile(join(fixture.home, 'sessions', thread.thread.id, 'meta.json'), 'utf8'),
+    )
     expect(meta).toMatchObject({ home: EExecutionLocation.Cloud })
   })
 })

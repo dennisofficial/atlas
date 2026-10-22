@@ -39,10 +39,11 @@ describe('sandboxCreateBody', () => {
   })
 
   it('appends declared env after the computed env, winning any collision', () => {
-    const env = sandboxCreateBody({
-      ...CONFIG,
-      env: { HOME: '/declared/home', TURBO_CACHE_DIR: '/tmp/turbo-cache' },
-    }).Env ?? []
+    const env =
+      sandboxCreateBody({
+        ...CONFIG,
+        env: { HOME: '/declared/home', TURBO_CACHE_DIR: '/tmp/turbo-cache' },
+      }).Env ?? []
 
     expect(env).toContain('TURBO_CACHE_DIR=/tmp/turbo-cache')
     expect(env.filter((one) => one.startsWith('HOME='))).toEqual(['HOME=/declared/home'])
@@ -110,7 +111,9 @@ describe('sandboxCreateBody', () => {
     const env = sandboxCreateBody(CONFIG).Env ?? []
     const compose = env.find((one) => one.startsWith('COMPOSE_PROJECT_NAME='))
 
-    expect(compose).toBe(`COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix: 'atlas', session: CONFIG.session })}`)
+    expect(compose).toBe(
+      `COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix: 'atlas', session: CONFIG.session })}`,
+    )
   })
 
   it('derives a stable name from the session key', () => {
@@ -146,7 +149,9 @@ describe('sandboxCreateBody', () => {
   it("mounts the operator's gitconfig read-only and keeps HOME pointing at it", () => {
     const body = sandboxCreateBody(CONFIG)
 
-    expect(body.HostConfig?.Binds).toContain(`${CONFIG.gitconfigPath ?? ''}:${CONFIG.gitconfigPath ?? ''}:ro`)
+    expect(body.HostConfig?.Binds).toContain(
+      `${CONFIG.gitconfigPath ?? ''}:${CONFIG.gitconfigPath ?? ''}:ro`,
+    )
     expect(body.Env).toContain(`HOME=${CONFIG.home}`)
   })
 
@@ -255,11 +260,16 @@ describe('sandboxCreateBody', () => {
   it('never broadens safe.directory to a bare star, keeping the check scoped to the repo', () => {
     const env = sandboxCreateBody(CONFIG).Env ?? []
 
-    expect(env.every((one) => !one.startsWith('GIT_CONFIG_VALUE') || !one.endsWith('=*'))).toBe(true)
+    expect(env.every((one) => !one.startsWith('GIT_CONFIG_VALUE') || !one.endsWith('=*'))).toBe(
+      true,
+    )
   })
 
   it('mounts the host gpg public keyring read-only beside the forwarded agent socket', () => {
-    const body = sandboxCreateBody({ ...CONFIG, gpgPubringPath: '/Users/operator/.gnupg/pubring.kbx' })
+    const body = sandboxCreateBody({
+      ...CONFIG,
+      gpgPubringPath: '/Users/operator/.gnupg/pubring.kbx',
+    })
 
     expect(body.HostConfig?.Binds).toContain(
       `/Users/operator/.gnupg/pubring.kbx:${CONTAINER_GNUPG_HOME}/pubring.kbx:ro`,
@@ -267,7 +277,10 @@ describe('sandboxCreateBody', () => {
   })
 
   it('never mounts the gpg private key stubs — the forwarded agent holds the secrets', () => {
-    const body = sandboxCreateBody({ ...CONFIG, gpgPubringPath: '/Users/operator/.gnupg/pubring.kbx' })
+    const body = sandboxCreateBody({
+      ...CONFIG,
+      gpgPubringPath: '/Users/operator/.gnupg/pubring.kbx',
+    })
 
     expect(body.HostConfig?.Binds?.some((bind) => bind.includes('private-keys-v1.d'))).toBe(false)
   })
@@ -291,7 +304,10 @@ describe('sandboxCreateBody', () => {
   })
 
   it('mounts the host ssh known_hosts read-only at its identical path', () => {
-    const body = sandboxCreateBody({ ...CONFIG, sshKnownHostsPath: '/Users/operator/.ssh/known_hosts' })
+    const body = sandboxCreateBody({
+      ...CONFIG,
+      sshKnownHostsPath: '/Users/operator/.ssh/known_hosts',
+    })
 
     expect(body.HostConfig?.Binds).toContain(
       '/Users/operator/.ssh/known_hosts:/Users/operator/.ssh/known_hosts:ro',

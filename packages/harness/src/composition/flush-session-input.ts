@@ -7,11 +7,17 @@ type FlushInput = {
   ids: Pick<IdPort, 'nextRunId'>
 }
 
-export async function flushThreadInput(args: FlushInput & { threadId: ThreadId }): Promise<boolean> {
+export async function flushThreadInput(
+  args: FlushInput & { threadId: ThreadId },
+): Promise<boolean> {
   const batch = await args.intake.prepare({ threadId: args.threadId })
   try {
     if (batch.drafts.length > 0) {
-      await args.log.append({ threadId: args.threadId, runId: args.ids.nextRunId(), drafts: batch.drafts })
+      await args.log.append({
+        threadId: args.threadId,
+        runId: args.ids.nextRunId(),
+        drafts: batch.drafts,
+      })
     }
     batch.acknowledge()
     return batch.drafts.length > 0

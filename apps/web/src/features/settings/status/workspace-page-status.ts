@@ -7,7 +7,7 @@ export const WORKSPACE_PAGE_STATUS = {
   [ESettingsPage.WorkspaceGeneral]: {
     status: EPageStatus.Partial,
     detail:
-      "Name and slug are live. Region and default model are saved, but no session reads them yet. Logo upload and ownership transfer are not available yet.",
+      'Name and slug are live. Region and default model are saved, but no session reads them yet. Logo upload and ownership transfer are not available yet.',
   },
   [ESettingsPage.WorkspaceMembers]: {
     status: EPageStatus.Stored,

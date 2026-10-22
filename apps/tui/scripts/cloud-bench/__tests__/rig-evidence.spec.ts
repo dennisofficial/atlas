@@ -28,9 +28,21 @@ const failingEvidence = (): ScenarioEvidence => ({
       stamps: 'dev-abc/25',
       provider: 'running',
     },
-    { at: '2026-10-17T12:08:00.000Z', step: 'idle park', view: null, phase: null, stamps: null, provider: null },
+    {
+      at: '2026-10-17T12:08:00.000Z',
+      step: 'idle park',
+      view: null,
+      phase: null,
+      stamps: null,
+      provider: null,
+    },
   ],
-  logs: [{ label: 'serve log', text: 'boot on team_abc123 with Authorization: Bearer tok.en-value\nready' }],
+  logs: [
+    {
+      label: 'serve log',
+      text: 'boot on team_abc123 with Authorization: Bearer tok.en-value\nready',
+    },
+  ],
   verdict: EVerdict.Fail,
   failure: { step: 'idle park', expected: 'record parked', observed: 'record serving' },
   reason: 'the box never parked',
@@ -84,7 +96,14 @@ describe('renderEvidence', () => {
 
   test('orders reason, failure, commands, observations and logs', () => {
     const markdown = renderEvidence({ evidence: failingEvidence(), redact: (text) => text })
-    const order = ['Verdict:', '## Reason', '## Failure', '## Commands', '## Observations', '## serve log']
+    const order = [
+      'Verdict:',
+      '## Reason',
+      '## Failure',
+      '## Commands',
+      '## Observations',
+      '## serve log',
+    ]
     const positions = order.map((heading) => markdown.indexOf(heading))
     expect(positions.every((position) => position >= 0)).toBe(true)
     expect([...positions].sort((left, right) => left - right)).toEqual(positions)
@@ -102,7 +121,11 @@ describe('writeEvidence', () => {
   test('writes scenario-<id>-<slug>.md into a created dir', async () => {
     dir = await mkdtemp(join(tmpdir(), 'rig-evidence-'))
     const target = join(dir, 'nested', 'out')
-    const path = await writeEvidence({ dir: target, evidence: failingEvidence(), redactor: createRedactor() })
+    const path = await writeEvidence({
+      dir: target,
+      evidence: failingEvidence(),
+      redactor: createRedactor(),
+    })
 
     expect(path).toBe(join(target, 'scenario-2-idle-park.md'))
     expect(await readFile(path, 'utf8')).toContain('Verdict: **FAIL**')

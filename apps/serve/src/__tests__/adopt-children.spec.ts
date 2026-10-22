@@ -91,7 +91,7 @@ const fakeLog = (byChild: Record<string, readonly Event[]>): Pick<EventLogPort, 
   readOwn: async ({ threadId }) => [...(byChild[threadId] ?? [])],
 })
 
-describe('adopting a thread\'s children on session start', () => {
+describe("adopting a thread's children on session start", () => {
   it('hydrates the roster before reading anything', async () => {
     const parent = toThreadId('thread-parent')
     const fake = fakeAgents({ children: [] })

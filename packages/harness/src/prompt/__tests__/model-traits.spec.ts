@@ -18,7 +18,8 @@ import {
 
 import {
   createIsolatedContainer,
-  portToken, registeredPortToken,
+  portToken,
+  registeredPortToken,
   resolveSet,
   type DependencyContainer,
 } from '../../container/injection'
@@ -124,8 +125,7 @@ describe('no builtin fragment is prose no reachable context can select', () => {
 describe('no trait is carried that no fragment reads', () => {
   const probesFor = (base: PromptContext): readonly ModelTraitProbe[] => {
     const { narrowest, widest } = promptModelExtremes()
-    const other =
-      base.model.contextWindow === widest.contextWindow ? narrowest : widest
+    const other = base.model.contextWindow === widest.contextWindow ? narrowest : widest
 
     return [{ key: 'contextWindow', model: other }]
   }

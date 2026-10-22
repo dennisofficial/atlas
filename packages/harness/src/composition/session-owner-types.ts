@@ -81,10 +81,7 @@ export type SessionOwner<Adapters> = {
     threadId: ThreadId
     work: (handle: BirthInstall<Adapters>) => Promise<T>
   }) => Promise<T>
-  adopt: (args: {
-    threadId: ThreadId
-    binding: RuntimeBinding<Adapters>
-  }) => Promise<void>
+  adopt: (args: { threadId: ThreadId; binding: RuntimeBinding<Adapters> }) => Promise<void>
   activateLocal: (args: {
     threadId: ThreadId
     binding?: RuntimeBinding<Adapters> | undefined

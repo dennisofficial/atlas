@@ -1,17 +1,36 @@
 import { randomUUID } from 'node:crypto'
 
 import {
-  defaultPipeline, EAgentStart, EAgentStatus, EDefinitionOrigin, EFinishReason, EMPTY_PROMPT,
-  toCallId, toEventId, toRunId, toThreadId, type IdPort,
+  defaultPipeline,
+  EAgentStart,
+  EAgentStatus,
+  EDefinitionOrigin,
+  EFinishReason,
+  EMPTY_PROMPT,
+  toCallId,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type IdPort,
 } from '@dltech/atlas-core'
 import {
-  activateTransferredChildren, adoptTransferredChildren, AgentSupervisor, buildHarness,
+  activateTransferredChildren,
+  adoptTransferredChildren,
+  AgentSupervisor,
+  buildHarness,
   PublishingTurnRunner,
 } from '@dltech/atlas-harness'
 
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import { createRuntimeCheckpointCapture } from '../runtime-checkpoint'
-import { childId, gate, rotationFixture, sourceSession, threadId, token } from './serve-rotation-fixture'
+import {
+  childId,
+  gate,
+  rotationFixture,
+  sourceSession,
+  threadId,
+  token,
+} from './serve-rotation-fixture'
 import type { FakeServeApp } from './fakes'
 import type { TranscriptStore } from './transcript-store-fixture'
 
@@ -28,20 +47,50 @@ export async function rotationChildFixture() {
   const harness = await buildHarness({ home: fixture.home, model: 'unused/model' })
   const threads = harness.threads
   await threads.create({ id: threadId, workspace: '/workspace' })
-  await threads.create({ id: childId, workspace: '/workspace', agent: { spawnedBy: threadId, type: 'explore' } })
-  await harness.log.append({ threadId, runId: ids.nextRunId(), drafts: [
-    { type: 'agent-spawned', agentId: childId, agentType: 'explore', intent: 'finish child work', mode: EAgentStart.Fresh },
-    { type: 'agent-ended', agentId: childId, agentType: 'explore', intent: 'finish child work', status: EAgentStatus.Finished,
-      prose: 'first job complete', turns: 1, toolCalls: 0 },
-  ] })
-  await harness.log.append({ threadId: childId, runId: ids.nextRunId(), drafts: [
-    { type: 'user-said', text: 'first child job' },
-    { type: 'assistant-said', parts: [{ type: 'text', text: 'first job complete' }] },
-    { type: 'user-said', text: 'queued child follow-up' },
-  ] })
+  await threads.create({
+    id: childId,
+    workspace: '/workspace',
+    agent: { spawnedBy: threadId, type: 'explore' },
+  })
+  await harness.log.append({
+    threadId,
+    runId: ids.nextRunId(),
+    drafts: [
+      {
+        type: 'agent-spawned',
+        agentId: childId,
+        agentType: 'explore',
+        intent: 'finish child work',
+        mode: EAgentStart.Fresh,
+      },
+      {
+        type: 'agent-ended',
+        agentId: childId,
+        agentType: 'explore',
+        intent: 'finish child work',
+        status: EAgentStatus.Finished,
+        prose: 'first job complete',
+        turns: 1,
+        toolCalls: 0,
+      },
+    ],
+  })
+  await harness.log.append({
+    threadId: childId,
+    runId: ids.nextRunId(),
+    drafts: [
+      { type: 'user-said', text: 'first child job' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'first job complete' }] },
+      { type: 'user-said', text: 'queued child follow-up' },
+    ],
+  })
   const checkpoint = await createRuntimeCheckpointCapture({
-    threadId, atlasHome: fixture.home, env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
-    token, transcript: harness.log, log: () => undefined,
+    threadId,
+    atlasHome: fixture.home,
+    env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
+    token,
+    transcript: harness.log,
+    log: () => undefined,
   }).capture({ phase: ERuntimePhase.Updating, resume: { parent: false, children: [childId] } })
   if (checkpoint === null || checkpoint.phase !== ERuntimePhase.Updating) {
     throw new Error('the child fixture requires a rotation checkpoint')
@@ -54,17 +103,43 @@ export async function rotationChildFixture() {
       const bootHarness = await buildHarness({ home: fixture.home, model: 'unused/model' })
       const store = bootHarness.threads
       const live = new AgentSupervisor({
-        log: disk.log, threads: store, ids, clock, launchDirectory: '/workspace',
-        agentTypes: [{ name: 'explore', whenToUse: 'look around', prompt: 'look around', origin: EDefinitionOrigin.BuiltIn }],
-        runners: () => new PublishingTurnRunner({ channel: app.channel, deps: {
-          log: disk.log, ids,
-          assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/workspace' }),
-          model: { identity: { id: 'scripted', modelId: 'scripted' }, step: async () => {
-            steps += 1
-            await modelGate.promise
-            return { parts: [{ type: 'text', text: 'queued job complete' }], toolCalls: [], finishReason: EFinishReason.Stop }
-          } },
-        } }),
+        log: disk.log,
+        threads: store,
+        ids,
+        clock,
+        launchDirectory: '/workspace',
+        agentTypes: [
+          {
+            name: 'explore',
+            whenToUse: 'look around',
+            prompt: 'look around',
+            origin: EDefinitionOrigin.BuiltIn,
+          },
+        ],
+        runners: () =>
+          new PublishingTurnRunner({
+            channel: app.channel,
+            deps: {
+              log: disk.log,
+              ids,
+              assembly: defaultPipeline({
+                prompt: () => EMPTY_PROMPT,
+                launchDirectory: '/workspace',
+              }),
+              model: {
+                identity: { id: 'scripted', modelId: 'scripted' },
+                step: async () => {
+                  steps += 1
+                  await modelGate.promise
+                  return {
+                    parts: [{ type: 'text', text: 'queued job complete' }],
+                    toolCalls: [],
+                    finishReason: EFinishReason.Stop,
+                  }
+                },
+              },
+            },
+          }),
       })
       supervisor = live
       app.threads = store
@@ -74,12 +149,23 @@ export async function rotationChildFixture() {
       }
       app.adoptChildren = async ({ threadId: root, resumeChildren }) => {
         await adoptTransferredChildren({ agents: live, threadId: root })
-        return activateTransferredChildren({ agents: live, log: disk.log, threadId: root, resumeChildren })
+        return activateTransferredChildren({
+          agents: live,
+          log: disk.log,
+          threadId: root,
+          resumeChildren,
+        })
       }
       app.whenChildrenSettled = (given) => live.whenChildrenSettled(given)
-      app.runningChildren = () => live.listEverywhere().filter((child) => child.status === EAgentStatus.Running).length
+      app.runningChildren = () =>
+        live.listEverywhere().filter((child) => child.status === EAgentStatus.Running).length
       const close = app.close
-      app.close = async () => { await live.closeAll(); await bootHarness.close(); app.intake?.dispose(); await close() }
+      app.close = async () => {
+        await live.closeAll()
+        await bootHarness.close()
+        app.intake?.dispose()
+        await close()
+      }
     }
     const started = await fixture.boot({ configure })
     return { ...started, modelGate, steps: () => steps, supervisor: () => supervisor }

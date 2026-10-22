@@ -10,9 +10,13 @@ export const readOriginUrl = async (args: { cwd: string }): Promise<string | nul
 }
 
 export const remoteDefaultBranch = async (args: { cwd: string }): Promise<string | null> => {
-  const cached = await runGit({ args: ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'], cwd: args.cwd })
+  const cached = await runGit({
+    args: ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'],
+    cwd: args.cwd,
+  })
   const named = cached.stdout.trim()
-  if (cached.ok && named !== '') return named.startsWith(ORIGIN_PREFIX) ? named.slice(ORIGIN_PREFIX.length) : named
+  if (cached.ok && named !== '')
+    return named.startsWith(ORIGIN_PREFIX) ? named.slice(ORIGIN_PREFIX.length) : named
 
   const remote = await runGit({ args: ['ls-remote', '--symref', 'origin', 'HEAD'], cwd: args.cwd })
   if (!remote.ok) return null

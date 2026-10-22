@@ -68,7 +68,9 @@ function readOut(args: {
 }): Span[] {
   const { definition, value } = args.setting
   if (isOverriddenSetting(args.setting)) {
-    return [{ text: truncateCells({ text: OVERRIDDEN, cells: Math.max(0, args.cells) }), fg: theme.hint }]
+    return [
+      { text: truncateCells({ text: OVERRIDDEN, cells: Math.max(0, args.cells) }), fg: theme.hint },
+    ]
   }
   const shown: Span = args.override ?? {
     text: valueLabel({ definition, value }),
@@ -109,7 +111,9 @@ export function SettingsTextLine(props: {
       fg: props.struck === true ? theme.hint : selected ? theme.bright : theme.hover,
       ...(props.struck === true ? { strike: true } : {}),
     },
-    ...(props.struck === true ? [{ text: ' '.repeat(Math.max(0, labelCells - cellsOf(label))) }] : []),
+    ...(props.struck === true
+      ? [{ text: ' '.repeat(Math.max(0, labelCells - cellsOf(label))) }]
+      : []),
     { text: ' ' },
     ...props.value,
   ]

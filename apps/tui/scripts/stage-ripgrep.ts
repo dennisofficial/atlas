@@ -14,12 +14,16 @@ export async function stageVendoredRipgrep(args: {
   target: string | undefined
 }): Promise<{ version: string }> {
   const platform =
-    args.target === undefined ? `${process.platform}-${process.arch}` : RIPGREP_PLATFORMS[args.target]
+    args.target === undefined
+      ? `${process.platform}-${process.arch}`
+      : RIPGREP_PLATFORMS[args.target]
   if (platform === undefined) {
     throw new Error(`no vendored ripgrep for build target ${args.target}`)
   }
 
-  const requireFromHarness = createRequire(join(args.repoRoot, 'packages', 'harness', 'package.json'))
+  const requireFromHarness = createRequire(
+    join(args.repoRoot, 'packages', 'harness', 'package.json'),
+  )
   const requireFromRipgrep = createRequire(requireFromHarness.resolve('@vscode/ripgrep'))
 
   let binary: string
@@ -31,7 +35,10 @@ export async function stageVendoredRipgrep(args: {
     )
   }
 
-  const manifestPath = join(dirname(dirname(requireFromHarness.resolve('@vscode/ripgrep'))), 'package.json')
+  const manifestPath = join(
+    dirname(dirname(requireFromHarness.resolve('@vscode/ripgrep'))),
+    'package.json',
+  )
   const version = (JSON.parse(await readFile(manifestPath, 'utf8')) as { version: string }).version
 
   const vendor = join(args.repoRoot, 'packages', 'harness', 'src', 'execution', 'vendor')

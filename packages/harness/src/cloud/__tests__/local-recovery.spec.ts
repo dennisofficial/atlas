@@ -33,7 +33,9 @@ describe('restoreArchivedLocalFiles', () => {
       join(directory, 'secrets.json'),
       join(directory, 'mcp.json'),
     ])
-    expect(readFileSync(join(directory, 'auth.json'), 'utf8')).toBe('{"version":1,"accounts":["old"]}')
+    expect(readFileSync(join(directory, 'auth.json'), 'utf8')).toBe(
+      '{"version":1,"accounts":["old"]}',
+    )
     expect(existsSync(join(directory, 'auth.json.archived'))).toBe(false)
   })
 
@@ -44,7 +46,9 @@ describe('restoreArchivedLocalFiles', () => {
     const restored = restoreArchivedLocalFiles()
 
     expect(restored).toEqual([])
-    expect(readFileSync(join(directory, 'auth.json'), 'utf8')).toBe('{"version":1,"accounts":["fresh"]}')
+    expect(readFileSync(join(directory, 'auth.json'), 'utf8')).toBe(
+      '{"version":1,"accounts":["fresh"]}',
+    )
     expect(existsSync(join(directory, 'auth.json.archived'))).toBe(true)
   })
 

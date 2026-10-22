@@ -103,7 +103,9 @@ function spawnChild({
         ATLAS_HOME: workDirectory,
         PATH: process.env.PATH ?? '',
         ...(token === undefined ? {} : { ATLAS_EVAL_DECISIONS_TOKEN: token }),
-        ...(process.env.ATLAS_EVAL_BACKEND === undefined ? {} : { ATLAS_EVAL_BACKEND: process.env.ATLAS_EVAL_BACKEND }),
+        ...(process.env.ATLAS_EVAL_BACKEND === undefined
+          ? {}
+          : { ATLAS_EVAL_BACKEND: process.env.ATLAS_EVAL_BACKEND }),
         ...(process.env.ATLAS_EVAL_OPENAI_KEY_FILE === undefined
           ? {}
           : { ATLAS_EVAL_OPENAI_KEY_FILE: process.env.ATLAS_EVAL_OPENAI_KEY_FILE }),
@@ -135,12 +137,15 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
   const loaded = await loadDataset({ feature, datasetPath, suite: request.suite })
   const { rows, variants } = expandPlan({ cases: loaded.cases, trials: request.trials })
   if (rows.length === 0) {
-    throw new RunFailure(`planned zero rows for suite ${request.suite}; a run requires at least one accepted case`)
+    throw new RunFailure(
+      `planned zero rows for suite ${request.suite}; a run requires at least one accepted case`,
+    )
   }
 
   const invocationId = crypto.randomUUID()
   const runDirectory = join(resolve(request.outputParent), invocationId)
-  if (await pathExists(runDirectory)) throw new RunFailure(`run directory already exists: ${runDirectory}`)
+  if (await pathExists(runDirectory))
+    throw new RunFailure(`run directory already exists: ${runDirectory}`)
   await mkdir(runDirectory, { recursive: true })
 
   const startedAt = request.now?.() ?? new Date()
@@ -153,7 +158,11 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
     rows,
     variants,
     uniqueCases: loaded.cases.length,
-    dataset: { version: loaded.manifest.datasetVersion, hash: datasetHash, path: loaded.manifestPath },
+    dataset: {
+      version: loaded.manifest.datasetVersion,
+      hash: datasetHash,
+      path: loaded.manifestPath,
+    },
     codeDigests,
     enabledPolicyIds: enabledEvalPolicyIds,
     concurrency: DEFAULT_CONCURRENCY,
@@ -225,7 +234,10 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
     })
     summary.status = ERunStatus.IntegrityFailure
     await writeJsonAtomic({ path: join(runDirectory, 'summary.json'), value: summary })
-    await writeFileAtomic({ path: join(runDirectory, 'summary.txt'), content: formatSummaryText({ summary }) })
+    await writeFileAtomic({
+      path: join(runDirectory, 'summary.txt'),
+      content: formatSummaryText({ summary }),
+    })
     return { runDirectory, summary, rows: [], exitCode: 2 }
   }
 
@@ -257,11 +269,16 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
 
   if (request.baselineDir !== undefined) {
     const baseline = await loadRunDirectory({ directory: request.baselineDir })
-    const comparison = compareRuns({ baseline, candidate: { summary, rows: normalized, directory: runDirectory } })
+    const comparison = compareRuns({
+      baseline,
+      candidate: { summary, rows: normalized, directory: runDirectory },
+    })
     summary.baselineComparison = {
       baselineInvocationId: comparison.baselineInvocationId,
       comparable: comparison.comparable,
-      ...(comparison.mismatchReason === undefined ? {} : { mismatchReason: comparison.mismatchReason }),
+      ...(comparison.mismatchReason === undefined
+        ? {}
+        : { mismatchReason: comparison.mismatchReason }),
       deltas: comparison.deltas,
     }
     if (!comparison.verdict.promotable) summary.promotable = false
@@ -270,7 +287,10 @@ export async function handleRun({ request }: { request: RunRequest }): Promise<R
   const jsonl = normalized.map((row) => JSON.stringify(row)).join('\n') + '\n'
   await writeFileAtomic({ path: join(runDirectory, 'results.jsonl'), content: jsonl })
   await writeJsonAtomic({ path: join(runDirectory, 'summary.json'), value: summary })
-  await writeFileAtomic({ path: join(runDirectory, 'summary.txt'), content: formatSummaryText({ summary }) })
+  await writeFileAtomic({
+    path: join(runDirectory, 'summary.txt'),
+    content: formatSummaryText({ summary }),
+  })
   const exitCode = childFailureNote === null ? verdict.exitCode : 2
   return { runDirectory, summary, rows: normalized, exitCode }
 }

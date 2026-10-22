@@ -2,8 +2,13 @@ import { testRender } from '@opentui/react/test-utils'
 import { afterAll, describe, expect, test } from 'bun:test'
 import React from 'react'
 
-import { EAuthor, EEntryKind, EPendingKind, type PendingRow, type TranscriptEntry } from '../../../../store'
-import { teardown } from '../../../markdown/__tests__/harness'
+import {
+  EAuthor,
+  EEntryKind,
+  EPendingKind,
+  type PendingRow,
+  type TranscriptEntry,
+} from '../../../../store'
 import { EntryView } from '../../entry-view'
 import { NoticeBlock } from '../notice-block'
 import { PendingBlock } from '../pending-block'
@@ -60,8 +65,14 @@ describe('the durable and the pending notice are the same block', () => {
     const durable = await shown(<EntryView entry={shellEndedEntry()} width={90} />)
     const pending = await shown(<PendingBlock rows={[pendingShellRow()]} width={90} />)
 
-    const durableLine = durable.captureCharFrame().split('\n').find((row) => row.includes('exit code 0'))
-    const pendingLine = pending.captureCharFrame().split('\n').find((row) => row.includes('exit code 0'))
+    const durableLine = durable
+      .captureCharFrame()
+      .split('\n')
+      .find((row) => row.includes('exit code 0'))
+    const pendingLine = pending
+      .captureCharFrame()
+      .split('\n')
+      .find((row) => row.includes('exit code 0'))
 
     expect(durableLine?.replace(/\s+/g, '')).toContain('Backgroundshell')
     expect(pendingLine?.replace(/\s+/g, '')).toContain('Backgroundshell')
@@ -164,10 +175,7 @@ describe('the durable and the pending notice are the same block', () => {
 
   test('a truly empty pending body still earns its silent note, because empty was handed over', async () => {
     const setup = await shown(
-      <PendingBlock
-        rows={[Object.assign(pendingShellRow(), { body: '' })]}
-        width={90}
-      />,
+      <PendingBlock rows={[Object.assign(pendingShellRow(), { body: '' })]} width={90} />,
     )
 
     expect(setup.captureCharFrame()).toContain('printed nothing')

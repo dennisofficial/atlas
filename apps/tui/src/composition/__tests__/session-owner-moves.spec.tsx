@@ -10,7 +10,10 @@ import { cleared, mountInCloud, shown, speaking } from './app-container-cloud-fi
 
 await grammarsReady()
 
-const connected = async (mounted: Awaited<ReturnType<typeof mountInCloud>>, bridge: ReturnType<typeof fakeBridge>) => {
+const connected = async (
+  mounted: Awaited<ReturnType<typeof mountInCloud>>,
+  bridge: ReturnType<typeof fakeBridge>,
+) => {
   bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
   await shown(mounted, 'CLOUD')
 }
@@ -89,7 +92,13 @@ describe('the session owner behind a cloud thread', () => {
 
       await mounted.command('/resume opened-thread')
       expect(
-        await until({ holds: async () => bridge.attached.some((held) => held.threadId === cloudThread && held !== bridge.attached[0]), within: 20_000 }),
+        await until({
+          holds: async () =>
+            bridge.attached.some(
+              (held) => held.threadId === cloudThread && held !== bridge.attached[0],
+            ),
+          within: 20_000,
+        }),
       ).toBe(true)
       bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
       await shown(mounted, 'CLOUD')
@@ -102,4 +111,3 @@ describe('the session owner behind a cloud thread', () => {
     }
   }, 60_000)
 })
-

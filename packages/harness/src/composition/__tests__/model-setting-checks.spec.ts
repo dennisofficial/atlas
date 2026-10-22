@@ -71,7 +71,9 @@ describe('unreachableModelSettings', () => {
   it('checks late-registered per-type rows too', () => {
     const definitions: readonly SettingDefinition[] = [
       ...ATLAS_SETTINGS,
-      ...agentTypeModelDefinitions({ types: [{ name: 'explore', origin: EDefinitionOrigin.BuiltIn }] }),
+      ...agentTypeModelDefinitions({
+        types: [{ name: 'explore', origin: EDefinitionOrigin.BuiltIn }],
+      }),
     ]
 
     const problems = unreachableModelSettings({

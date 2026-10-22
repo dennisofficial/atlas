@@ -30,10 +30,7 @@ export class GithubHookLifecycleService {
     private readonly installations: GithubAppInstallationsService,
   ) {}
 
-  async ensureHook(args: {
-    userId: string
-    repoFullName: string
-  }): Promise<EnsureHookResult> {
+  async ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
     if (await this.installations.coversRepo({ repoFullName: args.repoFullName })) {
       return 'app-backed'
     }

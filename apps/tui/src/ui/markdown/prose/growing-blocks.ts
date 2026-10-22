@@ -56,7 +56,10 @@ const grownBySource = new Map<string, readonly SourcedBlock[]>()
 
 const NO_FOOTNOTES: ReadonlyMap<string, string> = new Map()
 
-export function proseBlocksFor(args: { source: string; streaming: boolean }): readonly SourcedBlock[] {
+export function proseBlocksFor(args: {
+  source: string
+  streaming: boolean
+}): readonly SourcedBlock[] {
   if (args.streaming) return growingProseBlocks(args.source)
   return grownBySource.get(args.source) ?? sourcedProseBlocks(args.source)
 }

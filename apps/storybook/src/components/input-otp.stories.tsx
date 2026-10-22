@@ -1,19 +1,19 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
-} from "@dltech/atlas-ui/components/input-otp";
+} from '@dltech/atlas-ui/components/input-otp'
 
 const meta = {
-  title: "Components/Input OTP",
-} satisfies Meta;
+  title: 'Components/Input OTP',
+} satisfies Meta
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -31,7 +31,7 @@ export const Default: Story = {
       </InputOTPGroup>
     </InputOTP>
   ),
-};
+}
 
 export const Prefilled: Story = {
   render: () => (
@@ -43,7 +43,7 @@ export const Prefilled: Story = {
       </InputOTPGroup>
     </InputOTP>
   ),
-};
+}
 
 export const Disabled: Story = {
   render: () => (
@@ -55,4 +55,4 @@ export const Disabled: Story = {
       </InputOTPGroup>
     </InputOTP>
   ),
-};
+}

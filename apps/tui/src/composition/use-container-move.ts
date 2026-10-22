@@ -36,7 +36,11 @@ export type ContainerMoveControl = {
   handleTransferProgress: (progress: BirthTransferProgress) => void
   handleRowActive: (id: string) => void
   handleRowLabel: (args: { nodeId: string; text: string }) => void
-  handleExpand: (args: { insertBefore: string; row: MoveRowSeed; heading?: string | undefined }) => void
+  handleExpand: (args: {
+    insertBefore: string
+    row: MoveRowSeed
+    heading?: string | undefined
+  }) => void
   handleSettle: () => void
   handleFail: (reason: string) => void
   handleDismiss: () => void
@@ -62,7 +66,8 @@ export function useContainerMove(args?: {
       heading?: string | undefined
       onCancel?: (() => void) | undefined
     }) => {
-      if (beginArgs.onCancel !== undefined && moveRef.current === null) cancelling.current = beginArgs.onCancel
+      if (beginArgs.onCancel !== undefined && moveRef.current === null)
+        cancelling.current = beginArgs.onCancel
       setMove(
         (current) =>
           current ??
@@ -81,7 +86,9 @@ export function useContainerMove(args?: {
   const handleNodeStart = useCallback(
     (nodeId: string) => {
       const at = clock.read()
-      setMove((current) => (current === null ? null : startMoveNode({ move: current, nodeId, now: at })))
+      setMove((current) =>
+        current === null ? null : startMoveNode({ move: current, nodeId, now: at }),
+      )
     },
     [clock],
   )
@@ -89,20 +96,26 @@ export function useContainerMove(args?: {
   const handleNodeDone = useCallback(
     (nodeId: string) => {
       const at = clock.read()
-      setMove((current) => (current === null ? null : settleMoveNode({ move: current, nodeId, now: at })))
+      setMove((current) =>
+        current === null ? null : settleMoveNode({ move: current, nodeId, now: at }),
+      )
       args?.onStep?.({ step: nodeId, at })
     },
     [clock, args],
   )
 
   const handleTransferProgress = useCallback((progress: BirthTransferProgress) => {
-    setMove((current) => (current === null ? null : updateMoveTransfer({ move: current, progress })))
+    setMove((current) =>
+      current === null ? null : updateMoveTransfer({ move: current, progress }),
+    )
   }, [])
 
   const handleRowActive = useCallback(
     (id: string) => {
       const at = clock.read()
-      setMove((current) => (current === null ? null : activateMoveRow({ move: current, id, now: at })))
+      setMove((current) =>
+        current === null ? null : activateMoveRow({ move: current, id, now: at }),
+      )
       args?.onStep?.({ step: id, at })
     },
     [clock, args],
@@ -110,7 +123,9 @@ export function useContainerMove(args?: {
 
   const handleRowLabel = useCallback((labelArgs: { nodeId: string; text: string }) => {
     setMove((current) =>
-      current === null ? null : relabelMoveRow({ move: current, nodeId: labelArgs.nodeId, text: labelArgs.text }),
+      current === null
+        ? null
+        : relabelMoveRow({ move: current, nodeId: labelArgs.nodeId, text: labelArgs.text }),
     )
   }, [])
 
@@ -182,6 +197,21 @@ export function useContainerMove(args?: {
       handleDismiss,
       handleKey,
     }),
-    [move, now, handleBegin, handleNodeStart, handleNodeDone, handleCancel, handleTransferProgress, handleRowActive, handleRowLabel, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
+    [
+      move,
+      now,
+      handleBegin,
+      handleNodeStart,
+      handleNodeDone,
+      handleCancel,
+      handleTransferProgress,
+      handleRowActive,
+      handleRowLabel,
+      handleExpand,
+      handleSettle,
+      handleFail,
+      handleDismiss,
+      handleKey,
+    ],
   )
 }

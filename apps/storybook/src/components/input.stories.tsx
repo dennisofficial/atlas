@@ -1,16 +1,16 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Field, FieldDescription, FieldError, FieldLabel } from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
+import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
 
 const meta = {
-  title: "Components/Input",
+  title: 'Components/Input',
   component: Input,
   argTypes: {
-    type: { control: "select", options: ["text", "email", "password", "number", "search", "file"] },
-    disabled: { control: "boolean" },
+    type: { control: 'select', options: ['text', 'email', 'password', 'number', 'search', 'file'] },
+    disabled: { control: 'boolean' },
   },
-  args: { type: "text", placeholder: "Search sessions" },
+  args: { type: 'text', placeholder: 'Search sessions' },
   decorators: [
     (Story) => (
       <div className="w-80">
@@ -18,13 +18,13 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Input>;
+} satisfies Meta<typeof Input>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Default: Story = {};
+export const Default: Story = {}
 
 export const WithLabel: Story = {
   render: (args) => (
@@ -34,9 +34,9 @@ export const WithLabel: Story = {
       <FieldDescription>HTTPS or SSH both work.</FieldDescription>
     </Field>
   ),
-};
+}
 
-export const Disabled: Story = { args: { disabled: true, defaultValue: "main" } };
+export const Disabled: Story = { args: { disabled: true, defaultValue: 'main' } }
 
 export const Invalid: Story = {
   render: (args) => (
@@ -46,6 +46,6 @@ export const Invalid: Story = {
       <FieldError>This token has expired.</FieldError>
     </Field>
   ),
-};
+}
 
-export const File: Story = { args: { type: "file" } };
+export const File: Story = { args: { type: 'file' } }

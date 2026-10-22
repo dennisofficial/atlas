@@ -29,5 +29,7 @@ export function placementOf(location: EExecutionLocation): SessionPlacement {
 
 export function locationOfPlacement(placement: SessionPlacement): EExecutionLocation {
   if (placement.harness === EHarnessPlacement.Cloud) return EExecutionLocation.Cloud
-  return placement.tools === EToolEnvironment.Docker ? EExecutionLocation.Docker : EExecutionLocation.Host
+  return placement.tools === EToolEnvironment.Docker
+    ? EExecutionLocation.Docker
+    : EExecutionLocation.Host
 }

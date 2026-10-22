@@ -1,14 +1,14 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from 'react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Context } from "@dltech/atlas-ui/ai/context";
-import { EEffort, ModelSelector } from "@dltech/atlas-ui/ai/model-selector";
-import { PromptInput, type PromptAttachment } from "@dltech/atlas-ui/ai/prompt-input";
+import { Context } from '@dltech/atlas-ui/ai/context'
+import { EEffort, ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
+import { PromptInput, type PromptAttachment } from '@dltech/atlas-ui/ai/prompt-input'
 
-import { MODELS } from "../fixtures/agent";
+import { MODELS } from '../fixtures/agent'
 
 const meta = {
-  title: "AI/Prompt Input",
+  title: 'AI/Prompt Input',
   component: PromptInput,
   decorators: [
     (Story) => (
@@ -17,45 +17,45 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof PromptInput>;
+} satisfies Meta<typeof PromptInput>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Empty: Story = {};
+export const Empty: Story = {}
 
 export const WithText: Story = {
-  args: { defaultValue: "Add a story for every AI pattern" },
-};
+  args: { defaultValue: 'Add a story for every AI pattern' },
+}
 
 export const Busy: Story = {
-  args: { defaultValue: "Run the full suite", busy: true },
-};
+  args: { defaultValue: 'Run the full suite', busy: true },
+}
 
 export const WithAttachments: Story = {
   args: {
     attachments: [
-      { id: "1", name: "typecheck.log" },
-      { id: "2", name: "screenshot.png" },
+      { id: '1', name: 'typecheck.log' },
+      { id: '2', name: 'screenshot.png' },
     ],
   },
-};
+}
 
 function ComposedPrompt() {
-  const [model, setModel] = useState("claude-sonnet");
-  const [effort, setEffort] = useState(EEffort.Medium);
-  const [attachments, setAttachments] = useState<PromptAttachment[]>([]);
-  const [sent, setSent] = useState<string[]>([]);
+  const [model, setModel] = useState('claude-sonnet')
+  const [effort, setEffort] = useState(EEffort.Medium)
+  const [attachments, setAttachments] = useState<PromptAttachment[]>([])
+  const [sent, setSent] = useState<string[]>([])
 
   const handleAttach = (files: File[]) =>
     setAttachments((current) => [
       ...current,
       ...files.map((file) => ({ id: `${file.name}-${file.size}`, name: file.name })),
-    ]);
+    ])
   const handleRemove = (id: string) =>
-    setAttachments((current) => current.filter((item) => item.id !== id));
-  const handleSubmit = (text: string) => setSent((current) => [...current, text]);
+    setAttachments((current) => current.filter((item) => item.id !== id))
+  const handleSubmit = (text: string) => setSent((current) => [...current, text])
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,9 +80,9 @@ function ComposedPrompt() {
         <Context used={52_400} limit={200_000} className="ml-auto" />
       </PromptInput>
     </div>
-  );
+  )
 }
 
 export const Composed: Story = {
   render: () => <ComposedPrompt />,
-};
+}

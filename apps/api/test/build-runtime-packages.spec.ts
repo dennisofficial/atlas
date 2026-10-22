@@ -4,20 +4,27 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { lockedRuntimePackages } from '../build-runtime-packages'
 
-const entry = ({ id, dependencies }: { id: string; dependencies?: Record<string, string> }): unknown[] => [
+const entry = ({
   id,
-  '',
-  dependencies ? { dependencies } : {},
-  `sha512-${id}`,
-]
+  dependencies,
+}: {
+  id: string
+  dependencies?: Record<string, string>
+}): unknown[] => [id, '', dependencies ? { dependencies } : {}, `sha512-${id}`]
 
 const lockText = `{
   "lockfileVersion": 3,
   "configVersion": 1,
   "workspaces": { "": { "name": "fixture" }, },
   "packages": ${JSON.stringify({
-    express: entry({ id: 'express@5.3.0', dependencies: { router: '^2.2.0', debug: '^4.4.0', qs: '^6.16.0' } }),
-    router: entry({ id: 'router@2.2.0', dependencies: { debug: '^4.4.0', 'is-promise': '^4.0.0' } }),
+    express: entry({
+      id: 'express@5.3.0',
+      dependencies: { router: '^2.2.0', debug: '^4.4.0', qs: '^6.16.0' },
+    }),
+    router: entry({
+      id: 'router@2.2.0',
+      dependencies: { debug: '^4.4.0', 'is-promise': '^4.0.0' },
+    }),
     'router/debug': entry({ id: 'debug@4.1.0', dependencies: { ms: '^2.1.1' } }),
     debug: entry({ id: 'debug@4.4.3', dependencies: { ms: '^2.1.3' } }),
     ms: entry({ id: 'ms@2.1.3' }),
@@ -61,7 +68,9 @@ describe('lockedRuntimePackages', () => {
   it('resolves a dependency to the nested parent/child key before the hoisted one', async () => {
     const { lock } = await lockedRuntimePackages({ lockPath, roots: ['router'] })
 
-    expect(lock.packages['router/debug']).toEqual(entry({ id: 'debug@4.1.0', dependencies: { ms: '^2.1.1' } }))
+    expect(lock.packages['router/debug']).toEqual(
+      entry({ id: 'debug@4.1.0', dependencies: { ms: '^2.1.1' } }),
+    )
     expect(lock.packages['router/ms']).toBeDefined()
     expect(lock.packages.debug).toBeUndefined()
     expect(lock.packages.ms).toBeUndefined()
@@ -77,8 +86,8 @@ describe('lockedRuntimePackages', () => {
     const brokenPath = join(dir, 'broken.lock')
     writeFileSync(brokenPath, lockText.replace(/"qs":\[[^\]]*\],?/, ''))
 
-    await expect(lockedRuntimePackages({ lockPath: brokenPath, roots: ['express'] })).rejects.toThrow(
-      /"qs" is missing/,
-    )
+    await expect(
+      lockedRuntimePackages({ lockPath: brokenPath, roots: ['express'] }),
+    ).rejects.toThrow(/"qs" is missing/)
   })
 })

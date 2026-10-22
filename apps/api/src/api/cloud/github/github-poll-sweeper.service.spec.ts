@@ -97,7 +97,7 @@ describe('GithubPollSweeperService', () => {
   it('polls a live poll-backed subscription as its user and pushes the diff', async () => {
     vi.useFakeTimers()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service, fanout } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription()
 
     const received: unknown[] = []
@@ -118,7 +118,7 @@ describe('GithubPollSweeperService', () => {
 
   it('skips expired subscriptions', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription({
       id: 'sub-2',
       prNumber: 7,
@@ -133,7 +133,7 @@ describe('GithubPollSweeperService', () => {
 
   it('records a merged state event when a poll-backed read first reports merged', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription()
     seedPrState({ state: 'open' })
 
@@ -156,7 +156,7 @@ describe('GithubPollSweeperService', () => {
       checksFailed: 0,
       mergeable: true,
     }))
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription()
     seedPrState({ checksRunning: 2, checksPassed: 1, checksFailed: 0 })
 
@@ -169,7 +169,7 @@ describe('GithubPollSweeperService', () => {
 
   it('records no event on a steady-state re-read of a poll-backed pr', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription()
     seedPrState()
 
@@ -180,7 +180,7 @@ describe('GithubPollSweeperService', () => {
 
   it('records no event when a poll-backed pr row is brand new', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription()
 
     await service.handlePoll()
@@ -191,7 +191,7 @@ describe('GithubPollSweeperService', () => {
   it('re-anchors a hook-backed subscription whose state row is missing', async () => {
     vi.useFakeTimers()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service, fanout } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription({ pollBacked: false })
 
     const received: unknown[] = []
@@ -212,7 +212,7 @@ describe('GithubPollSweeperService', () => {
 
   it('re-anchors a hook-backed subscription whose state row has gone quiet', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription({ pollBacked: false })
     seedPrState({ updatedAt: new Date(Date.now() - 11 * 60 * 1_000) })
 
@@ -223,7 +223,7 @@ describe('GithubPollSweeperService', () => {
 
   it('leaves a hook-backed subscription alone while webhooks keep its state row fresh', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedSubscription({ pollBacked: false })
     seedPrState({ updatedAt: new Date(Date.now() - 2 * 60 * 1_000) })
 
@@ -236,7 +236,7 @@ describe('GithubPollSweeperService', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const findOpenPrForBranch = vi.fn(async () => ({ number: 42 }))
     const { service } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       readPullRequest,
       findOpenPrForBranch,
     })
@@ -263,7 +263,7 @@ describe('GithubPollSweeperService', () => {
     const readPullRequest = vi.fn(async () => {
       throw new GithubUserReadFailed('bad credentials', 401)
     })
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_dead' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_dead' }, readPullRequest })
     seedSubscription()
 
     await expect(service.handlePoll()).resolves.toBeUndefined()
@@ -275,7 +275,7 @@ describe('GithubPollSweeperService', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const findOpenPrForBranch = vi.fn(async () => ({ number: 42 }))
     const { service, fanout } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       readPullRequest,
       findOpenPrForBranch,
     })
@@ -308,7 +308,7 @@ describe('GithubPollSweeperService', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const findOpenPrForBranch = vi.fn(async () => null)
     const { service } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       readPullRequest,
       findOpenPrForBranch,
     })
@@ -324,7 +324,7 @@ describe('GithubPollSweeperService', () => {
 
   it('a poll for a known pr reaches a branch subscriber of the same repo', async () => {
     vi.useFakeTimers()
-    const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' } })
+    const { service, fanout } = serviceWith({ tokens: { usr_1: 'ghu_1' } })
     seedSubscription()
     fake.subscriptions.push({
       id: 'sub-branch',
@@ -400,7 +400,7 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
 
   it('polls an expired subscription whose sandbox is inside the wake window', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedCloudSandbox({
       id: 'sbx_row_1',
       threadId: 'thr_1',
@@ -431,7 +431,7 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
 
   it('skips an expired subscription whose sandbox fell out of the wake window', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     seedCloudSandbox({
       id: 'sbx_row_1',
       threadId: 'thr_1',

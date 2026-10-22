@@ -89,11 +89,7 @@ function linesOf(content: string): string[] {
   return lines.map(withoutCarriageReturn)
 }
 
-function scanLines(args: {
-  content: string
-  firstLine: number
-  limit: number
-}): LineScan {
+function scanLines(args: { content: string; firstLine: number; limit: number }): LineScan {
   const lines: string[] = []
   let lineNumber = 0
   let bytes = 0
@@ -175,7 +171,12 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     !output.truncated
   readonly inputSchema = inputSchema
   override readonly pathFields: readonly DeclaredPathField[] = [
-    { field: 'path', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.Reads },
+    {
+      field: 'path',
+      presence: EPathPresence.Required,
+      form: EPathForm.Absolute,
+      content: EContentAccess.Reads,
+    },
   ]
 
   private readonly files: AgentFileSystemPort
@@ -210,7 +211,10 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
       }
     }
     if (stats.isDirectory()) {
-      return { ok: false, reason: `${path} is a directory; use glob or grep to inspect its contents.` }
+      return {
+        ok: false,
+        reason: `${path} is a directory; use glob or grep to inspect its contents.`,
+      }
     }
     if (!stats.isFile()) return { ok: false, reason: `${path} is not a regular file.` }
 

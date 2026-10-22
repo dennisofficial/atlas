@@ -9,7 +9,7 @@ import {
   type ChannelConnection,
   type CloudConnection,
 } from '@dltech/atlas-harness'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import type { CloudSession } from '../cloud/cloud-session'
 import { createCloudSession } from '../cloud/cloud-session'
@@ -37,7 +37,12 @@ const sessionOver = (channel: ReturnType<typeof fakeCloudChannel>): CloudSession
   return createCloudSession({
     channel,
     sandboxes: {
-      create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
+      create: async () => ({
+        url: '',
+        token: '',
+        state: ECloudSandboxState.Running,
+        created: false,
+      }),
       find: async () => undefined,
       readResources: async () => ({}),
       updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
@@ -170,7 +175,12 @@ describe('the connection the cloud chrome reads', () => {
 
   it('shows a waking runtime, never a healthy cloud, while the placement says cloud but nothing is attached', async () => {
     const session = sessionOn({ state: EConnectionView.Connected, detail: null })
-    const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session, attached: false })
+    const { probe } = await mount({
+      app: appFor(),
+      location: EExecutionLocation.Cloud,
+      session,
+      attached: false,
+    })
 
     expect(probe.current?.state).toBe(EConnectionView.Waking)
   })
@@ -180,7 +190,10 @@ describe('the full health the transcript reads', () => {
   it('raises no sticky banner for a disconnected view or a server failure', async () => {
     const app = appFor()
     const channel = fakeCloudChannel({
-      connection: { state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' },
+      connection: {
+        state: EConnectionView.Disconnected,
+        detail: 'did not reopen after 5 attempts',
+      },
     })
     const session = sessionOver(channel)
     const { probe } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
@@ -194,7 +207,10 @@ describe('the full health the transcript reads', () => {
 
   it('reads nothing once the active thread is placed at home, however faulted the last cloud health', async () => {
     const app = appFor()
-    const session = sessionOn({ state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' })
+    const session = sessionOn({
+      state: EConnectionView.Disconnected,
+      detail: 'did not reopen after 5 attempts',
+    })
     const { probe, root } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
     await act(async () => {
       await Promise.resolve()

@@ -32,7 +32,9 @@ export async function recordSelectedExamples({
             change,
             workspaceNamespace,
             policyIds: policies.map((policy) => policy.id),
-            policyVersions: Object.fromEntries(policies.map((policy) => [policy.id, policy.version])),
+            policyVersions: Object.fromEntries(
+              policies.map((policy) => [policy.id, policy.version]),
+            ),
             adapterVersion: scope.adapterVersion,
             schemaVersion: EXAMPLE_SCHEMA_VERSION,
           }),
@@ -43,7 +45,8 @@ export async function recordSelectedExamples({
   const outcomes = new Map<string, ExampleOutcome>()
   selections.forEach(({ scope }, index) => {
     const result = recorded.kind === 'completed' ? recorded.value[index] : undefined
-    if (result === undefined) outcomes.set(scope.id, { fault: `example recording did not finish (${recorded.kind})` })
+    if (result === undefined)
+      outcomes.set(scope.id, { fault: `example recording did not finish (${recorded.kind})` })
     else outcomes.set(scope.id, result.ok ? { path: result.relativePath } : { fault: result.fault })
   })
   return outcomes

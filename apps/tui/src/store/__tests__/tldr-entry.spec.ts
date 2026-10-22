@@ -59,7 +59,11 @@ describe('a tldr footer in the transcript', () => {
     const entries = durableEntries({
       events: [
         event({ type: 'user-said', text: 'fix it', seq: 1, runId: ASKED }),
-        event({ type: 'assistant-said', parts: [{ type: 'text', text: 'fixed, building' }], seq: 2 }),
+        event({
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'fixed, building' }],
+          seq: 2,
+        }),
         tldr({ anchorSeq: 1, throughSeq: 2, text: 'Fixed; build running.', seq: 3 }),
         event({ type: 'assistant-said', parts: [{ type: 'text', text: 'build green' }], seq: 4 }),
         tldr({ anchorSeq: 1, throughSeq: 4, text: 'Fixed and green.', seq: 5 }),

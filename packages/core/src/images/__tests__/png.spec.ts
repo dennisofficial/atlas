@@ -3,7 +3,14 @@ import { deflateSync, inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'bun:test'
 
 import { pngSize } from '../limits'
-import { decodePng, downscalePng, downscaleRgba, encodePng, type PngCodec, type RgbaImage } from '../png'
+import {
+  decodePng,
+  downscalePng,
+  downscaleRgba,
+  encodePng,
+  type PngCodec,
+  type RgbaImage,
+} from '../png'
 import { patchTokens, projectedSize } from '../projection'
 
 const codec: PngCodec = {
@@ -24,7 +31,12 @@ const solidPng = (args: { width: number; height: number; shade: number }): Uint8
 }
 
 /** Left half one shade, right half another — the patterns filters and resampling have to honour. */
-const splitPng = (args: { width: number; height: number; left: number; right: number }): Uint8Array => {
+const splitPng = (args: {
+  width: number
+  height: number
+  left: number
+  right: number
+}): Uint8Array => {
   const rgba = new Uint8Array(args.width * args.height * 4)
   for (let y = 0; y < args.height; y += 1) {
     for (let x = 0; x < args.width; x += 1) {
@@ -128,7 +140,9 @@ describe('downscalePng', () => {
   })
 
   it('returns null for undecodable bytes rather than throwing', () => {
-    expect(downscalePng({ bytes: new Uint8Array([0x89, 0x50]), target: { width: 1, height: 1 }, codec })).toBeNull()
+    expect(
+      downscalePng({ bytes: new Uint8Array([0x89, 0x50]), target: { width: 1, height: 1 }, codec }),
+    ).toBeNull()
   })
 
   it('returns null when the re-encode would come out larger', () => {

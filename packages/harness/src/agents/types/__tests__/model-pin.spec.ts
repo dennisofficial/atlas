@@ -250,7 +250,7 @@ describe('the model a child is actually run against', () => {
     expect(built.identity.modelId).toBe(ANOTHER_VENDOR)
   })
 
-  it('is the type\'s own settings row when one is set, ahead of the pin and the role', () => {
+  it("is the type's own settings row when one is set, ahead of the pin and the role", () => {
     const TYPE_ROW = 'openrouter/anthropic/claude-haiku-4.5'
     const modelFor = pinnedModelSource({
       inherited: () => port('claude-opus-5'),
@@ -272,7 +272,9 @@ describe('the model a child is actually run against', () => {
       typeModelId: () => row,
     })
 
-    expect(modelFor({ agentType: typeOf({ name: 'plain' }) }).identity.modelId).toBe('claude-opus-5')
+    expect(modelFor({ agentType: typeOf({ name: 'plain' }) }).identity.modelId).toBe(
+      'claude-opus-5',
+    )
     row = REACHABLE
     expect(modelFor({ agentType: typeOf({ name: 'plain' }) }).identity.modelId).toBe(REACHABLE)
   })

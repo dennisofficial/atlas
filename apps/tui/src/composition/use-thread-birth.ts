@@ -25,7 +25,8 @@ export type ThreadBirth = {
   handleUnbornSend: (sent: UnbornSend) => boolean
 }
 
-const birthInFlight = (move: ContainerMoveControl): boolean => move.move !== null && move.move.failure === null
+const birthInFlight = (move: ContainerMoveControl): boolean =>
+  move.move !== null && move.move.failure === null
 
 export function useThreadBirth(args: {
   app: AtlasApp
@@ -70,7 +71,11 @@ export function useThreadBirth(args: {
   const birth = useCallback(
     (born: { threadId: ThreadId; runner: ERunner; arrival: SendArgs }) => {
       const { threadId } = born
-      const birthCloud = (next: { threadId: ThreadId; runner: ERunner; projectId: string | null }): void => {
+      const birthCloud = (next: {
+        threadId: ThreadId
+        runner: ERunner
+        projectId: string | null
+      }): void => {
         const { app, owner, containerMove, createBridge } = latest.current
         birthNewborn({
           app,
@@ -131,7 +136,8 @@ export function useThreadBirth(args: {
         return true
       }
       const chip = bornPlacementChip(app).snapshot()
-      const runner = chip?.threadId === threadId && chip.runner !== undefined ? chip.runner : undefined
+      const runner =
+        chip?.threadId === threadId && chip.runner !== undefined ? chip.runner : undefined
       undelivered.current = { threadId, restore: sent.onUndelivered }
       birth({ threadId, runner: runner ?? preferredRunner(app), arrival: sent.send })
       return true
@@ -149,7 +155,10 @@ export function useThreadBirth(args: {
     chip.set({ ...state, runner: next })
   }, [])
 
-  useEffect(() => bornPlacementChip(latest.current.app).bindFlip(handleFlipPlacement), [handleFlipPlacement])
+  useEffect(
+    () => bornPlacementChip(latest.current.app).bindFlip(handleFlipPlacement),
+    [handleFlipPlacement],
+  )
 
   useUnbornThread({
     app: args.app,

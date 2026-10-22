@@ -91,7 +91,11 @@ describe('decisionsEndpointOf', () => {
   it('falls back to the Jev model on custom with a blank model, and is unconfigured without a url', () => {
     expect(
       endpointOf(
-        { [ESettingId.DecisionsProvider]: 'custom', [ESettingId.DecisionsUrl]: 'http://x', [ESettingId.DecisionsModel]: '' },
+        {
+          [ESettingId.DecisionsProvider]: 'custom',
+          [ESettingId.DecisionsUrl]: 'http://x',
+          [ESettingId.DecisionsModel]: '',
+        },
         undefined,
       )?.model,
     ).toBe('jev-latest')
@@ -101,20 +105,30 @@ describe('decisionsEndpointOf', () => {
 
 describe('decisions provider helpers', () => {
   it('names the vault key per provider', () => {
-    expect(decisionsTokenNameOf({ provider: EDecisionsProvider.OpenAi })).toBe('decisions.token.openai')
+    expect(decisionsTokenNameOf({ provider: EDecisionsProvider.OpenAi })).toBe(
+      'decisions.token.openai',
+    )
   })
 
   it('reads the provider from the resolution with typesafe as the fallback', () => {
     expect(decisionsProviderIn({ resolution: resolutionOf() })).toBe(EDecisionsProvider.Typesafe)
     expect(
-      decisionsProviderIn({ resolution: resolutionOf({ [ESettingId.DecisionsProvider]: 'custom' }) }),
+      decisionsProviderIn({
+        resolution: resolutionOf({ [ESettingId.DecisionsProvider]: 'custom' }),
+      }),
     ).toBe(EDecisionsProvider.Custom)
   })
 
   it('recognises a preset url with or without the route, slash or case', () => {
-    expect(decisionsPresetOfUrl({ url: 'https://API.typesafe.ai/' })).toBe(EDecisionsProvider.Typesafe)
-    expect(decisionsPresetOfUrl({ url: 'https://api.typesafe.ai/v1/systemone' })).toBe(EDecisionsProvider.Typesafe)
-    expect(decisionsPresetOfUrl({ url: 'https://api.openai.com/v1/decisions' })).toBe(EDecisionsProvider.OpenAi)
+    expect(decisionsPresetOfUrl({ url: 'https://API.typesafe.ai/' })).toBe(
+      EDecisionsProvider.Typesafe,
+    )
+    expect(decisionsPresetOfUrl({ url: 'https://api.typesafe.ai/v1/systemone' })).toBe(
+      EDecisionsProvider.Typesafe,
+    )
+    expect(decisionsPresetOfUrl({ url: 'https://api.openai.com/v1/decisions' })).toBe(
+      EDecisionsProvider.OpenAi,
+    )
     expect(decisionsPresetOfUrl({ url: 'http://laya.local' })).toBeUndefined()
   })
 })

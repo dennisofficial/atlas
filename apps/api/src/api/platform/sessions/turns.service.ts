@@ -7,10 +7,7 @@ import type { TurnDto, TurnTreeDto } from './sessions.types'
 
 const SUPERVISION_DEPTH_LIMIT = 2
 
-async function readSpawnedThreadIds(args: {
-  userId: string
-  threadId: string
-}): Promise<string[]> {
+async function readSpawnedThreadIds(args: { userId: string; threadId: string }): Promise<string[]> {
   const collected: string[] = []
   let frontier: string[] = [args.threadId]
 

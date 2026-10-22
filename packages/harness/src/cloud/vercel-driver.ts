@@ -98,8 +98,13 @@ export class VercelDriver {
   }> {
     if (this.args.devServe === undefined) return { version: this.args.serveVersion }
     const binary = await this.args.devServe({ log: this.args.log })
-    this.args.log?.(`dev serve ${binary.version} resolved — uploading it instead of downloading a release`)
-    return { version: binary.version, installServe: (this.args.uploadServe ?? uploadServeInstaller)(binary) }
+    this.args.log?.(
+      `dev serve ${binary.version} resolved — uploading it instead of downloading a release`,
+    )
+    return {
+      version: binary.version,
+      installServe: (this.args.uploadServe ?? uploadServeInstaller)(binary),
+    }
   }
 
   /**

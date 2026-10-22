@@ -51,11 +51,7 @@ const errorCodeIn = (stderr: string): string | undefined => {
   return undefined
 }
 
-const remoteStat = (args: {
-  size: number
-  mode: number
-  mtimeMs: number
-}): FileStat => ({
+const remoteStat = (args: { size: number; mode: number; mtimeMs: number }): FileStat => ({
   size: args.size,
   mode: args.mode,
   mtimeMs: args.mtimeMs,
@@ -164,14 +160,14 @@ export class DockerFileSystemPort extends AgentFileSystemPort {
   }
 
   async mkdir(args: { path: string; threadId?: ThreadId | undefined }): Promise<void> {
-    await this.execOrThrow({ script: 'mkdir -p -- "$1"', argv: [args.path], threadId: args.threadId })
+    await this.execOrThrow({
+      script: 'mkdir -p -- "$1"',
+      argv: [args.path],
+      threadId: args.threadId,
+    })
   }
 
-  async rename(args: {
-    from: string
-    to: string
-    threadId?: ThreadId | undefined
-  }): Promise<void> {
+  async rename(args: { from: string; to: string; threadId?: ThreadId | undefined }): Promise<void> {
     await this.execOrThrow({
       script: 'mv -T -- "$1" "$2"',
       argv: [args.from, args.to],

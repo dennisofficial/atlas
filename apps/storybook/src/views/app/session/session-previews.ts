@@ -1,37 +1,37 @@
 export enum EPreviewStatus {
-  Live = "live",
-  Starting = "starting",
-  Stopped = "stopped",
+  Live = 'live',
+  Starting = 'starting',
+  Stopped = 'stopped',
 }
 
 export interface PreviewUrl {
-  id: string;
-  port: number;
-  label: string;
-  url: string;
-  status: EPreviewStatus;
+  id: string
+  port: number
+  label: string
+  url: string
+  status: EPreviewStatus
 }
 
 export const PREVIEW_URLS: PreviewUrl[] = [
   {
-    id: "storybook",
+    id: 'storybook',
     port: 6006,
-    label: "Storybook",
-    url: "https://6006-thr-ui-rebase.preview.atlas.dev",
+    label: 'Storybook',
+    url: 'https://6006-thr-ui-rebase.preview.atlas.dev',
     status: EPreviewStatus.Live,
   },
   {
-    id: "web",
+    id: 'web',
     port: 3000,
-    label: "Web app",
-    url: "https://3000-thr-ui-rebase.preview.atlas.dev",
+    label: 'Web app',
+    url: 'https://3000-thr-ui-rebase.preview.atlas.dev',
     status: EPreviewStatus.Starting,
   },
   {
-    id: "api",
+    id: 'api',
     port: 4000,
-    label: "API",
-    url: "https://4000-thr-ui-rebase.preview.atlas.dev",
+    label: 'API',
+    url: 'https://4000-thr-ui-rebase.preview.atlas.dev',
     status: EPreviewStatus.Stopped,
   },
-];
+]

@@ -37,7 +37,10 @@ export class PublishingTurnRunner extends TurnRunner {
   constructor(args: { channel: DeltaChannel; deps: TurnDeps }) {
     super()
     this.channel = args.channel
-    this.deps = { ...args.deps, log: withDeltaPublishing({ log: args.deps.log, channel: args.channel }) }
+    this.deps = {
+      ...args.deps,
+      log: withDeltaPublishing({ log: args.deps.log, channel: args.channel }),
+    }
   }
 
   say(args: {
@@ -56,7 +59,11 @@ export class PublishingTurnRunner extends TurnRunner {
     })
   }
 
-  runTurn(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
+  runTurn(args: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
       publisher,
@@ -64,7 +71,11 @@ export class PublishingTurnRunner extends TurnRunner {
     })
   }
 
-  resume(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
+  resume(args: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
       publisher,

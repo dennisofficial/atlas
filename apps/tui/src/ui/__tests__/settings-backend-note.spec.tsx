@@ -7,7 +7,6 @@ import {
   EWebSearchBackend,
   type ResolvedSetting,
 } from '@dltech/atlas-core'
-import React from 'react'
 
 import { SettingsDetail } from '../components/settings/detail'
 

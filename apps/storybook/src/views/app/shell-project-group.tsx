@@ -1,21 +1,21 @@
-import { ChevronRight, FolderGit2, SquarePen } from "lucide-react";
+import { ChevronRight, FolderGit2, SquarePen } from 'lucide-react'
 
-import { SidebarMenu } from "@dltech/atlas-ui/components/sidebar";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { SidebarMenu } from '@dltech/atlas-ui/components/sidebar'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { type AppProject, type AppThread } from "../../fixtures/app";
-import { ProjectHoverCard } from "./project-hover-card";
-import { RowAction } from "./shell-row-action";
-import { ThreadRow } from "./shell-thread-row";
+import { type AppProject, type AppThread } from '../../fixtures/app'
+import { ProjectHoverCard } from './project-hover-card'
+import { RowAction } from './shell-row-action'
+import { ThreadRow } from './shell-thread-row'
 
 export interface ProjectGroupProps {
-  project: AppProject;
-  threads: AppThread[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  activeThreadId?: string;
-  threadCardId?: string;
-  defaultCardOpen: boolean;
+  project: AppProject
+  threads: AppThread[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  activeThreadId?: string
+  threadCardId?: string
+  defaultCardOpen: boolean
 }
 
 export function ProjectGroup({
@@ -27,7 +27,7 @@ export function ProjectGroup({
   threadCardId,
   defaultCardOpen,
 }: ProjectGroupProps) {
-  const handleToggle = () => onOpenChange(!open);
+  const handleToggle = () => onOpenChange(!open)
   return (
     <section className="flex flex-col gap-0.5">
       <ProjectHoverCard
@@ -55,12 +55,10 @@ export function ProjectGroup({
           <button
             type="button"
             onClick={handleToggle}
-            aria-label={open ? "Collapse project" : "Expand project"}
+            aria-label={open ? 'Collapse project' : 'Expand project'}
             className="flex size-5 items-center justify-center rounded-md text-muted-foreground outline-hidden hover:text-foreground"
           >
-            <ChevronRight
-              className={cn("size-3.5 transition-transform", open && "rotate-90")}
-            />
+            <ChevronRight className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
           </button>
         </div>
       </ProjectHoverCard>
@@ -77,5 +75,5 @@ export function ProjectGroup({
         </SidebarMenu>
       )}
     </section>
-  );
+  )
 }

@@ -14,14 +14,12 @@ const uiDesignDirective =
   'For every task involving UI design, implementation, changes, or review—including web, mobile, and terminal interfaces—load ui-design before choosing an approach. Load it alongside any other relevant skills, independently of the skill-relevance hint.'
 
 const budgetCharsFor = (ctx: PromptContext): number =>
-  Math.floor(
-    ctx.model.contextWindow * CHARS_PER_TOKEN * SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT,
-  )
+  Math.floor(ctx.model.contextWindow * CHARS_PER_TOKEN * SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT)
 
 export class SkillListingFragment extends VolatilePromptFragment {
   readonly id = 'skills.listing'
 
-  constructor( private readonly skills: SkillRegistryPort) {
+  constructor(private readonly skills: SkillRegistryPort) {
     super()
   }
 

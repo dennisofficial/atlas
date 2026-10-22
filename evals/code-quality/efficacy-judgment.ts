@@ -44,7 +44,8 @@ export class EfficacyInputError extends Error {
   }
 }
 
-export const inputHashOf = ({ input }: { input: unknown }): string => sha256Hex({ text: JSON.stringify(input) })
+export const inputHashOf = ({ input }: { input: unknown }): string =>
+  sha256Hex({ text: JSON.stringify(input) })
 
 export function parseJudgmentsJsonl({ text }: { text: string }): readonly SrpPilotJudgment[] {
   const problems: string[] = []
@@ -60,35 +61,62 @@ export function parseJudgmentsJsonl({ text }: { text: string }): readonly SrpPil
     }
     const decoded = srpPilotJudgmentSchema.safeParse(parsed)
     if (decoded.success) judgments.push(decoded.data)
-    else problems.push(`judgment line ${index + 1}: ${decoded.error.issues[0]?.message ?? 'invalid'}`)
+    else
+      problems.push(`judgment line ${index + 1}: ${decoded.error.issues[0]?.message ?? 'invalid'}`)
   })
   if (problems.length > 0) throw new EfficacyInputError({ problems })
   return judgments
 }
 
-function judgmentIndex({ judgments, caseIds, problems }: { judgments: readonly SrpPilotJudgment[]; caseIds: ReadonlySet<string>; problems: string[] }): ReadonlyMap<string, SrpPilotJudgment> {
+function judgmentIndex({
+  judgments,
+  caseIds,
+  problems,
+}: {
+  judgments: readonly SrpPilotJudgment[]
+  caseIds: ReadonlySet<string>
+  problems: string[]
+}): ReadonlyMap<string, SrpPilotJudgment> {
   const index = new Map<string, SrpPilotJudgment>()
   for (const judgment of judgments) {
-    if (!caseIds.has(judgment.caseId)) problems.push(`judgment for unknown case "${judgment.caseId}"`)
-    else if (index.has(judgment.caseId)) problems.push(`duplicate judgment for case "${judgment.caseId}"`)
+    if (!caseIds.has(judgment.caseId))
+      problems.push(`judgment for unknown case "${judgment.caseId}"`)
+    else if (index.has(judgment.caseId))
+      problems.push(`duplicate judgment for case "${judgment.caseId}"`)
     else index.set(judgment.caseId, judgment)
   }
   return index
 }
 
-function evidenceProblems({ evalCase, expected, scope }: { evalCase: EvalCase; expected: SrpExpected; scope: QualityScope }): readonly string[] {
+function evidenceProblems({
+  evalCase,
+  expected,
+  scope,
+}: {
+  evalCase: EvalCase
+  expected: SrpExpected
+  scope: QualityScope
+}): readonly string[] {
   if (expected.kind === ESrpExpectationKind.Abstain) return []
   const ids = expected.fields.evidenceIds
   const available = new Set(scope.evidence.map((entry) => entry.id))
   const problems: string[] = []
-  if (new Set(ids).size !== ids.length) problems.push(`case "${evalCase.id}" expected evidence ids are not unique`)
+  if (new Set(ids).size !== ids.length)
+    problems.push(`case "${evalCase.id}" expected evidence ids are not unique`)
   for (const id of ids) {
-    if (!available.has(id)) problems.push(`case "${evalCase.id}" expected evidence "${id}" is not in the input evidence`)
+    if (!available.has(id))
+      problems.push(`case "${evalCase.id}" expected evidence "${id}" is not in the input evidence`)
   }
   return problems
 }
 
-export function prepareCases({ cases, judgments }: { cases: readonly EvalCase[]; judgments: readonly SrpPilotJudgment[] }): readonly PreparedCase[] {
+export function prepareCases({
+  cases,
+  judgments,
+}: {
+  cases: readonly EvalCase[]
+  judgments: readonly SrpPilotJudgment[]
+}): readonly PreparedCase[] {
   const problems: string[] = []
   const caseIds = new Set<string>()
   for (const evalCase of cases) {
@@ -101,13 +129,24 @@ export function prepareCases({ cases, judgments }: { cases: readonly EvalCase[];
     const input = codeQualityInputSchema.safeParse(evalCase.input)
     const expected = srpExpectedSchema.safeParse(evalCase.expected)
     const judgment = index.get(evalCase.id)
-    if (!input.success) problems.push(`case "${evalCase.id}" input fails the code-quality input schema`)
-    if (!expected.success) problems.push(`case "${evalCase.id}" expected fails the SRP expected schema`)
+    if (!input.success)
+      problems.push(`case "${evalCase.id}" input fails the code-quality input schema`)
+    if (!expected.success)
+      problems.push(`case "${evalCase.id}" expected fails the SRP expected schema`)
     if (judgment === undefined) problems.push(`case "${evalCase.id}" has no judgment`)
-    else if (judgment.inputHash !== inputHashOf({ input: evalCase.input })) problems.push(`judgment for case "${evalCase.id}" is bound to a different input hash`)
+    else if (judgment.inputHash !== inputHashOf({ input: evalCase.input }))
+      problems.push(`judgment for case "${evalCase.id}" is bound to a different input hash`)
     if (!input.success || !expected.success || judgment === undefined) continue
-    problems.push(...evidenceProblems({ evalCase, expected: expected.data, scope: input.data.scope }))
-    prepared.push({ evalCase, expected: expected.data, scope: input.data.scope, judgment, group: evalCase.provenance.group })
+    problems.push(
+      ...evidenceProblems({ evalCase, expected: expected.data, scope: input.data.scope }),
+    )
+    prepared.push({
+      evalCase,
+      expected: expected.data,
+      scope: input.data.scope,
+      judgment,
+      group: evalCase.provenance.group,
+    })
   }
   if (problems.length > 0) throw new EfficacyInputError({ problems })
   return prepared

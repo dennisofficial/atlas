@@ -15,7 +15,9 @@ type CreateOutcome = { readiness: ImageReadiness; sandboxName?: string; detail: 
 const errorFieldOf = (body: unknown): Record<string, unknown> | undefined => {
   if (typeof body !== 'object' || body === null) return undefined
   const error = (body as { error?: unknown }).error
-  return typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : undefined
+  return typeof error === 'object' && error !== null
+    ? (error as Record<string, unknown>)
+    : undefined
 }
 
 export function classifyCreateResponse(args: { status: number; body: unknown }): ImageReadiness {
@@ -136,7 +138,9 @@ async function main(): Promise<number> {
   const vcrImage = process.env.VCR_IMAGE
   const ghcrImage = process.env.IMAGE
   if (!token || !teamId || !projectId || !vcrImage || !ghcrImage) {
-    console.error('VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID, VCR_IMAGE and IMAGE are required')
+    console.error(
+      'VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID, VCR_IMAGE and IMAGE are required',
+    )
     return 2
   }
   const tag = image.split(':').at(-1) ?? image
@@ -149,7 +153,9 @@ async function main(): Promise<number> {
       return 0
     }
     if (readiness === 'not-ready') {
-      console.log(`::error::image ${image} still not ready after ${CREATE_BUDGET_MS / 60_000} minutes`)
+      console.log(
+        `::error::image ${image} still not ready after ${CREATE_BUDGET_MS / 60_000} minutes`,
+      )
       return 1
     }
     if (readiness === 'unexpected') return 1
@@ -159,7 +165,9 @@ async function main(): Promise<number> {
       )
       return 1
     }
-    console.log(`optimization failed for the published digest — republishing under a fresh one (heal ${heal + 1}/${HEAL_ATTEMPTS})`)
+    console.log(
+      `optimization failed for the published digest — republishing under a fresh one (heal ${heal + 1}/${HEAL_ATTEMPTS})`,
+    )
     await republishUnderFreshDigest({ vcrImage, tag, ghcrImage })
   }
 }

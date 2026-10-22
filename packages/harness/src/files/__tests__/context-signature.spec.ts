@@ -18,7 +18,10 @@ async function context() {
 
 describe('scanContextSignature', () => {
   it('reports an absent directory as empty and not capped', async () => {
-    expect(await scanContextSignature({ context: join(await context(), 'missing') })).toEqual({ signature: '', capped: false })
+    expect(await scanContextSignature({ context: join(await context(), 'missing') })).toEqual({
+      signature: '',
+      capped: false,
+    })
   })
 
   it('sees a nested change', async () => {
@@ -35,7 +38,9 @@ describe('scanContextSignature', () => {
   it('is stable when nothing changed', async () => {
     const dir = await context()
     await writeFile(join(dir, 'notes.md'), 'one')
-    expect((await scanContextSignature({ context: dir })).signature).toBe((await scanContextSignature({ context: dir })).signature)
+    expect((await scanContextSignature({ context: dir })).signature).toBe(
+      (await scanContextSignature({ context: dir })).signature,
+    )
   })
 
   it('stops walking at the limit and says it was capped', async () => {
@@ -54,12 +59,21 @@ describe('scanContextSignature', () => {
       [Symbol.asyncIterator]: () => ({
         next: async () => {
           read += 1
-          return read > 100_000 ? { done: true, value: undefined } : { done: false, value: { name: `f${read}`, isDirectory: () => false } }
+          return read > 100_000
+            ? { done: true, value: undefined }
+            : { done: false, value: { name: `f${read}`, isDirectory: () => false } }
         },
-        return: async () => { closed = true; return { done: true, value: undefined } },
+        return: async () => {
+          closed = true
+          return { done: true, value: undefined }
+        },
       }),
     })
-    const scan = await scanContextSignature({ context: await context(), limit: 3, open: async () => wide() })
+    const scan = await scanContextSignature({
+      context: await context(),
+      limit: 3,
+      open: async () => wide(),
+    })
     expect(scan.capped).toBe(true)
     expect(scan.signature.split('\n')).toHaveLength(3)
     expect(read).toBe(4)

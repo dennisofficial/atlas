@@ -14,7 +14,12 @@ import {
 
 import { benchModel, chunksStreamed, STEP_TEXT } from './bench-model'
 import { benchShellRegistry } from './bench-shells'
-import { mountBenchRender, publishingRunner, type BenchFrameStats, type BenchRender } from './bench-render'
+import {
+  mountBenchRender,
+  publishingRunner,
+  type BenchFrameStats,
+  type BenchRender,
+} from './bench-render'
 
 const AGENTS_PER_THREAD = 5
 const SHELLS_PER_AGENT = 4
@@ -31,7 +36,11 @@ const readFlag = (args: { argv: readonly string[]; name: string }): string | und
   return args.argv.find((arg) => arg.startsWith(prefix))?.slice(prefix.length)
 }
 
-const positiveInteger = (args: { name: string; raw: string | undefined; fallback: number }): number => {
+const positiveInteger = (args: {
+  name: string
+  raw: string | undefined
+  fallback: number
+}): number => {
   if (args.raw === undefined) return args.fallback
   const value = Number(args.raw)
   if (Number.isInteger(value) && value >= 1) return value
@@ -40,10 +49,22 @@ const positiveInteger = (args: { name: string; raw: string | undefined; fallback
 }
 
 const parseFlags = (argv: readonly string[]): BenchFlags => ({
-  threads: positiveInteger({ name: 'threads', raw: readFlag({ argv, name: 'threads' }), fallback: 1 }),
-  seconds: positiveInteger({ name: 'seconds', raw: readFlag({ argv, name: 'seconds' }), fallback: 30 }),
+  threads: positiveInteger({
+    name: 'threads',
+    raw: readFlag({ argv, name: 'threads' }),
+    fallback: 1,
+  }),
+  seconds: positiveInteger({
+    name: 'seconds',
+    raw: readFlag({ argv, name: 'seconds' }),
+    fallback: 30,
+  }),
   render: !argv.includes('--no-render'),
-  history: positiveInteger({ name: 'history', raw: readFlag({ argv, name: 'history' }), fallback: 0 }),
+  history: positiveInteger({
+    name: 'history',
+    raw: readFlag({ argv, name: 'history' }),
+    fallback: 0,
+  }),
 })
 
 type BenchSamples = {
@@ -97,7 +118,10 @@ const runAgent = async (args: {
   return { completed, failed, turnMs }
 }
 
-const startShells = async (args: { shells: BunShellRegistry; threadId: ThreadId }): Promise<void> => {
+const startShells = async (args: {
+  shells: BunShellRegistry
+  threadId: ThreadId
+}): Promise<void> => {
   for (let index = 0; index < SHELLS_PER_AGENT; index += 1) {
     const started = await args.shells.start({
       threadId: args.threadId,
@@ -216,13 +240,17 @@ const main = async (): Promise<void> => {
     agents = agentIds.length
     const deadline = Date.now() + flags.seconds * 1_000
     const streaming = [...agentIds, visibleThread.id]
-    const tallies = await Promise.all(streaming.map((threadId) => runAgent({ runner, threadId, deadline })))
+    const tallies = await Promise.all(
+      streaming.map((threadId) => runAgent({ runner, threadId, deadline })),
+    )
     tally = sumTallies(tallies)
     wallSeconds = (performance.now() - startedAt) / 1_000
     frames = render === null ? null : render.framesRendered()
     frameStats = render === null ? null : render.stats()
     if (render !== null && render.frameText().includes('something broke')) {
-      console.error('render tier crashed (crash screen is showing); the run measured the error screen')
+      console.error(
+        'render tier crashed (crash screen is showing); the run measured the error screen',
+      )
     }
   } finally {
     sampler.stop()
@@ -231,7 +259,16 @@ const main = async (): Promise<void> => {
     await harness.close()
     rmSync(root, { recursive: true, force: true })
   }
-  printReport({ flags, agents, wallSeconds, tally, samples: sampler.samples, chunks: chunksStreamed(), frames, frameStats })
+  printReport({
+    flags,
+    agents,
+    wallSeconds,
+    tally,
+    samples: sampler.samples,
+    chunks: chunksStreamed(),
+    frames,
+    frameStats,
+  })
   console.log('\ncleanup: shells killed, database closed, temp directory removed')
 }
 

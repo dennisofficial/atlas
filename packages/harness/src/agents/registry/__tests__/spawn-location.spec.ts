@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import {
-  EExecutionLocation,
-  ExecutionLocationSinkPort,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, ExecutionLocationSinkPort, type ThreadId } from '@dltech/atlas-core'
 
 import { openSupervisor, type OpenedSupervisor } from './fixtures'
 

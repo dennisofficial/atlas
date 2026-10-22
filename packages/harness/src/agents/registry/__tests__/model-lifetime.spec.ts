@@ -8,11 +8,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import {
-  CLAUDE,
-  GPT,
-  keyOf,
-} from '../../../composition/__tests__/child-model-fixtures'
+import { CLAUDE, GPT, keyOf } from '../../../composition/__tests__/child-model-fixtures'
 import { InMemoryPromptRegistry } from '../../../prompt/registry'
 import type { AgentType } from '../../types'
 import type { ChildRunnerDeps } from '../child-runner'
@@ -47,7 +43,10 @@ const assemblyFor: ChildRunnerDeps['assemblyFor'] = ({ agentType, model }) =>
 const open = (agentTypes: readonly AgentType[]): Promise<LifetimeOpened> =>
   openLifetimeSupervisor({ agentTypes, assemblyFor })
 
-async function spawnChild(opened: LifetimeOpened, args: { agentType: string; threadId?: ThreadId }): Promise<ThreadId> {
+async function spawnChild(
+  opened: LifetimeOpened,
+  args: { agentType: string; threadId?: ThreadId },
+): Promise<ThreadId> {
   const outcome = await opened.supervisor.spawn({
     threadId: args.threadId ?? opened.main,
     agentType: args.agentType,
@@ -93,7 +92,9 @@ describe('a subagent whose parent switches model mid-lifetime', () => {
       modelId: CLAUDE.modelId,
     })
     const resumedPrompt = adapters.anthropic.mock.doStreamCalls[1]?.prompt[0]
-    expect(resumedPrompt?.role === 'system' ? resumedPrompt.content : '').toContain('provider is anthropic')
+    expect(resumedPrompt?.role === 'system' ? resumedPrompt.content : '').toContain(
+      'provider is anthropic',
+    )
 
     const freshId = await spawnChild(opened, { agentType: 'explore' })
     await supervisor.whenChildrenSettled({ threadId: main })
@@ -110,7 +111,10 @@ describe('a subagent whose parent switches model mid-lifetime', () => {
   it('rebuilds its runner against the saved model when a dead child is resumed after the parent switched', async () => {
     const opened = await open([explorer()])
     const { supervisor, main, adapters, parent } = opened
-    adapters.anthropic.setScript([{ error: new Error('the provider went away') }, { text: 'back from the dead' }])
+    adapters.anthropic.setScript([
+      { error: new Error('the provider went away') },
+      { text: 'back from the dead' },
+    ])
     adapters.openai.setScript([{ text: 'the parent choice, untouched' }])
 
     const agentId = await spawnChild(opened, { agentType: 'explore' })
@@ -138,20 +142,29 @@ describe("a teammate's descendants", () => {
   it("inherit the teammate's saved choice even after main switches model", async () => {
     const opened = await open([explorer(), teammate()])
     const { supervisor, main, adapters, parent } = opened
-    adapters.anthropic.setScript([{ text: 'the teammate, on claude' }, { text: 'the descendant, still claude' }])
+    adapters.anthropic.setScript([
+      { text: 'the teammate, on claude' },
+      { text: 'the descendant, still claude' },
+    ])
     adapters.openai.setScript([{ text: 'gpt, never reached' }])
 
     const teammateId = await spawnChild(opened, { agentType: 'teammate' })
     await supervisor.whenChildrenSettled({ threadId: main })
 
-    expect(await opened.savedModel(teammateId)).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.Medium })
+    expect(await opened.savedModel(teammateId)).toEqual({
+      ref: keyOf(CLAUDE),
+      effort: EEffort.Medium,
+    })
 
     parent.select({ ref: GPT, effort: EEffort.Low })
 
     const builderId = await spawnChild(opened, { agentType: 'explore', threadId: teammateId })
     await supervisor.whenChildrenSettled({ threadId: teammateId })
 
-    expect(await opened.savedModel(builderId)).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.Medium })
+    expect(await opened.savedModel(builderId)).toEqual({
+      ref: keyOf(CLAUDE),
+      effort: EEffort.Medium,
+    })
     expect(adapters.anthropic.built).toHaveLength(2)
     expect(adapters.anthropic.built[1]?.effortAt()).toBe(EEffort.Medium)
     expect(adapters.anthropic.mock.doStreamCalls).toHaveLength(2)

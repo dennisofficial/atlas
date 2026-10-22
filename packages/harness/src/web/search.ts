@@ -31,7 +31,8 @@ export const credentialFor = (args: {
 }
 
 export type FindingsOutcome =
-  { ok: true; findings: WebSearchFindings } | { ok: false; reason: string }
+  | { ok: true; findings: WebSearchFindings }
+  | { ok: false; reason: string }
 
 export async function runSearch(args: {
   backend: EWebSearchBackend

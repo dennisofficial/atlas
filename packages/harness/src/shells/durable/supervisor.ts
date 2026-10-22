@@ -62,7 +62,10 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     if (pgid === undefined) return
     signalGroup({ pgid, signal: 'SIGTERM' })
     const group = pgid
-    killTimer ??= setTimeout(() => signalGroup({ pgid: group, signal: 'SIGKILL' }), config.killGraceMs)
+    killTimer ??= setTimeout(
+      () => signalGroup({ pgid: group, signal: 'SIGKILL' }),
+      config.killGraceMs,
+    )
   }
   const requestKill = (cause: EExitCause): void => {
     if (exited) return
@@ -108,7 +111,12 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
   await writer.update({})
   if (requested !== undefined || (await cancelRequested({ shellDir: config.shellDir })))
     return failStart('start was cancelled by the launcher')
-  const spawned = await spawnShellChild({ command: config.command, cwd: config.cwd, limitBytes, spoolFd })
+  const spawned = await spawnShellChild({
+    command: config.command,
+    cwd: config.cwd,
+    limitBytes,
+    spoolFd,
+  })
   if (!spawned.ok) return failStart(spawned.reason)
 
   const { child, pid: childPid, ended: finished } = spawned
@@ -120,7 +128,9 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     clearTimeout(ceilingTimer)
   })
   const ceilingRemainingMs =
-    config.timeoutMs === undefined ? undefined : Math.max(0, config.timeoutMs - (Date.now() - startedAt))
+    config.timeoutMs === undefined
+      ? undefined
+      : Math.max(0, config.timeoutMs - (Date.now() - startedAt))
   if (ceilingRemainingMs !== undefined && ceilingRemainingMs <= LONGEST_TIMER_MS) {
     ceilingTimer = setTimeout(() => requestStop(EExitCause.Timeout), ceilingRemainingMs)
     ceilingTimer.unref()
@@ -164,7 +174,11 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
       ttlMs: config.ttlMs,
       leaseMs: config.leaseMs,
     }
-    await writeFileAtomic({ path: join(config.shellDir, META_FILE), data: JSON.stringify(meta), mode: 0o600 })
+    await writeFileAtomic({
+      path: join(config.shellDir, META_FILE),
+      data: JSON.stringify(meta),
+      mode: 0o600,
+    })
     await writer.update({ phase: EShellPhase.Running })
   } catch (error) {
     clearTimeout(ceilingTimer)
@@ -180,7 +194,8 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     ticking = true
     try {
       await lease.scan()
-      const claimed = config.sessionLock !== undefined && (await lockClaimIsActive({ claim: config.sessionLock }))
+      const claimed =
+        config.sessionLock !== undefined && (await lockClaimIsActive({ claim: config.sessionLock }))
       if (exited) return
       const now = Date.now()
       const status = writer.current()
@@ -193,8 +208,10 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
       const cancelled = await cancelRequested({ shellDir: config.shellDir })
       if (exited || requested !== undefined) return
       if (cancelled) requestKill(EExitCause.Killed)
-      else if (config.timeoutMs !== undefined && now - startedAt > config.timeoutMs) requestStop(EExitCause.Timeout)
-      else if (config.silenceMs !== undefined && now - lastOutputAt > config.silenceMs) requestStop(EExitCause.Silence)
+      else if (config.timeoutMs !== undefined && now - startedAt > config.timeoutMs)
+        requestStop(EExitCause.Timeout)
+      else if (config.silenceMs !== undefined && now - lastOutputAt > config.silenceMs)
+        requestStop(EExitCause.Silence)
       else if (now - Math.max(attachedAt, claimedAt) > config.ttlMs) requestStop(EExitCause.Expired)
     } finally {
       ticking = false
@@ -206,7 +223,13 @@ async function superviseChild(config: SupervisorConfig): Promise<number> {
     const { code, signal } = await finished
     signalGroup({ pgid: childPid, signal: 'SIGKILL' })
     await groupDrained({ pgid: childPid })
-    const record = exitRecordOf({ code, signal, requested, spoolBytes: fstatSync(spoolFd).size, limitBytes })
+    const record = exitRecordOf({
+      code,
+      signal,
+      requested,
+      spoolBytes: fstatSync(spoolFd).size,
+      limitBytes,
+    })
     closeSpool()
     await writer.update({ phase: EShellPhase.Exited, exit: record })
     return 0

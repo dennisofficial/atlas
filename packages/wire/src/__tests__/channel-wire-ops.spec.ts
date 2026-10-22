@@ -148,10 +148,7 @@ describe('the thread rename and model ops', () => {
 
 describe('the pause frames', () => {
   it('round-trips pause and resume client frames', () => {
-    for (const frame of [
-      { kind: EClientFrame.Pause },
-      { kind: EClientFrame.Resume },
-    ] as const) {
+    for (const frame of [{ kind: EClientFrame.Pause }, { kind: EClientFrame.Resume }] as const) {
       expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
     }
   })

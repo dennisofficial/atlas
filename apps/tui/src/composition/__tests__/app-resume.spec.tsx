@@ -19,8 +19,11 @@ const WORKING = 'esc to interrupt'
 
 const RESUME_HINT = 'resume'
 
-const typesOf = async (mounted: { app: { log: { read: (args: { threadId: typeof THREAD }) => Promise<readonly { type: string }[]> } } }) =>
-  (await mounted.app.log.read({ threadId: THREAD })).map((event) => event.type)
+const typesOf = async (mounted: {
+  app: {
+    log: { read: (args: { threadId: typeof THREAD }) => Promise<readonly { type: string }[]> }
+  }
+}) => (await mounted.app.log.read({ threadId: THREAD })).map((event) => event.type)
 
 /**
  * Streamed slowly enough that escape still lands mid-reply: the polls below run on nextFrame, so

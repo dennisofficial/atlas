@@ -1,5 +1,10 @@
 import type { NoticePort, ThreadId } from '@dltech/atlas-core'
-import { readMetaSync, sessionDirectory, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
+import {
+  readMetaSync,
+  sessionDirectory,
+  threadMetaFile,
+  threadMetaSchema,
+} from '@dltech/atlas-harness'
 
 import { composeServeApp } from './compose-serve'
 import type { ServeApp, ServeCompose } from './serve-app'

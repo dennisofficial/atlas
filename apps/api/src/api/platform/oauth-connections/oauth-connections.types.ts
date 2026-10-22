@@ -48,7 +48,12 @@ export interface AttemptFence {
 }
 
 export abstract class OauthConnectionStore {
-  abstract insert(row: { id: string; userId: string; provider: string; sealedTokens: string }): Promise<boolean>
+  abstract insert(row: {
+    id: string
+    userId: string
+    provider: string
+    sealedTokens: string
+  }): Promise<boolean>
   abstract reauthorize(args: {
     id: string
     userId: string
@@ -57,7 +62,13 @@ export abstract class OauthConnectionStore {
     sealedTokens: string
   }): Promise<boolean>
   abstract find(args: { id: string }): Promise<ConnectionRow | null>
-  abstract claim(args: { id: string; userId: string; generation: number; attemptId: string; startedAt: Date }): Promise<boolean>
+  abstract claim(args: {
+    id: string
+    userId: string
+    generation: number
+    attemptId: string
+    startedAt: Date
+  }): Promise<boolean>
   abstract complete(args: AttemptFence & { sealedTokens: string }): Promise<boolean>
   abstract release(args: AttemptFence): Promise<boolean>
   abstract reject(args: AttemptFence): Promise<boolean>

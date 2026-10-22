@@ -7,7 +7,10 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import { registryFor } from '../../store/sessions/registry'
 import { sessionDirectory } from '../../store/sessions/paths'
-import { CONTEXT_FOLDER_STATE_FILE_NAME, createSessionContextFolderStateStore } from '../context-folder-state'
+import {
+  CONTEXT_FOLDER_STATE_FILE_NAME,
+  createSessionContextFolderStateStore,
+} from '../context-folder-state'
 
 const homes: string[] = []
 afterEach(async () => {
@@ -26,7 +29,15 @@ async function fixture() {
   registry.registerThread({ sessionDir, threadId: root })
   registry.registerThread({ sessionDir, threadId: child })
   registry.registerThread({ sessionDir: otherDir, threadId: other })
-  return { home, root, child, other, sessionDir, otherDir, file: join(sessionDir, CONTEXT_FOLDER_STATE_FILE_NAME) }
+  return {
+    home,
+    root,
+    child,
+    other,
+    sessionDir,
+    otherDir,
+    file: join(sessionDir, CONTEXT_FOLDER_STATE_FILE_NAME),
+  }
 }
 
 describe('session context folder state store', () => {
@@ -48,23 +59,50 @@ describe('session context folder state store', () => {
   it('rejects on an unrelated read failure instead of reporting empty state', async () => {
     const { home, root, file } = await fixture()
     await mkdir(file, { recursive: true })
-    await expect(createSessionContextFolderStateStore({ home, threadId: root }).load()).rejects.toMatchObject({ code: 'EISDIR' })
+    await expect(
+      createSessionContextFolderStateStore({ home, threadId: root }).load(),
+    ).rejects.toMatchObject({ code: 'EISDIR' })
   })
 
   it('drops invalid entries and dedupes normalized paths', async () => {
     const { home, root, sessionDir, file } = await fixture()
     await mkdir(sessionDir, { recursive: true })
-    await writeFile(file, JSON.stringify({
-      closed: ['docs', './docs', 'docs/', 'a//b', '../escape', 'a/../../x', '/abs', '', '.', 3, null, 'ok\0bad', 'plans/q3'],
-    }))
-    expect(await createSessionContextFolderStateStore({ home, threadId: root }).load())
-      .toEqual(['docs', 'a/b', 'plans/q3'])
+    await writeFile(
+      file,
+      JSON.stringify({
+        closed: [
+          'docs',
+          './docs',
+          'docs/',
+          'a//b',
+          '../escape',
+          'a/../../x',
+          '/abs',
+          '',
+          '.',
+          3,
+          null,
+          'ok\0bad',
+          'plans/q3',
+        ],
+      }),
+    )
+    expect(await createSessionContextFolderStateStore({ home, threadId: root }).load()).toEqual([
+      'docs',
+      'a/b',
+      'plans/q3',
+    ])
   })
 
   it('sanitizes on save and persists only the closed list outside context/', async () => {
     const { home, root, sessionDir, file } = await fixture()
-    await createSessionContextFolderStateStore({ home, threadId: root })
-      .save(['docs', 'docs/', '../escape', '/abs', 'notes'])
+    await createSessionContextFolderStateStore({ home, threadId: root }).save([
+      'docs',
+      'docs/',
+      '../escape',
+      '/abs',
+      'notes',
+    ])
     expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({ closed: ['docs', 'notes'] })
     expect(await readdir(sessionDir)).not.toContain('context')
   })
@@ -72,7 +110,10 @@ describe('session context folder state store', () => {
   it('hydrates a fresh adapter from disk after a restart', async () => {
     const { home, root } = await fixture()
     await createSessionContextFolderStateStore({ home, threadId: root }).save(['a', 'a/b'])
-    expect(await createSessionContextFolderStateStore({ home, threadId: root }).load()).toEqual(['a', 'a/b'])
+    expect(await createSessionContextFolderStateStore({ home, threadId: root }).load()).toEqual([
+      'a',
+      'a/b',
+    ])
   })
 
   it('retains entries for folders that do not exist and never needs them on disk', async () => {
@@ -92,7 +133,9 @@ describe('session context folder state store', () => {
   it('shares one state between a parent and its child thread', async () => {
     const { home, root, child } = await fixture()
     await createSessionContextFolderStateStore({ home, threadId: child }).save(['shared'])
-    expect(await createSessionContextFolderStateStore({ home, threadId: root }).load()).toEqual(['shared'])
+    expect(await createSessionContextFolderStateStore({ home, threadId: root }).load()).toEqual([
+      'shared',
+    ])
   })
 
   it('applies rapid saves in invocation order so the latest wins', async () => {
@@ -141,7 +184,8 @@ describe('session context folder state store', () => {
     const rootStore = createSessionContextFolderStateStore({ home, threadId: root })
     const childStore = createSessionContextFolderStateStore({ home, threadId: child })
     const saves = Array.from({ length: 20 }, (_, index) =>
-      (index % 2 === 0 ? rootStore : childStore).save([`folder-${index}`]))
+      (index % 2 === 0 ? rootStore : childStore).save([`folder-${index}`]),
+    )
     await Promise.all(saves)
     expect(await rootStore.load()).toEqual(['folder-19'])
     expect(await childStore.load()).toEqual(['folder-19'])

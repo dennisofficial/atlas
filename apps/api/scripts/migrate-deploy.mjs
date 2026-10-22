@@ -15,7 +15,9 @@ export async function migrateDeployWithRetry({
     const exitCode = await run()
     if (exitCode === 0) return 0
     if (attempt < attempts) {
-      log(`prisma migrate deploy exited ${exitCode} (attempt ${attempt}/${attempts}); retrying in ${backoffMs / 1000}s`)
+      log(
+        `prisma migrate deploy exited ${exitCode} (attempt ${attempt}/${attempts}); retrying in ${backoffMs / 1000}s`,
+      )
       await sleep(backoffMs)
     }
   }
@@ -30,8 +32,13 @@ function runPrismaMigrateDeploy() {
   })
 }
 
-const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href
+const isMain =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href
 if (isMain) {
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-  process.exitCode = await migrateDeployWithRetry({ run: runPrismaMigrateDeploy, sleep, log: console.error })
+  process.exitCode = await migrateDeployWithRetry({
+    run: runPrismaMigrateDeploy,
+    sleep,
+    log: console.error,
+  })
 }

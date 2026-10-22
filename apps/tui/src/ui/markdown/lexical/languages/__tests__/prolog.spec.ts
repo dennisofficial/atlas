@@ -103,7 +103,11 @@ describe('prolog lexical highlighting', () => {
     expect(
       textFor({ spec, source: 'add(X, Y, Sum) :-\n    Sum is X + Y.', group: 'variable' }),
     ).toEqual(['X', 'Y', 'Sum', 'Sum', 'X', 'Y'])
-    expect(textFor({ spec, source: 'first([H|_], H).', group: 'variable' })).toEqual(['H', '_', 'H'])
+    expect(textFor({ spec, source: 'first([H|_], H).', group: 'variable' })).toEqual([
+      'H',
+      '_',
+      'H',
+    ])
   })
 
   it('reads a character-code literal whole', () => {
@@ -128,10 +132,7 @@ describe('prolog lexical highlighting', () => {
   })
 
   it('reads a quoted atom with a doubled quote as one string', () => {
-    expect(textFor({ spec, source, group: 'string' })).toEqual([
-      "'it''s scaled'",
-      '"~w ~w~n"',
-    ])
+    expect(textFor({ spec, source, group: 'string' })).toEqual(["'it''s scaled'", '"~w ~w~n"'])
   })
 
   it('consumes an atom whole before looking up keywords', () => {

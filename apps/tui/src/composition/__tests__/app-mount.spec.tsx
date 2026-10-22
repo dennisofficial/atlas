@@ -17,7 +17,9 @@ const PROVIDER_ERROR = 'overloaded_error'
 
 describe('the app you can actually open', () => {
   it('opens straight into a transcript, with no menu and no error on an empty thread', async () => {
-    const mounted = await open({ app: fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) }) })
+    const mounted = await open({
+      app: fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) }),
+    })
 
     try {
       const frame = await mounted.frame()

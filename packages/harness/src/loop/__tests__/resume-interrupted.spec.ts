@@ -120,7 +120,10 @@ describe('resuming a turn the developer stopped', () => {
     const cut = await openCutShortAt({
       script: [
         { text: 'the router changed because' },
-        { text: ' the token expired', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] },
+        {
+          text: ' the token expired',
+          calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }],
+        },
         { text: 'and that is all' },
       ],
       chunk: 'text-delta',
@@ -141,7 +144,10 @@ describe('resuming a turn the developer stopped', () => {
   it('nudges past a tool call the developer cut short, rather than asking what they want', async () => {
     const cut = await openCutShortAt({
       script: [
-        { text: 'reading', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] },
+        {
+          text: 'reading',
+          calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }],
+        },
         { text: 'it exports nothing' },
       ],
       chunk: 'tool-call',

@@ -32,12 +32,16 @@ function clampTail(args: { tail: Tail; budget: number }): Tail {
   const kept = text.slice(-args.budget)
   return {
     text: kept,
-    droppedLines: args.tail.droppedLines + countLineBreaks(text.slice(0, text.length - kept.length)),
+    droppedLines:
+      args.tail.droppedLines + countLineBreaks(text.slice(0, text.length - kept.length)),
     truncated: true,
   }
 }
 
-export function mergeStreams(args: { stdout: Tail; stderr: Tail }): { text: string; truncated: boolean } {
+export function mergeStreams(args: { stdout: Tail; stderr: Tail }): {
+  text: string
+  truncated: boolean
+} {
   const budgets = budgetsFor({
     stdout: withoutTrailingBreaks(args.stdout.text).length,
     stderr: withoutTrailingBreaks(args.stderr.text).length,

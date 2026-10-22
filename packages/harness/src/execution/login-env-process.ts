@@ -75,7 +75,10 @@ export class LoginEnvProcessPort implements ProcessPort {
         terminating = true
         handle.terminate()
         const group = { pid: handle.pid, kill: () => undefined }
-        retry = setInterval(() => signalGroup({ child: group, signal: 'SIGTERM' }), SIGTERM_RETRY_MS)
+        retry = setInterval(
+          () => signalGroup({ child: group, signal: 'SIGTERM' }),
+          SIGTERM_RETRY_MS,
+        )
         retry.unref()
         void handle.exited.then(() => {
           if (retry !== undefined) clearInterval(retry)
@@ -96,7 +99,10 @@ export class LoginEnvProcessPort implements ProcessPort {
     return this.inner.which(args)
   }
 
-  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+  async vendored(args: {
+    command: string
+    threadId?: ThreadId | undefined
+  }): Promise<string | null> {
     if (this.inner.vendored === undefined) return null
     return await this.inner.vendored(args)
   }

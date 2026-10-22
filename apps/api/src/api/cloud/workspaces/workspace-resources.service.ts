@@ -24,7 +24,9 @@ export class WorkspaceResourcesService {
       where: { organizationId: args.organizationId },
       orderBy: { name: 'asc' },
     })
-    const updaterIds = [...new Set(rows.flatMap((row) => (row.updatedById ? [row.updatedById] : [])))]
+    const updaterIds = [
+      ...new Set(rows.flatMap((row) => (row.updatedById ? [row.updatedById] : []))),
+    ]
     const users = await db.user.findMany({
       where: { id: { in: updaterIds } },
       select: { id: true, name: true },
@@ -46,7 +48,9 @@ export class WorkspaceResourcesService {
     })
   }
 
-  async setSecret(args: Scope & { name: string; value: string; kind?: ESecretKind | undefined }): Promise<void> {
+  async setSecret(
+    args: Scope & { name: string; value: string; kind?: ESecretKind | undefined },
+  ): Promise<void> {
     assertEnvName(args.name)
     await this.access.require({ ...args, write: true })
     const sealedValue = sealSecretValue({ cipher: this.cipher, value: args.value })

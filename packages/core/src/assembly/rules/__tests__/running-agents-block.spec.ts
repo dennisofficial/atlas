@@ -71,7 +71,9 @@ describe('telling the model what it still has out', () => {
 
   it('adds the explicit-report rule only when a teammate is running', () => {
     const tail =
-      textsOf(assembleWith({ events: SPOKEN, agents: [anAgent({ agentType: 'teammate' })] })).at(-1) ?? ''
+      textsOf(assembleWith({ events: SPOKEN, agents: [anAgent({ agentType: 'teammate' })] })).at(
+        -1,
+      ) ?? ''
 
     expect(tail).toContain('reports only when it sends an explicit report')
   })

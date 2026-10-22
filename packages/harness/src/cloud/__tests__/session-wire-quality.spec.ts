@@ -53,6 +53,8 @@ describe('a client that predates the event body', () => {
     const body = JSON.stringify({ type: 'code-quality-reviewed-from-the-future', callId: 'call-1' })
 
     expect(eventBodySchema.safeParse(JSON.parse(body)).success).toBe(false)
-    expect(() => eventFromWire(wireEventOf({ type: 'code-quality-reviewed-from-the-future', body }))).toThrow()
+    expect(() =>
+      eventFromWire(wireEventOf({ type: 'code-quality-reviewed-from-the-future', body })),
+    ).toThrow()
   })
 })

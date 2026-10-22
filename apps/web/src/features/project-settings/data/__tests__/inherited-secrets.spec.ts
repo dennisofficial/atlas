@@ -10,7 +10,12 @@ import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 import { inheritedViewOf } from '../inherited-secrets'
 
 const noop = () => undefined
-const loading = { state: EQueryState.Loading, data: undefined, error: undefined, reload: noop } as const
+const loading = {
+  state: EQueryState.Loading,
+  data: undefined,
+  error: undefined,
+  reload: noop,
+} as const
 const failed = (reload: () => void) =>
   ({
     state: EQueryState.Failed,
@@ -18,7 +23,12 @@ const failed = (reload: () => void) =>
     error: new CloudApiError({ message: 'down', status: 503 }),
     reload,
   }) as const
-const ready = <T,>(data: T): CloudQuery<T> => ({ state: EQueryState.Ready, data, error: undefined, reload: noop })
+const ready = <T>(data: T): CloudQuery<T> => ({
+  state: EQueryState.Ready,
+  data,
+  error: undefined,
+  reload: noop,
+})
 
 const secret: ListedSecret = {
   name: 'A',
@@ -32,7 +42,9 @@ const access = ready<WorkspaceAccess | null>(null)
 
 describe('inheritedViewOf', () => {
   it('is loading while access or the workspace list loads', () => {
-    expect(inheritedViewOf({ access: loading, inherited: ready([]) }).state).toBe(EQueryState.Loading)
+    expect(inheritedViewOf({ access: loading, inherited: ready([]) }).state).toBe(
+      EQueryState.Loading,
+    )
     expect(inheritedViewOf({ access, inherited: loading }).state).toBe(EQueryState.Loading)
   })
 
@@ -53,7 +65,10 @@ describe('inheritedViewOf', () => {
   })
 
   it('keeps an empty workspace distinct from a failure', () => {
-    expect(inheritedViewOf({ access, inherited: ready([]) })).toEqual({ state: EQueryState.Ready, secrets: [] })
+    expect(inheritedViewOf({ access, inherited: ready([]) })).toEqual({
+      state: EQueryState.Ready,
+      secrets: [],
+    })
     expect(inheritedViewOf({ access, inherited: ready([secret]) })).toEqual({
       state: EQueryState.Ready,
       secrets: [secret],

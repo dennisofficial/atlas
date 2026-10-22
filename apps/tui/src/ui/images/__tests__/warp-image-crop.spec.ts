@@ -67,7 +67,11 @@ describe.each(kinds)('a %s on Warp with Kitty capabilities', (_name, kind) => {
     await withPicture({
       kind,
       parentOf: (scene) => {
-        const parent = new BoxRenderable(scene.renderer, { width: 20, height: 4, overflow: 'hidden' })
+        const parent = new BoxRenderable(scene.renderer, {
+          width: 20,
+          height: 4,
+          overflow: 'hidden',
+        })
         scene.renderer.root.add(parent)
         return parent
       },
@@ -84,7 +88,12 @@ describe.each(kinds)('a %s on Warp with Kitty capabilities', (_name, kind) => {
     await withPicture({
       kind,
       parentOf: (scene) => {
-        const parent = new BoxRenderable(scene.renderer, { width: 20, height: 6, overflow: 'hidden', border: true })
+        const parent = new BoxRenderable(scene.renderer, {
+          width: 20,
+          height: 6,
+          overflow: 'hidden',
+          border: true,
+        })
         scene.renderer.root.add(parent)
         return parent
       },
@@ -130,7 +139,11 @@ describe.each(kinds)('a %s on Warp with Kitty capabilities', (_name, kind) => {
       kind,
       parentOf: (scene) => {
         const outer = new BoxRenderable(scene.renderer, { width: 4, height: 6, overflow: 'hidden' })
-        const scroll = new ScrollBoxRenderable(scene.renderer, { width: 20, height: 6, scrollY: true })
+        const scroll = new ScrollBoxRenderable(scene.renderer, {
+          width: 20,
+          height: 6,
+          scrollY: true,
+        })
         scene.renderer.root.add(outer)
         outer.add(scroll)
         scrollers.push(scroll)

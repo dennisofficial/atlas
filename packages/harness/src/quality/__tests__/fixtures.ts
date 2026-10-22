@@ -107,16 +107,25 @@ export function policyNamed({
     interpret: ({ scope, answers }) => {
       const concern = answers.concern?.noul ?? null
       const impact = answers.impact?.choice
-      const introduces = concern !== null && concern >= 0.8 && (impact === EQualityImpact.Introduced || impact === EQualityImpact.Worsened)
+      const introduces =
+        concern !== null &&
+        concern >= 0.8 &&
+        (impact === EQualityImpact.Introduced || impact === EQualityImpact.Worsened)
       const resolves = concern !== null && concern <= 0.2 && impact === EQualityImpact.Resolved
       return {
         policyId: id,
         policyVersion: version,
         scopeId: scope.id,
         status: EQualityReviewStatus.Completed,
-        impact: Object.values(EQualityImpact).find((value) => value === impact) ?? EQualityImpact.Uncertain,
+        impact:
+          Object.values(EQualityImpact).find((value) => value === impact) ??
+          EQualityImpact.Uncertain,
         currentConcernProbability: invalidConcern ? 5 : concern,
-        transition: introduces ? EQualityTransition.Introduce : resolves ? EQualityTransition.Resolve : EQualityTransition.None,
+        transition: introduces
+          ? EQualityTransition.Introduce
+          : resolves
+            ? EQualityTransition.Resolve
+            : EQualityTransition.None,
         evidenceIds: introduces ? ['ev-1', 'not-a-real-evidence-id'] : [],
         rawAnswers: answers,
       }
@@ -131,7 +140,11 @@ export const INTRODUCE: Verdict = { concern: 0.9, impact: EQualityImpact.Introdu
 export const RESOLVE: Verdict = { concern: 0.1, impact: EQualityImpact.Resolved }
 export const IMPROVE: Verdict = { concern: 0.5, impact: EQualityImpact.Improved }
 
-export function answersFor({ verdicts }: { verdicts: Readonly<Record<string, Verdict>> }): Record<string, DecisionAnswer> {
+export function answersFor({
+  verdicts,
+}: {
+  verdicts: Readonly<Record<string, Verdict>>
+}): Record<string, DecisionAnswer> {
   const answers: Record<string, DecisionAnswer> = {}
   for (const [policyId, verdict] of Object.entries(verdicts)) {
     answers[`${policyId}:concern`] = { noul: verdict.concern }
@@ -140,13 +153,22 @@ export function answersFor({ verdicts }: { verdicts: Readonly<Record<string, Ver
   return answers
 }
 
-export const calibrated = ({ answers }: { answers: Record<string, DecisionAnswer> }): DecisionOutcome => ({
+export const calibrated = ({
+  answers,
+}: {
+  answers: Record<string, DecisionAnswer>
+}): DecisionOutcome => ({
   ok: true,
   answers,
   model: JEV_QUALITY_MODEL,
 })
 
-export type DecideArgs = { state: string; questions: Record<string, DecisionQuestion>; signal: AbortSignal; model?: string | undefined }
+export type DecideArgs = {
+  state: string
+  questions: Record<string, DecisionQuestion>
+  signal: AbortSignal
+  model?: string | undefined
+}
 
 export type RigOptions = {
   settings?: Record<string, unknown>
@@ -166,10 +188,18 @@ export function createRig(options: RigOptions = {}) {
   const decisionCalls: DecideArgs[] = []
   const sourceCalls: Parameters<QualitySourceAdapter['prepareQualityScopes']>[0][] = []
   const identityCalls: Parameters<WorkspaceIdentityPort['identify']>[0][] = []
-  const decide = options.decide ?? (async ({ questions }) => {
-    const verdicts = Object.fromEntries(policies.map((policy) => [policy.id, INTRODUCE]))
-    return calibrated({ answers: answersFor({ verdicts: Object.fromEntries(Object.entries(verdicts).filter(([id]) => `${id}:concern` in questions)) }) })
-  })
+  const decide =
+    options.decide ??
+    (async ({ questions }) => {
+      const verdicts = Object.fromEntries(policies.map((policy) => [policy.id, INTRODUCE]))
+      return calibrated({
+        answers: answersFor({
+          verdicts: Object.fromEntries(
+            Object.entries(verdicts).filter(([id]) => `${id}:concern` in questions),
+          ),
+        }),
+      })
+    })
 
   const engine = new CodeQualityReview({
     decisions: {
@@ -181,7 +211,10 @@ export function createRig(options: RigOptions = {}) {
     source: {
       prepareQualityScopes: (args) => {
         sourceCalls.push(args)
-        const scopes = state.scopes.map((scope) => ({ ...scope, workspaceNamespace: args.workspaceNamespace }))
+        const scopes = state.scopes.map((scope) => ({
+          ...scope,
+          workspaceNamespace: args.workspaceNamespace,
+        }))
         return { scopes, skipped: options.skipped ?? [] }
       },
     },
@@ -190,7 +223,9 @@ export function createRig(options: RigOptions = {}) {
     workspaceIdentity: {
       identify: (args) => {
         identityCalls.push(args)
-        return (options.identify ?? (async () => ({ remote: 'git@host:org/repo.git', worktreePath: '.' })))(args)
+        return (
+          options.identify ?? (async () => ({ remote: 'git@host:org/repo.git', worktreePath: '.' }))
+        )(args)
       },
     },
     examples: options.examples,
@@ -228,7 +263,11 @@ export function monotonicClock(): () => number {
   return () => (now += 5)
 }
 
-export function stampHistory({ batches }: { batches: readonly (readonly EventDraft[])[] }): Event[] {
+export function stampHistory({
+  batches,
+}: {
+  batches: readonly (readonly EventDraft[])[]
+}): Event[] {
   const drafts = batches.flat()
   const envelopes = drafts.map((_, index) => ({
     id: toEventId(`event-${index + 1}`),
@@ -247,4 +286,6 @@ export const recordsOf = (drafts: readonly EventDraft[]): CodeQualityReviewedBod
 export const nudgesOf = (drafts: readonly EventDraft[]): Extract<EventDraft, { type: 'nudge' }>[] =>
   drafts.filter((draft): draft is Extract<EventDraft, { type: 'nudge' }> => draft.type === 'nudge')
 
-export const reasonOf = (record: CodeQualityReviewedBody | undefined): EQualitySkipReason | undefined => record?.reason
+export const reasonOf = (
+  record: CodeQualityReviewedBody | undefined,
+): EQualitySkipReason | undefined => record?.reason

@@ -5,7 +5,13 @@ import { join } from 'node:path'
 
 import { createSessionContextReader } from '../session-context'
 import type { WatchPath } from '../watch-context-directory'
-import { cleanupHomes, counter, fixture, manualSchedule, silentWatch } from './attach-window-fixtures'
+import {
+  cleanupHomes,
+  counter,
+  fixture,
+  manualSchedule,
+  silentWatch,
+} from './attach-window-fixtures'
 
 afterEach(cleanupHomes)
 
@@ -17,21 +23,27 @@ describe('window between subscribe and attach', () => {
     const seams = { watchPath: silentWatch().watchPath, schedule: manualSchedule().schedule }
     const reader = createSessionContextReader({ home, threadId: sessionId, watchSeams: seams })
     let resolveChange: () => void = () => {}
-    const change = new Promise<void>((resolve) => { resolveChange = resolve })
+    const change = new Promise<void>((resolve) => {
+      resolveChange = resolve
+    })
     const stop = reader.subscribe(resolveChange, { catchUp: true })
     mkdirSync(join(sessionDir, 'context'), { recursive: true })
     writeFileSync(join(sessionDir, 'context', 'notes.md'), 'new note')
     try {
       await change
       expect(await reader.list()).toEqual([{ name: 'notes.md', isDirectory: false }])
-    } finally { stop() }
+    } finally {
+      stop()
+    }
   }, 5000)
 
   it('notifies once even when the file carries an old timestamp', async () => {
     const { home, sessionId, sessionDir } = await fixture()
     const timers = manualSchedule()
     const reader = createSessionContextReader({
-      home, threadId: sessionId, watchSeams: { watchPath: silentWatch().watchPath, schedule: timers.schedule },
+      home,
+      threadId: sessionId,
+      watchSeams: { watchPath: silentWatch().watchPath, schedule: timers.schedule },
     })
     const seen = counter()
     const stop = reader.subscribe(seen.notify, { catchUp: true })
@@ -56,7 +68,9 @@ describe('steady state', () => {
     await writeFile(join(sessionDir, 'context', 'notes.md'), 'existing')
     const timers = manualSchedule()
     const reader = createSessionContextReader({
-      home, threadId: sessionId, watchSeams: { watchPath: silentWatch().watchPath, schedule: timers.schedule },
+      home,
+      threadId: sessionId,
+      watchSeams: { watchPath: silentWatch().watchPath, schedule: timers.schedule },
     })
     const seen = counter()
     const stop = reader.subscribe(seen.notify, { catchUp: true })
@@ -77,11 +91,14 @@ describe('a subscriber that does not ask for a catch-up', () => {
     const timers = manualSchedule()
     const watch = silentWatch()
     const reader = createSessionContextReader({
-      home, threadId: sessionId, watchSeams: { watchPath: watch.watchPath, schedule: timers.schedule },
+      home,
+      threadId: sessionId,
+      watchSeams: { watchPath: watch.watchPath, schedule: timers.schedule },
     })
     const seen = counter()
     const stop = reader.subscribe(seen.notify)
-    for (let turn = 0; turn < MAX_ATTACH_TURNS && timers.tasks.length === 0; turn += 1) await Bun.sleep(1)
+    for (let turn = 0; turn < MAX_ATTACH_TURNS && timers.tasks.length === 0; turn += 1)
+      await Bun.sleep(1)
     expect(watch.attached).toHaveLength(1)
     await Bun.sleep(0)
     await timers.flush()
@@ -96,12 +113,25 @@ describe('reader unsubscribing from its first notification', () => {
     await mkdir(join(sessionDir, 'context'), { recursive: true })
     const timers = manualSchedule()
     const watch = silentWatch()
-    const reader = createSessionContextReader({ home, threadId: sessionId, watchSeams: { watchPath: watch.watchPath, schedule: timers.schedule } })
+    const reader = createSessionContextReader({
+      home,
+      threadId: sessionId,
+      watchSeams: { watchPath: watch.watchPath, schedule: timers.schedule },
+    })
     const seen = counter()
     let stop: () => void = () => {}
     let first: () => void = () => {}
-    const heard = new Promise<void>((resolve) => { first = resolve })
-    stop = reader.subscribe(() => { seen.notify(); stop(); first() }, { catchUp: true })
+    const heard = new Promise<void>((resolve) => {
+      first = resolve
+    })
+    stop = reader.subscribe(
+      () => {
+        seen.notify()
+        stop()
+        first()
+      },
+      { catchUp: true },
+    )
     await heard
     await Bun.sleep(20)
     expect(seen.count).toBe(1)
@@ -120,17 +150,34 @@ describe('reader unsubscribing from its first notification', () => {
     const watchPath: WatchPath = (_path, _options, listener) => {
       listener('rename', 'context')
       const index = closed.push(false) - 1
-      return { on: () => undefined, close: () => { closed[index] = true } }
+      return {
+        on: () => undefined,
+        close: () => {
+          closed[index] = true
+        },
+      }
     }
-    const reader = createSessionContextReader({ home, threadId: sessionId, watchSeams: { watchPath, schedule: manualSchedule().schedule } })
+    const reader = createSessionContextReader({
+      home,
+      threadId: sessionId,
+      watchSeams: { watchPath, schedule: manualSchedule().schedule },
+    })
     let stop: () => void = () => {}
     let first: () => void = () => {}
-    const heard = new Promise<void>((resolve) => { first = resolve })
+    const heard = new Promise<void>((resolve) => {
+      first = resolve
+    })
     let unsubscribed = false
-    stop = reader.subscribe(() => {
-      if (!unsubscribed) { unsubscribed = true; stop() }
-      first()
-    }, { catchUp: true })
+    stop = reader.subscribe(
+      () => {
+        if (!unsubscribed) {
+          unsubscribed = true
+          stop()
+        }
+        first()
+      },
+      { catchUp: true },
+    )
     await heard
     await Bun.sleep(20)
     expect(closed).toEqual([true])
@@ -142,13 +189,17 @@ describe('with the real watcher', () => {
     const { home, sessionId, sessionDir } = await fixture()
     const reader = createSessionContextReader({ home, threadId: sessionId })
     let resolveChange: () => void = () => {}
-    const change = new Promise<void>((resolve) => { resolveChange = resolve })
+    const change = new Promise<void>((resolve) => {
+      resolveChange = resolve
+    })
     const stop = reader.subscribe(resolveChange, { catchUp: true })
     mkdirSync(join(sessionDir, 'context'), { recursive: true })
     writeFileSync(join(sessionDir, 'context', 'notes.md'), 'new note')
     try {
       await change
       expect(await reader.list()).toEqual([{ name: 'notes.md', isDirectory: false }])
-    } finally { stop() }
+    } finally {
+      stop()
+    }
   }, 5000)
 })

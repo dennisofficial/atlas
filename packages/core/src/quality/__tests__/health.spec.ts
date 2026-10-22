@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EQualityHealthStatus, projectQualityHealth, QUALITY_HEALTH_LABEL, type QualityHealthRecord } from '../health'
+import {
+  EQualityHealthStatus,
+  projectQualityHealth,
+  QUALITY_HEALTH_LABEL,
+  type QualityHealthRecord,
+} from '../health'
 import { EQualityFindingState, EQualityReviewStatus, EQualitySkipReason } from '../policy'
 import { assessmentFixture, reviewFixture, scopeFixture } from './fixtures'
 
@@ -24,7 +29,12 @@ const finding = {
 describe('projectQualityHealth', () => {
   it('reports no review when there are no records', () => {
     const health = projectQualityHealth({ records: [] })
-    expect(health).toMatchObject({ status: EQualityHealthStatus.NoReview, path: null, scope: null, recordedAt: null })
+    expect(health).toMatchObject({
+      status: EQualityHealthStatus.NoReview,
+      path: null,
+      scope: null,
+      recordedAt: null,
+    })
     expect(health.label).toBe(QUALITY_HEALTH_LABEL)
     expect(health.label).toBe('last recorded review')
   })
@@ -45,14 +55,28 @@ describe('projectQualityHealth', () => {
 
   it('reports skipped with its reason', () => {
     const health = projectQualityHealth({
-      records: [record({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.OversizedSource, detail: '2 MiB' })],
+      records: [
+        record({
+          status: EQualityReviewStatus.Skipped,
+          reason: EQualitySkipReason.OversizedSource,
+          detail: '2 MiB',
+        }),
+      ],
     })
-    expect(health).toMatchObject({ status: EQualityHealthStatus.Skipped, reason: EQualitySkipReason.OversizedSource, detail: '2 MiB' })
+    expect(health).toMatchObject({
+      status: EQualityHealthStatus.Skipped,
+      reason: EQualitySkipReason.OversizedSource,
+      detail: '2 MiB',
+    })
   })
 
   it('reports inconclusive and operational error distinctly', () => {
-    const inconclusive = projectQualityHealth({ records: [record({ status: EQualityReviewStatus.Inconclusive })] })
-    const failed = projectQualityHealth({ records: [record({ status: EQualityReviewStatus.OperationalError })] })
+    const inconclusive = projectQualityHealth({
+      records: [record({ status: EQualityReviewStatus.Inconclusive })],
+    })
+    const failed = projectQualityHealth({
+      records: [record({ status: EQualityReviewStatus.OperationalError })],
+    })
     expect(inconclusive.status).toBe(EQualityHealthStatus.Inconclusive)
     expect(failed.status).toBe(EQualityHealthStatus.OperationalError)
   })
@@ -65,7 +89,10 @@ describe('projectQualityHealth', () => {
         record({
           path: 'src/a.ts',
           scope,
-          assessments: [assessmentFixture({ policyId: 'srp' }), assessmentFixture({ policyId: 'other' })],
+          assessments: [
+            assessmentFixture({ policyId: 'srp' }),
+            assessmentFixture({ policyId: 'other' }),
+          ],
           at: '2026-10-06T11:00:00.000Z',
         }),
       ],

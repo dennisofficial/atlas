@@ -39,9 +39,7 @@ export function McpServerList({
             <PlugIcon />
           </EmptyMedia>
           <EmptyTitle>No MCP servers configured</EmptyTitle>
-          <EmptyDescription>
-            Add a server to give threads extra tools.
-          </EmptyDescription>
+          <EmptyDescription>Add a server to give threads extra tools.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     )

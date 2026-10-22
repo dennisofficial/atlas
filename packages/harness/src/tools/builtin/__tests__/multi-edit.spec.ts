@@ -83,10 +83,10 @@ describe('multi_edit', () => {
     if (!outcome.ok) throw new Error(outcome.reason)
     const diff = (outcome.output as { diff: string }).diff
     expect(diff.match(/^--- /gm)).toHaveLength(1)
-    expect(diff.match(/^-  id: ESettingId$/m)).not.toBeNull()
-    expect(diff.match(/^\+  id: string$/m)).not.toBeNull()
-    expect(diff.match(/^-  target: \{ id: ESettingId; withEffort: boolean \}$/m)).not.toBeNull()
-    expect(diff.match(/^\+  target: \{ id: string; withEffort: boolean \}$/m)).not.toBeNull()
+    expect(diff.match(/^- {2}id: ESettingId$/m)).not.toBeNull()
+    expect(diff.match(/^\+ {2}id: string$/m)).not.toBeNull()
+    expect(diff.match(/^- {2}target: \{ id: ESettingId; withEffort: boolean \}$/m)).not.toBeNull()
+    expect(diff.match(/^\+ {2}target: \{ id: string; withEffort: boolean \}$/m)).not.toBeNull()
   })
 
   it('lets a later edit match what an earlier one wrote', async () => {

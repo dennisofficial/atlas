@@ -9,9 +9,7 @@ const GPT_4_1 = /^gpt-4\.1(?=[-.]|$)/
 const GPT_5 = /^gpt-5(?=[-.]|$)/
 const NEW_CACHE_SCHEME = /^gpt-5\.[6-9]/
 
-export function openaiCacheOptions(args: {
-  modelId: string
-}): SharedV4ProviderOptions | undefined {
+export function openaiCacheOptions(args: { modelId: string }): SharedV4ProviderOptions | undefined {
   if (NEW_CACHE_SCHEME.test(args.modelId)) return undefined
   if (!GPT_4_1.test(args.modelId) && !GPT_5.test(args.modelId)) return undefined
 

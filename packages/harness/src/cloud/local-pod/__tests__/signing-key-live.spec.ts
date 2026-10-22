@@ -24,7 +24,8 @@ import { fileProvisionLock } from '../provision-lock'
 import { buildDevServe } from './dev-serve-build'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
@@ -50,14 +51,21 @@ const sweepOf = async (pod: LivePod): Promise<void> => {
     await work().catch((failure: unknown) => failures.push(failure))
   }
   await attempt(async () => {
-    for (const container of await engine.listContainers({ labels: { [podThreadLabel]: pod.threadId }, all: true })) {
+    for (const container of await engine.listContainers({
+      labels: { [podThreadLabel]: pod.threadId },
+      all: true,
+    })) {
       await attempt(() => engine.removeContainer({ id: container.id }))
     }
   })
   for (const name of [workspaceVolumeNameFor(pod), dindVolumeNameFor(pod)]) {
     await attempt(() => pods.removeVolume({ name }))
   }
-  if (failures.length > 0) throw new AggregateError(failures, `signing-key-live cleanup of ${pod.podName} left resources behind`)
+  if (failures.length > 0)
+    throw new AggregateError(
+      failures,
+      `signing-key-live cleanup of ${pod.podName} left resources behind`,
+    )
 }
 
 const dockerCli = async (args: readonly string[]): Promise<string> => {
@@ -74,7 +82,13 @@ const dockerCli = async (args: readonly string[]): Promise<string> => {
 const podReachableHost = async (): Promise<string> =>
   process.platform === 'darwin'
     ? 'host.docker.internal'
-    : await dockerCli(['network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}'])
+    : await dockerCli([
+        'network',
+        'inspect',
+        'bridge',
+        '--format',
+        '{{(index .IPAM.Config 0).Gateway}}',
+      ])
 
 const execIn = async (args: { pod: LivePod; script: string }) => {
   const result = await pods.execSh({ id: args.pod.podName, script: args.script, timeoutMs: 60_000 })
@@ -152,7 +166,8 @@ describeDocker('serve signs commits inside a live pod with the leased key', () =
         const authorized = request.headers.get('authorization') === `Bearer ${keyedPod.token}`
         leaseRequests.push({ path, authorized })
         if (request.method === 'GET' && path === LEASE_PATH) {
-          if (!authorized) return new Response(JSON.stringify({ message: 'no key' }), { status: 404 })
+          if (!authorized)
+            return new Response(JSON.stringify({ message: 'no key' }), { status: 404 })
           return Response.json({ ...keyPair, userName: USER_NAME, userEmail: USER_EMAIL })
         }
         console.log(`[fake-api] unexpected ${request.method} ${path}`)
@@ -167,7 +182,11 @@ describeDocker('serve signs commits inside a live pod with the leased key', () =
     const outcomes = await Promise.allSettled([sweepOf(keyedPod), sweepOf(unkeyedPod)])
     if (workDirectory !== '') await rm(workDirectory, { recursive: true, force: true })
     const failed = outcomes.filter((outcome) => outcome.status === 'rejected')
-    if (failed.length > 0) throw new AggregateError(failed.map((outcome) => outcome.reason), 'signing-key-live cleanup failed')
+    if (failed.length > 0)
+      throw new AggregateError(
+        failed.map((outcome) => outcome.reason),
+        'signing-key-live cleanup failed',
+      )
   }, 180_000)
 
   it('verifies a commit signed by the leased key and keeps the key file private', async () => {
@@ -189,7 +208,9 @@ describeDocker('serve signs commits inside a live pod with the leased key', () =
     expect(signed.exitCode).toBe(0)
     expect(signed.output).toContain('Good "git" signature')
     expect(signed.output).toContain(USER_EMAIL)
-    expect(leaseRequests.some((request) => request.path === LEASE_PATH && request.authorized)).toBe(true)
+    expect(leaseRequests.some((request) => request.path === LEASE_PATH && request.authorized)).toBe(
+      true,
+    )
   }, 600_000)
 
   it('leaves no key file and logs signing-key-absent when the lease answers 404', async () => {
@@ -206,7 +227,13 @@ describeDocker('serve signs commits inside a live pod with the leased key', () =
     })
 
     expect(absent.exitCode).toBe(0)
-    expect(absent.output.split('\n')).toEqual(['key-file-absent', 'allowed-signers-absent', 'serve.signing-key-absent'])
-    expect(leaseRequests.some((request) => request.path === LEASE_PATH && !request.authorized)).toBe(true)
+    expect(absent.output.split('\n')).toEqual([
+      'key-file-absent',
+      'allowed-signers-absent',
+      'serve.signing-key-absent',
+    ])
+    expect(
+      leaseRequests.some((request) => request.path === LEASE_PATH && !request.authorized),
+    ).toBe(true)
   }, 600_000)
 })

@@ -97,10 +97,9 @@ describe('scss lexical highlighting', () => {
   })
 
   it('reads a dollar-led name as a variable, declared and referenced', () => {
-    expect(textFor({ spec, source: '$greeting: "Hello!";\ncontent: $greeting;', group: 'variable' })).toEqual([
-      '$greeting',
-      '$greeting',
-    ])
+    expect(
+      textFor({ spec, source: '$greeting: "Hello!";\ncontent: $greeting;', group: 'variable' }),
+    ).toEqual(['$greeting', '$greeting'])
   })
 
   it('keeps a variable declaration a variable rather than a property', () => {
@@ -108,48 +107,48 @@ describe('scss lexical highlighting', () => {
   })
 
   it('reads a property name up to the colon', () => {
-    expect(textFor({ spec, source: '.card {\n  border-radius: 4px;\n}', group: 'property' })).toEqual([
-      'border-radius',
-    ])
+    expect(
+      textFor({ spec, source: '.card {\n  border-radius: 4px;\n}', group: 'property' }),
+    ).toEqual(['border-radius'])
   })
 
   it('reads an element selector as a tag and its pseudo-element as an attribute', () => {
     expect(textFor({ spec, source, group: 'tag' })).toEqual(['body', 'h1', 'h2'])
-    expect(textFor({ spec, source: 'body::before {\n  content: "x";\n}', group: 'attribute' })).toEqual([
-      '::before',
-    ])
+    expect(
+      textFor({ spec, source: 'body::before {\n  content: "x";\n}', group: 'attribute' }),
+    ).toEqual(['::before'])
   })
 
   it('reads class, id and placeholder selectors as types', () => {
-    expect(textFor({ spec, source: '#app .card:hover {\n  color: red;\n}\n%pill {\n  top: 0;\n}', group: 'type' })).toEqual([
-      '#app',
-      '.card',
-      '%pill',
-    ])
+    expect(
+      textFor({
+        spec,
+        source: '#app .card:hover {\n  color: red;\n}\n%pill {\n  top: 0;\n}',
+        group: 'type',
+      }),
+    ).toEqual(['#app', '.card', '%pill'])
   })
 
   it('reads a hex colour as a constant rather than an id selector', () => {
-    expect(textFor({ spec, source: '$brand: #3f8ecc;\n#app {\n  color: #fff;\n}', group: 'constant' })).toEqual([
-      '#3f8ecc',
-      '#fff',
-    ])
+    expect(
+      textFor({ spec, source: '$brand: #3f8ecc;\n#app {\n  color: #fff;\n}', group: 'constant' }),
+    ).toEqual(['#3f8ecc', '#fff'])
   })
 
   it('reads at-rules as directives', () => {
-    expect(textFor({ spec, source: '@use "sass:math";\n@mixin card {\n  @include other;\n}', group: 'keyword.directive' })).toEqual([
-      '@use',
-      '@mixin',
-      '@include',
-    ])
+    expect(
+      textFor({
+        spec,
+        source: '@use "sass:math";\n@mixin card {\n  @include other;\n}',
+        group: 'keyword.directive',
+      }),
+    ).toEqual(['@use', '@mixin', '@include'])
   })
 
   it('keeps a number and its unit in one token', () => {
-    expect(textFor({ spec, source: 'margin: 0 auto;\npadding: 1.5rem 100% 48px;', group: 'number' })).toEqual([
-      '0',
-      '1.5rem',
-      '100%',
-      '48px',
-    ])
+    expect(
+      textFor({ spec, source: 'margin: 0 auto;\npadding: 1.5rem 100% 48px;', group: 'number' }),
+    ).toEqual(['0', '1.5rem', '100%', '48px'])
   })
 
   it('opens an interpolation as punctuation and lexes what is inside it', () => {
@@ -159,16 +158,16 @@ describe('scss lexical highlighting', () => {
   })
 
   it('reads the parent selector as an operator', () => {
-    expect(textFor({ spec, source: '.card {\n  &:focus {\n    top: 0;\n  }\n}', group: 'operator' })).toEqual([
-      '&',
-    ])
+    expect(
+      textFor({ spec, source: '.card {\n  &:focus {\n    top: 0;\n  }\n}', group: 'operator' }),
+    ).toEqual(['&'])
   })
 
   it('leaves a module-qualified call name alone instead of reading it as a class', () => {
     expect(textFor({ spec, source: 'padding: math.div(16px, 2);', group: 'type' })).toEqual([])
-    expect(textFor({ spec, source: 'padding: math.div(16px, 2);', group: 'function.call' })).toEqual([
-      'div',
-    ])
+    expect(
+      textFor({ spec, source: 'padding: math.div(16px, 2);', group: 'function.call' }),
+    ).toEqual(['div'])
   })
 
   it('reads an unquoted url as a string instead of opening a line comment', () => {
@@ -213,7 +212,11 @@ describe('scss lexical highlighting', () => {
 
   it('reads the @use alias and the word after @else as keywords', () => {
     expect(
-      textFor({ spec, source: '@use "sass:math" as math;\n@if $a {\n} @else if $b {\n}', group: 'keyword' }),
+      textFor({
+        spec,
+        source: '@use "sass:math" as math;\n@if $a {\n} @else if $b {\n}',
+        group: 'keyword',
+      }),
     ).toEqual(['as', 'if'])
   })
 

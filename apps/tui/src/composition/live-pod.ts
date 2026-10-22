@@ -131,7 +131,11 @@ export const reapOrphanPodsWith = (deps: {
 
 export const reapOrphanPodsOnBoot = (app: AtlasApp): void => {
   const socketPath = dockerSocketPath()
-  const driver = new DockerPodDriver({ cloudUrl: cloudUrlOf(app), home: atlasDirectory(), socketPath })
+  const driver = new DockerPodDriver({
+    cloudUrl: cloudUrlOf(app),
+    home: atlasDirectory(),
+    socketPath,
+  })
   void reapOrphanPodsWith({
     reap: () =>
       reapOrphanPods({

@@ -4,7 +4,6 @@ import {
   hookOutcomeDrafts,
   resolveBeforeTool,
   type ActiveWorktree,
-  type AfterTool,
   type BeforeTool,
   type BeforeToolOutcome,
   type CallId,
@@ -26,7 +25,12 @@ import {
 import { logFieldsOf } from '../store/logs'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain, RegisteredHook } from '../hooks/registry'
-import { invalidInputDraft, markDispatchStarted, markerFailureDraft, unknownToolDraft } from './dispatch-drafts'
+import {
+  invalidInputDraft,
+  markDispatchStarted,
+  markerFailureDraft,
+  unknownToolDraft,
+} from './dispatch-drafts'
 import { outcomeWhenAHookDidNotAnswerInTime } from './hook-silence'
 import { QualityStage } from './quality-dispatch'
 import type { ToolRegistry } from './registry'
@@ -55,7 +59,8 @@ export abstract class ToolDispatcher {
   abstract dispatch(args: DispatchArgs): Promise<readonly EventDraft[]>
 }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const NO_OUTCOME: HookOutcome = {}
 
@@ -88,7 +93,16 @@ export class HookedToolDispatcher extends ToolDispatcher {
   }
 
   async dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
-    const { call, signal, projectDirectory, homeDirectory, activeWorktree, events, onOutput, onDispatchStarted } = args
+    const {
+      call,
+      signal,
+      projectDirectory,
+      homeDirectory,
+      activeWorktree,
+      events,
+      onOutput,
+      onDispatchStarted,
+    } = args
     const definition = this.registry.find(call.name)
     if (definition === undefined) {
       const available = this.registry.declarations().map((declaration) => declaration.name)
@@ -120,9 +134,16 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
     const allowed: ToolCall = { ...candidate, input: outcome.input }
     const idempotencyKey = `${call.runId}:${call.callId}`
-    const markerFailure = await markDispatchStarted({ onDispatchStarted, call, logPort: this.logPort })
+    const markerFailure = await markDispatchStarted({
+      onDispatchStarted,
+      call,
+      logPort: this.logPort,
+    })
     if (markerFailure !== undefined) {
-      return [...drafts, markerFailureDraft({ callId: call.callId, name: call.name, failure: markerFailure })]
+      return [
+        ...drafts,
+        markerFailureDraft({ callId: call.callId, name: call.name, failure: markerFailure }),
+      ]
     }
     const result = await this.invokeTool({
       definition,
@@ -137,11 +158,23 @@ export class HookedToolDispatcher extends ToolDispatcher {
       captureFileChanges: this.quality.captureEnabled({ threadId: call.threadId }),
     })
 
-    const qualityOutcome = await this.quality.review({ call: allowed, runId: call.runId, result, events, projectDirectory, signal })
+    const qualityOutcome = await this.quality.review({
+      call: allowed,
+      runId: call.runId,
+      result,
+      events,
+      projectDirectory,
+      signal,
+    })
 
     return [
       ...drafts,
-      resultDraft({ call: allowed, result, interrupted: signal.aborted, qualityReviews: qualityOutcome.reviews }),
+      resultDraft({
+        call: allowed,
+        result,
+        interrupted: signal.aborted,
+        qualityReviews: qualityOutcome.reviews,
+      }),
       ...(await this.observeAfterTool({ call: allowed, result, projectDirectory, signal })),
       ...(qualityOutcome.nudge === undefined ? [] : [qualityOutcome.nudge]),
     ]

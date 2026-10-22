@@ -1,7 +1,12 @@
 import { open, stat } from 'node:fs/promises'
 import { StringDecoder } from 'node:string_decoder'
 
-import { pullRequestsOf, type Event, type LinkedPullRequest, type ThreadId } from '@dltech/atlas-core'
+import {
+  pullRequestsOf,
+  type Event,
+  type LinkedPullRequest,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { parseEventLines } from './lines'
 import { eventLogFile } from './paths'
@@ -19,7 +24,13 @@ export type PlaceSegment = {
   upTo: number | undefined
 }
 
-type FileSignature = { dev: number; ino: number; byteLength: number; modifiedAt: number; changedAt: number }
+type FileSignature = {
+  dev: number
+  ino: number
+  byteLength: number
+  modifiedAt: number
+  changedAt: number
+}
 
 type CacheEntry = { signature: FileSignature; events: Event[] }
 
@@ -36,7 +47,13 @@ const PLACE_EVENT_TYPES = new Set([...WORKTREE_EVENT_TYPES, 'pull-request-linked
 async function signatureOf({ file }: { file: string }): Promise<FileSignature | undefined> {
   const stats = await stat(file).catch(() => undefined)
   if (stats === undefined) return undefined
-  return { dev: stats.dev, ino: stats.ino, byteLength: stats.size, modifiedAt: stats.mtimeMs, changedAt: stats.ctimeMs }
+  return {
+    dev: stats.dev,
+    ino: stats.ino,
+    byteLength: stats.size,
+    modifiedAt: stats.mtimeMs,
+    changedAt: stats.ctimeMs,
+  }
 }
 
 function sameSignature({ left, right }: { left: FileSignature; right: FileSignature }): boolean {
@@ -132,11 +149,18 @@ function consumeLinePiece({ line, piece }: { line: LineState; piece: string }): 
   return { stage: 'rest', wanted, kept: wanted ? combined : '' }
 }
 
-async function placeEventsOf({ file, threadId }: { file: string; threadId: ThreadId }): Promise<Event[]> {
+async function placeEventsOf({
+  file,
+  threadId,
+}: {
+  file: string
+  threadId: ThreadId
+}): Promise<Event[]> {
   const signature = await signatureOf({ file })
   if (signature === undefined) return []
   const cached = cache.get(file)
-  if (cached !== undefined && sameSignature({ left: cached.signature, right: signature })) return cached.events
+  if (cached !== undefined && sameSignature({ left: cached.signature, right: signature }))
+    return cached.events
 
   const running = inFlight.get(file)
   if (running !== undefined) return running
@@ -164,9 +188,15 @@ async function placeEventsOf({ file, threadId }: { file: string; threadId: Threa
   }
 }
 
-function worktreeFrom({ segmentEvents }: { segmentEvents: readonly Event[][] }): ThreadWorktree | null {
+function worktreeFrom({
+  segmentEvents,
+}: {
+  segmentEvents: readonly Event[][]
+}): ThreadWorktree | null {
   for (let index = segmentEvents.length - 1; index >= 0; index -= 1) {
-    const latest = (segmentEvents[index] ?? []).filter((event) => WORKTREE_EVENT_TYPES.has(event.type)).at(-1)
+    const latest = (segmentEvents[index] ?? [])
+      .filter((event) => WORKTREE_EVENT_TYPES.has(event.type))
+      .at(-1)
     if (latest === undefined) continue
     if (latest.type !== 'worktree-entered') return null
     return { path: latest.path, branch: latest.branch }
@@ -182,7 +212,11 @@ function linkedFrom({ segmentEvents }: { segmentEvents: readonly Event[][] }): L
   return [...pullRequestsOf(linked)]
 }
 
-export async function placesForSegments({ segments }: { segments: readonly PlaceSegment[] }): Promise<ThreadPlaces> {
+export async function placesForSegments({
+  segments,
+}: {
+  segments: readonly PlaceSegment[]
+}): Promise<ThreadPlaces> {
   const events = await Promise.all(
     segments.map(async (segment) => {
       const read = await placeEventsOf({
@@ -192,5 +226,8 @@ export async function placesForSegments({ segments }: { segments: readonly Place
       return read.filter((event) => segment.upTo === undefined || event.seq <= segment.upTo)
     }),
   )
-  return { worktree: worktreeFrom({ segmentEvents: events }), pullRequests: linkedFrom({ segmentEvents: events }) }
+  return {
+    worktree: worktreeFrom({ segmentEvents: events }),
+    pullRequests: linkedFrom({ segmentEvents: events }),
+  }
 }

@@ -18,11 +18,23 @@ afterEach(async () => {
   while (created.length > 0) await rm(created.pop() as string, { recursive: true, force: true })
 })
 
-async function scenario({ datasetHash, resolved = MODEL }: { datasetHash?: string; resolved?: string } = {}) {
+async function scenario({
+  datasetHash,
+  resolved = MODEL,
+}: {
+  datasetHash?: string
+  resolved?: string
+} = {}) {
   const root = await makeTmpDir()
   created.push(root)
-  const positive = makeCase({ id: 'c1', expected: decided({ impact: EQualityImpact.Introduced, concern: true, evidenceIds: ['m1'] }) })
-  const negative = makeCase({ id: 'c2', expected: decided({ impact: EQualityImpact.Unchanged, concern: false }) })
+  const positive = makeCase({
+    id: 'c1',
+    expected: decided({ impact: EQualityImpact.Introduced, concern: true, evidenceIds: ['m1'] }),
+  })
+  const negative = makeCase({
+    id: 'c2',
+    expected: decided({ impact: EQualityImpact.Unchanged, concern: false }),
+  })
   const casesText = `${[positive, negative].map((evalCase) => JSON.stringify({ ...evalCase, review: { state: ECaseReviewState.Accepted, verifications: [] } })).join('\n')}\n`
   const manifest = {
     schemaVersion: DATASET_MANIFEST_SCHEMA_VERSION,
@@ -43,33 +55,72 @@ async function scenario({ datasetHash, resolved = MODEL }: { datasetHash?: strin
   await writeFile(join(dataset, 'manifest.json'), JSON.stringify(manifest))
   await writeFile(join(dataset, 'cases.jsonl'), casesText)
   const judgments = join(root, 'judgments.jsonl')
-  await writeFile(judgments, `${[judgmentFor({ evalCase: positive, warranted: true }), judgmentFor({ evalCase: negative, warranted: false })].map((entry) => JSON.stringify(entry)).join('\n')}\n`)
+  await writeFile(
+    judgments,
+    `${[judgmentFor({ evalCase: positive, warranted: true }), judgmentFor({ evalCase: negative, warranted: false })].map((entry) => JSON.stringify(entry)).join('\n')}\n`,
+  )
   const run = join(root, 'run')
   await mkdir(run)
-  const planned = [positive, negative].flatMap((evalCase) => [1, 2].map((trial) => ({ caseId: evalCase.id, trialId: `trial-${trial}`, variantId: 'default' })))
-  await writeFile(join(run, 'invocation.manifest.json'), JSON.stringify({
-    schemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
-    invocationId: 'inv-1',
-    featureId: positive.featureId,
-    mode: ERunMode.Live,
-    dataset: { version: 'pilot-1', hash: datasetHash ?? manifest.contentHash, path: join(dataset, 'manifest.json') },
-    model: { requested: MODEL, promotable: true },
-    planned: { uniqueCases: 2, trialsPerCase: 2, variants: ['default'], rows: planned },
-  }))
-  await writeFile(join(run, 'summary.json'), JSON.stringify({
-    status: ERunStatus.Complete, invocationId: 'inv-1', featureId: positive.featureId, datasetVersion: 'pilot-1', datasetHash: datasetHash ?? manifest.contentHash, mode: ERunMode.Live,
-    model: { requested: MODEL, resolved: MODEL },
-    enabledPolicyIds: ['single-responsibility'], batchMode: 'batched', metrics: [], failureNotes: [],
-  }))
+  const planned = [positive, negative].flatMap((evalCase) =>
+    [1, 2].map((trial) => ({
+      caseId: evalCase.id,
+      trialId: `trial-${trial}`,
+      variantId: 'default',
+    })),
+  )
+  await writeFile(
+    join(run, 'invocation.manifest.json'),
+    JSON.stringify({
+      schemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
+      invocationId: 'inv-1',
+      featureId: positive.featureId,
+      mode: ERunMode.Live,
+      dataset: {
+        version: 'pilot-1',
+        hash: datasetHash ?? manifest.contentHash,
+        path: join(dataset, 'manifest.json'),
+      },
+      model: { requested: MODEL, promotable: true },
+      planned: { uniqueCases: 2, trialsPerCase: 2, variants: ['default'], rows: planned },
+    }),
+  )
+  await writeFile(
+    join(run, 'summary.json'),
+    JSON.stringify({
+      status: ERunStatus.Complete,
+      invocationId: 'inv-1',
+      featureId: positive.featureId,
+      datasetVersion: 'pilot-1',
+      datasetHash: datasetHash ?? manifest.contentHash,
+      mode: ERunMode.Live,
+      model: { requested: MODEL, resolved: MODEL },
+      enabledPolicyIds: ['single-responsibility'],
+      batchMode: 'batched',
+      metrics: [],
+      failureNotes: [],
+    }),
+  )
   const rows = planned.map((identity) => {
     const evalCase = identity.caseId === 'c1' ? positive : negative
-    const assessment = evalCase === positive
-      ? assess({ evalCase, concern: 0.9, impact: EQualityImpact.Introduced, focus: 'm1' })
-      : assess({ evalCase, concern: 0.1, impact: EQualityImpact.Unchanged })
-    return JSON.stringify(rowOf({ evalCase, assessment, trialId: identity.trialId, model: resolved }))
+    const assessment =
+      evalCase === positive
+        ? assess({ evalCase, concern: 0.9, impact: EQualityImpact.Introduced, focus: 'm1' })
+        : assess({ evalCase, concern: 0.1, impact: EQualityImpact.Unchanged })
+    return JSON.stringify(
+      rowOf({ evalCase, assessment, trialId: identity.trialId, model: resolved }),
+    )
   })
   await writeFile(join(run, 'results.jsonl'), `${rows.join('\n')}\n`)
-  const argv = (output: string): readonly string[] => ['--run', run, '--dataset', join(dataset, 'manifest.json'), '--judgments', judgments, '--output-dir', output]
+  const argv = (output: string): readonly string[] => [
+    '--run',
+    run,
+    '--dataset',
+    join(dataset, 'manifest.json'),
+    '--judgments',
+    judgments,
+    '--output-dir',
+    output,
+  ]
   return { root, run, argv }
 }
 
@@ -100,7 +151,9 @@ describe('efficacy report CLI', () => {
     }
     const output = join(root, 'report')
     await handleEfficacyCommand({ argv: argv(output) })
-    expect(await readFile(join(output, 'report.txt'), 'utf8')).toContain('fake execution; not live efficacy')
+    expect(await readFile(join(output, 'report.txt'), 'utf8')).toContain(
+      'fake execution; not live efficacy',
+    )
   })
 
   test('refuses an output directory that already exists', async () => {
@@ -113,7 +166,9 @@ describe('efficacy report CLI', () => {
 
   test('refuses an output directory inside the run directory', async () => {
     const { run, argv } = await scenario()
-    await expect(handleEfficacyCommand({ argv: argv(join(run, 'report')) })).rejects.toThrow('inside the run')
+    await expect(handleEfficacyCommand({ argv: argv(join(run, 'report')) })).rejects.toThrow(
+      'inside the run',
+    )
   })
 
   test('rejects a run whose dataset hash differs from the supplied dataset', async () => {

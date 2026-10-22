@@ -6,7 +6,12 @@ import { EDetail, EGather, EToolClass } from '../kinds'
 import { ECallState } from '../../tool-runs'
 import { aCall, CWD } from './fixture'
 
-const memoryOf = (args: { name: string; input?: Record<string, unknown>; output?: unknown; state?: ECallState }) =>
+const memoryOf = (args: {
+  name: string
+  input?: Record<string, unknown>
+  output?: unknown
+  state?: ECallState
+}) =>
   classify({
     call: aCall({
       name: args.name,
@@ -90,6 +95,8 @@ describe('the browse clause', () => {
       cwd: CWD,
     })
 
-    expect(sentenceOf([{ call: aCall({ name: 'web_fetch' }), reading: browsed }])).toBe('Browsed 1 page')
+    expect(sentenceOf([{ call: aCall({ name: 'web_fetch' }), reading: browsed }])).toBe(
+      'Browsed 1 page',
+    )
   })
 })

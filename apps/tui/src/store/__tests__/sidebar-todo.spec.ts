@@ -21,7 +21,10 @@ const planWritten = (tasks: readonly unknown[]) =>
 
 describe('the sidebar checklist', () => {
   it('is absent before the agent writes a plan, so no bare header is drawn', () => {
-    const model = deriveSidebar({ events: log([{ type: 'user-said', text: 'go' }]), turn: IDLE_TURN })
+    const model = deriveSidebar({
+      events: log([{ type: 'user-said', text: 'go' }]),
+      turn: IDLE_TURN,
+    })
 
     expect(model.todo).toBeUndefined()
   })

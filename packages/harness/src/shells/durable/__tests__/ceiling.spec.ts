@@ -41,7 +41,10 @@ describe('the timeout ceiling under the default tick', () => {
   })
 
   test('a ceiling longer than the runtime timer range does not fire early', async () => {
-    const shellDir = await launchDetached({ timeoutMs: 2 ** 31 + 1_000, command: 'sleep 0.5; exit 0' })
+    const shellDir = await launchDetached({
+      timeoutMs: 2 ** 31 + 1_000,
+      command: 'sleep 0.5; exit 0',
+    })
     const exit = await waitForExit({ shellDir, deadlineMs: 4_000 })
 
     expect(exit?.cause).toBe(EExitCause.Natural)

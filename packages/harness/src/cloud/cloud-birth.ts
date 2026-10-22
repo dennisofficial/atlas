@@ -25,7 +25,10 @@ export type BirthWave = { label: string; ids: readonly string[] }
 
 export const BIRTH_WAVES: readonly BirthWave[] = [
   { label: 'waiting for the pod', ids: [EBirthNode.Provision] },
-  { label: 'setting up the workspace', ids: [EBirthNode.Attach, EBirthNode.Open, EBirthNode.FlipOwnership] },
+  {
+    label: 'setting up the workspace',
+    ids: [EBirthNode.Attach, EBirthNode.Open, EBirthNode.FlipOwnership],
+  },
 ]
 
 export enum EBirthFault {
@@ -60,17 +63,20 @@ export type BirthArgs = {
   onBegin?: ((args: { waves: readonly BirthWave[] }) => void) | undefined
   onNodeStart?: ((nodeId: string) => void) | undefined
   onNodeDone?: ((nodeId: string) => void) | undefined
-  open?: ((args: {
-    attachment: CloudAttachment
-    prepareRuntime: BirthInstall<SessionRuntime>['prepareRuntime']
-  }) => Promise<void>) | undefined
+  open?:
+    | ((args: {
+        attachment: CloudAttachment
+        prepareRuntime: BirthInstall<SessionRuntime>['prepareRuntime']
+      }) => Promise<void>)
+    | undefined
 }
 
 const birthFaultOf = (error: unknown): EBirthFault => {
   if (error instanceof VercelNotConfiguredError) return EBirthFault.NotConfigured
   if (error instanceof ImagePullError) return EBirthFault.ImagePull
   if (!(error instanceof CloudError)) return EBirthFault.Sandbox
-  if (error.status === 503 && error.message.includes('not configured')) return EBirthFault.NotConfigured
+  if (error.status === 503 && error.message.includes('not configured'))
+    return EBirthFault.NotConfigured
   if (error.status === 0) return EBirthFault.Unreachable
   return EBirthFault.Sandbox
 }
@@ -114,7 +120,8 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
 
         started(EBirthNode.FlipOwnership)
         await handle.commit({ harness: EHarnessPlacement.Cloud })
-        if (args.runner !== undefined) await args.localThreads.chooseRunner({ threadId, runner: args.runner })
+        if (args.runner !== undefined)
+          await args.localThreads.chooseRunner({ threadId, runner: args.runner })
         await args.localThreads.chooseProject({ threadId, projectId: args.projectId })
         done(EBirthNode.FlipOwnership)
 
@@ -122,6 +129,11 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
       },
     })
   } catch (error) {
-    return { ok: false, fault: birthFaultOf(error), step: EBirthNode.Provision, detail: error instanceof Error ? error.message : String(error) }
+    return {
+      ok: false,
+      fault: birthFaultOf(error),
+      step: EBirthNode.Provision,
+      detail: error instanceof Error ? error.message : String(error),
+    }
   }
 }

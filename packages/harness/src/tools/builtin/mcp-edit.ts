@@ -1,4 +1,10 @@
-import { EToolEffect, SchemaTool, TAKES_NO_PATHS, type ToolOutcome, type ToolRun } from '@dltech/atlas-core'
+import {
+  EToolEffect,
+  SchemaTool,
+  TAKES_NO_PATHS,
+  type ToolOutcome,
+  type ToolRun,
+} from '@dltech/atlas-core'
 
 import { inputSchema, run } from '../../mcp/config/writer'
 

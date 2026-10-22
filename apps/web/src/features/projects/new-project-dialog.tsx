@@ -30,7 +30,12 @@ import {
 } from './new-project-draft'
 import { RepositoryStep } from './new-project-repository-step'
 import { SourceStep } from './new-project-source-step'
-import { ENewProjectStep, type DraftPatch, type EProjectSource, type ProjectDraft } from './new-project-types'
+import {
+  ENewProjectStep,
+  type DraftPatch,
+  type EProjectSource,
+  type ProjectDraft,
+} from './new-project-types'
 import type { OwnerOption } from './project-owner'
 
 export interface NewProjectDialogProps {

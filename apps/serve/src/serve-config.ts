@@ -69,7 +69,8 @@ export function serveConfig(args: {
     })
   }
 
-  const controlPlaneUrl = args.controlPlaneUrl ?? given(env[EServeEnv.CloudUrl]) ?? DEFAULT_CLOUD_URL
+  const controlPlaneUrl =
+    args.controlPlaneUrl ?? given(env[EServeEnv.CloudUrl]) ?? DEFAULT_CLOUD_URL
 
   return {
     threadId: toThreadId(thread),

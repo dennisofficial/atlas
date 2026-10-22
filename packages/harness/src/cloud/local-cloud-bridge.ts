@@ -9,10 +9,7 @@ import {
   type CloudSandboxes,
   type CloudSandboxStatus,
 } from './cloud-bridge'
-import {
-  SANDBOX_SERVE_PORT,
-  type VercelSandboxConfig,
-} from '@dltech/atlas-wire'
+import { SANDBOX_SERVE_PORT, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import {
   bootstrapSpecOf,
   liveDriverWith,
@@ -107,7 +104,9 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       state: sandboxStateSchema.parse(placement.state),
       created: placement.created,
       ...(placement.rotatedFrom === undefined ? {} : { rotatedFrom: placement.rotatedFrom }),
-      ...(placement.rotatedProtocol === undefined ? {} : { rotatedProtocol: placement.rotatedProtocol }),
+      ...(placement.rotatedProtocol === undefined
+        ? {}
+        : { rotatedProtocol: placement.rotatedProtocol }),
     }
   }
 
@@ -119,7 +118,9 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
       args.readCheckpoint?.(findArgs).catch(() => null) ?? null,
     ])
     return {
-      ...(observed == null ? { state: ECloudSandboxState.Stopped } : { ...observed, state: sandboxStateSchema.parse(observed.state) }),
+      ...(observed == null
+        ? { state: ECloudSandboxState.Stopped }
+        : { ...observed, state: sandboxStateSchema.parse(observed.state) }),
       checkpoint: reported?.threadId === findArgs.threadId ? reported : null,
     }
   }

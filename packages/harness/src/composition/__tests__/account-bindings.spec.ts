@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import {
   AccountStorePort,
-  CredentialPort,
   EAccountOrigin,
   EAuthKind,
   EAuthProvider,
@@ -23,7 +22,6 @@ import { atlasVaultFile, atlasVaultKeyFile } from '../../credentials/paths'
 import { fileAccountStore } from '../../credentials/account-store'
 import { CloudManagedCredentialPort } from '../../credentials/cloud-managed-credential-port'
 import { bindAccounts } from '../account-bindings'
-import { recordingNotices } from './fakes'
 
 let atlasHome: string
 let previousAtlasHome: string | undefined
@@ -161,10 +159,17 @@ describe('bindAccounts', () => {
 
     it('hands off the native grant and keeps only access credentials locally', async () => {
       const fetches: string[] = []
-      globalThis.fetch = Object.assign(async (input: string | URL | Request) => {
-        fetches.push(String(input))
-        return Response.json({ accessToken: 'fake-cloud-access', expiresAt: minutesAheadOfNow(60), generation: 0 })
-      }, { preconnect: () => undefined })
+      globalThis.fetch = Object.assign(
+        async (input: string | URL | Request) => {
+          fetches.push(String(input))
+          return Response.json({
+            accessToken: 'fake-cloud-access',
+            expiresAt: minutesAheadOfNow(60),
+            generation: 0,
+          })
+        },
+        { preconnect: () => undefined },
+      )
       signedInSession()
       const container = createHarnessContainer()
       const account = await addLocalAccount({ expiresAt: minutesAheadOfNow(30) })
@@ -176,7 +181,8 @@ describe('bindAccounts', () => {
         clientVersion: 'account-bindings-spec',
       })
 
-      if (!(credentials instanceof CloudManagedCredentialPort)) throw new Error('cloud credential binding missing')
+      if (!(credentials instanceof CloudManagedCredentialPort))
+        throw new Error('cloud credential binding missing')
       await credentials.handoffAll({ url: 'http://cloud.test', token: 'sess_x', email: 'a@b.c' })
       const credential = await credentials.read({
         provider: EAuthProvider.Anthropic,
@@ -195,12 +201,19 @@ describe('bindAccounts', () => {
 
     it('gets renewable access from the cloud without calling the provider locally', async () => {
       const fetches: string[] = []
-      globalThis.fetch = Object.assign(async (input: string | URL | Request) => {
-        const url = String(input)
-        fetches.push(url)
-        expect(url.startsWith('http://cloud.test/v1/oauth-connections/')).toBe(true)
-        return Response.json({ accessToken: 'fake-cloud-access-2', expiresAt: minutesAheadOfNow(120), generation: 1 })
-      }, { preconnect: () => undefined })
+      globalThis.fetch = Object.assign(
+        async (input: string | URL | Request) => {
+          const url = String(input)
+          fetches.push(url)
+          expect(url.startsWith('http://cloud.test/v1/oauth-connections/')).toBe(true)
+          return Response.json({
+            accessToken: 'fake-cloud-access-2',
+            expiresAt: minutesAheadOfNow(120),
+            generation: 1,
+          })
+        },
+        { preconnect: () => undefined },
+      )
       signedInSession()
       const container = createHarnessContainer()
       await addLocalAccount({ expiresAt: new Date(Date.now() - 60_000).toISOString() })

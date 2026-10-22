@@ -1,15 +1,11 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import {
-  Progress,
-  ProgressLabel,
-  ProgressValue,
-} from "@dltech/atlas-ui/components/progress";
+import { Progress, ProgressLabel, ProgressValue } from '@dltech/atlas-ui/components/progress'
 
 const meta = {
-  title: "Components/Progress",
+  title: 'Components/Progress',
   component: Progress,
-  argTypes: { value: { control: { type: "range", min: 0, max: 100 } } },
+  argTypes: { value: { control: { type: 'range', min: 0, max: 100 } } },
   args: { value: 62 },
   decorators: [
     (Story) => (
@@ -18,13 +14,13 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Progress>;
+} satisfies Meta<typeof Progress>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Default: Story = {};
+export const Default: Story = {}
 
 export const WithLabel: Story = {
   render: (args) => (
@@ -33,7 +29,7 @@ export const WithLabel: Story = {
       <ProgressValue />
     </Progress>
   ),
-};
+}
 
 export const Indeterminate: Story = {
   args: { value: null },
@@ -42,4 +38,4 @@ export const Indeterminate: Story = {
       <ProgressLabel>Booting sandbox</ProgressLabel>
     </Progress>
   ),
-};
+}

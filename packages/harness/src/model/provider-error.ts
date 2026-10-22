@@ -12,7 +12,8 @@ const MAX_BODY_CHARS = 16_384
 const MAX_IDENTIFIER_CHARS = 80
 const IDENTIFIER = /^[a-zA-Z0-9_.:-]+$/
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
 
 const identifierOf = (value: unknown): string | number | undefined => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined

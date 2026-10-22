@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { FileIcon, GitBranchIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
-import { useState } from "react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { FileIcon, GitBranchIcon, SettingsIcon, SquareTerminalIcon } from 'lucide-react'
+import { useState } from 'react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Command,
   CommandDialog,
@@ -13,16 +13,16 @@ import {
   CommandList,
   CommandSeparator,
   CommandShortcut,
-} from "@dltech/atlas-ui/components/command";
+} from '@dltech/atlas-ui/components/command'
 
 const meta = {
-  title: "Components/Command",
+  title: 'Components/Command',
   component: Command,
-} satisfies Meta<typeof Command>;
+} satisfies Meta<typeof Command>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 function Palette() {
   return (
@@ -56,7 +56,7 @@ function Palette() {
         </CommandGroup>
       </CommandList>
     </>
-  );
+  )
 }
 
 export const Default: Story = {
@@ -65,10 +65,10 @@ export const Default: Story = {
       <Palette />
     </Command>
   ),
-};
+}
 
 function DialogExample() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
@@ -80,7 +80,7 @@ function DialogExample() {
         </Command>
       </CommandDialog>
     </>
-  );
+  )
 }
 
-export const InDialog: Story = { render: () => <DialogExample /> };
+export const InDialog: Story = { render: () => <DialogExample /> }

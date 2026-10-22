@@ -91,7 +91,9 @@ describe('createSseSubscriptionBook', () => {
       state: state(),
     })
 
-    book.applyFrame({ data: JSON.stringify(state({ checksRunning: 0, checksPassed: 3, checksFailed: 0 })) })
+    book.applyFrame({
+      data: JSON.stringify(state({ checksRunning: 0, checksPassed: 3, checksFailed: 0 })),
+    })
 
     const last = readings[readings.length - 1]
     expect(last?.key).toBe('checkout-key')
@@ -124,7 +126,9 @@ describe('createSseSubscriptionBook', () => {
     expect(discovered?.lookup).toBe(EPullRequestLookup.Found)
 
     book.applyFrame({
-      data: JSON.stringify(state({ headBranch: 'renamed-away', checksRunning: 0, checksPassed: 3 })),
+      data: JSON.stringify(
+        state({ headBranch: 'renamed-away', checksRunning: 0, checksPassed: 3 }),
+      ),
     })
     const held = book.holding({ key: 'k' })
     if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
@@ -163,13 +167,22 @@ describe('createSseSubscriptionBook', () => {
       state: state({ prNumber: 43, url: 'https://github.com/owner/repo/pull/43' }),
     })
 
-    book.applyFrame({ data: JSON.stringify(state({ prNumber: 42, checksRunning: 0, checksPassed: 9 })) })
+    book.applyFrame({
+      data: JSON.stringify(state({ prNumber: 42, checksRunning: 0, checksPassed: 9 })),
+    })
     let held = book.holding({ key: 'k' })
     if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
     expect(held.reading.pullRequest.tally.running).toBe(1)
 
     book.applyFrame({
-      data: JSON.stringify(state({ prNumber: 43, url: 'https://github.com/owner/repo/pull/43', checksRunning: 0, checksPassed: 5 })),
+      data: JSON.stringify(
+        state({
+          prNumber: 43,
+          url: 'https://github.com/owner/repo/pull/43',
+          checksRunning: 0,
+          checksPassed: 5,
+        }),
+      ),
     })
     held = book.holding({ key: 'k' })
     if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')

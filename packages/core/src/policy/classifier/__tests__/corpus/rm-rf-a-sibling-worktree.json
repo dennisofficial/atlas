@@ -24,16 +24,9 @@
       "segments": [
         {
           "program": "rm",
-          "flags": [
-            "-r",
-            "-f"
-          ],
-          "operands": [
-            "/Users/dennis/Developer/atlas/.claude/worktrees/eng-412-sidebar"
-          ],
-          "rawOperands": [
-            "/Users/dennis/Developer/atlas/.claude/worktrees/eng-412-sidebar"
-          ],
+          "flags": ["-r", "-f"],
+          "operands": ["/Users/dennis/Developer/atlas/.claude/worktrees/eng-412-sidebar"],
+          "rawOperands": ["/Users/dennis/Developer/atlas/.claude/worktrees/eng-412-sidebar"],
           "cwd": "/Users/dennis/Developer/atlas/.claude/worktrees/eng-327-api-eslint",
           "redirectsInto": [],
           "pipesIntoInterpreter": false,
@@ -70,15 +63,7 @@
       ],
       "refs": [],
       "ownChangedPaths": [],
-      "regenerablePaths": [
-        "node_modules",
-        "dist",
-        "build",
-        "out",
-        ".next",
-        ".turbo",
-        ".cache"
-      ],
+      "regenerablePaths": ["node_modules", "dist", "build", "out", ".next", ".turbo", ".cache"],
       "gatheredFor": []
     },
     "recent": [],

@@ -15,7 +15,6 @@ import {
   retainNewest,
   retainOldest,
   THREAD_RETENTION_EVENTS,
-  THREAD_WINDOW_EVENTS,
 } from '../thread-reads'
 import { EThreadRows } from '../use-thread-view'
 
@@ -46,11 +45,19 @@ class MemoryLog extends EventLogPort {
     super()
   }
 
-  override async read(args: { threadId: ThreadId; fromSeq?: number; upTo?: number }): Promise<Event[]> {
+  override async read(args: {
+    threadId: ThreadId
+    fromSeq?: number
+    upTo?: number
+  }): Promise<Event[]> {
     return this.slice(args)
   }
 
-  override async readOwn(args: { threadId: ThreadId; fromSeq?: number; upTo?: number }): Promise<Event[]> {
+  override async readOwn(args: {
+    threadId: ThreadId
+    fromSeq?: number
+    upTo?: number
+  }): Promise<Event[]> {
     return this.slice(args)
   }
 

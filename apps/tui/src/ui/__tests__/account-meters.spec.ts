@@ -39,7 +39,10 @@ describe('accountMeterSpans', () => {
   it('keeps every gauge the same width so the column does not ripple', () => {
     for (const utilization of [0, 1, 50, 99, 100]) {
       const spans = accountMeterSpans({
-        usage: { [EUsageWindow.FiveHour]: { utilization, resetsAt: null }, [EUsageWindow.SevenDay]: null },
+        usage: {
+          [EUsageWindow.FiveHour]: { utilization, resetsAt: null },
+          [EUsageWindow.SevenDay]: null,
+        },
         warn: DEFAULT_WARN_PERCENT,
         now: NOW,
       })

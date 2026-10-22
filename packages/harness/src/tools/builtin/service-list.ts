@@ -42,14 +42,10 @@ export class ServiceListTool extends SchemaTool<typeof inputSchema> {
     super()
   }
 
-  protected override async run({
-    input,
-  }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
+  protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const all = this.services.list()
     const shown =
-      input.runningOnly === true
-        ? all.filter((one) => one.status === EServiceStatus.Running)
-        : all
+      input.runningOnly === true ? all.filter((one) => one.status === EServiceStatus.Running) : all
 
     if (shown.length === 0) {
       return {

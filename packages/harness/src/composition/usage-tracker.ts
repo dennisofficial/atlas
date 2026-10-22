@@ -25,7 +25,13 @@ export function createUsageTracker(args: { channel: DeltaChannel; log: EventLogP
   }
 
   return {
-    usageOf: async ({ threadId, outcome }: { threadId: ThreadId; outcome: TurnOutcome }): Promise<number> => {
+    usageOf: async ({
+      threadId,
+      outcome,
+    }: {
+      threadId: ThreadId
+      outcome: TurnOutcome
+    }): Promise<number> => {
       const latest = reported.get(threadId)
       if (outcome.status === ETurnStatus.Completed || outcome.status === ETurnStatus.Failed) {
         return latest === undefined
@@ -46,7 +52,11 @@ export function createUsageTracker(args: { channel: DeltaChannel; log: EventLogP
       args.channel.subscribe({
         threadId,
         listener: (signal) => {
-          if (signal.type === 'chunk' && signal.chunk.type === 'finish' && signal.chunk.usage !== undefined) {
+          if (
+            signal.type === 'chunk' &&
+            signal.chunk.type === 'finish' &&
+            signal.chunk.usage !== undefined
+          ) {
             remember({ threadId, usage: signal.chunk.usage })
           }
         },

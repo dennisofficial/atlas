@@ -58,13 +58,18 @@ const scenario = (overrides: Partial<PodState>) => {
       scripts.push(script)
       if (script === SERVE_ALIVE_PROBE) return exit(stopped ? state.aliveAfterStop : state.alive)
       if (script.includes('sha256sum < ')) {
-        const digest = createHash('sha256').update(state.tokenOnDisk ?? '').digest('hex')
+        const digest = createHash('sha256')
+          .update(state.tokenOnDisk ?? '')
+          .digest('hex')
         const matches = state.tokenOnDisk === undefined || script.includes(`"${digest}"`)
         events.push('token-check')
         return exit(matches)
       }
       if (script.includes('atlas-serve.version')) {
-        return result({ exitCode: 0, stdout: `${state.stamps.version}\n${state.stamps.protocol}\n` })
+        return result({
+          exitCode: 0,
+          stdout: `${state.stamps.version}\n${state.stamps.protocol}\n`,
+        })
       }
       if (script === HEALTH_PROBE) return exit(launched ? state.healthyAfterLaunch : state.healthy)
       if (script.includes('seq 90')) {
@@ -237,13 +242,20 @@ describe('createPodServeLauncher', () => {
     const outcome = await launch({ fake, desiredVersion: '1.2.3' })
 
     expect(outcome).toEqual({ swapped: undefined })
-    expect(fake.events).toEqual([`write:${SERVE_TOKEN_PATH}`, 'install:1.2.3', 'launch', 'health-wait'])
+    expect(fake.events).toEqual([
+      `write:${SERVE_TOKEN_PATH}`,
+      'install:1.2.3',
+      'launch',
+      'health-wait',
+    ])
     const write = fake.writes[0]!
     expect(write.content).toBe(TOKEN)
     expect(write.mode).toBe(0o600)
 
     const launchScript = fake.scripts.find((script) => script.includes('setsid nohup'))!
-    expect(launchScript.startsWith(`export ATLAS_CLOUD_URL='https://cloud.example/it'\\''s'; `)).toBe(true)
+    expect(
+      launchScript.startsWith(`export ATLAS_CLOUD_URL='https://cloud.example/it'\\''s'; `),
+    ).toBe(true)
     expect(launchScript).toContain('exec flock -n')
     expect(launchScript.endsWith('>/dev/null 2>&1 </dev/null &')).toBe(true)
   })
@@ -293,6 +305,8 @@ describe('createPodServeLauncher', () => {
       healthyAfterLaunch: false,
     })
 
-    await expect(launch({ fake, desiredVersion: '1.2.3' })).rejects.toThrow(/serve log is empty or missing/)
+    await expect(launch({ fake, desiredVersion: '1.2.3' })).rejects.toThrow(
+      /serve log is empty or missing/,
+    )
   })
 })

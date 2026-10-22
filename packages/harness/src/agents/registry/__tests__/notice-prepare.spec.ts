@@ -22,7 +22,9 @@ const TEAMMATE = agentTypeNamed({ name: TEAMMATE_AGENT_TYPE })
 const opened: OpenedSupervisor[] = []
 
 async function open(): Promise<OpenedSupervisor> {
-  const entry = await openSupervisor({ agentTypes: [agentTypeNamed({ name: 'explore' }), TEAMMATE] })
+  const entry = await openSupervisor({
+    agentTypes: [agentTypeNamed({ name: 'explore' }), TEAMMATE],
+  })
   opened.push(entry)
   return entry
 }
@@ -40,10 +42,7 @@ afterEach(async () => {
   for (const entry of opened.splice(0)) await entry.close()
 })
 
-async function spawnEnded(
-  entry: OpenedSupervisor,
-  agentType = 'explore',
-): Promise<ThreadId> {
+async function spawnEnded(entry: OpenedSupervisor, agentType = 'explore'): Promise<ThreadId> {
   const outcome = await entry.supervisor.spawn({
     threadId: entry.parent,
     agentType,
@@ -76,7 +75,9 @@ describe('preparing agent notices without acknowledging', () => {
     first.acknowledge()
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
     expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).wakesTurn).toBe(false)
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(1)
+    expect(
+      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
+    ).toHaveLength(1)
   })
 
   it('acknowledges exactly once: a second ack removes nothing more', async () => {
@@ -245,6 +246,8 @@ describe('enumerating threads with anything queued', () => {
     const drained = entry.supervisor.drainNotifications({ threadId: entry.parent })
     expect(drained.wakesTurn).toBe(true)
     expect(drained.drafts).toEqual([])
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(1)
+    expect(
+      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
+    ).toHaveLength(1)
   })
 })

@@ -9,7 +9,10 @@ import { HookChain, type HookChainSource } from '../../../hooks/registry'
 import { DurableShellLauncher } from '../../../shells/durable-launcher'
 import { BunShellRegistry } from '../../../shells/shell-registry'
 import { ShellStorage } from '../../../shells/storage'
-import { prepareSupervisorLauncher, type SupervisorLauncher } from '../../../shells/supervisor-launch'
+import {
+  prepareSupervisorLauncher,
+  type SupervisorLauncher,
+} from '../../../shells/supervisor-launch'
 import { SessionRegistry } from '../../../store/sessions/registry'
 import { RandomIds, SystemClock } from '../../../store'
 import { RecordingLog } from '../../../shells/__tests__/shell-registry-log'

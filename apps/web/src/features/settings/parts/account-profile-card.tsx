@@ -83,12 +83,7 @@ function EditProfileDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="profile-email">Email</Label>
-            <Input
-              id="profile-email"
-              type="email"
-              readOnly
-              value={draft.email}
-            />
+            <Input id="profile-email" type="email" readOnly value={draft.email} />
           </div>
         </div>
         <DialogFooter>

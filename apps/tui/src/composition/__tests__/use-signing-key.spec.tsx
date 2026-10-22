@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { SSH_SIGNING_SCOPE_NOTICE } from '@dltech/atlas-wire'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { ESigningKeyView } from '../../ui/components/settings/signing-key-row'

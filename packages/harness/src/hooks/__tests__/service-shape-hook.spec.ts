@@ -30,15 +30,19 @@ const bashCall = (command: string): ToolCall =>
 const run = (hook: ServiceShapeHook, call: ToolCall) =>
   hook.run({ call, projectDirectory: '/repo', events: [], signal: AbortSignal.timeout(1000) })
 
-const noul = (value: number): DecisionOutcome => ({ ok: true, answers: { service: { noul: value } } })
+const noul = (value: number): DecisionOutcome => ({
+  ok: true,
+  answers: { service: { noul: value } },
+})
 
 describe('ServiceShapeHook', () => {
   it('allows non-bash tools without consulting', async () => {
     const decisions = new FakeDecisions(noul(0.99))
-    const outcome = await run(
-      new ServiceShapeHook({ decisions }),
-      { callId: 'c', name: 'read', input: { path: 'x' } } as ToolCall,
-    )
+    const outcome = await run(new ServiceShapeHook({ decisions }), {
+      callId: 'c',
+      name: 'read',
+      input: { path: 'x' },
+    } as ToolCall)
     expect(outcome.decision).toBe(EBeforeToolDecision.Allow)
     expect(decisions.calls).toBe(0)
   })

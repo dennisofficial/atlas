@@ -35,7 +35,9 @@ afterEach(async () => {
 
 const liveEngine = { info: async () => ({ cpus: 8, memoryBytes: 16 * 1024 ** 3 }) }
 
-const setup = async (args: { prepare?: (call: { cwd: string; threadId: ThreadId }) => Promise<void> }) => {
+const setup = async (args: {
+  prepare?: (call: { cwd: string; threadId: ThreadId }) => Promise<void>
+}) => {
   const fixture = openStoreFixture()
   fixtures.push(fixture)
   const state = new PlacementController(EExecutionLocation.Host)
@@ -107,7 +109,11 @@ const move = (args: {
     ids: new CountingIds('anchor'),
     shells: args.shells ?? new UnstaffedShells(),
     services: new UnstaffedServices(),
-    stores: () => ({ threads: args.fixture.threads, log: args.fixture.log, agents: new UnstaffedAgents() }),
+    stores: () => ({
+      threads: args.fixture.threads,
+      log: args.fixture.log,
+      agents: new UnstaffedAgents(),
+    }),
     ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
     ...(args.whenSettled === undefined ? {} : { whenSettled: args.whenSettled }),
   })
@@ -135,7 +141,13 @@ describe('moveLocalPlacement anchoring', () => {
   it('prefers the cwd the caller passes over the one the log derives', async () => {
     const { fixture, control, prepared, threadId } = await setup({})
 
-    await move({ fixture, control, threadId, target: EExecutionLocation.Docker, cwd: '/work/passed' })
+    await move({
+      fixture,
+      control,
+      threadId,
+      target: EExecutionLocation.Docker,
+      cwd: '/work/passed',
+    })
 
     expect(prepared.map((one) => one.cwd)).toEqual(['/work/passed'])
     const [relocation] = await relocations(fixture.log, threadId)

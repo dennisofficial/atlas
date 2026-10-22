@@ -13,7 +13,6 @@ import {
   transcriptCovered,
   type OverlayPresence,
 } from './overlay-presence'
-import { swallowsFocusedTextareaKey } from './use-overlay-keys'
 import type { useAccounts } from './use-accounts'
 import type { useContextBrowser } from './use-context'
 import type { useAgentView } from './use-agent-view'
@@ -52,9 +51,14 @@ export type WorkspaceInputArgs = {
   handleNewConversation: () => void
   handleOpenAccounts: () => void
   handleQuit: () => void
-  conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'operatorInput'>
-  composer: Pick<ReturnType<typeof useWorkspaceComposer>,
-    'draftIsEmpty' | 'handleSubmit' | 'handleTakeBackPending' | 'handleAttachImage' | 'menus'>
+  conversation: Pick<
+    ReturnType<typeof useConversation>,
+    'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'operatorInput'
+  >
+  composer: Pick<
+    ReturnType<typeof useWorkspaceComposer>,
+    'draftIsEmpty' | 'handleSubmit' | 'handleTakeBackPending' | 'handleAttachImage' | 'menus'
+  >
   draft: DraftControls
   /**
    * Whether the composer's textarea currently holds the native focus — when it does, the global
@@ -173,7 +177,13 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
       covering(whatsNew.view !== null, whatsNew.handleKey),
-      { ...covering(conversation.operatorInput.state !== null, conversation.operatorInput.handleKey), porous: true },
+      {
+        ...covering(
+          conversation.operatorInput.state !== null,
+          conversation.operatorInput.handleKey,
+        ),
+        porous: true,
+      },
       covering(projectPrompt.state !== null, projectPrompt.handleKey),
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerGuard.state !== null, containerGuard.handleKey),
@@ -187,8 +197,12 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       { ...covering(threads.state !== null, threads.handleKey), porous: true },
       { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
-      { open: contextBrowser.viewer !== null,
-        handleKey: contextBrowser.handleKey, coversComposer: true, coversTranscript: contextBrowser.viewer !== null },
+      {
+        open: contextBrowser.viewer !== null,
+        handleKey: contextBrowser.handleKey,
+        coversComposer: true,
+        coversTranscript: contextBrowser.viewer !== null,
+      },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
       moveOverlayPresence({ move: containerMove.move, handleKey: containerMove.handleKey }),
@@ -272,7 +286,15 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
       handleKey(key)
     },
-    [agentView, conversation.operatorInput.state, covered, contextBrowser.viewer, handleKey, menus, promptOpen],
+    [
+      agentView,
+      conversation.operatorInput.state,
+      covered,
+      contextBrowser.viewer,
+      handleKey,
+      menus,
+      promptOpen,
+    ],
   )
 
   useKeyboard(handleKeyWithMenu)

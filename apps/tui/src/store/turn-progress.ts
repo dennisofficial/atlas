@@ -106,7 +106,9 @@ export function turnAdvanced(args: {
   const { clock } = args.progress
 
   if (args.signal.type === 'step-started') {
-    return clock.retry === null ? args.progress : { ...args.progress, clock: { ...clock, retry: null } }
+    return clock.retry === null
+      ? args.progress
+      : { ...args.progress, clock: { ...clock, retry: null } }
   }
 
   if (args.signal.type !== 'chunk') return args.progress
@@ -126,7 +128,11 @@ export function turnAdvanced(args: {
   const characters = args.progress.characters + text.length
   const outputTokens = tokensOf(characters)
 
-  if (outputTokens === clock.outputTokens && reasoning === clock.reasoning && clock.retry === null) {
+  if (
+    outputTokens === clock.outputTokens &&
+    reasoning === clock.reasoning &&
+    clock.retry === null
+  ) {
     return { characters, clock }
   }
 

@@ -18,7 +18,9 @@ const firstUserText = (options: LanguageModelV4CallOptions): string => {
 }
 
 const fingerprintFor = (text: string): string => {
-  const selectedCharacters = CLAUDE_CODE_FINGERPRINT_INDICES.map((index) => text[index] ?? '0').join('')
+  const selectedCharacters = CLAUDE_CODE_FINGERPRINT_INDICES.map(
+    (index) => text[index] ?? '0',
+  ).join('')
   return createHash('sha256')
     .update(`${CLAUDE_CODE_FINGERPRINT_SALT}${selectedCharacters}${CLAUDE_CODE_VERSION}`)
     .digest('hex')

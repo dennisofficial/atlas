@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { ERunExitCode, ERunMode, ERunStatus } from '../results'
 import type { LoadedRun, RunSummary } from '../results'
-import { compareRuns, comparisonExitCode, evaluateRun, formatComparisonText, formatSummaryText } from '../summary'
+import {
+  compareRuns,
+  comparisonExitCode,
+  evaluateRun,
+  formatComparisonText,
+  formatSummaryText,
+} from '../summary'
 
 const stats = { p50: 10, p95: 20, samples: 4 }
 
-const makeSummary = ({ overrides }: { overrides?: Partial<RunSummary> | undefined } = {}): RunSummary => ({
+const makeSummary = ({
+  overrides,
+}: {
+  overrides?: Partial<RunSummary> | undefined
+} = {}): RunSummary => ({
   status: ERunStatus.Complete,
   invocationId: 'inv-1',
   featureId: 'calculator',
@@ -38,7 +48,11 @@ const makeSummary = ({ overrides }: { overrides?: Partial<RunSummary> | undefine
   ...overrides,
 })
 
-const makeRun = ({ overrides }: { overrides?: Partial<RunSummary> | undefined } = {}): LoadedRun => ({
+const makeRun = ({
+  overrides,
+}: {
+  overrides?: Partial<RunSummary> | undefined
+} = {}): LoadedRun => ({
   summary: makeSummary({ overrides }),
   rows: [],
   directory: '/tmp/run',
@@ -57,7 +71,9 @@ describe('evaluateRun', () => {
 
   it('treats a value exactly at the minimum as passing', () => {
     const summary = makeSummary({
-      overrides: { metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.8, numerator: 8, denominator: 10 }] },
+      overrides: {
+        metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.8, numerator: 8, denominator: 10 }],
+      },
     })
     expect(evaluateRun({ summary, gates }).exitCode).toBe(ERunExitCode.Success)
   })
@@ -81,24 +97,39 @@ describe('evaluateRun', () => {
 
   it('treats a null metric value as a regression', () => {
     const summary = makeSummary({
-      overrides: { metrics: [{ id: 'accuracy', kind: 'ratio', value: null, numerator: 0, denominator: 0 }] },
+      overrides: {
+        metrics: [{ id: 'accuracy', kind: 'ratio', value: null, numerator: 0, denominator: 0 }],
+      },
     })
     expect(evaluateRun({ summary, gates }).exitCode).toBe(ERunExitCode.QualityRegression)
   })
 
   it('treats a missing gated metric as a regression', () => {
-    expect(evaluateRun({ summary: makeSummary({ overrides: { metrics: [] } }), gates }).exitCode).toBe(
-      ERunExitCode.QualityRegression,
-    )
+    expect(
+      evaluateRun({ summary: makeSummary({ overrides: { metrics: [] } }), gates }).exitCode,
+    ).toBe(ERunExitCode.QualityRegression)
   })
 
-  it.each([ERunStatus.ExecutionFailure, ERunStatus.IntegrityFailure])('exits 2 for summary status %p', (status) => {
-    const result = evaluateRun({ summary: makeSummary({ overrides: { status, failureNotes: ['bad'] } }), gates })
-    expect(result).toEqual({ exitCode: ERunExitCode.ExecutionOrIntegrityFailure, status, notes: ['bad'] })
-  })
+  it.each([ERunStatus.ExecutionFailure, ERunStatus.IntegrityFailure])(
+    'exits 2 for summary status %p',
+    (status) => {
+      const result = evaluateRun({
+        summary: makeSummary({ overrides: { status, failureNotes: ['bad'] } }),
+        gates,
+      })
+      expect(result).toEqual({
+        exitCode: ERunExitCode.ExecutionOrIntegrityFailure,
+        status,
+        notes: ['bad'],
+      })
+    },
+  )
 
   it('exits 2 on operational failures', () => {
-    const result = evaluateRun({ summary: makeSummary({ overrides: { operationalFailures: 2 } }), gates })
+    const result = evaluateRun({
+      summary: makeSummary({ overrides: { operationalFailures: 2 } }),
+      gates,
+    })
     expect(result.exitCode).toBe(ERunExitCode.ExecutionOrIntegrityFailure)
     expect(result.status).toBe(ERunStatus.ExecutionFailure)
     expect(result.notes).toContain('2 operational failure(s)')
@@ -118,7 +149,11 @@ describe('comparison parity and exit code', () => {
   }
 
   it('refuses differing enabled policy ids, batch mode and resolved model', () => {
-    const { comparison } = exit({ enabledPolicyIds: ['other'], batchMode: 'per-policy-split', model: { requested: 'model-x', resolved: 'model-z' } })
+    const { comparison } = exit({
+      enabledPolicyIds: ['other'],
+      batchMode: 'per-policy-split',
+      model: { requested: 'model-x', resolved: 'model-z' },
+    })
     expect(comparison.comparable).toBe(false)
     expect(comparison.mismatchReason).toContain('enabledPolicyIds')
     expect(comparison.mismatchReason).toContain('batchMode')
@@ -130,13 +165,19 @@ describe('comparison parity and exit code', () => {
   })
 
   it('exits 1 on a metric regression and 2 when not comparable', () => {
-    const regress = exit({ metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.5, numerator: 5, denominator: 10 }] })
+    const regress = exit({
+      metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.5, numerator: 5, denominator: 10 }],
+    })
     expect(comparisonExitCode(regress)).toBe(ERunExitCode.QualityRegression)
-    expect(comparisonExitCode(exit({ datasetHash: 'other' }))).toBe(ERunExitCode.ExecutionOrIntegrityFailure)
+    expect(comparisonExitCode(exit({ datasetHash: 'other' }))).toBe(
+      ERunExitCode.ExecutionOrIntegrityFailure,
+    )
   })
 
   it('exits 2 when the candidate run itself did not complete', () => {
-    expect(comparisonExitCode(exit({ status: ERunStatus.ExecutionFailure }))).toBe(ERunExitCode.ExecutionOrIntegrityFailure)
+    expect(comparisonExitCode(exit({ status: ERunStatus.ExecutionFailure }))).toBe(
+      ERunExitCode.ExecutionOrIntegrityFailure,
+    )
   })
 })
 
@@ -144,7 +185,10 @@ describe('compareRuns', () => {
   it('computes deltas and a promotable verdict for comparable runs', () => {
     const baseline = makeRun()
     const candidate = makeRun({
-      overrides: { invocationId: 'inv-2', metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.95, numerator: 19, denominator: 20 }] },
+      overrides: {
+        invocationId: 'inv-2',
+        metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.95, numerator: 19, denominator: 20 }],
+      },
     })
     const comparison = compareRuns({ baseline, candidate })
     expect(comparison.comparable).toBe(true)
@@ -156,7 +200,9 @@ describe('compareRuns', () => {
 
   it('lists metrics with negative deltas as regressions', () => {
     const candidate = makeRun({
-      overrides: { metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.7, numerator: 7, denominator: 10 }] },
+      overrides: {
+        metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.7, numerator: 7, denominator: 10 }],
+      },
     })
     const comparison = compareRuns({ baseline: makeRun(), candidate })
     expect(comparison.verdict.regressionNotes).toEqual(['accuracy: 0.900 -> 0.700'])
@@ -165,10 +211,17 @@ describe('compareRuns', () => {
 
   it('uses null delta when either side is null', () => {
     const candidate = makeRun({
-      overrides: { metrics: [{ id: 'accuracy', kind: 'ratio', value: null, numerator: 0, denominator: 0 }] },
+      overrides: {
+        metrics: [{ id: 'accuracy', kind: 'ratio', value: null, numerator: 0, denominator: 0 }],
+      },
     })
     const comparison = compareRuns({ baseline: makeRun(), candidate })
-    expect(comparison.deltas[0]).toEqual({ metricId: 'accuracy', baseline: 0.9, candidate: null, delta: null })
+    expect(comparison.deltas[0]).toEqual({
+      metricId: 'accuracy',
+      baseline: 0.9,
+      candidate: null,
+      delta: null,
+    })
     expect(comparison.verdict.regressionNotes).toEqual([])
   })
 
@@ -179,7 +232,11 @@ describe('compareRuns', () => {
 
   it('refuses mismatched identity and names each differing field', () => {
     const candidate = makeRun({
-      overrides: { datasetHash: 'hash-b', model: { requested: 'model-y', resolved: null }, mode: ERunMode.Live },
+      overrides: {
+        datasetHash: 'hash-b',
+        model: { requested: 'model-y', resolved: null },
+        mode: ERunMode.Live,
+      },
     })
     const comparison = compareRuns({ baseline: makeRun(), candidate })
     expect(comparison.comparable).toBe(false)
@@ -225,8 +282,16 @@ describe('formatSummaryText', () => {
   })
 
   it('caps failure lines at ten and reports the remainder', () => {
-    const failures = Array.from({ length: 13 }, (_, index) => ({ caseId: `case-${index}`, expected: 'a', actual: 'b' }))
-    const text = formatSummaryText({ summary: makeSummary({ overrides: { failures, promotable: false, failureNotes: ['too many'] } }) })
+    const failures = Array.from({ length: 13 }, (_, index) => ({
+      caseId: `case-${index}`,
+      expected: 'a',
+      actual: 'b',
+    }))
+    const text = formatSummaryText({
+      summary: makeSummary({
+        overrides: { failures, promotable: false, failureNotes: ['too many'] },
+      }),
+    })
     expect(text).toContain('case-0 a->b')
     expect(text).toContain('case-9 a->b')
     expect(text).not.toContain('case-10 a->b')
@@ -252,7 +317,10 @@ describe('formatComparisonText', () => {
   it('renders deltas and verdict for comparable runs', () => {
     const baseline = makeRun()
     const candidate = makeRun({
-      overrides: { invocationId: 'inv-2', metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.7, numerator: 7, denominator: 10 }] },
+      overrides: {
+        invocationId: 'inv-2',
+        metrics: [{ id: 'accuracy', kind: 'ratio', value: 0.7, numerator: 7, denominator: 10 }],
+      },
     })
     const comparison = compareRuns({ baseline, candidate })
     const text = formatComparisonText({ comparison, baseline, candidate })

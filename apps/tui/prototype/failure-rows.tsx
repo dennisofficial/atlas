@@ -27,18 +27,15 @@
 
 import { createCliRenderer } from '@opentui/core'
 import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 
 import { toolRuns, type ToolCall } from '../src/store'
 import {
   classify,
-  EToolClass,
-  inputOf,
   measureOfSentence,
   outputOf,
   sentenceOf,
   str,
-  type Classification,
   type Read,
 } from '../src/store/tools'
 import { CWD } from '../src/store/tools/__tests__/fixture'
@@ -228,7 +225,10 @@ const argOf = (argv: readonly string[], flag: string): string | undefined =>
 function interestingRuns(calls: readonly (readonly ToolCall[])[]): Case[] {
   return calls
     .filter((group) => group.some((call) => classify({ call, cwd: CWD }).failed))
-    .map((group, index) => ({ name: `real run ${index + 1} — ${group.length} calls`, calls: group }))
+    .map((group, index) => ({
+      name: `real run ${index + 1} — ${group.length} calls`,
+      calls: group,
+    }))
 }
 
 if (import.meta.main) {
@@ -260,6 +260,9 @@ if (import.meta.main) {
   renderer.on('destroy', () => process.exit(0))
 
   createRoot(renderer).render(
-    <Prototype real={real} title={`${thread.thread.title ?? '(untitled)'} — runs containing a failure`} />,
+    <Prototype
+      real={real}
+      title={`${thread.thread.title ?? '(untitled)'} — runs containing a failure`}
+    />,
   )
 }

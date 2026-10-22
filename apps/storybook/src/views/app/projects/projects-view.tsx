@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { FolderSearchIcon, LinkIcon, PlusIcon } from "lucide-react";
+import { useState } from 'react'
+import { FolderSearchIcon, LinkIcon, PlusIcon } from 'lucide-react'
 
 import {
   Breadcrumb,
@@ -8,15 +8,15 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@dltech/atlas-ui/components/breadcrumb";
-import { Button } from "@dltech/atlas-ui/components/button";
+} from '@dltech/atlas-ui/components/breadcrumb'
+import { Button } from '@dltech/atlas-ui/components/button'
 
-import { OwnerList } from "./owner-list";
-import { ProjectRow } from "./project-row";
-import { filterProjects, PROJECT_OWNERS, PROJECTS } from "./projects.fixtures";
+import { OwnerList } from './owner-list'
+import { ProjectRow } from './project-row'
+import { filterProjects, PROJECT_OWNERS, PROJECTS } from './projects.fixtures'
 
 export interface ProjectsViewProps {
-  initialOwnerId?: string | null;
+  initialOwnerId?: string | null
 }
 
 function ProjectsHeader({ ownerName }: { ownerName: string }) {
@@ -43,7 +43,7 @@ function ProjectsHeader({ ownerName }: { ownerName: string }) {
         </Button>
       </div>
     </header>
-  );
+  )
 }
 
 function EmptyResults({ query }: { query: string }) {
@@ -52,21 +52,21 @@ function EmptyResults({ query }: { query: string }) {
       <FolderSearchIcon className="size-6 text-muted-foreground" />
       <p className="text-sm font-medium">No projects found</p>
       <p className="text-xs text-muted-foreground">
-        {query.trim() ? `Nothing matches “${query.trim()}”.` : "This owner has no projects yet."}
+        {query.trim() ? `Nothing matches “${query.trim()}”.` : 'This owner has no projects yet.'}
       </p>
     </div>
-  );
+  )
 }
 
 export function ProjectsView({ initialOwnerId = null }: ProjectsViewProps) {
-  const [ownerId, setOwnerId] = useState<string | null>(initialOwnerId);
-  const [query, setQuery] = useState("");
-  const owner = PROJECT_OWNERS.find((candidate) => candidate.id === ownerId);
-  const projects = filterProjects({ projects: PROJECTS, ownerId, query });
+  const [ownerId, setOwnerId] = useState<string | null>(initialOwnerId)
+  const [query, setQuery] = useState('')
+  const owner = PROJECT_OWNERS.find((candidate) => candidate.id === ownerId)
+  const projects = filterProjects({ projects: PROJECTS, ownerId, query })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ProjectsHeader ownerName={owner?.name ?? "All projects"} />
+      <ProjectsHeader ownerName={owner?.name ?? 'All projects'} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[760px] items-start gap-8 px-6 py-8">
           <OwnerList
@@ -90,5 +90,5 @@ export function ProjectsView({ initialOwnerId = null }: ProjectsViewProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }

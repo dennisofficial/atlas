@@ -32,7 +32,11 @@ describe('RemoteContextFiles', () => {
       },
     })
 
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# plan\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# plan\n',
+      truncated: false,
+    })
   })
 
   it('parses a refused file the same union', async () => {
@@ -49,15 +53,22 @@ describe('RemoteContextFiles', () => {
     const held: { listener: ChannelListener | undefined } = { listener: undefined }
     let changes = 0
     let stopped = false
-    const files = new RemoteContextFiles({ channel: {
-      threadId: toThreadId('session'),
-      request: async () => ({ entries: [] }),
-      subscribe: ({ listener }) => {
-        held.listener = listener
-        return () => { held.listener = undefined; stopped = true }
+    const files = new RemoteContextFiles({
+      channel: {
+        threadId: toThreadId('session'),
+        request: async () => ({ entries: [] }),
+        subscribe: ({ listener }) => {
+          held.listener = listener
+          return () => {
+            held.listener = undefined
+            stopped = true
+          }
+        },
       },
-    } })
-    const stop = files.subscribe(() => { changes += 1 })
+    })
+    const stop = files.subscribe(() => {
+      changes += 1
+    })
     held.listener?.({ type: 'turn-working', working: true })
     expect(changes).toBe(0)
     held.listener?.({ type: 'context-changed' })

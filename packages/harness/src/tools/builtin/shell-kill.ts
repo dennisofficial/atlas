@@ -44,7 +44,8 @@ function renderEnding(args: { snapshot: ShellSnapshot; delta: ShellDelta }): str
   }
 
   sections.push(delta.text.trimEnd() === '' ? 'It printed nothing.' : delta.text.trimEnd())
-  if (snapshot.outputPath !== undefined) sections.push(`Full output: ${snapshot.outputPath}. Use Read or Grep for history.`)
+  if (snapshot.outputPath !== undefined)
+    sections.push(`Full output: ${snapshot.outputPath}. Use Read or Grep for history.`)
 
   if (delta.remainingCharacters > 0) {
     sections.push(
@@ -62,7 +63,7 @@ export class ShellKillTool extends SchemaTool<typeof inputSchema> {
   readonly inputSchema = inputSchema
   override readonly pathFields = TAKES_NO_PATHS
 
-  constructor( private readonly shells: ShellRegistryPort) {
+  constructor(private readonly shells: ShellRegistryPort) {
     super()
   }
 

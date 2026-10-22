@@ -65,7 +65,10 @@ describe('lexical language registry', () => {
   it('gives every language something to colour', () => {
     for (const spec of LEXICAL_LANGUAGES) {
       const wordCount = Object.values(spec.words ?? {}).flat().length
-      expect(wordCount + (spec.rules?.length ?? 0), `${spec.filetype} colours nothing`).toBeGreaterThan(0)
+      expect(
+        wordCount + (spec.rules?.length ?? 0),
+        `${spec.filetype} colours nothing`,
+      ).toBeGreaterThan(0)
     }
   })
 

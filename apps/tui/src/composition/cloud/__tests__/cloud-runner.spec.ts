@@ -28,8 +28,7 @@ const fakeMove = (): FakeMove => {
       calls.push(`transfer:${progress.nodeId}:${progress.transferId}`),
     handleRowActive: (id) => calls.push(`active:${id}`),
     handleRowLabel: (args) => calls.push(`label:${args.nodeId}:${args.text}`),
-    handleExpand: (args) =>
-      calls.push(`expand:${args.row.id}:${args.heading ?? ''}`),
+    handleExpand: (args) => calls.push(`expand:${args.row.id}:${args.heading ?? ''}`),
     handleSettle: () => calls.push('settle'),
     handleFail: (reason) => calls.push(`fail:${reason}`),
     handleDismiss: () => calls.push('dismiss'),
@@ -70,11 +69,7 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(bridge.created).toEqual([{ threadId: CLOUD_THREAD, projectId: null }])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
-    expect(move.calls).toEqual([
-      `begin:${EExecutionLocation.Cloud}`,
-      'active:attaching',
-      'settle',
-    ])
+    expect(move.calls).toEqual([`begin:${EExecutionLocation.Cloud}`, 'active:attaching', 'settle'])
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
@@ -197,10 +192,7 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     await expect(runner.runTurn({ threadId: CLOUD_THREAD })).rejects.toThrow('no capacity in iad1')
 
-    expect(move.calls).toEqual([
-      `begin:${EExecutionLocation.Cloud}`,
-      'fail:no capacity in iad1',
-    ])
+    expect(move.calls).toEqual([`begin:${EExecutionLocation.Cloud}`, 'fail:no capacity in iad1'])
     expect(channel.woken).toEqual([])
     expect(channel.runs).toBe(0)
   })

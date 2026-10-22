@@ -8,7 +8,8 @@ const threads = hoisted(() => ({ rows: new Map<string, { projectId: string | nul
 mock.module('../../../db', () => ({
   db: {
     thread: {
-      findUnique: async (args: { where: { id: string } }) => threads.rows.get(args.where.id) ?? null,
+      findUnique: async (args: { where: { id: string } }) =>
+        threads.rows.get(args.where.id) ?? null,
     },
   },
 }))
@@ -21,9 +22,15 @@ import { ThreadSandboxCredentialsService } from './thread-sandbox-credentials.se
 const envWith = (values: Record<string, string>): EnvService =>
   ({ get: (key: string) => values[key] }) as unknown as EnvService
 
-const LEGACY_ENV = { VERCEL_TOKEN: 'env-token', VERCEL_TEAM_ID: 'env-team', VERCEL_PROJECT_ID: 'env-prj' }
+const LEGACY_ENV = {
+  VERCEL_TOKEN: 'env-token',
+  VERCEL_TEAM_ID: 'env-team',
+  VERCEL_PROJECT_ID: 'env-prj',
+}
 
-const scopedReturning = (outcome: () => Promise<{ token: string; teamId: string; projectId: string }>) => {
+const scopedReturning = (
+  outcome: () => Promise<{ token: string; teamId: string; projectId: string }>,
+) => {
   const vercelCredentials = vi.fn(outcome)
   return { scoped: { vercelCredentials } as unknown as ScopedConfigService, vercelCredentials }
 }
@@ -41,11 +48,19 @@ describe('ThreadSandboxCredentialsService', () => {
       projectId: 'ws-prj',
     }))
 
-    const credentials = await new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
+    const credentials = await new ThreadSandboxCredentialsService(
+      scoped,
+      envWith(LEGACY_ENV),
+    ).forThread({
       threadId: 'thr-1',
     })
 
-    expect(credentials).toEqual({ token: 'ws-token', teamId: 'ws-team', projectId: 'ws-prj', workspaceOwned: true })
+    expect(credentials).toEqual({
+      token: 'ws-token',
+      teamId: 'ws-team',
+      projectId: 'ws-prj',
+      workspaceOwned: true,
+    })
     expect(vercelCredentials).toHaveBeenCalledWith({ projectId: 'proj-1' })
   })
 
@@ -56,7 +71,9 @@ describe('ThreadSandboxCredentialsService', () => {
     })
 
     await expect(
-      new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({ threadId: 'thr-1' }),
+      new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
+        threadId: 'thr-1',
+      }),
     ).rejects.toBeInstanceOf(VercelNotConfiguredError)
   })
 
@@ -66,11 +83,19 @@ describe('ThreadSandboxCredentialsService', () => {
       throw new Error('must not be called')
     })
 
-    const credentials = await new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
+    const credentials = await new ThreadSandboxCredentialsService(
+      scoped,
+      envWith(LEGACY_ENV),
+    ).forThread({
       threadId: 'thr-1',
     })
 
-    expect(credentials).toEqual({ token: 'env-token', teamId: 'env-team', projectId: 'env-prj', workspaceOwned: false })
+    expect(credentials).toEqual({
+      token: 'env-token',
+      teamId: 'env-team',
+      projectId: 'env-prj',
+      workspaceOwned: false,
+    })
     expect(vercelCredentials).not.toHaveBeenCalled()
   })
 
@@ -79,7 +104,10 @@ describe('ThreadSandboxCredentialsService', () => {
       throw new Error('must not be called')
     })
 
-    const credentials = await new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
+    const credentials = await new ThreadSandboxCredentialsService(
+      scoped,
+      envWith(LEGACY_ENV),
+    ).forThread({
       threadId: 'missing',
     })
 
@@ -91,9 +119,14 @@ describe('ThreadSandboxCredentialsService', () => {
     const { scoped } = scopedReturning(async () => {
       throw new Error('must not be called')
     })
-    const service = new ThreadSandboxCredentialsService(scoped, envWith({ VERCEL_TOKEN: 'env-token' }))
+    const service = new ThreadSandboxCredentialsService(
+      scoped,
+      envWith({ VERCEL_TOKEN: 'env-token' }),
+    )
 
-    await expect(service.forThread({ threadId: 'thr-1' })).rejects.toBeInstanceOf(ServiceUnavailableException)
+    await expect(service.forThread({ threadId: 'thr-1' })).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    )
     await expect(service.forThread({ threadId: 'thr-1' })).rejects.toThrow(
       'Atlas Cloud sandboxes are not configured on this deployment',
     )

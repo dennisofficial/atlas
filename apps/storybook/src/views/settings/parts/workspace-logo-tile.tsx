@@ -1,6 +1,6 @@
-import { ImageIcon } from "lucide-react";
+import { ImageIcon } from 'lucide-react'
 
-import { CURRENT_WORKSPACE } from "../../../fixtures/settings";
+import { CURRENT_WORKSPACE } from '../../../fixtures/settings'
 
 export function WorkspaceLogoTile({ present }: { present: boolean }) {
   if (!present) {
@@ -11,7 +11,7 @@ export function WorkspaceLogoTile({ present }: { present: boolean }) {
       >
         <ImageIcon className="size-5" />
       </span>
-    );
+    )
   }
   return (
     <span
@@ -20,5 +20,5 @@ export function WorkspaceLogoTile({ present }: { present: boolean }) {
     >
       {CURRENT_WORKSPACE.initial}
     </span>
-  );
+  )
 }

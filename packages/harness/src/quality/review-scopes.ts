@@ -48,7 +48,8 @@ export function normalizeWorkspacePath({
   path: string
 }): string | null {
   const relativePath = relative(projectDirectory, resolve(projectDirectory, path))
-  if (relativePath === '' || relativePath === '..' || relativePath.startsWith(`..${sep}`)) return null
+  if (relativePath === '' || relativePath === '..' || relativePath.startsWith(`..${sep}`))
+    return null
   if (isAbsolute(relativePath)) return null
   return relativePath.split(sep).join('/')
 }
@@ -98,11 +99,17 @@ export function selectPolicyScopes({
     for (const id of selected) {
       const scope = byId.get(id)
       if (scope === undefined) {
-        faults.push({ scope: undefined, detail: `policy "${policy.id}" selected unknown scope id "${id}"` })
+        faults.push({
+          scope: undefined,
+          detail: `policy "${policy.id}" selected unknown scope id "${id}"`,
+        })
         continue
       }
       if (seen.has(id)) {
-        duplicated.set(`${policy.id}${id}`, { scope, detail: `policy "${policy.id}" selected scope "${id}" more than once` })
+        duplicated.set(`${policy.id}${id}`, {
+          scope,
+          detail: `policy "${policy.id}" selected scope "${id}" more than once`,
+        })
         continue
       }
       seen.add(id)
@@ -111,10 +118,14 @@ export function selectPolicyScopes({
   }
 
   const selections = scopes
-    .filter((scope) => (chosen.get(scope.id) ?? []).some((policy) => !duplicated.has(`${policy.id}${scope.id}`)))
+    .filter((scope) =>
+      (chosen.get(scope.id) ?? []).some((policy) => !duplicated.has(`${policy.id}${scope.id}`)),
+    )
     .map((scope) => ({
       scope,
-      policies: (chosen.get(scope.id) ?? []).filter((policy) => !duplicated.has(`${policy.id}${scope.id}`)),
+      policies: (chosen.get(scope.id) ?? []).filter(
+        (policy) => !duplicated.has(`${policy.id}${scope.id}`),
+      ),
     }))
   return { selections, faults: [...faults, ...duplicated.values()] }
 }
@@ -123,10 +134,15 @@ const byteLength = (text: string): number => Buffer.byteLength(text, 'utf8')
 
 function fitsBounds({ request }: { request: QualityDecisionRequest }): boolean {
   const state = byteLength(request.state)
-  const sizes = Object.values(request.questions).map((question) => byteLength(JSON.stringify(question)))
+  const sizes = Object.values(request.questions).map((question) =>
+    byteLength(JSON.stringify(question)),
+  )
   const longest = sizes.reduce((max, size) => Math.max(max, size), 0)
   const total = sizes.reduce((sum, size) => sum + size, 0)
-  return state + longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES && state + total <= MAX_STATE_AND_ALL_QUESTIONS_BYTES
+  return (
+    state + longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES &&
+    state + total <= MAX_STATE_AND_ALL_QUESTIONS_BYTES
+  )
 }
 
 function tryRequest({
@@ -148,7 +164,13 @@ function tryRequest({
     }
   } catch (error) {
     if (!(error instanceof QualityContractError)) throw error
-    return { rejected: { status: EQualityReviewStatus.OperationalError, reason: undefined, detail: error.message } }
+    return {
+      rejected: {
+        status: EQualityReviewStatus.OperationalError,
+        reason: undefined,
+        detail: error.message,
+      },
+    }
   }
 }
 

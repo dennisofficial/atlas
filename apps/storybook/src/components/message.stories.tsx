@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Bubble, BubbleContent } from "@dltech/atlas-ui/components/bubble";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Bubble, BubbleContent } from '@dltech/atlas-ui/components/bubble'
 import {
   Message,
   MessageAvatar,
@@ -9,13 +9,13 @@ import {
   MessageFooter,
   MessageGroup,
   MessageHeader,
-} from "@dltech/atlas-ui/components/message";
+} from '@dltech/atlas-ui/components/message'
 
 const meta = {
-  title: "Components/Message",
+  title: 'Components/Message',
   component: Message,
-  argTypes: { align: { control: "inline-radio", options: ["start", "end"] } },
-  args: { align: "start" },
+  argTypes: { align: { control: 'inline-radio', options: ['start', 'end'] } },
+  args: { align: 'start' },
   decorators: [
     (Story) => (
       <div className="w-[32rem] max-w-full">
@@ -23,11 +23,11 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Message>;
+} satisfies Meta<typeof Message>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -40,13 +40,15 @@ export const Default: Story = {
       <MessageContent>
         <MessageHeader>Atlas</MessageHeader>
         <Bubble variant="muted">
-          <BubbleContent>Renamed the store and updated 11 imports. Running the typecheck now.</BubbleContent>
+          <BubbleContent>
+            Renamed the store and updated 11 imports. Running the typecheck now.
+          </BubbleContent>
         </Bubble>
         <MessageFooter>10:42</MessageFooter>
       </MessageContent>
     </Message>
   ),
-};
+}
 
 export const Conversation: Story = {
   render: () => (
@@ -72,4 +74,4 @@ export const Conversation: Story = {
       </Message>
     </MessageGroup>
   ),
-};
+}

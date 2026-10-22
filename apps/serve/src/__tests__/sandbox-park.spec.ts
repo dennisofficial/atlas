@@ -37,7 +37,13 @@ describe('podPark', () => {
 describe('providerStopFor', () => {
   it('sends SIGTERM to pid 1 only when the pod stop is invoked', async () => {
     const { calls, sendSignal } = recordingSender()
-    const stop = providerStopFor({ threadId, controlPlaneUrl, token, env: { [POD_NAME_ENV]: 'pod-a' }, sendSignal })
+    const stop = providerStopFor({
+      threadId,
+      controlPlaneUrl,
+      token,
+      env: { [POD_NAME_ENV]: 'pod-a' },
+      sendSignal,
+    })
 
     expect(calls).toEqual([])
     await stop()

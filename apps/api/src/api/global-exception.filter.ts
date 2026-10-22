@@ -1,10 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common'
+import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs/common'
 import { BaseExceptionFilter } from '@nestjs/core'
 import { Prisma } from '../generated/prisma/client'
 import { GithubUserReadFailed } from './cloud/github/github-user-reads'
@@ -41,19 +35,25 @@ const failure = ({
   code?: string
 }): HttpException =>
   new HttpException(
-    code === undefined
-      ? { statusCode: status, message }
-      : { statusCode: status, message, code },
+    code === undefined ? { statusCode: status, message } : { statusCode: status, message, code },
     status,
   )
 
 // Only the code and a fixed message leave the process: Prisma's meta carries column values.
 const prismaFailure = (error: Prisma.PrismaClientKnownRequestError): HttpException => {
   if (error.code === PRISMA_UNIQUE_VIOLATION) {
-    return failure({ status: HttpStatus.CONFLICT, message: 'Resource already exists', code: error.code })
+    return failure({
+      status: HttpStatus.CONFLICT,
+      message: 'Resource already exists',
+      code: error.code,
+    })
   }
   if (error.code === PRISMA_RECORD_NOT_FOUND) {
-    return failure({ status: HttpStatus.NOT_FOUND, message: 'Resource not found', code: error.code })
+    return failure({
+      status: HttpStatus.NOT_FOUND,
+      message: 'Resource not found',
+      code: error.code,
+    })
   }
   return failure({ status: HttpStatus.BAD_REQUEST, message: 'Invalid request', code: error.code })
 }

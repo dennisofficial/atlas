@@ -61,7 +61,12 @@ import { publishProjections, type ContributedProjection } from '../plugins/proje
 import { bindInstructionsAndMemory } from './context-bindings'
 import { ExecutionLocationToken } from './execution-location-state'
 import { faultInjected } from './fault-injection'
-import type { HarnessApp, HarnessCloseRequest, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
+import type {
+  HarnessApp,
+  HarnessCloseRequest,
+  HarnessStoreBinding,
+  HarnessSurfaceBinding,
+} from './harness-app'
 import { bindModels } from './model-bindings'
 import { loadSessionPlugins } from './plugin-loading'
 import type { ActiveConversation } from './resume-hint'
@@ -96,7 +101,11 @@ async function seedProjectionsFromRestoredLog(args: {
   publishProjections({ projections: args.projections, events })
 }
 
-export async function composeHarness<TSurface = undefined, Command = never, TPluginSurface = unknown>(args: {
+export async function composeHarness<
+  TSurface = undefined,
+  Command = never,
+  TPluginSurface = unknown,
+>(args: {
   launch: HarnessLaunch
   env: Record<string, string | undefined>
   settings: SettingsBinding
@@ -204,12 +213,23 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     container,
     registry: await liveSkillRegistry({ ...roots, home: args.userSkillHome ?? roots.home, notice }),
   })
-  const agentTypes = await bindSessionAgentTypes({ container, settings, launchValue, models, roots })
+  const agentTypes = await bindSessionAgentTypes({
+    container,
+    settings,
+    launchValue,
+    models,
+    roots,
+  })
 
   const utility = bindUtilityModels({ container, settings, secrets, models, model, notice })
   if (args.stores !== undefined) await args.stores.bind({ container })
 
-  const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
+  const plugins = await loadSessionPlugins({
+    container,
+    cwd: anchor,
+    atlasHome: atlasDirectory(),
+    notice,
+  })
 
   bindQuality({ container, settings })
   bindCloudSettingsWriteThrough({
@@ -245,10 +265,11 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const operatorInput = container.resolve(registeredPortToken(OperatorInputPort))
 
   const channel = createDeltaChannel({
-    onListenerError: (cause) => container.resolve(registeredPortToken(LogPort)).error({
-      source: 'channel.listener',
-      message: cause instanceof Error ? cause.message : 'channel listener failed',
-    }),
+    onListenerError: (cause) =>
+      container.resolve(registeredPortToken(LogPort)).error({
+        source: 'channel.listener',
+        message: cause instanceof Error ? cause.message : 'channel listener failed',
+      }),
   })
   const pending = createPendingQueues<Command>()
 
@@ -272,7 +293,11 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     settled,
     sleepPrevention: container.resolve(SleepPreventionToken),
     wake: container.resolve(WakeSignalToken),
-    tldr: { feed: surface.tldrFeed, model: utility.tldrModel, modelId: () => utility.tldrModel.modelId },
+    tldr: {
+      feed: surface.tldrFeed,
+      model: utility.tldrModel,
+      modelId: () => utility.tldrModel.modelId,
+    },
     titler: utility.titler,
   })
 
@@ -376,7 +401,9 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
         request: { ...prepared, ...request },
         stopShells: async () => {
           intake.suspend()
-          await shells.closeAll(activeThread === null ? undefined : { threadId: toThreadId(activeThread.threadId) })
+          await shells.closeAll(
+            activeThread === null ? undefined : { threadId: toThreadId(activeThread.threadId) },
+          )
         },
       }),
     runner,

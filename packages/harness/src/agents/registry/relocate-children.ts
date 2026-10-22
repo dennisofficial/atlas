@@ -33,7 +33,8 @@ export type Relocation = {
 
 const isTerminalEnding = (draft: EventDraft): boolean =>
   draft.type === 'agent-ended' &&
-  (draft.status === EAgentStatus.Finished || draft.status === EAgentStatus.Failed ||
+  (draft.status === EAgentStatus.Finished ||
+    draft.status === EAgentStatus.Failed ||
     (draft.status === EAgentStatus.Stopped &&
       draft.killedBy !== undefined &&
       draft.killedBy !== EKilledBy.ContainerSwitch))
@@ -106,42 +107,83 @@ export async function pauseThreadChildren({
     for (const child of await deps.threads.spawned({ threadId: owner })) family.add(child.id)
   }
   await steps.whenAdmitted({ threadIds: [...family] })
-  const children = roster.states().filter((child) => family.has(child.spawnedBy) && child.agentId !== caller)
+  const children = roster
+    .states()
+    .filter((child) => family.has(child.spawnedBy) && child.agentId !== caller)
   const stepping = children.filter(isStepping)
   for (const child of stepping) pauseChild({ child })
-  const settlements = await Promise.allSettled(children.map((child) => steps.whenSettled({
-    threadId: child.spawnedBy,
-    excluding: roster.states().filter((sibling) => sibling.agentId !== child.agentId).map((sibling) => sibling.agentId),
-  })))
+  const settlements = await Promise.allSettled(
+    children.map((child) =>
+      steps.whenSettled({
+        threadId: child.spawnedBy,
+        excluding: roster
+          .states()
+          .filter((sibling) => sibling.agentId !== child.agentId)
+          .map((sibling) => sibling.agentId),
+      }),
+    ),
+  )
   for (const owner of family) {
     await recovery.hydrate({ threadId: owner })
     for (const child of await deps.threads.spawned({ threadId: owner })) family.add(child.id)
   }
   await steps.whenAdmitted({ threadIds: [...family] })
   const rejected = settlements.find((result) => result.status === 'rejected')
-  if (rejected === undefined && roster.states().some((child) => family.has(child.spawnedBy) && child.agentId !== caller &&
-    (!children.includes(child) || (isStepping(child) && !child.pause.paused)))) {
+  if (
+    rejected === undefined &&
+    roster
+      .states()
+      .some(
+        (child) =>
+          family.has(child.spawnedBy) &&
+          child.agentId !== caller &&
+          (!children.includes(child) || (isStepping(child) && !child.pause.paused)),
+      )
+  ) {
     return pauseThreadChildren({ threadId, caller, roster, steps, recovery, deps, delivery })
   }
   for (const owner of family) await flushPendingEndings({ threadId: owner, deps, delivery })
   if (rejected?.status === 'rejected') throw rejected.reason
   for (const child of children) {
-    if (child.status !== EAgentStatus.Paused && child.status !== EAgentStatus.Finished && child.status !== EAgentStatus.Failed) continue
+    if (
+      child.status !== EAgentStatus.Paused &&
+      child.status !== EAgentStatus.Finished &&
+      child.status !== EAgentStatus.Failed
+    )
+      continue
     const events = await deps.log.readOwn({ threadId: child.spawnedBy })
-    const latest = events.findLast((event) =>
-      (event.type === 'agent-ended' || event.type === 'agent-restarted') && event.agentId === child.agentId)
+    const latest = events.findLast(
+      (event) =>
+        (event.type === 'agent-ended' || event.type === 'agent-restarted') &&
+        event.agentId === child.agentId,
+    )
     if (latest?.type !== 'agent-ended' || latest.status !== child.status) {
-      await deps.log.append({ threadId: child.spawnedBy, runId: deps.ids.nextRunId(), drafts: [agentEndedDraft(child)] })
+      await deps.log.append({
+        threadId: child.spawnedBy,
+        runId: deps.ids.nextRunId(),
+        drafts: [agentEndedDraft(child)],
+      })
     }
-    delivery.drainEndings({ threadId: child.spawnedBy, where: (notice) =>
-      notice.draft.type === 'agent-ended' && notice.draft.agentId === child.agentId && notice.draft.status === EAgentStatus.Paused })
+    delivery.drainEndings({
+      threadId: child.spawnedBy,
+      where: (notice) =>
+        notice.draft.type === 'agent-ended' &&
+        notice.draft.agentId === child.agentId &&
+        notice.draft.status === EAgentStatus.Paused,
+    })
   }
   if (steps.admitting({ threadIds: [...family] })) {
     return pauseThreadChildren({ threadId, caller, roster, steps, recovery, deps, delivery })
   }
-  const unsafe = children.find((child) => isStepping(child) ||
-    (stepping.includes(child) && child.status !== EAgentStatus.Paused && child.status !== EAgentStatus.Finished))
-  if (unsafe !== undefined) throw new Error(`child ${unsafe.agentId} is ${unsafe.status} instead of paused or completed`)
+  const unsafe = children.find(
+    (child) =>
+      isStepping(child) ||
+      (stepping.includes(child) &&
+        child.status !== EAgentStatus.Paused &&
+        child.status !== EAgentStatus.Finished),
+  )
+  if (unsafe !== undefined)
+    throw new Error(`child ${unsafe.agentId} is ${unsafe.status} instead of paused or completed`)
   return children.filter((child) => child.status === EAgentStatus.Paused)
 }
 
@@ -192,7 +234,11 @@ export async function relocateThreadChildren(
 ): Promise<readonly ThreadId[]> {
   const { threadId, location, deps, roster } = args
 
-  const stepping = await stopThreadChildren({ ...args, by: EKilledBy.ContainerSwitch, skipTeammates: true })
+  const stepping = await stopThreadChildren({
+    ...args,
+    by: EKilledBy.ContainerSwitch,
+    skipTeammates: true,
+  })
   await flushPendingEndings(args)
 
   const children = relocatableChildren({ roster, threadId, skipTeammates: true })
@@ -255,9 +301,7 @@ function relocatableChildren({
 }): readonly ChildState[] {
   if (!skipTeammates) return roster.states().filter((child) => child.spawnedBy === threadId)
 
-  const teammates = new Set(
-    teammateChildren({ roster, threadId }).map((child) => child.agentId),
-  )
+  const teammates = new Set(teammateChildren({ roster, threadId }).map((child) => child.agentId))
   return roster
     .states()
     .filter((child) => child.spawnedBy === threadId && !teammates.has(child.agentId))

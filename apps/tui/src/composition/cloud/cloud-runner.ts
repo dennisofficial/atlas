@@ -30,7 +30,11 @@ export async function wakeSandbox(args: {
   move?: ContainerMoveControl | undefined
   onRotationStarted?: (() => void) | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
-  args.move?.handleBegin({ target: EExecutionLocation.Cloud, rows: WAKE_ROWS, heading: WAKE_HEADING })
+  args.move?.handleBegin({
+    target: EExecutionLocation.Cloud,
+    rows: WAKE_ROWS,
+    heading: WAKE_HEADING,
+  })
 
   const woken = await args.bridge.sandboxes.create({
     threadId: args.threadId,

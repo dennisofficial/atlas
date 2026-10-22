@@ -27,7 +27,8 @@ export type QualityExampleResult = { ok: true; relativePath: string } | { ok: fa
 
 const EXAMPLES_DIRECTORY = ['quality', 'examples']
 
-const describeError = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const describeError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 function exampleContent(args: QualityExampleRecordArgs): string {
   const { scope } = args
@@ -86,7 +87,11 @@ export class QualityExampleSink {
 
     const content = exampleContent(args)
     const digest = createHash('sha256').update(content).digest('hex')
-    const file = join(threadDataDirectory({ sessionDir, threadId: args.threadId }), ...EXAMPLES_DIRECTORY, `${digest}.json`)
+    const file = join(
+      threadDataDirectory({ sessionDir, threadId: args.threadId }),
+      ...EXAMPLES_DIRECTORY,
+      `${digest}.json`,
+    )
     const relativePath = relative(sessionDir, file).split(sep).join('/')
 
     await mkdir(dirname(file), { recursive: true })
@@ -103,7 +108,8 @@ export class QualityExampleSink {
     } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
       const existing = await readFile(file, 'utf8')
-      if (existing !== content) return { ok: false, fault: `existing example ${relativePath} differs from this capture` }
+      if (existing !== content)
+        return { ok: false, fault: `existing example ${relativePath} differs from this capture` }
     }
     return { ok: true, relativePath }
   }

@@ -1,9 +1,4 @@
-import type {
-  McpCapabilities,
-  McpToolInfo,
-  McpToolResult,
-  ServerTransport,
-} from '../transport'
+import type { McpCapabilities, McpToolInfo, McpToolResult, ServerTransport } from '../transport'
 
 export class InMemoryTransport implements ServerTransport {
   tools: McpToolInfo[] = []
@@ -38,7 +33,8 @@ export class InMemoryTransport implements ServerTransport {
 
   callTool(args: { name: string; input: unknown }): Promise<McpToolResult> {
     this.calls.push(args)
-    const response = typeof this.response === 'function' ? this.response({ input: args.input }) : this.response
+    const response =
+      typeof this.response === 'function' ? this.response({ input: args.input }) : this.response
     return Promise.resolve(response)
   }
 

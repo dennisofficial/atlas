@@ -108,7 +108,9 @@ const readStamps = async (target: PodTarget): Promise<InstalledStamps> => {
 }
 
 const binaryPresent = async (target: PodTarget): Promise<boolean> => {
-  const probe = await quick({ target, script: `test -s ${SERVE_BINARY_PATH}` }).catch(() => undefined)
+  const probe = await quick({ target, script: `test -s ${SERVE_BINARY_PATH}` }).catch(
+    () => undefined,
+  )
   return probe !== undefined && probe.exitCode === 0
 }
 
@@ -116,9 +118,11 @@ const serveHealthy = async (target: PodTarget): Promise<boolean> =>
   (await quick({ target, script: HEALTH_PROBE })).exitCode === 0
 
 const waitForHealth = async (target: PodTarget): Promise<boolean> => {
-  const wait = await bounded({ target, script: HEALTH_WAIT_SCRIPT, seconds: HEALTH_WAIT_SECONDS }).catch(
-    () => undefined,
-  )
+  const wait = await bounded({
+    target,
+    script: HEALTH_WAIT_SCRIPT,
+    seconds: HEALTH_WAIT_SECONDS,
+  }).catch(() => undefined)
   return wait !== undefined && wait.exitCode === 0
 }
 

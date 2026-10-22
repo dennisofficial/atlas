@@ -22,9 +22,13 @@ afterEach(async () => {
 
 describe('claimReleaseNotesLaunch', () => {
   it('records the first run silently and then sees it as unchanged', async () => {
-    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({ kind: 'first-run' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({
+      kind: 'first-run',
+    })
     expect(await newestLaunchedVersion({ home })).toBe('1.32.1')
-    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({
+      kind: 'unchanged',
+    })
   })
 
   it('reports the range once when the version moves forward', async () => {
@@ -35,15 +39,21 @@ describe('claimReleaseNotesLaunch', () => {
       from: '1.28.0',
       to: '1.32.1',
     })
-    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({
+      kind: 'unchanged',
+    })
   })
 
   it('never lowers the recorded version on a downgrade, so the next upgrade is silent', async () => {
     await claimReleaseNotesLaunch({ home, version: '1.33.0' })
 
-    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.32.1' })).toEqual({
+      kind: 'unchanged',
+    })
     expect(await newestLaunchedVersion({ home })).toBe('1.33.0')
-    expect(await claimReleaseNotesLaunch({ home, version: '1.33.0' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.33.0' })).toEqual({
+      kind: 'unchanged',
+    })
   })
 
   it('continues from the single-version file older builds wrote', async () => {
@@ -67,10 +77,14 @@ describe('claimReleaseNotesLaunch', () => {
     const legacy = join(home, LEGACY_LAST_LAUNCHED_FILENAME)
     await writeFile(legacy, '1.41.0\n')
 
-    expect(await claimReleaseNotesLaunch({ home, version: '1.41.0' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.41.0' })).toEqual({
+      kind: 'unchanged',
+    })
     await writeFile(legacy, '1.40.0\n')
 
-    expect(await claimReleaseNotesLaunch({ home, version: '1.41.0' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.41.0' })).toEqual({
+      kind: 'unchanged',
+    })
     expect(await newestLaunchedVersion({ home })).toBe('1.41.0')
   })
 
@@ -78,10 +92,14 @@ describe('claimReleaseNotesLaunch', () => {
     const legacy = join(home, LEGACY_LAST_LAUNCHED_FILENAME)
     await writeFile(legacy, '1.41.0\n')
 
-    expect(await claimReleaseNotesLaunch({ home, version: '1.40.0' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.40.0' })).toEqual({
+      kind: 'unchanged',
+    })
     await writeFile(legacy, '1.39.0\n')
 
-    expect(await claimReleaseNotesLaunch({ home, version: '1.41.0' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.41.0' })).toEqual({
+      kind: 'unchanged',
+    })
   })
 
   it('ignores unparseable marker names and an unparseable current version', async () => {
@@ -89,7 +107,9 @@ describe('claimReleaseNotesLaunch', () => {
     await writeFile(join(launchedVersionsPathFor({ home }), 'garbage'), '')
 
     expect(await newestLaunchedVersion({ home })).toBeNull()
-    expect(await claimReleaseNotesLaunch({ home, version: 'not-a-version' })).toEqual({ kind: 'first-run' })
+    expect(await claimReleaseNotesLaunch({ home, version: 'not-a-version' })).toEqual({
+      kind: 'first-run',
+    })
     expect(await readdir(launchedVersionsPathFor({ home }))).toEqual(['garbage'])
   })
 
@@ -97,7 +117,9 @@ describe('claimReleaseNotesLaunch', () => {
     const blocked = join(home, 'blocked')
     await writeFile(blocked, 'a file where the home directory should be')
 
-    expect(await claimReleaseNotesLaunch({ home: blocked, version: '1.32.1' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home: blocked, version: '1.32.1' })).toEqual({
+      kind: 'unchanged',
+    })
   })
 })
 
@@ -119,7 +141,9 @@ describe('concurrent clients on one real filesystem', () => {
     await Promise.all(versions.map((version) => claimReleaseNotesLaunch({ home, version })))
 
     expect(await newestLaunchedVersion({ home })).toBe('1.34.0')
-    expect(await claimReleaseNotesLaunch({ home, version: '1.33.1' })).toEqual({ kind: 'unchanged' })
+    expect(await claimReleaseNotesLaunch({ home, version: '1.33.1' })).toEqual({
+      kind: 'unchanged',
+    })
   })
 
   it('does not let a slow older client lower what a newer one already recorded', async () => {

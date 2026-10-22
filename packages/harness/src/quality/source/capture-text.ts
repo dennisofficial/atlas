@@ -43,7 +43,8 @@ export function captureText(args: {
       diagnostic: {
         path: args.path,
         reason: EQualitySkipReason.InvalidText,
-        detail: 'the backend decode differs from the strict UTF-8 decode, so the captured text is not exact',
+        detail:
+          'the backend decode differs from the strict UTF-8 decode, so the captured text is not exact',
       },
     }
   }
@@ -51,7 +52,10 @@ export function captureText(args: {
   return { ok: true, text: args.text }
 }
 
-export function captureUnavailableFault(args: { path: string; detail: string }): QualityCoverageDiagnostic {
+export function captureUnavailableFault(args: {
+  path: string
+  detail: string
+}): QualityCoverageDiagnostic {
   return { path: args.path, reason: EQualitySkipReason.SourceUnavailable, detail: args.detail }
 }
 

@@ -30,7 +30,10 @@ export type BeforeTurn = (args: {
   projectDirectory: string
 }) => Promise<HookOutcome>
 
-export type BeforeStep = (args: { assembled: Assembled; trace: AssemblyTrace }) => Promise<Assembled>
+export type BeforeStep = (args: {
+  assembled: Assembled
+  trace: AssemblyTrace
+}) => Promise<Assembled>
 
 export type BeforeRequest = (prompt: ProviderPrompt) => Promise<ProviderPrompt>
 
@@ -52,10 +55,7 @@ export type AfterTool = (args: {
  * The only phase not driven by a turn: a backgrounded shell can finish while the session is idle,
  * so the shell registry invokes this one and its drafts are delivered with the ending's notice.
  */
-export type AfterShell = (args: {
-  threadId: ThreadId
-  shell: EndedShell
-}) => Promise<HookOutcome>
+export type AfterShell = (args: { threadId: ThreadId; shell: EndedShell }) => Promise<HookOutcome>
 
 export type OnChunk = (chunk: Chunk) => Promise<Chunk | null>
 

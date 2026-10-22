@@ -66,8 +66,20 @@ export function createTurnPolicyRunner(args: {
   ids: IdPort
   readClock: () => number
 }): TurnRunner & TurnPolicy {
-  const { inner, log, threads, agents, machinery, model, summarise, usage, atPercent, notice, ids, readClock } =
-    args
+  const {
+    inner,
+    log,
+    threads,
+    agents,
+    machinery,
+    model,
+    summarise,
+    usage,
+    atPercent,
+    notice,
+    ids,
+    readClock,
+  } = args
 
   let state: TurnPolicyState = { type: 'idle' }
   const listeners = new Set<TurnPolicyListener>()
@@ -129,7 +141,8 @@ export function createTurnPolicyRunner(args: {
         })
       }
     } catch (fault) {
-      if (!controller.signal.aborted) warn({ key: 'auto-compaction', text: compactionCrashed(fault) })
+      if (!controller.signal.aborted)
+        warn({ key: 'auto-compaction', text: compactionCrashed(fault) })
     } finally {
       compaction = null
       emit({ type: 'idle' })
@@ -154,7 +167,11 @@ export function createTurnPolicyRunner(args: {
    * process memory only, so a restart re-arms the guard from the ledger alone — the refused turn
    * never opens, so nothing to recover is lost.
    */
-  const refuseIfBlocked = async ({ threadId }: { threadId: ThreadId }): Promise<TurnOutcome | undefined> => {
+  const refuseIfBlocked = async ({
+    threadId,
+  }: {
+    threadId: ThreadId
+  }): Promise<TurnOutcome | undefined> => {
     const owned = rowsOwnedBy({ events: await log.read({ threadId }), threadId })
     if (!emptyTurnBlocked(owned)) {
       acknowledgedStreaks.delete(threadId)

@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { RefObject } from 'react'
 
-import {
-  contextPressure,
-  EAuthProvider,
-  type AccountId,
-  type ModelCard,
-} from '@dltech/atlas-core'
+import { contextPressure, EAuthProvider, type AccountId, type ModelCard } from '@dltech/atlas-core'
 import {
   settingModelRef,
   suggestedModelRef,

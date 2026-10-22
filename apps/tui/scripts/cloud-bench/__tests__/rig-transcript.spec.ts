@@ -9,7 +9,14 @@ import {
 } from '../rig-transcript'
 
 const said = (text: string) => ({ seq: 1, type: 'user-said', text })
-const replied = (text: string) => ({ seq: 2, type: 'assistant-said', parts: [{ type: 'reasoning', text: 'thinking READY' }, { type: 'text', text }] })
+const replied = (text: string) => ({
+  seq: 2,
+  type: 'assistant-said',
+  parts: [
+    { type: 'reasoning', text: 'thinking READY' },
+    { type: 'text', text },
+  ],
+})
 const nested = (body: unknown) => ({ seq: 3, body })
 
 const lost = (): Error => {
@@ -24,7 +31,10 @@ describe('bodyOf', () => {
   })
 
   test('reads a body nested under event.body', () => {
-    expect(bodyOf(nested({ type: 'user-said', text: 'hi' }))).toEqual({ type: 'user-said', text: 'hi' })
+    expect(bodyOf(nested({ type: 'user-said', text: 'hi' }))).toEqual({
+      type: 'user-said',
+      text: 'hi',
+    })
   })
 
   test('refuses shapes without a string type', () => {
@@ -57,7 +67,10 @@ describe('assistantSaid', () => {
   })
 
   test('ignores reasoning parts and user messages', () => {
-    const events = [said('READY'), { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'READY' }] }]
+    const events = [
+      said('READY'),
+      { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'READY' }] },
+    ]
     expect(assistantSaid({ events, word: 'READY' })).toBe(false)
   })
 
@@ -68,9 +81,12 @@ describe('assistantSaid', () => {
   })
 
   test('reads nested assistant bodies', () => {
-    expect(assistantSaid({ events: [nested({ type: 'assistant-said', parts: [{ type: 'text', text: 'AWAKE' }] })], word: 'AWAKE' })).toBe(
-      true,
-    )
+    expect(
+      assistantSaid({
+        events: [nested({ type: 'assistant-said', parts: [{ type: 'text', text: 'AWAKE' }] })],
+        word: 'AWAKE',
+      }),
+    ).toBe(true)
   })
 })
 
@@ -120,7 +136,9 @@ describe('readEventsRetrying', () => {
 describe('transcriptLines', () => {
   test('renders one line per event with the visible text', () => {
     expect(transcriptLines([said('Reply READY'), replied('READY'), { seq: 9 }])).toBe(
-      ['0: user-said: Reply READY', '1: assistant-said: READY', '2: (unrecognised event)'].join('\n'),
+      ['0: user-said: Reply READY', '1: assistant-said: READY', '2: (unrecognised event)'].join(
+        '\n',
+      ),
     )
   })
 

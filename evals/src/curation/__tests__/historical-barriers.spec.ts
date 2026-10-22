@@ -3,7 +3,8 @@ import { describe, expect, test } from 'vitest'
 import { EHistoricalRejection, recoverHistoricalChanges } from '../historical-recover'
 import { makeLog } from './historical-log'
 
-const kinds = (rejections: readonly { kind: EHistoricalRejection }[]): EHistoricalRejection[] => rejections.map((entry) => entry.kind)
+const kinds = (rejections: readonly { kind: EHistoricalRejection }[]): EHistoricalRejection[] =>
+  rejections.map((entry) => entry.kind)
 
 const A = '/proj/a.ts'
 const V1 = 'export const a = 1\n'
@@ -26,13 +27,26 @@ const afterBarrier = ({ barrier }: { barrier: (log: ReturnType<typeof makeLog>) 
 describe('recoverHistoricalChanges: barriers', () => {
   test.each([
     ['bash', (log: ReturnType<typeof makeLog>) => bash({ log, callId: 'b1' })],
-    ['unknown tool', (log: ReturnType<typeof makeLog>) => {
-      log.call({ callId: 'u1', name: 'mystery_tool', input: {} })
-      log.result({ callId: 'u1', name: 'mystery_tool', output: {} })
-    }],
-    ['worktree move', (log: ReturnType<typeof makeLog>) => log.add({ type: 'worktree-entered', path: '/w', branch: 'b' })],
-    ['location change', (log: ReturnType<typeof makeLog>) => log.add({ type: 'location-changed', to: 'cloud' })],
-    ['unknown event type', (log: ReturnType<typeof makeLog>) => log.add({ type: 'brand-new-event' })],
+    [
+      'unknown tool',
+      (log: ReturnType<typeof makeLog>) => {
+        log.call({ callId: 'u1', name: 'mystery_tool', input: {} })
+        log.result({ callId: 'u1', name: 'mystery_tool', output: {} })
+      },
+    ],
+    [
+      'worktree move',
+      (log: ReturnType<typeof makeLog>) =>
+        log.add({ type: 'worktree-entered', path: '/w', branch: 'b' }),
+    ],
+    [
+      'location change',
+      (log: ReturnType<typeof makeLog>) => log.add({ type: 'location-changed', to: 'cloud' }),
+    ],
+    [
+      'unknown event type',
+      (log: ReturnType<typeof makeLog>) => log.add({ type: 'brand-new-event' }),
+    ],
     ['malformed line', (log: ReturnType<typeof makeLog>) => log.events.push('not an event')],
   ])('%s invalidates anchors so a later edit is rejected', (_name, barrier) => {
     const { changes, rejections } = afterBarrier({ barrier })
@@ -80,7 +94,9 @@ describe('recoverHistoricalChanges: barriers', () => {
     log.result({ callId: 'r1', name: 'read', output: { text: V1 } })
     log.edit({ callId: 'c2', path: A, before: V1, after: V2 })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.MissingBefore])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.MissingBefore,
+    ])
   })
 
   test('overlapping mutations are rejected and invalidate anchors', () => {
@@ -105,7 +121,16 @@ describe('recoverHistoricalChanges: barriers', () => {
   test('a log mixing threads recovers nothing across the boundary', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: A, content: V1, created: true })
-    log.add({ type: 'tool-called', callId: 'c2', name: 'edit', input: { path: A, oldString: 'x', newString: 'y' }, ordinal: 0 }, { threadId: 'th_2' })
+    log.add(
+      {
+        type: 'tool-called',
+        callId: 'c2',
+        name: 'edit',
+        input: { path: A, oldString: 'x', newString: 'y' },
+        ordinal: 0,
+      },
+      { threadId: 'th_2' },
+    )
 
     const { changes, rejections } = recoverHistoricalChanges({ events: log.events })
 
@@ -120,14 +145,27 @@ describe('recoverHistoricalChanges: barriers', () => {
     second.edit({ callId: 'c1', path: A, before: V1, after: V2 })
 
     expect(recoverHistoricalChanges({ events: first.events }).changes).toHaveLength(1)
-    expect(kinds(recoverHistoricalChanges({ events: second.events }).rejections)).toEqual([EHistoricalRejection.MissingBefore])
+    expect(kinds(recoverHistoricalChanges({ events: second.events }).rejections)).toEqual([
+      EHistoricalRejection.MissingBefore,
+    ])
   })
 
   test('non-increasing sequence numbers are rejected', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: A, content: V1, created: true })
-    log.events.push({ id: 'ev_dup', seq: 1, threadId: 'th_1', runId: 'run_1', depth: 0, at: '2026-10-01T00:00:09Z', type: 'user-said', text: 'late' })
+    log.events.push({
+      id: 'ev_dup',
+      seq: 1,
+      threadId: 'th_1',
+      runId: 'run_1',
+      depth: 0,
+      at: '2026-10-01T00:00:09Z',
+      type: 'user-said',
+      text: 'late',
+    })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.MalformedEvent])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.MalformedEvent,
+    ])
   })
 })

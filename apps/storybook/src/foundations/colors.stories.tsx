@@ -1,40 +1,36 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import {
-  EColorScheme,
-  semantic,
-  type SemanticToken,
-} from "@dltech/atlas-ui/tokens";
+import { EColorScheme, semantic, type SemanticToken } from '@dltech/atlas-ui/tokens'
 
 const meta = {
-  title: "Foundations/Colors",
-  parameters: { layout: "padded" },
-} satisfies Meta;
+  title: 'Foundations/Colors',
+  parameters: { layout: 'padded' },
+} satisfies Meta
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 const groups: { title: string; match: (token: string) => boolean }[] = [
-  { title: "Surfaces", match: (t) => /^(background|foreground|card|popover)/.test(t) },
-  { title: "Brand and actions", match: (t) => /^(primary|secondary|accent|destructive)/.test(t) },
-  { title: "Neutrals and controls", match: (t) => /^(muted|border|input|ring)/.test(t) },
-  { title: "Charts", match: (t) => t.startsWith("chart") },
-  { title: "Sidebar", match: (t) => t.startsWith("sidebar") },
-  { title: "Status", match: (t) => /^(success|warning)/.test(t) },
-  { title: "Diff", match: (t) => t.startsWith("diff") },
-  { title: "Syntax and code", match: (t) => /^(syntax|code|link)/.test(t) },
-  { title: "Scrollbar", match: (t) => t.startsWith("scrollbar") },
-];
+  { title: 'Surfaces', match: (t) => /^(background|foreground|card|popover)/.test(t) },
+  { title: 'Brand and actions', match: (t) => /^(primary|secondary|accent|destructive)/.test(t) },
+  { title: 'Neutrals and controls', match: (t) => /^(muted|border|input|ring)/.test(t) },
+  { title: 'Charts', match: (t) => t.startsWith('chart') },
+  { title: 'Sidebar', match: (t) => t.startsWith('sidebar') },
+  { title: 'Status', match: (t) => /^(success|warning)/.test(t) },
+  { title: 'Diff', match: (t) => t.startsWith('diff') },
+  { title: 'Syntax and code', match: (t) => /^(syntax|code|link)/.test(t) },
+  { title: 'Scrollbar', match: (t) => t.startsWith('scrollbar') },
+]
 
-const tokens = Object.keys(semantic[EColorScheme.Dark]) as SemanticToken[];
+const tokens = Object.keys(semantic[EColorScheme.Dark]) as SemanticToken[]
 
 function toCssVariable(token: string): string {
-  return `--${token.replace(/([a-z])([A-Z0-9])/g, "$1-$2").toLowerCase()}`;
+  return `--${token.replace(/([a-z])([A-Z0-9])/g, '$1-$2').toLowerCase()}`
 }
 
 function Swatch({ token, scheme }: { token: SemanticToken; scheme: EColorScheme }) {
-  const value = semantic[scheme][token];
+  const value = semantic[scheme][token]
   return (
     <div className="flex items-center gap-2">
       <span
@@ -43,7 +39,7 @@ function Swatch({ token, scheme }: { token: SemanticToken; scheme: EColorScheme 
       />
       <span className="font-mono text-xs text-muted-foreground">{value}</span>
     </div>
-  );
+  )
 }
 
 function TokenRow({ token }: { token: SemanticToken }) {
@@ -58,7 +54,7 @@ function TokenRow({ token }: { token: SemanticToken }) {
       <Swatch token={token} scheme={EColorScheme.Dark} />
       <Swatch token={token} scheme={EColorScheme.Light} />
     </div>
-  );
+  )
 }
 
 export const Semantic: Story = {
@@ -70,7 +66,7 @@ export const Semantic: Story = {
         <span>Light</span>
       </div>
       {groups.map((group) => {
-        const members = tokens.filter((token) => group.match(token));
+        const members = tokens.filter((token) => group.match(token))
         return (
           <section key={group.title} className="flex flex-col">
             <h3 className="mb-1 text-sm font-semibold">{group.title}</h3>
@@ -78,18 +74,18 @@ export const Semantic: Story = {
               <TokenRow key={token} token={token} />
             ))}
           </section>
-        );
+        )
       })}
     </div>
   ),
-};
+}
 
 export const LiveTheme: Story = {
-  name: "Live theme (follows toolbar)",
+  name: 'Live theme (follows toolbar)',
   render: () => (
     <div className="grid w-[48rem] max-w-full grid-cols-2 gap-3 sm:grid-cols-4">
       {tokens
-        .filter((token) => !token.endsWith("Foreground") && !token.startsWith("scrollbar"))
+        .filter((token) => !token.endsWith('Foreground') && !token.startsWith('scrollbar'))
         .map((token) => (
           <div key={token} className="flex flex-col gap-1.5">
             <div
@@ -103,4 +99,4 @@ export const LiveTheme: Story = {
         ))}
     </div>
   ),
-};
+}

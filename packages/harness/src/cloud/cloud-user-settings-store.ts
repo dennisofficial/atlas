@@ -23,7 +23,9 @@ const ORIGIN = 'Atlas Cloud settings'
 
 type Pending = { value: string | null; sequence: number }
 
-export const localOnlySettingIds = (definitions: readonly SettingDefinition[]): ReadonlySet<string> =>
+export const localOnlySettingIds = (
+  definitions: readonly SettingDefinition[],
+): ReadonlySet<string> =>
   new Set(
     definitions
       .filter((definition) => LOCAL_ONLY_PAGES.includes(definition.page))
@@ -38,7 +40,10 @@ export class CloudUserSettingsStore implements SettingsStorePort {
   private readonly unsubscribe: () => void
   private chain: Promise<void> = Promise.resolve()
   private sequence = 0
-  private lastSeen: { version: number; values: Record<string, string> } = { version: -1, values: {} }
+  private lastSeen: { version: number; values: Record<string, string> } = {
+    version: -1,
+    values: {},
+  }
   private identity: string | undefined
 
   constructor(
@@ -112,7 +117,8 @@ export class CloudUserSettingsStore implements SettingsStorePort {
     )
 
     for (const [key, value] of Object.entries(next)) {
-      if (!sameValue({ left: current[key], right: value })) this.enqueue({ key, value: encodeSettingValue(value) })
+      if (!sameValue({ left: current[key], right: value }))
+        this.enqueue({ key, value: encodeSettingValue(value) })
     }
     for (const key of Object.keys(current)) {
       if (!(key in next)) this.enqueue({ key, value: null })
@@ -154,7 +160,9 @@ export class CloudUserSettingsStore implements SettingsStorePort {
     this.chain = this.chain
       .then(() => {
         if (this.args.cloud.sessionToken() !== token) return
-        return value === null ? this.args.cloud.remove({ key }) : this.args.cloud.set({ key, value })
+        return value === null
+          ? this.args.cloud.remove({ key })
+          : this.args.cloud.set({ key, value })
       })
       .then(settle, (error: unknown) => {
         settle()

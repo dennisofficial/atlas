@@ -6,13 +6,7 @@ export function SelectionSurface(props: { children: ReactNode }): React.ReactNod
   const handleMouse = useWordSelect()
 
   return (
-    <box
-      flexDirection="row"
-      flexGrow={1}
-      flexShrink={1}
-      flexBasis={0}
-      onMouse={handleMouse}
-    >
+    <box flexDirection="row" flexGrow={1} flexShrink={1} flexBasis={0} onMouse={handleMouse}>
       {props.children}
     </box>
   )

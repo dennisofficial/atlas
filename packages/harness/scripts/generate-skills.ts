@@ -41,7 +41,10 @@ const quoted = (text: string): string => JSON.stringify(text)
 
 const pathOf = (...segments: readonly string[]): string => segments.join('/')
 
-async function resourcesUnder(args: { root: string; directory: string }): Promise<readonly string[]> {
+async function resourcesUnder(args: {
+  root: string
+  directory: string
+}): Promise<readonly string[]> {
   const found: string[] = []
   const names = (await readdir(join(args.root, args.directory))).sort(byCodePoint)
 
@@ -50,12 +53,14 @@ async function resourcesUnder(args: { root: string; directory: string }): Promis
     const relativePath = args.directory === '' ? name : pathOf(args.directory, name)
     const info = await lstat(join(args.root, relativePath))
 
-    if (info.isSymbolicLink()) throw new Error(`bundled skill resource ${relativePath} is a symlink`)
+    if (info.isSymbolicLink())
+      throw new Error(`bundled skill resource ${relativePath} is a symlink`)
     if (info.isDirectory()) {
       found.push(...(await resourcesUnder({ root: args.root, directory: relativePath })))
       continue
     }
-    if (!info.isFile()) throw new Error(`bundled skill resource ${relativePath} is not a regular file`)
+    if (!info.isFile())
+      throw new Error(`bundled skill resource ${relativePath} is not a regular file`)
     found.push(relativePath)
   }
 
@@ -67,11 +72,17 @@ async function digestedFile(args: { root: string; path: string }): Promise<Sourc
   return { path: args.path, digest: digestOfBytes(await readFile(join(args.root, args.path))) }
 }
 
-async function folderSkill(args: { skillsRoot: string; folder: string; entryName: string }): Promise<SkillSource> {
+async function folderSkill(args: {
+  skillsRoot: string
+  folder: string
+  entryName: string
+}): Promise<SkillSource> {
   const root = join(args.skillsRoot, args.folder)
   const everything = await resourcesUnder({ root, directory: '' })
   const resources = await Promise.all(
-    everything.filter((path) => path !== args.entryName).map((path) => digestedFile({ root, path })),
+    everything
+      .filter((path) => path !== args.entryName)
+      .map((path) => digestedFile({ root, path })),
   )
   const text = await readFile(join(root, args.entryName), 'utf8')
 
@@ -92,9 +103,7 @@ async function authoredSkills(skillsRoot: string): Promise<readonly SkillSource[
     const info = await lstat(join(skillsRoot, name))
 
     if (info.isDirectory()) {
-      const entryName = (await readdir(join(skillsRoot, name))).find(
-        isSkillEntryFilename,
-      )
+      const entryName = (await readdir(join(skillsRoot, name))).find(isSkillEntryFilename)
       if (entryName === undefined) continue
       skills.push(await folderSkill({ skillsRoot, folder: name, entryName }))
       continue
@@ -102,7 +111,13 @@ async function authoredSkills(skillsRoot: string): Promise<readonly SkillSource[
 
     if (!info.isFile() || !name.toLowerCase().endsWith('.md')) continue
     const text = await readFile(join(skillsRoot, name), 'utf8')
-    skills.push({ entryPath: name, text, entryDigest: digestOfText(text), resources: [], hasBundle: false })
+    skills.push({
+      entryPath: name,
+      text,
+      entryDigest: digestOfText(text),
+      resources: [],
+      hasBundle: false,
+    })
   }
 
   return skills
@@ -110,7 +125,8 @@ async function authoredSkills(skillsRoot: string): Promise<readonly SkillSource[
 
 const chunked = <T>(args: { items: readonly T[]; size: number }): readonly (readonly T[])[] => {
   const chunks: T[][] = []
-  for (let at = 0; at < args.items.length; at += args.size) chunks.push(args.items.slice(at, at + args.size))
+  for (let at = 0; at < args.items.length; at += args.size)
+    chunks.push(args.items.slice(at, at + args.size))
   return chunks
 }
 
@@ -120,7 +136,10 @@ const writeIfChanged = async (args: { path: string; text: string }): Promise<voi
   const existing = await readFile(args.path, 'utf8').catch(() => undefined)
   if (existing === args.text) return
 
-  const staging = join(dirname(args.path), `.${basename(args.path)}.${process.pid}.${crypto.randomUUID()}.tmp`)
+  const staging = join(
+    dirname(args.path),
+    `.${basename(args.path)}.${process.pid}.${crypto.randomUUID()}.tmp`,
+  )
   try {
     await writeFile(staging, args.text)
     await rename(staging, args.path)
@@ -130,7 +149,10 @@ const writeIfChanged = async (args: { path: string; text: string }): Promise<voi
   }
 }
 
-const removeStaleChunks = async (args: { directory: string; kept: ReadonlySet<string> }): Promise<void> => {
+const removeStaleChunks = async (args: {
+  directory: string
+  kept: ReadonlySet<string>
+}): Promise<void> => {
   const names = await readdir(args.directory).catch(() => [])
   const stale = names.filter((name) => GENERATED_CHUNK_FILE.test(name) && !args.kept.has(name))
   await Promise.all(stale.map((name) => rm(join(args.directory, name), { force: true })))
@@ -172,7 +194,11 @@ const chunkModule = (args: {
   ].join('\n')
 }
 
-type Emitted = { entry: SkillSource; chunkNames: readonly string[]; bundleDigest: string | undefined }
+type Emitted = {
+  entry: SkillSource
+  chunkNames: readonly string[]
+  bundleDigest: string | undefined
+}
 
 async function writeChunks(args: {
   layout: Layout
@@ -212,7 +238,10 @@ async function writeChunks(args: {
   return emitted
 }
 
-const manifestEntry = (args: { emitted: Emitted; aliases: ReadonlyMap<string, string> }): string => {
+const manifestEntry = (args: {
+  emitted: Emitted
+  aliases: ReadonlyMap<string, string>
+}): string => {
   const { entry, bundleDigest, chunkNames } = args.emitted
   const head = `    path: ${quoted(entry.entryPath)},\n    text: ${quoted(entry.text)},`
   if (bundleDigest === undefined) return `  {\n${head}\n  },`

@@ -145,7 +145,10 @@ async function judge(args: {
     }
     return { pass: false, note: 'judge returned unparseable verdict' }
   } catch (error) {
-    return { pass: false, note: `judge failed: ${error instanceof Error ? error.message : String(error)}` }
+    return {
+      pass: false,
+      note: `judge failed: ${error instanceof Error ? error.message : String(error)}`,
+    }
   }
 }
 
@@ -164,7 +167,8 @@ async function main(): Promise<void> {
     for (const dir of await readdir(root)) {
       const sessionDir = join(root, dir)
       const meta = readSessionMetaSync({ file: sessionMetaFile({ sessionDir }), sessionDir })
-      if (meta !== undefined) threads.push({ id: meta.id, title: meta.title, updatedAt: meta.updatedAt })
+      if (meta !== undefined)
+        threads.push({ id: meta.id, title: meta.title, updatedAt: meta.updatedAt })
     }
     threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     threads.length = Math.min(threads.length, THREADS)
@@ -204,7 +208,9 @@ async function main(): Promise<void> {
 
       const verdict = await judge({ model, span, footer: result.text, status: result.status })
       if (verdict.pass) passed += 1
-      console.log(`${verdict.pass ? '✓' : '✗'} ${span.threadTitle} (seq ${span.anchorSeq}–${span.throughSeq})`)
+      console.log(
+        `${verdict.pass ? '✓' : '✗'} ${span.threadTitle} (seq ${span.anchorSeq}–${span.throughSeq})`,
+      )
       console.log(`  status: ${result.status}`)
       console.log(`  footer: ${result.text.replace(/\n/g, ' ⏎ ')}`)
       console.log(`  judge:  ${verdict.note}\n`)

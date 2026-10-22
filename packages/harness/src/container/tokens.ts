@@ -22,9 +22,7 @@ import type { SelectableModel } from '../composition/model-selection'
 import type { SleepPrevention } from '../power/sleep-prevention'
 import type { InjectionToken } from './injection'
 
-export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol(
-  'atlas.SessionRegistry',
-)
+export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol('atlas.SessionRegistry')
 
 export const AtlasHomeToken: InjectionToken<string> = Symbol('atlas.AtlasHome')
 
@@ -34,8 +32,7 @@ export const WorkspaceRoot: InjectionToken<string> = Symbol('atlas.WorkspaceRoot
 
 export const LanguageModelToken: InjectionToken<LanguageModelV4> = Symbol('atlas.LanguageModel')
 
-export const ModelCardSourceToken: InjectionToken<ModelCardSource> =
-  Symbol('atlas.ModelCardSource')
+export const ModelCardSourceToken: InjectionToken<ModelCardSource> = Symbol('atlas.ModelCardSource')
 
 /** The switchable session model itself, so a transport can re-pin the loop mid-session. */
 export const SelectableModelToken: InjectionToken<SelectableModel> = Symbol('atlas.SelectableModel')
@@ -44,37 +41,32 @@ export const WakeSignalToken: InjectionToken<WakeSignal> = Symbol('atlas.WakeSig
 
 export const HookChainToken: InjectionToken<HookChain> = Symbol('atlas.HookChain')
 
-export const HookChainSourceToken: InjectionToken<HookChainSource> =
-  Symbol('atlas.HookChainSource')
+export const HookChainSourceToken: InjectionToken<HookChainSource> = Symbol('atlas.HookChainSource')
 
-export const HookMishapReporterToken: InjectionToken<OnHookMishap> =
-  Symbol('atlas.HookMishapReporter')
-
-export const UserSettingsStoreToken: InjectionToken<SettingsStorePort> = Symbol(
-  'atlas.UserSettingsStore',
+export const HookMishapReporterToken: InjectionToken<OnHookMishap> = Symbol(
+  'atlas.HookMishapReporter',
 )
+
+export const UserSettingsStoreToken: InjectionToken<SettingsStorePort> =
+  Symbol('atlas.UserSettingsStore')
 
 export const ProjectSettingsStoreToken: InjectionToken<SettingsStorePort> = Symbol(
   'atlas.ProjectSettingsStore',
 )
 
-export const WorktreeDirectoryToken: InjectionToken<() => string> = Symbol(
-  'atlas.WorktreeDirectory',
-)
+export const WorktreeDirectoryToken: InjectionToken<() => string> =
+  Symbol('atlas.WorktreeDirectory')
 
-export const WebSearchBackendToken: InjectionToken<() => EWebSearchBackend> = Symbol(
-  'atlas.WebSearchBackend',
-)
+export const WebSearchBackendToken: InjectionToken<() => EWebSearchBackend> =
+  Symbol('atlas.WebSearchBackend')
 
 export const SecretsStoreToken: InjectionToken<SecretsPort> = Symbol('atlas.SecretsStore')
 
-export const LocalSecretsStoreToken: InjectionToken<FileSecretsStore> = Symbol(
-  'atlas.LocalSecretsStore',
-)
+export const LocalSecretsStoreToken: InjectionToken<FileSecretsStore> =
+  Symbol('atlas.LocalSecretsStore')
 
-export const CloudSessionStoreToken: InjectionToken<CloudSessionStore> = Symbol(
-  'atlas.CloudSessionStore',
-)
+export const CloudSessionStoreToken: InjectionToken<CloudSessionStore> =
+  Symbol('atlas.CloudSessionStore')
 
 export const CloudSettingsStoreToken: InjectionToken<CloudSettingsStore> = Symbol(
   'atlas.CloudSettingsStore',
@@ -91,15 +83,13 @@ export const ClientVersionToken: InjectionToken<string> = Symbol('atlas.ClientVe
 
 export const SleepPreventionToken: InjectionToken<SleepPrevention> = Symbol('atlas.SleepPrevention')
 
-export const LocalAccountStoreToken: InjectionToken<AccountStorePort> = Symbol(
-  'atlas.LocalAccountStore',
-)
+export const LocalAccountStoreToken: InjectionToken<AccountStorePort> =
+  Symbol('atlas.LocalAccountStore')
 
 export const DockerEngineToken: InjectionToken<DockerEngine> = Symbol('atlas.DockerEngine')
 
-export const ClassifierPolicyToken: InjectionToken<() => ClassifierPolicy> = Symbol(
-  'atlas.ClassifierPolicy',
-)
+export const ClassifierPolicyToken: InjectionToken<() => ClassifierPolicy> =
+  Symbol('atlas.ClassifierPolicy')
 
 export const SkillSuggestionEnabledToken: InjectionToken<() => boolean> = Symbol(
   'atlas.SkillSuggestionEnabled',

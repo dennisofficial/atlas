@@ -19,10 +19,7 @@ export type SandboxStatusState = {
   subscribe: (listener: () => void) => () => void
 }
 
-const merged = (args: {
-  held: SandboxContainer
-  status: SandboxStatus
-}): SandboxContainer => {
+const merged = (args: { held: SandboxContainer; status: SandboxStatus }): SandboxContainer => {
   const { held, status } = args
   switch (status.state) {
     case ESandboxState.Starting:

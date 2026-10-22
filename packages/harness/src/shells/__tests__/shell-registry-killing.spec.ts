@@ -56,9 +56,9 @@ for (const adapter of shellAdapters) {
       it('refuses a shell it does not know', () => {
         const { registry } = openRegistry({ adapter })
 
-        expect(
-          registry.kill({ shellId: 'bash_7', by: EKilledBy.Model, threadId: THREAD }).ok,
-        ).toBe(false)
+        expect(registry.kill({ shellId: 'bash_7', by: EKilledBy.Model, threadId: THREAD }).ok).toBe(
+          false,
+        )
       })
 
       it('is harmless on a shell that already finished', async () => {

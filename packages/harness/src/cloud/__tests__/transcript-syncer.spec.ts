@@ -209,7 +209,11 @@ describe('TranscriptSyncer', () => {
     const threadId = THREAD
     await fixture.threads.create({ id: threadId })
     for (const text of ['one', 'two']) {
-      await fixture.log.append({ threadId, runId: toRunId('local-run'), drafts: [{ type: 'user-said', text }] })
+      await fixture.log.append({
+        threadId,
+        runId: toRunId('local-run'),
+        drafts: [{ type: 'user-said', text }],
+      })
     }
 
     const remote: Event[] = await fixture.log.readOwn({ threadId })
@@ -217,7 +221,10 @@ describe('TranscriptSyncer', () => {
 
     let parked = true
     const channel = readied({ lastEventSeqAsync: async () => fixture.log.head({ threadId }) })
-    const request = async (requestArgs: { op: EClientRequest; params: unknown }): Promise<unknown> => {
+    const request = async (requestArgs: {
+      op: EClientRequest
+      params: unknown
+    }): Promise<unknown> => {
       if (parked) {
         throw new RemoteRequestLost({ op: requestArgs.op, reason: 'the sandbox is parked (idle)' })
       }
@@ -333,9 +340,9 @@ describe('TranscriptSyncer', () => {
       expect(rewrites).toBe(1)
       expect(await localTexts()).toEqual(['stale-one', 'stale-two'])
       expect(rejections).toEqual([])
-      expect(failures.map((failure) => (failure instanceof Error ? failure.message : String(failure)))).toEqual([
-        'disk full',
-      ])
+      expect(
+        failures.map((failure) => (failure instanceof Error ? failure.message : String(failure))),
+      ).toEqual(['disk full'])
 
       diskFull = false
       syncer.kick()

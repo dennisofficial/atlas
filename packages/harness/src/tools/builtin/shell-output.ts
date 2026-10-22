@@ -86,7 +86,7 @@ export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
   readonly inputSchema = inputSchema
   override readonly pathFields = TAKES_NO_PATHS
 
-  constructor( private readonly shells: ShellRegistryPort) {
+  constructor(private readonly shells: ShellRegistryPort) {
     super()
   }
 

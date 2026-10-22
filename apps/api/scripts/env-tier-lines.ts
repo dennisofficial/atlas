@@ -20,6 +20,8 @@ export function lineFaultsOf(text: string): LineFault[] {
     const [, commented, key = '', raw = ''] = match
     if (commented !== undefined || key.startsWith(PUBLIC_KEY)) return []
     const value = raw.replace(/^"|"$/g, '')
-    return value.startsWith('encrypted:') ? [] : [{ line: number, fault: ELineFault.Unencrypted, key }]
+    return value.startsWith('encrypted:')
+      ? []
+      : [{ line: number, fault: ELineFault.Unencrypted, key }]
   })
 }

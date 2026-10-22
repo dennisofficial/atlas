@@ -60,16 +60,28 @@ describe('cancelling a birth', () => {
   it('claims the keyboard for a cancellable birth and for a failure, not for a plain move', () => {
     const handleKey = () => undefined
     const plain = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS })
-    const birth = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS, cancellable: true })
+    const birth = beginMove({
+      target: EExecutionLocation.Cloud,
+      now: AT,
+      rows: ROWS,
+      cancellable: true,
+    })
 
     expect(moveOverlayPresence({ move: plain, handleKey }).handleKey).toBeUndefined()
     expect(moveOverlayPresence({ move: birth, handleKey }).handleKey).toBe(handleKey)
-    expect(moveOverlayPresence({ move: { ...plain, failure: 'x' }, handleKey }).handleKey).toBe(handleKey)
+    expect(moveOverlayPresence({ move: { ...plain, failure: 'x' }, handleKey }).handleKey).toBe(
+      handleKey,
+    )
     expect(moveOverlayPresence({ move: null, handleKey }).open).toBe(false)
   })
 
   it('blocks the composer for as long as the birth is up', () => {
-    const birth = beginMove({ target: EExecutionLocation.Cloud, now: AT, rows: ROWS, cancellable: true })
+    const birth = beginMove({
+      target: EExecutionLocation.Cloud,
+      now: AT,
+      rows: ROWS,
+      cancellable: true,
+    })
     const presence = moveOverlayPresence({ move: birth, handleKey: () => undefined })
 
     expect(presence.open).toBe(true)

@@ -184,7 +184,9 @@ export abstract class ToolDefinition<TSchema extends ZodType = ZodType> {
   abstract invoke(args: ToolInvocation): Promise<ToolOutcome>
 }
 
-export abstract class SchemaTool<TSchema extends ZodType = ZodType> extends ToolDefinition<TSchema> {
+export abstract class SchemaTool<
+  TSchema extends ZodType = ZodType,
+> extends ToolDefinition<TSchema> {
   abstract override readonly pathFields: PathFieldClaim
 
   protected abstract run(args: ToolRun<TSchema>): Promise<ToolOutcome>
@@ -202,7 +204,10 @@ export abstract class SchemaTool<TSchema extends ZodType = ZodType> extends Tool
   }: ToolInvocation): Promise<ToolOutcome> {
     const parsed = this.inputSchema.safeParse(input)
     if (!parsed.success) {
-      return { ok: false, reason: `${this.name} was called with invalid input: ${z.prettifyError(parsed.error)}` }
+      return {
+        ok: false,
+        reason: `${this.name} was called with invalid input: ${z.prettifyError(parsed.error)}`,
+      }
     }
 
     return await this.run({

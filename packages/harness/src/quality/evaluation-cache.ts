@@ -1,4 +1,9 @@
-import type { QualityAssessment, QualityDecisionRequest, QualityPolicy, QualityScope } from '@dltech/atlas-core'
+import type {
+  QualityAssessment,
+  QualityDecisionRequest,
+  QualityPolicy,
+  QualityScope,
+} from '@dltech/atlas-core'
 
 const MAX_ENTRIES = 256
 

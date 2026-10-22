@@ -4,14 +4,8 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import {
-  ATLAS_SETTINGS,
-  toRunId,
-  toThreadId,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
 
-import { portToken } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { composeHarness } from '../compose'
@@ -106,7 +100,12 @@ describe('projection seeding from the restored log', () => {
 
   it('leaves projections empty for a launch that names no thread', async () => {
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+      launch: {
+        cwd: project,
+        command: 'atlas-test',
+        model: undefined,
+        executionLocation: undefined,
+      },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),

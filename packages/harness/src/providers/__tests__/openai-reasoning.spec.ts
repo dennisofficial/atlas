@@ -44,9 +44,7 @@ describe('openai history reasoning compatibility', () => {
 
     const items = inputItems(recorder, 0)
     expect(reasoningItems(items)).toEqual([])
-    expect(
-      items.some((item) => item.role === 'assistant' && item.type !== 'reasoning'),
-    ).toBe(true)
+    expect(items.some((item) => item.role === 'assistant' && item.type !== 'reasoning')).toBe(true)
     expect(items.some((item) => item.type === 'function_call')).toBe(true)
     expect(items.some((item) => item.type === 'function_call_output')).toBe(true)
 
@@ -89,7 +87,11 @@ describe('openai history reasoning compatibility', () => {
     watchWarnings()
     const recorder = recordingFetch({ body: TEXT_RESPONSE, contentType: 'application/json' })
     const prompt = historyPrompt([
-      { type: 'reasoning', text: 'ephemeral', providerOptions: { anthropic: { signature: 'sig' } } },
+      {
+        type: 'reasoning',
+        text: 'ephemeral',
+        providerOptions: { anthropic: { signature: 'sig' } },
+      },
     ])
     const snapshot = JSON.parse(JSON.stringify(prompt)) as typeof prompt
 
@@ -108,7 +110,9 @@ describe('openai history reasoning compatibility', () => {
         {
           type: 'reasoning',
           text: 'summary of the plan',
-          providerOptions: { openai: { itemId: 'rs_abc', reasoningEncryptedContent: 'enc_abc', phase: 'final' } },
+          providerOptions: {
+            openai: { itemId: 'rs_abc', reasoningEncryptedContent: 'enc_abc', phase: 'final' },
+          },
         },
       ],
     })
@@ -135,7 +139,11 @@ describe('openai history reasoning compatibility', () => {
     })
 
     expect(reasoningItems(inputItems(recorder, 0))).toEqual([
-      { type: 'reasoning', encrypted_content: 'enc_only', summary: [{ type: 'summary_text', text: 'summary text' }] },
+      {
+        type: 'reasoning',
+        encrypted_content: 'enc_only',
+        summary: [{ type: 'summary_text', text: 'summary text' }],
+      },
     ])
     expect(warnings).toEqual([])
   })
@@ -147,7 +155,11 @@ describe('openai history reasoning compatibility', () => {
     await callWithHistory({
       recorder,
       reasoning: [
-        { type: 'reasoning', text: 'stored summary', providerOptions: { openai: { itemId: 'rs_stored' } } },
+        {
+          type: 'reasoning',
+          text: 'stored summary',
+          providerOptions: { openai: { itemId: 'rs_stored' } },
+        },
       ],
     })
 
@@ -165,7 +177,11 @@ describe('openai history reasoning compatibility', () => {
       recorder,
       credentials: subscriptionCredentials(),
       reasoning: [
-        { type: 'reasoning', text: 'stored summary', providerOptions: { openai: { itemId: 'rs_stored' } } },
+        {
+          type: 'reasoning',
+          text: 'stored summary',
+          providerOptions: { openai: { itemId: 'rs_stored' } },
+        },
       ],
     })
 
@@ -192,7 +208,11 @@ describe('openai history reasoning compatibility', () => {
     })
 
     expect(reasoningItems(inputItems(recorder, 0))).toEqual([
-      { type: 'reasoning', encrypted_content: 'enc_sub', summary: [{ type: 'summary_text', text: 'summary text' }] },
+      {
+        type: 'reasoning',
+        encrypted_content: 'enc_sub',
+        summary: [{ type: 'summary_text', text: 'summary text' }],
+      },
     ])
     expect(warnings).toEqual([])
   })
@@ -214,7 +234,11 @@ describe('openai history reasoning compatibility', () => {
     })
 
     expect(reasoningItems(inputItems(recorder, 0))).toEqual([
-      { type: 'reasoning', encrypted_content: 'enc_alias', summary: [{ type: 'summary_text', text: 'summary via alias' }] },
+      {
+        type: 'reasoning',
+        encrypted_content: 'enc_alias',
+        summary: [{ type: 'summary_text', text: 'summary via alias' }],
+      },
     ])
     expect(warnings).toEqual([])
   })

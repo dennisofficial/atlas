@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
-import { ERuntimePhase, admissionClosedFor, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
-import { EClientFrame, EClientRequest, EServeFrame, encodeFrame, toSendId, type ClientFrame } from '@dltech/atlas-harness'
+import {
+  ERuntimePhase,
+  admissionClosedFor,
+  runtimeCheckpointSchema,
+  type RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
+import {
+  EClientFrame,
+  EClientRequest,
+  EServeFrame,
+  encodeFrame,
+  toSendId,
+  type ClientFrame,
+} from '@dltech/atlas-harness'
 
 import { createFrameBuffer } from '../frame-buffer'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
@@ -13,8 +25,12 @@ const threadId = toThreadId('admission-deferral')
 
 const checkpointAt = (phase: ERuntimePhase): RuntimeCheckpoint =>
   runtimeCheckpointSchema.parse({
-    threadId: String(threadId), runtimeId: 'runtime', sandboxSessionId: 'session',
-    revision: 1, phase, reportedAt: '2026-10-16T00:00:00.000Z',
+    threadId: String(threadId),
+    runtimeId: 'runtime',
+    sandboxSessionId: 'session',
+    revision: 1,
+    phase,
+    reportedAt: '2026-10-16T00:00:00.000Z',
     transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
   })
 
@@ -26,7 +42,8 @@ const greetedSocket = () => {
     close: () => undefined,
     terminate: () => undefined,
   } as unknown as SessionSocket
-  const frames = () => sent.map((payload) => JSON.parse(payload) as { kind: string; [field: string]: unknown })
+  const frames = () =>
+    sent.map((payload) => JSON.parse(payload) as { kind: string; [field: string]: unknown })
   return { socket, frames }
 }
 
@@ -64,7 +81,11 @@ const rig = () => {
   return { handlers, said, logged, deliver, moveTo }
 }
 
-const sendFrame = (sendId: string): ClientFrame => ({ kind: EClientFrame.Send, sendId: toSendId(sendId), text: sendId })
+const sendFrame = (sendId: string): ClientFrame => ({
+  kind: EClientFrame.Send,
+  sendId: toSendId(sendId),
+  text: sendId,
+})
 
 const settle = async (): Promise<void> => {
   for (let tick = 0; tick < 4; tick += 1) await Promise.resolve()
@@ -82,12 +103,17 @@ describe('serve admission while between lifecycle phases', () => {
     await settle()
     expect(said).toEqual([])
     expect(frames()).toEqual([])
-    expect(logged.map((line) => line.event)).toEqual([EServeEvent.AdmissionDeferred, EServeEvent.AdmissionDeferred])
+    expect(logged.map((line) => line.event)).toEqual([
+      EServeEvent.AdmissionDeferred,
+      EServeEvent.AdmissionDeferred,
+    ])
 
     moveTo(ERuntimePhase.Serving)
     await settle()
     expect(said).toEqual(['first', 'second'])
-    const acked = frames().filter((frame) => frame.kind === EServeFrame.SendAcked).map((frame) => frame['sendId'])
+    const acked = frames()
+      .filter((frame) => frame.kind === EServeFrame.SendAcked)
+      .map((frame) => frame['sendId'])
     expect(acked).toEqual(['first', 'second'])
     expect(frames().some((frame) => frame.kind === EServeFrame.Error)).toBe(false)
   })
@@ -107,7 +133,11 @@ describe('serve admission while between lifecycle phases', () => {
     await settle()
     expect(said).toEqual([])
     expect(frames().some((frame) => frame.kind === EServeFrame.SendAcked)).toBe(false)
-    expect(logged.some((line) => line.event === EServeEvent.AdmissionDropped && line['reason'] === 'socket closed')).toBe(true)
+    expect(
+      logged.some(
+        (line) => line.event === EServeEvent.AdmissionDropped && line['reason'] === 'socket closed',
+      ),
+    ).toBe(true)
   })
 
   it('answers a mutating Request with a refused Reply, never an Error frame', async () => {
@@ -117,12 +147,22 @@ describe('serve admission while between lifecycle phases', () => {
 
     deliver({
       socket,
-      frame: { kind: EClientFrame.Request, id: 'ren-1', op: EClientRequest.RenameThread, params: { threadId, title: 'x' } },
+      frame: {
+        kind: EClientFrame.Request,
+        id: 'ren-1',
+        op: EClientRequest.RenameThread,
+        params: { threadId, title: 'x' },
+      },
     })
     await settle()
 
     expect(frames()).toEqual([
-      { kind: EServeFrame.Reply, replyTo: 'ren-1', ok: false, data: { message: BETWEEN_PHASES_REFUSAL } },
+      {
+        kind: EServeFrame.Reply,
+        replyTo: 'ren-1',
+        ok: false,
+        data: { message: BETWEEN_PHASES_REFUSAL },
+      },
     ])
   })
 
@@ -131,7 +171,15 @@ describe('serve admission while between lifecycle phases', () => {
     const { socket, frames } = greetedSocket()
     handlers.open({ socket })
 
-    deliver({ socket, frame: { kind: EClientFrame.Request, id: 'cp-1', op: EClientRequest.ReadRuntimeCheckpoint, params: {} } })
+    deliver({
+      socket,
+      frame: {
+        kind: EClientFrame.Request,
+        id: 'cp-1',
+        op: EClientRequest.ReadRuntimeCheckpoint,
+        params: {},
+      },
+    })
     await settle()
 
     const reply = frames()[0]

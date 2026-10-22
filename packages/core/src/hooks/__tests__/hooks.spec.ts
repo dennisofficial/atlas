@@ -49,18 +49,36 @@ describe('hook types', () => {
 
   it('let an after-tool hook return drafts rather than stamped events', async () => {
     const loadNeighbouringContext: AfterTool = async ({ call: candidate }) => ({
-      drafts: [{ type: 'context-loaded', slot: 'claude-md', key: candidate.name, content: '# rules' }],
+      drafts: [
+        { type: 'context-loaded', slot: 'claude-md', key: candidate.name, content: '# rules' },
+      ],
     })
 
-    expect(await loadNeighbouringContext({ call, result: { ok: true, output: 'written', modelText: 'written' }, projectDirectory: '/project', signal: NEVER_ABORTED })).toEqual({
-      drafts: [{ type: 'context-loaded', slot: 'claude-md', key: 'write_file', content: '# rules' }],
+    expect(
+      await loadNeighbouringContext({
+        call,
+        result: { ok: true, output: 'written', modelText: 'written' },
+        projectDirectory: '/project',
+        signal: NEVER_ABORTED,
+      }),
+    ).toEqual({
+      drafts: [
+        { type: 'context-loaded', slot: 'claude-md', key: 'write_file', content: '# rules' },
+      ],
     })
   })
 
   it('let an after-tool hook hand the model text without naming an event at all', async () => {
     const remindAboutTests: AfterTool = async () => ({ additionalContext: 'run bun test' })
 
-    expect(await remindAboutTests({ call, result: { ok: true, output: 'written', modelText: 'written' }, projectDirectory: '/project', signal: NEVER_ABORTED })).toEqual({
+    expect(
+      await remindAboutTests({
+        call,
+        result: { ok: true, output: 'written', modelText: 'written' },
+        projectDirectory: '/project',
+        signal: NEVER_ABORTED,
+      }),
+    ).toEqual({
       additionalContext: 'run bun test',
     })
   })
@@ -95,9 +113,7 @@ describe('hook types', () => {
   it('let a hook that has nothing to say return an empty outcome', async () => {
     const quiet: BeforeTurn = async () => ({})
 
-    expect(await quiet({ threadId: toThreadId('thread-1'), projectDirectory: '/repo' })).toEqual(
-      {},
-    )
+    expect(await quiet({ threadId: toThreadId('thread-1'), projectDirectory: '/repo' })).toEqual({})
   })
 
   it('let an on-chunk hook drop a chunk entirely', async () => {

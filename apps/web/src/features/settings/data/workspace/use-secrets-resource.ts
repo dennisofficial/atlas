@@ -18,7 +18,10 @@ export type SecretsResource = {
 
 export function useSecretsResource(base: string): SecretsResource {
   const load = useCallback(
-    async (): Promise<SecretsSnapshot> => ({ secrets: await listSecrets(base), fetchedAt: Date.now() }),
+    async (): Promise<SecretsSnapshot> => ({
+      secrets: await listSecrets(base),
+      fetchedAt: Date.now(),
+    }),
     [base],
   )
   const query = useCloudQuery({ key: `secrets:${base}`, load })

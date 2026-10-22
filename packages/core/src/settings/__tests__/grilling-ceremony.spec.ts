@@ -21,9 +21,9 @@ describe('the grilling ceremony setting', () => {
     expect(definition?.page).toBe(ESettingPage.Experimental)
     expect(definition?.kind).toBe(ESettingKind.Toggle)
     expect(definition && 'fallback' in definition && definition.fallback).toBe(false)
-    expect(definition && 'environmentVariable' in definition && definition.environmentVariable).toBe(
-      'ATLAS_EXPERIMENTAL_GRILLING_CEREMONY',
-    )
+    expect(
+      definition && 'environmentVariable' in definition && definition.environmentVariable,
+    ).toBe('ATLAS_EXPERIMENTAL_GRILLING_CEREMONY')
   })
 
   it('is the first row the experimental page carries', () => {

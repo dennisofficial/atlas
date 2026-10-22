@@ -63,8 +63,8 @@ const source = [
   '  banner : process',
   '  begin',
   '    wait until rising_edge(clk);',
-  "    report \"sum = \" & integer'image(add(5, 3)) severity note;",
-  "    report \"the \"\"product\"\" = \" & integer'image(multiply(5, 3)) severity note;",
+  '    report "sum = " & integer\'image(add(5, 3)) severity note;',
+  '    report "the ""product"" = " & integer\'image(multiply(5, 3)) severity note;',
   '    wait;',
   '  end process banner;',
   '',
@@ -97,11 +97,7 @@ describe('vhdl lexical highlighting', () => {
   })
 
   it('reads a tick followed by a name as an attribute', () => {
-    expect(textFor({ spec, source, group: 'attribute' })).toEqual([
-      "'event",
-      "'image",
-      "'image",
-    ])
+    expect(textFor({ spec, source, group: 'attribute' })).toEqual(["'event", "'image", "'image"])
   })
 
   it('reads a single-quoted bit as a character, not an attribute', () => {
@@ -159,8 +155,8 @@ describe('vhdl lexical highlighting', () => {
   })
 
   it('closes a character literal holding a quotation mark before it opens a string', () => {
-    const compare = 'if ch = \'"\' then'
-    expect(textFor({ spec, source: compare, group: 'character' })).toEqual(['\'"\''])
+    const compare = "if ch = '\"' then"
+    expect(textFor({ spec, source: compare, group: 'character' })).toEqual(["'\"'"])
     expect(textFor({ spec, source: compare, group: 'string' })).toEqual([])
   })
 

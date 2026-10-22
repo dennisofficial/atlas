@@ -7,7 +7,13 @@ import type { Event } from './envelope'
  * id called again, and a glitching model can emit one id twice in a single step. Providers reject
  * an exchange whose tool_use ids repeat, so uniqueness is enforced where new calls enter the log.
  */
-export function freshCallId({ oldId, taken }: { oldId: string; taken: ReadonlySet<string> }): CallId {
+export function freshCallId({
+  oldId,
+  taken,
+}: {
+  oldId: string
+  taken: ReadonlySet<string>
+}): CallId {
   let suffix = 2
   while (taken.has(`${oldId}~${suffix}`)) suffix += 1
   return toCallId(`${oldId}~${suffix}`)

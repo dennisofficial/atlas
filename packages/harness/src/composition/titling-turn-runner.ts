@@ -96,13 +96,21 @@ export class TitlingTurnRunner extends TurnRunner {
     })
   }
 
-  async runTurn(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
+  async runTurn(args: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     const outcome = await this.inner.runTurn(args)
     void this.titleOnce({ threadId: args.threadId })
     return outcome
   }
 
-  resume(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
+  resume(args: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     return this.inner.resume(args)
   }
 
@@ -140,7 +148,9 @@ export class TitlingTurnRunner extends TurnRunner {
     if (this.asked.has(args.threadId)) return
     this.asked.add(args.threadId)
 
-    const events = await this.log.read({ threadId: args.threadId }).catch(() => [] as readonly never[])
+    const events = await this.log
+      .read({ threadId: args.threadId })
+      .catch(() => [] as readonly never[])
     const digest = sessionDigest(events)
     const images = namingImagesOf(events)
     if (digest.trim().length === 0 && images.length === 0) {

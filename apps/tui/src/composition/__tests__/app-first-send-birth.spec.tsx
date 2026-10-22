@@ -12,11 +12,14 @@ await grammarsReady()
 
 afterEach(() => dismissNotice())
 
-const lastChoice = (app: FakeApp): unknown => app.settings.snapshot().document.values[ESettingId.LastBornPlacement]
+const lastChoice = (app: FakeApp): unknown =>
+  app.settings.snapshot().document.values[ESettingId.LastBornPlacement]
 
 const delivered = (mounted: MountedUnborn, text: string): Promise<boolean> =>
   until({
-    holds: async () => mounted.bridge.created.length > 0 && mounted.bridge.channel.sent.some((said) => said.text === text),
+    holds: async () =>
+      mounted.bridge.created.length > 0 &&
+      mounted.bridge.channel.sent.some((said) => said.text === text),
     within: 20_000,
   })
 
@@ -84,7 +87,10 @@ describe('the first send', () => {
 
       expect(await delivered(mounted, 'hello, pod')).toBe(true)
       expect(mounted.bridge.created.map((born) => born.threadId)).toEqual([threadId!])
-      expect(app.threads.chosenRunners).toContainEqual({ threadId: threadId!, runner: ERunner.Local })
+      expect(app.threads.chosenRunners).toContainEqual({
+        threadId: threadId!,
+        runner: ERunner.Local,
+      })
     } finally {
       await mounted.done()
     }
@@ -103,7 +109,10 @@ describe('the first send', () => {
 
       expect(await delivered(mounted, 'ship it')).toBe(true)
       const threadId = mounted.bridge.created[0]?.threadId
-      expect(app.threads.chosenRunners).toContainEqual({ threadId: threadId!, runner: ERunner.Vercel })
+      expect(app.threads.chosenRunners).toContainEqual({
+        threadId: threadId!,
+        runner: ERunner.Vercel,
+      })
     } finally {
       await mounted.done()
     }
@@ -116,11 +125,14 @@ describe('the first send', () => {
       await mounted.command('signed out words')
 
       const noticed = await until({
-        holds: async () => currentNotices().some((notice) => notice.text === SIGN_IN_TO_BIRTH_NOTICE),
+        holds: async () =>
+          currentNotices().some((notice) => notice.text === SIGN_IN_TO_BIRTH_NOTICE),
         within: 20_000,
       })
       expect(noticed).toBe(true)
-      expect(await until({ holds: async () => mounted.draft() === 'signed out words', within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => mounted.draft() === 'signed out words', within: 20_000 }),
+      ).toBe(true)
       expect(mounted.bridge.created.length).toBe(0)
     } finally {
       await mounted.done()
@@ -134,7 +146,9 @@ describe('the first send', () => {
     try {
       await mounted.command('try the pod')
 
-      expect(await until({ holds: async () => mounted.draft() === 'try the pod', within: 20_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => mounted.draft() === 'try the pod', within: 20_000 }),
+      ).toBe(true)
       expect(currentNotices().some((notice) => notice.text.includes('Docker Desktop'))).toBe(true)
       expect(mounted.bridge.created.length).toBe(0)
 

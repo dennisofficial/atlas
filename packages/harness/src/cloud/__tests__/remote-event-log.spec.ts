@@ -74,9 +74,9 @@ describe('RemoteEventLog', () => {
   it('replace refuses — the sandbox owns the writes', async () => {
     const { log, calls } = harness()
 
-    await expect(
-      log.replace({ threadId: THREAD, runId: RUN, drafts: [] }),
-    ).rejects.toThrow('the sandbox owns the transcript')
+    await expect(log.replace({ threadId: THREAD, runId: RUN, drafts: [] })).rejects.toThrow(
+      'the sandbox owns the transcript',
+    )
     expect(calls).toHaveLength(0)
   })
 })

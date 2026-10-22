@@ -29,6 +29,11 @@ describe('what the operator typed after atlas', () => {
   })
 
   it('reports flags it does not know', () => {
-    expect(requestFor('push --force --yes')).toEqual({ yes: true, help: false, all: false, unknown: ['--force'] })
+    expect(requestFor('push --force --yes')).toEqual({
+      yes: true,
+      help: false,
+      all: false,
+      unknown: ['--force'],
+    })
   })
 })

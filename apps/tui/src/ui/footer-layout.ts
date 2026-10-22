@@ -205,11 +205,7 @@ function dropLadder(args: {
             .map((items) => ({ ...widest, items, rows: 2 as const })),
         ]
 
-  return [
-    { ...widest, items: args.items, rows: 1 as const },
-    ...wrapped,
-    ...narrower,
-  ]
+  return [{ ...widest, items: args.items, rows: 1 as const }, ...wrapped, ...narrower]
 }
 
 export function footerLayout(args: {

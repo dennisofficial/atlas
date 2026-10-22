@@ -64,7 +64,9 @@ describe('CodexOauthClient', () => {
     const login = await client.startDeviceLogin()
 
     expect(calls[0]?.url).toBe('https://auth.openai.com/api/accounts/deviceauth/usercode')
-    expect(JSON.parse(calls[0]?.body ?? '{}')).toEqual({ client_id: 'app_EMoamEEZ73f0CkXaXp7hrann' })
+    expect(JSON.parse(calls[0]?.body ?? '{}')).toEqual({
+      client_id: 'app_EMoamEEZ73f0CkXaXp7hrann',
+    })
     expect(login).toEqual({
       deviceAuthId: 'da-1',
       userCode: 'ABCD-EFGH',
@@ -180,8 +182,8 @@ describe('CodexOauthClient', () => {
   it('refuses a poll answer missing the code it promised', async () => {
     const { client } = clientScripted([{ status: 200, body: { authorization_code: 'only-code' } }])
 
-    expect(
-      client.pollDeviceLogin({ deviceAuthId: 'da-1', userCode: 'ABCD' }),
-    ).rejects.toThrow(OauthResponseError)
+    expect(client.pollDeviceLogin({ deviceAuthId: 'da-1', userCode: 'ABCD' })).rejects.toThrow(
+      OauthResponseError,
+    )
   })
 })

@@ -145,7 +145,9 @@ function downgradedEntry({
 
 export function imagesInContext({
   limit = MAX_IMAGE_BLOCKS,
-}: { limit?: number | undefined } = {}): Rule {
+}: {
+  limit?: number | undefined
+} = {}): Rule {
   return defineRule({
     name: 'imagesInContext',
     apply: (input) => {
@@ -167,8 +169,14 @@ export function imagesInContext({
   })
 }
 
-const corruptedParts = ({ parts }: { parts: readonly VisualPart[] }): readonly VisualPart[] | null => {
-  const mapped = parts.map((part) => (part.type === 'image' && imageIsCorrupt(part) ? withoutCorruptPixels(part) : part))
+const corruptedParts = ({
+  parts,
+}: {
+  parts: readonly VisualPart[]
+}): readonly VisualPart[] | null => {
+  const mapped = parts.map((part) =>
+    part.type === 'image' && imageIsCorrupt(part) ? withoutCorruptPixels(part) : part,
+  )
   return mapped.every((part, index) => part === parts[index]) ? null : mapped
 }
 
@@ -186,7 +194,9 @@ function corruptedMessage({ message }: { message: Message }): Message | null {
   }
   if (message.role === 'tool') {
     const content = message.content.map((part) => corruptedResult({ part }))
-    return content.every((part, index) => part === message.content[index]) ? null : { ...message, content }
+    return content.every((part, index) => part === message.content[index])
+      ? null
+      : { ...message, content }
   }
   return null
 }

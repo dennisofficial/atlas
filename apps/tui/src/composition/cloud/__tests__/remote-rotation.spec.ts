@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { EClientRequest, ERotationPhase, type ChannelSignal, type ChannelListener } from '@dltech/atlas-harness'
+import {
+  EClientRequest,
+  ERotationPhase,
+  type ChannelSignal,
+  type ChannelListener,
+} from '@dltech/atlas-harness'
 import { EWireRotationPhase } from '@dltech/atlas-wire'
 
 import { RemoteRotation } from '../remote-rotation'
@@ -13,7 +18,9 @@ const channel = (reply: unknown) => {
   const requests: { op: EClientRequest; params: unknown }[] = []
   return {
     requests,
-    emit: (signal: ChannelSignal) => listeners.forEach((listener) => listener(signal)),
+    emit: (signal: ChannelSignal) => {
+      for (const listener of listeners) listener(signal)
+    },
     port: {
       threadId: MAIN,
       request: async (given: { op: EClientRequest; params: unknown }) => {
@@ -36,7 +43,10 @@ describe('the rotation a cloud thread carries', () => {
     const pending = rotation.request({ sessionId: MAIN, threadId: MAIN, instructions: 'focus' })
     await Promise.resolve()
     await Promise.resolve()
-    fake.emit({ type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Done, watermarkSeq: 7 } })
+    fake.emit({
+      type: 'rotation-changed',
+      rotation: { phase: EWireRotationPhase.Done, watermarkSeq: 7 },
+    })
 
     expect(await pending).toMatchObject({ kind: 'rotated', threadId: MAIN, watermarkSeq: 7 })
     expect(fake.requests[0]).toMatchObject({
@@ -52,7 +62,10 @@ describe('the rotation a cloud thread carries', () => {
     const pending = rotation.request({ sessionId: MAIN, threadId: MAIN, instructions: '' })
     await Promise.resolve()
     await Promise.resolve()
-    fake.emit({ type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Failed, reason: 'no summary' } })
+    fake.emit({
+      type: 'rotation-changed',
+      rotation: { phase: EWireRotationPhase.Failed, reason: 'no summary' },
+    })
 
     expect(await pending).toEqual({ kind: 'failed', reason: 'no summary' })
   })

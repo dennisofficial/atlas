@@ -1,4 +1,9 @@
-import { ENoAccountReason, providerSpec, type EAuthProvider, type StoredAccount } from '@dltech/atlas-core'
+import {
+  ENoAccountReason,
+  providerSpec,
+  type EAuthProvider,
+  type StoredAccount,
+} from '@dltech/atlas-core'
 
 import { CloudError, isCloudUnavailable } from '../cloud/cloud-transport'
 import { CredentialError, ECredentialFailure } from './credential-error'
@@ -27,9 +32,13 @@ export const credentialErrorOf = (error: unknown): CredentialError => {
     })
   }
   if (error.status === 401)
-    return refused('Atlas Cloud rejected this session, so the OAuth login cannot be renewed. Sign back in to Atlas Cloud with /auth.')
+    return refused(
+      'Atlas Cloud rejected this session, so the OAuth login cannot be renewed. Sign back in to Atlas Cloud with /auth.',
+    )
   if (error.status === 403)
-    return refused('Atlas Cloud did not authorize this session or sandbox to use that OAuth connection.')
+    return refused(
+      'Atlas Cloud did not authorize this session or sandbox to use that OAuth connection.',
+    )
   if (error.status === 404)
     return refused(`Atlas Cloud holds no such OAuth connection. ${REAUTHORIZE}`)
 
@@ -63,7 +72,12 @@ export const changedUnderneath = (stored: StoredAccount): CredentialError =>
 export const noAccount = (provider: EAuthProvider, reason: ENoAccountReason): CredentialError => {
   const label = providerSpec(provider).label
   const detail =
-    reason === ENoAccountReason.NoneAtAll ? 'Atlas holds no accounts.' : `Atlas holds no ${label} account.`
+    reason === ENoAccountReason.NoneAtAll
+      ? 'Atlas holds no accounts.'
+      : `Atlas holds no ${label} account.`
 
-  return new CredentialError({ failure: ECredentialFailure.NotFound, message: `${detail} ${REAUTHORIZE}` })
+  return new CredentialError({
+    failure: ECredentialFailure.NotFound,
+    message: `${detail} ${REAUTHORIZE}`,
+  })
 }

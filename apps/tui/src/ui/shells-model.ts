@@ -13,7 +13,10 @@ export const isShellRunning = (shell: ShellSnapshot): boolean =>
 export const runningCount = (shells: readonly ShellSnapshot[]): number =>
   shells.filter(isShellRunning).length
 
-export function openShells(args: { shells: readonly ShellSnapshot[]; shellId?: string }): ShellsState {
+export function openShells(args: {
+  shells: readonly ShellSnapshot[]
+  shellId?: string
+}): ShellsState {
   const asked = args.shells.findIndex((shell) => shell.shellId === args.shellId)
   if (asked >= 0) return { index: asked }
 
@@ -109,7 +112,10 @@ export const shellCommandLabel = (command: string): string => command.replace(/\
  * What a human scanning the panel reads. The description is the name the model gave the job and the
  * bash tool requires one, so the fallback is only for a shell replayed from before it did.
  */
-export function shellNameLabel(shell: { command: string; description?: string | undefined }): string {
+export function shellNameLabel(shell: {
+  command: string
+  description?: string | undefined
+}): string {
   const named = shell.description?.trim() ?? ''
   return named === '' ? shellCommandLabel(shell.command) : named
 }
@@ -130,14 +136,20 @@ function wrapped(args: { line: string; cells: number }): string[] {
  * are stripped rather than honored: each row renders as its own flat-colored `<text>`, and a
  * sequence counted toward the wrap width (or split across rows) prints as literal garbage.
  */
-export function outputRows(args: { text: string; cells: number; limit: number }): readonly string[] {
+export function outputRows(args: {
+  text: string
+  cells: number
+  limit: number
+}): readonly string[] {
   if (args.limit <= 0) return []
 
   const printed = stripAnsi(args.text).replace(/\n+$/, '')
   if (printed === '') return []
 
   const lines = printed.split('\n')
-  const laid = lines.flatMap((line) => wrapped({ line: line.replace(/\t/g, '  '), cells: args.cells }))
+  const laid = lines.flatMap((line) =>
+    wrapped({ line: line.replace(/\t/g, '  '), cells: args.cells }),
+  )
 
   return laid.slice(-args.limit)
 }

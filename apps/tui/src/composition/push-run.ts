@@ -40,7 +40,10 @@ const complain = (line: string): void => {
   process.stderr.write(`${line}\n`)
 }
 
-const defaultPicker = async (args: { rows: readonly PlanRow[]; showAll: boolean }): Promise<PickerOutcome> => {
+const defaultPicker = async (args: {
+  rows: readonly PlanRow[]
+  showAll: boolean
+}): Promise<PickerOutcome> => {
   const { runPushPicker } = await import('../push/run-picker')
   return await runPushPicker(args)
 }
@@ -58,7 +61,10 @@ export async function runPush({
     return request.unknown.length > 0 ? REFUSED : OK
   }
 
-  const session = new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }).read()
+  const session = new CloudSessionStore({
+    file: atlasCloudFile(),
+    keyFile: atlasVaultKeyFile(),
+  }).read()
   if (session === null) {
     complain('sign in to Atlas Cloud first (open atlas and run /login)')
     return REFUSED
@@ -75,10 +81,13 @@ export async function runPush({
   const last = await loadPublishState({ atlasHome })
   const plan = planPush({ items, last })
   if (!hasChanges(plan) && last.version > 0 && !request.all) {
-    say(`nothing changed since the last push (version ${last.version}) — atlas push --all to revise the selection`)
+    say(
+      `nothing changed since the last push (version ${last.version}) — atlas push --all to revise the selection`,
+    )
     return OK
   }
-  if (plan.removed.length > 0) say(`${plan.removed.length} previously published item(s) no longer exist and will be dropped`)
+  if (plan.removed.length > 0)
+    say(`${plan.removed.length} previously published item(s) no longer exist and will be dropped`)
 
   let selectedIds = new Set(plan.rows.filter((row) => row.selected).map((row) => row.item.id))
   if (!request.yes) {
@@ -96,7 +105,11 @@ export async function runPush({
     return REFUSED
   }
 
-  const client = new PublishedBundleClient({ url: session.url, token: session.token, clientVersion: clientVersionHeader() })
+  const client = new PublishedBundleClient({
+    url: session.url,
+    token: session.token,
+    clientVersion: clientVersionHeader(),
+  })
   try {
     const summary = await publishBundle({
       items: chosen,

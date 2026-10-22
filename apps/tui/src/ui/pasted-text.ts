@@ -6,7 +6,9 @@ import { decodePasteBytes, stripAnsiSequences, type PasteEvent } from '@opentui/
  * listens for keypresses therefore never sees a pasted code at all.
  */
 export const pastedText = (event: PasteEvent): string =>
-  pastedContent(event).replace(/[\r\n]/g, '').trim()
+  pastedContent(event)
+    .replace(/[\r\n]/g, '')
+    .trim()
 
 /**
  * The clipboard text with its line breaks still in it — the decision to tokenise a paste, and the

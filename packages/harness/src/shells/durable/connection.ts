@@ -62,7 +62,11 @@ export function createSocketRequester({
         resolve(unreachable(reason))
       }
       const deadline = setTimeout(() => {
-        resolve({ ok: false, code: EControlError.Timeout, message: 'no hello reply from the supervisor' })
+        resolve({
+          ok: false,
+          code: EControlError.Timeout,
+          message: 'no hello reply from the supervisor',
+        })
         socket.destroy()
         dropAll('no hello reply from the supervisor')
       }, timeoutMs)
@@ -84,7 +88,11 @@ export function createSocketRequester({
           }
           socket.destroy()
           const code = reply.type === 'error' ? reply.code : EControlError.IdentityMismatch
-          resolve({ ok: false, code, message: reply.type === 'error' ? reply.message : 'identity mismatch' })
+          resolve({
+            ok: false,
+            code,
+            message: reply.type === 'error' ? reply.message : 'identity mismatch',
+          })
         })
         socket.write(encodeFrame({ message: { type: 'hello', id, token, identity } }))
       })
@@ -104,12 +112,17 @@ export function createSocketRequester({
       return new Promise<ControlResult>((resolve) => {
         const timer = setTimeout(() => {
           opened.pending.delete(id)
-          resolve({ ok: false, code: EControlError.Timeout, message: 'no reply from the supervisor' })
+          resolve({
+            ok: false,
+            code: EControlError.Timeout,
+            message: 'no reply from the supervisor',
+          })
         }, timeoutMs)
         opened.pending.set(id, (reply) => {
           clearTimeout(timer)
           opened.pending.delete(id)
-          if (reply.type === 'error') resolve({ ok: false, code: reply.code, message: reply.message })
+          if (reply.type === 'error')
+            resolve({ ok: false, code: reply.code, message: reply.message })
           else resolve({ ok: true })
         })
         opened.socket.write(encodeFrame({ message: { ...request, id } }))

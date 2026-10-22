@@ -60,7 +60,8 @@ export function shellFiles({
   threadId: ThreadId
   shellId: ShellId
 }): ShellFiles {
-  if (!SHELL_ID_PATTERN.test(shellId)) throw new Error(`${shellId} is not a usable shell directory name`)
+  if (!SHELL_ID_PATTERN.test(shellId))
+    throw new Error(`${shellId} is not a usable shell directory name`)
   const directory = join(shellsDirectory({ sessionDir, threadId }), shellId)
   return {
     sessionDirectory: sessionDir,

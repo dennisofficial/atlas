@@ -1,5 +1,11 @@
 import { saidBody, toThreadId, type ThreadId } from '@dltech/atlas-core'
-import { ERuntimePhase, type PendingEntryWire, type PrStateWire, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import {
+  ERuntimePhase,
+  type PendingEntryWire,
+  type PrStateWire,
+  type RosterWire,
+  type RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
 
 import type { ChannelListener } from '../channel/delta-channel'
 import type { ChannelSignal } from '../channel/signal'
@@ -17,13 +23,31 @@ import {
   type ServeFrame,
 } from './channel-wire'
 import { EConnectionView, ESocketLiveness } from './connection-view'
-import { DEFAULT_KEEPALIVE_MS, intervalKeepaliveScheduler, type ScheduleKeepalive } from './keepalive'
+import {
+  DEFAULT_KEEPALIVE_MS,
+  intervalKeepaliveScheduler,
+  type ScheduleKeepalive,
+} from './keepalive'
 import { checkpointFrom, createCheckpointHolder } from './remote-channel-checkpoint'
-import { attemptBudgetFor, createConnectionFacts, DEFAULT_MAX_ATTEMPTS, exhaustedDetailOf } from './remote-channel-facts'
+import {
+  attemptBudgetFor,
+  createConnectionFacts,
+  DEFAULT_MAX_ATTEMPTS,
+  exhaustedDetailOf,
+} from './remote-channel-facts'
 import { createInFlightReplay, NOTHING_IN_FLIGHT } from './remote-channel-in-flight'
 import { registryOf } from './remote-channel-registry'
-import { sessionSocketUrlOf, webSocketFactory, type ChannelSocket, type ChannelSocketFactory } from './remote-channel-socket'
-import { createUpstreamPipe, RemotePublishRefused, RemoteRequestLost } from './remote-channel-upstream'
+import {
+  sessionSocketUrlOf,
+  webSocketFactory,
+  type ChannelSocket,
+  type ChannelSocketFactory,
+} from './remote-channel-socket'
+import {
+  createUpstreamPipe,
+  RemotePublishRefused,
+  RemoteRequestLost,
+} from './remote-channel-upstream'
 import {
   INTERRUPT_ACK_TIMEOUT_MS,
   STRANDED_STEP_END,
@@ -38,8 +62,16 @@ import {
   type ThreadRenamedFrame,
 } from './remote-delta-channel-types'
 
-export { RemotePublishRefused, RemoteRequestFailed, RemoteRequestLost } from './remote-channel-upstream'
-export type { ChannelSocket, ChannelSocketFactory, ChannelSocketHandlers } from './remote-channel-socket'
+export {
+  RemotePublishRefused,
+  RemoteRequestFailed,
+  RemoteRequestLost,
+} from './remote-channel-upstream'
+export type {
+  ChannelSocket,
+  ChannelSocketFactory,
+  ChannelSocketHandlers,
+} from './remote-channel-socket'
 export * from './remote-delta-channel-types'
 export type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
@@ -219,7 +251,8 @@ export function createRemoteDeltaChannel(args: {
     attempt = 0
     upstream.attach({ write })
     const turnInFlight = frame.turnInFlight === true
-    if (turnInFlight !== inFlight.working()) deliver({ type: 'turn-working', working: turnInFlight })
+    if (turnInFlight !== inFlight.working())
+      deliver({ type: 'turn-working', working: turnInFlight })
     settlePending(NOTHING_PENDING)
     readies.emit({ turnInFlight, transcriptCurrent: frame.transcriptCurrent })
     facts.update({
@@ -248,7 +281,8 @@ export function createRemoteDeltaChannel(args: {
   const handleFrame = (frame: ServeFrame) => {
     if (frame.kind === EServeFrame.Ready) return handleReady(frame)
     if (frame.kind === EServeFrame.Signal) return handleSignal(frame)
-    if (frame.kind === EServeFrame.Reply) return upstream.settleReply({ replyTo: frame.replyTo, ok: frame.ok, data: frame.data })
+    if (frame.kind === EServeFrame.Reply)
+      return upstream.settleReply({ replyTo: frame.replyTo, ok: frame.ok, data: frame.data })
     if (frame.kind === EServeFrame.Reload) {
       channelCursor = null
       endStrandedStep()
@@ -475,7 +509,8 @@ export function createRemoteDeltaChannel(args: {
       }
     },
 
-    snapshot: ({ threadId }) => (threadId === args.threadId ? inFlight.replay() : NOTHING_IN_FLIGHT),
+    snapshot: ({ threadId }) =>
+      threadId === args.threadId ? inFlight.replay() : NOTHING_IN_FLIGHT,
 
     publisherFor({ threadId }) {
       throw new RemotePublishRefused(threadId)
@@ -493,7 +528,10 @@ export function createRemoteDeltaChannel(args: {
 
     run: (runArgs) => {
       kickWake()
-      upstream.send({ kind: EClientFrame.Run, ...(runArgs?.resume === true ? { resume: true } : {}) })
+      upstream.send({
+        kind: EClientFrame.Run,
+        ...(runArgs?.resume === true ? { resume: true } : {}),
+      })
     },
 
     interrupt: requestInterrupt,
@@ -507,11 +545,15 @@ export function createRemoteDeltaChannel(args: {
 
     request: (request) => {
       if (abandoned) {
-        return Promise.reject(new RemoteRequestLost({ op: request.op, reason: 'the channel is closed' }))
+        return Promise.reject(
+          new RemoteRequestLost({ op: request.op, reason: 'the channel is closed' }),
+        )
       }
       const parked = facts.view().state === EConnectionView.Parked
       if (parked && args.wakeSandbox === undefined) {
-        return Promise.reject(new RemoteRequestLost({ op: request.op, reason: 'the sandbox is parked' }))
+        return Promise.reject(
+          new RemoteRequestLost({ op: request.op, reason: 'the sandbox is parked' }),
+        )
       }
       kickWake()
       return upstream.request(request)

@@ -1,12 +1,12 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from 'react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Checkpoint } from "@dltech/atlas-ui/ai/checkpoint";
+import { Checkpoint } from '@dltech/atlas-ui/ai/checkpoint'
 
 const meta = {
-  title: "AI/Checkpoint",
+  title: 'AI/Checkpoint',
   component: Checkpoint,
-  args: { label: "Button renamed" },
+  args: { label: 'Button renamed' },
   decorators: [
     (Story) => (
       <div className="w-[34rem] max-w-full">
@@ -14,24 +14,26 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Checkpoint>;
+} satisfies Meta<typeof Checkpoint>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Default: Story = {};
+export const Default: Story = {}
 
-export const Disabled: Story = { args: { disabled: true } };
+export const Disabled: Story = { args: { disabled: true } }
 
 function RestoreDemo() {
-  const [restored, setRestored] = useState(false);
+  const [restored, setRestored] = useState(false)
   return (
     <div className="flex flex-col gap-3 text-sm">
       <Checkpoint label="Button renamed" onRestore={() => setRestored(true)} />
-      <p className="text-muted-foreground">{restored ? "Restored — later turns dropped." : "Press Restore."}</p>
+      <p className="text-muted-foreground">
+        {restored ? 'Restored — later turns dropped.' : 'Press Restore.'}
+      </p>
     </div>
-  );
+  )
 }
 
-export const Interactive: Story = { render: () => <RestoreDemo /> };
+export const Interactive: Story = { render: () => <RestoreDemo /> }

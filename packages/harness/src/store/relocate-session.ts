@@ -42,7 +42,9 @@ export async function relocateSession({
   await log.append({
     threadId,
     runId: ids.nextRunId(),
-    drafts: [{ type: 'location-changed', from, to: location, ...(cwd === undefined ? {} : { cwd }) }],
+    drafts: [
+      { type: 'location-changed', from, to: location, ...(cwd === undefined ? {} : { cwd }) },
+    ],
   })
 
   const stoppedServices = services

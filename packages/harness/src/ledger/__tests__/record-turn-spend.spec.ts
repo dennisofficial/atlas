@@ -43,9 +43,24 @@ describe('a turn tallied across its steps', () => {
     const ledger = recordingLedger()
     const tally = openTurnSpend({ ledger, clock: overTenSeconds(), model: MODEL })
 
-    tally.countStep({ inputTokens: 1_000, outputTokens: 40, cacheReadTokens: 900, cacheWriteTokens: 100 })
-    tally.countStep({ inputTokens: 1_500, outputTokens: 60, cacheReadTokens: 1_400, cacheWriteTokens: 0 })
-    tally.countStep({ inputTokens: 2_100, outputTokens: 20, cacheReadTokens: 2_000, cacheWriteTokens: 0 })
+    tally.countStep({
+      inputTokens: 1_000,
+      outputTokens: 40,
+      cacheReadTokens: 900,
+      cacheWriteTokens: 100,
+    })
+    tally.countStep({
+      inputTokens: 1_500,
+      outputTokens: 60,
+      cacheReadTokens: 1_400,
+      cacheWriteTokens: 0,
+    })
+    tally.countStep({
+      inputTokens: 2_100,
+      outputTokens: 20,
+      cacheReadTokens: 2_000,
+      cacheWriteTokens: 0,
+    })
     await tally.settle({ threadId: THREAD, runId: RUN, status: 'completed' })
 
     expect(ledger.recorded).toEqual([
@@ -83,7 +98,13 @@ describe('a turn tallied across its steps', () => {
   it('records whatever terminal status it was handed, including one it has never seen', async () => {
     const ledger = recordingLedger()
 
-    for (const status of ['completed', 'failed', 'interrupted', 'paused', 'a-status-invented-tomorrow']) {
+    for (const status of [
+      'completed',
+      'failed',
+      'interrupted',
+      'paused',
+      'a-status-invented-tomorrow',
+    ]) {
       const tally = openTurnSpend({ ledger, clock: overTenSeconds(), model: MODEL })
       tally.countStep({ inputTokens: 10, outputTokens: 1 })
       await tally.settle({ threadId: THREAD, runId: toRunId(`run-${status}`), status })

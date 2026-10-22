@@ -18,9 +18,21 @@ const scope = scopeFixture({
   ],
 })
 
-type Plain = { concern: number; impact: EQualityImpact | string; impactP?: number; focus?: string; focusP?: number }
+type Plain = {
+  concern: number
+  impact: EQualityImpact | string
+  impactP?: number
+  focus?: string
+  focusP?: number
+}
 
-function answersOf({ concern, impact, impactP = 1, focus = 'ev-1', focusP = 1 }: Plain): Record<string, DecisionAnswer> {
+function answersOf({
+  concern,
+  impact,
+  impactP = 1,
+  focus = 'ev-1',
+  focusP = 1,
+}: Plain): Record<string, DecisionAnswer> {
   return {
     currentConcern: { noul: concern },
     impact: { choice: impact, probabilities: { [impact]: impactP } },
@@ -28,17 +40,22 @@ function answersOf({ concern, impact, impactP = 1, focus = 'ev-1', focusP = 1 }:
   }
 }
 
-const run = (plain: Plain) => singleResponsibilityPolicy.interpret({ scope, answers: answersOf(plain) })
+const run = (plain: Plain) =>
+  singleResponsibilityPolicy.interpret({ scope, answers: answersOf(plain) })
 const transitionOf = (plain: Plain): EQualityTransition => run(plain).transition
 
-const { Introduced, Worsened, Improved, Resolved, Unchanged, NotApplicable, Uncertain } = EQualityImpact
+const { Introduced, Worsened, Improved, Resolved, Unchanged, NotApplicable, Uncertain } =
+  EQualityImpact
 const { None, Introduce, TrackDebt, Resolve } = EQualityTransition
 
 describe('single responsibility thresholds', () => {
   it('pins the provisional constants', () => {
-    expect([CONCERN_INTRODUCE_THRESHOLD, IMPACT_CONFIDENCE_THRESHOLD, FOCUS_CONFIDENCE_THRESHOLD, CONCERN_RESOLVE_THRESHOLD]).toEqual([
-      0.8, 0.8, 0.8, 0.2,
-    ])
+    expect([
+      CONCERN_INTRODUCE_THRESHOLD,
+      IMPACT_CONFIDENCE_THRESHOLD,
+      FOCUS_CONFIDENCE_THRESHOLD,
+      CONCERN_RESOLVE_THRESHOLD,
+    ]).toEqual([0.8, 0.8, 0.8, 0.2])
   })
 
   it('introduces when concern, impact and focus are all confident', () => {
@@ -104,25 +121,32 @@ describe('single responsibility thresholds', () => {
 
   it('never resolves or introduces between the bands', () => {
     for (const concern of [0.21, 0.5, 0.79]) {
-      for (const impact of [Introduced, Resolved, Unchanged]) expect(transitionOf({ concern, impact })).toBe(None)
+      for (const impact of [Introduced, Resolved, Unchanged])
+        expect(transitionOf({ concern, impact })).toBe(None)
     }
   })
 
   it('does not flip transitions while concern oscillates around 0.8', () => {
-    const transitions = [0.79, 0.8, 0.79, 0.8, 0.79].map((concern) => transitionOf({ concern, impact: Introduced }))
+    const transitions = [0.79, 0.8, 0.79, 0.8, 0.79].map((concern) =>
+      transitionOf({ concern, impact: Introduced }),
+    )
     expect(transitions).toEqual([None, Introduce, None, Introduce, None])
     expect(transitions.includes(Resolve)).toBe(false)
   })
 
   it('does not resolve while concern oscillates just above 0.2, and never introduces there', () => {
-    const transitions = [0.2, 0.21, 0.2, 0.21].map((concern) => transitionOf({ concern, impact: Unchanged }))
+    const transitions = [0.2, 0.21, 0.2, 0.21].map((concern) =>
+      transitionOf({ concern, impact: Unchanged }),
+    )
     expect(transitions).toEqual([Resolve, None, Resolve, None])
     expect(transitions.includes(Introduce)).toBe(false)
   })
 
   it('resolves an externally fixed concern through unchanged, then introduces again on reintroduction', () => {
     expect(transitionOf({ concern: 0.1, impact: Unchanged, impactP: 0.9 })).toBe(Resolve)
-    expect(transitionOf({ concern: 0.9, impact: Introduced, impactP: 0.9, focusP: 0.9 })).toBe(Introduce)
+    expect(transitionOf({ concern: 0.9, impact: Introduced, impactP: 0.9, focusP: 0.9 })).toBe(
+      Introduce,
+    )
   })
 
   it('lets raw model confidence participate when probabilities are absent', () => {
@@ -133,8 +157,10 @@ describe('single responsibility thresholds', () => {
     }
     expect(singleResponsibilityPolicy.interpret({ scope, answers }).transition).toBe(TrackDebt)
     expect(
-      singleResponsibilityPolicy.interpret({ scope, answers: { ...answers, impact: { choice: Introduced, confidence: 0.9 } } })
-        .transition,
+      singleResponsibilityPolicy.interpret({
+        scope,
+        answers: { ...answers, impact: { choice: Introduced, confidence: 0.9 } },
+      }).transition,
     ).toBe(Introduce)
   })
 
@@ -152,14 +178,16 @@ describe('single responsibility thresholds', () => {
       impact: { choice: Introduced, probabilities: { introduced: 0.9 } },
       focus: { choice: 'ev-1' },
     }
-    expect(singleResponsibilityPolicy.interpret({ scope, answers: bareFocus }).status).toBe(EQualityReviewStatus.Inconclusive)
+    expect(singleResponsibilityPolicy.interpret({ scope, answers: bareFocus }).status).toBe(
+      EQualityReviewStatus.Inconclusive,
+    )
     const emptyProbabilities = {
       ...bare,
       impact: { choice: Introduced, probabilities: {} },
     }
-    expect(singleResponsibilityPolicy.interpret({ scope, answers: emptyProbabilities }).status).toBe(
-      EQualityReviewStatus.Inconclusive,
-    )
+    expect(
+      singleResponsibilityPolicy.interpret({ scope, answers: emptyProbabilities }).status,
+    ).toBe(EQualityReviewStatus.Inconclusive)
   })
 
   it('reports an explicit uncertain impact as inconclusive, never as a clean review', () => {
@@ -173,7 +201,11 @@ describe('single responsibility thresholds', () => {
   it('records every raw answer, probability and confidence', () => {
     const answers: Record<string, DecisionAnswer> = {
       currentConcern: { noul: 0.91, confidence: 0.7 },
-      impact: { choice: Introduced, probabilities: { introduced: 0.9, worsened: 0.05, uncertain: 0.05 }, confidence: 0.88 },
+      impact: {
+        choice: Introduced,
+        probabilities: { introduced: 0.9, worsened: 0.05, uncertain: 0.05 },
+        confidence: 0.88,
+      },
       focus: { choice: 'ev-2', probabilities: { 'ev-2': 0.85, none: 0.1, uncertain: 0.05 } },
     }
     expect(singleResponsibilityPolicy.interpret({ scope, answers }).rawAnswers).toEqual(answers)
@@ -194,8 +226,14 @@ describe('single responsibility inconclusive handling', () => {
   it('never passes when an answer is missing', () => {
     const full = answersOf({ concern: 0.9, impact: Introduced })
     expectInconclusive({ impact: full.impact ?? {}, focus: full.focus ?? {} }, 'currentConcern')
-    expectInconclusive({ currentConcern: full.currentConcern ?? {}, focus: full.focus ?? {} }, 'impact')
-    expectInconclusive({ currentConcern: full.currentConcern ?? {}, impact: full.impact ?? {} }, 'focus')
+    expectInconclusive(
+      { currentConcern: full.currentConcern ?? {}, focus: full.focus ?? {} },
+      'impact',
+    )
+    expectInconclusive(
+      { currentConcern: full.currentConcern ?? {}, impact: full.impact ?? {} },
+      'focus',
+    )
     expectInconclusive({}, 'currentConcern')
   })
 
@@ -205,7 +243,10 @@ describe('single responsibility inconclusive handling', () => {
   })
 
   it('rejects out-of-range probabilities', () => {
-    expectInconclusive({ ...answersOf({ concern: 0.9, impact: Introduced }), currentConcern: { noul: 1.5 } }, 'currentConcern')
+    expectInconclusive(
+      { ...answersOf({ concern: 0.9, impact: Introduced }), currentConcern: { noul: 1.5 } },
+      'currentConcern',
+    )
     expectInconclusive(answersOf({ concern: 0.9, impact: Introduced, impactP: 2 }), 'impact')
   })
 

@@ -132,7 +132,8 @@ describe('the roster a parent rebuilds from its own log', () => {
     expect(roster[0]?.failureCause).toBeUndefined()
   })
 
-  it('leaves a blocked ending blocked: the approval it waits on is still in the child log', () => {    const roster = agentRoster({
+  it('leaves a blocked ending blocked: the approval it waits on is still in the child log', () => {
+    const roster = agentRoster({
       events: [rowOf(spawned()), rowOf(ended({ status: EAgentStatus.Blocked }))],
       threadId: PARENT,
     })

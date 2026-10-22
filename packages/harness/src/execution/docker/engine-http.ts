@@ -20,7 +20,8 @@ export const daemonMessageOf = (body: string): string | undefined => {
 }
 
 export const asRecord = (value: unknown): Record<string, unknown> => {
-  if (typeof value !== 'object' || value === null) throw new Error('the daemon answered out of shape')
+  if (typeof value !== 'object' || value === null)
+    throw new Error('the daemon answered out of shape')
   return value as Record<string, unknown>
 }
 
@@ -37,7 +38,9 @@ export const asNumber = (value: unknown): number => {
 export const asLabels = (value: unknown): Record<string, string> => {
   if (typeof value !== 'object' || value === null) return {}
   return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
   )
 }
 

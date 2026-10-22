@@ -13,32 +13,32 @@ describe('cleanReleaseBody', () => {
     ].join('\n')
 
     expect(cleanReleaseBody(body)).toBe(
-      '* fix(cloud): capture only the active worktree, not the whole worktree fleet'
+      '* fix(cloud): capture only the active worktree, not the whole worktree fleet',
     )
   })
 
   it('strips bot authors whose login carries a [bot] suffix', () => {
     expect(
       cleanReleaseBody(
-        '* chore(harness): regenerate model catalogue by @github-actions[bot] in https://github.com/owner/atlas/pull/976'
-      )
+        '* chore(harness): regenerate model catalogue by @github-actions[bot] in https://github.com/owner/atlas/pull/976',
+      ),
     ).toBe('* chore(harness): regenerate model catalogue')
   })
 
   it('strips the attribution tail whether it links a pull url or an issue number', () => {
     expect(
-      cleanReleaseBody('* feat(tui): show release notes on launch by @dennislysenko in #860')
+      cleanReleaseBody('* feat(tui): show release notes on launch by @dennislysenko in #860'),
     ).toBe('* feat(tui): show release notes on launch')
     expect(
       cleanReleaseBody(
-        '- fix(serve): reattach cloud thread pointer by @dennislysenko in https://github.com/dennisofficial/atlas/pull/858'
-      )
+        '- fix(serve): reattach cloud thread pointer by @dennislysenko in https://github.com/dennisofficial/atlas/pull/858',
+      ),
     ).toBe('- fix(serve): reattach cloud thread pointer')
   })
 
-  it('drops what\'s-changed headings at any depth', () => {
+  it("drops what's-changed headings at any depth", () => {
     expect(cleanReleaseBody("### What's Changed\n\n* fix(tui): a real fix")).toBe(
-      '* fix(tui): a real fix'
+      '* fix(tui): a real fix',
     )
   })
 
@@ -73,7 +73,7 @@ describe('cleanReleaseBody', () => {
     ].join('\n')
 
     expect(cleanReleaseBody(body)).toBe(
-      ['* feat(tui): first half', "* fix(tui): second half's details"].join('\n')
+      ['* feat(tui): first half', "* fix(tui): second half's details"].join('\n'),
     )
   })
 })

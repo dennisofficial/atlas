@@ -64,11 +64,7 @@ export function headerBarModel(args: {
   const label = compactPath({ path: args.location.label, cells: budget })
 
   return {
-    left: [
-      { text: place, fg: theme.accent },
-      { text: ' ' },
-      { text: label, fg: theme.accent },
-    ],
+    left: [{ text: place, fg: theme.accent }, { text: ' ' }, { text: label, fg: theme.accent }],
     right,
   }
 }

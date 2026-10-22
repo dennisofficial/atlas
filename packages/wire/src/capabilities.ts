@@ -27,14 +27,11 @@ export const capabilitiesSchema = z.array(capabilitySchema).readonly()
 
 export type CapabilitySet = ReadonlySet<ECapability>
 
-export const capabilitySetOf = (
-  advertised: readonly ECapability[] | undefined,
-): CapabilitySet => new Set(advertised ?? [])
+export const capabilitySetOf = (advertised: readonly ECapability[] | undefined): CapabilitySet =>
+  new Set(advertised ?? [])
 
-export const supports = (args: {
-  capabilities: CapabilitySet
-  capability: ECapability
-}): boolean => args.capabilities.has(args.capability)
+export const supports = (args: { capabilities: CapabilitySet; capability: ECapability }): boolean =>
+  args.capabilities.has(args.capability)
 
 /** The full set a current serve advertises — every capability this build implements. */
 export const SERVE_CAPABILITIES: readonly ECapability[] = [

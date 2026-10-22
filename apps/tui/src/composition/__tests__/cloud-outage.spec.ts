@@ -22,7 +22,10 @@ describe('a cloud outage is a degradation, not a crash', () => {
 
   it('reads a 401 as a dead session, not an outage', () => {
     const message = cloudOutageMessage(
-      new CloudError({ status: 401, message: 'The Atlas Cloud API answered GET /v1/accounts with 401.' }),
+      new CloudError({
+        status: 401,
+        message: 'The Atlas Cloud API answered GET /v1/accounts with 401.',
+      }),
     )
 
     expect(message).toContain('rejected the session')

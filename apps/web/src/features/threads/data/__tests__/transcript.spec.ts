@@ -20,7 +20,12 @@ import {
 const T0 = Date.parse('2026-10-21T10:00:00.000Z')
 const isoAt = (offsetMs: number) => new Date(T0 + offsetMs).toISOString()
 
-const wire = (args: { seq: number; type: string; body: unknown; offsetMs?: number }): WireEvent => ({
+const wire = (args: {
+  seq: number
+  type: string
+  body: unknown
+  offsetMs?: number
+}): WireEvent => ({
   id: `evt_${args.seq}`,
   threadId: 'thr_1',
   seq: args.seq,
@@ -31,7 +36,8 @@ const wire = (args: { seq: number; type: string; body: unknown; offsetMs?: numbe
   body: JSON.stringify(args.body),
 })
 
-const said = (seq: number, text: string) => wire({ seq, type: 'user-said', body: { type: 'user-said', text } })
+const said = (seq: number, text: string) =>
+  wire({ seq, type: 'user-said', body: { type: 'user-said', text } })
 const answered = (seq: number, parts: unknown[]) =>
   wire({ seq, type: 'assistant-said', body: { type: 'assistant-said', parts } })
 const boot = (seq: number, event: BootStepEvent) =>
@@ -117,12 +123,17 @@ describe('bootViewOf', () => {
   })
 
   it('reports done with elapsed between first and last boot event', () => {
-    const events = [EBootStep.Provision, EBootStep.Serve, EBootStep.Clone, EBootStep.Context, EBootStep.Settings, EBootStep.Agent].flatMap(
-      (step, index) => [
-        boot(index * 2 + 1, { step, state: EBootStepState.Running }),
-        boot(index * 2 + 2, { step, state: EBootStepState.Done }),
-      ],
-    )
+    const events = [
+      EBootStep.Provision,
+      EBootStep.Serve,
+      EBootStep.Clone,
+      EBootStep.Context,
+      EBootStep.Settings,
+      EBootStep.Agent,
+    ].flatMap((step, index) => [
+      boot(index * 2 + 1, { step, state: EBootStepState.Running }),
+      boot(index * 2 + 2, { step, state: EBootStepState.Done }),
+    ])
     const view = bootViewOf({ events, now: T0 + 999_000 })
     expect(view?.state).toBe(EBootStepState.Done)
     expect(view?.elapsedMs).toBe(11_000)
@@ -132,13 +143,20 @@ describe('bootViewOf', () => {
     const view = bootViewOf({
       events: [
         boot(1, { step: EBootStep.Provision, state: EBootStepState.Running }),
-        boot(2, { step: EBootStep.Provision, state: EBootStepState.Error, error: 'No Vercel credential' }),
+        boot(2, {
+          step: EBootStep.Provision,
+          state: EBootStepState.Error,
+          error: 'No Vercel credential',
+        }),
       ],
       now: T0 + 5000,
     })
     expect(view?.state).toBe(EBootStepState.Error)
     expect(view?.error).toBe('No Vercel credential')
-    expect(view?.steps[0]).toMatchObject({ state: EBootStepState.Error, detail: 'No Vercel credential' })
+    expect(view?.steps[0]).toMatchObject({
+      state: EBootStepState.Error,
+      detail: 'No Vercel credential',
+    })
     expect(view?.elapsedMs).toBeUndefined()
   })
 

@@ -1,9 +1,4 @@
-import {
-  EExecutionLocation,
-  toRunId,
-  toThreadId,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
   decodeClientFrame,
@@ -157,7 +152,11 @@ export async function seeded(
 
 type Probe = { conversation: Conversation | null; setPaceReveal: ((next: boolean) => void) | null }
 
-function Screen(props: { app: FakeApp; opened: OpenedConversation; probe: Probe }): React.ReactNode {
+function Screen(props: {
+  app: FakeApp
+  opened: OpenedConversation
+  probe: Probe
+}): React.ReactNode {
   const [paceReveal, setPaceReveal] = useState(false)
   props.probe.setPaceReveal = setPaceReveal
   const conversation = useConversation({
@@ -187,10 +186,10 @@ function Screen(props: { app: FakeApp; opened: OpenedConversation; probe: Probe 
 
 export async function mounted(args: { app: FakeApp; opened: OpenedConversation }) {
   const probe: Probe = { conversation: null, setPaceReveal: null }
-  const setup = await testRender(
-    <Screen app={args.app} opened={args.opened} probe={probe} />,
-    { width: WIDTH, height: HEIGHT },
-  )
+  const setup = await testRender(<Screen app={args.app} opened={args.opened} probe={probe} />, {
+    width: WIDTH,
+    height: HEIGHT,
+  })
   await setup.flush()
 
   const conversation = (): Conversation => {

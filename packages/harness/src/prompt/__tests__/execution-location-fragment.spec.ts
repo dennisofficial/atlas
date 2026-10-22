@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { EExecutionLocation, promptContextFor, EPromptAgent, type ProviderIdentity, type PromptModel } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  promptContextFor,
+  EPromptAgent,
+  type ProviderIdentity,
+  type PromptModel,
+} from '@dltech/atlas-core'
 
 import { ExecutionLocationFragment } from '../fragments/environment'
 

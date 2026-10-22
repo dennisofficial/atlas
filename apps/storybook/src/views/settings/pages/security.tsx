@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react'
 
 import {
   AlertDialog,
@@ -10,18 +10,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@dltech/atlas-ui/components/alert-dialog";
-import { Button } from "@dltech/atlas-ui/components/button";
+} from '@dltech/atlas-ui/components/alert-dialog'
+import { Button } from '@dltech/atlas-ui/components/button'
 
-import { SIGNED_IN_DEVICES } from "../../../fixtures/settings-security";
-import { DeviceRow } from "../parts/security-device-row";
-import { SettingsCard, SettingsPage, SettingsSection } from "../settings-layout";
+import { SIGNED_IN_DEVICES } from '../../../fixtures/settings-security'
+import { DeviceRow } from '../parts/security-device-row'
+import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 export function SecurityPage() {
-  const [devices, setDevices] = useState(SIGNED_IN_DEVICES);
+  const [devices, setDevices] = useState(SIGNED_IN_DEVICES)
 
-  const handleRevoke = (id: string) => setDevices((all) => all.filter((device) => device.id !== id));
-  const handleRevokeOthers = () => setDevices((all) => all.filter((device) => device.current));
+  const handleRevoke = (id: string) => setDevices((all) => all.filter((device) => device.id !== id))
+  const handleRevokeOthers = () => setDevices((all) => all.filter((device) => device.current))
 
   return (
     <SettingsPage
@@ -36,8 +36,8 @@ export function SecurityPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Sign out of all other devices?</AlertDialogTitle>
               <AlertDialogDescription>
-                Every browser, CLI, TUI, and sandbox session except this one is revoked. Each will need
-                to sign in again.
+                Every browser, CLI, TUI, and sandbox session except this one is revoked. Each will
+                need to sign in again.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -61,5 +61,5 @@ export function SecurityPage() {
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
-  );
+  )
 }

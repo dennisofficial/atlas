@@ -23,7 +23,11 @@ import { selectableModel, type SelectableModel } from '../../../composition/mode
 import { HookChain } from '../../../hooks/registry'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { createTempHome } from '../../../loop/__tests__/temp-home'
-import { providerPartsFor, scriptedModel, type ScriptedStep } from '../../../model/testing/scripted-model'
+import {
+  providerPartsFor,
+  scriptedModel,
+  type ScriptedStep,
+} from '../../../model/testing/scripted-model'
 import type { ProviderAdapter } from '../../../providers/adapter'
 import { MemorySettingsStore } from '../../../settings/memory-store'
 import { createSettingsService } from '../../../settings/service'
@@ -213,7 +217,8 @@ export async function openLifetimeSupervisor(args: {
     ids: harness.ids,
     ledger: harness.ledger,
     home: harness.home,
-    retarget: ({ threadId, model }) => harness.threads.chooseModel({ threadId, model, retarget: true }),
+    retarget: ({ threadId, model }) =>
+      harness.threads.chooseModel({ threadId, model, retarget: true }),
     savedModel: async (threadId) => (await harness.threads.find({ threadId }))?.model,
     close: async () => {
       await harness.close()

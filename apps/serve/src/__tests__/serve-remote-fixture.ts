@@ -67,12 +67,14 @@ export const until = async (args: { what: string; condition: () => boolean }): P
   throw new Error(`waited too long for ${args.what}`)
 }
 
-export const startServing = async (args: {
-  holdStep?: ((step: number) => Promise<void> | undefined) | undefined
-  holdPolicy?: Promise<void> | undefined
-  runTurn?: RunTurn | undefined
-  family?: { pauseChildren: () => Promise<void> } | undefined
-} = {}) => {
+export const startServing = async (
+  args: {
+    holdStep?: ((step: number) => Promise<void> | undefined) | undefined
+    holdPolicy?: Promise<void> | undefined
+    runTurn?: RunTurn | undefined
+    family?: { pauseChildren: () => Promise<void> } | undefined
+  } = {},
+) => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-remote-home-'))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
@@ -184,7 +186,9 @@ export const attach = async (args: {
     retries,
     drop: () => current?.close(),
     workingNow: () =>
-      channel.snapshot({ threadId }).some((signal) => signal.type === 'turn-working' && signal.working),
+      channel
+        .snapshot({ threadId })
+        .some((signal) => signal.type === 'turn-working' && signal.working),
     readyInFlight: () => {
       const ready = frames.find((frame) => frame.kind === EServeFrame.Ready)
       return ready?.kind === EServeFrame.Ready ? ready.turnInFlight : undefined

@@ -99,7 +99,9 @@ export function saveBodyOf({
   includeWorkspace: boolean
 }): SaveProjectBody {
   const branchOf = new Map(project.additionalRepos.map((entry) => [entry.repo, entry.branch]))
-  const repos = draft.additionalRepositories.map((repo) => repo.trim()).filter((repo) => repo !== '')
+  const repos = draft.additionalRepositories
+    .map((repo) => repo.trim())
+    .filter((repo) => repo !== '')
   const body: SaveProjectBody = {
     name: draft.name.trim(),
     repo: project.repo,
@@ -112,7 +114,9 @@ export function saveBodyOf({
     shipBehavior: draft.shipBehavior,
   }
   const workspaceChanged = draft.organizationId !== project.organizationId
-  return includeWorkspace && workspaceChanged ? { ...body, organizationId: draft.organizationId } : body
+  return includeWorkspace && workspaceChanged
+    ? { ...body, organizationId: draft.organizationId }
+    : body
 }
 
 export const draftsEqual = ({ left, right }: { left: OverviewDraft; right: OverviewDraft }) =>

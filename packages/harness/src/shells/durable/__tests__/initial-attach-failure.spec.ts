@@ -19,7 +19,11 @@ for (const throws of [false, true]) {
         killGraceMs: 100,
         transport: async () => {
           if (throws) throw new Error('the router lost its connection')
-          return { ok: false, code: EControlError.Unreachable, message: 'the router is temporarily unreachable' }
+          return {
+            ok: false,
+            code: EControlError.Unreachable,
+            message: 'the router is temporarily unreachable',
+          }
         },
       })
       expect(launched.ok).toBe(false)

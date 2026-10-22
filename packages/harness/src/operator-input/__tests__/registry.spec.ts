@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { EOperatorInputOutcome, toThreadId, type EventDraft, type EventLogPort } from '@dltech/atlas-core'
+import {
+  EOperatorInputOutcome,
+  toThreadId,
+  type EventDraft,
+  type EventLogPort,
+} from '@dltech/atlas-core'
 
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { RandomIds } from '../../store/ids'
@@ -10,24 +15,42 @@ import { InProcessOperatorInput, OPERATOR_INPUT_CANCELLED } from '../registry'
 const THREAD = toThreadId('thread-operator-input')
 const VALUE = '  first\n第二行\n  '
 const request = (overrides: Partial<OperatorInputRequestArgs> = {}): OperatorInputRequestArgs => ({
-  threadId: THREAD, requestId: 'req-1', description: 'paste the code', path: '/tmp/code',
-  cwd: '/tmp', appendNewline: false, signal: new AbortController().signal, ...overrides,
+  threadId: THREAD,
+  requestId: 'req-1',
+  description: 'paste the code',
+  path: '/tmp/code',
+  cwd: '/tmp',
+  appendNewline: false,
+  signal: new AbortController().signal,
+  ...overrides,
 })
 
-function fixture(deliver?: (args: DeliverOperatorInputArgs) => Promise<OperatorInputAnswerOutcome>) {
+function fixture(
+  deliver?: (args: DeliverOperatorInputArgs) => Promise<OperatorInputAnswerOutcome>,
+) {
   const drafts: EventDraft[] = []
   const sent: DeliverOperatorInputArgs[] = []
   const log: EventLogPort = {
-    append: async (args) => { drafts.push(...args.drafts); return [] },
-    read: async () => [], readOwn: async () => [], head: async () => 0,
-    refresh: async () => undefined, replace: async () => [],
+    append: async (args) => {
+      drafts.push(...args.drafts)
+      return []
+    },
+    read: async () => [],
+    readOwn: async () => [],
+    head: async () => 0,
+    refresh: async () => undefined,
+    replace: async () => [],
   }
   const channel = createDeltaChannel()
   const registry = new InProcessOperatorInput({
-    log, ids: new RandomIds(), channel: () => channel,
+    log,
+    ids: new RandomIds(),
+    channel: () => channel,
     deliver: async (args) => {
       sent.push(args)
-      return deliver === undefined ? { ok: true, bytes: Buffer.byteLength(args.value) } : await deliver(args)
+      return deliver === undefined
+        ? { ok: true, bytes: Buffer.byteLength(args.value) }
+        : await deliver(args)
     },
   })
   return { registry, channel, log, sent, drafts }
@@ -44,13 +67,18 @@ describe('operator input lifecycle', () => {
     expect(registry.pending({ threadId: THREAD })).toBeNull()
     expect(channel.snapshot({ threadId: THREAD })).toEqual([])
     expect(drafts).toHaveLength(2)
-    expect(drafts[1]).toMatchObject({ type: 'operator-input-resolved', outcome: EOperatorInputOutcome.Delivered })
+    expect(drafts[1]).toMatchObject({
+      type: 'operator-input-resolved',
+      outcome: EOperatorInputOutcome.Delivered,
+    })
     expect(JSON.stringify(drafts)).not.toContain('第二行')
   })
 
   it('does not acknowledge delivery until the writer completes', async () => {
     let finish: ((value: OperatorInputAnswerOutcome) => void) | undefined
-    const writing = new Promise<OperatorInputAnswerOutcome>((resolve) => { finish = resolve })
+    const writing = new Promise<OperatorInputAnswerOutcome>((resolve) => {
+      finish = resolve
+    })
     const { registry } = fixture(() => writing)
     const waiting = registry.request(request())
     const answered = registry.answer({ requestId: 'req-1', value: VALUE })
@@ -76,7 +104,10 @@ describe('operator input lifecycle', () => {
     const { registry, sent } = fixture()
     const waiting = registry.request(request())
     expect((await registry.request(request({ requestId: 'req-2' }))).ok).toBe(false)
-    expect((await registry.answer({ requestId: 'req-1', value: VALUE, threadId: toThreadId('foreign') })).ok).toBe(false)
+    expect(
+      (await registry.answer({ requestId: 'req-1', value: VALUE, threadId: toThreadId('foreign') }))
+        .ok,
+    ).toBe(false)
     const first = registry.answer({ requestId: 'req-1', value: VALUE })
     const duplicate = registry.answer({ requestId: 'req-1', value: VALUE })
     expect((await first).ok).toBe(true)
@@ -99,15 +130,22 @@ describe('operator input lifecycle', () => {
   it('does not let a deferred abort settle underneath a writer started while publication was pending', async () => {
     let releaseAppend: (() => void) | undefined
     let releaseDelivery: (() => void) | undefined
-    const appending = new Promise<void>((resolve) => { releaseAppend = resolve })
-    const delivering = new Promise<void>((resolve) => { releaseDelivery = resolve })
+    const appending = new Promise<void>((resolve) => {
+      releaseAppend = resolve
+    })
+    const delivering = new Promise<void>((resolve) => {
+      releaseDelivery = resolve
+    })
     const { registry, log } = fixture(async () => {
       await delivering
       return { ok: false, reason: OPERATOR_INPUT_CANCELLED }
     })
     let firstAppend = true
     log.append = async () => {
-      if (firstAppend) { firstAppend = false; await appending }
+      if (firstAppend) {
+        firstAppend = false
+        await appending
+      }
       return []
     }
     const controller = new AbortController()
@@ -127,14 +165,19 @@ describe('operator input lifecycle', () => {
   it('records actual delivery failure and settles the tool without claiming success', async () => {
     const { registry, drafts } = fixture(async () => ({ ok: false, reason: 'no reader' }))
     const waiting = registry.request(request())
-    expect(await registry.answer({ requestId: 'req-1', value: VALUE })).toEqual({ ok: false, reason: 'no reader' })
+    expect(await registry.answer({ requestId: 'req-1', value: VALUE })).toEqual({
+      ok: false,
+      reason: 'no reader',
+    })
     expect(await waiting).toEqual({ ok: false, reason: 'no reader' })
     expect(drafts.at(-1)).toMatchObject({ outcome: EOperatorInputOutcome.Undelivered })
   })
 
   it('settles rather than hanging when recording the request fails', async () => {
     const { registry, log } = fixture()
-    log.append = async () => { throw new Error('disk full') }
+    log.append = async () => {
+      throw new Error('disk full')
+    }
     expect(await registry.request(request())).toMatchObject({ ok: false })
     expect(registry.pending({ threadId: THREAD })).toBeNull()
   })
@@ -145,7 +188,10 @@ describe('operator input lifecycle', () => {
     await Promise.resolve()
     const seen: unknown[] = []
     const off = channel.subscribe({ threadId: THREAD, listener: (signal) => seen.push(signal) })
-    expect(seen).toContainEqual({ type: 'operator-input', request: registry.pending({ threadId: THREAD }) })
+    expect(seen).toContainEqual({
+      type: 'operator-input',
+      request: registry.pending({ threadId: THREAD }),
+    })
     off()
     await registry.answer({ requestId: 'req-1', value: VALUE })
     await waiting

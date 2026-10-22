@@ -1,9 +1,5 @@
 import { createHash } from 'node:crypto'
-import {
-  BadRequestException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, mock, vi } from 'bun:test'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
@@ -77,9 +73,11 @@ const cipher = new SecretCipherService({
 } as unknown as EnvService)
 
 const stubClient = () => ({
-  inspect: vi.fn(async (): Promise<{ state: ESandboxState; url?: string }> => ({
-    state: ESandboxState.Parked,
-  })),
+  inspect: vi.fn(
+    async (): Promise<{ state: ESandboxState; url?: string }> => ({
+      state: ESandboxState.Parked,
+    }),
+  ),
   stop: vi.fn(async () => undefined),
   notifyParked: vi.fn(async () => undefined),
 })
@@ -92,10 +90,7 @@ describe('SandboxesService', () => {
     fake.reset()
     fake.threads.push(threadRow({ id: THREAD }))
     client = stubClient()
-    service = new SandboxesService(
-      client as unknown as VercelSandboxClient,
-      cipher,
-    )
+    service = new SandboxesService(client as unknown as VercelSandboxClient, cipher)
   })
 
   it('claims a row and mints a session token, without touching Vercel', async () => {
@@ -336,7 +331,12 @@ describe('SandboxesService', () => {
 
     it('rejects a token that is not 32 bytes hex-encoded', async () => {
       await expect(
-        service.claim({ userId: USER_A, threadId: THREAD, clientToken: 'tok_short', serveUrl: SERVE_URL }),
+        service.claim({
+          userId: USER_A,
+          threadId: THREAD,
+          clientToken: 'tok_short',
+          serveUrl: SERVE_URL,
+        }),
       ).rejects.toBeInstanceOf(BadRequestException)
       expect(fake.cloudSandboxes).toHaveLength(0)
     })

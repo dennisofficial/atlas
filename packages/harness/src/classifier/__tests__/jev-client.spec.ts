@@ -38,11 +38,15 @@ describe('JevDecisionClient', () => {
 
     expect(outcome.ok).toBe(true)
     if (outcome.ok) expect(outcome.answers['danger']?.noul).toBe(0.1)
-    const request = seen?.request as { model: string; state: string; questions: Record<string, { type: string }> }
+    const request = seen?.request as {
+      model: string
+      state: string
+      questions: Record<string, { type: string }>
+    }
     expect(request.model).toBe('jev-latest')
     expect(request.state).toBe('the call about to run')
     expect(request.questions['danger']?.type).toBe('noul')
-    expect((seen?.options as { signal: AbortSignal }).signal).toBeInstanceOf(AbortSignal)
+    expect((seen!.options as { signal: AbortSignal }).signal).toBeInstanceOf(AbortSignal)
   })
 
   it('fails closed-shape when the SDK rejects (a non-2xx after retries)', async () => {
@@ -134,7 +138,9 @@ describe('JevDecisionClient model and confidence', () => {
   })
 
   it('prefers the per-call model over the deps model', async () => {
-    expect(await requestedModel({ deps: { model: 'jev-deps' }, model: 'jev-call' })).toBe('jev-call')
+    expect(await requestedModel({ deps: { model: 'jev-deps' }, model: 'jev-call' })).toBe(
+      'jev-call',
+    )
   })
 
   it('returns the resolved model and per-answer confidence from the response', async () => {
@@ -188,6 +194,8 @@ describe('jevBaseUrl', () => {
     expect(jevBaseUrl('https://api.typesafe.ai')).toBe('https://api.typesafe.ai')
     expect(jevBaseUrl('http://localhost:4000')).toBe('http://localhost:4000')
     expect(jevBaseUrl('https://gateway.example/jev')).toBe('https://gateway.example/jev')
-    expect(jevBaseUrl('https://gateway.example/jev/v1/systemone')).toBe('https://gateway.example/jev')
+    expect(jevBaseUrl('https://gateway.example/jev/v1/systemone')).toBe(
+      'https://gateway.example/jev',
+    )
   })
 })

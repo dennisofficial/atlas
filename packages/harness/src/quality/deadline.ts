@@ -27,7 +27,9 @@ export type QualityReviewSettlement<T> =
 export const deadlineErrorOf = (signal: AbortSignal): QualityDeadlineError | undefined =>
   signal.reason instanceof QualityDeadlineError ? signal.reason : undefined
 
-const abortResultOf = (signal: AbortSignal): { kind: 'deadline'; error: QualityDeadlineError } | { kind: 'aborted' } => {
+const abortResultOf = (
+  signal: AbortSignal,
+): { kind: 'deadline'; error: QualityDeadlineError } | { kind: 'aborted' } => {
   const error = deadlineErrorOf(signal)
   return error === undefined ? { kind: 'aborted' } : { kind: 'deadline', error }
 }
@@ -124,10 +126,19 @@ export function settleReview<T>({
     Promise.resolve()
       .then(() => work(signal))
       .then(
-        (value) => settle({ kind: 'completed', value, afterDeadline: deadlineErrorOf(signal) !== undefined }),
+        (value) =>
+          settle({
+            kind: 'completed',
+            value,
+            afterDeadline: deadlineErrorOf(signal) !== undefined,
+          }),
         (error: unknown) => {
           const deadline = deadlineErrorOf(signal)
-          settle(deadline === undefined ? { kind: 'failed', error } : { kind: 'deadline', error: deadline })
+          settle(
+            deadline === undefined
+              ? { kind: 'failed', error }
+              : { kind: 'deadline', error: deadline },
+          )
         },
       )
   })

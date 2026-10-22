@@ -43,7 +43,10 @@ const FAILED_CONCLUSIONS = new Set([
   'startup_failure',
 ])
 
-function tallyCheckRun(tally: { running: number; passed: number; failed: number }, run: RestCheckRun): void {
+function tallyCheckRun(
+  tally: { running: number; passed: number; failed: number },
+  run: RestCheckRun,
+): void {
   if (run.status !== 'completed' || RUNNING_CONCLUSIONS.has(run.status)) {
     tally.running += 1
     return

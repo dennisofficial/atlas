@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Bubble, BubbleContent } from "@dltech/atlas-ui/components/bubble";
-import { Message, MessageContent } from "@dltech/atlas-ui/components/message";
+import { Bubble, BubbleContent } from '@dltech/atlas-ui/components/bubble'
+import { Message, MessageContent } from '@dltech/atlas-ui/components/message'
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -9,22 +9,25 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
-} from "@dltech/atlas-ui/components/message-scroller";
+} from '@dltech/atlas-ui/components/message-scroller'
 
 const meta = {
-  title: "Components/Message Scroller",
+  title: 'Components/Message Scroller',
   component: MessageScroller,
-} satisfies Meta<typeof MessageScroller>;
+} satisfies Meta<typeof MessageScroller>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 const turns = Array.from({ length: 24 }, (_, index) => ({
   id: index,
   mine: index % 2 === 0,
-  text: index % 2 === 0 ? `Request ${index / 2 + 1}: update the tests` : `Reply ${(index + 1) / 2}: edited 2 files, tests pass`,
-}));
+  text:
+    index % 2 === 0
+      ? `Request ${index / 2 + 1}: update the tests`
+      : `Reply ${(index + 1) / 2}: edited 2 files, tests pass`,
+}))
 
 export const Default: Story = {
   render: () => (
@@ -34,9 +37,12 @@ export const Default: Story = {
           <MessageScrollerContent className="p-4">
             {turns.map((turn, index) => (
               <MessageScrollerItem key={turn.id} scrollAnchor={index === turns.length - 1}>
-                <Message align={turn.mine ? "end" : "start"}>
+                <Message align={turn.mine ? 'end' : 'start'}>
                   <MessageContent>
-                    <Bubble variant={turn.mine ? "default" : "muted"} align={turn.mine ? "end" : "start"}>
+                    <Bubble
+                      variant={turn.mine ? 'default' : 'muted'}
+                      align={turn.mine ? 'end' : 'start'}
+                    >
                       <BubbleContent>{turn.text}</BubbleContent>
                     </Bubble>
                   </MessageContent>
@@ -49,4 +55,4 @@ export const Default: Story = {
       </MessageScroller>
     </MessageScrollerProvider>
   ),
-};
+}

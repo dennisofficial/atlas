@@ -93,10 +93,7 @@ export function RewindConfirm(props: {
         ))}
       </box>
       {props.state.reachable ? null : (
-        <Line
-          spans={[{ text: UNREACHABLE_NOTE, fg: theme.warn }]}
-          cells={cells}
-        />
+        <Line spans={[{ text: UNREACHABLE_NOTE, fg: theme.warn }]} cells={cells} />
       )}
       <box height={1} flexShrink={0} />
       <Line spans={[{ text: CONFIRM_LABEL, fg: theme.warn }]} cells={cells} region={confirm} />

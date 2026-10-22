@@ -1,11 +1,10 @@
-import { primitives } from "./primitives";
+import { primitives } from './primitives'
 
-const { warm, clay, blue, red, amber, green, violet, wash, diff } =
-  primitives.color;
+const { warm, clay, blue, red, amber, green, violet, wash, diff } = primitives.color
 
 export enum EColorScheme {
-  Dark = "dark",
-  Light = "light",
+  Dark = 'dark',
+  Light = 'light',
 }
 
 const dark = {
@@ -69,29 +68,29 @@ const dark = {
 
   scrollbarThumb: warm[800],
   scrollbarThumbHover: warm[700],
-} as const;
+} as const
 
-export type SemanticTheme = { [K in keyof typeof dark]: string };
-export type SemanticToken = keyof SemanticTheme;
+export type SemanticTheme = { [K in keyof typeof dark]: string }
+export type SemanticToken = keyof SemanticTheme
 
 const light: SemanticTheme = {
-  background: "#f5f1ec",
-  foreground: "#2a2522",
-  card: "#fbf9f6",
-  cardForeground: "#2a2522",
-  popover: "#fdfcfa",
-  popoverForeground: "#2a2522",
+  background: '#f5f1ec',
+  foreground: '#2a2522',
+  card: '#fbf9f6',
+  cardForeground: '#2a2522',
+  popover: '#fdfcfa',
+  popoverForeground: '#2a2522',
   primary: clay[700],
-  primaryForeground: "#fdfcfa",
-  secondary: "#ece6df",
-  secondaryForeground: "#2a2522",
-  muted: "#eae3db",
+  primaryForeground: '#fdfcfa',
+  secondary: '#ece6df',
+  secondaryForeground: '#2a2522',
+  muted: '#eae3db',
   mutedForeground: warm[600],
-  accent: "#e4dcd2",
-  accentForeground: "#2a2522",
+  accent: '#e4dcd2',
+  accentForeground: '#2a2522',
   destructive: red[700],
-  border: "#ddd4ca",
-  input: "#ddd4ca",
+  border: '#ddd4ca',
+  input: '#ddd4ca',
   ring: clay[700],
 
   chart1: clay[700],
@@ -100,19 +99,19 @@ const light: SemanticTheme = {
   chart4: amber[600],
   chart5: violet[600],
 
-  sidebar: "#fbf9f6",
-  sidebarForeground: "#2a2522",
+  sidebar: '#fbf9f6',
+  sidebarForeground: '#2a2522',
   sidebarPrimary: clay[700],
-  sidebarPrimaryForeground: "#fdfcfa",
-  sidebarAccent: "#e4dcd2",
-  sidebarAccentForeground: "#2a2522",
-  sidebarBorder: "#ddd4ca",
+  sidebarPrimaryForeground: '#fdfcfa',
+  sidebarAccent: '#e4dcd2',
+  sidebarAccentForeground: '#2a2522',
+  sidebarBorder: '#ddd4ca',
   sidebarRing: clay[700],
 
   success: green[600],
-  successForeground: "#fdfcfa",
+  successForeground: '#fdfcfa',
   warning: amber[600],
-  warningForeground: "#fdfcfa",
+  warningForeground: '#fdfcfa',
 
   code: blue[700],
   link: blue[700],
@@ -133,11 +132,11 @@ const light: SemanticTheme = {
   syntaxConstant: amber[700],
   syntaxPunctuation: warm[500],
 
-  scrollbarThumb: "#ddd4ca",
+  scrollbarThumb: '#ddd4ca',
   scrollbarThumbHover: warm[400],
-};
+}
 
 export const semantic: Record<EColorScheme, SemanticTheme> = {
   [EColorScheme.Dark]: dark,
   [EColorScheme.Light]: light,
-};
+}

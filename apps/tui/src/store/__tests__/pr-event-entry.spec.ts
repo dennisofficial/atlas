@@ -55,9 +55,7 @@ describe('a pr-event in the transcript', () => {
   })
 
   it('clips a long first line rather than spilling it onto the row', () => {
-    const entry = onlyPrEntry(
-      log([prEvent({ authorLogin: 'dennis', body: 'x'.repeat(300) })]),
-    )
+    const entry = onlyPrEntry(log([prEvent({ authorLogin: 'dennis', body: 'x'.repeat(300) })]))
 
     expect(entry.text.startsWith('PR #42: dennis commented — ')).toBe(true)
     expect(entry.text.endsWith('…')).toBe(true)
@@ -141,9 +139,9 @@ describe('a pr-event in the transcript', () => {
   })
 
   it('renders mergeability both ways', () => {
-    expect(onlyPrEntry(log([prEvent({ kind: EPrEventKind.Mergeability, mergeable: true })])).text).toBe(
-      'PR #42: mergeable',
-    )
+    expect(
+      onlyPrEntry(log([prEvent({ kind: EPrEventKind.Mergeability, mergeable: true })])).text,
+    ).toBe('PR #42: mergeable')
 
     const conflicted = onlyPrEntry(
       log([prEvent({ kind: EPrEventKind.Mergeability, mergeable: false })]),

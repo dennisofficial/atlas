@@ -9,7 +9,10 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { activateTransferredChildren, adoptTransferredChildren } from '../adopt-transferred-children'
+import {
+  activateTransferredChildren,
+  adoptTransferredChildren,
+} from '../adopt-transferred-children'
 import { AgentSupervisor } from '../supervisor'
 import { finished, type OpenedSupervisor } from './fixtures'
 import { append, endingFor, openChild, openFamily, snapshotOf } from './transferred-fixture'
@@ -50,7 +53,10 @@ describe('the directory a transferred child resumes in', () => {
       { type: 'worktree-entered', path: WORKTREE, branch: 'feature-a' },
       ...midTool,
     ])
-    await append(entry, inSubdirectory, [{ type: 'directory-changed', path: SUBDIRECTORY }, ...midTool])
+    await append(entry, inSubdirectory, [
+      { type: 'directory-changed', path: SUBDIRECTORY },
+      ...midTool,
+    ])
     await append(entry, untouched, midTool)
     await entry.supervisor.hydrate({ threadId: entry.parent })
 
@@ -89,7 +95,13 @@ describe('the directory a transferred child resumes in', () => {
       agent: { spawnedBy: entry.parent, type: 'explore' },
     })
     await append(entry, entry.parent, [
-      { type: 'agent-spawned', agentId: id, agentType: 'explore', intent: 'a look', mode: EAgentStart.Fresh },
+      {
+        type: 'agent-spawned',
+        agentId: id,
+        agentType: 'explore',
+        intent: 'a look',
+        mode: EAgentStart.Fresh,
+      },
     ])
     await append(entry, id, midTool)
 
@@ -190,7 +202,9 @@ describe('a local child the incoming family no longer names', () => {
     const unrelated = await spawn(other)
     entry.runners.started.find((run) => run.threadId === stale)?.settle(finished())
     entry.runners.started.find((run) => run.threadId === unrelated)?.settle(finished())
-    await Promise.all([entry.parent, other].map((threadId) => entry.supervisor.whenChildrenSettled({ threadId })))
+    await Promise.all(
+      [entry.parent, other].map((threadId) => entry.supervisor.whenChildrenSettled({ threadId })),
+    )
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
     expect(entry.supervisor.pendingNotices({ threadId: other })).toHaveLength(1)
     const running = await spawn(entry.parent)
@@ -198,7 +212,13 @@ describe('a local child the incoming family no longer names', () => {
       threadId: entry.parent,
       runId: entry.harness.ids.nextRunId(),
       drafts: [
-        { type: 'agent-spawned', agentId: running, agentType: 'explore', intent: 'a look', mode: EAgentStart.Fresh },
+        {
+          type: 'agent-spawned',
+          agentId: running,
+          agentType: 'explore',
+          intent: 'a look',
+          mode: EAgentStart.Fresh,
+        },
         endingFor({ agentId: running, status: EAgentStatus.Finished }),
       ],
     })

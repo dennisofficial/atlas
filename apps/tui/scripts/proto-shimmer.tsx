@@ -9,7 +9,14 @@
  * Headless:     NODE_ENV=production bun apps/tui/scripts/proto-shimmer.tsx --bench
  *   Mounts each variant behind six diff panels, idles four seconds, prints a table.
  */
-import { createCliRenderer, StyledText, TextNodeRenderable, TextRenderable, type TextChunk, RGBA } from '@opentui/core'
+import {
+  createCliRenderer,
+  StyledText,
+  TextNodeRenderable,
+  TextRenderable,
+  type TextChunk,
+  RGBA,
+} from '@opentui/core'
 import { createTestRenderer } from '@opentui/core/testing'
 import { createRoot, useKeyboard, useRenderer } from '@opentui/react'
 import React, { useEffect, useRef, useState } from 'react'
@@ -61,7 +68,11 @@ function shimmerChunks(args: { now: number; base: string | undefined }): TextChu
   const crest = shimmerCrest({ nowMs: args.now, cells, spec: WORKING_SHIMMER })
   const base = args.base ?? theme.accent
   const chunks: TextChunk[] = [
-    { __isChunk: true, text: spinnerFrame(args.now), fg: rgbaOf(mixed(base, SHIMMER_CREST, beaconHeat({ crest, spec: WORKING_SHIMMER }))) },
+    {
+      __isChunk: true,
+      text: spinnerFrame(args.now),
+      fg: rgbaOf(mixed(base, SHIMMER_CREST, beaconHeat({ crest, spec: WORKING_SHIMMER }))),
+    },
     { __isChunk: true, text: ' ' },
   ]
   let lastFg: RGBA | undefined
@@ -78,7 +89,10 @@ function shimmerChunks(args: { now: number; base: string | undefined }): TextChu
     lastFg = fg
     text = character
   }
-  if (text.length > 0) chunks.push(lastFg === undefined ? { __isChunk: true, text } : { __isChunk: true, text, fg: lastFg })
+  if (text.length > 0)
+    chunks.push(
+      lastFg === undefined ? { __isChunk: true, text } : { __isChunk: true, text, fg: lastFg },
+    )
   return chunks
 }
 
@@ -86,7 +100,10 @@ function cycleFrames(args: { cadence: Cadence; base?: string }): StyledText[] {
   const cells = [...LABEL].length + 2
   const cycle = shimmerCycleMs({ cells, spec: WORKING_SHIMMER })
   const count = Math.max(1, Math.round(cycle / args.cadence))
-  return Array.from({ length: count }, (_u, i) => new StyledText(shimmerChunks({ now: i * args.cadence, base: args.base })))
+  return Array.from(
+    { length: count },
+    (_u, i) => new StyledText(shimmerChunks({ now: i * args.cadence, base: args.base })),
+  )
 }
 
 // --- variant: react-spans (the current implementation, verbatim shape) ---
@@ -100,7 +117,13 @@ function ReactSpansLine(props: { cadence: Cadence }): React.ReactNode {
   const crest = shimmerCrest({ nowMs: now, cells, spec: WORKING_SHIMMER })
   return (
     <text>
-      <span fg={mixHex({ from: theme.accent, to: SHIMMER_CREST, amount: beaconHeat({ crest, spec: WORKING_SHIMMER }) })}>
+      <span
+        fg={mixHex({
+          from: theme.accent,
+          to: SHIMMER_CREST,
+          amount: beaconHeat({ crest, spec: WORKING_SHIMMER }),
+        })}
+      >
         {spinnerFrame(now)}
       </span>
       <span> </span>
@@ -125,8 +148,13 @@ function imperativeTick(ref: TextRef, now: number, base: string | undefined): vo
 
 function ImperativeLine(props: { cadence: Cadence }): React.ReactNode {
   const ref = useRef<TextRenderable>(null)
-  useEffect(() => ticker(props.cadence, (now) => imperativeTick(ref, now, undefined)), [props.cadence])
-  return <text ref={ref} content={new StyledText(shimmerChunks({ now: Date.now(), base: undefined }))} />
+  useEffect(
+    () => ticker(props.cadence, (now) => imperativeTick(ref, now, undefined)),
+    [props.cadence],
+  )
+  return (
+    <text ref={ref} content={new StyledText(shimmerChunks({ now: Date.now(), base: undefined }))} />
+  )
 }
 
 // --- variant: precomputed frames (one array index per tick) ---
@@ -183,7 +211,11 @@ function PulseLine(props: { cadence: Cadence }): React.ReactNode {
         if (node === null) return
         const phase = Math.floor(now / 500) % PULSE.length
         node.content = new StyledText([
-          { __isChunk: true, text: `${spinnerFrame(now)} ${LABEL}`, fg: rgbaOf(PULSE[phase] ?? theme.accent) },
+          {
+            __isChunk: true,
+            text: `${spinnerFrame(now)} ${LABEL}`,
+            fg: rgbaOf(PULSE[phase] ?? theme.accent),
+          },
         ])
       }),
     [props.cadence],
@@ -222,7 +254,14 @@ function Backdrop(props: { panels: number }): React.ReactNode {
     <scrollbox flexGrow={1}>
       {Array.from({ length: props.panels }, (_u, i) => (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        <ToolDetail key={i} detail={EDetail.Diff} call={EDIT_CALL as any} inner={80} cwd="/tmp" expand={NOT_EXPANDABLE} />
+        <ToolDetail
+          key={i}
+          detail={EDetail.Diff}
+          call={EDIT_CALL as any}
+          inner={80}
+          cwd="/tmp"
+          expand={NOT_EXPANDABLE}
+        />
       ))}
     </scrollbox>
   )
@@ -269,7 +308,8 @@ function ProbeApp(): React.ReactNode {
   )
 
   useKeyboard((key) => {
-    if (key.name === 'tab') setVariant((v) => (v + (key.shift ? VARIANTS.length - 1 : 1)) % VARIANTS.length)
+    if (key.name === 'tab')
+      setVariant((v) => (v + (key.shift ? VARIANTS.length - 1 : 1)) % VARIANTS.length)
     if (key.name === '1') setCadence(0)
     if (key.name === '2') setCadence(1)
     if (key.name === '3') setCadence(2)
@@ -279,17 +319,17 @@ function ProbeApp(): React.ReactNode {
     }
   })
 
-  const picked: Variant = VARIANTS[variant] ?? VARIANTS[0] as Variant
+  const picked: Variant = VARIANTS[variant] ?? (VARIANTS[0] as Variant)
   const rate: Cadence = CADENCES[cadence] ?? 40
 
   return (
     <box flexDirection="column" width="100%" height="100%">
       <Backdrop panels={PANELS} />
       <picked.Line key={`${variant}-${rate}`} cadence={rate} />
-      <text fg={theme.hint}>
-        {`▸ ${picked.name} @ ${rate} ms — ${stats}`}
+      <text fg={theme.hint}>{`▸ ${picked.name} @ ${rate} ms — ${stats}`}</text>
+      <text fg={theme.dim}>
+        {'tab variant · shift+tab back · 1/2/3 cadence 40/80/120 · q quit'}
       </text>
-      <text fg={theme.dim}>{'tab variant · shift+tab back · 1/2/3 cadence 40/80/120 · q quit'}</text>
     </box>
   )
 }
@@ -309,7 +349,9 @@ const bench = async (): Promise<void> => {
         </box>,
       )
       await new Promise((r) => setTimeout(r, 400))
-      rows.push(`${variant.name.padEnd(28)} @ ${String(cadence).padStart(3)} ms — ${await measure({ framesRendered: () => setup.renderer.getStats().frameCount, ms: 4000 })}`)
+      rows.push(
+        `${variant.name.padEnd(28)} @ ${String(cadence).padStart(3)} ms — ${await measure({ framesRendered: () => setup.renderer.getStats().frameCount, ms: 4000 })}`,
+      )
       setup.renderer.destroy()
     }
   }

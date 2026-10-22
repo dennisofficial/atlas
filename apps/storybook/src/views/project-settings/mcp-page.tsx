@@ -1,44 +1,40 @@
-import { useState } from "react";
-import { ArrowUpRightIcon, EllipsisIcon, GlobeIcon, PlugIcon, TerminalIcon } from "lucide-react";
+import { useState } from 'react'
+import { ArrowUpRightIcon, EllipsisIcon, GlobeIcon, PlugIcon, TerminalIcon } from 'lucide-react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
+} from '@dltech/atlas-ui/components/dropdown-menu'
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@dltech/atlas-ui/components/empty";
-import { Switch } from "@dltech/atlas-ui/components/switch";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+} from '@dltech/atlas-ui/components/empty'
+import { Switch } from '@dltech/atlas-ui/components/switch'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import {
-  EMcpTransport,
-  MCP_SERVERS,
-  type McpServer,
-} from "../../fixtures/project-settings";
-import { AddMcpServerDialog, type McpServerDraft } from "./mcp-add-dialog";
-import { SettingsCard, SettingsSection } from "./settings-layout";
+import { EMcpTransport, MCP_SERVERS, type McpServer } from '../../fixtures/project-settings'
+import { AddMcpServerDialog, type McpServerDraft } from './mcp-add-dialog'
+import { SettingsCard, SettingsSection } from './settings-layout'
 
 function ServerRow({
   server,
   onToggle,
   onRemove,
 }: {
-  server: McpServer;
-  onToggle: (enabled: boolean) => void;
-  onRemove: () => void;
+  server: McpServer
+  onToggle: (enabled: boolean) => void
+  onRemove: () => void
 }) {
-  const TransportIcon = server.transport === EMcpTransport.Stdio ? TerminalIcon : GlobeIcon;
+  const TransportIcon = server.transport === EMcpTransport.Stdio ? TerminalIcon : GlobeIcon
   return (
-    <div className={cn("flex items-center gap-3 px-4 py-3", !server.enabled && "opacity-60")}>
+    <div className={cn('flex items-center gap-3 px-4 py-3', !server.enabled && 'opacity-60')}>
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
         <TransportIcon className="size-4" />
       </span>
@@ -70,7 +66,7 @@ function ServerRow({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  );
+  )
 }
 
 function ServersEmpty() {
@@ -82,30 +78,34 @@ function ServersEmpty() {
         </EmptyMedia>
         <EmptyTitle>No project MCP servers</EmptyTitle>
         <EmptyDescription>
-          Threads still get your personal and workspace servers. Add one here to share it with everyone on this project.
+          Threads still get your personal and workspace servers. Add one here to share it with
+          everyone on this project.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
-  );
+  )
 }
 
 export function McpPage({
   initialServers = MCP_SERVERS,
   addDialogOpen = false,
 }: {
-  initialServers?: readonly McpServer[];
-  addDialogOpen?: boolean;
+  initialServers?: readonly McpServer[]
+  addDialogOpen?: boolean
 }) {
-  const [servers, setServers] = useState<readonly McpServer[]>(initialServers);
+  const [servers, setServers] = useState<readonly McpServer[]>(initialServers)
 
   const handleAdd = (draft: McpServerDraft) =>
     setServers((current) => [
       ...current.filter((server) => server.id !== draft.id),
       { ...draft, enabled: true },
-    ]);
+    ])
   const handleToggle = ({ id, enabled }: { id: string; enabled: boolean }) =>
-    setServers((current) => current.map((server) => (server.id === id ? { ...server, enabled } : server)));
-  const handleRemove = (id: string) => setServers((current) => current.filter((server) => server.id !== id));
+    setServers((current) =>
+      current.map((server) => (server.id === id ? { ...server, enabled } : server)),
+    )
+  const handleRemove = (id: string) =>
+    setServers((current) => current.filter((server) => server.id !== id))
 
   return (
     <>
@@ -136,7 +136,7 @@ export function McpPage({
             ))
           )}
         </SettingsCard>
-        {servers.some((server) => server.id === "linear") ? (
+        {servers.some((server) => server.id === 'linear') ? (
           <p className="text-xs text-muted-foreground">
             <Badge variant="outline" className="mr-1.5">
               Overrides
@@ -147,5 +147,5 @@ export function McpPage({
         ) : null}
       </SettingsSection>
     </>
-  );
+  )
 }

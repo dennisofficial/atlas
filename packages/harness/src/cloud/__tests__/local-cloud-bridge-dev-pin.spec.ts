@@ -52,7 +52,9 @@ const registeredVersionOf = async (args: {
 describe('cloud sandbox registration serve pin', () => {
   it('registers the dev pin the placement was provisioned against', async () => {
     const registered = await registeredVersionOf({
-      config: { devServe: async () => ({ version: 'dev-bbbbbbbbbbbb', path: '/x', sha256: 'f', bytes: 1 }) },
+      config: {
+        devServe: async () => ({ version: 'dev-bbbbbbbbbbbb', path: '/x', sha256: 'f', bytes: 1 }),
+      },
       placement: { serveVersion: 'dev-bbbbbbbbbbbb' },
     })
 

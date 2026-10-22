@@ -50,7 +50,11 @@ export function fakeRunners(): FakeRunners {
   const started: StartedRun[] = []
   const resumed: ThreadId[] = []
 
-  const hold = (request: ChildRunnerRequest, signal: AbortSignal, pause: PauseSignal | undefined): Promise<TurnOutcome> =>
+  const hold = (
+    request: ChildRunnerRequest,
+    signal: AbortSignal,
+    pause: PauseSignal | undefined,
+  ): Promise<TurnOutcome> =>
     new Promise<TurnOutcome>((resolve, reject) => {
       started.push({
         request,

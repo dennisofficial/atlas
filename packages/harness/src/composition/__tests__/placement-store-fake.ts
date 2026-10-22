@@ -9,7 +9,11 @@ import type { PlacementStore } from '../placement-controller'
 import type { SupervisedAgent, ThreadSummary } from '../../store/thread-store'
 
 export type FakePlacementStore = PlacementStore & {
-  seed: (args: { threadId: ThreadId; location: EExecutionLocation; agent?: SupervisedAgent }) => void
+  seed: (args: {
+    threadId: ThreadId
+    location: EExecutionLocation
+    agent?: SupervisedAgent
+  }) => void
 }
 
 export function fakePlacementStore(): FakePlacementStore {

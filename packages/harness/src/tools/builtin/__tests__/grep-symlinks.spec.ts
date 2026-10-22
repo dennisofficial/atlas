@@ -53,7 +53,9 @@ describe('GrepTool fallback through symlinks', () => {
     const matches = await matchesIn({ pattern: 'needle' })
 
     expect(matches.some((line) => line.includes('a.txt:1:needle in a'))).toBe(true)
-    expect(matches.some((line) => line.includes(join('sub', 'b.txt') + ':1:needle in b'))).toBe(true)
+    expect(matches.some((line) => line.includes(join('sub', 'b.txt') + ':1:needle in b'))).toBe(
+      true,
+    )
   })
 
   it('follows a symlink handed to it as the search path', async () => {

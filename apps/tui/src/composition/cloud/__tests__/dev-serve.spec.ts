@@ -21,7 +21,8 @@ const cacheRoot = async (): Promise<string> => {
 
 const sourceWith = (diff: string): DevServeSource => ({ head: 'abc', diff, untracked: [] })
 
-const keyOf = (diff: string): string => devServeCacheKeyOf({ source: sourceWith(diff), target: ELinuxServeTarget.X64 })
+const keyOf = (diff: string): string =>
+  devServeCacheKeyOf({ source: sourceWith(diff), target: ELinuxServeTarget.X64 })
 
 const sha256Of = (text: string): string => new Bun.CryptoHasher('sha256').update(text).digest('hex')
 
@@ -69,7 +70,9 @@ describe('createDevServeResolver', () => {
     expect(first.sha256).toBe(sha256Of('serve for '))
     expect(second).toEqual(first)
     expect(lines).toContain(`building dev serve (inputs ${inputs}) from /repo…`)
-    expect(lines.some((line) => line.startsWith(`built dev serve ${expected} (inputs ${inputs}) in `))).toBe(true)
+    expect(
+      lines.some((line) => line.startsWith(`built dev serve ${expected} (inputs ${inputs}) in `)),
+    ).toBe(true)
     expect(lines).toContain(`dev serve ${expected} cached (inputs ${inputs})`)
   })
 
@@ -213,7 +216,12 @@ describe('createDevServeResolver', () => {
 describe('devServeResolverFor', () => {
   it('gives a release build no resolver', () => {
     expect(
-      devServeResolverFor({ kind: EBuildKind.Release, version: '1.2.3', releaseRepo: null, buildSha: null }),
+      devServeResolverFor({
+        kind: EBuildKind.Release,
+        version: '1.2.3',
+        releaseRepo: null,
+        buildSha: null,
+      }),
     ).toBeUndefined()
   })
 

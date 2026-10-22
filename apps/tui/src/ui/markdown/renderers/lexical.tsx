@@ -1,9 +1,8 @@
 import { createTextAttributes } from '@opentui/core'
-import React from 'react'
 
 import { lexicalScannerFor } from '../lexical/registry'
 import { styledRows, type StyledRows } from '../lexical/rows'
-import type { FencedBlockView, FencedRenderArgs, FencedRenderer } from '../registry'
+import type { FencedBlockView, FencedRenderer } from '../registry'
 import { codeScopes, codeTheme, type CodeTheme, rolesFor } from '../themes/index'
 
 const CACHE_LIMIT = 128

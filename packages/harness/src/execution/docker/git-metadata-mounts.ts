@@ -25,16 +25,22 @@ export function mountsWithGitMetadata(args: {
     (path) => !isUnderPath({ directory: args.worktree, path }),
   )
   const metadata = directories.filter(
-    (path) => !directories.some((directory) =>
-      directory !== path && isUnderPath({ directory, path }),
-    ),
+    (path) =>
+      !directories.some((directory) => directory !== path && isUnderPath({ directory, path })),
   )
   const mounts = [...args.declared]
   for (const path of metadata) {
-    if (mounts.some((mount) => mount.mode === EMountMode.ReadWrite &&
-      isUnderPath({ directory: mount.path, path }))) continue
+    if (
+      mounts.some(
+        (mount) =>
+          mount.mode === EMountMode.ReadWrite && isUnderPath({ directory: mount.path, path }),
+      )
+    )
+      continue
     if (mounts.some((mount) => mount.path === path)) {
-      throw new Error(`Git metadata at ${path} needs a read-write mount; the declared mount is read-only`)
+      throw new Error(
+        `Git metadata at ${path} needs a read-write mount; the declared mount is read-only`,
+      )
     }
     mounts.push({ path, mode: EMountMode.ReadWrite })
   }

@@ -20,7 +20,11 @@ export const SYNTHETIC: readonly Case[] = [
       ),
       anLs('src/store'),
       anLs('src/ui'),
-      aShell({ command: 'node scripts/verify-manifest.mjs', exitCode: 1, stdout: 'manifest drift: 3 entries' }),
+      aShell({
+        command: 'node scripts/verify-manifest.mjs',
+        exitCode: 1,
+        stdout: 'manifest drift: 3 entries',
+      }),
     ],
   },
   {
@@ -41,7 +45,11 @@ export const SYNTHETIC: readonly Case[] = [
     calls: [
       aRead('a.ts', 40),
       aRead('b.ts', 92),
-      aShell({ command: 'node scripts/verify-manifest.mjs', exitCode: 1, stdout: 'manifest drift' }),
+      aShell({
+        command: 'node scripts/verify-manifest.mjs',
+        exitCode: 1,
+        stdout: 'manifest drift',
+      }),
       aRead('c.ts', 18),
       anLs('src/ui'),
       aShell({ command: 'ls -la src/gone', stdout: 'ls: src/gone: No such file' }),
@@ -50,7 +58,11 @@ export const SYNTHETIC: readonly Case[] = [
   {
     name: 'everything failed',
     calls: [
-      aShell({ command: 'node scripts/verify-manifest.mjs', exitCode: 1, stdout: 'manifest drift' }),
+      aShell({
+        command: 'node scripts/verify-manifest.mjs',
+        exitCode: 1,
+        stdout: 'manifest drift',
+      }),
       aShell({ command: './scripts/check-env.sh', exitCode: 1, stdout: 'ATLAS_DB unset' }),
     ],
   },

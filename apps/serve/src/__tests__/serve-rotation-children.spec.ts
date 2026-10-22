@@ -27,9 +27,13 @@ const owedChildren = async (home: string) =>
 const oweParent = async (home: string): Promise<void> => {
   const file = runtimeCheckpointFile({ atlasHome: home })
   const persisted = await readPersistedRuntimeCheckpoint({ file })
-  if (persisted?.phase !== 'updating') throw new Error('the child fixture requires a sealed receipt')
+  if (persisted?.phase !== 'updating')
+    throw new Error('the child fixture requires a sealed receipt')
   const receipt = { ...persisted.receipt, resumeParent: true }
-  await persistRuntimeCheckpoint({ file, checkpoint: { ...persisted, revision: persisted.revision + 1, receipt } })
+  await persistRuntimeCheckpoint({
+    file,
+    checkpoint: { ...persisted, revision: persisted.revision + 1, receipt },
+  })
 }
 
 afterEach(cleanupRotationFixtures)
@@ -56,17 +60,28 @@ describe('queued Finished-child continuation across serve boots', () => {
     })
     expect(first.resumed()).toBe(1)
     expect(first.ran()).toBe(0)
-    expect(first.supervisor()?.list({ threadId }).find((child) => child.agentId === childId)?.status).toBe(EAgentStatus.Running)
+    expect(
+      first
+        .supervisor()
+        ?.list({ threadId })
+        .find((child) => child.agentId === childId)?.status,
+    ).toBe(EAgentStatus.Running)
     expect(await owedChildren(fixture.home)).toEqual([childId])
     const parent = await first.disk.log.readOwn({ threadId })
     expect(parent.filter((event) => event.type === 'agent-spawned')).toHaveLength(1)
-    expect(parent.findLast((event) => event.type === 'agent-restarted')).toMatchObject({ agentId: childId, via: EAgentRestart.Wake })
+    expect(parent.findLast((event) => event.type === 'agent-restarted')).toMatchObject({
+      agentId: childId,
+      via: EAgentRestart.Wake,
+    })
     const before = await first.disk.log.readOwn({ threadId: childId })
     expect(before.filter((event) => event.type === 'user-said')).toHaveLength(2)
     first.modelGate.release()
     await eventually(async () => (await owedChildren(fixture.home)).length === 0)
     const completed = await first.disk.log.readOwn({ threadId: childId })
-    expect(completed.at(-1)).toMatchObject({ type: 'assistant-said', parts: [{ type: 'text', text: 'queued job complete' }] })
+    expect(completed.at(-1)).toMatchObject({
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'queued job complete' }],
+    })
     expect(completed.filter((event) => event.type === 'user-said')).toHaveLength(2)
     await handle.close()
     const second = await fixture.boot()
@@ -83,7 +98,13 @@ describe('queued Finished-child continuation across serve boots', () => {
     const handle = await first.starting
     await eventually(() => first.steps() === 1)
     first.modelGate.fail(new Error('crashed before committing the queued reply'))
-    await eventually(() => first.supervisor()?.list({ threadId }).find((child) => child.agentId === childId)?.status === EAgentStatus.Failed)
+    await eventually(
+      () =>
+        first
+          .supervisor()
+          ?.list({ threadId })
+          .find((child) => child.agentId === childId)?.status === EAgentStatus.Failed,
+    )
     expect(await owedChildren(fixture.home)).toEqual([childId])
     await handle.close()
     const second = await fixture.boot()
@@ -92,7 +113,15 @@ describe('queued Finished-child continuation across serve boots', () => {
     expect(await owedChildren(fixture.home)).toEqual([childId])
     second.modelGate.release()
     await eventually(async () => (await owedChildren(fixture.home)).length === 0)
-    expect((await second.disk.log.readOwn({ threadId: childId })).filter((event) => event.type === 'user-said')).toHaveLength(2)
-    expect((await second.disk.log.readOwn({ threadId })).filter((event) => event.type === 'agent-spawned')).toHaveLength(1)
+    expect(
+      (await second.disk.log.readOwn({ threadId: childId })).filter(
+        (event) => event.type === 'user-said',
+      ),
+    ).toHaveLength(2)
+    expect(
+      (await second.disk.log.readOwn({ threadId })).filter(
+        (event) => event.type === 'agent-spawned',
+      ),
+    ).toHaveLength(1)
   }, 20_000)
 })

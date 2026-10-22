@@ -2,7 +2,16 @@ import { describe, expect, it } from 'bun:test'
 
 import { EQualityReviewStatus, EQualitySkipReason } from '@dltech/atlas-core'
 
-import { INTRODUCE, answersFor, calibrated, createRig, nudgesOf, policyNamed, recordsOf, scopeNamed } from './fixtures'
+import {
+  INTRODUCE,
+  answersFor,
+  calibrated,
+  createRig,
+  nudgesOf,
+  policyNamed,
+  recordsOf,
+  scopeNamed,
+} from './fixtures'
 
 const KIB = 1024
 
@@ -29,11 +38,16 @@ describe('scope selection', () => {
 
   it('reviews only policy-selected scopes and batches policies that selected the same scope', async () => {
     const rig = createRig({
-      policies: [policyNamed({ id: 'a' }), policyNamed({ id: 'b', select: (ids) => ids.slice(0, 1) })],
+      policies: [
+        policyNamed({ id: 'a' }),
+        policyNamed({ id: 'b', select: (ids) => ids.slice(0, 1) }),
+      ],
       scopes: [scopeNamed(), scopeNamed({ id: 'scope-2', name: 'Other', after: 'class Other {}' })],
       decide: async ({ questions }) => {
         const ids = [...new Set(Object.keys(questions).map((key) => key.split(':')[0] ?? ''))]
-        return calibrated({ answers: answersFor({ verdicts: Object.fromEntries(ids.map((id) => [id, INTRODUCE])) }) })
+        return calibrated({
+          answers: answersFor({ verdicts: Object.fromEntries(ids.map((id) => [id, INTRODUCE])) }),
+        })
       },
     })
     const drafts = await rig.review()
@@ -52,10 +66,20 @@ describe('scope selection', () => {
 })
 
 describe('size bounds', () => {
-  const both = (definitionBytes: number) => [policyNamed({ id: 'a', definitionBytes }), policyNamed({ id: 'b', definitionBytes })]
+  const both = (definitionBytes: number) => [
+    policyNamed({ id: 'a', definitionBytes }),
+    policyNamed({ id: 'b', definitionBytes }),
+  ]
   const allPolicies = async ({ questions }: { questions: Record<string, unknown> }) =>
     calibrated({
-      answers: answersFor({ verdicts: Object.fromEntries([...new Set(Object.keys(questions).map((key) => key.split(':')[0] ?? ''))].map((id) => [id, INTRODUCE])) }),
+      answers: answersFor({
+        verdicts: Object.fromEntries(
+          [...new Set(Object.keys(questions).map((key) => key.split(':')[0] ?? ''))].map((id) => [
+            id,
+            INTRODUCE,
+          ]),
+        ),
+      }),
     })
 
   it('sends one shared request when under bound', async () => {
@@ -69,19 +93,29 @@ describe('size bounds', () => {
     const drafts = await rig.review()
     expect(rig.decisionCalls).toHaveLength(2)
     expect(recordsOf(drafts)).toHaveLength(1)
-    expect(recordsOf(drafts)[0]?.assessments.map((assessment) => assessment.policyId).sort()).toEqual(['a', 'b'])
+    expect(
+      recordsOf(drafts)[0]
+        ?.assessments.map((assessment) => assessment.policyId)
+        .sort(),
+    ).toEqual(['a', 'b'])
   })
 
   it('records OversizedRequest when a single-policy request is still over bound', async () => {
     const rig = createRig({ policies: [policyNamed({ definitionBytes: 30 * KIB })] })
     const drafts = await rig.review()
     expect(rig.decisionCalls).toHaveLength(0)
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.OversizedRequest })
+    expect(recordsOf(drafts)[0]).toMatchObject({
+      status: EQualityReviewStatus.Skipped,
+      reason: EQualitySkipReason.OversizedRequest,
+    })
     expect(nudgesOf(drafts)).toHaveLength(0)
   })
 
   it('counts UTF-8 bytes, not characters', async () => {
-    const rig = createRig({ policies: [policyNamed({ definitionBytes: 9 * KIB })], scopes: [scopeNamed({ after: '€'.repeat(5 * KIB) })] })
+    const rig = createRig({
+      policies: [policyNamed({ definitionBytes: 9 * KIB })],
+      scopes: [scopeNamed({ after: '€'.repeat(5 * KIB) })],
+    })
     await rig.review()
     expect(rig.decisionCalls).toHaveLength(0)
   })

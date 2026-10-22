@@ -5,7 +5,6 @@ import React from 'react'
 
 import {
   checkoutKey,
-  EForge,
   EPullRequestLookup,
   EPullRequestState,
   EChecksState,
@@ -13,11 +12,9 @@ import {
   PullRequestPort,
   type PullRequestBadgeKey,
   type PullRequestReading,
-  type RepositoryCheckout,
   type ThreadSummary,
 } from '@dltech/atlas-harness'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
-import type { ThreadsState } from '../../ui/threads-model'
 import type { AtlasApp } from '../compose'
 import { useThreads, type ThreadsControl } from '../use-threads'
 
@@ -81,7 +78,9 @@ const found = (args: { number: number }): PullRequestReading => ({
     state: EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
-    mergeable: null, comments: [], reviews: [],
+    mergeable: null,
+    comments: [],
+    reviews: [],
   },
 })
 
@@ -92,7 +91,11 @@ type ListingCall = {
 
 type Probe = { control: ThreadsControl | null }
 
-function Picker(props: { probe: Probe; app: AtlasApp; listing: () => { list: unknown } }): React.ReactNode {
+function Picker(props: {
+  probe: Probe
+  app: AtlasApp
+  listing: () => { list: unknown }
+}): React.ReactNode {
   const control = useThreads({
     app: props.app,
     project: projectOf(props.app.workspace),
@@ -149,7 +152,6 @@ const controlOf = (probe: Probe): ThreadsControl => {
   return probe.control
 }
 
-
 describe('the incremental conversation picker', () => {
   it('paints the first onUpdate page before the listing promise resolves', async () => {
     const calls: ListingCall[] = []
@@ -187,7 +189,10 @@ describe('the incremental conversation picker', () => {
       expect(controlOf(probe).state?.index).toBe(1)
       expect(controlOf(probe).state?.rows.length).toBe(2)
 
-      calls[0]?.onUpdate?.([summary({ id: 'alpha', title: 'alpha named' }), summary({ id: 'beta' })])
+      calls[0]?.onUpdate?.([
+        summary({ id: 'alpha', title: 'alpha named' }),
+        summary({ id: 'beta' }),
+      ])
       await flushAll(setup)
 
       const state = controlOf(probe).state
@@ -234,7 +239,12 @@ describe('the incremental conversation picker', () => {
           id: 't1',
           title: 'linked',
           pullRequests: [
-            { number: 401, url: 'https://github.com/dennis/atlas/pull/401', repo: 'github.com/dennis/atlas', branch: 'dennis/first' },
+            {
+              number: 401,
+              url: 'https://github.com/dennis/atlas/pull/401',
+              repo: 'github.com/dennis/atlas',
+              branch: 'dennis/first',
+            },
           ],
         }),
       ]
@@ -274,7 +284,12 @@ describe('the incremental conversation picker', () => {
         summary({
           id: 't1',
           pullRequests: [
-            { number: 402, url: 'https://github.com/dennis/atlas/pull/402', repo: 'github.com/dennis/atlas', branch: 'dennis/second' },
+            {
+              number: 402,
+              url: 'https://github.com/dennis/atlas/pull/402',
+              repo: 'github.com/dennis/atlas',
+              branch: 'dennis/second',
+            },
           ],
         }),
       ])
@@ -307,7 +322,8 @@ describe('the incremental conversation picker', () => {
       await settle(20)
       await flushAll(setup)
 
-      const enrichCalls = () => calls.filter((call) => call.enrich !== undefined && call.enrich.length > 0)
+      const enrichCalls = () =>
+        calls.filter((call) => call.enrich !== undefined && call.enrich.length > 0)
       const firstWave = enrichCalls()
       expect(firstWave.length).toBe(1)
       expect(firstWave[0]?.enrich).toContain('t0')

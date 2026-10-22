@@ -21,7 +21,8 @@ export function migrateDecisionsSettings(args: {
   const { resolution } = settings.snapshot()
 
   const providerSetting = resolution.settings.get(ESettingId.DecisionsProvider)
-  const providerSet = providerSetting !== undefined && providerSetting.layer !== ESettingsLayer.Default
+  const providerSet =
+    providerSetting !== undefined && providerSetting.layer !== ESettingsLayer.Default
 
   if (providerSet) {
     if (typeof providerSetting.value !== 'string') return

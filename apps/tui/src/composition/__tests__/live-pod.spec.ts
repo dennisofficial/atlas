@@ -50,13 +50,23 @@ describe('livePodBridgeOptionsFor', () => {
     try {
       const app = fakeApp({
         model,
-        cloud: fakeCloud({ session: { url: `http://127.0.0.1:${server.port}`, token: 'sess', email: null } }),
+        cloud: fakeCloud({
+          session: { url: `http://127.0.0.1:${server.port}`, token: 'sess', email: null },
+        }),
       })
 
-      await livePodBridgeOptionsFor(app).registerPodLease({ threadId: toThreadId('brn_lease'), token: 'pod-token' })
+      await livePodBridgeOptionsFor(app).registerPodLease({
+        threadId: toThreadId('brn_lease'),
+        token: 'pod-token',
+      })
 
       expect(seen).toEqual([
-        { method: 'PUT', path: '/v1/pod-leases/brn_lease', auth: 'Bearer sess', body: { token: 'pod-token' } },
+        {
+          method: 'PUT',
+          path: '/v1/pod-leases/brn_lease',
+          auth: 'Bearer sess',
+          body: { token: 'pod-token' },
+        },
       ])
     } finally {
       await server.stop(true)
@@ -67,7 +77,10 @@ describe('livePodBridgeOptionsFor', () => {
     const app = fakeApp({ model, cloud: fakeSignedOutCloud() })
 
     expect(() =>
-      livePodBridgeOptionsFor(app).registerPodLease({ threadId: toThreadId('brn_lease'), token: 't' }),
+      livePodBridgeOptionsFor(app).registerPodLease({
+        threadId: toThreadId('brn_lease'),
+        token: 't',
+      }),
     ).toThrow('sign in to Atlas Cloud')
   })
 })
@@ -84,7 +97,11 @@ describe('the pod birth preflight', () => {
   })
 })
 
-const sweepWith = (failures: OrphanPodSweep['failures']): OrphanPodSweep => ({ reaped: [], kept: [], failures })
+const sweepWith = (failures: OrphanPodSweep['failures']): OrphanPodSweep => ({
+  reaped: [],
+  kept: [],
+  failures,
+})
 
 describe('the orphan pod reaper at boot', () => {
   it('posts one notice naming the count and the first failure', async () => {
@@ -107,7 +124,10 @@ describe('the orphan pod reaper at boot', () => {
   it('stays quiet when nothing failed', async () => {
     const notices: string[] = []
 
-    await reapOrphanPodsWith({ reap: async () => sweepWith([]), notify: (text) => notices.push(text) })
+    await reapOrphanPodsWith({
+      reap: async () => sweepWith([]),
+      notify: (text) => notices.push(text),
+    })
 
     expect(notices).toEqual([])
     expect(podReapFailureNotice(sweepWith([]))).toBeNull()

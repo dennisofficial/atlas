@@ -103,7 +103,11 @@ export const readied = (options?: Parameters<typeof harness>[0]) => {
   return attached
 }
 
-export const checkpointOf = (args: { phase: ERuntimePhase; revision: number; threadId?: string | undefined }): RuntimeCheckpoint => {
+export const checkpointOf = (args: {
+  phase: ERuntimePhase
+  revision: number
+  threadId?: string | undefined
+}): RuntimeCheckpoint => {
   const base = {
     threadId: args.threadId ?? THREAD,
     runtimeId: 'runtime-1',
@@ -116,7 +120,13 @@ export const checkpointOf = (args: { phase: ERuntimePhase; revision: number; thr
   if (args.phase !== ERuntimePhase.Updating) return runtimeCheckpointSchema.parse(base)
   return runtimeCheckpointSchema.parse({
     ...base,
-    receipt: { version: 1, threadId: base.threadId, sandboxSessionId: base.sandboxSessionId, resumeParent: false, checkpoint: base },
+    receipt: {
+      version: 1,
+      threadId: base.threadId,
+      sandboxSessionId: base.sandboxSessionId,
+      resumeParent: false,
+      checkpoint: base,
+    },
   })
 }
 

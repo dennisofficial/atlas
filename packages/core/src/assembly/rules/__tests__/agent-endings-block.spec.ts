@@ -78,9 +78,10 @@ describe('handing a finished delegate to the parent that spawned it', () => {
   })
 
   it('keeps other ending advice intact alongside the no-content guidance', () => {
-    const block = blocksOf(
-      assembleWith({ drafts: [ended({ prose: '<no content>', killedBy: EKilledBy.User })] }),
-    )[0] ?? ''
+    const block =
+      blocksOf(
+        assembleWith({ drafts: [ended({ prose: '<no content>', killedBy: EKilledBy.User })] }),
+      )[0] ?? ''
 
     expect(block).toContain('The user stopped this agent deliberately')
     expect(block).toMatch(/ended with no reply content/)
@@ -236,14 +237,22 @@ describe('a delegate ending that lands while a tool call is still open', () => {
       ordinal: 0,
     },
     ended(),
-    { type: 'tool-result', callId: toCallId('agent_say_1'), name: 'agent_say', modelText: 'running again' },
+    {
+      type: 'tool-result',
+      callId: toCallId('agent_say_1'),
+      name: 'agent_say',
+      modelText: 'running again',
+    },
   ]
 
   it('renders the endings after the late result, never between the call and its answer', () => {
     const assembled = assembleWith({ drafts: lateSettledCall() })
 
     const endingsAt = assembled.messages.findIndex((entry) =>
-      entry.message.content.some((part) => part.type === 'text' && part.text.startsWith('<system-notice kind="agents-ended"')),
+      entry.message.content.some(
+        (part) =>
+          part.type === 'text' && part.text.startsWith('<system-notice kind="agents-ended"'),
+      ),
     )
     const resultAt = assembled.messages.findIndex((entry) => entry.message.role === 'tool')
 
@@ -258,9 +267,9 @@ describe('a teammate ending stays in the record even when it woke nobody', () =>
     ended({ agentType: 'teammate', intent: 'build the admin app', ...over })
 
   it('renders with the other endings: the log is transparent, whether or not the ending woke the parent', () => {
-    const block = blocksOf(
-      assembleWith({ drafts: [{ type: 'user-said', text: 'go' }, teammateEnded()] }),
-    )[0] ?? ''
+    const block =
+      blocksOf(assembleWith({ drafts: [{ type: 'user-said', text: 'go' }, teammateEnded()] }))[0] ??
+      ''
 
     expect(block).toContain('build the admin app')
   })

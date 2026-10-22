@@ -8,11 +8,7 @@ import type { EventDto } from './sessions.types'
 
 @Injectable()
 export class EventsService {
-  append(args: {
-    userId: string
-    threadId: string
-    draft: AppendEventsDto
-  }): Promise<EventDto[]> {
+  append(args: { userId: string; threadId: string; draft: AppendEventsDto }): Promise<EventDto[]> {
     return db.$transaction((tx) =>
       appendWithin({
         tx,

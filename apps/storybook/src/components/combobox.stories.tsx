@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   Combobox,
@@ -12,18 +12,18 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@dltech/atlas-ui/components/combobox";
+} from '@dltech/atlas-ui/components/combobox'
 
 const meta = {
-  title: "Components/Combobox",
+  title: 'Components/Combobox',
   component: Combobox,
-} satisfies Meta<typeof Combobox>;
+} satisfies Meta<typeof Combobox>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-const models = ["claude-opus", "claude-sonnet", "gpt-5", "gpt-5-mini", "gemini-pro", "qwen3-coder"];
+const models = ['claude-opus', 'claude-sonnet', 'gpt-5', 'gpt-5-mini', 'gemini-pro', 'qwen3-coder']
 
 export const Default: Story = {
   render: () => (
@@ -41,7 +41,7 @@ export const Default: Story = {
       </ComboboxContent>
     </Combobox>
   ),
-};
+}
 
 export const Clearable: Story = {
   render: () => (
@@ -59,12 +59,12 @@ export const Clearable: Story = {
       </ComboboxContent>
     </Combobox>
   ),
-};
+}
 
 function MultipleCombobox() {
-  const anchor = useComboboxAnchor();
+  const anchor = useComboboxAnchor()
   return (
-    <Combobox multiple items={models} defaultValue={["claude-opus", "gpt-5"]}>
+    <Combobox multiple items={models} defaultValue={['claude-opus', 'gpt-5']}>
       <ComboboxChips ref={anchor} className="w-80">
         <ComboboxValue>
           {(values: string[]) => (
@@ -88,10 +88,10 @@ function MultipleCombobox() {
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
-  );
+  )
 }
 
-export const Multiple: Story = { render: () => <MultipleCombobox /> };
+export const Multiple: Story = { render: () => <MultipleCombobox /> }
 
 export const Disabled: Story = {
   render: () => (
@@ -99,4 +99,4 @@ export const Disabled: Story = {
       <ComboboxInput placeholder="Select a model" className="w-64" />
     </Combobox>
   ),
-};
+}

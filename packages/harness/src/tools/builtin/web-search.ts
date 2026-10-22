@@ -10,7 +10,6 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { SecretsStoreToken, WebSearchBackendToken } from '../../container/tokens'
 import { runSearch } from '../../web/search'
 
 const DEFAULT_COUNT = 8
@@ -37,8 +36,8 @@ export class WebSearchTool extends SchemaTool<typeof inputSchema> {
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(
-     private readonly backendOf: () => EWebSearchBackend,
-     private readonly secrets: SecretsPort,
+    private readonly backendOf: () => EWebSearchBackend,
+    private readonly secrets: SecretsPort,
   ) {
     super()
   }

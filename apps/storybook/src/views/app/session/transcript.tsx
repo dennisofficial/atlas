@@ -1,12 +1,12 @@
-import { Chat, ChatItem } from "@dltech/atlas-ui/ai/chat";
-import { Confirmation, EConfirmationState } from "@dltech/atlas-ui/ai/confirmation";
-import { AgentMessage, UserMessage } from "@dltech/atlas-ui/ai/message";
-import { Reasoning } from "@dltech/atlas-ui/ai/reasoning";
-import { EToolKind, EToolState, Tool, ToolLine } from "@dltech/atlas-ui/ai/tool";
-import { WorkSummary } from "@dltech/atlas-ui/ai/work-summary";
-import { Trace } from "@dltech/atlas-ui/components/trace";
+import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
+import { Confirmation, EConfirmationState } from '@dltech/atlas-ui/ai/confirmation'
+import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
+import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
+import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
+import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
+import { Trace } from '@dltech/atlas-ui/components/trace'
 
-import { ESessionState } from "./session-types";
+import { ESessionState } from './session-types'
 import {
   FIRST_PROMPT,
   FIRST_TURN_REASONING,
@@ -15,23 +15,23 @@ import {
   SECOND_TURN_DURATION,
   SECOND_TURN_STEPS,
   type StepSpec,
-} from "./transcript-data";
+} from './transcript-data'
 
 export interface TranscriptProps {
-  state: ESessionState;
-  approval: EConfirmationState;
-  onApprove: () => void;
-  onDeny: () => void;
-  onOpenFile: (path: string) => void;
+  state: ESessionState
+  approval: EConfirmationState
+  onApprove: () => void
+  onDeny: () => void
+  onOpenFile: (path: string) => void
 }
 
 export interface StepsProps {
-  steps: StepSpec[];
-  onOpenFile: (path: string) => void;
+  steps: StepSpec[]
+  onOpenFile: (path: string) => void
 }
 
 function EditStep({ step, onOpenFile }: { step: StepSpec; onOpenFile: (path: string) => void }) {
-  const handleClick = () => onOpenFile(step.label);
+  const handleClick = () => onOpenFile(step.label)
 
   return (
     <Trace>
@@ -44,7 +44,7 @@ function EditStep({ step, onOpenFile }: { step: StepSpec; onOpenFile: (path: str
         <ToolLine kind={EToolKind.Edit} label={step.label} elapsed={step.elapsed} />
       </button>
     </Trace>
-  );
+  )
 }
 
 export function Steps({ steps, onOpenFile }: StepsProps) {
@@ -66,10 +66,10 @@ export function Steps({ steps, onOpenFile }: StepsProps) {
         ),
       )}
     </>
-  );
+  )
 }
 
-function FirstTurn({ onOpenFile }: Pick<TranscriptProps, "onOpenFile">) {
+function FirstTurn({ onOpenFile }: Pick<TranscriptProps, 'onOpenFile'>) {
   return (
     <ChatItem id="a1">
       <div className="flex flex-col gap-4">
@@ -79,14 +79,14 @@ function FirstTurn({ onOpenFile }: Pick<TranscriptProps, "onOpenFile">) {
         </WorkSummary>
         <AgentMessage author="Atlas" timestamp="14:35">
           <p>
-            The theme now generates from <code className="font-mono text-[0.85em]">src/tokens</code>, so
-            the CSS and the tokens cannot drift. Three things changed:
+            The theme now generates from <code className="font-mono text-[0.85em]">src/tokens</code>
+            , so the CSS and the tokens cannot drift. Three things changed:
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Semantic tokens map onto the shadcn variable names, with our colors kept.</li>
             <li>
-              <code className="font-mono text-[0.85em]">theme.css</code> is regenerated, including the
-              diff add and remove surfaces.
+              <code className="font-mono text-[0.85em]">theme.css</code> is regenerated, including
+              the diff add and remove surfaces.
             </li>
             <li>The diff viewer uses the new gutter and word-highlight tokens.</li>
           </ul>
@@ -94,13 +94,13 @@ function FirstTurn({ onOpenFile }: Pick<TranscriptProps, "onOpenFile">) {
         </AgentMessage>
       </div>
     </ChatItem>
-  );
+  )
 }
 
 function SecondTurn({ state, approval, onApprove, onDeny, onOpenFile }: TranscriptProps) {
-  const steps = SECOND_TURN_STEPS[state];
-  const running = state === ESessionState.Running;
-  const idle = state === ESessionState.Idle;
+  const steps = SECOND_TURN_STEPS[state]
+  const running = state === ESessionState.Running
+  const idle = state === ESessionState.Idle
 
   return (
     <ChatItem id="a2">
@@ -122,13 +122,13 @@ function SecondTurn({ state, approval, onApprove, onDeny, onOpenFile }: Transcri
         {state === ESessionState.ApprovalPending ? (
           <>
             <AgentMessage author="Atlas" timestamp="14:43">
-              Typecheck failed on the new tool pattern. Before I clean the generated output, I need your
-              go-ahead.
+              Typecheck failed on the new tool pattern. Before I clean the generated output, I need
+              your go-ahead.
             </AgentMessage>
             <Confirmation
               title="Run rm -rf node_modules?"
               description="Reinstalling takes about a minute."
-              evidence={["matched rule: recursive delete"]}
+              evidence={['matched rule: recursive delete']}
               state={approval}
               onApprove={onApprove}
               onDeny={onDeny}
@@ -137,7 +137,7 @@ function SecondTurn({ state, approval, onApprove, onDeny, onOpenFile }: Transcri
         ) : null}
       </div>
     </ChatItem>
-  );
+  )
 }
 
 export function Transcript(props: TranscriptProps) {
@@ -156,5 +156,5 @@ export function Transcript(props: TranscriptProps) {
       </ChatItem>
       <SecondTurn {...props} />
     </Chat>
-  );
+  )
 }

@@ -3,7 +3,6 @@ import {
   parseWorktreeLockToken,
   worktreeLockHolder,
   worktreeLockToken,
-  type WorktreeLockIdentity,
 } from '@dltech/atlas-core'
 
 import { holderIsLive, ownIdentity } from './process-identity'

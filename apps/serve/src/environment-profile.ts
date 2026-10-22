@@ -65,7 +65,10 @@ const probeDocker = async (run: CommandRunner, cwd: string): Promise<boolean> =>
     new Promise<boolean>((resolve) => {
       setTimeout(() => resolve(false), DOCKER_PROBE_TIMEOUT_MS)
     }),
-  ]).then(() => undefined, () => undefined)
+  ]).then(
+    () => undefined,
+    () => undefined,
+  )
   return false
 }
 

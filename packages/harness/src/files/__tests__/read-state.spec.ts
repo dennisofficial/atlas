@@ -13,7 +13,11 @@ describe('InMemoryFileReadState', () => {
   it('returns a view recorded by the same thread', () => {
     const state = new InMemoryFileReadState()
 
-    state.record({ threadId: parent, path: '/tmp/x/f.ts', view: { mtimeMs: 17, size: 42, wholeFile: true, digest: 'd1' } })
+    state.record({
+      threadId: parent,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 17, size: 42, wholeFile: true, digest: 'd1' },
+    })
 
     expect(state.viewOf({ threadId: parent, path: '/tmp/x/f.ts' })).toEqual({
       mtimeMs: 17,
@@ -49,8 +53,16 @@ describe('InMemoryFileReadState', () => {
   it('replaces an earlier view rather than merging into it', () => {
     const state = new InMemoryFileReadState()
 
-    state.record({ threadId: parent, path: '/tmp/x/f.ts', view: { mtimeMs: 1, size: 100, wholeFile: true, digest: 'd1' } })
-    state.record({ threadId: parent, path: '/tmp/x/f.ts', view: { mtimeMs: 2, size: 40, wholeFile: false, digest: 'd1' } })
+    state.record({
+      threadId: parent,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 1, size: 100, wholeFile: true, digest: 'd1' },
+    })
+    state.record({
+      threadId: parent,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 2, size: 40, wholeFile: false, digest: 'd1' },
+    })
 
     expect(state.viewOf({ threadId: parent, path: '/tmp/x/f.ts' })).toEqual({
       mtimeMs: 2,
@@ -63,7 +75,11 @@ describe('InMemoryFileReadState', () => {
   it('does not let one thread read a view another thread recorded', () => {
     const state = new InMemoryFileReadState()
 
-    state.record({ threadId: child, path: '/tmp/x/f.ts', view: { mtimeMs: 17, size: 42, wholeFile: true, digest: 'd1' } })
+    state.record({
+      threadId: child,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 17, size: 42, wholeFile: true, digest: 'd1' },
+    })
 
     expect(state.viewOf({ threadId: parent, path: '/tmp/x/f.ts' })).toBeUndefined()
   })
@@ -71,8 +87,16 @@ describe('InMemoryFileReadState', () => {
   it('keeps the two threads views of one path independent of each other', () => {
     const state = new InMemoryFileReadState()
 
-    state.record({ threadId: parent, path: '/tmp/x/f.ts', view: { mtimeMs: 1, size: 10, wholeFile: true, digest: 'd1' } })
-    state.record({ threadId: child, path: '/tmp/x/f.ts', view: { mtimeMs: 2, size: 20, wholeFile: false, digest: 'd1' } })
+    state.record({
+      threadId: parent,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 1, size: 10, wholeFile: true, digest: 'd1' },
+    })
+    state.record({
+      threadId: child,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 2, size: 20, wholeFile: false, digest: 'd1' },
+    })
 
     expect(state.viewOf({ threadId: parent, path: '/tmp/x/f.ts' })).toEqual({
       mtimeMs: 1,
@@ -91,7 +115,11 @@ describe('InMemoryFileReadState', () => {
   it('keeps the paths within one thread separate from each other', () => {
     const state = new InMemoryFileReadState()
 
-    state.record({ threadId: parent, path: '/tmp/x/f.ts', view: { mtimeMs: 1, size: 10, wholeFile: true, digest: 'd1' } })
+    state.record({
+      threadId: parent,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 1, size: 10, wholeFile: true, digest: 'd1' },
+    })
 
     expect(state.viewOf({ threadId: parent, path: '/tmp/x/g.ts' })).toBeUndefined()
   })
@@ -105,7 +133,11 @@ describe('registerFileState', () => {
     const first = container.resolve(registeredPortToken(FileReadStatePort))
     const second = container.resolve(registeredPortToken(FileReadStatePort))
 
-    first.record({ threadId: parent, path: '/tmp/x/f.ts', view: { mtimeMs: 3, size: 7, wholeFile: true, digest: 'd1' } })
+    first.record({
+      threadId: parent,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 3, size: 7, wholeFile: true, digest: 'd1' },
+    })
 
     expect(second).toBe(first)
     expect(second.viewOf({ threadId: parent, path: '/tmp/x/f.ts' })).toEqual({
@@ -121,7 +153,11 @@ describe('registerFileState', () => {
     registerFileState({ container })
 
     const store = container.resolve(registeredPortToken(FileReadStatePort))
-    store.record({ threadId: child, path: '/tmp/x/f.ts', view: { mtimeMs: 3, size: 7, wholeFile: true, digest: 'd1' } })
+    store.record({
+      threadId: child,
+      path: '/tmp/x/f.ts',
+      view: { mtimeMs: 3, size: 7, wholeFile: true, digest: 'd1' },
+    })
 
     expect(store.viewOf({ threadId: parent, path: '/tmp/x/f.ts' })).toBeUndefined()
   })

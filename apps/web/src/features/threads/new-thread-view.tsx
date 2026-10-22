@@ -41,7 +41,12 @@ function NoProjects() {
         <EmptyDescription>Atlas runs each thread against a project.</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/projects?new=1" />}>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<Link href="/projects?new=1" />}
+        >
           New project
         </Button>
       </EmptyContent>

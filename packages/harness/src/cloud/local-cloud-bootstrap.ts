@@ -23,7 +23,9 @@ export type SandboxRegistration = (args: {
   threadId: ThreadId
 }) =>
   | { metadata?: { title?: string; repo?: string; model?: string } | undefined }
-  | Promise<{ metadata?: { title?: string; repo?: string; model?: string } | undefined } | undefined>
+  | Promise<
+      { metadata?: { title?: string; repo?: string; model?: string } | undefined } | undefined
+    >
   | undefined
 
 export type RegistrationSender = (args: {

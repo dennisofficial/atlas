@@ -45,7 +45,10 @@ export const PROJECT_SETTING_REGISTRY: ReadonlyMap<string, CloudSettingEntry> = 
 export const validateCloudSetting = (args: { key: string; stored: string }): SettingValidation =>
   validateAgainst({ registry: CLOUD_SETTING_REGISTRY, ...args, unknownKeyIsOk: true })
 
-export const validateWorkspaceSetting = (args: { key: string; stored: string }): SettingValidation =>
+export const validateWorkspaceSetting = (args: {
+  key: string
+  stored: string
+}): SettingValidation =>
   validateAgainst({ registry: WORKSPACE_SETTING_REGISTRY, ...args, unknownKeyIsOk: false })
 
 export const validateProjectSetting = (args: { key: string; stored: string }): SettingValidation =>

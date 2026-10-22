@@ -3,7 +3,11 @@
 import { ArrowUpRightIcon, FolderGit2Icon, PlusIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@dltech/atlas-ui/components/input-group'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@dltech/atlas-ui/components/input-group'
 
 import type { ProjectIdentity } from './data/project-mapping'
 

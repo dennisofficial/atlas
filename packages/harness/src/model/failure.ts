@@ -25,7 +25,8 @@ const SECONDS = 1_000
 
 const DROPPED: ModelFailure = {}
 
-const UPSTREAM_FAILURE_MESSAGE = 'the upstream provider returned an error while processing this request.'
+const UPSTREAM_FAILURE_MESSAGE =
+  'the upstream provider returned an error while processing this request.'
 
 const UPSTREAM_FAILURE_IDENTIFIERS: ReadonlySet<string> = new Set([
   'upstream_error',
@@ -34,7 +35,10 @@ const UPSTREAM_FAILURE_IDENTIFIERS: ReadonlySet<string> = new Set([
   'service_unavailable',
 ])
 
-const GENERIC_INVALID_REQUEST_IDENTIFIERS: ReadonlySet<string> = new Set(['invalid_request_error', 'invalid_request'])
+const GENERIC_INVALID_REQUEST_IDENTIFIERS: ReadonlySet<string> = new Set([
+  'invalid_request_error',
+  'invalid_request',
+])
 
 const PERMANENT_IDENTIFIERS: ReadonlySet<string> = new Set([
   'invalid_api_key',
@@ -76,7 +80,8 @@ function providerRetryHintOf(error: APICallError | StreamProviderError): boolean
   if (identifiers.some((identifier) => PERMANENT_IDENTIFIERS.has(identifier))) return false
   if (error.message.trim().toLowerCase() === UPSTREAM_FAILURE_MESSAGE) return true
   if (identifiers.some((identifier) => UPSTREAM_FAILURE_IDENTIFIERS.has(identifier))) return true
-  if (identifiers.some((identifier) => GENERIC_INVALID_REQUEST_IDENTIFIERS.has(identifier))) return false
+  if (identifiers.some((identifier) => GENERIC_INVALID_REQUEST_IDENTIFIERS.has(identifier)))
+    return false
   return error.isRetryable ? true : undefined
 }
 

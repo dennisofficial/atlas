@@ -19,7 +19,9 @@ export const NO_USAGE: AccountUsage = {
 export function worstWindow(windows: readonly (UsageWindow | null)[]): UsageWindow | null {
   return windows.reduce<UsageWindow | null>(
     (worst, window) =>
-      window !== null && (worst === null || window.utilization > worst.utilization) ? window : worst,
+      window !== null && (worst === null || window.utilization > worst.utilization)
+        ? window
+        : worst,
     null,
   )
 }

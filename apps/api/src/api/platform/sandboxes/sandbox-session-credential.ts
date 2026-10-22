@@ -21,7 +21,12 @@ export function sessionCredentialOf(args: {
   if (args.sealedToken !== null) {
     try {
       const token = args.cipher.decrypt(args.sealedToken)
-      return { token, tokenHash: hashSessionToken(token), sealedToken: args.sealedToken, rotated: false }
+      return {
+        token,
+        tokenHash: hashSessionToken(token),
+        sealedToken: args.sealedToken,
+        rotated: false,
+      }
     } catch (failure) {
       args.onStaleToken?.(failure)
     }

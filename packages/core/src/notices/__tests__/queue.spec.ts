@@ -28,7 +28,10 @@ describe('postNotice', () => {
   })
 
   it('replaces a standing key in place rather than stacking a twin', () => {
-    const notices = post(post(post([], { key: 'a' }), { key: 'copy' }), { key: 'copy', text: 'copied 4 lines' })
+    const notices = post(post(post([], { key: 'a' }), { key: 'copy' }), {
+      key: 'copy',
+      text: 'copied 4 lines',
+    })
 
     expect(notices.map((notice) => notice.key)).toEqual(['a', 'copy'])
     expect(notices[1]?.text).toBe('copied 4 lines')

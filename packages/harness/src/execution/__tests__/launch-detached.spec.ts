@@ -17,7 +17,13 @@ import {
 } from '@dltech/atlas-core'
 
 import { DockerProcessPort } from '../docker/docker-process'
-import { DockerEngine, EngineRequestFailed, type ContainerDetails, type ContainerSummary, type ExecState } from '../docker/engine'
+import {
+  DockerEngine,
+  EngineRequestFailed,
+  type ContainerDetails,
+  type ContainerSummary,
+  type ExecState,
+} from '../docker/engine'
 import { sandboxCreateBody, type SandboxConfig } from '../docker/sandbox'
 import { LocalProcessPort, type LocalProcessHandle } from '../local-process'
 import { LoginEnvProcessPort } from '../login-env-process'
@@ -51,7 +57,9 @@ class RecordingEngine extends DockerEngine {
   }
 
   override async listContainers(): Promise<ContainerSummary[]> {
-    return [{ id: 'c1', name: 'atlas-stub', state: this.running ? 'running' : 'exited', labels: {} }]
+    return [
+      { id: 'c1', name: 'atlas-stub', state: this.running ? 'running' : 'exited', labels: {} },
+    ]
   }
 
   override async inspectContainer(): Promise<ContainerDetails> {
@@ -74,7 +82,9 @@ class RecordingEngine extends DockerEngine {
     return { cpus: 64, memoryBytes: 1024 ** 4 }
   }
 
-  override async listNetworks(): Promise<{ id: string; name: string; labels: Record<string, string> }[]> {
+  override async listNetworks(): Promise<
+    { id: string; name: string; labels: Record<string, string> }[]
+  > {
     return [{ id: 'net', name: 'atlas-net-stub', labels: {} }]
   }
 
@@ -96,7 +106,10 @@ class RecordingEngine extends DockerEngine {
     return { running: false, exitCode: 0 }
   }
 
-  override async startExec(args: { execId: string; detach?: boolean }): Promise<ReadableStream<Uint8Array>> {
+  override async startExec(args: {
+    execId: string
+    detach?: boolean
+  }): Promise<ReadableStream<Uint8Array>> {
     this.started.push({ execId: args.execId, detach: args.detach })
     return new ReadableStream({ start: (controller) => controller.close() })
   }
@@ -195,9 +208,9 @@ describe('RoutedProcessPort.launchDetached', () => {
   it('refuses plainly when the chosen port cannot launch detached', async () => {
     const port = routed({ local: new PlainProcesses(), docker: new RecordingProcesses() })
 
-    await expect(port.launchDetached({ cmd: ['a'], cwd: '/w', threadId: HOST_THREAD })).rejects.toThrow(
-      'cannot launch detached',
-    )
+    await expect(
+      port.launchDetached({ cmd: ['a'], cwd: '/w', threadId: HOST_THREAD }),
+    ).rejects.toThrow('cannot launch detached')
   })
 })
 
@@ -209,7 +222,11 @@ describe('DockerProcessPort.launchDetached', () => {
     const engine = new RecordingEngine()
 
     await dockerPort(engine).launchDetached({
-      cmd: ['bun', '/home/operator/.atlas/bin/supervisor.js', '/home/operator/.atlas/sessions/s/config.json'],
+      cmd: [
+        'bun',
+        '/home/operator/.atlas/bin/supervisor.js',
+        '/home/operator/.atlas/sessions/s/config.json',
+      ],
       cwd: '/work',
       env: { PATH: '/usr/bin', FOO: 'bar' },
     })
@@ -234,10 +251,15 @@ describe('DockerProcessPort.launchDetached', () => {
 
     const before = engine.created.length
     engine.running = false
-    engine.failNextCreate = new EngineRequestFailed({ status: 409, message: 'Container c1 is not running' })
+    engine.failNextCreate = new EngineRequestFailed({
+      status: 409,
+      message: 'Container c1 is not running',
+    })
     await port.launchDetached({ cmd: ['true-again'], cwd: '/work' })
 
-    expect(engine.created.slice(before).filter((one) => one.cmd[0] === 'true-again')).toHaveLength(1)
+    expect(engine.created.slice(before).filter((one) => one.cmd[0] === 'true-again')).toHaveLength(
+      1,
+    )
     expect(engine.started.at(-1)?.detach).toBe(true)
   })
 })

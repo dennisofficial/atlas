@@ -1,11 +1,24 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { toEventId, toRunId, toThreadId, type EventDraft, type EventEnvelope, type ThreadId } from '@dltech/atlas-core'
+import {
+  toEventId,
+  toRunId,
+  toThreadId,
+  type EventDraft,
+  type EventEnvelope,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { encodeEventLine } from '../src/store/sessions/lines'
 import { newThreadMeta, type SessionMeta, type ThreadMeta } from '../src/store/sessions/meta'
-import { eventLogFile, ledgerFile, sessionDirectory, sessionMetaFile, threadMetaFile } from '../src/store/sessions/paths'
+import {
+  eventLogFile,
+  ledgerFile,
+  sessionDirectory,
+  sessionMetaFile,
+  threadMetaFile,
+} from '../src/store/sessions/paths'
 
 export const SESSION_COUNT = 1200
 export const ROOTS_PER_PROJECT = 600
@@ -26,7 +39,15 @@ export function isoOf({ day, tick }: { day: number; tick: number }): string {
   return new Date(Date.UTC(2026, 0, 1 + day, tick % 24, 0, 0, tick)).toISOString()
 }
 
-function rootMeta({ id, projects, index }: { id: string; projects: BenchPaths; index: number }): ThreadMeta {
+function rootMeta({
+  id,
+  projects,
+  index,
+}: {
+  id: string
+  projects: BenchPaths
+  index: number
+}): ThreadMeta {
   return {
     ...newThreadMeta({ id, at: isoOf({ day: index, tick: 0 }) }),
     title: `bench thread ${index}`,
@@ -62,7 +83,15 @@ function childMeta({
   }
 }
 
-function envelopeOf({ threadId, seq, runId }: { threadId: ThreadId; seq: number; runId: string }): EventEnvelope {
+function envelopeOf({
+  threadId,
+  seq,
+  runId,
+}: {
+  threadId: ThreadId
+  seq: number
+  runId: string
+}): EventEnvelope {
   return {
     id: toEventId(`evt_${threadId.slice(4)}_${seq}`),
     seq,
@@ -105,7 +134,10 @@ function headLines({ threadId, index }: { threadId: ThreadId; index: number }): 
 function tailLines({ threadId, seqStart }: { threadId: ThreadId; seqStart: number }): string[] {
   const runId = `run_${threadId.slice(4)}`
   return [
-    lineOf({ draft: { type: 'user-said', text: 'tail chatter' }, envelope: envelopeOf({ threadId, seq: seqStart, runId }) }),
+    lineOf({
+      draft: { type: 'user-said', text: 'tail chatter' },
+      envelope: envelopeOf({ threadId, seq: seqStart, runId }),
+    }),
     lineOf({
       draft: { type: 'assistant-said', parts: [{ type: 'text', text: 'tail answer' }] },
       envelope: envelopeOf({ threadId, seq: seqStart + 1, runId }),
@@ -113,7 +145,10 @@ function tailLines({ threadId, seqStart }: { threadId: ThreadId; seqStart: numbe
   ]
 }
 
-function buildBigLog({ threadId, index }: { threadId: ThreadId; index: number }): { text: string; lines: number } {
+function buildBigLog({ threadId, index }: { threadId: ThreadId; index: number }): {
+  text: string
+  lines: number
+} {
   const head = headLines({ threadId, index })
   const envelope = envelopeOf({ threadId, seq: 3, runId: `run_${threadId.slice(4)}` })
   const prefix = `${encodeEventLine({ draft: { type: 'assistant-said', parts: [{ type: 'text', text: '' }] }, envelope })}`
@@ -123,7 +158,10 @@ function buildBigLog({ threadId, index }: { threadId: ThreadId; index: number })
   return { text, lines: 5 }
 }
 
-function buildSmallLog({ threadId, index }: { threadId: ThreadId; index: number }): { text: string; lines: number } {
+function buildSmallLog({ threadId, index }: { threadId: ThreadId; index: number }): {
+  text: string
+  lines: number
+} {
   const lines = headLines({ threadId, index })
   let seq = 2
   for (let count = 0; count < SMALL_NOISE_EVENTS; count += 1) {
@@ -156,27 +194,37 @@ function sessionMetaOf({ id, index }: { id: string; index: number }): SessionMet
 }
 
 function ledgerTextOf({ id, index }: { id: string; index: number }): string {
-  return Array.from({ length: LEDGER_TURNS }, (_, turn) =>
-    `${JSON.stringify({
-      v: 1,
-      runId: `run_${id.slice(4)}_${turn}`,
-      threadId: id,
-      status: 'completed',
-      providerId: 'bench',
-      modelId: 'bench-model',
-      steps: 1,
-      inputTokens: 1000 + turn,
-      outputTokens: 50 + turn,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-      startedAt: isoOf({ day: index, tick: turn }),
-      endedAt: isoOf({ day: index, tick: turn + 1 }),
-      durationMs: 1,
-    })}\n`,
+  return Array.from(
+    { length: LEDGER_TURNS },
+    (_, turn) =>
+      `${JSON.stringify({
+        v: 1,
+        runId: `run_${id.slice(4)}_${turn}`,
+        threadId: id,
+        status: 'completed',
+        providerId: 'bench',
+        modelId: 'bench-model',
+        steps: 1,
+        inputTokens: 1000 + turn,
+        outputTokens: 50 + turn,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        startedAt: isoOf({ day: index, tick: turn }),
+        endedAt: isoOf({ day: index, tick: turn + 1 }),
+        durationMs: 1,
+      })}\n`,
   ).join('')
 }
 
-async function writeSession({ home, projects, index }: { home: string; projects: BenchPaths; index: number }): Promise<FixtureTotals> {
+async function writeSession({
+  home,
+  projects,
+  index,
+}: {
+  home: string
+  projects: BenchPaths
+  index: number
+}): Promise<FixtureTotals> {
   const id = `brn_bench_${String(index).padStart(6, '0')}`
   const sessionDir = sessionDirectory({ home, sessionId: id })
   const sessionId = toThreadId(id)
@@ -184,14 +232,24 @@ async function writeSession({ home, projects, index }: { home: string; projects:
 
   const isRoot = index < ROOTS_PER_PROJECT
   const isBig = isRoot && index >= ROOTS_PER_PROJECT - BIG_LOG_COUNT
-  const log = isBig ? buildBigLog({ threadId: sessionId, index }) : buildSmallLog({ threadId: sessionId, index })
+  const log = isBig
+    ? buildBigLog({ threadId: sessionId, index })
+    : buildSmallLog({ threadId: sessionId, index })
   const metaFiles = 1 + CHILDREN_PER_ROOT + (isBig ? 1 : 0)
   const writes: Promise<unknown>[] = [
-    writeFile(threadMetaFile({ sessionDir, threadId: sessionId }), JSON.stringify(rootMeta({ id, projects, index }), null, 2)),
+    writeFile(
+      threadMetaFile({ sessionDir, threadId: sessionId }),
+      JSON.stringify(rootMeta({ id, projects, index }), null, 2),
+    ),
     writeFile(eventLogFile({ sessionDir, threadId: sessionId }), log.text),
   ]
   if (isBig) {
-    writes.push(writeFile(sessionMetaFile({ sessionDir }), JSON.stringify(sessionMetaOf({ id, index }), null, 2)))
+    writes.push(
+      writeFile(
+        sessionMetaFile({ sessionDir }),
+        JSON.stringify(sessionMetaOf({ id, index }), null, 2),
+      ),
+    )
     writes.push(writeFile(ledgerFile({ sessionDir }), ledgerTextOf({ id, index })))
   }
   for (let number = 0; number < CHILDREN_PER_ROOT; number += 1) {
@@ -207,12 +265,23 @@ async function writeSession({ home, projects, index }: { home: string; projects:
   return { bytes: Buffer.byteLength(log.text), eventLines: log.lines, metaFiles }
 }
 
-export async function buildFixture({ home, projects }: { home: string; projects: BenchPaths }): Promise<FixtureTotals> {
+export async function buildFixture({
+  home,
+  projects,
+}: {
+  home: string
+  projects: BenchPaths
+}): Promise<FixtureTotals> {
   const totals: FixtureTotals = { bytes: 0, eventLines: 0, metaFiles: 0 }
   const batchSize = 100
   for (let start = 0; start < SESSION_COUNT; start += batchSize) {
-    const batch = Array.from({ length: Math.min(batchSize, SESSION_COUNT - start) }, (_, offset) => start + offset)
-    for (const done of await Promise.all(batch.map((index) => writeSession({ home, projects, index })))) {
+    const batch = Array.from(
+      { length: Math.min(batchSize, SESSION_COUNT - start) },
+      (_, offset) => start + offset,
+    )
+    for (const done of await Promise.all(
+      batch.map((index) => writeSession({ home, projects, index })),
+    )) {
       totals.bytes += done.bytes
       totals.eventLines += done.eventLines
       totals.metaFiles += done.metaFiles

@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { EProjectSettingsPage } from "../../fixtures/project-settings";
-import { McpPage } from "./mcp-page";
-import { ProjectSettingsShell } from "./project-settings-shell";
+import { EProjectSettingsPage } from '../../fixtures/project-settings'
+import { McpPage } from './mcp-page'
+import { ProjectSettingsShell } from './project-settings-shell'
 
 const meta = {
-  title: "Views/Project Settings/MCP",
-  parameters: { layout: "fullscreen" },
-} satisfies Meta;
+  title: 'Views/Project Settings/MCP',
+  parameters: { layout: 'fullscreen' },
+} satisfies Meta
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Configured: Story = {
   render: () => (
@@ -19,7 +19,7 @@ export const Configured: Story = {
       <McpPage />
     </ProjectSettingsShell>
   ),
-};
+}
 
 export const Empty: Story = {
   render: () => (
@@ -27,7 +27,7 @@ export const Empty: Story = {
       <McpPage initialServers={[]} />
     </ProjectSettingsShell>
   ),
-};
+}
 
 export const AddServerDialog: Story = {
   render: () => (
@@ -35,4 +35,4 @@ export const AddServerDialog: Story = {
       <McpPage addDialogOpen />
     </ProjectSettingsShell>
   ),
-};
+}

@@ -16,7 +16,8 @@ export const PARK_STOP_CYCLE_LIMIT = 3
 export function createServeLifecycle(args: {
   app: ServeApp
   driver: ServeTurnDriver
-  handlers: Pick<SessionHandlers, 'park' | 'hangUp'> & Partial<Pick<SessionHandlers, 'abortHistory' | 'whenSettled'>>
+  handlers: Pick<SessionHandlers, 'park' | 'hangUp'> &
+    Partial<Pick<SessionHandlers, 'abortHistory' | 'whenSettled'>>
   server: { stop: (closeActiveConnections?: boolean) => Promise<void> }
   bridge: { close: () => void }
   threadId: ThreadId
@@ -42,7 +43,12 @@ export function createServeLifecycle(args: {
     closing ??= (async () => {
       args.haltIdle()
       args.app.intake?.suspend()
-      args.log({ event: EServeEvent.ShutdownRequested, threadId: args.threadId, reason, work: args.work() })
+      args.log({
+        event: EServeEvent.ShutdownRequested,
+        threadId: args.threadId,
+        reason,
+        work: args.work(),
+      })
       args.detach()
       args.driver.interrupt()
       args.handlers.abortHistory?.()
@@ -85,7 +91,12 @@ export function createServeLifecycle(args: {
       args.app.intake?.suspend()
       const work = args.work()
       if (runtimeHasWork(work)) {
-        args.log({ event: EServeEvent.ParkRefused, threadId: args.threadId, reason: 'work-active', work })
+        args.log({
+          event: EServeEvent.ParkRefused,
+          threadId: args.threadId,
+          reason: 'work-active',
+          work,
+        })
         await reopenAdmission()
         return
       }
@@ -112,7 +123,8 @@ export function createServeLifecycle(args: {
       // app.log is the raw EventLogPort (no withEventsAppendedPublishing wrapper — that wrapper
       // exists only on the operator-input and shell registrations), so the append emits nothing.
       // The parked marker is the transcript tail the dim rule checks, so publish it explicitly.
-      if (parked !== undefined) args.app.channel.publisherFor({ threadId: args.threadId }).eventsAppended()
+      if (parked !== undefined)
+        args.app.channel.publisherFor({ threadId: args.threadId }).eventsAppended()
       await args.checkpoint.finalizePark()
       finalized = true
       args.log({ event: EServeEvent.ParkFinalized, threadId: args.threadId })
@@ -151,7 +163,8 @@ export function createServeLifecycle(args: {
         event: EServeEvent.ParkStopFailed,
         threadId: args.threadId,
         admissionClosed: true,
-        reason: 'provider stop failed 3 times after the park finalized; the idle timer is re-armed to retry',
+        reason:
+          'provider stop failed 3 times after the park finalized; the idle timer is re-armed to retry',
       })
     } catch (failure) {
       args.log({

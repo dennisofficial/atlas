@@ -123,10 +123,7 @@ describe('vim lexical highlighting', () => {
 
   it('leaves a command bang standing beside its keyword', () => {
     const banged = 'function! s:f()\nendfunction'
-    expect(textFor({ spec, source: banged, group: 'keyword' })).toEqual([
-      'function',
-      'endfunction',
-    ])
+    expect(textFor({ spec, source: banged, group: 'keyword' })).toEqual(['function', 'endfunction'])
     expect(textFor({ spec, source: banged, group: 'operator' })).toEqual(['!'])
   })
 

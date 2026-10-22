@@ -80,7 +80,11 @@ describe('the log that publishes what it commits', () => {
     const inner = fakeLog()
     const log = withDeltaPublishing({ log: inner, channel: createDeltaChannel() })
 
-    const appended = await log.append({ threadId, runId, drafts: [{ type: 'user-said', text: 'what changed?' }] })
+    const appended = await log.append({
+      threadId,
+      runId,
+      drafts: [{ type: 'user-said', text: 'what changed?' }],
+    })
 
     expect(appended).toEqual(inner.rows)
     expect(await log.read({ threadId })).toEqual(inner.rows)

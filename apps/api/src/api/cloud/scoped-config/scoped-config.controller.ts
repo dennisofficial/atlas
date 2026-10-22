@@ -1,5 +1,14 @@
 import type { ResolvedSandboxConfig } from '@dltech/atlas-wire/web'
-import { Controller, ForbiddenException, Get, Header, Query, Req, UnauthorizedException, UseGuards } from '@nestjs/common'
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Header,
+  Query,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
 import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
 import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
@@ -10,7 +19,8 @@ import { ScopedConfigService } from './scoped-config.service'
 
 const machineThreadOf = (request: AuthenticatedRequest): string => {
   const threadId = request.sandbox?.threadId ?? request.pod?.threadId
-  if (threadId === undefined) throw new ForbiddenException('only a sandbox or pod token reads its resolved config')
+  if (threadId === undefined)
+    throw new ForbiddenException('only a sandbox or pod token reads its resolved config')
   return threadId
 }
 
@@ -34,7 +44,10 @@ export class ScopedConfigController {
       where: { id: machineThreadOf(request) },
       select: { projectId: true },
     })
-    const given = requestedProjectId === undefined || requestedProjectId.length === 0 ? null : requestedProjectId
+    const given =
+      requestedProjectId === undefined || requestedProjectId.length === 0
+        ? null
+        : requestedProjectId
     return this.scoped.resolveForPod({ userId, projectId: thread?.projectId ?? given })
   }
 }

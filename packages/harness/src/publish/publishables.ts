@@ -33,7 +33,8 @@ const MCP_ARCHIVE_KEY = '.atlas/mcp.json'
 const SKILL_KEY_SEGMENTS = 3
 const READ_CONCURRENCY = 32
 
-const sha256Hex = (content: Uint8Array | string): string => createHash('sha256').update(content).digest('hex')
+const sha256Hex = (content: Uint8Array | string): string =>
+  createHash('sha256').update(content).digest('hex')
 
 const isFile = (path: string): Promise<boolean> =>
   stat(path).then(
@@ -41,7 +42,8 @@ const isFile = (path: string): Promise<boolean> =>
     () => false,
   )
 
-const byLabel = (left: Draft, right: Draft): number => (left.label < right.label ? -1 : left.label > right.label ? 1 : 0)
+const byLabel = (left: Draft, right: Draft): number =>
+  left.label < right.label ? -1 : left.label > right.label ? 1 : 0
 
 async function skillDrafts(args: { atlasHome: string; home: string }): Promise<readonly Draft[]> {
   const scanned = await skillsTree(args).scan()
@@ -51,7 +53,12 @@ async function skillDrafts(args: { atlasHome: string; home: string }): Promise<r
     if (segments.length < SKILL_KEY_SEGMENTS) continue
 
     const label = `${segments[0]}/${segments[1]}`
-    const draft = groups.get(label) ?? { id: `skill:${label}`, kind: EPublishKind.Skill, label, files: [] }
+    const draft = groups.get(label) ?? {
+      id: `skill:${label}`,
+      kind: EPublishKind.Skill,
+      label,
+      files: [],
+    }
     draft.files.push({ archiveKey: `${SKILL_ARCHIVE_PREFIX}${key}`, path })
     groups.set(label, draft)
   }
@@ -66,7 +73,14 @@ async function singleFileDraft(args: {
   label: string
 }): Promise<readonly Draft[]> {
   if (!(await isFile(args.path))) return []
-  return [{ id: args.id, kind: args.kind, label: args.label, files: [{ archiveKey: args.archiveKey, path: args.path }] }]
+  return [
+    {
+      id: args.id,
+      kind: args.kind,
+      label: args.label,
+      files: [{ archiveKey: args.archiveKey, path: args.path }],
+    },
+  ]
 }
 
 async function digestAll(paths: readonly string[]): Promise<ReadonlyMap<string, FileDigest>> {
@@ -78,14 +92,18 @@ async function digestAll(paths: readonly string[]): Promise<ReadonlyMap<string, 
       next += 1
       if (path === undefined) return
       const content = await readFile(path).catch(() => null)
-      if (content !== null) digests.set(path, { size: content.byteLength, digest: sha256Hex(content) })
+      if (content !== null)
+        digests.set(path, { size: content.byteLength, digest: sha256Hex(content) })
     }
   }
   await Promise.all(Array.from({ length: READ_CONCURRENCY }, worker))
   return digests
 }
 
-function measured(args: { draft: Draft; digests: ReadonlyMap<string, FileDigest> }): Publishable | null {
+function measured(args: {
+  draft: Draft
+  digests: ReadonlyMap<string, FileDigest>
+}): Publishable | null {
   const files = args.draft.files
     .filter((file) => args.digests.has(file.path))
     .sort((left, right) => (left.archiveKey < right.archiveKey ? -1 : 1))
@@ -99,10 +117,20 @@ function measured(args: { draft: Draft; digests: ReadonlyMap<string, FileDigest>
     bytes += known.size
     hash.update(`${file.archiveKey}\0${known.digest}\n`)
   }
-  return { id: args.draft.id, kind: args.draft.kind, label: args.draft.label, files, bytes, hash: hash.digest('hex') }
+  return {
+    id: args.draft.id,
+    kind: args.draft.kind,
+    label: args.draft.label,
+    files,
+    bytes,
+    hash: hash.digest('hex'),
+  }
 }
 
-export async function scanPublishables(args: { atlasHome: string; home: string }): Promise<readonly Publishable[]> {
+export async function scanPublishables(args: {
+  atlasHome: string
+  home: string
+}): Promise<readonly Publishable[]> {
   const drafts = [
     ...(await skillDrafts(args)),
     ...(await singleFileDraft({
@@ -120,6 +148,8 @@ export async function scanPublishables(args: { atlasHome: string; home: string }
       label: ATLAS_MCP_FILE_NAME,
     })),
   ]
-  const digests = await digestAll([...new Set(drafts.flatMap((draft) => draft.files.map((file) => file.path)))])
+  const digests = await digestAll([
+    ...new Set(drafts.flatMap((draft) => draft.files.map((file) => file.path))),
+  ])
   return drafts.flatMap((draft) => measured({ draft, digests }) ?? [])
 }

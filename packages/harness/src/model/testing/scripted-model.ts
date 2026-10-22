@@ -1,4 +1,8 @@
-import type { LanguageModelV4FinishReason, LanguageModelV4StreamPart, LanguageModelV4Usage } from '@ai-sdk/provider'
+import type {
+  LanguageModelV4FinishReason,
+  LanguageModelV4StreamPart,
+  LanguageModelV4Usage,
+} from '@ai-sdk/provider'
 import { simulateReadableStream } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 
@@ -61,7 +65,11 @@ const reasoningParts = (reasoning: ScriptedReasoning): LanguageModelV4StreamPart
   {
     type: 'reasoning-end',
     id: REASONING_BLOCK_ID,
-    ...carriedMetadata(reasoning.signature === undefined ? undefined : { anthropic: { signature: reasoning.signature } }),
+    ...carriedMetadata(
+      reasoning.signature === undefined
+        ? undefined
+        : { anthropic: { signature: reasoning.signature } },
+    ),
   },
 ]
 
@@ -71,7 +79,10 @@ export function providerPartsFor(step: ScriptedStep): LanguageModelV4StreamPart[
   if (step.reasoning !== undefined) parts.push(...reasoningParts(step.reasoning))
 
   if (step.text !== undefined) {
-    parts.push({ type: 'text-start', id: TEXT_BLOCK_ID }, { type: 'text-delta', id: TEXT_BLOCK_ID, delta: step.text })
+    parts.push(
+      { type: 'text-start', id: TEXT_BLOCK_ID },
+      { type: 'text-delta', id: TEXT_BLOCK_ID, delta: step.text },
+    )
     if (step.leaveTextOpen !== true) parts.push({ type: 'text-end', id: TEXT_BLOCK_ID })
   }
 

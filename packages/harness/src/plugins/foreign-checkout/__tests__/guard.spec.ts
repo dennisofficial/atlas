@@ -12,7 +12,11 @@ import ForeignCheckoutPlugin, { guardForeignCheckout } from '..'
 
 const PROJECT = '/Users/dennis/Developer/atlas'
 
-const callOf = (args: { name: string; input: unknown; effect?: EToolEffect | undefined }): ToolCall => ({
+const callOf = (args: {
+  name: string
+  input: unknown
+  effect?: EToolEffect | undefined
+}): ToolCall => ({
   callId: toCallId('call-1'),
   name: args.name,
   input: args.input,

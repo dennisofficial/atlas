@@ -31,7 +31,13 @@ describe('migrateDeployWithRetry', () => {
     const run = vi.fn().mockResolvedValue(1)
     const sleep = vi.fn(immediateSleep)
 
-    const code = await migrateDeployWithRetry({ run, sleep, log: silentLog, attempts: 3, backoffMs: 5 })
+    const code = await migrateDeployWithRetry({
+      run,
+      sleep,
+      log: silentLog,
+      attempts: 3,
+      backoffMs: 5,
+    })
 
     expect(code).toBe(1)
     expect(run).toHaveBeenCalledTimes(3)

@@ -67,7 +67,9 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   const shells = useShells({ app: props.app, threadId: conversation.threadId })
   const services = useServices({ app: props.app })
   const contextBrowser = useWorkspaceContext({
-    readers: props.attachment?.context, threadId: conversation.threadId, onClosePeek: frame.handleClosePeek,
+    readers: props.attachment?.context,
+    threadId: conversation.threadId,
+    onClosePeek: frame.handleClosePeek,
     local: props.attachment === undefined || props.attachment.kind === 'local',
   })
 
@@ -88,7 +90,12 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     onFocusComposer: session.handleFocusComposer,
   })
 
-  const qualityHealth = useWorkspaceQualityHealth({ app: props.app, agentView, conversationThreadId: conversation.threadId, settings })
+  const qualityHealth = useWorkspaceQualityHealth({
+    app: props.app,
+    agentView,
+    conversationThreadId: conversation.threadId,
+    settings,
+  })
 
   const layout = useWorkspaceLayout({
     frame,
@@ -101,13 +108,12 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   const { threads, rewind } = navigation
 
   const { whatsNew } = props
-  const { accounts, accountMeters, handleOpenAccounts, onboarding } =
-    useWorkspaceAccounts({
-      app: props.app,
-      credentialNotice: props.credentialNotice,
-      usageWarn: settings.usageWarn,
-      onChooseModel: relay.handleChoose,
-    })
+  const { accounts, accountMeters, handleOpenAccounts, onboarding } = useWorkspaceAccounts({
+    app: props.app,
+    credentialNotice: props.credentialNotice,
+    usageWarn: settings.usageWarn,
+    onChooseModel: relay.handleChoose,
+  })
 
   const containerResources = useContainerResources({
     readResources: () => {
@@ -116,7 +122,10 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     },
     updateResources: async (vcpus) => {
       if (props.cloudBridge === null) throw new Error('no cloud bridge attached')
-      return await props.cloudBridge.sandboxes.updateResources({ threadId: conversation.threadId, vcpus })
+      return await props.cloudBridge.sandboxes.updateResources({
+        threadId: conversation.threadId,
+        vcpus,
+      })
     },
   })
   const { containerGuard, handleContainer, handleContainerResources } = useWorkspaceLocation({
@@ -222,13 +231,23 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
 
   useComposerPaste({ overlaid, tokens, handleAttachImage: composer.handleAttachImage })
 
-  const header = workspaceHeader({ welcome: layout.welcome, width: frame.width, projectDirectory: conversation.projectDirectory, repoRoot: layout.repoRoot, diff: layout.headerDiff })
+  const header = workspaceHeader({
+    welcome: layout.welcome,
+    width: frame.width,
+    projectDirectory: conversation.projectDirectory,
+    repoRoot: layout.repoRoot,
+    diff: layout.headerDiff,
+  })
 
   return (
     <WorkspaceView
       header={header}
       contentWidth={layout.contentWidth}
-      pane={contextBrowser.viewer === null ? null : <WorkspaceContextPane control={contextBrowser} width={layout.contentWidth} />}
+      pane={
+        contextBrowser.viewer === null ? null : (
+          <WorkspaceContextPane control={contextBrowser} width={layout.contentWidth} />
+        )
+      }
       transcript={
         <WorkspaceTranscript
           app={props.app}
@@ -299,8 +318,20 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           cwd={props.app.config.cwd}
           active={selection.ref}
           accountMeters={accountMeters}
-          {...{ switcher, shells, services, agents, settings, onboarding, whatsNew,
-            accounts, threads, projectPrompt, rewind, qualityHealth }}
+          {...{
+            switcher,
+            shells,
+            services,
+            agents,
+            settings,
+            onboarding,
+            whatsNew,
+            accounts,
+            threads,
+            projectPrompt,
+            rewind,
+            qualityHealth,
+          }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
           {...{ exitGuard, containerGuard, containerResources }}

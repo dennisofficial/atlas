@@ -156,7 +156,10 @@ describe('openConversation on a thread whose meta says cloud', () => {
   it('refuses the local open without claiming the session lock', async () => {
     await closeConversation()
     const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
-    await threads.chooseExecutionLocation({ threadId: REMOTE_THREAD, location: EExecutionLocation.Cloud })
+    await threads.chooseExecutionLocation({
+      threadId: REMOTE_THREAD,
+      location: EExecutionLocation.Cloud,
+    })
 
     const outcome = await openConversation({
       threads,
@@ -171,13 +174,18 @@ describe('openConversation on a thread whose meta says cloud', () => {
 
     expect('cloud' in outcome && outcome.threadId === REMOTE_THREAD).toBe(true)
     expect(await lockHeld(REMOTE_THREAD)).toBe(false)
-    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.executionLocation).toBe(EExecutionLocation.Cloud)
+    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.executionLocation).toBe(
+      EExecutionLocation.Cloud,
+    )
   })
 
   it('opens the mirrored transcript at boot and marks it for attach, never the lock', async () => {
     await closeConversation()
     const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
-    await threads.chooseExecutionLocation({ threadId: REMOTE_THREAD, location: EExecutionLocation.Cloud })
+    await threads.chooseExecutionLocation({
+      threadId: REMOTE_THREAD,
+      location: EExecutionLocation.Cloud,
+    })
 
     const outcome = await openConversation({
       threads,
@@ -202,6 +210,8 @@ describe('openConversation on a thread whose meta says cloud', () => {
       expect(outcome.conversation.attachOnBoot).toBe(true)
     }
     expect(await lockHeld(REMOTE_THREAD)).toBe(false)
-    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.executionLocation).toBe(EExecutionLocation.Cloud)
+    expect(threads.peekRow({ threadId: REMOTE_THREAD })?.executionLocation).toBe(
+      EExecutionLocation.Cloud,
+    )
   })
 })

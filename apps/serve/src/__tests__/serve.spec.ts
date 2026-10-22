@@ -110,7 +110,9 @@ describe('startServe', () => {
     const { handle } = await start({})
     const client = await connect({ port: handle.port, token: TOKEN })
 
-    client.send(hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION + 1 }))
+    client.send(
+      hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION + 1 }),
+    )
 
     expect(await client.closed).toBe(1008)
     const last = client.frames.at(-1)
@@ -123,7 +125,9 @@ describe('startServe', () => {
     const { handle } = await start({})
     const client = await connect({ port: handle.port, token: TOKEN })
 
-    client.send(hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION - 1 }))
+    client.send(
+      hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION - 1 }),
+    )
 
     expect(await client.closed).toBe(1008)
     const last = client.frames.at(-1)

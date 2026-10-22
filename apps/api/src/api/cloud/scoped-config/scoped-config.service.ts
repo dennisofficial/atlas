@@ -30,14 +30,24 @@ export class ScopedConfigService {
   }
 
   async resolveWithProvisioning(args: ScopedConfigTarget): Promise<ResolvedSandboxConfig> {
-    const project = args.projectId === null ? null : await this.accessibleProject({ ...args, projectId: args.projectId })
+    const project =
+      args.projectId === null
+        ? null
+        : await this.accessibleProject({ ...args, projectId: args.projectId })
     const { cipher } = this
     const [user, workspace, projectLayer] = await Promise.all([
       loadUserLayer({ cipher, userId: args.userId }),
-      project?.organizationId ? loadWorkspaceLayer({ cipher, organizationId: project.organizationId }) : null,
+      project?.organizationId
+        ? loadWorkspaceLayer({ cipher, organizationId: project.organizationId })
+        : null,
       project === null ? null : loadProjectLayer({ cipher, projectId: project.id }),
     ])
-    return resolveScopedConfig({ defaults: EMPTY_SCOPE_LAYER, workspace, user, project: projectLayer })
+    return resolveScopedConfig({
+      defaults: EMPTY_SCOPE_LAYER,
+      workspace,
+      user,
+      project: projectLayer,
+    })
   }
 
   async vercelCredentials(args: { projectId: string }): Promise<VercelProvisioningCredentials> {
@@ -50,7 +60,8 @@ export class ScopedConfigService {
       throw new VercelNotConfiguredError(EVercelCredentialGap.ProjectWorkspace)
     }
     const credential = await this.vercel.openToken({ organizationId: project.organizationId })
-    if (credential === null) throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
+    if (credential === null)
+      throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
     const setting = await db.projectSetting.findUnique({
       where: { projectId_key: { projectId: project.id, key: VERCEL_PROJECT_ID_SETTING } },
     })

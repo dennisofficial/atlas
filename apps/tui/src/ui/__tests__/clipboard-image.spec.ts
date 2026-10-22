@@ -5,11 +5,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EImageTier, pngSize, projectedSize } from '@dltech/atlas-core'
 
-import {
-  appleScriptClipboardBytes,
-  attachClipboardImage,
-  newPasteMemory,
-} from '../clipboard-image'
+import { appleScriptClipboardBytes, attachClipboardImage, newPasteMemory } from '../clipboard-image'
 import { encodePng } from '../images/__tests__/png-fixture'
 
 const platform = process.platform
@@ -176,7 +172,10 @@ describe('resizing a paste to the model tier', () => {
       memory: newPasteMemory(),
     })
 
-    const projected = projectedSize({ size: { width: 4640, height: 2774 }, tier: EImageTier.HighResolution })
+    const projected = projectedSize({
+      size: { width: 4640, height: 2774 },
+      tier: EImageTier.HighResolution,
+    })
     expect(image?.width).toBe(projected.width)
     expect(image?.height).toBe(projected.height)
     expect(projected.width).toBeGreaterThan(1568)
@@ -188,8 +187,18 @@ describe('resizing a paste to the model tier', () => {
     const pull = async (): Promise<Buffer> => bytes
     const memory = newPasteMemory()
 
-    const standard = await attachClipboardImage({ directory, tier: EImageTier.Standard, pull, memory })
-    const high = await attachClipboardImage({ directory, tier: EImageTier.HighResolution, pull, memory })
+    const standard = await attachClipboardImage({
+      directory,
+      tier: EImageTier.Standard,
+      pull,
+      memory,
+    })
+    const high = await attachClipboardImage({
+      directory,
+      tier: EImageTier.HighResolution,
+      pull,
+      memory,
+    })
 
     expect(high?.path).not.toBe(standard?.path)
     expect(high?.width).toBeGreaterThan(standard?.width ?? 0)

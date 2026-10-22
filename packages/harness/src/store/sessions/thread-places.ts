@@ -68,7 +68,12 @@ async function readSegments({
   for (const segment of segments) {
     const all =
       segment.threadId === ownThread && segment.sessionDir === ownDir
-        ? (await registry.readThreadLog({ sessionDir: segment.sessionDir, threadId: segment.threadId })).events
+        ? (
+            await registry.readThreadLog({
+              sessionDir: segment.sessionDir,
+              threadId: segment.threadId,
+            })
+          ).events
         : await registry.readParentEvents({
             file: eventLogFile({ sessionDir: segment.sessionDir, threadId: segment.threadId }),
           })
@@ -77,9 +82,15 @@ async function readSegments({
   return read
 }
 
-function worktreeFrom({ segmentEvents }: { segmentEvents: readonly Event[][] }): ThreadWorktree | null {
+function worktreeFrom({
+  segmentEvents,
+}: {
+  segmentEvents: readonly Event[][]
+}): ThreadWorktree | null {
   for (let index = segmentEvents.length - 1; index >= 0; index -= 1) {
-    const moves = (segmentEvents[index] ?? []).filter((event) => WORKTREE_EVENT_TYPES.has(event.type))
+    const moves = (segmentEvents[index] ?? []).filter((event) =>
+      WORKTREE_EVENT_TYPES.has(event.type),
+    )
     const latest = moves.at(-1)
     if (latest === undefined) continue
     if (latest.type !== 'worktree-entered') return null
@@ -90,7 +101,9 @@ function worktreeFrom({ segmentEvents }: { segmentEvents: readonly Event[][] }):
 
 function linkedFrom({ segmentEvents }: { segmentEvents: readonly Event[][] }): LinkedPullRequest[] {
   for (let index = segmentEvents.length - 1; index >= 0; index -= 1) {
-    const linked = (segmentEvents[index] ?? []).filter((event) => event.type === 'pull-request-linked')
+    const linked = (segmentEvents[index] ?? []).filter(
+      (event) => event.type === 'pull-request-linked',
+    )
     if (linked.length > 0) return [...pullRequestsOf(linked)]
   }
   return []
@@ -124,7 +137,11 @@ export async function appendStampedEvent({
 }): Promise<void> {
   const file = eventLogFile({ sessionDir, threadId: event.threadId })
   await mkdir(dirname(file), { recursive: true })
-  await appendFile(file, `${encodeEventLine({ draft: draftOf(event), envelope: envelopeOf(event, event.id) })}\n`, 'utf8')
+  await appendFile(
+    file,
+    `${encodeEventLine({ draft: draftOf(event), envelope: envelopeOf(event, event.id) })}\n`,
+    'utf8',
+  )
   await registry.stampThreadLog({ sessionDir, threadId: event.threadId })
   const log = await registry.readThreadLog({ sessionDir, threadId: event.threadId })
   log.events.push(event)

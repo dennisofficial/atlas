@@ -23,12 +23,19 @@ export type DeliverOperatorInputArgs = {
   signal: AbortSignal
 }
 
-export async function deliverOperatorInput(args: DeliverOperatorInputArgs & {
-  files: AgentFileSystemPort
-  processes: ProcessPort
-  timeoutMs?: number
-}): Promise<OperatorInputAnswerOutcome> {
-  if (args.signal.aborted) return { ok: false, reason: 'operator input delivery cancelled; partial input may have reached the reader — restart the CLI with a fresh destination' }
+export async function deliverOperatorInput(
+  args: DeliverOperatorInputArgs & {
+    files: AgentFileSystemPort
+    processes: ProcessPort
+    timeoutMs?: number
+  },
+): Promise<OperatorInputAnswerOutcome> {
+  if (args.signal.aborted)
+    return {
+      ok: false,
+      reason:
+        'operator input delivery cancelled; partial input may have reached the reader — restart the CLI with a fresh destination',
+    }
   const spool = `/tmp/atlas-operator-input-${crypto.randomUUID()}`
   let process: ProcessHandle | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -36,8 +43,18 @@ export async function deliverOperatorInput(args: DeliverOperatorInputArgs & {
   args.signal.addEventListener('abort', stop, { once: true })
 
   try {
-    await args.files.writeFile({ path: spool, content: args.value, mode: 0o600, threadId: args.threadId })
-    if (args.signal.aborted) return { ok: false, reason: 'operator input delivery cancelled; partial input may have reached the reader — restart the CLI with a fresh destination' }
+    await args.files.writeFile({
+      path: spool,
+      content: args.value,
+      mode: 0o600,
+      threadId: args.threadId,
+    })
+    if (args.signal.aborted)
+      return {
+        ok: false,
+        reason:
+          'operator input delivery cancelled; partial input may have reached the reader — restart the CLI with a fresh destination',
+      }
     process = args.processes.spawn({
       cmd: ['sh', '-c', 'set -C; umask 077; cat "$1" > "$2"', 'sh', spool, args.path],
       cwd: args.cwd,
@@ -52,9 +69,17 @@ export async function deliverOperatorInput(args: DeliverOperatorInputArgs & {
     }, args.timeoutMs ?? DELIVER_TIMEOUT_MS)
     const code = await process.exited
     const [stderrText] = await Promise.all([stderr, stdout])
-    if (args.signal.aborted) return { ok: false, reason: 'operator input delivery cancelled; partial input may have reached the reader — restart the CLI with a fresh destination' }
+    if (args.signal.aborted)
+      return {
+        ok: false,
+        reason:
+          'operator input delivery cancelled; partial input may have reached the reader — restart the CLI with a fresh destination',
+      }
     if (timedOut) {
-      return { ok: false, reason: `delivery to ${args.path} timed out; partial input may have reached the reader — restart the CLI with a fresh destination before asking again` }
+      return {
+        ok: false,
+        reason: `delivery to ${args.path} timed out; partial input may have reached the reader — restart the CLI with a fresh destination before asking again`,
+      }
     }
     if (code !== 0) {
       return { ok: false, reason: failureReason({ path: args.path, code, stderr: stderrText }) }

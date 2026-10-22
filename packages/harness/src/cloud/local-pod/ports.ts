@@ -42,7 +42,10 @@ export function podHostPortsFor(args: {
   serveContainerPort: number
   ingressContainerPort: number
 }): { serveHostPort: number; ingressHostPort: number } {
-  const serveHostPort = hostPortFor({ session: args.session, containerPort: args.serveContainerPort })
+  const serveHostPort = hostPortFor({
+    session: args.session,
+    containerPort: args.serveContainerPort,
+  })
   const ingress = hostPortFor({ session: args.session, containerPort: args.ingressContainerPort })
   if (ingress !== serveHostPort) return { serveHostPort, ingressHostPort: ingress }
 

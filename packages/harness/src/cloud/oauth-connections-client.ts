@@ -10,10 +10,7 @@ const validInstant = (value: string): boolean => Date.parse(value) > 0
 export const oauthAccessResponseSchema = z.object({
   accessToken: z.string().min(1),
   expiresAt: z.string().refine(validInstant, 'expiresAt must be an instant'),
-  refreshAfter: z
-    .string()
-    .refine(validInstant, 'refreshAfter must be an instant')
-    .optional(),
+  refreshAfter: z.string().refine(validInstant, 'refreshAfter must be an instant').optional(),
   generation: z.number().int().nonnegative(),
   authorizationId: z.string().min(1).optional(),
   providerAccountId: z.string().optional(),
@@ -102,7 +99,10 @@ export class OAuthConnectionsClient {
     const body = await this.transport.request({
       method: 'POST',
       path,
-      body: args.rejectedAccessToken === undefined ? {} : { rejectedAccessToken: args.rejectedAccessToken },
+      body:
+        args.rejectedAccessToken === undefined
+          ? {}
+          : { rejectedAccessToken: args.rejectedAccessToken },
       timeoutMs: OAUTH_ACCESS_TIMEOUT_MS,
     })
 

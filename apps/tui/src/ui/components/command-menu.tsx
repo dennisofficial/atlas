@@ -2,11 +2,7 @@ import React from 'react'
 
 import { ECommandKind, qualifiedName, type CommandSpec } from '@dltech/atlas-core'
 
-import {
-  COMMAND_MENU_ROWS,
-  commandMenuWindow,
-  type CommandMenuState,
-} from '../command-menu-model'
+import { COMMAND_MENU_ROWS, commandMenuWindow, type CommandMenuState } from '../command-menu-model'
 import { cellsOf } from '../hint-layout'
 import { glyph, theme } from '../theme'
 import { Panel, PANEL_INSET, PANEL_PAD } from './panel'
@@ -47,7 +43,8 @@ const LABEL_SUMMARY_FLOOR = 32
 
 const labelColumn = (specs: readonly CommandSpec[], cells: number): number => {
   const widest = specs.reduce((acc, spec) => Math.max(acc, cellsOf(labelOf(spec))), 0) + GAP_CELLS
-  const budget = (labelCells: number): number => cells - CARET_CELLS - labelCells - GAP_CELLS - KIND_CELLS
+  const budget = (labelCells: number): number =>
+    cells - CARET_CELLS - labelCells - GAP_CELLS - KIND_CELLS
   if (budget(widest) >= LABEL_SUMMARY_FLOOR) return widest
   return Math.max(GAP_CELLS, widest - (LABEL_SUMMARY_FLOOR - budget(widest)))
 }
@@ -62,7 +59,10 @@ function rowSpans(args: {
   selected: boolean
 }): Span[] {
   const band = args.selected ? { bg: theme.hoverBg } : {}
-  const label = truncateCells({ text: labelOf(args.spec), cells: Math.max(0, args.labelCells - GAP_CELLS) })
+  const label = truncateCells({
+    text: labelOf(args.spec),
+    cells: Math.max(0, args.labelCells - GAP_CELLS),
+  })
   const padded = `${label}${' '.repeat(Math.max(0, args.labelCells - cellsOf(label)))}`
   const kind = KIND_MARK[args.spec.kind]
   const spent = CARET_CELLS + cellsOf(padded) + cellsOf(kind)
@@ -116,7 +116,11 @@ export function CommandMenu(props: { state: CommandMenuState; width: number }): 
     <Panel
       width={props.width}
       fill={theme.overlayBg}
-      label={<text fg={theme.meta} bg={theme.overlayBg}>{' Commands '}</text>}
+      label={
+        <text fg={theme.meta} bg={theme.overlayBg}>
+          {' Commands '}
+        </text>
+      }
       badge={<text fg={theme.hint} bg={theme.overlayBg}>{` ${counted} · ⇥ complete `}</text>}
     >
       <box flexDirection="column" flexShrink={0}>

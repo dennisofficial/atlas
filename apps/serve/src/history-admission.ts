@@ -47,7 +47,10 @@ export function createHistoryAdmission(args: {
     holdForRotation: (): (() => void) =>
       take({
         kind: EHold.Rotation,
-        blocked: args.relocating?.() === true ? 'a workspace handoff is running — wait before rotating' : undefined,
+        blocked:
+          args.relocating?.() === true
+            ? 'a workspace handoff is running — wait before rotating'
+            : undefined,
       }),
   }
 }

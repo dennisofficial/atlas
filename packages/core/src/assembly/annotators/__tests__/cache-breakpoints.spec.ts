@@ -33,7 +33,10 @@ const answered = (parts: number, seq: number): AssembledMessage =>
   entry(
     {
       role: 'assistant',
-      content: Array.from({ length: parts }, (_unused, index) => ({ type: 'text' as const, text: `part ${index}` })),
+      content: Array.from({ length: parts }, (_unused, index) => ({
+        type: 'text' as const,
+        text: `part ${index}`,
+      })),
     },
     seq,
   )
@@ -44,7 +47,8 @@ const spoken = (turns: number): AssembledMessage[] =>
 const apply = ({ assembled, ctx }: { assembled: Assembled; ctx?: RuleContext }): Assembled =>
   cacheBreakpoints()(assembled, [], ctx ?? anthropicContext())
 
-const cacheControlOf = (options: ProviderOptions | undefined): unknown => options?.[ANTHROPIC_PROVIDER_ID]?.cacheControl
+const cacheControlOf = (options: ProviderOptions | undefined): unknown =>
+  options?.[ANTHROPIC_PROVIDER_ID]?.cacheControl
 
 const markedBlockPositions = (assembled: Assembled): number[] => {
   const positions: number[] = []
@@ -85,7 +89,10 @@ describe('cacheBreakpoints', () => {
     const marked = apply({ assembled: { system: [{ text: 'preamble' }], messages: spoken(1) } })
 
     const tail = marked.messages[0]?.message.content[0]
-    expect(cacheControlOf(tail?.providerOptions)).toEqual({ type: 'ephemeral', ttl: ECacheTtl.FiveMinutes })
+    expect(cacheControlOf(tail?.providerOptions)).toEqual({
+      type: 'ephemeral',
+      ttl: ECacheTtl.FiveMinutes,
+    })
   })
 
   it('leaves another provider untouched, because cacheControl is an Anthropic option', () => {
@@ -98,7 +105,10 @@ describe('cacheBreakpoints', () => {
 
   it('never spends more than the four breakpoints the API allows', () => {
     const marked = apply({
-      assembled: { system: [{ text: 'preamble' }], messages: [answered(CACHE_ANCHOR_STRIDE_BLOCKS * 9, 1)] },
+      assembled: {
+        system: [{ text: 'preamble' }],
+        messages: [answered(CACHE_ANCHOR_STRIDE_BLOCKS * 9, 1)],
+      },
     })
 
     expect(countBreakpoints(marked)).toBeLessThanOrEqual(CACHE_BREAKPOINT_BUDGET)
@@ -118,8 +128,12 @@ describe('cacheBreakpoints', () => {
     const before = spoken(30)
     const after = [...before, said('one more', 31)]
 
-    const anchorsBefore = markedBlockPositions(apply({ assembled: { system: [], messages: before } })).slice(0, -1)
-    const anchorsAfter = markedBlockPositions(apply({ assembled: { system: [], messages: after } })).slice(0, -1)
+    const anchorsBefore = markedBlockPositions(
+      apply({ assembled: { system: [], messages: before } }),
+    ).slice(0, -1)
+    const anchorsAfter = markedBlockPositions(
+      apply({ assembled: { system: [], messages: after } }),
+    ).slice(0, -1)
 
     expect(anchorsAfter).toContain(anchorsBefore[anchorsBefore.length - 1] ?? -1)
   })
@@ -142,7 +156,10 @@ describe('cacheBreakpoints', () => {
   })
 
   it('leaves a message with nothing cacheable unmarked rather than marking its thinking', () => {
-    const onlyThought = entry({ role: 'assistant', content: [{ type: 'reasoning', text: 'hmm' }] }, 1)
+    const onlyThought = entry(
+      { role: 'assistant', content: [{ type: 'reasoning', text: 'hmm' }] },
+      1,
+    )
 
     const marked = apply({ assembled: { system: [], messages: [onlyThought] } })
 
@@ -153,7 +170,13 @@ describe('cacheBreakpoints', () => {
     const signed = entry(
       {
         role: 'assistant',
-        content: [{ type: 'text', text: 'hi', providerOptions: { anthropic: { signature: 'abc' }, openai: { id: '1' } } }],
+        content: [
+          {
+            type: 'text',
+            text: 'hi',
+            providerOptions: { anthropic: { signature: 'abc' }, openai: { id: '1' } },
+          },
+        ],
       },
       1,
     )
@@ -161,15 +184,25 @@ describe('cacheBreakpoints', () => {
     const marked = apply({ assembled: { system: [], messages: [signed] } })
 
     expect(marked.messages[0]?.message.content[0]?.providerOptions).toEqual({
-      anthropic: { signature: 'abc', cacheControl: { type: 'ephemeral', ttl: ECacheTtl.FiveMinutes } },
+      anthropic: {
+        signature: 'abc',
+        cacheControl: { type: 'ephemeral', ttl: ECacheTtl.FiveMinutes },
+      },
       openai: { id: '1' },
     })
   })
 
   it('takes the ttls it was built with, so a running session cannot flip them mid-conversation', () => {
-    const annotator = cacheBreakpoints({ systemTtl: ECacheTtl.FiveMinutes, messageTtl: ECacheTtl.OneHour })
+    const annotator = cacheBreakpoints({
+      systemTtl: ECacheTtl.FiveMinutes,
+      messageTtl: ECacheTtl.OneHour,
+    })
 
-    const marked = annotator({ system: [{ text: 'preamble' }], messages: spoken(1) }, [], anthropicContext())
+    const marked = annotator(
+      { system: [{ text: 'preamble' }], messages: spoken(1) },
+      [],
+      anthropicContext(),
+    )
 
     expect(cacheControlOf(marked.system[0]?.providerOptions)).toEqual({
       type: 'ephemeral',

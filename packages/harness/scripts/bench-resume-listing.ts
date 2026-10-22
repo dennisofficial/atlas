@@ -16,7 +16,13 @@ import {
   type SessionMeta,
   type ThreadMeta,
 } from '../src/store/sessions/meta'
-import { ledgerFile, sessionMetaFile, sessionsDirectory, threadMetaFile, threadsDirectory } from '../src/store/sessions/paths'
+import {
+  ledgerFile,
+  sessionMetaFile,
+  sessionsDirectory,
+  threadMetaFile,
+  threadsDirectory,
+} from '../src/store/sessions/paths'
 import { SessionRegistry } from '../src/store/sessions/registry'
 import { threadPlaces } from '../src/store/sessions/thread-places'
 import {
@@ -41,9 +47,18 @@ function projectsOf(): BenchPaths {
   return { root: '/bench', child: '/bench/child' }
 }
 
-function tryReadThreadMeta({ sessionDir, id }: { sessionDir: string; id: string }): ThreadMeta | undefined {
+function tryReadThreadMeta({
+  sessionDir,
+  id,
+}: {
+  sessionDir: string
+  id: string
+}): ThreadMeta | undefined {
   try {
-    return readMetaSync({ file: threadMetaFile({ sessionDir, threadId: toThreadId(id) }), schema: threadMetaSchema })
+    return readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId: toThreadId(id) }),
+      schema: threadMetaSchema,
+    })
   } catch {
     return undefined
   }
@@ -54,13 +69,20 @@ async function readThreadMetasSync({ sessionDir }: { sessionDir: string }): Prom
   const metas: ThreadMeta[] = []
   for (const name of names) {
     if (!name.endsWith('.meta.json')) continue
-    const meta = readMetaSync({ file: join(threadsDirectory({ sessionDir }), name), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: join(threadsDirectory({ sessionDir }), name),
+      schema: threadMetaSchema,
+    })
     if (meta !== undefined) metas.push(meta)
   }
   return metas
 }
 
-async function sumSessionSpend({ sessionDir }: { sessionDir: string }): Promise<SessionMeta['spend']> {
+async function sumSessionSpend({
+  sessionDir,
+}: {
+  sessionDir: string
+}): Promise<SessionMeta['spend']> {
   const text = await readFile(ledgerFile({ sessionDir }), 'utf8').catch(() => '')
   const totals = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
   for (const turn of parseLedgerLines({ text })) {
@@ -93,7 +115,10 @@ async function baselineListRoots({
     if (meta === undefined || meta.spawnerThreadId !== null) continue
     if (meta.repo !== project && meta.workspace !== project) continue
     const metas = await readThreadMetasSync({ sessionDir })
-    const activityAt = metas.reduce((latest, item) => (item.updatedAt > latest ? item.updatedAt : latest), meta.updatedAt)
+    const activityAt = metas.reduce(
+      (latest, item) => (item.updatedAt > latest ? item.updatedAt : latest),
+      meta.updatedAt,
+    )
     entries.push({ sessionDir, meta, activityAt })
   }
   entries.sort((a, b) => b.activityAt.localeCompare(a.activityAt))
@@ -135,7 +160,8 @@ async function refreshSessionCaches({
     repo: entry.meta.repo,
     workspace: entry.meta.workspace,
     worktree: places.worktree?.path ?? null,
-    pullRequests: places.pullRequests.length === 0 ? null : places.pullRequests.map((pr) => pr.number),
+    pullRequests:
+      places.pullRequests.length === 0 ? null : places.pullRequests.map((pr) => pr.number),
     spend: spend ?? existing?.spend ?? null,
   }
   if (write && (existing === undefined || JSON.stringify(existing) !== JSON.stringify(next))) {
@@ -143,14 +169,32 @@ async function refreshSessionCaches({
   }
 }
 
-async function measureBaseline({ home, projects, write }: { home: string; projects: BenchPaths; write: boolean }): Promise<void> {
+async function measureBaseline({
+  home,
+  projects,
+  write,
+}: {
+  home: string
+  projects: BenchPaths
+  write: boolean
+}): Promise<void> {
   const registry = new SessionRegistry(home)
   const started = performance.now()
   const rows = await baselineListRoots({ home, registry, project: projects.root, write })
-  console.log(`  cold scan+enrich: ${(performance.now() - started).toFixed(1)}ms, rows=${rows.length}`)
+  console.log(
+    `  cold scan+enrich: ${(performance.now() - started).toFixed(1)}ms, rows=${rows.length}`,
+  )
 }
 
-async function measureNew({ home, project, label }: { home: string; project: string; label: string }): Promise<void> {
+async function measureNew({
+  home,
+  project,
+  label,
+}: {
+  home: string
+  project: string
+  label: string
+}): Promise<void> {
   let emissions = 0
   let firstEmissionMs: number | undefined
   const started = performance.now()
@@ -205,7 +249,10 @@ async function main(): Promise<void> {
     await measureNew({ home, project: projects.root, label: 'first run' })
     await measureNew({ home, project: projects.root, label: 'repeated run (module cache warm)' })
     await measureMemory({ home, project: projects.root })
-    if (!synthetic) console.log('  note: --home is fully read-only; the baseline ran with session-meta writes disabled')
+    if (!synthetic)
+      console.log(
+        '  note: --home is fully read-only; the baseline ran with session-meta writes disabled',
+      )
   } finally {
     if (synthetic) await rm(home, { recursive: true, force: true })
   }

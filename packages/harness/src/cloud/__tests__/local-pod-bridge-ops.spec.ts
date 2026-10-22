@@ -28,7 +28,10 @@ describe('createLocalPodBridge pass-through', () => {
   it('destroys the pod by name, forwarding the fence', async () => {
     const { driver, destroyed } = fakePodDriver({ created: false })
 
-    await podBridgeWith({ driver }).sandboxes.destroy({ threadId, expectedSandboxSessionId: 'session-1' })
+    await podBridgeWith({ driver }).sandboxes.destroy({
+      threadId,
+      expectedSandboxSessionId: 'session-1',
+    })
 
     expect(destroyed).toEqual([{ name, sessionId: 'session-1' }])
   })
@@ -36,7 +39,10 @@ describe('createLocalPodBridge pass-through', () => {
   it('reads resources from the driver', async () => {
     const { driver } = fakePodDriver({ created: false })
 
-    expect(await podBridgeWith({ driver }).sandboxes.readResources({ threadId })).toEqual({ vcpus: 2, memoryMb: 4096 })
+    expect(await podBridgeWith({ driver }).sandboxes.readResources({ threadId })).toEqual({
+      vcpus: 2,
+      memoryMb: 4096,
+    })
   })
 
   it('resizes live and says so', async () => {

@@ -223,7 +223,10 @@ describe('the login picker', () => {
   })
 
   it('reads the login under the cursor', () => {
-    const picker = movePick({ state: openLoginPicker({ state, intent: EPickIntent.Use }), delta: 1 })
+    const picker = movePick({
+      state: openLoginPicker({ state, intent: EPickIntent.Use }),
+      delta: 1,
+    })
 
     expect(pickedAccount(picker)?.label).toBe('b')
   })

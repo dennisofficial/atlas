@@ -97,7 +97,9 @@ describe('every way a turn can end reaches the ledger', () => {
       model: throwingModel(harness.model.identity, new Error('the loop threw')),
     })
 
-    await expect(runner.say({ threadId: thread.id, text: 'what changed?' })).rejects.toThrow('the loop threw')
+    await expect(runner.say({ threadId: thread.id, text: 'what changed?' })).rejects.toThrow(
+      'the loop threw',
+    )
 
     expect(ledger.recorded).toHaveLength(1)
     expect(ledger.recorded[0]?.status).toBe('crashed')

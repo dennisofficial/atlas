@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
+import type { EventLogPort } from '@dltech/atlas-core'
 
 import { finished, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
 
@@ -35,7 +35,10 @@ async function settledChild(entry: OpenedSupervisor) {
  * can be driven to completion inside the window the reservation exists to close. Only the
  * agent-restarted append is gated: the wake must reach it, while the say's own writes pass through.
  */
-function gateRestartRecording(entry: OpenedSupervisor): { opened: Promise<void>; release: () => void } {
+function gateRestartRecording(entry: OpenedSupervisor): {
+  opened: Promise<void>
+  release: () => void
+} {
   const log = entry.harness.log
   const original = log.append.bind(log)
   let release: () => void = () => undefined
@@ -85,7 +88,11 @@ describe('waking a settled child', () => {
 
     const woken = entry.supervisor.wake({ agentId })
     await gate.opened
-    const message = await entry.supervisor.say({ agentId, threadId: entry.parent, text: 'keep going' })
+    const message = await entry.supervisor.say({
+      agentId,
+      threadId: entry.parent,
+      text: 'keep going',
+    })
     expect(message.ok).toBe(true)
 
     gate.release()

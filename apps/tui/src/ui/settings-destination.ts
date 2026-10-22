@@ -29,7 +29,11 @@ export function destinationOf(args: {
   fallback: string
 }): Destination {
   const { setting, fallback } = args
-  const generic: Destination = { origin: fallback, status: `edits write to ${fallback}`, failing: false }
+  const generic: Destination = {
+    origin: fallback,
+    status: `edits write to ${fallback}`,
+    failing: false,
+  }
   if (setting === undefined || agentTypeOf(setting) === undefined) return generic
 
   if (isOverriddenSetting(setting)) {

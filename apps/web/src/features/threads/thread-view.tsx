@@ -41,7 +41,9 @@ function ThreadMissing() {
           <FileQuestionIcon />
         </EmptyMedia>
         <EmptyTitle>Thread not found</EmptyTitle>
-        <EmptyDescription>It may have been deleted, or it belongs to another account.</EmptyDescription>
+        <EmptyDescription>
+          It may have been deleted, or it belongs to another account.
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   )
@@ -92,8 +94,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   }
 
   const starting = isBootStarting(boot)
-  const title =
-    thread.state === EQueryState.Loading ? null : (thread.data?.title ?? UNTITLED)
+  const title = thread.state === EQueryState.Loading ? null : (thread.data?.title ?? UNTITLED)
 
   return (
     <div className="flex h-dvh flex-col">

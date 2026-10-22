@@ -25,7 +25,7 @@ const source = [
   '    (return-from multiply scaled)))',
   '',
   '(defun do-report (c)',
-  '  (dolist (n (mapcar #\'add (list 1 2) (list 10 20)))',
+  "  (dolist (n (mapcar #'add (list 1 2) (list 10 20)))",
   '    (format t "~a: ~d~%" (calculator-label c) (multiply c n))))',
   '',
   '(princ (add 2 3))',
@@ -98,10 +98,10 @@ describe('common lisp lexical highlighting', () => {
   })
 
   it('reads keyword symbols and sharp-quoted functions', () => {
-    expect(textFor({ spec, source: '(list :name #\'add)', group: 'string.special.symbol' })).toEqual(
+    expect(textFor({ spec, source: "(list :name #'add)", group: 'string.special.symbol' })).toEqual(
       [':name'],
     )
-    expect(textFor({ spec, source: '(list :name #\'add)', group: 'function' })).toEqual(["#'add"])
+    expect(textFor({ spec, source: "(list :name #'add)", group: 'function' })).toEqual(["#'add"])
   })
 
   it('reads a character literal whole', () => {

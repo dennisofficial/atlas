@@ -41,7 +41,10 @@ const stored = (args: {
   updatedAt: '2026-01-01T00:00:00.000Z',
   secret:
     args.kind === EAuthKind.Oauth
-      ? { kind: EAuthKind.Oauth, tokens: { accessToken: 'a', refreshToken: 'r', expiresAt: '2099-01-01T00:00:00.000Z' } }
+      ? {
+          kind: EAuthKind.Oauth,
+          tokens: { accessToken: 'a', refreshToken: 'r', expiresAt: '2099-01-01T00:00:00.000Z' },
+        }
       : { kind: EAuthKind.ApiKey, apiKey: 'sk-x' },
 })
 

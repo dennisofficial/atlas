@@ -101,12 +101,18 @@ describe('teardownSession', () => {
       prepareNotifications: () => ({
         drafts: [DRAFT],
         wakesTurn: false,
-        acknowledge: () => { calls.push('agents:acknowledge') },
+        acknowledge: () => {
+          calls.push('agents:acknowledge')
+        },
       }),
     }
     await teardownSession({
-      sources: [quiet], log: recordingLog(calls), ids: new RandomIds(),
-      stopSandbox: async () => { calls.push('sandbox:stop') },
+      sources: [quiet],
+      log: recordingLog(calls),
+      ids: new RandomIds(),
+      stopSandbox: async () => {
+        calls.push('sandbox:stop')
+      },
     })
     expect(calls).toEqual(['agents:closeAll', 'log:append', 'agents:acknowledge', 'sandbox:stop'])
   })
@@ -117,15 +123,22 @@ describe('teardownSession', () => {
       subscribe: () => () => undefined,
       threadsAwaitingInput: () => [THREAD],
       prepare: () => ({
-        drafts: [DRAFT], wakesTurn: true,
-        acknowledge: () => { calls.push('intake:acknowledge') },
+        drafts: [DRAFT],
+        wakesTurn: true,
+        acknowledge: () => {
+          calls.push('intake:acknowledge')
+        },
       }),
     }
     const intake = new MessageIntake({ sources: [intakeSource] })
     await teardownSession({
       sources: [recordingSource({ calls, name: 'shells' })],
-      log: recordingLog(calls), ids: new RandomIds(), intake,
-      stopSandbox: async () => { calls.push('sandbox:stop') },
+      log: recordingLog(calls),
+      ids: new RandomIds(),
+      intake,
+      stopSandbox: async () => {
+        calls.push('sandbox:stop')
+      },
     })
     expect(calls).toEqual(['shells:closeAll', 'log:append', 'intake:acknowledge', 'sandbox:stop'])
     intake.dispose()
@@ -136,17 +149,30 @@ describe('teardownSession', () => {
     const pending: TeardownSource = {
       ...recordingSource({ calls, name: 'shells', drafts: [DRAFT] }),
       prepareNotifications: () => ({
-        drafts: [DRAFT], wakesTurn: true,
-        acknowledge: () => { calls.push('shells:acknowledge') },
-        release: () => { calls.push('shells:release') },
+        drafts: [DRAFT],
+        wakesTurn: true,
+        acknowledge: () => {
+          calls.push('shells:acknowledge')
+        },
+        release: () => {
+          calls.push('shells:release')
+        },
       }),
     }
     const log = recordingLog(calls)
-    log.append = async () => { throw new Error('append failed') }
-    await expect(teardownSession({
-      sources: [pending], log, ids: new RandomIds(),
-      stopSandbox: async () => { calls.push('sandbox:stop') },
-    })).rejects.toThrow('append failed')
+    log.append = async () => {
+      throw new Error('append failed')
+    }
+    await expect(
+      teardownSession({
+        sources: [pending],
+        log,
+        ids: new RandomIds(),
+        stopSandbox: async () => {
+          calls.push('sandbox:stop')
+        },
+      }),
+    ).rejects.toThrow('append failed')
     expect(calls).toEqual(['shells:closeAll', 'shells:release', 'sandbox:stop'])
   })
 
@@ -211,7 +237,13 @@ const recordingLogPort = (entries: LogEntry[]): LogPort =>
   })()
 
 const liveUnitsDrafts: readonly EventDraft[] = [
-  { type: 'agent-spawned', agentId: toThreadId('child-1'), agentType: 'builder', intent: 'build', mode: EAgentStart.Fresh },
+  {
+    type: 'agent-spawned',
+    agentId: toThreadId('child-1'),
+    agentType: 'builder',
+    intent: 'build',
+    mode: EAgentStart.Fresh,
+  },
   { type: 'background-shell-started', shellId: 'bash_1', command: 'sleep 60' },
   { type: 'service-started', serviceId: 'svc-1', command: 'bun run dev' },
 ]
@@ -247,7 +279,12 @@ describe('teardownSession ordered by the ownership projection', () => {
       },
     })
 
-    expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll', 'sandbox:stop'])
+    expect(calls).toEqual([
+      'agents:closeAll',
+      'shells:closeAll',
+      'services:closeAll',
+      'sandbox:stop',
+    ])
   })
 
   it('warns about a live unit the log shows but no registry claims', async () => {
@@ -267,7 +304,8 @@ describe('teardownSession ordered by the ownership projection', () => {
     })
 
     const lost = entries.filter(
-      (entry) => entry.severity === ELogSeverity.Warn && entry.source === 'session-teardown.ownership',
+      (entry) =>
+        entry.severity === ELogSeverity.Warn && entry.source === 'session-teardown.ownership',
     )
     expect(lost.map((entry) => entry.data?.['unitId'])).toEqual(['bash_1'])
     expect(calls).toEqual(['agents:closeAll', 'shells:closeAll', 'services:closeAll'])

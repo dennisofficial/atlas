@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EToolEffect, PLAN_TOOL_NAME,
-  toThreadId,
-} from '@dltech/atlas-core'
+import { EToolEffect, PLAN_TOOL_NAME, toThreadId } from '@dltech/atlas-core'
 
 import { TaskWriteTool } from '../task-write'
 

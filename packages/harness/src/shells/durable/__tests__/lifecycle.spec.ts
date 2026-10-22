@@ -27,7 +27,10 @@ async function waitForExit({ shellDir }: { shellDir: string }) {
 describe('process group lifecycle', () => {
   test('terminate signals the whole child group, grandchildren included', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, command: 'sleep 300 & echo "grandchild:$!"; wait' })
+    const handle = await launchOrThrow({
+      shellDir,
+      command: 'sleep 300 & echo "grandchild:$!"; wait',
+    })
     const { text } = await readUntil({ stream: handle.stdout, pattern: '\n' })
     const grandchild = Number(/grandchild:(\d+)/.exec(text)?.[1])
     expect(isAlive({ pid: grandchild })).toBe(true)
@@ -80,7 +83,8 @@ describe('process group lifecycle', () => {
     const handle = await launchOrThrow({ shellDir, command: 'sleep 300' })
     const chunk = 'x'.repeat(400 * 1024)
     let refused = false
-    for (let index = 0; index < 40 && !refused; index += 1) refused = !(await handle.writeInput(chunk)).ok
+    for (let index = 0; index < 40 && !refused; index += 1)
+      refused = !(await handle.writeInput(chunk)).ok
     expect(refused).toBe(true)
     handle.terminate()
     await handle.exited
@@ -98,7 +102,11 @@ describe('process group lifecycle', () => {
 describe('output cap', () => {
   test('a tiny kernel cap stops the writer and records the spool at the limit', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, outputLimitBytes: 4096, command: 'yes | head -c 100000; echo after' })
+    const handle = await launchOrThrow({
+      shellDir,
+      outputLimitBytes: 4096,
+      command: 'yes | head -c 100000; echo after',
+    })
     await handle.exited
     const settled = await handle.settled
     if (settled.kind !== 'exited') throw new Error('expected exit')
@@ -133,7 +141,11 @@ describe('output cap', () => {
 
   test('the cap is applied in 1024-byte units before the command runs', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, outputLimitBytes: 8192, command: 'ulimit -f; ulimit -f unlimited 2>&1 | head -1' })
+    const handle = await launchOrThrow({
+      shellDir,
+      outputLimitBytes: 8192,
+      command: 'ulimit -f; ulimit -f unlimited 2>&1 | head -1',
+    })
     const text = await collect({ stream: handle.stdout })
     expect(text.split('\n')[0]).toBe('8')
     expect(text.split('\n')[1]).toBeDefined()
@@ -155,7 +167,13 @@ describe('supervisor loss and expiry', () => {
 
   test('an unattended shell with no session lock expires after the ttl', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, ttlMs: 400, tickMs: 50, leaseMs: 100, command: 'sleep 300' })
+    const handle = await launchOrThrow({
+      shellDir,
+      ttlMs: 400,
+      tickMs: 50,
+      leaseMs: 100,
+      command: 'sleep 300',
+    })
     await handle.detach()
     const exit = await waitForExit({ shellDir })
     expect(exit?.cause).toBe(EExitCause.Expired)
@@ -163,7 +181,13 @@ describe('supervisor loss and expiry', () => {
 
   test('a live heartbeat keeps the shell past the ttl', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, ttlMs: 500, tickMs: 50, leaseMs: 150, command: 'sleep 300' })
+    const handle = await launchOrThrow({
+      shellDir,
+      ttlMs: 500,
+      tickMs: 50,
+      leaseMs: 150,
+      command: 'sleep 300',
+    })
     await new Promise((resolve) => setTimeout(resolve, 1200))
     expect(isAlive({ pid: handle.pid })).toBe(true)
     handle.terminate()

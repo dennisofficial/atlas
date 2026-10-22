@@ -11,10 +11,7 @@ import { gate } from './serve-remote-fixture'
 
 const threadId = toThreadId('history-edits')
 
-for (const op of [
-  EClientRequest.Rewind,
-  EClientRequest.SayToAgent,
-]) {
+for (const op of [EClientRequest.Rewind, EClientRequest.SayToAgent]) {
   it(`refuses compaction while an earlier ${op} request is still applying`, async () => {
     const entered = gate()
     const release = gate()

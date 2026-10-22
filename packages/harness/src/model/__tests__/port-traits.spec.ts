@@ -60,4 +60,3 @@ describe('the window a port reports', () => {
     expect(contextWindowOf(port)).toBe(CONTEXT_WINDOW_UNMEASURED)
   })
 })
-

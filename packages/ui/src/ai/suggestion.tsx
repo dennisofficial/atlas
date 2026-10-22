@@ -1,10 +1,10 @@
-"use client";
+'use client'
 
-import { Button } from "#components/button";
+import { Button } from '#components/button'
 
 export interface SuggestionsProps {
-  suggestions: string[];
-  onSelect?: (suggestion: string) => void;
+  suggestions: string[]
+  onSelect?: (suggestion: string) => void
 }
 
 export function Suggestions({ suggestions, onSelect }: SuggestionsProps) {
@@ -22,5 +22,5 @@ export function Suggestions({ suggestions, onSelect }: SuggestionsProps) {
         </Button>
       ))}
     </div>
-  );
+  )
 }

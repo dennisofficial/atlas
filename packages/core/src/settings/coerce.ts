@@ -42,7 +42,9 @@ export function coerceSettingValue(args: {
   }
 
   if (definition.kind === ESettingKind.Text) {
-    return typeof raw === 'string' ? { ok: true, value: raw } : { ok: false, reason: 'expected text' }
+    return typeof raw === 'string'
+      ? { ok: true, value: raw }
+      : { ok: false, reason: 'expected text' }
   }
 
   if (definition.kind === ESettingKind.Model) {

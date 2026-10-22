@@ -75,16 +75,15 @@ export function useOnboarding(args: {
     const accountRow: OnboardingRowView = {
       key: EOnboardingRow.Accounts,
       label: 'Provider accounts',
-      value:
-        connected === 0
-          ? 'none yet — connect one'
-          : `${connected} connected`,
+      value: connected === 0 ? 'none yet — connect one' : `${connected} connected`,
       done: connected > 0,
     }
 
     const modelRows = MODEL_ROWS.map((row): OnboardingRowView => {
       const held = textValueOf({ resolution, id: row.id })
-      const suggested = refKey(suggestedModelRef({ id: row.id, settled: resolution, catalogue: app.models }))
+      const suggested = refKey(
+        suggestedModelRef({ id: row.id, settled: resolution, catalogue: app.models }),
+      )
       return {
         key: row.key,
         label: row.label,

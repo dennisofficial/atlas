@@ -196,7 +196,10 @@ describe('a serve turn driver over the shared intake', () => {
 
     expect(appended).toHaveLength(0)
     expect(
-      pending.forThread({ threadId: THREAD }).getSnapshot().map((entry) => entry.text),
+      pending
+        .forThread({ threadId: THREAD })
+        .getSnapshot()
+        .map((entry) => entry.text),
     ).toEqual(['typed words'])
     expect(driver.running()).toBe(false)
 

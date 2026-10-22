@@ -74,7 +74,8 @@ export class UserLayerSyncEngine extends UserLayerSyncPort {
       await this.enqueue(() => this.reconcile())
       if (this.stopped) return
       this.watcher = watchUserLayer({
-        targets: async () => (await Promise.all(this.args.trees.map((tree) => tree.watchTargets()))).flat(),
+        targets: async () =>
+          (await Promise.all(this.args.trees.map((tree) => tree.watchTargets()))).flat(),
         onChange: () => this.handleChange(),
         onEvent: () => {
           this.watchDelivered = true

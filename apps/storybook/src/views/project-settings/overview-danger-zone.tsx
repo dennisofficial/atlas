@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react'
 
 import {
   AlertDialog,
@@ -10,18 +10,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@dltech/atlas-ui/components/alert-dialog";
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Input } from "@dltech/atlas-ui/components/input";
-import { Label } from "@dltech/atlas-ui/components/label";
+} from '@dltech/atlas-ui/components/alert-dialog'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { Label } from '@dltech/atlas-ui/components/label'
 
-import { SettingsCard, SettingsRow, SettingsSection } from "./settings-layout";
+import { SettingsCard, SettingsRow, SettingsSection } from './settings-layout'
 
 function DeleteProjectDialog({ projectSlug }: { projectSlug: string }) {
-  const [confirmation, setConfirmation] = useState("");
-  const confirmed = confirmation === projectSlug;
+  const [confirmation, setConfirmation] = useState('')
+  const confirmed = confirmation === projectSlug
   return (
-    <AlertDialog onOpenChange={(open) => (open ? null : setConfirmation(""))}>
+    <AlertDialog onOpenChange={(open) => (open ? null : setConfirmation(''))}>
       <AlertDialogTrigger render={<Button variant="outline" size="sm" />}>
         Delete project
       </AlertDialogTrigger>
@@ -53,7 +53,7 @@ function DeleteProjectDialog({ projectSlug }: { projectSlug: string }) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }
 
 export function DangerZone({ projectSlug }: { projectSlug: string }) {
@@ -76,5 +76,5 @@ export function DangerZone({ projectSlug }: { projectSlug: string }) {
         </SettingsRow>
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }

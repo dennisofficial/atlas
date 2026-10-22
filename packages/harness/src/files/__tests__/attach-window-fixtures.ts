@@ -26,9 +26,21 @@ export function silentWatch() {
   const watchPath: WatchPath = (path, _options, listener) => {
     if (!existsSync(path)) throw Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' })
     let errorListener: () => void = () => {}
-    const entry: Entry = { path, closed: false, deliver: (name) => listener('rename', name), fail: () => errorListener() }
+    const entry: Entry = {
+      path,
+      closed: false,
+      deliver: (name) => listener('rename', name),
+      fail: () => errorListener(),
+    }
     attached.push(entry)
-    return { on: (_event, handler) => { errorListener = handler }, close: () => { entry.closed = true } }
+    return {
+      on: (_event, handler) => {
+        errorListener = handler
+      },
+      close: () => {
+        entry.closed = true
+      },
+    }
   }
   return { attached, watchPath }
 }
@@ -38,9 +50,13 @@ export function manualSchedule() {
   const schedule: Schedule = ({ run }) => {
     const task = { run, cancelled: false }
     tasks.push(task)
-    return () => { task.cancelled = true }
+    return () => {
+      task.cancelled = true
+    }
   }
-  const flush = async () => { for (const task of tasks.splice(0)) if (!task.cancelled) await task.run() }
+  const flush = async () => {
+    for (const task of tasks.splice(0)) if (!task.cancelled) await task.run()
+  }
   return { tasks, schedule, flush }
 }
 
@@ -48,7 +64,12 @@ export function scriptedScan(signatures: ContextSignature[]) {
   const calls: number[] = []
   const scanContext: ScanContext = async () => {
     calls.push(calls.length)
-    return signatures[Math.min(calls.length - 1, signatures.length - 1)] ?? { signature: '', capped: false }
+    return (
+      signatures[Math.min(calls.length - 1, signatures.length - 1)] ?? {
+        signature: '',
+        capped: false,
+      }
+    )
   }
   return { calls, scanContext }
 }
@@ -56,8 +77,19 @@ export function scriptedScan(signatures: ContextSignature[]) {
 export function counter() {
   let count = 0
   let heardFirst: () => void = () => {}
-  const first = new Promise<void>((resolve) => { heardFirst = resolve })
-  return { notify: () => { count += 1; heardFirst() }, first, get count() { return count } }
+  const first = new Promise<void>((resolve) => {
+    heardFirst = resolve
+  })
+  return {
+    notify: () => {
+      count += 1
+      heardFirst()
+    },
+    first,
+    get count() {
+      return count
+    },
+  }
 }
 
 export const tick = () => Bun.sleep(0)

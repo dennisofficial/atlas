@@ -94,7 +94,11 @@ const inlined = (args: {
 
   return {
     ok: true,
-    output: outputFor({ ...args, inlined: true, ...(args.cachePath !== undefined ? { cachePath: args.cachePath } : {}) }),
+    output: outputFor({
+      ...args,
+      inlined: true,
+      ...(args.cachePath !== undefined ? { cachePath: args.cachePath } : {}),
+    }),
     modelText: summary,
     modelParts: parts,
   }

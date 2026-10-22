@@ -40,7 +40,9 @@ function fakeChannel(): FakeChannel {
     listener: undefined,
     checkpoints: [],
     connection: () => connection,
-    setConnection: (next) => { connection = next },
+    setConnection: (next) => {
+      connection = next
+    },
     request: async ({ op, params }) => {
       channel.requests.push({ op, params })
       if (connection.state !== EConnectionView.Connected) throw new Error('the sandbox is parked')
@@ -50,12 +52,15 @@ function fakeChannel(): FakeChannel {
       }
       const path = (params as { path: string }).path
       const content = channel.remoteFiles.get(path)
-      if (content === undefined) return { file: { type: 'refused', reason: 'the file does not exist' } }
+      if (content === undefined)
+        return { file: { type: 'refused', reason: 'the file does not exist' } }
       return { file: { type: 'text', content, truncated: false } }
     },
     subscribe: ({ listener }) => {
       channel.listener = listener
-      return () => { channel.listener = undefined }
+      return () => {
+        channel.listener = undefined
+      }
     },
     onReload: () => () => undefined,
     onCheckpoint: (listener) => {
@@ -110,9 +115,10 @@ describe('MirroredContextFiles', () => {
       channel: args.channel,
       local: {
         list: async (directory) => {
-          const root = directory === undefined
-            ? mirrorDirOf(args.home)
-            : join(mirrorDirOf(args.home), directory)
+          const root =
+            directory === undefined
+              ? mirrorDirOf(args.home)
+              : join(mirrorDirOf(args.home), directory)
           const { readdir } = await import('node:fs/promises')
           const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
           return entries
@@ -146,8 +152,16 @@ describe('MirroredContextFiles', () => {
       { name: 'plan.md', isDirectory: false },
       { name: 'specs', isDirectory: true },
     ])
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# plan\n', truncated: false })
-    expect(await files.load('specs/one.md')).toEqual({ type: 'text', content: '# one\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# plan\n',
+      truncated: false,
+    })
+    expect(await files.load('specs/one.md')).toEqual({
+      type: 'text',
+      content: '# one\n',
+      truncated: false,
+    })
 
     const pulls = channel.requests.length
     await files.list()
@@ -164,7 +178,11 @@ describe('MirroredContextFiles', () => {
     seedTree(channel, { 'plan.md': '# remote\n' })
     const files = makeFiles({ home, channel })
 
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# remote\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# remote\n',
+      truncated: false,
+    })
     expect(await readFile(join(mirrorDirOf(home), 'plan.md'), 'utf8')).toBe('# remote\n')
     expect(channel.requests.some(({ op }) => op === EClientRequest.ListContextFiles)).toBe(true)
   })
@@ -176,7 +194,11 @@ describe('MirroredContextFiles', () => {
     channel.setConnection({ state: EConnectionView.Parked, detail: null })
     const files = makeFiles({ home, channel })
 
-    expect(await files.load('anything.md')).toEqual({ type: 'text', content: 'remote fallback\n', truncated: false })
+    expect(await files.load('anything.md')).toEqual({
+      type: 'text',
+      content: 'remote fallback\n',
+      truncated: false,
+    })
     expect(await files.list()).toEqual([{ name: 'remote-only.md', isDirectory: false }])
   })
 
@@ -185,17 +207,27 @@ describe('MirroredContextFiles', () => {
     const channel = fakeChannel()
     seedTree(channel, { 'plan.md': '# v1\n' })
     const files = makeFiles({ home, channel })
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# v1\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# v1\n',
+      truncated: false,
+    })
 
     let notified = 0
-    files.subscribe(() => { notified += 1 })
+    files.subscribe(() => {
+      notified += 1
+    })
 
     channel.remoteFiles.set('plan.md', '# v2\n')
     channel.listener?.({ type: 'context-changed' })
     expect(notified).toBe(1)
     await settled()
 
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# v2\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# v2\n',
+      truncated: false,
+    })
   })
 
   it('answers from the mirror while the channel is closed', async () => {
@@ -203,13 +235,21 @@ describe('MirroredContextFiles', () => {
     const channel = fakeChannel()
     seedTree(channel, { 'plan.md': '# parked\n' })
     const files = makeFiles({ home, channel })
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# parked\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# parked\n',
+      truncated: false,
+    })
 
     channel.setConnection({ state: EConnectionView.Parked, detail: null })
     channel.listener?.({ type: 'context-changed' })
     await settled()
 
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# parked\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# parked\n',
+      truncated: false,
+    })
     expect(await files.list()).toEqual([{ name: 'plan.md', isDirectory: false }])
   })
 
@@ -219,7 +259,11 @@ describe('MirroredContextFiles', () => {
     seedTree(channel, { 'plan.md': '# one\n' })
     const files = makeFiles({ home, channel })
     files.subscribe(() => undefined)
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: '# one\n', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# one\n',
+      truncated: false,
+    })
 
     channel.remoteFiles.set('plan.md', '# two\n')
     const parked: RuntimeCheckpoint = {

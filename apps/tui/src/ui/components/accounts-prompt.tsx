@@ -94,7 +94,10 @@ function BrowserPrompt(props: {
         fg={theme.court.external}
         press={press(props.onOpenUrl)}
       />
-      <TextLine spans={[{ text: 'waiting for the browser…', fg: theme.hint }]} cells={props.cells} />
+      <TextLine
+        spans={[{ text: 'waiting for the browser…', fg: theme.hint }]}
+        cells={props.cells}
+      />
     </>
   )
 }

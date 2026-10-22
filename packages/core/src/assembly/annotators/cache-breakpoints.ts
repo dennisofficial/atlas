@@ -26,7 +26,10 @@ export type CacheBreakpointOptions = {
   messageTtl?: ECacheTtl
 }
 
-function withCacheControl(args: { options: ProviderOptions | undefined; ttl: ECacheTtl }): ProviderOptions {
+function withCacheControl(args: {
+  options: ProviderOptions | undefined
+  ttl: ECacheTtl
+}): ProviderOptions {
   const { options, ttl } = args
   const existing = options?.[ANTHROPIC_PROVIDER_ID] ?? {}
 
@@ -36,12 +39,20 @@ function withCacheControl(args: { options: ProviderOptions | undefined; ttl: ECa
   }
 }
 
-function markLastSystemBlock(args: { blocks: readonly SystemBlock[]; ttl: ECacheTtl }): readonly SystemBlock[] {
+function markLastSystemBlock(args: {
+  blocks: readonly SystemBlock[]
+  ttl: ECacheTtl
+}): readonly SystemBlock[] {
   const last = args.blocks.length - 1
   if (last < 0) return args.blocks
 
   return args.blocks.map((block, index) =>
-    index === last ? { ...block, providerOptions: withCacheControl({ options: block.providerOptions, ttl: args.ttl }) } : block,
+    index === last
+      ? {
+          ...block,
+          providerOptions: withCacheControl({ options: block.providerOptions, ttl: args.ttl }),
+        }
+      : block,
   )
 }
 
@@ -77,7 +88,10 @@ function cacheablePositions(messages: readonly AssembledMessage[]): CacheablePos
 const samePosition = (one: BlockPosition, other: BlockPosition): boolean =>
   one.messageIndex === other.messageIndex && one.partIndex === other.partIndex
 
-function breakpointPositions(args: { messages: readonly AssembledMessage[]; budget: number }): readonly BlockPosition[] {
+function breakpointPositions(args: {
+  messages: readonly AssembledMessage[]
+  budget: number
+}): readonly BlockPosition[] {
   const { anchors, tail } = cacheablePositions(args.messages)
   if (tail === undefined || args.budget < 1) return []
 
@@ -85,7 +99,9 @@ function breakpointPositions(args: { messages: readonly AssembledMessage[]; budg
   return [...upstream.slice(Math.max(0, upstream.length - (args.budget - 1))), tail]
 }
 
-function marksByMessage(positions: readonly BlockPosition[]): ReadonlyMap<number, ReadonlySet<number>> {
+function marksByMessage(
+  positions: readonly BlockPosition[],
+): ReadonlyMap<number, ReadonlySet<number>> {
   const marks = new Map<number, Set<number>>()
 
   for (const position of positions) {
@@ -97,7 +113,11 @@ function marksByMessage(positions: readonly BlockPosition[]): ReadonlyMap<number
   return marks
 }
 
-function markMessage(args: { message: Message; parts: ReadonlySet<number>; ttl: ECacheTtl }): Message {
+function markMessage(args: {
+  message: Message
+  parts: ReadonlySet<number>
+  ttl: ECacheTtl
+}): Message {
   const { message, parts, ttl } = args
   const marked = (options: ProviderOptions | undefined) => withCacheControl({ options, ttl })
 
@@ -140,7 +160,10 @@ export function cacheBreakpoints(options: CacheBreakpointOptions = {}): Annotato
       const system = markLastSystemBlock({ blocks: input.system, ttl: systemTtl })
       const spentOnSystem = input.system.length > 0 ? 1 : 0
       const marks = marksByMessage(
-        breakpointPositions({ messages: input.messages, budget: CACHE_BREAKPOINT_BUDGET - spentOnSystem }),
+        breakpointPositions({
+          messages: input.messages,
+          budget: CACHE_BREAKPOINT_BUDGET - spentOnSystem,
+        }),
       )
 
       return {
@@ -149,7 +172,10 @@ export function cacheBreakpoints(options: CacheBreakpointOptions = {}): Annotato
         messages: input.messages.map((entry, index) => {
           const parts = marks.get(index)
           if (parts === undefined) return entry
-          return { ...entry, message: markMessage({ message: entry.message, parts, ttl: messageTtl }) }
+          return {
+            ...entry,
+            message: markMessage({ message: entry.message, parts, ttl: messageTtl }),
+          }
         }),
       }
     },

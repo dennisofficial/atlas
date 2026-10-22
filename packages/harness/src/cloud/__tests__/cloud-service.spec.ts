@@ -73,7 +73,10 @@ const cloudFake = (): CloudFake => {
   fake.fetchFn = (async (input: unknown, init?: RequestInit) => {
     const path = String(input).slice(URL.length)
     const method = init?.method ?? 'GET'
-    const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : undefined
+    const body =
+      typeof init?.body === 'string'
+        ? (JSON.parse(init.body) as Record<string, unknown>)
+        : undefined
     fake.clientVersions.push({
       path,
       version: new Headers(init?.headers).get('atlas-client-version'),
@@ -133,20 +136,30 @@ const cloudFake = (): CloudFake => {
       if (held === undefined) return reply(404, { message: 'no such account' })
       return reply(200, held)
     }
-    if (path === '/v1/secrets' && method === 'GET') return reply(200, { secrets: fake.remoteSecrets })
+    if (path === '/v1/secrets' && method === 'GET')
+      return reply(200, { secrets: fake.remoteSecrets })
     if (path.startsWith('/v1/secrets/') && method === 'PUT') {
       const name = path.slice('/v1/secrets/'.length)
       fake.putSecrets.push({ name, value: body?.['value'] })
-      fake.remoteSecrets.push({ name, value: String(body?.['value']), updatedAt: '2026-01-01T00:00:00.000Z' })
+      fake.remoteSecrets.push({
+        name,
+        value: String(body?.['value']),
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      })
       return reply(204)
     }
-    if (path === '/v1/settings' && method === 'GET') return reply(200, { settings: fake.remoteSettings })
+    if (path === '/v1/settings' && method === 'GET')
+      return reply(200, { settings: fake.remoteSettings })
     if (path.startsWith('/v1/settings/') && method === 'PUT') {
       const key = path.slice('/v1/settings/'.length)
       fake.putSettings.push({ key, value: body?.['value'] })
       const held = fake.remoteSettings.find((setting) => setting.key === key)
       if (held === undefined) {
-        fake.remoteSettings.push({ key, value: String(body?.['value']), updatedAt: '2026-01-01T00:00:00.000Z' })
+        fake.remoteSettings.push({
+          key,
+          value: String(body?.['value']),
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        })
       } else {
         held.value = String(body?.['value'])
       }
@@ -157,7 +170,8 @@ const cloudFake = (): CloudFake => {
       fake.remoteSettings = fake.remoteSettings.filter((setting) => setting.key !== key)
       return reply(204)
     }
-    if (path === '/v1/mcp-servers' && method === 'GET') return reply(200, { servers: fake.remoteMcp })
+    if (path === '/v1/mcp-servers' && method === 'GET')
+      return reply(200, { servers: fake.remoteMcp })
     if (path.startsWith('/v1/mcp-servers/') && method === 'PUT') {
       const name = path.slice('/v1/mcp-servers/'.length)
       fake.putMcp.push({ name, body: body ?? {} })
@@ -236,8 +250,7 @@ const seedLocal = async () => {
 
 describe('CloudService sign-in', () => {
   it('beginLogin throws a clear CloudError when the host is unreachable', async () => {
-    const down = (() =>
-      Promise.reject(new Error('connection refused'))) as unknown as typeof fetch
+    const down = (() => Promise.reject(new Error('connection refused'))) as unknown as typeof fetch
     const service = serviceOver(down)
 
     const failure = await service.beginLogin().catch((error: unknown) => error)
@@ -265,7 +278,9 @@ describe('CloudService sign-in', () => {
     writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":[]}')
     writeFileSync(
       join(directory, 'mcp.json'),
-      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
+      JSON.stringify({
+        linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } },
+      }),
     )
     localSettings.write({ values: { 'appearance.accent': 'moss' } })
 
@@ -405,7 +420,9 @@ describe('CloudService explicit sync', () => {
     localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
     writeFileSync(
       join(directory, 'mcp.json'),
-      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
+      JSON.stringify({
+        linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } },
+      }),
     )
     localSettings.write({ values: { 'appearance.accent': 'moss' } })
     signIn()
@@ -461,7 +478,11 @@ describe('CloudService explicit sync', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       secret: secretFor('remote'),
     })
-    fake.remoteSecrets.push({ name: 'search.tavily', value: 'tvly-9', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remoteSecrets.push({
+      name: 'search.tavily',
+      value: 'tvly-9',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
     fake.remoteMcp.push({
       name: 'linear',
       transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
@@ -529,7 +550,11 @@ describe('CloudService explicit sync', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       secret: secretFor('remote'),
     })
-    fake.remoteSecrets.push({ name: 'search.tavily', value: 'tvly-9', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remoteSecrets.push({
+      name: 'search.tavily',
+      value: 'tvly-9',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
     fake.remoteMcp.push({
       name: 'linear',
       transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
@@ -597,7 +622,11 @@ describe('CloudService explicit sync', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       secret: secretFor('remote'),
     })
-    fake.remoteSecrets.push({ name: 'search.tavily', value: 'tvly-9', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remoteSecrets.push({
+      name: 'search.tavily',
+      value: 'tvly-9',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
     const service = serviceOver(fake.fetchFn)
     await seedLocal()
     signIn()

@@ -9,9 +9,7 @@ export type ThreadBadge = { text: string; fg: string }
  * answers, a moon that is parked, a cloud that is coming back. Before the batch read lands the
  * location alone is known, so the badge says cloud and nothing more.
  */
-export function cloudSandboxBadge(args: {
-  state: ECloudSandboxState | undefined
-}): ThreadBadge {
+export function cloudSandboxBadge(args: { state: ECloudSandboxState | undefined }): ThreadBadge {
   if (args.state === ECloudSandboxState.Running) return { text: '☁ running', fg: theme.ok }
   if (args.state === ECloudSandboxState.Parked) return { text: '☾ parked', fg: theme.hint }
   if (args.state === ECloudSandboxState.Resuming) return { text: '☁ resuming', fg: theme.warn }

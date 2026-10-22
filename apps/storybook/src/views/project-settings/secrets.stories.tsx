@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { BULK_ADD_SAMPLE, EProjectSettingsPage } from "../../fixtures/project-settings";
-import { ProjectSettingsShell } from "./project-settings-shell";
-import { ESecretsDialog, SecretsPage } from "./secrets-page";
+import { BULK_ADD_SAMPLE, EProjectSettingsPage } from '../../fixtures/project-settings'
+import { ProjectSettingsShell } from './project-settings-shell'
+import { ESecretsDialog, SecretsPage } from './secrets-page'
 
 const meta = {
-  title: "Views/Project Settings/Secrets & Env Vars",
-  parameters: { layout: "fullscreen" },
-} satisfies Meta;
+  title: 'Views/Project Settings/Secrets & Env Vars',
+  parameters: { layout: 'fullscreen' },
+} satisfies Meta
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Populated: Story = {
   render: () => (
@@ -19,7 +19,7 @@ export const Populated: Story = {
       <SecretsPage />
     </ProjectSettingsShell>
   ),
-};
+}
 
 export const Empty: Story = {
   render: () => (
@@ -27,7 +27,7 @@ export const Empty: Story = {
       <SecretsPage initialRows={[]} />
     </ProjectSettingsShell>
   ),
-};
+}
 
 export const AddDialog: Story = {
   render: () => (
@@ -35,7 +35,7 @@ export const AddDialog: Story = {
       <SecretsPage openDialog={ESecretsDialog.Add} />
     </ProjectSettingsShell>
   ),
-};
+}
 
 export const BulkAddDialog: Story = {
   render: () => (
@@ -43,4 +43,4 @@ export const BulkAddDialog: Story = {
       <SecretsPage openDialog={ESecretsDialog.BulkAdd} bulkText={BULK_ADD_SAMPLE} />
     </ProjectSettingsShell>
   ),
-};
+}

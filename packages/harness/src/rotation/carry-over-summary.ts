@@ -74,7 +74,9 @@ export function carryOverSummariser({ model }: { model: LanguageModel }): Rotati
       })
     } catch (fault) {
       if (signal?.aborted === true) return null
-      throw new SummaryFailure(fault instanceof Error ? fault.message : String(fault), { cause: fault })
+      throw new SummaryFailure(fault instanceof Error ? fault.message : String(fault), {
+        cause: fault,
+      })
     }
 
     const brief = generated.text.trim()

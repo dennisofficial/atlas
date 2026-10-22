@@ -57,7 +57,9 @@ describe('putPodLease', () => {
   })
 
   it('surfaces a 401 as the transport reports it, without retrying', async () => {
-    const { seen, run } = await lease(() => Response.json({ message: 'bad session' }, { status: 401 }))
+    const { seen, run } = await lease(() =>
+      Response.json({ message: 'bad session' }, { status: 401 }),
+    )
 
     const error: unknown = await run().catch((caught: unknown) => caught)
 

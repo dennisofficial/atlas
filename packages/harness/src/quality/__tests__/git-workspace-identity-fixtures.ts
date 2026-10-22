@@ -63,12 +63,15 @@ export class RecordingLocalProcess implements ProcessPort {
   }
 }
 
-export const initBareWithWorktrees = (args: { origin?: string }): { bare: string; checkouts: string[] } => {
+export const initBareWithWorktrees = (args: {
+  origin?: string
+}): { bare: string; checkouts: string[] } => {
   const source = initRepository(args)
   const parent = makeScratchDir()
   const bare = join(parent, 'repo.git')
   git({ cwd: parent, argv: ['clone', '--bare', source, bare] })
-  if (args.origin !== undefined) git({ cwd: bare, argv: ['remote', 'set-url', 'origin', args.origin] })
+  if (args.origin !== undefined)
+    git({ cwd: bare, argv: ['remote', 'set-url', 'origin', args.origin] })
   const checkouts = ['alpha', 'beta'].map((name) => {
     const path = join(parent, name)
     git({ cwd: bare, argv: ['worktree', 'add', path, '-b', `feat-${name}`, 'main'] })

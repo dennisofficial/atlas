@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EventLogPort, EShellStatus, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  EventLogPort,
+  EShellStatus,
+  toThreadId,
+  type EventDraft,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { RandomIds } from '@dltech/atlas-harness'
 
 import { teardownSession, type TeardownSource } from '../session-teardown'

@@ -53,9 +53,20 @@ function isRunning({ container }: { container: string }): boolean {
 export function startPostgres({ names, hostPort }: { names: BundleNames; hostPort: number }): void {
   docker(['network', 'create', names.network])
   docker([
-    'run', '-d', '--name', names.postgres, '--network', names.network,
-    '-e', 'POSTGRES_USER=atlas', '-e', 'POSTGRES_PASSWORD=atlas', '-e', 'POSTGRES_DB=atlas',
-    '-p', `127.0.0.1:${hostPort}:5432`,
+    'run',
+    '-d',
+    '--name',
+    names.postgres,
+    '--network',
+    names.network,
+    '-e',
+    'POSTGRES_USER=atlas',
+    '-e',
+    'POSTGRES_PASSWORD=atlas',
+    '-e',
+    'POSTGRES_DB=atlas',
+    '-p',
+    `127.0.0.1:${hostPort}:5432`,
     POSTGRES_IMAGE,
   ])
 }
@@ -99,11 +110,24 @@ export async function startBundleApi({
     ...extraEnv,
   }
   docker([
-    'run', '-d', '--read-only', '--name', names.api, '--network', names.network,
-    '-v', `${functionDir}:/var/task:ro`, '-w', '/var/task',
-    '-p', `127.0.0.1:${hostPort}:${API_CONTAINER_PORT}`,
+    'run',
+    '-d',
+    '--read-only',
+    '--name',
+    names.api,
+    '--network',
+    names.network,
+    '-v',
+    `${functionDir}:/var/task:ro`,
+    '-w',
+    '/var/task',
+    '-p',
+    `127.0.0.1:${hostPort}:${API_CONTAINER_PORT}`,
     ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
-    bunImage(), 'bun', 'serve-bundle.ts', '/var/task/index.js',
+    bunImage(),
+    'bun',
+    'serve-bundle.ts',
+    '/var/task/index.js',
   ])
 
   const output = (): string => containerLogs({ container: names.api })
@@ -115,7 +139,9 @@ export async function startBundleApi({
     }
     await sleep(POLL_INTERVAL_MS)
   }
-  throw new Error(`API did not log readiness within ${READY_TIMEOUT_MS}ms\n--- docker logs ---\n${output()}`)
+  throw new Error(
+    `API did not log readiness within ${READY_TIMEOUT_MS}ms\n--- docker logs ---\n${output()}`,
+  )
 }
 
 export function removeBundleResources({ names }: { names: BundleNames }): void {
@@ -127,8 +153,6 @@ export function removeBundleResources({ names }: { names: BundleNames }): void {
   for (const args of removals) {
     try {
       docker(args)
-    } catch {
-      continue
-    }
+    } catch {}
   }
 }

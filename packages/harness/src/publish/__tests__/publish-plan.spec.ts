@@ -26,12 +26,20 @@ const last: PublishState = {
 describe('planPush', () => {
   it('selects everything new on a first push', () => {
     const plan = planPush({ items: [item('x', '1')], last: EMPTY_PUBLISH_STATE })
-    expect(plan.rows).toEqual([{ item: item('x', '1'), status: EPublishStatus.New, selected: true }])
+    expect(plan.rows).toEqual([
+      { item: item('x', '1'), status: EPublishStatus.New, selected: true },
+    ])
   })
 
   it('carries the last choice for unchanged and changed rows', () => {
     const plan = planPush({
-      items: [item('kept', 'a'), item('skipped', 'b'), item('edited', 'new'), item('editedOn', 'new'), item('fresh', 'z')],
+      items: [
+        item('kept', 'a'),
+        item('skipped', 'b'),
+        item('edited', 'new'),
+        item('editedOn', 'new'),
+        item('fresh', 'z'),
+      ],
       last,
     })
     expect(plan.rows.map((row) => [row.item.id, row.status, row.selected])).toEqual([
@@ -48,7 +56,19 @@ describe('planPush', () => {
     const plan = planPush({ items: [item('kept', 'a'), item('skipped', 'b')], last })
     expect(plan.removed).toEqual(['editedOn'])
     expect(hasChanges(plan)).toBe(true)
-    expect(hasChanges(planPush({ items: [item('kept', 'a'), item('skipped', 'b'), item('editedOn', 'old'), item('edited', 'old')], last }))).toBe(false)
+    expect(
+      hasChanges(
+        planPush({
+          items: [
+            item('kept', 'a'),
+            item('skipped', 'b'),
+            item('editedOn', 'old'),
+            item('edited', 'old'),
+          ],
+          last,
+        }),
+      ),
+    ).toBe(false)
   })
 
   it('records the selection and hashes for the next push', () => {

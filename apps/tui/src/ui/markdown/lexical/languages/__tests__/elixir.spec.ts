@@ -80,9 +80,10 @@ describe('elixir lexical highlighting', () => {
   })
 
   it('reads a sigil past an escaped delimiter', () => {
-    expect(
-      textFor({ spec, source: 'slashed = ~r/a\\/b/ <> "tail"', group: 'string' }),
-    ).toEqual(['~r/a\\/b/', '"tail"'])
+    expect(textFor({ spec, source: 'slashed = ~r/a\\/b/ <> "tail"', group: 'string' })).toEqual([
+      '~r/a\\/b/',
+      '"tail"',
+    ])
   })
 
   it('takes a heredoc sigil whole instead of stopping at its second quote', () => {
@@ -105,9 +106,9 @@ describe('elixir lexical highlighting', () => {
 
   it('reads atoms and quoted atoms as symbols', () => {
     expect(textFor({ spec, source, group: 'string.special.symbol' })).toEqual([':pair', ':ok'])
-    expect(textFor({ spec, source: '{:ok, :"two words"}', group: 'string.special.symbol' })).toEqual(
-      [':ok', ':"two words"'],
-    )
+    expect(
+      textFor({ spec, source: '{:ok, :"two words"}', group: 'string.special.symbol' }),
+    ).toEqual([':ok', ':"two words"'])
   })
 
   it('reads keyword-list labels as keys', () => {

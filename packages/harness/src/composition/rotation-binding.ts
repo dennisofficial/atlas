@@ -16,7 +16,8 @@ export class LateRotation extends RotationPort {
   }
 
   private require(): RotationPort {
-    if (this.inner === undefined) throw new Error('the rotation port was never bound to an orchestrator')
+    if (this.inner === undefined)
+      throw new Error('the rotation port was never bound to an orchestrator')
     return this.inner
   }
 

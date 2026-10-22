@@ -5,7 +5,6 @@ import {
   type SettingsStorePort,
 } from '@dltech/atlas-core'
 
-
 export class MemorySettingsStore implements SettingsStorePort {
   private held: SettingsDocument
 

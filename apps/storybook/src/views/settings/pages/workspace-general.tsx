@@ -1,20 +1,20 @@
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Input } from "@dltech/atlas-ui/components/input";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Input } from '@dltech/atlas-ui/components/input'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-} from "@dltech/atlas-ui/components/input-group";
+} from '@dltech/atlas-ui/components/input-group'
 
 import {
   DEFAULT_MODEL_OPTIONS,
   REGION_OPTIONS,
   WORKSPACE_GENERAL_DEFAULTS,
-} from "../../../fixtures/settings-workspace";
-import { WorkspaceDetailsCard } from "../parts/workspace-details-card";
-import { WorkspaceLogoTile } from "../parts/workspace-logo-tile";
-import { WorkspaceSelect } from "../parts/workspace-select";
+} from '../../../fixtures/settings-workspace'
+import { WorkspaceDetailsCard } from '../parts/workspace-details-card'
+import { WorkspaceLogoTile } from '../parts/workspace-logo-tile'
+import { WorkspaceSelect } from '../parts/workspace-select'
 import {
   DangerZone,
   SaveFooter,
@@ -23,36 +23,36 @@ import {
   SettingsRow,
   SettingsSection,
   type DangerAction,
-} from "../settings-layout";
-import { useDraft } from "../use-draft";
+} from '../settings-layout'
+import { useDraft } from '../use-draft'
 
 const DANGER_ACTIONS: DangerAction[] = [
   {
-    title: "Transfer ownership",
-    description: "Hand this workspace to another admin. You become an admin.",
-    buttonLabel: "Transfer ownership",
-    confirmTitle: "Transfer ownership of DL Tech?",
+    title: 'Transfer ownership',
+    description: 'Hand this workspace to another admin. You become an admin.',
+    buttonLabel: 'Transfer ownership',
+    confirmTitle: 'Transfer ownership of DL Tech?',
     confirmDescription:
-      "The new owner controls members, secrets and deletion. You will keep admin access until they remove it.",
+      'The new owner controls members, secrets and deletion. You will keep admin access until they remove it.',
   },
   {
-    title: "Delete workspace",
-    description: "Permanently delete DL Tech, its members, secrets and paused sandboxes.",
-    buttonLabel: "Delete workspace",
-    confirmTitle: "Delete DL Tech?",
+    title: 'Delete workspace',
+    description: 'Permanently delete DL Tech, its members, secrets and paused sandboxes.',
+    buttonLabel: 'Delete workspace',
+    confirmTitle: 'Delete DL Tech?',
     confirmDescription:
-      "This permanently deletes the workspace, every shared secret and all paused sandboxes. It cannot be undone.",
+      'This permanently deletes the workspace, every shared secret and all paused sandboxes. It cannot be undone.',
   },
-];
+]
 
 function sanitizeSlug(raw: string) {
-  return raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return raw.toLowerCase().replace(/[^a-z0-9-]/g, '')
 }
 
 export function WorkspaceGeneralPage() {
-  const draft = useDraft(WORKSPACE_GENERAL_DEFAULTS);
-  const { value } = draft;
-  const handleChange = (patch: Partial<typeof value>) => draft.setValue({ ...value, ...patch });
+  const draft = useDraft(WORKSPACE_GENERAL_DEFAULTS)
+  const { value } = draft
+  const handleChange = (patch: Partial<typeof value>) => draft.setValue({ ...value, ...patch })
   return (
     <SettingsPage title="General" description="Name, URL and defaults for everyone in DL Tech.">
       <SettingsSection title="Workspace">
@@ -137,5 +137,5 @@ export function WorkspaceGeneralPage() {
       <WorkspaceDetailsCard />
       <DangerZone actions={DANGER_ACTIONS} />
     </SettingsPage>
-  );
+  )
 }

@@ -24,11 +24,15 @@ export type ResumePlan =
   | { kind: EResume.Nothing }
 
 const carriesInterruption = (event: Event): boolean =>
-  (event.type === 'assistant-said' || event.type === 'tool-result' || event.type === 'tool-denied') &&
+  (event.type === 'assistant-said' ||
+    event.type === 'tool-result' ||
+    event.type === 'tool-denied') &&
   event.interrupted === true
 
 function cutShortSincePrompt(events: readonly Event[]): boolean {
-  const prompted = events.findLastIndex((event) => event.type === 'user-said' || event.type === 'nudge')
+  const prompted = events.findLastIndex(
+    (event) => event.type === 'user-said' || event.type === 'nudge',
+  )
   return events.slice(prompted + 1).some(carriesInterruption)
 }
 

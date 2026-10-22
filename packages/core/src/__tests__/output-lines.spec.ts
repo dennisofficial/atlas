@@ -46,7 +46,9 @@ describe('consoleTextOf', () => {
 
 describe('warningTextOf', () => {
   it('prefixes the warning type from an options object', () => {
-    expect(warningTextOf({ warning: 'bad thing', options: { type: 'Warning' } })).toBe('[Warning] bad thing')
+    expect(warningTextOf({ warning: 'bad thing', options: { type: 'Warning' } })).toBe(
+      '[Warning] bad thing',
+    )
   })
 
   it('accepts a string type as the second argument', () => {
@@ -68,15 +70,20 @@ describe('severityOfSink', () => {
       severityOfSink({ entry: { level: ESinkLevel.Log, source: ESinkSource.Console, text: '' } }),
     ).toBe('info')
     expect(
-      severityOfSink({ entry: { level: ESinkLevel.Log, source: ESinkSource.ProcessWarning, text: '' } }),
+      severityOfSink({
+        entry: { level: ESinkLevel.Log, source: ESinkSource.ProcessWarning, text: '' },
+      }),
     ).toBe('warn')
   })
 })
 
 describe('sinkNoticeText', () => {
   it('retains the SDK model and cause without displaying a reasoning payload', () => {
-    const warning = '[Warning] AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported.'
-    expect(sinkNoticeText({ text: `${warning} Skipping reasoning part: {"text":"private thought"}` })).toBe(`${warning} …`)
+    const warning =
+      '[Warning] AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported.'
+    expect(
+      sinkNoticeText({ text: `${warning} Skipping reasoning part: {"text":"private thought"}` }),
+    ).toBe(`${warning} …`)
   })
 
   it('limits visual text separately from diagnostic log text', () => {

@@ -42,7 +42,11 @@ const fetchFn = (async (input: unknown, init?: RequestInit) => {
     return reply({
       status: 200,
       payload: {
-        settings: [...remote].map(([key, value]) => ({ key, value, updatedAt: '2026-01-01T00:00:00.000Z' })),
+        settings: [...remote].map(([key, value]) => ({
+          key,
+          value,
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        })),
       },
     })
   }
@@ -63,7 +67,10 @@ const fetchFn = (async (input: unknown, init?: RequestInit) => {
 
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'atlas-cloud-user-settings-'))
-  sessions = new CloudSessionStore({ file: join(directory, 'cloud.json'), keyFile: join(directory, 'key') })
+  sessions = new CloudSessionStore({
+    file: join(directory, 'cloud.json'),
+    keyFile: join(directory, 'key'),
+  })
   remote = new Map()
   failPuts = false
   calls = []
@@ -99,7 +106,10 @@ describe('CloudUserSettingsStore signed out', () => {
   it('behaves exactly as the local store and never calls the cloud', () => {
     store.write({ values: { 'transcript.smoothStreaming': false, 'appearance.accent': 'moss' } })
 
-    expect(store.read().document.values).toEqual({ 'transcript.smoothStreaming': false, 'appearance.accent': 'moss' })
+    expect(store.read().document.values).toEqual({
+      'transcript.smoothStreaming': false,
+      'appearance.accent': 'moss',
+    })
     expect(store.origin()).toBe('local file')
     expect(calls).toEqual([])
   })
@@ -129,7 +139,9 @@ describe('CloudUserSettingsStore signed in', () => {
     await settled()
 
     expect(local.document().values).toEqual({ 'appearance.accent': 'moss' })
-    expect(calls.filter((call) => call.startsWith('PUT'))).toEqual(['PUT /v1/settings/transcript.thinkingBlocks'])
+    expect(calls.filter((call) => call.startsWith('PUT'))).toEqual([
+      'PUT /v1/settings/transcript.thinkingBlocks',
+    ])
     expect(remote.get('transcript.thinkingBlocks')).toBe(encodeSettingValue('hidden'))
   })
 
@@ -152,7 +164,9 @@ describe('CloudUserSettingsStore signed in', () => {
     store.write({ values: { 'transcript.smoothStreaming': false } })
     await settled()
 
-    expect(calls.filter((call) => call !== 'GET /v1/settings')).toEqual(['DELETE /v1/settings/transcript.thinkingBlocks'])
+    expect(calls.filter((call) => call !== 'GET /v1/settings')).toEqual([
+      'DELETE /v1/settings/transcript.thinkingBlocks',
+    ])
     expect(remote.has('transcript.thinkingBlocks')).toBe(false)
   })
 
@@ -164,7 +178,9 @@ describe('CloudUserSettingsStore signed in', () => {
 
     cloud.invalidate()
     expect(store.read().document.values['transcript.smoothStreaming']).toBe(false)
-    store.write({ values: { ...store.read().document.values, 'transcript.thinkingBlocks': 'hidden' } })
+    store.write({
+      values: { ...store.read().document.values, 'transcript.thinkingBlocks': 'hidden' },
+    })
     await settled()
 
     expect(calls.filter((call) => call.startsWith('DELETE'))).toEqual([])
@@ -220,7 +236,9 @@ describe('CloudUserSettingsStore signed in', () => {
 
     store.write({ values: { 'transcript.smoothStreaming': false } })
     await settled()
-    store.write({ values: { 'transcript.smoothStreaming': false, 'transcript.thinkingBlocks': 'hidden' } })
+    store.write({
+      values: { 'transcript.smoothStreaming': false, 'transcript.thinkingBlocks': 'hidden' },
+    })
 
     sessions.clear()
     signIn('other')

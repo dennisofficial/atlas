@@ -85,8 +85,7 @@ export const BACKEND_TRAITS: Record<EWebSearchBackend, BackendTraits> = {
 
 const SECRET_PREFIX = 'search.'
 
-export const secretNameOf = (backend: EWebSearchBackend): string =>
-  `${SECRET_PREFIX}${backend}`
+export const secretNameOf = (backend: EWebSearchBackend): string => `${SECRET_PREFIX}${backend}`
 
 export const backendOf = (value: string): EWebSearchBackend | undefined =>
   Object.values(EWebSearchBackend).find((backend) => backend === value)

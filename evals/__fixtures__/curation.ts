@@ -5,7 +5,10 @@ import { join } from 'node:path'
 import { toCallId, toRunId, toThreadId, type QualityScope } from '@dltech/atlas-core'
 
 import { singleResponsibilityPolicy } from '../../packages/core/src/quality/policies/single-responsibility'
-import { QualityExampleSink, EXAMPLE_SCHEMA_VERSION } from '../../packages/harness/src/quality/example-sink'
+import {
+  QualityExampleSink,
+  EXAMPLE_SCHEMA_VERSION,
+} from '../../packages/harness/src/quality/example-sink'
 import { prepareQualityScopes } from '../../packages/harness/src/quality/source/scope-adapter'
 import { writeFileAtomic } from '../src/atomic'
 
@@ -16,7 +19,17 @@ export const SRP_POLICY = 'single-responsibility'
 export const makeTmpDir = (): Promise<string> => mkdtemp(join(tmpdir(), 'atlas-curation-'))
 
 export const counterBefore = (): string =>
-  ['export class Counter {', '  private total = 0', '', '  add(amount: number): number {', '    this.total += amount', '    return this.total', '  }', '}', ''].join('\n')
+  [
+    'export class Counter {',
+    '  private total = 0',
+    '',
+    '  add(amount: number): number {',
+    '    this.total += amount',
+    '    return this.total',
+    '  }',
+    '}',
+    '',
+  ].join('\n')
 
 export const counterAfter = (): string =>
   [
@@ -36,9 +49,21 @@ export const counterAfter = (): string =>
   ].join('\n')
 
 export const secretBearingSource = (): string =>
-  ['export class Client {', '  apiKey = "sk-live-abcdef123456"', '  cache = "/Users/someone/project/.cache"', '  connect(): void {}', '}', ''].join('\n')
+  [
+    'export class Client {',
+    '  apiKey = "sk-live-abcdef123456"',
+    '  cache = "/Users/someone/project/.cache"',
+    '  connect(): void {}',
+    '}',
+    '',
+  ].join('\n')
 
-export type RecordedCapture = { sessionDir: string; threadId: string; relativePaths: readonly string[]; scopes: readonly QualityScope[] }
+export type RecordedCapture = {
+  sessionDir: string
+  threadId: string
+  relativePaths: readonly string[]
+  scopes: readonly QualityScope[]
+}
 
 export async function recordCapture({
   sessionDir,
@@ -60,7 +85,9 @@ export async function recordCapture({
     workspaceNamespace: WORKSPACE_NAMESPACE,
     previousScopes: [],
   })
-  const selectedIds = new Set(singleResponsibilityPolicy.selectScopes({ scopes: preparation.scopes }))
+  const selectedIds = new Set(
+    singleResponsibilityPolicy.selectScopes({ scopes: preparation.scopes }),
+  )
   const selected = preparation.scopes.filter((scope) => selectedIds.has(scope.id))
   const relativePaths: string[] = []
   for (const scope of selected) {

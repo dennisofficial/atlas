@@ -54,7 +54,10 @@ export class RoutedProcessPort implements ProcessPort {
     return this.portFor(args.threadId).which(args)
   }
 
-  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+  async vendored(args: {
+    command: string
+    threadId?: ThreadId | undefined
+  }): Promise<string | null> {
     const port = this.portFor(args.threadId)
     if (port.vendored === undefined) return null
     return await port.vendored(args)

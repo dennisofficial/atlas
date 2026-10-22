@@ -67,7 +67,11 @@ export async function bindCredentials(args: {
   })
 
   const session = cloud.session()
-  if (args.reconcileHostSources && session !== null && credentials instanceof CloudManagedCredentialPort) {
+  if (
+    args.reconcileHostSources &&
+    session !== null &&
+    credentials instanceof CloudManagedCredentialPort
+  ) {
     void credentials.handoffAll(session).catch((error: unknown) => {
       notice.notify({
         key: 'cloud:oauth-handoff',

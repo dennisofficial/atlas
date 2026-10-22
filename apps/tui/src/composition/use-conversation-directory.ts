@@ -39,13 +39,23 @@ export function useConversationDirectory(args: {
   workspace: ConversationWorkspace
   handleChangeDirectory: (argumentText: string) => Promise<CommandEffect>
 } {
-  const { app, threadId, opened, name, started, events, logSummary, pendingMove, holdMove, refresh } = args
+  const {
+    app,
+    threadId,
+    opened,
+    name,
+    started,
+    events,
+    logSummary,
+    pendingMove,
+    holdMove,
+    refresh,
+  } = args
 
   useEffect(() => {
     void app.threadOpened({
       threadId: opened.threadId,
-      projectDirectory:
-        logSummary.worktree?.path ?? logSummary.home ?? app.workspace.workspace,
+      projectDirectory: logSummary.worktree?.path ?? logSummary.home ?? app.workspace.workspace,
     })
   }, [app, opened, logSummary, app.workspace.workspace])
 

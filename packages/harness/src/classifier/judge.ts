@@ -14,7 +14,6 @@ const JUDGE_OUTPUT_TOKEN_LIMIT = 256
 
 const RETRIES_BELONG_TO_THE_POLICY = 0
 
-
 const messageOf = (fault: unknown): string =>
   fault instanceof Error ? fault.message : String(fault)
 

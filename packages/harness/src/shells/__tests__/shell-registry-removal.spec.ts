@@ -117,7 +117,11 @@ for (const adapter of shellAdapters) {
         const own = await startOrThrow(registry, 'sleep 60')
         const foreign = await startOrThrow(registry, 'sleep 60', ELSEWHERE)
 
-        await registry.removeShells({ threadId: THREAD, shellIds: [own, foreign], by: EKilledBy.Rewind })
+        await registry.removeShells({
+          threadId: THREAD,
+          shellIds: [own, foreign],
+          by: EKilledBy.Rewind,
+        })
 
         expect(registry.list({ threadId: THREAD })).toEqual([])
         expect(registry.list({ threadId: ELSEWHERE }).map((shell) => shell.shellId)).toEqual([
@@ -160,7 +164,10 @@ for (const adapter of shellAdapters) {
       it('rewind waits for the process group to stop before forgetting the shell', async () => {
         const { registry, root } = openRegistry({ adapter })
         const witness = join(root, 'outlived.txt')
-        const shellId = await startOrThrow(registry, `trap '' TERM; (sleep 30; echo alive > ${witness}) & wait`)
+        const shellId = await startOrThrow(
+          registry,
+          `trap '' TERM; (sleep 30; echo alive > ${witness}) & wait`,
+        )
         await Bun.sleep(300)
 
         const startedAt = Date.now()

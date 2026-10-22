@@ -3,15 +3,27 @@ import { describe, expect, it } from 'vitest'
 import { ECaseReviewState } from '../../src/case'
 import { gradeRow } from '../../src/grading'
 import { datasetManifestSchema, validateDatasetStructure } from '../../src/manifest'
-import { calculate, createCalculatorFeature, type CalculatorExpected, type CalculatorInput } from '../calculator'
-import { SMOKE_CASES, SMOKE_DATASET_VERSION, smokeCasesText, smokeDatasetManifest } from '../smoke-dataset'
+import {
+  calculate,
+  createCalculatorFeature,
+  type CalculatorExpected,
+  type CalculatorInput,
+} from '../calculator'
+import {
+  SMOKE_CASES,
+  SMOKE_DATASET_VERSION,
+  smokeCasesText,
+  smokeDatasetManifest,
+} from '../smoke-dataset'
 
 const feature = createCalculatorFeature({ evaluate: calculate })
 
-const messageFor = (schema: { safeParse(value: unknown): { success: boolean; error?: { message: string } } }) => (value: unknown) => {
-  const result = schema.safeParse(value)
-  return result.success ? null : (result.error?.message ?? 'invalid')
-}
+const messageFor =
+  (schema: { safeParse(value: unknown): { success: boolean; error?: { message: string } } }) =>
+  (value: unknown) => {
+    const result = schema.safeParse(value)
+    return result.success ? null : (result.error?.message ?? 'invalid')
+  }
 
 const validate = ({ casesText }: { casesText: string }) =>
   validateDatasetStructure({
@@ -33,7 +45,12 @@ describe('smoke dataset', () => {
       expect(evalCase.featureId).toBe('calculator')
       expect(evalCase.tags).toEqual(['smoke'])
       expect(evalCase.review).toEqual({ state: ECaseReviewState.Accepted, verifications: [] })
-      expect(evalCase.provenance).toMatchObject({ group: 'smoke', method: 'synthetic', sourceVersion: '1', completeness: 'synthetic' })
+      expect(evalCase.provenance).toMatchObject({
+        group: 'smoke',
+        method: 'synthetic',
+        sourceVersion: '1',
+        completeness: 'synthetic',
+      })
     }
   })
 
@@ -57,7 +74,11 @@ describe('smoke dataset', () => {
       validateDatasetStructure({
         manifest,
         casesText: `${smokeCasesText()}\n`,
-        featureVersions: { inputSchemaVersion: '1', expectedSchemaVersion: '1', rubricVersion: '1' },
+        featureVersions: {
+          inputSchemaVersion: '1',
+          expectedSchemaVersion: '1',
+          rubricVersion: '1',
+        },
       }),
     ).toThrow('contentHash')
   })
@@ -65,15 +86,21 @@ describe('smoke dataset', () => {
   it('grades the known 2+3=5 answer as 1 and a wrong one as 0', () => {
     const input: CalculatorInput = { a: 2, b: 3, op: 'add' }
     const expected: CalculatorExpected = { result: 5 }
-    expect(gradeRow({ feature, input, expected, actual: { result: calculate(input) } })).toEqual({ 'exact-match': 1 })
-    expect(gradeRow({ feature, input, expected, actual: { result: 6 } })).toEqual({ 'exact-match': 0 })
+    expect(gradeRow({ feature, input, expected, actual: { result: calculate(input) } })).toEqual({
+      'exact-match': 1,
+    })
+    expect(gradeRow({ feature, input, expected, actual: { result: 6 } })).toEqual({
+      'exact-match': 0,
+    })
   })
 
   it('scores every smoke case 1 with the real calculator', () => {
     for (const evalCase of SMOKE_CASES) {
       const input = feature.inputSchema.parse(evalCase.input)
       const expected = feature.expectedSchema.parse(evalCase.expected)
-      expect(gradeRow({ feature, input, expected, actual: { result: calculate(input) } })).toEqual({ 'exact-match': 1 })
+      expect(gradeRow({ feature, input, expected, actual: { result: calculate(input) } })).toEqual({
+        'exact-match': 1,
+      })
     }
   })
 })

@@ -4,12 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import {
-  ATLAS_SETTINGS,
-  EExecutionLocation,
-  ProcessPort,
-  toThreadId,
-} from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, EExecutionLocation, ProcessPort, toThreadId } from '@dltech/atlas-core'
 import {
   createHarnessContainer,
   createSettingsService,
@@ -119,7 +114,9 @@ describe('SandboxControl.prepareWorkspace', () => {
 
   it('resolves the mounts and image label from the restored tree, with a stable status snapshot', async () => {
     const boot = await freshDirectory()
-    const tree = await freshDirectory(JSON.stringify({ image: 'custom/tree-image:1', mounts: [{ path: SHARED }] }))
+    const tree = await freshDirectory(
+      JSON.stringify({ image: 'custom/tree-image:1', mounts: [{ path: SHARED }] }),
+    )
     const fake = statefulEngine()
     const { sandbox, mounts, containerStatus } = await bindAt({ cwd: boot, engine: fake.engine })
     expect(mounts).toEqual([])

@@ -11,7 +11,11 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentSnapshot } from '../../agents/registry/snapshot'
-import { AGENT_SPAWN_TOOL_NAME, isTeammateType, type AgentType } from '../../agents/types/agent-type'
+import {
+  AGENT_SPAWN_TOOL_NAME,
+  isTeammateType,
+  type AgentType,
+} from '../../agents/types/agent-type'
 import { ToolRegistry } from '../registry'
 import type { AgentRegistrySource } from './agent-tokens'
 
@@ -61,7 +65,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
   override readonly isConcurrencySafe = (): boolean => true
 
   constructor(
-     private readonly agents: AgentRegistrySource,
+    private readonly agents: AgentRegistrySource,
     private readonly types: readonly AgentType[],
   ) {
     super()

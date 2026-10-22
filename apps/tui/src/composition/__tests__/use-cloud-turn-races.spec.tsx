@@ -134,7 +134,10 @@ describe('the gap between turn-working false and the lifecycle ending', () => {
       expect(screen.conversation().handleResume).toBeNull()
 
       channel.end(ETurnStatus.Completed)
-      await screen.until((frame) => frame.includes(RESUME_HINT), 'the resume hint after the ending settled')
+      await screen.until(
+        (frame) => frame.includes(RESUME_HINT),
+        'the resume hint after the ending settled',
+      )
     } finally {
       await screen.done()
     }
@@ -170,7 +173,10 @@ describe('the tail of a turn the sandbox ran by itself', () => {
       await screen.quiet(150)
 
       channel.end(ETurnStatus.Completed)
-      const frame = await screen.until((text) => text.includes(ANSWER), 'the answer after the ending')
+      const frame = await screen.until(
+        (text) => text.includes(ANSWER),
+        'the answer after the ending',
+      )
 
       expect(frame).not.toContain(WORKING)
     } finally {
@@ -207,7 +213,10 @@ describe('a local say whose ending races a newer sandbox turn', () => {
       channel.end(ETurnStatus.Completed)
       channel.signal({ type: 'turn-working', working: true })
 
-      const frame = await screen.until((text) => text.includes(WORKING), 'the working line for the newer turn')
+      const frame = await screen.until(
+        (text) => text.includes(WORKING),
+        'the working line for the newer turn',
+      )
       await screen.quiet(300)
 
       expect(ran).toEqual([])

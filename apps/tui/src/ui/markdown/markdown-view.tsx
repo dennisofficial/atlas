@@ -8,12 +8,7 @@ import { registerFallbackRenderer, registerFencedRenderer } from './registry'
 import { codeRenderer, plainRenderer } from './renderers/code'
 import { diffRenderer } from './renderers/diff'
 import { lexicalRenderer } from './renderers/lexical'
-import {
-  growingSegments,
-  type MarkdownSegment,
-  segmentMarkdown,
-  steadySegments,
-} from './segment'
+import { growingSegments, type MarkdownSegment, segmentMarkdown, steadySegments } from './segment'
 import { TableBlock } from './table-block'
 
 // Registration order is precedence. `lexicalRenderer` precedes `codeRenderer` because the code
@@ -29,10 +24,7 @@ type FenceSegment = Extract<MarkdownSegment, { kind: 'fence' }>
 
 const fenceMeasures = new WeakMap<FenceSegment, { forWidth: number; measured: number }>()
 
-function levelledWidth(args: {
-  segments: readonly MarkdownSegment[]
-  width: number
-}): number {
+function levelledWidth(args: { segments: readonly MarkdownSegment[]; width: number }): number {
   let levelled = 0
   for (const segment of args.segments) {
     if (segment.kind !== 'fence') continue
@@ -120,13 +112,13 @@ const Segment = React.memo(function Segment(
   if (segment.kind === 'table') {
     return (
       <SourceSpan source={segment.markdown}>
-      <TableBlock
-        markdown={segment.markdown}
-        width={props.width}
-        streaming={props.live}
-        fg={props.fg ?? theme.hover}
-        {...(props.bg === undefined ? {} : { bg: props.bg })}
-      />
+        <TableBlock
+          markdown={segment.markdown}
+          width={props.width}
+          streaming={props.live}
+          fg={props.fg ?? theme.hover}
+          {...(props.bg === undefined ? {} : { bg: props.bg })}
+        />
       </SourceSpan>
     )
   }

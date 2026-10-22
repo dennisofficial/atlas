@@ -3,7 +3,9 @@ import type { JsonValue, ProviderOptions } from '@dltech/atlas-core'
 
 import { toCoreJsonValue } from './json-value'
 
-export function toCoreProviderOptions(metadata: SharedV4ProviderMetadata | undefined): ProviderOptions | undefined {
+export function toCoreProviderOptions(
+  metadata: SharedV4ProviderMetadata | undefined,
+): ProviderOptions | undefined {
   if (metadata === undefined) return undefined
 
   const converted: Record<string, Record<string, JsonValue>> = {}

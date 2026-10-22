@@ -14,10 +14,11 @@ import { Spans, type Span } from './spans'
 export const OPERATOR_INPUT_HEADING = 'The agent needs you to paste something'
 
 export function operatorInputHints(state: OperatorInputState): readonly Hint[] {
-  if (state.kind === 'delivering') return [
-    { key: '…', label: 'delivering' },
-    { key: 'esc', label: 'interrupt the turn' },
-  ]
+  if (state.kind === 'delivering')
+    return [
+      { key: '…', label: 'delivering' },
+      { key: 'esc', label: 'interrupt the turn' },
+    ]
   return [
     { key: '⏎', label: 'send — the model never sees it' },
     { key: 'shift+⏎', label: 'newline' },
@@ -25,12 +26,20 @@ export function operatorInputHints(state: OperatorInputState): readonly Hint[] {
   ]
 }
 
-function Line(props: { spans: readonly Span[]; cells: number; region?: ClickRegion }): React.ReactNode {
+function Line(props: {
+  spans: readonly Span[]
+  cells: number
+  region?: ClickRegion
+}): React.ReactNode {
   return (
     <DrawerLine
       {...(props.region === undefined
         ? {}
-        : { press: props.region.handlers, hover: props.region.handlers, band: props.region.wash.bg })}
+        : {
+            press: props.region.handlers,
+            hover: props.region.handlers,
+            band: props.region.wash.bg,
+          })}
     >
       <text>
         <Spans spans={clipSpans({ spans: props.spans, cells: props.cells })} />
@@ -68,10 +77,7 @@ export function OperatorInputOverlay(props: {
           backgroundColor={url.wash.bg ?? theme.overlayBg}
           {...url.handlers}
         >
-          <text
-            fg={theme.accent}
-            {...(url.hovered ? linkHoverStyle(theme.accent) : {})}
-          >
+          <text fg={theme.accent} {...(url.hovered ? linkHoverStyle(theme.accent) : {})}>
             {state.request.url}
           </text>
         </box>

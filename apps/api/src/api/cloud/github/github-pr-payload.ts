@@ -1,9 +1,7 @@
 import type { GithubPrStateRecord } from './github-realtime.types'
 import type { GithubWebhookPullRequest } from './github-webhook.types'
 
-export function payloadFieldsOf(args: {
-  pull: GithubWebhookPullRequest
-}): GithubPrStateRecord {
+export function payloadFieldsOf(args: { pull: GithubWebhookPullRequest }): GithubPrStateRecord {
   const state =
     args.pull.state === 'open'
       ? args.pull.draft

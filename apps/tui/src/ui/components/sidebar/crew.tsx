@@ -245,8 +245,20 @@ export function SubagentsSection(props: {
 
   return (
     <>
-      <CrewTier label="Teammates" rows={teammates} standings={standings} cells={props.cells} onOpen={props.onOpen} />
-      <CrewTier label="Sub-agents" rows={subagents} standings={standings} cells={props.cells} onOpen={props.onOpen} />
+      <CrewTier
+        label="Teammates"
+        rows={teammates}
+        standings={standings}
+        cells={props.cells}
+        onOpen={props.onOpen}
+      />
+      <CrewTier
+        label="Sub-agents"
+        rows={subagents}
+        standings={standings}
+        cells={props.cells}
+        onOpen={props.onOpen}
+      />
     </>
   )
 }

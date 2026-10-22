@@ -11,11 +11,7 @@ import {
 
 import { EShellStatus } from '../../../shells/background-shell'
 import { PROMPT_SETTLE_MS } from '../../../shells/shell-registry'
-import {
-  RecordingLog,
-  printed,
-  recorded,
-} from '../../../shells/__tests__/shell-registry-fixture'
+import { RecordingLog, printed, recorded } from '../../../shells/__tests__/shell-registry-fixture'
 import { BashTool } from '../bash'
 import { ShellKillTool } from '../shell-kill'
 import { ShellListTool } from '../shell-list'
@@ -71,10 +67,8 @@ const invoke = (
     threadId: toThreadId('thread-1'),
   } as never)
 
-const runBash = (
-  suite: { bash: BashTool },
-  input: Record<string, unknown>,
-): Promise<ToolOutcome> => invoke(suite.bash, { description: 'Exercise the shell', ...input })
+const runBash = (suite: { bash: BashTool }, input: Record<string, unknown>): Promise<ToolOutcome> =>
+  invoke(suite.bash, { description: 'Exercise the shell', ...input })
 
 const outputOf = (outcome: ToolOutcome): Record<string, unknown> => {
   if (!outcome.ok) throw new Error(`expected success, got: ${outcome.reason}`)
@@ -93,7 +87,9 @@ const modelTextOf = (outcome: ToolOutcome): string => {
 
 async function settled(suite: Suite, shellId: string): Promise<void> {
   for (let attempt = 0; attempt < 400; attempt += 1) {
-    const snapshot = suite.shells.list({ threadId: toThreadId('thread-1') }).find((entry) => entry.shellId === shellId)
+    const snapshot = suite.shells
+      .list({ threadId: toThreadId('thread-1') })
+      .find((entry) => entry.shellId === shellId)
     if (snapshot !== undefined && snapshot.status !== EShellStatus.Running) return
     await Bun.sleep(25)
   }
@@ -205,10 +201,13 @@ describe('reading a background shell through shell_output', () => {
     expect(modelTextOf(outcome)).toContain('exit code 4')
   }, 30_000)
 
-  it('marks a finished shell\'s output as final, so a progress-flavored tail is not read as a live run', async () => {
+  it("marks a finished shell's output as final, so a progress-flavored tail is not read as a live run", async () => {
     const suite = await openSuite()
     const started = outputOf(
-      await runBash(suite, { command: 'echo "trials 21/36 | errors 15"; exit 2', runInBackground: true }),
+      await runBash(suite, {
+        command: 'echo "trials 21/36 | errors 15"; exit 2',
+        runInBackground: true,
+      }),
     )
     await settled(suite, String(started.shellId))
 
@@ -219,7 +218,7 @@ describe('reading a background shell through shell_output', () => {
     expect(modelTextOf(outcome)).toContain('not a snapshot of a live job')
   }, 30_000)
 
-  it('does not mark a still-running shell\'s output as final', async () => {
+  it("does not mark a still-running shell's output as final", async () => {
     const suite = await openSuite()
     const started = outputOf(await runBash(suite, { command: 'sleep 30', runInBackground: true }))
 
@@ -308,7 +307,12 @@ describe('stopping a background shell through shell_kill', () => {
     const started = outputOf(
       await runBash(suite, { command: 'echo before; sleep 60', runInBackground: true }),
     )
-    await printed({ registry: suite.shells, shellId: String(started.shellId), text: 'before', threadId: THREAD_1 })
+    await printed({
+      registry: suite.shells,
+      shellId: String(started.shellId),
+      text: 'before',
+      threadId: THREAD_1,
+    })
 
     const killed = await invoke(suite.kill, { shellId: started.shellId })
 
@@ -444,7 +448,9 @@ describe('listing background shells through shell_list', () => {
 
     expect(modelTextOf(outcome)).toContain('sleep 30')
     expect(modelTextOf(outcome)).toContain('running')
-    expect((modelTextOf(outcome).match(/shell_[0-9a-f]{32}/g) ?? []).length).toBeGreaterThanOrEqual(2)
+    expect((modelTextOf(outcome).match(/shell_[0-9a-f]{32}/g) ?? []).length).toBeGreaterThanOrEqual(
+      2,
+    )
   }, 30_000)
 
   it('keeps a finished shell listed, so its output stays findable', async () => {

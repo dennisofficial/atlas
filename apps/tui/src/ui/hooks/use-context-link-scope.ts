@@ -19,7 +19,8 @@ export function useContextLinkScope(args: {
         contains: ({ x, y, target }) => {
           const pane = box.current
           if (pane === null || pane.isDestroyed || !isShown(pane)) return false
-          if (x < pane.x || x >= pane.x + pane.width || y < pane.y || y >= pane.y + pane.height) return false
+          if (x < pane.x || x >= pane.x + pane.width || y < pane.y || y >= pane.y + pane.height)
+            return false
           return isWithin({ target, ancestor: pane })
         },
         handle: (href) => {

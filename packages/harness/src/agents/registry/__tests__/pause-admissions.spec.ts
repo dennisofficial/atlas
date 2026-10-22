@@ -8,7 +8,9 @@ import { finished, openSupervisor, settled, type OpenedSupervisor } from './fixt
 
 const gate = () => {
   let open = (): void => undefined
-  const promise = new Promise<void>((resolve) => { open = resolve })
+  const promise = new Promise<void>((resolve) => {
+    open = resolve
+  })
   return { promise, open }
 }
 
@@ -16,7 +18,10 @@ const paused = () => ({ status: ETurnStatus.RelocationPaused as const, runId: fi
 
 const spawn = async (entry: OpenedSupervisor): Promise<ThreadId> => {
   const spawned = await entry.supervisor.spawn({
-    threadId: entry.parent, agentType: 'explore', brief: 'look around', intent: 'a look around',
+    threadId: entry.parent,
+    agentType: 'explore',
+    brief: 'look around',
+    intent: 'a look around',
   })
   if (!spawned.ok) throw new Error(spawned.reason)
   await settled()
@@ -32,8 +37,15 @@ type Restart = {
 
 const restarts: Restart[] = [
   { name: 'notice wake', start: ({ entry, agentId }) => entry.supervisor.wake({ agentId }) },
-  { name: 'explicit resume', start: ({ entry, agentId }) => entry.supervisor.resume({ agentId, threadId: entry.parent }) },
-  { name: 'explicit say', start: ({ entry, agentId }) => entry.supervisor.say({ agentId, threadId: entry.parent, text: 'continue' }) },
+  {
+    name: 'explicit resume',
+    start: ({ entry, agentId }) => entry.supervisor.resume({ agentId, threadId: entry.parent }),
+  },
+  {
+    name: 'explicit say',
+    start: ({ entry, agentId }) =>
+      entry.supervisor.say({ agentId, threadId: entry.parent, text: 'continue' }),
+  },
 ]
 
 describe('family pause includes admitted child work', () => {
@@ -57,7 +69,9 @@ describe('family pause includes admitted child work', () => {
         expect(entry.supervisor.settling()).toBe(true)
         const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
         let confirmed = false
-        void pausing.then(() => { confirmed = true })
+        void pausing.then(() => {
+          confirmed = true
+        })
         await Bun.sleep(1)
         expect(confirmed).toBe(false)
         expect(entry.runners.started).toHaveLength(1)
@@ -68,11 +82,14 @@ describe('family pause includes admitted child work', () => {
         expect(entry.runners.started).toHaveLength(2)
         entry.runners.started[1]?.settle(paused())
         expect(await pausing).toEqual([agentId])
-        expect(entry.supervisor.list({ threadId: entry.parent })[0]?.status).toBe(EAgentStatus.Paused)
+        expect(entry.supervisor.list({ threadId: entry.parent })[0]?.status).toBe(
+          EAgentStatus.Paused,
+        )
         expect(entry.supervisor.settling()).toBe(false)
         const events = await entry.harness.log.readOwn({ threadId: entry.parent })
-        expect(events.findLast((event) => event.type === 'agent-ended' && event.agentId === agentId))
-          .toMatchObject({ status: EAgentStatus.Paused })
+        expect(
+          events.findLast((event) => event.type === 'agent-ended' && event.agentId === agentId),
+        ).toMatchObject({ status: EAgentStatus.Paused })
         await Bun.sleep(1)
         expect(entry.runners.started).toHaveLength(2)
       } finally {
@@ -87,18 +104,31 @@ describe('family pause includes admitted child work', () => {
       const entered = gate()
       const admitted = gate()
       const supervisor = new AgentSupervisor({
-        log: entry.harness.log, threads: entry.harness.threads, ids: entry.harness.ids,
-        clock: entry.harness.clock, runners: entry.runners.source,
-        agentTypes: entry.supervisor.types(), launchDirectory: '/launch',
-        modelAtSpawn: async () => { entered.open(); await admitted.promise; return undefined },
+        log: entry.harness.log,
+        threads: entry.harness.threads,
+        ids: entry.harness.ids,
+        clock: entry.harness.clock,
+        runners: entry.runners.source,
+        agentTypes: entry.supervisor.types(),
+        launchDirectory: '/launch',
+        modelAtSpawn: async () => {
+          entered.open()
+          await admitted.promise
+          return undefined
+        },
       })
       const spawning = supervisor.spawn({
-        threadId: entry.parent, agentType: 'explore', brief: 'look around', intent: 'a look around',
+        threadId: entry.parent,
+        agentType: 'explore',
+        brief: 'look around',
+        intent: 'a look around',
       })
       await entered.promise
       const pausing = supervisor.pauseChildren({ threadId: entry.parent })
       let confirmed = false
-      void pausing.then(() => { confirmed = true })
+      void pausing.then(() => {
+        confirmed = true
+      })
       await Bun.sleep(1)
       expect(confirmed).toBe(false)
       admitted.open()
@@ -131,8 +161,14 @@ describe('family pause includes admitted child work', () => {
       const restarting = entry.supervisor.wake({ agentId })
       await entered.promise
       const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
-      const restartFailed = restarting.then(() => null, (error: unknown) => error)
-      const pauseFailed = pausing.then(() => null, (error: unknown) => error)
+      const restartFailed = restarting.then(
+        () => null,
+        (error: unknown) => error,
+      )
+      const pauseFailed = pausing.then(
+        () => null,
+        (error: unknown) => error,
+      )
       written.open()
       expect(await restartFailed).toMatchObject({ message: 'restart append failed' })
       expect(await pauseFailed).toMatchObject({ message: 'restart append failed' })
@@ -146,7 +182,10 @@ describe('family pause includes admitted child work', () => {
     const entry = await openSupervisor()
     try {
       const spawned = await entry.supervisor.spawn({
-        threadId: entry.parent, agentType: 'explore', brief: 'look around', intent: 'a look around',
+        threadId: entry.parent,
+        agentType: 'explore',
+        brief: 'look around',
+        intent: 'a look around',
       })
       if (!spawned.ok) throw new Error(spawned.reason)
       await settled()

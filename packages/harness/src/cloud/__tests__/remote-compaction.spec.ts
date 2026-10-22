@@ -42,9 +42,12 @@ describe('compaction wire shapes', () => {
   })
 
   it('rejects an empty operation id and an unknown scope', () => {
-    expect(compactHistoryParamsSchema.safeParse({ threadId: 'thr-1', operationId: '' }).success).toBe(false)
     expect(
-      compactHistoryParamsSchema.safeParse({ threadId: 'thr-1', operationId: 'op', scope: 'all' }).success,
+      compactHistoryParamsSchema.safeParse({ threadId: 'thr-1', operationId: '' }).success,
+    ).toBe(false)
+    expect(
+      compactHistoryParamsSchema.safeParse({ threadId: 'thr-1', operationId: 'op', scope: 'all' })
+        .success,
     ).toBe(false)
   })
 
@@ -52,28 +55,47 @@ describe('compaction wire shapes', () => {
     const base = { threadId: 'thr-1', operationId: 'op-1' }
 
     expect(
-      summariseHistoryParamsSchema.safeParse({ ...base, anchor: EWireCompactionAnchor.Suffix, seq: 3 }).success,
+      summariseHistoryParamsSchema.safeParse({
+        ...base,
+        anchor: EWireCompactionAnchor.Suffix,
+        seq: 3,
+      }).success,
     ).toBe(true)
-    expect(summariseHistoryParamsSchema.safeParse({ ...base, anchor: 'middle', seq: 3 }).success).toBe(false)
-    expect(summariseHistoryParamsSchema.safeParse({ ...base, anchor: 'prefix', seq: -1 }).success).toBe(false)
-    expect(summariseHistoryParamsSchema.safeParse({ ...base, anchor: 'prefix', seq: 1.5 }).success).toBe(false)
+    expect(
+      summariseHistoryParamsSchema.safeParse({ ...base, anchor: 'middle', seq: 3 }).success,
+    ).toBe(false)
+    expect(
+      summariseHistoryParamsSchema.safeParse({ ...base, anchor: 'prefix', seq: -1 }).success,
+    ).toBe(false)
+    expect(
+      summariseHistoryParamsSchema.safeParse({ ...base, anchor: 'prefix', seq: 1.5 }).success,
+    ).toBe(false)
   })
 
   it('requires thread and operation ids on cancel', () => {
     expect(cancelCompactionParamsSchema.safeParse({ threadId: 'thr-1' }).success).toBe(false)
-    expect(cancelCompactionParamsSchema.safeParse({ threadId: 'thr-1', operationId: 'op' }).success).toBe(true)
+    expect(
+      cancelCompactionParamsSchema.safeParse({ threadId: 'thr-1', operationId: 'op' }).success,
+    ).toBe(true)
   })
 
   it('discriminates the reply by type', () => {
     expect(compactionReplySchema.parse(compactedReply)).toEqual(compactedReply)
-    expect(compactionReplySchema.parse({ type: 'refused', reason: 'no' })).toEqual({ type: 'refused', reason: 'no' })
+    expect(compactionReplySchema.parse({ type: 'refused', reason: 'no' })).toEqual({
+      type: 'refused',
+      reason: 'no',
+    })
     expect(compactionReplySchema.parse({ type: 'nothing' })).toEqual({ type: 'nothing' })
     expect(compactionReplySchema.safeParse({ type: 'other' }).success).toBe(false)
   })
 
   it('gives the summarising requests the long timeout', () => {
-    expect(requestTimeoutFor({ op: EClientRequest.CompactHistory })).toBe(COMPACTION_REQUEST_TIMEOUT_MS)
-    expect(requestTimeoutFor({ op: EClientRequest.SummariseHistory })).toBe(COMPACTION_REQUEST_TIMEOUT_MS)
+    expect(requestTimeoutFor({ op: EClientRequest.CompactHistory })).toBe(
+      COMPACTION_REQUEST_TIMEOUT_MS,
+    )
+    expect(requestTimeoutFor({ op: EClientRequest.SummariseHistory })).toBe(
+      COMPACTION_REQUEST_TIMEOUT_MS,
+    )
     expect(COMPACTION_REQUEST_TIMEOUT_MS).toBe(600_000)
   })
 })
@@ -134,7 +156,9 @@ describe('RemoteCompaction', () => {
   it('propagates a remote failure', async () => {
     const { channel } = scripted(() => Promise.reject(new Error('the sandbox is parked')))
 
-    await expect(new RemoteCompaction({ channel }).compact({ threadId })).rejects.toThrow('the sandbox is parked')
+    await expect(new RemoteCompaction({ channel }).compact({ threadId })).rejects.toThrow(
+      'the sandbox is parked',
+    )
   })
 
   it('rejects a reply that is not a compaction', async () => {
@@ -207,7 +231,10 @@ describe('RemoteCompaction', () => {
     )
     const controller = new AbortController()
 
-    const pending = new RemoteCompaction({ channel }).compact({ threadId, signal: controller.signal })
+    const pending = new RemoteCompaction({ channel }).compact({
+      threadId,
+      signal: controller.signal,
+    })
     controller.abort()
     release({ type: 'nothing' })
 

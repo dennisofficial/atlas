@@ -67,6 +67,13 @@ describe('the package entry point', () => {
       EFinishReason.ToolCalls,
     ]
 
-    expect(values).toEqual(['allow', 'deny', 'destructive', 'guard', 'before-request', 'tool-calls'])
+    expect(values).toEqual([
+      'allow',
+      'deny',
+      'destructive',
+      'guard',
+      'before-request',
+      'tool-calls',
+    ])
   })
 })

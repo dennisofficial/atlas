@@ -121,7 +121,11 @@ export class ProjectsService {
     organizationId: string | null | undefined
   }): Promise<void> {
     if (args.organizationId === undefined || args.organizationId === null) return
-    await this.access.require({ userId: args.userId, organizationId: args.organizationId, write: false })
+    await this.access.require({
+      userId: args.userId,
+      organizationId: args.organizationId,
+      write: false,
+    })
   }
 
   private async owned(args: { userId: string; projectId: string }): Promise<ProjectModel> {

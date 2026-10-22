@@ -35,7 +35,8 @@ export type SwapWatch = {
   stop: () => Promise<SwapWatchResult>
 }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export const matchingLines = (args: { text: string; pattern: RegExp }): string[] =>
   args.text.split('\n').filter((line) => args.pattern.test(line))
@@ -67,7 +68,10 @@ export const describeSample = (sample: SwapSample): string =>
     ...(sample.error === null ? [] : [`error ${sample.error}`]),
   ].join(', ')
 
-export function observationsOf(args: { samples: readonly SwapSample[]; step: string }): Observation[] {
+export function observationsOf(args: {
+  samples: readonly SwapSample[]
+  step: string
+}): Observation[] {
   return args.samples
     .filter((sample, index) => !sameSample({ left: args.samples[index - 1], right: sample }))
     .map((sample) => ({
@@ -77,7 +81,7 @@ export function observationsOf(args: { samples: readonly SwapSample[]; step: str
       phase: sample.receipt && sample.phase !== null ? `${sample.phase} (receipt)` : sample.phase,
       stamps: sample.version === null ? null : `${sample.version} / ${sample.protocol ?? '?'}`,
       provider: sample.provider,
-      note: sample.pid === null ? sample.error ?? undefined : `serve pid ${sample.pid}`,
+      note: sample.pid === null ? (sample.error ?? undefined) : `serve pid ${sample.pid}`,
     }))
 }
 
@@ -122,14 +126,24 @@ export function startSwapWatch(args: {
         error: probe.recordError,
       }
     } catch (failure) {
-      return { at, provider: PROBE_FAILED, phase: null, receipt: false, pid: null, version: null, protocol: null, error: messageOf(failure) }
+      return {
+        at,
+        provider: PROBE_FAILED,
+        phase: null,
+        receipt: false,
+        pid: null,
+        version: null,
+        protocol: null,
+        error: messageOf(failure),
+      }
     }
   }
 
   const loop = (async () => {
     while (!stopped) {
       const sample = await sampleNow()
-      if (!sameSample({ left: samples.at(-1), right: sample })) args.log(`box ${describeSample(sample)}`)
+      if (!sameSample({ left: samples.at(-1), right: sample }))
+        args.log(`box ${describeSample(sample)}`)
       samples.push(sample)
       if (stopped) return
       await Bun.sleep(args.every ?? DEFAULT_EVERY_MS)
@@ -150,7 +164,9 @@ export function startSwapWatch(args: {
     swapped: () => {
       const last = samples.at(-1)
       if (last === undefined || last.pid === null || last.version === null) return false
-      return last.pid !== args.from.pid && last.version !== args.from.version && last.phase === 'serving'
+      return (
+        last.pid !== args.from.pid && last.version !== args.from.version && last.phase === 'serving'
+      )
     },
     stop: async () => {
       stopped = true

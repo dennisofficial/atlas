@@ -33,7 +33,10 @@ const writeProxyScript = async (args: { hostPort: number }): Promise<string> => 
   const directory = join(atlasDirectory(), 'expose-proxy')
   await mkdir(directory, { recursive: true })
   const script = join(directory, 'proxy.mjs')
-  await writeFile(script, proxyScriptSource({ hostPort: args.hostPort, containerPort: PROXY_CONTAINER_PORT }))
+  await writeFile(
+    script,
+    proxyScriptSource({ hostPort: args.hostPort, containerPort: PROXY_CONTAINER_PORT }),
+  )
   return directory
 }
 
@@ -57,7 +60,9 @@ export async function ensureSandboxProxy(args: {
     if (!details.state.running) await args.engine.startContainer({ id: existing.id })
     const bound = details.ports.find((one) => one.containerPort === PROXY_CONTAINER_PORT)
     if (bound === undefined) {
-      throw new Error(`expose proxy ${existing.name} lost its published port; remove the container so it is recreated`)
+      throw new Error(
+        `expose proxy ${existing.name} lost its published port; remove the container so it is recreated`,
+      )
     }
     return { hostPort: bound.hostPort }
   }

@@ -46,8 +46,12 @@ export type ChildRunnerDeps = {
   }) => AssemblyPipeline
   drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   intake?: MessageIntake | undefined
-  modelFor?: ((args: { agentType: AgentType; threadId: ThreadId }) => ModelPort | Promise<ModelPort>) | undefined
-  modelAtSpawn?: ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>) | undefined
+  modelFor?:
+    | ((args: { agentType: AgentType; threadId: ThreadId }) => ModelPort | Promise<ModelPort>)
+    | undefined
+  modelAtSpawn?:
+    | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>)
+    | undefined
   telemetry?: TelemetryPort | undefined
   hydratePlacement?: ((args: { threadId: ThreadId }) => Promise<void>) | undefined
 }
@@ -176,7 +180,8 @@ export async function buildChildRunner({
     ? withoutSpawnableListing({ registry: narrowed, hidden: [TEAMMATE_AGENT_TYPE] })
     : narrowed
   const { turn } = deps
-  const model = deps.modelFor === undefined ? turn.model : await deps.modelFor({ agentType, threadId })
+  const model =
+    deps.modelFor === undefined ? turn.model : await deps.modelFor({ agentType, threadId })
   observeModel(model.identity)
 
   return new PublishingTurnRunner({

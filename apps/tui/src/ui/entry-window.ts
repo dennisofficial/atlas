@@ -46,7 +46,10 @@ export function visibleSpan(args: {
   const bottom = args.scrollTop + Math.max(1, args.viewportRows)
 
   let start = 0
-  while (start < total && (args.tops[start] ?? 0) + rowsAt({ rows: args.rows, index: start }) <= args.scrollTop) {
+  while (
+    start < total &&
+    (args.tops[start] ?? 0) + rowsAt({ rows: args.rows, index: start }) <= args.scrollTop
+  ) {
     start += 1
   }
   if (start >= total) return { start: total - 1, end: total }
@@ -101,7 +104,11 @@ export function initialSpan(args: {
  * window rather than inside it, so scrolling far enough to move the window cannot unmount the
  * selection out from under the pointer.
  */
-export function mountSpans(args: { base: Span; pinned: Span | null; total: number }): readonly Span[] {
+export function mountSpans(args: {
+  base: Span
+  pinned: Span | null
+  total: number
+}): readonly Span[] {
   const { base, pinned, total } = args
   if (pinned === null) return [base]
   const start = Math.max(0, Math.min(pinned.start, total))
@@ -154,7 +161,10 @@ export function sectionsOf(args: {
     const top = args.tops[span.start] ?? totalRows
     if (top > covered) sections.push({ kind: 'spacer', height: top - covered })
     sections.push({ kind: 'entries', span: { start: span.start, end } })
-    covered = Math.max(covered, (args.tops[end - 1] ?? 0) + rowsAt({ rows: args.rows, index: end - 1 }))
+    covered = Math.max(
+      covered,
+      (args.tops[end - 1] ?? 0) + rowsAt({ rows: args.rows, index: end - 1 }),
+    )
   }
   if (totalRows > covered) sections.push({ kind: 'spacer', height: totalRows - covered })
   return sections

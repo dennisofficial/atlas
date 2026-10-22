@@ -42,7 +42,10 @@ async function authRequest(args: { path: string; body?: unknown }): Promise<unkn
   const payload: unknown = await response.json().catch(() => null)
   if (response.ok) return payload
   const message =
-    typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string'
+    typeof payload === 'object' &&
+    payload !== null &&
+    'message' in payload &&
+    typeof payload.message === 'string'
       ? payload.message
       : `Atlas Cloud answered ${response.status}`
   throw new CloudApiError({ message, status: response.status })

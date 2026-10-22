@@ -1,8 +1,4 @@
-import {
-  ESettingsLayer,
-  type SettingDefinition,
-  type SettingsLayerInput,
-} from '@dltech/atlas-core'
+import { ESettingsLayer, type SettingDefinition, type SettingsLayerInput } from '@dltech/atlas-core'
 
 export const ENVIRONMENT_ORIGIN = 'environment'
 

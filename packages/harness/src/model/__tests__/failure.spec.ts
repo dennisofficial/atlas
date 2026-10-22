@@ -24,21 +24,29 @@ describe('reading a model failure off whatever the provider threw', () => {
   })
 
   it('reads seconds out of a retry-after header', () => {
-    const failure = modelFailureOf(apiError({ statusCode: 429, responseHeaders: { 'retry-after': '12' } }))
+    const failure = modelFailureOf(
+      apiError({ statusCode: 429, responseHeaders: { 'retry-after': '12' } }),
+    )
 
     expect(failure).toEqual({ status: 429, retryAfterMs: 12_000 })
   })
 
   it('ignores a retry-after that is not a number', () => {
     const failure = modelFailureOf(
-      apiError({ statusCode: 429, responseHeaders: { 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' } }),
+      apiError({
+        statusCode: 429,
+        responseHeaders: { 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' },
+      }),
     )
 
     expect(failure).toEqual({ status: 429 })
   })
 
   it('unwraps the stream error the port wrapped the provider error in', () => {
-    const wrapped = new ModelStreamError({ message: 'overloaded', cause: apiError({ statusCode: 529 }) })
+    const wrapped = new ModelStreamError({
+      message: 'overloaded',
+      cause: apiError({ statusCode: 529 }),
+    })
 
     expect(modelFailureOf(wrapped)).toEqual({ status: 529 })
   })
@@ -75,7 +83,9 @@ describe('reading a model failure off whatever the provider threw', () => {
   })
 
   it('refuses a mid-stream provider error with no status, no flag, and an unrecognised message', () => {
-    expect(modelFailureOf(new StreamProviderError({ message: 'billing hard limit reached' }))).toBeNull()
+    expect(
+      modelFailureOf(new StreamProviderError({ message: 'billing hard limit reached' })),
+    ).toBeNull()
   })
 
   it('reads a stream that ended without a finish reason as a dropped connection', () => {

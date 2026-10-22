@@ -36,17 +36,26 @@ describe('GitWorkspaceIdentity repository layouts', () => {
       'feat-alpha:alpha',
       'feat-beta:beta',
     ])
-    expect(identities.map((identity) => identity.remote)).toEqual(['github.com/org/repo', 'github.com/org/repo'])
+    expect(identities.map((identity) => identity.remote)).toEqual([
+      'github.com/org/repo',
+      'github.com/org/repo',
+    ])
     expect(JSON.stringify(identities)).not.toContain(bare)
   })
 
   it('anchors a worktree nested inside the bare directory to the bare directory', async () => {
     const { bare } = initBareWithWorktrees({ origin: ORIGIN })
-    git({ cwd: bare, argv: ['worktree', 'add', join(bare, 'trees/gamma'), '-b', 'feat-gamma', 'main'] })
+    git({
+      cwd: bare,
+      argv: ['worktree', 'add', join(bare, 'trees/gamma'), '-b', 'feat-gamma', 'main'],
+    })
 
     const identity = await identify(join(bare, 'trees/gamma'))
 
-    expect(identity).toEqual({ remote: 'github.com/org/repo', worktreePath: 'feat-gamma:trees/gamma' })
+    expect(identity).toEqual({
+      remote: 'github.com/org/repo',
+      worktreePath: 'feat-gamma:trees/gamma',
+    })
   })
 
   it('keeps an ordinary clone and its linked worktree on repo-relative paths', async () => {
@@ -63,7 +72,10 @@ describe('GitWorkspaceIdentity repository layouts', () => {
   it('identifies a separate-git-dir checkout and its linked worktree without an absolute path', async () => {
     const gitDirectory = join(makeScratchDir(), 'sep.git')
     const checkout = join(makeScratchDir(), 'checkout')
-    git({ cwd: makeScratchDir(), argv: ['init', '-b', 'main', `--separate-git-dir=${gitDirectory}`, checkout] })
+    git({
+      cwd: makeScratchDir(),
+      argv: ['init', '-b', 'main', `--separate-git-dir=${gitDirectory}`, checkout],
+    })
     git({ cwd: checkout, argv: ['commit', '--allow-empty', '-m', 'root'] })
     git({ cwd: checkout, argv: ['worktree', 'add', '.atlas/worktrees/slug', '-b', 'feat-slug'] })
 
@@ -84,11 +96,23 @@ describe('GitWorkspaceIdentity repository layouts', () => {
       argv: ['-c', 'protocol.file.allow=always', 'submodule', 'add', library, 'vendor/library'],
     })
     const submodule = join(superproject, 'vendor/library')
-    git({ cwd: submodule, argv: ['remote', 'set-url', 'origin', 'https://github.com/org/library.git'] })
-    git({ cwd: submodule, argv: ['worktree', 'add', join(superproject, 'linked-lib'), '-b', 'feat-lib'] })
+    git({
+      cwd: submodule,
+      argv: ['remote', 'set-url', 'origin', 'https://github.com/org/library.git'],
+    })
+    git({
+      cwd: submodule,
+      argv: ['worktree', 'add', join(superproject, 'linked-lib'), '-b', 'feat-lib'],
+    })
 
-    expect(await identify(submodule)).toEqual({ remote: 'github.com/org/library', worktreePath: 'main:.' })
+    expect(await identify(submodule)).toEqual({
+      remote: 'github.com/org/library',
+      worktreePath: 'main:.',
+    })
     expect((await identify(join(superproject, 'linked-lib'))).worktreePath).toStartWith('feat-lib:')
-    expect(await identify(superproject)).toEqual({ remote: 'github.com/org/repo', worktreePath: 'main:.' })
+    expect(await identify(superproject)).toEqual({
+      remote: 'github.com/org/repo',
+      worktreePath: 'main:.',
+    })
   })
 })

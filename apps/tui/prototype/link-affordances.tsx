@@ -17,7 +17,7 @@
  *
  * Question: which affordance makes "clickable" discoverable without adding chrome?
  */
-import { createCliRenderer, TextAttributes, type CliRenderer, type MouseEvent } from '@opentui/core'
+import { createCliRenderer, TextAttributes, type MouseEvent } from '@opentui/core'
 import { createRoot, useKeyboard, useRenderer } from '@opentui/react'
 import React, { useState } from 'react'
 
@@ -39,7 +39,10 @@ type LinkTarget = { url: string; kind: 'web' | 'file' }
 
 const LINKS: readonly LinkTarget[] = [
   { url: 'https://github.com/dennisofficial/atlas/pull/844', kind: 'web' },
-  { url: 'file:///Users/dennis/Developer/atlas/apps/tui/src/composition/link-click.ts:42', kind: 'file' },
+  {
+    url: 'file:///Users/dennis/Developer/atlas/apps/tui/src/composition/link-click.ts:42',
+    kind: 'file',
+  },
 ]
 
 const openLabel = (target: LinkTarget, editor: boolean): string =>
@@ -120,10 +123,16 @@ function App(): React.ReactNode {
   return (
     <box flexDirection="column" width="100%" height="100%">
       <box paddingLeft={1} paddingTop={1} flexDirection="column">
-        <text fg={theme.dim}>variant {variant} — {VARIANT_NAMES[variant]} · open target: {editor ? 'editor' : 'browser'}</text>
-        <text fg={theme.dim}>{' '}</text>
-        <ProseLine hoveredUrl={variant === 'A' ? (hovered?.url ?? null) : null} ctrlHeld={variant === 'C' && ctrlHeld} />
-        <text fg={theme.dim}>{' '}</text>
+        <text fg={theme.dim}>
+          variant {variant} — {VARIANT_NAMES[variant]} · open target:{' '}
+          {editor ? 'editor' : 'browser'}
+        </text>
+        <text fg={theme.dim}> </text>
+        <ProseLine
+          hoveredUrl={variant === 'A' ? (hovered?.url ?? null) : null}
+          ctrlHeld={variant === 'C' && ctrlHeld}
+        />
+        <text fg={theme.dim}> </text>
         <text fg={theme.body}>
           <span>Plain text with a raw url: </span>
           <span fg={theme.link} attributes={TextAttributes.UNDERLINE} link={{ url: LINKS[0]!.url }}>

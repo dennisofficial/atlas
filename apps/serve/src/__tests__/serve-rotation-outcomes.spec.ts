@@ -1,14 +1,31 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toCallId, toRunId } from '@dltech/atlas-core'
-import { ERuntimePhase, runtimeCheckpointSchema, type SandboxRotationReceipt } from '@dltech/atlas-wire'
-import { EServeFrame, ETurnStatus, readPersistedRuntimeCheckpoint, readSandboxRotationReceipt, runtimeCheckpointFile } from '@dltech/atlas-harness'
+import {
+  ERuntimePhase,
+  runtimeCheckpointSchema,
+  type SandboxRotationReceipt,
+} from '@dltech/atlas-wire'
+import {
+  EServeFrame,
+  ETurnStatus,
+  readPersistedRuntimeCheckpoint,
+  readSandboxRotationReceipt,
+  runtimeCheckpointFile,
+} from '@dltech/atlas-harness'
 
 import { EWorkspaceState } from '../materialize-workspace'
 import { createServeDriver } from '../serve-driver'
 import { createServeRotationRecovery } from '../serve-rotation-recovery'
 import { createServeWorkspaceSession } from '../serve-workspace-session'
 import { fakeServeApp } from './fakes'
-import { childId, cleanupRotationFixtures, gate, replacementSession, rotationFixture, threadId } from './serve-rotation-fixture'
+import {
+  childId,
+  cleanupRotationFixtures,
+  gate,
+  replacementSession,
+  rotationFixture,
+  threadId,
+} from './serve-rotation-fixture'
 
 const runId = toRunId('recovery-outcome')
 const quietLog = (): void => undefined
@@ -35,19 +52,34 @@ const resetReceipt = async (home: string, receipt: SandboxRotationReceipt): Prom
 describe('rotation continuation durability', () => {
   it('ignores streaming errors, interrupts and relocation pauses, then durably consumes each real terminal outcome', async () => {
     const fixture = await rotationFixture()
-    const recoveryFor = () => createServeRotationRecovery({
-      atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: quietLog,
-    })
+    const recoveryFor = () =>
+      createServeRotationRecovery({
+        atlasHome: fixture.home,
+        threadId,
+        sandboxSessionId: replacementSession,
+        log: quietLog,
+      })
     const retained = await recoveryFor()
     retained.consume({ kind: EServeFrame.Error, message: 'the process disappeared' })
-    retained.consume({ kind: EServeFrame.TurnEnded, outcome: { status: ETurnStatus.RelocationPaused, runId } })
-    retained.consume({ kind: EServeFrame.TurnEnded, outcome: { status: ETurnStatus.Interrupted, runId, committed: false } })
+    retained.consume({
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.RelocationPaused, runId },
+    })
+    retained.consume({
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.Interrupted, runId, committed: false },
+    })
     await retained.settled()
     expect(await receiptAt(fixture.home)).toEqual(fixture.receipt)
     for (const outcome of [
       { status: ETurnStatus.Completed, runId } as const,
       { status: ETurnStatus.Idle, runId } as const,
-      { status: ETurnStatus.Paused, runId, callId: toCallId('approval-call'), reason: 'approval' } as const,
+      {
+        status: ETurnStatus.Paused,
+        runId,
+        callId: toCallId('approval-call'),
+        reason: 'approval',
+      } as const,
       { status: ETurnStatus.Failed, runId, message: 'failed' } as const,
     ]) {
       await resetReceipt(fixture.home, fixture.receipt)
@@ -63,19 +95,35 @@ describe('rotation continuation durability', () => {
     const model = gate()
     const order: string[] = []
     const app = fakeServeApp({
-      threadId, root: '/workspace', intake: true, log: fixture.store.log,
+      threadId,
+      root: '/workspace',
+      intake: true,
+      log: fixture.store.log,
       holdStep: () => model.promise,
-      adoptChildren: async () => { order.push('children'); return [childId] },
+      adoptChildren: async () => {
+        order.push('children')
+        return [childId]
+      },
       family: {
-        freeze: async () => { order.push('guard') },
+        freeze: async () => {
+          order.push('guard')
+        },
         pauseChildren: async () => undefined,
-        resumeChildren: async () => { order.push('release') },
+        resumeChildren: async () => {
+          order.push('release')
+        },
       },
     })
     const resume = app.runner.resume
-    app.runner.resume = (args) => { order.push('resume'); return resume(args) }
+    app.runner.resume = (args) => {
+      order.push('resume')
+      return resume(args)
+    }
     const recovery = await createServeRotationRecovery({
-      atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: quietLog,
+      atlasHome: fixture.home,
+      threadId,
+      sandboxSessionId: replacementSession,
+      log: quietLog,
     })
     let opened = false
     await recovery.guard({
@@ -84,13 +132,18 @@ describe('rotation continuation durability', () => {
         current: () =>
           opened
             ? runtimeCheckpointSchema.parse({
-                threadId: String(threadId), runtimeId: 'runtime-1',
-                sandboxSessionId: replacementSession, revision: 2,
-                phase: ERuntimePhase.Serving, reportedAt: '2026-10-01T00:00:00.000Z',
+                threadId: String(threadId),
+                runtimeId: 'runtime-1',
+                sandboxSessionId: replacementSession,
+                revision: 2,
+                phase: ERuntimePhase.Serving,
+                reportedAt: '2026-10-01T00:00:00.000Z',
                 transcript: { head: 1, count: 1, digest: 'a'.repeat(64) },
               })
             : null,
-        parkReopened: async () => { opened = true },
+        parkReopened: async () => {
+          opened = true
+        },
         consumeReceipt: async (given) => {
           const { consumeSandboxRotationReceipt } = await import('@dltech/atlas-harness')
           const receipt = await readSandboxRotationReceipt({ atlasHome: fixture.home })
@@ -105,12 +158,20 @@ describe('rotation continuation durability', () => {
       },
     })
     const session = createServeWorkspaceSession({
-      threadId, app,
-      deferStartChildren: true, log: quietLog, settling: { count: 0 }, note: quietLog,
+      threadId,
+      app,
+      deferStartChildren: true,
+      log: quietLog,
+      settling: { count: 0 },
+      note: quietLog,
     })
     const driver = createServeDriver({
-      app, threadId, workspace: { state: EWorkspaceState.Skipped },
-      log: quietLog, idleStop: () => ({ note: quietLog }), emitLifecycle: recovery.consume,
+      app,
+      threadId,
+      workspace: { state: EWorkspaceState.Skipped },
+      log: quietLog,
+      idleStop: () => ({ note: quietLog }),
+      emitLifecycle: recovery.consume,
     })
     const detach = app.intake === undefined ? quietLog : driver.attach(app.intake)
     await recovery.recover({ session, driver })
@@ -127,9 +188,15 @@ describe('rotation continuation durability', () => {
   it('finishes prior consumption before a new drain and never overwrites the new seal', async () => {
     const fixture = await rotationFixture()
     const recovery = await createServeRotationRecovery({
-      atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: quietLog,
+      atlasHome: fixture.home,
+      threadId,
+      sandboxSessionId: replacementSession,
+      log: quietLog,
     })
-    recovery.consume({ kind: EServeFrame.TurnEnded, outcome: { status: ETurnStatus.Completed, runId } })
+    recovery.consume({
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.Completed, runId },
+    })
     await recovery.drain({
       reason: 'next rotation',
       drain: async () => {
@@ -152,7 +219,10 @@ describe('rotation continuation durability', () => {
     const fixture = await rotationFixture()
     await resetReceipt(fixture.home, { ...fixture.receipt, resumeChildren: [childId] })
     const recovery = await createServeRotationRecovery({
-      atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: quietLog,
+      atlasHome: fixture.home,
+      threadId,
+      sandboxSessionId: replacementSession,
+      log: quietLog,
     })
     expect(recovery.owed).toEqual({ parent: true, children: [childId] })
     await recovery.drain({
@@ -163,8 +233,13 @@ describe('rotation continuation durability', () => {
 
   it('requires an identified replacement when a journal exists', async () => {
     const fixture = await rotationFixture()
-    await expect(createServeRotationRecovery({
-      atlasHome: fixture.home, threadId, sandboxSessionId: undefined, log: quietLog,
-    })).rejects.toThrow('sandbox rotation recovery requires ATLAS_SANDBOX_SESSION_ID')
+    await expect(
+      createServeRotationRecovery({
+        atlasHome: fixture.home,
+        threadId,
+        sandboxSessionId: undefined,
+        log: quietLog,
+      }),
+    ).rejects.toThrow('sandbox rotation recovery requires ATLAS_SANDBOX_SESSION_ID')
   })
 })

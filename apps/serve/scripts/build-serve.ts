@@ -26,7 +26,9 @@ const requireFromHarness = createRequire(
 
 async function stageVendoredRipgrep(args: { target: string | undefined }): Promise<string> {
   const platform =
-    args.target === undefined ? `${process.platform}-${process.arch}` : RIPGREP_PLATFORMS[args.target]
+    args.target === undefined
+      ? `${process.platform}-${process.arch}`
+      : RIPGREP_PLATFORMS[args.target]
   if (platform === undefined) {
     throw new Error(`no vendored ripgrep for build target ${args.target}`)
   }
@@ -41,10 +43,23 @@ async function stageVendoredRipgrep(args: { target: string | undefined }): Promi
     )
   }
 
-  const manifestPath = join(dirname(dirname(requireFromHarness.resolve('@vscode/ripgrep'))), 'package.json')
+  const manifestPath = join(
+    dirname(dirname(requireFromHarness.resolve('@vscode/ripgrep'))),
+    'package.json',
+  )
   const { version } = JSON.parse(await readFile(manifestPath, 'utf8')) as { version: string }
 
-  const vendor = join(import.meta.dirname, '..', '..', '..', 'packages', 'harness', 'src', 'execution', 'vendor')
+  const vendor = join(
+    import.meta.dirname,
+    '..',
+    '..',
+    '..',
+    'packages',
+    'harness',
+    'src',
+    'execution',
+    'vendor',
+  )
   await mkdir(vendor, { recursive: true })
   const staged = join(vendor, 'rg')
   await copyFile(binary, staged)
@@ -69,5 +84,10 @@ const cmd = [
   arg('--outfile') ?? 'bin/atlas-serve',
 ]
 
-const build = Bun.spawnSync({ cmd, cwd: join(import.meta.dirname, '..'), stdout: 'inherit', stderr: 'inherit' })
+const build = Bun.spawnSync({
+  cmd,
+  cwd: join(import.meta.dirname, '..'),
+  stdout: 'inherit',
+  stderr: 'inherit',
+})
 process.exit(build.exitCode)

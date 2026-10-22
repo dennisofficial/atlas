@@ -1,9 +1,20 @@
 import { useCallback, useRef } from 'react'
 
-import { githubRepoOfOrigin, matchProject, readOriginUrl, remoteDefaultBranch, type CloudClient } from '@dltech/atlas-harness'
+import {
+  githubRepoOfOrigin,
+  matchProject,
+  readOriginUrl,
+  remoteDefaultBranch,
+  type CloudClient,
+} from '@dltech/atlas-harness'
 
 import { messageOf } from '../error-text'
-import { EProjectAnswer, EProjectPrompt, type ProjectAnswer, type ProjectRequest } from '../../ui/project-prompt-model'
+import {
+  EProjectAnswer,
+  EProjectPrompt,
+  type ProjectAnswer,
+  type ProjectRequest,
+} from '../../ui/project-prompt-model'
 import type { AtlasApp } from '../compose'
 import type { ProjectPromptControl } from '../use-project-prompt'
 
@@ -69,7 +80,12 @@ export async function resolveProject(args: {
 
   const baseBranch = (await remoteDefaultBranch({ cwd })) ?? ''
   if (!isMounted()) return 'cancelled'
-  const answer = await args.ask({ mode: EProjectPrompt.Create, repo, name: repoNameOf(repo), baseBranch })
+  const answer = await args.ask({
+    mode: EProjectPrompt.Create,
+    repo,
+    name: repoNameOf(repo),
+    baseBranch,
+  })
   return createdOn({ client, repo, answer, isMounted })
 }
 
@@ -82,6 +98,11 @@ export function useProjectResolution(args: {
 
   return useCallback(() => {
     const { app, prompt } = latest.current
-    return resolveProject({ cwd: app.config.cwd, client: app.cloud.client(), ask: prompt.ask, isMounted: prompt.isMounted })
+    return resolveProject({
+      cwd: app.config.cwd,
+      client: app.cloud.client(),
+      ask: prompt.ask,
+      isMounted: prompt.isMounted,
+    })
   }, [])
 }

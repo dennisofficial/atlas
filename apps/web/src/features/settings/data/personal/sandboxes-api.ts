@@ -23,7 +23,11 @@ const sandboxSchema = z.object({
 export type SandboxEntry = z.infer<typeof sandboxSchema>
 
 export function fetchSandboxes(): Promise<SandboxEntry[]> {
-  return cloudJson({ method: EHttpMethod.Get, path: '/v1/sandboxes', schema: z.array(sandboxSchema) })
+  return cloudJson({
+    method: EHttpMethod.Get,
+    path: '/v1/sandboxes',
+    schema: z.array(sandboxSchema),
+  })
 }
 
 export function destroySandbox(threadId: string): Promise<void> {

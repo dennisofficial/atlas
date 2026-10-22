@@ -20,7 +20,10 @@ export enum ESigningKeyOutcome {
   Unavailable = 'unavailable',
 }
 
-const outcomeOfFailure = (args: { error: unknown; conflict: ESigningKeyOutcome }): ESigningKeyOutcome => {
+const outcomeOfFailure = (args: {
+  error: unknown
+  conflict: ESigningKeyOutcome
+}): ESigningKeyOutcome => {
   if (!(args.error instanceof CloudError)) return ESigningKeyOutcome.Unavailable
   if (args.error.code === SSH_SIGNING_SCOPE_MISSING_CODE) return ESigningKeyOutcome.ScopeMissing
   if (args.error.code === GITHUB_NOT_CONNECTED_CODE) return ESigningKeyOutcome.GithubNotConnected
@@ -35,7 +38,9 @@ export const ensureSigningKey = async (args: {
   try {
     const status = await args.client.status()
     if (status.state === ESshSigningKeyState.Registered) return ESigningKeyOutcome.AlreadyRegistered
-    await args.client.register({ privateKey: generateSigningKeyPair({ comment: args.comment }).privateKey })
+    await args.client.register({
+      privateKey: generateSigningKeyPair({ comment: args.comment }).privateKey,
+    })
     return ESigningKeyOutcome.Registered
   } catch (error) {
     return outcomeOfFailure({ error, conflict: ESigningKeyOutcome.AlreadyRegistered })
@@ -47,14 +52,18 @@ export const rotateSigningKey = async (args: {
   comment: string
 }): Promise<ESigningKeyOutcome> => {
   try {
-    await args.client.rotate({ privateKey: generateSigningKeyPair({ comment: args.comment }).privateKey })
+    await args.client.rotate({
+      privateKey: generateSigningKeyPair({ comment: args.comment }).privateKey,
+    })
     return ESigningKeyOutcome.Rotated
   } catch (error) {
     return outcomeOfFailure({ error, conflict: ESigningKeyOutcome.Unavailable })
   }
 }
 
-export const removeSigningKey = async (args: { client: SigningKeyClient }): Promise<ESigningKeyOutcome> => {
+export const removeSigningKey = async (args: {
+  client: SigningKeyClient
+}): Promise<ESigningKeyOutcome> => {
   try {
     await args.client.revoke()
     return ESigningKeyOutcome.Removed

@@ -21,7 +21,10 @@ const text = (value: string): TextPart => ({ type: 'text', text: value })
 
 const user = (value: string): Message => ({ role: 'user', content: [text(value)] })
 
-const assistant = (content: AssistantMessage['content']): Message => ({ role: 'assistant', content })
+const assistant = (content: AssistantMessage['content']): Message => ({
+  role: 'assistant',
+  content,
+})
 
 const settlement = (content: ToolMessage['content']): Message => ({ role: 'tool', content })
 

@@ -70,15 +70,18 @@ export function planRestoredTokens(args: {
     text = text.slice(0, span.start) + text.slice(span.end)
   }
 
-  const shift = (offset: number): number =>
-    deletionShift({ deletions, text: args.text, offset })
+  const shift = (offset: number): number => deletionShift({ deletions, text: args.text, offset })
 
   const pasteContents = new Map((args.pastes ?? []).map((paste) => [paste.ordinal, paste.content]))
   const claimed = new Set<number>()
   const pastes: PlannedPaste[] = pastedTagSpans(args.text).map((span) => {
     const label = args.text.slice(span.start, span.end)
     if (claimed.has(span.ordinal)) {
-      return { start: span.start - shift(span.start), end: span.end - shift(span.start), content: label }
+      return {
+        start: span.start - shift(span.start),
+        end: span.end - shift(span.start),
+        content: label,
+      }
     }
     claimed.add(span.ordinal)
     return {

@@ -12,7 +12,13 @@ import {
 import type { ThreadId } from '@dltech/atlas-core'
 import { sandboxNameFor } from '@dltech/atlas-harness'
 
-import { EVerdict, ScenarioFailed, trustOf, type ScenarioEvidence, type ScenarioFailure } from './rig-evidence'
+import {
+  EVerdict,
+  ScenarioFailed,
+  trustOf,
+  type ScenarioEvidence,
+  type ScenarioFailure,
+} from './rig-evidence'
 import type { Ledger } from './rig-ledger'
 import type { RigApp } from './rig-mount'
 import { EvidencedScenarioFailed } from './rig-park-wait'
@@ -47,7 +53,10 @@ const HELLO_TIMEOUT_MS = 30_000
 const FAILURE_LOG_LINES = 80
 const FAILURE_DRIVER_LINES = 40
 
-export const UNGATED_TRUST: RigTrust = { trusted: false, reason: 'the trust gate never ran (scenario 1 did not finish)' }
+export const UNGATED_TRUST: RigTrust = {
+  trusted: false,
+  reason: 'the trust gate never ran (scenario 1 did not finish)',
+}
 
 export const USAGE = [
   'Live Vercel rig: drives one real cloud thread through birth, park, wake and swap.',
@@ -75,15 +84,22 @@ export function scenarioIdsOf(requested: readonly number[]): number[] {
 }
 
 const parseIds = (text: string): number[] | string => {
-  const parts = text.split(',').map((part) => part.trim()).filter((part) => part.length > 0)
+  const parts = text
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
   if (parts.length === 0) return '--scenarios needs at least one id'
   const ids = parts.map(Number)
   const unknown = parts.filter((_, index) => !KNOWN_IDS.includes(ids[index] ?? Number.NaN))
-  if (unknown.length > 0) return `unknown scenario id(s): ${unknown.join(', ')} (known: ${KNOWN_IDS.join(', ')})`
+  if (unknown.length > 0)
+    return `unknown scenario id(s): ${unknown.join(', ')} (known: ${KNOWN_IDS.join(', ')})`
   return ids
 }
 
-export function parseRigArgs(args: { argv: readonly string[]; env: Record<string, string | undefined> }): ParsedRigArgs {
+export function parseRigArgs(args: {
+  argv: readonly string[]
+  env: Record<string, string | undefined>
+}): ParsedRigArgs {
   let requested: readonly number[] = DEFAULT_SCENARIOS
   let out: string | null = null
   let repo = DEFAULT_REPO
@@ -106,25 +122,42 @@ export function parseRigArgs(args: { argv: readonly string[]; env: Record<string
     else if (arg === '--cleanup') cleanup = true
     else return { ok: false, error: `unknown argument: ${arg}` }
   }
-  if (repo !== 'none' && !repo.startsWith('https://')) return { ok: false, error: `--repo must be an https git url (the sandbox clones it), got ${repo}` }
+  if (repo !== 'none' && !repo.startsWith('https://'))
+    return {
+      ok: false,
+      error: `--repo must be an https git url (the sandbox clones it), got ${repo}`,
+    }
   const contextDir = args.env.ATLAS_CONTEXT_DIR
   if (out === null && (contextDir === undefined || contextDir.length === 0)) {
     return { ok: false, error: 'pass --out=<dir>: ATLAS_CONTEXT_DIR is not set' }
   }
   return {
     ok: true,
-    args: { scenarios: scenarioIdsOf(requested), out: out ?? join(contextDir ?? '', 'evidence', 'live-rig'), repo, keep, cleanup, mismatch },
+    args: {
+      scenarios: scenarioIdsOf(requested),
+      out: out ?? join(contextDir ?? '', 'evidence', 'live-rig'),
+      repo,
+      keep,
+      cleanup,
+      mismatch,
+    },
   }
 }
 
-export function notRunReasonOf(args: { id: number; verdicts: ReadonlyMap<number, EVerdict> }): string | null {
+export function notRunReasonOf(args: {
+  id: number
+  verdicts: ReadonlyMap<number, EVerdict>
+}): string | null {
   if (!THREAD_DEPENDENT_IDS.has(args.id)) return null
   const fresh = args.verdicts.get(FRESH_ID)
   if (fresh === EVerdict.Pass) return null
   return `depends on scenario 1, which ${fresh === undefined ? 'did not run' : `ended ${fresh}`}`
 }
 
-export const notRunEvidence = (args: { scenario: ScenarioHead; reason: string }): ScenarioEvidence => ({
+export const notRunEvidence = (args: {
+  scenario: ScenarioHead
+  reason: string
+}): ScenarioEvidence => ({
   ...args.scenario,
   commands: [],
   observations: [],
@@ -133,42 +166,83 @@ export const notRunEvidence = (args: { scenario: ScenarioHead; reason: string })
   reason: args.reason,
 })
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
-export function failedEvidence(args: { scenario: ScenarioHead; error: unknown; tails: readonly EvidenceLog[] }): ScenarioEvidence {
+export function failedEvidence(args: {
+  scenario: ScenarioHead
+  error: unknown
+  tails: readonly EvidenceLog[]
+}): ScenarioEvidence {
   if (args.error instanceof EvidencedScenarioFailed) {
     const base = args.error.evidence
-    return { ...base, logs: [...base.logs, ...args.tails], verdict: EVerdict.Fail, failure: args.error.failure }
+    return {
+      ...base,
+      logs: [...base.logs, ...args.tails],
+      verdict: EVerdict.Fail,
+      failure: args.error.failure,
+    }
   }
   const failure: ScenarioFailure =
     args.error instanceof ScenarioFailed
       ? args.error.failure
-      : { step: 'unexpected error', expected: 'the scenario to run to a verdict', observed: messageOf(args.error) }
-  return { ...args.scenario, commands: [], observations: [], logs: [...args.tails], verdict: EVerdict.Fail, failure }
+      : {
+          step: 'unexpected error',
+          expected: 'the scenario to run to a verdict',
+          observed: messageOf(args.error),
+        }
+  return {
+    ...args.scenario,
+    commands: [],
+    observations: [],
+    logs: [...args.tails],
+    verdict: EVerdict.Fail,
+    failure,
+  }
 }
 
-export function combinedTrust(args: { version: string | null; boxProtocol: number | null; readyProtocol: number | null }): RigTrust {
+export function combinedTrust(args: {
+  version: string | null
+  boxProtocol: number | null
+  readyProtocol: number | null
+}): RigTrust {
   const box = trustOf({ version: args.version, protocol: args.boxProtocol })
   if (!box.trusted) return { trusted: false, reason: `box stamps: ${box.reason}` }
-  if (args.readyProtocol === null) return { trusted: false, reason: 'channel Ready frame: no Ready protocol was read' }
+  if (args.readyProtocol === null)
+    return { trusted: false, reason: 'channel Ready frame: no Ready protocol was read' }
   const ready = trustOf({ version: args.version, protocol: args.readyProtocol })
   if (!ready.trusted) return { trusted: false, reason: `channel Ready frame: ${ready.reason}` }
-  return { trusted: true, reason: `${box.reason}; the channel Ready frame carried protocol ${args.readyProtocol}` }
+  return {
+    trusted: true,
+    reason: `${box.reason}; the channel Ready frame carried protocol ${args.readyProtocol}`,
+  }
 }
 
 export function withTrust(args: { evidence: ScenarioEvidence; trust: RigTrust }): ScenarioEvidence {
   const { evidence, trust } = args
-  if (trust.trusted || evidence.verdict === EVerdict.NotRun || evidence.verdict === EVerdict.Untrusted) return evidence
-  const reason = [`untrusted: ${trust.reason}`, `underlying verdict: ${evidence.verdict}`, evidence.reason]
+  if (
+    trust.trusted ||
+    evidence.verdict === EVerdict.NotRun ||
+    evidence.verdict === EVerdict.Untrusted
+  )
+    return evidence
+  const reason = [
+    `untrusted: ${trust.reason}`,
+    `underlying verdict: ${evidence.verdict}`,
+    evidence.reason,
+  ]
     .filter((part): part is string => part !== undefined)
     .join('\n\n')
   return { ...evidence, verdict: EVerdict.Untrusted, reason }
 }
 
 export const exitCodeOf = (results: readonly ScenarioResult[]): number =>
-  results.every((result) => result.verdict === EVerdict.Pass || result.verdict === EVerdict.NotRun) ? 0 : 1
+  results.every((result) => result.verdict === EVerdict.Pass || result.verdict === EVerdict.NotRun)
+    ? 0
+    : 1
 
-const listOf = (names: readonly string[]): string => (names.length === 0 ? '(none)' : names.map((name) => `\`${name}\``).join(', '))
+const listOf = (names: readonly string[]): string =>
+  names.length === 0 ? '(none)' : names.map((name) => `\`${name}\``).join(', ')
 
 export function renderSummary(args: {
   startedAt: string
@@ -183,7 +257,8 @@ export function renderSummary(args: {
   interruptedBy: string | null
 }): string {
   const rows = args.results.map(
-    (result) => `| ${result.id} | ${result.title} | ${result.verdict} | ${result.path === null ? '—' : result.path} |`,
+    (result) =>
+      `| ${result.id} | ${result.title} | ${result.verdict} | ${result.path === null ? '—' : result.path} |`,
   )
   return [
     '# Live rig run summary',
@@ -204,24 +279,33 @@ export function renderSummary(args: {
     '',
     `- created: ${listOf(args.created)}`,
     `- destroyed: ${args.kept ? '(kept: --keep)' : listOf(args.destroyed)}`,
-    ...(args.destroyFailures.length === 0 ? [] : [`- destroy failures: ${args.destroyFailures.join('; ')}`]),
+    ...(args.destroyFailures.length === 0
+      ? []
+      : [`- destroy failures: ${args.destroyFailures.join('; ')}`]),
     '',
   ].join('\n')
 }
 
-export async function failureTails(args: { rig: RigApp | null; probes: Pick<Probes, 'box'> }): Promise<EvidenceLog[]> {
+export async function failureTails(args: {
+  rig: RigApp | null
+  probes: Pick<Probes, 'box'>
+}): Promise<EvidenceLog[]> {
   if (args.rig === null) return []
   const label = `serve log tail at failure (${FAILURE_LOG_LINES} lines)`
   const serveTail = await args.probes
     .box({ name: sandboxNameFor({ threadId: args.rig.threadId }), logLines: FAILURE_LOG_LINES })
     .then(
-      (probe) => (probe.running ? (probe.logTail ?? '(empty)') : `(not read: provider ${probe.provider})`),
+      (probe) =>
+        probe.running ? (probe.logTail ?? '(empty)') : `(not read: provider ${probe.provider})`,
       (error: unknown) => `(probe failed: ${messageOf(error)})`,
     )
   const driverTail = args.rig.driverLines.slice(-FAILURE_DRIVER_LINES).join('\n')
   return [
     { label, text: serveTail },
-    { label: `driver lines at failure (last ${FAILURE_DRIVER_LINES})`, text: driverTail || '(none)' },
+    {
+      label: `driver lines at failure (last ${FAILURE_DRIVER_LINES})`,
+      text: driverTail || '(none)',
+    },
   ]
 }
 
@@ -245,7 +329,11 @@ export async function destroyLedgerNames(args: {
   return { destroyed, failures }
 }
 
-export const helloProtocol = (args: { url: string; token: string; threadId: ThreadId }): Promise<number | null> =>
+export const helloProtocol = (args: {
+  url: string
+  token: string
+  threadId: ThreadId
+}): Promise<number | null> =>
   new Promise((resolve, reject) => {
     const socket = new WebSocket(`${args.url.replace(/^http/, 'ws')}/v1/session`, [
       CHANNEL_SUBPROTOCOL,

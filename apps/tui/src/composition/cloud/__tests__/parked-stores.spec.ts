@@ -12,8 +12,16 @@ const said = (text: string) => ({ type: 'user-said' as const, text })
 const stores = async () => {
   const local = { log: fakeEventLog(), threads: fakeThreadStore(), ledger: fakeLedger() }
   const remote = { log: fakeEventLog(), threads: fakeThreadStore(), ledger: fakeLedger() }
-  await local.log.append({ threadId: CLOUD_THREAD, runId: toRunId('local'), drafts: [said('written here')] })
-  await remote.log.append({ threadId: CLOUD_THREAD, runId: toRunId('remote'), drafts: [said('written there')] })
+  await local.log.append({
+    threadId: CLOUD_THREAD,
+    runId: toRunId('local'),
+    drafts: [said('written here')],
+  })
+  await remote.log.append({
+    threadId: CLOUD_THREAD,
+    runId: toRunId('remote'),
+    drafts: [said('written there')],
+  })
   return { local, remote }
 }
 
@@ -23,7 +31,9 @@ const textsOf = (events: readonly { type: string }[]): unknown[] =>
 describe('the stores of a session that mounted before its channel dialled', () => {
   it('reads the local transcript while the channel is parked, then the sandbox once it first opens', async () => {
     const { local, remote } = await stores()
-    const channel = fakeCloudChannel({ connection: { state: EConnectionView.Parked, detail: null } })
+    const channel = fakeCloudChannel({
+      connection: { state: EConnectionView.Parked, detail: null },
+    })
     const held = parkedStoresOf({ channel, local, remote })
 
     expect(textsOf(await held.log.read({ threadId: CLOUD_THREAD }))).toEqual(['written here'])
@@ -35,7 +45,9 @@ describe('the stores of a session that mounted before its channel dialled', () =
 
   it('stays on the sandbox through a later socket gap', async () => {
     const { local, remote } = await stores()
-    const channel = fakeCloudChannel({ connection: { state: EConnectionView.Connected, detail: null } })
+    const channel = fakeCloudChannel({
+      connection: { state: EConnectionView.Connected, detail: null },
+    })
     const held = parkedStoresOf({ channel, local, remote })
     await held.log.head({ threadId: CLOUD_THREAD })
 
@@ -46,13 +58,22 @@ describe('the stores of a session that mounted before its channel dialled', () =
 
   it('never writes locally, so a send through the log still reaches the sandbox owner', async () => {
     const { local, remote } = await stores()
-    const channel = fakeCloudChannel({ connection: { state: EConnectionView.Parked, detail: null } })
+    const channel = fakeCloudChannel({
+      connection: { state: EConnectionView.Parked, detail: null },
+    })
     const held = parkedStoresOf({ channel, local, remote })
 
-    await held.log.append({ threadId: CLOUD_THREAD, runId: toRunId('x'), drafts: [said('appended')] })
+    await held.log.append({
+      threadId: CLOUD_THREAD,
+      runId: toRunId('x'),
+      drafts: [said('appended')],
+    })
 
     expect(textsOf(await local.log.read({ threadId: CLOUD_THREAD }))).toEqual(['written here'])
-    expect(textsOf(await remote.log.read({ threadId: CLOUD_THREAD }))).toEqual(['written there', 'appended'])
+    expect(textsOf(await remote.log.read({ threadId: CLOUD_THREAD }))).toEqual([
+      'written there',
+      'appended',
+    ])
   })
 
   it('reads spend from the mirrored ledger through a socket gap, never the wire', async () => {
@@ -72,7 +93,9 @@ describe('the stores of a session that mounted before its channel dialled', () =
       endedAt: '2026-10-13T00:00:01.000Z',
       durationMs: 1000,
     })
-    const channel = fakeCloudChannel({ connection: { state: EConnectionView.Connected, detail: null } })
+    const channel = fakeCloudChannel({
+      connection: { state: EConnectionView.Connected, detail: null },
+    })
     const held = parkedStoresOf({ channel, local, remote })
 
     channel.moveTo({ state: EConnectionView.Reconnecting, detail: null })
@@ -83,7 +106,9 @@ describe('the stores of a session that mounted before its channel dialled', () =
 
   it('listens for renames on the sandbox side only', async () => {
     const { local, remote } = await stores()
-    const channel = fakeCloudChannel({ connection: { state: EConnectionView.Parked, detail: null } })
+    const channel = fakeCloudChannel({
+      connection: { state: EConnectionView.Parked, detail: null },
+    })
     const held = parkedStoresOf({ channel, local, remote })
     const heard: string[] = []
     held.threads.onRename(({ title }) => heard.push(title))

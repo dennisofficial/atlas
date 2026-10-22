@@ -1,7 +1,22 @@
-import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, ELocationChangeCause, EOperatorInputOutcome, currentContextEvents, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import {
+  EAssistantPlaceholder,
+  EContextSlot,
+  EExecutionLocation,
+  EKilledBy,
+  ELocationChangeCause,
+  EOperatorInputOutcome,
+  currentContextEvents,
+  latestTldrPerAnchor,
+  quotedShellCommand,
+  type AssistantPart,
+  type CallId,
+  type Event,
+  type EventId,
+  type EventOfType,
+  type SaidImage,
+} from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
-
 
 import {
   agentEndedLine,
@@ -41,9 +56,7 @@ const shellMatchedLine = (event: EventOfType<'background-shell-matched'>): strin
     : `Background shell ${named} ${matched}`
 }
 
-const shellStillRunningEntryLine = (
-  event: EventOfType<'background-shell-still-running'>,
-): string =>
+const shellStillRunningEntryLine = (event: EventOfType<'background-shell-still-running'>): string =>
   `Background shell ${shellName(event)} is still running after ${formatElapsed(event.runningForMs)} - a scheduled check-in, not an ending`
 
 type PartRun = { type: AssistantPart['type']; text: string }
@@ -320,7 +333,9 @@ export function durableEntries(args: {
     if (typeof output !== 'object' || output === null) return
     const record = output as { shellId?: unknown; command?: unknown }
     if (typeof record.shellId !== 'string') return
-    shellKillResults.add(`${record.shellId}${typeof record.command === 'string' ? record.command : ''}`)
+    shellKillResults.add(
+      `${record.shellId}${typeof record.command === 'string' ? record.command : ''}`,
+    )
   }
   const isRedundantClaimedEnding = (event: EventOfType<'background-shell-ended'>): boolean =>
     event.killedBy === EKilledBy.Model &&

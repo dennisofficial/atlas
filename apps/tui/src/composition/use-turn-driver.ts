@@ -1,4 +1,4 @@
-import { isResumable, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { isResumable, type ThreadId } from '@dltech/atlas-core'
 import {
   ESuppress,
   LocalRewindMachinery,
@@ -110,7 +110,18 @@ export function useTurnDriver(args: {
     })().catch((error: unknown) => {
       setFailure(messageOf(error))
     })
-  }, [app.log, app.runner, drive, frozen, setFailure, synchronizeMirror, threadId, turnInFlight, working, workingRef])
+  }, [
+    app.log,
+    app.runner,
+    drive,
+    frozen,
+    setFailure,
+    synchronizeMirror,
+    threadId,
+    turnInFlight,
+    working,
+    workingRef,
+  ])
 
   const resumeFresh = useCallback(
     (confirmed: boolean) => {

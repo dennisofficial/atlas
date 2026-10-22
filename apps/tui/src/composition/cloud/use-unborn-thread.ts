@@ -46,7 +46,13 @@ export function useUnbornThread(args: {
     const chip = bornPlacementChip(app)
     const handleArrival = (): void => {
       const held = chip.snapshot()
-      if (held === null || held.threadId !== threadId || held.provisioning || held.arrival === undefined) return
+      if (
+        held === null ||
+        held.threadId !== threadId ||
+        held.provisioning ||
+        held.arrival === undefined
+      )
+        return
       chip.set({ ...held, arrival: undefined })
       latest.current.onArrival(held.arrival)
     }

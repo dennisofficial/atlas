@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   checkoutKey,
-  EPullRequestLookup,
   NO_PULL_REQUEST_READING,
   PullRequestPort,
   pullRequestBadgeKeyString,

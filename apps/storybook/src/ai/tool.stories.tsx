@@ -1,18 +1,18 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { DiffViewer } from "@dltech/atlas-ui/ai/diff-viewer";
-import { EToolKind, EToolState, Tool } from "@dltech/atlas-ui/ai/tool";
-import { Trace } from "@dltech/atlas-ui/components/trace";
+import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'
+import { EToolKind, EToolState, Tool } from '@dltech/atlas-ui/ai/tool'
+import { Trace } from '@dltech/atlas-ui/components/trace'
 
-import { DIFF_LINES, GIT_STATUS_OUTPUT, TYPECHECK_OUTPUT } from "../fixtures/agent";
+import { DIFF_LINES, GIT_STATUS_OUTPUT, TYPECHECK_OUTPUT } from '../fixtures/agent'
 
 const meta = {
-  title: "AI/Tool",
+  title: 'AI/Tool',
   component: Tool,
-  args: { label: "git status --short", state: EToolState.Done, output: GIT_STATUS_OUTPUT },
+  args: { label: 'git status --short', state: EToolState.Done, output: GIT_STATUS_OUTPUT },
   argTypes: {
-    state: { control: "select", options: Object.values(EToolState) },
-    kind: { control: "select", options: Object.values(EToolKind) },
+    state: { control: 'select', options: Object.values(EToolState) },
+    kind: { control: 'select', options: Object.values(EToolKind) },
   },
   decorators: [
     (Story) => (
@@ -21,49 +21,45 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Tool>;
+} satisfies Meta<typeof Tool>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Done: Story = {};
+export const Done: Story = {}
 
 export const Running: Story = {
-  args: { label: "bun run typecheck", state: EToolState.Running },
-};
+  args: { label: 'bun run typecheck', state: EToolState.Running },
+}
 
 export const Failed: Story = {
   args: {
-    label: "bun run typecheck",
+    label: 'bun run typecheck',
     state: EToolState.Error,
     errorText: TYPECHECK_OUTPUT,
-    elapsed: "4.1s",
+    elapsed: '4.1s',
   },
-};
+}
 
 export const Denied: Story = {
-  args: { label: "rm -rf node_modules", state: EToolState.Denied },
-};
+  args: { label: 'rm -rf node_modules', state: EToolState.Denied },
+}
 
 export const AwaitingApproval: Story = {
-  args: { label: "rm -rf node_modules", state: EToolState.AwaitingApproval },
-};
+  args: { label: 'rm -rf node_modules', state: EToolState.AwaitingApproval },
+}
 
 export const States: Story = {
   render: () => (
     <Trace>
       <Tool label="git status --short" output={GIT_STATUS_OUTPUT} elapsed="0.2s" />
-      <Tool
-        label="bun run typecheck"
-        state={EToolState.Error}
-        errorText={TYPECHECK_OUTPUT}
-      />
+      <Tool label="bun run typecheck" state={EToolState.Error} errorText={TYPECHECK_OUTPUT} />
       <Tool label="rm -rf dist" state={EToolState.Denied} />
       <Tool label="bun test" state={EToolState.Running} />
     </Trace>
   ),
-};
+}
 
 export const Kinds: Story = {
   render: () => (
@@ -75,13 +71,18 @@ export const Kinds: Story = {
       <Tool kind={EToolKind.Skill} label="ui-design" state={EToolState.Done} />
     </Trace>
   ),
-};
+}
 
 export const WithDiffOutput: Story = {
-  args: { kind: EToolKind.Edit, label: "packages/ui/src/tokens/semantic.ts", defaultOpen: true },
+  args: { kind: EToolKind.Edit, label: 'packages/ui/src/tokens/semantic.ts', defaultOpen: true },
   render: (args) => (
     <Tool {...args} elapsed="0.4s">
-      <DiffViewer path="packages/ui/src/tokens/semantic.ts" added={3} removed={2} lines={DIFF_LINES} />
+      <DiffViewer
+        path="packages/ui/src/tokens/semantic.ts"
+        added={3}
+        removed={2}
+        lines={DIFF_LINES}
+      />
     </Tool>
   ),
-};
+}

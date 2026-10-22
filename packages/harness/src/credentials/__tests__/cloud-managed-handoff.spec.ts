@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  authorityOf,
-  EAccountOrigin,
-  EAuthKind,
-  EAuthProvider,
-} from '@dltech/atlas-core'
+import { authorityOf, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 import { CloudManagedCredentialPort } from '../cloud-managed-credential-port'
 import { CredentialError } from '../credential-error'
@@ -50,7 +45,9 @@ describe('cloud-managed credential handoff', () => {
     const account = await addOauth(seed({ expiresAt: '2026-10-05T11:00:00.000Z' }))
     api.down = true
 
-    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toBeInstanceOf(CredentialError)
+    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toBeInstanceOf(
+      CredentialError,
+    )
     const pending = await settledSecret(accounts, account.id)
     expect(pending.tokens.refreshToken).toBe('fake-refresh')
     expect(pending.authority?.connectionId).toBe('oauth_1')
@@ -73,19 +70,30 @@ describe('cloud-managed credential handoff', () => {
     expect((await settledSecret(accounts, account.id)).authority?.connectionId).toBe('oauth_1')
     expect((await settledSecret(accounts, account.id)).tokens.refreshToken).toBe('fake-refresh')
     await port.discard(credential)
-    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toBeInstanceOf(CredentialError)
+    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toBeInstanceOf(
+      CredentialError,
+    )
   })
 
   it('returns cached access without waiting for a blackholed pending upload', async () => {
     const { api, accounts, port, addOauth } = setup()
     const account = await addOauth()
     let release: ((response: Response) => void) | undefined
-    const gate = new Promise<Response>((resolve) => { release = resolve })
+    const gate = new Promise<Response>((resolve) => {
+      release = resolve
+    })
     api.fetchFn = Object.assign(async () => gate, { preconnect: () => undefined })
     const credential = await port.read({ provider: EAuthProvider.Anthropic })
     expect(credential).toMatchObject({ accessToken: 'fake-access' })
     expect((await settledSecret(accounts, account.id)).authority?.connectionId).toBe('oauth_1')
-    release?.(Response.json({ accessToken: 'fake-access', expiresAt: '2026-10-05T13:00:00.000Z', generation: 0, authorizationId: 'oauth_1' }))
+    release?.(
+      Response.json({
+        accessToken: 'fake-access',
+        expiresAt: '2026-10-05T13:00:00.000Z',
+        generation: 0,
+        authorizationId: 'oauth_1',
+      }),
+    )
     await port.handoffAll(session)
     expect((await settledSecret(accounts, account.id)).tokens.refreshToken).toBe('')
   })
@@ -93,7 +101,9 @@ describe('cloud-managed credential handoff', () => {
   it('refuses a legacy access-only copy without inventing a renewable cloud connection', async () => {
     const { api, accounts, port, addOauth } = setup()
     const account = await addOauth(seed({ refresh: '' }))
-    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow('no renewable grant')
+    await expect(port.read({ provider: EAuthProvider.Anthropic })).rejects.toThrow(
+      'no renewable grant',
+    )
     expect(api.calls).toEqual([])
     expect(authorityOf((await accounts.read(account.id))!.secret)).toBeUndefined()
   })
@@ -107,7 +117,10 @@ describe('cloud-managed credential handoff', () => {
     first.api.down = false
     const restarted = new CloudManagedCredentialPort({
       accounts: first.accounts,
-      local: { read: async () => Promise.reject(new Error('local used')), discard: async () => undefined },
+      local: {
+        read: async () => Promise.reject(new Error('local used')),
+        discard: async () => undefined,
+      },
       clock: { now: () => NOW },
       session: () => session,
       clients: () => first.api.client(),
@@ -117,7 +130,9 @@ describe('cloud-managed credential handoff', () => {
     await restarted.read({ provider: EAuthProvider.Anthropic })
 
     expect([...first.api.connections.keys()]).toEqual(['oauth_1'])
-    expect((await settledSecret(first.accounts, account.id)).authority?.connectionId).toBe('oauth_1')
+    expect((await settledSecret(first.accounts, account.id)).authority?.connectionId).toBe(
+      'oauth_1',
+    )
   })
 
   it('transfers once when two ports share the store and read concurrently', async () => {
@@ -125,7 +140,10 @@ describe('cloud-managed credential handoff', () => {
     await one.addOauth()
     const other = new CloudManagedCredentialPort({
       accounts: one.accounts,
-      local: { read: async () => Promise.reject(new Error('local used')), discard: async () => undefined },
+      local: {
+        read: async () => Promise.reject(new Error('local used')),
+        discard: async () => undefined,
+      },
       clock: { now: () => NOW },
       session: () => session,
       clients: () => one.api.client(),

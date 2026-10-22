@@ -59,9 +59,7 @@ export const PERSONAL_NAV: SettingsNavGroup[] = [
   },
   {
     label: 'Usage',
-    items: [
-      { page: ESettingsPage.UsageSandboxes, label: 'Sandboxes', icon: ServerIcon },
-    ],
+    items: [{ page: ESettingsPage.UsageSandboxes, label: 'Sandboxes', icon: ServerIcon }],
   },
   {
     label: 'Agent',
@@ -74,9 +72,7 @@ export const PERSONAL_NAV: SettingsNavGroup[] = [
   },
   {
     label: 'Library',
-    items: [
-      { page: ESettingsPage.Secrets, label: 'Secrets & Env Vars', icon: VariableIcon },
-    ],
+    items: [{ page: ESettingsPage.Secrets, label: 'Secrets & Env Vars', icon: VariableIcon }],
   },
   {
     label: 'Interface',

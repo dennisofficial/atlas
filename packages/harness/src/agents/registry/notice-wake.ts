@@ -56,13 +56,21 @@ export class NoticeWake {
 
     this.reserved.add(agentId)
     try {
-      child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId: child.spawnedBy })
+      child.projectDirectory ??= await childDirectory({
+        deps: this.deps,
+        threadId: child.spawnedBy,
+      })
       if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
       if (child.killedBy !== undefined) {
         return { ok: false, reason: deliberatelyStopped({ agentId }) }
       }
 
-      await recordRestart({ log: this.deps.log, ids: this.deps.ids, child, via: EAgentRestart.Wake })
+      await recordRestart({
+        log: this.deps.log,
+        ids: this.deps.ids,
+        child,
+        via: EAgentRestart.Wake,
+      })
       if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
       if (child.killedBy !== undefined) {
         return { ok: false, reason: deliberatelyStopped({ agentId }) }

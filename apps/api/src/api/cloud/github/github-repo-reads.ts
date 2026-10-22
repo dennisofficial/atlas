@@ -24,7 +24,10 @@ export class GithubRepoReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
 
   async listRepos(args: { token: string }): Promise<GithubRepoSummary[]> {
-    const repos = await this.get<RestRepo[]>({ token: args.token, path: `/user/repos?${REPOS_QUERY}` })
+    const repos = await this.get<RestRepo[]>({
+      token: args.token,
+      path: `/user/repos?${REPOS_QUERY}`,
+    })
     return repos.map((repo) => ({
       fullName: repo.full_name,
       isPrivate: repo.private,

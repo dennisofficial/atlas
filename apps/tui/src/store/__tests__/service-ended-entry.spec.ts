@@ -7,18 +7,17 @@ import { isExpandable } from '../expandable'
 import { EEntryKind, type ServiceEndedEntry } from '../transcript-model'
 import { log } from './fixture'
 
-const serviceEnded = (over: Record<string, unknown> = {}) =>
-  ({
-    type: 'service-ended' as const,
-    serviceId: 'svc_1',
-    command: 'bun run dev',
-    description: 'web dev server',
-    status: EServiceStatus.Exited,
-    exitCode: 0,
-    logPath: '/tmp/atlas/services/svc_1.log',
-    tail: 'listening on :3000\n',
-    ...over,
-  })
+const serviceEnded = (over: Record<string, unknown> = {}) => ({
+  type: 'service-ended' as const,
+  serviceId: 'svc_1',
+  command: 'bun run dev',
+  description: 'web dev server',
+  status: EServiceStatus.Exited,
+  exitCode: 0,
+  logPath: '/tmp/atlas/services/svc_1.log',
+  tail: 'listening on :3000\n',
+  ...over,
+})
 
 const onlyServiceEntry = (events: readonly Event[]): ServiceEndedEntry => {
   const entry = durableEntries({ events }).find(
@@ -57,7 +56,13 @@ describe('a service ending in the transcript', () => {
 
   it('says the developer was the one who stopped it, and does not read that as a failure', () => {
     const entry = onlyServiceEntry(
-      log([serviceEnded({ status: EServiceStatus.Killed, killedBy: EKilledBy.User, exitCode: undefined })]),
+      log([
+        serviceEnded({
+          status: EServiceStatus.Killed,
+          killedBy: EKilledBy.User,
+          exitCode: undefined,
+        }),
+      ]),
     )
 
     expect(entry.text).toBe('Service svc_1 "web dev server" was stopped by the user')

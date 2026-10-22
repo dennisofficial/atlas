@@ -1,13 +1,13 @@
-import { MailIcon } from "lucide-react";
+import { MailIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@dltech/atlas-ui/components/empty";
+} from '@dltech/atlas-ui/components/empty'
 import {
   Table,
   TableBody,
@@ -15,19 +15,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@dltech/atlas-ui/components/table";
+} from '@dltech/atlas-ui/components/table'
 
-import { ROLE_LABELS, type PendingInvite } from "../../../fixtures/settings-workspace";
-import { Mono, SettingsSection } from "../settings-layout";
+import { ROLE_LABELS, type PendingInvite } from '../../../fixtures/settings-workspace'
+import { Mono, SettingsSection } from '../settings-layout'
 
 export function WorkspacePendingInvites({
   invites,
   onResend,
   onRevoke,
 }: {
-  invites: PendingInvite[];
-  onResend: (id: string) => void;
-  onRevoke: (id: string) => void;
+  invites: PendingInvite[]
+  onResend: (id: string) => void
+  onRevoke: (id: string) => void
 }) {
   return (
     <SettingsSection
@@ -65,7 +65,9 @@ export function WorkspacePendingInvites({
                   <TableCell className="text-sm text-muted-foreground">
                     {ROLE_LABELS[invite.role]}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{invite.invitedBy}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {invite.invitedBy}
+                  </TableCell>
                   <TableCell>
                     <Mono className="text-muted-foreground">in {invite.expiresInDays}d</Mono>
                   </TableCell>
@@ -91,5 +93,5 @@ export function WorkspacePendingInvites({
         </div>
       )}
     </SettingsSection>
-  );
+  )
 }

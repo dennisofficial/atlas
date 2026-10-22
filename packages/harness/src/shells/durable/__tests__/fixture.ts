@@ -4,9 +4,15 @@ import { join } from 'node:path'
 
 import { launchDurableShell, type DurableShellHandle, type LaunchArgs } from '../client'
 
-export async function scratchDirectory(): Promise<{ shellDir: string; cleanup: () => Promise<void> }> {
+export async function scratchDirectory(): Promise<{
+  shellDir: string
+  cleanup: () => Promise<void>
+}> {
   const root = await mkdtemp(join(tmpdir(), 'durable-spec-'))
-  return { shellDir: join(root, 'shell'), cleanup: () => rm(root, { recursive: true, force: true }) }
+  return {
+    shellDir: join(root, 'shell'),
+    cleanup: () => rm(root, { recursive: true, force: true }),
+  }
 }
 
 export async function launchOrThrow(args: Omit<LaunchArgs, 'cwd'>): Promise<DurableShellHandle> {
@@ -32,7 +38,10 @@ export async function readUntil({
 }: {
   stream: ReadableStream<Uint8Array>
   pattern: string
-}): Promise<{ text: string; reader: { read: () => Promise<{ done: boolean; value?: Uint8Array | undefined }> } }> {
+}): Promise<{
+  text: string
+  reader: { read: () => Promise<{ done: boolean; value?: Uint8Array | undefined }> }
+}> {
   const decoder = new TextDecoder()
   const reader = stream.getReader()
   let text = ''

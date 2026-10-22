@@ -14,13 +14,14 @@ const stdio = { kind: 'stdio', command: 'npx' } as const
 
 const httpLinear = { kind: 'http', url: 'https://example.test' } as const
 
-const text = (json: unknown): McpTextReader => () => Promise.resolve(JSON.stringify(json))
+const text =
+  (json: unknown): McpTextReader =>
+  () =>
+    Promise.resolve(JSON.stringify(json))
 
 const userSource = (json: unknown) => FileMcpSource.user({ read: text(json) })
-const projectSource = (json: unknown) =>
-  FileMcpSource.project({ cwd: '/repo', read: text(json) })
-const compatSource = (json: unknown) =>
-  new CompatMcpSource({ cwd: '/repo', read: text(json) })
+const projectSource = (json: unknown) => FileMcpSource.project({ cwd: '/repo', read: text(json) })
+const compatSource = (json: unknown) => new CompatMcpSource({ cwd: '/repo', read: text(json) })
 
 const remoteSource = (servers: readonly Record<string, unknown>[]) =>
   new RemoteMcpSource({
@@ -89,7 +90,9 @@ describe('resolveMcpSpecs', () => {
   it('lets the remote server win a same-rank tie against the local user file', async () => {
     const resolved = await resolveMcpSpecs({
       sources: [
-        remoteSource([{ name: 'linear', transport: httpLinear, updatedAt: '2026-01-01T00:00:00.000Z' }]),
+        remoteSource([
+          { name: 'linear', transport: httpLinear, updatedAt: '2026-01-01T00:00:00.000Z' },
+        ]),
         userSource({ linear: { transport: stdio } }),
       ],
     })

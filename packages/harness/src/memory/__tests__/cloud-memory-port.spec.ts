@@ -99,17 +99,31 @@ describe('CloudMemoryPort', () => {
     const entry = await port.read({ scope: EMemoryScope.Project, name: 'a' })
 
     expect(entry?.body).toBe('b')
-    expect(calls[0]?.url).toBe('https://cloud.test/v1/memories/entry?scope=project&name=a&project=org%2Frepo')
+    expect(calls[0]?.url).toBe(
+      'https://cloud.test/v1/memories/entry?scope=project&name=a&project=org%2Frepo',
+    )
   })
 
   it('writes with PUT and returns the new revision', async () => {
     const { port, calls } = portWith({ respond: () => json(SUMMARY) })
 
-    const saved = await port.write({ scope: EMemoryScope.Global, name: 'a', description: 'd', type: EMemoryType.User, body: 'b' })
+    const saved = await port.write({
+      scope: EMemoryScope.Global,
+      name: 'a',
+      description: 'd',
+      type: EMemoryType.User,
+      body: 'b',
+    })
 
     expect(saved.revision).toBe(3)
     expect(calls[0]?.method).toBe('PUT')
-    expect(calls[0]?.body).toEqual({ scope: 'global', name: 'a', description: 'd', type: 'user', body: 'b' })
+    expect(calls[0]?.body).toEqual({
+      scope: 'global',
+      name: 'a',
+      description: 'd',
+      type: 'user',
+      body: 'b',
+    })
   })
 
   it('maps a 409 on edit to MemoryEditRefused carrying the code', async () => {
@@ -126,7 +140,9 @@ describe('CloudMemoryPort', () => {
   })
 
   it('maps a 422 on edit to MemoryEditRefused', async () => {
-    const { port } = portWith({ respond: () => json({ message: 'ambiguous', code: 'memory-edit-ambiguous' }, 422) })
+    const { port } = portWith({
+      respond: () => json({ message: 'ambiguous', code: 'memory-edit-ambiguous' }, 422),
+    })
 
     const failure = await port
       .edit({ scope: EMemoryScope.Global, name: 'a', old: 'x', new: 'y', revision: 3 })
@@ -146,7 +162,9 @@ describe('CloudMemoryPort', () => {
   it('refuses a project-scope call without a project, before any request', async () => {
     const { port, calls } = portWith({ respond: () => json({}), project: null })
 
-    const failure = await port.read({ scope: EMemoryScope.Project, name: 'a' }).catch((error: unknown) => error)
+    const failure = await port
+      .read({ scope: EMemoryScope.Project, name: 'a' })
+      .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(MemoryUnavailable)
     expect((failure as Error).message).toContain('only global memory is available')

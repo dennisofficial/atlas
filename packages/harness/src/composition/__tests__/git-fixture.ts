@@ -1,9 +1,14 @@
 const GIT_IDENTITY = [
-  '-c', 'user.name=Fixture',
-  '-c', 'user.email=fixture@example.com',
-  '-c', 'commit.gpgsign=false',
-  '-c', 'core.fsmonitor=false',
-  '-c', 'maintenance.auto=false',
+  '-c',
+  'user.name=Fixture',
+  '-c',
+  'user.email=fixture@example.com',
+  '-c',
+  'commit.gpgsign=false',
+  '-c',
+  'core.fsmonitor=false',
+  '-c',
+  'maintenance.auto=false',
 ] as const
 
 const cleanEnvironment = (): Record<string, string> => {
@@ -16,7 +21,13 @@ const cleanEnvironment = (): Record<string, string> => {
   return env
 }
 
-export async function git({ args, cwd }: { args: readonly string[]; cwd: string }): Promise<string> {
+export async function git({
+  args,
+  cwd,
+}: {
+  args: readonly string[]
+  cwd: string
+}): Promise<string> {
   const proc = Bun.spawn(['git', ...GIT_IDENTITY, ...args], {
     cwd,
     env: cleanEnvironment(),

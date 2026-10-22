@@ -66,7 +66,9 @@ export async function mountCloudResume(
   const writes: EventDraft[][] = []
   app.log.append = async ({ drafts }) => {
     writes.push([...drafts])
-    throw new Error('the sandbox owns the transcript while the session runs there — reads only over the channel')
+    throw new Error(
+      'the sandbox owns the transcript while the session runs there — reads only over the channel',
+    )
   }
   const channel = fakeCloudChannel({ threadId: RESUME_THREAD })
   if (args.inFlightBeforeMount === true) {

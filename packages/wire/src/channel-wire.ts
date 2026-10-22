@@ -19,8 +19,7 @@ export const CHANNEL_PROTOCOL_VERSION = 25
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
-export const bearerSubprotocolOf = (token: string): string =>
-  `${BEARER_SUBPROTOCOL_PREFIX}${token}`
+export const bearerSubprotocolOf = (token: string): string => `${BEARER_SUBPROTOCOL_PREFIX}${token}`
 
 export const tokenFromSubprotocols = (protocols: readonly string[]): string | null => {
   const carrier = protocols.find((protocol) => protocol.startsWith(BEARER_SUBPROTOCOL_PREFIX))
@@ -193,7 +192,11 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     data: z.unknown(),
   }),
   z.object({ kind: z.literal(EServeFrame.Reload), sinceEventSeq: seqSchema }),
-  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string(), checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional() }),
+  z.object({
+    kind: z.literal(EServeFrame.Parked),
+    reason: z.string(),
+    checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional(),
+  }),
   z.object({ kind: z.literal(EServeFrame.Checkpoint), checkpoint: runtimeCheckpointSchema }),
   z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),

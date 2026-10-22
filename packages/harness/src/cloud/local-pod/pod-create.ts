@@ -50,7 +50,8 @@ export const podLabelsFor = (args: { threadId: string; home: string }): Record<s
   [podHomeLabel]: podHomeDigestOf({ home: args.home }),
 })
 
-export const workspaceVolumeNameOf = (args: { podName: string }): string => `${args.podName}-workspace`
+export const workspaceVolumeNameOf = (args: { podName: string }): string =>
+  `${args.podName}-workspace`
 
 export const dindVolumeNameOf = (args: { podName: string }): string => `${args.podName}-docker`
 
@@ -74,7 +75,9 @@ export type PodCreateArgs = {
 }
 
 const callerEnvironment = (environment: Record<string, string>): Record<string, string> =>
-  Object.fromEntries(Object.entries(environment).filter(([key]) => !key.startsWith(VENDOR_ENV_PREFIX)))
+  Object.fromEntries(
+    Object.entries(environment).filter(([key]) => !key.startsWith(VENDOR_ENV_PREFIX)),
+  )
 
 const podEnv = (args: PodCreateArgs): string[] =>
   Object.entries({

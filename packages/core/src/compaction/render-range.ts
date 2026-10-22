@@ -26,7 +26,8 @@ function jsonOrDescription(value: unknown, limit: number): string {
 }
 
 function lineOf(event: Event, payloadLimit: number): string | undefined {
-  if (event.type === 'history-compacted') return `Summary of the conversation before this: ${event.summary}`
+  if (event.type === 'history-compacted')
+    return `Summary of the conversation before this: ${event.summary}`
   if (event.type === 'user-said') return `Operator: ${clipped(event.text, payloadLimit)}`
 
   if (event.type === 'assistant-said') {
@@ -43,11 +44,13 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
   }
 
   if (event.type === 'tool-result') {
-    if (event.error !== undefined) return `${event.name} failed: ${clipped(event.error.message, payloadLimit)}`
+    if (event.error !== undefined)
+      return `${event.name} failed: ${clipped(event.error.message, payloadLimit)}`
     return `${event.name} returned ${jsonOrDescription(event.modelText ?? event.output, payloadLimit)}`
   }
 
-  if (event.type === 'tool-denied') return `${event.name} was denied: ${clipped(event.reason, payloadLimit)}`
+  if (event.type === 'tool-denied')
+    return `${event.name} was denied: ${clipped(event.reason, payloadLimit)}`
 
   if (event.type === 'agent-ended') {
     return `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, payloadLimit)}`
@@ -74,9 +77,11 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
     return event.cwd === undefined ? base : `${base} — the working directory is now ${event.cwd}`
   }
   if (event.type === 'parked') return `Atlas parked this session (${event.reason})`
-  if (event.type === 'worktree-entered') return `Atlas entered worktree ${event.path} (${event.branch})`
+  if (event.type === 'worktree-entered')
+    return `Atlas entered worktree ${event.path} (${event.branch})`
   if (event.type === 'worktree-exited') return `Atlas left worktree ${event.path} (${event.action})`
-  if (event.type === 'directory-changed') return `Atlas moved the project directory to ${event.path}`
+  if (event.type === 'directory-changed')
+    return `Atlas moved the project directory to ${event.path}`
 
   return undefined
 }

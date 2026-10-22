@@ -10,7 +10,10 @@ const provider: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
 const assembled: Assembled = {
   system: [
     { text: 'You are Atlas.' },
-    { text: 'Project rules.', providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } } },
+    {
+      text: 'Project rules.',
+      providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+    },
   ],
   messages: [
     {
@@ -28,7 +31,9 @@ describe('toProviderPrompt', () => {
   it('hands the bare messages over, dropping the provenance the provider must never see', () => {
     const prompt = toProviderPrompt({ assembled, provider })
 
-    expect(prompt.messages).toEqual([{ role: 'user', content: [{ type: 'text', text: 'what changed?' }] }])
+    expect(prompt.messages).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'what changed?' }] },
+    ])
     expect(JSON.stringify(prompt)).not.toContain('evt-1')
   })
 

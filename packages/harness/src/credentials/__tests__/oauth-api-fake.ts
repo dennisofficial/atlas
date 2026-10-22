@@ -1,6 +1,12 @@
 import { OAuthConnectionsClient } from '../../cloud/oauth-connections-client'
 
-type Connection = { access: string; refresh: string; generation: number; authorizationId: string; provider?: string }
+type Connection = {
+  access: string
+  refresh: string
+  generation: number
+  authorizationId: string
+  provider?: string
+}
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
@@ -48,17 +54,27 @@ export const fakeOauthApi = (url = 'https://cloud.test'): FakeApi => {
 
         if (action === undefined && method === 'PUT' && tokens !== undefined) {
           if (held !== undefined) return json(200, view(held))
-          const created = { access: tokens.accessToken, refresh: tokens.refreshToken, generation: 0, authorizationId: id, provider: String(body['provider']) }
+          const created = {
+            access: tokens.accessToken,
+            refresh: tokens.refreshToken,
+            generation: 0,
+            authorizationId: id,
+            provider: String(body['provider']),
+          }
           connections.set(id, created)
           return json(200, view(created))
         }
         if (held === undefined) return json(404, { message: 'none' })
-        if (action === undefined && method === 'GET') return json(200, {
-          provider: held.provider ?? 'anthropic', authorizationId: held.authorizationId, generation: held.generation,
-        })
+        if (action === undefined && method === 'GET')
+          return json(200, {
+            provider: held.provider ?? 'anthropic',
+            authorizationId: held.authorizationId,
+            generation: held.generation,
+          })
         if (action === 'reauthorize' && tokens !== undefined) {
           if (held.authorizationId === body['authorizationId']) return json(200, view(held))
-          if (held.authorizationId !== body['previousAuthorizationId']) return json(409, { message: 'stale' })
+          if (held.authorizationId !== body['previousAuthorizationId'])
+            return json(409, { message: 'stale' })
           held.access = tokens.accessToken
           held.refresh = tokens.refreshToken
           held.generation += 1
@@ -77,8 +93,7 @@ export const fakeOauthApi = (url = 'https://cloud.test'): FakeApi => {
       },
       { preconnect: () => undefined },
     ),
-    client: () =>
-      new OAuthConnectionsClient({ url, token: 'fake-session', fetchFn: api.fetchFn }),
+    client: () => new OAuthConnectionsClient({ url, token: 'fake-session', fetchFn: api.fetchFn }),
   }
 
   return api

@@ -12,7 +12,9 @@ describe('runSseStream', () => {
 
   it('delivers frames and sends the bearer token and client version', async () => {
     server = startServer({
-      responses: [{ status: 200, openEnded: true, body: frame({ event: 'pr-state', data: { n: 1 } }) }],
+      responses: [
+        { status: 200, openEnded: true, body: frame({ event: 'pr-state', data: { n: 1 } }) },
+      ],
     })
 
     const { frames, opens, handlers } = collect()
@@ -146,7 +148,10 @@ describe('runSseStream', () => {
 
   it('drops and retries when the onOpen catch-up rejects, leaving no abandoned stream', async () => {
     server = startServer({
-      responses: [{ status: 200, openEnded: true }, { status: 200, openEnded: true }],
+      responses: [
+        { status: 200, openEnded: true },
+        { status: 200, openEnded: true },
+      ],
     })
 
     const drops: number[] = []
@@ -210,7 +215,10 @@ describe('runSseStream', () => {
 
   it('reconnects immediately when the catch-up outlives the silence timeout', async () => {
     server = startServer({
-      responses: [{ status: 200, openEnded: true }, { status: 200, openEnded: true }],
+      responses: [
+        { status: 200, openEnded: true },
+        { status: 200, openEnded: true },
+      ],
     })
 
     const { drops, handlers } = collect()

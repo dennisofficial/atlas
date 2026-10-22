@@ -19,7 +19,9 @@ import {
   shellStateLabel,
 } from '../shells-model'
 
-const shell = (over: Omit<Partial<ShellSnapshot>, 'shellId'> & { shellId: string }): ShellSnapshot => ({
+const shell = (
+  over: Omit<Partial<ShellSnapshot>, 'shellId'> & { shellId: string },
+): ShellSnapshot => ({
   threadId: toThreadId('thread'),
   command: 'bun test',
   description: 'Run the tests',
@@ -102,7 +104,9 @@ describe('saying what a shell is doing', () => {
   })
 
   it('calls out one waiting on input, since that one will never finish', () => {
-    expect(shellStateLabel(shell({ shellId: 'bash_1', awaitingInput: true }))).toBe('awaiting input')
+    expect(shellStateLabel(shell({ shellId: 'bash_1', awaitingInput: true }))).toBe(
+      'awaiting input',
+    )
   })
 
   it('names a failing exit code', () => {
@@ -114,7 +118,9 @@ describe('saying what a shell is doing', () => {
   })
 
   it('says killed for one that was stopped', () => {
-    expect(shellStateLabel(shell({ shellId: 'bash_1', status: EShellStatus.Killed }))).toBe('killed')
+    expect(shellStateLabel(shell({ shellId: 'bash_1', status: EShellStatus.Killed }))).toBe(
+      'killed',
+    )
   })
 
   it('says when the kill was the developer', () => {
@@ -142,9 +148,9 @@ describe('saying what a shell is doing', () => {
   })
 
   it('says why an overflowed one was stopped', () => {
-    expect(shellStateLabel(shell({ shellId: 'bash_1', status: EShellStatus.Overflowed }))).toContain(
-      'too much output',
-    )
+    expect(
+      shellStateLabel(shell({ shellId: 'bash_1', status: EShellStatus.Overflowed })),
+    ).toContain('too much output')
   })
 
   it('counts only the running ones', () => {
@@ -279,7 +285,9 @@ describe('how long a shell has been alive', () => {
   })
 
   it('offers no reading at all when the start is unreadable', () => {
-    expect(shellElapsedMs({ shell: shell({ shellId: 'bash_1', startedAt: '' }), now: AT(5) })).toBeNull()
+    expect(
+      shellElapsedMs({ shell: shell({ shellId: 'bash_1', startedAt: '' }), now: AT(5) }),
+    ).toBeNull()
   })
 
   it('reads a clock behind the start as no time at all rather than as negative', () => {

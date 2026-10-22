@@ -1,4 +1,10 @@
-import { EToolEffect, SchemaTool, TAKES_NO_PATHS, type ToolOutcome, type ToolRun } from '@dltech/atlas-core'
+import {
+  EToolEffect,
+  SchemaTool,
+  TAKES_NO_PATHS,
+  type ToolOutcome,
+  type ToolRun,
+} from '@dltech/atlas-core'
 import {
   EMemoryScope,
   EMemoryType,
@@ -45,7 +51,12 @@ export class WriteMemoryTool extends SchemaTool<typeof inputSchema> {
       const saved = await this.port.write(input)
       return {
         ok: true,
-        output: { scope: input.scope, name: saved.name, revision: saved.revision, created: saved.revision === 1 },
+        output: {
+          scope: input.scope,
+          name: saved.name,
+          revision: saved.revision,
+          created: saved.revision === 1,
+        },
         modelText: `Remembered ${saved.name} (${scopeLabelOf(saved.scope)}, revision ${saved.revision}).`,
       }
     } catch (error) {

@@ -3,12 +3,7 @@ import { mkdtemp, rm, stat, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  ProcessPort,
-  toThreadId,
-  type ProcessHandle,
-  type SpawnCommand,
-} from '@dltech/atlas-core'
+import { ProcessPort, toThreadId, type ProcessHandle, type SpawnCommand } from '@dltech/atlas-core'
 
 import { CountingIds, SteppingClock } from '../../store/__tests__/harness'
 import { JsonlEventLog } from '../../store/sessions/event-log'
@@ -89,17 +84,25 @@ describe('SessionEnvironmentProcessPort', () => {
     const sessionDir = sessionDirectory({ home, sessionId: main.id })
 
     for (const thread of [main, sub, mate]) {
-      expect(await run(port.spawn({ cmd: ['x'], cwd: '/', env: {}, threadId: thread.id }))).toBe('out')
+      expect(await run(port.spawn({ cmd: ['x'], cwd: '/', env: {}, threadId: thread.id }))).toBe(
+        'out',
+      )
     }
 
-    expect(inner.spawned.map((one) => one.env?.[ATLAS_SESSION_DIR_ENV])).toEqual([sessionDir, sessionDir, sessionDir])
+    expect(inner.spawned.map((one) => one.env?.[ATLAS_SESSION_DIR_ENV])).toEqual([
+      sessionDir,
+      sessionDir,
+      sessionDir,
+    ])
     expect(inner.spawned.map((one) => one.env?.[ATLAS_THREAD_DIR_ENV])).toEqual(
       [main, sub, mate].map((thread) => threadDataDirectory({ sessionDir, threadId: thread.id })),
     )
     expect(inner.spawned.map((one) => one.env?.[ATLAS_CONTEXT_DIR_ENV])).toEqual(
       [sessionDir, sessionDir, sessionDir].map((dir) => contextDirectory({ sessionDir: dir })),
     )
-    expect((await stat(threadDataDirectory({ sessionDir, threadId: mate.id }))).isDirectory()).toBe(true)
+    expect((await stat(threadDataDirectory({ sessionDir, threadId: mate.id }))).isDirectory()).toBe(
+      true,
+    )
     expect((await stat(contextDirectory({ sessionDir }))).isDirectory()).toBe(true)
   })
 
@@ -114,7 +117,9 @@ describe('SessionEnvironmentProcessPort', () => {
       ),
     )
 
-    const byThread = new Map(inner.spawned.map((one) => [one.threadId, one.env?.[ATLAS_THREAD_DIR_ENV]]))
+    const byThread = new Map(
+      inner.spawned.map((one) => [one.threadId, one.env?.[ATLAS_THREAD_DIR_ENV]]),
+    )
     expect(byThread.get(first.id)).toContain(first.id)
     expect(byThread.get(second.id)).toContain(second.id)
     expect(byThread.get(first.id)).not.toBe(byThread.get(second.id))
@@ -201,7 +206,12 @@ describe('SessionEnvironmentProcessPort', () => {
     const { threads, inner, port } = await fixture()
     const main = await threads.create({ title: 'main' })
 
-    await port.launchDetached({ cmd: ['x'], cwd: '/', env: { [ATLAS_THREAD_DIR_ENV]: '/evil' }, threadId: main.id })
+    await port.launchDetached({
+      cmd: ['x'],
+      cwd: '/',
+      env: { [ATLAS_THREAD_DIR_ENV]: '/evil' },
+      threadId: main.id,
+    })
 
     expect(inner.detached[0]?.env?.[ATLAS_THREAD_DIR_ENV]).toContain(main.id)
     expect(inner.detached[0]?.env?.[ATLAS_THREAD_DIR_ENV]).not.toBe('/evil')
@@ -217,17 +227,32 @@ describe('SessionEnvironmentProcessPort', () => {
       sessions: registry,
     })
 
-    await expect(detaching.launchDetached({ cmd: ['x'], cwd: '/', threadId: unknown })).rejects.toThrow('not registered')
-    await expect(plain.launchDetached({ cmd: ['x'], cwd: '/', threadId: main.id })).rejects.toThrow('cannot launch detached')
+    await expect(
+      detaching.launchDetached({ cmd: ['x'], cwd: '/', threadId: unknown }),
+    ).rejects.toThrow('not registered')
+    await expect(plain.launchDetached({ cmd: ['x'], cwd: '/', threadId: main.id })).rejects.toThrow(
+      'cannot launch detached',
+    )
     expect(inner.detached).toHaveLength(0)
   })
 
   it('strips reserved variables when the thread cannot reach session paths', async () => {
     const { threads, inner, registry } = await fixture()
     const main = await threads.create({ title: 'main' })
-    const port = new SessionEnvironmentProcessPort({ inner, sessions: registry, reachable: () => false })
+    const port = new SessionEnvironmentProcessPort({
+      inner,
+      sessions: registry,
+      reachable: () => false,
+    })
 
-    await run(port.spawn({ cmd: ['x'], cwd: '/', env: { [ATLAS_THREAD_DIR_ENV]: '/evil' }, threadId: main.id }))
+    await run(
+      port.spawn({
+        cmd: ['x'],
+        cwd: '/',
+        env: { [ATLAS_THREAD_DIR_ENV]: '/evil' },
+        threadId: main.id,
+      }),
+    )
 
     expect(inner.spawned[0]?.env).toEqual({})
   })

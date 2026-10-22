@@ -38,7 +38,9 @@ describe('project wire', () => {
 
   it('makes a repo entry branch optional but validated', () => {
     expect(projectRepoSchema.safeParse({ repo: 'octocat/Spoon-Knife' }).success).toBe(true)
-    expect(projectRepoSchema.safeParse({ repo: 'octocat/Spoon-Knife', branch: '-x' }).success).toBe(false)
+    expect(projectRepoSchema.safeParse({ repo: 'octocat/Spoon-Knife', branch: '-x' }).success).toBe(
+      false,
+    )
   })
 
   it('parses a workspace with null repo, branch and token', () => {
@@ -54,7 +56,9 @@ describe('project wire', () => {
   })
 
   it('builds the https clone url and caps extras at ten', () => {
-    expect(githubCloneUrlOf('octocat/Hello-World')).toBe('https://github.com/octocat/Hello-World.git')
+    expect(githubCloneUrlOf('octocat/Hello-World')).toBe(
+      'https://github.com/octocat/Hello-World.git',
+    )
     expect(MAX_ADDITIONAL_REPOS).toBe(10)
     expect(MAX_PROJECT_NAME_LENGTH).toBe(100)
   })

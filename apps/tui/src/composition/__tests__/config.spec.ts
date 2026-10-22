@@ -79,9 +79,7 @@ describe('the launch configuration', () => {
 
   it('ignores an --execution-location with no location after it', () => {
     expect(resolve({ argv: ['--execution-location'] }).executionLocation).toBeUndefined()
-    expect(
-      resolve({ argv: ['--execution-location', '--new'] }).executionLocation,
-    ).toBeUndefined()
+    expect(resolve({ argv: ['--execution-location', '--new'] }).executionLocation).toBeUndefined()
   })
 
   it('carries the working directory through, because the empty transcript names it', () => {

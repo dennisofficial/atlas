@@ -88,10 +88,7 @@ describe('less lexical highlighting', () => {
 
   it('reads an escaped value as a string', () => {
     expect(textFor({ spec, source, group: 'string.escape' })).toEqual(['~"gutter-left"'])
-    expect(textFor({ spec, source, group: 'string' })).toEqual([
-      '"Hello, World!"',
-      '"mixins.less"',
-    ])
+    expect(textFor({ spec, source, group: 'string' })).toEqual(['"Hello, World!"', '"mixins.less"'])
   })
 
   it('reads a hex colour as a constant and a hash-led selector as a type', () => {

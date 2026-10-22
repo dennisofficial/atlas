@@ -1,16 +1,10 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import {
-  EClientFrame,
-  EClientRequest,
-  EServeFrame,
-  type ServeFrame,
-} from '@dltech/atlas-harness'
+import { EClientFrame, EClientRequest, EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
 
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
@@ -156,7 +150,9 @@ describe('websocket upgrade while the serve is still booting', () => {
     const probe = bootingServe()
     const port = await probe.port
 
-    await expect(connect({ port, token: 'not-the-token' })).rejects.toThrow('the upgrade was refused')
+    await expect(connect({ port, token: 'not-the-token' })).rejects.toThrow(
+      'the upgrade was refused',
+    )
   })
 
   it('replays buffered frames in order once boot completes', async () => {
@@ -166,9 +162,24 @@ describe('websocket upgrade while the serve is still booting', () => {
     const client = await connect({ port, token: TOKEN })
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     const sent = [
-      { kind: EClientFrame.Request, id: 'held-1', op: EClientRequest.ReadRuntimeCheckpoint, params: {} },
-      { kind: EClientFrame.Request, id: 'held-2', op: EClientRequest.ReadRuntimeCheckpoint, params: {} },
-      { kind: EClientFrame.Request, id: 'held-3', op: EClientRequest.ReadRuntimeCheckpoint, params: {} },
+      {
+        kind: EClientFrame.Request,
+        id: 'held-1',
+        op: EClientRequest.ReadRuntimeCheckpoint,
+        params: {},
+      },
+      {
+        kind: EClientFrame.Request,
+        id: 'held-2',
+        op: EClientRequest.ReadRuntimeCheckpoint,
+        params: {},
+      },
+      {
+        kind: EClientFrame.Request,
+        id: 'held-3',
+        op: EClientRequest.ReadRuntimeCheckpoint,
+        params: {},
+      },
     ] as const
     for (const frame of sent) client.send(frame)
 
@@ -183,11 +194,9 @@ describe('websocket upgrade while the serve is still booting', () => {
     const replies = client.frames.filter(
       (frame) => frame.kind === EServeFrame.Reply && frame.replyTo.startsWith('held-'),
     )
-    expect(replies.map((frame) => (frame.kind === EServeFrame.Reply ? frame.replyTo : ''))).toEqual([
-      'held-1',
-      'held-2',
-      'held-3',
-    ])
+    expect(replies.map((frame) => (frame.kind === EServeFrame.Reply ? frame.replyTo : ''))).toEqual(
+      ['held-1', 'held-2', 'held-3'],
+    )
     client.close()
   })
 
@@ -211,5 +220,3 @@ describe('websocket upgrade while the serve is still booting', () => {
     expect(rejected).toBe('spec boot failure')
   })
 })
-
-

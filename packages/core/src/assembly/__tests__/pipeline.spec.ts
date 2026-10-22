@@ -49,7 +49,10 @@ describe('defaultRules', () => {
   })
 
   it('carries whatever the composition root compiled, rather than prose of its own', () => {
-    const rules = defaultRules({ prompt: () => compiled('The project directory is /w.'), launchDirectory: PROJECT_DIRECTORY })
+    const rules = defaultRules({
+      prompt: () => compiled('The project directory is /w.'),
+      launchDirectory: PROJECT_DIRECTORY,
+    })
 
     const { assembled } = assemble({ rules, ctx: contextFor({ events: log([]) }) })
 
@@ -79,12 +82,18 @@ describe('defaultRules', () => {
   })
 
   it('keeps a rule failure skippable rather than fatal, and still emits the prompt', () => {
-    const exploding = Object.assign(() => {
-      throw new Error('nope')
-    }, { ruleName: 'exploding' })
+    const exploding = Object.assign(
+      () => {
+        throw new Error('nope')
+      },
+      { ruleName: 'exploding' },
+    )
 
     const { assembled, trace } = assemble({
-      rules: [...defaultRules({ prompt: () => compiled(DOCTRINE), launchDirectory: PROJECT_DIRECTORY }), exploding],
+      rules: [
+        ...defaultRules({ prompt: () => compiled(DOCTRINE), launchDirectory: PROJECT_DIRECTORY }),
+        exploding,
+      ],
       ctx: contextFor({ events: log([{ type: 'user-said', text: 'hello' }]) }),
     })
 
@@ -96,7 +105,10 @@ describe('defaultRules', () => {
 describe('defaultPipeline', () => {
   it('carries the annotators alongside the rules, so one root wires the whole projection', () => {
     const events = log([{ type: 'user-said', text: 'hello' }])
-    const pipeline = defaultPipeline({ prompt: () => compiled(DOCTRINE), launchDirectory: PROJECT_DIRECTORY })
+    const pipeline = defaultPipeline({
+      prompt: () => compiled(DOCTRINE),
+      launchDirectory: PROJECT_DIRECTORY,
+    })
 
     const { assembled, trace } = assemble({ ...pipeline, ctx: anthropic(events) })
 
@@ -118,7 +130,10 @@ describe('defaultPipeline', () => {
 
   it('marks nothing on the system side when the registry emitted no block', () => {
     const events = log([{ type: 'user-said', text: 'hello' }])
-    const pipeline = defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY })
+    const pipeline = defaultPipeline({
+      prompt: () => EMPTY_PROMPT,
+      launchDirectory: PROJECT_DIRECTORY,
+    })
 
     const { assembled } = assemble({ ...pipeline, ctx: anthropic(events) })
 
@@ -127,7 +142,9 @@ describe('defaultPipeline', () => {
   })
 })
 
-type PromptIsRequired = undefined extends Parameters<typeof defaultPipeline>[0]['prompt'] ? false : true
+type PromptIsRequired = undefined extends Parameters<typeof defaultPipeline>[0]['prompt']
+  ? false
+  : true
 
 type RulesRequireAPrompt = undefined extends Parameters<typeof defaultRules>[0] ? false : true
 

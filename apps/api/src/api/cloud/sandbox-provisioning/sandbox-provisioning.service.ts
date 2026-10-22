@@ -18,7 +18,11 @@ import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { appendWithin } from '../../platform/sessions/append'
 import { ownedThread } from '../../platform/sessions/ownership'
-import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from '../github/github-sandbox-wake-boot'
+import {
+  failureText,
+  SANDBOX_WAKE_BOOT,
+  type SandboxWakeBoot,
+} from '../github/github-sandbox-wake-boot'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
@@ -114,7 +118,10 @@ export class SandboxProvisioningService {
     }
   }
 
-  private async notConfigured(args: { reporter: BootReporter; error: string }): Promise<SandboxProvisionReply> {
+  private async notConfigured(args: {
+    reporter: BootReporter
+    error: string
+  }): Promise<SandboxProvisionReply> {
     await args.reporter.report({
       step: EBootStep.Provision,
       state: EBootStepState.Error,
@@ -166,12 +173,20 @@ export class SandboxProvisioningService {
       })
       await markRunning({ threadId: thread.id, serveUrl })
       await this.messages.drain({ threadId: thread.id })
-      this.logger.log(`provisioned sandbox ${claim.name} for thread ${thread.id} — serve at ${serveUrl}`)
+      this.logger.log(
+        `provisioned sandbox ${claim.name} for thread ${thread.id} — serve at ${serveUrl}`,
+      )
     } catch (failure) {
-      this.logger.warn(`provisioning sandbox ${claim.name} for thread ${thread.id} failed: ${failureText(failure)}`)
-      await markFailed({ threadId: thread.id, wakeClaim: claim.wakeClaim }).catch((releaseFailure: unknown) => {
-        this.logger.warn(`releasing the claim on thread ${thread.id} failed: ${failureText(releaseFailure)}`)
-      })
+      this.logger.warn(
+        `provisioning sandbox ${claim.name} for thread ${thread.id} failed: ${failureText(failure)}`,
+      )
+      await markFailed({ threadId: thread.id, wakeClaim: claim.wakeClaim }).catch(
+        (releaseFailure: unknown) => {
+          this.logger.warn(
+            `releasing the claim on thread ${thread.id} failed: ${failureText(releaseFailure)}`,
+          )
+        },
+      )
     }
   }
 }

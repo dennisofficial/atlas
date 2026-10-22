@@ -4,7 +4,10 @@ import { EStage, orderHooks, type HookOrder } from '../order'
 
 type NamedHook = { name: string; order: HookOrder }
 
-const named = (name: string, stage: EStage, nudge: number): NamedHook => ({ name, order: { stage, nudge } })
+const named = (name: string, stage: EStage, nudge: number): NamedHook => ({
+  name,
+  order: { stage, nudge },
+})
 
 const namesOf = (hooks: readonly NamedHook[]): string[] => hooks.map((hook) => hook.name)
 

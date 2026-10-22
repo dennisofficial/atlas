@@ -7,9 +7,7 @@ import { auth } from './auth.server'
 
 @Injectable()
 export class BetterAuthSessionVerifier implements SessionVerifier {
-  async verify(
-    request: Pick<IncomingMessage, 'headers'>,
-  ): Promise<VerifiedSession | null> {
+  async verify(request: Pick<IncomingMessage, 'headers'>): Promise<VerifiedSession | null> {
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(request.headers),
     })

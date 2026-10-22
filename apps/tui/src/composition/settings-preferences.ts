@@ -3,7 +3,6 @@ import {
   DEFAULT_WARN_PERCENT,
   ESettingId,
   EUsageWindow,
-  formatFavourites,
   parseFavourites,
   rangeValueOf,
   textValueOf,
@@ -12,11 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { SHIPPED_THINKING, thinkingVisibilityOf, type EThinkingVisibility } from '../store'
-import {
-  EFooterMeters,
-  footerMetersOf,
-  SHIPPED_FOOTER_METERS,
-} from '../ui/usage-meters'
+import { EFooterMeters, footerMetersOf, SHIPPED_FOOTER_METERS } from '../ui/usage-meters'
 import { SIDEBAR_FOLD_BELOW, SIDEBAR_WIDTH } from '../ui/theme'
 
 const AUTO_COMPACT_AT_PERCENT = 90
@@ -46,7 +41,11 @@ export type SettingsPreferences = {
 
 export function preferencesOf(resolution: SettingsResolution): SettingsPreferences {
   return {
-    sidebarWidth: rangeValueOf({ resolution, id: ESettingId.SidebarWidth, fallback: SIDEBAR_WIDTH }),
+    sidebarWidth: rangeValueOf({
+      resolution,
+      id: ESettingId.SidebarWidth,
+      fallback: SIDEBAR_WIDTH,
+    }),
     sidebarFoldBelow: rangeValueOf({
       resolution,
       id: ESettingId.SidebarFoldBelow,
@@ -58,7 +57,11 @@ export function preferencesOf(resolution: SettingsResolution): SettingsPreferenc
       fallback: AUTO_COMPACT_AT_PERCENT,
     }),
     autoRestart: toggleValueOf({ resolution, id: ESettingId.AutoRestart }),
-    noticeSeconds: rangeValueOf({ resolution, id: ESettingId.NoticeSeconds, fallback: NOTICE_SECONDS }),
+    noticeSeconds: rangeValueOf({
+      resolution,
+      id: ESettingId.NoticeSeconds,
+      fallback: NOTICE_SECONDS,
+    }),
     paceReveal: toggleValueOf({ resolution, id: ESettingId.SmoothStreaming }),
     footerMeters: footerMetersOf(
       choiceValueOf({ resolution, id: ESettingId.FooterMeters, fallback: SHIPPED_FOOTER_METERS }),

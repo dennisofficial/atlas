@@ -80,10 +80,16 @@ describe('OauthConnectionsService', () => {
     await upload()
     clock.current += HOUR
     let release: () => void = () => undefined
-    const gate = new Promise<void>((resolve) => { release = resolve })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
     issuer.outcome = async (args) => {
       await gate
-      return { accessToken: 'access-new', refreshToken: 'refresh-new', expiresAt: new Date(args.nowMs + HOUR).toISOString() }
+      return {
+        accessToken: 'access-new',
+        refreshToken: 'refresh-new',
+        expiresAt: new Date(args.nowMs + HOUR).toISOString(),
+      }
     }
 
     const callerCount = 12
@@ -144,7 +150,9 @@ describe('OauthConnectionsService', () => {
   it('keeps a lost response uncertain and never retries the predecessor', async () => {
     await upload()
     clock.current += HOUR - 2 * 60_000
-    issuer.outcome = async () => { throw new Error('connection reset') }
+    issuer.outcome = async () => {
+      throw new Error('connection reset')
+    }
 
     const first = await issue()
     expect(first.accessToken).toBe('access-0')
@@ -158,10 +166,14 @@ describe('OauthConnectionsService', () => {
   it('refuses a rejected token during an uncertain attempt and demands login once stale', async () => {
     await upload()
     clock.current += HOUR - 2 * 60_000
-    issuer.outcome = async () => { throw new Error('timeout') }
+    issuer.outcome = async () => {
+      throw new Error('timeout')
+    }
     await issue()
 
-    await expect(issue({ rejected: 'access-0' })).rejects.toBeInstanceOf(ServiceUnavailableException)
+    await expect(issue({ rejected: 'access-0' })).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    )
     clock.current += 120_000
     await expect(issue()).rejects.toBeInstanceOf(ConflictException)
     expect(issuer.calls).toHaveLength(1)
@@ -170,7 +182,9 @@ describe('OauthConnectionsService', () => {
   it('marks the connection expired on a definitive rejection', async () => {
     await upload()
     clock.current += HOUR
-    issuer.outcome = async () => { throw new OauthRejectedError('invalid_grant') }
+    issuer.outcome = async () => {
+      throw new OauthRejectedError('invalid_grant')
+    }
 
     await expect(issue()).rejects.toBeInstanceOf(ConflictException)
     expect(store.rows.get(CONNECTION)?.status).toBe(EConnectionStatus.Expired)
@@ -181,7 +195,10 @@ describe('OauthConnectionsService', () => {
   it('keeps the old refresh token when the issuer omits a replacement', async () => {
     await upload()
     clock.current += HOUR
-    issuer.outcome = async (args) => ({ accessToken: 'access-new', expiresAt: new Date(args.nowMs + HOUR).toISOString() })
+    issuer.outcome = async (args) => ({
+      accessToken: 'access-new',
+      expiresAt: new Date(args.nowMs + HOUR).toISOString(),
+    })
     await issue()
     clock.current += HOUR
     await issue()
@@ -202,14 +219,20 @@ describe('OauthConnectionsService', () => {
 
     await service.assignSandbox({ userId: OWNER, connectionId: CONNECTION, threadId: 'thread-1' })
     await service.assignSandbox({ userId: OWNER, connectionId: CONNECTION, threadId: 'thread-1' })
-    const dto = await service.issueAccessToken({ userId: OWNER, connectionId: CONNECTION, sandboxId: 'sbx-1' })
+    const dto = await service.issueAccessToken({
+      userId: OWNER,
+      connectionId: CONNECTION,
+      sandboxId: 'sbx-1',
+    })
     expect(dto.accessToken).toBe('access-0')
     expect(store.assignments.size).toBe(1)
   })
 
   it('removes only an owned connection', async () => {
     await upload()
-    await expect(service.remove({ userId: 'user-b', connectionId: CONNECTION })).rejects.toBeInstanceOf(NotFoundException)
+    await expect(
+      service.remove({ userId: 'user-b', connectionId: CONNECTION }),
+    ).rejects.toBeInstanceOf(NotFoundException)
     await service.remove({ userId: OWNER, connectionId: CONNECTION })
     expect(store.rows.has(CONNECTION)).toBe(false)
   })

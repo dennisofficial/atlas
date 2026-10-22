@@ -110,7 +110,11 @@ describe('kotlin lexical highlighting', () => {
   })
 
   it('reads a safe-call elvis as an operator', () => {
-    expect(textFor({ spec, source: 'val n = a?.b ?: 0', group: 'operator' })).toEqual(['=', '?', '?'])
+    expect(textFor({ spec, source: 'val n = a?.b ?: 0', group: 'operator' })).toEqual([
+      '=',
+      '?',
+      '?',
+    ])
   })
 
   it('takes a literal suffix as part of the number', () => {

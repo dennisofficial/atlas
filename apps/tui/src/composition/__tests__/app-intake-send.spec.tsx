@@ -80,9 +80,9 @@ describe('an idle local send over the shared intake', () => {
       expect(answered).toBe(true)
 
       const events = await app.log.read({ threadId })
-      expect(events.map((event) => (event.type === 'user-said' ? event.text : event.type))).toContain(
-        'first words',
-      )
+      expect(
+        events.map((event) => (event.type === 'user-said' ? event.text : event.type)),
+      ).toContain('first words')
       expect(app.pending.forThread({ threadId }).getSnapshot()).toHaveLength(0)
     } finally {
       await mounted.done()

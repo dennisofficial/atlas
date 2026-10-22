@@ -13,28 +13,40 @@ export type Confusion = { tp: number; fp: number; fn: number; tn: number }
 
 const emptyConfusion = (): Confusion => ({ tp: 0, fp: 0, fn: 0, tn: 0 })
 
-export const isActualCompleted = (row: InterpretableRow): boolean => row.assessment.status === EQualityReviewStatus.Completed
+export const isActualCompleted = (row: InterpretableRow): boolean =>
+  row.assessment.status === EQualityReviewStatus.Completed
 
-export const isExpectedDecided = (row: InterpretableRow): boolean => row.prepared.expected.kind === ESrpExpectationKind.Decided
+export const isExpectedDecided = (row: InterpretableRow): boolean =>
+  row.prepared.expected.kind === ESrpExpectationKind.Decided
 
 export const expectedConcernOf = (row: InterpretableRow): boolean | null =>
-  row.prepared.expected.kind === ESrpExpectationKind.Decided ? row.prepared.expected.fields.currentConcern : null
+  row.prepared.expected.kind === ESrpExpectationKind.Decided
+    ? row.prepared.expected.fields.currentConcern
+    : null
 
 export const predictedConcernOf = (row: InterpretableRow): boolean =>
-  isActualCompleted(row) && row.assessment.currentConcernProbability !== null && row.assessment.currentConcernProbability >= CONCERN_CLASS_THRESHOLD
+  isActualCompleted(row) &&
+  row.assessment.currentConcernProbability !== null &&
+  row.assessment.currentConcernProbability >= CONCERN_CLASS_THRESHOLD
 
 const sortedKey = ({ ids }: { ids: readonly string[] }): string => [...ids].sort().join('\u0000')
 
 export const expectedEvidenceOf = (row: InterpretableRow): readonly string[] | null =>
-  row.prepared.expected.kind === ESrpExpectationKind.Decided ? row.prepared.expected.fields.evidenceIds : null
+  row.prepared.expected.kind === ESrpExpectationKind.Decided
+    ? row.prepared.expected.fields.evidenceIds
+    : null
 
 export const evidenceMatches = ({ row }: { row: InterpretableRow }): boolean => {
   const expected = expectedEvidenceOf(row)
-  return expected !== null && sortedKey({ ids: expected }) === sortedKey({ ids: row.assessment.evidenceIds })
+  return (
+    expected !== null &&
+    sortedKey({ ids: expected }) === sortedKey({ ids: row.assessment.evidenceIds })
+  )
 }
 
 const impactMatches = (row: InterpretableRow): boolean =>
-  row.prepared.expected.kind === ESrpExpectationKind.Decided && row.assessment.impact === row.prepared.expected.fields.impact
+  row.prepared.expected.kind === ESrpExpectationKind.Decided &&
+  row.assessment.impact === row.prepared.expected.fields.impact
 
 function confusionOf({ rows }: { rows: readonly InterpretableRow[] }): Confusion {
   const table = emptyConfusion()
@@ -54,8 +66,14 @@ export function summarizeImpact({ rows }: { rows: readonly InterpretableRow[] })
   const eligible = rows.filter(isExpectedDecided)
   const decisions = eligible.filter(isActualCompleted)
   return {
-    onDecisions: ratioOf({ numerator: decisions.filter(impactMatches).length, denominator: decisions.length }),
-    allEligible: ratioOf({ numerator: decisions.filter(impactMatches).length, denominator: eligible.length }),
+    onDecisions: ratioOf({
+      numerator: decisions.filter(impactMatches).length,
+      denominator: decisions.length,
+    }),
+    allEligible: ratioOf({
+      numerator: decisions.filter(impactMatches).length,
+      denominator: eligible.length,
+    }),
   }
 }
 
@@ -68,7 +86,10 @@ export function summarizeConcern({ rows }: { rows: readonly InterpretableRow[] }
     threshold: { name: CONCERN_THRESHOLD_NAME, value: CONCERN_CLASS_THRESHOLD },
     confusion,
     decidedAccuracy: ratioOf({ numerator: confusion.tp + confusion.tn, denominator: decidedCount }),
-    allEligibleAccuracy: ratioOf({ numerator: confusion.tp + confusion.tn, denominator: eligible.length }),
+    allEligibleAccuracy: ratioOf({
+      numerator: confusion.tp + confusion.tn,
+      denominator: eligible.length,
+    }),
     precision: ratioOf({ numerator: confusion.tp, denominator: confusion.tp + confusion.fp }),
     decidedRecall: ratioOf({ numerator: confusion.tp, denominator: confusion.tp + confusion.fn }),
     allEligibleRecall: ratioOf({ numerator: confusion.tp, denominator: positives.length }),
@@ -80,10 +101,14 @@ export function summarizeAbstention({ rows }: { rows: readonly InterpretableRow[
   const eligible = rows.filter(isExpectedDecided)
   const expectedAbstain = rows.filter((row) => !isExpectedDecided(row))
   const unexpected = eligible.filter((row) => !isActualCompleted(row))
-  const count = (status: EQualityReviewStatus): number => rows.filter((row) => row.assessment.status === status).length
+  const count = (status: EQualityReviewStatus): number =>
+    rows.filter((row) => row.assessment.status === status).length
   return {
     expectedDecided: eligible.length,
-    expectedAbstain: ratioOf({ numerator: expectedAbstain.filter((row) => !isActualCompleted(row)).length, denominator: expectedAbstain.length }),
+    expectedAbstain: ratioOf({
+      numerator: expectedAbstain.filter((row) => !isActualCompleted(row)).length,
+      denominator: expectedAbstain.length,
+    }),
     expectedAbstainButDecided: expectedAbstain.filter(isActualCompleted).length,
     actual: {
       completed: count(EQualityReviewStatus.Completed),
@@ -94,7 +119,10 @@ export function summarizeAbstention({ rows }: { rows: readonly InterpretableRow[
       onPositive: unexpected.filter((row) => expectedConcernOf(row) === true).length,
       onNegative: unexpected.filter((row) => expectedConcernOf(row) === false).length,
     },
-    decisionCoverage: ratioOf({ numerator: eligible.filter(isActualCompleted).length, denominator: eligible.length }),
+    decisionCoverage: ratioOf({
+      numerator: eligible.filter(isActualCompleted).length,
+      denominator: eligible.length,
+    }),
   }
 }
 
@@ -103,27 +131,48 @@ export type EvidenceSummary = {
   wrongEvidenceNotifications: Ratio
 }
 
-export function summarizeEvidence({ rows }: { rows: readonly InterpretableRow[] }): EvidenceSummary {
+export function summarizeEvidence({
+  rows,
+}: {
+  rows: readonly InterpretableRow[]
+}): EvidenceSummary {
   const decisions = rows.filter((row) => isExpectedDecided(row) && isActualCompleted(row))
   const ratioFor = (subset: readonly InterpretableRow[]): Ratio =>
-    ratioOf({ numerator: subset.filter((row) => evidenceMatches({ row })).length, denominator: subset.length })
+    ratioOf({
+      numerator: subset.filter((row) => evidenceMatches({ row })).length,
+      denominator: subset.length,
+    })
   const notified = rows.filter((row) => row.notified)
   const wronglyGrounded = notified.filter((row) => {
     const expected = expectedEvidenceOf(row)
     if (expected === null) return false
-    return row.assessment.evidenceIds.length > 0 && !row.assessment.evidenceIds.every((id) => expected.includes(id))
+    return (
+      row.assessment.evidenceIds.length > 0 &&
+      !row.assessment.evidenceIds.every((id) => expected.includes(id))
+    )
   })
   return {
     exactTuple: {
       all: ratioFor(decisions),
       expectedEmpty: ratioFor(decisions.filter((row) => expectedEvidenceOf(row)?.length === 0)),
-      expectedNonEmpty: ratioFor(decisions.filter((row) => (expectedEvidenceOf(row)?.length ?? 0) > 0)),
+      expectedNonEmpty: ratioFor(
+        decisions.filter((row) => (expectedEvidenceOf(row)?.length ?? 0) > 0),
+      ),
     },
-    wrongEvidenceNotifications: ratioOf({ numerator: wronglyGrounded.length, denominator: notified.length }),
+    wrongEvidenceNotifications: ratioOf({
+      numerator: wronglyGrounded.length,
+      denominator: notified.length,
+    }),
   }
 }
 
-export function summarizeNotification({ rows, totalPlannedTrials }: { rows: readonly InterpretableRow[]; totalPlannedTrials: ReadonlyMap<string, number> }) {
+export function summarizeNotification({
+  rows,
+  totalPlannedTrials,
+}: {
+  rows: readonly InterpretableRow[]
+  totalPlannedTrials: ReadonlyMap<string, number>
+}) {
   const judged = rows.filter((row) => row.prepared.judgment.notificationWarranted !== null)
   const confusion = emptyConfusion()
   let abstainedOnUnwarranted = 0
@@ -142,8 +191,16 @@ export function summarizeNotification({ rows, totalPlannedTrials }: { rows: read
     if (row.notified) entry.notified += 1
     perCase.set(row.identity.caseId, entry)
   }
-  const coverageLimited = [...new Set(warrantedRows.filter((row) => row.prepared.scope.evidence.length === 0).map((row) => row.identity.caseId))].sort()
-  const unjudgedNotifications = rows.filter((row) => row.notified && row.prepared.judgment.notificationWarranted === null).length
+  const coverageLimited = [
+    ...new Set(
+      warrantedRows
+        .filter((row) => row.prepared.scope.evidence.length === 0)
+        .map((row) => row.identity.caseId),
+    ),
+  ].sort()
+  const unjudgedNotifications = rows.filter(
+    (row) => row.notified && row.prepared.judgment.notificationWarranted === null,
+  ).length
   return {
     judgedRows: judged.length,
     excludedUnknownRows: rows.length - judged.length,
@@ -161,7 +218,10 @@ export function summarizeNotification({ rows, totalPlannedTrials }: { rows: read
         caseId,
         notified: entry.notified,
         trials: totalPlannedTrials.get(caseId) ?? 0,
-        frequency: ratioOf({ numerator: entry.notified, denominator: totalPlannedTrials.get(caseId) ?? 0 }),
+        frequency: ratioOf({
+          numerator: entry.notified,
+          denominator: totalPlannedTrials.get(caseId) ?? 0,
+        }),
       }))
       .sort((left, right) => left.caseId.localeCompare(right.caseId)),
   }

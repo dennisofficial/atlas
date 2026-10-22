@@ -141,7 +141,9 @@ describe('LoadInstructionsHook', () => {
     const hook = new LoadInstructionsHook({ source: rootedAt(true), readState })
     await hook.run({ threadId: thread('t1'), projectDirectory: root })
 
-    expect(readState.viewOf({ threadId: thread('t1'), path: join(root, 'AGENTS.md') })).toBeUndefined()
+    expect(
+      readState.viewOf({ threadId: thread('t1'), path: join(root, 'AGENTS.md') }),
+    ).toBeUndefined()
   })
 
   it('licenses a write to an injected file, then refuses again once it moves', async () => {

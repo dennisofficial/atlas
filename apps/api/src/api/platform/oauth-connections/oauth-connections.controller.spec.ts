@@ -18,8 +18,18 @@ import { OauthClock, OauthConnectionStore, OauthIssuer } from './oauth-connectio
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const START = Date.parse('2026-10-05T12:00:00.000Z')
 const SANDBOX_TOKENS = {
-  'sandbox-token-1': { kind: ETokenPrincipalKind.Sandbox, id: 'sbx-1', threadId: 'thread-1', userId: 'user-a' },
-  'sandbox-token-2': { kind: ETokenPrincipalKind.Sandbox, id: 'sbx-2', threadId: 'thread-2', userId: 'user-a' },
+  'sandbox-token-1': {
+    kind: ETokenPrincipalKind.Sandbox,
+    id: 'sbx-1',
+    threadId: 'thread-1',
+    userId: 'user-a',
+  },
+  'sandbox-token-2': {
+    kind: ETokenPrincipalKind.Sandbox,
+    id: 'sbx-2',
+    threadId: 'thread-2',
+    userId: 'user-a',
+  },
 } as const
 const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
 
@@ -80,7 +90,9 @@ describe('OauthConnectionsController authorization', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -95,8 +107,15 @@ describe('OauthConnectionsController authorization', () => {
 
   it('exposes only owned authorization metadata, not tokens or sandbox access', async () => {
     await upload('session-a').expect(200)
-    const response = await http().get('/v1/oauth-connections/conn-1').set(as('session-a')).expect(200)
-    expect(response.body).toEqual({ provider: 'anthropic', authorizationId: 'conn-1', generation: 0 })
+    const response = await http()
+      .get('/v1/oauth-connections/conn-1')
+      .set(as('session-a'))
+      .expect(200)
+    expect(response.body).toEqual({
+      provider: 'anthropic',
+      authorizationId: 'conn-1',
+      generation: 0,
+    })
     expect(response.headers['cache-control']).toBe('no-store')
     await http().get('/v1/oauth-connections/conn-1').set(as('session-b')).expect(404)
     await http().get('/v1/oauth-connections/conn-1').set(as('sandbox-token-1')).expect(401)
@@ -106,14 +125,20 @@ describe('OauthConnectionsController authorization', () => {
   it('keeps upload, assignment and deletion session-only', async () => {
     await upload('session-a').expect(200)
     await upload('sandbox-token-1').expect(401)
-    await http().put('/v1/oauth-connections/conn-1/sandboxes/thread-1').set(as('sandbox-token-1')).expect(401)
+    await http()
+      .put('/v1/oauth-connections/conn-1/sandboxes/thread-1')
+      .set(as('sandbox-token-1'))
+      .expect(401)
     await http().delete('/v1/oauth-connections/conn-1').set(as('sandbox-token-1')).expect(401)
     expect(store.rows.has('conn-1')).toBe(true)
   })
 
   it('refuses a malformed expiry before persisting a grant', async () => {
-    await http().put('/v1/oauth-connections/conn-1').set(as('session-a'))
-      .send({ provider: 'anthropic', tokens: { ...grantOf(START), expiresAt: 'not-a-date' } }).expect(400)
+    await http()
+      .put('/v1/oauth-connections/conn-1')
+      .set(as('session-a'))
+      .send({ provider: 'anthropic', tokens: { ...grantOf(START), expiresAt: 'not-a-date' } })
+      .expect(400)
     expect(store.rows.has('conn-1')).toBe(false)
   })
 
@@ -133,8 +158,15 @@ describe('OauthConnectionsController authorization', () => {
   it('hides a connection from another user', async () => {
     await upload('session-a').expect(200)
     await upload('session-b').expect(404)
-    await http().post('/v1/oauth-connections/conn-1/access-token').set(as('session-b')).send({}).expect(404)
-    await http().put('/v1/oauth-connections/conn-1/sandboxes/thread-1').set(as('session-b')).expect(404)
+    await http()
+      .post('/v1/oauth-connections/conn-1/access-token')
+      .set(as('session-b'))
+      .send({})
+      .expect(404)
+    await http()
+      .put('/v1/oauth-connections/conn-1/sandboxes/thread-1')
+      .set(as('session-b'))
+      .expect(404)
     await http().delete('/v1/oauth-connections/conn-1').set(as('session-b')).expect(404)
   })
 
@@ -144,7 +176,10 @@ describe('OauthConnectionsController authorization', () => {
       http().post('/v1/oauth-connections/conn-1/access-token').set(as(token)).send({})
 
     await mint('sandbox-token-1').expect(404)
-    await http().put('/v1/oauth-connections/conn-1/sandboxes/thread-1').set(as('session-a')).expect(204)
+    await http()
+      .put('/v1/oauth-connections/conn-1/sandboxes/thread-1')
+      .set(as('session-a'))
+      .expect(204)
     await mint('sandbox-token-1').expect(200)
     await mint('sandbox-token-2').expect(404)
     await mint('sandbox-token-unknown').expect(401)
@@ -153,7 +188,10 @@ describe('OauthConnectionsController authorization', () => {
   it('reauthorizes on the same connection for the session only and surfaces authorizationId', async () => {
     await upload('session-a').expect(200)
     const body = (to: string, from: string) => ({
-      provider: 'anthropic', tokens: grantOf(START), authorizationId: to, previousAuthorizationId: from,
+      provider: 'anthropic',
+      tokens: grantOf(START),
+      authorizationId: to,
+      previousAuthorizationId: from,
     })
     const put = (token: string, payload: object) =>
       http().put('/v1/oauth-connections/conn-1/reauthorize').set(as(token)).send(payload)
@@ -170,13 +208,22 @@ describe('OauthConnectionsController authorization', () => {
 
   it('refuses to assign a sandbox that does not exist yet', async () => {
     await upload('session-a').expect(200)
-    await http().put('/v1/oauth-connections/conn-1/sandboxes/thread-9').set(as('session-a')).expect(404)
+    await http()
+      .put('/v1/oauth-connections/conn-1/sandboxes/thread-9')
+      .set(as('session-a'))
+      .expect(404)
   })
 
   it('rejects unknown body fields and unsupported providers', async () => {
-    await http().put('/v1/oauth-connections/conn-1').set(as('session-a'))
-      .send({ provider: 'openrouter', tokens: grantOf(START) }).expect(400)
-    await http().post('/v1/oauth-connections/conn-1/access-token').set(as('session-a'))
-      .send({ refreshToken: 'x' }).expect(400)
+    await http()
+      .put('/v1/oauth-connections/conn-1')
+      .set(as('session-a'))
+      .send({ provider: 'openrouter', tokens: grantOf(START) })
+      .expect(400)
+    await http()
+      .post('/v1/oauth-connections/conn-1/access-token')
+      .set(as('session-a'))
+      .send({ refreshToken: 'x' })
+      .expect(400)
   })
 })

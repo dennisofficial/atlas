@@ -89,7 +89,12 @@ function TransferLines(props: { row: MoveRow; cells: number }): React.ReactNode 
   ))
 }
 
-function RowLine(props: { move: ContainerMove; row: MoveRow; elapsedMs: number; cells: number }): React.ReactNode {
+function RowLine(props: {
+  move: ContainerMove
+  row: MoveRow
+  elapsedMs: number
+  cells: number
+}): React.ReactNode {
   const { row } = props
 
   if (row.mark === EStepMark.Active) {

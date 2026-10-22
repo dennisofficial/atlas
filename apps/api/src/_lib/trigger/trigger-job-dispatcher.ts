@@ -1,10 +1,6 @@
 import type { AnyTask } from '@trigger.dev/sdk'
 import { TriggerClient } from '@trigger.dev/sdk'
-import {
-  type JobDispatch,
-  JobDispatchError,
-  JobDispatcher,
-} from '../../_core/ports/job-dispatcher'
+import { type JobDispatch, JobDispatchError, JobDispatcher } from '../../_core/ports/job-dispatcher'
 
 export class TriggerJobDispatcher extends JobDispatcher {
   private readonly client: TriggerClient

@@ -182,12 +182,7 @@ export function InlineDiffRow(props: {
   }, [props.line, props.chunks, props.columns, props.emphasis, tone])
 
   return (
-    <RowText
-      content={content}
-      width={inlineWidth(props.columns)}
-      tone={tone}
-      painted={tone.tint}
-    />
+    <RowText content={content} width={inlineWidth(props.columns)} tone={tone} painted={tone.tint} />
   )
 }
 
@@ -229,7 +224,15 @@ function Half(props: {
     })
     const spans = props.gutterFirst ? [gutter, ...fitted, filler] : [...fitted, filler, gutter]
     return new StyledText(keep(spans))
-  }, [props.line, props.number, props.chunks, props.columns, props.emphasis, props.gutterFirst, tone])
+  }, [
+    props.line,
+    props.number,
+    props.chunks,
+    props.columns,
+    props.emphasis,
+    props.gutterFirst,
+    tone,
+  ])
 
   return (
     <text
@@ -251,12 +254,7 @@ export function SideBySideDiffRow(props: {
   emphasis: { left: DiffSpan | null; right: DiffSpan | null }
 }): React.ReactNode {
   return (
-    <box
-      flexDirection="row"
-      width={sideBySideWidth(props.columns)}
-      height={1}
-      flexShrink={0}
-    >
+    <box flexDirection="row" width={sideBySideWidth(props.columns)} height={1} flexShrink={0}>
       <Half
         line={props.row.left}
         number={props.row.left?.oldNumber ?? null}

@@ -1,23 +1,23 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ChevronDownIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { ChevronDownIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   ButtonGroup,
   ButtonGroupSeparator,
   ButtonGroupText,
-} from "@dltech/atlas-ui/components/button-group";
+} from '@dltech/atlas-ui/components/button-group'
 
 const meta = {
-  title: "Components/Button Group",
+  title: 'Components/Button Group',
   component: ButtonGroup,
-  argTypes: { orientation: { control: "inline-radio", options: ["horizontal", "vertical"] } },
-  args: { orientation: "horizontal" },
-} satisfies Meta<typeof ButtonGroup>;
+  argTypes: { orientation: { control: 'inline-radio', options: ['horizontal', 'vertical'] } },
+  args: { orientation: 'horizontal' },
+} satisfies Meta<typeof ButtonGroup>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -27,7 +27,7 @@ export const Default: Story = {
       <Button variant="outline">Always allow</Button>
     </ButtonGroup>
   ),
-};
+}
 
 export const WithSeparatorAndMenu: Story = {
   render: (args) => (
@@ -39,7 +39,7 @@ export const WithSeparatorAndMenu: Story = {
       </Button>
     </ButtonGroup>
   ),
-};
+}
 
 export const WithText: Story = {
   render: (args) => (
@@ -48,10 +48,10 @@ export const WithText: Story = {
       <Button variant="outline">dennis/shadcn-ui-storybook</Button>
     </ButtonGroup>
   ),
-};
+}
 
 export const Vertical: Story = {
-  args: { orientation: "vertical" },
+  args: { orientation: 'vertical' },
   render: (args) => (
     <ButtonGroup {...args}>
       <Button variant="outline">Sessions</Button>
@@ -59,4 +59,4 @@ export const Vertical: Story = {
       <Button variant="outline">Settings</Button>
     </ButtonGroup>
   ),
-};
+}

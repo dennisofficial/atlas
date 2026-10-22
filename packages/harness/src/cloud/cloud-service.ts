@@ -9,11 +9,7 @@ import { beginCloudLogin, type CloudLoginTicket } from './device-login'
 import { restoreArchivedLocalFiles } from './local-recovery'
 import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
 import { downloadCloudData } from './sync-download'
-import {
-  classifyOauthAccounts,
-  prepareSandboxOauth,
-  type OauthHandoffCallback,
-} from './cloud-oauth-sandbox'
+import { prepareSandboxOauth, type OauthHandoffCallback } from './cloud-oauth-sandbox'
 import { uploadLocalSettings } from './sync-settings'
 import {
   uploadLocalAccounts,
@@ -139,10 +135,7 @@ export class CloudService {
     return beginCloudLogin({ url, fetchFn: this.fetchFn })
   }
 
-  async finishLogin(args: {
-    ticket: CloudLoginTicket
-    token: string
-  }): Promise<CloudLoginResult> {
+  async finishLogin(args: { ticket: CloudLoginTicket; token: string }): Promise<CloudLoginResult> {
     const { ticket, token } = args
     const email = await this.readSignedInEmail({ url: ticket.url, token })
 

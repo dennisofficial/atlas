@@ -1,6 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { AccountStorePort, ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, ProcessPort, TelemetryPort, toThreadId } from '@dltech/atlas-core'
+import {
+  AccountStorePort,
+  ClockPort,
+  CredentialPort,
+  EventLogPort,
+  FileSystemPort,
+  IdPort,
+  ProcessPort,
+  TelemetryPort,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { SessionEnvironmentProcessPort } from '../../execution/session-environment'
@@ -55,11 +65,15 @@ describe('createHarnessContainer', () => {
   })
 
   it('resolves the thread store port to one instance, so a rename echo reaches every subscriber', () => {
-    expect(harness.resolve(registeredPortToken(ThreadStorePort))).toBe(harness.resolve(registeredPortToken(ThreadStorePort)))
+    expect(harness.resolve(registeredPortToken(ThreadStorePort))).toBe(
+      harness.resolve(registeredPortToken(ThreadStorePort)),
+    )
   })
 
   it('resolves the credential port to the persistent OAuth ownership adapter', () => {
-    expect(harness.resolve(registeredPortToken(CredentialPort))).toBeInstanceOf(CloudManagedCredentialPort)
+    expect(harness.resolve(registeredPortToken(CredentialPort))).toBeInstanceOf(
+      CloudManagedCredentialPort,
+    )
   })
 
   it('resolves the account store to the local vault file store', () => {
@@ -77,7 +91,9 @@ describe('createHarnessContainer', () => {
   })
 
   it('resolves the process port to the session-scoped local adapter', () => {
-    expect(harness.resolve(registeredPortToken(ProcessPort))).toBeInstanceOf(SessionEnvironmentProcessPort)
+    expect(harness.resolve(registeredPortToken(ProcessPort))).toBeInstanceOf(
+      SessionEnvironmentProcessPort,
+    )
   })
 
   it('runs real commands with shared session and distinct thread directory scoping', async () => {
@@ -155,6 +171,8 @@ describe('container isolation', () => {
     const first = createHarnessContainer()
     const second = createHarnessContainer()
 
-    expect(first.resolve(registeredPortToken(IdPort))).not.toBe(second.resolve(registeredPortToken(IdPort)))
+    expect(first.resolve(registeredPortToken(IdPort))).not.toBe(
+      second.resolve(registeredPortToken(IdPort)),
+    )
   })
 })

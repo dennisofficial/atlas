@@ -1,13 +1,13 @@
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 
 export function MemorySelectionBar({
   count,
   onDelete,
   onClear,
 }: {
-  count: number;
-  onDelete: () => void;
-  onClear: () => void;
+  count: number
+  onDelete: () => void
+  onClear: () => void
 }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-2">
@@ -21,5 +21,5 @@ export function MemorySelectionBar({
         </Button>
       </div>
     </div>
-  );
+  )
 }

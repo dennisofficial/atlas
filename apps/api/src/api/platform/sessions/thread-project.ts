@@ -3,7 +3,10 @@ import { db } from '../../../db'
 
 export const THREAD_PROJECT_NOT_FOUND = 'project not found'
 
-export const projectReachableBy = async (args: { userId: string; projectId: string }): Promise<boolean> => {
+export const projectReachableBy = async (args: {
+  userId: string
+  projectId: string
+}): Promise<boolean> => {
   const project = await db.project.findUnique({
     where: { id: args.projectId },
     select: { userId: true, organizationId: true },

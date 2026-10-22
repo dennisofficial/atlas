@@ -7,7 +7,8 @@ import { DelegationFragment } from '../fragments/agents'
 const contextFor = (agent: EPromptAgent): PromptContext => ({
   agent,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 }, projectDirectory: '/w'
+  model: { contextWindow: 1_000_000 },
+  projectDirectory: '/w',
 })
 
 describe('the delegation fragment across the agent axis', () => {

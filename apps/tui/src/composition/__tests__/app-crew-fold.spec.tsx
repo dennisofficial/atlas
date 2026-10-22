@@ -103,7 +103,11 @@ describe('a settled sub-agent collapsing in the sidebar', () => {
     const setup = await opened(app)
 
     try {
-      act(() => app.agents.place(settled({ agentId: 'thr_read', intent: 'consumed audit', deliveredAt: LONG_AGO })))
+      act(() =>
+        app.agents.place(
+          settled({ agentId: 'thr_read', intent: 'consumed audit', deliveredAt: LONG_AGO }),
+        ),
+      )
       await setup.flush()
 
       const frame = setup.captureCharFrame()
@@ -170,7 +174,12 @@ describe('a settled sub-agent collapsing in the sidebar', () => {
       act(() => {
         for (let at = 0; at < 4; at += 1) {
           app.agents.place(
-            settled({ agentId: `thr_mate_${at}`, intent: `fix ${at}`, agentType: 'teammate', deliveredAt: LONG_AGO }),
+            settled({
+              agentId: `thr_mate_${at}`,
+              intent: `fix ${at}`,
+              agentType: 'teammate',
+              deliveredAt: LONG_AGO,
+            }),
           )
         }
         for (const child of deliveredSubagents(5)) app.agents.place(child)
@@ -194,7 +203,12 @@ describe('a settled sub-agent collapsing in the sidebar', () => {
     try {
       act(() => {
         app.agents.place(
-          settled({ agentId: 'thr_failed', intent: 'broken audit', status: EAgentStatus.Failed, deliveredAt: LONG_AGO }),
+          settled({
+            agentId: 'thr_failed',
+            intent: 'broken audit',
+            status: EAgentStatus.Failed,
+            deliveredAt: LONG_AGO,
+          }),
         )
         for (const child of deliveredSubagents(5)) app.agents.place(child)
       })
@@ -257,7 +271,12 @@ describe('a settled sub-agent collapsing in the sidebar', () => {
       act(() => {
         for (let at = 0; at < 5; at += 1) {
           app.agents.place(
-            settled({ agentId: `thr_mate_${at}`, intent: `fix ${at}`, agentType: 'teammate', deliveredAt: LONG_AGO }),
+            settled({
+              agentId: `thr_mate_${at}`,
+              intent: `fix ${at}`,
+              agentType: 'teammate',
+              deliveredAt: LONG_AGO,
+            }),
           )
         }
       })

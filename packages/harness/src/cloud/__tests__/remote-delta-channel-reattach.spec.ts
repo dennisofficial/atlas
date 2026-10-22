@@ -10,7 +10,10 @@ const FRESH = { url: 'https://fresh.test/', token: 'tok_fresh' }
 describe('waking the sandbox through the injected wake', () => {
   it('reads Waking while the wake is in flight, and keeps reading it until the fresh serve greets', async () => {
     const pending = deferred<{ url: string; token: string }>()
-    const { channel, drop, open, receive } = readied({ maxAttempts: 0, wakeSandbox: () => pending.promise })
+    const { channel, drop, open, receive } = readied({
+      maxAttempts: 0,
+      wakeSandbox: () => pending.promise,
+    })
     drop()
 
     channel.reconnect()
@@ -26,7 +29,10 @@ describe('waking the sandbox through the injected wake', () => {
   })
 
   it('dials the attachment the wake answered with', async () => {
-    const { channel, drop, live, sockets } = readied({ maxAttempts: 0, wakeSandbox: async () => FRESH })
+    const { channel, drop, live, sockets } = readied({
+      maxAttempts: 0,
+      wakeSandbox: async () => FRESH,
+    })
     drop()
 
     channel.reconnect()
@@ -58,7 +64,10 @@ describe('waking the sandbox through the injected wake', () => {
 
   it('ignores a wake answer that lands after a caller-run wake already moved on', async () => {
     const pending = deferred<{ url: string; token: string }>()
-    const { channel, drop, live, sockets } = readied({ maxAttempts: 0, wakeSandbox: () => pending.promise })
+    const { channel, drop, live, sockets } = readied({
+      maxAttempts: 0,
+      wakeSandbox: () => pending.promise,
+    })
     drop()
 
     channel.reconnect()

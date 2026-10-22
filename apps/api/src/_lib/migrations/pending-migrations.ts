@@ -16,7 +16,8 @@ export function shippedMigrationNames(args: { directory?: string } = {}): readon
     return __ATLAS_SHIPPED_MIGRATIONS__
   }
 
-  const directory = args.directory ?? join(import.meta.dirname, '..', '..', '..', 'prisma', 'migrations')
+  const directory =
+    args.directory ?? join(import.meta.dirname, '..', '..', '..', 'prisma', 'migrations')
 
   return readdirSync(directory, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

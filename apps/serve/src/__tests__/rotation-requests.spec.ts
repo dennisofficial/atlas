@@ -21,11 +21,21 @@ const stranger = toThreadId('rotation-stranger')
 
 class ScriptedRotation extends RotationPort {
   listeners = new Set<RotationListener>()
-  requests: { sessionId: string; threadId: ThreadId; instructions: string; settle: RotationSettle }[] = []
+  requests: {
+    sessionId: string
+    threadId: ThreadId
+    instructions: string
+    settle: RotationSettle
+  }[] = []
   finish: (outcome: RotationOutcome) => void = () => undefined
   busy = false
 
-  async request(args: { sessionId: string; threadId: ThreadId; instructions: string; settle: RotationSettle }) {
+  async request(args: {
+    sessionId: string
+    threadId: ThreadId
+    instructions: string
+    settle: RotationSettle
+  }) {
     if (this.busy) throw new RotationBusy({ sessionId: args.sessionId })
     this.requests.push(args)
     return new Promise<RotationOutcome>((resolve) => {
@@ -37,7 +47,8 @@ class ScriptedRotation extends RotationPort {
     return () => void this.listeners.delete(listener)
   }
   stage(phase: ERotationPhase, detail?: string) {
-    for (const listener of this.listeners) listener({ sessionId: served, operationId: 'op', phase, detail })
+    for (const listener of this.listeners)
+      listener({ sessionId: served, operationId: 'op', phase, detail })
   }
 }
 
@@ -50,7 +61,11 @@ const rotateFrame = (params: Record<string, unknown>): RequestFrame => ({
 
 const rig = (args?: { rotation?: ScriptedRotation | null }) => {
   const rotation = args?.rotation === null ? undefined : (args?.rotation ?? new ScriptedRotation())
-  const admission = createHistoryAdmission({ threadId: () => served, intake: null, unavailable: () => false })
+  const admission = createHistoryAdmission({
+    threadId: () => served,
+    intake: null,
+    unavailable: () => false,
+  })
   const broadcasts: RotationStateWire[] = []
   let changes = 0
   const requests = createRotationRequests({
@@ -77,7 +92,11 @@ describe('rotation requests', () => {
     await Promise.resolve()
     rotation!.stage(ERotationPhase.Settling)
     expect(await reply).toMatchObject({ ok: true, data: { type: 'started' } })
-    expect(rotation!.requests[0]).toMatchObject({ sessionId: served, threadId: served, instructions: 'keep going' })
+    expect(rotation!.requests[0]).toMatchObject({
+      sessionId: served,
+      threadId: served,
+      instructions: 'keep going',
+    })
     expect(admission.held()).toBe(true)
     rotation!.finish({ kind: 'failed', reason: 'x' })
     await requests.whenSettled()
@@ -94,7 +113,9 @@ describe('rotation requests', () => {
   it('refuses a thread the serve does not serve', async () => {
     const { rotation, requests, admission } = rig()
     const reply = await requests.answer(rotateFrame({ ...params, threadId: stranger }))
-    expect(reply).toMatchObject({ data: { type: 'refused', reason: 'this sandbox serves one thread' } })
+    expect(reply).toMatchObject({
+      data: { type: 'refused', reason: 'this sandbox serves one thread' },
+    })
     expect(rotation!.requests).toHaveLength(0)
     expect(admission.held()).toBe(false)
   })
@@ -142,7 +163,10 @@ describe('rotation requests', () => {
     await reply
     rotation!.finish({ kind: 'failed', reason: 'summary came back empty' })
     await requests.whenSettled()
-    expect(broadcasts.at(-1)).toEqual({ phase: EWireRotationPhase.Failed, reason: 'summary came back empty' })
+    expect(broadcasts.at(-1)).toEqual({
+      phase: EWireRotationPhase.Failed,
+      reason: 'summary came back empty',
+    })
     expect(changes()).toBe(0)
     expect(admission.held()).toBe(false)
     expect(() => admission.hold()()).not.toThrow()

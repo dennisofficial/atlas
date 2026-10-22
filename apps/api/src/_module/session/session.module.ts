@@ -10,10 +10,7 @@ export class SessionModule {
   static withVerifier(verifier: Type<SessionVerifier>): DynamicModule {
     return {
       module: SessionModule,
-      providers: [
-        { provide: SESSION_VERIFIER, useClass: verifier },
-        SessionAuthGuard,
-      ],
+      providers: [{ provide: SESSION_VERIFIER, useClass: verifier }, SessionAuthGuard],
       exports: [SESSION_VERIFIER, SessionAuthGuard],
     }
   }

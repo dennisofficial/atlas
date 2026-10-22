@@ -8,7 +8,8 @@ const UNAUTHORIZED = 401
 const RETRY_DELAY_MS = 2_000
 const DEFAULT_RETRY_BUDGET_MS = 60_000
 
-const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 export function projectWorkspaceSpecFetcher(args: {
   atlasHome: string

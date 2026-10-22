@@ -162,7 +162,10 @@ export class HookChain {
    * No turn is in flight when this runs, so the drafts go back to the shell registry rather than
    * into a log: they are delivered with the ending's notice or not at all.
    */
-  async afterShell(args: { threadId: ThreadId; shell: EndedShell }): Promise<readonly EventDraft[]> {
+  async afterShell(args: {
+    threadId: ThreadId
+    shell: EndedShell
+  }): Promise<readonly EventDraft[]> {
     return collectDrafts({ hooks: this.afterShellHooks, args, bounds: this.bounds })
   }
 

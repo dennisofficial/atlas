@@ -2,14 +2,7 @@ import { stat } from 'node:fs/promises'
 
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EExecutionLocation,
-  toEventId,
-  toRunId,
-  toThreadId,
-  type Event,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, toEventId, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
 import {
   atlasDirectory,
   EClientRequest,
@@ -22,7 +15,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { attachCloudSession, MissingCloudThreadError } from '../attach-cloud'
-import { FAKE_WORKSPACE, SPEC_SHARD } from '../../__tests__/fake-backend'
+import { SPEC_SHARD } from '../../__tests__/fake-backend'
 
 const REMOTE_THREAD = toThreadId(`attach-${SPEC_SHARD}`)
 
@@ -130,7 +123,9 @@ describe('attaching to a cloud session', () => {
   })
 
   it('never adopts the thread, even with no workspace attribution behind it', async () => {
-    await expect(attachOver({ events: [said('said inside the sandbox', 1)] })).resolves.toBeDefined()
+    await expect(
+      attachOver({ events: [said('said inside the sandbox', 1)] }),
+    ).resolves.toBeDefined()
   })
 
   it('claims no local session lock for a transcript the sandbox owns', async () => {

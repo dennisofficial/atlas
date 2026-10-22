@@ -323,7 +323,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Usage meters',
     label: 'Meters in the footer',
     description:
-      'Which meters the footer carries. The context meter reports the window the current conversation occupies; the session and weekly meters report how much of the account\'s own rate limits have been spent, read from Anthropic rather than counted here. Narrowing this does not stop Atlas reading them, it stops the footer spelling them out.',
+      "Which meters the footer carries. The context meter reports the window the current conversation occupies; the session and weekly meters report how much of the account's own rate limits have been spent, read from Anthropic rather than counted here. Narrowing this does not stop Atlas reading them, it stops the footer spelling them out.",
     environmentVariable: 'ATLAS_FOOTER_METERS',
     kind: ESettingKind.Choice,
     fallback: 'all',

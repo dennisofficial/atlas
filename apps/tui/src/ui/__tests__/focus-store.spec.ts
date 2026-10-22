@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { applyTerminalFocus, ETerminalFocus, subscribeTerminalFocus, terminalFocus } from '../focus-store'
+import {
+  applyTerminalFocus,
+  ETerminalFocus,
+  subscribeTerminalFocus,
+  terminalFocus,
+} from '../focus-store'
 
 describe('focus-store', () => {
   it('starts unknown', () => {

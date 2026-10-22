@@ -27,7 +27,11 @@ afterEach(async () => {
 })
 
 const run = async (args: { cwd: string; argv: readonly string[] }): Promise<void> => {
-  const proc = Bun.spawn(['git', ...args.argv], { cwd: args.cwd, stdout: 'ignore', stderr: 'ignore' })
+  const proc = Bun.spawn(['git', ...args.argv], {
+    cwd: args.cwd,
+    stdout: 'ignore',
+    stderr: 'ignore',
+  })
   if ((await proc.exited) !== 0) throw new Error(`git ${args.argv.join(' ')} failed`)
 }
 
@@ -40,7 +44,17 @@ const gitRepo = async (): Promise<string> => {
   await run({ cwd: repo, argv: ['add', '.'] })
   await run({
     cwd: repo,
-    argv: ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'init'],
+    argv: [
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-qm',
+      'init',
+    ],
   })
   return repo
 }
@@ -53,11 +67,21 @@ const keyOfRepo = async (repo: string): Promise<string> => {
 
 describe('devServeKeyOf', () => {
   it('is stable over the same inputs, whatever order the untracked files were listed in', () => {
-    const two = { ...BASE, untracked: [{ path: 'b.ts', sha256: '22' }, { path: 'a.ts', sha256: '11' }] }
+    const two = {
+      ...BASE,
+      untracked: [
+        { path: 'b.ts', sha256: '22' },
+        { path: 'a.ts', sha256: '11' },
+      ],
+    }
     const reversed = { ...two, untracked: [...two.untracked].reverse() }
 
-    expect(devServeKeyOf({ source: BASE, target: X64 })).toBe(devServeKeyOf({ source: { ...BASE }, target: X64 }))
-    expect(devServeKeyOf({ source: two, target: X64 })).toBe(devServeKeyOf({ source: reversed, target: X64 }))
+    expect(devServeKeyOf({ source: BASE, target: X64 })).toBe(
+      devServeKeyOf({ source: { ...BASE }, target: X64 }),
+    )
+    expect(devServeKeyOf({ source: two, target: X64 })).toBe(
+      devServeKeyOf({ source: reversed, target: X64 }),
+    )
   })
 
   it('moves when the commit, the tracked diff, or an untracked file moves', () => {
@@ -65,13 +89,27 @@ describe('devServeKeyOf', () => {
 
     expect(devServeKeyOf({ source: { ...BASE, head: 'def456' }, target: X64 })).not.toBe(key)
     expect(devServeKeyOf({ source: { ...BASE, diff: '+line\n' }, target: X64 })).not.toBe(key)
-    expect(devServeKeyOf({ source: { ...BASE, untracked: [{ path: 'a.ts', sha256: '12' }] }, target: X64 })).not.toBe(key)
-    expect(devServeKeyOf({ source: { ...BASE, untracked: [{ path: 'b.ts', sha256: '11' }] }, target: X64 })).not.toBe(key)
+    expect(
+      devServeKeyOf({
+        source: { ...BASE, untracked: [{ path: 'a.ts', sha256: '12' }] },
+        target: X64,
+      }),
+    ).not.toBe(key)
+    expect(
+      devServeKeyOf({
+        source: { ...BASE, untracked: [{ path: 'b.ts', sha256: '11' }] },
+        target: X64,
+      }),
+    ).not.toBe(key)
     expect(devServeKeyOf({ source: { ...BASE, untracked: [] }, target: X64 })).not.toBe(key)
   })
 
   it('keeps the linux-x64 key byte-identical to the key hashed before the target became a parameter', () => {
-    const source: DevServeSource = { head: 'abc123', diff: '+line\n', untracked: [{ path: 'a.ts', sha256: '11' }] }
+    const source: DevServeSource = {
+      head: 'abc123',
+      diff: '+line\n',
+      untracked: [{ path: 'a.ts', sha256: '11' }],
+    }
 
     expect(devServeKeyOf({ source, target: X64 })).toBe(
       '9e0396e9a50e14a31987d1109bda97c6e444738d585bccc4ec19a2499480bdb0',
@@ -82,12 +120,16 @@ describe('devServeKeyOf', () => {
     const arm64 = devServeKeyOf({ source: BASE, target: ELinuxServeTarget.Arm64 })
 
     expect(arm64).not.toBe(devServeKeyOf({ source: BASE, target: X64 }))
-    expect(devServeCacheKeyOf({ source: BASE, target: ELinuxServeTarget.Arm64 })).toBe(arm64.slice(0, 16))
+    expect(devServeCacheKeyOf({ source: BASE, target: ELinuxServeTarget.Arm64 })).toBe(
+      arm64.slice(0, 16),
+    )
   })
 
   it('caches under the first sixteen hex of the input key', () => {
     expect(devServeCacheKeyOf({ source: BASE, target: X64 })).toMatch(/^[0-9a-f]{16}$/)
-    expect(devServeCacheKeyOf({ source: BASE, target: X64 })).toBe(devServeKeyOf({ source: BASE, target: X64 }).slice(0, 16))
+    expect(devServeCacheKeyOf({ source: BASE, target: X64 })).toBe(
+      devServeKeyOf({ source: BASE, target: X64 }).slice(0, 16),
+    )
   })
 })
 

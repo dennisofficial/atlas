@@ -51,15 +51,21 @@ function gateInput(args: {
     return { path, reason: EQualitySkipReason.UnsupportedLanguage }
   }
   if (!isAbsolute(path)) {
-    return { path, reason: EQualitySkipReason.OutsideWorkspace, detail: 'capture path is not absolute' }
+    return {
+      path,
+      reason: EQualitySkipReason.OutsideWorkspace,
+      detail: 'capture path is not absolute',
+    }
   }
   const relativePath = relative(args.projectDirectory, path)
   if (relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
     return { path, reason: EQualitySkipReason.OutsideWorkspace }
   }
-  const beforeBytes = args.change.before === null ? 0 : Buffer.byteLength(args.change.before, 'utf8')
+  const beforeBytes =
+    args.change.before === null ? 0 : Buffer.byteLength(args.change.before, 'utf8')
   const afterBytes = Buffer.byteLength(args.change.after, 'utf8')
-  if (beforeBytes > MAX_CAPTURE_SOURCE_BYTES) return oversizedDiagnostic({ path, bytes: beforeBytes })
+  if (beforeBytes > MAX_CAPTURE_SOURCE_BYTES)
+    return oversizedDiagnostic({ path, bytes: beforeBytes })
   if (afterBytes > MAX_CAPTURE_SOURCE_BYTES) return oversizedDiagnostic({ path, bytes: afterBytes })
   return { relativePath }
 }
@@ -121,10 +127,14 @@ function declarationEvidence(args: {
     return args.declaration.memberLabels.map((label) => {
       const id = `${args.relativePath}#${args.declaration.name}.${label}`
       const member = side.declarations.find(
-        (candidate) => candidate.parentQualifiedName === args.declaration.qualifiedName && candidate.name === label,
+        (candidate) =>
+          candidate.parentQualifiedName === args.declaration.qualifiedName &&
+          candidate.name === label,
       )
       const otherMember = args.other?.declarations.find(
-        (candidate) => candidate.parentQualifiedName === args.declaration.qualifiedName && candidate.name === label,
+        (candidate) =>
+          candidate.parentQualifiedName === args.declaration.qualifiedName &&
+          candidate.name === label,
       )
       return { id, label, changed: member?.structuralHash !== otherMember?.structuralHash }
     })
@@ -200,14 +210,27 @@ export function prepareQualityScopes(args: {
     if (match.kind === EScopeMatchKind.Created) {
       knownIds.set(
         match.after.qualifiedName,
-        identityIdOf({ workspaceNamespace, relativePath, declaration: match.after, previousScopes: args.previousScopes }),
+        identityIdOf({
+          workspaceNamespace,
+          relativePath,
+          declaration: match.after,
+          previousScopes: args.previousScopes,
+        }),
       )
       continue
     }
     const identity = match.kind === EScopeMatchKind.Deleted ? match.before : match.before
-    const id = identityIdOf({ workspaceNamespace, relativePath, declaration: identity, previousScopes: args.previousScopes })
+    const id = identityIdOf({
+      workspaceNamespace,
+      relativePath,
+      declaration: identity,
+      previousScopes: args.previousScopes,
+    })
     knownIds.set(match.before.qualifiedName, id)
-    if (match.kind === EScopeMatchKind.Matched && match.after.qualifiedName !== match.before.qualifiedName) {
+    if (
+      match.kind === EScopeMatchKind.Matched &&
+      match.after.qualifiedName !== match.before.qualifiedName
+    ) {
       knownIds.set(match.after.qualifiedName, id)
     }
   }
@@ -229,19 +252,24 @@ export function prepareQualityScopes(args: {
       after: args2.after,
       beforeText: before.text ?? '',
       afterText: after.text ?? '',
-      evidence: side === null ? [] : declarationEvidence({
-        relativePath,
-        declaration: side,
-        side: args2.after !== null ? after.parsed : before.parsed,
-        other: args2.after !== null ? before.parsed : after.parsed,
-      }),
+      evidence:
+        side === null
+          ? []
+          : declarationEvidence({
+              relativePath,
+              declaration: side,
+              side: args2.after !== null ? after.parsed : before.parsed,
+              other: args2.after !== null ? before.parsed : after.parsed,
+            }),
       dependencyContext,
     })
   }
 
   for (const match of matches) {
     if (match.kind === EScopeMatchKind.Ambiguous) {
-      const names = [...match.before, ...match.after].map((declaration) => declaration.qualifiedName).join(', ')
+      const names = [...match.before, ...match.after]
+        .map((declaration) => declaration.qualifiedName)
+        .join(', ')
       diagnostics.push({
         path: args.change.path,
         reason: EQualitySkipReason.ScopeIdentityUncertain,

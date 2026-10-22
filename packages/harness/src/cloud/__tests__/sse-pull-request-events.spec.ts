@@ -32,7 +32,12 @@ const goodFrame = {
   repoFullName: 'owner/repo',
   prNumber: 42,
   kind: 'comment',
-  payload: { url: 'https://github.com/owner/repo/pull/42#c1', authorLogin: 'octocat', body: 'hi', futureField: 1 },
+  payload: {
+    url: 'https://github.com/owner/repo/pull/42#c1',
+    authorLogin: 'octocat',
+    body: 'hi',
+    futureField: 1,
+  },
   createdAt: '2026-10-08T00:00:00Z',
 }
 
@@ -44,7 +49,15 @@ const serve = () => {
       const path = new URL(request.url).pathname
       if (path.endsWith('/subscriptions')) {
         return Response.json(
-          { id: 'sub_1', repoFullName: 'owner/repo', prNumber: 42, branch: 'feature', pollBacked: false, expiresAt: '2026-10-08T01:00:00Z', state: STATE },
+          {
+            id: 'sub_1',
+            repoFullName: 'owner/repo',
+            prNumber: 42,
+            branch: 'feature',
+            pollBacked: false,
+            expiresAt: '2026-10-08T01:00:00Z',
+            state: STATE,
+          },
           { status: 201 },
         )
       }
@@ -54,10 +67,14 @@ const serve = () => {
           start(controller) {
             streams.add(controller)
             controller.enqueue(new TextEncoder().encode(': connected\n\n'))
-            request.signal.addEventListener('abort', () => {
-              streams.delete(controller)
-              controller.close()
-            }, { once: true })
+            request.signal.addEventListener(
+              'abort',
+              () => {
+                streams.delete(controller)
+                controller.close()
+              },
+              { once: true },
+            )
           },
         }),
         { headers: { 'content-type': 'text/event-stream' } },
@@ -74,7 +91,8 @@ const serve = () => {
 }
 
 const until = async (ready: () => boolean): Promise<void> => {
-  for (let attempt = 0; attempt < 200 && !ready(); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10))
+  for (let attempt = 0; attempt < 200 && !ready(); attempt += 1)
+    await new Promise((resolve) => setTimeout(resolve, 10))
 }
 
 describe('SsePullRequestPort pr-event frames', () => {
@@ -94,7 +112,10 @@ describe('SsePullRequestPort pr-event frames', () => {
       onReading: () => {},
       onPrEvent: args.onPrEvent,
       log: {
-        port: { warn: ({ message }: { message: string }) => void args.warnings?.push(message), info: () => {} } as unknown as LogPort,
+        port: {
+          warn: ({ message }: { message: string }) => void args.warnings?.push(message),
+          info: () => {},
+        } as unknown as LogPort,
       },
     })
     ports.push(port)

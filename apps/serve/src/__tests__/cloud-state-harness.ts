@@ -7,7 +7,12 @@ import { fileAccountStore, FileSecretsStore, SecretCipher } from '@dltech/atlas-
 
 import { applyCloudState } from '../cloud-state'
 import type { ServeLogLine } from '../serve-log'
-import { SERVE_TOKEN, startFakeCloud, type FakeCloud, type FakeCloudState } from './cloud-state-fixture'
+import {
+  SERVE_TOKEN,
+  startFakeCloud,
+  type FakeCloud,
+  type FakeCloudState,
+} from './cloud-state-fixture'
 
 export const clock: ClockPort = { now: () => '2026-10-20T00:00:00.000Z' }
 const homes: string[] = []
@@ -57,9 +62,13 @@ export const apply = async (args: {
 }
 
 export const secretsAt = (home: string) =>
-  new FileSecretsStore({ file: join(home, 'secrets.json'), cipher: new SecretCipher(join(home, 'key')) })
+  new FileSecretsStore({
+    file: join(home, 'secrets.json'),
+    cipher: new SecretCipher(join(home, 'key')),
+  })
 
-export const accountStoreAt = (home: string) => fileAccountStore({ file: join(home, 'auth.json'), keyFile: join(home, 'key'), clock })
+export const accountStoreAt = (home: string) =>
+  fileAccountStore({ file: join(home, 'auth.json'), keyFile: join(home, 'key'), clock })
 
 export const cleanupCloudState = async (): Promise<void> => {
   for (const cloud of clouds.splice(0)) await cloud.stop()

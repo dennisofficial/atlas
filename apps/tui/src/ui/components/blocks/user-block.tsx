@@ -77,21 +77,15 @@ export function UserBlock(props: {
         width={props.width - TRANSCRIPT_INSET}
         {...(props.sendFailed === true
           ? {
-              badge: (
-                <text fg={theme.error} bg={theme.userBg}>{` ${SEND_FAILED} `}</text>
-              ),
+              badge: <text fg={theme.error} bg={theme.userBg}>{` ${SEND_FAILED} `}</text>,
             }
           : props.sending === true
             ? {
-                badge: (
-                  <text fg={theme.hint} bg={theme.userBg}>{` ${SENDING} `}</text>
-                ),
+                badge: <text fg={theme.hint} bg={theme.userBg}>{` ${SENDING} `}</text>,
               }
             : props.takeBack === true
               ? {
-                  badge: (
-                    <text fg={theme.hint} bg={theme.userBg}>{` ${TAKE_BACK} `}</text>
-                  ),
+                  badge: <text fg={theme.hint} bg={theme.userBg}>{` ${TAKE_BACK} `}</text>,
                 }
               : {})}
         {...(chips.length === 0

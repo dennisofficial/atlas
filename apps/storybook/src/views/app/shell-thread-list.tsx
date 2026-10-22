@@ -1,28 +1,20 @@
-import { ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight } from 'lucide-react'
+import { useState } from 'react'
 
-import { SidebarGroup, SidebarMenu } from "@dltech/atlas-ui/components/sidebar";
+import { SidebarGroup, SidebarMenu } from '@dltech/atlas-ui/components/sidebar'
 
-import { BUCKETS, PROJECTS, threadsOf, type AppThread } from "../../fixtures/app";
-import { ProjectGroup } from "./shell-project-group";
-import { ThreadRow } from "./shell-thread-row";
+import { BUCKETS, PROJECTS, threadsOf, type AppThread } from '../../fixtures/app'
+import { ProjectGroup } from './shell-project-group'
+import { ThreadRow } from './shell-thread-row'
 
 export interface ThreadListProps {
-  activeThreadId?: string;
-  threadCardId?: string;
-  projectCardId?: string;
-  pendingThread?: AppThread;
+  activeThreadId?: string
+  threadCardId?: string
+  projectCardId?: string
+  pendingThread?: AppThread
 }
 
-function BucketRow({
-  label,
-  hint,
-  count,
-}: {
-  label: string;
-  hint?: string;
-  count: number;
-}) {
+function BucketRow({ label, hint, count }: { label: string; hint?: string; count: number }) {
   return (
     <button
       type="button"
@@ -34,18 +26,18 @@ function BucketRow({
       <span className="h-px min-w-3 flex-1 bg-sidebar-border" />
       <span className="font-mono text-xs tabular-nums">{count}</span>
     </button>
-  );
+  )
 }
 
 function threadsFor({
   projectId,
   pendingThread,
 }: {
-  projectId: string;
-  pendingThread?: AppThread;
+  projectId: string
+  pendingThread?: AppThread
 }): AppThread[] {
-  const threads = threadsOf(projectId);
-  return pendingThread?.projectId === projectId ? [pendingThread, ...threads] : threads;
+  const threads = threadsOf(projectId)
+  return pendingThread?.projectId === projectId ? [pendingThread, ...threads] : threads
 }
 
 export function ThreadList({
@@ -54,15 +46,15 @@ export function ThreadList({
   projectCardId,
   pendingThread,
 }: ThreadListProps) {
-  const [collapsed, setCollapsed] = useState<string[]>([]);
+  const [collapsed, setCollapsed] = useState<string[]>([])
 
   const handleOpenChange = (projectId: string, open: boolean) => {
     setCollapsed((current) =>
       open ? current.filter((id) => id !== projectId) : [...current, projectId],
-    );
-  };
+    )
+  }
 
-  const unprojected = pendingThread?.projectId === null ? [pendingThread] : [];
+  const unprojected = pendingThread?.projectId === null ? [pendingThread] : []
 
   return (
     <SidebarGroup className="gap-3 px-2 py-2">
@@ -95,5 +87,5 @@ export function ThreadList({
         <BucketRow label="Archived" count={BUCKETS.archived} />
       </div>
     </SidebarGroup>
-  );
+  )
 }

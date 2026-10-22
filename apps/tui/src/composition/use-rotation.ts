@@ -106,7 +106,18 @@ export function useRotation(args: {
         }
       })()
     },
-    [app.intake, compacting, driver, moving, onFailure, onRotated, port, readClock, refresh, threadId],
+    [
+      app.intake,
+      compacting,
+      driver,
+      moving,
+      onFailure,
+      onRotated,
+      port,
+      readClock,
+      refresh,
+      threadId,
+    ],
   )
 
   const cancel = useCallback((): boolean => {

@@ -1,4 +1,7 @@
-export async function waitForInput(args: { done: Promise<void>; signal?: AbortSignal | undefined }): Promise<void> {
+export async function waitForInput(args: {
+  done: Promise<void>
+  signal?: AbortSignal | undefined
+}): Promise<void> {
   const { signal } = args
   if (signal === undefined) return args.done
   signal.throwIfAborted()

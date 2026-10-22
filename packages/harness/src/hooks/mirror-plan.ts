@@ -9,7 +9,6 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-
 export class MirrorPlanHook extends AfterToolHook {
   readonly name = 'plan'
   readonly order: HookOrder = { stage: EStage.Observe, nudge: 0 }

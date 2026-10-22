@@ -23,7 +23,12 @@ const BASE: readonly EventDraft[] = [
   { type: 'assistant-said', parts: [{ type: 'text', text: 'hi there' }] },
 ]
 
-const ENTERED: EventDraft = { type: 'worktree-entered', path: TREE, branch: 'topic', base: 'origin/main' }
+const ENTERED: EventDraft = {
+  type: 'worktree-entered',
+  path: TREE,
+  branch: 'topic',
+  base: 'origin/main',
+}
 const TO_DOCKER: EventDraft = {
   type: 'location-changed',
   from: EExecutionLocation.Host,
@@ -38,7 +43,10 @@ const TO_HOST: EventDraft = {
 const TRANSITIONS: readonly (readonly [string, EventDraft])[] = [
   ['entering a worktree', ENTERED],
   ['changing directory', { type: 'directory-changed', path: '/elsewhere', repo: '/elsewhere' }],
-  ['moving to the cloud', { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud }],
+  [
+    'moving to the cloud',
+    { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+  ],
   ['moving to Docker', TO_DOCKER],
 ]
 
@@ -63,7 +71,9 @@ const assembleWith = ({
 }
 
 const textOf = (entry: { message: unknown } | undefined): string => {
-  const message = entry?.message as { content: readonly { type: string; text?: string }[] } | undefined
+  const message = entry?.message as
+    | { content: readonly { type: string; text?: string }[] }
+    | undefined
   return message?.content.find((part) => part.type === 'text')?.text ?? ''
 }
 
@@ -157,7 +167,10 @@ describe('the cache prefix across Host to Docker to Host', () => {
     expect(conversation.filter((draft) => draft.type !== 'location-changed')).toHaveLength(121)
 
     const onHost = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
-    const inDocker = assembleWith({ drafts: [...conversation, TO_DOCKER], provider: CACHING_PROVIDER })
+    const inDocker = assembleWith({
+      drafts: [...conversation, TO_DOCKER],
+      provider: CACHING_PROVIDER,
+    })
     const backOnHost = assembleWith({
       drafts: [...conversation, TO_DOCKER, TO_HOST],
       provider: CACHING_PROVIDER,
@@ -174,9 +187,14 @@ describe('the cache prefix across Host to Docker to Host', () => {
 
   it('keeps the whole prefix identical when the location changes, adding only the logged event', () => {
     const onHost = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
-    const inDocker = assembleWith({ drafts: [...conversation, TO_DOCKER], provider: CACHING_PROVIDER })
+    const inDocker = assembleWith({
+      drafts: [...conversation, TO_DOCKER],
+      provider: CACHING_PROVIDER,
+    })
 
-    const durable = (messages: readonly typeof inDocker.messages[number][]): readonly typeof inDocker.messages[number][] =>
+    const durable = (
+      messages: readonly (typeof inDocker.messages)[number][],
+    ): readonly (typeof inDocker.messages)[number][] =>
       messages.filter((entry) => !textOf(entry).includes('Project directory'))
 
     expect(durable(inDocker.messages)).toEqual([...durable(onHost.messages)])

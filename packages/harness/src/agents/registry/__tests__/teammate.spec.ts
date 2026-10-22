@@ -9,7 +9,6 @@ import {
   EToolEffect,
   PromptFragment,
   type PromptContext,
-  type ThreadId,
   type ToolDefinition,
   type ToolOutcome,
 } from '@dltech/atlas-core'
@@ -264,8 +263,19 @@ describe('a teammate reporting to the main session', () => {
     expect(opened.supervisor.pendingNotices({ threadId: opened.parent })).toHaveLength(1)
 
     expect(opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts).toEqual([])
-    const logged = await loggedOfType({ harness: opened.harness, threadId: opened.parent, type: 'agent-reported' })
-    expect(logged.map(({ agentId: from, agentType, intent, prose }) => ({ from, agentType, intent, prose }))).toEqual([
+    const logged = await loggedOfType({
+      harness: opened.harness,
+      threadId: opened.parent,
+      type: 'agent-reported',
+    })
+    expect(
+      logged.map(({ agentId: from, agentType, intent, prose }) => ({
+        from,
+        agentType,
+        intent,
+        prose,
+      })),
+    ).toEqual([
       {
         from: agentId,
         agentType: TEAMMATE_AGENT_TYPE,
@@ -394,9 +404,7 @@ describe('a teammate messaging a teammate', () => {
       text: 'hello down there',
     })
     expect(atSubAgent.ok).toBe(false)
-    expect(atSubAgent.ok ? '' : atSubAgent.reason).toMatch(
-      new RegExp(`your teammates: ${second}`),
-    )
+    expect(atSubAgent.ok ? '' : atSubAgent.reason).toMatch(new RegExp(`your teammates: ${second}`))
   })
 
   it('refuses a teammate of a different main session', async () => {
@@ -454,7 +462,10 @@ describe("a teammate's session", () => {
     const harness = await buildHarness({ home: temp.home, model })
     opened.push({ harness, temp })
 
-    const prompts = new InMemoryPromptRegistry([new AtlasIdentityFragment(), new MainOnlyFragment()])
+    const prompts = new InMemoryPromptRegistry([
+      new AtlasIdentityFragment(),
+      new MainOnlyFragment(),
+    ])
     const tools = new InMemoryToolRegistry([
       toolNamed('read'),
       new AgentSpawnTool(() => {
@@ -481,7 +492,10 @@ describe("a teammate's session", () => {
             log: harness.log,
             model: harness.model,
             ids: harness.ids,
-            assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
+            assembly: defaultPipeline({
+              prompt: () => EMPTY_PROMPT,
+              launchDirectory: PROJECT_DIRECTORY,
+            }),
             launchDirectory: PROJECT_DIRECTORY,
           },
           tools,
@@ -494,7 +508,8 @@ describe("a teammate's session", () => {
                 subAgentPrompt({
                   prompts,
                   agentType,
-                  agent: agentType.name === TEAMMATE_AGENT_TYPE ? EPromptAgent.Main : EPromptAgent.Sub,
+                  agent:
+                    agentType.name === TEAMMATE_AGENT_TYPE ? EPromptAgent.Main : EPromptAgent.Sub,
                   provider: harness.model.identity,
                   model: { contextWindow: 1_000_000 },
                   projectDirectory: PROJECT_DIRECTORY,

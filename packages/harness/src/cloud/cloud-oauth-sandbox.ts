@@ -43,7 +43,9 @@ const readOauth = async (accounts: AccountStorePort): Promise<StoredAccount[]> =
 }
 
 const cloudUrlFor = (args: { session: CloudSession | null; stored: StoredAccount }): string =>
-  args.session?.url ?? (args.stored.secret.kind === EAuthKind.Oauth ? args.stored.secret.authority?.url : undefined) ?? ''
+  args.session?.url ??
+  (args.stored.secret.kind === EAuthKind.Oauth ? args.stored.secret.authority?.url : undefined) ??
+  ''
 
 export async function classifyOauthAccounts(args: {
   accounts: AccountStorePort
@@ -99,11 +101,17 @@ export async function prepareSandboxOauth(args: {
   if (eligible.length === 0) return
 
   const session = args.session
-  if (session === null && args.model !== undefined && (selectedId === undefined || !eligible.includes(selectedId))) {
+  if (
+    session === null &&
+    args.model !== undefined &&
+    (selectedId === undefined || !eligible.includes(selectedId))
+  ) {
     return
   }
   if (session === null || args.handoffOauth === undefined) {
-    throw unavailable('Sign in to Atlas Cloud before a cloud birth carries OAuth accounts, or select an API-key account.')
+    throw unavailable(
+      'Sign in to Atlas Cloud before a cloud birth carries OAuth accounts, or select an API-key account.',
+    )
   }
   await args.handoffOauth(session, eligible)
 
@@ -113,10 +121,14 @@ export async function prepareSandboxOauth(args: {
     if (stored?.secret.kind !== EAuthKind.Oauth) continue
     const { authority, tokens } = stored.secret
     if (authority === undefined || tokens.refreshToken.length > 0) {
-      throw unavailable(`The OAuth handoff for ${stored.label} has not completed. Retry Atlas Cloud sign-in before the birth.`)
+      throw unavailable(
+        `The OAuth handoff for ${stored.label} has not completed. Retry Atlas Cloud sign-in before the birth.`,
+      )
     }
     if (!sameUrl(authority.url, session.url)) {
-      throw unavailable(`The OAuth account ${stored.label} belongs to a different Atlas Cloud API. Sign in to its authority before the birth.`)
+      throw unavailable(
+        `The OAuth account ${stored.label} belongs to a different Atlas Cloud API. Sign in to its authority before the birth.`,
+      )
     }
     connectionIds.add(authority.connectionId)
   }

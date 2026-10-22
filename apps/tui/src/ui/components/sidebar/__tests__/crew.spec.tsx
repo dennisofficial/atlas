@@ -150,7 +150,12 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
   it('keeps a row that is live or held out of the fold however many rows settled around it', async () => {
     const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
     const live = row({ id: 'live', name: 'live audit', agentType: 'explore' })
-    const held = row({ id: 'held', name: 'held audit', agentType: 'explore', status: EAgentStatus.Failed })
+    const held = row({
+      id: 'held',
+      name: 'held audit',
+      agentType: 'explore',
+      status: EAgentStatus.Failed,
+    })
     const frame = (
       await rowsOf({
         subagents: [live, held, ...settled.rows],
@@ -171,7 +176,11 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
   it('says one failed on the line when a collapsed row went wrong', async () => {
     const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
     const [first, ...rest] = settled.rows
-    const failed = { ...(first as SidebarSubagent), status: EAgentStatus.Failed, name: 'sub failed' }
+    const failed = {
+      ...(first as SidebarSubagent),
+      status: EAgentStatus.Failed,
+      name: 'sub failed',
+    }
     const frame = (
       await rowsOf({ subagents: [failed, ...rest], standings: settled.standings, cells: WIDTH })
     ).join('\n')
@@ -193,12 +202,19 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
 
   it('brings the collapsed rows back when the settled line is clicked, and folds them again on a second click', async () => {
     const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
-    const setup = await mountCrew({ subagents: settled.rows, standings: settled.standings, cells: WIDTH })
+    const setup = await mountCrew({
+      subagents: settled.rows,
+      standings: settled.standings,
+      cells: WIDTH,
+    })
 
     try {
       await setup.flush()
       const lineAt = (): number =>
-        setup.captureCharFrame().split('\n').findIndex((line) => line.includes('settled'))
+        setup
+          .captureCharFrame()
+          .split('\n')
+          .findIndex((line) => line.includes('settled'))
       const columnAt = (): number =>
         setup.captureCharFrame().split('\n')[lineAt()]?.indexOf('settled') ?? -1
 

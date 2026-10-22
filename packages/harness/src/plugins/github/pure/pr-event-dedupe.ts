@@ -24,7 +24,8 @@ const TRANSITION_KINDS: ReadonlySet<EPrEventKind> = new Set([
 ])
 
 const readingOf = (candidate: PrEventCandidate): string => {
-  if (candidate.kind === EPrEventKind.Verdict) return `${candidate.verdict ?? ''}:${candidate.headSha ?? ''}`
+  if (candidate.kind === EPrEventKind.Verdict)
+    return `${candidate.verdict ?? ''}:${candidate.headSha ?? ''}`
   if (candidate.kind === EPrEventKind.Mergeability) return String(candidate.mergeable)
   return candidate.state ?? ''
 }

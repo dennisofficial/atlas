@@ -1,18 +1,26 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Field, FieldContent, FieldDescription, FieldLabel } from "@dltech/atlas-ui/components/field";
-import { Switch } from "@dltech/atlas-ui/components/switch";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from '@dltech/atlas-ui/components/field'
+import { Switch } from '@dltech/atlas-ui/components/switch'
 
 const meta = {
-  title: "Components/Switch",
+  title: 'Components/Switch',
   component: Switch,
-  argTypes: { size: { control: "inline-radio", options: ["default", "sm"] }, disabled: { control: "boolean" } },
-  args: { size: "default" },
-} satisfies Meta<typeof Switch>;
+  argTypes: {
+    size: { control: 'inline-radio', options: ['default', 'sm'] },
+    disabled: { control: 'boolean' },
+  },
+  args: { size: 'default' },
+} satisfies Meta<typeof Switch>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -24,7 +32,7 @@ export const Default: Story = {
       <Switch id="sw-stream" defaultChecked {...args} />
     </Field>
   ),
-};
+}
 
 export const States: Story = {
   render: () => (
@@ -51,4 +59,4 @@ export const States: Story = {
       </Field>
     </div>
   ),
-};
+}

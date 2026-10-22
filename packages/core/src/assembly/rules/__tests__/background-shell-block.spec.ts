@@ -28,8 +28,7 @@ const ended = (over: Partial<Parameters<typeof backgroundShellBlock>[0]> = {}) =
 
 describe('handing a finished background shell to the model', () => {
   it('names the shell, how it ended, and hands over what it printed', () => {
-    const block = backgroundShellBlock(ended({ description: 'Run full TUI suite' }),
-    )
+    const block = backgroundShellBlock(ended({ description: 'Run full TUI suite' }))
 
     expect(block).toContain('bash_1')
     expect(block).toContain('"Run full TUI suite"')
@@ -39,25 +38,25 @@ describe('handing a finished background shell to the model', () => {
   })
 
   it('never tells the model to go and read what it was just given', () => {
-    const block = backgroundShellBlock(ended() )
+    const block = backgroundShellBlock(ended())
 
     expect(block).not.toContain('shell_output')
   })
 
   it('points at shell_output only when output is genuinely still waiting', () => {
-    const block = backgroundShellBlock(ended({ remainingCharacters: 4_096 }),
-    )
+    const block = backgroundShellBlock(ended({ remainingCharacters: 4_096 }))
 
     expect(block).toContain('4096 more characters')
     expect(block).toContain('shell_output({ shellId: "bash_1" })')
   })
 
   it('falls back to the command when the shell was never named', () => {
-    expect(backgroundShellBlock(ended() )).toContain('`bun test`')
+    expect(backgroundShellBlock(ended())).toContain('`bun test`')
   })
 
   it('says a kill was a kill rather than an exit', () => {
-    const block = backgroundShellBlock(ended({
+    const block = backgroundShellBlock(
+      ended({
         status: EShellStatus.Killed,
         exitCode: undefined,
         output: '',
@@ -69,7 +68,8 @@ describe('handing a finished background shell to the model', () => {
   })
 
   it('says the user was the one who stopped it, and that nothing is wrong', () => {
-    const block = backgroundShellBlock(ended({
+    const block = backgroundShellBlock(
+      ended({
         status: EShellStatus.Killed,
         killedBy: EKilledBy.User,
         exitCode: undefined,
@@ -82,7 +82,8 @@ describe('handing a finished background shell to the model', () => {
   })
 
   it('tells the model when the kill was its own, so it does not read it as interference', () => {
-    const block = backgroundShellBlock(ended({
+    const block = backgroundShellBlock(
+      ended({
         status: EShellStatus.Killed,
         killedBy: EKilledBy.Model,
         exitCode: undefined,
@@ -94,27 +95,25 @@ describe('handing a finished background shell to the model', () => {
   })
 
   it('names a failing exit code', () => {
-    expect(backgroundShellBlock(ended({ exitCode: 2 }) )).toContain(
-      'failed with exit code 2',
-    )
+    expect(backgroundShellBlock(ended({ exitCode: 2 }))).toContain('failed with exit code 2')
   })
 
   it('admits output lost to a shell printing faster than it was read', () => {
-    const block = backgroundShellBlock(ended({ droppedCharacters: 900 }),
-    )
+    const block = backgroundShellBlock(ended({ droppedCharacters: 900 }))
 
     expect(block).toContain('900 characters were lost')
   })
 
   it('wraps the block so the model can tell it from something a human typed', () => {
-    const block = backgroundShellBlock(ended() )
+    const block = backgroundShellBlock(ended())
 
     expect(block.startsWith('<system-notice kind="background-shell-ended"')).toBe(true)
     expect(block.endsWith('</system-notice>')).toBe(true)
   })
 
   it('marks the output as final output from a dead process, so a progress-flavored tail is not read as a live run', () => {
-    const block = backgroundShellBlock(ended({
+    const block = backgroundShellBlock(
+      ended({
         exitCode: 2,
         output: 'status: execution_failure\ntrials 21/36 | errors 15\n',
       }),
@@ -146,7 +145,8 @@ const matched = (over: Partial<Parameters<typeof backgroundShellMatchedBlock>[0]
 
 describe('handing a running background shell watch match to the model', () => {
   it('names the shell and hands over the lines that matched', () => {
-    const block = backgroundShellMatchedBlock(matched({
+    const block = backgroundShellMatchedBlock(
+      matched({
         description: 'Run full TUI suite',
         lines: '12 fail\n13 fail\n',
         matchCount: 2,
@@ -162,11 +162,11 @@ describe('handing a running background shell watch match to the model', () => {
   })
 
   it('counts a lone match in the singular', () => {
-    expect(backgroundShellMatchedBlock(matched() )).toContain('1 line')
+    expect(backgroundShellMatchedBlock(matched())).toContain('1 line')
   })
 
   it('reports the match as a historical fact, never as a claim the shell is still running', () => {
-    const block = backgroundShellMatchedBlock(matched() )
+    const block = backgroundShellMatchedBlock(matched())
 
     expect(block).toContain('watch matched 1 line')
     expect(block).not.toContain('still running')
@@ -175,15 +175,14 @@ describe('handing a running background shell watch match to the model', () => {
   })
 
   it('says the lines are only what the pattern covers, so silence proves nothing', () => {
-    const block = backgroundShellMatchedBlock(matched() )
+    const block = backgroundShellMatchedBlock(matched())
 
     expect(block).toContain('/(fail|error)/')
     expect(block).toContain('Silence from this watch is not evidence')
   })
 
   it('says a disarmed watch stopped and the shell did not', () => {
-    const block = backgroundShellMatchedBlock(matched({ watchDisarmed: true }),
-    )
+    const block = backgroundShellMatchedBlock(matched({ watchDisarmed: true }))
 
     expect(block).toContain('The watch has stopped')
     expect(block).toContain('says nothing about the shell itself')
@@ -191,7 +190,8 @@ describe('handing a running background shell watch match to the model', () => {
   })
 
   it('renders the disarm notice even with no lines to show', () => {
-    const block = backgroundShellMatchedBlock(matched({ watchDisarmed: true, lines: '', matchCount: 200 }),
+    const block = backgroundShellMatchedBlock(
+      matched({ watchDisarmed: true, lines: '', matchCount: 200 }),
     )
 
     expect(block).toContain('It carried no lines with it.')
@@ -200,20 +200,18 @@ describe('handing a running background shell watch match to the model', () => {
   })
 
   it('says nothing about a disarmed watch while the watch is still armed', () => {
-    expect(backgroundShellMatchedBlock(matched() )).not.toContain('The watch has stopped')
+    expect(backgroundShellMatchedBlock(matched())).not.toContain('The watch has stopped')
   })
 
   it('wraps the block so the model can tell it from something a human typed', () => {
-    const block = backgroundShellMatchedBlock(matched() )
+    const block = backgroundShellMatchedBlock(matched())
 
     expect(block.startsWith('<system-notice kind="background-shell-matched"')).toBe(true)
     expect(block.endsWith('</system-notice>')).toBe(true)
   })
 })
 
-const stillRunning = (
-  over: Partial<Parameters<typeof backgroundShellStillRunningBlock>[0]> = {},
-) =>
+const stillRunning = (over: Partial<Parameters<typeof backgroundShellStillRunningBlock>[0]> = {}) =>
   ({
     id: 'evt_3',
     seq: 3,
@@ -233,7 +231,8 @@ const stillRunning = (
 
 describe('checking in on a background shell that has not ended', () => {
   it('names the shell and how long it has been up', () => {
-    const block = backgroundShellStillRunningBlock(stillRunning({ description: 'Poll cubic round on head 43db0f7c' }),
+    const block = backgroundShellStillRunningBlock(
+      stillRunning({ description: 'Poll cubic round on head 43db0f7c' }),
     )
 
     expect(block).toContain('bash_27')
@@ -258,8 +257,7 @@ describe('checking in on a background shell that has not ended', () => {
   })
 
   it('says a quiet shell has printed nothing, and shows no tail section', () => {
-    const block = backgroundShellStillRunningBlock(stillRunning({ silentForMs: 806_000, tail: '' }),
-    )
+    const block = backgroundShellStillRunningBlock(stillRunning({ silentForMs: 806_000, tail: '' }))
 
     expect(block).toContain('It has printed nothing in all that time.')
     expect(block).not.toContain('most recent output')
@@ -275,9 +273,7 @@ describe('checking in on a background shell that has not ended', () => {
   })
 
   it('says the check-ins repeat and on what cadence', () => {
-    expect(backgroundShellStillRunningBlock(stillRunning())).toContain(
-      'repeat every 5m 0s',
-    )
+    expect(backgroundShellStillRunningBlock(stillRunning())).toContain('repeat every 5m 0s')
   })
 
   it('wraps the block so the model can tell it from something a human typed', () => {

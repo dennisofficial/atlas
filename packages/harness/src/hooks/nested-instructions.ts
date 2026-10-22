@@ -92,7 +92,9 @@ export class NestedInstructionsHook extends AfterToolHook {
         files: this.files,
       })
 
-      loaded.push(...instructions.map((instruction) => ({ path: instruction.path, wholeFile: true })))
+      loaded.push(
+        ...instructions.map((instruction) => ({ path: instruction.path, wholeFile: true })),
+      )
       drafts.push(...instructions.map((instruction) => draftOf({ call, instruction })))
     }
 

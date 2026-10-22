@@ -1,4 +1,3 @@
-
 import { join } from 'node:path'
 
 import {
@@ -23,14 +22,12 @@ export class CachedPullRequestPort extends PullRequestPort {
   private running = 0
   private readonly waiting: Array<() => void> = []
 
-  constructor(
-    args: {
-      inner: PullRequestPort
-      directory?: string | undefined
-      file?: string | undefined
-      now?: (() => number) | undefined
-    },
-  ) {
+  constructor(args: {
+    inner: PullRequestPort
+    directory?: string | undefined
+    file?: string | undefined
+    now?: (() => number) | undefined
+  }) {
     super()
     const { inner } = args
     this.inner = inner
@@ -126,5 +123,4 @@ export class CachedPullRequestPort extends PullRequestPort {
   }
 }
 
-const keyString = (args: PullRequestBadgeKey): string =>
-  pullRequestBadgeKeyString(args)
+const keyString = (args: PullRequestBadgeKey): string => pullRequestBadgeKeyString(args)

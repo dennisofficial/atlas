@@ -58,5 +58,10 @@ export { writeSessionMetaForRoot } from './sessions/session-meta'
 export { metaWithPlacement, placementRecordOf, PlacementConflict } from './sessions/placement-meta'
 export { JsonlSessionAuthority } from './sessions/session-authority'
 export { SessionAuthorityPort, type MainThreadFence } from './sessions/meta'
-export { migrateSessionDirectory, canMigrateToCurrent, type SessionMigration, type SessionMigrationContext } from './sessions/migrations'
+export {
+  migrateSessionDirectory,
+  canMigrateToCurrent,
+  type SessionMigration,
+  type SessionMigrationContext,
+} from './sessions/migrations'
 export { EVENT_LINE_VERSION, parseEventLines } from './sessions/lines'

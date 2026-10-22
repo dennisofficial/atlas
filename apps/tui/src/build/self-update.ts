@@ -153,10 +153,16 @@ export async function downloadReleaseAssets(args: {
   dir: string
 }): Promise<boolean> {
   const base = `${args.baseUrl}/${args.tag}`
-  const binary = await downloadAsset({ url: `${base}/${args.asset}`, dest: `${args.dir}/${args.asset}` })
+  const binary = await downloadAsset({
+    url: `${base}/${args.asset}`,
+    dest: `${args.dir}/${args.asset}`,
+  })
   if (!binary) return false
 
-  return downloadAsset({ url: `${base}/${args.asset}.sha256`, dest: `${args.dir}/${args.asset}.sha256` })
+  return downloadAsset({
+    url: `${base}/${args.asset}.sha256`,
+    dest: `${args.dir}/${args.asset}.sha256`,
+  })
 }
 
 export function realSelfUpdatePorts(): SelfUpdatePorts {

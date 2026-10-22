@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState } from 'react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { BrandMark, EBrand } from "@dltech/atlas-ui/components/brand-mark";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
+import { Button } from '@dltech/atlas-ui/components/button'
 
 import {
   API_KEY_PROVIDERS,
@@ -11,35 +11,35 @@ import {
   EProviderId,
   KEY_PREFIXES,
   type ApiKeyEntry,
-} from "../../../fixtures/settings-agent";
-import { ApiKeyRow } from "../parts/agent-api-key-row";
-import { SubscriptionRow } from "../parts/agent-subscription-row";
-import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "../settings-layout";
+} from '../../../fixtures/settings-agent'
+import { ApiKeyRow } from '../parts/agent-api-key-row'
+import { SubscriptionRow } from '../parts/agent-subscription-row'
+import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
 
-const TODAY_LABEL = "Added Oct 20";
-const MASK_TAIL_LENGTH = 4;
+const TODAY_LABEL = 'Added Oct 20'
+const MASK_TAIL_LENGTH = 4
 
 function buildEntry({ providerId, key }: { providerId: EProviderId; key: string }): ApiKeyEntry {
   return {
     masked: `${KEY_PREFIXES[providerId]}…${key.slice(-MASK_TAIL_LENGTH)}`,
     added: TODAY_LABEL,
-  };
+  }
 }
 
 export function ProvidersPage() {
-  const [claudeConnected, setClaudeConnected] = useState(true);
-  const [chatgptConnected, setChatgptConnected] = useState(false);
+  const [claudeConnected, setClaudeConnected] = useState(true)
+  const [chatgptConnected, setChatgptConnected] = useState(false)
   const [keys, setKeys] = useState<Record<EProviderId, ApiKeyEntry | null>>(() => ({
     [EProviderId.Anthropic]: API_KEY_PROVIDERS[0]?.key ?? null,
     [EProviderId.OpenAI]: API_KEY_PROVIDERS[1]?.key ?? null,
     [EProviderId.Google]: null,
     [EProviderId.OpenRouter]: null,
-  }));
+  }))
 
   const handleKeySave = (providerId: EProviderId, key: string) =>
-    setKeys((current) => ({ ...current, [providerId]: buildEntry({ providerId, key }) }));
+    setKeys((current) => ({ ...current, [providerId]: buildEntry({ providerId, key }) }))
   const handleKeyRemove = (providerId: EProviderId) =>
-    setKeys((current) => ({ ...current, [providerId]: null }));
+    setKeys((current) => ({ ...current, [providerId]: null }))
 
   return (
     <SettingsPage
@@ -89,7 +89,7 @@ export function ProvidersPage() {
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
-  );
+  )
 }
 
 function AiGatewayRow() {
@@ -109,5 +109,5 @@ function AiGatewayRow() {
         </Button>
       }
     />
-  );
+  )
 }

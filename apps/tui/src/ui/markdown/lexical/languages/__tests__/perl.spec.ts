@@ -41,7 +41,7 @@ const source = [
   'foreach my $key (sort keys %totals) {',
   '    printf("%-6s %d\\n", $key, $totals{$key});',
   '}',
-  "print 'done', \"\\n\";",
+  'print \'done\', "\\n";',
   '',
 ].join('\n')
 
@@ -148,7 +148,14 @@ describe('perl lexical highlighting', () => {
   })
 
   it('reads a pod block opened by a section heading as one comment', () => {
-    const doc = ['=head1 NAME', '', 'Calculator - scales a product', '', '=cut', 'sub add { 1 }'].join('\n')
+    const doc = [
+      '=head1 NAME',
+      '',
+      'Calculator - scales a product',
+      '',
+      '=cut',
+      'sub add { 1 }',
+    ].join('\n')
     expect(textFor({ spec, source: doc, group: 'comment' })).toEqual([
       ['=head1 NAME', '', 'Calculator - scales a product', '', '=cut'].join('\n'),
     ])

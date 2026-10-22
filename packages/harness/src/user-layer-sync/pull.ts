@@ -19,7 +19,8 @@ const chunked = <T>(items: readonly T[]): readonly (readonly T[])[] => {
 const isAdvanced = (args: { ctx: TreeSyncContext; meta: UserFileMeta }): boolean =>
   isValidTreePath(args.meta.path) &&
   !isConflictCopyKey(args.meta.path) &&
-  args.ctx.state.get({ tree: args.ctx.layout.tree, path: args.meta.path })?.revision !== args.meta.revision
+  args.ctx.state.get({ tree: args.ctx.layout.tree, path: args.meta.path })?.revision !==
+    args.meta.revision
 
 export async function pullTree(ctx: TreeSyncContext): Promise<void> {
   const listing = await ctx.client.listUserFiles({ tree: ctx.layout.tree })
@@ -39,6 +40,9 @@ export async function pullTree(ctx: TreeSyncContext): Promise<void> {
 }
 
 export async function pullPath(args: { ctx: TreeSyncContext; path: string }): Promise<void> {
-  const rows = await args.ctx.client.getUserFiles({ tree: args.ctx.layout.tree, paths: [args.path] })
+  const rows = await args.ctx.client.getUserFiles({
+    tree: args.ctx.layout.tree,
+    paths: [args.path],
+  })
   await applyRemoteRows({ ctx: args.ctx, rows })
 }

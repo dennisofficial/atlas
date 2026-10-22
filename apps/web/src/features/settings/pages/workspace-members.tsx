@@ -34,7 +34,8 @@ function LoadedMembers({ access }: { access: WorkspaceAccess }) {
   const handleInvite = ({ emails, role }: { emails: string[]; role: EWorkspaceRole }) =>
     runAction({
       work: () => members.invite({ emails, role }),
-      success: emails.length === 1 ? 'Invitation recorded' : `${emails.length} invitations recorded`,
+      success:
+        emails.length === 1 ? 'Invitation recorded' : `${emails.length} invitations recorded`,
     })
 
   return (
@@ -120,5 +121,7 @@ function LoadedMembers({ access }: { access: WorkspaceAccess }) {
 }
 
 export function WorkspaceMembersPage() {
-  return <WorkspaceGate title={TITLE}>{(access) => <LoadedMembers access={access} />}</WorkspaceGate>
+  return (
+    <WorkspaceGate title={TITLE}>{(access) => <LoadedMembers access={access} />}</WorkspaceGate>
+  )
 }

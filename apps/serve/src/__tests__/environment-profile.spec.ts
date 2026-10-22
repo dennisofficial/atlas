@@ -115,9 +115,14 @@ describe('environment profile toolchain', () => {
     expect(outcomeOf(profile, EProfileStep.Toolchain).state).toBe(EProfileStepState.Applied)
     expect(
       commands
-        .filter((attempt) => attempt.command[0] !== 'ssh-keyscan' && attempt.command[0] !== 'docker')
+        .filter(
+          (attempt) => attempt.command[0] !== 'ssh-keyscan' && attempt.command[0] !== 'docker',
+        )
         .map((attempt) => [...attempt.command]),
-    ).toEqual([['mise', 'install'], ['sh', '.atlas/sandbox-setup.sh']])
+    ).toEqual([
+      ['mise', 'install'],
+      ['sh', '.atlas/sandbox-setup.sh'],
+    ])
     expect(commands.every((attempt) => attempt.cwd === CWD)).toBe(true)
   })
 

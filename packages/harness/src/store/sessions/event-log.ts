@@ -16,12 +16,17 @@ import {
 } from '@dltech/atlas-core'
 
 import { trackFamilyOwnership } from '../../workspace/family-ownership'
-import { appendIdentityOf, contextIdentityOf, planAppend, type ContextIdentity } from '../append-plan'
+import {
+  appendIdentityOf,
+  contextIdentityOf,
+  planAppend,
+  type ContextIdentity,
+} from '../append-plan'
 import { EUnreadableReason, type UnreadableRow } from '../decode-events'
 import { planSegments } from './compose'
 import { dropTornTail, encodeEventLine } from './lines'
 import { newThreadMeta, readMetaSync, threadMetaSchema, writeMeta } from './meta'
-import { eventLogFile, sessionDirectory, threadMetaFile, threadsDirectory } from './paths'
+import { eventLogFile, threadMetaFile, threadsDirectory } from './paths'
 import { rebuildContextIndex, type SessionRegistry } from './registry'
 
 export type DecodedSessionLog = {
@@ -98,7 +103,9 @@ export class JsonlEventLog implements EventLogPort {
       const all =
         index === last
           ? (await this.registry.readThreadLog({ sessionDir, threadId })).events
-          : await this.registry.readParentEvents({ file: eventLogFile({ sessionDir: segment.sessionDir, threadId: segment.threadId }) })
+          : await this.registry.readParentEvents({
+              file: eventLogFile({ sessionDir: segment.sessionDir, threadId: segment.threadId }),
+            })
       events.push(...sliceSegment({ events: all, fromSeq, upTo: segment.upTo }))
     }
     const own = await this.registry.readThreadLog({ sessionDir, threadId })
@@ -150,7 +157,10 @@ export class JsonlEventLog implements EventLogPort {
     this.registry.registerThread({ sessionDir, threadId: args.threadId })
 
     const log = await this.registry.refreshThreadLog({ sessionDir, threadId: args.threadId })
-    const reusable = await this.loadReusableContext({ threadId: args.threadId, drafts: args.drafts })
+    const reusable = await this.loadReusableContext({
+      threadId: args.threadId,
+      drafts: args.drafts,
+    })
     const plan = planAppend({ drafts: args.drafts, reusable })
     if (plan.fresh.length === 0) return plan.resolve([])
     await trackFamilyOwnership({
@@ -178,13 +188,20 @@ export class JsonlEventLog implements EventLogPort {
     const lines = prepared.map((entry) => `${encodeEventLine(entry)}\n`).join('')
     const file = eventLogFile({ sessionDir, threadId: args.threadId })
     await mkdir(dirname(file), { recursive: true })
-    if (await dropTornTail({ file, threadId: args.threadId, on: 'append', logPort: this.logPort })) {
-      log.unreadable = log.unreadable.filter((row) => row.reason !== EUnreadableReason.TruncatedTail)
+    if (
+      await dropTornTail({ file, threadId: args.threadId, on: 'append', logPort: this.logPort })
+    ) {
+      log.unreadable = log.unreadable.filter(
+        (row) => row.reason !== EUnreadableReason.TruncatedTail,
+      )
     }
     await appendFile(file, lines, 'utf8')
     await this.registry.stampThreadLog({ sessionDir, threadId: args.threadId })
 
-    const stamped = stampDrafts({ drafts: prepared.map((entry) => entry.draft), envelopes: prepared.map((entry) => entry.envelope) })
+    const stamped = stampDrafts({
+      drafts: prepared.map((entry) => entry.draft),
+      envelopes: prepared.map((entry) => entry.envelope),
+    })
     log.events.push(...stamped)
     log.head = firstSeq + prepared.length - 1
     for (const event of stamped) {
@@ -205,7 +222,11 @@ export class JsonlEventLog implements EventLogPort {
   }): Promise<Event[]> {
     const at = this.clock.now()
     const metaFile = threadMetaFile({ sessionDir, threadId: args.threadId })
-    const existing = readMetaSync({ file: metaFile, schema: threadMetaSchema, logPort: this.logPort })
+    const existing = readMetaSync({
+      file: metaFile,
+      schema: threadMetaSchema,
+      logPort: this.logPort,
+    })
     const floor = existing?.forkMode === EForkMode.Reference ? (existing.forkSeq ?? 0) : 0
     const prepared = args.drafts.map((draft, index) => {
       const envelope: EventEnvelope = {
@@ -227,18 +248,23 @@ export class JsonlEventLog implements EventLogPort {
     const nextHead = floor + prepared.length
     const priorLog = await this.registry.readThreadLog({ sessionDir, threadId: args.threadId })
     const shrinking = nextHead < priorLog.head
-    if (shrinking) await writeMeta({ file: metaFile, meta: { ...meta, head: nextHead, updatedAt: at } })
+    if (shrinking)
+      await writeMeta({ file: metaFile, meta: { ...meta, head: nextHead, updatedAt: at } })
     await rename(tmp, file)
     await this.registry.stampThreadLog({ sessionDir, threadId: args.threadId })
 
-    const stamped = stampDrafts({ drafts: prepared.map((entry) => entry.draft), envelopes: prepared.map((entry) => entry.envelope) })
+    const stamped = stampDrafts({
+      drafts: prepared.map((entry) => entry.draft),
+      envelopes: prepared.map((entry) => entry.envelope),
+    })
     const log = await this.registry.readThreadLog({ sessionDir, threadId: args.threadId })
     log.events.length = 0
     log.events.push(...stamped)
     log.head = floor + stamped.length
     rebuildContextIndex({ log })
 
-    if (!shrinking) await writeMeta({ file: metaFile, meta: { ...meta, head: log.head, updatedAt: at } })
+    if (!shrinking)
+      await writeMeta({ file: metaFile, meta: { ...meta, head: log.head, updatedAt: at } })
     return stamped
   }
 

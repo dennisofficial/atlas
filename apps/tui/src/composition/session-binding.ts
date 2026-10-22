@@ -51,7 +51,10 @@ export type SurfaceAttachment = CloudAttachment | LocalAttachment
 export type Binding = RuntimeBinding<SessionRuntime>
 
 const isAttachment = (value: unknown): value is SurfaceAttachment =>
-  typeof value === 'object' && value !== null && 'kind' in value && (value.kind === 'cloud' || value.kind === 'local')
+  typeof value === 'object' &&
+  value !== null &&
+  'kind' in value &&
+  (value.kind === 'cloud' || value.kind === 'local')
 
 export const attachmentOf = (binding: Binding | undefined): SurfaceAttachment | undefined => {
   const held = binding?.adapters.attachment
@@ -84,8 +87,14 @@ const cloudContextOf = (args: {
 }): ContextReaders => {
   const local = createSessionContextReader({ threadId: args.opened.threadId })
   const remote = new RemoteContextFiles({ channel: args.channel })
-  if (args.sessionMirror !== undefined) return new SyncedContextFiles({ local, remote, mirror: args.sessionMirror })
-  return new MirroredContextFiles({ channel: args.channel, local, remote, threadId: args.opened.threadId })
+  if (args.sessionMirror !== undefined)
+    return new SyncedContextFiles({ local, remote, mirror: args.sessionMirror })
+  return new MirroredContextFiles({
+    channel: args.channel,
+    local,
+    remote,
+    threadId: args.opened.threadId,
+  })
 }
 
 const NOTHING_TO_SETTLE = (): void => undefined
@@ -122,8 +131,14 @@ export const cloudBindingOf = (args: {
   close: () => args.session.close(),
 })
 
-export const localAnchorOf = (args: { local: AtlasApp; opened: OpenedConversation }): WorkspaceIdentity => ({
-  workspace: projectDirectoryOf({ events: args.opened.events, launchDirectory: args.local.workspace.workspace }),
+export const localAnchorOf = (args: {
+  local: AtlasApp
+  opened: OpenedConversation
+}): WorkspaceIdentity => ({
+  workspace: projectDirectoryOf({
+    events: args.opened.events,
+    launchDirectory: args.local.workspace.workspace,
+  }),
   repo: repoOf({ events: args.opened.events, launchRepo: args.local.workspace.repo }),
 })
 

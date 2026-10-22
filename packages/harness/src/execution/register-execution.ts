@@ -19,7 +19,9 @@ export function registerExecution({ container }: { container: DependencyContaine
     useFactory: (resolver) => {
       const local = new LoginEnvProcessPort(new LocalProcessPort())
       const sessions = resolveIfPossible({ container: resolver, token: SessionRegistryToken })
-      return sessions === undefined ? local : new SessionEnvironmentProcessPort({ inner: local, sessions })
+      return sessions === undefined
+        ? local
+        : new SessionEnvironmentProcessPort({ inner: local, sessions })
     },
   })
   container.register(registeredPortToken(FileSystemPort), { useClass: LocalFileSystemPort })

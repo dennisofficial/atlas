@@ -29,7 +29,10 @@ const deniedReader: McpTextReader = () => {
   return Promise.reject(error)
 }
 
-const readerReturning = (text: string): McpTextReader => () => Promise.resolve(text)
+const readerReturning =
+  (text: string): McpTextReader =>
+  () =>
+    Promise.resolve(text)
 
 const projectFile = (args: { cwd: string; read: McpTextReader }) =>
   FileMcpSource.project({ cwd: args.cwd, read: args.read })
@@ -47,7 +50,9 @@ describe('FileMcpSource', () => {
   it('reads the bare Claude Code shape and stamps origin and file', async () => {
     const { specs, rejections } = await projectFile({
       cwd: '/repo',
-      read: readerReturning(JSON.stringify({ linear: { transport: { kind: 'stdio', command: 'npx' } } })),
+      read: readerReturning(
+        JSON.stringify({ linear: { transport: { kind: 'stdio', command: 'npx' } } }),
+      ),
     }).load()
 
     expect(rejections).toEqual([])
@@ -65,7 +70,9 @@ describe('FileMcpSource', () => {
     const { specs } = await projectFile({
       cwd: '/repo',
       read: readerReturning(
-        JSON.stringify({ mcpServers: { docs: { transport: { kind: 'http', url: 'https://example.test/mcp' } } } }),
+        JSON.stringify({
+          mcpServers: { docs: { transport: { kind: 'http', url: 'https://example.test/mcp' } } },
+        }),
       ),
     }).load()
 
@@ -87,7 +94,9 @@ describe('FileMcpSource', () => {
     const { specs } = await projectFile({
       cwd: '/repo',
       read: readerReturning(
-        JSON.stringify({ linear: { name: 'forged', transport: { kind: 'stdio', command: 'npx' } } }),
+        JSON.stringify({
+          linear: { name: 'forged', transport: { kind: 'stdio', command: 'npx' } },
+        }),
       ),
     }).load()
 
@@ -179,7 +188,9 @@ describe('CompatMcpSource', () => {
   it('reads the project-root .mcp.json at project rank', async () => {
     const source = new CompatMcpSource({
       cwd: '/repo',
-      read: readerReturning(JSON.stringify({ legacy: { transport: { kind: 'stdio', command: 'run' } } })),
+      read: readerReturning(
+        JSON.stringify({ legacy: { transport: { kind: 'stdio', command: 'run' } } }),
+      ),
     })
 
     const { specs, rejections } = await source.load()
@@ -206,7 +217,12 @@ describe('CompatMcpSource', () => {
       read: readerReturning(
         JSON.stringify({
           mcpServers: {
-            'aws-mcp': { type: 'stdio', command: 'uvx', args: ['mcp-proxy-for-aws@latest'], env: { AWS_PROFILE: 'dennis' } },
+            'aws-mcp': {
+              type: 'stdio',
+              command: 'uvx',
+              args: ['mcp-proxy-for-aws@latest'],
+              env: { AWS_PROFILE: 'dennis' },
+            },
             cubic: { type: 'http', url: 'https://www.cubic.dev/api/mcp' },
           },
         }),
@@ -219,7 +235,12 @@ describe('CompatMcpSource', () => {
     expect(specs).toHaveLength(2)
     expect(specs[0]).toMatchObject({
       name: 'aws-mcp',
-      transport: { kind: 'stdio', command: 'uvx', args: ['mcp-proxy-for-aws@latest'], env: { AWS_PROFILE: 'dennis' } },
+      transport: {
+        kind: 'stdio',
+        command: 'uvx',
+        args: ['mcp-proxy-for-aws@latest'],
+        env: { AWS_PROFILE: 'dennis' },
+      },
     })
     expect(specs[1]).toMatchObject({
       name: 'cubic',
@@ -238,7 +259,9 @@ describe('file sources against a real disk', () => {
     mkdirSync(join(directory, '.atlas'))
     writeFileSync(
       join(directory, '.atlas', 'mcp.json'),
-      JSON.stringify({ fs: { transport: { kind: 'stdio', command: 'npx', args: ['-y', '@mcp/fs'] } } }),
+      JSON.stringify({
+        fs: { transport: { kind: 'stdio', command: 'npx', args: ['-y', '@mcp/fs'] } },
+      }),
     )
 
     const { specs } = await source.load()

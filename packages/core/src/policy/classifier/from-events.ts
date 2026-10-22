@@ -90,17 +90,25 @@ export function transcriptMessages({
 }): readonly TranscriptMessage[] {
   const operator = eventsOfType({ events, type: 'user-said' })
     .filter((event) => saidBy(event) === EMessageOrigin.Operator)
-    .map((event): TranscriptMessage => ({ speaker: ESpeaker.Operator, text: event.text, seq: event.seq }))
+    .map(
+      (event): TranscriptMessage => ({
+        speaker: ESpeaker.Operator,
+        text: event.text,
+        seq: event.seq,
+      }),
+    )
 
   const agent = eventsOfType({ events, type: 'assistant-said' })
-    .map((event): TranscriptMessage => ({
-      speaker: ESpeaker.Agent,
-      text: event.parts
-        .filter((part) => part.type === 'text')
-        .map((part) => part.text)
-        .join('\n'),
-      seq: event.seq,
-    }))
+    .map(
+      (event): TranscriptMessage => ({
+        speaker: ESpeaker.Agent,
+        text: event.parts
+          .filter((part) => part.type === 'text')
+          .map((part) => part.text)
+          .join('\n'),
+        seq: event.seq,
+      }),
+    )
     .filter((message) => message.text.trim().length > 0)
 
   return [...operator, ...agent]

@@ -19,10 +19,7 @@ export abstract class RewindMachineryPort {
    */
   readonly ownsDurableLog?: boolean
 
-  abstract snapshot(args: {
-    cuts: readonly RewindCut[]
-    threadId: ThreadId
-  }): Promise<RewindRead>
+  abstract snapshot(args: { cuts: readonly RewindCut[]; threadId: ThreadId }): Promise<RewindRead>
   abstract destroy(args: {
     cuts: readonly RewindCut[]
     threadId: ThreadId

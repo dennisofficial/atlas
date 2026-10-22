@@ -52,7 +52,12 @@ export const harness = (args: {
     },
   }
 
-  return { attempts, written, emptied, ensure: createEnsureWorkspace({ git, files, profile: args.profile }) }
+  return {
+    attempts,
+    written,
+    emptied,
+    ensure: createEnsureWorkspace({ git, files, profile: args.profile }),
+  }
 }
 
 export const argsOf = (attempts: readonly Attempt[]): string[][] =>

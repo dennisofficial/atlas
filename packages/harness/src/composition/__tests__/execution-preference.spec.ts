@@ -97,9 +97,7 @@ describe('the settings default alone', () => {
   })
 
   it('is what the project file switches it to', () => {
-    expect(defaultExecutionLocation({ settled: DOCKER_BY_DEFAULT })).toBe(
-      EExecutionLocation.Docker,
-    )
+    expect(defaultExecutionLocation({ settled: DOCKER_BY_DEFAULT })).toBe(EExecutionLocation.Docker)
   })
 })
 

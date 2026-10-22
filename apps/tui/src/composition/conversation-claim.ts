@@ -1,8 +1,4 @@
-import {
-  type EventLogPort,
-  type IdPort,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { type EventLogPort, type IdPort, type ThreadId } from '@dltech/atlas-core'
 import type {
   ServiceRegistryPort,
   ShellRegistryPort,
@@ -36,7 +32,9 @@ export async function closeConversation(): Promise<void> {
 }
 
 export async function claimThread(args: { threadId: ThreadId }): Promise<string | null> {
-  const sessionDir = await registryFor({ home: atlasDirectory() }).sessionDirFor({ threadId: args.threadId })
+  const sessionDir = await registryFor({ home: atlasDirectory() }).sessionDirFor({
+    threadId: args.threadId,
+  })
   const claim = await claimSession({
     sessionDir,
     lockFile: sessionLockFile({ sessionDir }),
@@ -106,17 +104,22 @@ export async function readOpenedConversation(args: {
   lostShells?: OpenedConversation['lostShells']
 }): Promise<OpenedConversation> {
   const { thread } = args
-  const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
-  const [base, spent]: [LogAccumulator, Awaited<ReturnType<typeof readThreadSpend>>] = await Promise.all([
-    readThreadBase({
-      log: args.log,
-      threadId: thread.id,
-      rows: EThreadRows.Composed,
-      fromSeq: window.fromSeq,
-      effects: args.effects,
-    }),
-    readThreadSpend({ ledger: args.ledger, threadId: thread.id }),
-  ])
+  const window = await readThreadWindow({
+    log: args.log,
+    threadId: thread.id,
+    rows: EThreadRows.Composed,
+  })
+  const [base, spent]: [LogAccumulator, Awaited<ReturnType<typeof readThreadSpend>>] =
+    await Promise.all([
+      readThreadBase({
+        log: args.log,
+        threadId: thread.id,
+        rows: EThreadRows.Composed,
+        fromSeq: window.fromSeq,
+        effects: args.effects,
+      }),
+      readThreadSpend({ ledger: args.ledger, threadId: thread.id }),
+    ])
 
   return {
     threadId: thread.id,

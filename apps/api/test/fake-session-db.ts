@@ -148,7 +148,11 @@ export function createFakeSessionDb() {
         const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
         return args.take === undefined ? sorted : sorted.slice(0, args.take)
       },
-      update: async (args: { where: { id: string }; data: Where; select?: Record<string, boolean> }) => {
+      update: async (args: {
+        where: { id: string }
+        data: Where
+        select?: Record<string, boolean>
+      }) => {
         const row = threads.find((one) => one.id === args.where.id)
         if (row === undefined) throw new Error('record not found')
         applyUpdate(row as unknown as Record<string, unknown>, args.data)
@@ -175,14 +179,22 @@ export function createFakeSessionDb() {
         events.push(...args.data)
         return { count: args.data.length }
       },
-      findMany: async (args: { where?: Where; orderBy?: unknown; select?: Record<string, boolean> }) => {
+      findMany: async (args: {
+        where?: Where
+        orderBy?: unknown
+        select?: Record<string, boolean>
+      }) => {
         const matched = events.filter(
           (one) => args.where === undefined || matchesRow(one, args.where),
         )
         const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
         return sorted.map((row) => project(row, args.select))
       },
-      findFirst: async (args: { where: Where; orderBy?: unknown; select?: Record<string, boolean> }) => {
+      findFirst: async (args: {
+        where: Where
+        orderBy?: unknown
+        select?: Record<string, boolean>
+      }) => {
         const matched = events.filter((one) => matchesRow(one, args.where))
         const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
         const first = sorted[0] ?? null

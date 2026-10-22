@@ -16,7 +16,12 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from '../../files/write-guard'
-import { MAX_CAPTURE_SOURCE_BYTES, captureText, captureUnavailableFault, makeChange } from '../../quality/source/capture-text'
+import {
+  MAX_CAPTURE_SOURCE_BYTES,
+  captureText,
+  captureUnavailableFault,
+  makeChange,
+} from '../../quality/source/capture-text'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 
 const inputSchema = z.strictObject({
@@ -38,7 +43,12 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
   override readonly pathFields: readonly DeclaredPathField[] = [
-    { field: 'path', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.Overwrites },
+    {
+      field: 'path',
+      presence: EPathPresence.Required,
+      form: EPathForm.Absolute,
+      content: EContentAccess.Overwrites,
+    },
   ]
 
   constructor(
@@ -81,7 +91,10 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
           } else {
             const existing = await this.files.readTextForEdit({ path, threadId }).catch(() => null)
             if (existing === null) {
-              captureFault = captureUnavailableFault({ path, detail: 'the previous contents could not be read' })
+              captureFault = captureUnavailableFault({
+                path,
+                detail: 'the previous contents could not be read',
+              })
             } else {
               const captured = captureText({
                 path,
@@ -95,7 +108,13 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
           }
         }
 
-        const bytes = await writeFileAtomically({ path, content, mode: stats?.mode, files: this.files, threadId })
+        const bytes = await writeFileAtomically({
+          path,
+          content,
+          mode: stats?.mode,
+          files: this.files,
+          threadId,
+        })
         const created = stats === null
         const emitChange = capture && captureFault === null && (created || before !== null)
 
@@ -105,7 +124,9 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
           modelText: created
             ? `File created successfully at: ${path}`
             : `The file ${path} has been updated successfully.`,
-          ...(emitChange ? { fileChanges: makeChange({ path, before: created ? null : before, after: content }) } : {}),
+          ...(emitChange
+            ? { fileChanges: makeChange({ path, before: created ? null : before, after: content }) }
+            : {}),
           ...(captureFault !== null ? { fileChangeFaults: [captureFault] } : {}),
         }
       },
@@ -114,4 +135,3 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
     return guarded.ok ? guarded.value : { ok: false, reason: guarded.reason }
   }
 }
-

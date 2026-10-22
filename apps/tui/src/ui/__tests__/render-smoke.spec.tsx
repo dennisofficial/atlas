@@ -22,9 +22,17 @@ const WIDTHS = [24, 40, 60, 100, 200] as const
 const DOCUMENTS: Record<string, string> = {
   headings: ['# one', '## two', '### three', '#### four', '##### five', '###### six'].join('\n\n'),
   prose: 'Some prose with **bold**, _italic_, `inline code` and a [link](https://example.com).',
-  lists: ['- one', '- two', '  - nested', '', '1. first', '2. second', '', '- [x] done', '- [ ] not'].join(
-    '\n',
-  ),
+  lists: [
+    '- one',
+    '- two',
+    '  - nested',
+    '',
+    '1. first',
+    '2. second',
+    '',
+    '- [x] done',
+    '- [ ] not',
+  ].join('\n'),
   quote: '> someone else said this\n>\n> over two paragraphs',
   table: [
     '| Engine | Model | Notes |',
@@ -138,7 +146,9 @@ describe('the ported components mount', () => {
     await expect(
       mount(
         <text>
-          <Spans spans={[{ text: 'a ' }, { text: 'coloured', fg: theme.accent }, { text: ' run' }]} />
+          <Spans
+            spans={[{ text: 'a ' }, { text: 'coloured', fg: theme.accent }, { text: ' run' }]}
+          />
         </text>,
         60,
       ),

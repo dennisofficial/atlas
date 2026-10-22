@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import { EPrEventKind, EPrReviewState, EPrVerdict } from '@dltech/atlas-core'
 
-import { parsePrEventFrame, prEventFrameSchema, prEventNoticeOf, repoOfFrame } from '../pr-event-frame'
+import {
+  parsePrEventFrame,
+  prEventFrameSchema,
+  prEventNoticeOf,
+  repoOfFrame,
+} from '../pr-event-frame'
 
 const frame = (over: Record<string, unknown> = {}) => ({
   id: 'evt_1',
@@ -36,7 +41,10 @@ describe('prEventFrameSchema', () => {
     ['a non-positive pr number', { prNumber: 0 }],
     ['a missing url', { payload: { body: 'x' } }],
     ['a null optional field', { payload: { url: 'u', body: null } }],
-    ['an unknown review state', { kind: 'review', payload: { url: 'u', reviewState: 'dismissed' } }],
+    [
+      'an unknown review state',
+      { kind: 'review', payload: { url: 'u', reviewState: 'dismissed' } },
+    ],
     ['an unknown verdict', { kind: 'verdict', payload: { url: 'u', verdict: 'maybe' } }],
   ])('rejects %s', (_, over) => {
     expect(prEventFrameSchema.safeParse(frame(over)).success).toBe(false)
@@ -61,10 +69,14 @@ describe('prEventNoticeOf', () => {
 
   it('carries verdict, mergeability and state only on the kinds that set them', () => {
     const verdict = prEventNoticeOf(
-      prEventFrameSchema.parse(frame({ kind: 'verdict', payload: { url: 'u', verdict: 'failed' } })),
+      prEventFrameSchema.parse(
+        frame({ kind: 'verdict', payload: { url: 'u', verdict: 'failed' } }),
+      ),
     )
     const mergeability = prEventNoticeOf(
-      prEventFrameSchema.parse(frame({ kind: 'mergeability', payload: { url: 'u', mergeable: false } })),
+      prEventFrameSchema.parse(
+        frame({ kind: 'mergeability', payload: { url: 'u', mergeable: false } }),
+      ),
     )
     const state = prEventNoticeOf(
       prEventFrameSchema.parse(frame({ kind: 'state', payload: { url: 'u', state: 'merged' } })),
@@ -79,17 +91,25 @@ describe('prEventNoticeOf', () => {
   it('carries a review state and leaves state for the state kind', () => {
     const notice = prEventNoticeOf(
       prEventFrameSchema.parse(
-        frame({ kind: 'review', payload: { url: 'u', authorLogin: 'octocat', reviewState: 'approved', headSha: 'abc' } }),
+        frame({
+          kind: 'review',
+          payload: { url: 'u', authorLogin: 'octocat', reviewState: 'approved', headSha: 'abc' },
+        }),
       ),
     )
 
-    expect(notice).toMatchObject({ kind: EPrEventKind.Review, reviewState: EPrReviewState.Approved })
+    expect(notice).toMatchObject({
+      kind: EPrEventKind.Review,
+      reviewState: EPrReviewState.Approved,
+    })
     expect(notice).not.toHaveProperty('state')
   })
 
   it('forwards the head sha a verdict frame carries, and omits it when absent', () => {
     const tipped = prEventNoticeOf(
-      prEventFrameSchema.parse(frame({ kind: 'verdict', payload: { url: 'u', verdict: 'green', headSha: 'abc1234' } })),
+      prEventFrameSchema.parse(
+        frame({ kind: 'verdict', payload: { url: 'u', verdict: 'green', headSha: 'abc1234' } }),
+      ),
     )
     const bare = prEventNoticeOf(
       prEventFrameSchema.parse(frame({ kind: 'verdict', payload: { url: 'u', verdict: 'green' } })),

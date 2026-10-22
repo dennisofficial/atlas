@@ -19,7 +19,9 @@ describe('the teammate and worktree contracts', () => {
 
     expect(teammate?.prompt).toContain('Create it with git worktree add')
     expect(teammate?.prompt).toContain('enter it by path with enter_worktree')
-    expect(tool.description).toContain('a teammate whose contract calls for its own worktree creates it with git worktree add')
+    expect(tool.description).toContain(
+      'a teammate whose contract calls for its own worktree creates it with git worktree add',
+    )
     expect(tool.description).toContain('adopts it here by path')
   })
 })

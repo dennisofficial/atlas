@@ -1,24 +1,24 @@
-import type { ReactNode } from "react";
-import { CircleCheckIcon, LoaderCircleIcon } from "lucide-react";
+import type { ReactNode } from 'react'
+import { CircleCheckIcon, LoaderCircleIcon } from 'lucide-react'
 
-import { Badge } from "#components/badge";
-import { Trace } from "#components/trace";
-import { EToolKind } from "./internal/kinds";
-import { Tool, EToolState, type ToolProps } from "./tool";
-import { Step } from "./internal/step";
+import { Badge } from '#components/badge'
+import { Trace } from '#components/trace'
+import { EToolKind } from './internal/kinds'
+import { Tool, EToolState, type ToolProps } from './tool'
+import { Step } from './internal/step'
 
-export { EToolKind, EToolState };
+export { EToolKind, EToolState }
 
 export interface SubagentProps {
-  name: string;
-  running?: boolean;
-  elapsed?: string;
-  model?: string;
-  tools?: string[];
-  prompt?: string;
-  calls?: ToolProps[];
-  result?: ReactNode;
-  defaultOpen?: boolean;
+  name: string
+  running?: boolean
+  elapsed?: string
+  model?: string
+  tools?: string[]
+  prompt?: string
+  calls?: ToolProps[]
+  result?: ReactNode
+  defaultOpen?: boolean
 }
 
 export function Subagent({
@@ -35,16 +35,10 @@ export function Subagent({
   return (
     <Trace>
       <Step
-        icon={
-          running ? (
-            <LoaderCircleIcon className="animate-spin" />
-          ) : (
-            <CircleCheckIcon />
-          )
-        }
-        title={`${running ? "Running" : "Ran"} the ${name} agent`}
+        icon={running ? <LoaderCircleIcon className="animate-spin" /> : <CircleCheckIcon />}
+        title={`${running ? 'Running' : 'Ran'} the ${name} agent`}
         description={elapsed}
-        status={running ? "running" : undefined}
+        status={running ? 'running' : undefined}
         defaultOpen={defaultOpen ?? running}
         keepMounted
         contentClassName="flex flex-col gap-3"
@@ -70,5 +64,5 @@ export function Subagent({
         {result ? <div className="text-foreground">{result}</div> : null}
       </Step>
     </Trace>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 import {
   ArrowLeftIcon,
   BoxIcon,
@@ -6,26 +6,26 @@ import {
   LayoutDashboardIcon,
   PlugIcon,
   type LucideIcon,
-} from "lucide-react";
+} from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { EProjectSettingsPage, PROJECT } from "../../fixtures/project-settings";
+import { EProjectSettingsPage, PROJECT } from '../../fixtures/project-settings'
 
 const NAV_ITEMS: readonly { page: EProjectSettingsPage; label: string; icon: LucideIcon }[] = [
-  { page: EProjectSettingsPage.Overview, label: "Overview", icon: LayoutDashboardIcon },
-  { page: EProjectSettingsPage.Sandbox, label: "Sandbox", icon: BoxIcon },
-  { page: EProjectSettingsPage.Secrets, label: "Secrets & Env Vars", icon: KeyRoundIcon },
-  { page: EProjectSettingsPage.Mcp, label: "MCP", icon: PlugIcon },
-];
+  { page: EProjectSettingsPage.Overview, label: 'Overview', icon: LayoutDashboardIcon },
+  { page: EProjectSettingsPage.Sandbox, label: 'Sandbox', icon: BoxIcon },
+  { page: EProjectSettingsPage.Secrets, label: 'Secrets & Env Vars', icon: KeyRoundIcon },
+  { page: EProjectSettingsPage.Mcp, label: 'MCP', icon: PlugIcon },
+]
 
 export function ProjectSettingsShell({
   active,
   children,
 }: {
-  active: EProjectSettingsPage;
-  children: ReactNode;
+  active: EProjectSettingsPage
+  children: ReactNode
 }) {
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
@@ -46,29 +46,29 @@ export function ProjectSettingsShell({
         <nav aria-label="Project settings" className="shrink-0 md:w-44">
           <ul className="flex gap-0.5 overflow-x-auto md:sticky md:top-20 md:flex-col">
             {NAV_ITEMS.map((item) => {
-              const current = item.page === active;
-              const Icon = item.icon;
+              const current = item.page === active
+              const Icon = item.icon
               return (
                 <li key={item.page}>
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-current={current ? "page" : undefined}
+                    aria-current={current ? 'page' : undefined}
                     className={cn(
-                      "w-full justify-start",
-                      current ? "bg-muted text-foreground" : "text-muted-foreground",
+                      'w-full justify-start',
+                      current ? 'bg-muted text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     <Icon data-icon="inline-start" />
                     {item.label}
                   </Button>
                 </li>
-              );
+              )
             })}
           </ul>
         </nav>
         <main className="flex min-w-0 flex-1 flex-col gap-10 pb-16">{children}</main>
       </div>
     </div>
-  );
+  )
 }

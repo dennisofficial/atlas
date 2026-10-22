@@ -3,11 +3,29 @@ import { basename, join } from 'node:path'
 
 import { EWorktreeExit, toThreadId } from '@dltech/atlas-core'
 
-import { sessionMetaSchema, type SessionMeta, threadMetaSchema, type ThreadMeta } from '../store/sessions/meta'
+import {
+  sessionMetaSchema,
+  type SessionMeta,
+  threadMetaSchema,
+  type ThreadMeta,
+} from '../store/sessions/meta'
 import { THREAD_META_FILE_SUFFIX, sessionMetaFile, threadsDirectory } from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
-import { ELinkedCheckouts, canonicalPath, claimCheckoutMarker, linkedCheckoutsOf, pathExists, registeredPrimaryOf, toplevelOf } from './family-ownership-git'
-import { readFamilyOwnership, writeFamilyOwnership, type FamilyCheckout, type FamilyOwnership } from './family-ownership-file'
+import {
+  ELinkedCheckouts,
+  canonicalPath,
+  claimCheckoutMarker,
+  linkedCheckoutsOf,
+  pathExists,
+  registeredPrimaryOf,
+  toplevelOf,
+} from './family-ownership-git'
+import {
+  readFamilyOwnership,
+  writeFamilyOwnership,
+  type FamilyCheckout,
+  type FamilyOwnership,
+} from './family-ownership-file'
 
 const isMissing = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'ENOENT'
@@ -21,9 +39,15 @@ async function readThreadMeta({ file }: { file: string }): Promise<ThreadMeta | 
   }
 }
 
-async function readSessionMeta({ sessionDir }: { sessionDir: string }): Promise<SessionMeta | undefined> {
+async function readSessionMeta({
+  sessionDir,
+}: {
+  sessionDir: string
+}): Promise<SessionMeta | undefined> {
   try {
-    return sessionMetaSchema.parse(JSON.parse(await readFile(sessionMetaFile({ sessionDir }), 'utf8')))
+    return sessionMetaSchema.parse(
+      JSON.parse(await readFile(sessionMetaFile({ sessionDir }), 'utf8')),
+    )
   } catch (error) {
     if (isMissing(error)) return undefined
     throw error
@@ -53,14 +77,24 @@ async function readThreadMetas({ sessionDir }: { sessionDir: string }): Promise<
   const directory = threadsDirectory({ sessionDir })
   const names = await namesIn({ directory })
   const metas = await Promise.all(
-    names.filter((name) => name.endsWith(THREAD_META_FILE_SUFFIX)).map((name) => readThreadMeta({ file: join(directory, name) })),
+    names
+      .filter((name) => name.endsWith(THREAD_META_FILE_SUFFIX))
+      .map((name) => readThreadMeta({ file: join(directory, name) })),
   )
   return metas
     .filter((meta): meta is ThreadMeta => meta !== undefined)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
 }
 
-async function claimsOfThread({ registry, sessionDir, meta }: { registry: SessionRegistry; sessionDir: string; meta: ThreadMeta }): Promise<string[]> {
+async function claimsOfThread({
+  registry,
+  sessionDir,
+  meta,
+}: {
+  registry: SessionRegistry
+  sessionDir: string
+  meta: ThreadMeta
+}): Promise<string[]> {
   const held = new Set<string>()
   const adopt = async (path: string): Promise<void> => {
     const checkout = await toplevelOf({ path })
@@ -80,7 +114,13 @@ async function claimsOfThread({ registry, sessionDir, meta }: { registry: Sessio
   return [...held]
 }
 
-async function candidatesOf({ registry, sessionDir }: { registry: SessionRegistry; sessionDir: string }): Promise<Map<string, string>> {
+async function candidatesOf({
+  registry,
+  sessionDir,
+}: {
+  registry: SessionRegistry
+  sessionDir: string
+}): Promise<Map<string, string>> {
   const candidates = new Map<string, string>()
   for (const meta of await readThreadMetas({ sessionDir })) {
     for (const path of await claimsOfThread({ registry, sessionDir, meta })) {
@@ -113,7 +153,12 @@ export async function ensureFamilyOwnership({
     if (worktree === undefined || worktree.isPrunable || !(await pathExists({ path }))) continue
     checkouts.push({ id: await claimCheckoutMarker({ checkout: path }), path, claimedBy })
   }
-  const ownership: FamilyOwnership = { version: 1, rootId: session.id || basename(sessionDir), primaryRepository: primary, checkouts }
+  const ownership: FamilyOwnership = {
+    version: 1,
+    rootId: session.id || basename(sessionDir),
+    primaryRepository: primary,
+    checkouts,
+  }
   await writeFamilyOwnership({ sessionDir, ownership })
   return ownership
 }

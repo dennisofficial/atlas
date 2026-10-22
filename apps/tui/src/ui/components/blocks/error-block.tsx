@@ -1,13 +1,7 @@
 import React from 'react'
 
 import { useClickRegion } from '../../hooks/use-click-region'
-import {
-  EKeyGroup,
-  EKeyLayer,
-  spellChord,
-  useKeyBindings,
-  type KeyDeclaration,
-} from '../../keys'
+import { EKeyGroup, EKeyLayer, spellChord, useKeyBindings, type KeyDeclaration } from '../../keys'
 import { formatElapsed, formatTokens, glyph, theme, TRANSCRIPT_INSET } from '../../theme'
 import { CloseButton } from '../close-button'
 import { Panel } from '../panel'
@@ -39,7 +33,11 @@ function Header(props: { cost: string; onDismiss?: () => void }): React.ReactNod
       <text fg={theme.error} bg={theme.panelBg}>{`${glyph.failed} ${HEADING}`}</text>
       <box flexGrow={1} />
       {props.cost.length === 0 ? null : (
-        <text fg={theme.hint} bg={theme.panelBg} marginRight={props.onDismiss === undefined ? 0 : 1}>
+        <text
+          fg={theme.hint}
+          bg={theme.panelBg}
+          marginRight={props.onDismiss === undefined ? 0 : 1}
+        >
           {props.cost}
         </text>
       )}
