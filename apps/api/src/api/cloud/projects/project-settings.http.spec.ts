@@ -86,11 +86,15 @@ describe('project settings and workspace link HTTP surface', () => {
       .set(as('session-a'))
       .send({
         values: {
-          'sandbox.vercelProjectId': encodeSettingValue('prj_1'),
           'model.effort': encodeSettingValue('high'),
         },
       })
       .expect(204)
+    await http()
+      .patch(base)
+      .set(as('session-a'))
+      .send({ values: { 'sandbox.vercelProjectId': encodeSettingValue('prj_1') } })
+      .expect(400)
     await http()
       .patch(base)
       .set(as('session-a'))
@@ -104,17 +108,14 @@ describe('project settings and workspace link HTTP surface', () => {
     await http().patch(base).set(as('session-a')).send({ values: {} }).expect(400)
 
     const read = await http().get(base).set(as('session-a')).expect(200)
-    expect(read.body.settings.map((entry: { key: string }) => entry.key)).toEqual([
-      'model.effort',
-      'sandbox.vercelProjectId',
-    ])
+    expect(read.body.settings.map((entry: { key: string }) => entry.key)).toEqual(['model.effort'])
 
     await http()
       .patch(base)
       .set(as('session-a'))
       .send({ values: { 'model.effort': null } })
       .expect(204)
-    expect(await db.orm.public.ProjectSetting.where((row) => row.id.neq('')).all()).toHaveLength(1)
+    expect(await db.orm.public.ProjectSetting.where((row) => row.id.neq('')).all()).toHaveLength(0)
   })
 
   it('404s another user on project settings', async () => {

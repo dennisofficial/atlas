@@ -9,8 +9,6 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { sealSecretValue } from '../secrets/sealed-secret'
 import { as, buildSessionApp } from '../session-test-app'
 import { seedProject, seedSessionUsers, seedWorkspace } from '../web-settings.fake-db'
-import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
-import { WorkspaceVercelService } from '../workspaces/workspace-vercel.service'
 import { ScopedConfigController } from './scoped-config.controller'
 import { VercelNotConfiguredError } from './scoped-config.errors'
 import { ScopedConfigService } from './scoped-config.service'
@@ -46,12 +44,6 @@ describe('GET /v1/sandboxes/self/config', () => {
     ])
     await db.orm.public.ProjectSetting.createAll([
       { id: 'p1', projectId: PROJECT, key: KEY, value: setting('high') },
-      {
-        id: 'p2',
-        projectId: PROJECT,
-        key: 'sandbox.vercelProjectId',
-        value: setting('prj_vercel'),
-      },
     ])
     await db.orm.public.WorkspaceSecret.create({
       id: 's1',
@@ -81,6 +73,13 @@ describe('GET /v1/sandboxes/self/config', () => {
       organizationId: ORG,
       sealedToken: seal('vtok_workspace'),
       teamId: 'team_ws',
+      vercelProjectId: 'prj_ws',
+    })
+    await db.orm.public.UserVercelCredential.create({
+      userId: 'user-a',
+      sealedToken: seal('vtok_personal'),
+      teamId: 'team_personal',
+      vercelProjectId: 'prj_personal',
     })
   }
 
@@ -88,7 +87,7 @@ describe('GET /v1/sandboxes/self/config', () => {
     await seedSessionUsers()
     app = await buildSessionApp({
       controllers: [ScopedConfigController],
-      providers: [ScopedConfigService, WorkspaceVercelService, WorkspaceAccessService],
+      providers: [ScopedConfigService],
       sandboxTokens: { [SANDBOX_TOKEN]: { id: 'sbx-1', threadId: THREAD, userId: 'user-a' } },
     })
     cipher = app.get(SecretCipherService)
@@ -107,8 +106,7 @@ describe('GET /v1/sandboxes/self/config', () => {
     expect(response.body.provenance[`setting:${KEY}`]).toBe('project')
     expect(response.body.secrets).toEqual([{ name: 'API', value: 'proj', kind: 'env' }])
     const body = JSON.stringify(response.body)
-    for (const leaked of ['vercel', 'vtok', 'team_', 'prj_vercel'])
-      expect(body).not.toContain(leaked)
+    for (const leaked of ['vercel', 'vtok', 'team_', 'prj_']) expect(body).not.toContain(leaked)
   })
 
   it('resolves user + defaults when the thread has no project', async () => {
@@ -132,40 +130,86 @@ describe('GET /v1/sandboxes/self/config', () => {
     await http().get('/v1/sandboxes/self/config').expect(401)
   })
 
-  it('hands provisioning the workspace credential plus the project id, or names the gap', async () => {
-    await seedAllScopes()
-    const scoped = app.get(ScopedConfigService)
-    expect(await scoped.vercelCredentials({ projectId: PROJECT })).toEqual({
-      token: 'vtok_workspace',
-      teamId: 'team_ws',
-      projectId: 'prj_vercel',
+  describe('vercelCredentials owner resolution', () => {
+    const workspaceThread = { userId: 'user-a', organizationId: ORG }
+    const personalThread = { userId: 'user-a', organizationId: null }
+    const scoped = () => app.get(ScopedConfigService)
+    const gapOf = (gap: EVercelCredentialGap) => ({ gap })
+
+    beforeEach(seedAllScopes)
+
+    it('hands a workspace thread the workspace credential and its project id', async () => {
+      expect(await scoped().vercelCredentials({ thread: workspaceThread })).toEqual({
+        token: 'vtok_workspace',
+        teamId: 'team_ws',
+        projectId: 'prj_ws',
+      })
     })
 
-    await db.orm.public.ProjectSetting.where({ id: 'p2' }).deleteAndCount()
-    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toMatchObject({
-      gap: EVercelCredentialGap.ProjectId,
+    it('names CredentialProjectId when the workspace credential has no project id', async () => {
+      await db.orm.public.WorkspaceVercelCredential.where({ organizationId: ORG }).update({
+        vercelProjectId: null,
+      })
+      const failure = scoped().vercelCredentials({ thread: workspaceThread })
+      await expect(failure).rejects.toBeInstanceOf(VercelNotConfiguredError)
+      await expect(failure).rejects.toMatchObject(gapOf(EVercelCredentialGap.CredentialProjectId))
     })
-    await db.orm.public.WorkspaceVercelCredential.where({ organizationId: ORG }).deleteAndCount()
-    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toMatchObject({
-      gap: EVercelCredentialGap.WorkspaceCredential,
+
+    it('treats a blank workspace project id as missing', async () => {
+      await db.orm.public.WorkspaceVercelCredential.where({ organizationId: ORG }).update({
+        vercelProjectId: '  ',
+      })
+      await expect(scoped().vercelCredentials({ thread: workspaceThread })).rejects.toMatchObject(
+        gapOf(EVercelCredentialGap.CredentialProjectId),
+      )
     })
-    await db.orm.public.Project.where({ id: PROJECT }).update({
-      organizationId: null,
-      ownerUserId: 'user-a',
+
+    it('names WorkspaceCredential when the workspace has none', async () => {
+      await db.orm.public.WorkspaceVercelCredential.where({ organizationId: ORG }).deleteAndCount()
+      await expect(scoped().vercelCredentials({ thread: workspaceThread })).rejects.toMatchObject(
+        gapOf(EVercelCredentialGap.WorkspaceCredential),
+      )
     })
-    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toBeInstanceOf(
-      VercelNotConfiguredError,
-    )
-    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toMatchObject({
-      gap: EVercelCredentialGap.ProjectWorkspace,
+
+    it('hands a personal thread the creator credential, with or without a personal project', async () => {
+      const expected = {
+        token: 'vtok_personal',
+        teamId: 'team_personal',
+        projectId: 'prj_personal',
+      }
+      expect(await scoped().vercelCredentials({ thread: personalThread })).toEqual(expected)
+      await seedProject({ id: 'proj-personal', ownerUserId: 'user-a' })
+      await seedThread({ db, id: 'thr-personal', userId: 'user-a', projectId: 'proj-personal' })
+      expect(await scoped().vercelCredentials({ thread: personalThread })).toEqual(expected)
+    })
+
+    it('names UserCredential when the creator has none, even with a workspace credential', async () => {
+      await db.orm.public.UserVercelCredential.where({ userId: 'user-a' }).deleteAndCount()
+      await expect(scoped().vercelCredentials({ thread: personalThread })).rejects.toMatchObject(
+        gapOf(EVercelCredentialGap.UserCredential),
+      )
+    })
+
+    it('never falls back from the workspace to the user credential', async () => {
+      await db.orm.public.WorkspaceVercelCredential.where({ organizationId: ORG }).deleteAndCount()
+      await expect(scoped().vercelCredentials({ thread: workspaceThread })).rejects.toMatchObject(
+        gapOf(EVercelCredentialGap.WorkspaceCredential),
+      )
+    })
+
+    it("reads the creator's own credential, not another member's", async () => {
+      await expect(
+        scoped().vercelCredentials({ thread: { userId: 'user-b', organizationId: null } }),
+      ).rejects.toMatchObject(gapOf(EVercelCredentialGap.UserCredential))
     })
   })
 
   it('keeps vercel keys for the provisioning resolve only', async () => {
     await seedAllScopes()
-    const full = await app
-      .get(ScopedConfigService)
-      .resolveWithProvisioning({ userId: 'user-a', projectId: PROJECT })
-    expect(full.settings['sandbox.vercelProjectId']).toBe(setting('prj_vercel'))
+    const scoped = app.get(ScopedConfigService)
+    const full = await scoped.resolveWithProvisioning({ userId: 'user-a', projectId: PROJECT })
+    expect(full.settings['sandbox.vercelTeamId']).toBe(setting('team_user'))
+    const pod = await scoped.resolveForPod({ userId: 'user-a', projectId: PROJECT })
+    expect(pod.settings['sandbox.vercelTeamId']).toBeUndefined()
   })
 })

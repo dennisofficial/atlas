@@ -27,7 +27,9 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
     if (thread.projectId === null && thread.executionLocation !== 'cloud') {
       return this.legacyCredentials()
     }
-    const credentials = await this.scoped.vercelCredentials({ thread })
+    const credentials = await this.scoped.vercelCredentials({
+      thread: { userId: thread.userId, organizationId: thread.organizationId },
+    })
     return { ...credentials, workspaceOwned: true }
   }
 
