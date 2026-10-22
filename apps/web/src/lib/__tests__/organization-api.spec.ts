@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import {
+  acceptInvitation,
   activeOrganizationId,
   createOrganization,
+  getInvitation,
+  isWrongRecipientError,
   listOrganizations,
+  rejectInvitation,
   OrganizationApiError,
   setActiveOrganization,
 } from '../organization-api'
@@ -107,5 +111,73 @@ describe('setActiveOrganization', () => {
     await expect(setActiveOrganization({ organizationId: 'org-1' })).rejects.toMatchObject({
       message: 'Could not switch organizations',
     })
+  })
+})
+
+describe('getInvitation', () => {
+  it('reads the invitation by encoded id', async () => {
+    answerWith(
+      json({
+        id: 'inv 1',
+        organizationId: 'org-1',
+        organizationName: 'Acme',
+        inviterEmail: 'boss@acme.dev',
+        role: 'member',
+        email: 'me@acme.dev',
+        status: 'pending',
+      }),
+    )
+
+    const invitation = await getInvitation('inv 1')
+
+    expect(fetchCalls[0]?.url).toBe('/api/auth/organization/get-invitation?id=inv%201')
+    expect(invitation).toMatchObject({
+      organizationName: 'Acme',
+      inviterEmail: 'boss@acme.dev',
+      role: 'member',
+      organizationId: 'org-1',
+    })
+  })
+
+  it('flags an invitation addressed to another account', async () => {
+    answerWith(
+      json({ code: 'YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION', message: 'not yours' }, 403),
+    )
+
+    const failure = await getInvitation('x').catch((cause: unknown) => cause)
+
+    expect(isWrongRecipientError(failure)).toBe(true)
+  })
+
+  it('raises with the server message when the invitation is gone', async () => {
+    answerWith(json({ message: 'Invitation not found!' }, 400))
+
+    await expect(getInvitation('x')).rejects.toMatchObject({ message: 'Invitation not found!' })
+  })
+})
+
+describe('accepting and rejecting invitations', () => {
+  it('posts the invitation id to accept-invitation', async () => {
+    answerWith(json({}))
+
+    await acceptInvitation('inv-1')
+
+    expect(fetchCalls[0]?.url).toBe('/api/auth/organization/accept-invitation')
+    expect(JSON.parse(String(fetchCalls[0]?.init?.body))).toEqual({ invitationId: 'inv-1' })
+  })
+
+  it('posts the invitation id to reject-invitation', async () => {
+    answerWith(json({}))
+
+    await rejectInvitation('inv-1')
+
+    expect(fetchCalls[0]?.url).toBe('/api/auth/organization/reject-invitation')
+    expect(JSON.parse(String(fetchCalls[0]?.init?.body))).toEqual({ invitationId: 'inv-1' })
+  })
+
+  it('raises when the answer is not ok', async () => {
+    answerWith(json({ message: 'nope' }, 403))
+
+    await expect(acceptInvitation('inv-1')).rejects.toMatchObject({ message: 'nope' })
   })
 })

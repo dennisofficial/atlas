@@ -1,13 +1,12 @@
 import { Suspense } from 'react'
 
-import { SignUpForm } from './sign-up-form'
+import { PageSpinner } from '@/features/auth/page-spinner'
+import { SignUpForm } from '@/features/auth/sign-up-form'
 
-export default function SignUpPage() {
+export default function Page() {
   return (
-    <div className="mx-auto w-full max-w-sm">
-      <Suspense>
-        <SignUpForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={<PageSpinner label="Loading…" />}>
+      <SignUpForm />
+    </Suspense>
   )
 }
