@@ -21,6 +21,7 @@ export function toThreadDto(row: Row<'Thread'>): ThreadDto {
       ? {}
       : { model: { ref: row.modelRef, effort: row.modelEffort } }),
     ...(row.executionLocation === null ? {} : { executionLocation: row.executionLocation }),
+    projectId: row.projectId,
   }
 }
 

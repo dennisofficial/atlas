@@ -1,190 +1,22 @@
-import { Inject, Injectable, Logger } from '@nestjs/common'
-import {
-  API_PROVISIONED_ENV,
-  BOOT_RUN_ID,
-  bootStepDraftOf,
-  createBootReporter,
-  EBootStep,
-  EBootStepState,
-  ESandboxProvisionState,
-  type BootReporter,
-  type SandboxProvisionReply,
-  type VercelCredentials,
-} from '@dltech/atlas-wire'
-import { db, type Row } from '@dltech/atlas-db'
-import { EnvService } from '../../../_core/config/env/env.service'
-import { BackgroundWork } from '../../../_core/ports/background-work'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { appendWithin } from '../../platform/sessions/append'
+import { Injectable } from '@nestjs/common'
+import type { SandboxProvisionReply } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
 import { ownedThread } from '../../platform/sessions/ownership'
-import {
-  failureText,
-  SANDBOX_WAKE_BOOT,
-  type SandboxWakeBoot,
-} from '../github/github-sandbox-wake-boot'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
-import { ScopedConfigService } from '../scoped-config/scoped-config.service'
-import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
-import {
-  claimRow,
-  markFailed,
-  markRunning,
-  standingStateOf,
-  type RowClaim,
-} from './sandbox-provisioning-rows'
-import { ThreadMessagesService } from './thread-messages.service'
-
-export const NO_PROJECT_MESSAGE =
-  'This thread has no project. Pick a project before sending your first message.'
-
-const DEFAULT_CLOUD_URL = 'https://api.byatlas.io'
-
-type BootTarget = {
-  thread: Row<'Thread'>
-  projectId: string
-  credentials: VercelCredentials
-  claim: RowClaim
-  reporter: BootReporter
-}
+import { dispatchFailure, PodLaunchService } from './pod-launch.service'
+import { standingStateOf } from './sandbox-provisioning-rows'
 
 @Injectable()
 export class SandboxProvisioningService {
-  private readonly logger = new Logger(SandboxProvisioningService.name)
-  private readonly bootsInFlight = new Set<Promise<void>>()
+  constructor(private readonly pod: PodLaunchService) {}
 
-  constructor(
-    private readonly scoped: ScopedConfigService,
-    private readonly env: EnvService,
-    private readonly cipher: SecretCipherService,
-    @Inject(SANDBOX_WAKE_BOOT) private readonly bootAdapter: SandboxWakeBoot,
-    @Inject(BackgroundWork) private readonly background: BackgroundWork,
-    private readonly messages: ThreadMessagesService,
-  ) {}
-
-  async settle(): Promise<void> {
-    await Promise.all([...this.bootsInFlight])
-  }
-
-  async provision(args: {
-    userId: string
-    threadId: string
-    projectId?: string | undefined
-  }): Promise<SandboxProvisionReply> {
+  async provision(args: { userId: string; threadId: string }): Promise<SandboxProvisionReply> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
-    const reporter = this.reporterOf(thread)
-    const projectId = await this.resolveProject({ thread, requested: args.projectId })
-    if (projectId === undefined) return this.notConfigured({ reporter, error: NO_PROJECT_MESSAGE })
-    if (thread.executionLocation === null) {
-      await db.orm.public.Thread.where({ id: thread.id }).update({ executionLocation: 'cloud' })
-    }
-
     const existing = await db.orm.public.CloudSandbox.first({ threadId: thread.id })
     const standing = existing === null ? undefined : standingStateOf(existing)
     if (standing !== undefined) return { state: standing }
 
-    const credentials = await this.credentialsOf({ thread })
-    if (credentials instanceof VercelNotConfiguredError) {
-      return this.notConfigured({ reporter, error: credentials.message })
-    }
-    const claim = await claimRow({ thread, existing, cipher: this.cipher })
-    if (claim !== null) this.startBoot({ thread, projectId, credentials, claim, reporter })
-    return { state: ESandboxProvisionState.Booting }
-  }
-
-  private async resolveProject(args: {
-    thread: Row<'Thread'>
-    requested: string | undefined
-  }): Promise<string | undefined> {
-    if (args.thread.projectId !== null) return args.thread.projectId
-    if (args.requested === undefined) return undefined
-    await this.scoped.accessibleProject({ userId: args.thread.userId, projectId: args.requested })
-    await db.orm.public.Thread.where({ id: args.thread.id }).update({
-      projectId: args.requested,
-      executionLocation: 'cloud',
-    })
-    return args.requested
-  }
-
-  private async credentialsOf(args: {
-    thread: Row<'Thread'>
-  }): Promise<VercelCredentials | VercelNotConfiguredError> {
-    try {
-      return await this.scoped.vercelCredentials({ thread: args.thread })
-    } catch (failure) {
-      if (failure instanceof VercelNotConfiguredError) return failure
-      throw failure
-    }
-  }
-
-  private async notConfigured(args: {
-    reporter: BootReporter
-    error: string
-  }): Promise<SandboxProvisionReply> {
-    await args.reporter.report({
-      step: EBootStep.Provision,
-      state: EBootStepState.Error,
-      error: args.error,
-    })
-    return { state: ESandboxProvisionState.NotConfigured, error: args.error }
-  }
-
-  private reporterOf(thread: Row<'Thread'>): BootReporter {
-    return createBootReporter({
-      log: (line) => this.logger.warn(line),
-      sink: async (events) => {
-        await db.transaction((tx) =>
-          appendWithin({
-            tx,
-            threadId: thread.id,
-            userId: thread.userId,
-            runId: BOOT_RUN_ID,
-            drafts: events.map(bootStepDraftOf),
-          }),
-        )
-      },
-    })
-  }
-
-  private startBoot(target: BootTarget): void {
-    const work = this.runBoot(target).finally(() => this.bootsInFlight.delete(work))
-    this.bootsInFlight.add(work)
-    this.background.keepAlive(work)
-  }
-
-  private async runBoot(target: BootTarget): Promise<void> {
-    const { thread, claim } = target
-    try {
-      const { serveUrl } = await this.bootAdapter.boot({
-        credentials: target.credentials,
-        name: claim.name,
-        threadId: thread.id,
-        image: this.env.get('SANDBOX_IMAGE'),
-        cloudUrl: this.env.get('ATLAS_CLOUD_URL') ?? DEFAULT_CLOUD_URL,
-        serveVersion: undefined,
-        freshToken: claim.token,
-        resumeToken: claim.token,
-        onFreshSandbox: () => Promise.resolve(),
-        injectVercelCredentials: false,
-        environment: { [API_PROVISIONED_ENV]: '1' },
-        reporter: target.reporter,
-        prepare: workspaceSpecWriter({ projectId: target.projectId, model: thread.modelRef }),
-      })
-      await markRunning({ threadId: thread.id, serveUrl })
-      await this.messages.drain({ threadId: thread.id })
-      this.logger.log(
-        `provisioned sandbox ${claim.name} for thread ${thread.id} — serve at ${serveUrl}`,
-      )
-    } catch (failure) {
-      this.logger.warn(
-        `provisioning sandbox ${claim.name} for thread ${thread.id} failed: ${failureText(failure)}`,
-      )
-      await markFailed({ threadId: thread.id, wakeClaim: claim.wakeClaim }).catch(
-        (releaseFailure: unknown) => {
-          this.logger.warn(
-            `releasing the claim on thread ${thread.id} failed: ${failureText(releaseFailure)}`,
-          )
-        },
-      )
-    }
+    const { reply, dispatchFailed } = await this.pod.launch({ thread, existing })
+    if (dispatchFailed) throw dispatchFailure()
+    return reply
   }
 }

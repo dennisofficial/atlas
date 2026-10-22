@@ -4,12 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { db, or } from '@dltech/atlas-db'
+import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { appendWithin, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { threadPullRequests, threadWorktree } from './places'
 import { toEventDto, toThreadDto } from './rows'
-import { threadProjectColumn } from './thread-project'
+import { threadProjectColumn, type ThreadProjectColumns } from './thread-project'
 import type {
   AdoptThreadDto,
   ChooseModelDto,
@@ -17,28 +17,56 @@ import type {
   OpenThreadDto,
   RenameThreadDto,
 } from './sessions.dto'
-import type { EventDto, ThreadDto } from './sessions.types'
+import type { EventDto, ThreadDraft, ThreadDto } from './sessions.types'
 
 const THREAD_LISTING_LIMIT = 50
+
+const createColumnsOf = (args: {
+  userId: string
+  draft: ThreadDraft
+  project: ThreadProjectColumns
+}) => {
+  const { draft } = args
+  return {
+    id: nextThreadId(),
+    userId: args.userId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...(draft.title === undefined ? {} : { title: draft.title }),
+    ...(draft.workspace === undefined ? {} : { workspace: draft.workspace }),
+    ...(draft.repo === undefined ? {} : { repo: draft.repo }),
+    ...(draft.model === undefined ? {} : { modelRef: draft.model }),
+    ...(draft.effort === undefined ? {} : { modelEffort: draft.effort }),
+    ...args.project,
+    ...(draft.agent === undefined
+      ? {}
+      : { spawnerThreadId: draft.agent.spawnedBy, agentType: draft.agent.type }),
+  }
+}
 
 @Injectable()
 export class ThreadsService {
   async create(args: { userId: string; draft: CreateThreadDto }): Promise<ThreadDto> {
-    const at = new Date()
-    const row = await db.orm.public.Thread.create({
-      id: nextThreadId(),
+    const project = await threadProjectColumn({
       userId: args.userId,
-      createdAt: at,
-      updatedAt: at,
-      ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
-      ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
-      ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
-      ...(await threadProjectColumn({ userId: args.userId, projectId: args.draft.projectId })),
-      ...(args.draft.agent === undefined
-        ? {}
-        : { spawnerThreadId: args.draft.agent.spawnedBy, agentType: args.draft.agent.type }),
+      projectId: args.draft.projectId,
     })
+    const row = await db.orm.public.Thread.create(
+      createColumnsOf({ userId: args.userId, draft: args.draft, project }),
+    )
     return toThreadDto(row)
+  }
+
+  async createWithin(args: {
+    tx: Tx
+    userId: string
+    draft: ThreadDraft
+    project: ThreadProjectColumns
+  }): Promise<Row<'Thread'>> {
+    return args.tx.orm.public.Thread.create({
+      ...createColumnsOf(args),
+      executionLocation: 'cloud',
+    })
   }
 
   async open(args: {

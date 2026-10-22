@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common'
 import { Throttle } from '@nestjs/throttler'
 import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
+import { ThreadLauncher, type ThreadLaunchReply } from '../../../_core/ports/thread-launcher'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
@@ -59,6 +60,7 @@ export class ThreadsController {
     private readonly threads: ThreadsService,
     private readonly history: ThreadsHistoryService,
     private readonly sandboxes: SandboxesService,
+    private readonly launcher: ThreadLauncher,
   ) {}
 
   @Post()
@@ -66,9 +68,11 @@ export class ThreadsController {
   async handleCreate(
     @Req() request: AuthenticatedRequest,
     @Body() body: CreateThreadDto,
-  ): Promise<ThreadDto> {
+  ): Promise<ThreadDto | ThreadLaunchReply> {
     await this.assertSandboxSpawn(request, body.agent)
-    return this.threads.create({ userId: userIdOf(request), draft: body })
+    const userId = userIdOf(request)
+    if (body.firstMessage === undefined) return this.threads.create({ userId, draft: body })
+    return this.launcher.launch({ userId, draft: body, firstMessage: body.firstMessage })
   }
 
   @Post('open')

@@ -1,26 +1,28 @@
-import { BadGatewayException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common'
 import {
-  ESandboxProvisionState,
-  EThreadMessageState,
-  threadMessageRequestSchema,
-  type ThreadMessageReply,
-  type ThreadMessageRequest,
-} from '@dltech/atlas-wire'
-import { db, type Row } from '@dltech/atlas-db'
+  BadGatewayException,
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common'
+import { EThreadMessageState, type ThreadMessageReply } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
+import { appendWithin, nextRunId } from '../../platform/sessions/append'
 import { ownedThread } from '../../platform/sessions/ownership'
+import { lockThread, retreatHead } from '../../platform/sessions/thread-head'
 import { failureText } from '../github/github-sandbox-wake-boot'
+import { findUserSaid, userSaidDraftOf } from './first-message'
+import { PodLaunchService } from './pod-launch.service'
 import { standingStateOf } from './sandbox-provisioning-rows'
+import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { SERVE_SEND, type ServeSend } from './serve-send'
 
-export const NOT_RUNNING_MESSAGE = "The sandbox isn't running. Start it first."
-export const SEND_PENDING_MESSAGE = 'A message is already waiting for the sandbox to start.'
 export const DELIVERY_FAILED_MESSAGE = "Couldn't hand the message to the sandbox. Try again."
-
-const pendingOf = (row: Row<'CloudSandbox'>): ThreadMessageRequest | undefined => {
-  const parsed = threadMessageRequestSchema.safeParse(row.pendingSend)
-  return parsed.success ? parsed.data : undefined
-}
+export const TAKE_BACK_TOO_LATE_MESSAGE =
+  'The sandbox already picked this message up, so it cannot be taken back.'
+export const TAKE_BACK_NOT_FOUND_MESSAGE = 'message not found'
 
 @Injectable()
 export class ThreadMessagesService {
@@ -29,6 +31,7 @@ export class ThreadMessagesService {
   constructor(
     private readonly endpoints: SandboxEndpointService,
     @Inject(SERVE_SEND) private readonly serve: ServeSend,
+    private readonly pod: PodLaunchService,
   ) {}
 
   async send(args: {
@@ -38,7 +41,7 @@ export class ThreadMessagesService {
     text: string
   }): Promise<ThreadMessageReply> {
     const { userId, threadId, sendId, text } = args
-    await ownedThread({ reader: db, userId, threadId })
+    const thread = await ownedThread({ reader: db, userId, threadId })
 
     const endpoint = await this.endpoints.runningEndpoint({ userId, threadId })
     if (endpoint !== null) {
@@ -51,39 +54,47 @@ export class ThreadMessagesService {
       return { state: EThreadMessageState.Delivered }
     }
 
-    const row = await db.orm.public.CloudSandbox.first({ threadId })
-    if (row === null || standingStateOf(row) !== ESandboxProvisionState.Booting) {
-      throw new ConflictException(NOT_RUNNING_MESSAGE)
-    }
-    const held = pendingOf(row)
-    if (held !== undefined && held.sendId !== sendId)
-      throw new ConflictException(SEND_PENDING_MESSAGE)
-    if (held === undefined) {
-      await db.orm.public.CloudSandbox.where({ threadId }).update({ pendingSend: { sendId, text } })
-    }
-    await this.drain({ threadId })
+    await this.appendOnce({ userId, threadId, sendId, text })
+    const existing = await db.orm.public.CloudSandbox.first({ threadId })
+    const standing = existing === null ? undefined : standingStateOf(existing)
+    if (standing !== ESandboxProvisionState.Booting) await this.pod.launch({ thread, existing })
     return { state: EThreadMessageState.Queued }
   }
 
-  async drain(args: { threadId: string }): Promise<void> {
-    const { threadId } = args
-    try {
-      const row = await db.orm.public.CloudSandbox.first({ threadId })
-      const pending = row === null ? undefined : pendingOf(row)
-      if (row === null || pending === undefined) return
-      const endpoint = await this.endpoints.runningEndpoint({ userId: row.userId, threadId })
-      if (endpoint === null) return
-      await this.serve({ ...endpoint, threadId, ...pending })
-      const clear = db.raw.sql`UPDATE "CloudSandbox"
-        SET "pendingSend" = NULL
-        WHERE "threadId" = ${threadId} AND "pendingSend"->>'sendId' = ${pending.sendId}`
-        .affectedCount()
-        .build()
-      await db.execute(clear)
-    } catch (failure) {
-      this.logger.warn(
-        `draining the pending message of thread ${threadId} failed: ${failureText(failure)}`,
-      )
+  async takeBack(args: { userId: string; threadId: string; sendId: string }): Promise<void> {
+    const { userId, threadId, sendId } = args
+    await ownedThread({ reader: db, userId, threadId })
+    if ((await this.endpoints.runningEndpoint({ userId, threadId })) !== null) {
+      throw new ConflictException(TAKE_BACK_TOO_LATE_MESSAGE)
     }
+    await db.transaction(async (tx) => {
+      await lockThread({ tx, threadId })
+      const event = await findUserSaid({ reader: tx, threadId, sendId })
+      if (event === null) throw new NotFoundException(TAKE_BACK_NOT_FOUND_MESSAGE)
+      const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
+      if (event.seq !== thread.head) throw new ConflictException(TAKE_BACK_TOO_LATE_MESSAGE)
+      await tx.orm.public.Event.where({ id: event.id }).delete()
+      await retreatHead({ tx, threadId, at: new Date() })
+    })
+  }
+
+  private appendOnce(args: {
+    userId: string
+    threadId: string
+    sendId: string
+    text: string
+  }): Promise<void> {
+    const { userId, threadId, sendId, text } = args
+    return db.transaction(async (tx) => {
+      await lockThread({ tx, threadId })
+      if ((await findUserSaid({ reader: tx, threadId, sendId })) !== null) return
+      await appendWithin({
+        tx,
+        threadId,
+        userId,
+        runId: nextRunId(),
+        drafts: [userSaidDraftOf({ sendId, text })],
+      })
+    })
   }
 }
