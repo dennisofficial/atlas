@@ -129,12 +129,22 @@ function deep(params: {
   });
 }
 
-function watched(params: { target: Callable; access: (key: string) => void }): Callable {
-  const { target, access } = params;
+function watched(params: {
+  target: Callable;
+  access: (key: string) => void;
+  owner?: object | undefined;
+}): Callable {
+  const { target, access, owner } = params;
   return new Proxy(target, {
     get(inner, name) {
+      const value: unknown = Reflect.get(inner, name);
       if (typeof name === 'string') access(name);
-      return Reflect.get(inner, name);
+      if (typeof value !== 'function') return value;
+      return watched({ target: value as Callable, access, owner: inner });
+    },
+    apply(inner, self, args) {
+      const result = Reflect.apply(inner, owner ?? self, args);
+      return typeof result === 'function' ? watched({ target: result as Callable, access }) : result;
     },
   });
 }

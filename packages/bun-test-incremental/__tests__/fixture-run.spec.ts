@@ -194,6 +194,18 @@ describe('incremental pass cache', () => {
     expect(warm.reused).toBe(1);
   });
 
+  test('describe.skipIf and it.skipIf work with true and false conditions', () => {
+    const fixture = new Fixture({
+      '__tests__/skipif.spec.ts':
+        "import { describe, expect, it } from 'bun:test'\nconst yes = process.argv.length > 0\nconst no = !yes\ndescribe.skipIf(no)('suite runs', () => {\n  it('inner runs', () => { expect([1, 2]).toContain(2) })\n  it.skipIf(yes)('inner skipped', () => { throw new Error('must not run') })\n  it.skipIf(no)('inner conditional runs', () => { expect(1).toBe(1) })\n})\ndescribe.skipIf(yes)('suite skipped', () => {\n  it('never', () => { throw new Error('must not run') })\n})\n",
+    });
+    const cold = fixture.run('1');
+    expect(cold.output).not.toContain('(fail)');
+    expect(cold.output).not.toContain('ScopeFunctions');
+    expect(cold.exitCode).toBe(0);
+    expect(cold.recorded).toBe(1);
+  });
+
   test('is inert when BUN_TEST_INCREMENTAL is unset or 0', () => {
     const fixture = abc();
     const result = Bun.spawnSync(['bun', 'test', '--preload', PRELOAD_PATH], {
