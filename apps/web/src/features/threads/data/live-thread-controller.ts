@@ -85,7 +85,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
         readAgain = false
         const reply = await live.request({
           op: EClientRequest.ReadEvents,
-          params: { threadId: args.threadId, fromSeq: headOf(state.events) + 1, own: true },
+          params: { threadId: args.threadId, fromSeq: headOf(state.events), own: true },
         })
         if (stopped || fellBack) return
         const { events } = readEventsReplySchema.parse(reply)
